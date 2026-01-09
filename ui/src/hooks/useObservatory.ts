@@ -639,3 +639,83 @@ export function useTaskTimeline(taskId: string | null) {
 
   return { timeline, loading, error, refresh };
 }
+
+// ===== Approval Types (M-TASK-HIERARCHY) =====
+
+export interface Approval {
+  id: string;
+  task_id: string;
+  thread_id?: string;
+  request_type: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  branch_name?: string;
+  worktree_path?: string;
+  summary?: string;
+  diff_preview?: string;
+  created_at: string;
+  expires_at?: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  review_notes?: string;
+}
+
+// Hook for approvals
+interface UseApprovalsOptions {
+  status?: string;
+  limit?: number;
+}
+
+export function useApprovals(options: UseApprovalsOptions = {}) {
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const status = options.status || 'pending';
+      const data = await fetch(`/api/approvals?status=${status}`);
+      if (!data.ok) {
+        throw new Error(`API error: ${data.statusText}`);
+      }
+      const result = await data.json();
+      setApprovals(result || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch approvals');
+      setApprovals([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [options.status]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const approveApproval = useCallback(async (approvalId: string, notes?: string) => {
+    const response = await fetch(`/api/approvals/${approvalId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: notes || '' }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to approve');
+    }
+    await refresh();
+  }, [refresh]);
+
+  const rejectApproval = useCallback(async (approvalId: string, notes?: string) => {
+    const response = await fetch(`/api/approvals/${approvalId}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: notes || '' }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to reject');
+    }
+    await refresh();
+  }, [refresh]);
+
+  return { approvals, loading, error, refresh, approveApproval, rejectApproval };
+}

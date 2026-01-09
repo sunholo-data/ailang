@@ -9,6 +9,9 @@ export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use';
 // View mode toggle
 export type ViewMode = 'tree' | 'graph';
 
+// Coordinator task view mode
+export type CoordinatorViewMode = 'nested' | 'breakout';
+
 // Status for all node types
 export type NodeStatus = 'idle' | 'busy' | 'error' | 'completed' | 'pending' | 'unknown';
 
@@ -24,6 +27,22 @@ export interface HierarchyNode {
   // Optional fields for enhanced display
   turnNumber?: number;      // For turn nodes - sequential turn number
   _span?: Span;             // Original span data for popover display
+  // Collapsibility (Milestone 2)
+  isCollapsible?: boolean;  // Has children that can be collapsed
+  isExpanded?: boolean;     // Current expanded state (controlled by parent)
+  childCount?: number;      // Total descendant count for collapsed badge
+  // Metrics (Milestone 4)
+  cost?: number;            // Cost in USD
+  tokensIn?: number;        // Input tokens
+  tokensOut?: number;       // Output tokens
+  provider?: 'claude' | 'gemini' | 'ollama' | string;  // AI provider
+  semanticType?: string;    // Extended type for styling (coordinator, executor, ailang)
+  // Coordinator context (Milestone 5)
+  taskId?: string;          // Coordinator task ID
+  parentTaskId?: string;    // Parent coordinator task ID (for nesting)
+  approvalStatus?: 'pending' | 'approved' | 'rejected' | 'none';  // Approval workflow status
+  approvalId?: string;      // Approval request ID
+  agentId?: string;         // Agent that executed this task
 }
 
 // Message node (Level 1) - triggers coordinator tasks

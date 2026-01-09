@@ -6,9 +6,11 @@
  * Uses the SAME spans data as TraceWaterfall for consistency.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus } from './types';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
+import { ApprovalPanel } from '../ApprovalPanel';
+import { useApprovals, useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
 import styles from './ExecHierarchy.module.css';
 
 // Popover max dimensions
@@ -16,14 +18,103 @@ const POPOVER_MAX_WIDTH = 420;
 const POPOVER_MAX_HEIGHT = 500;
 const POPOVER_MARGIN = 16;
 
-// Determine node type from span name
+// Extended node types for better visualization
+type ExtendedNodeType = HierarchyNode['type'] | 'coordinator' | 'executor' | 'ailang';
+
+// Determine node type from span name with semantic patterns
 function getNodeType(name: string): HierarchyNode['type'] {
-  const lower = name.toLowerCase();
-  if (lower.includes('message') || lower.includes('msg')) return 'message';
-  if (lower.includes('turn')) return 'turn';
-  if (lower.includes('tool') || lower.includes('bash') || lower.includes('read') || lower.includes('write') || lower.includes('edit')) return 'tool_use';
-  // Default to exec for exec.*, compile.*, etc.
+  // Coordinator task execution
+  if (name === 'coordinator.task.execute') return 'exec';
+  // Executor spans (Claude/Gemini)
+  if (name === 'claude.execute' || name === 'gemini.execute') return 'exec';
+  // Turn spans
+  if (name.startsWith('exec.turn') || name.includes('.turn')) return 'turn';
+  // Tool use spans
+  if (name === 'exec.tool_use' || name.includes('tool')) return 'tool_use';
+  // Message spans
+  if (name.includes('message') || name.includes('msg')) return 'message';
+  // Default to exec for ailang.*, compile.*, etc.
   return 'exec';
+}
+
+// Get semantic type for enhanced display (used for labels/icons)
+function getSemanticType(name: string): ExtendedNodeType {
+  if (name === 'coordinator.task.execute') return 'coordinator';
+  if (name === 'claude.execute' || name === 'gemini.execute') return 'executor';
+  if (name.startsWith('ailang.') || name.startsWith('compile.') || name.startsWith('eval.')) return 'ailang';
+  return getNodeType(name);
+}
+
+// Extract smart label from span name and attributes
+function getSmartLabel(span: Span): string {
+  const name = span.name;
+  const attrs = span.attributes || {};
+
+  // Coordinator task: use task.title or extract from directive
+  if (name === 'coordinator.task.execute') {
+    const title = attrs['task.title'] || attrs['directive'];
+    if (title) {
+      return title.length > 40 ? title.substring(0, 40) + '...' : title;
+    }
+    return 'Coordinator Task';
+  }
+
+  // Claude/Gemini executor: show provider + directive prefix
+  if (name === 'claude.execute') {
+    const directive = attrs['directive'] || attrs['task.directive'] || '';
+    if (directive) {
+      const prefix = directive.length > 35 ? directive.substring(0, 35) + '...' : directive;
+      return `Claude: ${prefix}`;
+    }
+    return 'Claude Execute';
+  }
+  if (name === 'gemini.execute') {
+    const directive = attrs['directive'] || attrs['task.directive'] || '';
+    if (directive) {
+      const prefix = directive.length > 35 ? directive.substring(0, 35) + '...' : directive;
+      return `Gemini: ${prefix}`;
+    }
+    return 'Gemini Execute';
+  }
+
+  // Turn: use turn.number
+  if (name.startsWith('exec.turn') || name.includes('.turn')) {
+    const turnNum = attrs['turn.number'] || attrs['exec.turn'] || attrs['turn_number'];
+    if (turnNum) return `Turn ${turnNum}`;
+    return name.replace('exec.', '');
+  }
+
+  // Tool use: show tool name and brief input
+  if (name === 'exec.tool_use') {
+    const toolName = attrs['tool.name'] || attrs['tool_name'] || 'Tool';
+    const input = attrs['tool.input'] || attrs['input'] || '';
+    if (input && typeof input === 'string') {
+      // Extract first meaningful part of input
+      const brief = input.split('\n')[0].substring(0, 30);
+      return `${toolName}: ${brief}${input.length > 30 ? '...' : ''}`;
+    }
+    return toolName;
+  }
+
+  // AILANG operations: show clean operation name
+  if (name.startsWith('ailang.')) {
+    return name.replace('ailang.', '').replace(/\./g, ' → ');
+  }
+  if (name.startsWith('compile.')) {
+    return 'Compile: ' + name.replace('compile.', '');
+  }
+  if (name.startsWith('eval.')) {
+    return 'Eval: ' + name.replace('eval.', '');
+  }
+
+  // API requests: show model
+  if (name.includes('api_request') || name.includes('generate')) {
+    const model = attrs['model'] || attrs['gen_ai.request.model'] || '';
+    if (model) return `API: ${model}`;
+  }
+
+  // Default: clean up the span name
+  return name.replace(/\./g, ' ').replace(/_/g, ' ');
 }
 
 // Convert span status to node status
@@ -53,18 +144,75 @@ function getTurnNumber(span: Span, siblingIndex?: number): number | undefined {
   return undefined;
 }
 
+// Extract metrics from span attributes
+function extractMetrics(span: Span): { cost?: number; tokensIn?: number; tokensOut?: number; provider?: string } {
+  const attrs = span.attributes || {};
+
+  // Try various attribute naming conventions
+  const cost = parseFloat(attrs['cost_usd'] || attrs['cost'] || attrs['total_cost'] || '0') || undefined;
+  const tokensIn = parseInt(attrs['tokens_in'] || attrs['input_tokens'] || attrs['gen_ai.usage.prompt_tokens'] || '0', 10) || undefined;
+  const tokensOut = parseInt(attrs['tokens_out'] || attrs['output_tokens'] || attrs['gen_ai.usage.completion_tokens'] || '0', 10) || undefined;
+
+  // Detect provider from span name or attributes
+  let provider: string | undefined;
+  if (span.name.includes('claude') || attrs['provider'] === 'claude') {
+    provider = 'claude';
+  } else if (span.name.includes('gemini') || attrs['provider'] === 'gemini') {
+    provider = 'gemini';
+  } else if (span.name.includes('ollama') || attrs['provider'] === 'ollama') {
+    provider = 'ollama';
+  } else if (attrs['provider']) {
+    provider = attrs['provider'];
+  }
+
+  return { cost, tokensIn, tokensOut, provider };
+}
+
+// Extract coordinator context from span attributes
+function extractCoordinatorContext(span: Span): {
+  taskId?: string;
+  parentTaskId?: string;
+  agentId?: string;
+  approvalStatus?: 'pending' | 'approved' | 'rejected' | 'none';
+  approvalId?: string;
+} {
+  const attrs = span.attributes || {};
+
+  return {
+    taskId: attrs['task.id'] || attrs['task_id'] || attrs['ailang.task_id'] || undefined,
+    parentTaskId: attrs['task.parent_id'] || attrs['parent_task_id'] || attrs['ailang.parent_task_id'] || undefined,
+    agentId: attrs['agent.id'] || attrs['agent_id'] || undefined,
+    approvalStatus: attrs['approval.status'] || attrs['approval_status'] || undefined,
+    approvalId: attrs['approval.id'] || attrs['approval_id'] || undefined,
+  };
+}
+
+// Check if span is a coordinator task
+function isCoordinatorTask(span: Span): boolean {
+  return span.name === 'coordinator.task.execute';
+}
+
 // Transform Span[] to HierarchyNode[] (recursive)
-function spanToHierarchyNode(span: Span, siblingIndex?: number): HierarchyNode {
+function spanToHierarchyNode(span: Span, siblingIndex?: number, depth: number = 0): HierarchyNode {
   const nodeType = getNodeType(span.name);
   const isTurn = nodeType === 'turn';
   const turnNumber = isTurn ? getTurnNumber(span, siblingIndex) : undefined;
+  const semanticType = getSemanticType(span.name);
 
-  // Generate label with turn number if applicable
-  const label = isTurn && turnNumber
-    ? `Turn ${turnNumber}`
-    : span.name;
+  // Use smart label extraction
+  const label = getSmartLabel(span);
 
-  return {
+  // Extract metrics
+  const metrics = extractMetrics(span);
+
+  // Extract coordinator context
+  const coordContext = extractCoordinatorContext(span);
+
+  // Transform children first so we can count them
+  const children = span.children?.map((child, idx) => spanToHierarchyNode(child, idx, depth + 1));
+  const hasChildren = children && children.length > 0;
+
+  const node: HierarchyNode = {
     id: span.id,
     type: nodeType,
     label,
@@ -72,13 +220,96 @@ function spanToHierarchyNode(span: Span, siblingIndex?: number): HierarchyNode {
     durationMs: span.durationMs,
     turnNumber,
     _span: span,  // Preserve original span for popover
-    children: span.children?.map((child, idx) => spanToHierarchyNode(child, idx)),
+    children,
+    // Collapsibility
+    isCollapsible: hasChildren,
+    childCount: hasChildren ? countDescendants({ children } as HierarchyNode) + children.length : 0,
+    // Metrics
+    cost: metrics.cost,
+    tokensIn: metrics.tokensIn,
+    tokensOut: metrics.tokensOut,
+    provider: metrics.provider,
+    semanticType,
+    // Coordinator context
+    taskId: coordContext.taskId,
+    parentTaskId: coordContext.parentTaskId,
+    agentId: coordContext.agentId,
+    approvalStatus: coordContext.approvalStatus,
+    approvalId: coordContext.approvalId,
   };
+
+  return node;
 }
 
 // Transform spans to hierarchy nodes
 function transformSpansToNodes(spans: Span[]): HierarchyNode[] {
   return spans.map((span, idx) => spanToHierarchyNode(span, idx));
+}
+
+// Extract nested coordinator tasks for breakout view
+// Returns all coordinator tasks as separate root nodes with parent links preserved
+function breakoutCoordinatorTasks(nodes: HierarchyNode[]): HierarchyNode[] {
+  const result: HierarchyNode[] = [];
+  const coordinatorNodes: HierarchyNode[] = [];
+
+  // Collect all coordinator nodes and their children
+  const collectCoordinatorNodes = (nodeList: HierarchyNode[], parentTaskId?: string) => {
+    for (const node of nodeList) {
+      // Check if this is a coordinator task (semanticType or span name)
+      const isCoordinator = node.semanticType === 'coordinator' ||
+        node._span?.name === 'coordinator.task.execute';
+
+      if (isCoordinator) {
+        // Create a copy with parent reference preserved
+        const coordNode: HierarchyNode = {
+          ...node,
+          parentTaskId: parentTaskId || node.parentTaskId,
+        };
+
+        // Recursively collect nested coordinators, then remove them from children
+        if (node.children && node.children.length > 0) {
+          const nonCoordChildren: HierarchyNode[] = [];
+          for (const child of node.children) {
+            const childIsCoord = child.semanticType === 'coordinator' ||
+              child._span?.name === 'coordinator.task.execute';
+            if (childIsCoord) {
+              // This child is a coordinator - collect it separately
+              collectCoordinatorNodes([child], coordNode.taskId || coordNode.id);
+            } else {
+              nonCoordChildren.push(child);
+            }
+          }
+          coordNode.children = nonCoordChildren;
+          coordNode.childCount = nonCoordChildren.length > 0 ?
+            countDescendants(coordNode) + nonCoordChildren.length : 0;
+        }
+
+        coordinatorNodes.push(coordNode);
+      } else {
+        // Not a coordinator - keep in place but check children for nested coordinators
+        const nodeCopy = { ...node };
+        if (node.children && node.children.length > 0) {
+          const nonCoordChildren: HierarchyNode[] = [];
+          for (const child of node.children) {
+            const childIsCoord = child.semanticType === 'coordinator' ||
+              child._span?.name === 'coordinator.task.execute';
+            if (childIsCoord) {
+              collectCoordinatorNodes([child], parentTaskId);
+            } else {
+              nonCoordChildren.push(child);
+            }
+          }
+          nodeCopy.children = nonCoordChildren;
+        }
+        result.push(nodeCopy);
+      }
+    }
+  };
+
+  collectCoordinatorNodes(nodes);
+
+  // Combine: non-coordinator roots + all coordinator nodes as separate roots
+  return [...result, ...coordinatorNodes];
 }
 
 // Format duration for display
@@ -100,6 +331,23 @@ function getNodeIcon(type: HierarchyNode['type']): string {
   }
 }
 
+// Count total descendants recursively
+function countDescendants(node: HierarchyNode): number {
+  if (!node.children || node.children.length === 0) return 0;
+  return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
+}
+
+// Determine default expanded state based on node type and depth
+function getDefaultExpandedState(node: HierarchyNode, depth: number): boolean {
+  // Always expand top-level coordinator/exec nodes
+  if (depth === 0) return true;
+  // Expand turns (they're the main navigation units)
+  if (node.type === 'turn') return true;
+  // Collapse tool_use and deep nodes by default (reduce noise)
+  if (node.type === 'tool_use' || depth > 2) return false;
+  return true;
+}
+
 export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   isExpanded,
   onToggleExpand,
@@ -112,6 +360,32 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
 
+  // Coordinator view mode: nested (default) or breakout
+  const [coordViewMode, setCoordViewMode] = useState<CoordinatorViewMode>('nested');
+
+  // Collapsibility state: Set of node IDs that are expanded
+  // START COLLAPSED - empty set means only root nodes visible
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+
+  // Track expand/collapse changes for recentering
+  const [expandChangeCounter, setExpandChangeCounter] = useState(0);
+
+  // Approval panel state
+  const [approvalPanelOpen, setApprovalPanelOpen] = useState(false);
+  const { approvals: pendingApprovals } = useApprovals({ status: 'pending' });
+
+  // Real-time updates via WebSocket
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const { isConnected, connectionState, lastEventTime } = useObservatoryWs({
+    onSpanCreated: useCallback((span: ObsSpan) => {
+      // Update last event time for visual feedback
+      setLastUpdate(new Date());
+    }, []),
+    onSpanUpdated: useCallback((span: ObsSpan) => {
+      setLastUpdate(new Date());
+    }, []),
+  });
+
   // Popover state
   const [popoverNode, setPopoverNode] = useState<HierarchyNode | null>(null);
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
@@ -119,10 +393,151 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Transform spans to hierarchy nodes (same data as TraceWaterfall)
-  const nodes = useMemo(() => {
+  const rawNodes = useMemo(() => {
     if (!spans || spans.length === 0) return [];
     return transformSpansToNodes(spans);
   }, [spans]);
+
+  // Apply coordinator view mode transformation
+  const nodes = useMemo(() => {
+    if (coordViewMode === 'breakout') {
+      return breakoutCoordinatorTasks(rawNodes);
+    }
+    return rawNodes;
+  }, [rawNodes, coordViewMode]);
+
+  // Expand ONE LEVEL: expand children of currently expanded nodes (or roots if nothing expanded)
+  const expandOneLevel = useCallback(() => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+
+      // Helper to find all nodes at given IDs
+      const findNode = (id: string, nodeList: HierarchyNode[]): HierarchyNode | undefined => {
+        for (const node of nodeList) {
+          if (node.id === id) return node;
+          if (node.children) {
+            const found = findNode(id, node.children);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+
+      // If nothing expanded, expand root nodes
+      if (prev.size === 0) {
+        nodes.forEach(n => {
+          if (n.isCollapsible) {
+            next.add(n.id);
+          }
+        });
+        return next;
+      }
+
+      // Find children of currently expanded nodes and expand them
+      const expandChildren = (nodeList: HierarchyNode[]) => {
+        for (const node of nodeList) {
+          if (prev.has(node.id) && node.children) {
+            // This node is expanded, expand its children
+            node.children.forEach(child => {
+              if (child.isCollapsible) {
+                next.add(child.id);
+              }
+            });
+          }
+          // Recurse to check nested expanded nodes
+          if (node.children) {
+            expandChildren(node.children);
+          }
+        }
+      };
+
+      expandChildren(nodes);
+      return next;
+    });
+    setExpandChangeCounter(c => c + 1);
+  }, [nodes]);
+
+  // Collapse ONE LEVEL: collapse the deepest expanded nodes
+  const collapseOneLevel = useCallback(() => {
+    setExpandedNodes(prev => {
+      if (prev.size === 0) return prev;
+
+      // Find the depth of each expanded node
+      const getDepth = (id: string, nodeList: HierarchyNode[], depth: number): number => {
+        for (const node of nodeList) {
+          if (node.id === id) return depth;
+          if (node.children) {
+            const found = getDepth(id, node.children, depth + 1);
+            if (found >= 0) return found;
+          }
+        }
+        return -1;
+      };
+
+      // Get depths of all expanded nodes
+      const depths = new Map<string, number>();
+      prev.forEach(id => {
+        const depth = getDepth(id, nodes, 0);
+        if (depth >= 0) depths.set(id, depth);
+      });
+
+      // Find max depth
+      let maxDepth = -1;
+      depths.forEach(d => {
+        if (d > maxDepth) maxDepth = d;
+      });
+
+      // Remove nodes at max depth
+      const next = new Set<string>();
+      prev.forEach(id => {
+        const depth = depths.get(id);
+        if (depth !== undefined && depth < maxDepth) {
+          next.add(id);
+        }
+      });
+
+      return next;
+    });
+    setExpandChangeCounter(c => c + 1);
+  }, [nodes]);
+
+  // Toggle expand/collapse for a node (individual click)
+  const handleToggleExpand = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+    setExpandChangeCounter(c => c + 1);
+  }, []);
+
+  // Expand all nodes
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set<string>();
+    const collect = (nodeList: HierarchyNode[]) => {
+      for (const node of nodeList) {
+        if (node.isCollapsible) {
+          allIds.add(node.id);
+        }
+        if (node.children) {
+          collect(node.children);
+        }
+      }
+    };
+    collect(nodes);
+    setExpandedNodes(allIds);
+    setExpandChangeCounter(c => c + 1);
+  }, [nodes]);
+
+  // Collapse all nodes
+  const handleCollapseAll = useCallback(() => {
+    setExpandedNodes(new Set());
+    setExpandChangeCounter(c => c + 1);
+  }, []);
 
   const isEmpty = propsIsEmpty ?? nodes.length === 0;
 
@@ -197,9 +612,70 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           {!isEmpty && nodes.length > 0 && (
             <span className={styles.headerBadge}>{nodes.length}</span>
           )}
+          {/* Live connection indicator */}
+          <span
+            className={`${styles.liveIndicator} ${isConnected ? styles.liveIndicatorConnected : styles.liveIndicatorDisconnected}`}
+            title={`WebSocket: ${connectionState}${lastEventTime ? ` | Last: ${lastEventTime.toLocaleTimeString()}` : ''}`}
+          >
+            {isConnected ? '●' : '○'}
+          </span>
         </div>
 
         <div className={styles.headerControls}>
+          {/* Coordinator View Mode Toggle */}
+          {!isEmpty && (
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewToggleBtn} ${coordViewMode === 'nested' ? styles.viewToggleBtnActive : ''}`}
+                onClick={() => setCoordViewMode('nested')}
+                title="Nested View (child tasks under parents)"
+              >
+                ⊏
+              </button>
+              <button
+                className={`${styles.viewToggleBtn} ${coordViewMode === 'breakout' ? styles.viewToggleBtnActive : ''}`}
+                onClick={() => setCoordViewMode('breakout')}
+                title="Breakout View (each task as separate root)"
+              >
+                ⊔
+              </button>
+            </div>
+          )}
+
+          {/* Collapse/Expand Controls */}
+          {!isEmpty && (
+            <div className={styles.collapseControls}>
+              <button
+                className={styles.collapseBtn}
+                onClick={handleCollapseAll}
+                title="Collapse All"
+              >
+                ⊟
+              </button>
+              <button
+                className={styles.collapseBtn}
+                onClick={collapseOneLevel}
+                title="Collapse One Level"
+              >
+                −
+              </button>
+              <button
+                className={styles.collapseBtn}
+                onClick={expandOneLevel}
+                title="Expand One Level"
+              >
+                +
+              </button>
+              <button
+                className={styles.collapseBtn}
+                onClick={handleExpandAll}
+                title="Expand All"
+              >
+                ⊞
+              </button>
+            </div>
+          )}
+
           {/* View Toggle */}
           <div className={styles.viewToggle}>
             <button
@@ -217,6 +693,18 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
               ⬡
             </button>
           </div>
+
+          {/* Approval Panel Button */}
+          <button
+            className={`${styles.approvalBtn} ${pendingApprovals.length > 0 ? styles.approvalBtnActive : ''}`}
+            onClick={() => setApprovalPanelOpen(!approvalPanelOpen)}
+            title={`Approvals (${pendingApprovals.length} pending)`}
+          >
+            📋
+            {pendingApprovals.length > 0 && (
+              <span className={styles.approvalBtnBadge}>{pendingApprovals.length}</span>
+            )}
+          </button>
 
           {/* Expand Button */}
           <button
@@ -250,6 +738,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             loading={loading}
             error={null}
             isExpanded={isExpanded}
+            expandedNodes={expandedNodes}
+            onToggleNodeExpand={handleToggleExpand}
+            recenterTrigger={expandChangeCounter}
           />
         )}
       </div>
@@ -297,12 +788,116 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
               )}
             </div>
 
+            {/* Metrics Section */}
+            {(popoverNode.cost || popoverNode.tokensIn || popoverNode.tokensOut) && (
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>Metrics</div>
+                <div className={styles.popoverMetricsGrid}>
+                  {popoverNode.cost !== undefined && popoverNode.cost > 0 && (
+                    <div className={styles.popoverMetricItem}>
+                      <span className={styles.popoverMetricLabel}>Cost</span>
+                      <span className={styles.popoverMetricValue}>
+                        ${popoverNode.cost < 0.01 ? popoverNode.cost.toFixed(4) : popoverNode.cost.toFixed(3)}
+                      </span>
+                    </div>
+                  )}
+                  {popoverNode.tokensIn !== undefined && popoverNode.tokensIn > 0 && (
+                    <div className={styles.popoverMetricItem}>
+                      <span className={styles.popoverMetricLabel}>Input</span>
+                      <span className={styles.popoverMetricValue}>
+                        {popoverNode.tokensIn >= 1000 ? `${(popoverNode.tokensIn / 1000).toFixed(1)}K` : popoverNode.tokensIn} tokens
+                      </span>
+                    </div>
+                  )}
+                  {popoverNode.tokensOut !== undefined && popoverNode.tokensOut > 0 && (
+                    <div className={styles.popoverMetricItem}>
+                      <span className={styles.popoverMetricLabel}>Output</span>
+                      <span className={styles.popoverMetricValue}>
+                        {popoverNode.tokensOut >= 1000 ? `${(popoverNode.tokensOut / 1000).toFixed(1)}K` : popoverNode.tokensOut} tokens
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Provider/Agent Info */}
+            {(popoverNode.provider || popoverNode.agentId) && (
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>Agent Info</div>
+                <div className={styles.popoverInfoList}>
+                  {popoverNode.provider && (
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Provider</span>
+                      <span className={`${styles.popoverInfoValue} ${styles[`provider${popoverNode.provider.charAt(0).toUpperCase() + popoverNode.provider.slice(1)}`]}`}>
+                        {popoverNode.provider}
+                      </span>
+                    </div>
+                  )}
+                  {popoverNode.agentId && (
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Agent ID</span>
+                      <span className={styles.popoverInfoValue}>{popoverNode.agentId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Coordinator Context */}
+            {(popoverNode.taskId || popoverNode.parentTaskId) && (
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>Task Context</div>
+                <div className={styles.popoverInfoList}>
+                  {popoverNode.taskId && (
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Task ID</span>
+                      <span className={styles.popoverInfoValue} style={{ fontFamily: 'var(--font-mono)' }}>
+                        {popoverNode.taskId.substring(0, 16)}...
+                      </span>
+                    </div>
+                  )}
+                  {popoverNode.parentTaskId && (
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Parent Task</span>
+                      <span className={styles.popoverInfoValue} style={{ fontFamily: 'var(--font-mono)' }}>
+                        {popoverNode.parentTaskId.substring(0, 16)}...
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Approval Status */}
+            {popoverNode.approvalStatus && popoverNode.approvalStatus !== 'none' && (
+              <div className={styles.popoverSection}>
+                <div className={styles.popoverSectionTitle}>Approval</div>
+                <div className={styles.popoverApproval}>
+                  <span className={`${styles.popoverApprovalStatus} ${styles[`approval${popoverNode.approvalStatus.charAt(0).toUpperCase() + popoverNode.approvalStatus.slice(1)}`]}`}>
+                    {popoverNode.approvalStatus === 'pending' ? '⏳' : popoverNode.approvalStatus === 'approved' ? '✓' : '✗'}
+                    {' '}{popoverNode.approvalStatus}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {popoverNode._span && (
               <>
                 {/* Span ID */}
                 <div className={styles.popoverSection}>
                   <div className={styles.popoverSectionTitle}>Span ID</div>
-                  <div className={styles.popoverIdValue}>{popoverNode._span.id}</div>
+                  <div
+                    className={styles.popoverIdValue}
+                    onClick={() => {
+                      navigator.clipboard.writeText(popoverNode._span?.id || '');
+                    }}
+                    title="Click to copy"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {popoverNode._span.id}
+                    <span className={styles.popoverCopyHint}>📋</span>
+                  </div>
                 </div>
 
                 {/* Attributes - Collapsible */}
@@ -340,6 +935,18 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           </div>
         </div>
       )}
+
+      {/* Approval Panel */}
+      <ApprovalPanel
+        isOpen={approvalPanelOpen}
+        onClose={() => setApprovalPanelOpen(false)}
+        onApprovalClick={(approval: Approval) => {
+          // Highlight the task in the graph if it matches
+          // For now just close the panel and let user see details
+          setApprovalPanelOpen(false);
+        }}
+        selectedTaskId={selectedNodeId}
+      />
     </div>
   );
 };

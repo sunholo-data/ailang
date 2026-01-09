@@ -68,10 +68,59 @@
   font-weight: var(--font-semibold, 600);
 }
 
+/* Live connection indicator */
+.liveIndicator {
+  font-size: var(--text-xs, 10px);
+  margin-left: var(--space-1, 4px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.liveIndicatorConnected {
+  color: var(--color-success-light, #48bb78);
+  animation: pulse 2s infinite;
+}
+
+.liveIndicatorDisconnected {
+  color: var(--text-tertiary, #6e7681);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .headerControls {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Collapse/Expand All Controls */
+.collapseControls {
+  display: flex;
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 6px);
+  padding: 2px;
+}
+
+.collapseBtn {
+  padding: var(--space-2, 6px) var(--space-2, 8px);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 14px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.collapseBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #e6edf3);
 }
 
 /* View Toggle */
@@ -100,6 +149,47 @@
 .viewToggleBtnActive {
   background: var(--color-primary, #e73c17);
   color: var(--text-inverse, #ffffff);
+}
+
+/* Approval Panel Button */
+.approvalBtn {
+  position: relative;
+  padding: var(--space-2, 6px) var(--space-3, 10px);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 14px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.approvalBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #e6edf3);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
+}
+
+.approvalBtnActive {
+  border-color: var(--color-warning, #dd6b20);
+  color: var(--color-warning-light, #ed8936);
+}
+
+.approvalBtnBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: var(--font-semibold, 600);
+  background: var(--color-warning, #dd6b20);
+  color: var(--text-inverse, #ffffff);
+  border-radius: var(--radius-full, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .expandBtn {
@@ -375,6 +465,120 @@
   color: var(--text-tertiary, #6e7681);
 }
 
+/* Node Collapse Button */
+.rfCollapseBtn {
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  background: var(--bg-base, #0f1419);
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast, 150ms ease);
+  flex-shrink: 0;
+}
+
+.rfCollapseBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--color-primary, #e73c17);
+  color: var(--text-primary, #e6edf3);
+}
+
+/* Child Count Badge (shown when collapsed) */
+.rfChildBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: var(--font-semibold, 600);
+  background: var(--color-primary, #e73c17);
+  color: var(--text-inverse, #ffffff);
+  border-radius: var(--radius-full, 8px);
+}
+
+/* Provider Icon in Node Header */
+.rfProviderIcon {
+  font-size: var(--text-sm, 14px);
+  margin-right: 2px;
+}
+
+/* Cost Display */
+.rfCost {
+  color: var(--color-success-light, #48bb78);
+  font-weight: var(--font-semibold, 600);
+}
+
+/* Token Metrics Row */
+.rfNodeMetrics {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  margin-top: var(--space-1, 4px);
+  padding-top: var(--space-1, 4px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* Provider-specific Node Styles */
+.rfNodeProviderClaude {
+  border-left-color: #ff7b54 !important;
+  border-left-width: 3px;
+}
+
+.rfNodeProviderGemini {
+  border-left-color: #4285f4 !important;
+  border-left-width: 3px;
+}
+
+.rfNodeProviderOllama {
+  border-left-color: #8b5cf6 !important;
+  border-left-width: 3px;
+}
+
+/* Coordinator Node Styling */
+.rfNodeCoordinator {
+  border-width: 2px;
+  border-color: var(--color-warning, #dd6b20);
+  background: linear-gradient(135deg, var(--bg-surface, #1a2332) 0%, rgba(221, 107, 32, 0.08) 100%);
+}
+
+/* Approval Status Badge */
+.rfApprovalBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-inverse, #ffffff);
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* Agent/Task Context Row */
+.rfNodeContext {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  margin-top: var(--space-1, 4px);
+  padding-top: var(--space-1, 4px);
+  border-top: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.rfAgentLabel {
+  color: var(--color-warning-light, #ed8936);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
 .rfHandle {
   width: 8px;
   height: 8px;
@@ -621,4 +825,101 @@
   flex-direction: column;
   gap: var(--space-1, 4px);
   margin-top: var(--space-1, 4px);
+}
+
+/* Metrics Grid in Popover */
+.popoverMetricsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
+}
+
+.popoverMetricItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2, 6px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  text-align: center;
+}
+
+.popoverMetricLabel {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+}
+
+.popoverMetricValue {
+  font-size: var(--text-sm, 13px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--color-success-light, #48bb78);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* Info List in Popover */
+.popoverInfoList {
+  margin-top: var(--space-2, 8px);
+}
+
+.popoverInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1, 4px) 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.03));
+}
+
+.popoverInfoRow:last-child {
+  border-bottom: none;
+}
+
+.popoverInfoLabel {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-tertiary, #6e7681);
+}
+
+.popoverInfoValue {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #8b949e);
+  font-weight: var(--font-medium, 500);
+}
+
+/* Approval Status in Popover */
+.popoverApproval {
+  margin-top: var(--space-2, 8px);
+}
+
+.popoverApprovalStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-semibold, 600);
+  text-transform: uppercase;
+}
+
+.approvalPending {
+  background: rgba(221, 107, 32, 0.15);
+  color: var(--color-warning-light, #ed8936);
+}
+
+.approvalApproved {
+  background: rgba(56, 161, 105, 0.15);
+  color: var(--color-success-light, #48bb78);
+}
+
+.approvalRejected {
+  background: rgba(229, 62, 62, 0.15);
+  color: var(--color-danger-light, #fc8181);
+}
+
+/* Copy Hint */
+.popoverCopyHint {
+  margin-left: var(--space-2, 8px);
+  opacity: 0.5;
+  font-size: var(--text-xs, 11px);
 }
