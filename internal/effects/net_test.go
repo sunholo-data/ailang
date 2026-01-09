@@ -406,7 +406,7 @@ func TestNetHTTPRequestHeaderValidation(t *testing.T) {
 	}{
 		{"blocks Connection", "Connection", "hop-by-hop header not allowed: Connection"},
 		{"blocks Transfer-Encoding", "Transfer-Encoding", "hop-by-hop header not allowed: Transfer-Encoding"},
-		{"blocks Host", "Host", "Host header override not allowed"},
+		{"blocks Host", "Host", "host header override not allowed"},
 		{"blocks Accept-Encoding", "Accept-Encoding", "Accept-Encoding is managed automatically"},
 		{"blocks Content-Length", "Content-Length", "Content-Length is computed automatically"},
 		{"allows Authorization", "Authorization", ""}, // Should not error
