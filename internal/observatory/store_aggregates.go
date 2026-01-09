@@ -27,6 +27,25 @@ type ExecTaskNode struct {
 	ToolOutput string `json:"tool_output,omitempty"` // for tool_use spans
 }
 
+// MessageNode represents a message that triggered coordinator tasks
+type MessageNode struct {
+	MessageID   string          `json:"message_id"`
+	Title       string          `json:"title"`
+	FromAgent   string          `json:"from_agent"`
+	ToInbox     string          `json:"to_inbox"`
+	MessageType string          `json:"message_type"`
+	Status      string          `json:"status"`
+	CreatedAt   *time.Time      `json:"created_at,omitempty"`
+	Execs       []*ExecTaskNode `json:"execs,omitempty"`
+}
+
+// ExecHierarchyWithMessages groups exec tasks by their triggering messages
+type ExecHierarchyWithMessages struct {
+	Messages []*MessageNode  `json:"messages,omitempty"` // Messages that triggered execs
+	Orphan   []*ExecTaskNode `json:"orphan,omitempty"`   // Execs without a triggering message
+	Count    int             `json:"count"`
+}
+
 // GetMetricsSummary returns global metrics.
 func (s *Store) GetMetricsSummary() (*MetricsSummary, error) {
 	summary := &MetricsSummary{}
@@ -321,6 +340,166 @@ func (s *Store) GetExecTaskHierarchy(limit int) ([]*ExecTaskNode, error) {
 	}
 
 	return roots, nil
+}
+
+// GetExecTaskHierarchyWithMessages returns the exec hierarchy grouped by triggering messages.
+// This provides a 4-level view: Messages -> Execs -> Turns -> Tool Uses
+func (s *Store) GetExecTaskHierarchyWithMessages(limit int) (*ExecHierarchyWithMessages, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// First, get the regular exec hierarchy
+	execNodes, err := s.GetExecTaskHierarchy(limit)
+	if err != nil {
+		return nil, fmt.Errorf("get exec hierarchy: %w", err)
+	}
+
+	if len(execNodes) == 0 {
+		return &ExecHierarchyWithMessages{Count: 0}, nil
+	}
+
+	// Collect all task IDs from root exec nodes
+	taskIDs := make([]string, 0, len(execNodes))
+	taskToExec := make(map[string]*ExecTaskNode)
+	for _, node := range execNodes {
+		if node.TaskID != "" {
+			taskIDs = append(taskIDs, node.TaskID)
+			taskToExec[node.TaskID] = node
+		}
+	}
+
+	if len(taskIDs) == 0 {
+		// No task IDs found, return all as orphan
+		return &ExecHierarchyWithMessages{
+			Orphan: execNodes,
+			Count:  len(execNodes),
+		}, nil
+	}
+
+	// Query tasks to get source_ref (message_id) for each
+	// Build placeholder string for IN clause
+	placeholders := make([]string, len(taskIDs))
+	args := make([]interface{}, len(taskIDs))
+	for i, id := range taskIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	taskQuery := `
+		SELECT id, source_type, source_ref
+		FROM tasks
+		WHERE id IN (` + strings.Join(placeholders, ",") + `)
+	`
+	taskRows, err := s.db.Query(taskQuery, args...)
+	if err != nil {
+		// If query fails, return hierarchy without message grouping
+		return &ExecHierarchyWithMessages{
+			Orphan: execNodes,
+			Count:  len(execNodes),
+		}, nil
+	}
+	defer taskRows.Close()
+
+	// Map task_id -> message_id (source_ref)
+	taskToMessage := make(map[string]string)
+	for taskRows.Next() {
+		var taskID string
+		var sourceType, sourceRef sql.NullString
+		if err := taskRows.Scan(&taskID, &sourceType, &sourceRef); err != nil {
+			continue
+		}
+		// Only include if source_type is 'message' and source_ref is set
+		if sourceType.Valid && sourceType.String == "message" && sourceRef.Valid && sourceRef.String != "" {
+			taskToMessage[taskID] = sourceRef.String
+		}
+	}
+
+	// Group execs by message
+	messageToExecs := make(map[string][]*ExecTaskNode)
+	var orphanExecs []*ExecTaskNode
+	for _, node := range execNodes {
+		if msgID, ok := taskToMessage[node.TaskID]; ok {
+			messageToExecs[msgID] = append(messageToExecs[msgID], node)
+		} else {
+			orphanExecs = append(orphanExecs, node)
+		}
+	}
+
+	// Fetch message details for all unique message IDs
+	result := &ExecHierarchyWithMessages{
+		Orphan: orphanExecs,
+	}
+
+	if len(messageToExecs) > 0 {
+		// Build message ID list
+		msgIDs := make([]string, 0, len(messageToExecs))
+		msgPlaceholders := make([]string, 0, len(messageToExecs))
+		msgArgs := make([]interface{}, 0, len(messageToExecs))
+		for msgID := range messageToExecs {
+			msgIDs = append(msgIDs, msgID)
+			msgPlaceholders = append(msgPlaceholders, "?")
+			msgArgs = append(msgArgs, msgID)
+		}
+
+		// Query messages
+		msgQuery := `
+			SELECT id, inbox, from_agent, title, message_type, status, created_at
+			FROM messages
+			WHERE id IN (` + strings.Join(msgPlaceholders, ",") + `)
+		`
+		msgRows, err := s.db.Query(msgQuery, msgArgs...)
+		if err == nil {
+			defer msgRows.Close()
+
+			msgDetails := make(map[string]*MessageNode)
+			for msgRows.Next() {
+				var msgID, inbox, fromAgent, title, msgType, status string
+				var createdAt sql.NullTime
+				if err := msgRows.Scan(&msgID, &inbox, &fromAgent, &title, &msgType, &status, &createdAt); err != nil {
+					continue
+				}
+				node := &MessageNode{
+					MessageID:   msgID,
+					Title:       title,
+					FromAgent:   fromAgent,
+					ToInbox:     inbox,
+					MessageType: msgType,
+					Status:      status,
+				}
+				if createdAt.Valid {
+					node.CreatedAt = &createdAt.Time
+				}
+				msgDetails[msgID] = node
+			}
+
+			// Build message nodes with their execs
+			for msgID, execs := range messageToExecs {
+				var msgNode *MessageNode
+				if details, ok := msgDetails[msgID]; ok {
+					msgNode = details
+				} else {
+					// Message not found in DB, create minimal node
+					msgNode = &MessageNode{
+						MessageID: msgID,
+						Title:     msgID,
+						Status:    "unknown",
+					}
+				}
+				msgNode.Execs = execs
+				result.Messages = append(result.Messages, msgNode)
+			}
+		} else {
+			// Couldn't fetch messages, put execs as orphans
+			for _, execs := range messageToExecs {
+				result.Orphan = append(result.Orphan, execs...)
+			}
+		}
+	}
+
+	// Count total
+	result.Count = len(result.Messages) + len(result.Orphan)
+	return result, nil
 }
 
 // RecalculateTaskAggregates recalculates all aggregate metrics for a task from its spans.

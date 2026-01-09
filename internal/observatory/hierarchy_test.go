@@ -928,3 +928,134 @@ func TestGetTaskHierarchyNoSpans(t *testing.T) {
 		t.Errorf("Expected no traces when IncludeSpans=false, got %d", len(hierarchy.Agents[0].Traces))
 	}
 }
+
+// TestCrossTraceMerging tests that spans with ParentSpanID in different traces get merged.
+// This tests the mergeRelatedTraces function which handles cross-trace parent-child links.
+func TestCrossTraceMerging(t *testing.T) {
+	backend, err := NewSQLiteBackendFromPath(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create backend: %v", err)
+	}
+	defer backend.Close()
+	ctx := context.Background()
+
+	// Create minimal structure
+	ws := &Workspace{ID: "ws_merge", Name: "test", Path: "/tmp/test", CreatedAt: time.Now()}
+	backend.CreateWorkspace(ctx, ws)
+	task := &Task{ID: "task-merge", WorkspaceID: "ws_merge", Title: "Merge Test", Status: TaskStatusRunning, CreatedAt: time.Now()}
+	backend.CreateTask(ctx, task)
+	agent := &AgentAssignment{ID: "aa_merge", TaskID: "task-merge", AgentID: "test", Provider: ProviderClaude, Status: AgentStatusRunning, AssignedAt: time.Now()}
+	backend.CreateAgentAssignment(ctx, agent)
+
+	baseTime := time.Date(2025, 1, 9, 10, 0, 0, 0, time.UTC)
+
+	// Trace A: Coordinator creates coordinator.task.execute
+	coordinatorSpan := &Span{
+		ID:                "coordinator-span",
+		TraceID:           "trace-A",
+		ParentSpanID:      "", // Root of trace A
+		AgentAssignmentID: "aa_merge",
+		TaskID:            "task-merge",
+		Name:              "coordinator.task.execute",
+		StartTime:         baseTime,
+		EndTime:           timePtr(baseTime.Add(10 * time.Second)),
+		DurationMs:        10000,
+	}
+	backend.CreateSpan(ctx, coordinatorSpan)
+
+	// Trace B: Claude Code creates claude.execute with ParentSpanID pointing to Trace A
+	// This simulates TRACEPARENT propagation: child trace refers to parent trace's span
+	claudeSpan := &Span{
+		ID:                "claude-span",
+		TraceID:           "trace-B",          // Different trace!
+		ParentSpanID:      "coordinator-span", // Points to Trace A!
+		AgentAssignmentID: "aa_merge",
+		TaskID:            "task-merge",
+		Name:              "claude.execute",
+		StartTime:         baseTime.Add(100 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(9 * time.Second)),
+		DurationMs:        8900,
+	}
+	backend.CreateSpan(ctx, claudeSpan)
+
+	// Child of claude.execute (same trace B)
+	turnSpan := &Span{
+		ID:                "turn-span",
+		TraceID:           "trace-B",
+		ParentSpanID:      "claude-span",
+		AgentAssignmentID: "aa_merge",
+		TaskID:            "task-merge",
+		Name:              "exec.turn",
+		StartTime:         baseTime.Add(200 * time.Millisecond),
+		EndTime:           timePtr(baseTime.Add(8 * time.Second)),
+		DurationMs:        7800,
+	}
+	backend.CreateSpan(ctx, turnSpan)
+
+	// Get hierarchy - this should merge traces
+	hierarchy, err := GetTaskHierarchy(ctx, backend, "task-merge", DefaultHierarchyOptions())
+	if err != nil {
+		t.Fatalf("GetTaskHierarchy failed: %v", err)
+	}
+
+	// Should have ONE merged trace (trace B merged into trace A)
+	if len(hierarchy.Agents[0].Traces) != 1 {
+		t.Errorf("Expected 1 merged trace, got %d", len(hierarchy.Agents[0].Traces))
+		for i, tr := range hierarchy.Agents[0].Traces {
+			t.Logf("Trace %d: %s with %d spans", i, tr.TraceID, len(tr.Spans))
+		}
+	}
+
+	// The merged trace should be trace-A (the parent trace)
+	mergedTrace := hierarchy.Agents[0].Traces[0]
+	if mergedTrace.TraceID != "trace-A" {
+		t.Errorf("Expected merged trace ID to be trace-A, got %s", mergedTrace.TraceID)
+	}
+
+	// Find the coordinator node
+	var coordinatorNode *SpanNode
+	for _, node := range mergedTrace.Spans {
+		if node.Span.Name == "coordinator.task.execute" {
+			coordinatorNode = node
+			break
+		}
+	}
+	if coordinatorNode == nil {
+		t.Fatal("Expected to find coordinator node")
+	}
+
+	// Coordinator should now have claude.execute as a child (cross-trace merge!)
+	var foundClaude bool
+	for _, child := range coordinatorNode.Children {
+		if child.Span.Name == "claude.execute" {
+			foundClaude = true
+			// Verify exec.turn is still under claude
+			var foundTurn bool
+			for _, grandchild := range child.Children {
+				if grandchild.Span.Name == "exec.turn" {
+					foundTurn = true
+					break
+				}
+			}
+			if !foundTurn {
+				t.Error("exec.turn should be under claude.execute")
+			}
+			break
+		}
+	}
+
+	if !foundClaude {
+		t.Error("claude.execute should be merged as child of coordinator.task.execute (cross-trace merge failed)")
+		t.Logf("Coordinator children: %d", len(coordinatorNode.Children))
+		for _, child := range coordinatorNode.Children {
+			t.Logf("  - %s", child.Span.Name)
+		}
+	}
+
+	// Summary should include spans from both traces
+	if mergedTrace.Summary.SpanCount < 3 {
+		t.Errorf("Expected at least 3 spans in merged summary, got %d", mergedTrace.Summary.SpanCount)
+	}
+
+	t.Logf("Cross-trace merge successful: coordinator.task.execute → claude.execute → exec.turn")
+}

@@ -173,6 +173,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var finalResult *claudeHeadlessResult
 	var transcriptBuf strings.Builder
 	var turnNum int
+	var turnSpan trace.Span // Track current turn's OTEL span
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -211,6 +212,17 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				switch streamType {
 				case "message_start":
 					turnNum++
+					// End previous turn span if still open
+					if turnSpan != nil {
+						turnSpan.End()
+					}
+					// Start new turn span as child of claude.execute
+					_, turnSpan = claudeTracer.Start(ctx, "exec.turn",
+						trace.WithAttributes(
+							attribute.Int("turn.number", turnNum),
+							attribute.String("session.id", sessionID),
+						),
+					)
 					handler.OnTurnStart(turnNum)
 					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
 
@@ -257,14 +269,28 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 				case "message_stop":
 					handler.OnTurnEnd(turnNum)
+					// End turn span
+					if turnSpan != nil {
+						turnSpan.End()
+						turnSpan = nil
+					}
 				}
 
 			case "result":
 				if err := json.Unmarshal([]byte(line), &finalResult); err != nil {
+					// Cleanup turn span before early return
+					if turnSpan != nil {
+						turnSpan.End()
+					}
 					done <- fmt.Errorf("failed to parse final result: %w", err)
 					return
 				}
 			}
+		}
+
+		// Cleanup any open turn span
+		if turnSpan != nil {
+			turnSpan.End()
 		}
 
 		if err := stdoutScanner.Err(); err != nil {

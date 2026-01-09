@@ -187,6 +187,11 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 		agentHierarchy.Traces = append(agentHierarchy.Traces, traceHierarchy)
 	}
 
+	// Merge related traces (cross-trace parent-child linking)
+	// This handles cases where coordinator.task.execute spawns claude.execute
+	// in a different trace via TRACEPARENT propagation
+	agentHierarchy.Traces = mergeRelatedTraces(agentHierarchy.Traces)
+
 	// Sort traces by their first span's start time (chronological order)
 	sort.Slice(agentHierarchy.Traces, func(i, j int) bool {
 		iTime := agentHierarchy.Traces[i].getEarliestStartTime()
@@ -409,4 +414,128 @@ func applyTimestampCorrelation(spanIndex map[string]*SpanNode) {
 			}
 		}
 	}
+}
+
+// =============================================================================
+// Cross-Trace Merging: Link parent-child spans across different trace IDs
+// =============================================================================
+// When TRACEPARENT is propagated to child processes, they create spans in a
+// new trace but with parent_span_id pointing to the original trace. This creates
+// "orphan" root spans that should logically be nested under their parent.
+//
+// Example:
+//   Trace A (coordinator): coordinator.task.execute → sets TRACEPARENT
+//   Trace B (claude): claude.execute (parent_span_id = coordinator span ID)
+//
+// We want: coordinator.task.execute → claude.execute (merged view)
+// =============================================================================
+
+// mergeRelatedTraces merges traces that have cross-trace parent-child relationships.
+// It finds traces whose root spans have a ParentSpanID pointing to a span in another trace,
+// and re-parents those spans under the appropriate parent.
+func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
+	if len(traces) <= 1 {
+		return traces
+	}
+
+	// Build a global span index across all traces
+	globalSpanIndex := make(map[string]*SpanNode)
+	traceForSpan := make(map[string]*TraceHierarchy)
+	for _, trace := range traces {
+		for _, node := range trace.Spans {
+			if node.Span != nil {
+				globalSpanIndex[node.Span.ID] = node
+				traceForSpan[node.Span.ID] = trace
+			}
+		}
+	}
+
+	// Track which traces have been merged into others
+	mergedTraces := make(map[string]bool)
+
+	// Find "orphan root" spans - these have ParentSpanID pointing to a different trace
+	for _, trace := range traces {
+		orphanRoots := findOrphanRoots(trace, globalSpanIndex)
+		for _, orphan := range orphanRoots {
+			if orphan.Span == nil || orphan.Span.ParentSpanID == "" {
+				continue
+			}
+
+			// Find the parent in another trace
+			parentNode, ok := globalSpanIndex[orphan.Span.ParentSpanID]
+			if !ok {
+				continue
+			}
+
+			// Verify parent is in a different trace
+			parentTrace := traceForSpan[parentNode.Span.ID]
+			if parentTrace == nil || parentTrace.TraceID == trace.TraceID {
+				continue
+			}
+
+			// Re-parent: add orphan as child of the parent node
+			parentNode.Children = append(parentNode.Children, orphan)
+
+			// Sort children by start time
+			sort.Slice(parentNode.Children, func(i, j int) bool {
+				return parentNode.Children[i].Span.StartTime.Before(parentNode.Children[j].Span.StartTime)
+			})
+
+			// Mark this trace as merged (don't return it as standalone)
+			mergedTraces[trace.TraceID] = true
+
+			// Merge summary stats into parent trace
+			if parentTrace.Summary != nil && trace.Summary != nil {
+				parentTrace.Summary.SpanCount += trace.Summary.SpanCount
+				parentTrace.Summary.TotalTokens += trace.Summary.TotalTokens
+				parentTrace.Summary.TotalCostUSD += trace.Summary.TotalCostUSD
+				if trace.Summary.DurationMs > parentTrace.Summary.DurationMs {
+					parentTrace.Summary.DurationMs = trace.Summary.DurationMs
+				}
+				parentTrace.Summary.ErrorCount += trace.Summary.ErrorCount
+			}
+
+			// Add child trace's spans to parent trace's flat list
+			parentTrace.Spans = append(parentTrace.Spans, trace.Spans...)
+		}
+	}
+
+	// Return non-merged traces
+	result := make([]*TraceHierarchy, 0, len(traces))
+	for _, trace := range traces {
+		if !mergedTraces[trace.TraceID] {
+			result = append(result, trace)
+		}
+	}
+
+	return result
+}
+
+// findOrphanRoots returns spans that appear as roots in this trace
+// but have a ParentSpanID that could be in another trace.
+func findOrphanRoots(trace *TraceHierarchy, globalIndex map[string]*SpanNode) []*SpanNode {
+	// Build local index for this trace
+	localIndex := make(map[string]bool)
+	for _, node := range trace.Spans {
+		if node.Span != nil {
+			localIndex[node.Span.ID] = true
+		}
+	}
+
+	// Find spans with ParentSpanID not in this trace but in global index
+	var orphans []*SpanNode
+	for _, node := range trace.Spans {
+		if node.Span == nil || node.Span.ParentSpanID == "" {
+			continue
+		}
+		// Parent not in this trace?
+		if !localIndex[node.Span.ParentSpanID] {
+			// But parent exists in another trace?
+			if _, exists := globalIndex[node.Span.ParentSpanID]; exists {
+				orphans = append(orphans, node)
+			}
+		}
+	}
+
+	return orphans
 }

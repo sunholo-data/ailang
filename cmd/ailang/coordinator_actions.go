@@ -209,6 +209,36 @@ func coordinatorReject(args []string) error {
 	}
 
 	fmt.Println(green("✓"), "Task rejected:", taskID)
+
+	// Clean up worktree if it exists
+	task, err := store.GetTask(ctx, taskID)
+	if err == nil && task != nil && task.WorktreePath != "" {
+		// Check if worktree exists
+		if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
+			// Get branch name before removing
+			branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+			branchOutput, _ := branchCmd.Output()
+			branchName := strings.TrimSpace(string(branchOutput))
+
+			// Remove worktree
+			fmt.Println(cyan("→"), "Cleaning up worktree...")
+			removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
+			if output, err := removeCmd.CombinedOutput(); err != nil {
+				fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
+			} else {
+				fmt.Println(green("✓"), "Worktree removed")
+			}
+
+			// Delete the branch
+			if branchName != "" && branchName != "HEAD" {
+				deleteCmd := exec.Command("git", "branch", "-D", branchName)
+				if _, err := deleteCmd.CombinedOutput(); err == nil {
+					fmt.Printf("  Deleted branch: %s\n", branchName)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

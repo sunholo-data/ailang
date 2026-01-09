@@ -28,7 +28,7 @@ import {
   GlobalStats,
   AggregationNav,
   ActivityHeatmap,
-  AgentTopology,
+  ExecHierarchy,
   MessageQueue,
   TraceWaterfall,
   DetailPanel,
@@ -460,17 +460,12 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             />
           </div>
           <div className={`${styles.canvasRow} ${topologyExpanded ? styles.canvasRowExpanded : ''}`}>
-            <AgentTopology
-              agents={agents}
-              edges={edges}
+            <ExecHierarchy
               isExpanded={topologyExpanded}
               onToggleExpand={() => setTopologyExpanded(!topologyExpanded)}
-              onAgentClick={handleAgentClick}
-              selectedNodeId={selectedTopologyNode}
-              highlightedPath={highlightedPath}
-              onNodeSelect={handleNodeSelect}
-              isEmpty={topologyData?.isEmpty}
-              mode="hierarchy"
+              selectedNodeId={selectedEventTraceId}
+              spans={spans}
+              loading={spansLoading}
             />
           </div>
           {!topologyExpanded && (

@@ -1,0 +1,512 @@
+/* ExecHierarchy Component Styles */
+/* Uses CSS variables from theme.css for consistent theming */
+
+/* Container */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 200px;
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+}
+
+.containerExpanded {
+  position: fixed;
+  top: 60px; /* Below header */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  min-height: auto;
+  height: calc(100vh - 60px); /* Explicit height for ReactFlow calculations */
+  border-radius: 0;
+}
+
+/* Ensure viewport fills available space in expanded mode */
+.containerExpanded .viewport {
+  height: calc(100vh - 120px); /* Account for header + ExecHierarchy header */
+}
+
+/* Ensure graph container fills viewport in expanded mode */
+.containerExpanded .graphContainer {
+  height: 100%;
+  min-height: calc(100vh - 140px);
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  background: var(--bg-elevated, #141d2b);
+}
+
+.headerTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  font-size: var(--text-sm, 14px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-primary, #e6edf3);
+}
+
+.headerIcon {
+  font-size: 16px;
+}
+
+.headerBadge {
+  font-size: var(--text-xs, 11px);
+  padding: var(--space-1, 2px) var(--space-2, 8px);
+  border-radius: var(--radius-full, 10px);
+  background: var(--color-primary, #e73c17);
+  color: var(--text-inverse, #ffffff);
+  font-weight: var(--font-semibold, 600);
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* View Toggle */
+.viewToggle {
+  display: flex;
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 6px);
+  padding: 2px;
+}
+
+.viewToggleBtn {
+  padding: var(--space-2, 6px) var(--space-3, 12px);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 12px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.viewToggleBtn:hover {
+  color: var(--text-primary, #e6edf3);
+}
+
+.viewToggleBtnActive {
+  background: var(--color-primary, #e73c17);
+  color: var(--text-inverse, #ffffff);
+}
+
+.expandBtn {
+  padding: var(--space-2, 6px) var(--space-3, 10px);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 14px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.expandBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #e6edf3);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
+}
+
+/* Viewport */
+.viewport {
+  flex: 1;
+  overflow: hidden;
+  padding: var(--space-2, 8px);
+  min-height: 300px;
+  position: relative;
+  background: var(--bg-surface, #1a2332);
+}
+
+.viewportExpanded {
+  height: calc(100vh - 120px);
+  min-height: calc(100vh - 120px);
+}
+
+/* Tree View Styles */
+.treeContainer {
+  padding: var(--space-2, 8px);
+}
+
+.treeNode {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-sm, 13px);
+}
+
+.treeNodeHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 6px) var(--space-2, 8px);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background var(--transition-fast, 150ms ease);
+}
+
+.treeNodeHeader:hover {
+  background: var(--bg-hover, #232d3a);
+}
+
+.treeNodeSelected {
+  background: rgba(231, 60, 23, 0.15) !important;
+  border-left: 2px solid var(--color-primary, #e73c17);
+}
+
+.treeNodeChildren {
+  margin-left: var(--space-1, 4px);
+  border-left: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+}
+
+.expandIcon {
+  width: 12px;
+  text-align: center;
+  color: var(--text-tertiary, #6e7681);
+  font-size: var(--text-xs, 10px);
+}
+
+.nodeIcon {
+  font-size: var(--text-sm, 14px);
+}
+
+.nodeLabel {
+  flex: 1;
+  color: var(--text-primary, #e6edf3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeStatus {
+  font-size: var(--text-xs, 10px);
+  padding: var(--space-1, 2px) var(--space-2, 6px);
+  border-radius: var(--radius-sm, 4px);
+  text-transform: uppercase;
+  font-weight: var(--font-medium, 500);
+}
+
+.nodeDuration {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-tertiary, #6e7681);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.childCount {
+  font-size: var(--text-xs, 10px);
+  padding: var(--space-1, 1px) var(--space-2, 6px);
+  border-radius: var(--radius-full, 8px);
+  background: var(--bg-base, #0f1419);
+  color: var(--text-secondary, #8b949e);
+}
+
+/* Status Colors - using theme semantic colors */
+.statusCompleted {
+  background: rgba(56, 161, 105, 0.15);
+  color: var(--color-success-light, #48bb78);
+}
+
+.statusBusy {
+  background: rgba(43, 108, 176, 0.15);
+  color: var(--color-info, #2b6cb0);
+}
+
+.statusError {
+  background: rgba(229, 62, 62, 0.15);
+  color: var(--color-danger-light, #fc8181);
+}
+
+.statusPending {
+  background: rgba(221, 107, 32, 0.15);
+  color: var(--color-warning-light, #ed8936);
+}
+
+.statusIdle {
+  background: rgba(110, 118, 129, 0.15);
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* Provider Colors */
+.providerClaude {
+  color: #ff7b54;
+}
+
+.providerGemini {
+  color: #4285f4;
+}
+
+.providerOllama {
+  color: #8b5cf6;
+}
+
+/* Empty/Loading/Error States */
+.treeEmpty,
+.treeLoading,
+.treeError {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12, 48px) var(--space-6, 24px);
+  text-align: center;
+  color: var(--text-secondary, #8b949e);
+}
+
+.emptyIcon,
+.errorIcon {
+  font-size: 32px;
+  margin-bottom: var(--space-3, 12px);
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  font-size: var(--text-base, 16px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-primary, #e6edf3);
+  margin-bottom: var(--space-1, 4px);
+}
+
+.emptyText {
+  font-size: var(--text-sm, 13px);
+  max-width: 280px;
+}
+
+.loadingSpinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-top-color: var(--color-primary, #e73c17);
+  border-radius: var(--radius-full, 50%);
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-3, 12px);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Graph View Styles (ReactFlow) */
+.graphContainer {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+  background: var(--bg-base, #0f1419);
+}
+
+.graphContainerExpanded {
+  height: calc(100vh - 140px);
+  min-height: calc(100vh - 140px);
+}
+
+.graphControls {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+}
+
+/* Custom Node Styles for Graph View */
+.rfNode {
+  padding: var(--space-3, 10px) var(--space-4, 14px);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 12px);
+  min-width: 120px;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.rfNode:hover {
+  border-color: var(--color-primary, #e73c17);
+  box-shadow: 0 0 0 2px rgba(231, 60, 23, 0.2);
+}
+
+.rfNodeSelected {
+  border-color: var(--color-primary, #e73c17);
+  box-shadow: 0 0 0 2px rgba(231, 60, 23, 0.3);
+}
+
+.rfNodeMessage {
+  border-left: 3px solid var(--color-warning, #dd6b20);
+}
+
+.rfNodeExec {
+  border-left: 3px solid var(--color-success, #38a169);
+}
+
+.rfNodeTurn {
+  border-left: 3px solid var(--color-info, #2b6cb0);
+}
+
+.rfNodeTool {
+  border-left: 3px solid var(--sunholo-purple, #6b46c1);
+}
+
+.rfNodeHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 6px);
+  margin-bottom: var(--space-1, 4px);
+}
+
+.rfNodeIcon {
+  font-size: var(--text-sm, 14px);
+}
+
+.rfNodeLabel {
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-primary, #e6edf3);
+}
+
+.rfNodeMeta {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+}
+
+.rfHandle {
+  width: 8px;
+  height: 8px;
+  background: var(--border-default, rgba(255, 255, 255, 0.1));
+  border: 2px solid var(--bg-surface, #1a2332);
+}
+
+.rfHandleTop {
+  top: -4px;
+}
+
+.rfHandleBottom {
+  bottom: -4px;
+}
+
+/* Node Popover Styles */
+.nodePopover {
+  position: fixed;
+  z-index: 200;
+  min-width: 280px;
+  max-width: 420px;
+  padding: var(--space-3, 12px);
+  background: var(--bg-elevated, #141d2b);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.4));
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  font-size: var(--text-sm, 13px);
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding-bottom: var(--space-2, 8px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  margin-bottom: var(--space-2, 8px);
+}
+
+.popoverIcon {
+  font-size: var(--text-base, 16px);
+}
+
+.popoverTitle {
+  flex: 1;
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-primary, #e6edf3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popoverClose {
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary, #6e7681);
+  cursor: pointer;
+  font-size: var(--text-lg, 18px);
+  line-height: 1;
+  border-radius: var(--radius-sm, 4px);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.popoverClose:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-primary, #e6edf3);
+}
+
+.popoverContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+}
+
+.popoverRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.popoverLabel {
+  color: var(--text-secondary, #8b949e);
+  font-weight: var(--font-medium, 500);
+  min-width: 70px;
+}
+
+.popoverValue {
+  color: var(--text-primary, #e6edf3);
+}
+
+.popoverValueMono {
+  color: var(--text-primary, #e6edf3);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 11px);
+  background: var(--bg-base, #0f1419);
+  padding: var(--space-1, 2px) var(--space-2, 6px);
+  border-radius: var(--radius-sm, 4px);
+  word-break: break-all;
+}
+
+.popoverDivider {
+  height: 1px;
+  background: var(--border-subtle, rgba(255, 255, 255, 0.05));
+  margin: var(--space-2, 8px) 0;
+}
+
+.popoverAttributes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-1, 4px);
+}
+
+.popoverAttrRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2, 8px);
+  padding-left: var(--space-2, 8px);
+}
+
+.popoverAttrKey {
+  color: var(--text-tertiary, #6e7681);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 11px);
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.popoverAttrValue {
+  color: var(--text-secondary, #8b949e);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 11px);
+  word-break: break-word;
+}

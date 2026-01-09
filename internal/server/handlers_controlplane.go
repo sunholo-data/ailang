@@ -845,6 +845,7 @@ func formatAgentLabel(agentID string) string {
 // Returns tree structure of ailang exec tasks with parent/child relationships
 // Query params:
 //   - limit: Maximum number of exec spans to query (default: 100)
+//   - include_messages: If "true", groups execs by triggering messages (4-level hierarchy)
 func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -859,6 +860,9 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 		}
 	}
 
+	// Parse include_messages parameter
+	includeMessages := r.URL.Query().Get("include_messages") == "true"
+
 	// Get SQLite backend for direct store access
 	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
 	if !ok {
@@ -866,6 +870,23 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
+	if includeMessages {
+		// Return hierarchy grouped by messages (4-level: Message -> Exec -> Turn -> Tool)
+		result, err := sqliteBackend.Store().GetExecTaskHierarchyWithMessages(limit)
+		if err != nil {
+			log.Printf("Failed to get exec hierarchy with messages: %v", err)
+			http.Error(w, "Failed to get exec hierarchy", http.StatusInternalServerError)
+			return
+		}
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			log.Printf("Failed to encode exec hierarchy response: %v", err)
+		}
+		return
+	}
+
+	// Return flat hierarchy (backward compatible)
 	hierarchy, err := sqliteBackend.Store().GetExecTaskHierarchy(limit)
 	if err != nil {
 		log.Printf("Failed to get exec hierarchy: %v", err)
@@ -881,7 +902,6 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 		Count:     len(hierarchy),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode exec hierarchy response: %v", err)
 	}

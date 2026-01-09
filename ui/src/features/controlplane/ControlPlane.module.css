@@ -2149,7 +2149,8 @@
 }
 
 .canvasWithExpanded {
-  pointer-events: none;
+  /* pointer-events: none was blocking ReactFlow drag/zoom in fullscreen */
+  pointer-events: auto;
 }
 
 .canvasRowExpanded {

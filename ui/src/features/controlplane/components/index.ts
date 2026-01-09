@@ -24,8 +24,8 @@ export type { AggregationNavProps, BreakdownData } from './AggregationNav';
 export { ActivityHeatmap } from './ActivityHeatmap';
 export type { ActivityHeatmapProps } from './ActivityHeatmap';
 
-export { AgentTopology } from './AgentTopology';
-export type { AgentTopologyProps } from './AgentTopology';
+export { ExecHierarchy } from './ExecHierarchy';
+export type { ExecHierarchyProps } from './ExecHierarchy/types';
 
 export { MessageQueue } from './MessageQueue';
 export type { MessageQueueProps } from './MessageQueue';

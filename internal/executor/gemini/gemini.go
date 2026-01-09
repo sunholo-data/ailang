@@ -175,6 +175,7 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var transcriptBuf strings.Builder
 	var turnNum int
 	var inputTokens, outputTokens int
+	var turnSpan trace.Span // Track current turn's OTEL span
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -209,6 +210,17 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					span.SetAttributes(attribute.String("exec.gemini_session_id", event.SessionID))
 				}
 				turnNum++
+				// End previous turn span if still open
+				if turnSpan != nil {
+					turnSpan.End()
+				}
+				// Start new turn span as child of gemini.execute
+				_, turnSpan = geminiTracer.Start(ctx, "exec.turn",
+					trace.WithAttributes(
+						attribute.Int("turn.number", turnNum),
+						attribute.String("session.id", sessionID),
+					),
+				)
 				handler.OnTurnStart(turnNum)
 				transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
 
@@ -244,7 +256,17 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				inputTokens = event.Stats.InputTokens
 				outputTokens = event.Stats.OutputTokens
 				handler.OnTurnEnd(turnNum)
+				// End turn span
+				if turnSpan != nil {
+					turnSpan.End()
+					turnSpan = nil
+				}
 			}
+		}
+
+		// Cleanup any open turn span
+		if turnSpan != nil {
+			turnSpan.End()
 		}
 
 		if err := stdoutScanner.Err(); err != nil {
