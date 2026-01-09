@@ -396,6 +396,175 @@ func TestSQLiteStoreFingerprint(t *testing.T) {
 	}
 }
 
+// TestSQLiteStoreAgentIDPersistence tests that agent_id is properly persisted
+// This was a bug where agent_id was set on the task but not included in the INSERT query
+func TestSQLiteStoreAgentIDPersistence(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	task := &TaskRecord{
+		ID:        "task-agent-test",
+		MessageID: "msg-1",
+		AgentID:   "design-doc-creator", // This should be persisted
+		Title:     "Test Agent ID Persistence",
+		Content:   "Test content",
+		Type:      TaskTypeDocs,
+		Priority:  5,
+		Status:    TaskStatusPending,
+		CreatedAt: time.Now(),
+	}
+
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("failed to create task: %v", err)
+	}
+
+	retrieved, err := store.GetTask(ctx, "task-agent-test")
+	if err != nil {
+		t.Fatalf("failed to get task: %v", err)
+	}
+
+	if retrieved.AgentID != "design-doc-creator" {
+		t.Errorf("got AgentID %q, want %q", retrieved.AgentID, "design-doc-creator")
+	}
+}
+
+// TestSQLiteStoreParentTaskIDPersistence tests that parent_task_id is properly persisted
+// This enables hierarchy tracking for handoff chains
+func TestSQLiteStoreParentTaskIDPersistence(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	// Create parent task
+	parentTask := &TaskRecord{
+		ID:        "task-parent",
+		AgentID:   "design-doc-creator",
+		Title:     "Parent Design Task",
+		Content:   "Design doc content",
+		Type:      TaskTypeDocs,
+		Status:    TaskStatusCompleted,
+		CreatedAt: time.Now(),
+	}
+	if err := store.CreateTask(ctx, parentTask); err != nil {
+		t.Fatalf("failed to create parent task: %v", err)
+	}
+
+	// Create child task with parent_task_id
+	childTask := &TaskRecord{
+		ID:           "task-child",
+		AgentID:      "sprint-planner",
+		ParentTaskID: "task-parent", // Link to parent
+		Title:        "Sprint Plan from Handoff",
+		Content:      "Sprint plan content",
+		Type:         TaskTypeDocs,
+		Status:       TaskStatusPending,
+		CreatedAt:    time.Now(),
+	}
+	if err := store.CreateTask(ctx, childTask); err != nil {
+		t.Fatalf("failed to create child task: %v", err)
+	}
+
+	// Verify parent_task_id was persisted
+	retrieved, err := store.GetTask(ctx, "task-child")
+	if err != nil {
+		t.Fatalf("failed to get task: %v", err)
+	}
+
+	if retrieved.ParentTaskID != "task-parent" {
+		t.Errorf("got ParentTaskID %q, want %q", retrieved.ParentTaskID, "task-parent")
+	}
+	if retrieved.AgentID != "sprint-planner" {
+		t.Errorf("got AgentID %q, want %q", retrieved.AgentID, "sprint-planner")
+	}
+}
+
+// TestSQLiteStoreListTasksWithAgentID tests that agent_id is included in list results
+func TestSQLiteStoreListTasksWithAgentID(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	// Create tasks with different agents
+	tasks := []*TaskRecord{
+		{ID: "task-1", AgentID: "design-doc-creator", Title: "Design", Content: "c", Type: TaskTypeDocs, Status: TaskStatusPending, CreatedAt: time.Now()},
+		{ID: "task-2", AgentID: "sprint-planner", Title: "Sprint", Content: "c", Type: TaskTypeDocs, Status: TaskStatusPending, CreatedAt: time.Now()},
+		{ID: "task-3", AgentID: "sprint-executor", Title: "Execute", Content: "c", Type: TaskTypeBugFix, Status: TaskStatusRunning, CreatedAt: time.Now()},
+	}
+
+	for _, task := range tasks {
+		if err := store.CreateTask(ctx, task); err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
+	}
+
+	// List all and verify agent_id is populated
+	all, err := store.ListTasks(ctx, &TaskFilter{})
+	if err != nil {
+		t.Fatalf("failed to list tasks: %v", err)
+	}
+	if len(all) != 3 {
+		t.Fatalf("got %d tasks, want 3", len(all))
+	}
+
+	// Check each task has correct agent_id
+	agentMap := make(map[string]string)
+	for _, task := range all {
+		agentMap[task.ID] = task.AgentID
+	}
+
+	if agentMap["task-1"] != "design-doc-creator" {
+		t.Errorf("task-1 AgentID = %q, want design-doc-creator", agentMap["task-1"])
+	}
+	if agentMap["task-2"] != "sprint-planner" {
+		t.Errorf("task-2 AgentID = %q, want sprint-planner", agentMap["task-2"])
+	}
+	if agentMap["task-3"] != "sprint-executor" {
+		t.Errorf("task-3 AgentID = %q, want sprint-executor", agentMap["task-3"])
+	}
+}
+
+// TestSQLiteStoreParentTaskIDInListTasks tests parent_task_id in list results
+func TestSQLiteStoreParentTaskIDInListTasks(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	// Create task chain
+	tasks := []*TaskRecord{
+		{ID: "task-design", AgentID: "design-doc-creator", ParentTaskID: "", Title: "Design", Content: "c", Type: TaskTypeDocs, Status: TaskStatusCompleted, CreatedAt: time.Now()},
+		{ID: "task-sprint", AgentID: "sprint-planner", ParentTaskID: "task-design", Title: "Sprint", Content: "c", Type: TaskTypeDocs, Status: TaskStatusCompleted, CreatedAt: time.Now()},
+		{ID: "task-exec", AgentID: "sprint-executor", ParentTaskID: "task-sprint", Title: "Execute", Content: "c", Type: TaskTypeBugFix, Status: TaskStatusRunning, CreatedAt: time.Now()},
+	}
+
+	for _, task := range tasks {
+		if err := store.CreateTask(ctx, task); err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
+	}
+
+	// List and verify hierarchy chain
+	all, err := store.ListTasks(ctx, &TaskFilter{})
+	if err != nil {
+		t.Fatalf("failed to list tasks: %v", err)
+	}
+
+	parentMap := make(map[string]string)
+	for _, task := range all {
+		parentMap[task.ID] = task.ParentTaskID
+	}
+
+	if parentMap["task-design"] != "" {
+		t.Errorf("task-design ParentTaskID = %q, want empty", parentMap["task-design"])
+	}
+	if parentMap["task-sprint"] != "task-design" {
+		t.Errorf("task-sprint ParentTaskID = %q, want task-design", parentMap["task-sprint"])
+	}
+	if parentMap["task-exec"] != "task-sprint" {
+		t.Errorf("task-exec ParentTaskID = %q, want task-sprint", parentMap["task-exec"])
+	}
+}
+
 // Helper to create a test store
 func createTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
