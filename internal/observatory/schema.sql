@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    parent_task_id TEXT,        -- Links to parent task for handoff chains (design → sprint → execute)
     title TEXT NOT NULL,
     description TEXT,
     source_type TEXT NOT NULL,  -- 'github_issue', 'message', 'email', 'manual'
@@ -139,6 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_source ON tasks(source_type, source_ref);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
 
 CREATE INDEX IF NOT EXISTS idx_agent_assignments_task ON agent_assignments(task_id);
 CREATE INDEX IF NOT EXISTS idx_agent_assignments_agent ON agent_assignments(agent_id);

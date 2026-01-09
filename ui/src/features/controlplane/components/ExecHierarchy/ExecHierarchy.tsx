@@ -5,11 +5,16 @@
  *
  * Uses the SAME spans data as TraceWaterfall for consistency.
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import styles from './ExecHierarchy.module.css';
+
+// Popover max dimensions
+const POPOVER_MAX_WIDTH = 420;
+const POPOVER_MAX_HEIGHT = 500;
+const POPOVER_MARGIN = 16;
 
 // Determine node type from span name
 function getNodeType(name: string): HierarchyNode['type'] {
@@ -110,6 +115,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   // Popover state
   const [popoverNode, setPopoverNode] = useState<HierarchyNode | null>(null);
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
+  const [attributesExpanded, setAttributesExpanded] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   // Transform spans to hierarchy nodes (same data as TraceWaterfall)
   const nodes = useMemo(() => {
@@ -118,6 +125,35 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   }, [spans]);
 
   const isEmpty = propsIsEmpty ?? nodes.length === 0;
+
+  // Calculate viewport-aware position for popover
+  const calculatePopoverPosition = useCallback((clickX: number, clickY: number) => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let x = clickX + 10;
+    let y = clickY + 10;
+
+    // Keep popover within right edge
+    if (x + POPOVER_MAX_WIDTH + POPOVER_MARGIN > viewportWidth) {
+      x = clickX - POPOVER_MAX_WIDTH - 10;
+    }
+    // Keep within left edge
+    if (x < POPOVER_MARGIN) {
+      x = POPOVER_MARGIN;
+    }
+
+    // Keep popover within bottom edge
+    if (y + POPOVER_MAX_HEIGHT + POPOVER_MARGIN > viewportHeight) {
+      y = viewportHeight - POPOVER_MAX_HEIGHT - POPOVER_MARGIN;
+    }
+    // Keep within top edge
+    if (y < POPOVER_MARGIN) {
+      y = POPOVER_MARGIN;
+    }
+
+    return { x, y };
+  }, []);
 
   // Handle node click - show popover
   const handleNodeClick = useCallback(
@@ -129,16 +165,18 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         setPopoverNode(null);
       } else {
         setPopoverNode(node);
-        // Position near cursor or use fallback position
+        setAttributesExpanded(false); // Reset attributes collapsed state
+        // Position with viewport awareness
         if (event) {
-          setPopoverPos({ x: event.clientX + 10, y: event.clientY + 10 });
+          const pos = calculatePopoverPosition(event.clientX, event.clientY);
+          setPopoverPos(pos);
         } else {
           // Fallback to center of viewport
-          setPopoverPos({ x: window.innerWidth / 2, y: 200 });
+          setPopoverPos({ x: window.innerWidth / 2 - POPOVER_MAX_WIDTH / 2, y: 100 });
         }
       }
     },
-    [onNodeClick, popoverNode]
+    [onNodeClick, popoverNode, calculatePopoverPosition]
   );
 
   // Close popover when clicking outside
@@ -219,6 +257,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
       {/* Node Popover */}
       {popoverNode && (
         <div
+          ref={popoverRef}
           className={styles.nodePopover}
           style={{ left: popoverPos.x, top: popoverPos.y }}
         >
@@ -228,47 +267,72 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             <button
               className={styles.popoverClose}
               onClick={() => setPopoverNode(null)}
+              title="Close"
             >
               ×
             </button>
           </div>
-          <div className={styles.popoverContent}>
-            <div className={styles.popoverRow}>
-              <span className={styles.popoverLabel}>Type:</span>
-              <span className={styles.popoverValue}>{popoverNode.type}</span>
-            </div>
-            <div className={styles.popoverRow}>
-              <span className={styles.popoverLabel}>Status:</span>
-              <span className={`${styles.popoverValue} ${styles[`status${popoverNode.status.charAt(0).toUpperCase() + popoverNode.status.slice(1)}`]}`}>
-                {popoverNode.status}
-              </span>
-            </div>
-            <div className={styles.popoverRow}>
-              <span className={styles.popoverLabel}>Duration:</span>
-              <span className={styles.popoverValue}>{formatDuration(popoverNode.durationMs)}</span>
-            </div>
-            {popoverNode.turnNumber && (
-              <div className={styles.popoverRow}>
-                <span className={styles.popoverLabel}>Turn:</span>
-                <span className={styles.popoverValue}>{popoverNode.turnNumber}</span>
+          <div className={styles.popoverBody}>
+            {/* Summary Grid */}
+            <div className={styles.popoverSummary}>
+              <div className={styles.popoverSummaryItem}>
+                <span className={styles.popoverSummaryLabel}>Type</span>
+                <span className={styles.popoverSummaryValue}>{popoverNode.type}</span>
               </div>
-            )}
+              <div className={styles.popoverSummaryItem}>
+                <span className={styles.popoverSummaryLabel}>Status</span>
+                <span className={`${styles.popoverSummaryValue} ${styles[`status${popoverNode.status.charAt(0).toUpperCase() + popoverNode.status.slice(1)}`]}`}>
+                  {popoverNode.status}
+                </span>
+              </div>
+              <div className={styles.popoverSummaryItem}>
+                <span className={styles.popoverSummaryLabel}>Duration</span>
+                <span className={styles.popoverSummaryValue}>{formatDuration(popoverNode.durationMs)}</span>
+              </div>
+              {popoverNode.turnNumber && (
+                <div className={styles.popoverSummaryItem}>
+                  <span className={styles.popoverSummaryLabel}>Turn</span>
+                  <span className={styles.popoverSummaryValue}>{popoverNode.turnNumber}</span>
+                </div>
+              )}
+            </div>
+
             {popoverNode._span && (
               <>
-                <div className={styles.popoverDivider} />
-                <div className={styles.popoverRow}>
-                  <span className={styles.popoverLabel}>Span ID:</span>
-                  <span className={styles.popoverValueMono}>{popoverNode._span.id}</span>
+                {/* Span ID */}
+                <div className={styles.popoverSection}>
+                  <div className={styles.popoverSectionTitle}>Span ID</div>
+                  <div className={styles.popoverIdValue}>{popoverNode._span.id}</div>
                 </div>
+
+                {/* Attributes - Collapsible */}
                 {popoverNode._span.attributes && Object.keys(popoverNode._span.attributes).length > 0 && (
-                  <div className={styles.popoverAttributes}>
-                    <div className={styles.popoverLabel}>Attributes:</div>
-                    {Object.entries(popoverNode._span.attributes).map(([key, value]) => (
-                      <div key={key} className={styles.popoverAttrRow}>
-                        <span className={styles.popoverAttrKey}>{key}:</span>
-                        <span className={styles.popoverAttrValue}>{String(value)}</span>
+                  <div className={styles.popoverSection}>
+                    <button
+                      className={styles.popoverSectionToggle}
+                      onClick={() => setAttributesExpanded(!attributesExpanded)}
+                    >
+                      <span className={styles.popoverToggleIcon}>
+                        {attributesExpanded ? '▼' : '▶'}
+                      </span>
+                      <span className={styles.popoverSectionTitle}>
+                        Attributes ({Object.keys(popoverNode._span.attributes).length})
+                      </span>
+                    </button>
+                    {attributesExpanded && (
+                      <div className={styles.popoverAttributesList}>
+                        {Object.entries(popoverNode._span.attributes).map(([key, value]) => (
+                          <div key={key} className={styles.popoverAttrRow}>
+                            <span className={styles.popoverAttrKey}>{key}</span>
+                            <span className={styles.popoverAttrValue}>
+                              {String(value).length > 100
+                                ? `${String(value).substring(0, 100)}...`
+                                : String(value)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </>

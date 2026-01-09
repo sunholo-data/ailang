@@ -158,6 +158,32 @@ func (d *Daemon) requestHandoffApproval(
 	d.approvalCheckpoint.requests[request.ID] = request
 	d.approvalCheckpoint.mu.Unlock()
 
+	// Persist to database so CLI can see pending handoff approvals
+	// Store handoff-specific data in ContextJSON
+	contextData := map[string]interface{}{
+		"source_agent_id": sourceAgent.ID,
+		"target_agent_id": targetAgent.ID,
+		"session_id":      sessionID,
+		"handoff_message": message,
+	}
+	contextJSON, _ := json.Marshal(contextData)
+	timeoutAt := time.Now().Add(request.Timeout)
+	approvalReq := &ApprovalRequestRecord{
+		ID:          request.ID,
+		TaskID:      task.ID,
+		Type:        string(ApprovalTypeHandoff),
+		Description: request.Title,
+		ContextJSON: string(contextJSON),
+		Status:      "pending",
+		CreatedAt:   time.Now(),
+		TimeoutAt:   &timeoutAt,
+		AutoReject:  request.AutoReject,
+	}
+	if err := d.taskStore.CreateApprovalRequest(d.ctx, approvalReq); err != nil {
+		d.logger.Printf("Warning: Failed to persist handoff approval request: %v", err)
+		// Continue anyway - in-memory request still works
+	}
+
 	// Broadcast the approval request event for dashboard
 	if d.eventBroadcaster != nil {
 		d.eventBroadcaster(&websocket.TaskStreamEvent{

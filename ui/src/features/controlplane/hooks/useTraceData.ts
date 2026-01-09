@@ -75,30 +75,74 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
   };
 
   // Fetch spans by task_id using the hierarchy endpoint
-  // This expands to include ALL spans in linked traces (claude.execute, exec.turn, etc.)
-  const fetchByTaskId = async (tid: string): Promise<RawSpan[]> => {
+  // Preserves the hierarchical structure from the backend (children[] arrays)
+  const fetchByTaskId = async (tid: string): Promise<Span[]> => {
     // Use hierarchy endpoint which does proper trace expansion
     const response = await fetch(`/api/observatory/tasks/${tid}/hierarchy`);
     if (!response.ok) {
       // Fallback to direct spans query if hierarchy fails
       const fallbackResponse = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
       if (!fallbackResponse.ok) return [];
-      return await fallbackResponse.json() || [];
+      const rawSpans = await fallbackResponse.json() || [];
+      return buildSpanHierarchy(rawSpans);  // Use old approach for fallback
     }
 
     const hierarchy = await response.json();
-    // Extract all spans from the hierarchy response
-    const allSpans: RawSpan[] = [];
+
+    // Transform SpanNodes to Spans, preserving children hierarchy
+    const transformSpanNode = (spanNode: any, minStart: number): Span | null => {
+      if (!spanNode?.span) return null;
+
+      const raw = spanNode.span;
+      const startMs = new Date(raw.start_time).getTime() - minStart;
+
+      const span: Span = {
+        id: raw.id,
+        name: raw.name,
+        startMs,
+        durationMs: raw.duration_ms,
+        status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',
+        attributes: raw.attributes,
+        children: [], // Will populate below
+      };
+
+      // Recursively transform children (preserving backend hierarchy!)
+      if (spanNode.children && Array.isArray(spanNode.children)) {
+        span.children = spanNode.children
+          .map((child: any) => transformSpanNode(child, minStart))
+          .filter((s: Span | null): s is Span => s !== null)
+          .sort((a: Span, b: Span) => a.startMs - b.startMs);
+      }
+
+      return span;
+    };
+
+    // Find minimum start time across all spans (traverse full hierarchy)
+    const findMinStart = (nodes: any[]): number => {
+      let min = Infinity;
+      const traverse = (node: any) => {
+        if (node?.span?.start_time) {
+          const t = new Date(node.span.start_time).getTime();
+          if (t < min) min = t;
+        }
+        node?.children?.forEach(traverse);
+      };
+      nodes.forEach(traverse);
+      return min === Infinity ? 0 : min;
+    };
+
+    // Extract root spans from hierarchy response, preserving children
+    const rootSpans: Span[] = [];
 
     if (hierarchy?.agents) {
       for (const agent of hierarchy.agents) {
         if (agent?.traces) {
           for (const trace of agent.traces) {
             if (trace?.spans) {
+              const minStart = findMinStart(trace.spans);
               for (const spanNode of trace.spans) {
-                if (spanNode?.span) {
-                  allSpans.push(spanNode.span);
-                }
+                const span = transformSpanNode(spanNode, minStart);
+                if (span) rootSpans.push(span);
               }
             }
           }
@@ -106,7 +150,10 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
       }
     }
 
-    return allSpans;
+    // Sort root spans by start time
+    rootSpans.sort((a, b) => a.startMs - b.startMs);
+
+    return rootSpans;
   };
 
   // Fetch spans for a specific trace or task - tries multiple approaches
@@ -115,30 +162,33 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
 
     setSpansLoading(true);
     try {
-      let result: RawSpan[] = [];
+      let hierarchicalSpans: Span[] = [];
       const type = idType || 'auto';
 
       if (type === 'trace') {
-        result = await fetchByTraceId(id);
+        // Trace ID path: returns RawSpan[], needs buildSpanHierarchy
+        const rawSpans = await fetchByTraceId(id);
+        hierarchicalSpans = buildSpanHierarchy(rawSpans);
       } else if (type === 'task') {
-        result = await fetchByTaskId(id);
+        // Task ID path: returns Span[] with hierarchy already preserved
+        hierarchicalSpans = await fetchByTaskId(id);
       } else {
         // Auto mode: try trace_id first, then task_id
-        result = await fetchByTraceId(id);
-        if (result.length === 0) {
-          // Try as task_id
-          result = await fetchByTaskId(id);
-        }
-        if (result.length === 0) {
-          // Try with "task-" prefix if not already present
-          if (!id.startsWith('task-')) {
-            result = await fetchByTaskId(`task-${id}`);
+        const rawSpans = await fetchByTraceId(id);
+        if (rawSpans.length > 0) {
+          hierarchicalSpans = buildSpanHierarchy(rawSpans);
+        } else {
+          // Try as task_id (returns Span[] with hierarchy preserved)
+          hierarchicalSpans = await fetchByTaskId(id);
+          if (hierarchicalSpans.length === 0) {
+            // Try with "task-" prefix if not already present
+            if (!id.startsWith('task-')) {
+              hierarchicalSpans = await fetchByTaskId(`task-${id}`);
+            }
           }
         }
       }
 
-      // Transform flat spans to hierarchical structure
-      const hierarchicalSpans = buildSpanHierarchy(result);
       setSpans(hierarchicalSpans);
       setError(null);
     } catch (err) {

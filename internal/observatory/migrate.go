@@ -60,6 +60,37 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 1
 	}
 
+	// Migration v2: Add parent_task_id for task hierarchy tracking
+	if currentVersion < 2 {
+		// Check if column already exists (idempotent)
+		var colExists int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name = 'parent_task_id'
+		`).Scan(&colExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check parent_task_id column: %w", err)
+		}
+
+		if colExists == 0 {
+			_, err = db.Exec("ALTER TABLE tasks ADD COLUMN parent_task_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add parent_task_id column: %w", err)
+			}
+		}
+
+		// Create index (idempotent via IF NOT EXISTS)
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create parent_task_id index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (2)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 2: %w", err)
+		}
+		currentVersion = 2
+	}
+
 	return currentVersion, nil
 }
 

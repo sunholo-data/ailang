@@ -12,6 +12,7 @@ export interface Workspace {
 export interface Task {
   id: string;
   workspace_id: string;
+  parent_task_id?: string;  // Links to parent task for handoff chains
   title: string;
   description: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';

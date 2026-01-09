@@ -56,17 +56,18 @@ func (s *ObservatorySync) SyncTask(ctx context.Context, task *TaskRecord) error 
 
 	// Convert coordinator task to observatory task
 	obsTask := &observatory.Task{
-		ID:          task.ID,
-		WorkspaceID: workspaceID,
-		Title:       task.Title,
-		Description: task.Content,
-		SourceType:  s.convertSourceType(task),
-		SourceRef:   s.getSourceRef(task),
-		Status:      s.convertTaskStatus(task.Status),
-		Priority:    s.convertPriority(task.Priority),
-		CreatedAt:   task.CreatedAt,
-		StartedAt:   task.StartedAt,
-		CompletedAt: task.CompletedAt,
+		ID:           task.ID,
+		WorkspaceID:  workspaceID,
+		ParentTaskID: task.ParentTaskID, // Links to parent task for handoff chains
+		Title:        task.Title,
+		Description:  task.Content,
+		SourceType:   s.convertSourceType(task),
+		SourceRef:    s.getSourceRef(task),
+		Status:       s.convertTaskStatus(task.Status),
+		Priority:     s.convertPriority(task.Priority),
+		CreatedAt:    task.CreatedAt,
+		StartedAt:    task.StartedAt,
+		CompletedAt:  task.CompletedAt,
 	}
 
 	s.logger.Printf("Observatory sync DEBUG: task.ID=%q, workspaceID=%q, title=%q", task.ID, workspaceID, task.Title)

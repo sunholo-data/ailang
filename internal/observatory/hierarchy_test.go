@@ -168,8 +168,9 @@ func TestGetTaskHierarchy(t *testing.T) {
 	if agent1Hier.Traces[0].TraceID != "trace-1" {
 		t.Errorf("Expected trace ID 'trace-1', got '%s'", agent1Hier.Traces[0].TraceID)
 	}
-	if len(agent1Hier.Traces[0].Spans) != 2 {
-		t.Errorf("Expected 2 spans in trace, got %d", len(agent1Hier.Traces[0].Spans))
+	// Spans[] contains only root-level spans (non-roots are in Children arrays)
+	if len(agent1Hier.Traces[0].Spans) != 1 {
+		t.Errorf("Expected 1 root span in trace, got %d", len(agent1Hier.Traces[0].Spans))
 	}
 
 	// Verify trace summary

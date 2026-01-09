@@ -18,12 +18,12 @@ type TaskListOptions struct {
 // CreateTask inserts a new task.
 func (s *Store) CreateTask(t *Task) error {
 	_, err := s.db.Exec(`
-		INSERT INTO tasks (id, workspace_id, title, description, source_type, source_ref,
+		INSERT INTO tasks (id, workspace_id, parent_task_id, title, description, source_type, source_ref,
 		                   status, priority, created_at, started_at, completed_at,
 		                   total_duration_ms, total_tokens_in, total_tokens_out,
 		                   total_cost_usd, agent_count, span_count, error_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, t.ID, t.WorkspaceID, t.Title, t.Description, t.SourceType, t.SourceRef,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, t.ID, t.WorkspaceID, t.ParentTaskID, t.Title, t.Description, t.SourceType, t.SourceRef,
 		t.Status, t.Priority, t.CreatedAt, t.StartedAt, t.CompletedAt,
 		t.TotalDurationMs, t.TotalTokensIn, t.TotalTokensOut,
 		t.TotalCostUSD, t.AgentCount, t.SpanCount, t.ErrorCount)
@@ -33,20 +33,23 @@ func (s *Store) CreateTask(t *Task) error {
 // GetTask retrieves a task by ID.
 func (s *Store) GetTask(id string) (*Task, error) {
 	t := &Task{}
-	var desc, sourceRef sql.NullString
+	var parentTaskID, desc, sourceRef sql.NullString
 	var startedAt, completedAt sql.NullTime
 	err := s.db.QueryRow(`
-		SELECT id, workspace_id, title, description, source_type, source_ref,
+		SELECT id, workspace_id, parent_task_id, title, description, source_type, source_ref,
 		       status, priority, created_at, started_at, completed_at,
 		       total_duration_ms, total_tokens_in, total_tokens_out,
 		       total_cost_usd, agent_count, span_count, error_count
 		FROM tasks WHERE id = ?
-	`, id).Scan(&t.ID, &t.WorkspaceID, &t.Title, &desc, &t.SourceType, &sourceRef,
+	`, id).Scan(&t.ID, &t.WorkspaceID, &parentTaskID, &t.Title, &desc, &t.SourceType, &sourceRef,
 		&t.Status, &t.Priority, &t.CreatedAt, &startedAt, &completedAt,
 		&t.TotalDurationMs, &t.TotalTokensIn, &t.TotalTokensOut,
 		&t.TotalCostUSD, &t.AgentCount, &t.SpanCount, &t.ErrorCount)
 	if err != nil {
 		return nil, err
+	}
+	if parentTaskID.Valid {
+		t.ParentTaskID = parentTaskID.String
 	}
 	if desc.Valid {
 		t.Description = desc.String
@@ -66,7 +69,7 @@ func (s *Store) GetTask(id string) (*Task, error) {
 // ListTasks returns tasks with optional filtering.
 func (s *Store) ListTasks(opts TaskListOptions) ([]*Task, error) {
 	query := `
-		SELECT id, workspace_id, title, description, source_type, source_ref,
+		SELECT id, workspace_id, parent_task_id, title, description, source_type, source_ref,
 		       status, priority, created_at, started_at, completed_at,
 		       total_duration_ms, total_tokens_in, total_tokens_out,
 		       total_cost_usd, agent_count, span_count, error_count
@@ -105,13 +108,16 @@ func (s *Store) ListTasks(opts TaskListOptions) ([]*Task, error) {
 	var tasks []*Task
 	for rows.Next() {
 		t := &Task{}
-		var desc, sourceRef sql.NullString
+		var parentTaskID, desc, sourceRef sql.NullString
 		var startedAt, completedAt sql.NullTime
-		if err := rows.Scan(&t.ID, &t.WorkspaceID, &t.Title, &desc, &t.SourceType, &sourceRef,
+		if err := rows.Scan(&t.ID, &t.WorkspaceID, &parentTaskID, &t.Title, &desc, &t.SourceType, &sourceRef,
 			&t.Status, &t.Priority, &t.CreatedAt, &startedAt, &completedAt,
 			&t.TotalDurationMs, &t.TotalTokensIn, &t.TotalTokensOut,
 			&t.TotalCostUSD, &t.AgentCount, &t.SpanCount, &t.ErrorCount); err != nil {
 			return nil, err
+		}
+		if parentTaskID.Valid {
+			t.ParentTaskID = parentTaskID.String
 		}
 		if desc.Valid {
 			t.Description = desc.String
@@ -133,12 +139,12 @@ func (s *Store) ListTasks(opts TaskListOptions) ([]*Task, error) {
 // UpdateTask updates an existing task.
 func (s *Store) UpdateTask(t *Task) error {
 	_, err := s.db.Exec(`
-		UPDATE tasks SET title = ?, description = ?, source_type = ?, source_ref = ?,
+		UPDATE tasks SET parent_task_id = ?, title = ?, description = ?, source_type = ?, source_ref = ?,
 		                 status = ?, priority = ?, started_at = ?, completed_at = ?,
 		                 total_duration_ms = ?, total_tokens_in = ?, total_tokens_out = ?,
 		                 total_cost_usd = ?, agent_count = ?, span_count = ?, error_count = ?
 		WHERE id = ?
-	`, t.Title, t.Description, t.SourceType, t.SourceRef,
+	`, t.ParentTaskID, t.Title, t.Description, t.SourceType, t.SourceRef,
 		t.Status, t.Priority, t.StartedAt, t.CompletedAt,
 		t.TotalDurationMs, t.TotalTokensIn, t.TotalTokensOut,
 		t.TotalCostUSD, t.AgentCount, t.SpanCount, t.ErrorCount, t.ID)

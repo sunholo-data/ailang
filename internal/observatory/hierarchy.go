@@ -192,6 +192,11 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 	// in a different trace via TRACEPARENT propagation
 	agentHierarchy.Traces = mergeRelatedTraces(agentHierarchy.Traces)
 
+	// Merge session-related traces (Claude Code telemetry correlation)
+	// This handles orphan traces that share session.id with the main trace
+	// but have no parent_span_id (Claude Code's own telemetry)
+	agentHierarchy.Traces = mergeSessionRelatedTraces(agentHierarchy.Traces)
+
 	// Sort traces by their first span's start time (chronological order)
 	sort.Slice(agentHierarchy.Traces, func(i, j int) bool {
 		iTime := agentHierarchy.Traces[i].getEarliestStartTime()
@@ -253,23 +258,22 @@ func buildTraceHierarchy(traceID string, spans []*Span, maxDepth int) *TraceHier
 		}
 	}
 
-	// Build flat list for easy rendering, sorted by start time
-	flatSpans := make([]*SpanNode, 0, len(spans))
-	for _, span := range spans {
-		flatSpans = append(flatSpans, spanIndex[span.ID])
-	}
-	sort.Slice(flatSpans, func(i, j int) bool {
-		return flatSpans[i].Span.StartTime.Before(flatSpans[j].Span.StartTime)
+	// Sort root nodes by start time
+	sort.Slice(rootNodes, func(i, j int) bool {
+		return rootNodes[i].Span.StartTime.Before(rootNodes[j].Span.StartTime)
 	})
 
-	// Sort children of each node by start time
-	for _, node := range flatSpans {
+	// Sort children of each node by start time (recursively)
+	for _, node := range rootNodes {
 		sortChildrenByTime(node)
 	}
 
+	// IMPORTANT: Spans contains ONLY root-level spans (those with no parent or orphans).
+	// The full hierarchy is provided via the Children[] arrays on each node.
+	// This was previously using flatSpans (all spans) which caused duplicates.
 	traceHierarchy := &TraceHierarchy{
 		TraceID: traceID,
-		Spans:   flatSpans,
+		Spans:   rootNodes,
 		Summary: summary,
 	}
 
@@ -303,6 +307,27 @@ func sortChildrenByTime(node *SpanNode) {
 	for _, child := range node.Children {
 		sortChildrenByTime(child)
 	}
+}
+
+// collectAllSpans recursively collects all spans from a trace hierarchy.
+// This traverses Children[] arrays to include nested spans, not just roots.
+// IMPORTANT: Must be used when building span indexes for cross-trace merging,
+// since trace.Spans only contains root-level spans after buildTraceHierarchy.
+func collectAllSpans(trace *TraceHierarchy) []*SpanNode {
+	var result []*SpanNode
+	var traverse func(node *SpanNode)
+	traverse = func(node *SpanNode) {
+		if node != nil {
+			result = append(result, node)
+			for _, child := range node.Children {
+				traverse(child)
+			}
+		}
+	}
+	for _, root := range trace.Spans {
+		traverse(root)
+	}
+	return result
 }
 
 // =============================================================================
@@ -438,11 +463,15 @@ func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
 		return traces
 	}
 
-	// Build a global span index across all traces
+	// Build a global span index across all traces (recursively including children!)
+	// IMPORTANT: trace.Spans only contains root nodes, but we need to index ALL spans
+	// so that cross-trace parent lookups can find nested spans like claude.execute
+	// that are children of coordinator.task.execute.
 	globalSpanIndex := make(map[string]*SpanNode)
 	traceForSpan := make(map[string]*TraceHierarchy)
 	for _, trace := range traces {
-		for _, node := range trace.Spans {
+		allSpans := collectAllSpans(trace) // Recursive traversal of Children[]
+		for _, node := range allSpans {
 			if node.Span != nil {
 				globalSpanIndex[node.Span.ID] = node
 				traceForSpan[node.Span.ID] = trace
@@ -495,8 +524,10 @@ func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
 				parentTrace.Summary.ErrorCount += trace.Summary.ErrorCount
 			}
 
-			// Add child trace's spans to parent trace's flat list
-			parentTrace.Spans = append(parentTrace.Spans, trace.Spans...)
+			// NOTE: We do NOT add child trace spans to parent's flat Spans[] array.
+			// The orphan span is already added as a child above.
+			// All UI components use children[] arrays for rendering the hierarchy.
+			// Adding to Spans[] would create duplicates.
 		}
 	}
 
@@ -514,15 +545,21 @@ func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
 // findOrphanRoots returns spans that appear as roots in this trace
 // but have a ParentSpanID that could be in another trace.
 func findOrphanRoots(trace *TraceHierarchy, globalIndex map[string]*SpanNode) []*SpanNode {
-	// Build local index for this trace
+	// Build local index from ALL spans in this trace (recursive!)
+	// IMPORTANT: trace.Spans only contains root nodes, but parent_span_id might
+	// point to a nested child (e.g., claude.execute under coordinator.task.execute).
+	// We need to index ALL spans to properly detect orphans.
+	allSpans := collectAllSpans(trace)
 	localIndex := make(map[string]bool)
-	for _, node := range trace.Spans {
+	for _, node := range allSpans {
 		if node.Span != nil {
 			localIndex[node.Span.ID] = true
 		}
 	}
 
 	// Find spans with ParentSpanID not in this trace but in global index
+	// NOTE: Still only check root spans for orphan detection (those in trace.Spans),
+	// since nested spans already have their parent in the same trace by definition.
 	var orphans []*SpanNode
 	for _, node := range trace.Spans {
 		if node.Span == nil || node.Span.ParentSpanID == "" {
@@ -538,4 +575,298 @@ func findOrphanRoots(trace *TraceHierarchy, globalIndex map[string]*SpanNode) []
 	}
 
 	return orphans
+}
+
+// =============================================================================
+// Session-Based Merging: Link Claude Code telemetry by session.id attribute
+// =============================================================================
+// Claude Code emits its own telemetry (api_request, user_prompt, tool events)
+// in separate traces with NO parent_span_id. However, these spans share the
+// same session.id attribute as our executor spans.
+//
+// This function finds orphan traces that share session.id with the main trace
+// and nests their spans under appropriate exec.turn spans using timestamp
+// correlation.
+//
+// Correlation strategy:
+// 1. Primary: Match by session.id attribute (most reliable)
+// 2. Fallback: If no session.id, use timestamp overlap with executor time window
+// =============================================================================
+
+// mergeSessionRelatedTraces finds orphan traces that share session.id with the main trace
+// and nests them under appropriate spans using timestamp correlation.
+func mergeSessionRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
+	if len(traces) <= 1 {
+		return traces
+	}
+
+	// 1. Find main trace (has coordinator.task.execute or claude.execute as root)
+	var mainTrace *TraceHierarchy
+	var orphanTraces []*TraceHierarchy
+
+	for _, trace := range traces {
+		if hasMainExecutorRoot(trace) {
+			mainTrace = trace
+		} else {
+			orphanTraces = append(orphanTraces, trace)
+		}
+	}
+
+	if mainTrace == nil {
+		return traces // No main trace, nothing to merge
+	}
+
+	// 2. Extract session.id from main trace (primary correlation key)
+	mainSessionID := extractSessionID(mainTrace)
+
+	// 3. Get executor time window for timestamp fallback
+	executorStart, executorEnd := getExecutorTimeWindow(mainTrace)
+
+	// 4. Build turn spans index for timestamp-based nesting
+	turnSpans := collectTurnSpans(mainTrace)
+
+	// 5. Find orphan traces that can be correlated
+	mergedTraces := make(map[string]bool)
+
+	for _, orphan := range orphanTraces {
+		orphanSessionID := extractSessionID(orphan)
+
+		// PRIMARY: Match by session.id
+		matchedBySession := mainSessionID != "" && orphanSessionID == mainSessionID
+
+		// FALLBACK: Match by timestamp overlap (if no session match)
+		matchedByTimestamp := false
+		if !matchedBySession && executorEnd != nil {
+			orphanStart := getTraceStartTime(orphan)
+			if orphanStart != nil {
+				// Orphan started within executor's time window
+				matchedByTimestamp = !orphanStart.Before(executorStart) && !orphanStart.After(*executorEnd)
+			}
+		}
+
+		if !matchedBySession && !matchedByTimestamp {
+			continue // Not related to main trace
+		}
+
+		// 6. Nest orphan spans under appropriate turn spans using timestamps
+		for _, orphanNode := range orphan.Spans {
+			if orphanNode.Span == nil {
+				continue
+			}
+
+			// Find containing turn span (or fallback to executor)
+			parentSpan := findContainingTurnSpan(orphanNode.Span, turnSpans, mainTrace)
+			if parentSpan != nil {
+				parentSpan.Children = append(parentSpan.Children, orphanNode)
+			}
+		}
+
+		// Mark as merged
+		mergedTraces[orphan.TraceID] = true
+
+		// Merge summary stats into main trace
+		if mainTrace.Summary != nil && orphan.Summary != nil {
+			mainTrace.Summary.SpanCount += orphan.Summary.SpanCount
+			mainTrace.Summary.TotalTokens += orphan.Summary.TotalTokens
+			mainTrace.Summary.TotalCostUSD += orphan.Summary.TotalCostUSD
+			if orphan.Summary.DurationMs > mainTrace.Summary.DurationMs {
+				mainTrace.Summary.DurationMs = orphan.Summary.DurationMs
+			}
+			mainTrace.Summary.ErrorCount += orphan.Summary.ErrorCount
+		}
+
+		// NOTE: Orphan spans are NOT added to the flat Spans[] array.
+		// They are only added as children of turn/executor spans above.
+		// All UI components (TraceWaterfall, ExecHierarchy) should use
+		// the children[] arrays to render the proper hierarchy.
+		// The flat Spans[] contains only ROOT-level spans.
+	}
+
+	// Sort turn children by start time after merging
+	for _, turn := range turnSpans {
+		if len(turn.Children) > 0 {
+			sort.Slice(turn.Children, func(i, j int) bool {
+				return turn.Children[i].Span.StartTime.Before(turn.Children[j].Span.StartTime)
+			})
+		}
+	}
+
+	// 7. Return non-merged traces
+	result := make([]*TraceHierarchy, 0, len(traces))
+	for _, trace := range traces {
+		if !mergedTraces[trace.TraceID] {
+			result = append(result, trace)
+		}
+	}
+
+	return result
+}
+
+// hasMainExecutorRoot returns true if the trace has a main executor span as root.
+func hasMainExecutorRoot(trace *TraceHierarchy) bool {
+	for _, node := range trace.Spans {
+		if node.Span == nil {
+			continue
+		}
+		name := node.Span.Name
+		if name == "coordinator.task.execute" || name == "claude.execute" || name == "gemini.execute" {
+			return true
+		}
+	}
+	return false
+}
+
+// extractSessionID extracts the session.id attribute from any span in the trace.
+// Must traverse full hierarchy since session.id is typically on claude.execute or
+// exec.turn spans, not the root coordinator.task.execute span.
+func extractSessionID(trace *TraceHierarchy) string {
+	// Use collectAllSpans to traverse the full hierarchy including Children[]
+	allSpans := collectAllSpans(trace)
+	for _, node := range allSpans {
+		if node.Span == nil || node.Span.Attributes == nil {
+			continue
+		}
+		if sid, ok := node.Span.Attributes["session.id"]; ok {
+			if sidStr, ok := sid.(string); ok {
+				return sidStr
+			}
+		}
+	}
+	return ""
+}
+
+// getExecutorTimeWindow returns the time window of the main executor span.
+// Traverses the full hierarchy since executor spans may be nested.
+func getExecutorTimeWindow(trace *TraceHierarchy) (time.Time, *time.Time) {
+	// Recursive helper to find executor span at any depth
+	var findExecutor func(node *SpanNode) *SpanNode
+	findExecutor = func(node *SpanNode) *SpanNode {
+		if node.Span != nil {
+			if node.Span.Name == "claude.execute" || node.Span.Name == "gemini.execute" ||
+				node.Span.Name == "coordinator.task.execute" {
+				return node
+			}
+		}
+		for _, child := range node.Children {
+			if found := findExecutor(child); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+
+	for _, node := range trace.Spans {
+		if found := findExecutor(node); found != nil {
+			return found.Span.StartTime, found.Span.EndTime
+		}
+	}
+	return time.Time{}, nil
+}
+
+// getTraceStartTime returns the earliest span start time in the trace.
+// Traverses the full hierarchy since child spans may have earlier start times.
+func getTraceStartTime(trace *TraceHierarchy) *time.Time {
+	var earliest *time.Time
+	// Use collectAllSpans to traverse the full hierarchy including Children[]
+	allSpans := collectAllSpans(trace)
+	for _, node := range allSpans {
+		if node.Span == nil {
+			continue
+		}
+		if earliest == nil || node.Span.StartTime.Before(*earliest) {
+			t := node.Span.StartTime
+			earliest = &t
+		}
+	}
+	return earliest
+}
+
+// collectTurnSpans collects all exec.turn spans from the trace for timestamp matching.
+// Traverses the full hierarchy since turns may be nested under executor spans.
+func collectTurnSpans(trace *TraceHierarchy) []*SpanNode {
+	var turns []*SpanNode
+
+	// Recursive helper to find turn spans at any depth
+	var collectFromNode func(node *SpanNode)
+	collectFromNode = func(node *SpanNode) {
+		if node.Span != nil && strings.Contains(node.Span.Name, "turn") {
+			turns = append(turns, node)
+		}
+		for _, child := range node.Children {
+			collectFromNode(child)
+		}
+	}
+
+	// Traverse from root spans
+	for _, node := range trace.Spans {
+		collectFromNode(node)
+	}
+
+	// Sort by start time for consistent matching
+	sort.Slice(turns, func(i, j int) bool {
+		return turns[i].Span.StartTime.Before(turns[j].Span.StartTime)
+	})
+	return turns
+}
+
+// findContainingTurnSpan finds the exec.turn span whose time window contains or precedes the child's start time.
+// Uses two strategies:
+// 1. If child starts WITHIN a turn's time window, use that turn
+// 2. If child starts AFTER turn ends (gap between turns), use the most recent preceding turn
+// Falls back to the main executor span if no turn matches.
+func findContainingTurnSpan(child *Span, turnSpans []*SpanNode, mainTrace *TraceHierarchy) *SpanNode {
+	var bestPrecedingTurn *SpanNode
+	var smallestGap time.Duration = time.Hour * 24 // Large initial value
+
+	// Try to find containing or preceding turn span
+	for _, turn := range turnSpans {
+		if turn.Span == nil || turn.Span.EndTime == nil {
+			continue
+		}
+		turnEnd := *turn.Span.EndTime
+
+		// OPTION 1: Child starts WITHIN turn's time window
+		if (turn.Span.StartTime.Before(child.StartTime) || turn.Span.StartTime.Equal(child.StartTime)) &&
+			(turnEnd.After(child.StartTime) || turnEnd.Equal(child.StartTime)) {
+			return turn
+		}
+
+		// OPTION 2: Child starts AFTER turn ends - track closest preceding turn
+		// This handles api_request spans that occur in the gap between turns
+		if turnEnd.Before(child.StartTime) {
+			gap := child.StartTime.Sub(turnEnd)
+			if gap < smallestGap {
+				smallestGap = gap
+				bestPrecedingTurn = turn
+			}
+		}
+	}
+
+	// If we found a preceding turn within 30s, use it
+	// This covers api_request spans that start right after a turn ends
+	if bestPrecedingTurn != nil && smallestGap < 30*time.Second {
+		return bestPrecedingTurn
+	}
+
+	// Fallback: nest under main executor span (traverse hierarchy to find it)
+	var findExecutorSpan func(node *SpanNode) *SpanNode
+	findExecutorSpan = func(node *SpanNode) *SpanNode {
+		if node.Span != nil && (node.Span.Name == "claude.execute" || node.Span.Name == "gemini.execute") {
+			return node
+		}
+		for _, child := range node.Children {
+			if found := findExecutorSpan(child); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+
+	for _, node := range mainTrace.Spans {
+		if found := findExecutorSpan(node); found != nil {
+			return found
+		}
+	}
+
+	return nil
 }

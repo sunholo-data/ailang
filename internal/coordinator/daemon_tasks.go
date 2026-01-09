@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -191,6 +192,10 @@ func (d *Daemon) initTaskProcessing() error {
 			d.logger.Printf("Recovered %d stale task(s) from previous daemon run", recovered)
 		}
 	}
+
+	// Clean up worktrees for tasks in terminal states (cancelled, completed, failed, rejected)
+	// This handles worktrees left behind by RecoverStaleTasks and any other cleanup gaps
+	d.cleanupWorktreesForTerminalTasks()
 
 	return nil
 }
@@ -429,8 +434,12 @@ var coordinatorTracer = otel.Tracer("coordinator")
 
 // executeTask runs a single task through the executor
 func (d *Daemon) executeTask(task *TaskRecord) error {
-	// Start OTEL span for task execution
-	ctx, span := coordinatorTracer.Start(d.ctx, "coordinator.task.execute",
+	// Start OTEL span for task execution with a NEW trace root.
+	// CRITICAL: Use context.Background() instead of d.ctx to avoid trace contamination
+	// between tasks. Each task gets its own trace_id instead of all tasks sharing
+	// the daemon's trace context (which caused Phase 16 trace mixing bug).
+	taskCtx, span := coordinatorTracer.Start(context.Background(), "coordinator.task.execute",
+		trace.WithNewRoot(), // Force new trace, don't inherit from previous tasks
 		trace.WithAttributes(
 			attribute.String("task.id", task.ID),
 			attribute.String("task.type", string(task.Type)),
@@ -440,13 +449,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	)
 	defer span.End()
 
-	// Use traced context for the rest of the function
-	d.ctx = ctx
+	// NOTE: Intentionally NOT mutating d.ctx to avoid trace contamination.
+	// Use taskCtx for all operations within this task execution.
 
 	d.logger.Printf("Starting execution of task %s (type: %s)", task.ID, task.Type)
 
 	// Mark task as running
-	if err := d.taskStore.MarkTaskRunning(d.ctx, task.ID, "", ""); err != nil {
+	if err := d.taskStore.MarkTaskRunning(taskCtx, task.ID, "", ""); err != nil {
 		return fmt.Errorf("failed to mark task as running: %w", err)
 	}
 
@@ -533,7 +542,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			// Agent would modify main repo directly, causing data loss.
 			d.logger.Printf("ERROR: Failed to create worktree for task %s (agent: %s): %v", task.ID, targetAgent, wtErr)
 			failErr := fmt.Errorf("worktree creation failed: %w (check 'ailang coordinator cleanup' to free slots)", wtErr)
-			if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, failErr); err != nil {
+			if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, failErr); err != nil {
 				d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, err)
 			}
 			return failErr // Don't execute without worktree isolation
@@ -543,7 +552,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// No worktree manager means we can't ensure isolation
 		d.logger.Printf("ERROR: No worktree manager available for task %s (agent: %s)", task.ID, targetAgent)
 		failErr := fmt.Errorf("no worktree manager available for agent %s", targetAgent)
-		if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, failErr); err != nil {
+		if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, failErr); err != nil {
 			d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, err)
 		}
 		return failErr
@@ -553,12 +562,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	var obsContext *ObservatoryContext
 	if d.observatorySync != nil {
 		// Sync task entity
-		if err := d.observatorySync.SyncTask(d.ctx, task); err != nil {
+		if err := d.observatorySync.SyncTask(taskCtx, task); err != nil {
 			d.logger.Printf("Warning: Failed to sync task to Observatory: %v", err)
 		}
 
 		// Create agent assignment and get ID for context propagation
-		assignmentID, err := d.observatorySync.SyncAgentAssignment(d.ctx, task.ID, targetAgent, "claude")
+		assignmentID, err := d.observatorySync.SyncAgentAssignment(taskCtx, task.ID, targetAgent, "claude")
 		if err != nil {
 			d.logger.Printf("Warning: Failed to sync agent assignment: %v", err)
 		}
@@ -600,7 +609,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// Set up event storage for historical replay
 		if sqliteStore, ok := d.taskStore.(*SQLiteStore); ok {
 			eventHandler.SetEventStorer(func(record *TaskEventRecord) error {
-				return sqliteStore.StoreTaskEvent(d.ctx, record)
+				return sqliteStore.StoreTaskEvent(taskCtx, record)
 			})
 		}
 
@@ -624,10 +633,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	// Start resource tracking
-	resourceTracker.Start(d.ctx)
+	resourceTracker.Start(taskCtx)
 
 	// Execute the task
-	result, err := d.executor.ExecuteWithRetry(d.ctx, analyzed, opts, 2)
+	result, err := d.executor.ExecuteWithRetry(taskCtx, analyzed, opts, 2)
 
 	// Stop resource tracking and get final metrics
 	resourceTracker.Stop()
@@ -651,7 +660,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 
 	// Store peak resource metrics in task record
 	if finalMetrics != nil {
-		_ = d.taskStore.UpdateTaskMetrics(d.ctx, task.ID, finalMetrics.PeakCPU, finalMetrics.PeakMemory)
+		_ = d.taskStore.UpdateTaskMetrics(taskCtx, task.ID, finalMetrics.PeakCPU, finalMetrics.PeakMemory)
 	}
 
 	if err != nil {
@@ -709,20 +718,20 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 
 		if skipApproval {
 			// Script agents or agents with skip_approval: mark as completed directly
-			if err := d.taskStore.MarkTaskCompleted(d.ctx, task.ID, result); err != nil {
+			if err := d.taskStore.MarkTaskCompleted(taskCtx, task.ID, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task completed: %v", err)
 			}
 			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
 			// Normal agents: mark as pending approval
-			if err := d.taskStore.MarkTaskPendingApproval(d.ctx, task.ID, worktreePath, worktreeBranch, result); err != nil {
+			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 			}
 
 			// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 			// This posts the summary to GitHub and adds the appropriate approval label
-			if err := d.ProcessStageCompletion(d.ctx, task, result); err != nil {
+			if err := d.ProcessStageCompletion(taskCtx, task, result); err != nil {
 				d.logger.Printf("Warning: Failed to process stage completion: %v", err)
 			}
 
@@ -736,7 +745,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				Status:      "pending",
 				CreatedAt:   time.Now(),
 			}
-			if err := d.taskStore.CreateApprovalRequest(d.ctx, approvalReq); err != nil {
+			if err := d.taskStore.CreateApprovalRequest(taskCtx, approvalReq); err != nil {
 				d.logger.Printf("Warning: Failed to create approval request: %v", err)
 			}
 
@@ -756,7 +765,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
 			}
 		}
-		if err := d.taskStore.MarkTaskFailed(d.ctx, task.ID, fmt.Errorf("%s", result.Error)); err != nil {
+		if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, fmt.Errorf("%s", result.Error)); err != nil {
 			d.logger.Printf("Warning: Failed to mark task failed: %v", err)
 		}
 		d.logger.Printf("Task %s failed: %s", task.ID, result.Error)
@@ -896,6 +905,103 @@ func (d *Daemon) syncWorktreeState() {
 		} else if cleaned > 0 {
 			d.logger.Printf("Synced worktrees for agent %s: removed %d orphaned slot(s)", agentID, cleaned)
 		}
+	}
+}
+
+// cleanupWorktreesForTerminalTasks removes worktrees for tasks in terminal states.
+// This is needed because RecoverStaleTasks marks tasks as cancelled but doesn't
+// clean up their worktrees, leading to "max worktrees limit reached" errors.
+// It handles two cases:
+// 1. Tasks with WorktreePath set in database - clean up by task ID
+// 2. Orphaned worktree directories on disk for terminal tasks (WorktreePath may be empty)
+func (d *Daemon) cleanupWorktreesForTerminalTasks() {
+	if d.taskStore == nil {
+		return
+	}
+
+	terminalStatuses := []TaskStatus{
+		TaskStatusCancelled,
+		TaskStatusCompleted,
+		TaskStatusFailed,
+		TaskStatusRejected,
+	}
+
+	cleanedTotal := 0
+
+	// First pass: clean up by WorktreePath in database
+	for _, status := range terminalStatuses {
+		tasks, err := d.taskStore.ListTasks(d.ctx, &TaskFilter{Status: []TaskStatus{status}})
+		if err != nil {
+			continue
+		}
+
+		for _, task := range tasks {
+			if task.WorktreePath == "" {
+				continue
+			}
+
+			agentID := task.AgentID
+			if agentID == "" {
+				agentID = "coordinator"
+			}
+
+			if wm, ok := d.worktreeManagers[agentID]; ok {
+				if err := wm.RemoveWorktree(task.ID); err == nil {
+					cleanedTotal++
+					d.logger.Printf("Cleaned up stale worktree for %s task %s", status, task.ID)
+				}
+			}
+		}
+	}
+
+	// Second pass: scan worktree directories for orphans
+	// This handles cases where WorktreePath was never set (task crashed early)
+	for agentID, wm := range d.worktreeManagers {
+		// Get base directory for this agent's worktrees
+		baseDir := filepath.Join(d.config.StateDir, "worktrees", agentID)
+		entries, err := os.ReadDir(baseDir)
+		if err != nil {
+			continue
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+
+			taskID := entry.Name()
+
+			// Check if this task exists and is in a terminal state
+			task, err := d.taskStore.GetTask(d.ctx, taskID)
+			if err != nil {
+				// Task doesn't exist in DB - this is truly orphaned, clean it up
+				if err := wm.RemoveWorktree(taskID); err == nil {
+					cleanedTotal++
+					d.logger.Printf("Cleaned up orphaned worktree (no task record) %s/%s", agentID, taskID)
+				}
+				continue
+			}
+
+			// Check if task is in terminal state
+			isTerminal := false
+			for _, ts := range terminalStatuses {
+				if task.Status == ts {
+					isTerminal = true
+					break
+				}
+			}
+
+			if isTerminal {
+				if err := wm.RemoveWorktree(taskID); err == nil {
+					cleanedTotal++
+					d.logger.Printf("Cleaned up orphaned worktree for %s task %s/%s", task.Status, agentID, taskID)
+				}
+			}
+		}
+	}
+
+	if cleanedTotal > 0 {
+		d.logger.Printf("Cleaned up %d stale worktree(s) for terminal tasks", cleanedTotal)
 	}
 }
 

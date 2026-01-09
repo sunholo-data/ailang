@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 func coordinatorPending(args []string) error {
@@ -68,7 +69,12 @@ func coordinatorPending(args []string) error {
 	for i, req := range pending {
 		// Get task details for worktree info
 		task, _ := store.GetTask(ctx, req.TaskID)
-		fmt.Printf("  %s [%d] %s\n", yellow("⏳"), i+1, req.TaskID)
+		// Show type indicator
+		typeLabel := "[merge]"
+		if req.Type == "handoff" {
+			typeLabel = "[handoff]"
+		}
+		fmt.Printf("  %s [%d] %s %s\n", yellow("⏳"), i+1, cyan(typeLabel), req.TaskID)
 		fmt.Printf("       Title: %s\n", req.Description)
 		if task != nil && task.WorktreePath != "" {
 			if _, err := os.Stat(task.WorktreePath); err == nil {
@@ -103,18 +109,39 @@ func coordinatorPending(args []string) error {
 
 	selectedReq := pending[num-1]
 	selectedTask, _ := store.GetTask(ctx, selectedReq.TaskID)
+	isHandoff := selectedReq.Type == "handoff"
 
 	// Show task menu
 	fmt.Println()
+	if isHandoff {
+		fmt.Println(bold("Type: ") + cyan("Handoff Approval"))
+	} else {
+		fmt.Println(bold("Type: ") + cyan("Merge Approval"))
+	}
 	fmt.Println(bold("Task: ") + selectedReq.TaskID)
 	fmt.Println(bold("Title: ") + selectedReq.Description)
+	// Show handoff context if available
+	if isHandoff && selectedReq.ContextJSON != "" {
+		var ctx map[string]interface{}
+		if err := json.Unmarshal([]byte(selectedReq.ContextJSON), &ctx); err == nil {
+			if src, ok := ctx["source_agent_id"].(string); ok {
+				if tgt, ok := ctx["target_agent_id"].(string); ok {
+					fmt.Println(bold("Handoff: ") + src + " → " + tgt)
+				}
+			}
+		}
+	}
 	fmt.Println()
 	fmt.Println(bold("Actions:"))
-	fmt.Println("  [d]  View diff (full)")
-	fmt.Println("  [s]  View diff summary (--stat)")
-	fmt.Println("  [f]  Browse changed files")
-	fmt.Println("  [o]  Open worktree in Finder")
-	fmt.Println("  [a]  " + green("Approve and merge"))
+	if !isHandoff {
+		fmt.Println("  [d]  View diff (full)")
+		fmt.Println("  [s]  View diff summary (--stat)")
+		fmt.Println("  [f]  Browse changed files")
+		fmt.Println("  [o]  Open worktree in Finder")
+		fmt.Println("  [a]  " + green("Approve and merge"))
+	} else {
+		fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
+	}
 	fmt.Println("  [r]  " + red("Reject"))
 	fmt.Println("  [q]  Cancel")
 	fmt.Println()
@@ -164,18 +191,100 @@ func coordinatorPending(args []string) error {
 		}
 		openInFinder(selectedTask.WorktreePath)
 	case "a":
+		if isHandoff {
+			// Approve handoff - resolve and send to target agent
+			return coordinatorApproveHandoff(store, selectedReq)
+		}
 		// Approve and merge
 		return coordinatorApprove([]string{selectedReq.TaskID})
 	case "r":
-		if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
-			return fmt.Errorf("failed to reject: %w", err)
+		if isHandoff {
+			// Reject handoff by ID (not by task)
+			if err := store.ResolveApprovalRequest(ctx, selectedReq.ID, "rejected", "cli-user"); err != nil {
+				return fmt.Errorf("failed to reject handoff: %w", err)
+			}
+			fmt.Println(green("✓"), "Handoff rejected:", selectedReq.ID)
+		} else {
+			if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
+				return fmt.Errorf("failed to reject: %w", err)
+			}
+			fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
 		}
-		fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
 	case "q", "":
 		return nil
 	default:
 		fmt.Println("Unknown action:", input)
 	}
+
+	return nil
+}
+
+// coordinatorApproveHandoff approves a handoff request and sends the message to the target agent.
+func coordinatorApproveHandoff(coordStore *coordinator.SQLiteStore, req *coordinator.ApprovalRequestRecord) error {
+	ctx := context.Background()
+
+	// Parse context to get handoff details
+	var handoffCtx struct {
+		SourceAgentID  string `json:"source_agent_id"`
+		TargetAgentID  string `json:"target_agent_id"`
+		SessionID      string `json:"session_id"`
+		HandoffMessage string `json:"handoff_message"`
+	}
+	if err := json.Unmarshal([]byte(req.ContextJSON), &handoffCtx); err != nil {
+		return fmt.Errorf("failed to parse handoff context: %w", err)
+	}
+
+	if handoffCtx.TargetAgentID == "" {
+		return fmt.Errorf("handoff missing target_agent_id")
+	}
+
+	// Resolve the handoff approval
+	if err := coordStore.ResolveApprovalRequest(ctx, req.ID, "approved", "cli-user"); err != nil {
+		return fmt.Errorf("failed to resolve handoff approval: %w", err)
+	}
+
+	// Get task details for the handoff message
+	task, err := coordStore.GetTask(ctx, req.TaskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Send message to target agent's inbox
+	messageContent := handoffCtx.HandoffMessage
+	if messageContent == "" {
+		messageContent = fmt.Sprintf("**Approved Handoff**\n\nTask: %s\nFrom: %s\n\nThis handoff was approved by a human reviewer.",
+			req.TaskID, handoffCtx.SourceAgentID)
+	}
+
+	// Build the title
+	title := fmt.Sprintf("Handoff: %s (approved)", task.Title)
+	if len(title) > 80 {
+		title = title[:77] + "..."
+	}
+
+	// Open the messages database and send
+	msgStore, err := openStore()
+	if err != nil {
+		return fmt.Errorf("failed to open message store: %w", err)
+	}
+	defer msgStore.Close()
+
+	// Create the inbox message
+	msg := &messaging.InboxMessage{
+		FromAgent:    "coordinator",
+		ToInbox:      handoffCtx.TargetAgentID,
+		MessageType:  messaging.InboxTypeNotification,
+		Title:        title,
+		Payload:      messageContent,
+		ParentTaskID: req.TaskID, // Link to parent task for hierarchy tracking
+	}
+
+	if err := msgStore.InsertInboxMessage(msg); err != nil {
+		return fmt.Errorf("failed to send handoff message: %w", err)
+	}
+
+	fmt.Println(green("✓"), "Handoff approved:", handoffCtx.SourceAgentID, "→", handoffCtx.TargetAgentID)
+	fmt.Println("  ", "Message sent to inbox:", handoffCtx.TargetAgentID)
 
 	return nil
 }

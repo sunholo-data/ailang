@@ -231,14 +231,18 @@ func (wm *WorktreeManager) loadExisting() error {
 		} else if strings.HasPrefix(line, "branch ") {
 			currentBranch = strings.TrimPrefix(line, "branch refs/heads/")
 
-			// Check if it's a coordinator worktree
+			// Check if it's a coordinator worktree AND in our base directory
+			// Each agent has its own baseDir, so we only count worktrees in our directory
 			if strings.HasPrefix(currentBranch, "coordinator/") && currentPath != wm.repoDir {
-				taskID := strings.TrimPrefix(currentBranch, "coordinator/")
-				wm.worktrees[taskID] = &Worktree{
-					TaskID:    taskID,
-					Path:      currentPath,
-					Branch:    currentBranch,
-					CreatedAt: time.Now(), // Unknown, use current time
+				// Only load worktrees that are in our base directory
+				if strings.HasPrefix(currentPath, wm.baseDir) {
+					taskID := strings.TrimPrefix(currentBranch, "coordinator/")
+					wm.worktrees[taskID] = &Worktree{
+						TaskID:    taskID,
+						Path:      currentPath,
+						Branch:    currentBranch,
+						CreatedAt: time.Now(), // Unknown, use current time
+					}
 				}
 			}
 			currentPath = ""

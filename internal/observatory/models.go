@@ -64,17 +64,18 @@ const (
 
 // Task represents a unit of work (from GitHub, messages, email, etc.).
 type Task struct {
-	ID          string         `json:"id"`
-	WorkspaceID string         `json:"workspace_id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description,omitempty"`
-	SourceType  TaskSourceType `json:"source_type"`
-	SourceRef   string         `json:"source_ref,omitempty"`
-	Status      TaskStatus     `json:"status"`
-	Priority    string         `json:"priority"`
-	CreatedAt   time.Time      `json:"created_at"`
-	StartedAt   *time.Time     `json:"started_at,omitempty"`
-	CompletedAt *time.Time     `json:"completed_at,omitempty"`
+	ID           string         `json:"id"`
+	WorkspaceID  string         `json:"workspace_id"`
+	ParentTaskID string         `json:"parent_task_id,omitempty"` // Links to parent task for handoff chains
+	Title        string         `json:"title"`
+	Description  string         `json:"description,omitempty"`
+	SourceType   TaskSourceType `json:"source_type"`
+	SourceRef    string         `json:"source_ref,omitempty"`
+	Status       TaskStatus     `json:"status"`
+	Priority     string         `json:"priority"`
+	CreatedAt    time.Time      `json:"created_at"`
+	StartedAt    *time.Time     `json:"started_at,omitempty"`
+	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
 
 	// Aggregated metrics
 	TotalDurationMs int64   `json:"total_duration_ms"`
