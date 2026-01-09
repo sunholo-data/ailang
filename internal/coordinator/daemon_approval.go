@@ -18,8 +18,13 @@ func (d *Daemon) handleAgentHandoffs(task *TaskRecord, result *ExecuteResult) er
 	}
 
 	// Determine which agent handled this task
+	// Priority: task.AgentID > thread.TargetAgent > "coordinator" (default)
 	sourceAgentID := "coordinator" // default
-	if task.ThreadID != "" && d.msgStore != nil {
+	if task.AgentID != "" {
+		// Prefer the agent_id stored on the task record (most reliable)
+		sourceAgentID = task.AgentID
+	} else if task.ThreadID != "" && d.msgStore != nil {
+		// Fallback: look up from thread (for backwards compatibility with older tasks)
 		if thread, err := d.msgStore.GetThread(task.ThreadID); err == nil && thread != nil && thread.TargetAgent != "" {
 			sourceAgentID = thread.TargetAgent
 		}
@@ -90,16 +95,20 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 		return fmt.Errorf("message store not available")
 	}
 
-	// Include session ID in metadata for continuity
-	metadata := ""
+	// Include hierarchy data in metadata for dashboard tracing
+	// parent_task_id enables the dashboard to show handoff chains
+	metadataMap := map[string]interface{}{
+		"parent_task_id": task.ID,        // For hierarchy tracking
+		"handoff_source": task.ID,        // Legacy field for backwards compatibility
+		"source_agent":   task.AgentID,   // Which agent completed the work
+		"target_agent":   targetAgent.ID, // Which agent is receiving the handoff
+	}
 	if sessionID != "" {
-		metadataMap := map[string]interface{}{
-			"session_id":     sessionID,
-			"handoff_source": task.ID,
-		}
-		if data, err := json.Marshal(metadataMap); err == nil {
-			metadata = string(data)
-		}
+		metadataMap["session_id"] = sessionID
+	}
+	metadata := ""
+	if data, err := json.Marshal(metadataMap); err == nil {
+		metadata = string(data)
 	}
 
 	// Create message in the target agent's inbox
@@ -430,15 +439,19 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 	message := fmt.Sprintf("**Approved Handoff from %s**\n\n%s",
 		req.SourceAgentID, req.Description)
 
-	metadata := ""
+	// Include hierarchy data in metadata for dashboard tracing
+	metadataMap := map[string]interface{}{
+		"parent_task_id": req.TaskID,        // For hierarchy tracking
+		"handoff_source": req.TaskID,        // Legacy field for backwards compatibility
+		"source_agent":   req.SourceAgentID, // Which agent completed the work
+		"target_agent":   req.TargetAgentID, // Which agent is receiving the handoff
+	}
 	if req.SessionID != "" {
-		metadataMap := map[string]interface{}{
-			"session_id":     req.SessionID,
-			"handoff_source": req.TaskID,
-		}
-		if data, err := json.Marshal(metadataMap); err == nil {
-			metadata = string(data)
-		}
+		metadataMap["session_id"] = req.SessionID
+	}
+	metadata := ""
+	if data, err := json.Marshal(metadataMap); err == nil {
+		metadata = string(data)
 	}
 
 	// Send to target agent's inbox

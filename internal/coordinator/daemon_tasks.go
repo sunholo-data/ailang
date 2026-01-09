@@ -274,7 +274,8 @@ func (d *Daemon) pollAndProcessTasks() error {
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
-			AgentID:       agentID, // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
+			AgentID:       agentID,          // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
+			ParentTaskID:  msg.ParentTaskID, // M-TASK-HIERARCHY: Link to parent task for handoff chains
 			Title:         msg.Title,
 			Content:       msg.Content,
 			Type:          analyzed.Type,

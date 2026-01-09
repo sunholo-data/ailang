@@ -22,6 +22,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// backgroundOperationSpans contains span names that should NOT inherit task_id from CWD.
+// These are coordinator background operations that may run in a worktree directory
+// but are not part of the task execution. Without this filter, operations like
+// messages.list or github_sync that run in a worktree directory would incorrectly
+// get tagged with the task ID, contaminating the task hierarchy.
+var backgroundOperationSpans = map[string]bool{
+	"messages.list":          true,
+	"messages.github_sync":   true,
+	"messages.ack":           true,
+	"messages.send":          true,
+	"messages.search":        true,
+	"messages.import-github": true,
+}
+
 // OTLPReceiver receives spans via the standard OTLP HTTP protocol.
 // This allows any OTEL-compatible exporter to send traces to the observatory.
 type OTLPReceiver struct {
@@ -305,7 +319,7 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 			taskID = extractTaskIDFromPath(workspace)
 		}
 	}
-	if taskID == "" {
+	if taskID == "" && !backgroundOperationSpans[spanName] {
 		taskID = extractTaskIDFromCwd(resourceAttrs)
 	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
@@ -579,7 +593,7 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 			taskID = extractTaskIDFromPath(workspace)
 		}
 	}
-	if taskID == "" {
+	if taskID == "" && !backgroundOperationSpans[span.Name] {
 		taskID = extractTaskIDFromCwd(resourceAttrs)
 	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")

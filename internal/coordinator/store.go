@@ -9,7 +9,8 @@ import (
 type TaskRecord struct {
 	ID           string     `json:"id"`
 	MessageID    string     `json:"message_id,omitempty"`
-	ThreadID     string     `json:"thread_id,omitempty"` // Thread in collaboration.db for dashboard visibility
+	ThreadID     string     `json:"thread_id,omitempty"`      // Thread in collaboration.db for dashboard visibility
+	ParentTaskID string     `json:"parent_task_id,omitempty"` // Parent task for hierarchy tracking (handoffs)
 	Title        string     `json:"title"`
 	Content      string     `json:"content"`
 	Type         TaskType   `json:"type"`
