@@ -555,7 +555,7 @@ func (e *TypedEvaluator) matchPattern(pat typedast.TypedPattern, val Value) (map
 // evalCore evaluates a Core expression (fallback for untyped bodies)
 func (e *TypedEvaluator) evalCore(expr core.CoreExpr) (Value, error) {
 	// This is a simplified version - full implementation would mirror evalTypedNode
-	return nil, fmt.Errorf("Core evaluation not implemented")
+	return nil, fmt.Errorf("core evaluation not implemented")
 }
 
 // Arithmetic operations

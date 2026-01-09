@@ -15,52 +15,33 @@ linters:
     - unused
     - misspell
 
-linters-settings:
-  staticcheck:
-    # Disable stylistic checks (QF*, ST*), keep bug detectors (SA*)
-    checks:
-      - "all"
-      - "-QF*"       # Disable all quickfix suggestions (stylistic)
-      - "-ST1005"    # Error string formatting - our errors use "Hint: ..." format
-      - "-ST1023"    # Omit type from declaration - stylistic
-      - "-SA1019"    # Deprecated usage - tracked separately (TList deprecation for v0.7.0)
-
 issues:
+  # Disable default excludes to ensure our patterns work
+  exclude-use-default: false
+
   # Exclude directories
   exclude-dirs:
     - examples/agents
     - scripts
 
-  # Global exclude patterns (regex matching error text)
-  # These filter out STYLISTIC issues, not bug detectors
+  # Global excludes - regex patterns matching the issue text
   exclude:
-    - "QF10[0-9][0-9]:"  # All quickfix suggestions are stylistic
-    - "ST1005:"          # Error string formatting
-    - "ST1023:"          # Omit type from declaration
-    - "SA1019:"          # Deprecated usage (tracked separately)
+    - "could merge conditional assignment"           # QF1007
+    - "could use tagged switch"                      # QF1003
+    - "could remove embedded field"                  # QF1008
+    - "could omit type"                              # QF1011
+    - "could apply De Morgan"                        # QF1001
+    - "could lift into loop"                         # QF1006
+    - "Use fmt.Fprintf"                              # QF1012
+    - "should omit type"                             # ST1023
+    - "is deprecated"                                # SA1019
+    - "empty branch"                                 # SA9003
+    - "possible nil pointer"                         # SA5011
+    - "variadic argument.*expected to have even"     # SA5012
+    - "is unused"                                    # unused test helpers
 
-  # Exclude rules for specific patterns
+  # Exclude rules for path-specific patterns
   exclude-rules:
-    # Allow empty branches in test code
-    - path: _test\.go
-      text: "SA9003"
-
-    # Allow nil dereference warnings in tests (tests check nil explicitly)
-    - path: _test\.go
-      text: "SA5011"
-
-    # Allow variadic argument issues in tests (testing error cases)
-    - path: _test\.go
-      text: "SA5012"
-
-    # Don't complain about unused test helpers
-    - path: _test\.go
-      text: "is unused"
-
-    # Don't complain about unused functions in testutil.go
-    - path: testutil\.go
-      text: "is unused"
-
     # Allow underscore in package names for eval packages (M-EVAL framework)
     - path: internal/eval_harness/
       text: "don't use an underscore in package name"

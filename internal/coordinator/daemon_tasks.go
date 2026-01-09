@@ -906,7 +906,7 @@ func (d *Daemon) initHTTPBroadcaster() error {
 
 	// Check if server is reachable
 	if !broadcaster.CheckServerAvailable() {
-		return fmt.Errorf("Collaboration Hub server not available at %s", serverURL)
+		return fmt.Errorf("collaboration hub server not available at %s", serverURL)
 	}
 
 	// Set the broadcaster

@@ -361,69 +361,6 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 	}, nil
 }
 
-// streamingEventHandler implements executor.EventHandler for NDJSON output
-type streamingEventHandler struct {
-	streamJSON  bool
-	currentTurn int
-}
-
-func (h *streamingEventHandler) OnTurnStart(turnNum int) {
-	h.currentTurn = turnNum
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type: "turn_start",
-			Turn: turnNum,
-		})
-	}
-}
-
-func (h *streamingEventHandler) OnText(text string) {
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:    "text",
-			Content: text,
-		})
-	}
-}
-
-func (h *streamingEventHandler) OnToolUse(toolName, input string) {
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:  "tool_use",
-			Tool:  toolName,
-			Input: input,
-		})
-	}
-}
-
-func (h *streamingEventHandler) OnToolResult(toolName, output string) {
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:   "tool_result",
-			Tool:   toolName,
-			Output: output,
-		})
-	}
-}
-
-func (h *streamingEventHandler) OnTurnEnd(turnNum int) {
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type: "turn_end",
-			Turn: turnNum,
-		})
-	}
-}
-
-func (h *streamingEventHandler) OnError(err error) {
-	if h.streamJSON {
-		emitEvent(ExecEvent{
-			Type:  "error",
-			Error: err.Error(),
-		})
-	}
-}
-
 // spanningEventHandler creates OTEL child spans from streaming events
 // for hierarchical tracing in the dashboard while also emitting NDJSON
 type spanningEventHandler struct {

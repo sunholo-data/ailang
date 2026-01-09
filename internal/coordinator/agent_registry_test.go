@@ -31,7 +31,7 @@ func TestAgentRegistry_Basic(t *testing.T) {
 	// Lookup by ID
 	found := registry.GetAgentByID("test-agent")
 	if found == nil {
-		t.Error("expected to find agent by ID")
+		t.Fatal("expected to find agent by ID")
 	}
 	if found.Label != "Test Agent" {
 		t.Errorf("expected label 'Test Agent', got %q", found.Label)
@@ -40,7 +40,7 @@ func TestAgentRegistry_Basic(t *testing.T) {
 	// Lookup by inbox
 	found = registry.GetAgentForInbox("test-inbox")
 	if found == nil {
-		t.Error("expected to find agent by inbox")
+		t.Fatal("expected to find agent by inbox")
 	}
 	if found.ID != "test-agent" {
 		t.Errorf("expected ID 'test-agent', got %q", found.ID)

@@ -123,12 +123,12 @@ func (b *JaegerBackend) CreateSpan(ctx context.Context, span *Span) error {
 
 func (b *JaegerBackend) GetSpan(ctx context.Context, id string) (*Span, error) {
 	// TODO: Implement Jaeger API query
-	return nil, fmt.Errorf("Jaeger GetSpan not yet implemented")
+	return nil, fmt.Errorf("jaeger GetSpan not yet implemented")
 }
 
 func (b *JaegerBackend) ListSpans(ctx context.Context, opts SpanListOptions) ([]*Span, error) {
 	// TODO: Implement Jaeger API query
-	return nil, fmt.Errorf("Jaeger ListSpans not yet implemented")
+	return nil, fmt.Errorf("jaeger ListSpans not yet implemented")
 }
 
 func (b *JaegerBackend) UpdateSpan(ctx context.Context, span *Span) error {
@@ -149,12 +149,12 @@ func (b *JaegerBackend) DeleteSpan(ctx context.Context, id string) error {
 
 func (b *JaegerBackend) GetTrace(ctx context.Context, traceID string) (*Trace, error) {
 	// TODO: Implement Jaeger API query
-	return nil, fmt.Errorf("Jaeger GetTrace not yet implemented")
+	return nil, fmt.Errorf("jaeger GetTrace not yet implemented")
 }
 
 func (b *JaegerBackend) ListTraces(ctx context.Context, opts TraceQuery) ([]*TraceSummary, error) {
 	// TODO: Implement Jaeger API query
-	return nil, fmt.Errorf("Jaeger ListTraces not yet implemented")
+	return nil, fmt.Errorf("jaeger ListTraces not yet implemented")
 }
 
 // ===== Span Event Operations (not supported) =====

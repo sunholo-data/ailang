@@ -20,7 +20,7 @@ func buildTypeMismatchError(builtinName, expectedType string, actualValue Value)
 
 	// Add helpful hint for Float equality issue (common AI generation mistake)
 	if builtinName == "eq_Int" && actualType == "float" {
-		return fmt.Errorf("%s\nHint: Use Float literals and eq_Float for floating-point comparisons. The type system may have incorrectly selected eq_Int for a Float comparison.", baseMsg)
+		return fmt.Errorf("%s\nhint: use float literals and eq_Float for floating-point comparisons; the type system may have incorrectly selected eq_Int for a float comparison", baseMsg)
 	}
 
 	// Add hint for other numeric type mismatches

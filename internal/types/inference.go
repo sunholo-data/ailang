@@ -748,7 +748,7 @@ func (ctx *InferenceContext) checkLinearCapture(lambda *ast.Lambda, _ []Type) er
 			// Get the linear capability names for error reporting
 			linearCaps := getLinearCapabilities(varType)
 			for _, capName := range linearCaps {
-				return fmt.Errorf("Lambda captures linear value %s; pass it as a parameter instead", capName)
+				return fmt.Errorf("lambda captures linear value %s; pass it as a parameter instead", capName)
 			}
 		}
 	}

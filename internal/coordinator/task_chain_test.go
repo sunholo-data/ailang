@@ -952,7 +952,7 @@ func TestApprovalWatcher_RegisterAgentApproval(t *testing.T) {
 	// Verify agent is registered
 	registeredAgent := watcher.GetAgentByLabel("custom-approved")
 	if registeredAgent == nil {
-		t.Error("Expected agent to be registered")
+		t.Fatal("Expected agent to be registered")
 	}
 	if registeredAgent.ID != "custom-agent" {
 		t.Errorf("Expected agent ID 'custom-agent', got %q", registeredAgent.ID)

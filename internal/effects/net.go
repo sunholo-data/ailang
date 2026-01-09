@@ -630,7 +630,7 @@ func validateHeaderName(name string) error {
 	// Block headers we control
 	switch lowerName {
 	case "host":
-		return fmt.Errorf("Host header override not allowed (SSRF prevention)")
+		return fmt.Errorf("host header override not allowed (SSRF prevention)")
 	case "accept-encoding":
 		return fmt.Errorf("Accept-Encoding is managed automatically")
 	case "content-length":

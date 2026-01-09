@@ -114,7 +114,7 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 
 	// Check Claude CLI is available
 	if err := checkClaudeCLI(config.ClaudePath); err != nil {
-		return nil, fmt.Errorf("Claude CLI check failed: %w", err)
+		return nil, fmt.Errorf("claude CLI check failed: %w", err)
 	}
 
 	// Create isolated workspace for this benchmark (include language for separation)
@@ -262,7 +262,7 @@ func checkClaudeCLI(claudePath string) error {
 
 	version := strings.TrimSpace(string(output))
 	if !strings.Contains(version, "2.") {
-		return fmt.Errorf("Claude CLI v2.0+ required for JSON output, got: %s", version)
+		return fmt.Errorf("claude CLI v2.0+ required for JSON output, got: %s", version)
 	}
 
 	return nil

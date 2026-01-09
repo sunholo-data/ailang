@@ -193,7 +193,7 @@ func (e *OllamaEmbedder) embedSingle(text string) ([]float32, error) {
 		Input: text,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Ollama embed failed: %w", err)
+		return nil, fmt.Errorf("ollama embed failed: %w", err)
 	}
 
 	if len(resp.Embeddings) == 0 {

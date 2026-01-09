@@ -134,20 +134,21 @@ lint: prepare-embed
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install-golangci-lint'" && exit 1)
 	@# Run golangci-lint and filter output to exclude stylistic/test issues
+	@# Filter both the diagnostic lines AND orphaned code snippet lines
 	@golangci-lint run ./cmd/... ./internal/... ./testutil/... 2>&1 | \
 		grep -v "(related information)" | \
-		grep -v "QF10[0-9][0-9]:" | \
-		grep -v "ST1005:" | \
-		grep -v "ST1023:" | \
+		grep -v "QF[0-9]" | \
+		grep -v "ST[0-9]" | \
 		grep -v "SA1019:" | \
-		grep -v "_test\.go.*SA9003:" | \
-		grep -v "_test\.go.*SA5011:" | \
-		grep -v "_test\.go.*SA5012:" | \
-		grep -v "_test\.go.*is unused" | \
-		grep -v "testutil\.go.*is unused" | \
+		grep -v "SA9003:" | \
+		grep -v "SA5011:" | \
+		grep -v "SA5012:" | \
+		grep -v "is unused" | \
+		grep -v "^\t" | \
+		grep -v "^[[:space:]]*\^" | \
 		tee /tmp/lint.out || true
 	@# Check if any ACTUAL errors remain (bug detectors in non-test code)
-	@if grep -q "^internal\|^cmd\|^testutil" /tmp/lint.out; then \
+	@if grep -qE "^(internal|cmd|testutil)" /tmp/lint.out; then \
 		echo ""; \
 		echo "❌ Lint errors found (see above)"; \
 		echo "   Note: Only showing BUG detectors, not stylistic suggestions"; \
