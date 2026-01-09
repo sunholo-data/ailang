@@ -433,11 +433,9 @@ func (s *Store) GetExecTaskHierarchyWithMessages(limit int) (*ExecHierarchyWithM
 
 	if len(messageToExecs) > 0 {
 		// Build message ID list
-		msgIDs := make([]string, 0, len(messageToExecs))
 		msgPlaceholders := make([]string, 0, len(messageToExecs))
 		msgArgs := make([]interface{}, 0, len(messageToExecs))
 		for msgID := range messageToExecs {
-			msgIDs = append(msgIDs, msgID)
 			msgPlaceholders = append(msgPlaceholders, "?")
 			msgArgs = append(msgArgs, msgID)
 		}

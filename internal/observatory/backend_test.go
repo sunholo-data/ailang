@@ -28,13 +28,8 @@ func setupTestBackend(t *testing.T) Backend {
 	return backend
 }
 
-func TestSQLiteBackend_Interface(t *testing.T) {
-	backend := setupTestBackend(t)
-	defer backend.Close()
-
-	// Test that backend implements Backend interface
-	var _ Backend = backend
-}
+// TestSQLiteBackend_Interface is unnecessary since setupTestBackend returns Backend.
+// Interface compliance is enforced at compile time by the return type.
 
 func TestSQLiteBackend_WorkspaceOperations(t *testing.T) {
 	backend := setupTestBackend(t)
