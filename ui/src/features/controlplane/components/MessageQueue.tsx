@@ -3,15 +3,10 @@
  * Now with filtering support for date range and event types
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import type { EventMessage } from './types';
+import type { EventMessage, DateRange } from './types';
 import styles from '../ControlPlane.module.css';
 
 export type EventType = EventMessage['type'];
-
-export interface DateRange {
-  start: Date;
-  end: Date;
-}
 
 export interface MessageQueueProps {
   events: EventMessage[];
@@ -63,8 +58,10 @@ const ALL_EVENT_TYPES: EventType[] = ['task_start', 'task_complete', 'task_error
 
 const formatDateRange = (range: DateRange): string => {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
-  const startStr = range.start.toLocaleDateString('en-US', opts);
-  const endStr = range.end.toLocaleDateString('en-US', opts);
+  const startDate = new Date(range.start + 'T00:00:00');
+  const endDate = new Date(range.end + 'T00:00:00');
+  const startStr = startDate.toLocaleDateString('en-US', opts);
+  const endStr = endDate.toLocaleDateString('en-US', opts);
   if (startStr === endStr) return startStr;
   return `${startStr} - ${endStr}`;
 };

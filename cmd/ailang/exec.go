@@ -78,13 +78,14 @@ func runExec() {
 	// Output flags
 	streamJSON := fs.Bool("stream-json", true, "Output NDJSON streaming events")
 	quiet := fs.Bool("quiet", false, "Suppress streaming output, only show final result")
+	jsonOutput := fs.Bool("json", false, "Output result as single JSON object (for programmatic use)")
 
 	// Parse arguments (normalize flags first)
 	args := flag.Args()[1:] // Skip "exec" command
 	args = normalizeArgsForFlags(args, []string{
 		"workspace", "model", "timeout", "task-id", "parent-task-id",
 		"system-prompt", "api-only", "register-task", "dry-run",
-		"stream-json", "quiet",
+		"stream-json", "quiet", "json",
 	})
 
 	if err := fs.Parse(args); err != nil {
@@ -172,8 +173,8 @@ func runExec() {
 		span.SetAttributes(attribute.String("exec.parent_task_id", *parentTaskID))
 	}
 
-	// Emit start event
-	if *streamJSON && !*quiet {
+	// Emit start event (suppressed when --json is used for clean programmatic output)
+	if *streamJSON && !*quiet && !*jsonOutput {
 		emitEvent(ExecEvent{
 			Type:     "exec_start",
 			Provider: provider,
@@ -186,7 +187,7 @@ func runExec() {
 	if *dryRun {
 		fmt.Printf("Dry run: would execute %s with directive: %s\n", provider, truncateString(directive, 50))
 		span.SetStatus(codes.Ok, "dry run")
-		if *streamJSON && !*quiet {
+		if *streamJSON && !*quiet && !*jsonOutput {
 			emitEvent(ExecEvent{
 				Type:    "exec_end",
 				Success: true,
@@ -196,21 +197,32 @@ func runExec() {
 	}
 
 	// Execute based on mode
+	// Suppress streaming when --json is used for clean programmatic output
+	streamEvents := *streamJSON && !*quiet && !*jsonOutput
 	var result *executor.Result
 	if *apiOnly {
-		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, *streamJSON && !*quiet)
+		result, err = executeAPI(ctx, provider, directive, *model, *systemPrompt, *timeout, streamEvents)
 	} else {
-		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, *streamJSON && !*quiet)
+		result, err = executeCLI(ctx, provider, directive, *workspace, *model, *systemPrompt, *taskID, *timeout, streamEvents)
 	}
 
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		if *streamJSON && !*quiet {
+		if *streamJSON && !*quiet && !*jsonOutput {
 			emitEvent(ExecEvent{
 				Type:  "exec_end",
 				Error: err.Error(),
 			})
+		}
+		// For JSON output, emit error as JSON
+		if *jsonOutput {
+			output := map[string]interface{}{
+				"success": false,
+				"error":   err.Error(),
+			}
+			jsonBytes, _ := json.Marshal(output)
+			fmt.Println(string(jsonBytes))
 		}
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -233,7 +245,7 @@ func runExec() {
 	}
 
 	// Emit end event
-	if *streamJSON && !*quiet {
+	if *streamJSON && !*quiet && !*jsonOutput {
 		emitEvent(ExecEvent{
 			Type:      "exec_end",
 			Success:   result.Success,
@@ -243,6 +255,22 @@ func runExec() {
 			TokensOut: result.OutputTokens,
 			CostUSD:   result.CostUSD,
 		})
+	}
+
+	// Single JSON output (for programmatic use by eval harness, etc.)
+	if *jsonOutput {
+		output := map[string]interface{}{
+			"success":       result.Success,
+			"output":        result.Output,
+			"error":         result.Error,
+			"input_tokens":  result.InputTokens,
+			"output_tokens": result.OutputTokens,
+			"cost_usd":      result.CostUSD,
+			"duration_ms":   result.DurationMS,
+			"num_turns":     result.NumTurns,
+		}
+		jsonBytes, _ := json.Marshal(output)
+		fmt.Println(string(jsonBytes))
 	}
 
 	// Register task in Observatory if requested

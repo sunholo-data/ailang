@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 // MaxOutputSize is the maximum size (in bytes) for stdout/stderr capture
@@ -194,6 +197,8 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 type AILANGRunner struct {
 	ailangPath string
 	caps       []string
+	taskID     string          // Task ID for telemetry hierarchy (propagated via AILANG_PARENT_TASK_ID)
+	ctx        context.Context // Context for trace propagation (TRACEPARENT)
 }
 
 // NewAILANGRunner creates a new AILANG runner
@@ -204,6 +209,20 @@ func NewAILANGRunner(ailangPath string, caps []string) *AILANGRunner {
 	return &AILANGRunner{
 		ailangPath: ailangPath,
 		caps:       caps,
+	}
+}
+
+// NewAILANGRunnerWithTask creates a new AILANG runner with task ID and context for telemetry hierarchy.
+// The taskID is propagated via AILANG_PARENT_TASK_ID, and trace context via TRACEPARENT.
+func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []string, taskID string) *AILANGRunner {
+	if ailangPath == "" {
+		ailangPath = "ailang" // Use PATH
+	}
+	return &AILANGRunner{
+		ailangPath: ailangPath,
+		caps:       caps,
+		taskID:     taskID,
+		ctx:        ctx,
 	}
 }
 
@@ -268,6 +287,19 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	start := time.Now()
 	cmd := exec.Command(r.ailangPath, args...)
 	cmd.Dir = workspace // Run from isolated workspace
+
+	// Propagate telemetry context to child process
+	// This enables proper trace hierarchy in the dashboard
+	env := os.Environ()
+	if r.ctx != nil {
+		// Inject TRACEPARENT for span hierarchy (W3C trace context)
+		env = telemetry.InjectTraceContext(r.ctx, env)
+	}
+	if r.taskID != "" {
+		// Inject task ID for task-level hierarchy (fallback correlation)
+		env = append(env, "AILANG_PARENT_TASK_ID="+r.taskID)
+	}
+	cmd.Env = env
 
 	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
 	SetProcessGroup(cmd)
@@ -363,10 +395,26 @@ func CompareOutput(expected, actual string) bool {
 
 // GetRunner returns a LanguageRunner for the specified language
 func GetRunner(lang string, spec *BenchmarkSpec) (LanguageRunner, error) {
+	return GetRunnerWithContext(context.Background(), lang, spec, "")
+}
+
+// GetRunnerWithTask returns a LanguageRunner with task ID for telemetry hierarchy.
+// Deprecated: Use GetRunnerWithContext instead for full trace propagation.
+func GetRunnerWithTask(lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
+	return GetRunnerWithContext(context.Background(), lang, spec, taskID)
+}
+
+// GetRunnerWithContext returns a LanguageRunner with full telemetry context.
+// The ctx is used to propagate TRACEPARENT for span hierarchy.
+// The taskID is propagated via AILANG_PARENT_TASK_ID for task-level correlation.
+func GetRunnerWithContext(ctx context.Context, lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
 	switch lang {
 	case "python":
 		return NewPythonRunner(), nil
 	case "ailang":
+		if ctx != nil || taskID != "" {
+			return NewAILANGRunnerWithTask(ctx, "", spec.Caps, taskID), nil
+		}
 		return NewAILANGRunner("", spec.Caps), nil
 	default:
 		return nil, fmt.Errorf("unsupported language: %s", lang)

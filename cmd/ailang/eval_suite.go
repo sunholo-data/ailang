@@ -488,7 +488,7 @@ func runEvalSuite() {
 
 	// Run benchmarks with concurrency control (direct mode)
 	startTime := time.Now()
-	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
+	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID)
 	duration := time.Since(startTime)
 
 	// Summary
@@ -574,7 +574,7 @@ type Job struct {
 }
 
 // runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) []SuiteResult {
+func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -628,7 +628,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 				cyan(j.Benchmark), green(j.Model), j.Language)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
@@ -665,7 +665,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 }
 
 // runSingleBenchmark executes a single benchmark configuration
-func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig) (bool, error) {
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) (bool, error) {
 	// Start span for this benchmark
 	// Include benchmark ID in span name for easy identification in trace viewers
 	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
@@ -837,8 +837,8 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		return false, fmt.Errorf("failed to create AI agent: %w", err)
 	}
 
-	// Get runner
-	runner, err := eval_harness.GetRunner(lang, spec)
+	// Get runner with context for full telemetry hierarchy (TRACEPARENT + task ID)
+	runner, err := eval_harness.GetRunnerWithContext(ctx, lang, spec, taskID)
 	if err != nil {
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "failed to get runner")
