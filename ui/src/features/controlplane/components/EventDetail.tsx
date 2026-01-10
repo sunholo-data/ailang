@@ -40,6 +40,10 @@ const getEventTypeColor = (type: EventMessage['type']): string => {
   }
 };
 
+// Display limit constants
+const DEFAULT_DISPLAY_LIMIT = 100;
+const LOAD_MORE_INCREMENT = 100;
+
 export const EventDetail: React.FC<EventDetailProps> = ({
   event,
   spans,
@@ -51,6 +55,36 @@ export const EventDetail: React.FC<EventDetailProps> = ({
   totalEvents,
 }) => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS (Rules of Hooks)
+
+  // Display limit state for span pagination
+  const [displayLimit, setDisplayLimit] = React.useState(DEFAULT_DISPLAY_LIMIT);
+
+  // Flatten spans for counting and limiting
+  const flattenedSpans = React.useMemo(() => {
+    const result: Array<{ span: Span; depth: number }> = [];
+    const flatten = (spanList: Span[], depth: number) => {
+      for (const span of spanList) {
+        result.push({ span, depth });
+        if (span.children) {
+          flatten(span.children, depth + 1);
+        }
+      }
+    };
+    flatten(spans, 0);
+    return result;
+  }, [spans]);
+
+  // Total span count for display
+  const totalSpanCount = flattenedSpans.length;
+
+  // Limited spans for rendering
+  const limitedSpans = React.useMemo(() => {
+    return flattenedSpans.slice(0, displayLimit);
+  }, [flattenedSpans, displayLimit]);
+
+  const hasMore = totalSpanCount > displayLimit;
+  const loadMore = () => setDisplayLimit((prev) => prev + LOAD_MORE_INCREMENT);
+  const showAll = () => setDisplayLimit(totalSpanCount);
 
   // Calculate trace stats
   const totalDuration = React.useMemo(() => {
@@ -64,15 +98,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({
     return max;
   }, [spans]);
 
-  const spanCount = React.useMemo(() => {
-    let count = 0;
-    const traverse = (span: Span) => {
-      count++;
-      span.children?.forEach(traverse);
-    };
-    spans.forEach(traverse);
-    return count;
-  }, [spans]);
+  // spanCount is now totalSpanCount from flattened spans above
 
   // Zoom state for trace waterfall (1x, 2x, 4x, 8x, 16x)
   const [zoomLevel, setZoomLevel] = React.useState(1);
@@ -86,36 +112,34 @@ export const EventDetail: React.FC<EventDetailProps> = ({
   const metadata = event.metadata as Record<string, unknown> | undefined;
   const payload = metadata?.payload as string;
 
-  const renderSpan = (span: Span, depth: number = 0): React.ReactNode => {
+  // Render a single span row (flat, not recursive)
+  const renderSpanRow = (span: Span, depth: number, index: number): React.ReactNode => {
     const left = totalDuration > 0 ? (span.startMs / totalDuration) * 100 : 0;
     const width = totalDuration > 0 ? (span.durationMs / totalDuration) * 100 : 100;
     // Visual depth indicator: tree-style prefix showing nesting level
     const depthPrefix = depth === 0 ? '' : '├─'.repeat(Math.max(0, depth - 1)) + '└─ ';
 
     return (
-      <React.Fragment key={span.id}>
-        <div className={styles.waterfallRow} data-depth={depth}>
-          <div className={styles.waterfallLabel} style={{ paddingLeft: `${depth * 20}px` }}>
-            <span className={styles.waterfallName}>
-              {depth > 0 && (
-                <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace', marginRight: '4px' }}>
-                  {depthPrefix}
-                </span>
-              )}
-              {span.name}
-            </span>
-            <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
-          </div>
-          <div className={styles.waterfallBar}>
-            <div
-              className={`${styles.waterfallSegment} ${span.status === 'error' ? styles.waterfallError : ''}`}
-              style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
-              data-depth={depth % 4}
-            />
-          </div>
+      <div key={`${span.id}-${index}`} className={styles.waterfallRow} data-depth={depth}>
+        <div className={styles.waterfallLabel} style={{ paddingLeft: `${depth * 20}px` }}>
+          <span className={styles.waterfallName}>
+            {depth > 0 && (
+              <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace', marginRight: '4px' }}>
+                {depthPrefix}
+              </span>
+            )}
+            {span.name}
+          </span>
+          <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
         </div>
-        {span.children?.map((child) => renderSpan(child, depth + 1))}
-      </React.Fragment>
+        <div className={styles.waterfallBar}>
+          <div
+            className={`${styles.waterfallSegment} ${span.status === 'error' ? styles.waterfallError : ''}`}
+            style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
+            data-depth={depth % 4}
+          />
+        </div>
+      </div>
     );
   };
 
@@ -214,12 +238,12 @@ export const EventDetail: React.FC<EventDetailProps> = ({
         <div className={styles.eventDetailTrace}>
           <div className={styles.eventDetailTraceHeader}>
             <span className={styles.eventDetailTraceTitle}>Trace Hierarchy</span>
-            {spanCount > 0 && (
+            {totalSpanCount > 0 && (
               <span className={styles.eventDetailTraceStats}>
-                {spanCount} spans · {formatDuration(totalDuration)}
+                {hasMore ? `${displayLimit} of ${totalSpanCount}` : totalSpanCount} spans · {formatDuration(totalDuration)}
               </span>
             )}
-            {spanCount > 0 && (
+            {totalSpanCount > 0 && (
               <div className={styles.zoomControls}>
                 <button
                   className={styles.zoomBtn}
@@ -275,8 +299,18 @@ export const EventDetail: React.FC<EventDetailProps> = ({
                   })}
                 </div>
                 <div className={styles.waterfallRows}>
-                  {spans.map((span) => renderSpan(span))}
+                  {limitedSpans.map(({ span, depth }, index) => renderSpanRow(span, depth, index))}
                 </div>
+                {hasMore && (
+                  <div className={styles.loadMoreContainer}>
+                    <button className={styles.loadMoreBtn} onClick={loadMore}>
+                      Load {Math.min(LOAD_MORE_INCREMENT, totalSpanCount - displayLimit)} more
+                    </button>
+                    <button className={styles.loadMoreBtn} onClick={showAll}>
+                      Show all {totalSpanCount}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

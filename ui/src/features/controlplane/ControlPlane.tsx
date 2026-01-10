@@ -161,6 +161,22 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
   // Track event type filter (for MessageQueue)
   const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
+  // Span type filtering (Milestone 14) - generic filter for any span type
+  // Default: hide api_request spans (LLM turns are noisy, tool calls are useful)
+  const [hiddenSpanTypes, setHiddenSpanTypes] = useState<Set<string>>(new Set(['api_request']));
+
+  // Toggle a span type in/out of the hidden set
+  const toggleHiddenSpanType = useCallback((spanType: string) => {
+    setHiddenSpanTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(spanType)) {
+        next.delete(spanType);
+      } else {
+        next.add(spanType);
+      }
+      return next;
+    });
+  }, []);
 
   // Agent Topology selection and highlighting state
   const [selectedTopologyNode, setSelectedTopologyNode] = useState<string | null>(null);
@@ -474,6 +490,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
                 dateRange: selectedDateRange,
                 eventTypes: selectedEventTypes.length > 0 ? selectedEventTypes : undefined,
               }}
+              hiddenSpanTypes={hiddenSpanTypes}
+              onToggleSpanType={toggleHiddenSpanType}
             />
           </div>
           {!topologyExpanded && (
@@ -494,6 +512,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
                   spans={spans}
                   selectedTraceId={selectedEventTraceId}
                   loading={spansLoading}
+                  hiddenSpanTypes={hiddenSpanTypes}
+                  onToggleSpanType={toggleHiddenSpanType}
                 />
               )}
             </div>

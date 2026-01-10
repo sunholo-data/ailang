@@ -11,6 +11,11 @@ export interface Span {
   children?: Span[];
   status?: 'ok' | 'error';
   attributes?: Record<string, string>;
+  // Cost and metrics fields (from backend)
+  cost_usd?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  provider?: string;
 }
 
 export interface Trace {
@@ -32,6 +37,11 @@ interface RawSpan {
   duration_ms: number;
   status?: string;
   attributes?: Record<string, string>;
+  // Cost and metrics fields
+  cost_usd?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  provider?: string;
 }
 
 interface UseTraceDataOptions {
@@ -103,6 +113,11 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
         durationMs: raw.duration_ms,
         status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',
         attributes: raw.attributes,
+        // Copy cost and metrics fields from backend
+        cost_usd: raw.cost_usd,
+        tokens_in: raw.tokens_in,
+        tokens_out: raw.tokens_out,
+        provider: raw.provider,
         children: [], // Will populate below
       };
 
@@ -245,6 +260,11 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
       durationMs: raw.duration_ms,
       status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',
       attributes: raw.attributes,
+      // Copy cost and metrics fields
+      cost_usd: raw.cost_usd,
+      tokens_in: raw.tokens_in,
+      tokens_out: raw.tokens_out,
+      provider: raw.provider,
       children: [],
     };
     spanMap.set(span.id, span);

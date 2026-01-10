@@ -1,5 +1,6 @@
 /**
  * TraceWaterfall - Span timeline visualization
+ * Limited to 100 spans by default with "Show more" option
  */
 import React, { useMemo, useState } from 'react';
 import type { Span } from './types';
@@ -10,41 +11,64 @@ export interface TraceWaterfallProps {
   spans: Span[];
   selectedTraceId?: string | null;
   loading?: boolean;
+  // Span type filtering (Milestone 14) - generic filter for any span type
+  hiddenSpanTypes?: Set<string>;
+  onToggleSpanType?: (spanType: string) => void;
 }
 
-export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({ spans, selectedTraceId, loading }) => {
+// Default display limit
+const DEFAULT_DISPLAY_LIMIT = 100;
+const LOAD_MORE_INCREMENT = 100;
+
+export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
+  spans,
+  selectedTraceId,
+  loading,
+}) => {
+  // Display limit state - start with 100, can load more
+  const [displayLimit, setDisplayLimit] = useState(DEFAULT_DISPLAY_LIMIT);
+
+  // Flatten spans for counting and limiting
+  const flattenedSpans = useMemo(() => {
+    const result: Array<{ span: Span; depth: number }> = [];
+    const flatten = (spanList: Span[], depth: number) => {
+      for (const span of spanList) {
+        result.push({ span, depth });
+        if (span.children) {
+          flatten(span.children, depth + 1);
+        }
+      }
+    };
+    flatten(spans, 0);
+    return result;
+  }, [spans]);
+
+  // Total count for display
+  const totalSpanCount = flattenedSpans.length;
+
+  // Limited spans for rendering
+  const limitedSpans = useMemo(() => {
+    return flattenedSpans.slice(0, displayLimit);
+  }, [flattenedSpans, displayLimit]);
+
+  const hasMore = totalSpanCount > displayLimit;
+  const loadMore = () => setDisplayLimit(prev => prev + LOAD_MORE_INCREMENT);
+  const showAll = () => setDisplayLimit(totalSpanCount);
+
+  // Calculate total duration from all spans (not just limited)
   const totalDuration = useMemo(() => {
     let max = 0;
-    const traverse = (span: Span) => {
+    for (const { span } of flattenedSpans) {
       const end = span.startMs + span.durationMs;
       if (end > max) max = end;
-      span.children?.forEach(traverse);
-    };
-    spans.forEach(traverse);
+    }
     return max;
-  }, [spans]);
+  }, [flattenedSpans]);
 
-  // Count total spans including children
-  const spanCount = useMemo(() => {
-    let count = 0;
-    const traverse = (span: Span) => {
-      count++;
-      span.children?.forEach(traverse);
-    };
-    spans.forEach(traverse);
-    return count;
-  }, [spans]);
-
-  // Calculate overall status
+  // Calculate overall status from all spans
   const hasError = useMemo(() => {
-    let error = false;
-    const traverse = (span: Span) => {
-      if (span.status === 'error') error = true;
-      span.children?.forEach(traverse);
-    };
-    spans.forEach(traverse);
-    return error;
-  }, [spans]);
+    return flattenedSpans.some(({ span }) => span.status === 'error');
+  }, [flattenedSpans]);
 
   // Zoom state for trace waterfall (1x, 2x, 4x, 8x, 16x)
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -52,36 +76,34 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({ spans, selectedT
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1));
   const resetZoom = () => setZoomLevel(1);
 
-  const renderSpan = (span: Span, depth: number = 0): React.ReactNode => {
+  // Render a single span row (flat, not recursive)
+  const renderSpanRow = (span: Span, depth: number, index: number): React.ReactNode => {
     const left = totalDuration > 0 ? (span.startMs / totalDuration) * 100 : 0;
     const width = totalDuration > 0 ? (span.durationMs / totalDuration) * 100 : 100;
     // Visual depth indicator: tree-style prefix showing nesting level
     const depthPrefix = depth === 0 ? '' : '├─'.repeat(Math.max(0, depth - 1)) + '└─ ';
 
     return (
-      <React.Fragment key={span.id}>
-        <div className={styles.waterfallRow} data-depth={depth}>
-          <div className={styles.waterfallLabel} style={{ paddingLeft: `${depth * 20}px` }}>
-            <span className={styles.waterfallName}>
-              {depth > 0 && (
-                <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace', marginRight: '4px' }}>
-                  {depthPrefix}
-                </span>
-              )}
-              {span.name}
-            </span>
-            <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
-          </div>
-          <div className={styles.waterfallBar}>
-            <div
-              className={`${styles.waterfallSegment} ${span.status === 'error' ? styles.waterfallError : ''}`}
-              style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
-              data-depth={depth % 4}
-            />
-          </div>
+      <div key={`${span.id}-${index}`} className={styles.waterfallRow} data-depth={depth}>
+        <div className={styles.waterfallLabel} style={{ paddingLeft: `${depth * 20}px` }}>
+          <span className={styles.waterfallName}>
+            {depth > 0 && (
+              <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace', marginRight: '4px' }}>
+                {depthPrefix}
+              </span>
+            )}
+            {span.name}
+          </span>
+          <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
         </div>
-        {span.children?.map((child) => renderSpan(child, depth + 1))}
-      </React.Fragment>
+        <div className={styles.waterfallBar}>
+          <div
+            className={`${styles.waterfallSegment} ${span.status === 'error' ? styles.waterfallError : ''}`}
+            style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
+            data-depth={depth % 4}
+          />
+        </div>
+      </div>
     );
   };
 
@@ -103,7 +125,9 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({ spans, selectedT
           <div className={styles.waterfallMeta}>
             <span className={styles.metaItem}>
               <span className={styles.metaLabel}>Spans</span>
-              <span className={styles.metaValue}>{spanCount}</span>
+              <span className={styles.metaValue}>
+                {hasMore ? `${displayLimit} of ${totalSpanCount}` : totalSpanCount}
+              </span>
             </span>
             <span className={styles.metaItem}>
               <span className={styles.metaLabel}>Duration</span>
@@ -158,8 +182,18 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({ spans, selectedT
               })}
             </div>
             <div className={styles.waterfallRows}>
-              {spans.map((span) => renderSpan(span))}
+              {limitedSpans.map(({ span, depth }, index) => renderSpanRow(span, depth, index))}
             </div>
+            {hasMore && (
+              <div className={styles.loadMoreContainer}>
+                <button className={styles.loadMoreBtn} onClick={loadMore}>
+                  Load {Math.min(LOAD_MORE_INCREMENT, totalSpanCount - displayLimit)} more
+                </button>
+                <button className={styles.loadMoreBtn} onClick={showAll}>
+                  Show all {totalSpanCount}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -590,7 +590,54 @@
 
 .filterChips {
   display: flex;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2, 6px);
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-tertiary, #6e7681);
+  font-weight: var(--font-medium, 500);
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: var(--sunholo-purple, #6b46c1);
+  color: var(--text-inverse, #ffffff);
+  border: none;
+  border-radius: var(--radius-full, 12px);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-medium, 500);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.filterChip:hover {
+  background: var(--color-danger, #f85149);
+}
+
+.filterAddBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: transparent;
+  color: var(--text-tertiary, #6e7681);
+  border: 1px dashed var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-full, 12px);
+  font-size: var(--text-xs, 11px);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.filterAddBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-secondary, #8b949e);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
 }
 
 .chip {
@@ -1401,6 +1448,33 @@
 .waterfallRows {
   display: flex;
   flex-direction: column;
+}
+
+/* Load More Button Container */
+.loadMoreContainer {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: var(--space-2);
+}
+
+.loadMoreBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.loadMoreBtn:hover {
+  background: var(--sunholo-purple);
+  color: var(--text-inverse);
+  border-color: var(--sunholo-purple);
 }
 
 .waterfallRow {

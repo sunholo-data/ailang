@@ -160,4 +160,9 @@ export interface ExecHierarchyProps {
   loading?: boolean;
   // Filter criteria - filtered nodes are greyed out, not hidden
   filterCriteria?: FilterCriteria;
+  // Span type filtering (Milestone 14) - generic filter for any span type
+  // hiddenSpanTypes: Set of span names to hide (e.g., 'api_request')
+  // If provided, uses parent state; otherwise uses internal state with ['api_request'] default
+  hiddenSpanTypes?: Set<string>;
+  onToggleSpanType?: (spanType: string) => void;
 }

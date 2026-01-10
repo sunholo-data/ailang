@@ -500,12 +500,30 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   spans,
   loading,
   filterCriteria,
+  hiddenSpanTypes: propsHiddenSpanTypes,
+  onToggleSpanType,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
 
   // Coordinator view mode: nested (default) or breakout
   const [coordViewMode, setCoordViewMode] = useState<CoordinatorViewMode>('nested');
+
+  // Span type filtering (Milestone 14) - generic filter for any span type
+  // Use props if provided (lifted state), otherwise use internal state
+  const [internalHiddenTypes, setInternalHiddenTypes] = useState<Set<string>>(new Set(['api_request']));
+  const hiddenSpanTypes = propsHiddenSpanTypes !== undefined ? propsHiddenSpanTypes : internalHiddenTypes;
+  const toggleSpanType = onToggleSpanType || ((spanType: string) => {
+    setInternalHiddenTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(spanType)) {
+        next.delete(spanType);
+      } else {
+        next.add(spanType);
+      }
+      return next;
+    });
+  });
 
   // Collapsibility state: Set of node IDs that are expanded
   // START COLLAPSED - empty set means only root nodes visible
@@ -517,6 +535,11 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   // Approval panel state
   const [approvalPanelOpen, setApprovalPanelOpen] = useState(false);
   const { approvals: pendingApprovals } = useApprovals({ status: 'pending' });
+
+  // Display limit state - start with 100 nodes, can load more
+  const DEFAULT_DISPLAY_LIMIT = 100;
+  const LOAD_MORE_INCREMENT = 100;
+  const [displayLimit, setDisplayLimit] = useState(DEFAULT_DISPLAY_LIMIT);
 
   // Real-time updates via WebSocket
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -550,10 +573,100 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     return rawNodes;
   }, [rawNodes, coordViewMode]);
 
+  // Apply span type filtering (Milestone 14): hide spans by type, promote their children
+  // When a span type is in hiddenSpanTypes, it's removed and its children are promoted to parent
+  const spanFilteredNodes = useMemo(() => {
+    if (hiddenSpanTypes.size === 0) return transformedNodes; // No filtering
+
+    // Helper to recursively filter nodes, promoting children of hidden nodes
+    const filterNodes = (nodeList: HierarchyNode[]): HierarchyNode[] => {
+      const result: HierarchyNode[] = [];
+
+      for (const node of nodeList) {
+        const spanName = node._span?.name || '';
+        const isHidden = hiddenSpanTypes.has(spanName);
+
+        if (isHidden) {
+          // This node is hidden - promote its children to this level
+          if (node.children && node.children.length > 0) {
+            // Recursively filter children first
+            const filteredChildren = filterNodes(node.children);
+            result.push(...filteredChildren);
+          }
+          // Node itself is not added to result
+        } else {
+          // This node is visible - keep it, but filter its children
+          if (node.children && node.children.length > 0) {
+            const filteredChildren = filterNodes(node.children);
+            result.push({
+              ...node,
+              children: filteredChildren,
+              childCount: filteredChildren.length,
+              isCollapsible: filteredChildren.length > 0,
+            });
+          } else {
+            result.push(node);
+          }
+        }
+      }
+
+      // Sort by start time to preserve execution order after promotion
+      result.sort((a, b) => {
+        const aStart = a._span?.startMs || 0;
+        const bStart = b._span?.startMs || 0;
+        return aStart - bStart;
+      });
+
+      return result;
+    };
+
+    return filterNodes(transformedNodes);
+  }, [transformedNodes, hiddenSpanTypes]);
+
   // Apply filter criteria (marks nodes as isFiltered, does NOT hide them)
   const nodes = useMemo(() => {
-    return applyFilterToNodes(transformedNodes, filterCriteria);
-  }, [transformedNodes, filterCriteria]);
+    return applyFilterToNodes(spanFilteredNodes, filterCriteria);
+  }, [spanFilteredNodes, filterCriteria]);
+
+  // Count total nodes recursively (for display limit)
+  const totalNodeCount = useMemo(() => {
+    let count = 0;
+    const countNodes = (nodeList: HierarchyNode[]) => {
+      for (const node of nodeList) {
+        count++;
+        if (node.children) countNodes(node.children);
+      }
+    };
+    countNodes(nodes);
+    return count;
+  }, [nodes]);
+
+  // Apply display limit to nodes
+  const limitedNodes = useMemo(() => {
+    if (totalNodeCount <= displayLimit) return nodes;
+
+    // Flatten, limit, and rebuild tree structure
+    let remaining = displayLimit;
+    const limitTree = (nodeList: HierarchyNode[]): HierarchyNode[] => {
+      const result: HierarchyNode[] = [];
+      for (const node of nodeList) {
+        if (remaining <= 0) break;
+        remaining--;
+        const limitedChildren = node.children ? limitTree(node.children) : undefined;
+        result.push({
+          ...node,
+          children: limitedChildren,
+          childCount: limitedChildren?.length,
+        });
+      }
+      return result;
+    };
+    return limitTree(nodes);
+  }, [nodes, displayLimit, totalNodeCount]);
+
+  const hasMoreNodes = totalNodeCount > displayLimit;
+  const loadMoreNodes = () => setDisplayLimit(prev => prev + LOAD_MORE_INCREMENT);
+  const showAllNodes = () => setDisplayLimit(totalNodeCount);
 
   // Expand ONE LEVEL: expand children of currently expanded nodes (or roots if nothing expanded)
   const expandOneLevel = useCallback(() => {
@@ -771,6 +884,39 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         </div>
 
         <div className={styles.headerControls}>
+          {/* Span Type Filter (Milestone 14) - shows hidden types as chips */}
+          {!isEmpty && (
+            <div className={styles.filterChips}>
+              {hiddenSpanTypes.size > 0 ? (
+                <>
+                  <span className={styles.filterLabel}>Hiding:</span>
+                  {Array.from(hiddenSpanTypes).map(spanType => (
+                    <button
+                      key={spanType}
+                      className={styles.filterChip}
+                      onClick={() => toggleSpanType(spanType)}
+                      title={`Click to show ${spanType} spans`}
+                    >
+                      {spanType} ×
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <span className={styles.filterLabel}>No filters</span>
+              )}
+              {/* Quick toggle for api_request (common use case) */}
+              {!hiddenSpanTypes.has('api_request') && (
+                <button
+                  className={styles.filterAddBtn}
+                  onClick={() => toggleSpanType('api_request')}
+                  title="Hide api_request spans (LLM turns)"
+                >
+                  + Hide api_request
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Coordinator View Mode Toggle */}
           {!isEmpty && (
             <div className={styles.viewToggle}>
@@ -873,7 +1019,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
       >
         {viewMode === 'tree' ? (
           <ExecHierarchyTree
-            nodes={nodes}
+            nodes={limitedNodes}
             selectedNodeId={selectedNodeId}
             onNodeClick={handleNodeClick}
             loading={loading}
@@ -881,7 +1027,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           />
         ) : (
           <ExecHierarchyGraph
-            nodes={nodes}
+            nodes={limitedNodes}
             selectedNodeId={selectedNodeId}
             onNodeClick={handleNodeClick}
             loading={loading}
@@ -891,6 +1037,21 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             onToggleNodeExpand={handleToggleExpand}
             recenterTrigger={expandChangeCounter}
           />
+        )}
+
+        {/* Load more buttons when nodes are limited */}
+        {hasMoreNodes && (
+          <div className={styles.loadMoreContainer}>
+            <span className={styles.loadMoreInfo}>
+              Showing {displayLimit} of {totalNodeCount} nodes
+            </span>
+            <button className={styles.loadMoreBtn} onClick={loadMoreNodes}>
+              Load {Math.min(LOAD_MORE_INCREMENT, totalNodeCount - displayLimit)} more
+            </button>
+            <button className={styles.loadMoreBtn} onClick={showAllNodes}>
+              Show all {totalNodeCount}
+            </button>
+          </div>
         )}
       </div>
 
