@@ -452,6 +452,40 @@ func runEvalSuite() {
 		return
 	}
 
+	// Open messaging store for dashboard event visibility (non-blocking on failure)
+	var evalStore *messaging.Store
+	if store, err := openStore(); err == nil {
+		evalStore = store
+		defer evalStore.Close()
+
+		// Create "Suite Started" message for event queue visibility
+		startPayload := map[string]interface{}{
+			"task_id":    taskID,
+			"models":     modelList,
+			"benchmarks": benchmarkList,
+			"languages":  langList,
+			"total_jobs": len(jobs),
+			"agent_mode": *agent,
+		}
+		payloadBytes, _ := json.Marshal(startPayload)
+
+		startMsg := &messaging.InboxMessage{
+			FromAgent:     "eval-suite",
+			ToInbox:       "controlplane",
+			MessageType:   messaging.InboxTypeNotification,
+			Title:         fmt.Sprintf("Eval Suite Started: %d models, %d benchmarks", len(modelList), len(benchmarkList)),
+			Payload:       string(payloadBytes),
+			Category:      "eval",
+			CorrelationID: taskID,
+		}
+		if err := evalStore.InsertInboxMessageWithContext(ctx, startMsg); err == nil {
+			// Broadcast to dashboard via HTTP (non-blocking)
+			go broadcastEvalEvent(startMsg)
+			// Emit span so event appears in ExecHierarchy (Milestone 12)
+			emitEventSpan(ctx, "suite_started", taskID, startMsg)
+		}
+	}
+
 	// Run benchmarks with concurrency control (direct mode)
 	startTime := time.Now()
 	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig)
@@ -493,6 +527,40 @@ func runEvalSuite() {
 	fmt.Println("Next steps:")
 	fmt.Printf("  ailang eval-summary %s\n", *outputDir)
 	fmt.Printf("  ailang eval-matrix %s v0.3.0\n", *outputDir)
+
+	// Create "Suite Completed" message for event queue visibility
+	if evalStore != nil {
+		status := "completed"
+		if failCount > 0 {
+			status = "partial"
+		}
+
+		completePayload := map[string]interface{}{
+			"task_id":      taskID,
+			"success":      successCount,
+			"failed":       failCount,
+			"total":        totalRuns,
+			"duration_sec": duration.Seconds(),
+			"success_rate": float64(successCount) / float64(totalRuns) * 100,
+		}
+		payloadBytes, _ := json.Marshal(completePayload)
+
+		completeMsg := &messaging.InboxMessage{
+			FromAgent:     "eval-suite",
+			ToInbox:       "controlplane",
+			MessageType:   messaging.InboxTypeNotification,
+			Title:         fmt.Sprintf("Eval Suite %s: %d/%d passed (%.1f%%)", status, successCount, totalRuns, float64(successCount)/float64(totalRuns)*100),
+			Payload:       string(payloadBytes),
+			Category:      "eval",
+			CorrelationID: taskID,
+		}
+		if err := evalStore.InsertInboxMessageWithContext(ctx, completeMsg); err == nil {
+			// Broadcast to dashboard via HTTP (non-blocking)
+			go broadcastEvalEvent(completeMsg)
+			// Emit span so event appears in ExecHierarchy (Milestone 12)
+			emitEventSpan(ctx, "suite_completed", taskID, completeMsg)
+		}
+	}
 
 	// Update task status to completed
 	completeEvalTask(taskID, failCount == 0)
@@ -1302,4 +1370,52 @@ func runBenchmarksViaQueue(ctx context.Context, jobs []Job, suiteTaskID, inbox s
 	}
 
 	return results
+}
+
+// emitEventSpan creates an OTEL span for eval events so they appear in the ExecHierarchy.
+// This bridges inbox messages (collaboration.db) with spans (observatory.db) by creating
+// a span whenever we create an inbox message. The span name follows the pattern
+// "eval.event.{eventType}" and includes attributes linking to the task/message.
+func emitEventSpan(ctx context.Context, eventType, taskID string, msg *messaging.InboxMessage) {
+	_, span := evalTracer.Start(ctx, "eval.event."+eventType)
+	span.SetAttributes(
+		attribute.String("event.type", eventType),
+		attribute.String("event.title", msg.Title),
+		attribute.String("event.message_id", msg.MessageID),
+		attribute.String("ailang.task_id", taskID),
+		attribute.String("ailang.category", "eval"),
+	)
+	// End immediately (event is instantaneous)
+	span.End()
+}
+
+// broadcastEvalEvent sends an eval event to the dashboard server for real-time updates.
+// This is non-blocking and best-effort - failures are silently ignored.
+func broadcastEvalEvent(msg *messaging.InboxMessage) {
+	// Create a simplified event payload for the dashboard
+	event := map[string]interface{}{
+		"type":      "eval_event",
+		"message":   msg.Title,
+		"category":  msg.Category,
+		"from":      msg.FromAgent,
+		"task_id":   msg.CorrelationID,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+
+	// POST to dashboard server (non-blocking, best-effort)
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Post(
+		"http://127.0.0.1:1957/api/coordinator/events",
+		"application/json",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return // Silently ignore - dashboard may not be running
+	}
+	defer resp.Body.Close()
 }

@@ -1,7 +1,8 @@
 /**
- * AggregationNav - Left sidebar navigation for filtering by dimensions
+ * AggregationNav - Right sidebar navigation for filtering by dimensions
+ * Shows aggregations, breakdowns, and metrics summary
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BreakdownItem } from '../hooks';
 import type { AggregationStats } from './types';
 import styles from '../ControlPlane.module.css';
@@ -45,6 +46,14 @@ const providerIcons: Record<string, string> = {
   'gcp.vertex.agent': '◎',
 };
 
+// Format large numbers (tokens)
+const formatTokens = (count: number): string => {
+  if (!count || count === 0) return '0';
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+  return String(count);
+};
+
 export const AggregationNav: React.FC<AggregationNavProps> = ({
   selectedLevel,
   onSelectLevel,
@@ -53,6 +62,34 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
   loading,
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'source-type']));
+
+  // Calculate aggregate metrics from breakdowns
+  const metrics = useMemo(() => {
+    if (!breakdowns) return null;
+
+    // Sum up tokens from provider breakdowns (they cover all data)
+    const totals = breakdowns.byProvider.reduce(
+      (acc, item) => {
+        // Access the original BreakdownItem properties
+        const original = item as FormattedBreakdownItem & { tokens_in?: number; tokens_out?: number; cost_usd?: number };
+        return {
+          tokensIn: acc.tokensIn + (original.tokens_in || 0),
+          tokensOut: acc.tokensOut + (original.tokens_out || 0),
+          cost: acc.cost + (original.cost_usd || 0),
+          spans: acc.spans + (item.span_count || 0),
+        };
+      },
+      { tokensIn: 0, tokensOut: 0, cost: 0, spans: 0 }
+    );
+
+    return {
+      tokensIn: formatTokens(totals.tokensIn),
+      tokensOut: formatTokens(totals.tokensOut),
+      totalTokens: formatTokens(totals.tokensIn + totals.tokensOut),
+      totalCost: breakdowns.totalCost,
+      totalSpans: totals.spans,
+    };
+  }, [breakdowns]);
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => {
@@ -211,6 +248,40 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
           )}
         </NavItem>
       </div>
+
+      {/* Metrics Summary Section */}
+      <div className={styles.navMetrics}>
+        <div className={styles.navMetricsHeader}>
+          <span className={styles.navMetricsTitle}>METRICS</span>
+        </div>
+        <div className={styles.navMetricsGrid}>
+          <div className={styles.metricCard}>
+            <span className={styles.metricValue}>
+              {loading ? '...' : metrics?.totalCost || '$0.00'}
+            </span>
+            <span className={styles.metricLabel}>Total Cost</span>
+          </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricValue}>
+              {loading ? '...' : metrics?.totalTokens || '0'}
+            </span>
+            <span className={styles.metricLabel}>Total Tokens</span>
+          </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricValue}>
+              {loading ? '...' : metrics?.tokensIn || '0'}
+            </span>
+            <span className={styles.metricLabel}>Tokens In</span>
+          </div>
+          <div className={styles.metricCard}>
+            <span className={styles.metricValue}>
+              {loading ? '...' : metrics?.tokensOut || '0'}
+            </span>
+            <span className={styles.metricLabel}>Tokens Out</span>
+          </div>
+        </div>
+      </div>
+
       <div className={styles.navFooter}>
         <div className={styles.navStat}>
           <span className={styles.navStatLabel}>Active Agents</span>

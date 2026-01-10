@@ -4,7 +4,11 @@ package observatory
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
 )
 
 // ===== Control Plane Types =====
@@ -54,18 +58,39 @@ type HeatmapDataPoint struct {
 // ===== Helper Functions =====
 
 // buildSourceTypeCondition returns SQL condition for source type filter
+// Uses resource_attributes (service.name, ailang.source) first, then falls back to span name patterns
+// Note: JSON keys with dots must be quoted in json_extract (e.g., '$."service.name"')
 func buildSourceTypeCondition(sourceType string) string {
 	switch sourceType {
+	case "claude_code":
+		return `(json_extract(resource_attributes, '$."service.name"') = 'claude-code' OR json_extract(resource_attributes, '$."ailang.source"') = 'user' OR name LIKE 'claude_code.%')`
 	case "eval":
-		return "(name LIKE 'api_request%' OR name LIKE 'eval.%')"
+		return `(json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' OR json_extract(resource_attributes, '$."ailang.source"') = 'eval' OR name LIKE 'eval.%')`
 	case "coordinator":
-		return "(name LIKE 'coordinator.%' OR name LIKE 'claude.execute%')"
+		return `(json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' OR name LIKE 'coordinator.%' OR name LIKE 'claude.execute%')`
 	case "direct_api":
 		return "(name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%')"
+	case "exec":
+		return "(name LIKE 'ailang.exec%')"
 	case "local":
-		return "(name LIKE 'ailang %')"
+		return "(name LIKE 'ailang.%' OR name LIKE 'ailang %')"
 	case "other":
-		return "(name NOT LIKE 'api_request%' AND name NOT LIKE 'eval.%' AND name NOT LIKE 'coordinator.%' AND name NOT LIKE 'claude.execute%' AND name NOT LIKE 'anthropic.%' AND name NOT LIKE 'gemini.%' AND name NOT LIKE 'openai.%' AND name NOT LIKE 'ailang %')"
+		// Exclude all known categories
+		return `(
+			json_extract(resource_attributes, '$."service.name"') IS NULL OR
+			json_extract(resource_attributes, '$."service.name"') NOT IN ('claude-code', 'ailang-eval')
+		) AND (
+			json_extract(resource_attributes, '$."ailang.source"') IS NULL OR
+			json_extract(resource_attributes, '$."ailang.source"') NOT IN ('user', 'coordinator', 'eval')
+		) AND name NOT LIKE 'eval.%'
+		  AND name NOT LIKE 'coordinator.%'
+		  AND name NOT LIKE 'claude.execute%'
+		  AND name NOT LIKE 'anthropic.%'
+		  AND name NOT LIKE 'gemini.%'
+		  AND name NOT LIKE 'openai.%'
+		  AND name NOT LIKE 'ailang.%'
+		  AND name NOT LIKE 'ailang %'
+		  AND name NOT LIKE 'claude_code.%'`
 	default:
 		return ""
 	}
@@ -140,28 +165,45 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 	return items, rows.Err()
 }
 
-// GetBreakdownBySourceType returns cost/token breakdown by source type (inferred from span names)
+// GetBreakdownBySourceType returns cost/token breakdown by source type (inferred from attributes + span names)
 func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]BreakdownItem, error) {
-	// Categorize spans by their name pattern
+	// Categorize spans by resource attributes first (service.name, ailang.source), then span name patterns
+	// Priority: service.name/ailang.source > span name patterns
 	// GROUP BY 1, 2 uses column position since SQLite doesn't support alias in GROUP BY
 	rows, err := b.store.DB().QueryContext(ctx, `
 		SELECT
 			CASE
-				WHEN name LIKE 'api_request%' THEN 'eval'
+				-- Check service.name from resource_attributes first (keys with dots need quoting)
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'claude_code'
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
+				-- Check ailang.source attribute
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'claude_code'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
+				-- Fall back to span name patterns
 				WHEN name LIKE 'eval.%' THEN 'eval'
 				WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' THEN 'coordinator'
 				WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'direct_api'
 				WHEN name LIKE 'ailang.exec%' THEN 'exec'
 				WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' THEN 'local'
+				WHEN name LIKE 'claude_code.%' THEN 'claude_code'
 				ELSE 'other'
 			END as id,
 			CASE
-				WHEN name LIKE 'api_request%' THEN 'Eval Benchmarks'
+				-- Check service.name from resource_attributes first (keys with dots need quoting)
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'Claude Code'
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
+				-- Check ailang.source attribute
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'Claude Code'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
+				-- Fall back to span name patterns
 				WHEN name LIKE 'eval.%' THEN 'Eval Benchmarks'
 				WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' THEN 'Coordinator Tasks'
 				WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'Direct API Calls'
 				WHEN name LIKE 'ailang.exec%' THEN 'Exec Tasks'
 				WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' THEN 'Local Usage'
+				WHEN name LIKE 'claude_code.%' THEN 'Claude Code'
 				ELSE 'Other'
 			END as label,
 			COUNT(*) as span_count,
@@ -451,21 +493,37 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 	query := fmt.Sprintf(`
 		SELECT
 			CASE
-				WHEN name LIKE 'api_request%%' THEN 'eval'
+				-- Check service.name from resource_attributes first (keys with dots need quoting)
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'claude_code'
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
+				-- Check ailang.source attribute
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'claude_code'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
+				-- Fall back to span name patterns
 				WHEN name LIKE 'eval.%%' THEN 'eval'
 				WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' THEN 'coordinator'
 				WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'direct_api'
 				WHEN name LIKE 'ailang.exec%%' THEN 'exec'
 				WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' THEN 'local'
+				WHEN name LIKE 'claude_code.%%' THEN 'claude_code'
 				ELSE 'other'
 			END as id,
 			CASE
-				WHEN name LIKE 'api_request%%' THEN 'Eval Benchmarks'
+				-- Check service.name from resource_attributes first (keys with dots need quoting)
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'Claude Code'
+				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
+				-- Check ailang.source attribute
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'Claude Code'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
+				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
+				-- Fall back to span name patterns
 				WHEN name LIKE 'eval.%%' THEN 'Eval Benchmarks'
 				WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' THEN 'Coordinator Tasks'
 				WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'Direct API Calls'
 				WHEN name LIKE 'ailang.exec%%' THEN 'Exec Tasks'
 				WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' THEN 'Local Usage'
+				WHEN name LIKE 'claude_code.%%' THEN 'Claude Code'
 				ELSE 'Other'
 			END as label,
 			COUNT(*) as span_count,
@@ -549,4 +607,554 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+// ===== Claude Code Event Types =====
+
+// ClaudeCodeEvent represents a Claude Code API request span formatted as an event
+// for the Event Queue. Each api_request span becomes an event that can be clicked
+// to show its hierarchy (tool calls correlated by timestamp).
+type ClaudeCodeEvent struct {
+	ID         string  `json:"id"`           // span_id (also used as task_id for hierarchy lookup)
+	CreatedAt  string  `json:"created_at"`   // ISO8601 timestamp (matches inbox message format)
+	Type       string  `json:"message_type"` // "claude_code_turn"
+	FromAgent  string  `json:"from_agent"`   // "claude-code"
+	ToInbox    string  `json:"to_inbox"`     // "user"
+	Title      string  `json:"title"`        // "Claude Code Turn ($X.XX)"
+	TaskID     string  `json:"task_id"`      // Same as ID for hierarchy lookup
+	Status     string  `json:"status"`       // "read" (not actionable like inbox messages)
+	CostUSD    float64 `json:"cost_usd"`
+	TokensIn   int64   `json:"tokens_in"`
+	TokensOut  int64   `json:"tokens_out"`
+	DurationMs int     `json:"duration_ms"`
+	Workspace  string  `json:"workspace,omitempty"` // Working directory (from resource attributes)
+}
+
+// GetClaudeCodeEvents returns Claude Code sessions aggregated by session.id.
+// Multiple api_request spans (turns) in one session are aggregated into a single event.
+// This provides a cleaner Event Queue with one entry per Claude Code conversation.
+func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]ClaudeCodeEvent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+
+	// Aggregate by session.id from attributes - sum cost/tokens, get latest timestamp
+	// Use MIN(id) as the representative span_id for hierarchy lookup
+	query := `
+		SELECT
+			json_extract(attributes, '$."session.id"') as session_id,
+			MIN(id) as first_span_id,
+			MAX(start_time) as latest_time,
+			COUNT(*) as turn_count,
+			SUM(COALESCE(duration_ms, 0)) as total_duration_ms,
+			SUM(COALESCE(cost_usd, 0)) as total_cost_usd,
+			SUM(COALESCE(tokens_in, 0)) as total_tokens_in,
+			SUM(COALESCE(tokens_out, 0)) as total_tokens_out
+		FROM spans
+		WHERE name = 'api_request'
+		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
+		  AND json_extract(attributes, '$."session.id"') IS NOT NULL
+		GROUP BY json_extract(attributes, '$."session.id"')
+		ORDER BY latest_time DESC
+		LIMIT ?
+	`
+
+	rows, err := b.store.DB().QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []ClaudeCodeEvent
+	for rows.Next() {
+		var sessionID, firstSpanID, latestTimeRaw string
+		var turnCount int
+		var totalDurationMs int
+		var totalCostUSD float64
+		var totalTokensIn, totalTokensOut int64
+
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut); err != nil {
+			return nil, err
+		}
+
+		// Convert SQLite datetime format to RFC3339 (replace space with T)
+		latestTime := strings.Replace(latestTimeRaw, " ", "T", 1)
+
+		// Format cost for title
+		costStr := fmt.Sprintf("$%.2f", totalCostUSD)
+		if totalCostUSD < 0.01 && totalCostUSD > 0 {
+			costStr = fmt.Sprintf("$%.4f", totalCostUSD)
+		}
+
+		// Format duration for title
+		durationStr := fmt.Sprintf("%.1fs", float64(totalDurationMs)/1000)
+		if totalDurationMs >= 60000 {
+			durationStr = fmt.Sprintf("%.1fm", float64(totalDurationMs)/60000)
+		}
+
+		// Build title showing turns count and totals
+		title := fmt.Sprintf("Claude Code Session (%d turns, %s, %s)", turnCount, costStr, durationStr)
+
+		events = append(events, ClaudeCodeEvent{
+			ID:         sessionID,  // Use session_id as the event ID
+			CreatedAt:  latestTime, // Most recent activity
+			Type:       "claude_code_session",
+			FromAgent:  "claude-code",
+			ToInbox:    "user",
+			Title:      title,
+			TaskID:     sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
+			Status:     "read",
+			CostUSD:    totalCostUSD,
+			TokensIn:   totalTokensIn,
+			TokensOut:  totalTokensOut,
+			DurationMs: totalDurationMs,
+		})
+	}
+
+	return events, rows.Err()
+}
+
+// splitPath splits a file path into components (works for both Unix and Windows paths)
+func splitPath(path string) []string {
+	// Remove trailing slashes
+	path = strings.TrimRight(path, "/\\")
+	if path == "" {
+		return nil
+	}
+	// Split on both / and \
+	var parts []string
+	current := ""
+	for _, c := range path {
+		if c == '/' || c == '\\' {
+			if current != "" {
+				parts = append(parts, current)
+				current = ""
+			}
+		} else {
+			current += string(c)
+		}
+	}
+	if current != "" {
+		parts = append(parts, current)
+	}
+	return parts
+}
+
+// GetClaudeCodeHierarchy returns the hierarchy for a Claude Code session.
+// The sessionID is the session.id from Claude Code telemetry (UUID format).
+//
+// Claude Code telemetry creates a SEPARATE trace for each span (api_request and tool calls).
+// This means we can't use standard trace hierarchy building (which relies on parent_span_id).
+// Instead, we build a turn-based hierarchy using timestamp correlation:
+//   - api_request spans = "turns" (top level)
+//   - tool calls that occur before the next api_request = children of that turn
+func (b *SQLiteBackend) GetClaudeCodeHierarchy(ctx context.Context, sessionID string) (*TaskHierarchy, error) {
+	// Fetch all spans for this session by session.id attribute
+	spans, err := b.getSpansBySessionID(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("list spans for session: %w", err)
+	}
+	if len(spans) == 0 {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	// Sort spans by start_time (already sorted by query, but ensure)
+	sort.Slice(spans, func(i, j int) bool {
+		return spans[i].StartTime.Before(spans[j].StartTime)
+	})
+
+	// Separate api_requests (turns) from tool calls
+	var apiRequests []*Span
+	var toolCalls []*Span
+	for _, span := range spans {
+		if span.Name == "api_request" {
+			apiRequests = append(apiRequests, span)
+		} else if strings.HasPrefix(span.Name, "claude_code.tool.") {
+			toolCalls = append(toolCalls, span)
+		}
+	}
+
+	// Build turn-based hierarchy: each api_request is a turn with tool calls as children
+	var turnNodes []*SpanNode
+	for i, apiReq := range apiRequests {
+		// Find the end of this turn's time window
+		var turnEnd time.Time
+		if i+1 < len(apiRequests) {
+			turnEnd = apiRequests[i+1].StartTime
+		} else {
+			// Last turn: use a far future time
+			turnEnd = time.Now().Add(24 * time.Hour)
+		}
+
+		// Find tool calls that belong to this turn (started after this api_request, before next)
+		var turnChildren []*SpanNode
+		for _, tool := range toolCalls {
+			if tool.StartTime.After(apiReq.StartTime) && tool.StartTime.Before(turnEnd) {
+				turnChildren = append(turnChildren, &SpanNode{Span: tool})
+			}
+		}
+
+		turnNodes = append(turnNodes, &SpanNode{
+			Span:     apiReq,
+			Children: turnChildren,
+		})
+	}
+
+	// Calculate totals for the session
+	var totalTokensIn, totalTokensOut int64
+	var totalCost float64
+	var totalDuration int64
+	for _, span := range spans {
+		totalTokensIn += span.TokensIn
+		totalTokensOut += span.TokensOut
+		totalCost += span.CostUSD
+		totalDuration += span.DurationMs
+	}
+
+	// Create a virtual "session" span as the root containing all turns
+	sessionSpan := &SpanNode{
+		Span: &Span{
+			ID:         sessionID,
+			Name:       "claude_code.session",
+			StartTime:  spans[0].StartTime,
+			DurationMs: totalDuration,
+			Provider:   "claude",
+			TokensIn:   totalTokensIn,
+			TokensOut:  totalTokensOut,
+			CostUSD:    totalCost,
+		},
+		Children: turnNodes,
+	}
+
+	// Create a single "session" trace containing all turns
+	sessionTrace := &TraceHierarchy{
+		TraceID:  sessionID, // Use session ID as trace ID for the virtual trace
+		RootSpan: sessionSpan,
+		Spans:    []*SpanNode{sessionSpan}, // Include session root so frontend sees hierarchy
+		Summary: &HierarchyTraceSummary{
+			SpanCount:    len(spans),
+			TotalTokens:  totalTokensIn + totalTokensOut,
+			TotalCostUSD: totalCost,
+			DurationMs:   totalDuration,
+		},
+	}
+
+	// Build short ID for display
+	shortID := sessionID
+	if len(sessionID) >= 8 {
+		shortID = sessionID[:8]
+	}
+
+	return &TaskHierarchy{
+		Agents: []*AgentHierarchy{{
+			Agent: &AgentAssignment{
+				ID:       "claude-code-session-" + shortID,
+				AgentID:  "claude-code",
+				Provider: "claude",
+			},
+			Traces: []*TraceHierarchy{sessionTrace},
+		}},
+	}, nil
+}
+
+// getSpansBySessionID retrieves ALL spans for a Claude Code session.
+// This queries by session.id attribute to support existing spans that don't have task_id set.
+func (b *SQLiteBackend) getSpansBySessionID(ctx context.Context, sessionID string) ([]*Span, error) {
+	query := `
+		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
+		       status, attributes, resource_attributes, provider, model,
+		       tokens_in, tokens_out, cost_usd, task_id, agent_assignment_id
+		FROM spans
+		WHERE json_extract(resource_attributes, '$."service.name"') = 'claude-code'
+		  AND json_extract(attributes, '$."session.id"') = ?
+		ORDER BY start_time ASC
+		LIMIT 1000
+	`
+
+	rows, err := b.store.DB().QueryContext(ctx, query, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var spans []*Span
+	for rows.Next() {
+		var span Span
+		var endTime sql.NullTime
+		var parentSpanID, status, provider, model, taskID, agentAssignmentID sql.NullString
+		var attrs, resourceAttrs sql.NullString
+
+		if err := rows.Scan(
+			&span.ID, &span.TraceID, &parentSpanID, &span.Name,
+			&span.StartTime, &endTime, &span.DurationMs,
+			&status, &attrs, &resourceAttrs, &provider, &model,
+			&span.TokensIn, &span.TokensOut, &span.CostUSD,
+			&taskID, &agentAssignmentID,
+		); err != nil {
+			return nil, err
+		}
+
+		if parentSpanID.Valid {
+			span.ParentSpanID = parentSpanID.String
+		}
+		if endTime.Valid {
+			span.EndTime = &endTime.Time
+		}
+		if status.Valid {
+			span.Status = SpanStatus(status.String)
+		}
+		if provider.Valid {
+			span.Provider = Provider(provider.String)
+		}
+		if model.Valid {
+			span.Model = model.String
+		}
+		if taskID.Valid {
+			span.TaskID = taskID.String
+		}
+		if agentAssignmentID.Valid {
+			span.AgentAssignmentID = agentAssignmentID.String
+		}
+		if attrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(attrs.String), &m) == nil {
+				span.Attributes = m
+			}
+		}
+		if resourceAttrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(resourceAttrs.String), &m) == nil {
+				span.ResourceAttributes = m
+			}
+		}
+
+		spans = append(spans, &span)
+	}
+
+	return spans, rows.Err()
+}
+
+// getSessionSpans retrieves all api_request spans for a Claude Code session.
+func (b *SQLiteBackend) getSessionSpans(ctx context.Context, sessionID string) ([]*Span, error) {
+	query := `
+		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
+		       status, attributes, resource_attributes, provider, model,
+		       tokens_in, tokens_out, cost_usd, task_id, agent_assignment_id
+		FROM spans
+		WHERE name = 'api_request'
+		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
+		  AND json_extract(attributes, '$."session.id"') = ?
+		ORDER BY start_time ASC
+	`
+
+	rows, err := b.store.DB().QueryContext(ctx, query, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var spans []*Span
+	for rows.Next() {
+		var span Span
+		var endTime sql.NullTime
+		var parentSpanID, status, provider, model, taskID, agentAssignmentID sql.NullString
+		var attrs, resourceAttrs sql.NullString
+
+		if err := rows.Scan(
+			&span.ID, &span.TraceID, &parentSpanID, &span.Name,
+			&span.StartTime, &endTime, &span.DurationMs,
+			&status, &attrs, &resourceAttrs, &provider, &model,
+			&span.TokensIn, &span.TokensOut, &span.CostUSD,
+			&taskID, &agentAssignmentID,
+		); err != nil {
+			return nil, err
+		}
+
+		if parentSpanID.Valid {
+			span.ParentSpanID = parentSpanID.String
+		}
+		if endTime.Valid {
+			span.EndTime = &endTime.Time
+		}
+		if status.Valid {
+			span.Status = SpanStatus(status.String)
+		}
+		if provider.Valid {
+			span.Provider = Provider(provider.String)
+		}
+		if model.Valid {
+			span.Model = model.String
+		}
+		if taskID.Valid {
+			span.TaskID = taskID.String
+		}
+		if agentAssignmentID.Valid {
+			span.AgentAssignmentID = agentAssignmentID.String
+		}
+		if attrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(attrs.String), &m) == nil {
+				span.Attributes = m
+			}
+		}
+		if resourceAttrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(resourceAttrs.String), &m) == nil {
+				span.ResourceAttributes = m
+			}
+		}
+
+		spans = append(spans, &span)
+	}
+
+	return spans, rows.Err()
+}
+
+// getSpanByID retrieves a single span by its ID.
+func (b *SQLiteBackend) getSpanByID(ctx context.Context, spanID string) (*Span, error) {
+	query := `
+		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
+		       status, attributes, resource_attributes, provider, model,
+		       tokens_in, tokens_out, cost_usd, task_id, agent_assignment_id
+		FROM spans WHERE id = ?
+	`
+	row := b.store.DB().QueryRowContext(ctx, query, spanID)
+
+	var span Span
+	var endTime sql.NullTime
+	var parentSpanID, status, provider, model, taskID, agentAssignmentID sql.NullString
+	var attrs, resourceAttrs sql.NullString
+
+	if err := row.Scan(
+		&span.ID, &span.TraceID, &parentSpanID, &span.Name,
+		&span.StartTime, &endTime, &span.DurationMs,
+		&status, &attrs, &resourceAttrs, &provider, &model,
+		&span.TokensIn, &span.TokensOut, &span.CostUSD,
+		&taskID, &agentAssignmentID,
+	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if parentSpanID.Valid {
+		span.ParentSpanID = parentSpanID.String
+	}
+	if endTime.Valid {
+		span.EndTime = &endTime.Time
+	}
+	if status.Valid {
+		span.Status = SpanStatus(status.String)
+	}
+	if provider.Valid {
+		span.Provider = Provider(provider.String)
+	}
+	if model.Valid {
+		span.Model = model.String
+	}
+	if taskID.Valid {
+		span.TaskID = taskID.String
+	}
+	if agentAssignmentID.Valid {
+		span.AgentAssignmentID = agentAssignmentID.String
+	}
+	if attrs.Valid {
+		var m map[string]interface{}
+		if json.Unmarshal([]byte(attrs.String), &m) == nil {
+			span.Attributes = m
+		}
+	}
+	if resourceAttrs.Valid {
+		var m map[string]interface{}
+		if json.Unmarshal([]byte(resourceAttrs.String), &m) == nil {
+			span.ResourceAttributes = m
+		}
+	}
+
+	return &span, nil
+}
+
+// getToolCallsInWindow finds tool call spans within a time window.
+// These are spans from claude_code.tool.* that started within the given time range.
+func (b *SQLiteBackend) getToolCallsInWindow(ctx context.Context, start time.Time, end *time.Time) ([]*Span, error) {
+	if end == nil {
+		return nil, nil // Can't correlate without end time
+	}
+
+	query := `
+		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
+		       status, attributes, resource_attributes, provider, model,
+		       tokens_in, tokens_out, cost_usd, task_id, agent_assignment_id
+		FROM spans
+		WHERE (
+			name LIKE 'claude_code.tool.%'
+			OR (json_extract(resource_attributes, '$."service.name"') = 'claude-code' AND name NOT IN ('api_request', 'user_prompt'))
+		)
+		AND start_time >= ? AND start_time <= ?
+		ORDER BY start_time ASC
+		LIMIT 100
+	`
+
+	rows, err := b.store.DB().QueryContext(ctx, query, start, *end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var spans []*Span
+	for rows.Next() {
+		var span Span
+		var endTime sql.NullTime
+		var parentSpanID, status, provider, model, taskID, agentAssignmentID sql.NullString
+		var attrs, resourceAttrs sql.NullString
+
+		if err := rows.Scan(
+			&span.ID, &span.TraceID, &parentSpanID, &span.Name,
+			&span.StartTime, &endTime, &span.DurationMs,
+			&status, &attrs, &resourceAttrs, &provider, &model,
+			&span.TokensIn, &span.TokensOut, &span.CostUSD,
+			&taskID, &agentAssignmentID,
+		); err != nil {
+			return nil, err
+		}
+
+		if parentSpanID.Valid {
+			span.ParentSpanID = parentSpanID.String
+		}
+		if endTime.Valid {
+			span.EndTime = &endTime.Time
+		}
+		if status.Valid {
+			span.Status = SpanStatus(status.String)
+		}
+		if provider.Valid {
+			span.Provider = Provider(provider.String)
+		}
+		if model.Valid {
+			span.Model = model.String
+		}
+		if taskID.Valid {
+			span.TaskID = taskID.String
+		}
+		if agentAssignmentID.Valid {
+			span.AgentAssignmentID = agentAssignmentID.String
+		}
+		if attrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(attrs.String), &m) == nil {
+				span.Attributes = m
+			}
+		}
+		if resourceAttrs.Valid {
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(resourceAttrs.String), &m) == nil {
+				span.ResourceAttributes = m
+			}
+		}
+
+		spans = append(spans, &span)
+	}
+
+	return spans, rows.Err()
 }

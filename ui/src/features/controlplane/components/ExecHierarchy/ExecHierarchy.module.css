@@ -428,6 +428,18 @@
   box-shadow: 0 0 0 2px rgba(231, 60, 23, 0.3);
 }
 
+/* Filtered node - greyed out but still visible */
+.rfNodeFiltered {
+  opacity: 0.35;
+  filter: grayscale(60%);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.rfNodeFiltered:hover {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
 .rfNodeMessage {
   border-left: 3px solid var(--color-warning, #dd6b20);
 }

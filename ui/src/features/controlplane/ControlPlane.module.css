@@ -675,19 +675,40 @@
   position: relative;
   z-index: 5;
   display: grid;
-  grid-template-columns: 240px 1fr 280px;
+  grid-template-columns: 280px 1fr 260px;
   flex: 1;
   overflow: hidden;
 }
 
 /* ================================================================
-   Aggregation Navigator
+   Event Panel (Left Sidebar)
+   ================================================================ */
+.eventPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* ================================================================
+   Aggregation Panel (Right Sidebar)
+   ================================================================ */
+.aggregationPanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+/* ================================================================
+   Aggregation Navigator (inside aggregationPanel)
    ================================================================ */
 .aggregationNav {
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
-  border-right: 1px solid var(--border-subtle);
   overflow: hidden;
 }
 
@@ -786,6 +807,54 @@
 
 .navChildren {
   /* Children rendered inside */
+}
+
+/* Metrics Summary Section */
+.navMetrics {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-base);
+}
+
+.navMetricsHeader {
+  margin-bottom: var(--space-2);
+}
+
+.navMetricsTitle {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+}
+
+.navMetricsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.metricValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.metricLabel {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .navFooter {
@@ -1992,7 +2061,7 @@
    ================================================================ */
 @media (max-width: 1200px) {
   .mainLayout {
-    grid-template-columns: 200px 1fr 240px;
+    grid-template-columns: 240px 1fr 220px;
   }
 }
 
@@ -2001,6 +2070,8 @@
     grid-template-columns: 1fr;
   }
 
+  .eventPanel,
+  .aggregationPanel,
   .aggregationNav,
   .contextPanel {
     display: none;
@@ -2190,6 +2261,139 @@
   font-size: 10px;
   color: var(--text-tertiary);
   font-family: var(--font-mono);
+}
+
+/* Queue Filter Toolbar */
+.queueFilters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-base);
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filterBtn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  border-color: var(--border-emphasis);
+  color: var(--text-primary);
+}
+
+.filterBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.filterBtnActive {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filterIcon {
+  font-size: 11px;
+}
+
+.filterClear {
+  margin-left: var(--space-1);
+  opacity: 0.6;
+}
+
+.filterChevron {
+  font-size: 8px;
+  margin-left: var(--space-1);
+}
+
+.filterDropdown {
+  position: relative;
+}
+
+.filterMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 160px;
+  margin-top: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.filterMenuActions {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-1);
+}
+
+.filterMenuAction {
+  flex: 1;
+  padding: var(--space-1);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 9px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filterMenuAction:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.filterOption:hover {
+  background: var(--bg-surface);
+}
+
+.filterOption input {
+  cursor: pointer;
+}
+
+.filterOptionIcon {
+  font-size: 11px;
+}
+
+.filterOptionIcon[data-type="primary"] { color: var(--primary); }
+.filterOptionIcon[data-type="success"] { color: var(--success); }
+.filterOptionIcon[data-type="error"] { color: var(--danger); }
+.filterOptionIcon[data-type="amber"] { color: var(--amber); }
+.filterOptionIcon[data-type="warning"] { color: var(--amber); }
+.filterOptionIcon[data-type="muted"] { color: var(--text-tertiary); }
+
+.filterOptionLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
 }
 
 .queueList {

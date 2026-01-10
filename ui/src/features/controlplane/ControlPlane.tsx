@@ -45,6 +45,7 @@ import type {
   TopologyEdge,
   Span,
 } from './components';
+import type { EventType } from './components/MessageQueue';
 
 /**
  * Find the agent path from an event through the topology.
@@ -154,10 +155,12 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedLevel, setSelectedLevel] = useState('global');
   const [trustCapabilities, setTrustCapabilities] = useState<TrustCapability[]>(defaultTrustCapabilities);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   // Track time range selection from heatmap (separate from dimension filters)
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
+  // Track event type filter (for MessageQueue)
+  const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
 
   // Agent Topology selection and highlighting state
   const [selectedTopologyNode, setSelectedTopologyNode] = useState<string | null>(null);
@@ -308,11 +311,13 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     const metadata = event.metadata as Record<string, unknown> | undefined;
 
     // Priority order for finding trace/task ID:
-    // 1. task_id (direct span attribute - already in task-XXX format)
-    // 2. parent_task_id (from coordinator - already in task-XXX format)
-    // 3. correlation_id (message correlation)
-    // 4. Construct task-{first8chars} from event.id
-    let lookupId = metadata?.task_id as string
+    // 1. event.task_id (direct field - Claude Code events use span_id as task_id)
+    // 2. metadata.task_id (direct span attribute - already in task-XXX format)
+    // 3. metadata.parent_task_id (from coordinator - already in task-XXX format)
+    // 4. metadata.correlation_id (message correlation)
+    // 5. Construct task-{first8chars} from event.id
+    let lookupId = event.task_id as string
+      || metadata?.task_id as string
       || metadata?.parent_task_id as string
       || metadata?.correlation_id as string;
 
@@ -433,21 +438,20 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         onStatusChange={setStatusFilter}
       />
 
-      {/* Main Layout */}
+      {/* Main Layout - Event Queue LEFT, Aggregations RIGHT */}
       <div className={styles.mainLayout}>
-        {/* Left Sidebar */}
-        <AggregationNav
-          selectedLevel={selectedLevel}
-          onSelectLevel={setSelectedLevel}
-          stats={stats ? {
-            totalTasks: stats.totalTasks,
-            totalCost: parseFloat(stats.totalCost.replace('$', '')),
-            activeAgents: stats.activeAgents,
-            pendingApprovals: stats.pendingApprovals,
-          } : null}
-          breakdowns={breakdowns}
-          loading={statsLoading || breakdownLoading}
-        />
+        {/* Left Sidebar - Event Queue (Input Feed) */}
+        <aside className={styles.eventPanel}>
+          <MessageQueue
+            events={events}
+            onEventClick={handleEventClick}
+            loading={eventsLoading}
+            selectedDateRange={selectedDateRange}
+            onDateRangeChange={setSelectedDateRange}
+            selectedTypes={selectedEventTypes}
+            onTypeFilterChange={setSelectedEventTypes}
+          />
+        </aside>
 
         {/* Main Canvas */}
         <main className={`${styles.mainCanvas} ${topologyExpanded ? styles.canvasWithExpanded : ''}`}>
@@ -466,6 +470,10 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
               selectedNodeId={selectedEventTraceId}
               spans={spans}
               loading={spansLoading}
+              filterCriteria={{
+                dateRange: selectedDateRange,
+                eventTypes: selectedEventTypes.length > 0 ? selectedEventTypes : undefined,
+              }}
             />
           </div>
           {!topologyExpanded && (
@@ -492,12 +500,19 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           )}
         </main>
 
-        {/* Right Panel - Event Queue */}
-        <aside className={styles.contextPanel}>
-          <MessageQueue
-            events={events}
-            onEventClick={handleEventClick}
-            loading={eventsLoading}
+        {/* Right Sidebar - Aggregations (Analysis/Metrics) */}
+        <aside className={styles.aggregationPanel}>
+          <AggregationNav
+            selectedLevel={selectedLevel}
+            onSelectLevel={setSelectedLevel}
+            stats={stats ? {
+              totalTasks: stats.totalTasks,
+              totalCost: parseFloat(stats.totalCost.replace('$', '')),
+              activeAgents: stats.activeAgents,
+              pendingApprovals: stats.pendingApprovals,
+            } : null}
+            breakdowns={breakdowns}
+            loading={statsLoading || breakdownLoading}
           />
         </aside>
       </div>

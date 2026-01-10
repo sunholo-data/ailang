@@ -336,6 +336,10 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 			if parentTraceID != "" {
 				traceID = parentTraceID
 			}
+		} else {
+			// No coordinator task found - use session_id as the task_id
+			// This allows local Claude Code sessions to be queryable by standard hierarchy code
+			taskID = sessionID
 		}
 	}
 

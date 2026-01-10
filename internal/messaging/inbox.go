@@ -76,10 +76,16 @@ type InboxListOptions struct {
 	DupOf       string // Only messages that are duplicates of this ID
 }
 
-// InsertInboxMessage adds a new message to the inbox
+// InsertInboxMessage adds a new message to the inbox.
+// For trace context propagation, use InsertInboxMessageWithContext instead.
 func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
+	return s.InsertInboxMessageWithContext(context.Background(), msg)
+}
+
+// InsertInboxMessageWithContext adds a new message to the inbox with trace context propagation.
+// Use this when you want the messages.send span to be a child of the caller's trace.
+func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMessage) error {
 	// Start span for message send operation
-	ctx := context.Background()
 	_, span := messagingTracer.Start(ctx, "messages.send",
 		trace.WithAttributes(
 			attribute.String("message.to_inbox", msg.ToInbox),

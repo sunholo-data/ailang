@@ -6,7 +6,7 @@
  * Uses the SAME spans data as TraceWaterfall for consistency.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode } from './types';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import { ApprovalPanel } from '../ApprovalPanel';
@@ -23,6 +23,12 @@ type ExtendedNodeType = HierarchyNode['type'] | 'coordinator' | 'executor' | 'ai
 
 // Determine node type from span name with semantic patterns
 function getNodeType(name: string): HierarchyNode['type'] {
+  // Claude Code session (virtual root)
+  if (name === 'claude_code.session') return 'exec';
+  // Claude Code api_request (turn in a session)
+  if (name === 'api_request') return 'turn';
+  // Claude Code tool calls
+  if (name.startsWith('claude_code.tool.')) return 'tool_use';
   // Coordinator task execution
   if (name === 'coordinator.task.execute') return 'exec';
   // Executor spans (Claude/Gemini)
@@ -31,6 +37,8 @@ function getNodeType(name: string): HierarchyNode['type'] {
   if (name.startsWith('exec.turn') || name.includes('.turn')) return 'turn';
   // Tool use spans
   if (name === 'exec.tool_use' || name.includes('tool')) return 'tool_use';
+  // Eval event spans (Milestone 12: spans created alongside inbox messages)
+  if (name.startsWith('eval.event.')) return 'message';
   // Message spans
   if (name.includes('message') || name.includes('msg')) return 'message';
   // Default to exec for ailang.*, compile.*, etc.
@@ -49,6 +57,18 @@ function getSemanticType(name: string): ExtendedNodeType {
 function getSmartLabel(span: Span): string {
   const name = span.name;
   const attrs = span.attributes || {};
+
+  // Claude Code session: show session summary
+  if (name === 'claude_code.session') {
+    // Session has aggregated metrics
+    const cost = span.cost_usd || 0;
+    const tokensIn = span.tokens_in || 0;
+    const tokensOut = span.tokens_out || 0;
+    const durationMs = span.durationMs || 0;
+    const durationMins = Math.round(durationMs / 60000);
+    const children = (span as any).children?.length || 0;
+    return `Claude Code Session (${children} turns, $${cost.toFixed(2)}, ${durationMins}m)`;
+  }
 
   // Coordinator task: use task.title or extract from directive
   if (name === 'coordinator.task.execute') {
@@ -96,6 +116,77 @@ function getSmartLabel(span: Span): string {
     return toolName;
   }
 
+  // Eval event spans (Milestone 12): show the event title from attributes
+  if (name.startsWith('eval.event.')) {
+    const eventTitle = attrs['event.title'];
+    if (eventTitle) {
+      return eventTitle.length > 45 ? eventTitle.substring(0, 45) + '...' : eventTitle;
+    }
+    // Fallback: clean up the event type
+    const eventType = name.replace('eval.event.', '');
+    return `Eval Event: ${eventType.replace(/_/g, ' ')}`;
+  }
+
+  // Message send operations: show destination inbox and category
+  if (name === 'messages.send') {
+    const toInbox = attrs['message.to_inbox'] || '';
+    const category = attrs['message.category'] || '';
+    const fromAgent = attrs['message.from_agent'] || '';
+    if (toInbox && category) {
+      return `Send → ${toInbox} (${category})`;
+    }
+    if (toInbox) {
+      return `Send → ${toInbox}`;
+    }
+    if (fromAgent) {
+      return `Send from ${fromAgent}`;
+    }
+    return 'Send Message';
+  }
+
+  // Claude Code tool calls: extract tool name
+  if (name.startsWith('claude_code.tool.')) {
+    const toolName = name.replace('claude_code.tool.', '');
+    const params = attrs['tool_parameters'] || '';
+    // Try to extract meaningful info from parameters
+    if (params && typeof params === 'string') {
+      try {
+        const parsed = JSON.parse(params);
+        if (parsed.description) {
+          const desc = parsed.description;
+          return `${toolName}: ${desc.length > 35 ? desc.substring(0, 35) + '...' : desc}`;
+        }
+        if (parsed.bash_command) {
+          const cmd = parsed.bash_command;
+          return `${toolName}: ${cmd.length > 30 ? cmd.substring(0, 30) + '...' : cmd}`;
+        }
+        if (parsed.file_path) {
+          const path = parsed.file_path.split('/').pop() || parsed.file_path;
+          return `${toolName}: ${path}`;
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+    return toolName;
+  }
+
+  // API requests (Claude Code turns): show model and cost
+  if (name === 'api_request') {
+    const model = attrs['model'] || '';
+    const cost = parseFloat(attrs['cost_usd'] || '0');
+    // Show shortened model name
+    let modelShort = model.replace('claude-', '').replace('-20251101', '').replace('-20251001', '');
+    if (modelShort.length > 15) modelShort = modelShort.substring(0, 15);
+    if (model && cost > 0) {
+      return `Turn (${modelShort}) $${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
+    }
+    if (model) {
+      return `Turn (${modelShort})`;
+    }
+    return 'Turn';
+  }
+
   // AILANG operations: show clean operation name
   if (name.startsWith('ailang.')) {
     return name.replace('ailang.', '').replace(/\./g, ' → ');
@@ -107,8 +198,8 @@ function getSmartLabel(span: Span): string {
     return 'Eval: ' + name.replace('eval.', '');
   }
 
-  // API requests: show model
-  if (name.includes('api_request') || name.includes('generate')) {
+  // Other API requests: show model
+  if (name.includes('generate')) {
     const model = attrs['model'] || attrs['gen_ai.request.model'] || '';
     if (model) return `API: ${model}`;
   }
@@ -348,6 +439,58 @@ function getDefaultExpandedState(node: HierarchyNode, depth: number): boolean {
   return true;
 }
 
+// Check if a node matches the filter criteria
+function nodeMatchesFilter(node: HierarchyNode, criteria: FilterCriteria | undefined): boolean {
+  if (!criteria) return true;
+
+  // Check date range filter
+  if (criteria.dateRange && node.startTime) {
+    const nodeDate = new Date(node.startTime);
+    if (nodeDate < criteria.dateRange.start || nodeDate > criteria.dateRange.end) {
+      return false;
+    }
+  }
+
+  // Check event type filter (map node.type to event types)
+  if (criteria.eventTypes && criteria.eventTypes.length > 0) {
+    // Map node types to event types
+    const typeMapping: Record<string, string[]> = {
+      'exec': ['task_start', 'task_complete', 'task_error'],
+      'turn': ['task_start', 'task_complete'],
+      'tool_use': ['task_start', 'task_complete'],
+      'message': ['message', 'handoff', 'approval'],
+    };
+    const mappedTypes = typeMapping[node.type] || [];
+    const hasMatchingType = mappedTypes.some(t => criteria.eventTypes!.includes(t));
+    if (!hasMatchingType) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Apply filter criteria to nodes recursively (marks nodes as isFiltered, does NOT hide them)
+function applyFilterToNodes(nodes: HierarchyNode[], criteria: FilterCriteria | undefined): HierarchyNode[] {
+  if (!criteria || (!criteria.dateRange && (!criteria.eventTypes || criteria.eventTypes.length === 0))) {
+    // No filtering active - return nodes as-is
+    return nodes;
+  }
+
+  const applyFilter = (node: HierarchyNode): HierarchyNode => {
+    const isFiltered = !nodeMatchesFilter(node, criteria);
+    const filteredChildren = node.children?.map(applyFilter);
+
+    return {
+      ...node,
+      isFiltered,
+      children: filteredChildren,
+    };
+  };
+
+  return nodes.map(applyFilter);
+}
+
 export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   isExpanded,
   onToggleExpand,
@@ -356,6 +499,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   isEmpty: propsIsEmpty,
   spans,
   loading,
+  filterCriteria,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
@@ -399,12 +543,17 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   }, [spans]);
 
   // Apply coordinator view mode transformation
-  const nodes = useMemo(() => {
+  const transformedNodes = useMemo(() => {
     if (coordViewMode === 'breakout') {
       return breakoutCoordinatorTasks(rawNodes);
     }
     return rawNodes;
   }, [rawNodes, coordViewMode]);
+
+  // Apply filter criteria (marks nodes as isFiltered, does NOT hide them)
+  const nodes = useMemo(() => {
+    return applyFilterToNodes(transformedNodes, filterCriteria);
+  }, [transformedNodes, filterCriteria]);
 
   // Expand ONE LEVEL: expand children of currently expanded nodes (or roots if nothing expanded)
   const expandOneLevel = useCallback(() => {

@@ -1,14 +1,40 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 )
+
+// UnifiedEvent represents either an inbox message or a Claude Code event
+// This provides a consistent format for the Event Queue in the dashboard
+type UnifiedEvent struct {
+	ID            string `json:"id"`
+	CreatedAt     string `json:"created_at"`               // ISO8601 timestamp
+	Type          string `json:"message_type"`             // e.g., "notification", "handoff", "claude_code_turn"
+	FromAgent     string `json:"from_agent"`               // e.g., "eval-suite", "claude-code"
+	ToInbox       string `json:"to_inbox"`                 // e.g., "user", "coordinator"
+	Title         string `json:"title"`                    // Display title
+	TaskID        string `json:"task_id"`                  // For linking to hierarchy/waterfall
+	Status        string `json:"status"`                   // e.g., "unread", "read"
+	Payload       string `json:"payload,omitempty"`        // Message payload (inbox messages only)
+	CorrelationID string `json:"correlation_id,omitempty"` // For linking related messages
+	Source        string `json:"source"`                   // "inbox" or "claude_code"
+
+	// Claude Code specific fields
+	CostUSD    float64 `json:"cost_usd,omitempty"`
+	TokensIn   int64   `json:"tokens_in,omitempty"`
+	TokensOut  int64   `json:"tokens_out,omitempty"`
+	DurationMs int     `json:"duration_ms,omitempty"`
+	Workspace  string  `json:"workspace,omitempty"` // Working directory for Claude Code events
+}
 
 // GET /api/inbox - List inbox messages
 // POST /api/inbox - Send a message
@@ -68,11 +94,74 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	// Also get counts for the response
 	counts, _ := s.store.CountInboxMessagesByStatus(opts.Inbox)
 
+	// Check if we should include Claude Code events
+	// Include by default unless filtering by specific inbox/from agent
+	includeClaudeCode := opts.Inbox == "" && opts.FromAgent == ""
+
+	// Convert inbox messages to unified event format
+	events := make([]UnifiedEvent, 0, len(messages)+50)
+	for _, msg := range messages {
+		events = append(events, UnifiedEvent{
+			ID:            msg.MessageID,
+			CreatedAt:     msg.CreatedAt.Format(time.RFC3339),
+			Type:          msg.MessageType,
+			FromAgent:     msg.FromAgent,
+			ToInbox:       msg.ToInbox,
+			Title:         msg.Title,
+			TaskID:        msg.CorrelationID, // Use correlation_id as task_id for linking
+			Status:        msg.Status,
+			Payload:       msg.Payload,
+			CorrelationID: msg.CorrelationID,
+			Source:        "inbox",
+		})
+	}
+
+	// Merge Claude Code events from observatory if available
+	if includeClaudeCode && s.obsBackend != nil {
+		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
+			ctx := context.Background()
+			ccEvents, err := sqliteBackend.GetClaudeCodeEvents(ctx, opts.Limit)
+			if err != nil {
+				log.Printf("Warning: Failed to get Claude Code events: %v", err)
+			} else {
+				for _, cc := range ccEvents {
+					events = append(events, UnifiedEvent{
+						ID:         cc.ID,
+						CreatedAt:  cc.CreatedAt,
+						Type:       cc.Type,
+						FromAgent:  cc.FromAgent,
+						ToInbox:    cc.ToInbox,
+						Title:      cc.Title,
+						TaskID:     cc.TaskID,
+						Status:     cc.Status,
+						CostUSD:    cc.CostUSD,
+						TokensIn:   cc.TokensIn,
+						TokensOut:  cc.TokensOut,
+						DurationMs: cc.DurationMs,
+						Source:     "claude_code",
+					})
+				}
+			}
+		}
+	}
+
+	// Sort all events by timestamp (most recent first)
+	sort.Slice(events, func(i, j int) bool {
+		ti, _ := time.Parse(time.RFC3339, events[i].CreatedAt)
+		tj, _ := time.Parse(time.RFC3339, events[j].CreatedAt)
+		return ti.After(tj)
+	})
+
+	// Apply limit after merging
+	if len(events) > opts.Limit {
+		events = events[:opts.Limit]
+	}
+
 	response := struct {
-		Messages []messaging.InboxMessage `json:"messages"`
-		Counts   map[string]int64         `json:"counts"`
+		Messages []UnifiedEvent   `json:"messages"`
+		Counts   map[string]int64 `json:"counts"`
 	}{
-		Messages: messages,
+		Messages: events,
 		Counts:   counts,
 	}
 

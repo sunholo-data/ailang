@@ -643,6 +643,15 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 	hierarchy, err := GetTaskHierarchy(r.Context(), a.backend, id, opts)
 	if err != nil {
 		if isNotFoundError(err) {
+			// Fallback: Try Claude Code hierarchy if task not found
+			// This handles the case where "id" is a Claude Code span_id rather than a task_id
+			if sqliteBackend, ok := a.backend.(*SQLiteBackend); ok {
+				ccHierarchy, ccErr := sqliteBackend.GetClaudeCodeHierarchy(r.Context(), id)
+				if ccErr == nil {
+					writeJSON(w, http.StatusOK, ccHierarchy)
+					return
+				}
+			}
 			writeError(w, http.StatusNotFound, "task not found: "+id)
 		} else {
 			writeError(w, http.StatusInternalServerError, err.Error())

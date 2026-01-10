@@ -1,15 +1,28 @@
 /**
  * MessageQueue - Real-time event feed for Control Plane
+ * Now with filtering support for date range and event types
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { EventMessage } from './types';
 import styles from '../ControlPlane.module.css';
+
+export type EventType = EventMessage['type'];
+
+export interface DateRange {
+  start: Date;
+  end: Date;
+}
 
 export interface MessageQueueProps {
   events: EventMessage[];
   onEventClick: (event: EventMessage) => void;
   loading?: boolean;
   pageSize?: number;
+  // Filter props
+  selectedDateRange?: DateRange | null;
+  onDateRangeChange?: (range: DateRange | null) => void;
+  selectedTypes?: EventType[];
+  onTypeFilterChange?: (types: EventType[]) => void;
 }
 
 const getEventIcon = (type: EventMessage['type']): string => {
@@ -46,15 +59,55 @@ const formatRelativeTime = (timestamp: string): string => {
   return `${Math.floor(diff / 3600000)}h ago`;
 };
 
-export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick, loading, pageSize = 10 }) => {
-  const [currentPage, setCurrentPage] = useState(0);
+const ALL_EVENT_TYPES: EventType[] = ['task_start', 'task_complete', 'task_error', 'handoff', 'approval', 'message'];
 
-  // Calculate pagination
-  const totalPages = useMemo(() => Math.ceil(events.length / pageSize), [events.length, pageSize]);
+const formatDateRange = (range: DateRange): string => {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const startStr = range.start.toLocaleDateString('en-US', opts);
+  const endStr = range.end.toLocaleDateString('en-US', opts);
+  if (startStr === endStr) return startStr;
+  return `${startStr} - ${endStr}`;
+};
+
+export const MessageQueue: React.FC<MessageQueueProps> = ({
+  events,
+  onEventClick,
+  loading,
+  pageSize = 10,
+  selectedDateRange,
+  onDateRangeChange,
+  selectedTypes,
+  onTypeFilterChange,
+}) => {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [showTypeFilter, setShowTypeFilter] = useState(false);
+
+  // Filter events by date range and types
+  const filteredEvents = useMemo(() => {
+    let result = events;
+
+    // Filter by date range
+    if (selectedDateRange) {
+      result = result.filter((event) => {
+        const eventDate = new Date(event.timestamp);
+        return eventDate >= selectedDateRange.start && eventDate <= selectedDateRange.end;
+      });
+    }
+
+    // Filter by event types
+    if (selectedTypes && selectedTypes.length > 0) {
+      result = result.filter((event) => selectedTypes.includes(event.type));
+    }
+
+    return result;
+  }, [events, selectedDateRange, selectedTypes]);
+
+  // Calculate pagination on filtered events
+  const totalPages = useMemo(() => Math.ceil(filteredEvents.length / pageSize), [filteredEvents.length, pageSize]);
   const paginatedEvents = useMemo(() => {
     const start = currentPage * pageSize;
-    return events.slice(start, start + pageSize);
-  }, [events, currentPage, pageSize]);
+    return filteredEvents.slice(start, start + pageSize);
+  }, [filteredEvents, currentPage, pageSize]);
 
   // Reset to first page when events change significantly
   React.useEffect(() => {
@@ -66,6 +119,30 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
   const goToPrevPage = () => setCurrentPage((p) => Math.max(0, p - 1));
   const goToNextPage = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
 
+  const handleTypeToggle = useCallback((type: EventType) => {
+    if (!onTypeFilterChange) return;
+    const current = selectedTypes || [];
+    if (current.includes(type)) {
+      onTypeFilterChange(current.filter(t => t !== type));
+    } else {
+      onTypeFilterChange([...current, type]);
+    }
+  }, [selectedTypes, onTypeFilterChange]);
+
+  const handleClearDateFilter = useCallback(() => {
+    onDateRangeChange?.(null);
+  }, [onDateRangeChange]);
+
+  const handleSelectAllTypes = useCallback(() => {
+    onTypeFilterChange?.(ALL_EVENT_TYPES);
+  }, [onTypeFilterChange]);
+
+  const handleClearTypeFilter = useCallback(() => {
+    onTypeFilterChange?.([]);
+  }, [onTypeFilterChange]);
+
+  const hasFilters = !!(selectedDateRange || (selectedTypes && selectedTypes.length > 0));
+
   return (
     <div className={styles.messageQueue}>
       <div className={styles.queueHeader}>
@@ -74,8 +151,56 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({ events, onEventClick
           Event Queue
         </h3>
         <span className={styles.queueCount}>
-          {loading ? '...' : `${events.length} events`}
+          {loading ? '...' : hasFilters ? `${filteredEvents.length}/${events.length}` : `${events.length}`}
         </span>
+      </div>
+
+      {/* Filter toolbar */}
+      <div className={styles.queueFilters}>
+        {/* Date range filter */}
+        <button
+          className={`${styles.filterBtn} ${selectedDateRange ? styles.filterBtnActive : ''}`}
+          onClick={handleClearDateFilter}
+          disabled={!selectedDateRange}
+          title={selectedDateRange ? 'Clear date filter' : 'Select dates from heatmap'}
+        >
+          <span className={styles.filterIcon}>📅</span>
+          {selectedDateRange ? formatDateRange(selectedDateRange) : 'All dates'}
+          {selectedDateRange && <span className={styles.filterClear}>×</span>}
+        </button>
+
+        {/* Event type filter */}
+        <div className={styles.filterDropdown}>
+          <button
+            className={`${styles.filterBtn} ${selectedTypes && selectedTypes.length > 0 ? styles.filterBtnActive : ''}`}
+            onClick={() => setShowTypeFilter(!showTypeFilter)}
+          >
+            <span className={styles.filterIcon}>◉</span>
+            {selectedTypes && selectedTypes.length > 0 ? `${selectedTypes.length} types` : 'All types'}
+            <span className={styles.filterChevron}>{showTypeFilter ? '▲' : '▼'}</span>
+          </button>
+          {showTypeFilter && (
+            <div className={styles.filterMenu}>
+              <div className={styles.filterMenuActions}>
+                <button onClick={handleSelectAllTypes} className={styles.filterMenuAction}>All</button>
+                <button onClick={handleClearTypeFilter} className={styles.filterMenuAction}>None</button>
+              </div>
+              {ALL_EVENT_TYPES.map((type) => (
+                <label key={type} className={styles.filterOption}>
+                  <input
+                    type="checkbox"
+                    checked={!selectedTypes || selectedTypes.length === 0 || selectedTypes.includes(type)}
+                    onChange={() => handleTypeToggle(type)}
+                  />
+                  <span className={styles.filterOptionIcon} data-type={getEventColor(type)}>
+                    {getEventIcon(type)}
+                  </span>
+                  <span className={styles.filterOptionLabel}>{type.replace('_', ' ')}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div className={styles.queueList}>
         {loading && (

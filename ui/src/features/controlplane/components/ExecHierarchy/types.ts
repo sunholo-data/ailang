@@ -43,6 +43,8 @@ export interface HierarchyNode {
   approvalStatus?: 'pending' | 'approved' | 'rejected' | 'none';  // Approval workflow status
   approvalId?: string;      // Approval request ID
   agentId?: string;         // Agent that executed this task
+  // Filtering (Milestone 10)
+  isFiltered?: boolean;     // True if node doesn't match current filter criteria (greyed out)
 }
 
 // Message node (Level 1) - triggers coordinator tasks
@@ -140,6 +142,12 @@ export interface Span {
   attributes?: Record<string, string>;
 }
 
+// Filter criteria for greying out (not hiding) nodes
+export interface FilterCriteria {
+  dateRange?: { start: Date; end: Date } | null;
+  eventTypes?: string[];  // If empty, show all
+}
+
 // Props for the main ExecHierarchy component
 export interface ExecHierarchyProps {
   isExpanded: boolean;
@@ -150,4 +158,6 @@ export interface ExecHierarchyProps {
   // Same data source as TraceWaterfall
   spans?: Span[];
   loading?: boolean;
+  // Filter criteria - filtered nodes are greyed out, not hidden
+  filterCriteria?: FilterCriteria;
 }

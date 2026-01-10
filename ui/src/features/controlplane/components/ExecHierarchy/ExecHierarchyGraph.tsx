@@ -135,6 +135,7 @@ const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
   const hasMetrics = data.cost || data.tokensIn || data.tokensOut;
   const hasApproval = data.approvalStatus && data.approvalStatus !== 'none';
   const isCoordinator = data.semanticType === 'coordinator';
+  const isFiltered = data.isFiltered;
 
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -145,7 +146,7 @@ const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
 
   return (
     <div
-      className={`${styles.rfNode} ${selected ? styles.rfNodeSelected : ''} ${data.provider ? styles[`rfNodeProvider${data.provider.charAt(0).toUpperCase() + data.provider.slice(1)}`] : ''} ${isCoordinator ? styles.rfNodeCoordinator : ''}`}
+      className={`${styles.rfNode} ${selected ? styles.rfNodeSelected : ''} ${data.provider ? styles[`rfNodeProvider${data.provider.charAt(0).toUpperCase() + data.provider.slice(1)}`] : ''} ${isCoordinator ? styles.rfNodeCoordinator : ''} ${isFiltered ? styles.rfNodeFiltered : ''}`}
       style={{ borderLeftColor: nodeColor }}
     >
       <Handle type="target" position={Position.Top} className={styles.rfHandle} />
