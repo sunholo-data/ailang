@@ -593,6 +593,25 @@ func (s *SQLiteStore) SetTaskThreadID(ctx context.Context, id string, threadID s
 	return err
 }
 
+// GetTaskAgentInfo returns agent info for a task (for cross-db correlation in Control Plane)
+// Returns: agentID (used as FromAgent), inbox (used as ToInbox), title
+// Note: By convention, agent id == inbox in the agent config (e.g., "design-doc-creator")
+func (s *SQLiteStore) GetTaskAgentInfo(ctx context.Context, taskID string) (agentID, inbox, title string, err error) {
+	err = s.db.QueryRowContext(ctx, `
+		SELECT agent_id, title FROM tasks WHERE id = ?
+	`, taskID).Scan(&agentID, &title)
+	if err == sql.ErrNoRows {
+		return "", "", "", nil // Not a coordinator task
+	}
+	if err != nil {
+		return "", "", "", err
+	}
+	// By convention, agent id == inbox in the agent config
+	// (e.g., id: "design-doc-creator" → inbox: "design-doc-creator")
+	inbox = agentID
+	return agentID, inbox, title, nil
+}
+
 // SetTaskGithubIssue links a task to a GitHub issue number
 func (s *SQLiteStore) SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error {
 	_, err := s.db.ExecContext(ctx,

@@ -202,5 +202,10 @@ func (s *CloudStore) GetTaskEvents(ctx context.Context, taskID string, limit int
 	return nil, fmt.Errorf("cloud store: GetTaskEvents not implemented")
 }
 
+// GetTaskAgentInfo returns agent info for a task (stub)
+func (s *CloudStore) GetTaskAgentInfo(ctx context.Context, taskID string) (agentID, inbox, title string, err error) {
+	return "", "", "", fmt.Errorf("cloud store: GetTaskAgentInfo not implemented")
+}
+
 // Compile-time check that CloudStore implements Store
 var _ Store = (*CloudStore)(nil)

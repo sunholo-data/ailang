@@ -120,7 +120,20 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	if includeClaudeCode && s.obsBackend != nil {
 		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 			ctx := context.Background()
-			ccEvents, err := sqliteBackend.GetClaudeCodeEvents(ctx, opts.Limit)
+
+			// Use lookup function if coordinator store is available
+			// This resolves task_id → agent info for proper event classification
+			var ccEvents []observatory.ClaudeCodeEvent
+			var err error
+
+			if s.coordStoreRaw != nil {
+				// Use lookup to resolve coordinator task → agent info
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo)
+			} else {
+				// Fallback: no coordinator store, use defaults (claude-code → user)
+				ccEvents, err = sqliteBackend.GetClaudeCodeEvents(ctx, opts.Limit)
+			}
+
 			if err != nil {
 				log.Printf("Warning: Failed to get Claude Code events: %v", err)
 			} else {

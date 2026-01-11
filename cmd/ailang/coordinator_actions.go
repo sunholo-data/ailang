@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 func coordinatorApprove(args []string) error {
@@ -503,4 +504,112 @@ func printCoordinatorCleanupHelp() {
 	fmt.Println("  --help, -h             Show this help message")
 	fmt.Println("")
 	fmt.Println("Note: The daemon automatically runs this on startup.")
+}
+
+// coordinatorSyncThreads syncs thread target_agent from coordinator tasks to collaboration.db
+// This repairs data inconsistencies where tasks were re-routed but threads weren't updated.
+func coordinatorSyncThreads(args []string) error {
+	stateDir := ""
+	dryRun := false
+
+	// Parse flags
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--state-dir":
+			if i+1 < len(args) {
+				stateDir = args[i+1]
+				i++
+			}
+		case "--dry-run":
+			dryRun = true
+		case "--help", "-h":
+			printCoordinatorSyncThreadsHelp()
+			return nil
+		}
+	}
+
+	cfg := coordinator.DefaultConfig()
+	if stateDir != "" {
+		cfg.StateDir = stateDir
+	}
+
+	// Open coordinator database
+	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
+	store, err := coordinator.NewSQLiteStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open coordinator database: %w", err)
+	}
+	defer store.Close()
+
+	// Open collaboration database
+	collabPath := filepath.Join(cfg.StateDir, "collaboration.db")
+	msgStore, err := messaging.OpenStore(collabPath)
+	if err != nil {
+		return fmt.Errorf("failed to open collaboration database: %w", err)
+	}
+	defer msgStore.Close()
+
+	ctx := context.Background()
+
+	// Get all tasks
+	filter := &coordinator.TaskFilter{Limit: 1000}
+	tasks, err := store.ListTasks(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to list tasks: %w", err)
+	}
+
+	synced := 0
+	for _, task := range tasks {
+		if task.ThreadID == "" || task.AgentID == "" {
+			continue
+		}
+
+		// Get the thread
+		thread, err := msgStore.GetThread(task.ThreadID)
+		if err != nil || thread == nil {
+			continue
+		}
+
+		// Check if they match
+		if thread.TargetAgent != task.AgentID {
+			if dryRun {
+				fmt.Printf("Would sync thread %s: %q -> %q (task: %s)\n",
+					task.ThreadID, thread.TargetAgent, task.AgentID, task.Title)
+			} else {
+				if err := msgStore.SetThreadTargetAgent(task.ThreadID, task.AgentID); err != nil {
+					fmt.Printf("Failed to sync %s: %v\n", task.ThreadID, err)
+				} else {
+					fmt.Printf("Synced thread %s: %q -> %q\n",
+						task.ThreadID, thread.TargetAgent, task.AgentID)
+				}
+			}
+			synced++
+		}
+	}
+
+	if synced == 0 {
+		fmt.Println(green("✓"), "All threads are in sync")
+	} else if dryRun {
+		fmt.Printf("Would sync %d thread(s). Run without --dry-run to apply.\n", synced)
+	} else {
+		fmt.Printf("%s Synced %d thread(s)\n", green("✓"), synced)
+	}
+
+	return nil
+}
+
+func printCoordinatorSyncThreadsHelp() {
+	fmt.Println("Usage: ailang coordinator sync-threads [options]")
+	fmt.Println("")
+	fmt.Println("Sync thread target_agent from coordinator tasks to collaboration.db")
+	fmt.Println("This repairs data inconsistencies where tasks were re-routed but threads weren't updated.")
+	fmt.Println("")
+	fmt.Println("Options:")
+	fmt.Println("  --dry-run              Show what would be changed without making changes")
+	fmt.Println("  --state-dir DIR        State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h             Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator sync-threads --dry-run")
+	fmt.Println("  ailang coordinator sync-threads")
 }

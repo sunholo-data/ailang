@@ -306,6 +306,18 @@ func (m *MockStore) GetTaskEvents(ctx context.Context, taskID string, limit int)
 	return nil, nil
 }
 
+func (m *MockStore) GetTaskAgentInfo(ctx context.Context, taskID string) (agentID, inbox, title string, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["GetTaskAgentInfo"]++
+	task, ok := m.tasks[taskID]
+	if !ok {
+		return "", "", "", nil
+	}
+	// By convention, agent id == inbox in agent config
+	return task.AgentID, task.AgentID, task.Title, nil
+}
+
 func (m *MockStore) RetryAllFailedTasks(ctx context.Context) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

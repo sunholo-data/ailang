@@ -716,6 +716,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		task.WorktreePath = worktreePath
 		task.AgentID = targetAgent
 
+		// Sync thread target_agent to match task agent_id (keeps hierarchy API in sync)
+		if task.ThreadID != "" && d.msgStore != nil {
+			if err := d.msgStore.SetThreadTargetAgent(task.ThreadID, targetAgent); err != nil {
+				d.logger.Printf("Warning: Failed to sync thread target_agent: %v", err)
+			}
+		}
+
 		if skipApproval {
 			// Script agents or agents with skip_approval: mark as completed directly
 			if err := d.taskStore.MarkTaskCompleted(taskCtx, task.ID, result); err != nil {

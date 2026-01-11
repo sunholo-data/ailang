@@ -163,6 +163,11 @@ type Store interface {
 	// Thread linking (for dashboard visibility)
 	SetTaskThreadID(ctx context.Context, id string, threadID string) error
 
+	// Cross-database correlation (for Control Plane event classification)
+	// Returns agent info for a task: agentID (FromAgent), inbox (ToInbox), title
+	// Note: By convention, agent id == inbox in agent config
+	GetTaskAgentInfo(ctx context.Context, taskID string) (agentID, inbox, title string, err error)
+
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error
 	SetTaskStage(ctx context.Context, id string, stage TaskStage) error

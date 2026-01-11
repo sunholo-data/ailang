@@ -232,6 +232,37 @@ func (s *Store) GetThreadWorkspace(threadID string) (string, error) {
 	return thread.Workspace, nil
 }
 
+// SetThreadTargetAgent updates the target agent for a thread.
+// This should be called when a task is re-routed to a different agent.
+func (s *Store) SetThreadTargetAgent(threadID, targetAgent string) error {
+	// Get existing context
+	thread, err := s.GetThread(threadID)
+	if err != nil {
+		return err
+	}
+
+	// Parse existing context or create new one
+	ctx := parseThreadContext(thread.ContextJSON)
+	ctx.TargetAgent = targetAgent
+
+	// Serialize back to JSON
+	contextBytes, err := json.Marshal(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to marshal context: %w", err)
+	}
+
+	// Update thread
+	_, err = s.db.Exec(`
+		UPDATE threads SET context_json = ?, updated_at = ? WHERE id = ?
+	`, string(contextBytes), time.Now().UnixMilli(), threadID)
+
+	if err != nil {
+		return fmt.Errorf("failed to update thread target agent: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateThreadTitle updates the title of a thread.
 func (s *Store) UpdateThreadTitle(threadID, title string) error {
 	result, err := s.db.Exec(`
