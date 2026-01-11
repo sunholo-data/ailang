@@ -17,6 +17,12 @@ type SpanListOptions struct {
 	StartBefore       time.Time
 	Limit             int
 	Offset            int
+	// Filter by provider (claude, gemini, openai, etc.)
+	Provider string
+	// Filter by model name (claude-sonnet-4-5, gemini-2-5-flash, etc.)
+	Model string
+	// Filter by span status (ok, error)
+	Status string
 }
 
 // CreateSpan inserts a new span.
@@ -129,6 +135,18 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	if !opts.StartBefore.IsZero() {
 		query += " AND start_time <= ?"
 		args = append(args, opts.StartBefore)
+	}
+	if opts.Provider != "" {
+		query += " AND provider = ?"
+		args = append(args, opts.Provider)
+	}
+	if opts.Model != "" {
+		query += " AND model = ?"
+		args = append(args, opts.Model)
+	}
+	if opts.Status != "" {
+		query += " AND status = ?"
+		args = append(args, opts.Status)
 	}
 
 	query += " ORDER BY start_time ASC"

@@ -64,6 +64,25 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       if (filters?.source_type) {
         params.set('inbox', filters.source_type);
       }
+      // Pass all filters to server for server-side filtering
+      if (filters?.provider) {
+        params.set('provider', filters.provider);
+      }
+      if (filters?.model) {
+        params.set('model', filters.model);
+      }
+      if (filters?.workspace) {
+        params.set('workspace', filters.workspace);
+      }
+      if (filters?.status) {
+        params.set('status', filters.status);
+      }
+      if (filters?.start_date) {
+        params.set('start_date', filters.start_date);
+      }
+      if (filters?.end_date) {
+        params.set('end_date', filters.end_date);
+      }
       params.set('limit', String(maxEvents));
 
       const url = `/api/inbox${params.toString() ? '?' + params.toString() : ''}`;
@@ -107,7 +126,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters?.source_type, maxEvents]);
+  }, [filters?.source_type, filters?.provider, filters?.model, filters?.workspace, filters?.status, filters?.start_date, filters?.end_date, maxEvents]);
 
   // Fetch on mount and when filters change
   useEffect(() => {

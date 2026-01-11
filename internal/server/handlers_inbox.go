@@ -34,6 +34,8 @@ type UnifiedEvent struct {
 	TokensOut  int64   `json:"tokens_out,omitempty"`
 	DurationMs int     `json:"duration_ms,omitempty"`
 	Workspace  string  `json:"workspace,omitempty"` // Working directory for Claude Code events
+	Model      string  `json:"model,omitempty"`     // AI model used (e.g., "claude-opus-4-5-20251101")
+	Provider   string  `json:"provider,omitempty"`  // AI provider (e.g., "claude", "gemini")
 }
 
 // GET /api/inbox - List inbox messages
@@ -78,12 +80,18 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 		Inbox:      q.Get("inbox"),
 		FromAgent:  q.Get("from"),
 		UnreadOnly: q.Get("unread") == "true",
+		StartDate:  q.Get("start_date"),
+		EndDate:    q.Get("end_date"),
 		Limit:      50,
 	}
 
 	if q.Get("status") != "" {
 		opts.Status = q.Get("status")
 	}
+
+	// Parse observatory filters for filtering Claude Code events
+	providerFilter := q.Get("provider")
+	modelFilter := q.Get("model")
 
 	messages, err := s.store.ListInboxMessages(opts)
 	if err != nil {
@@ -95,8 +103,13 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	counts, _ := s.store.CountInboxMessagesByStatus(opts.Inbox)
 
 	// Check if we should include Claude Code events
-	// Include by default unless filtering by specific inbox/from agent
+	// Include by default unless:
+	// - Filtering by specific inbox/from agent
+	// - Provider filter is set and != "claude" (Claude Code is always provider=claude)
 	includeClaudeCode := opts.Inbox == "" && opts.FromAgent == ""
+	if providerFilter != "" && providerFilter != "claude" {
+		includeClaudeCode = false
+	}
 
 	// Convert inbox messages to unified event format
 	events := make([]UnifiedEvent, 0, len(messages)+50)
@@ -138,6 +151,10 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Warning: Failed to get Claude Code events: %v", err)
 			} else {
 				for _, cc := range ccEvents {
+					// Apply model filter if specified
+					if modelFilter != "" && cc.Model != modelFilter {
+						continue
+					}
 					events = append(events, UnifiedEvent{
 						ID:         cc.ID,
 						CreatedAt:  cc.CreatedAt,
@@ -152,6 +169,8 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						TokensOut:  cc.TokensOut,
 						DurationMs: cc.DurationMs,
 						Source:     "claude_code",
+						Model:      cc.Model,
+						Provider:   cc.Provider,
 					})
 				}
 			}

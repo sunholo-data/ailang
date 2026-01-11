@@ -40,7 +40,9 @@ func runMessagesInteractive() {
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			return
+			fmt.Println("Press Enter to retry...")
+			reader.ReadString('\n')
+			continue // Stay in menu, retry on next loop
 		}
 
 		// Get unread count
@@ -98,6 +100,8 @@ func runMessagesInteractive() {
 
 		input, err := reader.ReadString('\n')
 		if err != nil {
+			// EOF (Ctrl+D) or other input error - graceful exit
+			fmt.Println("\nExiting...")
 			return
 		}
 		input = strings.TrimSpace(input)

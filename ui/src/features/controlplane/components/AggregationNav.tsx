@@ -5,6 +5,8 @@
 import React, { useState, useMemo } from 'react';
 import { BreakdownItem } from '../hooks';
 import type { AggregationStats } from './types';
+import type { ControlPlaneFilters } from '../types';
+import { CliCommandHint } from './CliCommandHint';
 import styles from '../ControlPlane.module.css';
 
 interface FormattedBreakdownItem extends BreakdownItem {
@@ -27,6 +29,7 @@ export interface AggregationNavProps {
   stats?: AggregationStats | null;
   breakdowns?: BreakdownData | null;
   loading?: boolean;
+  filters?: ControlPlaneFilters;
 }
 
 // Icons for different breakdown categories
@@ -60,6 +63,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
   stats,
   breakdowns,
   loading,
+  filters,
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'source-type']));
 
@@ -296,6 +300,13 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
           </span>
         </div>
       </div>
+
+      {/* CLI command hint */}
+      <CliCommandHint
+        commandType="stats"
+        filters={filters}
+        compact
+      />
     </nav>
   );
 };

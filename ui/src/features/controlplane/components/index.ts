@@ -38,3 +38,6 @@ export type { DetailPanelProps } from './DetailPanel';
 
 export { EventDetail } from './EventDetail';
 export type { EventDetailProps } from './EventDetail';
+
+export { CliCommandHint } from './CliCommandHint';
+export type { CliCommandHintProps, CommandType } from './CliCommandHint';

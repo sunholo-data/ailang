@@ -30,7 +30,6 @@ import {
   ActivityHeatmap,
   ExecHierarchy,
   MessageQueue,
-  TraceWaterfall,
   DetailPanel,
   EventDetail,
   defaultTrustCapabilities,
@@ -441,6 +440,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             setStatusFilter('all');
             setSearchQuery('');
           }}
+          filters={filters}
         />
       </header>
 
@@ -466,18 +466,32 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             onDateRangeChange={setSelectedDateRange}
             selectedTypes={selectedEventTypes}
             onTypeFilterChange={setSelectedEventTypes}
+            filters={filters}
           />
         </aside>
 
         {/* Main Canvas */}
         <main className={`${styles.mainCanvas} ${topologyExpanded ? styles.canvasWithExpanded : ''}`}>
-          <div className={styles.canvasRow}>
+          {/* Top Row: Heatmap + Event Detail (always side by side) */}
+          <div className={`${styles.canvasRow} ${styles.canvasRowSplit}`}>
             <ActivityHeatmap
               data={heatmapData}
               selectedRange={selectedDateRange}
               onDateSelect={handleDateSelect}
               onCellClick={handleCellClick}
             />
+            {/* Event Detail Panel - always visible, shows placeholder when no event selected */}
+            {!topologyExpanded && (
+              <EventDetail
+                event={detailPanel.type === 'event' ? detailPanel.data as EventMessage : null}
+                traceId={selectedEventTraceId}
+                loading={spansLoading}
+                onClose={closeDetailPanel}
+                onNavigate={navigateEvent}
+                currentIndex={events.findIndex(e => e.id === detailPanel.id)}
+                totalEvents={events.length}
+              />
+            )}
           </div>
           <div className={`${styles.canvasRow} ${topologyExpanded ? styles.canvasRowExpanded : ''}`}>
             <ExecHierarchy
@@ -489,35 +503,14 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
               filterCriteria={{
                 dateRange: selectedDateRange,
                 eventTypes: selectedEventTypes.length > 0 ? selectedEventTypes : undefined,
+                provider: filters.provider,
+                model: filters.model,
               }}
               hiddenSpanTypes={hiddenSpanTypes}
               onToggleSpanType={toggleHiddenSpanType}
+              filters={filters}
             />
           </div>
-          {!topologyExpanded && (
-            <div className={styles.canvasRow}>
-              {detailPanel.type === 'event' && detailPanel.data ? (
-                <EventDetail
-                  event={detailPanel.data as EventMessage}
-                  spans={spans}
-                  traceId={selectedEventTraceId}
-                  loading={spansLoading}
-                  onClose={closeDetailPanel}
-                  onNavigate={navigateEvent}
-                  currentIndex={events.findIndex(e => e.id === detailPanel.id)}
-                  totalEvents={events.length}
-                />
-              ) : (
-                <TraceWaterfall
-                  spans={spans}
-                  selectedTraceId={selectedEventTraceId}
-                  loading={spansLoading}
-                  hiddenSpanTypes={hiddenSpanTypes}
-                  onToggleSpanType={toggleHiddenSpanType}
-                />
-              )}
-            </div>
-          )}
         </main>
 
         {/* Right Sidebar - Aggregations (Analysis/Metrics) */}
@@ -533,6 +526,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             } : null}
             breakdowns={breakdowns}
             loading={statsLoading || breakdownLoading}
+            filters={filters}
           />
         </aside>
       </div>

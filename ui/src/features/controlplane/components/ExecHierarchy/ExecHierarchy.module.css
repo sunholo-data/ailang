@@ -99,6 +99,56 @@
   gap: 8px;
 }
 
+/* Selected Span Metadata Bar */
+.selectedSpanMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  background: var(--bg-base, #0f1419);
+  border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  font-size: var(--text-xs, 11px);
+  position: relative;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.metaLabel {
+  color: var(--text-tertiary, #6e7681);
+  font-weight: var(--font-medium, 500);
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.metaValue {
+  color: var(--text-primary, #e6edf3);
+  font-family: var(--font-mono, 'SF Mono', Consolas, monospace);
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metaClose {
+  position: absolute;
+  right: var(--space-3, 12px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary, #6e7681);
+  cursor: pointer;
+  font-size: var(--text-sm, 14px);
+  transition: color var(--transition-fast, 150ms ease);
+}
+
+.metaClose:hover {
+  color: var(--text-primary, #e6edf3);
+}
+
 /* Collapse/Expand All Controls */
 .collapseControls {
   display: flex;

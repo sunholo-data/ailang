@@ -74,6 +74,8 @@ type InboxListOptions struct {
 	IncludeRead bool   // Include read messages (default: true unless UnreadOnly)
 	Collapsed   bool   // Hide messages where dup_of IS NOT NULL (semantic dedup)
 	DupOf       string // Only messages that are duplicates of this ID
+	StartDate   string // Filter messages created >= this date (YYYY-MM-DD)
+	EndDate     string // Filter messages created <= this date (YYYY-MM-DD)
 }
 
 // InsertInboxMessage adds a new message to the inbox.
@@ -221,6 +223,16 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	if opts.DupOf != "" {
 		query += " AND dup_of = ?"
 		args = append(args, opts.DupOf)
+	}
+
+	// Date range filtering
+	if opts.StartDate != "" {
+		query += " AND created_at >= ?"
+		args = append(args, opts.StartDate+" 00:00:00")
+	}
+	if opts.EndDate != "" {
+		query += " AND created_at <= ?"
+		args = append(args, opts.EndDate+" 23:59:59")
 	}
 
 	query += " ORDER BY created_at DESC"

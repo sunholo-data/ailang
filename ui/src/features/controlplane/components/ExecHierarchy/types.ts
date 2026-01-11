@@ -7,7 +7,7 @@
 export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use';
 
 // View mode toggle
-export type ViewMode = 'tree' | 'graph';
+export type ViewMode = 'tree' | 'graph' | 'timeline';
 
 // Coordinator task view mode
 export type CoordinatorViewMode = 'nested' | 'breakout';
@@ -144,8 +144,22 @@ export interface Span {
 
 // Filter criteria for greying out (not hiding) nodes
 export interface FilterCriteria {
-  dateRange?: { start: Date; end: Date } | null;
+  dateRange?: { start: string; end: string } | null;  // ISO date strings (YYYY-MM-DD)
   eventTypes?: string[];  // If empty, show all
+  provider?: string;      // Filter by AI provider (claude, gemini, openai, etc.)
+  model?: string;         // Filter by specific model name
+}
+
+// ControlPlaneFilters type (for CLI hint)
+export interface ControlPlaneFilters {
+  source_type?: string;
+  provider?: string;
+  model?: string;
+  workspace?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  search?: string;
 }
 
 // Props for the main ExecHierarchy component
@@ -165,4 +179,6 @@ export interface ExecHierarchyProps {
   // If provided, uses parent state; otherwise uses internal state with ['api_request'] default
   hiddenSpanTypes?: Set<string>;
   onToggleSpanType?: (spanType: string) => void;
+  // Filters for CLI hint
+  filters?: ControlPlaneFilters;
 }

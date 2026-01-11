@@ -46,177 +46,193 @@ func coordinatorPending(args []string) error {
 	}
 	defer store.Close()
 
-	// List pending approvals
 	ctx := context.Background()
-	pending, err := store.ListPendingApprovals(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list pending approvals: %w", err)
-	}
 
+	// JSON output mode - no interactive loop
 	if jsonOutput {
+		pending, err := store.ListPendingApprovals(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list pending approvals: %w", err)
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(pending)
 	}
 
-	if len(pending) == 0 {
-		fmt.Println(green("✓"), "No pending approval requests")
-		return nil
-	}
+	// OUTER LOOP: Task selection - allows returning to list after actions
+taskList:
+	for {
+		// Refresh pending list each iteration
+		pending, err := store.ListPendingApprovals(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list pending approvals: %w", err)
+		}
 
-	fmt.Println(bold("Pending Approval Requests"))
-	fmt.Println()
-	for i, req := range pending {
-		// Get task details for worktree info
-		task, _ := store.GetTask(ctx, req.TaskID)
-		// Show type indicator
-		typeLabel := "[merge]"
-		if req.Type == "handoff" {
-			typeLabel = "[handoff]"
+		if len(pending) == 0 {
+			fmt.Println(green("✓"), "No pending approval requests")
+			return nil
 		}
-		fmt.Printf("  %s [%d] %s %s\n", yellow("⏳"), i+1, cyan(typeLabel), req.TaskID)
-		fmt.Printf("       Title: %s\n", req.Description)
-		if task != nil && task.WorktreePath != "" {
-			if _, err := os.Stat(task.WorktreePath); err == nil {
-				fmt.Printf("       Worktree: %s\n", task.WorktreePath)
-			} else {
-				fmt.Printf("       Worktree: %s\n", red("(deleted)"))
-			}
-		}
-		fmt.Printf("       Created: %s\n", req.CreatedAt.Format("2006-01-02 15:04:05"))
+
 		fmt.Println()
-	}
-
-	fmt.Println(bold("Actions:"))
-	fmt.Println("  [1-" + strconv.Itoa(len(pending)) + "]  Select task number")
-	fmt.Println("  [q]    Quit")
-	fmt.Println()
-	fmt.Print("Select task to review: ")
-
-	// Read user input
-	var input string
-	fmt.Scanln(&input)
-
-	if input == "" || input == "q" || input == "Q" {
-		return nil
-	}
-
-	// Parse task number
-	num, err := strconv.Atoi(input)
-	if err != nil || num < 1 || num > len(pending) {
-		return fmt.Errorf("invalid selection: %s", input)
-	}
-
-	selectedReq := pending[num-1]
-	selectedTask, _ := store.GetTask(ctx, selectedReq.TaskID)
-	isHandoff := selectedReq.Type == "handoff"
-
-	// Show task menu
-	fmt.Println()
-	if isHandoff {
-		fmt.Println(bold("Type: ") + cyan("Handoff Approval"))
-	} else {
-		fmt.Println(bold("Type: ") + cyan("Merge Approval"))
-	}
-	fmt.Println(bold("Task: ") + selectedReq.TaskID)
-	fmt.Println(bold("Title: ") + selectedReq.Description)
-	// Show handoff context if available
-	if isHandoff && selectedReq.ContextJSON != "" {
-		var ctx map[string]interface{}
-		if err := json.Unmarshal([]byte(selectedReq.ContextJSON), &ctx); err == nil {
-			if src, ok := ctx["source_agent_id"].(string); ok {
-				if tgt, ok := ctx["target_agent_id"].(string); ok {
-					fmt.Println(bold("Handoff: ") + src + " → " + tgt)
+		fmt.Println(bold("Pending Approval Requests"))
+		fmt.Println()
+		for i, req := range pending {
+			// Get task details for worktree info
+			task, _ := store.GetTask(ctx, req.TaskID)
+			// Show type indicator
+			typeLabel := "[merge]"
+			if req.Type == "handoff" {
+				typeLabel = "[handoff]"
+			}
+			fmt.Printf("  %s [%d] %s %s\n", yellow("⏳"), i+1, cyan(typeLabel), req.TaskID)
+			fmt.Printf("       Title: %s\n", req.Description)
+			if task != nil && task.WorktreePath != "" {
+				if _, err := os.Stat(task.WorktreePath); err == nil {
+					fmt.Printf("       Worktree: %s\n", task.WorktreePath)
+				} else {
+					fmt.Printf("       Worktree: %s\n", red("(deleted)"))
 				}
 			}
+			fmt.Printf("       Created: %s\n", req.CreatedAt.Format("2006-01-02 15:04:05"))
+			fmt.Println()
 		}
-	}
-	fmt.Println()
-	fmt.Println(bold("Actions:"))
-	if !isHandoff {
-		fmt.Println("  [d]  View diff (full)")
-		fmt.Println("  [s]  View diff summary (--stat)")
-		fmt.Println("  [f]  Browse changed files")
-		fmt.Println("  [o]  Open worktree in Finder")
-		fmt.Println("  [a]  " + green("Approve and merge"))
-	} else {
-		fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
-	}
-	fmt.Println("  [r]  " + red("Reject"))
-	fmt.Println("  [q]  Cancel")
-	fmt.Println()
-	fmt.Print("Action: ")
 
-	fmt.Scanln(&input)
-
-	switch strings.ToLower(input) {
-	case "d":
-		// Show full diff (committed + uncommitted changes)
-		if selectedTask == nil || selectedTask.WorktreePath == "" {
-			fmt.Println(red("✗"), "No worktree available for this task")
-			return nil
-		}
-		showWorktreeDiff(selectedTask.WorktreePath, false)
-		// After showing diff, prompt for action
+		fmt.Println(bold("Actions:"))
+		fmt.Println("  [1-" + strconv.Itoa(len(pending)) + "]  Select task number")
+		fmt.Println("  [q]    Quit")
 		fmt.Println()
-		fmt.Print("Approve [a], Reject [r], or Cancel [q]: ")
-		fmt.Scanln(&input)
-		if strings.ToLower(input) == "a" {
-			return coordinatorApprove([]string{selectedReq.TaskID})
-		} else if strings.ToLower(input) == "r" {
-			if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
-				return fmt.Errorf("failed to reject: %w", err)
-			}
-			fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
-		}
-	case "s":
-		// Show diff stat (committed + uncommitted changes)
-		if selectedTask == nil || selectedTask.WorktreePath == "" {
-			fmt.Println(red("✗"), "No worktree available for this task")
-			return nil
-		}
-		showWorktreeDiff(selectedTask.WorktreePath, true)
-	case "f":
-		// Browse changed files
-		if selectedTask == nil || selectedTask.WorktreePath == "" {
-			fmt.Println(red("✗"), "No worktree available for this task")
-			return nil
-		}
-		browseChangedFiles(selectedTask.WorktreePath)
-	case "o":
-		// Open worktree in Finder
-		if selectedTask == nil || selectedTask.WorktreePath == "" {
-			fmt.Println(red("✗"), "No worktree available for this task")
-			return nil
-		}
-		openInFinder(selectedTask.WorktreePath)
-	case "a":
-		if isHandoff {
-			// Approve handoff - resolve and send to target agent
-			return coordinatorApproveHandoff(store, selectedReq)
-		}
-		// Approve and merge
-		return coordinatorApprove([]string{selectedReq.TaskID})
-	case "r":
-		if isHandoff {
-			// Reject handoff by ID (not by task)
-			if err := store.ResolveApprovalRequest(ctx, selectedReq.ID, "rejected", "cli-user"); err != nil {
-				return fmt.Errorf("failed to reject handoff: %w", err)
-			}
-			fmt.Println(green("✓"), "Handoff rejected:", selectedReq.ID)
-		} else {
-			if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
-				return fmt.Errorf("failed to reject: %w", err)
-			}
-			fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
-		}
-	case "q", "":
-		return nil
-	default:
-		fmt.Println("Unknown action:", input)
-	}
+		fmt.Print("Select task to review: ")
 
-	return nil
+		// Read user input
+		var input string
+		fmt.Scanln(&input)
+
+		if input == "" || input == "q" || input == "Q" {
+			return nil
+		}
+
+		// Parse task number
+		num, err := strconv.Atoi(input)
+		if err != nil || num < 1 || num > len(pending) {
+			fmt.Println(red("Invalid selection:"), input)
+			continue // Stay in task list
+		}
+
+		selectedReq := pending[num-1]
+		selectedTask, _ := store.GetTask(ctx, selectedReq.TaskID)
+		isHandoff := selectedReq.Type == "handoff"
+
+		// INNER LOOP: Action menu for selected task
+		for {
+			// Show task menu
+			fmt.Println()
+			if isHandoff {
+				fmt.Println(bold("Type: ") + cyan("Handoff Approval"))
+			} else {
+				fmt.Println(bold("Type: ") + cyan("Merge Approval"))
+			}
+			fmt.Println(bold("Task: ") + selectedReq.TaskID)
+			fmt.Println(bold("Title: ") + selectedReq.Description)
+			// Show handoff context if available
+			if isHandoff && selectedReq.ContextJSON != "" {
+				var ctxJSON map[string]interface{}
+				if err := json.Unmarshal([]byte(selectedReq.ContextJSON), &ctxJSON); err == nil {
+					if src, ok := ctxJSON["source_agent_id"].(string); ok {
+						if tgt, ok := ctxJSON["target_agent_id"].(string); ok {
+							fmt.Println(bold("Handoff: ") + src + " → " + tgt)
+						}
+					}
+				}
+			}
+			fmt.Println()
+			fmt.Println(bold("Actions:"))
+			if !isHandoff {
+				fmt.Println("  [d]  View diff (full)")
+				fmt.Println("  [s]  View diff summary (--stat)")
+				fmt.Println("  [f]  Browse changed files")
+				fmt.Println("  [o]  Open worktree in Finder")
+				fmt.Println("  [a]  " + green("Approve and merge"))
+			} else {
+				fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
+			}
+			fmt.Println("  [r]  " + red("Reject"))
+			fmt.Println("  [q]  Back to list")
+			fmt.Println()
+			fmt.Print("Action: ")
+
+			fmt.Scanln(&input)
+
+			switch strings.ToLower(input) {
+			case "d":
+				// Show full diff (committed + uncommitted changes)
+				if selectedTask == nil || selectedTask.WorktreePath == "" {
+					fmt.Println(red("✗"), "No worktree available for this task")
+					continue // Stay in action menu
+				}
+				showWorktreeDiff(selectedTask.WorktreePath, false)
+				// Stay in action menu to allow further actions
+
+			case "s":
+				// Show diff stat (committed + uncommitted changes)
+				if selectedTask == nil || selectedTask.WorktreePath == "" {
+					fmt.Println(red("✗"), "No worktree available for this task")
+					continue // Stay in action menu
+				}
+				showWorktreeDiff(selectedTask.WorktreePath, true)
+				// Stay in action menu
+
+			case "f":
+				// Browse changed files
+				if selectedTask == nil || selectedTask.WorktreePath == "" {
+					fmt.Println(red("✗"), "No worktree available for this task")
+					continue // Stay in action menu
+				}
+				browseChangedFiles(selectedTask.WorktreePath)
+				// Stay in action menu
+
+			case "o":
+				// Open worktree in Finder
+				if selectedTask == nil || selectedTask.WorktreePath == "" {
+					fmt.Println(red("✗"), "No worktree available for this task")
+					continue // Stay in action menu
+				}
+				openInFinder(selectedTask.WorktreePath)
+				// Stay in action menu
+
+			case "a":
+				if isHandoff {
+					// Approve handoff - resolve and send to target agent
+					return coordinatorApproveHandoff(store, selectedReq)
+				}
+				// Approve and merge
+				return coordinatorApprove([]string{selectedReq.TaskID})
+
+			case "r":
+				if isHandoff {
+					// Reject handoff by ID (not by task)
+					if err := store.ResolveApprovalRequest(ctx, selectedReq.ID, "rejected", "cli-user"); err != nil {
+						return fmt.Errorf("failed to reject handoff: %w", err)
+					}
+					fmt.Println(green("✓"), "Handoff rejected:", selectedReq.ID)
+				} else {
+					if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
+						return fmt.Errorf("failed to reject: %w", err)
+					}
+					fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
+				}
+				// Return to task list after rejection
+				continue taskList
+
+			case "q", "":
+				// Return to task list
+				continue taskList
+
+			default:
+				fmt.Println("Unknown action:", input)
+				// Stay in action menu
+			}
+		}
+	}
 }
 
 // coordinatorApproveHandoff approves a handoff request and sends the message to the target agent.

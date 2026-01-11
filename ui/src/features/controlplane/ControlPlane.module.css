@@ -364,6 +364,13 @@
 }
 
 /* Global Stats */
+.globalStatsWrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: var(--space-1);
+}
+
 .globalStats {
   display: flex;
   align-items: center;
@@ -949,6 +956,26 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+
+/* Side-by-side layout when EventDetail is shown with Heatmap */
+.canvasRowSplit {
+  display: flex;
+  gap: var(--space-4, 16px);
+  background: transparent;
+  border: none;
+  align-items: stretch;
+}
+
+.canvasRowSplit > * {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Panel common styles */
@@ -1601,6 +1628,10 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  max-height: 220px;
 }
 
 .eventDetailHeader {
@@ -1693,18 +1724,18 @@
 }
 
 .eventDetailContent {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .eventDetailInfo {
   padding: var(--space-3);
-  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  overflow: auto;
 }
 
 .eventDetailRow {
@@ -1712,6 +1743,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-1) 0;
 }
 
 .eventDetailRowLabel {
@@ -1719,15 +1751,17 @@
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .eventDetailRowValue {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-family: var(--font-mono);
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .eventDetailMessage {
@@ -1735,13 +1769,14 @@
   flex-direction: column;
   gap: var(--space-1);
   padding-top: var(--space-2);
+  margin-top: var(--space-1);
   border-top: 1px solid var(--border-subtle);
 }
 
 .eventDetailMessageContent {
   font-size: 12px;
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .eventDetailPayload {
@@ -1766,6 +1801,29 @@
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* Empty state when no event selected */
+.eventDetailEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.eventDetailEmptyIcon {
+  font-size: 24px;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+.eventDetailEmptyText {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .eventDetailTrace {
@@ -3322,4 +3380,63 @@
 .showAllBtn:hover {
   background: var(--amber);
   color: var(--bg-deep);
+}
+
+/* ================================================================
+   CLI Command Hint - Copyable CLI command display
+   ================================================================ */
+
+.cliHint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.cliHintCompact {
+  padding: var(--space-1) var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.cliHintLabel {
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.cliHintCommand {
+  flex: 1;
+  color: var(--primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.cliHintCopy {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cliHintCopy:hover {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--primary);
 }

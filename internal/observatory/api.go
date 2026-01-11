@@ -331,6 +331,9 @@ func (a *API) handleListSpans(w http.ResponseWriter, r *http.Request) {
 		TaskID:            r.URL.Query().Get("task_id"),
 		TraceID:           r.URL.Query().Get("trace_id"),
 		AgentAssignmentID: r.URL.Query().Get("agent_assignment_id"),
+		Provider:          r.URL.Query().Get("provider"),
+		Model:             r.URL.Query().Get("model"),
+		Status:            r.URL.Query().Get("status"),
 	}
 
 	if startTime := r.URL.Query().Get("start_after"); startTime != "" {

@@ -628,6 +628,8 @@ type ClaudeCodeEvent struct {
 	TokensOut  int64   `json:"tokens_out"`
 	DurationMs int     `json:"duration_ms"`
 	Workspace  string  `json:"workspace,omitempty"` // Working directory (from resource attributes)
+	Model      string  `json:"model,omitempty"`     // Model used for this event (e.g., "claude-sonnet-4-5")
+	Provider   string  `json:"provider,omitempty"`  // AI provider (e.g., "claude", "gemini")
 }
 
 // TaskAgentLookup is a callback to resolve coordinator task_id to agent info.
@@ -654,7 +656,9 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			SUM(COALESCE(duration_ms, 0)) as total_duration_ms,
 			SUM(COALESCE(cost_usd, 0)) as total_cost_usd,
 			SUM(COALESCE(tokens_in, 0)) as total_tokens_in,
-			SUM(COALESCE(tokens_out, 0)) as total_tokens_out
+			SUM(COALESCE(tokens_out, 0)) as total_tokens_out,
+			MAX(model) as model,
+			MAX(provider) as provider
 		FROM spans
 		WHERE name = 'api_request'
 		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
@@ -677,8 +681,9 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
+		var model, provider sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &model, &provider); err != nil {
 			return nil, err
 		}
 
@@ -700,6 +705,12 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 		// Build title showing turns count and totals
 		title := fmt.Sprintf("Claude Code Session (%d turns, %s, %s)", turnCount, costStr, durationStr)
 
+		// Set default provider if not in DB
+		providerVal := "claude"
+		if provider.Valid && provider.String != "" {
+			providerVal = provider.String
+		}
+
 		events = append(events, ClaudeCodeEvent{
 			ID:         sessionID,  // Use session_id as the event ID
 			CreatedAt:  latestTime, // Most recent activity
@@ -713,6 +724,8 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			TokensIn:   totalTokensIn,
 			TokensOut:  totalTokensOut,
 			DurationMs: totalDurationMs,
+			Model:      model.String,
+			Provider:   providerVal,
 		})
 	}
 
@@ -742,7 +755,9 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			SUM(COALESCE(s.tokens_in, 0)) as total_tokens_in,
 			SUM(COALESCE(s.tokens_out, 0)) as total_tokens_out,
 			MAX(s.task_id) as coord_task_id,
-			MAX(aa.agent_id) as agent_id
+			MAX(aa.agent_id) as agent_id,
+			MAX(s.model) as model,
+			MAX(s.provider) as provider
 		FROM spans s
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'
@@ -766,9 +781,9 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
-		var coordTaskID, agentID sql.NullString
+		var coordTaskID, agentID, model, provider sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID, &model, &provider); err != nil {
 			return nil, err
 		}
 
@@ -801,6 +816,12 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			toInbox = agentID.String
 		}
 
+		// Set default provider if not in DB
+		providerVal := "claude"
+		if provider.Valid && provider.String != "" {
+			providerVal = provider.String
+		}
+
 		events = append(events, ClaudeCodeEvent{
 			ID:         sessionID,  // Use session_id as the event ID
 			CreatedAt:  latestTime, // Most recent activity
@@ -814,6 +835,8 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			TokensIn:   totalTokensIn,
 			TokensOut:  totalTokensOut,
 			DurationMs: totalDurationMs,
+			Model:      model.String,
+			Provider:   providerVal,
 		})
 	}
 

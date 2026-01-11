@@ -4,6 +4,8 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import type { EventMessage, DateRange } from './types';
+import type { ControlPlaneFilters } from '../types';
+import { CliCommandHint } from './CliCommandHint';
 import styles from '../ControlPlane.module.css';
 
 export type EventType = EventMessage['type'];
@@ -18,6 +20,8 @@ export interface MessageQueueProps {
   onDateRangeChange?: (range: DateRange | null) => void;
   selectedTypes?: EventType[];
   onTypeFilterChange?: (types: EventType[]) => void;
+  // Filters for CLI hint
+  filters?: ControlPlaneFilters;
 }
 
 const getEventIcon = (type: EventMessage['type']): string => {
@@ -75,6 +79,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   onDateRangeChange,
   selectedTypes,
   onTypeFilterChange,
+  filters,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
@@ -83,11 +88,13 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   const filteredEvents = useMemo(() => {
     let result = events;
 
-    // Filter by date range
+    // Filter by date range - convert strings to Date objects for reliable comparison
     if (selectedDateRange) {
+      const startDate = new Date(selectedDateRange.start + 'T00:00:00');
+      const endDate = new Date(selectedDateRange.end + 'T23:59:59');
       result = result.filter((event) => {
         const eventDate = new Date(event.timestamp);
-        return eventDate >= selectedDateRange.start && eventDate <= selectedDateRange.end;
+        return eventDate >= startDate && eventDate <= endDate;
       });
     }
 
@@ -268,6 +275,14 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           </button>
         </div>
       )}
+
+      {/* CLI command hint */}
+      <CliCommandHint
+        commandType="inbox"
+        filters={filters}
+        limit={pageSize}
+        compact
+      />
     </div>
   );
 };

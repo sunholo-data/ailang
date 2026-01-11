@@ -6,10 +6,12 @@
  * Uses the SAME spans data as TraceWaterfall for consistency.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria } from './types';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria, ControlPlaneFilters } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import { ApprovalPanel } from '../ApprovalPanel';
+import { CliCommandHint } from '../CliCommandHint';
+import { TraceWaterfall } from '../TraceWaterfall';
 import { useApprovals, useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
 import styles from './ExecHierarchy.module.css';
 
@@ -144,30 +146,79 @@ function getSmartLabel(span: Span): string {
     return 'Send Message';
   }
 
-  // Claude Code tool calls: extract tool name
+  // Claude Code tool calls: extract tool name and context
   if (name.startsWith('claude_code.tool.')) {
     const toolName = name.replace('claude_code.tool.', '');
+
+    // Try individual attributes first (Claude Code sends these directly)
+    // File-based tools: Read, Write, Edit, Glob
+    const filePath = attrs['file_path'] || attrs['path'];
+    if (filePath && typeof filePath === 'string') {
+      const fileName = filePath.split('/').pop() || filePath;
+      return `${toolName}: ${fileName}`;
+    }
+
+    // Bash tool: show command or description
+    const command = attrs['command'] || attrs['bash_command'];
+    if (command && typeof command === 'string') {
+      const brief = command.length > 35 ? command.substring(0, 35) + '...' : command;
+      return `${toolName}: ${brief}`;
+    }
+
+    const description = attrs['description'];
+    if (description && typeof description === 'string') {
+      const brief = description.length > 35 ? description.substring(0, 35) + '...' : description;
+      return `${toolName}: ${brief}`;
+    }
+
+    // Grep/Search tools: show pattern or query
+    const pattern = attrs['pattern'] || attrs['query'] || attrs['search'];
+    if (pattern && typeof pattern === 'string') {
+      const brief = pattern.length > 30 ? pattern.substring(0, 30) + '...' : pattern;
+      return `${toolName}: ${brief}`;
+    }
+
+    // WebFetch: show URL hostname
+    const url = attrs['url'];
+    if (url && typeof url === 'string') {
+      try {
+        const hostname = new URL(url).hostname;
+        return `${toolName}: ${hostname}`;
+      } catch {
+        const brief = url.length > 30 ? url.substring(0, 30) + '...' : url;
+        return `${toolName}: ${brief}`;
+      }
+    }
+
+    // Edit tool: show what was changed
+    const oldString = attrs['old_string'];
+    if (oldString && typeof oldString === 'string') {
+      const brief = oldString.split('\n')[0].substring(0, 25);
+      return `${toolName}: "${brief}..."`;
+    }
+
+    // Fallback: try tool_parameters JSON (legacy support)
     const params = attrs['tool_parameters'] || '';
-    // Try to extract meaningful info from parameters
     if (params && typeof params === 'string') {
       try {
         const parsed = JSON.parse(params);
+        if (parsed.file_path) {
+          const path = parsed.file_path.split('/').pop() || parsed.file_path;
+          return `${toolName}: ${path}`;
+        }
         if (parsed.description) {
           const desc = parsed.description;
           return `${toolName}: ${desc.length > 35 ? desc.substring(0, 35) + '...' : desc}`;
         }
-        if (parsed.bash_command) {
-          const cmd = parsed.bash_command;
+        if (parsed.bash_command || parsed.command) {
+          const cmd = parsed.bash_command || parsed.command;
           return `${toolName}: ${cmd.length > 30 ? cmd.substring(0, 30) + '...' : cmd}`;
-        }
-        if (parsed.file_path) {
-          const path = parsed.file_path.split('/').pop() || parsed.file_path;
-          return `${toolName}: ${path}`;
         }
       } catch {
         // Ignore JSON parse errors
       }
     }
+
     return toolName;
   }
 
@@ -443,10 +494,12 @@ function getDefaultExpandedState(node: HierarchyNode, depth: number): boolean {
 function nodeMatchesFilter(node: HierarchyNode, criteria: FilterCriteria | undefined): boolean {
   if (!criteria) return true;
 
-  // Check date range filter
+  // Check date range filter - convert string dates to Date objects for reliable comparison
   if (criteria.dateRange && node.startTime) {
     const nodeDate = new Date(node.startTime);
-    if (nodeDate < criteria.dateRange.start || nodeDate > criteria.dateRange.end) {
+    const startDate = new Date(criteria.dateRange.start + 'T00:00:00');
+    const endDate = new Date(criteria.dateRange.end + 'T23:59:59');
+    if (nodeDate < startDate || nodeDate > endDate) {
       return false;
     }
   }
@@ -467,12 +520,34 @@ function nodeMatchesFilter(node: HierarchyNode, criteria: FilterCriteria | undef
     }
   }
 
+  // Check provider filter
+  if (criteria.provider && node.provider) {
+    if (node.provider !== criteria.provider) {
+      return false;
+    }
+  }
+
+  // Check model filter (check node.provider for model or span attributes)
+  if (criteria.model) {
+    // Model might be stored in span attributes or could be derived from provider
+    const nodeModel = node._span?.attributes?.model || node._span?.attributes?.['llm.model'];
+    if (nodeModel && nodeModel !== criteria.model) {
+      return false;
+    }
+  }
+
   return true;
 }
 
 // Apply filter criteria to nodes recursively (marks nodes as isFiltered, does NOT hide them)
 function applyFilterToNodes(nodes: HierarchyNode[], criteria: FilterCriteria | undefined): HierarchyNode[] {
-  if (!criteria || (!criteria.dateRange && (!criteria.eventTypes || criteria.eventTypes.length === 0))) {
+  const hasFilters = criteria && (
+    criteria.dateRange ||
+    (criteria.eventTypes && criteria.eventTypes.length > 0) ||
+    criteria.provider ||
+    criteria.model
+  );
+  if (!hasFilters) {
     // No filtering active - return nodes as-is
     return nodes;
   }
@@ -502,6 +577,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   filterCriteria,
   hiddenSpanTypes: propsHiddenSpanTypes,
   onToggleSpanType,
+  filters,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
@@ -870,7 +946,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
       <div className={styles.header}>
         <div className={styles.headerTitle}>
           <span className={styles.headerIcon}>◎</span>
-          Exec Hierarchy
+          Execution Spans
           {!isEmpty && nodes.length > 0 && (
             <span className={styles.headerBadge}>{nodes.length}</span>
           )}
@@ -987,6 +1063,13 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             >
               ⬡
             </button>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'timeline' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => setViewMode('timeline')}
+              title="Timeline View"
+            >
+              ▥
+            </button>
           </div>
 
           {/* Approval Panel Button */}
@@ -1012,12 +1095,53 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         </div>
       </div>
 
+      {/* Selected Span Metadata */}
+      {popoverNode && popoverNode._span && (
+        <div className={styles.selectedSpanMeta}>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Source</span>
+            <span className={styles.metaValue}>
+              {popoverNode._span.attributes?.['source'] || popoverNode.provider || 'claude-code'}
+            </span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Target</span>
+            <span className={styles.metaValue}>
+              {popoverNode._span.attributes?.['target'] || 'user'}
+            </span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Time</span>
+            <span className={styles.metaValue}>
+              {popoverNode._span.startMs ? new Date(popoverNode._span.startMs).toLocaleString() : '—'}
+            </span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Task ID</span>
+            <span className={styles.metaValue} title={popoverNode.taskId || popoverNode._span.id}>
+              {(popoverNode.taskId || popoverNode._span.id || '—').slice(0, 36)}
+            </span>
+          </div>
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Content</span>
+            <span className={styles.metaValue}>{popoverNode.label}</span>
+          </div>
+          <button
+            className={styles.metaClose}
+            onClick={() => setPopoverNode(null)}
+            title="Clear selection"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Viewport */}
       <div
         className={`${styles.viewport} ${isExpanded ? styles.viewportExpanded : ''}`}
         onClick={handleContainerClick}
       >
-        {viewMode === 'tree' ? (
+        {viewMode === 'tree' && (
           <ExecHierarchyTree
             nodes={limitedNodes}
             selectedNodeId={selectedNodeId}
@@ -1025,7 +1149,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             loading={loading}
             error={null}
           />
-        ) : (
+        )}
+        {viewMode === 'graph' && (
           <ExecHierarchyGraph
             nodes={limitedNodes}
             selectedNodeId={selectedNodeId}
@@ -1036,6 +1161,14 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             expandedNodes={expandedNodes}
             onToggleNodeExpand={handleToggleExpand}
             recenterTrigger={expandChangeCounter}
+          />
+        )}
+        {viewMode === 'timeline' && (
+          <TraceWaterfall
+            spans={spans || []}
+            loading={loading}
+            hiddenSpanTypes={hiddenSpanTypes}
+            onToggleSpanType={toggleSpanType}
           />
         )}
 
@@ -1256,6 +1389,13 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           setApprovalPanelOpen(false);
         }}
         selectedTaskId={selectedNodeId}
+      />
+
+      {/* CLI command hint */}
+      <CliCommandHint
+        commandType="hierarchy"
+        filters={filters}
+        compact
       />
     </div>
   );
