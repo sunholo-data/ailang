@@ -193,6 +193,9 @@ type Span struct {
 	// Events (loaded separately)
 	Events []SpanEvent `json:"events,omitempty"`
 
+	// DisplayName is an enriched human-readable label (not stored in DB, computed from session_tools)
+	DisplayName string `json:"display_name,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

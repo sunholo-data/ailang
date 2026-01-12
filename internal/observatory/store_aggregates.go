@@ -21,10 +21,11 @@ type ExecTaskNode struct {
 	DurationMs   int             `json:"duration_ms,omitempty"`
 	Children     []*ExecTaskNode `json:"children,omitempty"`
 	// Turn/tool specific fields
-	TurnNumber int    `json:"turn_number,omitempty"` // for turn spans
-	ToolName   string `json:"tool_name,omitempty"`   // for tool_use spans
-	ToolInput  string `json:"tool_input,omitempty"`  // for tool_use spans
-	ToolOutput string `json:"tool_output,omitempty"` // for tool_use spans
+	TurnNumber  int    `json:"turn_number,omitempty"`  // for turn spans
+	ToolName    string `json:"tool_name,omitempty"`    // for tool_use spans
+	ToolInput   string `json:"tool_input,omitempty"`   // for tool_use spans
+	ToolOutput  string `json:"tool_output,omitempty"`  // for tool_use spans
+	DisplayName string `json:"display_name,omitempty"` // enriched name from session_tools (e.g., "Read: /path/file.go")
 }
 
 // MessageNode represents a message that triggered coordinator tasks

@@ -57,6 +57,12 @@ function getSemanticType(name: string): ExtendedNodeType {
 
 // Extract smart label from span name and attributes
 function getSmartLabel(span: Span): string {
+  // Prefer backend-enriched display_name if available (from /api/observatory/spans/enriched)
+  // This includes tool metadata like file paths, commands, patterns from Claude Code hooks
+  if (span.display_name) {
+    return span.display_name;
+  }
+
   const name = span.name;
   const attrs = span.attributes || {};
 
@@ -617,6 +623,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   const LOAD_MORE_INCREMENT = 100;
   const [displayLimit, setDisplayLimit] = useState(DEFAULT_DISPLAY_LIMIT);
 
+  // Reverse order toggle - show newest first when true
+  const [reverseOrder, setReverseOrder] = useState(false);
+
   // Real-time updates via WebSocket
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const { isConnected, connectionState, lastEventTime } = useObservatoryWs({
@@ -687,17 +696,18 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
       }
 
       // Sort by start time to preserve execution order after promotion
+      // When reverseOrder is true, show newest first (descending)
       result.sort((a, b) => {
         const aStart = a._span?.startMs || 0;
         const bStart = b._span?.startMs || 0;
-        return aStart - bStart;
+        return reverseOrder ? bStart - aStart : aStart - bStart;
       });
 
       return result;
     };
 
     return filterNodes(transformedNodes);
-  }, [transformedNodes, hiddenSpanTypes]);
+  }, [transformedNodes, hiddenSpanTypes, reverseOrder]);
 
   // Apply filter criteria (marks nodes as isFiltered, does NOT hide them)
   const nodes = useMemo(() => {
@@ -1071,6 +1081,15 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
               ▥
             </button>
           </div>
+
+          {/* Reverse Order Toggle */}
+          <button
+            className={`${styles.viewToggleBtn} ${reverseOrder ? styles.viewToggleBtnActive : ''}`}
+            onClick={() => setReverseOrder(!reverseOrder)}
+            title={reverseOrder ? "Show oldest first" : "Show newest first"}
+          >
+            {reverseOrder ? "↓" : "↑"}
+          </button>
 
           {/* Approval Panel Button */}
           <button

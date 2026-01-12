@@ -119,6 +119,7 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
       const span: Span = {
         id: raw.id,
         name: raw.name,
+        display_name: raw.display_name, // Enriched name from session_tools
         startMs,
         durationMs: raw.duration_ms,
         status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',

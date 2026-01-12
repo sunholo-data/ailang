@@ -880,6 +880,11 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 			http.Error(w, "Failed to get exec hierarchy", http.StatusInternalServerError)
 			return
 		}
+		// Enrich all exec hierarchies within messages
+		for _, msg := range result.Messages {
+			enrichExecHierarchy(r.Context(), sqliteBackend.Store(), msg.Execs)
+		}
+		enrichExecHierarchy(r.Context(), sqliteBackend.Store(), result.Orphan)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
 			log.Printf("Failed to encode exec hierarchy response: %v", err)
 		}
@@ -894,6 +899,9 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Enrich hierarchy with display names from session_tools
+	enrichExecHierarchy(r.Context(), sqliteBackend.Store(), hierarchy)
+
 	response := struct {
 		Hierarchy []*observatory.ExecTaskNode `json:"hierarchy"`
 		Count     int                         `json:"count"`
@@ -905,4 +913,148 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode exec hierarchy response: %v", err)
 	}
+}
+
+// enrichExecHierarchy adds display_name to tool_use nodes using session_tools data.
+// This correlates OTEL spans with hook-captured tool metadata for richer display.
+func enrichExecHierarchy(ctx context.Context, store *observatory.Store, hierarchy []*observatory.ExecTaskNode) {
+	if len(hierarchy) == 0 {
+		return
+	}
+
+	// Collect all tool_use nodes with their timestamps
+	var toolNodes []*observatory.ExecTaskNode
+	var minTime, maxTime time.Time
+
+	var collect func(nodes []*observatory.ExecTaskNode)
+	collect = func(nodes []*observatory.ExecTaskNode) {
+		for _, node := range nodes {
+			if node.Command == "tool_use" && node.StartTime != nil {
+				toolNodes = append(toolNodes, node)
+				if minTime.IsZero() || node.StartTime.Before(minTime) {
+					minTime = *node.StartTime
+				}
+				endTime := node.StartTime.Add(time.Duration(node.DurationMs) * time.Millisecond)
+				if maxTime.IsZero() || endTime.After(maxTime) {
+					maxTime = endTime
+				}
+			}
+			if len(node.Children) > 0 {
+				collect(node.Children)
+			}
+		}
+	}
+	collect(hierarchy)
+
+	if len(toolNodes) == 0 {
+		return
+	}
+
+	// Expand time window for matching
+	minTime = minTime.Add(-30 * time.Second)
+	maxTime = maxTime.Add(30 * time.Second)
+
+	// Fetch session tools in range
+	tools, err := store.GetToolsByTimestampRange(ctx, minTime, maxTime, "")
+	if err != nil || len(tools) == 0 {
+		return
+	}
+
+	// Build lookup map by tool name + approximate timestamp
+	const tolerance = 10 * time.Second
+
+	// Enrich each tool node
+	for _, node := range toolNodes {
+		if node.ToolName == "" || node.DisplayName != "" {
+			continue
+		}
+
+		// Find matching tool by name and timestamp
+		for _, tool := range tools {
+			if tool.ToolName != node.ToolName {
+				continue
+			}
+
+			// Check timestamp match
+			toolStart := tool.StartTime
+			nodeStart := *node.StartTime
+			diff := toolStart.Sub(nodeStart)
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > tolerance {
+				continue
+			}
+
+			// Generate display name from tool metadata
+			displayName := generateToolDisplayName(tool.ToolName, tool.ToolInput)
+			if displayName != "" {
+				node.DisplayName = displayName
+				break
+			}
+		}
+	}
+}
+
+// generateToolDisplayName creates a rich display name from tool name and input.
+func generateToolDisplayName(toolName string, toolInput json.RawMessage) string {
+	if len(toolInput) == 0 {
+		return toolName
+	}
+
+	var data map[string]any
+	if err := json.Unmarshal(toolInput, &data); err != nil {
+		return toolName
+	}
+
+	switch toolName {
+	case "Read":
+		if path, ok := data["file_path"].(string); ok {
+			return "Read: " + truncateForDisplay(path, 50)
+		}
+	case "Edit":
+		if path, ok := data["file_path"].(string); ok {
+			return "Edit: " + truncateForDisplay(path, 50)
+		}
+	case "Write":
+		if path, ok := data["file_path"].(string); ok {
+			return "Write: " + truncateForDisplay(path, 50)
+		}
+	case "Glob":
+		if pattern, ok := data["pattern"].(string); ok {
+			return "Glob: " + truncateForDisplay(pattern, 50)
+		}
+	case "Grep":
+		if pattern, ok := data["pattern"].(string); ok {
+			return "Grep: " + truncateForDisplay(pattern, 50)
+		}
+	case "Bash":
+		if cmd, ok := data["command"].(string); ok {
+			return "Bash: " + truncateForDisplay(cmd, 50)
+		}
+		if desc, ok := data["description"].(string); ok {
+			return "Bash: " + truncateForDisplay(desc, 50)
+		}
+	case "Task":
+		if desc, ok := data["description"].(string); ok && desc != "" {
+			return "Task: " + truncateForDisplay(desc, 50)
+		}
+		if subType, ok := data["subagent_type"].(string); ok {
+			return "Task: " + subType
+		}
+	case "Skill":
+		if skill, ok := data["skill"].(string); ok {
+			return "Skill: " + skill
+		}
+	}
+
+	return toolName
+}
+
+// truncateForDisplay truncates a string to maxLen characters.
+func truncateForDisplay(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

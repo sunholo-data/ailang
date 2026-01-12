@@ -2,6 +2,7 @@
 package observatory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -749,11 +750,20 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 			return fmt.Sprintf("WebFetch: %s", truncateURL(url))
 		}
 	case "Task":
+		// Prefer description (short summary), then subagent_type, then prompt
+		if desc, ok := data["description"].(string); ok && desc != "" {
+			return fmt.Sprintf("Task: %s", truncateString(desc, 50))
+		}
 		if agentType, ok := data["subagent_type"].(string); ok {
 			return fmt.Sprintf("Task: %s agent", agentType)
 		}
 		if prompt, ok := data["prompt"].(string); ok {
 			return fmt.Sprintf("Task: %s", truncateString(prompt, 40))
+		}
+	case "Skill":
+		// Show which skill was invoked
+		if skill, ok := data["skill"].(string); ok {
+			return fmt.Sprintf("Skill: %s", skill)
 		}
 	case "WebSearch":
 		if query, ok := data["query"].(string); ok {
@@ -1086,6 +1096,97 @@ func (a *API) handleGetTaskTimeline(w http.ResponseWriter, r *http.Request) {
 
 // ===== Hierarchy Handler (M-TASK-HIERARCHY) =====
 
+// enrichHierarchySpans adds display_name to spans in a hierarchy using session_tools data.
+// This correlates OTEL spans with hook-captured tool metadata for richer display.
+func (a *API) enrichHierarchySpans(ctx context.Context, hierarchy *TaskHierarchy) {
+	if hierarchy == nil {
+		return
+	}
+
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		return
+	}
+
+	// Collect all spans from the hierarchy structure
+	// TaskHierarchy -> AgentHierarchy -> TraceHierarchy -> SpanNode
+	var allSpans []*Span
+	var collectFromSpanNodes func(nodes []*SpanNode)
+	collectFromSpanNodes = func(nodes []*SpanNode) {
+		for _, node := range nodes {
+			if node != nil && node.Span != nil {
+				allSpans = append(allSpans, node.Span)
+			}
+			if node != nil && len(node.Children) > 0 {
+				collectFromSpanNodes(node.Children)
+			}
+		}
+	}
+
+	// Traverse the hierarchy
+	for _, agent := range hierarchy.Agents {
+		if agent == nil {
+			continue
+		}
+		for _, trace := range agent.Traces {
+			if trace == nil {
+				continue
+			}
+			// Collect from flat spans list
+			collectFromSpanNodes(trace.Spans)
+			// Also collect from root span if present
+			if trace.RootSpan != nil {
+				collectFromSpanNodes([]*SpanNode{trace.RootSpan})
+			}
+		}
+	}
+
+	if len(allSpans) == 0 {
+		return
+	}
+
+	// Find time range
+	var minTime, maxTime time.Time
+	for _, span := range allSpans {
+		if minTime.IsZero() || span.StartTime.Before(minTime) {
+			minTime = span.StartTime
+		}
+		endTime := span.StartTime.Add(time.Duration(span.DurationMs) * time.Millisecond)
+		if maxTime.IsZero() || endTime.After(maxTime) {
+			maxTime = endTime
+		}
+	}
+
+	// Expand time window
+	minTime = minTime.Add(-30 * time.Second)
+	maxTime = maxTime.Add(30 * time.Second)
+
+	// Fetch all tools in range
+	tools, _ := sqliteBackend.store.GetToolsByTimestampRange(ctx, minTime, maxTime, "")
+
+	// Enrich spans with display_name
+	for _, span := range allSpans {
+		if span == nil || span.DisplayName != "" {
+			continue
+		}
+
+		toolName := extractToolNameFromSpan(span)
+		if toolName == "" {
+			// Try fallback display name extraction
+			span.DisplayName = extractDisplayNameFromSpan(span)
+			continue
+		}
+
+		// Find matching tool
+		displayName := findMatchingToolByTimestamp(span, tools, toolName)
+		if displayName != "" {
+			span.DisplayName = displayName
+		} else {
+			span.DisplayName = extractDisplayNameFromSpan(span)
+		}
+	}
+}
+
 func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -1110,6 +1211,7 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 			if sqliteBackend, ok := a.backend.(*SQLiteBackend); ok {
 				ccHierarchy, ccErr := sqliteBackend.GetClaudeCodeHierarchy(r.Context(), id)
 				if ccErr == nil {
+					a.enrichHierarchySpans(r.Context(), ccHierarchy)
 					writeJSON(w, http.StatusOK, ccHierarchy)
 					return
 				}
@@ -1121,6 +1223,7 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.enrichHierarchySpans(r.Context(), hierarchy)
 	writeJSON(w, http.StatusOK, hierarchy)
 }
 
@@ -1286,14 +1389,24 @@ func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
 			enriched["success"] = *tool.Success
 		}
 		if len(tool.ToolInput) > 0 {
-			enriched["tool_input"] = tool.ToolInput
+			// Validate JSON before including - malformed data can cause marshal errors
+			if json.Valid(tool.ToolInput) {
+				enriched["tool_input"] = tool.ToolInput
+			} else {
+				enriched["tool_input"] = string(tool.ToolInput) // Include as string fallback
+			}
 			// Parse rich metadata from tool input
 			if metadata := parseToolMetadata(tool.ToolName, tool.ToolInput); metadata != nil {
 				enriched["metadata"] = metadata
 			}
 		}
 		if len(tool.ToolResponse) > 0 {
-			enriched["tool_response"] = tool.ToolResponse
+			// Validate JSON before including
+			if json.Valid(tool.ToolResponse) {
+				enriched["tool_response"] = tool.ToolResponse
+			} else {
+				enriched["tool_response"] = string(tool.ToolResponse)
+			}
 		}
 		enrichedTools = append(enrichedTools, enriched)
 	}
@@ -1436,6 +1549,9 @@ func parseToolMetadata(toolName string, input json.RawMessage) map[string]any {
 			metadata["command"] = cmd
 		}
 	case "Task":
+		if desc, ok := data["description"].(string); ok {
+			metadata["description"] = desc
+		}
 		if prompt, ok := data["prompt"].(string); ok {
 			// Truncate long prompts
 			if len(prompt) > 100 {
@@ -1445,6 +1561,13 @@ func parseToolMetadata(toolName string, input json.RawMessage) map[string]any {
 		}
 		if agentType, ok := data["subagent_type"].(string); ok {
 			metadata["subagent_type"] = agentType
+		}
+	case "Skill":
+		if skill, ok := data["skill"].(string); ok {
+			metadata["skill"] = skill
+		}
+		if args, ok := data["args"].(string); ok {
+			metadata["args"] = args
 		}
 	}
 

@@ -117,6 +117,7 @@ export interface ExecTaskNode {
   tool_name?: string;
   tool_input?: string;
   tool_output?: string;
+  display_name?: string; // enriched name from session_tools (e.g., "Read: /path/file.go")
 }
 
 export interface ExecHierarchyWithMessages {
@@ -135,6 +136,7 @@ export interface ExecHierarchyResponse {
 export interface Span {
   id: string;
   name: string;
+  display_name?: string;  // Enriched name with tool metadata (file paths, patterns, commands)
   startMs: number;
   durationMs: number;
   children?: Span[];

@@ -49,7 +49,7 @@ export interface TopologyData {
 interface ExecTaskNode {
   task_id: string;
   parent_task_id: string;
-  command: string;      // exec, run, check
+  command: string;      // exec, run, check, turn, tool_use
   provider: string;     // for exec: claude, gemini, etc.
   workspace: string;    // for exec
   file_path: string;    // for run, check
@@ -57,6 +57,12 @@ interface ExecTaskNode {
   start_time?: string;
   duration_ms?: number;
   children?: ExecTaskNode[];
+  // Turn/tool specific
+  turn_number?: number;
+  tool_name?: string;
+  tool_input?: string;
+  tool_output?: string;
+  display_name?: string; // enriched name from session_tools
 }
 
 interface ExecHierarchyResponse {
@@ -253,7 +259,8 @@ function transformExecNode(node: ExecTaskNodeType): HierarchyNode {
   } else if (node.command === 'turn') {
     label = `Turn ${node.turn_number || '?'}`;
   } else if (node.command === 'tool_use') {
-    label = node.tool_name || 'Tool';
+    // Prefer enriched display_name from backend (includes file paths, patterns, etc.)
+    label = node.display_name || node.tool_name || 'Tool';
   }
 
   const result: HierarchyNode = {

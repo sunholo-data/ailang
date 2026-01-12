@@ -1077,6 +1077,12 @@ func displayToolsList(body []byte, sessionID string) {
 				details = "grep: " + truncate(pattern, 35)
 			} else if cmd, ok := metadata["command"].(string); ok {
 				details = truncate(cmd, 40)
+			} else if desc, ok := metadata["description"].(string); ok {
+				// Task: prefer description over prompt
+				details = truncate(desc, 50)
+			} else if skill, ok := metadata["skill"].(string); ok {
+				// Skill: show skill name
+				details = "skill: " + skill
 			} else if prompt, ok := metadata["prompt"].(string); ok {
 				details = truncate(prompt, 40)
 			}
