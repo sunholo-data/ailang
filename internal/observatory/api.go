@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -57,6 +58,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/observatory/spans/{id}", a.handleDeleteSpan)
 	mux.HandleFunc("GET /api/observatory/spans/{id}/events", a.handleGetSpanEvents)
 	mux.HandleFunc("POST /api/observatory/spans/{id}/events", a.handleCreateSpanEvent)
+	mux.HandleFunc("GET /api/observatory/spans/{id}/enriched", a.handleGetEnrichedSpan)
 
 	// Trace endpoints
 	mux.HandleFunc("GET /api/observatory/traces", a.handleListTraces)
@@ -398,6 +400,69 @@ func (a *API) handleGetSpan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, span)
+}
+
+// handleGetEnrichedSpan returns a single span with tool metadata from session_tools.
+// GET /api/observatory/spans/{id}/enriched
+func (a *API) handleGetEnrichedSpan(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	ctx := r.Context()
+
+	// Get base span
+	span, err := a.backend.GetSpan(ctx, id)
+	if err != nil {
+		if isNotFoundError(err) {
+			writeError(w, http.StatusNotFound, "span not found: "+id)
+		} else {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	// Prepare enriched response with additional fields
+	type EnrichedSpan struct {
+		*Span
+		DisplayName  string          `json:"display_name,omitempty"`
+		ToolInput    json.RawMessage `json:"tool_input,omitempty"`
+		ToolResponse json.RawMessage `json:"tool_response,omitempty"`
+		ToolSuccess  *bool           `json:"tool_success,omitempty"`
+	}
+	enriched := EnrichedSpan{Span: span}
+
+	// Try to correlate with session_tools
+	sessionID := ""
+	toolName := ""
+
+	// Extract session_id from span attributes
+	if span.Attributes != nil {
+		if sid, ok := span.Attributes["session.id"]; ok {
+			sessionID = fmt.Sprintf("%v", sid)
+		}
+	}
+
+	// Extract tool name from span name (e.g., "claude_code.tool.Read" -> "Read")
+	if strings.HasPrefix(span.Name, "claude_code.tool.") {
+		toolName = strings.TrimPrefix(span.Name, "claude_code.tool.")
+	}
+
+	// Query session_tools for matching tool
+	if sessionID != "" && toolName != "" && !span.StartTime.IsZero() {
+		tool, err := a.backend.GetToolForSpan(ctx, sessionID, toolName, span.StartTime)
+		if err == nil && tool != nil {
+			// Generate display name
+			enriched.DisplayName = generateDisplayName(span.Name, tool.ToolInput)
+			enriched.ToolInput = tool.ToolInput
+			enriched.ToolResponse = tool.ToolResponse
+			enriched.ToolSuccess = tool.Success
+		}
+	}
+
+	// Fallback display name if no tool correlation
+	if enriched.DisplayName == "" {
+		enriched.DisplayName = span.Name
+	}
+
+	writeJSON(w, http.StatusOK, enriched)
 }
 
 func (a *API) handleUpdateSpan(w http.ResponseWriter, r *http.Request) {
@@ -1066,6 +1131,10 @@ func (a *API) handleMarkMessageArchived(w http.ResponseWriter, r *http.Request) 
 
 // ===== Aggregate Handlers =====
 
+// handleGetMetricsSummary returns global aggregates.
+// DEPRECATED: Use /api/controlplane/stats instead, which provides
+// unified Observatory + Coordinator stats with filtering options.
+// This endpoint will be removed in a future version.
 func (a *API) handleGetMetricsSummary(w http.ResponseWriter, r *http.Request) {
 	summary, err := a.backend.GetMetricsSummary(r.Context())
 	if err != nil {

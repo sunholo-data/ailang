@@ -24,9 +24,37 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
   spans,
   selectedTraceId,
   loading,
+  hiddenSpanTypes,
 }) => {
   // Display limit state - start with 100, can load more
   const [displayLimit, setDisplayLimit] = useState(DEFAULT_DISPLAY_LIMIT);
+
+  // Filter spans by hidden types (recursive, promotes children)
+  const filteredSpans = useMemo(() => {
+    if (!hiddenSpanTypes || hiddenSpanTypes.size === 0) return spans;
+
+    const filterSpans = (spanList: Span[]): Span[] => {
+      const result: Span[] = [];
+      for (const span of spanList) {
+        const isHidden = hiddenSpanTypes.has(span.name);
+        if (isHidden) {
+          // Promote children to this level
+          if (span.children && span.children.length > 0) {
+            result.push(...filterSpans(span.children));
+          }
+        } else {
+          // Keep span, filter its children
+          result.push({
+            ...span,
+            children: span.children ? filterSpans(span.children) : undefined,
+          });
+        }
+      }
+      return result;
+    };
+
+    return filterSpans(spans);
+  }, [spans, hiddenSpanTypes]);
 
   // Flatten spans for counting and limiting
   const flattenedSpans = useMemo(() => {
@@ -39,9 +67,9 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
         }
       }
     };
-    flatten(spans, 0);
+    flatten(filteredSpans, 0);
     return result;
-  }, [spans]);
+  }, [filteredSpans]);
 
   // Total count for display
   const totalSpanCount = flattenedSpans.length;
@@ -107,7 +135,7 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
     );
   };
 
-  const isEmpty = spans.length === 0;
+  const isEmpty = filteredSpans.length === 0;
 
   return (
     <div className={styles.waterfallContainer}>

@@ -1,3 +1,70 @@
+/*
+Package server implements the HTTP server for the Collaboration Hub dashboard.
+
+# API Namespace Reference
+
+The dashboard exposes several API namespaces:
+
+## /api/observatory/* (Core Telemetry - 44 endpoints)
+
+Primary telemetry data: spans, traces, tasks, sessions, messages.
+Source: internal/observatory/api.go
+
+Key endpoints:
+  - GET  /api/observatory/spans           - List spans with filters
+  - GET  /api/observatory/spans/enriched  - Spans with display names from session_tools
+  - GET  /api/observatory/traces          - List traces
+  - GET  /api/observatory/sessions        - List Claude Code sessions
+  - GET  /api/observatory/sessions/{id}/tools - Session tool usage
+
+## /api/controlplane/* (Aggregated Analytics - 6 endpoints)
+
+Unified stats combining Observatory + Coordinator data.
+Source: internal/server/handlers_controlplane.go
+
+Key endpoints:
+  - GET  /api/controlplane/stats          - Unified statistics with filters (USE THIS)
+  - GET  /api/controlplane/stats/breakdown - Detailed breakdown by dimension
+  - GET  /api/controlplane/exec-hierarchy - Execution tree (Messages→Execs→Turns→Tools)
+  - GET  /api/controlplane/heatmap        - Activity heatmap
+
+## /api/coordinator/* (Task Execution - ~8 endpoints)
+
+Task management and approval workflow.
+Source: internal/server/handlers_coordinator.go
+
+Key endpoints:
+  - POST /api/coordinator/approve/{id}    - Approve a task
+  - POST /api/coordinator/reject/{id}     - Reject a task
+  - GET  /api/coordinator/events          - SSE stream of task events
+
+## Legacy Endpoints (Deprecated)
+
+  - GET  /api/statistics                  - DEPRECATED: Use /api/controlplane/stats
+  - GET  /api/observatory/metrics/summary - DEPRECATED: Use /api/controlplane/stats
+
+# Data Source Architecture
+
+All endpoints pull from the same underlying data stores:
+
+	┌─────────────────────────────────────────┐
+	│           SQLite Databases              │
+	├─────────────────────────────────────────┤
+	│ ~/.ailang/state/collaboration.db       │
+	│ ├── spans (OTEL telemetry)             │
+	│ ├── traces, tasks, sessions            │
+	│ └── session_tools, messages            │
+	├─────────────────────────────────────────┤
+	│ ~/.ailang/state/coordinator.db         │
+	│ └── tasks, approvals, agent_state      │
+	└─────────────────────────────────────────┘
+	              │
+	              ▼
+	   Same Go store methods used by:
+	   - API handlers (this package)
+	   - CLI commands (cmd/ailang/dashboard.go)
+	   - UI hooks (ui/src/features/controlplane/hooks/)
+*/
 package server
 
 import (

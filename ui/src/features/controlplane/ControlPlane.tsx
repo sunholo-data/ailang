@@ -467,6 +467,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             selectedTypes={selectedEventTypes}
             onTypeFilterChange={setSelectedEventTypes}
             filters={filters}
+            selectedEventId={detailPanel.type === 'event' ? detailPanel.id : null}
           />
         </aside>
 

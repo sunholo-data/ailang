@@ -613,5 +613,9 @@ func (b *GCPTraceBackend) BackfillSpansWorkspace(ctx context.Context, sessionID,
 	return 0, nil
 }
 
+func (b *GCPTraceBackend) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
+	return nil, nil // Not supported by GCP backend
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)

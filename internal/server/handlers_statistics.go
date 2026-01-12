@@ -38,6 +38,9 @@ type CoordinatorSummary struct {
 }
 
 // GET /api/statistics - Get aggregate statistics
+// DEPRECATED: Use /api/controlplane/stats instead, which provides
+// the same data with additional filtering and breakdown options.
+// This endpoint will be removed in a future version.
 func (s *Server) handleStatistics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

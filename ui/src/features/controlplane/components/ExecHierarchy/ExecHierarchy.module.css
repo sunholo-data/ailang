@@ -256,6 +256,109 @@
   border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
 }
 
+/* Span Type Filter Dropdown */
+.filterDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 6px);
+  padding: var(--space-2, 6px) var(--space-3, 12px);
+  background: var(--bg-elevated, #161b22);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 6px);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.filterBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.15));
+}
+
+.filterBtnActive {
+  border-color: var(--primary, #e73c17);
+  color: var(--primary, #e73c17);
+}
+
+.filterIcon {
+  font-size: var(--text-sm, 12px);
+}
+
+.filterChevron {
+  font-size: var(--text-2xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+}
+
+.filterMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-1, 4px);
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-elevated, #161b22);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 6px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.4));
+  z-index: 100;
+}
+
+.filterMenuActions {
+  display: flex;
+  gap: var(--space-2, 6px);
+  padding: var(--space-2, 8px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.filterMenuAction {
+  flex: 1;
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: transparent;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-2xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.filterMenuAction:hover {
+  background: var(--bg-hover, #232d3a);
+  color: var(--text-secondary, #8b949e);
+}
+
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  cursor: pointer;
+  transition: background var(--transition-fast, 150ms ease);
+}
+
+.filterOption:hover {
+  background: var(--bg-hover, #232d3a);
+}
+
+.filterOption input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary, #e73c17);
+}
+
+.filterOptionLabel {
+  font-size: var(--text-xs, 11px);
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary, #8b949e);
+}
+
 /* View Toggle */
 .viewToggle {
   display: flex;
@@ -742,10 +845,10 @@
 /* Node Popover Styles */
 .nodePopover {
   position: fixed;
-  z-index: 200;
-  min-width: 300px;
-  max-width: 420px;
-  max-height: 500px;
+  z-index: 1000;  /* High z-index to ensure above all headers */
+  min-width: 600px;
+  max-width: 800px;
+  max-height: 700px;
   background: var(--bg-elevated, #141d2b);
   border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-lg, 12px);
@@ -801,6 +904,7 @@
   padding: var(--space-3, 12px);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;  /* Important for flex container scrolling */
 }
 
 /* Summary grid - shows key info at a glance */
@@ -888,8 +992,7 @@
 /* Attributes list */
 .popoverAttributesList {
   margin-top: var(--space-2, 8px);
-  max-height: 200px;
-  overflow-y: auto;
+  /* No max-height - let content flow, popoverBody scrolls */
   background: var(--bg-base, #0f1419);
   border-radius: var(--radius-sm, 4px);
   padding: var(--space-2, 8px);
@@ -1104,4 +1207,64 @@
   background: var(--sunholo-purple, #6b46c1);
   color: var(--text-inverse, #ffffff);
   border-color: var(--sunholo-purple, #6b46c1);
+}
+
+/* Tool input/response code blocks */
+.popoverCodeBlock {
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-2, 8px);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 11px);
+  /* No max-height - let content flow, popoverBody scrolls */
+  overflow-x: auto;  /* Only horizontal scroll for long lines */
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary, #8b949e);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+/* CLI command hint section */
+.popoverCliHint {
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  padding-top: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
+}
+
+.popoverCliCommand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs, 11px);
+  cursor: pointer;
+  user-select: all;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.popoverCliCommand:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--sunholo-purple, #6b46c1);
+}
+
+.popoverCliCommand code {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sunholo-teal, #38bdf8);
+}
+
+/* Tool success/error indicator */
+.popoverToolSuccess {
+  color: var(--success, #3fb950);
+}
+
+.popoverToolError {
+  color: var(--error, #f85149);
 }

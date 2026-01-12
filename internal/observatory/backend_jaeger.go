@@ -4,6 +4,7 @@ package observatory
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // JaegerBackend implements Backend using Jaeger for trace storage.
@@ -253,6 +254,10 @@ func (b *JaegerBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRespon
 
 func (b *JaegerBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return 0, nil
+}
+
+func (b *JaegerBackend) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
+	return nil, nil // Not supported by Jaeger backend
 }
 
 // Ensure JaegerBackend implements Backend

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 )
 
 // CompositeBackend implements Backend with write-local, read-remote pattern.
@@ -344,6 +345,10 @@ func (b *CompositeBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRes
 
 func (b *CompositeBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return b.local.BackfillSpansWorkspace(ctx, sessionID, workspace)
+}
+
+func (b *CompositeBackend) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
+	return b.local.GetToolForSpan(ctx, sessionID, toolName, spanTime)
 }
 
 // Ensure CompositeBackend implements Backend

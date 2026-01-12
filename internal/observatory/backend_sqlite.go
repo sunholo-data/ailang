@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // SQLiteBackend implements Backend using SQLite storage.
@@ -308,6 +309,10 @@ func (b *SQLiteBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRespon
 
 func (b *SQLiteBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return b.store.BackfillSpansWorkspace(ctx, sessionID, workspace)
+}
+
+func (b *SQLiteBackend) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
+	return b.store.GetToolForSpan(ctx, sessionID, toolName, spanTime)
 }
 
 // Ensure SQLiteBackend implements Backend

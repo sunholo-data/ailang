@@ -22,6 +22,8 @@ export interface MessageQueueProps {
   onTypeFilterChange?: (types: EventType[]) => void;
   // Filters for CLI hint
   filters?: ControlPlaneFilters;
+  // Selection highlighting
+  selectedEventId?: string | null;
 }
 
 const getEventIcon = (type: EventMessage['type']): string => {
@@ -80,6 +82,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   selectedTypes,
   onTypeFilterChange,
   filters,
+  selectedEventId,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
@@ -225,7 +228,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
         {!loading && paginatedEvents.map((event) => (
           <div
             key={event.id}
-            className={styles.queueItem}
+            className={`${styles.queueItem} ${event.id === selectedEventId ? styles.queueItemSelected : ''}`}
             onClick={() => onEventClick(event)}
             data-type={getEventColor(event.type)}
           >

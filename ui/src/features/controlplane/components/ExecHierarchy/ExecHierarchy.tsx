@@ -15,9 +15,9 @@ import { TraceWaterfall } from '../TraceWaterfall';
 import { useApprovals, useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
 import styles from './ExecHierarchy.module.css';
 
-// Popover max dimensions
-const POPOVER_MAX_WIDTH = 420;
-const POPOVER_MAX_HEIGHT = 500;
+// Popover max dimensions - large to show full tool metadata
+const POPOVER_MAX_WIDTH = 800;
+const POPOVER_MAX_HEIGHT = 700;
 const POPOVER_MARGIN = 16;
 
 // Extended node types for better visualization
@@ -607,6 +607,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     });
   });
 
+  // Span type filter dropdown visibility
+  const [showSpanTypeFilter, setShowSpanTypeFilter] = useState(false);
+
   // Collapsibility state: Set of node IDs that are expanded
   // START COLLAPSED - empty set means only root nodes visible
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -641,7 +644,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   // Popover state
   const [popoverNode, setPopoverNode] = useState<HierarchyNode | null>(null);
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
-  const [attributesExpanded, setAttributesExpanded] = useState(false);
+  const [attributesExpanded, setAttributesExpanded] = useState(true);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Transform spans to hierarchy nodes (same data as TraceWaterfall)
@@ -649,6 +652,32 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     if (!spans || spans.length === 0) return [];
     return transformSpansToNodes(spans);
   }, [spans]);
+
+  // Extract unique span types from all spans (for filter dropdown)
+  const uniqueSpanTypes = useMemo(() => {
+    const types = new Set<string>();
+    const collect = (spanList: Span[]) => {
+      for (const span of spanList) {
+        if (span.name) types.add(span.name);
+        if (span.children) collect(span.children);
+      }
+    };
+    if (spans) collect(spans);
+    return Array.from(types).sort();
+  }, [spans]);
+
+  // Show All / Hide All handlers for span type filter
+  const handleShowAllSpanTypes = useCallback(() => {
+    uniqueSpanTypes.forEach(type => {
+      if (hiddenSpanTypes.has(type)) toggleSpanType(type);
+    });
+  }, [uniqueSpanTypes, hiddenSpanTypes, toggleSpanType]);
+
+  const handleHideAllSpanTypes = useCallback(() => {
+    uniqueSpanTypes.forEach(type => {
+      if (!hiddenSpanTypes.has(type)) toggleSpanType(type);
+    });
+  }, [uniqueSpanTypes, hiddenSpanTypes, toggleSpanType]);
 
   // Apply coordinator view mode transformation
   const transformedNodes = useMemo(() => {
@@ -928,7 +957,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         setPopoverNode(null);
       } else {
         setPopoverNode(node);
-        setAttributesExpanded(false); // Reset attributes collapsed state
+        setAttributesExpanded(true); // Keep attributes expanded by default
         // Position with viewport awareness
         if (event) {
           const pos = calculatePopoverPosition(event.clientX, event.clientY);
@@ -970,35 +999,48 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         </div>
 
         <div className={styles.headerControls}>
-          {/* Span Type Filter (Milestone 14) - shows hidden types as chips */}
-          {!isEmpty && (
-            <div className={styles.filterChips}>
-              {hiddenSpanTypes.size > 0 ? (
-                <>
-                  <span className={styles.filterLabel}>Hiding:</span>
-                  {Array.from(hiddenSpanTypes).map(spanType => (
+          {/* Span Type Filter - always show when we have span data */}
+          {uniqueSpanTypes.length > 0 && (
+            <div className={styles.filterDropdown}>
+              <button
+                className={`${styles.filterBtn} ${hiddenSpanTypes.size > 0 ? styles.filterBtnActive : ''}`}
+                onClick={() => setShowSpanTypeFilter(!showSpanTypeFilter)}
+              >
+                <span className={styles.filterIcon}>◉</span>
+                {hiddenSpanTypes.size > 0
+                  ? `Hiding ${hiddenSpanTypes.size}/${uniqueSpanTypes.length}`
+                  : `Showing ${uniqueSpanTypes.length} types`}
+                <span className={styles.filterChevron}>{showSpanTypeFilter ? '▲' : '▼'}</span>
+              </button>
+
+              {showSpanTypeFilter && (
+                <div className={styles.filterMenu}>
+                  <div className={styles.filterMenuActions}>
                     <button
-                      key={spanType}
-                      className={styles.filterChip}
-                      onClick={() => toggleSpanType(spanType)}
-                      title={`Click to show ${spanType} spans`}
+                      onClick={handleShowAllSpanTypes}
+                      className={styles.filterMenuAction}
                     >
-                      {spanType} ×
+                      Show All
                     </button>
+                    <button
+                      onClick={handleHideAllSpanTypes}
+                      className={styles.filterMenuAction}
+                    >
+                      Hide All
+                    </button>
+                  </div>
+
+                  {uniqueSpanTypes.map(spanType => (
+                    <label key={spanType} className={styles.filterOption}>
+                      <input
+                        type="checkbox"
+                        checked={!hiddenSpanTypes.has(spanType)}
+                        onChange={() => toggleSpanType(spanType)}
+                      />
+                      <span className={styles.filterOptionLabel}>{spanType}</span>
+                    </label>
                   ))}
-                </>
-              ) : (
-                <span className={styles.filterLabel}>No filters</span>
-              )}
-              {/* Quick toggle for api_request (common use case) */}
-              {!hiddenSpanTypes.has('api_request') && (
-                <button
-                  className={styles.filterAddBtn}
-                  onClick={() => toggleSpanType('api_request')}
-                  title="Hide api_request spans (LLM turns)"
-                >
-                  + Hide api_request
-                </button>
+                </div>
               )}
             </div>
           )}
@@ -1346,6 +1388,79 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
 
             {popoverNode._span && (
               <>
+                {/* Tool Details Section */}
+                <div className={styles.popoverSection}>
+                  <div className={styles.popoverSectionTitle}>Tool Details</div>
+                  <div className={styles.popoverInfoList}>
+                    {/* Display Name (enriched) */}
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Display Name</span>
+                      <span className={styles.popoverInfoValue}>
+                        {(popoverNode._span as any).display_name || popoverNode.label}
+                      </span>
+                    </div>
+                    {/* Raw Span Name */}
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Span Type</span>
+                      <span className={styles.popoverInfoValue} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                        {popoverNode._span.name}
+                      </span>
+                    </div>
+                    {/* Timestamp */}
+                    <div className={styles.popoverInfoRow}>
+                      <span className={styles.popoverInfoLabel}>Start Time</span>
+                      <span className={styles.popoverInfoValue}>
+                        {popoverNode._span.startMs
+                          ? new Date(popoverNode._span.startMs).toLocaleString()
+                          : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tool Input - if available from enrichment */}
+                {(popoverNode._span as any).tool_input && (
+                  <div className={styles.popoverSection}>
+                    <div className={styles.popoverSectionTitle}>
+                      Tool Input
+                      {(popoverNode._span as any).tool_success !== undefined && (
+                        <span className={(popoverNode._span as any).tool_success ? styles.popoverToolSuccess : styles.popoverToolError}>
+                          {(popoverNode._span as any).tool_success ? ' ✓' : ' ✗'}
+                        </span>
+                      )}
+                    </div>
+                    <pre className={styles.popoverCodeBlock}>
+                      {(() => {
+                        try {
+                          const input = (popoverNode._span as any).tool_input;
+                          const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+                          return JSON.stringify(parsed, null, 2);
+                        } catch {
+                          return String((popoverNode._span as any).tool_input);
+                        }
+                      })()}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Tool Response - if available from enrichment */}
+                {(popoverNode._span as any).tool_response && (
+                  <div className={styles.popoverSection}>
+                    <div className={styles.popoverSectionTitle}>Tool Response</div>
+                    <pre className={styles.popoverCodeBlock}>
+                      {(() => {
+                        try {
+                          const response = (popoverNode._span as any).tool_response;
+                          const parsed = typeof response === 'string' ? JSON.parse(response) : response;
+                          return JSON.stringify(parsed, null, 2);
+                        } catch {
+                          return String((popoverNode._span as any).tool_response);
+                        }
+                      })()}
+                    </pre>
+                  </div>
+                )}
+
                 {/* Span ID */}
                 <div className={styles.popoverSection}>
                   <div className={styles.popoverSectionTitle}>Span ID</div>
@@ -1358,6 +1473,58 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
                     style={{ cursor: 'pointer' }}
                   >
                     {popoverNode._span.id}
+                    <span className={styles.popoverCopyHint}>📋</span>
+                  </div>
+                </div>
+
+                {/* CLI Command Hint */}
+                <div className={styles.popoverCliHint}>
+                  <div className={styles.popoverSectionTitle}>CLI Command</div>
+                  <div
+                    className={styles.popoverCliCommand}
+                    onClick={() => {
+                      const cmd = (() => {
+                        const span = popoverNode._span;
+                        if (!span) return '';
+                        // For spans with trace_id, show trace view command
+                        if (span.trace_id) {
+                          return `ailang trace view ${span.trace_id}`;
+                        }
+                        // For spans with task_id attribute, show filtered spans
+                        const taskId = span.attributes?.['task.id'] || span.attributes?.['task_id'] || span.attributes?.['ailang.task_id'];
+                        if (taskId) {
+                          return `ailang dashboard spans --task-id ${taskId} --enriched --json`;
+                        }
+                        // For spans with session.id, show session tools
+                        const sessionId = span.attributes?.['session.id'];
+                        if (sessionId) {
+                          return `ailang dashboard tools ${sessionId} --json`;
+                        }
+                        // Fallback: generic dashboard spans query
+                        return `ailang dashboard spans --enriched --limit 10 --json`;
+                      })();
+                      navigator.clipboard.writeText(cmd);
+                    }}
+                    title="Click to copy"
+                  >
+                    <code>
+                      {(() => {
+                        const span = popoverNode._span;
+                        if (!span) return '';
+                        if (span.trace_id) {
+                          return `ailang trace view ${span.trace_id}`;
+                        }
+                        const taskId = span.attributes?.['task.id'] || span.attributes?.['task_id'] || span.attributes?.['ailang.task_id'];
+                        if (taskId) {
+                          return `ailang dashboard spans --task-id ${taskId.substring(0, 8)}...`;
+                        }
+                        const sessionId = span.attributes?.['session.id'];
+                        if (sessionId) {
+                          return `ailang dashboard tools ${sessionId.substring(0, 8)}...`;
+                        }
+                        return `ailang dashboard spans --enriched --limit 10`;
+                      })()}
+                    </code>
                     <span className={styles.popoverCopyHint}>📋</span>
                   </div>
                 </div>

@@ -3,6 +3,7 @@ package observatory
 
 import (
 	"context"
+	"time"
 )
 
 // Backend defines the interface for observatory storage backends.
@@ -58,6 +59,8 @@ type Backend interface {
 	InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error
 	// UpdateToolEnd records the completion of a tool call
 	UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error
+	// GetToolForSpan finds the session_tool that best matches a span by timestamp + tool name
+	GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error)
 	// BackfillSpansWorkspace updates existing spans that have session.id but missing workspace
 	BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error)
 

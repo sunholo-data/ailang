@@ -2552,6 +2552,16 @@
   background: var(--bg-elevated);
 }
 
+.queueItemSelected {
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--primary);
+  padding-left: calc(var(--space-4) - 3px);
+}
+
+.queueItemSelected:hover {
+  background: var(--bg-elevated);
+}
+
 .queueIcon {
   width: 20px;
   height: 20px;

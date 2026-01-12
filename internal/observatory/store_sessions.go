@@ -476,3 +476,80 @@ func (s *Store) ListRecentSessions(ctx context.Context, limit int) ([]Session, e
 	}
 	return sessions, nil
 }
+
+// GetToolForSpan finds the session_tool that best matches a span by timestamp + tool name.
+// Uses a ±10 second window to handle clock drift and hook execution delay.
+// Returns nil if no matching tool is found.
+func (s *Store) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
+	if sessionID == "" || toolName == "" {
+		return nil, nil // No match possible without session ID and tool name
+	}
+
+	// UTC normalize for SQLite BETWEEN query
+	startStr := spanTime.Add(-10 * time.Second).UTC().Format("2006-01-02 15:04:05")
+	endStr := spanTime.Add(10 * time.Second).UTC().Format("2006-01-02 15:04:05")
+	centerStr := spanTime.UTC().Format("2006-01-02 15:04:05")
+
+	// Query with session_id, tool_name, and time window
+	// Order by closest to span time (ABS distance)
+	row := s.db.QueryRowContext(ctx, `
+		SELECT tool_use_id, session_id, tool_name, tool_input, tool_response, start_time, end_time, success
+		FROM session_tools
+		WHERE session_id = ? AND tool_name = ?
+		AND start_time BETWEEN ? AND ?
+		ORDER BY ABS(julianday(start_time) - julianday(?))
+		LIMIT 1
+	`, sessionID, toolName, startStr, endStr, centerStr)
+
+	var tool SessionTool
+	var success sql.NullBool
+	var toolInput, toolResponse sql.NullString
+	var startTimeRaw string
+	var endTimeRaw sql.NullString
+
+	err := row.Scan(
+		&tool.ToolUseID,
+		&tool.SessionID,
+		&tool.ToolName,
+		&toolInput,
+		&toolResponse,
+		&startTimeRaw,
+		&endTimeRaw,
+		&success,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil // No matching tool found
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tool for span: %w", err)
+	}
+
+	// Parse start_time
+	if t, err := time.Parse("2006-01-02 15:04:05", startTimeRaw); err == nil {
+		tool.StartTime = t
+	} else if t, err := time.Parse(time.RFC3339, startTimeRaw); err == nil {
+		tool.StartTime = t
+	}
+
+	// Parse end_time if present
+	if endTimeRaw.Valid && endTimeRaw.String != "" {
+		if t, err := time.Parse("2006-01-02 15:04:05", endTimeRaw.String); err == nil {
+			tool.EndTime = &t
+		} else if t, err := time.Parse(time.RFC3339, endTimeRaw.String); err == nil {
+			tool.EndTime = &t
+		}
+	}
+
+	// Handle nullable fields
+	if success.Valid {
+		tool.Success = &success.Bool
+	}
+	if toolInput.Valid {
+		tool.ToolInput = json.RawMessage(toolInput.String)
+	}
+	if toolResponse.Valid {
+		tool.ToolResponse = json.RawMessage(toolResponse.String)
+	}
+
+	return &tool, nil
+}
