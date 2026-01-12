@@ -17,15 +17,11 @@ import {
 import {
   ControlPlaneFilters,
   StatusFilter,
-  hasActiveFilters,
-  getFilterDescription,
   mergeFilters,
 } from './types';
 
 // Import extracted components
 import {
-  CommandBar,
-  GlobalStats,
   AggregationNav,
   ActivityHeatmap,
   ExecHierarchy,
@@ -203,9 +199,6 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     }
     return merged;
   }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery]);
-
-  const isFiltered = hasActiveFilters(filters);
-  const filterDescription = getFilterDescription(filters);
 
   // Fetch real data from APIs - pass merged filters to all applicable hooks
   const { data: heatmapResponse } = useHeatmapData({ days: 90, filters });
@@ -420,39 +413,22 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerBrand}>
-          <span className={styles.brandIcon}>◎</span>
-          <h1 className={styles.brandTitle}>AILANG</h1>
-          <span className={styles.brandSub}>Control Plane</span>
+          <img
+            src="https://ailang.sunholo.com/img/logo.png"
+            alt="Sunholo"
+            className={styles.brandLogo}
+          />
+          <div className={styles.brandText}>
+            <h1 className={styles.brandTitle}>Observatory</h1>
+            <span className={styles.brandSub}>Control Plane</span>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
           <button className={styles.themeToggle} onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             <span className={styles.themeToggleIcon}>{theme === 'dark' ? '☀️' : '🌙'}</span>
-            <span className={styles.themeToggleLabel}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
         </div>
-        <GlobalStats
-          stats={stats}
-          loading={statsLoading}
-          isFiltered={isFiltered}
-          filterDescription={filterDescription}
-          onClearFilter={() => {
-            // Clear all filters
-            setSelectedLevel('global');
-            setSelectedDateRange(null);
-            setStatusFilter('all');
-            setSearchQuery('');
-          }}
-          filters={filters}
-        />
       </header>
-
-      {/* Command Bar */}
-      <CommandBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-      />
 
       {/* Main Layout - Event Queue LEFT, Aggregations RIGHT */}
       <div className={styles.mainLayout}>

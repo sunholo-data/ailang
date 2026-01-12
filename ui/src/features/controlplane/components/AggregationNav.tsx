@@ -7,7 +7,6 @@ import { BreakdownItem } from '../hooks';
 import type { AggregationStats } from './types';
 import type { ControlPlaneFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
-import { SessionsNav } from './SessionsNav';
 import styles from '../ControlPlane.module.css';
 
 interface FormattedBreakdownItem extends BreakdownItem {
@@ -254,9 +253,6 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
           </NavItem>
         </NavItem>
       </div>
-
-      {/* Sessions Section - Claude Code hook-captured sessions */}
-      <SessionsNav />
 
       {/* Metrics Summary Section */}
       <div className={styles.navMetrics}>

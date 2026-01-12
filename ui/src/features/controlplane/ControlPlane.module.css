@@ -304,45 +304,55 @@
   gap: var(--space-3);
 }
 
-.brandIcon {
-  font-size: 24px;
-  color: var(--primary);
-  text-shadow: 0 0 12px var(--primary-glow);
+.brandLogo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .brandTitle {
   font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   color: var(--text-primary);
   margin: 0;
+  line-height: 1.2;
 }
 
 .brandSub {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  padding: 2px 8px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
+  letter-spacing: 0.1em;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* Theme Toggle */
 .themeToggle {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
-  margin-left: var(--space-3);
 }
 
 .themeToggle:hover {
@@ -351,16 +361,7 @@
 }
 
 .themeToggleIcon {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.themeToggleLabel {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 16px;
 }
 
 /* Global Stats */
