@@ -3440,3 +3440,174 @@
   border-color: var(--primary);
   color: var(--primary);
 }
+
+/* ================================================================
+   Sessions Nav - Claude Code session display
+   ================================================================ */
+
+.sessionsNav {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-3) 0;
+  margin-top: var(--space-2);
+}
+
+.sessionsHeader {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast);
+}
+
+.sessionsHeader:hover {
+  background: var(--bg-hover);
+}
+
+.sessionsChevron {
+  font-size: 10px;
+  transition: transform var(--transition-fast);
+  margin-right: var(--space-2);
+}
+
+.sessionsChevronOpen {
+  transform: rotate(90deg);
+}
+
+.sessionsTitle {
+  flex: 1;
+}
+
+.sessionsCount {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.sessionsList {
+  padding: var(--space-1) 0;
+}
+
+.sessionsLoading,
+.sessionsEmpty {
+  padding: var(--space-2) var(--space-3);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.sessionItemWrapper {
+  margin-bottom: 1px;
+}
+
+.sessionItem {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-size: 12px;
+  border-left: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.sessionItem:hover {
+  background: var(--bg-hover);
+}
+
+.sessionItemSelected {
+  background: var(--bg-selected, var(--bg-hover));
+  border-left-color: var(--primary);
+}
+
+.sessionMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.sessionId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.sessionWorkspace {
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.sessionTime {
+  color: var(--text-tertiary);
+}
+
+.sessionToolCount {
+  color: var(--text-secondary);
+}
+
+/* Tools Summary (expanded view) */
+.toolsSummary {
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  font-size: 11px;
+  background: var(--bg-tertiary, var(--bg-elevated));
+  border-left: 2px solid var(--primary-dim);
+  margin-left: var(--space-3);
+}
+
+.toolSummaryItem {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  gap: var(--space-2);
+}
+
+.toolIcon {
+  width: 14px;
+  text-align: center;
+  color: var(--primary);
+  font-size: 10px;
+}
+
+.toolName {
+  font-weight: 500;
+  width: 55px;
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.toolCount {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.toolErrors {
+  color: var(--amber);
+  margin-left: 4px;
+}
+
+.toolDetails {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}

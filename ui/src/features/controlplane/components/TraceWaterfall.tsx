@@ -92,7 +92,7 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
                 {depthPrefix}
               </span>
             )}
-            {span.name}
+            {span.display_name || span.name}
           </span>
           <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
         </div>

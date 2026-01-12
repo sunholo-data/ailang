@@ -164,6 +164,39 @@ CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
 CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_github ON messages(github_issue_number);
 
+-- Claude Code session metadata (from hooks)
+-- Links session.id to workspace for span enrichment
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id TEXT PRIMARY KEY,
+    workspace TEXT NOT NULL,          -- process.cwd from SessionStart hook
+    claude_version TEXT,              -- Claude Code version
+    source TEXT DEFAULT 'hook',       -- 'hook', 'otel', 'manual'
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP,
+    turn_count INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace);
+CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC);
+
+-- Tool call metadata (from PreToolUse/PostToolUse hooks)
+-- Rich metadata for tool hierarchy
+CREATE TABLE IF NOT EXISTS session_tools (
+    tool_use_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    tool_input TEXT,                  -- JSON payload
+    tool_response TEXT,               -- JSON response (truncated)
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP,
+    success BOOLEAN,
+    FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_tools_session ON session_tools(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_tools_name ON session_tools(tool_name);
+CREATE INDEX IF NOT EXISTS idx_session_tools_time ON session_tools(start_time DESC);
+
 -- Aggregation views
 CREATE VIEW IF NOT EXISTS workspace_stats AS
 SELECT

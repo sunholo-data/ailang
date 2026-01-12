@@ -587,5 +587,31 @@ func (b *GCPTraceBackend) LinkOrphanedSpansBySession(ctx context.Context, sessio
 	return 0, nil
 }
 
+// Session operations - not supported by GCP backend (session tracking is local only).
+
+func (b *GCPTraceBackend) GetSessionWorkspace(sessionID string) (string, error) {
+	return "", nil
+}
+
+func (b *GCPTraceBackend) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
+	return 0, nil
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)

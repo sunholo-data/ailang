@@ -262,21 +262,70 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 	return items, rows.Err()
 }
 
-// GetBreakdownByWorkspace returns cost/token breakdown by workspace
+// GetBreakdownByWorkspace returns cost/token breakdown by workspace.
+// Extracts workspace directly from spans' process.cwd resource attribute.
+// Groups eval workspaces and coordinator worktrees into single entries.
+// Note: Claude Code spans don't include process.cwd, so they show as "Unknown Workspace".
 func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]BreakdownItem, error) {
 	rows, err := b.store.DB().QueryContext(ctx, `
+		WITH workspace_data AS (
+			SELECT
+				COALESCE(json_extract(resource_attributes, '$."process.cwd"'), 'unknown') as cwd,
+				tokens_in,
+				tokens_out,
+				cost_usd,
+				id
+			FROM spans
+		),
+		-- Normalize workspaces: group eval workspaces and worktrees
+		normalized AS (
+			SELECT
+				CASE
+					WHEN cwd = 'unknown' THEN 'unknown'
+					WHEN cwd LIKE '%/.eval_workspace/%' THEN 'eval_workspace'
+					WHEN cwd LIKE '%/worktrees/%' THEN 'coordinator_worktrees'
+					ELSE cwd
+				END as workspace_id,
+				CASE
+					WHEN cwd = 'unknown' THEN 'Unknown Workspace'
+					WHEN cwd LIKE '%/.eval_workspace/%' THEN 'Eval Benchmarks'
+					WHEN cwd LIKE '%/worktrees/%' THEN 'Coordinator Tasks'
+					ELSE cwd
+				END as workspace_label,
+				tokens_in,
+				tokens_out,
+				cost_usd
+			FROM workspace_data
+		),
+		-- Map known paths to friendly labels
+		with_labels AS (
+			SELECT
+				workspace_id,
+				CASE
+					WHEN workspace_label = 'Unknown Workspace' THEN 'Unknown Workspace'
+					WHEN workspace_label = 'Eval Benchmarks' THEN 'Eval Benchmarks'
+					WHEN workspace_label = 'Coordinator Tasks' THEN 'Coordinator Tasks'
+					WHEN workspace_id LIKE '%/sunholo/ailang/ui' THEN 'ailang/ui'
+					WHEN workspace_id LIKE '%/sunholo/ailang' THEN 'ailang'
+					WHEN workspace_id LIKE '%/twilight%' THEN 'twilight'
+					WHEN workspace_id LIKE '%/stapledon%' THEN 'stapledon'
+					ELSE workspace_id
+				END as label,
+				tokens_in,
+				tokens_out,
+				cost_usd
+			FROM normalized
+		)
 		SELECT
-			w.id,
-			w.name as label,
-			COUNT(DISTINCT s.id) as span_count,
-			COUNT(DISTINCT t.id) as task_count,
-			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
-			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
-			COALESCE(SUM(s.cost_usd), 0) as cost_usd
-		FROM workspaces w
-		LEFT JOIN tasks t ON t.workspace_id = w.id
-		LEFT JOIN spans s ON s.task_id = t.id
-		GROUP BY w.id
+			workspace_id as id,
+			label,
+			COUNT(*) as span_count,
+			0 as task_count,
+			COALESCE(SUM(tokens_in), 0) as tokens_in,
+			COALESCE(SUM(tokens_out), 0) as tokens_out,
+			COALESCE(SUM(cost_usd), 0) as cost_usd
+		FROM with_labels
+		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
 	`)
 	if err != nil {
@@ -658,7 +707,8 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			SUM(COALESCE(tokens_in, 0)) as total_tokens_in,
 			SUM(COALESCE(tokens_out, 0)) as total_tokens_out,
 			MAX(model) as model,
-			MAX(provider) as provider
+			MAX(provider) as provider,
+			MAX(json_extract(resource_attributes, '$."process.cwd"')) as workspace
 		FROM spans
 		WHERE name = 'api_request'
 		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
@@ -681,9 +731,9 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
-		var model, provider sql.NullString
+		var model, provider, workspace sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &model, &provider); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &model, &provider, &workspace); err != nil {
 			return nil, err
 		}
 
@@ -726,6 +776,7 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			DurationMs: totalDurationMs,
 			Model:      model.String,
 			Provider:   providerVal,
+			Workspace:  workspace.String,
 		})
 	}
 
@@ -757,7 +808,8 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			MAX(s.task_id) as coord_task_id,
 			MAX(aa.agent_id) as agent_id,
 			MAX(s.model) as model,
-			MAX(s.provider) as provider
+			MAX(s.provider) as provider,
+			MAX(json_extract(s.resource_attributes, '$."process.cwd"')) as workspace
 		FROM spans s
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'
@@ -781,9 +833,9 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
-		var coordTaskID, agentID, model, provider sql.NullString
+		var coordTaskID, agentID, model, provider, workspace sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID, &model, &provider); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID, &model, &provider, &workspace); err != nil {
 			return nil, err
 		}
 
@@ -837,6 +889,7 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			DurationMs: totalDurationMs,
 			Model:      model.String,
 			Provider:   providerVal,
+			Workspace:  workspace.String,
 		})
 	}
 

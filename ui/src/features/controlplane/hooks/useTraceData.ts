@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 export interface Span {
   id: string;
   name: string;
+  display_name?: string; // Enriched name with tool metadata (file paths, patterns, etc.)
   startMs: number;
   durationMs: number;
   children?: Span[];
@@ -33,6 +34,7 @@ interface RawSpan {
   id: string;
   parent_span_id?: string;
   name: string;
+  display_name?: string; // Enriched name with tool metadata
   start_time: string;
   duration_ms: number;
   status?: string;
@@ -77,11 +79,19 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
     }
   }, [limit]);
 
-  // Fetch spans by trace_id
+  // Fetch spans by trace_id using enriched endpoint for display names
   const fetchByTraceId = async (tid: string): Promise<RawSpan[]> => {
-    const response = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
-    if (!response.ok) return [];
-    return await response.json() || [];
+    // Use enriched endpoint to get display_name with tool metadata
+    const response = await fetch(`/api/observatory/spans/enriched?trace_id=${tid}&limit=100`);
+    if (!response.ok) {
+      // Fallback to regular endpoint
+      const fallbackResponse = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
+      if (!fallbackResponse.ok) return [];
+      return await fallbackResponse.json() || [];
+    }
+    const result = await response.json();
+    // Enriched endpoint returns {spans: [...], enriched: boolean}
+    return result.spans || [];
   };
 
   // Fetch spans by task_id using the hierarchy endpoint
@@ -256,6 +266,7 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
     const span: Span = {
       id: raw.id,
       name: raw.name,
+      display_name: raw.display_name, // Enriched name with tool metadata
       startMs: new Date(raw.start_time).getTime() - minStart,
       durationMs: raw.duration_ms,
       status: raw.status === 'error' || raw.status === 'ERROR' ? 'error' : 'ok',

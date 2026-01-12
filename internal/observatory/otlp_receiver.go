@@ -266,7 +266,21 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	tokensOut := int64(extractInt(attrs, "output_tokens"))
 	costUSD := extractFloat(attrs, "cost_usd")
 	model := extractString(attrs, "model")
+
+	// Extract session ID - check both resource and span attributes
+	// Claude Code sends session.id in span attributes, not resource attributes
 	sessionID := extractString(resourceAttrs, "session.id")
+	if sessionID == "" {
+		sessionID = extractString(attrs, "session.id")
+	}
+
+	// Workspace enrichment (M-SESSION-WORKSPACE-HOOKS)
+	// If session.id is present but process.cwd is missing, look up workspace from sessions table
+	if sessionID != "" && extractString(resourceAttrs, "process.cwd") == "" {
+		if workspace, err := r.backend.GetSessionWorkspace(sessionID); err == nil && workspace != "" {
+			resourceAttrs["process.cwd"] = workspace
+		}
+	}
 
 	// Calculate cost from tokens if not provided (M-TASK-HIERARCHY-FOLLOWUPS M6)
 	if costUSD == 0 && (tokensIn > 0 || tokensOut > 0) && model != "" {
@@ -572,6 +586,18 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 		provider = ProviderOllama
 	default:
 		provider = Provider(providerStr)
+	}
+
+	// Workspace enrichment (M-SESSION-WORKSPACE-HOOKS)
+	// If session.id is present but process.cwd is missing, look up workspace from sessions table
+	sessionID := extractString(resourceAttrs, "session.id")
+	if sessionID == "" {
+		sessionID = extractString(attrs, "session.id")
+	}
+	if sessionID != "" && extractString(resourceAttrs, "process.cwd") == "" {
+		if workspace, err := r.backend.GetSessionWorkspace(sessionID); err == nil && workspace != "" {
+			resourceAttrs["process.cwd"] = workspace
+		}
 	}
 
 	// Extract task hierarchy context (M-TASK-HIERARCHY)

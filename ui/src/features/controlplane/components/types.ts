@@ -48,6 +48,7 @@ export interface HeatmapCell {
 export interface Span {
   id: string;
   name: string;
+  display_name?: string; // Enriched name with tool metadata (file paths, patterns, commands)
   startMs: number;
   durationMs: number;
   children?: Span[];

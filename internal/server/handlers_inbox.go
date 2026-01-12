@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -92,6 +93,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	// Parse observatory filters for filtering Claude Code events
 	providerFilter := q.Get("provider")
 	modelFilter := q.Get("model")
+	workspaceFilter := q.Get("workspace")
 
 	messages, err := s.store.ListInboxMessages(opts)
 	if err != nil {
@@ -155,6 +157,24 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 					if modelFilter != "" && cc.Model != modelFilter {
 						continue
 					}
+					// Apply workspace filter if specified
+					if workspaceFilter != "" {
+						// Special case: "Unknown Workspace" filter matches events with no workspace
+						if workspaceFilter == "Unknown Workspace" || workspaceFilter == "unknown" {
+							if cc.Workspace != "" {
+								continue // Has workspace, but filter wants unknown → skip
+							}
+							// cc.Workspace is empty, matches "Unknown Workspace" filter → include
+						} else {
+							// Normal workspace filter - hide events with no workspace data
+							if cc.Workspace == "" {
+								continue // No workspace data → skip (user wants specific workspace)
+							}
+							if !matchesWorkspace(cc.Workspace, workspaceFilter) {
+								continue // Has workspace but doesn't match → skip
+							}
+						}
+					}
 					events = append(events, UnifiedEvent{
 						ID:         cc.ID,
 						CreatedAt:  cc.CreatedAt,
@@ -171,6 +191,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						Source:     "claude_code",
 						Model:      cc.Model,
 						Provider:   cc.Provider,
+						Workspace:  cc.Workspace,
 					})
 				}
 			}
@@ -403,4 +424,42 @@ func (s *Server) handleInboxCleanup(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode cleanup response: %v", err)
 	}
+}
+
+// matchesWorkspace checks if a full path matches a workspace filter.
+// The filter can be:
+// - A full path: "/Users/mark/dev/sunholo/ailang"
+// - A project name: "ailang" (matches paths ending with /ailang)
+// - A special grouping: "Eval Benchmarks", "Coordinator Tasks", "Unknown Workspace"
+func matchesWorkspace(fullPath, filter string) bool {
+	if fullPath == "" || filter == "" {
+		return true
+	}
+
+	// Exact match
+	if fullPath == filter {
+		return true
+	}
+
+	// Handle special groupings
+	switch filter {
+	case "Eval Benchmarks", "eval_workspace":
+		return strings.Contains(fullPath, ".eval_workspace") || strings.Contains(fullPath, "eval_workspace")
+	case "Coordinator Tasks", "coordinator_worktrees":
+		return strings.Contains(fullPath, "/worktrees/")
+	case "Unknown Workspace", "unknown":
+		return fullPath == "" || fullPath == "unknown"
+	}
+
+	// Project name match: filter "ailang" matches "/Users/mark/dev/sunholo/ailang"
+	// Check if path ends with /filter or /filter/something
+	if strings.HasSuffix(fullPath, "/"+filter) {
+		return true
+	}
+	if strings.Contains(fullPath, "/"+filter+"/") {
+		return true
+	}
+
+	// Direct substring match for simple cases
+	return strings.Contains(fullPath, filter)
 }

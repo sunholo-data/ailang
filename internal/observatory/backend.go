@@ -47,6 +47,20 @@ type Backend interface {
 	// Called after storing claude.execute span to retroactively link orphaned Claude Code events
 	LinkOrphanedSpansBySession(ctx context.Context, sessionID, taskID, assignmentID string) (int64, error)
 
+	// Session operations (M-SESSION-WORKSPACE-HOOKS)
+	// GetSessionWorkspace returns workspace for a session (for span enrichment)
+	GetSessionWorkspace(sessionID string) (string, error)
+	// UpsertSession inserts or updates a session record from hook data
+	UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error
+	// UpdateSessionEnded marks a session as ended
+	UpdateSessionEnded(ctx context.Context, sessionID string) error
+	// InsertToolStart records the start of a tool call
+	InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error
+	// UpdateToolEnd records the completion of a tool call
+	UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error
+	// BackfillSpansWorkspace updates existing spans that have session.id but missing workspace
+	BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error)
+
 	// Span event operations
 	CreateSpanEvent(ctx context.Context, e *SpanEvent) error
 	GetSpanEvents(ctx context.Context, spanID string) ([]SpanEvent, error)

@@ -229,5 +229,31 @@ func (b *JaegerBackend) LinkOrphanedSpansBySession(ctx context.Context, sessionI
 	return 0, nil
 }
 
+// Session operations - not supported by Jaeger backend (session tracking is local only).
+
+func (b *JaegerBackend) GetSessionWorkspace(sessionID string) (string, error) {
+	return "", nil
+}
+
+func (b *JaegerBackend) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
+	return nil
+}
+
+func (b *JaegerBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
+	return nil
+}
+
+func (b *JaegerBackend) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error {
+	return nil
+}
+
+func (b *JaegerBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error {
+	return nil
+}
+
+func (b *JaegerBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
+	return 0, nil
+}
+
 // Ensure JaegerBackend implements Backend
 var _ Backend = (*JaegerBackend)(nil)

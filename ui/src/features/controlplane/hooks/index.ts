@@ -6,3 +6,4 @@ export * from './useEventQueue';
 export * from './useTraceData';
 export * from './useControlPlaneStats';
 export * from './useBreakdownData';
+export * from './useSessionsData';

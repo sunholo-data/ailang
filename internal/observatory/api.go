@@ -49,6 +49,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 
 	// Span endpoints
 	mux.HandleFunc("GET /api/observatory/spans", a.handleListSpans)
+	mux.HandleFunc("GET /api/observatory/spans/enriched", a.handleGetEnrichedSpans)
 	mux.HandleFunc("POST /api/observatory/spans", a.handleCreateSpan)
 	mux.HandleFunc("GET /api/observatory/spans/{id}", a.handleGetSpan)
 	mux.HandleFunc("PUT /api/observatory/spans/{id}", a.handleUpdateSpan)
@@ -76,6 +77,12 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 
 	// Hierarchy endpoint (M-TASK-HIERARCHY)
 	mux.HandleFunc("GET /api/observatory/tasks/{id}/hierarchy", a.handleGetTaskHierarchy)
+
+	// Session endpoints (M-SESSION-WORKSPACE-HOOKS)
+	mux.HandleFunc("GET /api/observatory/sessions", a.handleListSessions)
+	mux.HandleFunc("GET /api/observatory/sessions/{id}", a.handleGetSession)
+	mux.HandleFunc("GET /api/observatory/sessions/{id}/tools", a.handleGetSessionTools)
+	mux.HandleFunc("GET /api/observatory/sessions/{id}/tools/summary", a.handleGetSessionToolsSummary)
 
 	// Telemetry ingest endpoint (for receiving OTEL/Claude data)
 	mux.HandleFunc("POST /api/observatory/ingest/claude", a.handleIngestClaude)
@@ -441,6 +448,458 @@ func (a *API) handleCreateSpanEvent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, event)
 }
 
+// ===== Enriched Spans Handler =====
+
+// handleGetEnrichedSpans returns spans with enriched display_name from session tool metadata.
+// GET /api/observatory/spans/enriched?trace_id=X&task_id=Y&limit=100
+func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
+	opts := SpanListOptions{
+		TaskID:            r.URL.Query().Get("task_id"),
+		TraceID:           r.URL.Query().Get("trace_id"),
+		AgentAssignmentID: r.URL.Query().Get("agent_assignment_id"),
+		Provider:          r.URL.Query().Get("provider"),
+		Model:             r.URL.Query().Get("model"),
+		Status:            r.URL.Query().Get("status"),
+	}
+
+	if startTime := r.URL.Query().Get("start_after"); startTime != "" {
+		if t, err := time.Parse(time.RFC3339, startTime); err == nil {
+			opts.StartAfter = t
+		}
+	}
+	if endTime := r.URL.Query().Get("start_before"); endTime != "" {
+		if t, err := time.Parse(time.RFC3339, endTime); err == nil {
+			opts.StartBefore = t
+		}
+	}
+	if limit := r.URL.Query().Get("limit"); limit != "" {
+		if l, err := strconv.Atoi(limit); err == nil {
+			opts.Limit = l
+		}
+	}
+	if offset := r.URL.Query().Get("offset"); offset != "" {
+		if o, err := strconv.Atoi(offset); err == nil {
+			opts.Offset = o
+		}
+	}
+
+	// Default limit for enriched queries
+	if opts.Limit == 0 {
+		opts.Limit = 100
+	}
+
+	spans, err := a.backend.ListSpans(r.Context(), opts)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Try to get SQLite backend for session enrichment
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		// No enrichment available, return spans as-is
+		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false})
+		return
+	}
+
+	// Find time range of all spans for timestamp-based correlation
+	var minTime, maxTime time.Time
+	for _, span := range spans {
+		if minTime.IsZero() || span.StartTime.Before(minTime) {
+			minTime = span.StartTime
+		}
+		endTime := span.StartTime.Add(time.Duration(span.DurationMs) * time.Millisecond)
+		if maxTime.IsZero() || endTime.After(maxTime) {
+			maxTime = endTime
+		}
+	}
+
+	// Expand time window by 30 seconds on each side for:
+	// - Clock drift between OTEL spans and hook-captured tools
+	// - Hook execution delay (hooks may fire before or after span creation)
+	// - Network latency differences
+	if !minTime.IsZero() {
+		minTime = minTime.Add(-30 * time.Second)
+		maxTime = maxTime.Add(30 * time.Second)
+	}
+
+	// Get all tools in the time range for timestamp-based correlation
+	// This works across different session ID systems (OTEL vs hooks)
+	var allToolsInRange []SessionTool
+	if !minTime.IsZero() {
+		allToolsInRange, _ = sqliteBackend.store.GetToolsByTimestampRange(r.Context(), minTime, maxTime, "")
+	}
+
+	// Enrich spans with tool metadata
+	enrichedSpans := make([]map[string]any, 0, len(spans))
+	for _, span := range spans {
+		enriched := spanToMap(span)
+
+		var displayName string
+
+		// Try timestamp + tool name correlation (cross-system correlation)
+		// This works even when OTEL spans and hook session_tools use different session IDs
+		toolNameFromSpan := extractToolNameFromSpan(span)
+		if toolNameFromSpan != "" {
+			displayName = findMatchingToolByTimestamp(span, allToolsInRange, toolNameFromSpan)
+		}
+
+		// Fallback: extract display name from span attributes or span name
+		if displayName == "" {
+			displayName = extractDisplayNameFromSpan(span)
+		}
+
+		if displayName != "" {
+			enriched["display_name"] = displayName
+		}
+
+		enrichedSpans = append(enrichedSpans, enriched)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true})
+}
+
+// extractDisplayNameFromSpan extracts a display name from span attributes or name.
+// Used as fallback when session_tools don't have matching data.
+func extractDisplayNameFromSpan(span *Span) string {
+	// Try to get tool_name from attributes
+	if span.Attributes != nil {
+		if toolName, ok := span.Attributes["tool_name"].(string); ok && toolName != "" {
+			return toolName
+		}
+	}
+
+	// Parse "claude_code.tool.X" pattern from span name
+	const prefix = "claude_code.tool."
+	if len(span.Name) > len(prefix) && span.Name[:len(prefix)] == prefix {
+		return span.Name[len(prefix):]
+	}
+
+	// Parse "api_request" with model info
+	if span.Name == "api_request" && span.Model != "" {
+		// Truncate model name if too long
+		model := span.Model
+		if len(model) > 25 {
+			model = model[:25] + "..."
+		}
+		return "API: " + model
+	}
+
+	return ""
+}
+
+// extractSessionIDsFromSpans extracts unique session IDs from span attributes.
+func extractSessionIDsFromSpans(spans []*Span) []string {
+	seen := make(map[string]bool)
+	var ids []string
+
+	for _, span := range spans {
+		if id := extractSessionIDFromSpan(span); id != "" && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+
+	return ids
+}
+
+// extractSessionIDFromSpan extracts session.id from span attributes or resource attributes.
+func extractSessionIDFromSpan(span *Span) string {
+	// Try span attributes first
+	if span.Attributes != nil {
+		if id, ok := span.Attributes["session.id"].(string); ok {
+			return id
+		}
+	}
+	// Try resource attributes
+	if span.ResourceAttributes != nil {
+		if id, ok := span.ResourceAttributes["session.id"].(string); ok {
+			return id
+		}
+	}
+	return ""
+}
+
+// findMatchingToolDisplayName finds a tool that matches the span by timestamp and generates display name.
+func findMatchingToolDisplayName(span *Span, tools []SessionTool) string {
+	// Look for tool with matching timestamp (within 100ms window)
+	const timestampTolerance = 100 * time.Millisecond
+
+	for _, tool := range tools {
+		// Check timestamp proximity
+		diff := span.StartTime.Sub(tool.StartTime)
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > timestampTolerance {
+			continue
+		}
+
+		// Found matching tool - generate display name
+		return generateDisplayName(tool.ToolName, tool.ToolInput)
+	}
+
+	// No matching tool found - try to match by span name containing tool name
+	for _, tool := range tools {
+		if containsToolName(span.Name, tool.ToolName) {
+			return generateDisplayName(tool.ToolName, tool.ToolInput)
+		}
+	}
+
+	return ""
+}
+
+// containsToolName checks if span name contains the tool name.
+func containsToolName(spanName, toolName string) bool {
+	// Simple substring match
+	return len(spanName) >= len(toolName) && spanName[:len(toolName)] == toolName
+}
+
+// extractToolNameFromSpan extracts the tool name from a span (e.g., "Bash" from "claude_code.tool.Bash").
+func extractToolNameFromSpan(span *Span) string {
+	// Try to get tool_name from attributes first
+	if span.Attributes != nil {
+		if toolName, ok := span.Attributes["tool_name"].(string); ok && toolName != "" {
+			return toolName
+		}
+	}
+
+	// Parse "claude_code.tool.X" pattern from span name
+	const prefix = "claude_code.tool."
+	if len(span.Name) > len(prefix) && span.Name[:len(prefix)] == prefix {
+		return span.Name[len(prefix):]
+	}
+
+	return ""
+}
+
+// findMatchingToolByTimestamp finds a tool that matches the span by timestamp and tool name.
+// Uses a tolerance window for clock drift between OTEL spans and hook-captured tools.
+func findMatchingToolByTimestamp(span *Span, tools []SessionTool, expectedToolName string) string {
+	// Tolerance window: 10 seconds to account for:
+	// - Hook execution delay (hooks run after tool completion)
+	// - Clock drift between OTEL and hook systems
+	// - Network latency for OTEL export vs immediate hook POST
+	const timestampTolerance = 10 * time.Second
+
+	var bestMatch *SessionTool
+	var bestDiff time.Duration = 24 * time.Hour // Start with large diff
+
+	for i := range tools {
+		tool := &tools[i]
+
+		// Must match tool name
+		if tool.ToolName != expectedToolName {
+			continue
+		}
+
+		// Calculate timestamp difference
+		diff := span.StartTime.Sub(tool.StartTime)
+		if diff < 0 {
+			diff = -diff
+		}
+
+		// Check if within tolerance and is better than current best
+		if diff <= timestampTolerance && diff < bestDiff {
+			bestMatch = tool
+			bestDiff = diff
+		}
+	}
+
+	if bestMatch != nil {
+		return generateDisplayName(bestMatch.ToolName, bestMatch.ToolInput)
+	}
+
+	return ""
+}
+
+// generateDisplayName creates a human-readable display name from tool metadata.
+func generateDisplayName(toolName string, input json.RawMessage) string {
+	var data map[string]any
+	if err := json.Unmarshal(input, &data); err != nil {
+		return toolName
+	}
+
+	switch toolName {
+	case "Read", "Write", "Edit":
+		if path, ok := data["file_path"].(string); ok {
+			return fmt.Sprintf("%s: %s", toolName, shortenPath(path))
+		}
+	case "Grep":
+		if pattern, ok := data["pattern"].(string); ok {
+			truncated := truncateString(pattern, 30)
+			if path, ok := data["path"].(string); ok {
+				return fmt.Sprintf("Grep: %q in %s", truncated, shortenPath(path))
+			}
+			return fmt.Sprintf("Grep: %q", truncated)
+		}
+	case "Glob":
+		if pattern, ok := data["pattern"].(string); ok {
+			if path, ok := data["path"].(string); ok {
+				return fmt.Sprintf("Glob: %s in %s", pattern, shortenPath(path))
+			}
+			return fmt.Sprintf("Glob: %s", pattern)
+		}
+	case "Bash":
+		if cmd, ok := data["command"].(string); ok {
+			return fmt.Sprintf("Bash: %s", truncateString(cmd, 40))
+		}
+	case "WebFetch":
+		if url, ok := data["url"].(string); ok {
+			return fmt.Sprintf("WebFetch: %s", truncateURL(url))
+		}
+	case "Task":
+		if agentType, ok := data["subagent_type"].(string); ok {
+			return fmt.Sprintf("Task: %s agent", agentType)
+		}
+		if prompt, ok := data["prompt"].(string); ok {
+			return fmt.Sprintf("Task: %s", truncateString(prompt, 40))
+		}
+	case "WebSearch":
+		if query, ok := data["query"].(string); ok {
+			return fmt.Sprintf("WebSearch: %q", truncateString(query, 40))
+		}
+	case "AskUserQuestion":
+		if questions, ok := data["questions"].([]any); ok && len(questions) > 0 {
+			if q, ok := questions[0].(map[string]any); ok {
+				if header, ok := q["header"].(string); ok {
+					return fmt.Sprintf("AskUser: %s", header)
+				}
+			}
+		}
+		return "AskUser"
+	}
+
+	return toolName
+}
+
+// shortenPath truncates a file path to show only the last 2-3 components.
+func shortenPath(path string) string {
+	parts := splitPathForDisplay(path)
+	if len(parts) <= 3 {
+		return path
+	}
+	return ".../" + parts[len(parts)-3] + "/" + parts[len(parts)-2] + "/" + parts[len(parts)-1]
+}
+
+// splitPathForDisplay splits a path into components for display purposes.
+func splitPathForDisplay(path string) []string {
+	var parts []string
+	current := ""
+	for _, c := range path {
+		if c == '/' {
+			if current != "" {
+				parts = append(parts, current)
+				current = ""
+			}
+		} else {
+			current += string(c)
+		}
+	}
+	if current != "" {
+		parts = append(parts, current)
+	}
+	return parts
+}
+
+// truncateString truncates a string to maxLen with ellipsis.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// truncateURL truncates a URL to show host + truncated path.
+func truncateURL(url string) string {
+	// Find host start (after ://)
+	hostStart := 0
+	if idx := findSubstring(url, "://"); idx >= 0 {
+		hostStart = idx + 3
+	}
+
+	// Find path start (after host)
+	pathStart := hostStart
+	for i := hostStart; i < len(url); i++ {
+		if url[i] == '/' {
+			pathStart = i
+			break
+		}
+	}
+
+	// If URL is short enough, return as-is
+	if len(url) <= 50 {
+		return url
+	}
+
+	// Return host + truncated path
+	host := url[hostStart:pathStart]
+	if pathStart < len(url) {
+		path := url[pathStart:]
+		if len(path) > 20 {
+			path = path[:20] + "..."
+		}
+		return host + path
+	}
+	return host
+}
+
+// findSubstring finds the index of substr in s, or -1 if not found.
+func findSubstring(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+// spanToMap converts a Span to a map for JSON serialization with additional fields.
+func spanToMap(span *Span) map[string]any {
+	m := map[string]any{
+		"id":         span.ID,
+		"trace_id":   span.TraceID,
+		"name":       span.Name,
+		"start_time": span.StartTime,
+		"end_time":   span.EndTime,
+		"status":     span.Status,
+	}
+	if span.ParentSpanID != "" {
+		m["parent_span_id"] = span.ParentSpanID
+	}
+	if span.TaskID != "" {
+		m["task_id"] = span.TaskID
+	}
+	if span.AgentAssignmentID != "" {
+		m["agent_assignment_id"] = span.AgentAssignmentID
+	}
+	if span.Attributes != nil {
+		m["attributes"] = span.Attributes
+	}
+	if span.ResourceAttributes != nil {
+		m["resource_attributes"] = span.ResourceAttributes
+	}
+	if span.Provider != "" {
+		m["provider"] = span.Provider
+	}
+	if span.Model != "" {
+		m["model"] = span.Model
+	}
+	if span.TokensIn > 0 {
+		m["tokens_in"] = span.TokensIn
+	}
+	if span.TokensOut > 0 {
+		m["tokens_out"] = span.TokensOut
+	}
+	if span.CostUSD > 0 {
+		m["cost_usd"] = span.CostUSD
+	}
+	if len(span.Events) > 0 {
+		m["events"] = span.Events
+	}
+	return m
+}
+
 // ===== Trace Handlers =====
 
 func (a *API) handleListTraces(w http.ResponseWriter, r *http.Request) {
@@ -747,4 +1206,273 @@ func (a *API) handleIngestOTEL(w http.ResponseWriter, r *http.Request) {
 		"span_ids": spanIDs,
 		"count":    len(spanIDs),
 	})
+}
+
+// ===== Session Handlers (M-SESSION-WORKSPACE-HOOKS) =====
+
+func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	// Access Store directly via SQLiteBackend
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		return
+	}
+
+	sessions, err := sqliteBackend.store.ListRecentSessions(r.Context(), limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
+}
+
+func (a *API) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		return
+	}
+
+	session, err := sqliteBackend.store.GetSession(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if session == nil {
+		writeError(w, http.StatusNotFound, "session not found: "+id)
+		return
+	}
+	writeJSON(w, http.StatusOK, session)
+}
+
+func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		return
+	}
+
+	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Enrich tool data with parsed metadata
+	enrichedTools := make([]map[string]any, 0, len(tools))
+	for _, tool := range tools {
+		enriched := map[string]any{
+			"tool_use_id": tool.ToolUseID,
+			"session_id":  tool.SessionID,
+			"tool_name":   tool.ToolName,
+			"start_time":  tool.StartTime,
+		}
+		if tool.EndTime != nil {
+			enriched["end_time"] = tool.EndTime
+			enriched["duration_ms"] = tool.EndTime.Sub(tool.StartTime).Milliseconds()
+		}
+		if tool.Success != nil {
+			enriched["success"] = *tool.Success
+		}
+		if len(tool.ToolInput) > 0 {
+			enriched["tool_input"] = tool.ToolInput
+			// Parse rich metadata from tool input
+			if metadata := parseToolMetadata(tool.ToolName, tool.ToolInput); metadata != nil {
+				enriched["metadata"] = metadata
+			}
+		}
+		if len(tool.ToolResponse) > 0 {
+			enriched["tool_response"] = tool.ToolResponse
+		}
+		enrichedTools = append(enrichedTools, enriched)
+	}
+
+	writeJSON(w, http.StatusOK, enrichedTools)
+}
+
+func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok {
+		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
+		return
+	}
+
+	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Aggregate by tool name with rich metadata
+	summary := make(map[string]map[string]any)
+	filesByTool := make(map[string][]string)
+
+	for _, tool := range tools {
+		if _, exists := summary[tool.ToolName]; !exists {
+			summary[tool.ToolName] = map[string]any{
+				"count":       0,
+				"success":     0,
+				"failed":      0,
+				"total_ms":    int64(0),
+				"files":       []string{},
+				"directories": []string{},
+				"patterns":    []string{},
+				"commands":    []string{},
+			}
+		}
+
+		s := summary[tool.ToolName]
+		s["count"] = s["count"].(int) + 1
+
+		if tool.Success != nil {
+			if *tool.Success {
+				s["success"] = s["success"].(int) + 1
+			} else {
+				s["failed"] = s["failed"].(int) + 1
+			}
+		}
+
+		if tool.EndTime != nil {
+			duration := tool.EndTime.Sub(tool.StartTime).Milliseconds()
+			s["total_ms"] = s["total_ms"].(int64) + duration
+		}
+
+		// Extract rich metadata
+		if len(tool.ToolInput) > 0 {
+			if metadata := parseToolMetadata(tool.ToolName, tool.ToolInput); metadata != nil {
+				if file, ok := metadata["file_path"].(string); ok {
+					filesByTool[tool.ToolName] = append(filesByTool[tool.ToolName], file)
+				}
+				if pattern, ok := metadata["pattern"].(string); ok {
+					patterns := s["patterns"].([]string)
+					s["patterns"] = appendUnique(patterns, pattern)
+				}
+				if cmd, ok := metadata["command"].(string); ok {
+					commands := s["commands"].([]string)
+					// Truncate long commands
+					if len(cmd) > 60 {
+						cmd = cmd[:60] + "..."
+					}
+					s["commands"] = appendUnique(commands, cmd)
+				}
+			}
+		}
+	}
+
+	// Add deduplicated files to summary
+	for toolName, files := range filesByTool {
+		summary[toolName]["files"] = uniqueStrings(files)
+	}
+
+	// Convert map to array format for frontend
+	toolsArray := make([]map[string]any, 0, len(summary))
+	for toolName, data := range summary {
+		// Combine details: files, patterns, commands
+		details := make([]string, 0)
+		if files, ok := data["files"].([]string); ok {
+			details = append(details, files...)
+		}
+		if patterns, ok := data["patterns"].([]string); ok {
+			details = append(details, patterns...)
+		}
+		if commands, ok := data["commands"].([]string); ok {
+			details = append(details, commands...)
+		}
+
+		toolsArray = append(toolsArray, map[string]any{
+			"tool_name":     toolName,
+			"count":         data["count"],
+			"success_count": data["success"],
+			"details":       details,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"tools": toolsArray})
+}
+
+// parseToolMetadata extracts structured metadata from tool input JSON.
+func parseToolMetadata(toolName string, input json.RawMessage) map[string]any {
+	var data map[string]any
+	if err := json.Unmarshal(input, &data); err != nil {
+		return nil
+	}
+
+	metadata := make(map[string]any)
+
+	switch toolName {
+	case "Read", "Write", "Edit":
+		if path, ok := data["file_path"].(string); ok {
+			metadata["file_path"] = path
+		}
+	case "Grep":
+		if pattern, ok := data["pattern"].(string); ok {
+			metadata["pattern"] = pattern
+		}
+		if path, ok := data["path"].(string); ok {
+			metadata["search_path"] = path
+		}
+	case "Glob":
+		if pattern, ok := data["pattern"].(string); ok {
+			metadata["pattern"] = pattern
+		}
+		if path, ok := data["path"].(string); ok {
+			metadata["search_path"] = path
+		}
+	case "Bash":
+		if cmd, ok := data["command"].(string); ok {
+			metadata["command"] = cmd
+		}
+	case "Task":
+		if prompt, ok := data["prompt"].(string); ok {
+			// Truncate long prompts
+			if len(prompt) > 100 {
+				prompt = prompt[:100] + "..."
+			}
+			metadata["prompt"] = prompt
+		}
+		if agentType, ok := data["subagent_type"].(string); ok {
+			metadata["subagent_type"] = agentType
+		}
+	}
+
+	if len(metadata) == 0 {
+		return nil
+	}
+	return metadata
+}
+
+// appendUnique appends value to slice if not already present.
+func appendUnique(slice []string, value string) []string {
+	for _, s := range slice {
+		if s == value {
+			return slice
+		}
+	}
+	return append(slice, value)
+}
+
+// uniqueStrings returns a deduplicated slice.
+func uniqueStrings(slice []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(slice))
+	for _, s := range slice {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
 }

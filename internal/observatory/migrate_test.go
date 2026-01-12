@@ -59,13 +59,15 @@ func TestMigrateWithVersion(t *testing.T) {
 	}
 	defer db.Close()
 
-	// First migration
+	// First migration - should run all migrations up to current version
 	version, err := MigrateWithVersion(db)
 	if err != nil {
 		t.Fatalf("MigrateWithVersion failed: %v", err)
 	}
-	if version != 1 {
-		t.Errorf("expected version 1, got %d", version)
+	// Current schema version is 3 (v1=base, v2=parent_task_id, v3=sessions)
+	expectedVersion := 3
+	if version != expectedVersion {
+		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
 
 	// Second call should return same version without error
@@ -73,8 +75,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second MigrateWithVersion failed: %v", err)
 	}
-	if version != 1 {
-		t.Errorf("expected version 1 on second call, got %d", version)
+	if version != expectedVersion {
+		t.Errorf("expected version %d on second call, got %d", expectedVersion, version)
 	}
 }
 
@@ -112,6 +114,8 @@ func TestSchema_TablesExist(t *testing.T) {
 		"spans",
 		"span_events",
 		"messages",
+		"sessions",
+		"session_tools",
 	}
 
 	for _, table := range tables {

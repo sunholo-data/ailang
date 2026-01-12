@@ -7,6 +7,7 @@ import { BreakdownItem } from '../hooks';
 import type { AggregationStats } from './types';
 import type { ControlPlaneFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
+import { SessionsNav } from './SessionsNav';
 import styles from '../ControlPlane.module.css';
 
 interface FormattedBreakdownItem extends BreakdownItem {
@@ -208,6 +209,29 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
             ))}
           </NavItem>
 
+          {/* Workspace breakdown - higher visibility for multi-project filtering */}
+          {breakdowns?.byWorkspace && breakdowns.byWorkspace.length > 0 && (
+            <NavItem
+              id="workspace"
+              label="By Workspace"
+              icon="⬡"
+              depth={1}
+            >
+              {breakdowns.byWorkspace.slice(0, 10).map(item => (
+                <NavItem
+                  key={item.id}
+                  id={`workspace-${item.id}`}
+                  label={item.label || item.id}
+                  icon="·"
+                  depth={2}
+                  count={item.span_count}
+                  percentage={item.percentageFormatted}
+                  cost={item.costFormatted}
+                />
+              ))}
+            </NavItem>
+          )}
+
           {/* Model breakdown */}
           <NavItem
             id="model"
@@ -228,30 +252,11 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
               />
             ))}
           </NavItem>
-
-          {/* Workspace breakdown */}
-          {breakdowns?.byWorkspace && breakdowns.byWorkspace.length > 0 && (
-            <NavItem
-              id="workspace"
-              label="By Workspace"
-              icon="⬡"
-              depth={1}
-            >
-              {breakdowns.byWorkspace.map(item => (
-                <NavItem
-                  key={item.id}
-                  id={`workspace-${item.id}`}
-                  label={item.label || item.id}
-                  icon="·"
-                  depth={2}
-                  count={item.task_count}
-                  cost={item.costFormatted}
-                />
-              ))}
-            </NavItem>
-          )}
         </NavItem>
       </div>
+
+      {/* Sessions Section - Claude Code hook-captured sessions */}
+      <SessionsNav />
 
       {/* Metrics Summary Section */}
       <div className={styles.navMetrics}>

@@ -281,6 +281,11 @@ func (s *Server) Start() error {
 		s.obsAPI.RegisterRoutes(mux)
 		log.Printf("Observatory API registered at /api/observatory/*")
 	}
+	// Observatory hooks endpoint for Claude Code telemetry
+	if s.obsBackend != nil {
+		mux.HandleFunc("/api/observatory/hooks", s.handleObservatoryHooks)
+		log.Printf("Observatory hooks endpoint registered at /api/observatory/hooks")
+	}
 	// OTLP receiver for standard trace/log/metrics ingestion
 	if s.obsBackend != nil {
 		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)

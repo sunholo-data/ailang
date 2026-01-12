@@ -91,6 +91,94 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 2
 	}
 
+	// Migration v3: Add sessions and session_tools tables for Claude Code hook integration
+	if currentVersion < 3 {
+		// Check if sessions table already exists (idempotent)
+		var sessionsExists int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sessions'
+		`).Scan(&sessionsExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check sessions table: %w", err)
+		}
+
+		if sessionsExists == 0 {
+			_, err = db.Exec(`
+				CREATE TABLE IF NOT EXISTS sessions (
+					session_id TEXT PRIMARY KEY,
+					workspace TEXT NOT NULL,
+					claude_version TEXT,
+					source TEXT DEFAULT 'hook',
+					started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+					ended_at TIMESTAMP,
+					turn_count INTEGER DEFAULT 0
+				)
+			`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create sessions table: %w", err)
+			}
+
+			_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace)`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create sessions workspace index: %w", err)
+			}
+
+			_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC)`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create sessions started index: %w", err)
+			}
+		}
+
+		// Check if session_tools table already exists
+		var toolsExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='session_tools'
+		`).Scan(&toolsExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check session_tools table: %w", err)
+		}
+
+		if toolsExists == 0 {
+			_, err = db.Exec(`
+				CREATE TABLE IF NOT EXISTS session_tools (
+					tool_use_id TEXT PRIMARY KEY,
+					session_id TEXT NOT NULL,
+					tool_name TEXT NOT NULL,
+					tool_input TEXT,
+					tool_response TEXT,
+					start_time TIMESTAMP NOT NULL,
+					end_time TIMESTAMP,
+					success BOOLEAN,
+					FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+				)
+			`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create session_tools table: %w", err)
+			}
+
+			_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_session_tools_session ON session_tools(session_id)`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create session_tools session index: %w", err)
+			}
+
+			_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_session_tools_name ON session_tools(tool_name)`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create session_tools name index: %w", err)
+			}
+
+			_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_session_tools_time ON session_tools(start_time DESC)`)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create session_tools time index: %w", err)
+			}
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (3)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 3: %w", err)
+		}
+		currentVersion = 3
+	}
+
 	return currentVersion, nil
 }
 
@@ -104,6 +192,8 @@ func ValidateSchema(db *sql.DB) error {
 		"spans",
 		"span_events",
 		"messages",
+		"sessions",
+		"session_tools",
 	}
 
 	for _, table := range expectedTables {

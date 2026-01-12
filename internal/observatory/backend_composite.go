@@ -320,5 +320,31 @@ func (b *CompositeBackend) LinkOrphanedSpansBySession(ctx context.Context, sessi
 	return b.local.LinkOrphanedSpansBySession(ctx, sessionID, taskID, assignmentID)
 }
 
+// Session operations - delegate to local (session tracking is local only).
+
+func (b *CompositeBackend) GetSessionWorkspace(sessionID string) (string, error) {
+	return b.local.GetSessionWorkspace(sessionID)
+}
+
+func (b *CompositeBackend) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
+	return b.local.UpsertSession(ctx, sessionID, workspace, version, source)
+}
+
+func (b *CompositeBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
+	return b.local.UpdateSessionEnded(ctx, sessionID)
+}
+
+func (b *CompositeBackend) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error {
+	return b.local.InsertToolStart(ctx, sessionID, toolUseID, toolName, toolInput)
+}
+
+func (b *CompositeBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error {
+	return b.local.UpdateToolEnd(ctx, toolUseID, toolResponse, success)
+}
+
+func (b *CompositeBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
+	return b.local.BackfillSpansWorkspace(ctx, sessionID, workspace)
+}
+
 // Ensure CompositeBackend implements Backend
 var _ Backend = (*CompositeBackend)(nil)

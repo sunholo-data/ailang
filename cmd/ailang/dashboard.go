@@ -16,6 +16,11 @@ import (
 // Default dashboard server URL
 const defaultDashboardURL = "http://localhost:1957"
 
+// HTTP client with timeout for dashboard requests
+var dashboardHTTPClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
 // getDashboardURL returns the dashboard server URL from flag, env, or default
 func getDashboardURL(flagValue string) string {
 	if flagValue != "" {
@@ -36,6 +41,8 @@ func dashboardCommand() {
 		fmt.Println("  inbox      Query unified inbox (messages + claude code events)")
 		fmt.Println("  traces     Query trace summaries")
 		fmt.Println("  hierarchy  Show exec task hierarchy (message → exec → turn → tool)")
+		fmt.Println("  sessions   List Claude Code sessions with workspace info")
+		fmt.Println("  tools      Show tool usage for a session (file paths, patterns)")
 		fmt.Println("  stats      Query aggregation statistics")
 		fmt.Println("  health     Check server health")
 		fmt.Println()
@@ -43,6 +50,8 @@ func dashboardCommand() {
 		fmt.Println("  ailang dashboard spans --provider gemini")
 		fmt.Println("  ailang dashboard inbox --model gemini-2.5-flash")
 		fmt.Println("  ailang dashboard hierarchy --limit 10")
+		fmt.Println("  ailang dashboard sessions --limit 10")
+		fmt.Println("  ailang dashboard tools <session-id> --summary")
 		fmt.Println("  ailang dashboard stats --start 2026-01-01")
 		fmt.Println("  ailang dashboard health")
 		fmt.Println()
@@ -61,6 +70,10 @@ func dashboardCommand() {
 		dashboardTracesCommand()
 	case "hierarchy":
 		dashboardHierarchyCommand()
+	case "sessions":
+		dashboardSessionsCommand()
+	case "tools":
+		dashboardToolsCommand()
 	case "stats":
 		dashboardStatsCommand()
 	case "health":
@@ -82,6 +95,7 @@ func dashboardSpansCommand() {
 	traceID := fs.String("trace-id", "", "Filter by trace ID")
 	limit := fs.Int("limit", 50, "Maximum results")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	enriched := fs.Bool("enriched", false, "Enrich spans with tool metadata (file paths, commands, etc.)")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -107,8 +121,13 @@ func dashboardSpansCommand() {
 	}
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
-	apiURL := fmt.Sprintf("%s/api/observatory/spans?%s", baseURL, params.Encode())
-	resp, err := http.Get(apiURL)
+	// Use enriched endpoint if flag is set
+	endpoint := "spans"
+	if *enriched {
+		endpoint = "spans/enriched"
+	}
+	apiURL := fmt.Sprintf("%s/api/observatory/%s?%s", baseURL, endpoint, params.Encode())
+	resp, err := dashboardHTTPClient.Get(apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -123,9 +142,23 @@ func dashboardSpansCommand() {
 	}
 
 	var spans []map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&spans); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
-		os.Exit(1)
+	if *enriched {
+		// Enriched endpoint returns {spans: [...], enriched: true}
+		var response struct {
+			Spans    []map[string]interface{} `json:"spans"`
+			Enriched bool                     `json:"enriched"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+			os.Exit(1)
+		}
+		spans = response.Spans
+	} else {
+		// Regular endpoint returns array directly
+		if err := json.NewDecoder(resp.Body).Decode(&spans); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	if *jsonOutput {
@@ -140,14 +173,23 @@ func dashboardSpansCommand() {
 		return
 	}
 
-	// Table output
+	// Table output - use display_name for enriched output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tPROVIDER\tMODEL\tSTATUS\tDURATION")
-	fmt.Fprintln(w, strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 20)+"\t"+strings.Repeat("-", 10)+"\t"+strings.Repeat("-", 20)+"\t"+strings.Repeat("-", 6)+"\t"+strings.Repeat("-", 10))
+	if *enriched {
+		fmt.Fprintln(w, "ID\tDISPLAY NAME\tPROVIDER\tMODEL\tSTATUS\tDURATION")
+	} else {
+		fmt.Fprintln(w, "ID\tNAME\tPROVIDER\tMODEL\tSTATUS\tDURATION")
+	}
+	fmt.Fprintln(w, strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 40)+"\t"+strings.Repeat("-", 10)+"\t"+strings.Repeat("-", 20)+"\t"+strings.Repeat("-", 6)+"\t"+strings.Repeat("-", 10))
 
 	for _, span := range spans {
 		id := truncateID(getString(span, "id"))
-		name := truncate(getString(span, "name"), 20)
+		// Use display_name if enriched and available, otherwise use name
+		name := getString(span, "display_name")
+		if name == "" {
+			name = getString(span, "name")
+		}
+		name = truncate(name, 40)
 		prov := getString(span, "provider")
 		if prov == "" {
 			prov = "-"
@@ -808,6 +850,241 @@ func formatDuration(ms float64) string {
 		return fmt.Sprintf("%.0fms", ms)
 	}
 	return fmt.Sprintf("%.1fs", ms/1000)
+}
+
+// dashboardSessionsCommand lists Claude Code sessions.
+func dashboardSessionsCommand() {
+	fs := flag.NewFlagSet("dashboard sessions", flag.ExitOnError)
+	server := fs.String("server", "", "Dashboard server URL")
+	limit := fs.Int("limit", 20, "Maximum results")
+	jsonOutput := fs.Bool("json", false, "Output as JSON")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	baseURL := getDashboardURL(*server)
+	apiURL := fmt.Sprintf("%s/api/observatory/sessions?limit=%d", baseURL, *limit)
+
+	resp, err := dashboardHTTPClient.Get(apiURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(os.Stderr, "Error from server: %s\n%s\n", resp.Status, string(body))
+		os.Exit(1)
+	}
+
+	var response struct {
+		Sessions []map[string]interface{} `json:"sessions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+		os.Exit(1)
+	}
+	sessions := response.Sessions
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(response) // Output full response object
+		return
+	}
+
+	if len(sessions) == 0 {
+		fmt.Println("No sessions found")
+		fmt.Println()
+		fmt.Println("Sessions are captured via Claude Code hooks.")
+		fmt.Println("Make sure the telemetry hook is configured in ~/.claude/settings.json")
+		return
+	}
+
+	// Table output
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SESSION ID\tWORKSPACE\tSTARTED\tTURNS")
+	fmt.Fprintln(w, strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 30)+"\t"+strings.Repeat("-", 10)+"\t"+strings.Repeat("-", 5))
+
+	for _, session := range sessions {
+		id := truncateID(getString(session, "session_id"))
+		workspace := getString(session, "workspace")
+		// Show just the project name from the path
+		if idx := strings.LastIndex(workspace, "/"); idx > 0 {
+			workspace = ".../" + workspace[idx+1:]
+		}
+		workspace = truncate(workspace, 30)
+		started := formatTimestampAge(getString(session, "started_at"))
+		turns := getInt(session, "turn_count")
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%d\n", id, workspace, started, turns)
+	}
+	w.Flush()
+	fmt.Printf("\nTotal: %d sessions\n", len(sessions))
+	fmt.Println()
+	fmt.Println("View tools for a session: ailang dashboard tools <session-id>")
+}
+
+// dashboardToolsCommand shows tool usage for a session.
+func dashboardToolsCommand() {
+	fs := flag.NewFlagSet("dashboard tools", flag.ExitOnError)
+	server := fs.String("server", "", "Dashboard server URL")
+	summary := fs.Bool("summary", false, "Show aggregated summary by tool type")
+	jsonOutput := fs.Bool("json", false, "Output as JSON")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Session ID is the first positional arg after flags
+	args := fs.Args()
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: ailang dashboard tools <session-id> [--summary] [--json]\n")
+		fmt.Fprintf(os.Stderr, "\nGet session IDs from: ailang dashboard sessions\n")
+		os.Exit(1)
+	}
+	sessionID := args[0]
+
+	baseURL := getDashboardURL(*server)
+	var apiURL string
+	if *summary {
+		apiURL = fmt.Sprintf("%s/api/observatory/sessions/%s/tools/summary", baseURL, sessionID)
+	} else {
+		apiURL = fmt.Sprintf("%s/api/observatory/sessions/%s/tools", baseURL, sessionID)
+	}
+
+	resp, err := dashboardHTTPClient.Get(apiURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(os.Stderr, "Error from server: %s\n%s\n", resp.Status, string(body))
+		os.Exit(1)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if *jsonOutput {
+		var parsed interface{}
+		json.Unmarshal(body, &parsed)
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(parsed)
+		return
+	}
+
+	if *summary {
+		displayToolsSummary(body, sessionID)
+	} else {
+		displayToolsList(body, sessionID)
+	}
+}
+
+func displayToolsSummary(body []byte, sessionID string) {
+	// API returns {tools: [{tool_name, count, success_count, details}, ...]}
+	var response struct {
+		Tools []map[string]interface{} `json:"tools"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(response.Tools) == 0 {
+		fmt.Printf("No tools found for session %s\n", truncateID(sessionID))
+		return
+	}
+
+	fmt.Printf("TOOL USAGE SUMMARY for session %s\n", truncateID(sessionID))
+	fmt.Println(strings.Repeat("─", 60))
+
+	// Print tools from array
+	for _, data := range response.Tools {
+		toolName := getString(data, "tool_name")
+		count := getInt(data, "count")
+		success := getInt(data, "success_count")
+		failed := count - success
+
+		statusStr := ""
+		if success > 0 || failed > 0 {
+			statusStr = fmt.Sprintf(" (%d ok, %d fail)", success, failed)
+		}
+
+		fmt.Printf("\n%s: %d calls%s\n", toolName, count, statusStr)
+
+		// Show details (combined files, patterns, commands)
+		if details, ok := data["details"].([]interface{}); ok && len(details) > 0 {
+			fmt.Println("  Details:")
+			for i, d := range details {
+				if i >= 5 {
+					fmt.Printf("    ... and %d more\n", len(details)-5)
+					break
+				}
+				detail := fmt.Sprintf("%v", d)
+				// Shorten long paths
+				if len(detail) > 60 {
+					detail = "..." + detail[len(detail)-57:]
+				}
+				fmt.Printf("    %s\n", detail)
+			}
+		}
+	}
+}
+
+func displayToolsList(body []byte, sessionID string) {
+	var tools []map[string]interface{}
+	if err := json.Unmarshal(body, &tools); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(tools) == 0 {
+		fmt.Printf("No tools found for session %s\n", truncateID(sessionID))
+		return
+	}
+
+	fmt.Printf("TOOLS for session %s (%d total)\n", truncateID(sessionID), len(tools))
+	fmt.Println(strings.Repeat("─", 70))
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "TOOL\tDURATION\tDETAILS")
+	fmt.Fprintln(w, strings.Repeat("-", 15)+"\t"+strings.Repeat("-", 10)+"\t"+strings.Repeat("-", 40))
+
+	for _, tool := range tools {
+		name := getString(tool, "tool_name")
+		dur := formatDuration(getFloat(tool, "duration_ms"))
+
+		// Extract details from metadata
+		details := ""
+		if metadata, ok := tool["metadata"].(map[string]interface{}); ok {
+			if filePath, ok := metadata["file_path"].(string); ok {
+				// Shorten path
+				if len(filePath) > 40 {
+					filePath = "..." + filePath[len(filePath)-37:]
+				}
+				details = filePath
+			} else if pattern, ok := metadata["pattern"].(string); ok {
+				details = "grep: " + truncate(pattern, 35)
+			} else if cmd, ok := metadata["command"].(string); ok {
+				details = truncate(cmd, 40)
+			} else if prompt, ok := metadata["prompt"].(string); ok {
+				details = truncate(prompt, 40)
+			}
+		}
+
+		fmt.Fprintf(w, "%s\t%s\t%s\n", name, dur, details)
+	}
+	w.Flush()
 }
 
 func formatTimestampAge(timestamp string) string {

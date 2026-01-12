@@ -284,5 +284,31 @@ func (b *SQLiteBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]
 	return b.store.GetExecTaskHierarchy(limit)
 }
 
+// ===== Session Operations (M-SESSION-WORKSPACE-HOOKS) =====
+
+func (b *SQLiteBackend) GetSessionWorkspace(sessionID string) (string, error) {
+	return b.store.GetSessionWorkspace(sessionID)
+}
+
+func (b *SQLiteBackend) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
+	return b.store.UpsertSession(ctx, sessionID, workspace, version, source)
+}
+
+func (b *SQLiteBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
+	return b.store.UpdateSessionEnded(ctx, sessionID)
+}
+
+func (b *SQLiteBackend) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error {
+	return b.store.InsertToolStart(ctx, sessionID, toolUseID, toolName, toolInput)
+}
+
+func (b *SQLiteBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error {
+	return b.store.UpdateToolEnd(ctx, toolUseID, toolResponse, success)
+}
+
+func (b *SQLiteBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
+	return b.store.BackfillSpansWorkspace(ctx, sessionID, workspace)
+}
+
 // Ensure SQLiteBackend implements Backend
 var _ Backend = (*SQLiteBackend)(nil)
