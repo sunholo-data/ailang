@@ -36,67 +36,77 @@
   min-height: calc(100vh - 140px);
 }
 
-/* Header */
+/* Header - Mission Control Telemetry Bar */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3, 12px) var(--space-4, 16px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
   border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
   background: var(--bg-elevated, #141d2b);
+  min-height: 44px;
+  position: relative;
+  z-index: 10;
+  overflow: visible;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
 }
 
 .headerTitle {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  font-size: var(--text-sm, 14px);
-  font-weight: var(--font-semibold, 600);
-  color: var(--text-primary, #e6edf3);
 }
 
 .headerIcon {
-  font-size: 16px;
-}
-
-.headerBadge {
-  font-size: var(--text-xs, 11px);
-  padding: var(--space-1, 2px) var(--space-2, 8px);
-  border-radius: var(--radius-full, 10px);
-  background: var(--color-primary, #e73c17);
-  color: var(--text-inverse, #ffffff);
-  font-weight: var(--font-semibold, 600);
-}
-
-/* Live connection indicator */
-.liveIndicator {
-  font-size: var(--text-xs, 10px);
-  margin-left: var(--space-1, 4px);
-  transition: all var(--transition-fast, 150ms ease);
-}
-
-.liveIndicatorConnected {
-  color: var(--color-success-light, #48bb78);
-  animation: pulse 2s infinite;
-}
-
-.liveIndicatorDisconnected {
+  font-size: 14px;
   color: var(--text-tertiary, #6e7681);
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.headerLabel {
+  font-size: var(--text-sm, 13px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-primary, #e6edf3);
+  letter-spacing: 0.02em;
+}
+
+/* Telemetry Readout - Instrument Panel Style */
+.telemetryItem {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--bg-base, #0f1419);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 4px);
+}
+
+.telemetryValue {
+  font-family: var(--font-mono, 'SF Mono', Consolas, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary, #e73c17);
+  letter-spacing: -0.02em;
+}
+
+.telemetryLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .headerControls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2, 8px);
+  position: relative;
+  z-index: 20;
 }
 
 /* Selected Span Metadata Bar */
@@ -295,35 +305,58 @@
   color: var(--text-tertiary, #6e7681);
 }
 
+.filterText {
+  font-family: var(--font-mono, 'SF Mono', Consolas, monospace);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
 .filterMenu {
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 0;
   margin-top: var(--space-1, 4px);
-  min-width: 240px;
-  max-height: 320px;
-  overflow-y: auto;
+  min-width: 220px;
+  max-height: 360px;
   background: var(--bg-elevated, #161b22);
   border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-md, 6px);
   box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.4));
-  z-index: 100;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.filterMenuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  background: var(--bg-base, #0f1419);
+}
+
+.filterMenuTitle {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary, #6e7681);
 }
 
 .filterMenuActions {
   display: flex;
-  gap: var(--space-2, 6px);
-  padding: var(--space-2, 8px);
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  gap: var(--space-1, 4px);
 }
 
 .filterMenuAction {
-  flex: 1;
-  padding: var(--space-1, 4px) var(--space-2, 8px);
+  padding: 2px 8px;
   background: transparent;
-  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-sm, 4px);
-  font-size: var(--text-2xs, 10px);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 3px);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-tertiary, #6e7681);
   cursor: pointer;
   transition: all var(--transition-fast, 150ms ease);
@@ -332,13 +365,20 @@
 .filterMenuAction:hover {
   background: var(--bg-hover, #232d3a);
   color: var(--text-secondary, #8b949e);
+  border-color: var(--border-default, rgba(255, 255, 255, 0.1));
+}
+
+.filterMenuList {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: var(--space-1, 4px) 0;
 }
 
 .filterOption {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  padding: var(--space-2, 8px) var(--space-3, 12px);
+  padding: 6px var(--space-3, 12px);
   cursor: pointer;
   transition: background var(--transition-fast, 150ms ease);
 }
@@ -348,14 +388,33 @@
 }
 
 .filterOption input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--primary, #e73c17);
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.filterOptionCheck {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.15));
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--color-success, #48bb78);
+  background: var(--bg-base, #0f1419);
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.filterOption:hover .filterOptionCheck {
+  border-color: var(--border-strong, rgba(255, 255, 255, 0.2));
 }
 
 .filterOptionLabel {
-  font-size: var(--text-xs, 11px);
-  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-family: var(--font-mono, 'SF Mono', Consolas, monospace);
   color: var(--text-secondary, #8b949e);
 }
 

@@ -337,7 +337,62 @@
 .headerActions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+}
+
+/* Connection Status Indicator - Mission Control LED */
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: default;
+}
+
+.connectionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.connectionLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.connectionStatusLive .connectionDot {
+  background: #48bb78;
+  box-shadow: 0 0 8px rgba(72, 187, 120, 0.6);
+  animation: connectionPulse 2s ease-in-out infinite;
+}
+
+.connectionStatusLive .connectionLabel {
+  color: #48bb78;
+}
+
+.connectionStatusOffline .connectionDot {
+  background: var(--text-tertiary);
+}
+
+.connectionStatusOffline .connectionLabel {
+  color: var(--text-tertiary);
+}
+
+@keyframes connectionPulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(72, 187, 120, 0.6);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 4px rgba(72, 187, 120, 0.3);
+  }
 }
 
 /* Theme Toggle */

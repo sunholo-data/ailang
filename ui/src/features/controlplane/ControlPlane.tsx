@@ -41,6 +41,7 @@ import type {
   Span,
 } from './components';
 import type { EventType } from './components/MessageQueue';
+import { useObservatoryWs } from '../../hooks/useObservatory';
 
 /**
  * Find the agent path from an event through the topology.
@@ -206,6 +207,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
   const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
   const { events: liveEvents, loading: eventsLoading } = useEventQueue({ maxEvents: 50, filters });
+  // WebSocket connection status for header indicator
+  const { isConnected, connectionState, lastEventTime } = useObservatoryWs({});
   // Track selected event for trace correlation
   const [selectedEventTraceId, setSelectedEventTraceId] = useState<string | null>(null);
   // Detail panel state - must be defined before memos that use it
@@ -424,6 +427,15 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           </div>
         </div>
         <div className={styles.headerActions}>
+          {/* WebSocket Connection Status */}
+          <div
+            className={`${styles.connectionStatus} ${isConnected ? styles.connectionStatusLive : styles.connectionStatusOffline}`}
+            title={`WebSocket ${connectionState}${lastEventTime ? ` • Last event: ${lastEventTime.toLocaleTimeString()}` : ''}`}
+          >
+            <span className={styles.connectionDot} />
+            <span className={styles.connectionLabel}>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
+          </div>
+
           <button className={styles.themeToggle} onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             <span className={styles.themeToggleIcon}>{theme === 'dark' ? '☀️' : '🌙'}</span>
           </button>

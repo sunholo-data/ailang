@@ -666,6 +666,11 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     return Array.from(types).sort();
   }, [spans]);
 
+  // Count only hidden types that exist in current data (avoids negative counts when switching traces)
+  const effectiveHiddenCount = useMemo(() => {
+    return uniqueSpanTypes.filter(type => hiddenSpanTypes.has(type)).length;
+  }, [uniqueSpanTypes, hiddenSpanTypes]);
+
   // Show All / Hide All handlers for span type filter
   const handleShowAllSpanTypes = useCallback(() => {
     uniqueSpanTypes.forEach(type => {
@@ -981,65 +986,72 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
 
   return (
     <div className={`${styles.container} ${isExpanded ? styles.containerExpanded : ''}`}>
-      {/* Header */}
+      {/* Header - Mission Control Telemetry Bar */}
       <div className={styles.header}>
-        <div className={styles.headerTitle}>
-          <span className={styles.headerIcon}>◎</span>
-          Execution Spans
-          {!isEmpty && nodes.length > 0 && (
-            <span className={styles.headerBadge}>{nodes.length}</span>
+        <div className={styles.headerLeft}>
+          <div className={styles.headerTitle}>
+            <span className={styles.headerIcon}>◎</span>
+            <span className={styles.headerLabel}>Execution Spans</span>
+          </div>
+
+          {/* Span Count Readout */}
+          {!isEmpty && totalNodeCount > 0 && (
+            <div
+              className={styles.telemetryItem}
+              title={`Total execution spans in view (${nodes.length} top-level, ${totalNodeCount} total including nested)`}
+            >
+              <span className={styles.telemetryValue}>{totalNodeCount}</span>
+              <span className={styles.telemetryLabel}>spans</span>
+            </div>
           )}
-          {/* Live connection indicator */}
-          <span
-            className={`${styles.liveIndicator} ${isConnected ? styles.liveIndicatorConnected : styles.liveIndicatorDisconnected}`}
-            title={`WebSocket: ${connectionState}${lastEventTime ? ` | Last: ${lastEventTime.toLocaleTimeString()}` : ''}`}
-          >
-            {isConnected ? '●' : '○'}
-          </span>
         </div>
 
         <div className={styles.headerControls}>
-          {/* Span Type Filter - always show when we have span data */}
+          {/* Span Type Filter */}
           {uniqueSpanTypes.length > 0 && (
             <div className={styles.filterDropdown}>
               <button
-                className={`${styles.filterBtn} ${hiddenSpanTypes.size > 0 ? styles.filterBtnActive : ''}`}
+                className={`${styles.filterBtn} ${effectiveHiddenCount > 0 ? styles.filterBtnActive : ''}`}
                 onClick={() => setShowSpanTypeFilter(!showSpanTypeFilter)}
+                title="Filter which span types to display"
               >
-                <span className={styles.filterIcon}>◉</span>
-                {hiddenSpanTypes.size > 0
-                  ? `Hiding ${hiddenSpanTypes.size}/${uniqueSpanTypes.length}`
-                  : `Showing ${uniqueSpanTypes.length} types`}
-                <span className={styles.filterChevron}>{showSpanTypeFilter ? '▲' : '▼'}</span>
+                <span className={styles.filterIcon}>⚙</span>
+                <span className={styles.filterText}>
+                  {effectiveHiddenCount > 0
+                    ? `${uniqueSpanTypes.length - effectiveHiddenCount}/${uniqueSpanTypes.length}`
+                    : 'All'}
+                </span>
+                <span className={styles.filterChevron}>{showSpanTypeFilter ? '▴' : '▾'}</span>
               </button>
 
               {showSpanTypeFilter && (
                 <div className={styles.filterMenu}>
-                  <div className={styles.filterMenuActions}>
-                    <button
-                      onClick={handleShowAllSpanTypes}
-                      className={styles.filterMenuAction}
-                    >
-                      Show All
-                    </button>
-                    <button
-                      onClick={handleHideAllSpanTypes}
-                      className={styles.filterMenuAction}
-                    >
-                      Hide All
-                    </button>
+                  <div className={styles.filterMenuHeader}>
+                    <span className={styles.filterMenuTitle}>Span Types</span>
+                    <div className={styles.filterMenuActions}>
+                      <button onClick={handleShowAllSpanTypes} className={styles.filterMenuAction}>
+                        All
+                      </button>
+                      <button onClick={handleHideAllSpanTypes} className={styles.filterMenuAction}>
+                        None
+                      </button>
+                    </div>
                   </div>
-
-                  {uniqueSpanTypes.map(spanType => (
-                    <label key={spanType} className={styles.filterOption}>
-                      <input
-                        type="checkbox"
-                        checked={!hiddenSpanTypes.has(spanType)}
-                        onChange={() => toggleSpanType(spanType)}
-                      />
-                      <span className={styles.filterOptionLabel}>{spanType}</span>
-                    </label>
-                  ))}
+                  <div className={styles.filterMenuList}>
+                    {uniqueSpanTypes.map(spanType => (
+                      <label key={spanType} className={styles.filterOption}>
+                        <input
+                          type="checkbox"
+                          checked={!hiddenSpanTypes.has(spanType)}
+                          onChange={() => toggleSpanType(spanType)}
+                        />
+                        <span className={styles.filterOptionCheck}>
+                          {!hiddenSpanTypes.has(spanType) ? '✓' : ''}
+                        </span>
+                        <span className={styles.filterOptionLabel}>{spanType}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
