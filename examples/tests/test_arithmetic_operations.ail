@@ -1,0 +1,164 @@
+module examples/tests/test_arithmetic_operations
+
+// Test addition with edge cases
+pure func addInts(a: int, b: int) -> int
+  tests [
+    ((0, 0), 0),
+    ((1, 1), 2),
+    ((5, 3), 8),
+    ((0, -5), -5),
+    ((-5, 5), 0),
+    ((-3, -2), -5),
+    ((100, 200), 300)
+  ]
+{
+  a + b
+}
+
+// Test subtraction with edge cases
+pure func subtractInts(a: int, b: int) -> int
+  tests [
+    ((0, 0), 0),
+    ((5, 3), 2),
+    ((3, 5), -2),
+    ((5, 5), 0),
+    ((0, -5), 5),
+    ((-5, 5), -10),
+    ((-3, -2), -1)
+  ]
+{
+  a - b
+}
+
+// Test multiplication with edge cases
+pure func multiplyInts(a: int, b: int) -> int
+  tests [
+    ((0, 5), 0),
+    ((5, 0), 0),
+    ((1, 5), 5),
+    ((5, 1), 5),
+    ((3, 4), 12),
+    ((-3, 4), -12),
+    ((-3, -4), 12),
+    ((0, 0), 0)
+  ]
+{
+  a * b
+}
+
+// Test division with edge cases
+pure func divideInts(a: int, b: int) -> int
+  tests [
+    ((10, 2), 5),
+    ((9, 3), 3),
+    ((10, 3), 3),
+    ((0, 5), 0),
+    ((5, 5), 1),
+    ((-10, 2), -5),
+    ((-10, -2), 5)
+  ]
+{
+  a / b
+}
+
+// Test modulo with edge cases
+pure func moduloInts(a: int, b: int) -> int
+  tests [
+    ((10, 3), 1),
+    ((10, 2), 0),
+    ((15, 4), 3),
+    ((0, 5), 0),
+    ((5, 5), 0),
+    ((7, 3), 1),
+    ((3, 7), 3)
+  ]
+{
+  a % b
+}
+
+// Test float addition
+pure func addFloats(a: float, b: float) -> float
+  tests [
+    ((0.0, 0.0), 0.0),
+    ((1.5, 2.5), 4.0),
+    ((0.1, 0.2), 0.3),
+    ((-1.5, 1.5), 0.0),
+    ((-1.5, -2.5), -4.0)
+  ]
+{
+  a + b
+}
+
+// Test float subtraction
+pure func subtractFloats(a: float, b: float) -> float
+  tests [
+    ((5.5, 2.5), 3.0),
+    ((2.5, 5.5), -3.0),
+    ((5.0, 5.0), 0.0),
+    ((-1.5, 1.5), -3.0),
+    ((0.0, -5.5), 5.5)
+  ]
+{
+  a - b
+}
+
+// Test float multiplication
+pure func multiplyFloats(a: float, b: float) -> float
+  tests [
+    ((0.0, 5.5), 0.0),
+    ((2.0, 3.5), 7.0),
+    ((1.5, 2.0), 3.0),
+    ((-2.0, 3.5), -7.0),
+    ((-2.0, -3.5), 7.0)
+  ]
+{
+  a * b
+}
+
+// Test float division
+pure func divideFloats(a: float, b: float) -> float
+  tests [
+    ((10.0, 2.0), 5.0),
+    ((9.0, 3.0), 3.0),
+    ((0.0, 5.0), 0.0),
+    ((5.0, 2.0), 2.5),
+    ((-10.0, 2.0), -5.0)
+  ]
+{
+  a / b
+}
+
+// Test mixed operations (order of operations)
+pure func mixedOps(a: int, b: int, c: int) -> int
+  tests [
+    ((2, 3, 4), 14),
+    ((1, 2, 3), 7),
+    ((5, 0, 3), 3),
+    ((0, 0, 0), 0)
+  ]
+{
+  a + b * c
+}
+
+// Test unary negation
+pure func negate(x: int) -> int
+  tests [
+    (5, -5),
+    (-5, 5),
+    (0, 0),
+    (100, -100)
+  ]
+{
+  0 - x
+}
+
+// Test unary negation on floats
+pure func negateFloat(x: float) -> float
+  tests [
+    ((5.5), -5.5),
+    ((-5.5), 5.5),
+    ((0.0), 0.0)
+  ]
+{
+  0.0 - x
+}
