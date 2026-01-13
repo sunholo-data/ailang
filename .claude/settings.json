@@ -59,7 +59,7 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/claude_telemetry.sh",
+            "command": "~/.ailang/hooks/claude_telemetry.sh",
             "timeout": 5
           }
         ]
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/claude_telemetry.sh",
+            "command": "~/.ailang/hooks/claude_telemetry.sh",
             "timeout": 3
           }
         ]
@@ -87,7 +87,7 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/claude_telemetry.sh",
+            "command": "~/.ailang/hooks/claude_telemetry.sh",
             "timeout": 5
           }
         ]
@@ -108,7 +108,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/claude_telemetry.sh",
+            "command": "~/.ailang/hooks/claude_telemetry.sh",
             "timeout": 3
           }
         ]
