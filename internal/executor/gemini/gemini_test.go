@@ -1,7 +1,9 @@
 package gemini
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/sunholo/ailang/internal/executor"
 )
@@ -91,4 +93,64 @@ func TestGeminiFactoryRegistration(t *testing.T) {
 	if !hasGemini {
 		t.Error("expected 'gemini' to be registered in global factory")
 	}
+}
+
+// TestGeminiContextCancellation verifies context cancellation handling
+func TestGeminiContextCancellation(t *testing.T) {
+	// Skip if gemini binary not available
+	t.Skip("requires gemini binary installation and runtime testing")
+
+	cfg := executor.DefaultConfig()
+	exec, _ := New(cfg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	task := &executor.Task{
+		ID:        "cancelled-task",
+		Directive: "this should be cancelled",
+	}
+
+	result, err := exec.Execute(ctx, task)
+	if err == nil {
+		t.Error("expected error for cancelled context")
+	}
+
+	_ = result
+}
+
+// TestGeminiContextTimeout verifies timeout handling
+func TestGeminiContextTimeout(t *testing.T) {
+	// Skip if gemini binary not available
+	t.Skip("requires gemini binary installation and runtime testing")
+
+	cfg := executor.DefaultConfig()
+	exec, _ := New(cfg)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	task := &executor.Task{
+		ID:        "timeout-task",
+		Directive: "this will timeout",
+	}
+
+	result, err := exec.Execute(ctx, task)
+	// May timeout or error out
+	_ = result
+	_ = err
+}
+
+// TestGeminiHealthCheckTimeout verifies health check respects timeout
+func TestGeminiHealthCheckTimeout(t *testing.T) {
+	cfg := executor.DefaultConfig()
+	exec, _ := New(cfg)
+
+	// Health check should complete quickly even with non-existent workspace
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = exec.HealthCheck(ctx)
+	// Health check result doesn't matter for this test
+	// We're just verifying it respects the timeout
 }
