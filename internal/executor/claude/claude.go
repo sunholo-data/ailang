@@ -103,13 +103,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
-	// Get AILANG-specific Claude settings path (creates hooks if needed)
-	settingsPath, err := executor.GetClaudeSettingsPath()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Claude settings path: %w", err)
-	}
-
 	// Build command arguments
+	// Note: We do NOT pass --settings here. Claude Code will load project's
+	// .claude/settings.json naturally, which has the telemetry hooks configured.
+	// This ensures coordinator worktree sessions use the same hooks as interactive sessions.
 	args := []string{
 		"-p", task.Directive,
 		"--output-format", "stream-json",
@@ -117,7 +114,6 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"--verbose",
 		"--permission-mode", e.permissionMode,
 		"--model", e.getModel(task),
-		"--settings", settingsPath, // Load AILANG hooks (PreToolUse, PostToolUse)
 	}
 
 	// Session handling: use --resume for iterations > 1 with existing session
