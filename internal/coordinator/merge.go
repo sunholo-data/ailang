@@ -149,6 +149,12 @@ func getChangedFiles(ctx context.Context, worktreePath string) ([]string, error)
 // Worktrees are typically at ~/.ailang/state/worktrees/coordinator/<task-id>/
 // and the main repo is the current working directory.
 func getMainRepoPath(worktreePath string) string {
+	// Return empty string immediately if worktreePath is empty to prevent
+	// running git commands in the current directory
+	if worktreePath == "" {
+		return ""
+	}
+
 	// Get the git directory of the worktree
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	cmd.Dir = worktreePath

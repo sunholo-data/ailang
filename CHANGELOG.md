@@ -1,5 +1,22 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Fixed - Coordinator Merge Helper Bug
+
+**Issue:** `getMainRepoPath()` function in `internal/coordinator/merge.go` returned incorrect path when called with empty input. The function would run git commands in the current directory instead of validating input first.
+
+**Root Cause:** No guard clause for empty `worktreePath` parameter. When an empty string was passed, the function set `cmd.Dir = ""` which defaults to the current working directory, causing `git rev-parse --git-dir` to return the actual repository path instead of empty string.
+
+**Fix:** Added early return guard to check if `worktreePath` is empty and return immediately without executing git commands.
+
+**Files Changed:**
+- `internal/coordinator/merge.go`: Added input validation guard clause (2 lines)
+
+**Tests:**
+- Updated `internal/coordinator/merge_test.go`: Test now passes
+- `TestGetMainRepoPath` verifies empty input returns empty string
+
 ## [v0.6.3] - 2026-01-03
 
 ### Added - OpenAI Responses API Support (M-OPENAI-RESPONSES-API)
