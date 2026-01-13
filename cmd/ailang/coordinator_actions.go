@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -11,14 +12,23 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func coordinatorApprove(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ailang coordinator approve <task-id>")
+		return fmt.Errorf("usage: ailang coordinator approve <task-id|approval-id>")
 	}
 
 	taskID := args[0]
+
+	// Accept both task IDs (task-xxx) and approval IDs (apr-xxx)
+	// Convert approval ID to task ID if needed
+	if strings.HasPrefix(taskID, "apr-") {
+		taskID = "task-" + strings.TrimPrefix(taskID, "apr-")
+	}
 	stateDir := ""
 	skipMerge := false
 	keepWorktree := false
@@ -56,22 +66,43 @@ func coordinatorApprove(args []string) error {
 
 	ctx := context.Background()
 
+	// Create OTEL span for human approval (M-TRANSCRIPT)
+	tracer := otel.Tracer("coordinator.cli")
+	ctx, span := tracer.Start(ctx, "human.approval",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("approved.by", "cli-user"),
+		),
+	)
+	defer span.End()
+
 	// Get the task to verify status and get worktree path
 	task, err := store.GetTask(ctx, taskID)
 	if err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to get task: %w", err)
 	}
 	if task == nil {
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	// Add task iteration to span (M-TRANSCRIPT)
+	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
+
 	// Verify task is pending approval
 	if task.Status != coordinator.TaskStatusPendingApproval {
 		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
 	}
 
+	// Store approval event for audit trail (M-TRANSCRIPT)
+	if err := coordinator.StoreApprovalEvent(ctx, store, taskID, "cli-user"); err != nil {
+		// Log but don't fail - approval can still proceed
+		fmt.Println(yellow("!"), "Warning: Failed to store approval event:", err)
+	}
+
 	// Resolve the approval request in database
 	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "approved", "cli-user"); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("failed to approve task: %w", err)
 	}
 
@@ -169,12 +200,30 @@ func coordinatorApprove(args []string) error {
 }
 
 func coordinatorReject(args []string) error {
+	// Check for help flag first
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			printCoordinatorRejectHelp()
+			return nil
+		}
+	}
+
 	if len(args) == 0 {
-		return fmt.Errorf("usage: ailang coordinator reject <task-id>")
+		return fmt.Errorf("usage: ailang coordinator reject <task-id|approval-id>")
 	}
 
 	taskID := args[0]
+
+	// Accept both task IDs (task-xxx) and approval IDs (apr-xxx)
+	// Convert approval ID to task ID if needed
+	if strings.HasPrefix(taskID, "apr-") {
+		taskID = "task-" + strings.TrimPrefix(taskID, "apr-")
+	}
+
 	stateDir := ""
+	feedbackText := ""
+	skipPrompt := false
+	noRetrigger := false
 
 	// Parse flags
 	for i := 1; i < len(args); i++ {
@@ -184,6 +233,15 @@ func coordinatorReject(args []string) error {
 				stateDir = args[i+1]
 				i++
 			}
+		case "--feedback", "-f":
+			if i+1 < len(args) {
+				feedbackText = args[i+1]
+				i++
+			}
+		case "--no-prompt":
+			skipPrompt = true
+		case "--no-retrigger":
+			noRetrigger = true
 		case "--help", "-h":
 			printCoordinatorRejectHelp()
 			return nil
@@ -203,38 +261,165 @@ func coordinatorReject(args []string) error {
 	}
 	defer store.Close()
 
-	// Resolve the approval request in database
-	ctx := context.Background()
-	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
-		return fmt.Errorf("failed to reject task: %w", err)
+	// Use enhanced rejection with feedback (unless --no-retrigger specified)
+	if noRetrigger {
+		// Legacy behavior: immediate rejection without feedback loop
+		ctx := context.Background()
+		if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
+			return fmt.Errorf("failed to reject task: %w", err)
+		}
+
+		fmt.Println(green("✓"), "Task rejected:", taskID)
+
+		// Clean up worktree if it exists
+		task, err := store.GetTask(ctx, taskID)
+		if err == nil && task != nil && task.WorktreePath != "" {
+			if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
+				branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+				branchOutput, _ := branchCmd.Output()
+				branchName := strings.TrimSpace(string(branchOutput))
+
+				fmt.Println(cyan("→"), "Cleaning up worktree...")
+				removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
+				if output, err := removeCmd.CombinedOutput(); err != nil {
+					fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
+				} else {
+					fmt.Println(green("✓"), "Worktree removed")
+				}
+
+				if branchName != "" && branchName != "HEAD" {
+					deleteCmd := exec.Command("git", "branch", "-D", branchName)
+					if _, err := deleteCmd.CombinedOutput(); err == nil {
+						fmt.Printf("  Deleted branch: %s\n", branchName)
+					}
+				}
+			}
+		}
+		return nil
 	}
 
-	fmt.Println(green("✓"), "Task rejected:", taskID)
+	// Enhanced rejection with feedback and re-trigger support
+	return coordinatorRejectWithFeedback(store, taskID, skipPrompt, feedbackText)
+}
 
-	// Clean up worktree if it exists
+// coordinatorRejectWithFeedback handles rejection with feedback, message sending, and re-triggering.
+// This implements the M-TRANSCRIPT feedback loop:
+// 1. Prompts for feedback reason
+// 2. Stores feedback as human_feedback event
+// 3. Sends message to agent inbox
+// 4. Re-triggers task with iteration+1 (if under MaxIterations)
+func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string, skipPrompt bool, feedbackText string) error {
+	ctx := context.Background()
+
+	// Get the task
 	task, err := store.GetTask(ctx, taskID)
-	if err == nil && task != nil && task.WorktreePath != "" {
-		// Check if worktree exists
-		if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
-			// Get branch name before removing
-			branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
-			branchOutput, _ := branchCmd.Output()
-			branchName := strings.TrimSpace(string(branchOutput))
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", taskID)
+	}
 
-			// Remove worktree
-			fmt.Println(cyan("→"), "Cleaning up worktree...")
-			removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
-			if output, err := removeCmd.CombinedOutput(); err != nil {
-				fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
-			} else {
-				fmt.Println(green("✓"), "Worktree removed")
+	// Prompt for feedback if not provided
+	if feedbackText == "" && !skipPrompt {
+		fmt.Print(yellow("📝"), " Feedback for agent (why was this rejected?): ")
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read feedback: %w", err)
+		}
+		feedbackText = strings.TrimSpace(input)
+	}
+
+	// If still no feedback after prompting, use default
+	if feedbackText == "" {
+		feedbackText = "Rejected without specific feedback"
+	}
+
+	// Store feedback as human_feedback event
+	feedback := &coordinator.HumanFeedback{
+		TaskID:    taskID,
+		Iteration: task.Iteration,
+		Feedback:  feedbackText,
+		Action:    "reject",
+		Timestamp: time.Now(),
+		UserID:    "cli-user",
+	}
+	if err := coordinator.StoreFeedbackEvent(ctx, store, feedback); err != nil {
+		fmt.Println(yellow("!"), "Warning: Failed to store feedback event:", err)
+		// Continue anyway
+	}
+
+	// Check if we can re-trigger (under max iterations)
+	canRetrigger := coordinator.CanRetrigger(task)
+
+	if canRetrigger {
+		// Prepare task for re-trigger
+		coordinator.PrepareTaskForRetrigger(task, feedbackText)
+
+		// Store iteration start event
+		if err := coordinator.StoreIterationStartEvent(ctx, store, taskID, task.Iteration); err != nil {
+			fmt.Println(yellow("!"), "Warning: Failed to store iteration start:", err)
+		}
+
+		// Update task in database
+		if err := store.UpdateTask(ctx, task); err != nil {
+			return fmt.Errorf("failed to update task for re-trigger: %w", err)
+		}
+
+		// Send feedback message to agent inbox
+		msgStore, err := messaging.OpenStore(messaging.GetDefaultDatabasePath())
+		if err != nil {
+			fmt.Println(yellow("!"), "Warning: Could not send message to agent:", err)
+		} else {
+			defer msgStore.Close()
+
+			agentInbox := task.AgentID
+			if agentInbox == "" {
+				agentInbox = "coordinator" // Default fallback
 			}
 
-			// Delete the branch
-			if branchName != "" && branchName != "HEAD" {
-				deleteCmd := exec.Command("git", "branch", "-D", branchName)
-				if _, err := deleteCmd.CombinedOutput(); err == nil {
-					fmt.Printf("  Deleted branch: %s\n", branchName)
+			msg := &messaging.InboxMessage{
+				FromAgent:     "cli-user",
+				ToInbox:       agentInbox,
+				MessageType:   messaging.InboxTypeNotification,
+				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), task.Iteration),
+				Payload:       fmt.Sprintf("Task rejected with feedback:\n\n%s\n\nTask will be re-run with this feedback incorporated.", feedbackText),
+				CorrelationID: taskID, // Link to original task
+			}
+			if err := msgStore.InsertInboxMessage(msg); err != nil {
+				fmt.Println(yellow("!"), "Warning: Failed to send message:", err)
+			} else {
+				fmt.Println(green("✓"), "Feedback sent to agent inbox:", agentInbox)
+			}
+		}
+
+		fmt.Println(green("✓"), fmt.Sprintf("Task re-queued for iteration %d (max: %d)", task.Iteration, coordinator.MaxIterations))
+		fmt.Println(cyan("→"), "Session will resume with context preserved (--resume)")
+
+	} else {
+		// Max iterations reached - permanent rejection
+		if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
+			return fmt.Errorf("failed to reject task: %w", err)
+		}
+
+		// Update task status
+		task.Status = coordinator.TaskStatusRejected
+		if err := store.UpdateTask(ctx, task); err != nil {
+			fmt.Println(yellow("!"), "Warning: Failed to update task status:", err)
+		}
+
+		fmt.Println(yellow("!"), fmt.Sprintf("Max iterations (%d) reached - task permanently rejected", coordinator.MaxIterations))
+
+		// Clean up worktree
+		if task.WorktreePath != "" {
+			if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
+				fmt.Println(cyan("→"), "Cleaning up worktree...")
+				removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
+				if output, err := removeCmd.CombinedOutput(); err != nil {
+					fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
+				} else {
+					fmt.Println(green("✓"), "Worktree removed")
 				}
 			}
 		}
@@ -482,14 +667,23 @@ func printCoordinatorApproveHelp() {
 func printCoordinatorRejectHelp() {
 	fmt.Println("Usage: ailang coordinator reject <task-id> [options]")
 	fmt.Println("")
-	fmt.Println("Reject a pending task")
+	fmt.Println("Reject a pending task with feedback and optional re-trigger.")
+	fmt.Println("")
+	fmt.Println("By default, rejection prompts for feedback and re-queues the task")
+	fmt.Println("for another attempt (up to 3 iterations). The agent will receive")
+	fmt.Println("the feedback and use --resume to continue with full context.")
 	fmt.Println("")
 	fmt.Println("Options:")
-	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
-	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("  --feedback, -f TEXT   Provide feedback directly (skip prompt)")
+	fmt.Println("  --no-prompt           Skip feedback prompt (use default message)")
+	fmt.Println("  --no-retrigger        Permanently reject without re-triggering")
+	fmt.Println("  --state-dir DIR       State directory (default: ~/.ailang/state)")
+	fmt.Println("  --help, -h            Show this help message")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  ailang coordinator reject task-123")
+	fmt.Println("  ailang coordinator reject task-123 -f 'Need better error handling'")
+	fmt.Println("  ailang coordinator reject task-123 --no-retrigger  # permanent rejection")
 }
 
 func printCoordinatorCleanupHelp() {

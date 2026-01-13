@@ -1,0 +1,385 @@
+/**
+ * DiffViewer.module.css - GitHub-style diff viewer styling
+ */
+
+/* Container */
+.diffViewer {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: auto;
+  background: var(--bg-primary, #ffffff);
+  border-radius: 6px;
+}
+
+.diffViewer.compact {
+  font-size: 11px;
+}
+
+/* Empty state */
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #57606a);
+}
+
+.rawDiff {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary, #f6f8fa);
+  border-radius: 4px;
+  text-align: left;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Summary */
+.summary {
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.fileCount {
+  color: var(--text-primary, #24292f);
+  font-weight: 500;
+}
+
+.additions {
+  color: var(--color-success, #1a7f37);
+  font-weight: 500;
+}
+
+.deletions {
+  color: var(--color-danger, #cf222e);
+  font-weight: 500;
+}
+
+/* File diff */
+.fileDiff {
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  margin: 8px;
+  overflow: hidden;
+}
+
+.fileDiff.selected {
+  border-color: var(--color-accent, #0969da);
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.2);
+}
+
+/* File header */
+.fileHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
+  cursor: pointer;
+}
+
+.fileHeader:hover {
+  background: var(--bg-hover, #eaeef2);
+}
+
+.collapseButton {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text-secondary, #57606a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.collapseButton:hover {
+  background: var(--bg-tertiary, #d0d7de);
+}
+
+.statusBadge {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusAdded {
+  background: var(--color-success-bg, #dafbe1);
+  color: var(--color-success, #1a7f37);
+}
+
+.statusDeleted {
+  background: var(--color-danger-bg, #ffebe9);
+  color: var(--color-danger, #cf222e);
+}
+
+.statusModified {
+  background: var(--color-warning-bg, #fff8c5);
+  color: var(--color-warning, #9a6700);
+}
+
+.statusRenamed {
+  background: var(--color-info-bg, #ddf4ff);
+  color: var(--color-info, #0969da);
+}
+
+.filePath {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary, #24292f);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileStats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+
+/* Diff table */
+.diffTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.diffTable td {
+  padding: 0 8px;
+  vertical-align: top;
+}
+
+/* Line numbers */
+.lineNumber {
+  width: 50px;
+  min-width: 50px;
+  text-align: right;
+  color: var(--text-muted, #8b949e);
+  background: var(--bg-secondary, #f6f8fa);
+  border-right: 1px solid var(--border-color, #d0d7de);
+  user-select: none;
+  padding-right: 8px !important;
+  font-size: 11px;
+}
+
+/* Hunk header */
+.hunkHeader td {
+  background: var(--bg-accent, #ddf4ff);
+  color: var(--text-secondary, #57606a);
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.hunkHeaderContent {
+  font-style: italic;
+}
+
+/* Line types */
+.lineAdd {
+  background: var(--diff-add-bg, #e6ffec);
+}
+
+.lineAdd .lineNumber {
+  background: var(--diff-add-num-bg, #ccffd8);
+  border-color: var(--diff-add-border, #abf2bc);
+}
+
+.lineDelete {
+  background: var(--diff-delete-bg, #ffebe9);
+}
+
+.lineDelete .lineNumber {
+  background: var(--diff-delete-num-bg, #ffd7d5);
+  border-color: var(--diff-delete-border, #ffc1bf);
+}
+
+.lineContext {
+  background: var(--bg-primary, #ffffff);
+}
+
+/* Line content */
+.lineContent {
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.linePrefix {
+  display: inline-block;
+  width: 12px;
+  color: var(--text-muted, #8b949e);
+  user-select: none;
+}
+
+.lineAdd .linePrefix {
+  color: var(--color-success, #1a7f37);
+}
+
+.lineDelete .linePrefix {
+  color: var(--color-danger, #cf222e);
+}
+
+.code {
+  font-family: inherit;
+}
+
+/* Split view */
+.splitTable .lineNumber {
+  width: 40px;
+  min-width: 40px;
+}
+
+.splitContent {
+  width: 50%;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-right: 1px solid var(--border-color, #d0d7de);
+}
+
+.splitContent:last-child {
+  border-right: none;
+}
+
+.splitRow {
+  border-bottom: 1px solid var(--border-subtle, #eaeef2);
+}
+
+.splitRow:last-child {
+  border-bottom: none;
+}
+
+/* File content area */
+.fileContent {
+  overflow-x: auto;
+}
+
+/* Syntax highlighting - GitHub-like colors */
+.code .hljs-keyword {
+  color: #cf222e;
+}
+
+.code .hljs-string {
+  color: #0a3069;
+}
+
+.code .hljs-number {
+  color: #0550ae;
+}
+
+.code .hljs-comment {
+  color: #6e7781;
+  font-style: italic;
+}
+
+.code .hljs-function {
+  color: #8250df;
+}
+
+.code .hljs-title {
+  color: #8250df;
+}
+
+.code .hljs-built_in {
+  color: #953800;
+}
+
+.code .hljs-type {
+  color: #953800;
+}
+
+.code .hljs-attr {
+  color: #0550ae;
+}
+
+.code .hljs-variable {
+  color: #953800;
+}
+
+.code .hljs-literal {
+  color: #0550ae;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .diffViewer {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-hover: #21262d;
+    --bg-tertiary: #30363d;
+    --bg-accent: #1f6feb26;
+    --text-primary: #c9d1d9;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --border-color: #30363d;
+    --border-subtle: #21262d;
+    --color-success: #3fb950;
+    --color-success-bg: #238636;
+    --color-danger: #f85149;
+    --color-danger-bg: #da3633;
+    --color-warning: #d29922;
+    --color-warning-bg: #9e6a03;
+    --color-info: #58a6ff;
+    --color-info-bg: #388bfd26;
+    --color-accent: #58a6ff;
+    --diff-add-bg: #12261e;
+    --diff-add-num-bg: #1b4721;
+    --diff-add-border: #238636;
+    --diff-delete-bg: #2d1b1b;
+    --diff-delete-num-bg: #5d1f1a;
+    --diff-delete-border: #da3633;
+  }
+
+  .code .hljs-keyword {
+    color: #ff7b72;
+  }
+
+  .code .hljs-string {
+    color: #a5d6ff;
+  }
+
+  .code .hljs-number {
+    color: #79c0ff;
+  }
+
+  .code .hljs-comment {
+    color: #8b949e;
+  }
+
+  .code .hljs-function,
+  .code .hljs-title {
+    color: #d2a8ff;
+  }
+
+  .code .hljs-built_in,
+  .code .hljs-type {
+    color: #ffa657;
+  }
+
+  .code .hljs-attr {
+    color: #79c0ff;
+  }
+
+  .code .hljs-variable {
+    color: #ffa657;
+  }
+
+  .code .hljs-literal {
+    color: #79c0ff;
+  }
+}

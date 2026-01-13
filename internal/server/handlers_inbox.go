@@ -94,6 +94,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	providerFilter := q.Get("provider")
 	modelFilter := q.Get("model")
 	workspaceFilter := q.Get("workspace")
+	sourceTypeFilter := q.Get("source_type") // coordinator, user_session, eval, etc.
 
 	messages, err := s.store.ListInboxMessages(opts)
 	if err != nil {
@@ -108,14 +109,25 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	// Include by default unless:
 	// - Filtering by specific inbox/from agent
 	// - Provider filter is set and != "claude" (Claude Code is always provider=claude)
+	// - Source type filter is set to something that excludes Claude Code events
 	includeClaudeCode := opts.Inbox == "" && opts.FromAgent == ""
 	if providerFilter != "" && providerFilter != "claude" {
 		includeClaudeCode = false
 	}
+	// Source types that ARE Claude Code events
+	if sourceTypeFilter != "" && sourceTypeFilter != "coordinator" && sourceTypeFilter != "user_session" {
+		// eval, direct_api, exec, local, other - these are NOT Claude Code sessions
+		includeClaudeCode = false
+	}
 
 	// Convert inbox messages to unified event format
+	// Apply source_type filter to inbox messages based on from_agent
 	events := make([]UnifiedEvent, 0, len(messages)+50)
 	for _, msg := range messages {
+		// Filter inbox messages by source_type
+		if sourceTypeFilter != "" && !inboxMessageMatchesSourceType(msg.FromAgent, msg.ToInbox, sourceTypeFilter) {
+			continue
+		}
 		events = append(events, UnifiedEvent{
 			ID:            msg.MessageID,
 			CreatedAt:     msg.CreatedAt.Format(time.RFC3339),
@@ -143,7 +155,8 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 
 			if s.coordStoreRaw != nil {
 				// Use lookup to resolve coordinator task → agent info
-				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo)
+				// Pass source_type filter to filter by coordinator vs user sessions
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo, sourceTypeFilter)
 			} else {
 				// Fallback: no coordinator store, use defaults (claude-code → user)
 				ccEvents, err = sqliteBackend.GetClaudeCodeEvents(ctx, opts.Limit)
@@ -462,4 +475,70 @@ func matchesWorkspace(fullPath, filter string) bool {
 
 	// Direct substring match for simple cases
 	return strings.Contains(fullPath, filter)
+}
+
+// InferInboxSourceType derives source_type from inbox message fields.
+// This uses the SAME taxonomy as GetBreakdownBySourceType for consistency.
+//
+// Canonical source types (matching breakdown):
+// - "github": Messages from GitHub sync/webhooks
+// - "eval": Messages from eval suite
+// - "coordinator": Messages from/to coordinator agents
+// - "user_session": Messages from user/dashboard (manual sends)
+// - "messaging": General agent-to-agent messaging
+// - "cli": CLI-related messages (rarely used for inbox)
+// - "other": Catch-all
+func InferInboxSourceType(fromAgent, toInbox string) string {
+	fromLower := strings.ToLower(fromAgent)
+	toLower := strings.ToLower(toInbox)
+
+	// Priority order matches GetBreakdownBySourceType logic
+	switch {
+	// 1. GitHub messages
+	case strings.Contains(fromLower, "github") || strings.HasPrefix(fromLower, "gh-"):
+		return "github"
+
+	// 2. Eval suite messages
+	case strings.Contains(fromLower, "eval") || strings.Contains(toLower, "eval"):
+		return "eval"
+
+	// 3. Coordinator agent messages
+	case isCoordinatorInbox(fromLower) || isCoordinatorInbox(toLower):
+		return "coordinator"
+
+	// 4. User-initiated messages
+	case fromLower == "user" || fromLower == "dashboard" || fromLower == "claude-code" || toLower == "user":
+		return "user_session"
+
+	// 5. CLI messages (rare for inbox)
+	case strings.HasPrefix(fromLower, "ailang"):
+		return "cli"
+
+	// 6. Default: messaging between agents
+	case fromAgent != "" && toInbox != "":
+		return "messaging"
+
+	default:
+		return "other"
+	}
+}
+
+// isCoordinatorInbox checks if an inbox name belongs to coordinator
+func isCoordinatorInbox(inbox string) bool {
+	coordinatorInboxes := map[string]bool{
+		"coordinator":        true,
+		"design-doc-creator": true,
+		"sprint-planner":     true,
+		"sprint-executor":    true,
+		"eval-runner":        true,
+	}
+	return coordinatorInboxes[inbox]
+}
+
+// inboxMessageMatchesSourceType checks if an inbox message matches a source_type filter.
+func inboxMessageMatchesSourceType(fromAgent, toInbox, sourceType string) bool {
+	if sourceType == "" {
+		return true
+	}
+	return InferInboxSourceType(fromAgent, toInbox) == sourceType
 }

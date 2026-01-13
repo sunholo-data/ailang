@@ -78,8 +78,9 @@ search_query() {
 
 SEARCH_QUERY=$(search_query "$DOC_NAME")
 
-# Check for related design docs before creating (using Ollama neural embeddings)
-echo -e "${CYAN}🔍 Searching for related design docs (neural/Ollama embeddings)...${NC}"
+# Check for related design docs before creating
+# Run both SimHash (instant) and Neural (better quality), combine unique results
+echo -e "${CYAN}🔍 Searching for related design docs...${NC}"
 echo ""
 
 # Check if ailang is available
@@ -89,24 +90,66 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
         AILANG_CMD="ailang"
     fi
 
-    # Search implemented docs with neural embeddings
+    # Function to merge and deduplicate results (neural results take priority)
+    merge_results() {
+        local simhash="$1"
+        local neural="$2"
+        # Combine, dedupe by path. Neural listed first so its scores take priority.
+        # Format: "1. path/to/file.md (0.85)" - $2 is the path
+        { echo "$neural"; echo "$simhash"; } | grep -E "^[0-9]+\." | \
+            awk '{ path = $2; if (path && !seen[path]++) print }' | head -5
+    }
+
+    # --- IMPLEMENTED DOCS ---
     echo -e "${YELLOW}Implemented docs matching \"$SEARCH_QUERY\":${NC}"
-    IMPLEMENTED=$("$AILANG_CMD" docs search --stream implemented --neural --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
-    if [ "$IMPLEMENTED" = "  (none found)" ]; then
-        echo "  (none found)"
+
+    # SimHash first (instant feedback)
+    echo -e "  ${CYAN}[SimHash - instant]${NC}"
+    IMPL_SIMHASH=$("$AILANG_CMD" docs search --stream implemented --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    if [ -n "$IMPL_SIMHASH" ]; then
+        echo "$IMPL_SIMHASH" | head -3 | sed 's/^/  /'
     else
-        echo "$IMPLEMENTED" | head -5
+        echo "    (none found)"
     fi
+
+    # Neural search (better quality)
+    echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    if [ -n "$IMPL_NEURAL" ]; then
+        echo "$IMPL_NEURAL" | head -3 | sed 's/^/  /'
+    else
+        echo "    (none found)"
+    fi
+
+    # Merge for template (neural preferred)
+    IMPLEMENTED=$(merge_results "$IMPL_SIMHASH" "$IMPL_NEURAL")
+    [ -z "$IMPLEMENTED" ] && IMPLEMENTED="  (none found)"
     echo ""
 
-    # Search planned docs with neural embeddings
+    # --- PLANNED DOCS ---
     echo -e "${YELLOW}Planned docs matching \"$SEARCH_QUERY\":${NC}"
-    PLANNED=$("$AILANG_CMD" docs search --stream planned --neural --limit 3 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "  (none found)")
-    if [ "$PLANNED" = "  (none found)" ]; then
-        echo "  (none found)"
+
+    # SimHash first (instant feedback)
+    echo -e "  ${CYAN}[SimHash - instant]${NC}"
+    PLAN_SIMHASH=$("$AILANG_CMD" docs search --stream planned --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    if [ -n "$PLAN_SIMHASH" ]; then
+        echo "$PLAN_SIMHASH" | head -3 | sed 's/^/  /'
     else
-        echo "$PLANNED" | head -5
+        echo "    (none found)"
     fi
+
+    # Neural search (better quality)
+    echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
+    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    if [ -n "$PLAN_NEURAL" ]; then
+        echo "$PLAN_NEURAL" | head -3 | sed 's/^/  /'
+    else
+        echo "    (none found)"
+    fi
+
+    # Merge for template (neural preferred)
+    PLANNED=$(merge_results "$PLAN_SIMHASH" "$PLAN_NEURAL")
+    [ -z "$PLANNED" ] && PLANNED="  (none found)"
     echo ""
 
     # Show info if matches found (no confirmation required - proceed automatically)

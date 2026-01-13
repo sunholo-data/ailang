@@ -16,6 +16,8 @@ import (
 func coordinatorPending(args []string) error {
 	stateDir := ""
 	jsonOutput := false
+	approveAll := false
+	approveID := ""
 
 	// Parse flags
 	for i := 0; i < len(args); i++ {
@@ -27,6 +29,13 @@ func coordinatorPending(args []string) error {
 			}
 		case "--json":
 			jsonOutput = true
+		case "--approve-all":
+			approveAll = true
+		case "--approve":
+			if i+1 < len(args) {
+				approveID = args[i+1]
+				i++
+			}
 		case "--help", "-h":
 			printCoordinatorPendingHelp()
 			return nil
@@ -57,6 +66,51 @@ func coordinatorPending(args []string) error {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(pending)
+	}
+
+	// Non-interactive mode: --approve <id> or --approve-all
+	if approveID != "" || approveAll {
+		pending, err := store.ListPendingApprovals(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list pending approvals: %w", err)
+		}
+
+		if len(pending) == 0 {
+			fmt.Println(green("✓"), "No pending approval requests")
+			return nil
+		}
+
+		for _, req := range pending {
+			// If --approve <id>, only approve matching ID
+			if approveID != "" && req.ID != approveID && req.TaskID != approveID {
+				// Also check if approveID is a prefix (like apr-xxx matches task-xxx)
+				if !strings.HasPrefix(req.ID, approveID) && !strings.HasPrefix(req.TaskID, approveID) {
+					continue
+				}
+			}
+
+			if req.Type == "handoff" {
+				// Handle handoff approval
+				if err := coordinatorApproveHandoff(store, req); err != nil {
+					fmt.Println(red("✗"), "Failed to approve handoff:", err)
+				} else {
+					fmt.Println(green("✓"), "Handoff approved:", req.ID)
+				}
+			} else {
+				// Handle merge approval - use the approve command
+				if err := coordinatorApprove([]string{req.TaskID}); err != nil {
+					fmt.Println(red("✗"), "Failed to approve:", req.TaskID, err)
+				}
+			}
+
+			// If single ID mode, we're done
+			if approveID != "" {
+				return nil
+			}
+		}
+
+		fmt.Println(green("✓"), "All pending approvals processed")
+		return nil
 	}
 
 	// OUTER LOOP: Task selection - allows returning to list after actions
@@ -155,6 +209,7 @@ taskList:
 			} else {
 				fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
 			}
+			fmt.Println("  [c]  View chat history")
 			fmt.Println("  [r]  " + red("Reject"))
 			fmt.Println("  [q]  Back to list")
 			fmt.Println()
@@ -199,6 +254,15 @@ taskList:
 				openInFinder(selectedTask.WorktreePath)
 				// Stay in action menu
 
+			case "c":
+				// View chat history
+				if selectedTask == nil {
+					fmt.Println(red("✗"), "No task selected")
+					continue
+				}
+				showTaskChatHistory(store, selectedTask.ID)
+				// Stay in action menu
+
 			case "a":
 				if isHandoff {
 					// Approve handoff - resolve and send to target agent
@@ -209,16 +273,16 @@ taskList:
 
 			case "r":
 				if isHandoff {
-					// Reject handoff by ID (not by task)
+					// Reject handoff by ID (not by task) - no feedback loop for handoffs
 					if err := store.ResolveApprovalRequest(ctx, selectedReq.ID, "rejected", "cli-user"); err != nil {
 						return fmt.Errorf("failed to reject handoff: %w", err)
 					}
 					fmt.Println(green("✓"), "Handoff rejected:", selectedReq.ID)
 				} else {
-					if err := store.ResolveApprovalRequestByTask(ctx, selectedReq.TaskID, "rejected", "cli-user"); err != nil {
+					// Use enhanced rejection with feedback loop
+					if err := coordinatorRejectWithFeedback(store, selectedReq.TaskID, false, ""); err != nil {
 						return fmt.Errorf("failed to reject: %w", err)
 					}
-					fmt.Println(green("✓"), "Task rejected:", selectedReq.TaskID)
 				}
 				// Return to task list after rejection
 				continue taskList
@@ -579,6 +643,7 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 			fmt.Println("  [o]  Open worktree in Finder")
 		}
 		fmt.Println("  [l]  View execution logs")
+		fmt.Println("  [c]  View chat history")
 		if task.Status == coordinator.TaskStatusPendingApproval {
 			fmt.Println("  [a]  " + green("Approve and merge"))
 			fmt.Println("  [r]  " + red("Reject"))
@@ -628,6 +693,9 @@ func showTaskDetail(ctx context.Context, store *coordinator.SQLiteStore, task *c
 
 		case "l":
 			showTaskLogs(ctx, store, task)
+
+		case "c":
+			showTaskChatHistory(store, task.ID)
 
 		case "a":
 			if task.Status != coordinator.TaskStatusPendingApproval {

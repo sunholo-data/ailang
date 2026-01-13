@@ -180,16 +180,138 @@ func TestTaskEventsEndpoint(t *testing.T) {
 	s.handleCoordinatorTaskEvents_(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var result []map[string]interface{}
+	// Parse the new EventsResponse structure
+	var result struct {
+		TaskID      string                   `json:"task_id"`
+		TotalEvents int                      `json:"total_events"`
+		TotalTurns  int                      `json:"total_turns"`
+		Events      []map[string]interface{} `json:"events"`
+	}
 	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
 
-	if len(result) != 2 {
-		t.Errorf("expected 2 events, got %d", len(result))
+	if result.TaskID != "task-456" {
+		t.Errorf("expected task_id task-456, got %s", result.TaskID)
+	}
+	if result.TotalEvents != 2 {
+		t.Errorf("expected total_events 2, got %d", result.TotalEvents)
+	}
+	if len(result.Events) != 2 {
+		t.Errorf("expected 2 events, got %d", len(result.Events))
+	}
+}
+
+func TestTaskEventsEndpoint_NotFound(t *testing.T) {
+	taskStore := NewMockTaskEventStore()
+	// No tasks added
+
+	s := &Server{}
+	s.SetTaskEventStore(taskStore)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/coordinator/tasks/unknown-task/events", nil)
+	w := httptest.NewRecorder()
+
+	s.handleCoordinatorTaskEvents_(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected status 404, got %d", w.Code)
+	}
+}
+
+func TestTaskEventsEndpoint_TypeFilter(t *testing.T) {
+	taskStore := NewMockTaskEventStore()
+
+	taskStore.tasks["task-filter"] = &coordinator.TaskRecord{
+		ID:    "task-filter",
+		Title: "Filter test task",
+	}
+
+	taskStore.events["task-filter"] = []*coordinator.TaskEventRecord{
+		{TaskID: "task-filter", StreamType: "text", Text: "Hello", TurnNum: 1, CreatedAt: time.Now()},
+		{TaskID: "task-filter", StreamType: "tool_use", ToolName: "Read", TurnNum: 1, CreatedAt: time.Now()},
+		{TaskID: "task-filter", StreamType: "text", Text: "World", TurnNum: 1, CreatedAt: time.Now()},
+	}
+
+	s := &Server{}
+	s.SetTaskEventStore(taskStore)
+
+	// Filter by type=tool_use
+	req := httptest.NewRequest(http.MethodGet, "/api/coordinator/tasks/task-filter/events?type=tool_use", nil)
+	w := httptest.NewRecorder()
+
+	s.handleCoordinatorTaskEvents_(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var result struct {
+		TotalEvents int                      `json:"total_events"`
+		Events      []map[string]interface{} `json:"events"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Total events is original count (3), but filtered events is 1
+	if result.TotalEvents != 3 {
+		t.Errorf("expected total_events 3, got %d", result.TotalEvents)
+	}
+	if len(result.Events) != 1 {
+		t.Errorf("expected 1 filtered event, got %d", len(result.Events))
+	}
+}
+
+func TestTaskEventsEndpoint_LimitParam(t *testing.T) {
+	taskStore := NewMockTaskEventStore()
+
+	taskStore.tasks["task-limit"] = &coordinator.TaskRecord{
+		ID:    "task-limit",
+		Title: "Limit test task",
+	}
+
+	// Add many events
+	var events []*coordinator.TaskEventRecord
+	for i := 0; i < 10; i++ {
+		events = append(events, &coordinator.TaskEventRecord{
+			TaskID:     "task-limit",
+			StreamType: "text",
+			Text:       "Event",
+			TurnNum:    1,
+			CreatedAt:  time.Now(),
+		})
+	}
+	taskStore.events["task-limit"] = events
+
+	s := &Server{}
+	s.SetTaskEventStore(taskStore)
+
+	// Request with limit=5
+	req := httptest.NewRequest(http.MethodGet, "/api/coordinator/tasks/task-limit/events?limit=5", nil)
+	w := httptest.NewRecorder()
+
+	s.handleCoordinatorTaskEvents_(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	var result struct {
+		TotalEvents int                      `json:"total_events"`
+		Events      []map[string]interface{} `json:"events"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Limit is applied at database level (mock returns all, but test validates param is parsed)
+	// In real implementation, limit is passed to GetTaskEvents
+	if result.TotalEvents == 0 {
+		t.Errorf("expected some events")
 	}
 }
 

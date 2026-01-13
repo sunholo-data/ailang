@@ -968,7 +968,38 @@ ailang messages send coordinator "Fix the null pointer bug in parser.go" \
 - Task completes → Approval request created
 - Dashboard shows pending approvals with git diff viewer
 - Approve → Changes merged to main, next agent triggered
-- Reject → Worktree preserved for inspection
+- Reject → Feedback loop with re-trigger support
+
+**CLI Approval Actions (v0.6.4+):**
+When reviewing pending approvals with `ailang coordinator pending`:
+
+| Key | Action | Description |
+|-----|--------|-------------|
+| `a` | Approve | Merge changes to dev branch, trigger next agent |
+| `r` | Reject | Prompt for feedback, send to agent inbox, re-trigger task |
+| `c` | Chat | View conversation history (turn-by-turn with tool calls) |
+| `d` | Diff | View git diff of changes |
+| `q` | Quit | Exit without action |
+
+**Feedback Loop (M-TRANSCRIPT):**
+When you reject a task, the coordinator:
+1. Prompts for feedback reason (why the work needs revision)
+2. Stores feedback as `human_feedback` event in task_events table
+3. Sends message to agent's inbox with feedback content
+4. Re-triggers task with `iteration=2` (same task ID, preserves context)
+5. Claude uses `--resume <sessionId>` to continue with full conversation history
+6. Max 3 iterations to prevent infinite loops
+
+```bash
+# Manual rejection with feedback
+ailang coordinator reject <task-id> --feedback "Need to add error handling for edge cases"
+
+# Skip prompt (for scripted use)
+ailang coordinator reject <task-id> --feedback "..." --no-prompt
+
+# Reject without re-triggering (permanent rejection)
+ailang coordinator reject <task-id> --no-retrigger
+```
 
 **Real-Time Dashboard Streaming:**
 The coordinator streams task execution events to the Collaboration Hub dashboard:

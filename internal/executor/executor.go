@@ -44,6 +44,10 @@ type Task struct {
 	AllowedTools []string          // Tools the agent can use
 	Model        string            // Model to use (provider-specific)
 	Metadata     map[string]string // Provider-specific options
+
+	// Session continuity (M-TRANSCRIPT)
+	Iteration       int    // Iteration number (1 = first run, 2+ = re-run with feedback)
+	ResumeSessionID string // Previous session ID to resume (for Iteration > 1)
 }
 
 // Result is the normalized execution result

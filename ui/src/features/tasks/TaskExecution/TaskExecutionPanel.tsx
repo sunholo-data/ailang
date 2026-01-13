@@ -7,6 +7,8 @@ import {
 import { StreamingLog } from './StreamingLog';
 import { ResourceMetrics } from './ResourceMetrics';
 import { useTaskStream } from '../../../hooks/useTaskStream';
+import { DiffViewer } from '../../../components/DiffViewer';
+import { ApprovalDetailModal, ApprovalData } from '../../approvals/ApprovalDetailModal';
 import styles from './TaskExecution.module.css';
 
 interface TaskExecutionPanelProps {
@@ -61,7 +63,26 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
 
   const [isApproving, setIsApproving] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [fullDiff, setFullDiff] = useState<string>('');
   const statusBadge = getStatusBadge(status);
+
+  // Fetch full diff when modal opens
+  const handleOpenModal = useCallback(async () => {
+    if (pendingApproval?.task_id) {
+      try {
+        const res = await fetch(`/api/coordinator/tasks/${pendingApproval.task_id}/diff`);
+        if (res.ok) {
+          const data = await res.json();
+          setFullDiff(data.diff || '');
+        }
+      } catch {
+        // Use diff_summary as fallback
+        setFullDiff(pendingApproval.diff_summary || '');
+      }
+    }
+    setIsModalOpen(true);
+  }, [pendingApproval]);
 
   const handleApprove = useCallback(async () => {
     if (!pendingApproval) return;
@@ -144,26 +165,35 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
           <div className={styles.approvalContent}>
             <p className={styles.approvalDescription}>{pendingApproval.description}</p>
 
-            {pendingApproval.files_changed && pendingApproval.files_changed.length > 0 && (
+            {/* File changes toggle and diff preview */}
+            {(pendingApproval.files_changed?.length || pendingApproval.diff_summary) && (
               <div className={styles.filesChanged}>
-                <button
-                  className={styles.toggleButton}
-                  onClick={() => setShowDiff(!showDiff)}
-                >
-                  {showDiff ? 'Hide' : 'Show'} Changed Files ({pendingApproval.files_changed.length})
-                </button>
-                {showDiff && (
-                  <ul className={styles.fileList}>
-                    {pendingApproval.files_changed.map((file, i) => (
-                      <li key={i}>{file}</li>
-                    ))}
-                  </ul>
+                <div className={styles.diffControls}>
+                  <button
+                    className={styles.toggleButton}
+                    onClick={() => setShowDiff(!showDiff)}
+                  >
+                    {showDiff ? 'Hide' : 'Show'} Changes
+                    {pendingApproval.files_changed?.length && ` (${pendingApproval.files_changed.length} files)`}
+                  </button>
+                  <button
+                    className={styles.fullReviewButton}
+                    onClick={handleOpenModal}
+                  >
+                    Full Review
+                  </button>
+                </div>
+                {showDiff && pendingApproval.diff_summary && (
+                  <div className={styles.diffPreview}>
+                    <DiffViewer
+                      diff={pendingApproval.diff_summary}
+                      viewMode="unified"
+                      compact
+                      maxHeight="300px"
+                    />
+                  </div>
                 )}
               </div>
-            )}
-
-            {showDiff && pendingApproval.diff_summary && (
-              <pre className={styles.diffSummary}>{pendingApproval.diff_summary}</pre>
             )}
 
             <div className={styles.approvalActions}>
@@ -200,6 +230,23 @@ export const TaskExecutionPanel: React.FC<TaskExecutionPanelProps> = ({
         </div>
         <StreamingLog events={events} />
       </div>
+
+      {/* Full Review Modal */}
+      {pendingApproval && isModalOpen && (
+        <ApprovalDetailModal
+          approval={pendingApproval as ApprovalData}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onApprove={async (id) => {
+            await handleApprove();
+          }}
+          onReject={async (id, notes) => {
+            await handleReject();
+          }}
+          diff={fullDiff}
+          events={events}
+        />
+      )}
     </div>
   );
 };

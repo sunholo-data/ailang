@@ -89,8 +89,11 @@ ailang coordinator list --running
 
 ```
 pending → queued → running → pending_approval → completed
-                          ↘ failed / rejected
+                          ↘ failed
+                          ↘ rejected → [feedback] → pending (iteration 2) → running → ...
 ```
+
+**Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Claude uses `--resume` to continue with full conversation context.
 
 ## GitHub-Driven Workflow (v0.6.2+)
 
@@ -155,10 +158,13 @@ ailang coordinator pending
 1. **Open explorer** - `ailang coordinator list`
 2. **Select task** - Enter task number
 3. **Review**:
+   - `[c]` View chat history (turn-by-turn conversation with tool calls)
    - `[d]` View diff
    - `[f]` Browse files
    - `[l]` View logs
-4. **Decide** - `[a]` Approve or `[r]` Reject
+4. **Decide**:
+   - `[a]` Approve - merge changes to dev branch
+   - `[r]` Reject - prompt for feedback, re-trigger task with context
 
 ### 3. Task Routing
 

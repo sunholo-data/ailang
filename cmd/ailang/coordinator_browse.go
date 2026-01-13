@@ -556,3 +556,80 @@ func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coo
 		}
 	}
 }
+
+// showTaskChatHistory displays the conversation history for a task.
+func showTaskChatHistory(store *coordinator.SQLiteStore, taskID string) {
+	ctx := context.Background()
+
+	// Fetch events (limit to 1000 to avoid memory issues)
+	events, err := store.GetTaskEvents(ctx, taskID, 1000)
+	if err != nil {
+		fmt.Println(red("✗"), "Failed to fetch chat history:", err)
+		return
+	}
+
+	if len(events) == 0 {
+		fmt.Println(yellow("⚠"), "No chat history recorded for this task.")
+		fmt.Println("  This may happen if:")
+		fmt.Println("  • The task hasn't started streaming yet")
+		fmt.Println("  • Events weren't captured (older task)")
+		return
+	}
+
+	// Format and display
+	opts := coordinator.DefaultFormatOptions()
+	formatted := coordinator.FormatEventsAsText(events, opts)
+
+	// Get summary stats
+	summary := coordinator.SummarizeEvents(events)
+
+	fmt.Println()
+	fmt.Println(bold("─── Chat History ───────────────────────────────────────────"))
+	fmt.Printf("Task: %s\n", taskID)
+	fmt.Printf("Summary: %s\n", summary)
+	fmt.Println(strings.Repeat("─", 60))
+
+	// Paginate output if very long
+	lines := strings.Split(formatted, "\n")
+	pageSize := 50
+
+	if len(lines) > pageSize {
+		// Interactive pagination
+		displayChatPaginated(lines, pageSize)
+	} else {
+		fmt.Println(formatted)
+	}
+}
+
+// displayChatPaginated shows chat history with pagination.
+func displayChatPaginated(lines []string, pageSize int) {
+	reader := bufio.NewReader(os.Stdin)
+	offset := 0
+
+	for offset < len(lines) {
+		// Show current page
+		end := offset + pageSize
+		if end > len(lines) {
+			end = len(lines)
+		}
+
+		for i := offset; i < end; i++ {
+			fmt.Println(lines[i])
+		}
+
+		offset = end
+
+		// Check if more to show
+		if offset < len(lines) {
+			remaining := len(lines) - offset
+			fmt.Printf("\n[%d more lines] Press Enter for more, 'q' to stop: ", remaining)
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+			if input == "q" {
+				break
+			}
+			fmt.Println() // Blank line before next page
+		}
+	}
+	fmt.Println(strings.Repeat("─", 60))
+}

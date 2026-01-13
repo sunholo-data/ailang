@@ -60,14 +60,39 @@ type HeatmapDataPoint struct {
 // buildSourceTypeCondition returns SQL condition for source type filter
 // Uses resource_attributes (service.name, ailang.source) first, then falls back to span name patterns
 // Note: JSON keys with dots must be quoted in json_extract (e.g., '$."service.name"')
+//
+// Canonical source types (must match InferInboxSourceType in handlers_inbox.go):
+// - user_session: Claude Code user sessions
+// - eval: Eval suite runs
+// - coordinator: Coordinator-managed agent tasks
+// - github: GitHub sync messages (inbox only, no spans)
+// - messaging: Agent-to-agent messages
+// - cli: CLI tool usage
+// - direct_api: Direct API calls
+// - other: Catch-all
 func buildSourceTypeCondition(sourceType string) string {
 	switch sourceType {
-	case "claude_code":
-		return `(json_extract(resource_attributes, '$."service.name"') = 'claude-code' OR json_extract(resource_attributes, '$."ailang.source"') = 'user' OR name LIKE 'claude_code.%')`
+	case "user_session", "claude_code":
+		// Match Claude Code spans from direct user sessions, but EXCLUDE coordinator-spawned sessions
+		// This ensures coordinator tasks get proper cost attribution
+		return `(
+			(json_extract(resource_attributes, '$."service.name"') = 'claude-code' OR
+			 json_extract(resource_attributes, '$."ailang.source"') = 'user' OR
+			 name LIKE 'claude_code.%')
+			AND COALESCE(json_extract(resource_attributes, '$."ailang.source"'), 'user') != 'coordinator'
+		)`
 	case "eval":
 		return `(json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' OR json_extract(resource_attributes, '$."ailang.source"') = 'eval' OR name LIKE 'eval.%')`
 	case "coordinator":
 		return `(json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' OR name LIKE 'coordinator.%' OR name LIKE 'claude.execute%')`
+	case "github":
+		// GitHub has no spans - this condition matches nothing intentionally
+		// GitHub messages are filtered in handlers_inbox.go via InferInboxSourceType
+		return "1=0"
+	case "messaging":
+		return "(name LIKE 'messages.%')"
+	case "cli":
+		return "(name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%')"
 	case "direct_api":
 		return "(name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%')"
 	case "exec":
@@ -165,52 +190,70 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 	return items, rows.Err()
 }
 
-// GetBreakdownBySourceType returns cost/token breakdown by source type (inferred from attributes + span names)
+// GetBreakdownBySourceType returns cost/token breakdown by source type (inferred from root span of each trace)
 func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]BreakdownItem, error) {
-	// Categorize spans by resource attributes first (service.name, ailang.source), then span name patterns
-	// Priority: service.name/ailang.source > span name patterns
-	// GROUP BY 1, 2 uses column position since SQLite doesn't support alias in GROUP BY
+	// Costs are attributed to the INITIATING SOURCE (root span of each trace).
+	// This ensures that API calls made within a user session are attributed to "User Sessions",
+	// not "Direct API". The root span determines the source category for all spans in its trace.
 	rows, err := b.store.DB().QueryContext(ctx, `
+		WITH root_categories AS (
+			-- Find root span of each trace and categorize by INITIATING SOURCE
+			-- Priority: ailang.source attribute (explicit) > service.name > span name patterns
+			-- This ensures coordinator-spawned Claude Code sessions are attributed to "Coordinator Tasks"
+			SELECT
+				trace_id,
+				CASE
+					-- 1. Check ailang.source FIRST (explicit source from AILANG executor)
+					-- Critical for proper cost attribution: GitHub → Coordinator → Claude Code
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
+					-- 2. Then check service.name (generic tool identity)
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'user_session'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'coordinator'
+					-- 3. Check specific span name patterns
+					WHEN name LIKE 'eval.%' THEN 'eval'
+					WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' OR name LIKE 'exec.%' THEN 'coordinator'
+					WHEN name LIKE 'messages.%' THEN 'messaging'
+					WHEN name LIKE 'ailang-%' THEN 'server'
+					WHEN name LIKE 'ailang.exec%' THEN 'coordinator'
+					WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%' THEN 'cli'
+					WHEN name LIKE 'claude_code.%' THEN 'user_session'
+					-- 4. API calls without service.name are truly direct API usage
+					WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'direct_api'
+					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
+					ELSE 'other'
+				END as source_id,
+				CASE
+					-- Same priority: ailang.source > service.name > span name
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'User Sessions'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'eval.%' THEN 'Eval Benchmarks'
+					WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' OR name LIKE 'exec.%' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'messages.%' THEN 'Messaging'
+					WHEN name LIKE 'ailang-%' THEN 'Server'
+					WHEN name LIKE 'ailang.exec%' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%' THEN 'CLI Usage'
+					WHEN name LIKE 'claude_code.%' THEN 'User Sessions'
+					WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'Direct API'
+					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
+					ELSE 'Other'
+				END as source_label
+			FROM spans
+			WHERE parent_span_id IS NULL OR parent_span_id = ''
+		)
 		SELECT
-			CASE
-				-- Check service.name from resource_attributes first (keys with dots need quoting)
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'claude_code'
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
-				-- Check ailang.source attribute
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'claude_code'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
-				-- Fall back to span name patterns
-				WHEN name LIKE 'eval.%' THEN 'eval'
-				WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' THEN 'coordinator'
-				WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'direct_api'
-				WHEN name LIKE 'ailang.exec%' THEN 'exec'
-				WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' THEN 'local'
-				WHEN name LIKE 'claude_code.%' THEN 'claude_code'
-				ELSE 'other'
-			END as id,
-			CASE
-				-- Check service.name from resource_attributes first (keys with dots need quoting)
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'Claude Code'
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
-				-- Check ailang.source attribute
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'Claude Code'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
-				-- Fall back to span name patterns
-				WHEN name LIKE 'eval.%' THEN 'Eval Benchmarks'
-				WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' THEN 'Coordinator Tasks'
-				WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'Direct API Calls'
-				WHEN name LIKE 'ailang.exec%' THEN 'Exec Tasks'
-				WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' THEN 'Local Usage'
-				WHEN name LIKE 'claude_code.%' THEN 'Claude Code'
-				ELSE 'Other'
-			END as label,
+			COALESCE(r.source_id, 'other') as id,
+			COALESCE(r.source_label, 'Other') as label,
 			COUNT(*) as span_count,
-			COALESCE(SUM(tokens_in), 0) as tokens_in,
-			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
-		FROM spans
+			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
+			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
+			COALESCE(SUM(s.cost_usd), 0) as cost_usd
+		FROM spans s
+		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		GROUP BY 1, 2
 		ORDER BY cost_usd DESC
 	`)
@@ -539,47 +582,67 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 		}
 	}
 
+	// Costs are attributed to the INITIATING SOURCE (root span of each trace).
+	// Filters apply to the spans being aggregated, but categorization comes from root spans.
 	query := fmt.Sprintf(`
+		WITH root_categories AS (
+			-- Find root span of each trace and categorize by INITIATING SOURCE
+			-- Priority: ailang.source attribute (explicit) > service.name > span name patterns
+			-- This ensures coordinator-spawned Claude Code sessions are attributed to "Coordinator Tasks"
+			SELECT
+				trace_id,
+				CASE
+					-- 1. Check ailang.source FIRST (explicit source from AILANG executor)
+					-- Critical for proper cost attribution: GitHub → Coordinator → Claude Code
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
+					-- 2. Then check service.name (generic tool identity)
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'user_session'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'coordinator'
+					-- 3. Check specific span name patterns
+					WHEN name LIKE 'eval.%%' THEN 'eval'
+					WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' OR name LIKE 'exec.%%' THEN 'coordinator'
+					WHEN name LIKE 'messages.%%' THEN 'messaging'
+					WHEN name LIKE 'ailang-%%' THEN 'server'
+					WHEN name LIKE 'ailang.exec%%' THEN 'coordinator'
+					WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' OR name LIKE 'compile%%' OR name LIKE 'check.%%' THEN 'cli'
+					WHEN name LIKE 'claude_code.%%' THEN 'user_session'
+					-- 4. API calls without service.name are truly direct API usage
+					WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'direct_api'
+					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
+					ELSE 'other'
+				END as source_id,
+				CASE
+					-- Same priority: ailang.source > service.name > span name
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
+					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'User Sessions'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
+					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'eval.%%' THEN 'Eval Benchmarks'
+					WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' OR name LIKE 'exec.%%' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'messages.%%' THEN 'Messaging'
+					WHEN name LIKE 'ailang-%%' THEN 'Server'
+					WHEN name LIKE 'ailang.exec%%' THEN 'Coordinator Tasks'
+					WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' OR name LIKE 'compile%%' OR name LIKE 'check.%%' THEN 'CLI Usage'
+					WHEN name LIKE 'claude_code.%%' THEN 'User Sessions'
+					WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'Direct API'
+					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
+					ELSE 'Other'
+				END as source_label
+			FROM spans
+			WHERE parent_span_id IS NULL OR parent_span_id = ''
+		)
 		SELECT
-			CASE
-				-- Check service.name from resource_attributes first (keys with dots need quoting)
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'claude_code'
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
-				-- Check ailang.source attribute
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'claude_code'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
-				-- Fall back to span name patterns
-				WHEN name LIKE 'eval.%%' THEN 'eval'
-				WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' THEN 'coordinator'
-				WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'direct_api'
-				WHEN name LIKE 'ailang.exec%%' THEN 'exec'
-				WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' THEN 'local'
-				WHEN name LIKE 'claude_code.%%' THEN 'claude_code'
-				ELSE 'other'
-			END as id,
-			CASE
-				-- Check service.name from resource_attributes first (keys with dots need quoting)
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'Claude Code'
-				WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
-				-- Check ailang.source attribute
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'user' THEN 'Claude Code'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
-				WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
-				-- Fall back to span name patterns
-				WHEN name LIKE 'eval.%%' THEN 'Eval Benchmarks'
-				WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' THEN 'Coordinator Tasks'
-				WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'Direct API Calls'
-				WHEN name LIKE 'ailang.exec%%' THEN 'Exec Tasks'
-				WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' THEN 'Local Usage'
-				WHEN name LIKE 'claude_code.%%' THEN 'Claude Code'
-				ELSE 'Other'
-			END as label,
+			COALESCE(r.source_id, 'other') as id,
+			COALESCE(r.source_label, 'Other') as label,
 			COUNT(*) as span_count,
-			COALESCE(SUM(tokens_in), 0) as tokens_in,
-			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
-		FROM spans
+			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
+			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
+			COALESCE(SUM(s.cost_usd), 0) as cost_usd
+		FROM spans s
+		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		%s
 		GROUP BY 1, 2
 		ORDER BY cost_usd DESC
@@ -788,9 +851,26 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 // For user-initiated sessions (no coordinator task), defaults to "claude-code" / "user".
 // Note: The lookup parameter is kept for API compatibility but is no longer used - agent info
 // comes directly from observatory.db via JOIN with agent_assignments.
-func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup) ([]ClaudeCodeEvent, error) {
+// The sourceType parameter filters by source:
+//   - "coordinator": Only sessions with agent_assignment (coordinator-spawned)
+//   - "user_session": Only sessions without agent_assignment (user-initiated)
+//   - "": No filter (all sessions)
+func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup, sourceType string) ([]ClaudeCodeEvent, error) {
 	if limit <= 0 {
 		limit = 50
+	}
+
+	// Build source type filter condition
+	var sourceFilter string
+	switch sourceType {
+	case "coordinator":
+		// Only sessions with agent_assignment (coordinator-spawned)
+		sourceFilter = " AND aa.agent_id IS NOT NULL"
+	case "user_session":
+		// Only sessions without agent_assignment (user-initiated)
+		sourceFilter = " AND (aa.agent_id IS NULL OR aa.agent_id = '')"
+	default:
+		sourceFilter = "" // No filter
 	}
 
 	// Aggregate by session.id, join with agent_assignments to get agent info
@@ -814,7 +894,7 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'
 		  AND json_extract(s.resource_attributes, '$."service.name"') = 'claude-code'
-		  AND json_extract(s.attributes, '$."session.id"') IS NOT NULL
+		  AND json_extract(s.attributes, '$."session.id"') IS NOT NULL` + sourceFilter + `
 		GROUP BY json_extract(s.attributes, '$."session.id"')
 		ORDER BY latest_time DESC
 		LIMIT ?

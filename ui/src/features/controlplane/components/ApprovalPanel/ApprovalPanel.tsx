@@ -4,6 +4,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import { useApprovals, Approval } from '../../../../hooks/useObservatory';
+import { ApprovalDetailModal, ApprovalData } from '../../../approvals/ApprovalDetailModal';
 import styles from './ApprovalPanel.module.css';
 
 // Format time remaining until expiry
@@ -60,6 +61,31 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
   const [filterAgent, setFilterAgent] = useState<string>('');
   const [processing, setProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Modal state for detailed review
+  const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Handle approval click - open modal
+  const handleApprovalClick = useCallback((approval: Approval) => {
+    setSelectedApproval(approval);
+    setIsModalOpen(true);
+    onApprovalClick?.(approval);
+  }, [onApprovalClick]);
+
+  // Handle modal approve
+  const handleModalApprove = useCallback(async (id: string) => {
+    await approveApproval(id);
+    setIsModalOpen(false);
+    setSelectedApproval(null);
+  }, [approveApproval]);
+
+  // Handle modal reject
+  const handleModalReject = useCallback(async (id: string, notes: string) => {
+    await rejectApproval(id, notes);
+    setIsModalOpen(false);
+    setSelectedApproval(null);
+  }, [rejectApproval]);
 
   // Toggle selection
   const toggleSelection = useCallback((id: string) => {
@@ -192,7 +218,7 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
             <div
               key={approval.id}
               className={`${styles.item} ${selectedIds.has(approval.id) ? styles.itemSelected : ''} ${approval.task_id === selectedTaskId ? styles.itemHighlighted : ''}`}
-              onClick={() => onApprovalClick?.(approval)}
+              onClick={() => handleApprovalClick(approval)}
             >
               <div className={styles.itemHeader}>
                 <input
@@ -249,6 +275,20 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
           {processing ? '...' : `Reject (${selectedIds.size})`}
         </button>
       </div>
+
+      {/* Detail Modal */}
+      {selectedApproval && (
+        <ApprovalDetailModal
+          approval={selectedApproval as ApprovalData}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedApproval(null);
+          }}
+          onApprove={handleModalApprove}
+          onReject={handleModalReject}
+        />
+      )}
     </div>
   );
 };

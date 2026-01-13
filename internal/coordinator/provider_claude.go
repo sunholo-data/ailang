@@ -69,13 +69,15 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 
 	// Create executor task
 	execTask := &executor.Task{
-		ID:           task.Task.ID,
-		ParentTaskID: task.Task.ParentTaskID, // M-TASK-HIERARCHY: propagate from coordinator task
-		Directive:    directive,
-		Workspace:    opts.Workspace,
-		Timeout:      opts.Timeout,
-		Model:        opts.Model,
-		Metadata:     make(map[string]string),
+		ID:              task.Task.ID,
+		ParentTaskID:    task.Task.ParentTaskID, // M-TASK-HIERARCHY: propagate from coordinator task
+		Directive:       directive,
+		Workspace:       opts.Workspace,
+		Timeout:         opts.Timeout,
+		Model:           opts.Model,
+		Metadata:        make(map[string]string),
+		Iteration:       task.Task.Iteration, // M-TRANSCRIPT: feedback loop iteration
+		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume Claude session if iteration > 1
 	}
 
 	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)
@@ -136,7 +138,15 @@ func buildDirective(task *AnalyzedTask) string {
 		directive = fmt.Sprintf("REFACTORING REQUEST:\n\n%s\n\nPlease refactor the code. Make sure to:\n1. Maintain existing behavior\n2. Keep tests passing\n3. Improve code quality", directive)
 	case TaskTypeTest:
 		directive = fmt.Sprintf("TESTING REQUEST:\n\n%s\n\nPlease add or improve tests. Make sure to:\n1. Cover edge cases\n2. Use existing test patterns\n3. Verify all tests pass", directive)
+	case TaskTypeDocs:
+		directive = fmt.Sprintf("DOCUMENTATION REQUEST:\n\n%s\n\nPlease create or update documentation. Make sure to:\n1. Follow existing documentation patterns\n2. Include examples where helpful\n3. Be clear and concise", directive)
+	case TaskTypeResearch:
+		directive = fmt.Sprintf("RESEARCH REQUEST:\n\n%s\n\nPlease investigate and document your findings.", directive)
 	}
+
+	// CRITICAL: Always add commit instruction for all task types
+	// The coordinator expects work to be committed to the worktree branch
+	directive += "\n\nIMPORTANT: When you are done, commit all your changes with a descriptive commit message. Use 'git add' for any new files you created, then 'git commit'."
 
 	return directive
 }

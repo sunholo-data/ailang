@@ -31,6 +31,9 @@ type Task struct {
 	MessageID    string
 	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
 	CreatedAt    time.Time
+	// M-TRANSCRIPT: Feedback loop support
+	Iteration int    // Current iteration (1 = first run, 2+ = re-run with feedback)
+	SessionID string // Session ID for resume capability
 }
 
 // AnalyzedTask is a task with analysis metadata

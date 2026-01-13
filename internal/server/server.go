@@ -325,6 +325,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
 	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
 
+	// REST API endpoints - Tasks (cleaner alias)
+	// GET /api/tasks/{id}/events - same as /api/coordinator/tasks/{id}/events
+	mux.HandleFunc("/api/tasks/", s.handleTasksAlias)
+
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)
 	mux.HandleFunc("/api/inbox/", s.handleInboxMessage)

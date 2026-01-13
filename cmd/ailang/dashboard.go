@@ -214,6 +214,7 @@ func dashboardInboxCommand() {
 	provider := fs.String("provider", "", "Filter by provider (claude, gemini)")
 	model := fs.String("model", "", "Filter by model name")
 	inbox := fs.String("inbox", "", "Filter by inbox name")
+	sourceType := fs.String("source", "", "Filter by source type (github, eval, coordinator, user_session, messaging, cli, direct_api)")
 	startDate := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	endDate := fs.String("end", "", "End date (YYYY-MM-DD)")
 	limit := fs.Int("limit", 50, "Maximum results")
@@ -234,6 +235,9 @@ func dashboardInboxCommand() {
 	}
 	if *inbox != "" {
 		params.Set("inbox", *inbox)
+	}
+	if *sourceType != "" {
+		params.Set("source_type", *sourceType)
 	}
 	if *startDate != "" {
 		params.Set("start_date", *startDate)
@@ -611,7 +615,7 @@ func dashboardStatsCommand() {
 	server := fs.String("server", "", "Dashboard server URL")
 	startDate := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	endDate := fs.String("end", "", "End date (YYYY-MM-DD)")
-	sourceType := fs.String("source", "", "Filter by source type")
+	sourceType := fs.String("source", "", "Filter by source type (github, eval, coordinator, user_session, messaging, cli, direct_api)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {

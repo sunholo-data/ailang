@@ -61,13 +61,14 @@ Interactive Actions:
   [q]     Quit
 
 Task Detail Actions:
+  [c]     View chat history (turn-by-turn with tool calls) (v0.6.4+)
   [d]     View full diff
   [s]     View diff summary (--stat)
   [f]     Browse changed files
   [b]     Browse worktree directory
   [l]     View execution logs
   [a]     Approve and merge (pending_approval only)
-  [r]     Reject (pending_approval only)
+  [r]     Reject with feedback loop (pending_approval only) (v0.6.4+)
   [q]     Back to list
 ```
 
@@ -93,19 +94,41 @@ What it does:
 
 ### ailang coordinator reject
 
-Reject a pending task.
+Reject a pending task with feedback loop support (v0.6.4+).
 
 ```bash
 ailang coordinator reject <task-id> [options]
 
 Options:
-  --reason TEXT      Reason for rejection
-  --state-dir DIR    State directory
+  --feedback, -f TEXT   Feedback explaining what needs revision
+  --no-prompt           Skip interactive feedback prompt (use with --feedback)
+  --no-retrigger        Permanent rejection without re-triggering
+  --state-dir DIR       State directory
 
-What it does:
-  1. Marks task as rejected
+What it does (default - with feedback loop):
+  1. Prompts for feedback reason (why the work needs revision)
+  2. Stores feedback as human_feedback event in task_events
+  3. Sends message to agent's inbox with feedback content
+  4. Re-triggers task with iteration+1 (same task ID, preserves context)
+  5. Agent resumes with --resume <sessionId> for full conversation history
+  6. Max 3 iterations to prevent infinite loops
+
+What it does (with --no-retrigger):
+  1. Marks task as permanently rejected
   2. Preserves worktree for reference
   3. Records rejection reason
+```
+
+**Feedback Loop Example:**
+```bash
+# Interactive (prompts for feedback)
+ailang coordinator reject task-abc123
+
+# With inline feedback
+ailang coordinator reject task-abc123 --feedback "Need to add error handling for edge cases"
+
+# Permanent rejection (no re-trigger)
+ailang coordinator reject task-abc123 --no-retrigger
 ```
 
 ### ailang coordinator pending
@@ -191,6 +214,8 @@ CREATE TABLE tasks (
     priority INTEGER DEFAULT 0,
     provider TEXT,
     worktree_path TEXT,
+    session_id TEXT,           -- Claude/Gemini session for resumption (v0.6.4+)
+    iteration INTEGER DEFAULT 0, -- Feedback loop iteration (v0.6.4+)
     error TEXT,
     cost REAL DEFAULT 0,
     tokens_used INTEGER DEFAULT 0,
@@ -234,6 +259,9 @@ Events stored in `task_events` table:
 | `tool_use` | tool_name, tool_input, turn_num | Tool invocation |
 | `tool_result` | tool_output, turn_num | Tool result |
 | `error` | error_msg | Error occurred |
+| `human_feedback` | text, turn_num, status | Human rejection feedback (v0.6.4+) |
+| `human_approval` | text, status | Human approval event (v0.6.4+) |
+| `iteration_start` | turn_num, text | New iteration started after feedback (v0.6.4+) |
 
 ## Configuration
 
@@ -269,6 +297,54 @@ The coordinator streams events to the Collaboration Hub server:
 2. Events POST to: `http://127.0.0.1:1957/api/coordinator/events`
 3. Server broadcasts via WebSocket to browsers
 4. View at: http://localhost:1957
+
+## Chat History API (v0.6.4+)
+
+View task conversation history via REST API:
+
+```bash
+# Get all events for a task
+curl http://localhost:1957/api/tasks/{task-id}/events
+
+# Filter by event type
+curl http://localhost:1957/api/tasks/{task-id}/events?type=text,tool_use
+
+# Limit results
+curl http://localhost:1957/api/tasks/{task-id}/events?limit=50
+
+# Get formatted text output (alternative endpoint)
+curl http://localhost:1957/api/tasks/{task-id}/transcript
+```
+
+**Response format:**
+```json
+[
+  {
+    "id": 1,
+    "task_id": "task-abc123",
+    "stream_type": "turn_start",
+    "turn_num": 1,
+    "created_at": "2026-01-13T08:00:00Z"
+  },
+  {
+    "id": 2,
+    "task_id": "task-abc123",
+    "stream_type": "text",
+    "text": "Let me analyze the code...",
+    "turn_num": 1,
+    "created_at": "2026-01-13T08:00:01Z"
+  },
+  {
+    "id": 3,
+    "task_id": "task-abc123",
+    "stream_type": "tool_use",
+    "tool_name": "Read",
+    "tool_input": "{\"file_path\": \"/path/to/file.go\"}",
+    "turn_num": 1,
+    "created_at": "2026-01-13T08:00:02Z"
+  }
+]
+```
 
 ## Examples
 

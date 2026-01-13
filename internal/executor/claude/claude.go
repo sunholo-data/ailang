@@ -101,6 +101,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		sessionID = uuid.New().String()
 	}
 	span.SetAttributes(attribute.String("session.id", sessionID))
+	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
+
+	// Get AILANG-specific Claude settings path (creates hooks if needed)
+	settingsPath, err := executor.GetClaudeSettingsPath()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Claude settings path: %w", err)
+	}
 
 	// Build command arguments
 	args := []string{
@@ -110,7 +117,17 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"--verbose",
 		"--permission-mode", e.permissionMode,
 		"--model", e.getModel(task),
-		"--session-id", sessionID,
+		"--settings", settingsPath, // Load AILANG hooks (PreToolUse, PostToolUse)
+	}
+
+	// Session handling: use --resume for iterations > 1 with existing session
+	// --resume <sessionId> continues existing session with full context
+	// --session-id <uuid> starts a new session with that ID
+	if task.Iteration > 1 && task.ResumeSessionID != "" {
+		args = append(args, "--resume", task.ResumeSessionID)
+		span.SetAttributes(attribute.Bool("session.resumed", true))
+	} else {
+		args = append(args, "--session-id", sessionID)
 	}
 
 	if task.SystemPrompt != "" {

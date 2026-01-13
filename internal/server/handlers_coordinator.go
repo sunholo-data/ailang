@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -350,9 +351,15 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 	}
 
 	if s.taskEventStore == nil {
-		// Return empty list if no store configured
+		// Return empty response if no store configured
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode([]interface{}{}); err != nil {
+		resp := &coordinator.EventsResponse{
+			TaskID:      taskID,
+			TotalEvents: 0,
+			TotalTurns:  0,
+			Events:      []*coordinator.TaskEventRecord{},
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			log.Printf("Failed to encode empty events: %v", err)
 		}
 		return
@@ -360,63 +367,57 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 
 	ctx := r.Context()
 
+	// Parse query parameters
+	query := r.URL.Query()
+
+	// Limit parameter (default 500)
+	limit := 500
+	if limitStr := query.Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 1000 {
+			limit = l
+		}
+	}
+
+	// Verify task exists first
+	task, err := s.taskEventStore.GetTask(ctx, taskID)
+	if err != nil || task == nil {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
 	// Fetch events from database
-	events, err := s.taskEventStore.GetTaskEvents(ctx, taskID, 500) // Limit to 500 events
+	events, err := s.taskEventStore.GetTaskEvents(ctx, taskID, limit)
 	if err != nil {
 		log.Printf("Failed to get task events for %s: %v", taskID, err)
 		http.Error(w, "Failed to get task events", http.StatusInternalServerError)
 		return
 	}
 
-	// Convert to JSON-friendly format matching TaskStreamEvent
-	var result []map[string]interface{}
-	for _, e := range events {
-		event := map[string]interface{}{
-			"task_id":     e.TaskID,
-			"stream_type": e.StreamType,
-			"timestamp":   e.CreatedAt.UnixMilli(),
+	// Build format options from query params
+	opts := coordinator.DefaultFormatOptions()
+
+	// Turn filter
+	if turnStr := query.Get("turn"); turnStr != "" {
+		if turn, err := strconv.Atoi(turnStr); err == nil && turn > 0 {
+			opts.TurnFilter = turn
 		}
-		if e.ThreadID != "" {
-			event["thread_id"] = e.ThreadID
-		}
-		if e.TurnNum > 0 {
-			event["turn_num"] = e.TurnNum
-		}
-		if e.Text != "" {
-			event["text"] = e.Text
-		}
-		if e.ToolName != "" {
-			event["tool_name"] = e.ToolName
-		}
-		if e.ToolInput != "" {
-			event["tool_input"] = e.ToolInput
-		}
-		if e.ToolOutput != "" {
-			event["tool_output"] = e.ToolOutput
-		}
-		if e.ErrorMsg != "" {
-			event["error_msg"] = e.ErrorMsg
-		}
-		if e.Status != "" {
-			event["status"] = e.Status
-		}
-		if e.TokensIn > 0 {
-			event["tokens_in"] = e.TokensIn
-		}
-		if e.TokensOut > 0 {
-			event["tokens_out"] = e.TokensOut
-		}
-		if e.Cost > 0 {
-			event["cost"] = e.Cost
-		}
-		if e.DurationSec > 0 {
-			event["duration_sec"] = e.DurationSec
-		}
-		result = append(result, event)
+	}
+
+	// Type filter (comma-separated)
+	if typeFilter := query.Get("type"); typeFilter != "" {
+		opts.TypeFilter = strings.Split(typeFilter, ",")
+	}
+
+	// Use the event formatter for consistent JSON structure
+	resp, err := coordinator.FormatEventsAsJSON(taskID, events, opts)
+	if err != nil {
+		log.Printf("Failed to format events for %s: %v", taskID, err)
+		http.Error(w, "Failed to format events", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Printf("Failed to encode task events: %v", err)
 	}
 }
@@ -465,4 +466,13 @@ func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID s
 	}); err != nil {
 		log.Printf("Failed to encode diff response: %v", err)
 	}
+}
+
+// handleTasksAlias provides a cleaner API path for task operations
+// GET /api/tasks/{id}/events -> /api/coordinator/tasks/{id}/events
+func (s *Server) handleTasksAlias(w http.ResponseWriter, r *http.Request) {
+	// Rewrite path from /api/tasks/{id}/events to /api/coordinator/tasks/{id}/events
+	path := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
+	r.URL.Path = "/api/coordinator/tasks/" + path
+	s.handleCoordinatorTaskEvents_(w, r)
 }

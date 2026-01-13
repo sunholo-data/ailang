@@ -219,6 +219,12 @@
   margin-bottom: 12px;
 }
 
+.diffControls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .toggleButton {
   background: transparent;
   border: 1px solid var(--border-color);
@@ -231,6 +237,28 @@
 
 .toggleButton:hover {
   background: var(--background-secondary);
+}
+
+.fullReviewButton {
+  background: var(--color-accent);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: white;
+  font-weight: 500;
+}
+
+.fullReviewButton:hover {
+  background: var(--color-accent-dark, #0550ae);
+}
+
+.diffPreview {
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .fileList {

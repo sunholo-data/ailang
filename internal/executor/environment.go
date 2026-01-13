@@ -3,6 +3,7 @@ package executor
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,14 @@ import (
 
 	"github.com/sunholo/ailang/internal/telemetry"
 )
+
+// Embed the Claude settings and hook script from the repo
+//
+//go:embed claude_settings.json
+var embeddedClaudeSettings []byte
+
+//go:embed claude_telemetry.sh
+var embeddedHookScript []byte
 
 // EnvironmentOptions configures the environment building process.
 type EnvironmentOptions struct {
@@ -158,7 +167,8 @@ func BuildResourceAttributes(task *Task, sessionID string) string {
 		}
 	}
 
-	// 3. Add default attributes (lowest priority, don't overwrite)
+	// 3. Add task-specific attributes (high priority for coordinator-spawned tasks)
+	// ailang.source MUST override user defaults for proper cost attribution
 	if task != nil {
 		if _, exists := attrs["ailang.task_id"]; !exists && task.ID != "" {
 			attrs["ailang.task_id"] = task.ID
@@ -167,9 +177,10 @@ func BuildResourceAttributes(task *Task, sessionID string) string {
 	if _, exists := attrs["ailang.session_id"]; !exists && sessionID != "" {
 		attrs["ailang.session_id"] = sessionID
 	}
-	if _, exists := attrs["ailang.source"]; !exists {
-		attrs["ailang.source"] = "coordinator"
-	}
+	// ALWAYS set source to coordinator when spawning from executor
+	// This overrides any user default (e.g., ailang.source=user in shell env)
+	// Critical for proper cost attribution: GitHub → Coordinator → Claude Code
+	attrs["ailang.source"] = "coordinator"
 
 	// Build final attribute string
 	var parts []string
@@ -189,4 +200,40 @@ func UpdateEnvVar(env []string, key, value string) []string {
 		}
 	}
 	return append(env, prefix+value)
+}
+
+// GetClaudeSettingsPath returns the path to the AILANG-specific Claude settings file.
+// Creates the settings file with hooks configuration if it doesn't exist.
+// The settings and hook script are embedded in the binary from scripts/hooks/.
+func GetClaudeSettingsPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	// Ensure directories exist
+	claudeDir := filepath.Join(homeDir, ".ailang", "claude")
+	hooksDir := filepath.Join(homeDir, ".ailang", "hooks")
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create claude dir: %w", err)
+	}
+	if err := os.MkdirAll(hooksDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create hooks dir: %w", err)
+	}
+
+	// Paths
+	settingsPath := filepath.Join(claudeDir, "settings.json")
+	hookScriptPath := filepath.Join(hooksDir, "claude_telemetry.sh")
+
+	// Create hook script from embedded content (overwrite to ensure latest version)
+	if err := os.WriteFile(hookScriptPath, embeddedHookScript, 0755); err != nil {
+		return "", fmt.Errorf("failed to create hook script: %w", err)
+	}
+
+	// Create settings file from embedded content (overwrite to ensure latest version)
+	if err := os.WriteFile(settingsPath, embeddedClaudeSettings, 0644); err != nil {
+		return "", fmt.Errorf("failed to create settings file: %w", err)
+	}
+
+	return settingsPath, nil
 }

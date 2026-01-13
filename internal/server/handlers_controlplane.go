@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -644,6 +645,13 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		}
 	}
 
+	// Merge inbox message counts into source type breakdown
+	// This ensures GitHub (inbox-only) appears in the sidebar
+	if s.store != nil {
+		inboxCounts := s.countInboxMessagesBySourceType()
+		response.BySourceType = mergeInboxCountsIntoBreakdown(response.BySourceType, inboxCounts)
+	}
+
 	// Calculate percentages
 	if response.TotalCost > 0 {
 		for i := range response.ByProvider {
@@ -681,6 +689,94 @@ func convertBreakdownItems(items []observatory.BreakdownItem) []BreakdownItem {
 		}
 	}
 	return result
+}
+
+// InboxSourceCount holds message count for a source type
+type InboxSourceCount struct {
+	ID           string
+	Label        string
+	MessageCount int
+}
+
+// countInboxMessagesBySourceType counts inbox messages grouped by source type.
+// Uses InferInboxSourceType from handlers_inbox.go for consistent taxonomy.
+func (s *Server) countInboxMessagesBySourceType() []InboxSourceCount {
+	// Get all recent messages (limit to last 1000 for performance)
+	messages, err := s.store.ListInboxMessages(messaging.InboxListOptions{Limit: 1000})
+	if err != nil {
+		return nil
+	}
+
+	// Count by source type
+	counts := make(map[string]int)
+	for _, msg := range messages {
+		sourceType := InferInboxSourceType(msg.FromAgent, msg.ToInbox)
+		counts[sourceType]++
+	}
+
+	// Convert to slice with labels
+	labelMap := map[string]string{
+		"github":       "GitHub",
+		"eval":         "Eval Benchmarks",
+		"coordinator":  "Coordinator Tasks",
+		"user_session": "User Sessions",
+		"messaging":    "Messaging",
+		"cli":          "CLI Usage",
+		"direct_api":   "Direct API",
+		"other":        "Other",
+	}
+
+	var result []InboxSourceCount
+	for id, count := range counts {
+		label := labelMap[id]
+		if label == "" {
+			label = id
+		}
+		result = append(result, InboxSourceCount{
+			ID:           id,
+			Label:        label,
+			MessageCount: count,
+		})
+	}
+
+	return result
+}
+
+// mergeInboxCountsIntoBreakdown adds inbox message counts to the span-based breakdown.
+// If a source type exists in both, adds the message count.
+// If a source type only exists in inbox (e.g., GitHub), adds it as a new entry.
+func mergeInboxCountsIntoBreakdown(breakdown []BreakdownItem, inboxCounts []InboxSourceCount) []BreakdownItem {
+	if len(inboxCounts) == 0 {
+		return breakdown
+	}
+
+	// Create map of existing breakdown items
+	existing := make(map[string]int) // id -> index
+	for i, item := range breakdown {
+		existing[item.ID] = i
+	}
+
+	// Merge inbox counts
+	for _, inbox := range inboxCounts {
+		if idx, ok := existing[inbox.ID]; ok {
+			// Source exists in breakdown - add message count
+			// TaskCount is used to track message count for inbox-only sources
+			breakdown[idx].TaskCount += inbox.MessageCount
+		} else {
+			// Source only exists in inbox (e.g., GitHub) - add new entry
+			breakdown = append(breakdown, BreakdownItem{
+				ID:        inbox.ID,
+				Label:     inbox.Label,
+				SpanCount: 0,
+				TaskCount: inbox.MessageCount, // Use TaskCount for message count
+				TokensIn:  0,
+				TokensOut: 0,
+				CostUSD:   0, // Inbox messages have no cost
+			})
+		}
+	}
+
+	return breakdown
 }
 
 // ============================================================================

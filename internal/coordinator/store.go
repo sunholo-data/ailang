@@ -22,6 +22,7 @@ type TaskRecord struct {
 	WorktreeID   string     `json:"worktree_id,omitempty"`
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
+	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	GithubIssue    int       `json:"github_issue,omitempty"`     // Linked GitHub issue number

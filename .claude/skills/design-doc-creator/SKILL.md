@@ -25,25 +25,34 @@ Create well-structured design documents for AILANG features following the projec
 
 When you run the create script, it automatically:
 1. Converts doc name to search query (e.g., `m-dx2-better-errors` → `"better errors"`)
-2. Searches both `implemented/` and `planned/` directories using Ollama neural embeddings
-3. Shows top 3 matches with similarity scores
-4. Proceeds automatically (no confirmation prompt)
-5. Auto-populates the "Related Documents" section in the template
+2. Runs **both** SimHash (instant) and Neural (better quality) searches
+3. Shows results from both methods so you can compare
+4. Merges unique results (neural preferred) for the template
+5. Auto-populates the "Related Documents" section
 
 ```bash
 $ .claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-semantic-caching
 
-🔍 Searching for related design docs (neural/Ollama embeddings)...
+🔍 Searching for related design docs...
 
 Implemented docs matching "semantic caching":
-1. design_docs/implemented/v0_5_11/m-doc-sem-lazy-embeddings.md (0.92)
-2. design_docs/implemented/v0_4_0/monomorphization.md (0.78)
+  [SimHash - instant]
+  1. design_docs/implemented/v0_4_0/monomorphization.md (1.00)
+  2. design_docs/implemented/v0_3_18/M-DX4-SPRINT-PLAN.md (0.95)
+  [Neural - semantic matching]
+  1. design_docs/implemented/v0_6_0/m-doc-sem-lazy-embeddings.md (0.45)
+  2. design_docs/implemented/v0_6_0/semantic-caching-complete.md (0.42)
 
 Planned docs matching "semantic caching":
-1. design_docs/planned/v0_6_0/semantic-caching-future.md (0.95)
+  [SimHash - instant]
+  1. design_docs/planned/v0_7_0/M-REPL1_persistent_bindings.md (1.00)
+  [Neural - semantic matching]
+  1. design_docs/planned/v0_7_0/semantic-caching-future.md (0.50)
 
 ℹ Related docs found above - review them after creation if needed.
 ```
+
+**Why dual search?** SimHash is instant but keyword-dependent. Neural finds semantically related docs even when keywords don't match. You see both so you can judge which results are more relevant.
 
 ## When to Use This Skill
 
@@ -183,48 +192,52 @@ Bug reported: [SolarPlanet] return type panics
 
 **🔍 Use `ailang docs search` to Check Existing Work:**
 
-Before creating a design doc, search for existing implementations:
+Before creating a design doc, search for existing implementations. **Always use `--neural` for best results** - it finds semantically related docs even when keywords don't match exactly.
 
 ```bash
-# Check if feature already implemented
-ailang docs search --stream implemented "feature keywords"
+# RECOMMENDED: Neural search (default for script, best quality)
+ailang docs search --stream implemented --neural "feature description"
+ailang docs search --stream planned --neural "feature description"
 
-# Check if design doc already planned
-ailang docs search --stream planned "feature keywords"
-
-# Use neural search for semantic matching (requires Ollama, slow ~20-30s)
-ailang docs search --stream planned --neural "semantic description of feature"
+# Fallback: SimHash search (instant, but keyword-dependent)
+ailang docs search --stream implemented "exact keywords"
 
 # Search with JSON output for programmatic use
-ailang docs search --stream implemented --json "keywords"
+ailang docs search --stream implemented --neural --json "keywords"
 ```
+
+**Why neural search is better:**
+| Query | SimHash Result | Neural Result |
+|-------|---------------|---------------|
+| "semantic caching" | Irrelevant docs (keyword mismatch) | `semantic-caching-future.md` (exact match) |
+| "type inference" | Docs with "type" in name | Conceptually related type system docs |
 
 **Example workflow:**
 ```bash
 # Before creating "lazy embeddings" design doc:
-$ ailang docs search --stream implemented "embedding cache"
-🔍 SimHash search: "embedding cache"
-   Scanned: 42 docs
+$ ailang docs search --stream implemented --neural "embedding cache"
+🔍 Neural search: "embedding cache"
+   SimHash candidates: 200 (from 298 total docs)
+   Embeddings: 0 computed, 200 reused (model: ollama:embeddinggemma)
+
+1. design_docs/implemented/v0_6_0/m-doc-sem-lazy-embeddings.md (0.45)
+# ⚠️ Already implemented - review existing doc first
+
+$ ailang docs search --stream planned --neural "lazy embedding"
+🔍 Neural search: "lazy embedding"
 
 No matching documents found.
-# ✅ Safe to create - not implemented yet
-
-$ ailang docs search --stream planned "lazy embedding"
-🔍 SimHash search: "lazy embedding"
-   Scanned: 28 docs
-
-1. design_docs/planned/v0_5_11/m-doc-sem-lazy-embeddings.md (0.85)
-# ⚠️ Already planned - review existing doc first
+# ✅ Safe to create - not planned yet
 ```
 
 **Key flags:**
 - `--stream implemented` - Only search implemented/ directory
 - `--stream planned` - Only search planned/ directory
-- `--neural` - Use semantic embeddings (finds conceptually similar docs, **slow: ~20-30s**)
-- `--limit N` - Return top N results
+- `--neural` - **Recommended** - semantic embeddings find conceptually similar docs
+- `--limit N` - Maximum results to return (default: 10)
 - `--json` - JSON output for scripting
 
-**Performance note:** SimHash search (without `--neural`) is instant. Only use `--neural` when keyword matching isn't finding what you need.
+**Performance:** Neural search is ~11s on first run (computing embeddings), then ~0.2s cached. Worth the wait for better results.
 
 **Warning Signs of Fragmented Design:**
 - Multiple maps tracking similar things (`adtSliceTypes`, `recordTypes`...)
@@ -345,7 +358,36 @@ These are design choices, not limitations:
 .claude/skills/design-doc-creator/scripts/create_planned_doc.sh feature-name
 ```
 
-**4. Customize the Template**
+**4. Read Related Docs Found by Search**
+
+**IMPORTANT:** Before filling in the template, read the top 2-3 related docs found by the search. This ensures your design:
+- Builds on existing patterns and conventions
+- Avoids duplicating work already done
+- References relevant prior art
+- Identifies potential conflicts early
+
+```bash
+# The script outputs related docs like:
+# Implemented docs matching "feature name":
+#   [Neural - semantic matching]
+#   1. design_docs/implemented/v0_6_0/similar-feature.md (0.45)
+#   2. design_docs/implemented/v0_5_0/related-work.md (0.38)
+
+# READ these docs before proceeding:
+# - Look at their structure and patterns
+# - Note any design decisions that apply
+# - Check for overlap with your feature
+# - Reference them in your "Related Documents" section
+```
+
+**What to look for in related docs:**
+- Architecture patterns used
+- Testing strategies employed
+- Edge cases already handled
+- Implementation trade-offs documented
+- Success/failure metrics to compare against
+
+**5. Customize the Template**
 
 The script creates a comprehensive template. Fill in:
 
@@ -384,7 +426,7 @@ The script creates a comprehensive template. Fill in:
 - Week-by-week breakdown
 - Realistic estimates (2x your initial guess!)
 
-**5. Review and Commit**
+**6. Review and Commit**
 
 ```bash
 git add design_docs/planned/feature-name.md

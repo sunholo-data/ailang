@@ -46,7 +46,7 @@ function buildCliCommand(
       parts.push(`--model ${filters.model}`);
     }
     if (filters.source_type) {
-      parts.push(`--source-type ${filters.source_type}`);
+      parts.push(`--source ${filters.source_type}`);
     }
     if (filters.workspace) {
       parts.push(`--workspace ${filters.workspace}`);

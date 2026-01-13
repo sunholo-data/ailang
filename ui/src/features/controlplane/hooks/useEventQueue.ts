@@ -62,7 +62,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
     try {
       const params = new URLSearchParams();
       if (filters?.source_type) {
-        params.set('inbox', filters.source_type);
+        params.set('source_type', filters.source_type);
       }
       // Pass all filters to server for server-side filtering
       if (filters?.provider) {

@@ -158,6 +158,8 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN estimated_cost REAL DEFAULT 0",
 		// Hierarchy tracking for handoffs
 		"ALTER TABLE tasks ADD COLUMN parent_task_id TEXT",
+		// Iteration tracking for feedback loops (M-TRANSCRIPT)
+		"ALTER TABLE tasks ADD COLUMN iteration INTEGER DEFAULT 0",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -197,6 +199,7 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -212,6 +215,7 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 		UPDATE tasks SET
 			title = ?, content = ?, type = ?, priority = ?, status = ?,
 			provider = ?, worktree_id = ?, thread_id = ?, workspace = ?,
+			session_id = ?, iteration = ?,
 			started_at = ?, completed_at = ?, duration_ns = ?,
 			error = ?, output = ?, cost = ?, tokens_used = ?
 		WHERE id = ?
@@ -224,6 +228,7 @@ func (s *SQLiteStore) UpdateTask(ctx context.Context, task *TaskRecord) error {
 	_, err := s.db.ExecContext(ctx, query,
 		task.Title, task.Content, task.Type, task.Priority, task.Status,
 		task.Provider, task.WorktreeID, task.ThreadID, task.Workspace,
+		task.SessionID, task.Iteration,
 		task.StartedAt, task.CompletedAt, durationNs,
 		task.Error, task.Output, task.Cost, task.TokensUsed,
 		task.ID,
@@ -243,6 +248,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query.WriteString(`
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -364,6 +370,17 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 		case TaskStatusFailed:
 			stats.FailedTasks += count
 		}
+	}
+
+	// Count ALL pending approval_requests (includes both merge approvals and handoffs)
+	// This replaces the task status count to avoid double-counting
+	// (tasks with status=pending_approval also have approval_requests)
+	var pendingApprovalRequests int
+	err = s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM approval_requests WHERE status = 'pending'
+	`).Scan(&pendingApprovalRequests)
+	if err == nil {
+		stats.PendingApprovals = pendingApprovalRequests // Replace, don't add
 	}
 
 	// Count by type
@@ -488,10 +505,12 @@ func (s *SQLiteStore) MarkTaskCompleted(ctx context.Context, id string, result *
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE tasks SET
 			status = ?, completed_at = ?, duration_ns = ?,
-			output = ?, cost = ?, tokens_used = ?
+			output = ?, cost = ?, tokens_used = ?,
+			session_id = ?
 		WHERE id = ?`,
 		TaskStatusCompleted, now, int64(result.Duration),
-		result.Output, result.Cost, result.TokensUsed, id,
+		result.Output, result.Cost, result.TokensUsed,
+		result.SessionID, id,
 	)
 	return err
 }
@@ -562,6 +581,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		        session_id, iteration,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
@@ -773,6 +793,8 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var durationNs sql.NullInt64
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
+	var sessionID sql.NullString
+	var iteration sql.NullInt64
 	var githubIssue sql.NullInt64
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
@@ -781,6 +803,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&task.ID, &task.MessageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
@@ -836,6 +859,12 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if sprintPlanPath.Valid {
 		task.SprintPlanPath = sprintPlanPath.String
+	}
+	if sessionID.Valid {
+		task.SessionID = sessionID.String
+	}
+	if iteration.Valid {
+		task.Iteration = int(iteration.Int64)
 	}
 	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
 	if capsJSON.Valid && capsJSON.String != "" {
@@ -858,6 +887,8 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var durationNs sql.NullInt64
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
+	var sessionID sql.NullString
+	var iteration sql.NullInt64
 	var githubIssue sql.NullInt64
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
@@ -866,6 +897,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&task.ID, &task.MessageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
@@ -921,6 +953,12 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if sprintPlanPath.Valid {
 		task.SprintPlanPath = sprintPlanPath.String
+	}
+	if sessionID.Valid {
+		task.SessionID = sessionID.String
+	}
+	if iteration.Valid {
+		task.Iteration = int(iteration.Int64)
 	}
 	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
 	if capsJSON.Valid && capsJSON.String != "" {

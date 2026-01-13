@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -445,6 +448,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			attribute.String("task.type", string(task.Type)),
 			attribute.String("task.stage", string(task.Stage)),
 			attribute.String("task.title", task.Title),
+			attribute.Int("task.iteration", task.Iteration), // M-TRANSCRIPT: feedback loop iteration
 		),
 	)
 	defer span.End()
@@ -496,12 +500,15 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	d.logger.Printf("[DEBUG] Built directive (first 500 chars): %s", truncateString(directive, 500))
 	analyzed := &AnalyzedTask{
 		Task: &Task{
-			ID:        task.ID,
-			Title:     task.Title,
-			Content:   directive, // Stage-aware: design/sprint/implementation prompts
-			Kind:      task.Kind,
-			MessageID: task.MessageID,
-			CreatedAt: task.CreatedAt,
+			ID:           task.ID,
+			Title:        task.Title,
+			Content:      directive, // Stage-aware: design/sprint/implementation prompts
+			Kind:         task.Kind,
+			MessageID:    task.MessageID,
+			ParentTaskID: task.ParentTaskID, // M-TASK-HIERARCHY
+			CreatedAt:    task.CreatedAt,
+			Iteration:    task.Iteration, // M-TRANSCRIPT: feedback loop iteration
+			SessionID:    task.SessionID, // M-TRANSCRIPT: for Claude --resume
 		},
 		Type: task.Type,
 	}
@@ -710,6 +717,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		if worktree != nil {
 			worktreePath = worktree.Path
 			worktreeBranch = worktree.Branch
+
+			// AUTO-COMMIT: Deterministically commit any uncommitted changes
+			// Agents may forget to commit, so we do it automatically before approval
+			if err := autoCommitWorktree(worktreePath, task.Title, d.logger); err != nil {
+				d.logger.Printf("Warning: Auto-commit failed for task %s: %v", task.ID, err)
+				// Continue anyway - some tasks may not produce file changes
+			}
 		}
 
 		// Update task with worktree and agent info (needed for git diff artifact discovery)
@@ -1044,4 +1058,46 @@ func CreateWebSocketBroadcaster(wsServer interface {
 	return func(event *websocket.TaskStreamEvent) {
 		wsServer.BroadcastTaskEvent(event)
 	}
+}
+
+// autoCommitWorktree commits any uncommitted changes in the worktree.
+// This ensures agent work is captured even if the agent forgot to commit.
+func autoCommitWorktree(worktreePath, taskTitle string, logger *log.Logger) error {
+	// Check for uncommitted changes (including untracked files)
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusCmd.Dir = worktreePath
+	output, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("git status failed: %w", err)
+	}
+
+	// No changes to commit
+	if strings.TrimSpace(string(output)) == "" {
+		logger.Printf("No uncommitted changes in worktree: %s", worktreePath)
+		return nil
+	}
+
+	logger.Printf("Auto-committing changes in worktree: %s", worktreePath)
+	logger.Printf("Changes:\n%s", string(output))
+
+	// Add all changes (including untracked files)
+	addCmd := exec.Command("git", "add", "-A")
+	addCmd.Dir = worktreePath
+	if err := addCmd.Run(); err != nil {
+		return fmt.Errorf("git add failed: %w", err)
+	}
+
+	// Create commit message
+	commitMsg := fmt.Sprintf("Auto-commit: %s\n\nCommitted by AILANG coordinator after agent completion.\n\n🤖 Generated with Claude Code", taskTitle)
+
+	// Commit the changes
+	commitCmd := exec.Command("git", "commit", "-m", commitMsg)
+	commitCmd.Dir = worktreePath
+	commitOutput, err := commitCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git commit failed: %w\nOutput: %s", err, string(commitOutput))
+	}
+
+	logger.Printf("Auto-commit successful: %s", strings.TrimSpace(string(commitOutput)))
+	return nil
 }
