@@ -39,6 +39,9 @@ log() {
 # Read hook JSON from stdin
 HOOK_JSON=$(cat || echo "{}")
 
+# Debug: Log raw input for troubleshooting
+log "RAW_INPUT: ${HOOK_JSON:0:500}"
+
 # Extract event name from hook payload
 # Claude Code sends hook_event_name in the JSON
 EVENT_NAME=$(echo "$HOOK_JSON" | jq -r '.hook_event_name // "unknown"' 2>/dev/null)
@@ -135,14 +138,19 @@ case "$EVENT_NAME" in
 esac
 
 # POST to observatory hooks endpoint
-# Use --fail-early and timeout to avoid blocking Claude Code
-# Silent failures - we don't want hook errors to affect Claude Code operation
-if curl -s -f --max-time 3 -X POST "$HOOKS_ENDPOINT" \
+# Use timeout to avoid blocking Claude Code
+# Capture error details for debugging
+CURL_OUTPUT=$(curl -s --max-time 5 -w "\n%{http_code}" -X POST "$HOOKS_ENDPOINT" \
     -H "Content-Type: application/json" \
-    -d "$PAYLOAD" >/dev/null 2>&1; then
-    log "Successfully reported $EVENT_NAME event"
+    -d "$PAYLOAD" 2>&1)
+CURL_EXIT=$?
+HTTP_CODE=$(echo "$CURL_OUTPUT" | tail -n1)
+RESPONSE=$(echo "$CURL_OUTPUT" | head -n -1)
+
+if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ]; then
+    log "Successfully reported $EVENT_NAME event (session=$SESSION_ID)"
 else
-    log "Failed to report $EVENT_NAME event (observatory may not be running)"
+    log "Failed to report $EVENT_NAME event: curl_exit=$CURL_EXIT http_code=$HTTP_CODE response=$RESPONSE"
 fi
 
 exit 0
