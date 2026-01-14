@@ -47,6 +47,11 @@ export interface Approval {
   review_notes?: string;
   capability_token?: string;
   token_expires_at?: number;
+  // Multi-channel approval workflow fields (M-DASHBOARD-APPROVAL-INTEGRATION)
+  iteration?: number;        // Current iteration (1-3), retrigger count
+  channel?: string;          // Source: 'dashboard' | 'cli' | 'github'
+  feedback?: string;         // Harvested feedback from GitHub comments
+  feedback_author?: string;  // Author of the most recent feedback
 }
 
 export interface EffectDelta {

@@ -656,6 +656,56 @@ GET /api/coordinator/tasks/{task_id}/diff
 3. No handoff is triggered
 4. Changes are NOT merged
 
+### Multi-Channel Approval Workflow (v0.6.4+)
+
+Approvals can come from three different channels, all feeding into the same workflow:
+
+| Channel | How to Approve/Reject | Tracked In |
+|---------|----------------------|------------|
+| **Dashboard** | Click buttons in Collaboration Hub UI | `approval.channel: "dashboard"` |
+| **CLI** | `ailang coordinator approve/reject` | `approval.channel: "cli"` |
+| **GitHub** | Add labels (`ailang:approved`, `ailang:needs-revision`) | `approval.channel: "github"` |
+
+#### Iteration Tracking
+
+When tasks are rejected, they can be re-triggered with feedback. The iteration count tracks retry attempts:
+
+- **Iteration 1**: First run
+- **Iteration 2**: First retry (after rejection with feedback)
+- **Iteration 3**: Final attempt (max iterations)
+
+The UI shows an "Iteration N/3" badge for retriggered tasks, with a "Final attempt" warning on iteration 3.
+
+#### Feedback Flow
+
+When you reject a task with feedback:
+
+1. Feedback is stored as a `human_feedback` event in the task audit trail
+2. If the task has a linked GitHub issue, feedback is posted as a comment
+3. The task is re-queued with `iteration + 1`
+4. The agent receives the feedback in its next execution context
+
+Feedback can be provided via:
+- **CLI**: `ailang coordinator reject <task-id> -f "Your feedback"`
+- **Dashboard**: Enter feedback in the rejection modal
+- **GitHub**: Add `ailang:needs-revision` label and comment on the issue
+
+#### Telemetry Spans
+
+Each approval decision creates an OTEL span for observability:
+
+```
+approval.decision
+├── task.id: "task-12345678"
+├── approval.action: "approve" | "reject"
+├── approval.channel: "dashboard" | "cli" | "github"
+├── approval.by: "cli-user" | "github:username"
+├── task.iteration: 1
+└── task.stage: "implementation"
+```
+
+These spans appear in the trace timeline and ExecHierarchy task view.
+
 ## Commands
 
 ### Start

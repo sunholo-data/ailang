@@ -657,6 +657,11 @@ export interface Approval {
   reviewed_at?: string;
   reviewed_by?: string;
   review_notes?: string;
+  // Multi-channel approval workflow fields (M-DASHBOARD-APPROVAL-INTEGRATION)
+  iteration?: number;        // Current iteration (1-3), retrigger count
+  channel?: string;          // Source: 'dashboard' | 'cli' | 'github'
+  feedback?: string;         // Harvested feedback from GitHub comments
+  feedback_author?: string;  // Author of the most recent feedback
 }
 
 // Hook for approvals

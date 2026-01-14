@@ -1,0 +1,53 @@
+/* IterationBadge.css - Styling for iteration status badge */
+
+.iteration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.iteration-badge .iteration-icon {
+  font-size: 14px;
+}
+
+.iteration-badge .iteration-text {
+  white-space: nowrap;
+}
+
+.iteration-badge.final-attempt {
+  background-color: var(--color-warning-bg, #fef3c7);
+  color: var(--color-warning-text, #92400e);
+  border-color: var(--color-warning-border, #fcd34d);
+}
+
+.iteration-badge .final-warning {
+  margin-left: 4px;
+  font-weight: 600;
+  color: var(--color-warning-strong, #b45309);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .iteration-badge {
+    background-color: #374151;
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
+
+  .iteration-badge.final-attempt {
+    background-color: #78350f;
+    color: #fde68a;
+    border-color: #a16207;
+  }
+
+  .iteration-badge .final-warning {
+    color: #fcd34d;
+  }
+}

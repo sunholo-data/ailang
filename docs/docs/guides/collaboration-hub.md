@@ -148,6 +148,38 @@ Agent: [Approval received]
        [Done! Results sent to UI]
 ```
 
+### Multi-Channel Approvals (v0.6.4+)
+
+Approvals can come from multiple sources, unified in the dashboard:
+
+| Source | UI Indicator | How to Use |
+|--------|--------------|------------|
+| **Dashboard** | 🖥️ | Click Approve/Reject buttons |
+| **CLI** | ⌨️ | `ailang coordinator approve/reject <task-id>` |
+| **GitHub** | 🐙 | Add `ailang:approved` or `ailang:needs-revision` labels |
+
+#### Iteration Tracking
+
+When tasks are rejected with feedback, they're re-queued for another attempt. The UI shows:
+
+- **Iteration Badge**: "Iteration 2/3" on retriggered tasks
+- **Final Attempt Warning**: Orange badge on iteration 3
+- **Feedback Display**: Harvested feedback from previous rejections
+
+#### Approval Detail Modal
+
+The approval detail modal shows:
+
+1. **Header**: Task title, branch name, worktree path
+2. **Badges**: Type (merge/execute/cost), Iteration, Channel source
+3. **Tabs**: Files (diff viewer), Description, Logs
+4. **Footer**: Keyboard shortcuts (A=Approve, R=Reject, Esc=Close)
+
+When rejecting, the modal displays:
+- Harvested feedback from GitHub (if linked issue exists)
+- FeedbackInput with 1000 character limit
+- Character counter with over-limit warning
+
 ## CLI Reference
 
 ### Server

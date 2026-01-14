@@ -8,7 +8,15 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// approvalTracer provides OTEL tracing for approval decisions.
+// Spans are linked to the task's trace context for hierarchy visibility.
+var approvalTracer = otel.Tracer("coordinator.approval")
 
 // handleAgentHandoffs checks if the completed task should trigger handoffs to other agents.
 // This implements the agent-to-agent messaging with optional approval gates.
@@ -218,7 +226,7 @@ func (d *Daemon) requestHandoffApproval(
 // For GitHub-linked tasks at design/sprint stages, this triggers the next stage.
 // For merge-ready tasks, this merges worktree changes to main branch.
 func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) error {
-	// Get the task
+	// Get the task first to extract context for span
 	task, err := d.taskStore.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to get task: %w", err)
@@ -227,8 +235,28 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	// Determine channel source (M-DASHBOARD-APPROVAL-INTEGRATION)
+	channel := "dashboard" // Default for daemon-handled approvals
+	if ctx.Value("approval_channel") != nil {
+		channel = ctx.Value("approval_channel").(string)
+	}
+
+	// Create OTEL span for approval decision (M-DASHBOARD-APPROVAL-INTEGRATION)
+	ctx, span := approvalTracer.Start(ctx, "approval.decision",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("approval.action", "approve"),
+			attribute.String("approval.channel", channel),
+			attribute.String("approval.by", approvedBy),
+			attribute.Int("task.iteration", task.Iteration),
+			attribute.String("task.stage", string(task.Stage)),
+		),
+	)
+	defer span.End()
+
 	// Verify task is pending approval
 	if task.Status != TaskStatusPendingApproval {
+		span.SetStatus(codes.Error, "task not pending approval")
 		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
 	}
 
@@ -377,12 +405,17 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 		}
 	}
 
+	// Record success in span (M-DASHBOARD-APPROVAL-INTEGRATION)
+	span.SetAttributes(attribute.String("merge.commit", mergeResult.CommitHash))
+	span.SetStatus(codes.Ok, "approved and merged")
+
 	return nil
 }
 
 // HandleRejection processes a rejected task - preserves worktree and marks task rejected.
+// For tasks with linked GitHub issues, feedback is posted to GitHub (M-DASHBOARD-APPROVAL-INTEGRATION).
 func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason string) error {
-	// Get the task
+	// Get the task first to extract context for span
 	task, err := d.taskStore.GetTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to get task: %w", err)
@@ -391,8 +424,29 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	// Determine channel source (M-DASHBOARD-APPROVAL-INTEGRATION)
+	channel := "dashboard" // Default for daemon-handled rejections
+	if ctx.Value("approval_channel") != nil {
+		channel = ctx.Value("approval_channel").(string)
+	}
+
+	// Create OTEL span for rejection decision (M-DASHBOARD-APPROVAL-INTEGRATION)
+	ctx, span := approvalTracer.Start(ctx, "approval.decision",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("approval.action", "reject"),
+			attribute.String("approval.channel", channel),
+			attribute.String("approval.by", rejectedBy),
+			attribute.String("approval.reason", truncateForAttribute(reason, 500)),
+			attribute.Int("task.iteration", task.Iteration),
+			attribute.String("task.stage", string(task.Stage)),
+		),
+	)
+	defer span.End()
+
 	// Verify task is pending approval
 	if task.Status != TaskStatusPendingApproval {
+		span.SetStatus(codes.Error, "task not pending approval")
 		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
 	}
 
@@ -401,6 +455,22 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 	// Mark task as rejected - worktree is preserved for reference
 	if err := d.taskStore.MarkTaskRejected(ctx, taskID); err != nil {
 		return fmt.Errorf("failed to mark task rejected: %w", err)
+	}
+
+	// Post rejection feedback to GitHub if task has a linked issue (M-DASHBOARD-APPROVAL-INTEGRATION)
+	if task.GithubIssue > 0 && d.githubPoster != nil {
+		// Determine iteration (default to 1 if not set)
+		iteration := task.Iteration
+		if iteration < 1 {
+			iteration = 1
+		}
+		// Determine channel - default to "dashboard" for dashboard-initiated rejections
+		channel := "dashboard"
+		if err := d.githubPoster.PostFeedback(task.GithubIssue, reason, iteration, channel); err != nil {
+			d.logger.Printf("Warning: Failed to post feedback to GitHub issue #%d: %v", task.GithubIssue, err)
+		} else {
+			d.logger.Printf("Posted rejection feedback to GitHub issue #%d (iteration %d)", task.GithubIssue, iteration)
+		}
 	}
 
 	// Notify via message
@@ -441,7 +511,20 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 	}
 
 	d.logger.Printf("Task %s rejected by %s (worktree preserved)", taskID, rejectedBy)
+
+	// Record success in span (M-DASHBOARD-APPROVAL-INTEGRATION)
+	span.SetStatus(codes.Ok, "rejected with feedback")
+
 	return nil
+}
+
+// truncateForAttribute truncates a string for use in span attributes.
+// OTEL has limits on attribute value sizes.
+func truncateForAttribute(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // processHandoffApproval sends a handoff message after approval.

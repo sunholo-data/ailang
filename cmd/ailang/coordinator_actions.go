@@ -66,12 +66,14 @@ func coordinatorApprove(args []string) error {
 
 	ctx := context.Background()
 
-	// Create OTEL span for human approval (M-TRANSCRIPT)
+	// Create OTEL span for human approval (M-TRANSCRIPT, M-DASHBOARD-APPROVAL-INTEGRATION)
 	tracer := otel.Tracer("coordinator.cli")
-	ctx, span := tracer.Start(ctx, "human.approval",
+	ctx, span := tracer.Start(ctx, "approval.decision",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
-			attribute.String("approved.by", "cli-user"),
+			attribute.String("approval.action", "approve"),
+			attribute.String("approval.channel", "cli"),
+			attribute.String("approval.by", "cli-user"),
 		),
 	)
 	defer span.End()
@@ -320,6 +322,19 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 		return fmt.Errorf("task not found: %s", taskID)
 	}
 
+	// Create OTEL span for rejection decision (M-DASHBOARD-APPROVAL-INTEGRATION)
+	tracer := otel.Tracer("coordinator.cli")
+	ctx, span := tracer.Start(ctx, "approval.decision",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("approval.action", "reject"),
+			attribute.String("approval.channel", "cli"),
+			attribute.String("approval.by", "cli-user"),
+			attribute.Int("task.iteration", task.Iteration),
+		),
+	)
+	defer span.End()
+
 	// Prompt for feedback if not provided
 	if feedbackText == "" && !skipPrompt {
 		fmt.Print(yellow("📝"), " Feedback for agent (why was this rejected?): ")
@@ -348,6 +363,24 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 	if err := coordinator.StoreFeedbackEvent(ctx, store, feedback); err != nil {
 		fmt.Println(yellow("!"), "Warning: Failed to store feedback event:", err)
 		// Continue anyway
+	}
+
+	// Post feedback to GitHub if task has a linked issue (M-DASHBOARD-APPROVAL-INTEGRATION)
+	if task.GithubIssue > 0 {
+		iteration := task.Iteration
+		if iteration < 1 {
+			iteration = 1
+		}
+		poster, err := coordinator.NewGitHubPoster() // Uses default repo from config
+		if err != nil {
+			fmt.Println(yellow("!"), "Warning: Could not create GitHub poster:", err)
+		} else {
+			if err := poster.PostFeedback(task.GithubIssue, feedbackText, iteration, "cli"); err != nil {
+				fmt.Println(yellow("!"), fmt.Sprintf("Warning: Failed to post feedback to GitHub issue #%d: %v", task.GithubIssue, err))
+			} else {
+				fmt.Println(green("✓"), fmt.Sprintf("Feedback posted to GitHub issue #%d", task.GithubIssue))
+			}
+		}
 	}
 
 	// Check if we can re-trigger (under max iterations)

@@ -1,0 +1,122 @@
+/* FeedbackInput.css - Styling for feedback textarea with counter */
+
+.feedback-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.feedback-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary, #111827);
+}
+
+.feedback-label .required-marker {
+  color: var(--color-error, #dc2626);
+  margin-left: 2px;
+}
+
+.feedback-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  background-color: var(--color-bg-primary, #ffffff);
+  color: var(--color-text-primary, #111827);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.feedback-textarea:disabled {
+  background-color: var(--color-bg-disabled, #f3f4f6);
+  color: var(--color-text-disabled, #9ca3af);
+  cursor: not-allowed;
+}
+
+.feedback-textarea.over-limit {
+  border-color: var(--color-error, #dc2626);
+}
+
+.feedback-textarea.over-limit:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.feedback-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.feedback-error {
+  color: var(--color-error, #dc2626);
+}
+
+.char-counter {
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-left: auto;
+}
+
+.char-counter.near-limit {
+  color: var(--color-warning, #d97706);
+}
+
+.char-counter.over-limit {
+  color: var(--color-error, #dc2626);
+  font-weight: 600;
+}
+
+.over-limit-warning {
+  padding: 8px 12px;
+  background-color: var(--color-error-bg, #fef2f2);
+  color: var(--color-error, #dc2626);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.has-error .feedback-textarea {
+  border-color: var(--color-error, #dc2626);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .feedback-label {
+    color: #f3f4f6;
+  }
+
+  .feedback-textarea {
+    background-color: #1f2937;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .feedback-textarea:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  }
+
+  .feedback-textarea:disabled {
+    background-color: #374151;
+    color: #6b7280;
+  }
+
+  .char-counter {
+    color: #6b7280;
+  }
+
+  .over-limit-warning {
+    background-color: #450a0a;
+    color: #fca5a5;
+  }
+}

@@ -14,6 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import { DiffViewer, ViewMode, parseDiff, extractFileChanges } from '../../../components/DiffViewer';
 import { FileTree } from '../../../components/FileTree';
 import { TaskStreamEvent } from '../../../types';
+import { IterationBadge, FeedbackInput, ChannelBadge } from '../components';
 import styles from './ApprovalDetailModal.module.css';
 
 type TabType = 'files' | 'description' | 'logs';
@@ -36,6 +37,11 @@ export interface ApprovalData {
   diff_preview?: string;
   branch_name?: string;
   worktree_path?: string;
+  // Multi-channel approval workflow fields (M-DASHBOARD-APPROVAL-INTEGRATION)
+  iteration?: number;        // Current iteration (1-3), retrigger count
+  channel?: string;          // Source: 'dashboard' | 'cli' | 'github'
+  feedback?: string;         // Harvested feedback from GitHub comments
+  feedback_author?: string;  // Author of the most recent feedback
 }
 
 interface ApprovalDetailModalProps {
@@ -182,6 +188,12 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             </div>
           </div>
           <div className={styles.headerRight}>
+            {approval.iteration && approval.iteration > 1 && (
+              <IterationBadge iteration={approval.iteration} />
+            )}
+            {approval.channel && (
+              <ChannelBadge channel={approval.channel} />
+            )}
             <span className={`${styles.typeBadge} ${styles[`type${capitalize(approval.type || approval.request_type || 'merge')}`]}`}>
               {approval.type || approval.request_type || 'merge'}
             </span>
@@ -209,19 +221,34 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
         {/* Rejection form */}
         {showRejectForm && (
           <div className={styles.rejectForm}>
-            <label className={styles.rejectLabel}>Reason for rejection:</label>
-            <textarea
-              className={styles.rejectTextarea}
+            {/* Show harvested GitHub feedback if available */}
+            {approval.feedback && (
+              <div className={styles.harvestedFeedback}>
+                <h4>Previous feedback from GitHub</h4>
+                <div className={styles.feedbackContent}>
+                  <span className={styles.feedbackAuthor}>
+                    {approval.feedback_author || 'Unknown'} via GitHub:
+                  </span>
+                  <p>{approval.feedback}</p>
+                </div>
+              </div>
+            )}
+            <FeedbackInput
               value={rejectionNotes}
-              onChange={(e) => setRejectionNotes(e.target.value)}
-              placeholder="Please explain why this change is being rejected..."
+              onChange={setRejectionNotes}
+              label="Rejection feedback"
+              placeholder="Please explain why this change is being rejected and what needs to be fixed..."
+              maxLength={1000}
+              required
               autoFocus
+              rows={4}
+              error={error && error.includes('reason') ? error : undefined}
             />
             <div className={styles.rejectActions}>
               <button
                 className={styles.rejectConfirmButton}
                 onClick={handleReject}
-                disabled={isSubmitting || !rejectionNotes.trim()}
+                disabled={isSubmitting || !rejectionNotes.trim() || rejectionNotes.length > 1000}
               >
                 {isSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
               </button>

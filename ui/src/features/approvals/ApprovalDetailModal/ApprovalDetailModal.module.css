@@ -256,6 +256,41 @@
   background: var(--bg-hover, #f3f4f6);
 }
 
+/* Harvested GitHub feedback display */
+.harvestedFeedback {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-secondary, #f6f8fa);
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+}
+
+.harvestedFeedback h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #57606a);
+  text-transform: uppercase;
+}
+
+.feedbackContent {
+  color: var(--text-primary, #24292f);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.feedbackAuthor {
+  font-weight: 500;
+  color: var(--color-info, #0969da);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.feedbackContent p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 /* Error message */
 .error {
   display: flex;

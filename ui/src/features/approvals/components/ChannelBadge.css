@@ -1,0 +1,83 @@
+/* ChannelBadge.css - Styling for approval source channel badge */
+
+.channel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background-color: var(--color-bg-secondary, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.channel-badge .channel-icon {
+  font-size: 12px;
+}
+
+.channel-badge .channel-label {
+  white-space: nowrap;
+}
+
+/* Dashboard channel */
+.channel-badge.dashboard {
+  background-color: var(--color-primary-bg, #eff6ff);
+  color: var(--color-primary-text, #1d4ed8);
+  border-color: var(--color-primary-border, #bfdbfe);
+}
+
+/* CLI channel */
+.channel-badge.cli {
+  background-color: var(--color-secondary-bg, #f3f4f6);
+  color: var(--color-secondary-text, #374151);
+  border-color: var(--color-secondary-border, #d1d5db);
+}
+
+/* GitHub channel */
+.channel-badge.github {
+  background-color: #f6f8fa;
+  color: #24292f;
+  border-color: #d0d7de;
+}
+
+/* Unknown channel */
+.channel-badge.unknown {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .channel-badge {
+    background-color: #374151;
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
+
+  .channel-badge.dashboard {
+    background-color: #1e3a5f;
+    color: #93c5fd;
+    border-color: #3b82f6;
+  }
+
+  .channel-badge.cli {
+    background-color: #374151;
+    color: #d1d5db;
+    border-color: #4b5563;
+  }
+
+  .channel-badge.github {
+    background-color: #21262d;
+    color: #c9d1d9;
+    border-color: #30363d;
+  }
+
+  .channel-badge.unknown {
+    background-color: #78350f;
+    color: #fde68a;
+    border-color: #a16207;
+  }
+}

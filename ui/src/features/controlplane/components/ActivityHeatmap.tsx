@@ -34,14 +34,6 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   const [displayRange, setDisplayRange] = useState<HeatmapRange>('3m');
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const getIntensity = (count: number): number => {
-    if (count === 0) return 0;
-    if (count < 10) return 1;
-    if (count < 30) return 2;
-    if (count < 60) return 3;
-    return 4;
-  };
-
   // Filter data based on display range
   const filteredData = useMemo(() => {
     const now = new Date();
@@ -55,6 +47,21 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     const cutoffStr = cutoffDate.toISOString().split('T')[0];
     return data.filter(cell => cell.date >= cutoffStr);
   }, [data, displayRange]);
+
+  // Calculate max task count for relative intensity scaling
+  const maxCount = useMemo(() => {
+    const counts = filteredData.map(c => c.taskCount).filter(c => c > 0);
+    return counts.length > 0 ? Math.max(...counts) : 1;
+  }, [filteredData]);
+
+  const getIntensity = (count: number): number => {
+    if (count === 0) return 0;
+    const ratio = count / maxCount;
+    if (ratio <= 0.25) return 1;  // 0-25% of max
+    if (ratio <= 0.50) return 2;  // 25-50% of max
+    if (ratio <= 0.75) return 3;  // 50-75% of max
+    return 4;                      // 75-100% of max
+  };
 
   const weeks = useMemo(() => {
     const result: HeatmapCell[][] = [];
