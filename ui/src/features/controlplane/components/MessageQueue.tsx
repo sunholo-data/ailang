@@ -5,6 +5,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import type { EventMessage, DateRange } from './types';
 import type { ControlPlaneFilters } from '../types';
+import { hasActiveFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
 import styles from '../ControlPlane.module.css';
 
@@ -233,6 +234,37 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           )}
         </div>
       </div>
+
+      {/* Active dimension filters (workspace/provider/model from sidebar) */}
+      {filters && hasActiveFilters(filters) && (
+        <div className={styles.queueActiveFilters}>
+          {filters.workspace && (
+            <span className={styles.queueFilterChip}>
+              <span className={styles.queueFilterIcon}>⬡</span>
+              {filters.workspace}
+            </span>
+          )}
+          {filters.provider && (
+            <span className={styles.queueFilterChip}>
+              <span className={styles.queueFilterIcon}>◈</span>
+              {filters.provider}
+            </span>
+          )}
+          {filters.model && (
+            <span className={styles.queueFilterChip}>
+              <span className={styles.queueFilterIcon}>◎</span>
+              {filters.model}
+            </span>
+          )}
+          {filters.source_type && (
+            <span className={styles.queueFilterChip}>
+              <span className={styles.queueFilterIcon}>▤</span>
+              {filters.source_type}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className={styles.queueList}>
         {loading && (
           <div className={styles.queueEmpty}>

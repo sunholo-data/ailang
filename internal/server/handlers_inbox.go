@@ -122,11 +122,17 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 
 	// Convert inbox messages to unified event format
 	// Apply source_type filter to inbox messages based on from_agent
+	// Apply workspace filter - inbox messages don't have workspace data, so they're excluded when workspace filter is active
 	events := make([]UnifiedEvent, 0, len(messages)+50)
 	for _, msg := range messages {
 		// Filter inbox messages by source_type
 		if sourceTypeFilter != "" && !inboxMessageMatchesSourceType(msg.FromAgent, msg.ToInbox, sourceTypeFilter) {
 			continue
+		}
+		// Inbox messages don't have workspace data - exclude when workspace filter is active
+		// unless it's "No Workspace" which means "show items without workspace"
+		if workspaceFilter != "" && workspaceFilter != "No Workspace" && workspaceFilter != "unknown" {
+			continue // Skip inbox messages when filtering by specific workspace
 		}
 		events = append(events, UnifiedEvent{
 			ID:            msg.MessageID,
@@ -172,12 +178,12 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 					}
 					// Apply workspace filter if specified
 					if workspaceFilter != "" {
-						// Special case: "Unknown Workspace" filter matches events with no workspace
-						if workspaceFilter == "Unknown Workspace" || workspaceFilter == "unknown" {
+						// Special case: "No Workspace" filter matches events with no workspace
+						if workspaceFilter == "No Workspace" || workspaceFilter == "unknown" {
 							if cc.Workspace != "" {
-								continue // Has workspace, but filter wants unknown → skip
+								continue // Has workspace, but filter wants none → skip
 							}
-							// cc.Workspace is empty, matches "Unknown Workspace" filter → include
+							// cc.Workspace is empty, matches "No Workspace" filter → include
 						} else {
 							// Normal workspace filter - hide events with no workspace data
 							if cc.Workspace == "" {
@@ -460,7 +466,7 @@ func matchesWorkspace(fullPath, filter string) bool {
 		return strings.Contains(fullPath, ".eval_workspace") || strings.Contains(fullPath, "eval_workspace")
 	case "Coordinator Tasks", "coordinator_worktrees":
 		return strings.Contains(fullPath, "/worktrees/")
-	case "Unknown Workspace", "unknown":
+	case "No Workspace", "unknown":
 		return fullPath == "" || fullPath == "unknown"
 	}
 

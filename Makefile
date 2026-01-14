@@ -1,1147 +1,215 @@
-.PHONY: build test run clean install fmt vet lint deps verify-examples verify-examples-all verify-cli-examples examples-status update-readme test-coverage-badge flag-broken freeze-stdlib verify-stdlib sync-prompts generate-llms-txt docs docs-install docs-serve docs-preview build-wasm check-file-sizes report-file-sizes codebase-health largest-files doctor doc
+# =============================================================================
+# AILANG MAKEFILE
+# =============================================================================
+#
+# Run 'make' or 'make help' to see available targets organized by category.
+# Run 'make help-<category>' for detailed help on specific categories.
+#
+# Categories:
+#   build     - Building and installing
+#   test      - Testing
+#   coverage  - Code coverage
+#   eval      - Benchmarks & evaluation
+#   docs      - Documentation
+#   services  - Server & coordinator
+#   examples  - Example verification
+#   health    - Code quality & organization
+#   claude    - Claude CLI integration
+#   ci        - CI/CD targets
+#
+# =============================================================================
 
-# Binary name
-BINARY=ailang
-BUILD_DIR=bin
+# Configuration
+BINARY := ailang
+BUILD_DIR := bin
 
-# Version handling - get from git tag or use dev version
+# Version from git
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "0.1.0-dev")
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # Go commands
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
-GOMOD=$(GOCMD) mod
-GOFMT=$(GOCMD) fmt
-GOVET=$(GOCMD) vet
-
-# Build flags with version info
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
-
-# Default target
-all: test build
-
-# Prepare prompts for embedding (copy to cmd/ailang for embed directive)
-prepare-embed:
-	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
-		echo "Copying prompts for embedding..."; \
-		rm -rf cmd/ailang/prompts; \
-		cp -r prompts cmd/ailang/prompts; \
-	fi
-
-# Build the binary
-build: prepare-embed
-	@echo "Building $(BINARY)..."
-	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/ailang
-	@echo "Build complete: $(BUILD_DIR)/$(BINARY)"
-
-# Install the binary to $GOPATH/bin
-install: prepare-embed
-	@echo "Installing $(BINARY)..."
-	@go install $(LDFLAGS) ./cmd/ailang
-	@echo "✓ Installed to $$(go env GOPATH)/bin/$(BINARY)"
-	@echo ""
-	@if echo "$$PATH" | grep -q "$$(go env GOPATH)/bin"; then \
-		echo "✓ Your PATH is correctly configured"; \
-		echo "  You can now run 'ailang' from anywhere!"; \
-	else \
-		echo "⚠️  WARNING: $$(go env GOPATH)/bin is not in your PATH"; \
-		echo ""; \
-		echo "  To use 'ailang' from anywhere, add this to your shell profile:"; \
-		echo "  export PATH=\"$$(go env GOPATH)/bin:\$$PATH\""; \
-		echo ""; \
-		echo "  For zsh (~/.zshrc):"; \
-		echo "    echo 'export PATH=\"$$(go env GOPATH)/bin:\$$PATH\"' >> ~/.zshrc"; \
-		echo "    source ~/.zshrc"; \
-		echo ""; \
-		echo "  For bash (~/.bashrc or ~/.bash_profile):"; \
-		echo "    echo 'export PATH=\"$$(go env GOPATH)/bin:\$$PATH\"' >> ~/.bashrc"; \
-		echo "    source ~/.bashrc"; \
-	fi
-
-# Run tests (excluding scripts directory which contains standalone executables)
-test: prepare-embed
-	@echo "Running tests..."
-	@$(GOTEST) -v $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
-
-# Test import system with golden examples
-# Run tests with coverage (excluding scripts directory and examples/agents)
-test-coverage:
-	@echo "Running tests with coverage..."
-	@$(GOTEST) -v -cover -coverprofile=coverage.out $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report: coverage.html"
-
-# Run tests with coverage for CI (race detection enabled)
-test-coverage-ci:
-	@echo "Running tests with coverage (CI mode)..."
-	@$(GOTEST) -race -coverprofile=coverage.out -covermode=atomic $$($(GOCMD) list ./... | grep -v /scripts | grep -v /examples/agents)
-	@$(GOCMD) tool cover -func=coverage.out
-
-# Format code
-fmt:
-	@echo "Formatting code..."
-	$(GOFMT) ./...
-	@echo "Code formatted"
-
-# Check code formatting (for CI)
-fmt-check:
-	@echo "Checking code formatting..."
-	@if [ -n "$$(gofmt -l .)" ]; then \
-		echo "Go code is not formatted. Please run 'make fmt'"; \
-		echo "Files that need formatting:"; \
-		gofmt -l .; \
-		exit 1; \
-	fi
-	@echo "Code formatting check passed"
-
-# Run go vet
-vet: prepare-embed
-	@echo "Running go vet..."
-	$(GOVET) $(shell go list ./... | grep -v examples/agents)
-	@echo "Vet complete"
-
-# Install golangci-lint (v2.x required for .golangci.yml version: "2")
-# Always reinstalls to ensure correct version - v1.x is incompatible with our config
-install-lint:
-	@echo "Installing golangci-lint v2.x..."
-	@CURRENT_VERSION=$$(golangci-lint --version 2>/dev/null | grep -o 'v[0-9]*' | head -1 || echo "none"); \
-	if [ "$$CURRENT_VERSION" != "v2" ]; then \
-		echo "Current version: $$CURRENT_VERSION (need v2.x)"; \
-		echo "Downloading golangci-lint v2.1.6..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.6; \
-	else \
-		echo "golangci-lint v2.x already installed"; \
-	fi
-	@echo "golangci-lint ready"
-
-# Run linter (requires golangci-lint)
-# Filter output to focus on BUGS and ignore STYLISTIC suggestions
-# Rationale:
-#   - QF* = "quickfix" stylistic suggestions (not bugs)
-#   - ST* = style checks (not bugs)
-#   - SA1019 = deprecated usage (tracked separately)
-#   - SA9003 = empty branch in tests (intentional for clarity)
-#   - SA5011 = nil dereference in tests (tests check nil explicitly)
-#   - SA5012 = variadic in tests (testing error cases)
-#   - "is unused" in tests/testutil = test helpers
-lint: prepare-embed
-	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install with 'make install-lint' or 'brew install-golangci-lint'" && exit 1)
-	@# Run golangci-lint and filter output to exclude stylistic/test issues
-	@# Filter both the diagnostic lines AND orphaned code snippet lines
-	@golangci-lint run ./cmd/... ./internal/... ./testutil/... 2>&1 | \
-		grep -v "(related information)" | \
-		grep -v "QF[0-9]" | \
-		grep -v "ST[0-9]" | \
-		grep -v "SA1019:" | \
-		grep -v "SA9003:" | \
-		grep -v "SA5011:" | \
-		grep -v "SA5012:" | \
-		grep -v "is unused" | \
-		grep -v "^\t" | \
-		grep -v "^[[:space:]]*\^" | \
-		tee /tmp/lint.out || true
-	@# Check if any ACTUAL errors remain (bug detectors in non-test code)
-	@if grep -qE "^(internal|cmd|testutil)" /tmp/lint.out; then \
-		echo ""; \
-		echo "❌ Lint errors found (see above)"; \
-		echo "   Note: Only showing BUG detectors, not stylistic suggestions"; \
-		exit 1; \
-	fi
-	@echo "✅ Lint complete (no bugs detected)"
-
-# Download dependencies
-deps:
-	@echo "Downloading dependencies..."
-	$(GOMOD) download
-	$(GOMOD) tidy
-	@echo "Dependencies downloaded"
-
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	$(GOCLEAN)
-	rm -rf $(BUILD_DIR)
-	rm -rf cmd/ailang/prompts
-	rm -f coverage.out coverage.html
-	rm -f coverage.parser.out coverage.lexer.out
-	rm -f .parser_coverage .lexer_coverage
-	rm -f .golden_changes
-	rm -f examples_report.json examples_status.md coverage.txt
-	@echo "Clean complete"
-
-# Run the REPL
-repl: build
-	@$(BUILD_DIR)/$(BINARY) repl
-
-# Run an AILANG file
-run: build
-	@if [ -z "$(FILE)" ]; then \
-		echo "Usage: make run FILE=path/to/file.ail"; \
-		exit 1; \
-	fi
-	@$(BUILD_DIR)/$(BINARY) run $(FILE)
-
-# Watch mode for development (rebuilds to bin/)
-watch:
-	@echo "Starting watch mode (local build)..."
-	@which fswatch > /dev/null || (echo "fswatch not found. Install with: brew install fswatch (macOS) or apt-get install fswatch (Linux)" && exit 1)
-	fswatch -o internal cmd | xargs -n1 -I{} make build
-
-# Watch and install mode (auto-installs to GOPATH/bin on changes)
-watch-install:
-	@echo "Starting watch mode (auto-install)..."
-	@echo "ailang will be automatically updated in $$(go env GOPATH)/bin on every change"
-	@which fswatch > /dev/null || (echo "fswatch not found. Install with: brew install fswatch (macOS) or apt-get install fswatch (Linux)" && exit 1)
-	fswatch -o internal cmd examples | xargs -n1 -I{} sh -c 'clear && echo "🔄 Rebuilding and installing..." && make install && echo "✓ ailang updated!" || echo "❌ Build failed"'
-
-# Quick development build (no optimization)
-dev:
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go
-
-# Quick install (useful for development)
-quick-install: prepare-embed
-	@go install ./cmd/ailang
-	@echo "✓ ailang updated in $$(go env GOPATH)/bin"
-
-# Verify all examples (CI mode - only checks examples/runnable/)
-verify-examples: build
-	@echo "Verifying examples..."
-	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
-	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
-	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
-
-# Verify ALL examples (all directories) with threshold gate
-verify-examples-all: build
-	@echo "Verifying all examples with threshold gate..."
-	@go run ./scripts/verify_examples.go --all --threshold 60
-
-# Verify CLI examples (for documentation accuracy)
-verify-cli-examples:
-	@echo "Verifying CLI examples from examples/cli_examples.txt..."
-	@./tools/verify_cli_examples.sh
-
-# Quick example status (one-line summary)
-examples-status: build
-	@go run ./scripts/verify_examples.go --all 2>&1 | grep "Examples:"
-
-# Test operator lowering (golden tests)
-test-lowering: build
-	@echo "Testing operator lowering..."
-	@printf "  Integer ops: "
-	@result=$$(./bin/ailang run tests/binops_int.ail 2>&1 | tail -n1); \
-	if [ "$$result" = "14" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
-	@printf "  Float ops: "
-	@result=$$(./bin/ailang run tests/binops_float.ail 2>&1 | tail -n1); \
-	if [ "$$result" = "1.5" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
-	@printf "  Precedence: "
-	@result=$$(./bin/ailang run tests/precedence_lowering.ail 2>&1 | tail -n1); \
-	if [ "$$result" = "14" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
-	@printf "  Short-circuit: "
-	@result=$$(./bin/ailang run tests/short_circuit.ail 2>&1 | tail -n1); \
-	if [ "$$result" = "false" ]; then echo "✓"; else echo "✗ FAIL (got $$result)"; exit 1; fi
-	@echo "✓ All operator lowering tests passed"
-
-# Verify no shim usage (CI gate)
-verify-no-shim: build
-	@echo "Verifying no operator shim usage..."
-	@printf "  Testing with --fail-on-shim: "
-	@if ./bin/ailang run --require-lowering --fail-on-shim tests/binops_int.ail >/dev/null 2>&1; then \
-		echo "✓"; \
-	else \
-		echo "✗ FAIL: Shim detected or lowering failed"; \
-		exit 1; \
-	fi
-	@printf "  Ensuring shim fails when attempted: "
-	@if ! ./bin/ailang run --experimental-binop-shim --fail-on-shim tests/binops_int.ail 2>&1 | grep -q "CI_SHIM001"; then \
-		echo "✗ FAIL: Shim should have been rejected with CI_SHIM001 error"; \
-		exit 1; \
-	else \
-		echo "✓"; \
-	fi
-	@echo "✓ No shim usage verified"
-
-# Verify operator lowering is working
-verify-lowering: build verify-no-shim
-	@echo "Verifying all operators are lowered..."
-	@printf "  Checking for remaining Intrinsic nodes: "
-	@# This will be implemented with a dedicated checker
-	@echo "✓"
-	@echo "✓ Operator lowering verified"
-
-# Test parser with coverage
-test-parser:
-	@echo "Testing parser..."
-	@$(GOTEST) ./internal/parser
-	@echo "✓ Parser tests passed"
-
-# Update parser golden files
-test-parser-update:
-	@echo "Updating parser golden files..."
-	@$(GOTEST) -update ./internal/parser
-	@echo "✓ Golden files updated"
-
-# Fuzz parser (short run for CI)
-fuzz-parser:
-	@echo "Fuzzing parser (2s)..."
-	@$(GOTEST) -fuzz=FuzzParseExpr -fuzztime=2s ./internal/parser
-	@echo "✓ Fuzz test completed (no panics)"
-
-# Fuzz parser (extended run)
-fuzz-parser-long:
-	@echo "Fuzzing parser (1m)..."
-	@$(GOTEST) -fuzz=FuzzParseExpr -fuzztime=1m ./internal/parser
-	@$(GOTEST) -fuzz=FuzzParseModule -fuzztime=1m ./internal/parser
-	@$(GOTEST) -fuzz=FuzzParseMalformed -fuzztime=1m ./internal/parser
-	@$(GOTEST) -fuzz=FuzzParseUnicode -fuzztime=1m ./internal/parser
-	@echo "✓ Extended fuzz testing completed"
-
-# Check parser line coverage (≥80% required)
-cover-lines:
-	@$(GOTEST) -coverprofile=coverage.out ./internal/parser > /dev/null 2>&1
-	@$(GOCMD) tool cover -func=coverage.out | tail -1 | awk '{print $$3}'
-
-# Open parser branch coverage HTML report
-cover-branch:
-	@$(GOTEST) -covermode=atomic -coverprofile=coverage.out ./internal/parser
-	@$(GOCMD) tool cover -html=coverage.out
-
-# Per-package coverage gates (M-P2 lock-in)
-cover-parser:
-	@echo "Generating parser coverage..."
-	@$(GOTEST) -coverprofile=coverage.parser.out ./internal/parser > /dev/null 2>&1
-	@$(GOCMD) tool cover -func=coverage.parser.out | awk '/total:/ {gsub(/%/,"",$$3); print $$3}' > .parser_coverage
-	@cat .parser_coverage
-
-gate-parser:
-	@if [ ! -f .parser_coverage ]; then echo "Run 'make cover-parser' first"; exit 1; fi
-	@pct=$$(cat .parser_coverage); min=$${PARSER_COVER_MIN:-68}; \
-	echo "Parser coverage: $$pct% (minimum: $$min%)"; \
-	if [ $$(echo "$$pct < $$min" | bc -l) -eq 1 ]; then \
-		echo "❌ Parser coverage $$pct% is below $$min% threshold"; \
-		exit 1; \
-	fi; \
-	echo "✅ Parser coverage meets threshold"
-
-cover-lexer:
-	@echo "Generating lexer coverage..."
-	@$(GOTEST) -coverprofile=coverage.lexer.out ./internal/lexer > /dev/null 2>&1
-	@$(GOCMD) tool cover -func=coverage.lexer.out | awk '/total:/ {gsub(/%/,"",$$3); print $$3}' > .lexer_coverage
-	@cat .lexer_coverage
-
-gate-lexer:
-	@if [ ! -f .lexer_coverage ]; then echo "Run 'make cover-lexer' first"; exit 1; fi
-	@pct=$$(cat .lexer_coverage); min=$${LEXER_COVER_MIN:-57}; \
-	echo "Lexer coverage: $$pct% (minimum: $$min%)"; \
-	if [ $$(echo "$$pct < $$min" | bc -l) -eq 1 ]; then \
-		echo "❌ Lexer coverage $$pct% is below $$min% threshold"; \
-		exit 1; \
-	fi; \
-	echo "✅ Lexer coverage meets threshold"
-
-cover-all-packages: cover-parser cover-lexer
-	@echo "All package coverage generated"
-
-gate-all-packages: gate-parser gate-lexer
-	@echo "✅ All package coverage gates passed"
-
-# Golden drift protection (M-P2 lock-in)
-check-golden-drift:
-	@echo "Checking for golden file changes..."
-	@git diff --name-only -- internal/parser/testdata/parser/ > .golden_changes || true
-	@if [ -s .golden_changes ]; then \
-		echo "⚠️  Golden files changed:"; \
-		cat .golden_changes; \
-		if [ "$$ALLOW_GOLDEN_UPDATES" != "1" ]; then \
-			echo ""; \
-			echo "❌ Golden files changed without ALLOW_GOLDEN_UPDATES=1"; \
-			echo "   If this is intentional, run:"; \
-			echo "   ALLOW_GOLDEN_UPDATES=1 make check-golden-drift"; \
-			rm -f .golden_changes; \
-			exit 1; \
-		fi; \
-		echo "✅ Golden updates allowed (ALLOW_GOLDEN_UPDATES=1)"; \
-	else \
-		echo "✅ No golden file changes"; \
-	fi
-	@rm -f .golden_changes
-
-# Test builtin interface stability
-test-builtin-freeze:
-	@echo "Testing builtin interface freeze..."
-	@go test ./internal/iface -run TestBuiltinInterfaceStability || exit 1
-	@echo "✓ Builtin interface stable"
-
-# Test operator assertion guards
-test-operator-assertions:
-	@echo "Testing operator assertion guards..."
-	@go test ./internal/pipeline -run TestAssertOnlyBuiltinsForOps || exit 1
-	@echo "✓ Operator assertions working"
-
-# Update README with example status
-update-readme: build
-	@echo "Verifying examples..."
-	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
-	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
-	@if [ -f examples_status.md ]; then cat examples_status.md; else echo "No examples status generated"; fi
-	@echo "Updating README with example status..."
-	@if [ -f examples_report.json ]; then go run ./scripts/update_readme.go; else echo "No examples report found, skipping README update"; fi
-	@echo "Updating docs examples page..."
-	@if [ -f examples_report.json ]; then go run ./scripts/update_docs_examples.go; else echo "No examples report found, skipping docs update"; fi
-
-# Generate test coverage badge
-test-coverage-badge:
-	@echo "Generating coverage badge..."
-	@$(GOTEST) -coverprofile=coverage.out ./... > /dev/null 2>&1 || true
-	@go tool cover -func=coverage.out | grep total: | awk '{print $$3}' | sed 's/%//' > coverage.txt
-	@echo "Coverage: $$(cat coverage.txt)%"
-
-# Flag broken examples with warning headers
-flag-broken: verify-examples
-	@echo "Flagging broken examples..."
-	@go run ./scripts/flag_broken_examples.go
-
-# Import/Link Error Testing
-# Test that successful imports work
-test-imports-success: build
-	@echo "== Testing successful imports =="
-	@echo "  → imports_basic.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports_basic.ail > /dev/null 2>&1 || (echo "FAIL: imports_basic.ail" && exit 1)
-	@echo "  → imports.ail"
-	@$(BUILD_DIR)/$(BINARY) run --caps IO examples/runnable/imports.ail > /dev/null 2>&1 || (echo "FAIL: imports.ail" && exit 1)
-	@echo "✓ Successful imports work"
-
-# Test that error cases produce correct JSON output
-test-import-errors: build
-	@echo "== Testing import error goldens =="
-	@echo "  → LDR001 (module not found)"
-	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_module.json - || (echo "FAIL: LDR001 golden mismatch" && exit 1)
-	@echo "  → IMP010 (symbol not exported)"
-	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 | diff -u goldens/lnk_unresolved_symbol.json - || (echo "FAIL: IMP010 golden mismatch" && exit 1)
-	@echo "✓ All import error goldens match"
-
-# Regenerate golden files (use with caution - only when intentionally updating)
-regen-import-error-goldens: build
-	@echo "Regenerating import error golden files..."
-	@mkdir -p goldens
-	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_module.ail 2>&1 | tail -1 > goldens/lnk_unresolved_module.json
-	@$(BUILD_DIR)/$(BINARY) run --json --compact tests/errors/lnk_unresolved_symbol.ail 2>&1 | tail -1 > goldens/lnk_unresolved_symbol.json
-	@$(BUILD_DIR)/$(BINARY) run --json --compact --caps IO examples/snippets/v3_3/imports_basic.ail 2>&1 | tail -1 > goldens/imports_basic_success.json
-	@echo "✓ Golden files regenerated"
-
-# Test REPL/file parity for imports
-test-parity: build
-	@chmod +x tests/parity/run_imports_basic.sh
-	@tests/parity/run_imports_basic.sh
-
-# Combined import testing (parity test excluded - requires interactive REPL)
-test-imports: test-imports-success test-import-errors
-	@echo "✓ All import tests passed"
-
-# Test recursion handling
-test-recursion: build
-	@echo "== Testing recursion =="
-	@echo "  → mutual.ail (mutual recursion should work)"
-	@$(BUILD_DIR)/$(BINARY) run tests/recursion/mutual.ail > /dev/null 2>&1 || (echo "FAIL: mutual.ail should work" && exit 1)
-	@echo "✓ Mutual recursion works"
-	@echo "  ⚠ Note: RT_CYCLE test skipped (requires proper let-rec in functions)"
-
-# Test interface determinism across different environments
-test-iface-determinism: build
-	@echo "== Testing interface determinism =="
-	@echo "  ⚠ Skipped: --dump-iface flag not yet implemented"
-	@echo "  → Verification: interface ordering already deterministic (sorted exports)"
-	@echo "✓ Interface determinism verified (by construction)"
-
-# CI verification target
-ci: deps fmt-check vet lint test test-coverage-badge test-lowering verify-no-shim verify-examples
-	@echo "CI verification complete"
-
-# Strict CI target (with RequireLowering enforced + import tests + A2 features)
-ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test-lowering test-builtin-freeze test-operator-assertions test-imports test-recursion test-iface-determinism verify-examples
-	@echo "✓ Strict CI verification complete (A2 milestone)"
-
-# Doctor command - validate builtin registry
-doctor: build
-	@echo "Running builtin registry validation..."
-	@AILANG_BUILTINS_REGISTRY=1 $(BUILD_DIR)/$(BINARY) doctor builtins
-
-# Regression guard tests (critical for preventing v0.3.10-style bugs)
-.PHONY: test-regression-guards
-test-regression-guards:
-	@echo "Running regression guard tests..."
-	@echo "  → Builtin consistency (three-way parity)"
-	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
-	@echo "  → Builtin type golden snapshots"
-	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
-	@echo "  → REPL smoke tests (:type command)"
-	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
-	@echo "  → Stdlib canaries (std/io, std/net)"
-	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
-	@echo "  → Row unification properties"
-	@$(GOTEST) -v ./internal/types -run TestRowUnification
-	@echo "✓ All regression guards passed"
-
-.PHONY: test-builtin-consistency
-test-builtin-consistency:
-	@echo "Testing builtin consistency..."
-	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinConsistency
-
-.PHONY: test-stdlib-canaries
-test-stdlib-canaries:
-	@echo "Testing std/ library canaries..."
-	@$(GOTEST) -v ./internal/pipeline -run TestStdlibCanary
-
-.PHONY: test-row-properties
-test-row-properties:
-	@echo "Testing row unification properties..."
-	@$(GOTEST) -v ./internal/types -run TestRowUnification
-
-.PHONY: test-golden-types
-test-golden-types:
-	@echo "Testing builtin type golden snapshots..."
-	@$(GOTEST) -v ./internal/pipeline -run TestBuiltinTypes
-
-.PHONY: test-repl-smoke
-test-repl-smoke:
-	@echo "Testing REPL smoke tests..."
-	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
-
-.PHONY: test-sim-stub
-test-sim-stub: install
-	@echo "Testing sim_stub example (Go codegen pipeline)..."
-	@cd examples/sim_stub && make clean && make test
-
-# Show Go package documentation
-.PHONY: doc
-doc:
-	@if [ -z "$(PKG)" ]; then \
-		echo "Usage: make doc PKG=<package>"; \
-		echo ""; \
-		echo "Examples:"; \
-		echo "  make doc PKG=internal/testing        # Show testing package docs"; \
-		echo "  make doc PKG=internal/elaborate      # Show elaborate package docs"; \
-		echo "  make doc PKG=internal/types          # Show types package docs"; \
-		echo "  make doc PKG=internal/parser         # Show parser package docs"; \
-		echo ""; \
-		echo "Common packages:"; \
-		echo "  internal/testing      - Test collection and property-based testing"; \
-		echo "  internal/elaborate    - Surface AST to Core AST elaboration"; \
-		echo "  internal/types        - Type system and type checking"; \
-		echo "  internal/parser       - Parser (see also: docs/guides/parser_development.md)"; \
-		echo "  internal/eval         - Core AST evaluator"; \
-		echo "  internal/builtins     - Builtin function registry"; \
-		exit 1; \
-	fi
-	@go doc -all github.com/sunholo/ailang/$(PKG)
-
-# Show help
-help:
-	@echo "Available targets:"
-	@echo "  make build            - Build the ailang binary"
-	@echo "  make install          - Install ailang to GOPATH/bin"
-	@echo "  make doc PKG=<pkg>    - Show Go package documentation (e.g., make doc PKG=internal/testing)"
-	@echo "  make test             - Run Go unit tests"
-	@echo "  make test-coverage    - Run tests with coverage"
-	@echo "  make test-parser      - Run parser tests"
-	@echo "  make test-parser-update - Update parser golden files"
-	@echo "  make cover-lines      - Show parser line coverage"
-	@echo "  make cover-branch     - Open parser branch coverage HTML"
-	@echo "  make test-lowering    - Run operator lowering golden tests"
-	@echo "  make test-imports     - Test import system (success + errors)"
-	@echo "  make test-import-errors - Test import error goldens"
-	@echo "  make verify-examples  - Verify all examples"
-	@echo "  make flag-broken      - Add warning headers to broken examples"
-	@echo "  make update-readme    - Update README with example status"
-	@echo "  make doctor           - Validate builtin registry"
-	@echo "  make test-regression-guards - Run regression guard tests"
-	@echo "  make test-builtin-consistency - Test builtin three-way parity"
-	@echo "  make test-stdlib-canaries - Test std/ library health (std/io, std/net)"
-	@echo "  make test-row-properties - Test row unification properties"
-	@echo "  make test-golden-types - Test builtin type snapshots"
-	@echo "  make test-repl-smoke - REPL smoke tests (:type command)"
-	@echo "  make ci               - Run full CI verification"
-	@echo "  make ci-strict        - Extended CI with A2 milestone gates"
-	@echo "  make fmt              - Format code"
-	@echo "  make fmt-check        - Check code formatting"
-	@echo "  make vet              - Run go vet"
-	@echo "  make lint             - Run linter"
-	@echo "  make install-lint     - Install golangci-lint"
-	@echo "  make deps             - Download dependencies"
-	@echo "  make clean            - Clean build artifacts"
-	@echo "  make repl             - Start the REPL"
-	@echo "  make run FILE=...     - Run an AILANG file"
-	@echo "  make watch            - Watch mode (local build)"
-	@echo "  make watch-install    - Watch mode (auto-install to PATH)"
-	@echo "  make dev              - Quick development build"
-	@echo "  make quick-install    - Quick install without version info"
-	@echo "  make test-stdlib-freeze - Verify std/ library interfaces haven't changed"
-	@echo "  make eval-suite       - Run AI benchmark suite"
-	@echo "  make eval-report      - Generate evaluation report"
-	@echo "  make eval-analyze     - Analyze failures, generate design docs (with dedup)"
-	@echo "  make eval-analyze-fresh - Force new design docs (disable dedup)"
-	@echo "  make eval-to-design   - Full workflow: evals → analysis → design docs"
-	@echo "  make eval-clean       - Clean evaluation results"
-	@echo "  make build-wasm       - Build WASM binary for browser REPL"
-	@echo "  make docs-clean       - Clear Docusaurus build cache"
-	@echo "  make docs-restart     - Clear cache and restart dev server"
-	@echo "  make check-file-sizes - Check for files >800 lines (AI-friendly)"
-	@echo "  make report-file-sizes - Report all files >500 lines"
-	@echo "  make codebase-health  - Full codebase health metrics"
-	@echo "  make largest-files    - Show 20 largest files"
-	@echo "  make help             - Show this help"
-	@echo "  make help-release     - Show release workflow (eval + dashboard)"
-
-# Test standard library interface freeze (SHA256 digest matching)
-EX_VERIFY := scripts/verify-examples.sh
+GOCMD := go
+GOBUILD := $(GOCMD) build
+GOCLEAN := $(GOCMD) clean
+GOTEST := $(GOCMD) test
+GOGET := $(GOCMD) get
+GOMOD := $(GOCMD) mod
+GOFMT := $(GOCMD) fmt
+GOVET := $(GOCMD) vet
+
+# Build flags
+LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
+
+# Colors and symbols (for pretty output)
+GREEN := \033[0;32m
+RED := \033[0;31m
+YELLOW := \033[0;33m
+CYAN := \033[0;36m
+BOLD := \033[1m
+RESET := \033[0m
+CHECKMARK := ✓
+CROSS := ✗
+WARNING := ⚠️
+ARROW := →
+LINE := ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Stdlib paths (for freeze/verify)
 STDLIB := std/option.ail std/result.ail std/list.ail std/string.ail std/io.ail
 FREEZE_DIR := goldens/stdlib
 TOOLS := ailang
 
-.PHONY: test-stdlib-freeze
-test-stdlib-freeze: $(FREEZE_DIR)/option.sha256 $(FREEZE_DIR)/result.sha256 \
-                    $(FREEZE_DIR)/list.sha256 $(FREEZE_DIR)/string.sha256 \
-                    $(FREEZE_DIR)/io.sha256
-	@ok=0; \
-	for m in $(STDLIB); do \
-	  name=$$(basename $${m} .ail | sed 's/^/std\//'); \
-	  tmp=$$(mktemp); \
-	  $(TOOLS) iface --module "$$name" --json > $$tmp || ok=1; \
-	  sum=$$(shasum -a 256 $$tmp | awk '{print $$1}'); \
-	  golden="$(FREEZE_DIR)/$$(basename $$name).sha256"; \
-	  if [ ! -f $$golden ]; then echo "MISSING $$golden"; ok=1; else \
-	    exp=$$(cat $$golden); \
-	    if [ "$$sum" != "$$exp" ]; then \
-	      echo "MISMATCH $$name"; \
-	      echo " expected: $$exp"; echo " actual  : $$sum"; ok=1; \
-	    fi; \
-	  fi; \
-	done; \
-	exit $$ok
-# Standard library interface freeze/verify targets
-freeze-stdlib:
-	@echo "Freezing std/ library interfaces..."
-	@tools/freeze-stdlib.sh
+# Export for sub-Makefiles
+export BINARY BUILD_DIR VERSION COMMIT BUILD_TIME
+export GOCMD GOBUILD GOCLEAN GOTEST GOGET GOMOD GOFMT GOVET LDFLAGS
+export GREEN RED YELLOW CYAN BOLD RESET CHECKMARK CROSS WARNING ARROW LINE
+export STDLIB FREEZE_DIR TOOLS
 
-verify-stdlib:
-	@echo "Verifying std/ library interface stability..."
-	@tools/verify-stdlib.sh
+# =============================================================================
+# INCLUDE SUB-MAKEFILES
+# =============================================================================
 
-# Evaluation benchmarks
-eval: build
-	@echo "Running evaluation benchmark..."
-	@$(BUILD_DIR)/$(BINARY) eval --benchmark fizzbuzz --mock
+include make/build.mk
+include make/test.mk
+include make/coverage.mk
+include make/eval.mk
+include make/docs.mk
+include make/services.mk
+include make/examples.mk
+include make/code-health.mk
+include make/claude.mk
+include make/ci.mk
 
-eval-suite: build
-	@echo "Running full benchmark suite (all models, parallel)..."
-	@$(BUILD_DIR)/$(BINARY) eval-suite
+# =============================================================================
+# HELP SYSTEM
+# =============================================================================
 
-eval-models: build
-	@echo "Available models:"
-	@$(BUILD_DIR)/$(BINARY) eval --list-models
+.PHONY: help help-build help-test help-coverage help-eval help-docs help-services
+.PHONY: help-examples help-health help-claude help-ci help-release
 
-eval-report:
-	@echo "Generating evaluation report..."
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
-	$(BUILD_DIR)/$(BINARY) eval-report eval_results/ $$VERSION --format=md
-
-eval-clean:
-	@echo "Cleaning evaluation results..."
-	@rm -rf eval_results/*.json eval_results/*.csv eval_results/*.md
-
-# Analyze eval results and generate design docs
-# Note: Deduplication enabled by default (merges into existing docs)
-# Options:
-#   --force-new             Disable dedup, always create new docs
-#   --merge-threshold 0.75  Similarity % for merging (default: 75%)
-#   --skip-documented       Skip if already well-documented
-eval-analyze: build
-	@echo "→ Analyzing eval results..."
-	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
-		--model gpt5 --output design_docs/planned/ \
-		--min-frequency 2
-
-# Analyze with forced new docs (disable deduplication)
-eval-analyze-fresh: build
-	@echo "→ Analyzing eval results (forcing new docs)..."
-	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
-		--model gpt5 --output design_docs/planned/ \
-		--min-frequency 2 --force-new
-
-# Full workflow: run evals → analyze → generate design docs
-eval-to-design: eval-suite eval-analyze
-	@echo "✓ Design docs generated in design_docs/planned/"
+# Default help - show categories
+help: ## Show this help
 	@echo ""
-	@echo "Next steps:"
-	@echo "  1. Review generated design documents"
-	@echo "  2. Adjust priorities and estimates"
-	@echo "  3. Move approved designs to milestone tracking"
+	@echo "$(BOLD)AILANG Makefile$(RESET) - $(VERSION)"
+	@echo "$(LINE)"
 	@echo ""
-	@echo "Deduplication info:"
-	@echo "  - Similar docs are automatically merged (saves API costs)"
-	@echo "  - Use 'make eval-analyze-fresh' to force new docs"
-
-# Prompt versioning and A/B testing (M-EVAL-LOOP Milestone 2)
-.PHONY: eval-prompt-ab eval-prompt-list eval-prompt-hash
-
-eval-prompt-ab: build
-	@echo "Running A/B comparison of two prompt versions..."
-	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
-		echo "Usage: make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints [MODEL=claude-sonnet-4-5] [LANGS=ailang]"; \
-		echo ""; \
-		echo "Example:"; \
-		echo "  make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints"; \
-		echo "  make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints MODEL=gpt5 LANGS=python,ailang"; \
-		exit 1; \
-	fi
-	@./tools/eval_prompt_ab.sh "$(A)" "$(B)" --model $(MODEL) --langs $(LANGS)
-
-eval-prompt-list:
-	@echo "Available prompt versions:"
+	@echo "$(BOLD)Quick Start:$(RESET)"
+	@echo "  make build          Build ailang binary"
+	@echo "  make install        Install to PATH"
+	@echo "  make test           Run all tests"
+	@echo "  make repl           Start REPL"
 	@echo ""
-	@cat prompts/versions.json | jq -r '.versions | to_entries[] | "  \(.key)\n    File: \(.value.file)\n    Description: \(.value.description)\n    Tags: \(.value.tags | join(", "))\n    Created: \(.value.created)\n"'
+	@echo "$(BOLD)Categories:$(RESET) (use 'make help-<category>' for details)"
 	@echo ""
-	@echo "Active version: $$(cat prompts/versions.json | jq -r '.active')"
-
-eval-prompt-hash:
-	@echo "Computing SHA256 hashes for all prompt files..."
+	@echo "  $(CYAN)build$(RESET)      Building, installing, dependencies"
+	@echo "  $(CYAN)test$(RESET)       Unit tests, integration tests, fuzzing"
+	@echo "  $(CYAN)coverage$(RESET)   Code coverage reports and gates"
+	@echo "  $(CYAN)eval$(RESET)       AI benchmarks and evaluation"
+	@echo "  $(CYAN)docs$(RESET)       Documentation, website, package docs"
+	@echo "  $(CYAN)services$(RESET)   Server, coordinator, REPL"
+	@echo "  $(CYAN)examples$(RESET)   Example verification and README updates"
+	@echo "  $(CYAN)health$(RESET)     Code quality, linting, file sizes"
+	@echo "  $(CYAN)claude$(RESET)     Claude CLI integration"
+	@echo "  $(CYAN)ci$(RESET)         CI/CD targets"
 	@echo ""
-	@for file in prompts/*.md; do \
-		hash=$$(shasum -a 256 "$$file" | awk '{print $$1}'); \
-		echo "$$(basename $$file): $$hash"; \
-	done
-
-# Validation workflow (M-EVAL-LOOP Milestone 3)
-.PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
-
-eval-baseline: build
-	@if [ -z "$(EVAL_VERSION)" ]; then \
-		echo "Error: EVAL_VERSION parameter required"; \
-		echo ""; \
-		echo "Usage:"; \
-		echo "  make eval-baseline EVAL_VERSION=v0.3.10"; \
-		echo "  make eval-baseline EVAL_VERSION=v0.3.10 FULL=true"; \
-		echo "  make eval-baseline EVAL_VERSION=v0.3.10 RESUME=true"; \
-		echo ""; \
-		exit 1; \
-	fi
-	@echo "Storing baseline for version $(EVAL_VERSION)..."
-	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) ./tools/eval_baseline.sh
-
-eval-diff: build
-	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
-		echo "Usage: make eval-diff BASELINE=<dir> NEW=<dir>"; \
-		echo ""; \
-		echo "Example:"; \
-		echo "  make eval-diff BASELINE=eval_results/baselines/v0.3.0 NEW=eval_results/after_fix"; \
-		exit 1; \
-	fi
-	@bin/ailang eval-compare "$(BASELINE)" "$(NEW)"
-
-eval-validate-fix: build
-	@if [ -z "$(BENCH)" ]; then \
-		echo "Usage: make eval-validate-fix BENCH=<benchmark_id> [BASELINE=<version>]"; \
-		echo ""; \
-		echo "Example:"; \
-		echo "  make eval-validate-fix BENCH=float_eq"; \
-		echo "  make eval-validate-fix BENCH=float_eq BASELINE=v0.3.0-alpha5"; \
-		exit 1; \
-	fi
-	@if [ -z "$(BASELINE)" ]; then \
-		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)"; \
-	else \
-		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)" "$(BASELINE)"; \
-	fi
-
-eval-summary:
-	@if [ -z "$(DIR)" ]; then \
-		echo "Usage: make eval-summary DIR=<results_dir>"; \
-		echo ""; \
-		echo "Example:"; \
-		echo "  make eval-summary DIR=eval_results/baseline"; \
-		exit 1; \
-	fi
-	@bin/ailang eval-summary "$(DIR)"
-
-eval-matrix:
-	@if [ -z "$(DIR)" ] || [ -z "$(VERSION)" ]; then \
-		echo "Usage: make eval-matrix DIR=<results_dir> VERSION=<version>"; \
-		echo ""; \
-		echo "Example:"; \
-		echo "  make eval-matrix DIR=eval_results/baseline VERSION=v0.3.0-alpha5"; \
-		exit 1; \
-	fi
-	@bin/ailang eval-matrix "$(DIR)" "$(VERSION)"
-
-# Automated fix implementation (M-EVAL-LOOP Milestone 4)
-.PHONY: eval-auto-improve
-
-eval-auto-improve:
-	@echo "🚀 M-EVAL-LOOP: Automated Fix Implementation"
+	@echo "$(BOLD)All Targets:$(RESET) (sorted alphabetically)"
 	@echo ""
-	@if [ -n "$(BENCH)" ]; then \
-		./tools/eval_auto_improve.sh --benchmark "$(BENCH)"; \
-	else \
-		./tools/eval_auto_improve.sh; \
-	fi
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
-eval-auto-improve-apply:
-	@echo "🚀 M-EVAL-LOOP: Automated Fix Implementation (APPLY MODE)"
+help-build: ## Show build targets
 	@echo ""
-	@if [ -n "$(BENCH)" ]; then \
-		./tools/eval_auto_improve.sh --benchmark "$(BENCH)" --apply; \
-	else \
-		./tools/eval_auto_improve.sh --apply; \
-	fi
+	@echo "$(BOLD)Build & Install Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/build.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
-# Documentation targets
-.PHONY: sync-prompts
-sync-prompts:
-	@echo "Syncing prompts/ to docs/docs/prompts/ (Docusaurus)..."
-	@./docs/scripts/sync-prompts.sh
-
-.PHONY: sync-versions
-sync-versions:
-	@echo "Syncing version constants..."
-	@bash docs/scripts/generate-version-constants.sh
-
-.PHONY: generate-llms-txt
-generate-llms-txt:
-	@echo "Generating llms.txt..."
-	@./tools/generate-llms-txt.sh
-
-.PHONY: docs
-docs: sync-prompts sync-versions generate-llms-txt
-	@echo "✓ All documentation generated"
-
-# Website preview targets (Docusaurus)
-.PHONY: docs-install
-docs-install:
-	@echo "Installing Docusaurus dependencies..."
-	@cd docs && npm install
-
-.PHONY: docs-serve
-docs-serve:
-	@echo "Starting Docusaurus development server..."
-	@echo "Website will be available at: http://localhost:3000/ailang/"
-	@cd docs && npm start
-
-.PHONY: docs-build
-docs-build: build-wasm
-	@echo "Copying WASM assets to docs..."
-	@mkdir -p docs/static/wasm docs/static/js docs/src/components
-	@cp bin/ailang.wasm docs/static/wasm/
-	@# Download wasm_exec.js from Go repo (GOROOT path unreliable with GOTOOLCHAIN=auto)
-	@curl -sL -o docs/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js
-	@cp web/ailang-repl.js docs/static/js/
-	@cp web/AilangRepl.jsx docs/src/components/
-	@echo "Building Docusaurus site..."
-	@cd docs && npm run build
-
-.PHONY: docs-preview
-docs-preview: docs docs-build
-	@echo "Serving production build..."
-	@cd docs && npm run serve
-
-.PHONY: docs-clean
-docs-clean:
-	@echo "Cleaning Docusaurus cache..."
-	@cd docs && npm run clear
-	@rm -rf docs/build docs/.docusaurus
-
-.PHONY: docs-restart
-docs-restart: docs-clean
-	@echo "Restarting Docusaurus development server..."
-	@echo "Clearing cache and rebuilding..."
-	@echo "Website will be available at: http://localhost:3000/ailang/"
-	@cd docs && npm start
-
-# Build WASM binary for browser REPL
-.PHONY: build-wasm
-build-wasm:
-	@echo "Building WASM binary..."
-	@mkdir -p $(BUILD_DIR)
-	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
-	@echo "✓ WASM binary: $(BUILD_DIR)/$(BINARY).wasm ($(VERSION))"
+help-test: ## Show test targets
 	@echo ""
-	@echo "Next steps for Docusaurus integration:"
-	@echo "  1. Copy $(BUILD_DIR)/$(BINARY).wasm to your-site/static/wasm/"
-	@echo "  2. Copy web/ailang-repl.js to your-site/src/components/"
-	@echo "  3. Copy web/AilangRepl.jsx to your-site/src/components/"
-	@echo "  4. Download wasm_exec.js: curl -sL -o your-site/static/wasm/wasm_exec.js https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js"
-	@echo "  5. See web/README.md for complete setup instructions"
+	@echo "$(BOLD)Testing Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/test.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
-
-# ============================================================================
-# Code Organization & AI-Friendly Codebase Maintenance
-# ============================================================================
-
-.PHONY: check-file-sizes
-check-file-sizes:
-	@echo "Checking for files >800 lines..."
-	@FOUND=0; \
-	for file in $$(find internal cmd -name "*.go"); do \
-		SIZE=$$(wc -l < "$$file"); \
-		if [ $$SIZE -gt 800 ]; then \
-			echo "❌ $$file: $$SIZE lines (exceeds 800 line limit)"; \
-			FOUND=1; \
-		fi; \
-	done; \
-	if [ $$FOUND -eq 1 ]; then \
-		echo ""; \
-		echo "⚠️  Files exceed 800 line limit. Please split them for AI maintainability."; \
-		echo "See CLAUDE.md 'Code Organization Principles' section for guidelines."; \
-		echo "Use: make report-file-sizes for detailed report"; \
-		exit 1; \
-	else \
-		echo "✅ All files within 800 line limit"; \
-	fi
-
-.PHONY: report-file-sizes
-report-file-sizes:
-	@echo "=== File Size Report ==="
+help-coverage: ## Show coverage targets
 	@echo ""
-	@echo "CRITICAL (>800 lines):"
-	@CRITICAL=0; \
-	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
-		if [ $$SIZE -gt 800 ]; then \
-			echo "⚠️ $$FILE: $$SIZE lines"; \
-			CRITICAL=$$((CRITICAL + 1)); \
-		fi; \
-	done; \
-	if [ $$CRITICAL -eq 0 ]; then echo "  (none)"; fi
-	@echo ""
-	@echo "WARNING (500-800 lines):"
-	@WARNING=0; \
-	find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | while read SIZE FILE; do \
-		if [ $$SIZE -gt 500 ] && [ $$SIZE -le 800 ]; then \
-			echo "⚠️ $$FILE: $$SIZE lines"; \
-			WARNING=$$((WARNING + 1)); \
-		fi; \
-	done; \
-	if [ $$WARNING -eq 0 ]; then echo "  (none)"; fi
-	@echo ""
-	@CRITICAL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
-	WARNING=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
-	echo "Summary: $$CRITICAL files exceed 800 lines, $$WARNING files between 500-800 lines"; \
-	if [ $$CRITICAL -gt 0 ]; then \
-		echo ""; \
-		echo "Recommended: Use codebase-organizer agent to split large files"; \
-		echo "See: .claude/agents/codebase-organizer.md"; \
-	fi
+	@echo "$(BOLD)Coverage Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/coverage.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
-.PHONY: codebase-health
-codebase-health:
-	@echo "=== Codebase Health Report ==="
+help-eval: ## Show evaluation targets
 	@echo ""
-	@echo "File Size Metrics:"
-	@TOTAL=$$(find internal cmd -name "*.go" | wc -l | tr -d ' '); \
-	SUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1} END {print sum}'); \
-	AVG=$$(echo "$$SUM / $$TOTAL" | bc); \
-	echo "  Total files: $$TOTAL"; \
-	echo "  Total lines: $$SUM"; \
-	echo "  Average size: $$AVG lines/file"
+	@echo "$(BOLD)Evaluation & Benchmark Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/eval.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-docs: ## Show documentation targets
 	@echo ""
-	@echo "File Size Distribution:"
-	@SMALL=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 <= 500 {count++} END {print count+0}'); \
-	MEDIUM=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 500 && $$1 <= 800 {count++} END {print count+0}'); \
-	LARGE=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '$$1 > 800 {count++} END {print count+0}'); \
-	echo "  ≤500 lines (good): $$SMALL files"; \
-	echo "  500-800 lines (acceptable): $$MEDIUM files"; \
-	echo "  >800 lines (needs split): $$LARGE files"; \
-	echo ""; \
-	if [ $$LARGE -eq 0 ]; then \
-		echo "✅ Codebase is AI-friendly (no files >800 lines)"; \
-	else \
-		echo "⚠️  $$LARGE files need splitting for optimal AI maintainability"; \
-	fi; \
-	echo ""; \
-	echo "Goal metrics:"; \
-	if [ $$LARGE -eq 0 ]; then echo "  - 0 files >800 lines ✅"; else echo "  - 0 files >800 lines ❌"; fi; \
-	if [ $$MEDIUM -lt 5 ]; then echo "  - <5 files 500-800 lines ✅"; else echo "  - <5 files 500-800 lines ⚠️"; fi; \
-	AVG=$$(find internal cmd -name "*.go" -exec wc -l {} \; | awk '{sum += $$1; count++} END {print int(sum/count)}'); \
-	if [ $$AVG -ge 300 ] && [ $$AVG -le 400 ]; then echo "  - Average 300-400 lines ✅"; else echo "  - Average 300-400 lines ⚠️"; fi
+	@echo "$(BOLD)Documentation Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/docs.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
-.PHONY: largest-files
-largest-files:
-	@echo "=== 20 Largest Files ==="
-	@find internal cmd -name "*.go" -exec wc -l {} \; | sort -rn | head -20 | \
-		awk '{printf "%4d lines: %s\n", $$1, $$2}'
-
-
-.PHONY: setup-claude
-setup-claude: ## Install Claude CLI globally for headless mode
-	@echo "Installing Claude CLI globally..."
-	@npm install -g @anthropic-ai/claude-code
-	@echo "✓ Claude CLI installed"
-	@claude --version
-
-.PHONY: update-claude
-update-claude: ## Update Claude CLI to latest version
-	@echo "Checking for Claude CLI updates..."
-	@CURRENT=$$(claude --version 2>/dev/null | grep -o '[0-9.]*' | head -1); \
-	LATEST=$$(npm view @anthropic-ai/claude-code version); \
-	if [ -z "$$CURRENT" ]; then \
-		echo "❌ Claude CLI not installed. Run: make setup-claude"; \
-		exit 1; \
-	fi; \
-	echo "Current version: $$CURRENT"; \
-	echo "Latest version:  $$LATEST"; \
-	if [ "$$CURRENT" = "$$LATEST" ]; then \
-		echo "✓ Already up to date!"; \
-	else \
-		echo ""; \
-		echo "Updating from $$CURRENT to $$LATEST..."; \
-		npm install -g @anthropic-ai/claude-code@latest; \
-		echo "✓ Updated to $$(claude --version)"; \
-	fi
-
-.PHONY: check-claude
-check-claude: ## Verify Claude CLI is installed and working
-	@command -v claude >/dev/null 2>&1 || { \
-		echo "❌ Claude CLI not found."; \
-		echo ""; \
-		echo "Install with: make setup-claude"; \
-		echo "Or manually: npm install -g @anthropic-ai/claude-code"; \
-		echo ""; \
-		echo "See docs/CLAUDE_CODE_SETUP.md for troubleshooting"; \
-		exit 1; \
-	}
-	@echo "✓ Claude CLI found: $$(which claude)"
-	@echo "✓ Version: $$(claude --version)"
-
-.PHONY: test-claude-headless
-test-claude-headless: check-claude ## Test Claude headless mode
-	@echo "Testing Claude headless mode..."
-	@OUTPUT=$$(claude -p "echo test" --output-format json 2>&1); \
-	if echo "$$OUTPUT" | jq -e '.subtype == "success"' >/dev/null 2>&1; then \
-		echo "✓ Claude headless mode working"; \
-		echo ""; \
-		echo "Available metrics:"; \
-		echo "$$OUTPUT" | jq -r 'keys | .[]' | sed 's/^/  - /'; \
-	else \
-		echo "✗ Claude headless mode failed"; \
-		echo "Output: $$OUTPUT"; \
-		exit 1; \
-	fi
-
-.PHONY: help-release
-help-release: ## Show release workflow (eval + dashboard)
-	@echo "📦 RELEASE WORKFLOW"
+help-services: ## Show service targets
 	@echo ""
-	@echo "Step 1: Run baseline evaluation"
-	@echo "  make eval-baseline EVAL_VERSION=v0.3.X              # 3 dev models (fast, ~\$$0.22)"
-	@echo "  make eval-baseline EVAL_VERSION=v0.3.X FULL=true    # All 6 models (slow, ~\$$1.50)"
+	@echo "$(BOLD)Service Management Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/services.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-examples: ## Show example targets
 	@echo ""
-	@echo "Step 2: Update website dashboard"
-	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=docusaurus > docs/docs/benchmarks/performance.md"
-	@echo "  ailang eval-report eval_results/baselines/v0.3.X v0.3.X --format=json > docs/static/benchmarks/latest.json"
+	@echo "$(BOLD)Example Verification Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/examples.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-health: ## Show code health targets
 	@echo ""
-	@echo "Step 3: Clear Docusaurus cache"
-	@echo "  cd docs && npm run clear"
+	@echo "$(BOLD)Code Health & Quality Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/code-health.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-claude: ## Show Claude CLI targets
 	@echo ""
-	@echo "Step 4: Restart dev server"
-	@echo "  cd docs && npm start"
-	@echo "  Visit: http://localhost:3000/ailang/docs/benchmarks/performance"
+	@echo "$(BOLD)Claude CLI Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/claude.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-ci: ## Show CI targets
+	@echo ""
+	@echo "$(BOLD)CI/CD Targets$(RESET)"
+	@echo "$(LINE)"
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/ci.mk | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
+
+help-release: ## Show release workflow
+	@echo ""
+	@echo "$(BOLD)Release Workflow$(RESET)"
+	@echo "$(LINE)"
+	@echo ""
+	@echo "$(BOLD)Step 1:$(RESET) Run baseline evaluation"
+	@echo "  make eval-baseline EVAL_VERSION=v0.X.Y              # 3 dev models (~\$$0.22)"
+	@echo "  make eval-baseline EVAL_VERSION=v0.X.Y FULL=true    # All 6 models (~\$$1.50)"
+	@echo ""
+	@echo "$(BOLD)Step 2:$(RESET) Update website dashboard"
+	@echo "  ailang eval-report eval_results/baselines/v0.X.Y v0.X.Y --format=json"
+	@echo ""
+	@echo "$(BOLD)Step 3:$(RESET) Clear Docusaurus cache and restart"
+	@echo "  make docs-restart"
+	@echo ""
+	@echo "$(BOLD)Using Skills:$(RESET) (recommended)"
+	@echo "  - Use 'release-manager' skill for full release workflow"
+	@echo "  - Use 'post-release' skill to update dashboard"
 	@echo ""
 
-# ==============================================================================
-# SERVICE MANAGEMENT
-# ==============================================================================
+# =============================================================================
+# DEFAULT TARGET
+# =============================================================================
 
-.PHONY: serve coordinator-start coordinator-stop services-start services-stop services-restart services-status
-
-# Start the Collaboration Hub server (foreground)
-serve: quick-install
-	@echo "Starting AILANG Collaboration Hub..."
-	@ailang serve
-
-# Start the server in background
-serve-bg: quick-install
-	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
-		echo "✓ Server already running on port 1957"; \
-	else \
-		echo "Starting AILANG server in background..."; \
-		nohup ailang serve > ~/.ailang/logs/server.log 2>&1 & \
-		sleep 2; \
-		if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
-			echo "✓ Server started"; \
-		else \
-			echo "✗ Server failed to start. Check ~/.ailang/logs/server.log"; \
-		fi \
-	fi
-
-# Start the coordinator daemon
-coordinator-start: quick-install
-	@echo "Starting coordinator daemon..."
-	@ailang coordinator start
-
-# Stop the coordinator daemon
-coordinator-stop:
-	@echo "Stopping coordinator daemon..."
-	@ailang coordinator stop || echo "Coordinator not running"
-
-# Check coordinator status
-coordinator-status:
-	@ailang coordinator status
-
-# Start both services (server + coordinator)
-services-start: serve-bg
-	@sleep 1
-	@if ailang coordinator status 2>/dev/null | grep -q "running"; then \
-		echo "✓ Coordinator already running"; \
-	else \
-		echo "Starting coordinator daemon..."; \
-		nohup ailang coordinator start > /dev/null 2>&1 & \
-		sleep 3; \
-		ailang coordinator status; \
-	fi
-	@echo ""
-	@echo "✓ Services started:"
-	@echo "  - Server: http://127.0.0.1:1957"
-	@echo "  - Coordinator: running (check with 'make coordinator-status')"
-
-# Stop both services
-services-stop: coordinator-stop
-	@echo "Stopping server..."
-	@pkill -f "ailang serve" 2>/dev/null || echo "Server not running"
-	@echo "✓ Services stopped"
-
-# Restart all services with fresh build
-services-restart: services-stop
-	@echo "Rebuilding..."
-	@$(MAKE) quick-install
-	@echo ""
-	@$(MAKE) services-start
-
-# Build and deploy UI (cleans old assets first)
-.PHONY: ui-deploy
-ui-deploy:
-	@echo "Building UI..."
-	@cd ui && npm run build
-	@echo "Cleaning old assets..."
-	@rm -rf internal/server/dist/assets/*
-	@echo "Deploying to server..."
-	@cp -r ui/dist/* internal/server/dist/
-	@echo "✓ UI deployed ($(shell ls internal/server/dist/assets | wc -l | tr -d ' ') assets)"
-
-# Show status of all services
-services-status:
-	@echo "📊 AILANG Services Status"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo ""
-	@echo "Server:"
-	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
-		curl -s http://127.0.0.1:1957/health | jq -r '"  Status: healthy\n  Connections: \(.connections)\n  Version: \(.version)"'; \
-	else \
-		echo "  Status: not running"; \
-	fi
-	@echo ""
-	@echo "Coordinator:"
-	@ailang coordinator status 2>/dev/null || echo "  Status: not running"
+.DEFAULT_GOAL := help

@@ -6,9 +6,10 @@
  * Uses the SAME spans data as TraceWaterfall for consistency.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria, ControlPlaneFilters } from './types';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria, ControlPlaneFilters, ExecHierarchyNode } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
+import { ChatHistory } from './ChatHistory';
 import { ApprovalPanel } from '../ApprovalPanel';
 import { CliCommandHint } from '../CliCommandHint';
 import { TraceWaterfall } from '../TraceWaterfall';
@@ -542,6 +543,26 @@ function nodeMatchesFilter(node: HierarchyNode, criteria: FilterCriteria | undef
     }
   }
 
+  // Check workspace filter
+  if (criteria.workspace) {
+    // Workspace might be on the node directly or in span attributes
+    const nodeWorkspace = (node as ExecHierarchyNode).workspace ||
+                          node._span?.attributes?.workspace ||
+                          node._span?.attributes?.['ailang.workspace'];
+    if (nodeWorkspace && nodeWorkspace !== criteria.workspace) {
+      return false;
+    }
+  }
+
+  // Check source_type filter
+  if (criteria.source_type) {
+    const nodeSourceType = node._span?.attributes?.source_type ||
+                           node._span?.attributes?.['ailang.source_type'];
+    if (nodeSourceType && nodeSourceType !== criteria.source_type) {
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -551,7 +572,9 @@ function applyFilterToNodes(nodes: HierarchyNode[], criteria: FilterCriteria | u
     criteria.dateRange ||
     (criteria.eventTypes && criteria.eventTypes.length > 0) ||
     criteria.provider ||
-    criteria.model
+    criteria.model ||
+    criteria.workspace ||
+    criteria.source_type
   );
   if (!hasFilters) {
     // No filtering active - return nodes as-is
@@ -1134,6 +1157,13 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             >
               ▥
             </button>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'chat' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => setViewMode('chat')}
+              title="Chat History"
+            >
+              💬
+            </button>
           </div>
 
           {/* Reverse Order Toggle */}
@@ -1242,6 +1272,15 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             loading={loading}
             hiddenSpanTypes={hiddenSpanTypes}
             onToggleSpanType={toggleSpanType}
+          />
+        )}
+        {viewMode === 'chat' && (
+          <ChatHistory
+            nodes={limitedNodes}
+            selectedNodeId={selectedNodeId}
+            onNodeClick={handleNodeClick}
+            loading={loading}
+            spans={spans}
           />
         )}
 

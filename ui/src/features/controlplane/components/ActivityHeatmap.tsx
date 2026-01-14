@@ -67,17 +67,38 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     const result: HeatmapCell[][] = [];
     let currentWeek: HeatmapCell[] = [];
 
-    if (filteredData.length === 0) return result;
+    // Determine days to show based on display range
+    let daysToShow: number;
+    switch (displayRange) {
+      case '3m': daysToShow = 90; break;
+      case '6m': daysToShow = 180; break;
+      case '1y': daysToShow = 365; break;
+    }
+
+    // Build lookup map from existing data for O(1) access
+    const dataMap = new Map(filteredData.map(c => [c.date, c]));
+
+    // Generate ALL dates in range (oldest to newest)
+    const now = new Date();
+    const allDates: HeatmapCell[] = [];
+    for (let i = daysToShow - 1; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const existing = dataMap.get(dateStr);
+      allDates.push(existing || { date: dateStr, taskCount: 0, cost: 0, successRate: 0 });
+    }
+
+    if (allDates.length === 0) return result;
 
     // Pad start to align with day of week (Monday = 0)
-    const firstDate = new Date(filteredData[0].date);
+    const firstDate = new Date(allDates[0].date);
     const dayOfWeek = firstDate.getDay();
     const startPadding = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     for (let i = 0; i < startPadding; i++) {
       currentWeek.push({ date: '', taskCount: -1, cost: 0, successRate: 0 });
     }
 
-    filteredData.forEach((cell) => {
+    allDates.forEach((cell) => {
       currentWeek.push(cell);
       if (currentWeek.length === 7) {
         result.push(currentWeek);
@@ -91,7 +112,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       result.push(currentWeek);
     }
     return result;
-  }, [filteredData]);
+  }, [filteredData, displayRange]);
 
   // Get month labels with their positions
   const monthLabels = useMemo(() => {

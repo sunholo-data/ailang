@@ -626,3 +626,6 @@ func (m *mockStore) StoreTaskEvent(ctx context.Context, event *TaskEventRecord) 
 func (m *mockStore) GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*TaskEventRecord, error) {
 	return nil, nil
 }
+func (m *mockStore) ResetTaskToPending(ctx context.Context, id string) error {
+	return nil
+}

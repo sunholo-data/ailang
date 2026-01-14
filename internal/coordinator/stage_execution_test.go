@@ -278,7 +278,7 @@ func TestBuildDirectiveFromConfig_NoGitHubIssue(t *testing.T) {
 	}
 }
 
-func TestBuildDirectiveFromConfig_FallbackToLegacy(t *testing.T) {
+func TestBuildDirectiveFromConfig_FallbackToContent(t *testing.T) {
 	task := &TaskRecord{
 		ID:          "task-legacy",
 		Content:     "Fix the bug",
@@ -286,17 +286,17 @@ func TestBuildDirectiveFromConfig_FallbackToLegacy(t *testing.T) {
 		Stage:       TaskStageDesign,
 	}
 
-	// No agent - should fall back to legacy
+	// No agent - should return task.Content to avoid infinite recursion
 	result1 := BuildDirectiveFromConfig(task, nil)
-	if !strings.Contains(result1, "design-doc-creator") {
-		t.Error("Should fall back to legacy design directive when agent is nil")
+	if result1 != task.Content {
+		t.Errorf("Should return task.Content when agent is nil, got: %s", result1)
 	}
 
-	// Agent without InvokeConfig - should fall back to legacy
+	// Unknown agent without InvokeConfig - should return task.Content to avoid infinite recursion
 	agent := &AgentConfig{ID: "legacy-agent"}
 	result2 := BuildDirectiveFromConfig(task, agent)
-	if !strings.Contains(result2, "design-doc-creator") {
-		t.Error("Should fall back to legacy design directive when InvokeConfig is nil")
+	if result2 != task.Content {
+		t.Errorf("Should return task.Content when InvokeConfig is nil (unknown agent), got: %s", result2)
 	}
 }
 
@@ -317,9 +317,9 @@ func TestBuildDirectiveFromConfig_UnknownType(t *testing.T) {
 
 	result := BuildDirectiveFromConfig(task, agent)
 
-	// Should fall back to legacy
-	if !strings.Contains(result, "design-doc-creator") {
-		t.Error("Unknown invoke type should fall back to legacy directive")
+	// Should return task.Content to avoid infinite recursion
+	if result != task.Content {
+		t.Errorf("Unknown invoke type should return task.Content, got: %s", result)
 	}
 }
 

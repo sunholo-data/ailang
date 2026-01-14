@@ -387,20 +387,26 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 	canRetrigger := coordinator.CanRetrigger(task)
 
 	if canRetrigger {
-		// Prepare task for re-trigger
-		coordinator.PrepareTaskForRetrigger(task, feedbackText)
+		// Calculate next iteration (for the new task that will be created)
+		nextIteration := task.Iteration + 1
+		if nextIteration < 2 {
+			nextIteration = 2 // First rejection creates iteration 2
+		}
 
 		// Store iteration start event
-		if err := coordinator.StoreIterationStartEvent(ctx, store, taskID, task.Iteration); err != nil {
+		if err := coordinator.StoreIterationStartEvent(ctx, store, taskID, nextIteration); err != nil {
 			fmt.Println(yellow("!"), "Warning: Failed to store iteration start:", err)
 		}
 
-		// Update task in database
-		if err := store.UpdateTask(ctx, task); err != nil {
-			return fmt.Errorf("failed to update task for re-trigger: %w", err)
+		// Mark OLD task as rejected (don't modify in place, create new task via message)
+		// This ensures proper hierarchy: old task (rejected) → new task (pending)
+		if err := store.MarkTaskRejected(ctx, taskID); err != nil {
+			fmt.Println(yellow("!"), "Warning: Failed to mark old task as rejected:", err)
+			// Continue anyway - new task will still be created
 		}
 
-		// Send feedback message to agent inbox
+		// Send feedback message to agent inbox with parent_task_id and github_issue
+		// The coordinator daemon will create a NEW task linked to the original
 		msgStore, err := messaging.OpenStore(messaging.GetDefaultDatabasePath())
 		if err != nil {
 			fmt.Println(yellow("!"), "Warning: Could not send message to agent:", err)
@@ -412,13 +418,20 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 				agentInbox = "coordinator" // Default fallback
 			}
 
+			// Build payload with feedback context
+			payload := fmt.Sprintf("Task rejected with feedback:\n\n%s\n\n---\n**Original Task:** %s\n**Iteration:** %d/%d\n**Context:** Session will resume with feedback incorporated.",
+				feedbackText, task.Title, nextIteration, coordinator.MaxIterations)
+
 			msg := &messaging.InboxMessage{
 				FromAgent:     "cli-user",
 				ToInbox:       agentInbox,
 				MessageType:   messaging.InboxTypeNotification,
-				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), task.Iteration),
-				Payload:       fmt.Sprintf("Task rejected with feedback:\n\n%s\n\nTask will be re-run with this feedback incorporated.", feedbackText),
-				CorrelationID: taskID, // Link to original task
+				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), nextIteration),
+				Payload:       payload,
+				CorrelationID: taskID,            // Link to original task for reference
+				ParentTaskID:  taskID,            // M-TASK-HIERARCHY: Hierarchy link for task chain tracing
+				GitHubIssue:   &task.GithubIssue, // M-TASK-HIERARCHY: Inherit GitHub issue number
+				Iteration:     nextIteration,     // M-TASK-HIERARCHY: Carry iteration forward to new task
 			}
 			if err := msgStore.InsertInboxMessage(msg); err != nil {
 				fmt.Println(yellow("!"), "Warning: Failed to send message:", err)
@@ -427,7 +440,7 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 			}
 		}
 
-		fmt.Println(green("✓"), fmt.Sprintf("Task re-queued for iteration %d (max: %d)", task.Iteration, coordinator.MaxIterations))
+		fmt.Println(green("✓"), fmt.Sprintf("Task re-queued for iteration %d (max: %d)", nextIteration, coordinator.MaxIterations))
 		fmt.Println(cyan("→"), "Session will resume with context preserved (--resume)")
 
 	} else {

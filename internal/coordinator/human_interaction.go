@@ -107,8 +107,14 @@ func StoreIterationStartEvent(ctx context.Context, store Store, taskID string, i
 	return nil
 }
 
-// PrepareTaskForRetrigger updates a task for re-execution with feedback.
-// It increments iteration, preserves session ID, and updates status.
+// PrepareTaskForRetrigger prepares feedback content for a re-triggered task.
+// NOTE (M-TASK-HIERARCHY): This function no longer modifies task status.
+// The new workflow creates a NEW task via the message system with parent_task_id linking,
+// and the old task is marked as "rejected" separately via store.MarkTaskRejected().
+//
+// This function now only:
+// - Increments iteration count for tracking
+// - Appends feedback to content for context propagation
 func PrepareTaskForRetrigger(task *TaskRecord, feedback string) {
 	// Increment iteration
 	if task.Iteration == 0 {
@@ -116,10 +122,11 @@ func PrepareTaskForRetrigger(task *TaskRecord, feedback string) {
 	}
 	task.Iteration++
 
-	// Reset status for re-execution
-	task.Status = TaskStatusQueued
+	// NOTE: Status is NOT modified here. The caller is responsible for:
+	// 1. Marking this task as "rejected" via store.MarkTaskRejected()
+	// 2. Creating a NEW task via the message system with parent_task_id linking
 
-	// Clear previous completion
+	// Clear previous completion data (still useful for tracking)
 	task.CompletedAt = nil
 	task.Error = ""
 	task.Output = ""

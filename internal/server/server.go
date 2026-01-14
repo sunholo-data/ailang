@@ -329,6 +329,11 @@ func (s *Server) Start() error {
 	// GET /api/tasks/{id}/events - same as /api/coordinator/tasks/{id}/events
 	mux.HandleFunc("/api/tasks/", s.handleTasksAlias)
 
+	// REST API endpoints - Exec Sessions (for Claude Code hooks and ailang exec)
+	mux.HandleFunc("/api/exec/sessions", s.handleExecSessions)
+	mux.HandleFunc("/api/exec/sessions/", s.handleExecSessionEvents)
+	mux.HandleFunc("/api/exec/events", s.handleExecEvents)
+
 	// REST API endpoints - Inbox Messages (unified messaging)
 	mux.HandleFunc("/api/inbox", s.handleInbox)
 	mux.HandleFunc("/api/inbox/", s.handleInboxMessage)

@@ -38,6 +38,10 @@ interface InboxMessage {
   correlation_id?: string;
   parent_task_id?: string;
   task_id?: string;
+  // Dimension fields for filtering and highlighting
+  workspace?: string;
+  provider?: string;
+  model?: string;
 }
 
 interface UseEventQueueOptions {
@@ -114,6 +118,10 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
           message_type: msg.message_type,
           correlation_id: msg.correlation_id,
           parent_task_id: msg.parent_task_id,
+          // Dimension fields for filtering and highlighting
+          workspace: msg.workspace,
+          provider: msg.provider,
+          model: msg.model,
         },
       }));
 

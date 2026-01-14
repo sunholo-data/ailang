@@ -574,6 +574,17 @@ func (s *SQLiteStore) RequeueTask(ctx context.Context, id string) error {
 	return err
 }
 
+// ResetTaskToPending resets a running task back to pending state.
+// Used when worktree limit is reached - task will be retried on next poll.
+// CRITICAL: Prevents tasks from being stuck in "running" state forever.
+func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET status = ?, started_at = NULL WHERE id = ?",
+		TaskStatusPending, id,
+	)
+	return err
+}
+
 // FindDuplicateTask finds a similar task by fingerprint
 func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
 	// For now, exact match only (SimHash comparison would require custom SQLite function)

@@ -32,6 +32,7 @@ type InboxMessage struct {
 	EmbeddingModel     string     `json:"embedding_model,omitempty"`      // e.g., "ollama:nomic-embed-text" (v1.3.0)
 	EmbeddingUpdatedAt *int64     `json:"embedding_updated_at,omitempty"` // Unix millis (v1.3.0)
 	ParentTaskID       string     `json:"parent_task_id,omitempty"`       // Parent task for hierarchy (v1.5.0, M-UNIFIED-AI-CONTROL-PLANE)
+	Iteration          int        `json:"iteration,omitempty"`            // Iteration number for feedback loops (M-TASK-HIERARCHY)
 	Status             string     `json:"status"`
 	CreatedAt          time.Time  `json:"created_at"`
 	ReadAt             *time.Time `json:"read_at,omitempty"`

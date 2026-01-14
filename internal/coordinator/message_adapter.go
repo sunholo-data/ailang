@@ -52,6 +52,7 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 			Priority:     "",             // Will be classified by analyzer
 			GithubIssue:  githubIssue,    // M-COORD-GITHUB-AUTO-ROUTING
 			ParentTaskID: m.ParentTaskID, // M-TASK-HIERARCHY: propagate from inbox message
+			Iteration:    m.Iteration,    // M-TASK-HIERARCHY: propagate iteration for feedback loops
 			CreatedAt:    m.CreatedAt,
 		})
 	}

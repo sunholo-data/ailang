@@ -18,6 +18,7 @@ import (
 	"github.com/sunholo/ailang/internal/ai/gemini"
 	"github.com/sunholo/ailang/internal/ai/ollama"
 	"github.com/sunholo/ailang/internal/ai/openai"
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/executor"
 	_ "github.com/sunholo/ailang/internal/executor/claude"
 	_ "github.com/sunholo/ailang/internal/executor/gemini"
@@ -302,8 +303,20 @@ func executeCLI(ctx context.Context, provider, directive, workspace, model, syst
 		Model:        model,
 	}
 
+	// Open coordinator store for event storage (enables chat history in dashboard)
+	// Empty string uses default path: ~/.ailang/state/coordinator.db
+	var eventStore func(*coordinator.TaskEventRecord) error
+	store, storeErr := coordinator.NewSQLiteStore("")
+	if storeErr == nil {
+		defer store.Close()
+		eventStore = func(e *coordinator.TaskEventRecord) error {
+			return store.StoreTaskEvent(ctx, e)
+		}
+	}
+
 	// Create spanning event handler that creates child spans for hierarchy tracking
-	handler := newSpanningEventHandler(ctx, taskID, streamJSON)
+	// Also stores events to database for chat history view
+	handler := newSpanningEventHandler(ctx, taskID, streamJSON, eventStore)
 
 	// Execute with streaming
 	return exec.ExecuteStreaming(ctx, task, handler)
@@ -390,7 +403,8 @@ func executeAPI(ctx context.Context, provider, directive, model, systemPrompt st
 }
 
 // spanningEventHandler creates OTEL child spans from streaming events
-// for hierarchical tracing in the dashboard while also emitting NDJSON
+// for hierarchical tracing in the dashboard while also emitting NDJSON.
+// Optionally stores events to the coordinator database for chat history view.
 type spanningEventHandler struct {
 	ctx         context.Context
 	tracer      trace.Tracer
@@ -399,16 +413,20 @@ type spanningEventHandler struct {
 	currentTurn int
 	turnSpan    trace.Span
 	toolSpans   map[string]trace.Span // tool name -> active span
+	// Event storage for chat history (optional)
+	eventStore func(*coordinator.TaskEventRecord) error
 }
 
-// newSpanningEventHandler creates a handler that creates child spans
-func newSpanningEventHandler(ctx context.Context, taskID string, streamJSON bool) *spanningEventHandler {
+// newSpanningEventHandler creates a handler that creates child spans.
+// If eventStore is provided, events will also be stored for chat history.
+func newSpanningEventHandler(ctx context.Context, taskID string, streamJSON bool, eventStore func(*coordinator.TaskEventRecord) error) *spanningEventHandler {
 	return &spanningEventHandler{
 		ctx:        ctx,
 		tracer:     execTracer,
 		taskID:     taskID,
 		streamJSON: streamJSON,
 		toolSpans:  make(map[string]trace.Span),
+		eventStore: eventStore,
 	}
 }
 
@@ -428,6 +446,14 @@ func (h *spanningEventHandler) OnTurnStart(turnNum int) {
 			attribute.String("exec.task_id", h.taskID),
 		),
 	)
+	// Store to database for chat history
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "turn_start",
+			TurnNum:    turnNum,
+		})
+	}
 	// Also emit NDJSON for backward compatibility
 	if h.streamJSON {
 		emitEvent(ExecEvent{
@@ -443,6 +469,15 @@ func (h *spanningEventHandler) OnText(text string) {
 		h.turnSpan.AddEvent("text", trace.WithAttributes(
 			attribute.String("text.content", truncateString(text, 500)),
 		))
+	}
+	// Store FULL text to database for chat history (not truncated!)
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "text",
+			TurnNum:    h.currentTurn,
+			Text:       text,
+		})
 	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{
@@ -464,6 +499,16 @@ func (h *spanningEventHandler) OnToolUse(toolName, input string) {
 	)
 	h.toolSpans[toolName] = toolSpan
 
+	// Store to database for chat history
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "tool_use",
+			TurnNum:    h.currentTurn,
+			ToolName:   toolName,
+			ToolInput:  input,
+		})
+	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{
 			Type:  "tool_use",
@@ -479,6 +524,16 @@ func (h *spanningEventHandler) OnToolResult(toolName, output string) {
 		span.SetAttributes(attribute.String("tool.output", truncateString(output, 1000)))
 		span.End()
 		delete(h.toolSpans, toolName)
+	}
+	// Store to database for chat history
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "tool_result",
+			TurnNum:    h.currentTurn,
+			ToolName:   toolName,
+			ToolOutput: output,
+		})
 	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{
@@ -501,6 +556,14 @@ func (h *spanningEventHandler) OnTurnEnd(turnNum int) {
 		h.turnSpan.End()
 		h.turnSpan = nil
 	}
+	// Store to database for chat history
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "turn_end",
+			TurnNum:    turnNum,
+		})
+	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{
 			Type: "turn_end",
@@ -514,6 +577,15 @@ func (h *spanningEventHandler) OnError(err error) {
 	if h.turnSpan != nil {
 		h.turnSpan.RecordError(err)
 		h.turnSpan.SetStatus(codes.Error, err.Error())
+	}
+	// Store to database for chat history
+	if h.eventStore != nil {
+		h.eventStore(&coordinator.TaskEventRecord{
+			TaskID:     h.taskID,
+			StreamType: "error",
+			TurnNum:    h.currentTurn,
+			ErrorMsg:   err.Error(),
+		})
 	}
 	if h.streamJSON {
 		emitEvent(ExecEvent{

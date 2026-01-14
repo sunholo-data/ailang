@@ -267,9 +267,12 @@ func DefaultOutputMarkers(agentID string) []string {
 	}
 }
 
-// DefaultArtifactPatterns returns the default file patterns for known AILANG agent IDs.
+// DefaultArtifactPatterns returns the default file patterns for artifact discovery.
 // These patterns are used with git diff to deterministically discover created/modified artifacts.
-// Returns nil for unknown agents (no patterns = no artifact collection).
+//
+// For known AILANG agents, returns specific patterns for their typical outputs.
+// For unknown agents, returns universal pattern "**/*" to discover ALL changed files.
+// This ensures artifact discovery works for any agent without hardcoded configuration.
 func DefaultArtifactPatterns(agentID string) []string {
 	switch agentID {
 	case "design-doc-creator":
@@ -282,7 +285,10 @@ func DefaultArtifactPatterns(agentID string) []string {
 		// Sprint executor modifies many files - collect .go, .md, .json
 		return []string{"**/*.go", "**/*.md", "**/*.json", "**/*.ail"}
 	default:
-		return nil
+		// Universal default: discover ALL changed files
+		// No hardcoded agent IDs - works for any agent
+		// GitHub comments will filter to .md files for human-readable summary
+		return []string{"**/*"}
 	}
 }
 

@@ -178,6 +178,14 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const [selectedTopologyNode, setSelectedTopologyNode] = useState<string | null>(null);
   const [highlightedPath, setHighlightedPath] = useState<Set<string>>(new Set());
 
+  // Event-to-aggregation highlighting state (when clicking an event, highlight related items in sidebar)
+  const [highlightedAggItems, setHighlightedAggItems] = useState<{
+    workspace?: string;
+    provider?: string;
+    model?: string;
+    source_type?: string;
+  } | null>(null);
+
   // Convert selectedLevel to dimension filters
   const dimensionFilters = useMemo(() => parseSelectedLevelToFilters(selectedLevel), [selectedLevel]);
 
@@ -346,6 +354,14 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     // once spans are loaded (via isShowingSpanTopology check in the memos)
     setHighlightedPath(new Set());
     setSelectedTopologyNode(null);
+
+    // Highlight related aggregation items in sidebar based on event metadata
+    setHighlightedAggItems({
+      workspace: metadata?.workspace as string | undefined,
+      provider: metadata?.provider as string | undefined,
+      model: metadata?.model as string | undefined,
+      source_type: metadata?.source_type as string | undefined,
+    });
   }, [fetchSpansForTrace]);
 
   const closeDetailPanel = useCallback(() => {
@@ -354,6 +370,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     // Clear topology highlighting
     setHighlightedPath(new Set());
     setSelectedTopologyNode(null);
+    // Clear aggregation highlighting
+    setHighlightedAggItems(null);
   }, []);
 
   // Navigate to previous/next event
@@ -494,6 +512,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
                 eventTypes: selectedEventTypes.length > 0 ? selectedEventTypes : undefined,
                 provider: filters.provider,
                 model: filters.model,
+                workspace: filters.workspace,
+                source_type: filters.source_type,
               }}
               hiddenSpanTypes={hiddenSpanTypes}
               onToggleSpanType={toggleHiddenSpanType}
@@ -516,6 +536,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
             breakdowns={breakdowns}
             loading={statsLoading || breakdownLoading}
             filters={filters}
+            highlightedItems={highlightedAggItems}
           />
         </aside>
       </div>

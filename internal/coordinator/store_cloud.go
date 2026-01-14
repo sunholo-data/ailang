@@ -106,6 +106,11 @@ func (s *CloudStore) RequeueTask(ctx context.Context, id string) error {
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// ResetTaskToPending resets a running task back to pending state
+func (s *CloudStore) ResetTaskToPending(ctx context.Context, id string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // FindDuplicateTask finds a similar task by fingerprint
 func (s *CloudStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
 	return nil, fmt.Errorf("cloud store not yet implemented")

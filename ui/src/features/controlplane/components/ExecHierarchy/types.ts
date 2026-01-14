@@ -7,7 +7,7 @@
 export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use';
 
 // View mode toggle
-export type ViewMode = 'tree' | 'graph' | 'timeline';
+export type ViewMode = 'tree' | 'graph' | 'timeline' | 'chat';
 
 // Coordinator task view mode
 export type CoordinatorViewMode = 'nested' | 'breakout';
@@ -150,6 +150,8 @@ export interface FilterCriteria {
   eventTypes?: string[];  // If empty, show all
   provider?: string;      // Filter by AI provider (claude, gemini, openai, etc.)
   model?: string;         // Filter by specific model name
+  workspace?: string;     // Filter by workspace/project
+  source_type?: string;   // Filter by source type (eval, coordinator, direct_api, etc.)
 }
 
 // ControlPlaneFilters type (for CLI hint)

@@ -26,6 +26,8 @@ set -euo pipefail
 # Configuration
 OBSERVATORY_URL="${AILANG_OBSERVATORY_URL:-http://localhost:1957}"
 HOOKS_ENDPOINT="${OBSERVATORY_URL}/api/observatory/hooks"
+EXEC_EVENTS_ENDPOINT="${OBSERVATORY_URL}/api/exec/events"
+EXEC_SESSIONS_ENDPOINT="${OBSERVATORY_URL}/api/exec/sessions"
 LOG_FILE="${HOME}/.ailang/state/telemetry_hooks.log"
 
 # Ensure log directory exists
@@ -148,9 +150,62 @@ HTTP_CODE=$(echo "$CURL_OUTPUT" | tail -n1)
 RESPONSE=$(echo "$CURL_OUTPUT" | head -n -1)
 
 if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ]; then
-    log "Successfully reported $EVENT_NAME event (session=$SESSION_ID)"
+    log "Successfully reported $EVENT_NAME event to observatory (session=$SESSION_ID)"
 else
-    log "Failed to report $EVENT_NAME event: curl_exit=$CURL_EXIT http_code=$HTTP_CODE response=$RESPONSE"
+    log "Failed to report $EVENT_NAME event to observatory: curl_exit=$CURL_EXIT http_code=$HTTP_CODE response=$RESPONSE"
 fi
+
+# Also post to exec events endpoint for chat history in dashboard
+# This stores events in task_events table for the Chat History view
+case "$EVENT_NAME" in
+    "SessionStart")
+        EXEC_PAYLOAD=$(jq -n \
+            --arg s "$SESSION_ID" \
+            --arg w "$WORKSPACE" \
+            '{
+                session_id: $s,
+                workspace: $w,
+                provider: "claude"
+            }')
+        curl -s --max-time 2 -X POST "$EXEC_SESSIONS_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
+        log "Posted session_start to exec sessions endpoint"
+        ;;
+
+    "PreToolUse")
+        EXEC_PAYLOAD=$(jq -n \
+            --arg s "$SESSION_ID" \
+            --arg tn "$TOOL_NAME" \
+            --argjson inp "$TOOL_INPUT" \
+            '{
+                session_id: $s,
+                stream_type: "tool_use",
+                tool_name: $tn,
+                tool_input: ($inp | tostring)
+            }')
+        curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
+        log "Posted tool_use to exec events endpoint"
+        ;;
+
+    "PostToolUse")
+        EXEC_PAYLOAD=$(jq -n \
+            --arg s "$SESSION_ID" \
+            --arg tn "$TOOL_NAME" \
+            --argjson resp "$TOOL_RESPONSE" \
+            '{
+                session_id: $s,
+                stream_type: "tool_result",
+                tool_name: $tn,
+                tool_output: (if ($resp | type) == "string" then $resp else ($resp | tostring) end)
+            }')
+        curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
+        log "Posted tool_result to exec events endpoint"
+        ;;
+esac
 
 exit 0

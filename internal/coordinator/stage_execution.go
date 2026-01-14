@@ -87,15 +87,17 @@ func stageToAgentIDForDirective(stage TaskStage) string {
 //   - {{.OutputMarkers}}: Comma-separated list of expected output markers
 func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
 	if agent == nil {
-		// No agent config, fall back to legacy behavior
-		return BuildStageDirective(task)
+		// No agent config, return raw task content
+		// DO NOT call BuildStageDirective here - that causes infinite recursion!
+		return task.Content
 	}
 
 	// Use effective config (includes defaults for known agents)
 	invoke := agent.GetEffectiveInvokeConfig()
 	if invoke == nil {
-		// Unknown agent with no config, fall back to legacy
-		return BuildStageDirective(task)
+		// Unknown agent with no config, return raw task content
+		// DO NOT call BuildStageDirective here - that causes infinite recursion!
+		return task.Content
 	}
 
 	switch invoke.Type {
@@ -111,8 +113,9 @@ func BuildDirectiveFromConfig(task *TaskRecord, agent *AgentConfig) string {
 		// Scripts receive task content which may be JSON for env var injection
 		return task.Content
 	default:
-		// Unknown type, fall back to legacy
-		return BuildStageDirective(task)
+		// Unknown invoke type, return raw task content
+		// DO NOT call BuildStageDirective here - that causes infinite recursion!
+		return task.Content
 	}
 }
 
@@ -468,6 +471,7 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 		}
 		return d.taskChain.OnDesignDocComplete(ctx, task.ID, &DesignDocResult{
 			Path:         designDocPath,
+			AllArtifacts: discoveredArtifacts,
 			Duration:     stageResult.Duration,
 			Cost:         stageResult.Cost,
 			TokensUsed:   stageResult.TokensUsed,
@@ -506,6 +510,7 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 		}
 		return d.taskChain.OnSprintPlanComplete(ctx, task.ID, &SprintPlanResult{
 			Path:         sprintPlanPath,
+			AllArtifacts: discoveredArtifacts,
 			Duration:     stageResult.Duration,
 			Cost:         stageResult.Cost,
 			TokensUsed:   stageResult.TokensUsed,

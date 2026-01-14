@@ -22,9 +22,11 @@ func TestPrepareTaskForRetrigger_Iteration1(t *testing.T) {
 		t.Errorf("Iteration = %d, want 2", task.Iteration)
 	}
 
-	// Verify status reset
-	if task.Status != TaskStatusQueued {
-		t.Errorf("Status = %s, want %s", task.Status, TaskStatusQueued)
+	// M-TASK-HIERARCHY: Status is NOT modified by PrepareTaskForRetrigger anymore.
+	// The caller is responsible for marking the task as rejected.
+	// The status should remain unchanged.
+	if task.Status != TaskStatusPendingApproval {
+		t.Errorf("Status = %s, want %s (should not be modified)", task.Status, TaskStatusPendingApproval)
 	}
 
 	// Verify feedback appended
@@ -55,9 +57,10 @@ func TestPrepareTaskForRetrigger_Iteration2(t *testing.T) {
 		t.Errorf("Iteration = %d, want 3 (final)", task.Iteration)
 	}
 
-	// Verify status reset
-	if task.Status != TaskStatusQueued {
-		t.Errorf("Status = %s, want %s", task.Status, TaskStatusQueued)
+	// M-TASK-HIERARCHY: Status is NOT modified by PrepareTaskForRetrigger anymore.
+	// The caller is responsible for marking the task as rejected.
+	if task.Status != TaskStatusPendingApproval {
+		t.Errorf("Status = %s, want %s (should not be modified)", task.Status, TaskStatusPendingApproval)
 	}
 
 	// At iteration 3, we've hit the limit - cannot retrigger again

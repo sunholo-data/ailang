@@ -1,0 +1,124 @@
+# =============================================================================
+# EVALUATION & BENCHMARK TARGETS
+# =============================================================================
+
+.PHONY: eval eval-suite eval-models eval-report eval-clean eval-analyze eval-analyze-fresh
+.PHONY: eval-to-design eval-prompt-ab eval-prompt-list eval-prompt-hash
+.PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
+.PHONY: eval-auto-improve eval-auto-improve-apply
+
+# Basic eval commands
+eval: build ## Run a single benchmark (mock mode)
+	@echo "Running evaluation benchmark..."
+	@$(BUILD_DIR)/$(BINARY) eval --benchmark fizzbuzz --mock
+
+eval-suite: build ## Run full benchmark suite (all models, parallel)
+	@echo "Running full benchmark suite..."
+	@$(BUILD_DIR)/$(BINARY) eval-suite
+
+eval-models: build ## List available AI models
+	@echo "Available models:"
+	@$(BUILD_DIR)/$(BINARY) eval --list-models
+
+eval-report: ## Generate evaluation report from results
+	@echo "Generating evaluation report..."
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	$(BUILD_DIR)/$(BINARY) eval-report eval_results/ $$VERSION --format=md
+
+eval-clean: ## Clean evaluation results
+	@echo "Cleaning evaluation results..."
+	@rm -rf eval_results/*.json eval_results/*.csv eval_results/*.md
+
+# Analysis & Design Doc Generation
+eval-analyze: build ## Analyze eval results, generate design docs (with dedup)
+	@echo "$(ARROW) Analyzing eval results..."
+	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
+		--model gpt5 --output design_docs/planned/ \
+		--min-frequency 2
+
+eval-analyze-fresh: build ## Analyze with forced new docs (disable dedup)
+	@echo "$(ARROW) Analyzing eval results (forcing new docs)..."
+	@$(BUILD_DIR)/$(BINARY) eval-analyze --results eval_results/ \
+		--model gpt5 --output design_docs/planned/ \
+		--min-frequency 2 --force-new
+
+eval-to-design: eval-suite eval-analyze ## Full workflow: evals -> analysis -> design docs
+	@echo "$(GREEN)$(CHECKMARK) Design docs generated in design_docs/planned/$(RESET)"
+
+# Prompt A/B Testing
+eval-prompt-ab: build ## Run A/B comparison of prompt versions
+	@if [ -z "$(A)" ] || [ -z "$(B)" ]; then \
+		echo "Usage: make eval-prompt-ab A=<version1> B=<version2>"; \
+		echo "Example: make eval-prompt-ab A=v0.3.0-baseline B=v0.3.0-hints"; \
+		exit 1; \
+	fi
+	@./tools/eval_prompt_ab.sh "$(A)" "$(B)" --model $(MODEL) --langs $(LANGS)
+
+eval-prompt-list: ## List all available prompt versions
+	@echo "Available prompt versions:"
+	@cat prompts/versions.json | jq -r '.versions | to_entries[] | "  \(.key): \(.value.description)"'
+	@echo ""
+	@echo "Active version: $$(cat prompts/versions.json | jq -r '.active')"
+
+eval-prompt-hash: ## Compute SHA256 hashes for all prompts
+	@for file in prompts/*.md; do \
+		hash=$$(shasum -a 256 "$$file" | awk '{print $$1}'); \
+		echo "$$(basename $$file): $$hash"; \
+	done
+
+# Baseline & Comparison
+eval-baseline: build ## Store baseline for a version
+	@if [ -z "$(EVAL_VERSION)" ]; then \
+		echo "Usage: make eval-baseline EVAL_VERSION=v0.3.X [FULL=true] [RESUME=true]"; \
+		exit 1; \
+	fi
+	@echo "Storing baseline for version $(EVAL_VERSION)..."
+	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) ./tools/eval_baseline.sh
+
+eval-diff: build ## Compare two eval result directories
+	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \
+		echo "Usage: make eval-diff BASELINE=<dir> NEW=<dir>"; \
+		exit 1; \
+	fi
+	@bin/ailang eval-compare "$(BASELINE)" "$(NEW)"
+
+eval-validate-fix: build ## Validate a fix for a specific benchmark
+	@if [ -z "$(BENCH)" ]; then \
+		echo "Usage: make eval-validate-fix BENCH=<benchmark_id> [BASELINE=<version>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(BASELINE)" ]; then \
+		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)"; \
+	else \
+		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)" "$(BASELINE)"; \
+	fi
+
+eval-summary: ## Show summary of eval results
+	@if [ -z "$(DIR)" ]; then \
+		echo "Usage: make eval-summary DIR=<results_dir>"; \
+		exit 1; \
+	fi
+	@bin/ailang eval-summary "$(DIR)"
+
+eval-matrix: ## Generate performance matrix
+	@if [ -z "$(DIR)" ] || [ -z "$(VERSION)" ]; then \
+		echo "Usage: make eval-matrix DIR=<results_dir> VERSION=<version>"; \
+		exit 1; \
+	fi
+	@bin/ailang eval-matrix "$(DIR)" "$(VERSION)"
+
+# Automated Improvement
+eval-auto-improve: ## Automated fix implementation (dry run)
+	@echo "M-EVAL-LOOP: Automated Fix Implementation"
+	@if [ -n "$(BENCH)" ]; then \
+		./tools/eval_auto_improve.sh --benchmark "$(BENCH)"; \
+	else \
+		./tools/eval_auto_improve.sh; \
+	fi
+
+eval-auto-improve-apply: ## Automated fix implementation (apply mode)
+	@if [ -n "$(BENCH)" ]; then \
+		./tools/eval_auto_improve.sh --benchmark "$(BENCH)" --apply; \
+	else \
+		./tools/eval_auto_improve.sh --apply; \
+	fi

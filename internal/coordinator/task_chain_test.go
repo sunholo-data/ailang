@@ -156,6 +156,17 @@ func (m *MockStore) RequeueTask(ctx context.Context, id string) error {
 	return nil
 }
 
+func (m *MockStore) ResetTaskToPending(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["ResetTaskToPending"]++
+	if task, ok := m.tasks[id]; ok {
+		task.Status = TaskStatusPending
+		task.StartedAt = nil
+	}
+	return nil
+}
+
 func (m *MockStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

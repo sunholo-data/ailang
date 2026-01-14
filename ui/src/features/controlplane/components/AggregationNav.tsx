@@ -23,6 +23,14 @@ export interface BreakdownData {
   totalCost: string;
 }
 
+// Highlighted items from event selection (for visual feedback)
+export interface HighlightedAggItems {
+  workspace?: string;
+  provider?: string;
+  model?: string;
+  source_type?: string;
+}
+
 export interface AggregationNavProps {
   selectedLevel: string;
   onSelectLevel: (level: string) => void;
@@ -30,6 +38,7 @@ export interface AggregationNavProps {
   breakdowns?: BreakdownData | null;
   loading?: boolean;
   filters?: ControlPlaneFilters;
+  highlightedItems?: HighlightedAggItems | null;
 }
 
 // Icons for different breakdown categories
@@ -64,6 +73,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
   breakdowns,
   loading,
   filters,
+  highlightedItems,
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'source-type']));
 
@@ -113,7 +123,8 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
     cost?: string;
     percentage?: string;
     children?: React.ReactNode;
-  }> = ({ id, label, icon, depth, count, cost, percentage, children }) => {
+    isHighlighted?: boolean;
+  }> = ({ id, label, icon, depth, count, cost, percentage, children, isHighlighted }) => {
     const isExpanded = expanded.has(id);
     const isSelected = selectedLevel === id;
     const hasChildren = React.Children.count(children) > 0;
@@ -121,7 +132,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
     return (
       <div className={styles.navGroup}>
         <button
-          className={`${styles.navItem} ${isSelected ? styles.navItemSelected : ''}`}
+          className={`${styles.navItem} ${isSelected ? styles.navItemSelected : ''} ${isHighlighted ? styles.navItemHighlighted : ''}`}
           style={{ paddingLeft: `${12 + depth * 16}px` }}
           onClick={() => {
             onSelectLevel(id);
@@ -183,6 +194,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
+                isHighlighted={highlightedItems?.source_type === item.id}
               />
             ))}
           </NavItem>
@@ -204,6 +216,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
+                isHighlighted={highlightedItems?.provider === item.id}
               />
             ))}
           </NavItem>
@@ -226,6 +239,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                   count={item.span_count}
                   percentage={item.percentageFormatted}
                   cost={item.costFormatted}
+                  isHighlighted={highlightedItems?.workspace === item.id}
                 />
               ))}
             </NavItem>
@@ -248,6 +262,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
+                isHighlighted={highlightedItems?.model === item.id}
               />
             ))}
           </NavItem>

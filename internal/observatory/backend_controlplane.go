@@ -330,7 +330,7 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 					ELSE cwd
 				END as workspace_id,
 				CASE
-					WHEN cwd = 'unknown' THEN 'Unknown Workspace'
+					WHEN cwd = 'unknown' THEN 'No Workspace'
 					WHEN cwd LIKE '%/.eval_workspace/%' THEN 'Eval Benchmarks'
 					WHEN cwd LIKE '%/worktrees/%' THEN 'Coordinator Tasks'
 					ELSE cwd
@@ -345,7 +345,7 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 			SELECT
 				workspace_id,
 				CASE
-					WHEN workspace_label = 'Unknown Workspace' THEN 'Unknown Workspace'
+					WHEN workspace_label = 'No Workspace' THEN 'No Workspace'
 					WHEN workspace_label = 'Eval Benchmarks' THEN 'Eval Benchmarks'
 					WHEN workspace_label = 'Coordinator Tasks' THEN 'Coordinator Tasks'
 					WHEN workspace_id LIKE '%/sunholo/ailang/ui' THEN 'ailang/ui'

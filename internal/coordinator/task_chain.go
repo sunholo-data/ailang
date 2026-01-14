@@ -106,19 +106,46 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 		return nil
 	}
 
-	// M-COORD-ARTIFACT-DISCOVERY: If no artifact found, post failure message
-	if result.Path == "" {
-		log.Printf("[TaskChain] No design doc artifact found for task %s, posting failure message", taskID)
+	// M-COORD-ARTIFACT-DISCOVERY: Handle case where no .md file found
+	// Don't fail - show all artifacts instead for review
+	if result.Path == "" && len(result.AllArtifacts) > 0 {
+		log.Printf("[TaskChain] No .md file found for task %s, but %d artifacts discovered", taskID, len(result.AllArtifacts))
 		if tc.poster != nil {
-			failureComment := fmt.Sprintf(
-				"## ❌ Artifact Discovery Failed\n\n"+
+			// Build file list (limit to 20 for GitHub comment)
+			fileList := ""
+			for i, f := range result.AllArtifacts {
+				if i >= 20 {
+					fileList += fmt.Sprintf("- ... and %d more files\n", len(result.AllArtifacts)-20)
+					break
+				}
+				fileList += fmt.Sprintf("- `%s`\n", f)
+			}
+			infoComment := fmt.Sprintf(
+				"## 📁 Files Changed\n\n"+
 					"**Task:** %s\n"+
 					"**Stage:** Design Doc Creation\n"+
 					"**Duration:** %v\n\n"+
-					"No design document was found. The agent either:\n"+
-					"- Failed to create the design doc\n"+
-					"- Created it outside the expected patterns (`design_docs/**/*.md`)\n"+
-					"- Did not invoke the `design-doc-creator` skill correctly\n\n"+
+					"**%d files discovered** (no `.md` design doc found for inline display):\n\n%s\n"+
+					"Review changes in the dashboard diff viewer.",
+				taskID, result.Duration, len(result.AllArtifacts), fileList,
+			)
+			if err := tc.poster.PostComment(task.GithubIssue, infoComment); err != nil {
+				log.Printf("[TaskChain] Failed to post files comment: %v", err)
+			}
+		}
+		// Don't return error - proceed with approval workflow
+	} else if result.Path == "" && len(result.AllArtifacts) == 0 {
+		// Only fail if NO files were changed at all
+		log.Printf("[TaskChain] No artifacts found for task %s, posting failure message", taskID)
+		if tc.poster != nil {
+			failureComment := fmt.Sprintf(
+				"## ❌ No Changes Detected\n\n"+
+					"**Task:** %s\n"+
+					"**Stage:** Design Doc Creation\n"+
+					"**Duration:** %v\n\n"+
+					"No files were created or modified. The agent may have:\n"+
+					"- Encountered an error\n"+
+					"- Not made any changes\n\n"+
 					"Check the agent output for details.",
 				taskID, result.Duration,
 			)
@@ -126,7 +153,7 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
 			}
 		}
-		return fmt.Errorf("no design doc artifact found for task %s", taskID)
+		return fmt.Errorf("no artifacts found for task %s", taskID)
 	}
 
 	// Read the design doc content from the worktree
@@ -224,19 +251,46 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 		return nil
 	}
 
-	// M-COORD-ARTIFACT-DISCOVERY: If no artifact found, post failure message
-	if result.Path == "" {
-		log.Printf("[TaskChain] No sprint plan artifact found for task %s, posting failure message", taskID)
+	// M-COORD-ARTIFACT-DISCOVERY: Handle case where no .md file found
+	// Don't fail - show all artifacts instead for review
+	if result.Path == "" && len(result.AllArtifacts) > 0 {
+		log.Printf("[TaskChain] No .md file found for task %s sprint plan, but %d artifacts discovered", taskID, len(result.AllArtifacts))
 		if tc.poster != nil {
-			failureComment := fmt.Sprintf(
-				"## ❌ Artifact Discovery Failed\n\n"+
+			// Build file list (limit to 20 for GitHub comment)
+			fileList := ""
+			for i, f := range result.AllArtifacts {
+				if i >= 20 {
+					fileList += fmt.Sprintf("- ... and %d more files\n", len(result.AllArtifacts)-20)
+					break
+				}
+				fileList += fmt.Sprintf("- `%s`\n", f)
+			}
+			infoComment := fmt.Sprintf(
+				"## 📁 Files Changed\n\n"+
 					"**Task:** %s\n"+
 					"**Stage:** Sprint Planning\n"+
 					"**Duration:** %v\n\n"+
-					"No sprint plan was found. The agent either:\n"+
-					"- Failed to create the sprint plan\n"+
-					"- Created it outside the expected patterns (`design_docs/**/*.md`)\n"+
-					"- Did not invoke the `sprint-planner` skill correctly\n\n"+
+					"**%d files discovered** (no `.md` sprint plan found for inline display):\n\n%s\n"+
+					"Review changes in the dashboard diff viewer.",
+				taskID, result.Duration, len(result.AllArtifacts), fileList,
+			)
+			if err := tc.poster.PostComment(task.GithubIssue, infoComment); err != nil {
+				log.Printf("[TaskChain] Failed to post files comment: %v", err)
+			}
+		}
+		// Don't return error - proceed with approval workflow
+	} else if result.Path == "" && len(result.AllArtifacts) == 0 {
+		// Only fail if NO files were changed at all
+		log.Printf("[TaskChain] No artifacts found for task %s sprint plan, posting failure message", taskID)
+		if tc.poster != nil {
+			failureComment := fmt.Sprintf(
+				"## ❌ No Changes Detected\n\n"+
+					"**Task:** %s\n"+
+					"**Stage:** Sprint Planning\n"+
+					"**Duration:** %v\n\n"+
+					"No files were created or modified. The agent may have:\n"+
+					"- Encountered an error\n"+
+					"- Not made any changes\n\n"+
 					"Check the agent output for details.",
 				taskID, result.Duration,
 			)
@@ -244,7 +298,7 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
 			}
 		}
-		return fmt.Errorf("no sprint plan artifact found for task %s", taskID)
+		return fmt.Errorf("no artifacts found for task %s", taskID)
 	}
 
 	// Read the sprint plan content from the worktree
@@ -483,7 +537,8 @@ func (tc *TaskChain) OnError(ctx context.Context, taskID string, errMsg string) 
 
 // DesignDocResult contains the result of design document creation.
 type DesignDocResult struct {
-	Path         string
+	Path         string   // Path to .md file (may be empty if no .md found)
+	AllArtifacts []string // All discovered artifacts (any file type)
 	Duration     time.Duration
 	Cost         float64
 	TokensUsed   int
@@ -493,7 +548,8 @@ type DesignDocResult struct {
 
 // SprintPlanResult contains the result of sprint plan creation.
 type SprintPlanResult struct {
-	Path         string
+	Path         string   // Path to .md file (may be empty if no .md found)
+	AllArtifacts []string // All discovered artifacts (any file type)
 	Duration     time.Duration
 	Cost         float64
 	TokensUsed   int

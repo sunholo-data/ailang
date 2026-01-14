@@ -279,11 +279,18 @@ func (d *Daemon) pollAndProcessTasks() error {
 			d.logger.Printf("WARNING: Agent %q has no workspace configured, using current directory: %s (skills may not be available)", agentID, workspace)
 		}
 
+		// Set iteration: use message iteration if provided, otherwise default to 1
+		iteration := msg.Iteration
+		if iteration == 0 {
+			iteration = 1 // First run is iteration 1
+		}
+
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
 			AgentID:       agentID,          // M-COORD-ARTIFACT-DISCOVERY: Set AgentID from inbox
 			ParentTaskID:  msg.ParentTaskID, // M-TASK-HIERARCHY: Link to parent task for handoff chains
+			Iteration:     iteration,        // M-TASK-HIERARCHY: Iteration number for feedback loops
 			Title:         msg.Title,
 			Content:       msg.Content,
 			Type:          analyzed.Type,
@@ -540,9 +547,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		if wtErr != nil {
 			// Check if this is a recoverable "limit reached" error
 			if errors.Is(wtErr, ErrWorktreeLimitReached) {
-				// Leave task in pending state - it will be retried when a worktree frees up
-				d.logger.Printf("INFO: Task %s waiting for worktree (limit reached), will retry", task.ID)
-				return wtErr // Return error but don't mark as failed
+				// Reset task back to pending - it will be retried when a worktree frees up
+				// CRITICAL: Task was marked "running" at line 462, must reset or it's stuck forever!
+				d.logger.Printf("WARN: Task %s worktree limit reached, resetting to pending for retry", task.ID)
+				if resetErr := d.taskStore.ResetTaskToPending(taskCtx, task.ID); resetErr != nil {
+					d.logger.Printf("ERROR: Failed to reset task %s to pending: %v", task.ID, resetErr)
+				}
+				return wtErr // Return error, task will be picked up on next poll
 			}
 
 			// CRITICAL: Do NOT continue without worktree!

@@ -1,0 +1,45 @@
+# =============================================================================
+# EXAMPLE VERIFICATION TARGETS
+# =============================================================================
+
+.PHONY: verify-examples verify-examples-all verify-cli-examples examples-status
+.PHONY: update-readme flag-broken freeze-stdlib verify-stdlib
+
+# Example verification
+verify-examples: build ## Verify examples in examples/runnable/ (CI mode)
+	@echo "Verifying examples..."
+	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
+	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
+	@if [ -f examples_status.md ]; then cat examples_status.md; fi
+
+verify-examples-all: build ## Verify ALL examples with threshold gate (60%)
+	@echo "Verifying all examples with threshold gate..."
+	@go run ./scripts/verify_examples.go --all --threshold 60
+
+verify-cli-examples: ## Verify CLI examples from documentation
+	@echo "Verifying CLI examples..."
+	@./tools/verify_cli_examples.sh
+
+examples-status: build ## Quick one-line example status
+	@go run ./scripts/verify_examples.go --all 2>&1 | grep "Examples:"
+
+# README & documentation updates
+update-readme: build ## Update README with example status
+	@echo "Verifying examples..."
+	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
+	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
+	@if [ -f examples_report.json ]; then go run ./scripts/update_readme.go; fi
+	@if [ -f examples_report.json ]; then go run ./scripts/update_docs_examples.go; fi
+
+flag-broken: verify-examples ## Add warning headers to broken examples
+	@echo "Flagging broken examples..."
+	@go run ./scripts/flag_broken_examples.go
+
+# Standard library interface management
+freeze-stdlib: ## Freeze std/ library interfaces (create golden checksums)
+	@echo "Freezing std/ library interfaces..."
+	@tools/freeze-stdlib.sh
+
+verify-stdlib: ## Verify std/ library interface stability
+	@echo "Verifying std/ library interfaces..."
+	@tools/verify-stdlib.sh
