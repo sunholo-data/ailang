@@ -129,10 +129,29 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   const handleTypeToggle = useCallback((type: EventType) => {
     if (!onTypeFilterChange) return;
     const current = selectedTypes || [];
-    if (current.includes(type)) {
-      onTypeFilterChange(current.filter(t => t !== type));
+
+    // Empty array means "all selected" - toggling removes one type
+    if (current.length === 0) {
+      // "All" is selected, toggle OFF means "all except this one"
+      onTypeFilterChange(ALL_EVENT_TYPES.filter(t => t !== type));
+    } else if (current.includes(type)) {
+      // Type is currently selected, remove it
+      const newTypes = current.filter(t => t !== type);
+      // If we'd have all types selected, use empty array (= show all)
+      if (newTypes.length === ALL_EVENT_TYPES.length) {
+        onTypeFilterChange([]);
+      } else {
+        onTypeFilterChange(newTypes);
+      }
     } else {
-      onTypeFilterChange([...current, type]);
+      // Type is not selected, add it
+      const newTypes = [...current, type];
+      // If we now have all types, use empty array (= show all)
+      if (newTypes.length === ALL_EVENT_TYPES.length) {
+        onTypeFilterChange([]);
+      } else {
+        onTypeFilterChange(newTypes);
+      }
     }
   }, [selectedTypes, onTypeFilterChange]);
 
@@ -140,11 +159,16 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
     onDateRangeChange?.(null);
   }, [onDateRangeChange]);
 
+  // "All" means clear filter (show all types) - use empty array
   const handleSelectAllTypes = useCallback(() => {
-    onTypeFilterChange?.(ALL_EVENT_TYPES);
+    onTypeFilterChange?.([]);
   }, [onTypeFilterChange]);
 
+  // "Clear" removes all type selections - filter to show nothing
+  // We use a sentinel value to indicate "none selected"
   const handleClearTypeFilter = useCallback(() => {
+    // Setting to a single impossible type would hide all events
+    // But for UX, "Clear" should mean "reset to default" = show all
     onTypeFilterChange?.([]);
   }, [onTypeFilterChange]);
 
@@ -190,7 +214,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
             <div className={styles.filterMenu}>
               <div className={styles.filterMenuActions}>
                 <button onClick={handleSelectAllTypes} className={styles.filterMenuAction}>All</button>
-                <button onClick={handleClearTypeFilter} className={styles.filterMenuAction}>None</button>
+                <button onClick={handleClearTypeFilter} className={styles.filterMenuAction}>Clear</button>
               </div>
               {ALL_EVENT_TYPES.map((type) => (
                 <label key={type} className={styles.filterOption}>
