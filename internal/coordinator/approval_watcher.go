@@ -161,18 +161,40 @@ func (w *ApprovalWatcher) GetRegisteredLabels() []string {
 }
 
 // RegisterHandler registers a handler for a specific approval event type.
-func (w *ApprovalWatcher) RegisterHandler(eventType ApprovalEventType, handler ApprovalHandler) {
+// Note: handler can be nil, which will effectively deregister the handler.
+// Always validates eventType is not empty to prevent accidental misconfiguration.
+func (w *ApprovalWatcher) RegisterHandler(eventType ApprovalEventType, handler ApprovalHandler) error {
+	if eventType == "" {
+		return fmt.Errorf("event type cannot be empty")
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.handlers[eventType] = handler
+
+	if handler == nil {
+		log.Printf("[ApprovalWatcher] Deregistered handler for event type %s", eventType)
+	} else {
+		log.Printf("[ApprovalWatcher] Registered handler for event type %s", eventType)
+	}
+	return nil
 }
 
 // WatchIssue starts watching a GitHub issue for approval labels.
-func (w *ApprovalWatcher) WatchIssue(issueNumber int, taskID string) {
+// Returns error if issueNumber is invalid (<=0) or taskID is empty.
+func (w *ApprovalWatcher) WatchIssue(issueNumber int, taskID string) error {
+	if issueNumber <= 0 {
+		return fmt.Errorf("issue number must be positive, got %d", issueNumber)
+	}
+	if taskID == "" {
+		return fmt.Errorf("task ID cannot be empty")
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.watchedIssues[issueNumber] = taskID
 	log.Printf("[ApprovalWatcher] Now watching issue #%d for task %s", issueNumber, taskID)
+	return nil
 }
 
 // UnwatchIssue stops watching a GitHub issue.

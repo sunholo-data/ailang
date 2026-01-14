@@ -50,11 +50,23 @@ func IsBotUser(username string, additionalPatterns ...string) bool {
 
 // GetRecentHumanComments fetches comments from a GitHub issue,
 // filtering out bot comments and only returning those after the given time.
+// Returns error if issueNum is invalid (<=0) or repo is not configured.
 func (p *GitHubPoster) GetRecentHumanComments(issueNum int, since time.Time) ([]IssueComment, error) {
+	// Validate inputs
+	if p == nil {
+		return nil, fmt.Errorf("GitHubPoster is nil")
+	}
+	if p.repo == "" {
+		return nil, fmt.Errorf("repository not configured")
+	}
+	if issueNum <= 0 {
+		return nil, fmt.Errorf("issue number must be positive, got %d", issueNum)
+	}
+
 	// Get all comments from GitHub
 	ghComments, err := p.client.GetIssueComments(p.repo, issueNum)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get issue comments: %w", err)
 	}
 
 	// Filter and convert
@@ -124,9 +136,24 @@ func ExtractFeedbackFromComments(comments []IssueComment) string {
 
 // PostFeedback posts a feedback comment to a GitHub issue.
 // Includes iteration context for tracking.
+// Returns error if issueNum is invalid, iteration is out of bounds, or channel is empty.
 func (p *GitHubPoster) PostFeedback(issueNum int, feedback string, iteration int, channel string) error {
+	// Validate inputs
+	if issueNum <= 0 {
+		return fmt.Errorf("issue number must be positive, got %d", issueNum)
+	}
+	if iteration < 1 || iteration > 3 {
+		return fmt.Errorf("iteration must be between 1 and 3, got %d", iteration)
+	}
+	if channel == "" {
+		return fmt.Errorf("channel cannot be empty")
+	}
+
 	body := fmt.Sprintf("**Human Feedback**\n\n%s\n\n---\n_Source: %s | Iteration: %d/3_",
 		feedback, channel, iteration)
 
-	return p.PostComment(issueNum, body)
+	if err := p.PostComment(issueNum, body); err != nil {
+		return fmt.Errorf("failed to post feedback: %w", err)
+	}
+	return nil
 }
