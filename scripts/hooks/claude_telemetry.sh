@@ -140,7 +140,7 @@ esac
 # POST to observatory hooks endpoint
 # Use timeout to avoid blocking Claude Code
 # Capture error details for debugging
-CURL_OUTPUT=$(curl -s --max-time 5 -w "\n%{http_code}" -X POST "$HOOKS_ENDPOINT" \
+CURL_OUTPUT=$(curl -s --max-time 2 -w "\n%{http_code}" -X POST "$HOOKS_ENDPOINT" \
     -H "Content-Type: application/json" \
     -d "$PAYLOAD" 2>&1)
 CURL_EXIT=$?

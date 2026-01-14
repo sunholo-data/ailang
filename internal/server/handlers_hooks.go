@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // HookEvent represents a Claude Code hook event from the telemetry script.
@@ -76,10 +78,17 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 
 	case "PreToolUse":
 		// Record tool call start
-		if event.SessionID == "" || event.ToolUseID == "" || event.ToolName == "" {
-			log.Printf("hooks: PreToolUse missing required fields")
-			http.Error(w, "session_id, tool_use_id, tool_name required", http.StatusBadRequest)
+		// Note: tool_use_id is optional - Claude Code headless mode doesn't provide it
+		if event.SessionID == "" || event.ToolName == "" {
+			log.Printf("hooks: PreToolUse missing required fields (session_id or tool_name)")
+			http.Error(w, "session_id, tool_name required", http.StatusBadRequest)
 			return
+		}
+
+		// Generate tool_use_id if not provided (headless mode doesn't send it)
+		toolUseID := event.ToolUseID
+		if toolUseID == "" {
+			toolUseID = uuid.New().String()
 		}
 
 		toolInput := ""
@@ -87,7 +96,7 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 			toolInput = string(event.ToolInput)
 		}
 
-		if err := s.obsBackend.InsertToolStart(ctx, event.SessionID, event.ToolUseID, event.ToolName, toolInput); err != nil {
+		if err := s.obsBackend.InsertToolStart(ctx, event.SessionID, toolUseID, event.ToolName, toolInput); err != nil {
 			log.Printf("hooks: PreToolUse error: %v", err)
 		} else {
 			log.Printf("hooks: PreToolUse session=%s tool=%s", event.SessionID, event.ToolName)
@@ -95,10 +104,20 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 
 	case "PostToolUse":
 		// Record tool call completion
-		if event.ToolUseID == "" {
-			log.Printf("hooks: PostToolUse missing tool_use_id")
-			http.Error(w, "tool_use_id required", http.StatusBadRequest)
-			return
+		// Note: tool_use_id is optional - Claude Code headless mode doesn't provide it
+		// For PostToolUse without tool_use_id, we correlate with the matching PreToolUse by session_id + tool_name
+		toolUseID := event.ToolUseID
+		if toolUseID == "" && event.SessionID != "" && event.ToolName != "" {
+			// Try to find the matching PreToolUse that hasn't been completed yet
+			if foundID, err := s.obsBackend.FindLatestUnfinishedTool(ctx, event.SessionID, event.ToolName); err == nil && foundID != "" {
+				toolUseID = foundID
+				log.Printf("hooks: PostToolUse correlated with PreToolUse tool_use_id=%s", toolUseID)
+			}
+		}
+		if toolUseID == "" {
+			// Fall back to generating a new ID if we couldn't correlate
+			toolUseID = uuid.New().String()
+			log.Printf("hooks: PostToolUse generated new tool_use_id=%s (no matching PreToolUse)", toolUseID)
 		}
 
 		toolResponse := ""
@@ -113,10 +132,10 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 		// Determine success from response (could parse for error indicators)
 		success := true
 
-		if err := s.obsBackend.UpdateToolEnd(ctx, event.ToolUseID, toolResponse, success); err != nil {
+		if err := s.obsBackend.UpdateToolEnd(ctx, toolUseID, toolResponse, success); err != nil {
 			log.Printf("hooks: PostToolUse error: %v", err)
 		} else {
-			log.Printf("hooks: PostToolUse tool_use_id=%s success=%v", event.ToolUseID, success)
+			log.Printf("hooks: PostToolUse tool_use_id=%s success=%v", toolUseID, success)
 		}
 
 	case "Stop":

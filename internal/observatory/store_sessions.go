@@ -172,6 +172,26 @@ func (s *Store) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolN
 	return nil
 }
 
+// FindLatestUnfinishedTool finds the most recent tool call that hasn't completed yet.
+// Used to correlate PostToolUse with PreToolUse when tool_use_id is not provided.
+func (s *Store) FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error) {
+	if sessionID == "" || toolName == "" {
+		return "", fmt.Errorf("session_id and tool_name are required")
+	}
+
+	var toolUseID string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT tool_use_id FROM session_tools
+		WHERE session_id = ? AND tool_name = ? AND end_time IS NULL
+		ORDER BY start_time DESC
+		LIMIT 1
+	`, sessionID, toolName).Scan(&toolUseID)
+	if err != nil {
+		return "", err // Includes sql.ErrNoRows
+	}
+	return toolUseID, nil
+}
+
 // UpdateToolEnd records the completion of a tool call.
 func (s *Store) UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error {
 	if toolUseID == "" {

@@ -673,6 +673,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -701,6 +702,7 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost

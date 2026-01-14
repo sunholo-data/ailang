@@ -609,6 +609,10 @@ func (b *GCPTraceBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolResp
 	return nil
 }
 
+func (b *GCPTraceBackend) FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error) {
+	return "", nil // Not supported by GCP backend
+}
+
 func (b *GCPTraceBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return 0, nil
 }

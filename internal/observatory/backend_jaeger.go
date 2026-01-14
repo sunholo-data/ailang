@@ -252,6 +252,10 @@ func (b *JaegerBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRespon
 	return nil
 }
 
+func (b *JaegerBackend) FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error) {
+	return "", nil // Not supported by Jaeger backend
+}
+
 func (b *JaegerBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return 0, nil
 }

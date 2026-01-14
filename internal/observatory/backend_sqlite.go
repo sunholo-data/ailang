@@ -307,6 +307,10 @@ func (b *SQLiteBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRespon
 	return b.store.UpdateToolEnd(ctx, toolUseID, toolResponse, success)
 }
 
+func (b *SQLiteBackend) FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error) {
+	return b.store.FindLatestUnfinishedTool(ctx, sessionID, toolName)
+}
+
 func (b *SQLiteBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return b.store.BackfillSpansWorkspace(ctx, sessionID, workspace)
 }

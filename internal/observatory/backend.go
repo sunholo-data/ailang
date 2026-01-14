@@ -57,6 +57,9 @@ type Backend interface {
 	UpdateSessionEnded(ctx context.Context, sessionID string) error
 	// InsertToolStart records the start of a tool call
 	InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error
+	// FindLatestUnfinishedTool finds the most recent tool call that hasn't completed yet
+	// Used to correlate PostToolUse with PreToolUse when tool_use_id is not provided
+	FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error)
 	// UpdateToolEnd records the completion of a tool call
 	UpdateToolEnd(ctx context.Context, toolUseID, toolResponse string, success bool) error
 	// GetToolForSpan finds the session_tool that best matches a span by timestamp + tool name

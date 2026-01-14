@@ -343,6 +343,10 @@ func (b *CompositeBackend) UpdateToolEnd(ctx context.Context, toolUseID, toolRes
 	return b.local.UpdateToolEnd(ctx, toolUseID, toolResponse, success)
 }
 
+func (b *CompositeBackend) FindLatestUnfinishedTool(ctx context.Context, sessionID, toolName string) (string, error) {
+	return b.local.FindLatestUnfinishedTool(ctx, sessionID, toolName)
+}
+
 func (b *CompositeBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, workspace string) (int64, error) {
 	return b.local.BackfillSpansWorkspace(ctx, sessionID, workspace)
 }
