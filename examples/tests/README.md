@@ -33,11 +33,15 @@ Test cases for AILANG features. These files test specific language behavior, edg
 - `test_exhaustive_bool_incomplete.ail` - Incomplete matching (should error)
 - `test_exhaustive_wildcard.ail` - Wildcard patterns
 
-### Type System
+### Type System & Core Operations
 - `test_integral.ail` - Integer type class
 - `test_float_eq_works.ail` - Float equality
 - `test_float_comparison.ail` - Float comparison ops
 - `test_record_subsumption.ail` - Record type subsumption
+- `test_arithmetic_operations.ail` - Add, subtract, multiply, divide, modulo (with edge cases)
+- `test_comparison_operators.ail` - All comparison operators (>, <, >=, <=, ==, !=) with edge cases
+- `test_boolean_logic.ail` - AND, OR, NOT logic with compound conditions
+- `test_string_operations.ail` - String concatenation and equality (NEW)
 
 ### Module System
 - `test_module_minimal.ail` - Minimal module

@@ -1,0 +1,118 @@
+module examples/tests/test_comparison_operators
+
+// Test greater than
+pure func gt(a: int, b: int) -> bool
+  tests [
+    ((5, 3), true),
+    ((3, 5), false),
+    ((5, 5), false),
+    ((-1, -5), true),
+    ((0, -1), true)
+  ]
+{
+  a > b
+}
+
+// Test less than
+pure func lt(a: int, b: int) -> bool
+  tests [
+    ((5, 3), false),
+    ((3, 5), true),
+    ((5, 5), false),
+    ((-1, -5), false),
+    ((0, -1), false)
+  ]
+{
+  a < b
+}
+
+// Test greater than or equal
+pure func gte(a: int, b: int) -> bool
+  tests [
+    ((5, 3), true),
+    ((3, 5), false),
+    ((5, 5), true),
+    ((-1, -5), true),
+    ((0, -1), true)
+  ]
+{
+  a >= b
+}
+
+// Test less than or equal
+pure func lte(a: int, b: int) -> bool
+  tests [
+    ((5, 3), false),
+    ((3, 5), true),
+    ((5, 5), true),
+    ((-1, -5), false),
+    ((0, -1), false)
+  ]
+{
+  a <= b
+}
+
+// Test equality
+pure func eq(a: int, b: int) -> bool
+  tests [
+    ((5, 5), true),
+    ((5, 3), false),
+    ((0, 0), true),
+    ((-1, -1), true),
+    ((-1, 1), false)
+  ]
+{
+  a == b
+}
+
+// Test inequality
+pure func neq(a: int, b: int) -> bool
+  tests [
+    ((5, 5), false),
+    ((5, 3), true),
+    ((0, 0), false),
+    ((-1, -1), false),
+    ((-1, 1), true)
+  ]
+{
+  a != b
+}
+
+// Test float greater than
+pure func gtFloat(a: float, b: float) -> bool
+  tests [
+    ((5.5, 3.2), true),
+    ((3.2, 5.5), false),
+    ((5.0, 5.0), false),
+    ((-1.5, -5.5), true),
+    ((0.0, -0.5), true)
+  ]
+{
+  a > b
+}
+
+// Test float equality with edge cases
+pure func eqFloat(a: float, b: float) -> bool
+  tests [
+    ((5.5, 5.5), true),
+    ((5.5, 5.4), false),
+    ((0.0, 0.0), true),
+    ((-1.5, -1.5), true),
+    ((-1.5, -1.6), false)
+  ]
+{
+  a == b
+}
+
+// Test chained comparison
+pure func inRange(x: int, lo: int, hi: int) -> bool
+  tests [
+    ((5, 0, 10), true),
+    ((-5, 0, 10), false),
+    ((15, 0, 10), false),
+    ((0, 0, 10), true),
+    ((10, 0, 10), true)
+  ]
+{
+  x >= lo && x <= hi
+}

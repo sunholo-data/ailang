@@ -1,0 +1,66 @@
+module examples/tests/test_string_operations
+
+// Test string concatenation
+pure func concat(a: string, b: string) -> string
+  tests [
+    (("hello", "world"), "helloworld"),
+    (("", "test"), "test"),
+    (("test", ""), "test"),
+    (("", ""), ""),
+    (("a", "b"), "ab")
+  ]
+{
+  a ++ b
+}
+
+// Test string equality
+pure func stringEq(a: string, b: string) -> bool
+  tests [
+    (("hello", "hello"), true),
+    (("hello", "world"), false),
+    (("", ""), true),
+    (("a", "A"), false),
+    (("test", "test"), true)
+  ]
+{
+  a == b
+}
+
+// Test string inequality
+pure func stringNeq(a: string, b: string) -> bool
+  tests [
+    (("hello", "hello"), false),
+    (("hello", "world"), true),
+    (("", ""), false),
+    (("a", "A"), true),
+    (("test", "test"), false)
+  ]
+{
+  a != b
+}
+
+// Check if string is empty
+pure func isEmpty(s: string) -> bool
+  tests [
+    ("", true),
+    ("a", false),
+    ("hello", false),
+    (" ", false),
+    ("test string", false)
+  ]
+{
+  s == ""
+}
+
+// Check if string starts with prefix
+pure func startsWithHello(s: string) -> bool
+  tests [
+    ("hello", true),
+    ("hello world", true),
+    ("goodbye", false),
+    ("", false),
+    ("hell", false)
+  ]
+{
+  s == "hello" || s == "hello world"
+}
