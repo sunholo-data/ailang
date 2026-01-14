@@ -75,6 +75,16 @@ func (m *MockApprovalStore) ResolveApprovalRequest(ctx context.Context, id strin
 	return nil
 }
 
+func (m *MockApprovalStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*coordinator.ApprovalRequestRecord, error) {
+	var result []*coordinator.ApprovalRequestRecord
+	for _, a := range m.approvals {
+		if a.Status == "approved" || a.Status == "rejected" {
+			result = append(result, a)
+		}
+	}
+	return result, nil
+}
+
 func TestPendingApprovalsWithWorktreePath(t *testing.T) {
 	// Create mock stores
 	taskStore := NewMockTaskEventStore()

@@ -3,6 +3,8 @@ export type { ViewMode } from './DiffViewer';
 export {
   parseDiff,
   extractFileChanges,
+  extractNewFileContent,
+  findMarkdownFiles,
   buildFileTree,
   detectLanguage,
 } from './diffParser';

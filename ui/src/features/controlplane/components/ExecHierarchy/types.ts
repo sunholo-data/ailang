@@ -4,7 +4,7 @@
  */
 
 // Node types in the hierarchy
-export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use';
+export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use' | 'approval';
 
 // View mode toggle
 export type ViewMode = 'tree' | 'graph' | 'timeline' | 'chat';

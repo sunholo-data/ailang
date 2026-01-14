@@ -228,6 +228,38 @@ export function extractFileChanges(diff: ParsedDiff): FileChange[] {
 }
 
 /**
+ * Extract the new (after) content of a file from a diff.
+ * Reconstructs the file by taking context lines and added lines,
+ * ignoring deleted lines.
+ */
+export function extractNewFileContent(fileDiff: FileDiff): string {
+  const lines: string[] = [];
+
+  for (const hunk of fileDiff.hunks) {
+    for (const line of hunk.lines) {
+      // Skip hunk headers
+      if (line.type === 'hunk') continue;
+      // Include context and added lines (these make up the new file)
+      if (line.type === 'context' || line.type === 'add') {
+        lines.push(line.content);
+      }
+      // Skip deleted lines (not in new file)
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Find markdown files in a parsed diff
+ */
+export function findMarkdownFiles(diff: ParsedDiff): FileDiff[] {
+  return diff.files.filter(f =>
+    f.newPath.endsWith('.md') || f.newPath.endsWith('.mdx')
+  );
+}
+
+/**
  * Build a tree structure from flat file paths
  */
 export interface TreeNode {

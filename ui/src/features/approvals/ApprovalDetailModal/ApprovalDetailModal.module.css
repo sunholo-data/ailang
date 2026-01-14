@@ -256,6 +256,54 @@
   background: var(--bg-hover, #f3f4f6);
 }
 
+/* Unified feedback form - for both approve and reject */
+.feedbackForm {
+  padding: 16px 20px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
+}
+
+.feedbackActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.approveConfirmButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-success, #1a7f37);
+  color: white;
+}
+
+.approveConfirmButton:hover:not(:disabled) {
+  background: var(--color-success-hover, #116329);
+}
+
+.approveConfirmButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.feedbackCancelButton {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #24292f);
+}
+
+.feedbackCancelButton:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
 /* Harvested GitHub feedback display */
 .harvestedFeedback {
   margin-bottom: 16px;
@@ -613,6 +661,232 @@
 
 .timeout {
   color: var(--color-warning, #9a6700);
+}
+
+/* Markdown Files Section */
+.markdownFilesSection {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color, #d0d7de);
+}
+
+.markdownFilesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.markdownFilesHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary, #57606a);
+  text-transform: uppercase;
+}
+
+.markdownControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.markdownFileSelect {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  background: var(--bg-primary, #ffffff);
+  font-size: 13px;
+  color: var(--text-primary, #24292f);
+  cursor: pointer;
+}
+
+.markdownFileSelect:focus {
+  outline: none;
+  border-color: var(--color-accent, #0969da);
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.2);
+}
+
+.markdownViewToggle {
+  display: flex;
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.viewToggleButton {
+  padding: 6px 12px;
+  border: none;
+  background: var(--bg-primary, #ffffff);
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary, #57606a);
+}
+
+.viewToggleButton:first-child {
+  border-right: 1px solid var(--border-color, #d0d7de);
+}
+
+.viewToggleButton:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.viewToggleButton.active {
+  background: var(--color-accent, #0969da);
+  color: white;
+}
+
+.markdownFileContent {
+  border: 1px solid var(--border-color, #d0d7de);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.markdownFileName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-bottom: 1px solid var(--border-color, #d0d7de);
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: var(--text-primary, #24292f);
+}
+
+.fileStatus {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.fileStatus.added {
+  background: var(--color-success-bg, #dafbe1);
+  color: var(--color-success, #1a7f37);
+}
+
+.fileStatus.deleted {
+  background: var(--color-danger-bg, #ffebe9);
+  color: var(--color-danger, #cf222e);
+}
+
+.fileStatus.modified {
+  background: var(--color-warning-bg, #fff8c5);
+  color: var(--color-warning, #9a6700);
+}
+
+.fileStatus.renamed {
+  background: var(--color-info-bg, #ddf4ff);
+  color: var(--color-info, #0969da);
+}
+
+.fileStats {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.fileStats .additions {
+  color: var(--color-success, #1a7f37);
+}
+
+.fileStats .deletions {
+  color: var(--color-danger, #cf222e);
+}
+
+.renderedMarkdown {
+  padding: 24px;
+  max-height: 500px;
+  overflow: auto;
+  background: var(--bg-primary, #ffffff);
+}
+
+.renderedMarkdown h1,
+.renderedMarkdown h2,
+.renderedMarkdown h3,
+.renderedMarkdown h4 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #24292f);
+}
+
+.renderedMarkdown h1:first-child,
+.renderedMarkdown h2:first-child,
+.renderedMarkdown h3:first-child {
+  margin-top: 0;
+}
+
+.renderedMarkdown p {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.renderedMarkdown ul,
+.renderedMarkdown ol {
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.renderedMarkdown li {
+  margin-bottom: 4px;
+}
+
+.renderedMarkdown code {
+  padding: 2px 6px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 85%;
+}
+
+.renderedMarkdown pre {
+  padding: 16px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.renderedMarkdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.renderedMarkdown blockquote {
+  margin: 0 0 16px 0;
+  padding: 0 16px;
+  border-left: 4px solid var(--border-color, #d0d7de);
+  color: var(--text-secondary, #57606a);
+}
+
+.renderedMarkdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.renderedMarkdown th,
+.renderedMarkdown td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, #d0d7de);
+  text-align: left;
+}
+
+.renderedMarkdown th {
+  background: var(--bg-secondary, #f6f8fa);
+  font-weight: 600;
+}
+
+.markdownDiff {
+  max-height: 500px;
+  overflow: auto;
 }
 
 /* Dark mode */

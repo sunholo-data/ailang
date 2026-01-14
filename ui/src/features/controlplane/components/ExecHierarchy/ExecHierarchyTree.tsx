@@ -41,6 +41,8 @@ function getNodeIcon(type: HierarchyNode['type']): string {
       return '↻'; // Clockwise arrow
     case 'tool_use':
       return '⚙'; // Gear
+    case 'approval':
+      return '👤'; // Person (human decision)
     default:
       return '●'; // Circle
   }

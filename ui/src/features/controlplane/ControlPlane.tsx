@@ -41,7 +41,9 @@ import type {
   Span,
 } from './components';
 import type { EventType } from './components/MessageQueue';
-import { useObservatoryWs } from '../../hooks/useObservatory';
+import { useObservatoryWs, useApprovals } from '../../hooks/useObservatory';
+import { ApprovalDetailModal, ApprovalData } from '../approvals/ApprovalDetailModal';
+import type { Approval } from '../../types';
 
 /**
  * Find the agent path from an event through the topology.
@@ -217,6 +219,11 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   const { events: liveEvents, loading: eventsLoading } = useEventQueue({ maxEvents: 50, filters });
   // WebSocket connection status for header indicator
   const { isConnected, connectionState, lastEventTime } = useObservatoryWs({});
+  // Approvals data and modal state
+  const { approvals, loading: approvalsLoading, refresh: refreshApprovals, approveApproval, rejectApproval } = useApprovals({ status: 'pending' });
+  const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalDropdownOpen, setApprovalDropdownOpen] = useState(false);
   // Track selected event for trace correlation
   const [selectedEventTraceId, setSelectedEventTraceId] = useState<string | null>(null);
   // Detail panel state - must be defined before memos that use it
@@ -296,6 +303,29 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     // The date range is already set by handleDateSelect on mouseDown
     // This callback is kept for potential future use (e.g., double-click behavior)
   }, []);
+
+  // Approval handlers
+  const handleApprovalClick = useCallback((approval: Approval) => {
+    setSelectedApproval(approval);
+    setApprovalModalOpen(true);
+  }, []);
+
+  const handleApprovalModalClose = useCallback(() => {
+    setApprovalModalOpen(false);
+    setSelectedApproval(null);
+  }, []);
+
+  const handleApprovalApprove = useCallback(async (id: string) => {
+    await approveApproval(id);
+    handleApprovalModalClose();
+    refreshApprovals();
+  }, [approveApproval, refreshApprovals, handleApprovalModalClose]);
+
+  const handleApprovalReject = useCallback(async (id: string, notes: string) => {
+    await rejectApproval(id, notes);
+    handleApprovalModalClose();
+    refreshApprovals();
+  }, [rejectApproval, refreshApprovals, handleApprovalModalClose]);
 
   const handleAgentClick = useCallback((agent: Agent) => {
     setDetailPanel({ type: 'agent', id: agent.id, data: agent });
@@ -445,6 +475,59 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           </div>
         </div>
         <div className={styles.headerActions}>
+          {/* Pending Approvals Dropdown */}
+          <div className={styles.approvalsDropdownWrapper}>
+            <button
+              className={`${styles.approvalsBtn} ${approvals.length > 0 ? styles.approvalsBtnActive : ''}`}
+              onClick={() => setApprovalDropdownOpen(!approvalDropdownOpen)}
+              title={`${approvals.length} pending approval${approvals.length !== 1 ? 's' : ''}`}
+            >
+              <span className={styles.approvalsBtnIcon}>⏳</span>
+              <span className={styles.approvalsBtnLabel}>Approvals</span>
+              {approvals.length > 0 && (
+                <span className={styles.approvalsBtnBadge}>{approvals.length}</span>
+              )}
+            </button>
+            {approvalDropdownOpen && (
+              <div className={styles.approvalsDropdown}>
+                <div className={styles.approvalsDropdownHeader}>
+                  <span>Pending Approvals ({approvals.length})</span>
+                  <button
+                    className={styles.approvalsDropdownClose}
+                    onClick={() => setApprovalDropdownOpen(false)}
+                  >×</button>
+                </div>
+                {approvals.length === 0 ? (
+                  <div className={styles.approvalsDropdownEmpty}>No pending approvals</div>
+                ) : (
+                  <div className={styles.approvalsDropdownList}>
+                    {approvals.map((approval) => (
+                      <button
+                        key={approval.id}
+                        className={styles.approvalsDropdownItem}
+                        onClick={() => {
+                          handleApprovalClick(approval);
+                          setApprovalDropdownOpen(false);
+                        }}
+                      >
+                        <span className={`${styles.approvalsDropdownType} ${styles[`type${(approval.request_type || 'merge').charAt(0).toUpperCase() + (approval.request_type || 'merge').slice(1)}`]}`}>
+                          {approval.request_type || 'merge'}
+                        </span>
+                        <div className={styles.approvalsDropdownInfo}>
+                          <span className={styles.approvalsDropdownTitle}>{approval.thread_title || approval.summary || 'Approval Request'}</span>
+                          <span className={styles.approvalsDropdownMeta}>
+                            <span className={styles.approvalsDropdownTask}>{approval.task_id}</span>
+                            <span className={styles.approvalsDropdownDate}>{new Date(approval.created_at).toLocaleDateString()} {new Date(approval.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* WebSocket Connection Status */}
           <div
             className={`${styles.connectionStatus} ${isConnected ? styles.connectionStatusLive : styles.connectionStatusOffline}`}
@@ -569,6 +652,19 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         )}
         <span className={styles.footerTime}>{new Date().toISOString()}</span>
       </footer>
+
+      {/* Approval Detail Modal */}
+      {approvalModalOpen && selectedApproval && (
+        <ApprovalDetailModal
+          isOpen={approvalModalOpen}
+          approval={selectedApproval as ApprovalData}
+          approvals={approvals as ApprovalData[]}
+          onClose={handleApprovalModalClose}
+          onApprove={handleApprovalApprove}
+          onReject={handleApprovalReject}
+          onNavigate={(approval) => setSelectedApproval(approval as Approval)}
+        />
+      )}
     </div>
   );
 };

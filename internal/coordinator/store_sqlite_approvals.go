@@ -84,6 +84,32 @@ func (s *SQLiteStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequ
 	return requests, rows.Err()
 }
 
+// ListResolvedApprovals returns resolved (approved/rejected) approval requests
+func (s *SQLiteStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) {
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests
+		WHERE status IN ('approved', 'rejected')
+		ORDER BY resolved_at DESC
+		LIMIT ?
+	`
+	rows, err := s.db.QueryContext(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []*ApprovalRequestRecord
+	for rows.Next() {
+		req, err := s.scanApprovalRequestFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, req)
+	}
+	return requests, rows.Err()
+}
+
 // ResolveApprovalRequest marks an approval request as approved or rejected
 func (s *SQLiteStore) ResolveApprovalRequest(ctx context.Context, id string, status string, resolvedBy string) error {
 	now := time.Now()

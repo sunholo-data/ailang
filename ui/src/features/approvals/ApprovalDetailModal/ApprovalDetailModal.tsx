@@ -11,13 +11,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { DiffViewer, ViewMode, parseDiff, extractFileChanges } from '../../../components/DiffViewer';
+import { DiffViewer, ViewMode, parseDiff, extractFileChanges, findMarkdownFiles, extractNewFileContent, FileDiff } from '../../../components/DiffViewer';
 import { FileTree } from '../../../components/FileTree';
 import { TaskStreamEvent } from '../../../types';
 import { IterationBadge, FeedbackInput, ChannelBadge } from '../components';
 import styles from './ApprovalDetailModal.module.css';
 
-type TabType = 'files' | 'description' | 'logs';
+type TabType = 'description' | 'files' | 'logs';
 
 // Union type to support both PendingApprovalRequest and the Approval from useObservatory
 export interface ApprovalData {
@@ -65,14 +65,14 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   diff: propDiff,
   events = [],
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('files');
+  const [activeTab, setActiveTab] = useState<TabType>('description');
   const [viewMode, setViewMode] = useState<ViewMode>('unified');
   const [selectedFile, setSelectedFile] = useState<string | undefined>();
   const [diff, setDiff] = useState<string>(propDiff || '');
   const [isLoading, setIsLoading] = useState(!propDiff);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [rejectionNotes, setRejectionNotes] = useState('');
-  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const [showFeedbackForm, setShowFeedbackForm] = useState<'approve' | 'reject' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch diff if not provided
@@ -100,6 +100,20 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   const parsedDiff = useMemo(() => parseDiff(diff), [diff]);
   const fileChanges = useMemo(() => extractFileChanges(parsedDiff), [parsedDiff]);
 
+  // Find markdown files for the description tab
+  const markdownFiles = useMemo(() => findMarkdownFiles(parsedDiff), [parsedDiff]);
+
+  // State for markdown file viewer
+  const [selectedMarkdownFile, setSelectedMarkdownFile] = useState<FileDiff | null>(null);
+  const [markdownViewMode, setMarkdownViewMode] = useState<'rendered' | 'diff'>('rendered');
+
+  // Auto-select first markdown file when available
+  useEffect(() => {
+    if (markdownFiles.length > 0 && !selectedMarkdownFile) {
+      setSelectedMarkdownFile(markdownFiles[0]);
+    }
+  }, [markdownFiles, selectedMarkdownFile]);
+
   // Keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return;
@@ -107,8 +121,8 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESC to close
       if (e.key === 'Escape') {
-        if (showRejectForm) {
-          setShowRejectForm(false);
+        if (showFeedbackForm) {
+          setShowFeedbackForm(null);
         } else {
           onClose();
         }
@@ -129,44 +143,44 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
       }
 
       // 1/2/3 for tab switching
-      if (e.key === '1') setActiveTab('files');
-      if (e.key === '2') setActiveTab('description');
+      if (e.key === '1') setActiveTab('description');
+      if (e.key === '2') setActiveTab('files');
       if (e.key === '3') setActiveTab('logs');
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, fileChanges, selectedFile, showRejectForm]);
+  }, [isOpen, onClose, fileChanges, selectedFile, showFeedbackForm]);
 
   const handleApprove = useCallback(async () => {
     setIsSubmitting(true);
     setError(null);
     try {
-      await onApprove(approval.id);
+      await onApprove(approval.id, feedbackNotes.trim() || undefined);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve');
     } finally {
       setIsSubmitting(false);
     }
-  }, [approval.id, onApprove, onClose]);
+  }, [approval.id, feedbackNotes, onApprove, onClose]);
 
   const handleReject = useCallback(async () => {
-    if (!rejectionNotes.trim()) {
+    if (!feedbackNotes.trim()) {
       setError('Please provide a reason for rejection');
       return;
     }
     setIsSubmitting(true);
     setError(null);
     try {
-      await onReject(approval.id, rejectionNotes);
+      await onReject(approval.id, feedbackNotes);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject');
     } finally {
       setIsSubmitting(false);
     }
-  }, [approval.id, rejectionNotes, onReject, onClose]);
+  }, [approval.id, feedbackNotes, onReject, onClose]);
 
   if (!isOpen) return null;
 
@@ -197,18 +211,18 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             <span className={`${styles.typeBadge} ${styles[`type${capitalize(approval.type || approval.request_type || 'merge')}`]}`}>
               {approval.type || approval.request_type || 'merge'}
             </span>
-            {!showRejectForm && (
+            {!showFeedbackForm && (
               <>
                 <button
                   className={styles.approveButton}
-                  onClick={handleApprove}
+                  onClick={() => setShowFeedbackForm('approve')}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Processing...' : 'Approve'}
+                  Approve
                 </button>
                 <button
                   className={styles.rejectButton}
-                  onClick={() => setShowRejectForm(true)}
+                  onClick={() => setShowFeedbackForm('reject')}
                   disabled={isSubmitting}
                 >
                   Reject
@@ -218,9 +232,9 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Rejection form */}
-        {showRejectForm && (
-          <div className={styles.rejectForm}>
+        {/* Feedback form - used for both approve and reject */}
+        {showFeedbackForm && (
+          <div className={styles.feedbackForm}>
             {/* Show harvested GitHub feedback if available */}
             {approval.feedback && (
               <div className={styles.harvestedFeedback}>
@@ -234,27 +248,42 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
               </div>
             )}
             <FeedbackInput
-              value={rejectionNotes}
-              onChange={setRejectionNotes}
-              label="Rejection feedback"
-              placeholder="Please explain why this change is being rejected and what needs to be fixed..."
+              value={feedbackNotes}
+              onChange={setFeedbackNotes}
+              label={showFeedbackForm === 'approve' ? 'Approval feedback (optional)' : 'Rejection feedback (required)'}
+              placeholder={showFeedbackForm === 'approve'
+                ? 'Add any notes or feedback for the next iteration (optional)...'
+                : 'Please explain why this change is being rejected and what needs to be fixed...'}
               maxLength={1000}
-              required
+              required={showFeedbackForm === 'reject'}
               autoFocus
               rows={4}
               error={error && error.includes('reason') ? error : undefined}
             />
-            <div className={styles.rejectActions}>
+            <div className={styles.feedbackActions}>
+              {showFeedbackForm === 'approve' ? (
+                <button
+                  className={styles.approveConfirmButton}
+                  onClick={handleApprove}
+                  disabled={isSubmitting || feedbackNotes.length > 1000}
+                >
+                  {isSubmitting ? 'Approving...' : 'Confirm Approval'}
+                </button>
+              ) : (
+                <button
+                  className={styles.rejectConfirmButton}
+                  onClick={handleReject}
+                  disabled={isSubmitting || !feedbackNotes.trim() || feedbackNotes.length > 1000}
+                >
+                  {isSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
+                </button>
+              )}
               <button
-                className={styles.rejectConfirmButton}
-                onClick={handleReject}
-                disabled={isSubmitting || !rejectionNotes.trim() || rejectionNotes.length > 1000}
-              >
-                {isSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
-              </button>
-              <button
-                className={styles.rejectCancelButton}
-                onClick={() => setShowRejectForm(false)}
+                className={styles.feedbackCancelButton}
+                onClick={() => {
+                  setShowFeedbackForm(null);
+                  setFeedbackNotes('');
+                }}
               >
                 Cancel
               </button>
@@ -274,16 +303,16 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
         <div className={styles.tabs}>
           <div className={styles.tabList}>
             <button
-              className={`${styles.tab} ${activeTab === 'files' ? styles.active : ''}`}
-              onClick={() => setActiveTab('files')}
-            >
-              Files ({fileChanges.length})
-            </button>
-            <button
               className={`${styles.tab} ${activeTab === 'description' ? styles.active : ''}`}
               onClick={() => setActiveTab('description')}
             >
               Description
+            </button>
+            <button
+              className={`${styles.tab} ${activeTab === 'files' ? styles.active : ''}`}
+              onClick={() => setActiveTab('files')}
+            >
+              Files ({fileChanges.length})
             </button>
             <button
               className={`${styles.tab} ${activeTab === 'logs' ? styles.active : ''}`}
@@ -342,9 +371,92 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
 
               {activeTab === 'description' && (
                 <div className={styles.descriptionView}>
+                  {/* Description/Summary */}
                   <div className={styles.markdownContent}>
                     <ReactMarkdown>{approval.description || approval.summary || 'No description available'}</ReactMarkdown>
                   </div>
+
+                  {/* Markdown Files Viewer */}
+                  {markdownFiles.length > 0 && (
+                    <div className={styles.markdownFilesSection}>
+                      <div className={styles.markdownFilesHeader}>
+                        <h3>Documentation Changes</h3>
+                        <div className={styles.markdownControls}>
+                          {/* File selector if multiple markdown files */}
+                          {markdownFiles.length > 1 && (
+                            <select
+                              className={styles.markdownFileSelect}
+                              value={selectedMarkdownFile?.newPath || ''}
+                              onChange={(e) => {
+                                const file = markdownFiles.find(f => f.newPath === e.target.value);
+                                setSelectedMarkdownFile(file || null);
+                              }}
+                            >
+                              {markdownFiles.map(file => (
+                                <option key={file.newPath} value={file.newPath}>
+                                  {file.newPath}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          {/* View mode toggle */}
+                          <div className={styles.markdownViewToggle}>
+                            <button
+                              className={`${styles.viewToggleButton} ${markdownViewMode === 'rendered' ? styles.active : ''}`}
+                              onClick={() => setMarkdownViewMode('rendered')}
+                            >
+                              Rendered
+                            </button>
+                            <button
+                              className={`${styles.viewToggleButton} ${markdownViewMode === 'diff' ? styles.active : ''}`}
+                              onClick={() => setMarkdownViewMode('diff')}
+                            >
+                              Diff
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedMarkdownFile && (
+                        <div className={styles.markdownFileContent}>
+                          <div className={styles.markdownFileName}>
+                            <span className={`${styles.fileStatus} ${styles[selectedMarkdownFile.status]}`}>
+                              {selectedMarkdownFile.status === 'added' ? '+' :
+                               selectedMarkdownFile.status === 'deleted' ? '-' :
+                               selectedMarkdownFile.status === 'renamed' ? '→' : '~'}
+                            </span>
+                            {markdownFiles.length === 1 && selectedMarkdownFile.newPath}
+                            <span className={styles.fileStats}>
+                              <span className={styles.additions}>+{selectedMarkdownFile.additions}</span>
+                              <span className={styles.deletions}>-{selectedMarkdownFile.deletions}</span>
+                            </span>
+                          </div>
+
+                          {markdownViewMode === 'rendered' ? (
+                            <div className={styles.renderedMarkdown}>
+                              <ReactMarkdown>
+                                {extractNewFileContent(selectedMarkdownFile)}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className={styles.markdownDiff}>
+                              <DiffViewer
+                                diff={`diff --git a/${selectedMarkdownFile.oldPath} b/${selectedMarkdownFile.newPath}\n${selectedMarkdownFile.hunks.map(h => h.lines.map(l =>
+                                  l.type === 'hunk' ? l.content :
+                                  l.type === 'add' ? '+' + l.content :
+                                  l.type === 'delete' ? '-' + l.content :
+                                  ' ' + l.content
+                                ).join('\n')).join('\n')}`}
+                                viewMode="unified"
+                                compact
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {approval.context_json && (
                     <div className={styles.contextSection}>
                       <h3>Context</h3>

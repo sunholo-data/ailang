@@ -35,6 +35,8 @@ function getNodeColor(type: HierarchyNode['type']): string {
       return '#3b82f6';
     case 'tool_use':
       return '#8b5cf6';
+    case 'approval':
+      return '#10b981'; // Emerald for human decisions
     default:
       return '#64748b';
   }
@@ -67,6 +69,8 @@ function getNodeIcon(type: HierarchyNode['type']): string {
       return '↻';
     case 'tool_use':
       return '⚙';
+    case 'approval':
+      return '👤';
     default:
       return '●';
   }

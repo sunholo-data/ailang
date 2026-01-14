@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 type CoordinatorApprovalStore interface {
 	GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error)
 	ListPendingApprovals(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error)
+	ListResolvedApprovals(ctx context.Context, limit int) ([]*coordinator.ApprovalRequestRecord, error)
 	ResolveApprovalRequest(ctx context.Context, id string, status string, resolvedBy string) error
 }
 
@@ -447,6 +449,21 @@ func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID s
 
 	if task.WorktreePath == "" {
 		http.Error(w, "Task has no worktree", http.StatusNotFound)
+		return
+	}
+
+	// Check if worktree directory exists
+	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
+		// Worktree was deleted - return empty diff with explanation
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"task_id":       taskID,
+			"worktree_path": task.WorktreePath,
+			"diff":          "",
+			"error":         "Worktree has been deleted",
+		}); err != nil {
+			log.Printf("Failed to encode diff response: %v", err)
+		}
 		return
 	}
 

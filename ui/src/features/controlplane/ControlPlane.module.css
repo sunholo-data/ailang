@@ -395,6 +395,220 @@
   }
 }
 
+/* Approvals Button - Top Nav */
+.approvalsBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.approvalsBtn:hover {
+  border-color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.approvalsBtnActive {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+  animation: approvalPulse 2s ease-in-out infinite;
+}
+
+.approvalsBtnActive:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+}
+
+.approvalsBtnIcon {
+  font-size: 14px;
+}
+
+.approvalsBtnLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.approvalsBtnActive .approvalsBtnLabel {
+  color: #f59e0b;
+}
+
+.approvalsBtnBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #f59e0b;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
+@keyframes approvalPulse {
+  0%, 100% {
+    background: rgba(245, 158, 11, 0.1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    background: rgba(245, 158, 11, 0.2);
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+}
+
+/* Approvals Dropdown */
+.approvalsDropdownWrapper {
+  position: relative;
+}
+
+.approvalsDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  min-width: 320px;
+  max-width: 400px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.approvalsDropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.approvalsDropdownClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.approvalsDropdownClose:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.approvalsDropdownEmpty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.approvalsDropdownList {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.approvalsDropdownItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.approvalsDropdownItem:hover {
+  background: var(--bg-hover);
+}
+
+.approvalsDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.approvalsDropdownType {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.approvalsDropdownType.typeHandoff {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.approvalsDropdownType.typeMerge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.approvalsDropdownInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.approvalsDropdownTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.approvalsDropdownMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.approvalsDropdownTask {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.approvalsDropdownDate {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 /* Theme Toggle */
 .themeToggle {
   display: flex;
@@ -2659,6 +2873,36 @@
 
 .queueItemSelected:hover {
   background: var(--bg-elevated);
+}
+
+/* Pulsing animation for pending approval items (M-DASHBOARD-APPROVAL-INTEGRATION) */
+.queueItem[data-type="warning"] {
+  border-left: 3px solid var(--amber);
+  padding-left: calc(var(--space-4) - 3px);
+  animation: pulseApproval 2s infinite;
+}
+
+@keyframes pulseApproval {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(245, 158, 11, 0.1);
+  }
+}
+
+/* Light theme pulse */
+.controlPlaneLight .queueItem[data-type="warning"] {
+  animation: pulseApprovalLight 2s infinite;
+}
+
+@keyframes pulseApprovalLight {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(245, 158, 11, 0.15);
+  }
 }
 
 .queueIcon {

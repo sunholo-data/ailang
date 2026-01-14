@@ -10,10 +10,9 @@ import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, Coo
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import { ChatHistory } from './ChatHistory';
-import { ApprovalPanel } from '../ApprovalPanel';
 import { CliCommandHint } from '../CliCommandHint';
 import { TraceWaterfall } from '../TraceWaterfall';
-import { useApprovals, useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
+import { useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
 import styles from './ExecHierarchy.module.css';
 
 // Popover max dimensions - large to show full tool metadata
@@ -26,6 +25,8 @@ type ExtendedNodeType = HierarchyNode['type'] | 'coordinator' | 'executor' | 'ai
 
 // Determine node type from span name with semantic patterns
 function getNodeType(name: string): HierarchyNode['type'] {
+  // Approval spans (M-DASHBOARD-APPROVAL-INTEGRATION)
+  if (name === 'approval.decision' || name === 'human.approval' || name === 'human.feedback') return 'approval';
   // Claude Code session (virtual root)
   if (name === 'claude_code.session') return 'exec';
   // Claude Code api_request (turn in a session)
@@ -77,6 +78,36 @@ function getSmartLabel(span: Span): string {
     const durationMins = Math.round(durationMs / 60000);
     const children = (span as any).children?.length || 0;
     return `Claude Code Session (${children} turns, $${cost.toFixed(2)}, ${durationMins}m)`;
+  }
+
+  // Approval decision spans (M-DASHBOARD-APPROVAL-INTEGRATION)
+  if (name === 'approval.decision') {
+    const action = attrs['approval.action'] || attrs['action'];
+    const by = attrs['approval.by'] || attrs['approved.by'] || attrs['rejected.by'] || 'user';
+    const channel = attrs['approval.channel'] || '';
+    const channelSuffix = channel ? ` via ${channel}` : '';
+    if (action === 'approve') {
+      return `✓ Approved by ${by}${channelSuffix}`;
+    } else if (action === 'reject') {
+      return `✗ Rejected by ${by}${channelSuffix}`;
+    }
+    return `Approval Decision by ${by}`;
+  }
+
+  // Human approval spans
+  if (name === 'human.approval') {
+    const by = attrs['approved.by'] || 'user';
+    return `✓ Approved by ${by}`;
+  }
+
+  // Human feedback spans
+  if (name === 'human.feedback') {
+    const action = attrs['feedback.action'] || '';
+    const by = attrs['feedback.user'] || 'user';
+    if (action === 'reject') {
+      return `✗ Feedback from ${by}`;
+    }
+    return `Feedback from ${by}`;
   }
 
   // Coordinator task: use task.title or extract from directive
@@ -476,6 +507,7 @@ function getNodeIcon(type: HierarchyNode['type']): string {
     case 'exec': return '⚡';
     case 'turn': return '↻';
     case 'tool_use': return '⚙';
+    case 'approval': return '👤';
     default: return '●';
   }
 }
@@ -639,10 +671,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
 
   // Track expand/collapse changes for recentering
   const [expandChangeCounter, setExpandChangeCounter] = useState(0);
-
-  // Approval panel state
-  const [approvalPanelOpen, setApprovalPanelOpen] = useState(false);
-  const { approvals: pendingApprovals } = useApprovals({ status: 'pending' });
 
   // Display limit state - start with 100 nodes, can load more
   const DEFAULT_DISPLAY_LIMIT = 100;
@@ -1175,18 +1203,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             {reverseOrder ? "↓" : "↑"}
           </button>
 
-          {/* Approval Panel Button */}
-          <button
-            className={`${styles.approvalBtn} ${pendingApprovals.length > 0 ? styles.approvalBtnActive : ''}`}
-            onClick={() => setApprovalPanelOpen(!approvalPanelOpen)}
-            title={`Approvals (${pendingApprovals.length} pending)`}
-          >
-            📋
-            {pendingApprovals.length > 0 && (
-              <span className={styles.approvalBtnBadge}>{pendingApprovals.length}</span>
-            )}
-          </button>
-
           {/* Expand Button */}
           <button
             className={styles.expandBtn}
@@ -1615,18 +1631,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           </div>
         </div>
       )}
-
-      {/* Approval Panel */}
-      <ApprovalPanel
-        isOpen={approvalPanelOpen}
-        onClose={() => setApprovalPanelOpen(false)}
-        onApprovalClick={(approval: Approval) => {
-          // Highlight the task in the graph if it matches
-          // For now just close the panel and let user see details
-          setApprovalPanelOpen(false);
-        }}
-        selectedTaskId={selectedNodeId}
-      />
 
       {/* CLI command hint */}
       <CliCommandHint

@@ -781,6 +781,24 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				d.logger.Printf("Warning: Failed to create approval request: %v", err)
 			}
 
+			// M-DASHBOARD-APPROVAL-INTEGRATION: Create inbox message for Event Queue visibility
+			// This allows approvals to show up in the dashboard's event queue with pulsing animation
+			if d.msgStore != nil {
+				approvalContent := fmt.Sprintf("**Approval Required**\n\nTask: %s\nAgent: %s\n\nReview and approve via dashboard or CLI:\n`ailang coordinator approve %s`",
+					task.Title, task.AgentID, approvalID)
+				_, msgErr := d.msgStore.CreateMessage(
+					"",                               // New thread
+					"ailang_instance", "coordinator", // from
+					"approvals", "", // to inbox "approvals"
+					"approval_request", // kind (maps to 'approval' event type in dashboard)
+					approvalContent,
+					fmt.Sprintf(`{"task_id":"%s","approval_id":"%s","agent_id":"%s"}`, task.ID, approvalID, task.AgentID),
+				)
+				if msgErr != nil {
+					d.logger.Printf("Warning: Failed to create approval inbox message: %v", msgErr)
+				}
+			}
+
 			d.logger.Printf("Task %s awaiting approval (cost: $%.4f, tokens: %d, worktree: %s)",
 				task.ID, result.Cost, result.TokensUsed, worktreePath)
 		}
