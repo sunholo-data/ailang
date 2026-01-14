@@ -437,6 +437,70 @@ func (c *GitHubClient) CloseIssue(repo string, number int, comment string) error
 	return nil
 }
 
+// GitHubComment represents a comment on a GitHub issue.
+type GitHubComment struct {
+	ID        int64  `json:"id"`
+	Body      string `json:"body"`
+	Author    string `json:"author"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// ghCommentResponse is the raw response from gh issue view --comments --json
+type ghCommentResponse struct {
+	ID     int64  `json:"id"`
+	Body   string `json:"body"`
+	Author struct {
+		Login string `json:"login"`
+	} `json:"author"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// GetIssueComments retrieves all comments on an issue.
+func (c *GitHubClient) GetIssueComments(repo string, number int) ([]GitHubComment, error) {
+	if err := c.PreFlightChecks(); err != nil {
+		return nil, err
+	}
+
+	if repo == "" && c.config != nil {
+		repo = c.config.DefaultRepo
+	}
+	if repo == "" {
+		return nil, fmt.Errorf("no repository specified")
+	}
+
+	args := []string{"issue", "view",
+		"--repo", repo,
+		strconv.Itoa(number),
+		"--json", "comments",
+	}
+
+	output, err := c.execCommand("gh", args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get comments for issue #%d: %w\nOutput: %s", number, err, string(output))
+	}
+
+	// Parse JSON response - format: {"comments": [...]}
+	var response struct {
+		Comments []ghCommentResponse `json:"comments"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse comments: %w", err)
+	}
+
+	// Convert to our GitHubComment type
+	comments := make([]GitHubComment, len(response.Comments))
+	for i, raw := range response.Comments {
+		comments[i] = GitHubComment{
+			ID:        raw.ID,
+			Body:      raw.Body,
+			Author:    raw.Author.Login,
+			CreatedAt: raw.CreatedAt,
+		}
+	}
+
+	return comments, nil
+}
+
 // AddComment adds a comment to an existing issue.
 func (c *GitHubClient) AddComment(repo string, number int, body string) error {
 	if err := c.PreFlightChecks(); err != nil {

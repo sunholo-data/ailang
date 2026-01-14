@@ -33,6 +33,12 @@ type ApprovalEvent struct {
 	IssueNumber int
 	Label       string
 	EventType   ApprovalEventType
+	// Feedback contains human comments harvested from GitHub (may be empty)
+	Feedback string
+	// FeedbackAuthor is the author of the most recent human comment
+	FeedbackAuthor string
+	// Channel indicates where the approval came from (github, dashboard, cli)
+	Channel string
 }
 
 // ApprovalEventType categorizes the type of approval event
@@ -62,7 +68,8 @@ type ApprovalWatcher struct {
 	store         Store
 	pollInterval  time.Duration
 	handlers      map[ApprovalEventType]ApprovalHandler
-	watchedIssues map[int]string // issue number -> task ID
+	watchedIssues map[int]string    // issue number -> task ID
+	lastPollTime  map[int]time.Time // issue number -> last poll time (for comment harvesting)
 	stopCh        chan struct{}
 	running       bool
 	lastPoll      time.Time // track last successful poll for status reporting
@@ -84,6 +91,7 @@ func NewApprovalWatcher(poster *GitHubPoster, store Store, pollInterval time.Dur
 		pollInterval:   pollInterval,
 		handlers:       make(map[ApprovalEventType]ApprovalHandler),
 		watchedIssues:  make(map[int]string),
+		lastPollTime:   make(map[int]time.Time),
 		stopCh:         make(chan struct{}),
 		agentByLabel:   make(map[string]*AgentConfig),
 		customHandlers: make(map[string]ApprovalHandler),
@@ -172,6 +180,7 @@ func (w *ApprovalWatcher) UnwatchIssue(issueNumber int) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	delete(w.watchedIssues, issueNumber)
+	delete(w.lastPollTime, issueNumber)
 	log.Printf("[ApprovalWatcher] Stopped watching issue #%d", issueNumber)
 }
 
@@ -243,6 +252,7 @@ func (w *ApprovalWatcher) pollOnce(ctx context.Context) {
 	}
 
 	eventsFound := 0
+	pollTime := time.Now()
 	for issueNum, taskID := range issues {
 		select {
 		case <-ctx.Done():
@@ -255,6 +265,11 @@ func (w *ApprovalWatcher) pollOnce(ctx context.Context) {
 			eventsFound++
 			w.handleEvent(ctx, event)
 		}
+
+		// Update last poll time for this issue (for comment harvesting window)
+		w.mu.Lock()
+		w.lastPollTime[issueNum] = pollTime
+		w.mu.Unlock()
 	}
 
 	if debugApprovalWatcher {
@@ -265,6 +280,7 @@ func (w *ApprovalWatcher) pollOnce(ctx context.Context) {
 // checkIssueLabels checks if an issue has any approval labels.
 // Checks both legacy hardcoded labels and config-driven labels.
 // needs-revision is always checked first (universal across all workflows).
+// When an approval label is found, also harvests recent human comments as feedback.
 func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, taskID string) *ApprovalEvent {
 	labels, err := w.poster.GetLabels(issueNum)
 	if err != nil {
@@ -276,15 +292,44 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 		log.Printf("[ApprovalWatcher] Issue #%d labels: %v", issueNum, labels)
 	}
 
+	// Helper to create event with harvested comments
+	createEventWithComments := func(label string, eventType ApprovalEventType) *ApprovalEvent {
+		event := &ApprovalEvent{
+			TaskID:      taskID,
+			IssueNumber: issueNum,
+			Label:       label,
+			EventType:   eventType,
+			Channel:     "github",
+		}
+
+		// Harvest human comments since last poll
+		w.mu.Lock()
+		sinceTime := w.lastPollTime[issueNum]
+		if sinceTime.IsZero() {
+			// First time polling this issue - look back 5 minutes
+			sinceTime = time.Now().Add(-5 * time.Minute)
+		}
+		w.mu.Unlock()
+
+		comments, err := w.poster.GetRecentHumanComments(issueNum, sinceTime)
+		if err != nil {
+			log.Printf("[ApprovalWatcher] Error harvesting comments for issue #%d: %v", issueNum, err)
+		} else if len(comments) > 0 {
+			event.Feedback = ExtractFeedbackFromComments(comments)
+			event.FeedbackAuthor = comments[len(comments)-1].Author
+			if debugApprovalWatcher {
+				log.Printf("[ApprovalWatcher] Harvested %d comments from issue #%d (feedback length: %d)",
+					len(comments), issueNum, len(event.Feedback))
+			}
+		}
+
+		return event
+	}
+
 	// First pass: Check for needs-revision (universal, highest priority)
 	for _, label := range labels {
 		if label == LabelNeedsRevision {
-			return &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: issueNum,
-				Label:       label,
-				EventType:   ApprovalEventRevision,
-			}
+			return createEventWithComments(label, ApprovalEventRevision)
 		}
 	}
 
@@ -298,12 +343,7 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 
 	for _, label := range labels {
 		if agent, ok := customLabels[label]; ok {
-			return &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: issueNum,
-				Label:       label,
-				EventType:   ApprovalEventType(fmt.Sprintf("custom:%s", agent.ID)),
-			}
+			return createEventWithComments(label, ApprovalEventType(fmt.Sprintf("custom:%s", agent.ID)))
 		}
 	}
 
@@ -311,26 +351,11 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 	for _, label := range labels {
 		switch label {
 		case LabelDesignApproved:
-			return &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: issueNum,
-				Label:       label,
-				EventType:   ApprovalEventDesign,
-			}
+			return createEventWithComments(label, ApprovalEventDesign)
 		case LabelSprintApproved:
-			return &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: issueNum,
-				Label:       label,
-				EventType:   ApprovalEventSprint,
-			}
+			return createEventWithComments(label, ApprovalEventSprint)
 		case LabelMergeApproved:
-			return &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: issueNum,
-				Label:       label,
-				EventType:   ApprovalEventMerge,
-			}
+			return createEventWithComments(label, ApprovalEventMerge)
 		}
 	}
 
