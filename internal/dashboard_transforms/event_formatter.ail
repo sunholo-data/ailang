@@ -1,0 +1,144 @@
+-- Dashboard Event Formatter
+--
+-- AILANG port of internal/coordinator/event_formatter.go
+-- Purpose: Dogfooding AILANG for real-world data transformation
+--
+-- This module provides pure functions for filtering and formatting
+-- task events from the coordinator daemon.
+
+module internal/dashboard_transforms/event_formatter
+
+import std/list (filter, map, foldl, length, any)
+import std/string (length as strlen, substring, join, split, trim, intToStr)
+
+-- ============================================================================
+-- Helper Functions (potentially missing from stdlib)
+-- ============================================================================
+
+-- repeat: Repeat a string n times
+-- GAP: This should be in std/string
+pure func repeat(s: string, n: int) -> string =
+  if n <= 0 then "" else s ++ repeat(s, n - 1)
+
+-- maxInt: Find maximum integer in list using foldl
+-- GAP: Should have maximum[a](xs) with Ord constraint
+-- GAP #3: \acc x. lambda syntax doesn't work with foldl, must use inline func
+pure func maxInt(xs: [int]) -> int =
+  foldl(func(acc: int, x: int) -> int { if x > acc then x else acc }, 0, xs)
+
+-- ============================================================================
+-- Core Types
+-- ============================================================================
+
+-- GAP #4: No record width subtyping, so we define a "full" event type
+-- and must use it consistently everywhere. Cannot pass {a, b, c} to f({a}).
+-- This is less flexible than Go's interface{} or duck typing.
+
+-- We use a simplified event record for this example.
+-- In practice, you'd want row polymorphism or type aliases.
+
+-- ============================================================================
+-- Filtering Functions
+-- ============================================================================
+
+-- filterByTurn: Keep only events matching a specific turn number
+-- turnFilter = 0 means "all turns"
+export pure func filterByTurn(events: [{turnNum: int, streamType: string, text: string}], turnFilter: int) -> [{turnNum: int, streamType: string, text: string}] =
+  if turnFilter == 0
+  then events
+  else filter(\e. e.turnNum == turnFilter, events)
+
+-- filterByType: Keep only events matching allowed stream types
+-- Empty typeFilter means "all types"
+export pure func filterByType(
+  events: [{turnNum: int, streamType: string, text: string}],
+  typeFilter: [string]
+) -> [{turnNum: int, streamType: string, text: string}] =
+  if length(typeFilter) == 0
+  then events
+  else filter(\e. any(\t. t == e.streamType, typeFilter), events)
+
+-- ============================================================================
+-- Counting Functions
+-- ============================================================================
+
+-- countTurns: Find the maximum turn number in event list
+export pure func countTurns(events: [{turnNum: int, streamType: string, text: string}]) -> int =
+  maxInt(map(\e. e.turnNum, events))
+
+-- countByType: Count events of a specific type
+export pure func countByType(events: [{turnNum: int, streamType: string, text: string}], targetType: string) -> int =
+  length(filter(\e. e.streamType == targetType, events))
+
+-- ============================================================================
+-- Formatting Functions
+-- ============================================================================
+
+-- truncate: Truncate text to maxLen characters, adding "..." if truncated
+-- maxLen = 0 means no truncation
+export pure func truncate(text: string, maxLen: int) -> string =
+  if maxLen == 0 || strlen(text) <= maxLen
+  then text
+  else substring(text, 0, maxLen) ++ "..."
+
+-- formatTurnHeader: Create turn header with box-drawing characters
+export pure func formatTurnHeader(turnNum: int) -> string =
+  "\n─── Turn " ++ intToStr(turnNum) ++ " " ++ repeat("─", 50) ++ "\n"
+
+-- formatTurnFooter: Create turn footer with box-drawing
+export pure func formatTurnFooter() -> string =
+  "└" ++ repeat("─", 60) ++ "\n"
+
+-- formatLine: Add box-drawing prefix to a line
+export pure func formatLine(line: string) -> string =
+  "│ " ++ line ++ "\n"
+
+-- formatTurnBlock: Format a complete turn with header, content, and footer
+export pure func formatTurnBlock(turnNum: int, content: string) -> string {
+  let header = formatTurnHeader(turnNum);
+  let lines = split(trim(content), "\n");
+  let body = join("", map(formatLine, lines));
+  let footer = formatTurnFooter();
+  header ++ body ++ footer
+}
+
+-- formatToolUse: Format a tool invocation
+export pure func formatToolUse(toolName: string, toolInput: string, showInput: bool) -> string {
+  let header = "\n[TOOL] " ++ toolName ++ "\n";
+  if showInput && strlen(toolInput) > 0
+  then header ++ "  input: " ++ truncate(toolInput, 200) ++ "\n"
+  else header
+}
+
+-- formatToolResult: Format a tool result
+export pure func formatToolResult(output: string) -> string =
+  if strlen(output) > 0
+  then "\n  └─ Result: " ++ truncate(output, 200) ++ "\n"
+  else ""
+
+-- formatError: Format an error message
+export pure func formatError(errorMsg: string) -> string =
+  "\n[ERROR] " ++ errorMsg ++ "\n"
+
+-- formatHumanFeedback: Format human feedback
+export pure func formatHumanFeedback(text: string) -> string =
+  "\n[HUMAN FEEDBACK]\n" ++ text ++ "\n"
+
+-- formatHumanApproval: Format approval message
+export pure func formatHumanApproval(text: string) -> string =
+  "\n[APPROVED] " ++ text ++ "\n"
+
+-- ============================================================================
+-- Summarization Functions
+-- ============================================================================
+
+-- summarizeEvents: Generate a brief summary of events
+export pure func summarizeEvents(events: [{turnNum: int, streamType: string, text: string}]) -> string {
+  let turns = countTurns(events);
+  let toolCount = countByType(events, "tool_use");
+  let textEvents = filter(\e. e.streamType == "text", events);
+  -- GAP #3: must use inline func syntax for foldl
+  -- GAP #4: record types must match exactly, no subtyping
+  let textLen = foldl(func(acc: int, e: {turnNum: int, streamType: string, text: string}) -> int { acc + strlen(e.text) }, 0, textEvents);
+  intToStr(turns) ++ " turns, " ++ intToStr(toolCount) ++ " tool calls, " ++ intToStr(textLen) ++ " chars of text"
+}

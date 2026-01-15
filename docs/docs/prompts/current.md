@@ -1,46 +1,53 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.6.2) - auto-synced from source
+description: The active AILANG teaching prompt (v0.6.5) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.2.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.5.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.6.2.md -->
-<!-- Active Version: v0.6.2 -->
+<!-- Source: prompts/v0.6.5.md -->
+<!-- Active Version: v0.6.5 -->
 
-# AILANG v0.6.2 - AI Teaching Prompt
+# AILANG v0.6.5 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
+
+**⚠️ AILANG is NOT Python!** Do not use Python syntax like `def`, `for`, `while`, `class`, or `if x:`. See "What AILANG Does NOT Have" below.
 
 ## Required Program Structure
 
 ```ailang
 module benchmark/solution
 
-import std/io (println)
-
 export func main() -> () ! {IO} {
-  println(show(42))  -- println adds newline, print does not
+  println(show(42))  -- println is in prelude, no import needed!
 }
 ```
 
 **Rules:**
 1. First line: `module benchmark/solution`
-2. Use `println(show(value))` for numbers with newline, `println(str)` for strings
+2. Use `println(show(value))` for numbers, `println(str)` for strings
 3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
 4. No loops - use recursion
 
-## print vs println (IMPORTANT)
+## println vs print
+
+| Function | Import Required? | Behavior |
+|----------|-----------------|----------|
+| `println` | ❌ NO (prelude) | WITH newline |
+| `print` | ✅ YES (`import std/io (print)`) | NO newline |
 
 ```ailang
-import std/io (print, println)
+-- println works without import (prelude provides it)
+println("A"); println("B")  -- Output: A\nB\n
 
-print("A"); print("B")     -- Output: AB (no newlines)
-println("A"); println("B") -- Output: A\nB\n (with newlines)
+-- print requires import for no-newline output
+import std/io (print)
+print("A"); print("B")      -- Output: AB
 ```
 
-**Use `println` for most output.** Use `print` only when building output on one line.
+**Use `println` for most output.** Use `print` ONLY when building output on one line.
 
 ## CLI Exploration
 
@@ -103,6 +110,19 @@ export func filter(people: [{name: string, age: int}], minAge: int) -> [{name: s
   }
 ```
 
+**Record update (immutable):**
+```ailang
+module benchmark/solution
+export func main() -> () ! {IO} {
+  let person = {name: "Alice", age: 30, city: "NYC"};
+  let older = {person | age: person.age + 1};         -- Update one field
+  let moved = {older | city: "SF"};                   -- Chain updates
+  println(person.name ++ ", " ++ show(person.age) ++ ", " ++ person.city);
+  println(older.name ++ ", " ++ show(older.age) ++ ", " ++ older.city);
+  println(moved.name ++ ", " ++ show(moved.age) ++ ", " ++ moved.city)
+}
+```
+
 **AI effect (call LLM):**
 ```ailang
 module benchmark/solution
@@ -123,6 +143,10 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `f(a)(b)` for multi-arg func | `f(a, b)` - multi-arg funcs use commas |
 | `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
+| `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
+| `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
+| nested `func f(...) =` | Use `let f = \x. body` for nested functions |
+| `Result[a]` with Option | Use monomorphic type like `IntResult` |
 
 ## Let Bindings: Block Style vs Expression Style
 
@@ -189,29 +213,32 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Using std/list foldl (IMPORTANT - takes pair, not curried!):**
+**Using std/list foldl (IMPORTANT - use inline func syntax!):**
 ```ailang
 module benchmark/solution
 import std/io (println)
 import std/list (foldl)
 
 -- std/list foldl signature: foldl(f: (acc, elem) -> acc, initial, list)
--- The function f takes a PAIR, not curried arguments!
+-- RECOMMENDED: Use inline func syntax for reliable type inference
 
 export func main() -> () ! {IO} {
-  -- CORRECT: lambda takes pair (acc, x)
-  let sum = foldl(\(acc, x). acc + x, 0, [1,2,3,4,5]);
+  -- MOST RELIABLE: inline func with explicit types
+  let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1,2,3,4,5]);
   println(show(sum))
 }
 ```
 
-**WRONG vs RIGHT foldl usage:**
+**foldl syntax options (most to least reliable):**
 ```ailang
+-- BEST: inline func (always works)
+foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
+
+-- SOMETIMES WORKS: space-separated lambda (may fail in some contexts)
+foldl(\acc x. acc + x, 0, xs)
+
 -- WRONG: curried lambda (arity mismatch error!)
 foldl(\acc. \x. acc + x, 0, xs)
-
--- RIGHT: pair lambda
-foldl(\(acc, x). acc + x, 0, xs)
 ```
 
 **Sorting with sortBy:**
@@ -228,6 +255,57 @@ func cmpDesc(a: int, b: int) -> int = b - a
 let descending = sortBy(cmpDesc, [3, 1, 4])   -- [4, 3, 1]
 ```
 
+## Recursive Lambdas (letrec)
+
+**Use `letrec` when a lambda needs to call itself:**
+
+```ailang
+module benchmark/solution
+
+export func main() -> () ! {IO} {
+  -- WRONG: `let` for self-referential lambda
+  -- let factorial = \n. if n <= 1 then 1 else n * factorial(n - 1);  -- ERROR: undefined 'factorial'
+
+  -- RIGHT: use `letrec` for recursive lambdas
+  letrec factorial = \n. if n <= 1 then 1 else n * factorial(n - 1);
+  println(show(factorial(5)))  -- 120
+}
+```
+
+**When to use `letrec` vs `func`:**
+| Case | Use |
+|------|-----|
+| Top-level recursive function | `func f(...) = ...` (preferred) |
+| Recursive lambda inside block | `letrec f = \x. ... f(...)` |
+| Non-recursive lambda | `let f = \x. ...` |
+
+**Mutual recursion also works:**
+```ailang
+letrec isEven = \n. if n == 0 then true else isOdd(n - 1);
+letrec isOdd = \n. if n == 0 then false else isEven(n - 1);
+println(show(isEven(4)))  -- true
+```
+
+## Type Annotations for Higher-Order Functions
+
+**Annotate function types with parentheses around arrow types:**
+
+```ailang
+-- Single-argument function type
+let double: int -> int = \x. x * 2
+
+-- Higher-order: function taking a function
+let apply: (int -> int) -> int -> int = \f. \x. f(x)
+
+-- Multiple function parameters
+let compose: (int -> int) -> (int -> int) -> int -> int = \f. \g. \x. f(g(x))
+```
+
+**Type annotation on multi-arg named function:**
+```ailang
+func twice(f: int -> int, x: int) -> int = f(f(x))
+```
+
 ## Syntax Reference
 
 | Construct | Syntax |
@@ -237,6 +315,7 @@ let descending = sortBy(cmpDesc, [3, 1, 4])   -- [4, 3, 1]
 | Import alias | `import std/list as L` |
 | Function | `export func name(x: int) -> int ! {IO} { body }` |
 | Lambda | `\x. x * 2` |
+| Recursive lambda | `letrec f = \x. ... f(x) ...` |
 | Pattern match | `match x { 0 => a, n => b }` (use `=>`, commas between arms) |
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
 | ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
@@ -287,12 +366,46 @@ func process(path: string) -> () ! {IO, FS} {
 import std/io (println, readLine)
 import std/fs (readFile, writeFile)
 import std/net (httpGet, httpPost, httpRequest)
-import std/json (encode, decode)
-import std/list (map, filter, foldl, length, concat, sortBy, take, drop)  -- sortBy(cmp, xs), NO flatten!
-import std/string (split, trim, stringToInt, contains, find)  -- contains(hay, needle) -> bool, find returns index or -1
+import std/json (encode, decode, getString, getNumber, getInt, getBool, getArray, getObject)  -- v0.6.4
+import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty)  -- v0.6.5
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex)  -- nth/last/any/findIndex v0.6.5
+import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join)  -- chars/join v0.6.5
+import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
 import std/ai (call)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 ```
+
+**List functions** (std/list):
+- `map(f, xs)` - Apply function to each element
+- `filter(p, xs)` - Keep elements matching predicate
+- `foldl(f, acc, xs)` - Left fold (use `func(acc: T, x: U) -> T { ... }` for f)
+- `length(xs)` - List length
+- `concat(xs, ys)` - Concatenate two lists
+- `sortBy(cmp, xs)` - Sort with comparator
+- `take(n, xs)` - Take first n elements
+- `drop(n, xs)` - Drop first n elements
+- `nth(xs, idx) -> Option[a]` - Get element at index (0-based), None if out of bounds (v0.6.5)
+- `last(xs) -> Option[a]` - Get last element, None if empty (v0.6.5)
+- `any(p, xs) -> bool` - Check if any element satisfies predicate (v0.6.5)
+- `findIndex(p, xs) -> Option[int]` - Find index of first matching element (v0.6.5)
+
+**String functions** (std/string):
+- `contains(hay, needle) -> bool` - Check if string contains substring
+- `find(hay, needle) -> int` - Index of substring, or -1 if not found
+- `substring(s, start, end) -> string` - Extract substring
+- `split(s, delim) -> [string]` - Split string by delimiter
+- `chars(s) -> [string]` - Convert string to list of single-character strings (Unicode-aware)
+- `stringToInt(s) -> Option[int]` - Parse integer
+- `stringToFloat(s) -> Option[float]` - Parse float
+- `intToStr(n) -> string` - Convert int to string
+- `floatToStr(f) -> string` - Convert float to string
+- `join(delim, xs) -> string` - Join list of strings with delimiter (v0.6.5)
+
+**Math functions** (std/math):
+- `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
+- `intToFloat(x) -> float` - Convert int to float
+- `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
+- `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
 
 ## String Parsing (Returns Option)
 
@@ -304,8 +417,8 @@ import std/string (stringToInt)
 
 export func main() -> () ! {IO} {
   match stringToInt("42") {
-    Some(n) => print("Parsed: " ++ show(n)),
-    None => print("Invalid number")
+    Some(n) => println("Parsed: " ++ show(n)),
+    None => println("Invalid number")
   }
 }
 ```
@@ -333,9 +446,113 @@ func readCount(filename: string) -> int ! {FS} {
 export func main() -> () ! {IO, FS} {
   let count = readCount("data.txt");
   let msg = formatMessage("Alice", count);
-  print(msg)
+  println(msg)
 }
 ```
+
+## Constructing Option Values
+
+To RETURN an Option from a function, use `Some(value)` or `None`:
+
+```ailang
+module benchmark/solution
+import std/option (Option, Some, None)  -- REQUIRED for constructing Option
+
+-- Return Some(value) for success, None for failure
+pure func safeDivide(a: int, b: int) -> Option[int] =
+  if b == 0 then None else Some(a / b)
+
+-- Return Option from validation
+pure func validateAge(age: int) -> Option[int] =
+  if age >= 0 && age <= 150 then Some(age) else None
+```
+
+## Error Handling with Result Type
+
+Define Result ADT and chain operations with pattern matching:
+
+```ailang
+module benchmark/solution
+import std/string (stringToInt)
+
+-- Use monomorphic Result type (polymorphic Result[a] has type inference issues)
+type IntResult = IntOk(int) | IntErr(string)
+
+-- Parse integer, returning Result
+pure func parseIntResult(s: string) -> IntResult =
+  match stringToInt(s) {
+    Some(n) => IntOk(n),
+    None => IntErr("Invalid integer")
+  }
+
+-- Safe division
+pure func divSafe(a: int, b: int) -> IntResult =
+  if b == 0 then IntErr("Division by zero") else IntOk(a / b)
+
+-- Chain results: parse then divide
+pure func parseAndDivide(s: string, divisor: int) -> IntResult =
+  match parseIntResult(s) {
+    IntOk(n) => divSafe(n, divisor),
+    IntErr(msg) => IntErr(msg)
+  }
+
+-- Format Result for output
+pure func showResult(r: IntResult) -> string =
+  match r {
+    IntOk(v) => "Result: " ++ show(v),
+    IntErr(msg) => "Error: " ++ msg
+  }
+
+export func main() -> () ! {IO} {
+  println(showResult(parseAndDivide("10", 2)));   -- Result: 5
+  println(showResult(parseAndDivide("10", 0)));   -- Error: Division by zero
+  println(showResult(parseAndDivide("abc", 2)))   -- Error: Invalid integer
+}
+```
+
+**Note:** Use monomorphic ADT types (like `IntResult`) rather than polymorphic types (like `Result[a]`) when the ADT interacts with other polymorphic types like `Option`.
+
+## Number Conversions (std/math)
+
+```ailang
+module benchmark/solution
+import std/math (floatToInt, intToFloat, round)
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let f = 3.7;
+  let i = floatToInt(f);      -- 3 (truncates toward zero)
+  let r = floatToInt(round(f)); -- 4 (round first, then convert)
+  let back = intToFloat(i);   -- 3.0
+  println(show(i));
+  println(show(r))
+}
+```
+
+## Character Processing (v0.6.5)
+
+Use `chars(s)` to convert a string to a list of single-character strings:
+
+```ailang
+module benchmark/solution
+import std/string (chars)
+import std/list (filter, length)
+
+-- Count vowels in a string
+pure func countVowels(s: string) -> int {
+  let cs = chars(s);
+  let vowels = filter(func(c: string) -> bool {
+    c == "a" || c == "e" || c == "i" || c == "o" || c == "u"
+  }, cs);
+  length(vowels)
+}
+
+export func main() -> () ! {IO} {
+  println(show(countVowels("hello")))  -- 2
+}
+```
+
+**Note:** `chars` is Unicode-aware - emoji and accented characters are handled correctly.
 
 ## Operators
 
@@ -546,7 +763,94 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
 }
 ```
 
-**JSON accessor functions:**
+**JSON convenience functions (RECOMMENDED for parsing):**
+
+Use these to reduce nested Option matching from 4 levels to 2:
+
+```ailang
+import std/json (decode, getString, getNumber, getInt, getBool, getArray, getObject)
+import std/string (intToStr)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Extract string field with single match
+func getName(obj: Json) -> string =
+  match getString(obj, "name") {
+    Some(name) => name,
+    None => "unknown"
+  }
+
+-- Extract int field (JSON numbers are floats, getInt truncates)
+func getAge(obj: Json) -> int =
+  match getInt(obj, "age") {
+    Some(age) => age,
+    None => 0
+  }
+
+-- Full example
+export func main() -> () ! {IO} =
+  match decode("{\"name\":\"Alice\",\"age\":30}") {
+    Ok(obj) => print(getName(obj) ++ " is " ++ intToStr(getAge(obj))),
+    Err(e) => print("Error: " ++ e)
+  }
+```
+
+**JSON convenience functions (v0.6.4):**
+- `getString(obj, key)` -> `Option[string]` - Get string value directly
+- `getNumber(obj, key)` -> `Option[float]` - Get float value directly
+- `getInt(obj, key)` -> `Option[int]` - Get int value (truncates float)
+- `getBool(obj, key)` -> `Option[bool]` - Get boolean value directly
+- `getArray(obj, key)` -> `Option[List[Json]]` - Get array value directly
+- `getObject(obj, key)` -> `Option[Json]` - Get nested object directly
+
+**JSON array type extraction (v0.6.5):**
+
+Extract typed arrays from JSON with two variants: permissive (skip non-matching) and strict (fail on mismatch).
+
+```ailang
+import std/json (decode, getArray, filterStrings, allStrings, getStringArrayOrEmpty)
+import std/option (Some, None)
+import std/result (Ok, Err)
+
+-- Permissive: filterStrings skips non-strings
+let mixed = [JString("a"), JNumber(1.0), JString("b")];
+filterStrings(mixed)  -- ["a", "b"]
+
+-- Strict: allStrings fails if ANY element is not a string
+allStrings(mixed)               -- None (has JNumber)
+allStrings([JString("a"), JString("b")])  -- Some(["a", "b"])
+
+-- Convenience wrappers for common patterns:
+match decode("{\"tags\": [\"a\", \"b\"]}") {
+  Ok(obj) => {
+    -- getStringArrayOrEmpty: returns [] if missing or invalid
+    let tags = getStringArrayOrEmpty(obj, "tags");  -- ["a", "b"]
+    let missing = getStringArrayOrEmpty(obj, "nope");  -- []
+    print("Got " ++ show(length(tags)) ++ " tags")
+  },
+  Err(e) => print("Error: " ++ e)
+}
+```
+
+**JSON array extraction functions (v0.6.5):**
+
+Permissive (skip non-matching elements):
+- `filterStrings(arr: [Json]) -> [string]` - Extract only JString values
+- `filterNumbers(arr: [Json]) -> [float]` - Extract only JNumber values
+
+Strict (fail if any element wrong type):
+- `allStrings(arr: [Json]) -> Option[[string]]` - All elements must be strings
+- `allNumbers(arr: [Json]) -> Option[[float]]` - All elements must be numbers
+
+Convenience wrappers (object key + array extraction):
+- `getStringArray(obj, key) -> Option[[string]]` - Permissive string array
+- `getStringArrayStrict(obj, key) -> Option[[string]]` - Strict string array
+- `getStringArrayOrEmpty(obj, key) -> [string]` - Returns [] if missing/invalid
+- `getNumberArray(obj, key) -> Option[[float]]` - Permissive number array
+- `getNumberArrayStrict(obj, key) -> Option[[float]]` - Strict number array
+- `getNumberArrayOrEmpty(obj, key) -> [float]` - Returns [] if missing/invalid
+
+**JSON low-level accessor functions:**
 - `get(obj, key)` -> `Option[Json]` - Get value by key
 - `has(obj, key)` -> `bool` - Check if key exists
 - `getOr(obj, key, default)` -> `Json` - Get with fallback
@@ -768,6 +1072,35 @@ func map(f: int -> int, xs: [int]) -> [int] =
     [] => [],
     x :: rest => f(x) :: map(f, rest)
   }
+```
+
+**List index access (v0.6.5):**
+```ailang
+import std/list (nth, last, any, findIndex)
+import std/option (Some, None)
+
+let xs = [10, 20, 30];
+
+-- nth: get element by index (0-based)
+match nth(xs, 1) {
+  Some(x) => print("Element at 1: " ++ show(x)),  -- 20
+  None => print("Index out of bounds")
+};
+
+-- last: get last element
+match last(xs) {
+  Some(x) => print("Last: " ++ show(x)),  -- 30
+  None => print("Empty list")
+};
+
+-- any: check if any element matches predicate
+let hasEven = any(\x. x % 2 == 0, xs);  -- true (20 is even)
+
+-- findIndex: find index of first matching element
+match findIndex(\x. x > 15, xs) {
+  Some(i) => print("First > 15 at index: " ++ show(i)),  -- 1
+  None => print("Not found")
+}
 ```
 
 ## Testing

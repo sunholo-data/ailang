@@ -1,177 +1,225 @@
-# Sprint Plan: M-GAP4 Record Width Subtyping
+# Sprint Plan: M-GAP4 - Record Width Subtyping via Row Polymorphism
 
 ## Summary
-Implement record width subtyping via row polymorphism to allow functions to accept records with extra fields beyond what they require. This enables writing generic functions that operate on record subsets without repeating full record types.
+Enable explicit width subtyping for records using open record syntax (`{a: T | r}` or `{a: T, ..}`), allowing functions to accept records with additional fields beyond what they require.
 
-**Duration:** 2.5 days (10 hours)
-**Dependencies:** None (extends existing row polymorphism infrastructure)
+**Duration:** 2-3 days (~12 hours)
+**Dependencies:** None
 **Risk Level:** Medium (type system changes require careful testing)
 
 ## Current Status Analysis
 
-### Completed Recently
-- v0.6.3: OpenAI Responses API Support (~190 LOC)
-- v0.6.3: Enhanced OTEL tracing (~260 LOC)
-- v0.6.2: OpenTelemetry Integration (~725 LOC)
-- v0.6.2: GitHub-Driven Autonomous Workflow (~1,300 LOC)
+### Existing Infrastructure (Good News!)
+After analyzing the codebase, AILANG already has substantial row polymorphism infrastructure:
+
+- **`TRecordOpen`** type exists (`internal/types/types.go`) - open records with row variable
+- **`unifyRecordOpen`** handles subsumption (`internal/types/unification_records.go:132`)
+- **`unifyRows`** already handles field absorption into tails with occurs check (line 236-314)
+- **`TRecord2`** with proper `Row` structure for new row-polymorphic records
+
+### The Gap
+The issue is:
+1. `unifyRecord` (line 66-67) enforces exact field count for `TRecord` vs `TRecord`
+2. User-facing syntax for `{a: T | r}` needs parser support verification
+3. Sugar syntax `{a: T, ..}` not implemented
+4. Error messages don't suggest open record syntax
+
+### Design Doc Reference
+- Design doc: `design_docs/planned/v0_6_4/m-gap4-record-width-subtyping.md`
+- Approach: Explicit openness only (no implicit widening)
+- Exact records remain exact, open records accept extras
 
 ### Velocity
-- Recent average: ~200-300 LOC/day based on CHANGELOG entries
-- Estimated capacity: ~300 LOC for this sprint (type system work is more complex)
+- Recent stdlib additions: ~25 LOC/function
+- Type system work: ~100-150 LOC/day based on recent unification_records.go additions
+- Estimated capacity: ~150 LOC/day for complex type work
 
-### Current Implementation Status
-- **TRecord2**: New row-polymorphic record type exists
-- **TRecordOpen**: Open record type for subsumption exists
-- **RowUnifier**: Row unification logic implemented
-- **Gap**: `unifyRecord()` enforces exact field count matching (line 66-67)
+## Open Questions (Day 1 Investigation)
 
-```go
-// Current behavior (blocking width subtyping):
-if len(t1.Fields) != len(t2.Fields) {
-    return nil, fmt.Errorf("record field count mismatch: %d vs %d", len(t1.Fields), len(t2.Fields))
-}
-```
+Before full implementation, need to answer:
 
-### Files to Modify (from design doc)
-| File | Change | Est. LOC |
-|------|--------|----------|
-| `internal/types/unification_records.go` | Width subtyping in unification | ~50 |
-| `internal/types/inference.go` | Implicit row variables for params | ~30 |
-| `internal/types/types.go` or `types_v2.go` | Helper functions | ~20 |
-| `internal/errors/codes.go` | Better error codes | ~20 |
+1. **Parser status:** Does `{a: T | r}` parse to `TRecordOpen` today?
+   - Check: `internal/parser/parser.go` for record type parsing
+   - Test: Try parsing `{a: T | r}` in type position
+
+2. **Which type is used:** Are record literals `TRecord` or `TRecord2`?
+   - This affects which unification path is taken
+   - Check: `internal/elaborate/elaborate.go` for record literal elaboration
+
+3. **Integration point:** Does type inference generate `TRecordOpen` from annotations?
+   - Check: `internal/types/infer.go` for annotation handling
+
+4. **Runtime representation:** Can generated Go code handle open records?
+   - Check: `internal/codegen/codegen.go` for record compilation
 
 ## Proposed Milestones
 
-### Milestone 1: Unification Width Subtyping (Day 1)
-**Goal:** Modify `unifyRecord()` to allow records with extra fields when unifying at function boundaries.
-
-**Estimated:** 80 LOC implementation + 60 LOC tests = 140 LOC total
-**Duration:** 4 hours
-
-**Tasks:**
-1. **Hour 1-2:** Modify `unifyRecord()` in `unification_records.go`
-   - Remove strict field count check
-   - When t1 has more fields than t2, check t2 is a subset of t1
-   - Create row extension for extra fields
-   - Handle both directions (t1 > t2 and t2 > t1)
-
-2. **Hour 3:** Update `unifyRows()` for width subtyping semantics
-   - When unifying closed row with fewer fields against record with more fields
-   - Extra fields captured in row variable
-
-3. **Hour 4:** Write unit tests
-   - Basic width subtyping: `{a, b, c}` unifies with `{a}`
-   - Nested records with width subtyping
-   - Lists of records with extra fields
-   - Error cases: missing required fields
-
-**Acceptance Criteria:**
-- [ ] `{a: int, b: string}` unifies with `{a: int | r}` where r captures `{b: string}`
-- [ ] Existing exact-match tests still pass
-- [ ] TRecord2 row unification handles width subtyping
-- [ ] All existing type inference tests pass
-
-**Risks:**
-- Breaking existing code relying on exact matching - Mitigation: Only apply at function boundaries, not type aliases
-
-### Milestone 2: Implicit Row Variables for Parameters (Day 2)
-**Goal:** Infer implicit row variables for record parameters so `{a: T}` in parameter position means "at least `a`".
-
-**Estimated:** 60 LOC implementation + 50 LOC tests = 110 LOC total
-**Duration:** 4 hours
+### Milestone 1: Investigation & Parser Verification
+**Goal:** Answer open questions, verify parser supports row syntax
+**Estimated:** ~2 hours
+**Duration:** Day 1 morning
 
 **Tasks:**
-1. **Hour 1-2:** Modify type inference in `typechecker_data.go`
-   - When inferring record parameter types, add implicit row variable
-   - `{a: T}` in parameter position becomes `{a: T | r}` with fresh `r`
-   - Ensure explicit row syntax still works
+1. Test if `{a: T | r}` parses correctly in type position
+2. Trace record literal elaboration path (TRecord vs TRecord2)
+3. Check if `TRecordOpen` is ever generated from user code
+4. Document current type flow for records
 
-2. **Hour 3:** Update elaboration to propagate row variables
-   - Check `internal/elaborate/elaborate.go` for record handling
-   - Ensure Core AST preserves row variable information
+**Investigation Commands:**
+```bash
+# Test parsing
+echo 'func f(x: {name: string | r}) -> string = x.name' | ailang check --stdin
 
-3. **Hour 4:** Write inference tests
-   - Function with record parameter accepts wider records
-   - Type aliases preserve exact semantics
-   - Explicit row polymorphism still works as before
+# Search for TRecordOpen usage
+grep -r "TRecordOpen" internal/
+
+# Check parser record handling
+grep -n "parseRecordType" internal/parser/
+```
 
 **Acceptance Criteria:**
-- [ ] `func f(x: {name: string}) -> string` accepts `{name: "Alice", age: 30}`
-- [ ] Type aliases remain exact: `type Person = {name: string}` means exactly those fields
-- [ ] Explicit `{name: string | r}` syntax continues to work
-- [ ] No inference regression on existing examples
+- [ ] Document: Does `{a: T | r}` parse today? (Y/N)
+- [ ] Document: Which record type is used for literals?
+- [ ] Document: Integration point for open record syntax
+- [ ] Updated design doc with findings
 
 **Risks:**
-- Over-generalization making inference unpredictable - Mitigation: Only implicit at parameter boundaries
+- Parser may not support row syntax yet (then need parser work)
+- Multiple record type representations may cause complexity
 
-### Milestone 3: Error Messages & Documentation (Day 3)
-**Goal:** Improve error messages for record mismatches and update documentation.
-
-**Estimated:** 40 LOC implementation + 30 LOC tests = 70 LOC total
-**Duration:** 2 hours
+### Milestone 2: Enable Open Record Unification
+**Goal:** Make `TRecordOpen ~ TRecord` unification work for subsumption
+**Estimated:** ~80 LOC implementation + ~50 LOC tests = ~130 LOC
+**Duration:** Day 1 afternoon + Day 2 morning
 
 **Tasks:**
-1. **Hour 1:** Improve error messages
-   - Show which fields are missing (not just "field count mismatch")
-   - Suggest using row polymorphism explicitly when appropriate
-   - Add error code in `internal/errors/codes.go`
+1. If parser support missing: Add `| r` syntax to record type parsing
+2. Ensure `TRecordOpen` flows through type inference
+3. Verify `unifyRecordOpen` handles all cases correctly
+4. Add row variable solving (residuals → row tail)
+5. Add comprehensive tests
 
-2. **Hour 2:** Create example file and update docs
-   - Create `examples/runnable/record_width_subtyping.ail`
-   - Update prompts/v0.6.5.md with width subtyping syntax
-   - Update CHANGELOG.md with feature description
+**Implementation Focus:**
+```go
+// Key changes to internal/types/unification_records.go
+
+// Fix unifyRecordOpen to properly absorb residual fields
+func (u *Unifier) unifyRecordOpen(t1 *TRecordOpen, t2 Type, sub Substitution) (Substitution, error) {
+    // Existing code handles TRecord case (line 134-176)
+    // Need to verify:
+    // 1. Row variable solving works (remainingFields → row)
+    // 2. Error messages suggest open record syntax
+}
+```
+
+**Files to Modify:**
+| File | Change |
+|------|--------|
+| `internal/parser/parser.go` | Row syntax parsing (if needed) |
+| `internal/types/unification_records.go` | Row variable solving |
+| `internal/types/unification_records_test.go` | New test cases |
 
 **Acceptance Criteria:**
-- [ ] Error message shows missing fields: "record missing field 'name', has: {age: int}"
-- [ ] `examples/runnable/record_width_subtyping.ail` passes verification
-- [ ] Documentation updated
-- [ ] CHANGELOG entry added
+- [ ] `{a: T | r}` unifies with `{a: T, b: U}` yielding `r := {b: U}`
+- [ ] `{a: T}` remains exact (rejects extra fields)
+- [ ] Test file with 10+ test cases passes
+- [ ] `make test` passes
 
 **Risks:**
-- Low - Documentation and error messages are low-risk changes
+- Row variable solving complexity (existing code has TODOs at lines 167-173)
+- Multiple record type representations (`TRecord`, `TRecord2`, `TRecordOpen`)
+
+### Milestone 3: Sugar Syntax `{a: T, ..}` (Optional)
+**Goal:** Add shorthand syntax for open records
+**Estimated:** ~30 LOC parser + ~20 LOC tests = ~50 LOC
+**Duration:** Day 2 afternoon (1-2 hours)
+
+**Tasks:**
+1. Add `DOTDOT` token to lexer (if not present)
+2. Parse `{a: T, ..}` in record type position
+3. Desugar to `TRecordOpen` with fresh row variable
+4. Add tests for sugar syntax
+
+**Acceptance Criteria:**
+- [ ] `{a: T, ..}` parses and works identically to `{a: T | r}`
+- [ ] Parser tests cover sugar syntax
+- [ ] Documentation example uses both syntaxes
+
+**Risks:**
+- Low - straightforward parser addition
+- Can be deferred if time constrained
+
+### Milestone 4: Error Messages & Documentation
+**Goal:** Improve DX with helpful error messages
+**Estimated:** ~40 LOC errors + ~20 LOC docs = ~60 LOC
+**Duration:** Day 3 (2-3 hours)
+
+**Tasks:**
+1. Add structured error for record mismatch:
+   - List missing fields
+   - List extra fields (when exact record rejects)
+   - Suggest: "use `{field: T | r}` to accept extra fields"
+2. Create example file `examples/runnable/record_width_subtyping.ail`
+3. Update design doc status to Implemented
+4. Update teaching prompt if needed
+
+**Error Message Format:**
+```
+Type error: record field mismatch
+  Expected: {name: string}
+  Got: {name: string, age: int}
+
+  Extra fields: age
+
+  Hint: Use open record {name: string | r} to accept extra fields
+```
+
+**Acceptance Criteria:**
+- [ ] Error messages list missing/extra fields
+- [ ] Error messages suggest open record syntax
+- [ ] Example file works: `examples/runnable/record_width_subtyping.ail`
+- [ ] Design doc status updated
+- [ ] `make lint` passes
+
+**Risks:**
+- None - straightforward improvements
 
 ## Success Metrics
-- Test coverage: Maintain current coverage (no decrease)
-- Examples passing: record_width_subtyping.ail works
-- Documentation: prompts/v0.6.5.md updated, CHANGELOG entry
-- All tests passing: `make test`
-- All linting passing: `make lint`
-- Existing record tests: No regressions
+
+- **Core functionality:** `{a: T | r}` unifies with `{a: T, b: U}` correctly
+- **Exact records preserved:** `{a: T}` rejects extra fields
+- **Test coverage:** 15+ new test cases
+- **Examples passing:** `record_width_subtyping.ail` works
+- **Documentation:** Design doc updated to Implemented
+- **All tests passing:** `make test`
+- **All linting passing:** `make lint`
 
 ## Dependencies
-- None - extends existing row polymorphism infrastructure
 
-## Open Questions
-1. **Should width subtyping apply to return types?**
-   - Recommendation: No, only parameters (covariant position)
+- None - builds on existing row polymorphism infrastructure
 
-2. **Should pattern matching on records require exact match?**
-   - Recommendation: Yes, patterns are more specific than parameters
+## Timeline
 
-## Implementation Notes
+**Day 1:** Investigation + Core unification (~6 hours)
+- Morning: Answer open questions, trace type flow
+- Afternoon: Implement/fix row variable solving
 
-### Key Code Locations
-- **Unification entry point:** `internal/types/unification_core.go:216-222`
-- **Record unification:** `internal/types/unification_records.go:62-129` (TRecord)
-- **Row unification:** `internal/types/row_unification.go:34-154`
-- **TRecordOpen:** `internal/types/unification_records.go:131-233` (already supports subsumption)
+**Day 2:** Testing + Sugar syntax (~4 hours)
+- Morning: Comprehensive test suite
+- Afternoon: `{a: T, ..}` sugar (optional)
 
-### Existing Infrastructure to Leverage
-- `TRecordOpen` already implements subsumption logic - can reuse patterns
-- `RowUnifier.UnifyRows()` handles open/closed row combinations
-- `RecordHasField()` and `RecordFieldType()` helpers exist
+**Day 3:** Error messages + Documentation (~2 hours)
+- Error message improvements
+- Example file and docs
 
-### Test File Locations
-- `internal/types/record_unification_test.go` - add width subtyping tests
-- `internal/types/row_unification_regression_test.go` - ensure no regressions
+## Notes
 
-## Timeline Summary
+- Existing infrastructure is more complete than expected
+- Key insight: `unifyRecordOpen` already exists (lines 132-232) but may have incomplete row variable solving (lines 167-173 have TODOs)
+- `TRecord` vs `TRecord2` distinction needs investigation - may affect which path is used
+- Sugar syntax is optional - can ship without `..` if time constrained
+- Focus on explicit openness - no implicit widening per design doc
 
-| Day | Hours | Milestone | Deliverable |
-|-----|-------|-----------|-------------|
-| 1 | 4h | M1: Unification | Width subtyping in unifyRecord() |
-| 2 | 4h | M2: Inference | Implicit row vars for params |
-| 3 | 2h | M3: Polish | Error messages, docs, examples |
+## Coordinator Integration
 
-**Total:** 10 hours / 2.5 days
-**Estimated LOC:** ~320 (implementation + tests)
+**SPRINT_PLAN_PATH**: `design_docs/planned/v0_6_4/m-gap4-record-width-subtyping-sprint.md`

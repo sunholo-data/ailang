@@ -8,11 +8,34 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.6.5
+
+- [Retrospective: Observability Dashboard Development](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_5/RETROSPECTIVE-observability-dashboard.md)
+- [M-TASK-HIERARCHY Follow-ups](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_5/m-task-hierarchy-followups.md)
+- [M-TASK-HIERARCHY: Task-to-Trace Linking](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_5/m-task-hierarchy-linking.md)
+- [M-TASK-HIERARCHY Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_5/m-task-hierarchy-sprint-plan.md)
+
+## v0.6.4
+
+- [M-DASHBOARD-APPROVAL-INTEGRATION: Complete Dashboard Coordinator Approval Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-dashboard-approval-integration.md)
+- [M-SCRIPT-INVOKE Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-script-invoke-sprint-plan.md)
+- [M-SCRIPT-INVOKE: Deterministic Script Execution for Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-script-invoke.md)
+- [Observatory Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/observatory-architecture.md)
+
 ## v0.6.3
 
 - [M-COORD-GENERIC-WORKFLOWS: Configurable Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-coord-generic-workflows.md)
+- [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-eval-ollama-local-models.md)
+- [Sprint Plan: M-OPENAI-RESPONSES-API Completion](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-openai-responses-api-completion-sprint.md)
+- [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-openai-responses-api-sprint.md)
+- [M-OPENAI-RESPONSES-API: OpenAI Responses API & Agent Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-openai-responses-api.md)
+- [M-OTEL-CROSS-PROCESS: Cross-Process Trace Linking](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-cross-process-linking.md)
+- [Sprint Plan: M-OTEL-CROSS-PROCESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-cross-process-sprint-plan.md)
+- [M-OTEL-DASHBOARD Implementation Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-dashboard.md)
 - [Sprint Plan: M-OTEL-ENHANCED-TRACING-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-enhanced-tracing-dx-sprint-plan.md)
 - [M-OTEL-ENHANCED-TRACING-DX: Human-Friendly Tracing for Debugging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-enhanced-tracing-dx.md)
+- [M-OTEL-EXTENDED: Extended OpenTelemetry Instrumentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-extended-instrumentation.md)
+- [M-OTEL-EXTENDED Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-otel-extended-sprint-plan.md)
 - [Parser Infinite Loop Guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-parser-infinite-loop-guard.md)
 - [Sprint Plan: M-PARSER-LOOP - Parser Infinite Loop Guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-parser-loop-sprint-plan.md)
 
@@ -412,4 +435,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 282 design documents across 40 versions.*
+*Generated at build time. 299 design documents across 42 versions.*

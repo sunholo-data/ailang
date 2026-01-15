@@ -6,6 +6,347 @@ This guide explains how to integrate AILANG code with Go applications.
 > Breaking changes are allowed until v0.6.0 but will be announced in the CHANGELOG.
 > See [ABI Stability](#abi-stability) for details.
 
+## Integration Options
+
+AILANG provides two ways to integrate with Go:
+
+| Approach | Use Case | Performance | Complexity |
+|----------|----------|-------------|------------|
+| **Runtime Embedding** | Dynamic transforms, config DSL, scripting | Good (cached) | Low |
+| **Compile-time Codegen** | Game engines, hot paths, type-safe ABI | Best | Medium |
+
+- **Runtime Embedding** (v0.6.4+): Embed AILANG interpreter, call functions at runtime
+- **Compile-time Codegen**: Generate Go code with `ailang compile --emit-go`
+
+---
+
+## Runtime Embedding (v0.6.4+)
+
+The `internal/embed` package lets you embed AILANG as a scripting/extension language in Go applications.
+
+### Quick Start
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/sunholo/ailang/internal/embed"
+)
+
+func main() {
+    // Create engine with base path for module resolution
+    engine := embed.New("/path/to/project")
+    defer engine.Close()
+
+    // Call an AILANG function
+    result, err := engine.Call(
+        "transforms/formatter",  // module path
+        "truncate",              // function name
+        "Hello, World!",         // args...
+        10,
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Extract typed result
+    text, _ := embed.ToString(result)
+    fmt.Println(text)  // "Hello, Wor..."
+}
+```
+
+### Engine API
+
+```go
+// Create a new engine
+engine := embed.New(basePath string) *Engine
+
+// Load a module (optional - Call auto-loads)
+engine.Load(modulePath string) error
+
+// Call an exported function
+engine.Call(modulePath, funcName string, args ...interface{}) (eval.Value, error)
+
+// JSON-based calling (for language-agnostic integration)
+engine.CallJSON(modulePath, funcName string, inputJSON []byte) ([]byte, error)
+
+// Evaluate an expression (requires module context)
+engine.Eval(code string) (eval.Value, error)
+
+// Introspection
+engine.ListExports(modulePath string) ([]string, error)
+engine.HasExport(modulePath, name string) bool
+
+// Cleanup
+engine.Close() error
+```
+
+### Value Conversion
+
+The embed package provides bidirectional conversion between Go and AILANG values:
+
+**Go to AILANG (`FromGo`):**
+
+| Go Type | AILANG Type |
+|---------|-------------|
+| `nil` | `()` (unit) |
+| `bool` | `bool` |
+| `int`, `int8`...`int64` | `int` |
+| `uint`, `uint8`...`uint64` | `int` |
+| `float32`, `float64` | `float` |
+| `string` | `string` |
+| `[]byte` | `bytes` |
+| `[]T` | `[T]` (list) |
+| `[N]T` | array |
+| `map[string]T` | `{...}` (record) |
+| `struct` | `{...}` (record, exported fields) |
+
+**AILANG to Go (`ToGo`):**
+
+| AILANG Type | Go Type |
+|-------------|---------|
+| `()` (unit) | `nil` |
+| `bool` | `bool` |
+| `int` | `int` |
+| `float` | `float64` |
+| `string` | `string` |
+| `bytes` | `[]byte` |
+| `[T]` (list) | `[]interface{}` |
+| `{...}` (record) | `map[string]interface{}` |
+
+### Type-Safe Extractors
+
+For type safety, use the specific extractors:
+
+```go
+// Extract specific types
+value, err := embed.ToInt(result)
+value, err := embed.ToFloat(result)
+value, err := embed.ToString(result)
+value, err := embed.ToBool(result)
+value, err := embed.ToBytes(result)
+value, err := embed.ToList(result)
+value, err := embed.ToRecord(result)
+
+// Check for unit
+if embed.IsUnit(result) {
+    // result is ()
+}
+```
+
+### JSON Integration
+
+For language-agnostic use or HTTP APIs:
+
+```go
+// JSON input → AILANG → JSON output
+inputJSON := []byte(`{"events": [...], "maxLen": 200}`)
+outputJSON, err := engine.CallJSON(
+    "transforms/formatter",
+    "processEvents",
+    inputJSON,
+)
+// outputJSON ready for HTTP response
+
+// Manual JSON conversion
+ailangVal, err := embed.FromJSON(jsonBytes)
+jsonBytes, err := embed.ToJSON(ailangVal)
+```
+
+### Complete Example
+
+Given this AILANG module:
+
+```ailang
+-- transforms/event_formatter.ail
+module transforms/event_formatter
+
+import std/string (length as strlen, substring)
+
+export pure func truncate(text: string, maxLen: int) -> string =
+  if maxLen == 0 || strlen(text) <= maxLen
+  then text
+  else substring(text, 0, maxLen) ++ "..."
+
+export pure func countWords(text: string) -> int =
+  length(split(text, " "))
+```
+
+Call it from Go:
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/sunholo/ailang/internal/embed"
+)
+
+func main() {
+    engine := embed.New(".")
+    defer engine.Close()
+
+    // Call truncate
+    result, _ := engine.Call(
+        "transforms/event_formatter",
+        "truncate",
+        "The quick brown fox jumps over the lazy dog",
+        20,
+    )
+    text, _ := embed.ToString(result)
+    fmt.Println(text)  // "The quick brown fox ..."
+
+    // Call countWords
+    result, _ = engine.Call(
+        "transforms/event_formatter",
+        "countWords",
+        "hello world foo bar",
+    )
+    count, _ := embed.ToInt(result)
+    fmt.Println(count)  // 4
+
+    // Using structs
+    type Event struct {
+        TurnNum    int    `json:"turnNum"`
+        StreamType string `json:"streamType"`
+        Text       string `json:"text"`
+    }
+
+    event := Event{TurnNum: 1, StreamType: "text", Text: "Hello"}
+    ailangVal, _ := embed.FromGo(event)
+    // ailangVal is now an AILANG record
+}
+```
+
+### Limitations
+
+1. **Pure functions recommended**: Embedded modules should be pure for predictability
+2. **No hot reloading**: Restart engine to pick up module changes
+3. **Standalone expressions**: `Eval("1+2")` requires let binding: `Eval("let x = 1+2 in x")`
+4. **Thread safety**: Engine is mutex-protected; for parallel calls, use separate engines
+
+### When to Use Runtime Embedding
+
+**Good for:**
+- Configuration DSLs
+- Data transformation pipelines
+- Plugin/extension systems
+- Scripting in applications
+- Dynamic rule engines
+
+**Consider compile-time codegen instead for:**
+- Performance-critical game loops
+- Type-safe ABI requirements
+- Static analysis of generated code
+
+---
+
+## Comparison: Embedding vs Codegen
+
+### Feature Comparison
+
+| Feature | Runtime Embedding | Compile-Time Codegen |
+|---------|-------------------|---------------------|
+| **Performance** | Good (cached modules) | Best (native Go) |
+| **Type safety** | Runtime errors | Compile-time errors |
+| **Hot reload** | Restart engine | Recompile binary |
+| **Deployment** | Ship .ail files | Single binary |
+| **Debugging** | AILANG stack traces | Go stack traces |
+| **Effects** | Pure functions only | Full effect handlers |
+| **Complexity** | Simple API | Generated code to maintain |
+
+### Performance Characteristics
+
+**Runtime Embedding:**
+```
+First call:   ~50-100ms (parse + compile + type check)
+Cached call:  ~0.1-1ms (lookup + eval)
+Memory:       Runtime + cached ASTs
+```
+
+**Compile-Time Codegen:**
+```
+First call:   ~0.001ms (native Go function)
+All calls:    ~0.001ms (no interpretation overhead)
+Memory:       Static Go code only
+```
+
+### When to Choose Each
+
+**Choose Runtime Embedding when:**
+- ✅ AILANG modules change frequently
+- ✅ End users customize behavior
+- ✅ Plugin/extension architecture
+- ✅ Prototyping and development
+- ✅ Pure data transformation
+- ✅ Minimal integration effort needed
+
+**Choose Compile-Time Codegen when:**
+- ✅ Performance is critical (game loops, hot paths)
+- ✅ Type-safe ABI with Go required
+- ✅ Need full effect handler support
+- ✅ Single-binary deployment preferred
+- ✅ Static analysis of generated code needed
+
+### Hybrid Approach
+
+You can use both approaches in the same project:
+
+```go
+// Core game loop: compile-time codegen for performance
+import "mygame/gen/game"
+
+func gameLoop() {
+    // Native Go speed
+    result := game.Step(world, input)
+}
+
+// Config/scripting: runtime embedding for flexibility
+import "github.com/sunholo/ailang/internal/embed"
+
+func loadMods() {
+    engine := embed.New("./mods")
+    for _, mod := range modPaths {
+        engine.Call(mod, "init", gameState)
+    }
+}
+```
+
+### Code Comparison
+
+**Same AILANG module:**
+```ailang
+module example/math
+
+export pure func add(a: int, b: int) -> int = a + b
+```
+
+**With Runtime Embedding:**
+```go
+engine := embed.New(".")
+result, err := engine.Call("example/math", "add", 1, 2)
+sum, _ := embed.ToInt(result)  // sum = 3
+```
+
+**With Compile-Time Codegen:**
+```bash
+ailang compile --emit-go --package-name math example/math.ail
+```
+```go
+import "myproject/gen/math"
+
+sum := math.Add(1, 2)  // sum = 3
+```
+
+---
+
+## Compile-Time Codegen
+
+For performance-critical use cases, compile AILANG to Go code with `ailang compile --emit-go`.
+
 ## Type Mapping
 
 AILANG types map to Go types as follows:

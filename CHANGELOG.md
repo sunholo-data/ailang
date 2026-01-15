@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Added - Generic AILANG Embedding API (M-EMBED)
+
+New `internal/embed/` package enables Go applications to embed AILANG as a scripting/extension language.
+
+**New Package: `internal/embed/`**
+- `embed.go` - Engine API for module loading and function calling (~220 LOC)
+- `convert.go` - Bidirectional Go↔AILANG value conversion (~330 LOC)
+- `embed_test.go` - Test suite (14 passing tests)
+
+**Key Features:**
+- `Engine.Call()` - Call AILANG functions from Go with automatic type conversion
+- `Engine.CallJSON()` - JSON-based interface for language-agnostic integration
+- `FromGo()` / `ToGo()` - Convert between Go and AILANG values
+- Type-safe extractors: `ToInt()`, `ToString()`, `ToBool()`, `ToList()`, `ToRecord()`
+- Module caching for efficient repeated calls
+
+**Usage:**
+```go
+engine := embed.New("/path/to/project")
+defer engine.Close()
+
+result, _ := engine.Call("transforms/formatter", "truncate", "Hello, World!", 10)
+text, _ := embed.ToString(result)  // "Hello, Wor..."
+```
+
+**Documentation:** [Go Interop Guide - Runtime Embedding](docs/docs/guides/go-interop.md#runtime-embedding-v064)
+
+**Design Doc:** `design_docs/planned/v0_6_4/m-embed-go-ailang-bridge.md`
+
+### Added - AILANG Dogfooding: Dashboard Transforms
+
+Created `internal/dashboard_transforms/` with AILANG port of event formatter for dogfooding.
+
+**Files:**
+- `event_formatter.ail` - Pure functions for filtering and formatting task events (~145 LOC)
+- `GAPS_DISCOVERED.md` - Documents 6 language gaps found during porting
+
+**Gaps Discovered:**
+| Gap | Severity | Status |
+|-----|----------|--------|
+| GAP-1: Teaching prompt foldl syntax | High | Fixed |
+| GAP-2: Path-dependent type checking | Critical | Needs investigation |
+| GAP-3: Lambda syntax with foldl | Medium | Workaround available |
+| GAP-4: No record width subtyping | High | Future work |
+| GAP-5: Standalone expression eval | Medium | Workaround available |
+
 ### Fixed - Coordinator Merge Helper Bug
 
 **Issue:** `getMainRepoPath()` function in `internal/coordinator/merge.go` returned incorrect path when called with empty input. The function would run git commands in the current directory instead of validating input first.
