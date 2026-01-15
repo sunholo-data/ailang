@@ -73,6 +73,12 @@ const formatDateRange = (range: DateRange): string => {
   return `${startStr} - ${endStr}`;
 };
 
+// Helper to extract workspace name from full path
+const getWorkspaceName = (workspace: string): string => {
+  const parts = workspace.split('/');
+  return parts[parts.length - 1] || workspace;
+};
+
 export const MessageQueue: React.FC<MessageQueueProps> = ({
   events,
   onEventClick,
@@ -87,6 +93,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   // Filter events by date range and types
   const filteredEvents = useMemo(() => {
@@ -316,8 +323,40 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                     <span className={styles.queueTarget}>{event.target}</span>
                   </>
                 )}
+                {/* Context badges for workspace and agent */}
+                {event.workspace && (
+                  <span className={styles.queueBadge} data-badge="workspace" title={event.workspace}>
+                    {getWorkspaceName(event.workspace)}
+                  </span>
+                )}
+                {event.agent_id && (
+                  <span className={styles.queueBadge} data-badge="agent" title={`Agent: ${event.agent_id}`}>
+                    {event.agent_id}
+                  </span>
+                )}
               </div>
-              <div className={styles.queueMessage}>{event.content}</div>
+              {/* Show directive as primary content if available, otherwise show content */}
+              <div className={styles.queueMessage}>
+                {event.directive || event.content}
+              </div>
+              {/* Expandable full directive */}
+              {event.directive_full && event.directive_full.length > 200 && (
+                <button
+                  className={styles.queueExpandBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedEventId(expandedEventId === event.id ? null : event.id);
+                  }}
+                  title={expandedEventId === event.id ? 'Collapse' : 'Expand full directive'}
+                >
+                  {expandedEventId === event.id ? '▼' : '▶'} {event.directive_full.length} chars
+                </button>
+              )}
+              {expandedEventId === event.id && event.directive_full && (
+                <div className={styles.queueExpandedContent}>
+                  {event.directive_full}
+                </div>
+              )}
             </div>
             <div className={styles.queueTime}>
               <span className={styles.queueRelative}>{formatRelativeTime(event.timestamp)}</span>

@@ -841,21 +841,23 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 // for the Event Queue. Each api_request span becomes an event that can be clicked
 // to show its hierarchy (tool calls correlated by timestamp).
 type ClaudeCodeEvent struct {
-	ID         string  `json:"id"`           // span_id (also used as task_id for hierarchy lookup)
-	CreatedAt  string  `json:"created_at"`   // ISO8601 timestamp (matches inbox message format)
-	Type       string  `json:"message_type"` // "claude_code_turn"
-	FromAgent  string  `json:"from_agent"`   // Agent ID (e.g., "design-doc-creator") or "claude-code" for user sessions
-	ToInbox    string  `json:"to_inbox"`     // Agent inbox (e.g., "design-doc-creator") or "user" for user sessions
-	Title      string  `json:"title"`        // "Claude Code Turn ($X.XX)"
-	TaskID     string  `json:"task_id"`      // Same as ID for hierarchy lookup
-	Status     string  `json:"status"`       // "read" (not actionable like inbox messages)
-	CostUSD    float64 `json:"cost_usd"`
-	TokensIn   int64   `json:"tokens_in"`
-	TokensOut  int64   `json:"tokens_out"`
-	DurationMs int     `json:"duration_ms"`
-	Workspace  string  `json:"workspace,omitempty"` // Working directory (from resource attributes)
-	Model      string  `json:"model,omitempty"`     // Model used for this event (e.g., "claude-sonnet-4-5")
-	Provider   string  `json:"provider,omitempty"`  // AI provider (e.g., "claude", "gemini")
+	ID            string  `json:"id"`           // span_id (also used as task_id for hierarchy lookup)
+	CreatedAt     string  `json:"created_at"`   // ISO8601 timestamp (matches inbox message format)
+	Type          string  `json:"message_type"` // "claude_code_turn"
+	FromAgent     string  `json:"from_agent"`   // Agent ID (e.g., "design-doc-creator") or "claude-code" for user sessions
+	ToInbox       string  `json:"to_inbox"`     // Agent inbox (e.g., "design-doc-creator") or "user" for user sessions
+	Title         string  `json:"title"`        // "Claude Code Turn ($X.XX)"
+	TaskID        string  `json:"task_id"`      // Same as ID for hierarchy lookup
+	Status        string  `json:"status"`       // "read" (not actionable like inbox messages)
+	CostUSD       float64 `json:"cost_usd"`
+	TokensIn      int64   `json:"tokens_in"`
+	TokensOut     int64   `json:"tokens_out"`
+	DurationMs    int     `json:"duration_ms"`
+	Workspace     string  `json:"workspace,omitempty"`      // Working directory (from resource attributes)
+	Model         string  `json:"model,omitempty"`          // Model used for this event (e.g., "claude-sonnet-4-5")
+	Provider      string  `json:"provider,omitempty"`       // AI provider (e.g., "claude", "gemini")
+	Directive     string  `json:"directive,omitempty"`      // Initial user prompt (truncated preview)
+	DirectiveFull string  `json:"directive_full,omitempty"` // Full directive (for detail views)
 }
 
 // TaskAgentLookup is a callback to resolve coordinator task_id to agent info.
@@ -885,7 +887,8 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			SUM(COALESCE(tokens_out, 0)) as total_tokens_out,
 			MAX(model) as model,
 			MAX(provider) as provider,
-			MAX(json_extract(resource_attributes, '$."process.cwd"')) as workspace
+			MAX(json_extract(resource_attributes, '$."process.cwd"')) as workspace,
+			MAX(json_extract(attributes, '$."task.directive"')) as directive
 		FROM spans
 		WHERE name = 'api_request'
 		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
@@ -908,9 +911,9 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
-		var model, provider, workspace sql.NullString
+		var model, provider, workspace, directive sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &model, &provider, &workspace); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &model, &provider, &workspace, &directive); err != nil {
 			return nil, err
 		}
 
@@ -938,22 +941,31 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			providerVal = provider.String
 		}
 
+		// Truncate directive for preview (200 chars), keep full for detail view
+		directivePreview := directive.String
+		directiveFull := directive.String
+		if len(directivePreview) > 200 {
+			directivePreview = directivePreview[:200] + "..."
+		}
+
 		events = append(events, ClaudeCodeEvent{
-			ID:         sessionID,  // Use session_id as the event ID
-			CreatedAt:  latestTime, // Most recent activity
-			Type:       "claude_code_session",
-			FromAgent:  "claude-code",
-			ToInbox:    "user",
-			Title:      title,
-			TaskID:     sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
-			Status:     "read",
-			CostUSD:    totalCostUSD,
-			TokensIn:   totalTokensIn,
-			TokensOut:  totalTokensOut,
-			DurationMs: totalDurationMs,
-			Model:      model.String,
-			Provider:   providerVal,
-			Workspace:  workspace.String,
+			ID:            sessionID,  // Use session_id as the event ID
+			CreatedAt:     latestTime, // Most recent activity
+			Type:          "claude_code_session",
+			FromAgent:     "claude-code",
+			ToInbox:       "user",
+			Title:         title,
+			TaskID:        sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
+			Status:        "read",
+			CostUSD:       totalCostUSD,
+			TokensIn:      totalTokensIn,
+			TokensOut:     totalTokensOut,
+			DurationMs:    totalDurationMs,
+			Model:         model.String,
+			Provider:      providerVal,
+			Workspace:     workspace.String,
+			Directive:     directivePreview,
+			DirectiveFull: directiveFull,
 		})
 	}
 
@@ -1003,7 +1015,8 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			MAX(aa.agent_id) as agent_id,
 			MAX(s.model) as model,
 			MAX(s.provider) as provider,
-			MAX(json_extract(s.resource_attributes, '$."process.cwd"')) as workspace
+			MAX(json_extract(s.resource_attributes, '$."process.cwd"')) as workspace,
+			MAX(json_extract(s.attributes, '$."task.directive"')) as directive
 		FROM spans s
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'
@@ -1027,9 +1040,9 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		var totalDurationMs int
 		var totalCostUSD float64
 		var totalTokensIn, totalTokensOut int64
-		var coordTaskID, agentID, model, provider, workspace sql.NullString
+		var coordTaskID, agentID, model, provider, workspace, directive sql.NullString
 
-		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID, &model, &provider, &workspace); err != nil {
+		if err := rows.Scan(&sessionID, &firstSpanID, &latestTimeRaw, &turnCount, &totalDurationMs, &totalCostUSD, &totalTokensIn, &totalTokensOut, &coordTaskID, &agentID, &model, &provider, &workspace, &directive); err != nil {
 			return nil, err
 		}
 
@@ -1068,22 +1081,31 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			providerVal = provider.String
 		}
 
+		// Truncate directive for preview (200 chars), keep full for detail view
+		directivePreview := directive.String
+		directiveFull := directive.String
+		if len(directivePreview) > 200 {
+			directivePreview = directivePreview[:200] + "..."
+		}
+
 		events = append(events, ClaudeCodeEvent{
-			ID:         sessionID,  // Use session_id as the event ID
-			CreatedAt:  latestTime, // Most recent activity
-			Type:       "claude_code_session",
-			FromAgent:  fromAgent,
-			ToInbox:    toInbox,
-			Title:      title,
-			TaskID:     sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
-			Status:     "read",
-			CostUSD:    totalCostUSD,
-			TokensIn:   totalTokensIn,
-			TokensOut:  totalTokensOut,
-			DurationMs: totalDurationMs,
-			Model:      model.String,
-			Provider:   providerVal,
-			Workspace:  workspace.String,
+			ID:            sessionID,  // Use session_id as the event ID
+			CreatedAt:     latestTime, // Most recent activity
+			Type:          "claude_code_session",
+			FromAgent:     fromAgent,
+			ToInbox:       toInbox,
+			Title:         title,
+			TaskID:        sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
+			Status:        "read",
+			CostUSD:       totalCostUSD,
+			TokensIn:      totalTokensIn,
+			TokensOut:     totalTokensOut,
+			DurationMs:    totalDurationMs,
+			Model:         model.String,
+			Provider:      providerVal,
+			Workspace:     workspace.String,
+			Directive:     directivePreview,
+			DirectiveFull: directiveFull,
 		})
 	}
 

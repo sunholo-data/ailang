@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -78,6 +79,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.String("executor.name", "claude"),
 			attribute.String("executor.model", e.model),
 			attribute.String("task.workspace", task.Workspace),
+			attribute.String("task.directive", telemetry.Truncate(task.Directive, 500)),
 		),
 	)
 	defer span.End()

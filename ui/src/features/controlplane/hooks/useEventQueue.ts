@@ -21,6 +21,12 @@ export interface EventMessage {
   to_inbox?: string;
   inbox?: string;       // alias for to_inbox (compatibility)
   task_id?: string;     // correlation with exec hierarchy
+  // Context fields for task identification (dashboard event queue)
+  workspace?: string;         // Working directory path
+  directive?: string;         // Initial user prompt (truncated)
+  directive_full?: string;    // Full directive (for detail views)
+  agent_id?: string;          // Agent identifier (e.g., "design-doc-creator")
+  source_type?: string;       // Event source: coordinator, eval, github, direct
   metadata?: Record<string, unknown>;
 }
 
@@ -43,6 +49,10 @@ interface InboxMessage {
   provider?: string;
   model?: string;
   source_type?: string;
+  // Task context fields (from TaskStreamEvent enrichment)
+  directive?: string;
+  directive_full?: string;
+  agent_id?: string;
 }
 
 interface UseEventQueueOptions {
@@ -113,6 +123,12 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
         to_inbox: msg.to_inbox,
         inbox: msg.to_inbox,
         task_id: msg.task_id || msg.parent_task_id || msg.correlation_id,
+        // Context fields for task identification
+        workspace: msg.workspace,
+        directive: msg.directive,
+        directive_full: msg.directive_full,
+        agent_id: msg.agent_id,
+        source_type: msg.source_type,
         metadata: {
           payload: msg.payload,
           status: msg.status,
@@ -198,6 +214,12 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
               target: undefined,
               content: formatStreamContent(taskEvent),
               task_id: taskEvent.task_id,
+              // Context fields for task identification
+              workspace: taskEvent.workspace,
+              directive: taskEvent.directive,
+              directive_full: taskEvent.directive_full,
+              agent_id: taskEvent.agent_id,
+              source_type: taskEvent.source_type || 'coordinator',
               metadata: taskEvent,
             };
 

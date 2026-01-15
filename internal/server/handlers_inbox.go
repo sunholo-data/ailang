@@ -30,14 +30,16 @@ type UnifiedEvent struct {
 	Source        string `json:"source"`                   // "inbox" or "claude_code"
 
 	// Claude Code specific fields
-	CostUSD    float64 `json:"cost_usd,omitempty"`
-	TokensIn   int64   `json:"tokens_in,omitempty"`
-	TokensOut  int64   `json:"tokens_out,omitempty"`
-	DurationMs int     `json:"duration_ms,omitempty"`
-	Workspace  string  `json:"workspace,omitempty"`   // Working directory for Claude Code events
-	Model      string  `json:"model,omitempty"`       // AI model used (e.g., "claude-opus-4-5-20251101")
-	Provider   string  `json:"provider,omitempty"`    // AI provider (e.g., "claude", "gemini")
-	SourceType string  `json:"source_type,omitempty"` // Source type: coordinator, eval, user_session, etc.
+	CostUSD       float64 `json:"cost_usd,omitempty"`
+	TokensIn      int64   `json:"tokens_in,omitempty"`
+	TokensOut     int64   `json:"tokens_out,omitempty"`
+	DurationMs    int     `json:"duration_ms,omitempty"`
+	Workspace     string  `json:"workspace,omitempty"`      // Working directory for Claude Code events
+	Model         string  `json:"model,omitempty"`          // AI model used (e.g., "claude-opus-4-5-20251101")
+	Provider      string  `json:"provider,omitempty"`       // AI provider (e.g., "claude", "gemini")
+	SourceType    string  `json:"source_type,omitempty"`    // Source type: coordinator, eval, user_session, etc.
+	Directive     string  `json:"directive,omitempty"`      // Initial user prompt (truncated preview)
+	DirectiveFull string  `json:"directive_full,omitempty"` // Full directive (for detail views)
 }
 
 // GET /api/inbox - List inbox messages
@@ -197,23 +199,25 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					events = append(events, UnifiedEvent{
-						ID:         cc.ID,
-						CreatedAt:  cc.CreatedAt,
-						Type:       cc.Type,
-						FromAgent:  cc.FromAgent,
-						ToInbox:    cc.ToInbox,
-						Title:      cc.Title,
-						TaskID:     cc.TaskID,
-						Status:     cc.Status,
-						CostUSD:    cc.CostUSD,
-						TokensIn:   cc.TokensIn,
-						TokensOut:  cc.TokensOut,
-						DurationMs: cc.DurationMs,
-						Source:     "claude_code",
-						Model:      cc.Model,
-						Provider:   cc.Provider,
-						Workspace:  cc.Workspace,
-						SourceType: InferInboxSourceType(cc.FromAgent, cc.ToInbox),
+						ID:            cc.ID,
+						CreatedAt:     cc.CreatedAt,
+						Type:          cc.Type,
+						FromAgent:     cc.FromAgent,
+						ToInbox:       cc.ToInbox,
+						Title:         cc.Title,
+						TaskID:        cc.TaskID,
+						Status:        cc.Status,
+						CostUSD:       cc.CostUSD,
+						TokensIn:      cc.TokensIn,
+						TokensOut:     cc.TokensOut,
+						DurationMs:    cc.DurationMs,
+						Source:        "claude_code",
+						Model:         cc.Model,
+						Provider:      cc.Provider,
+						Workspace:     cc.Workspace,
+						SourceType:    InferInboxSourceType(cc.FromAgent, cc.ToInbox),
+						Directive:     cc.Directive,
+						DirectiveFull: cc.DirectiveFull,
 					})
 				}
 			}

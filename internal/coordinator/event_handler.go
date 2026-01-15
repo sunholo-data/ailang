@@ -17,6 +17,15 @@ type EventBroadcaster func(*websocket.TaskStreamEvent)
 // This allows events to be persisted for historical replay.
 type EventStorer func(*TaskEventRecord) error
 
+// TaskEventContext holds context information for task events.
+// This is used to enrich events with workspace, directive, and agent info.
+type TaskEventContext struct {
+	Workspace  string // Working directory path
+	Directive  string // Full initial directive/prompt
+	AgentID    string // Agent identifier (e.g., "design-doc-creator")
+	SourceType string // Event source: coordinator, eval, github, direct
+}
+
 // CoordinatorEventHandler implements executor.EventHandler to capture
 // and broadcast executor events via WebSocket.
 type CoordinatorEventHandler struct {
@@ -24,6 +33,9 @@ type CoordinatorEventHandler struct {
 	threadID  string
 	broadcast EventBroadcaster
 	store     EventStorer
+
+	// Task context for event enrichment
+	taskContext *TaskEventContext
 
 	// Rate limiting
 	mu              sync.Mutex
@@ -61,6 +73,12 @@ func NewCoordinatorEventHandler(taskID, threadID string, broadcast EventBroadcas
 // SetEventStorer sets the database storage function for persisting events.
 func (h *CoordinatorEventHandler) SetEventStorer(storer EventStorer) {
 	h.store = storer
+}
+
+// SetTaskContext sets the task context for event enrichment.
+// Call this after construction to add workspace, directive, and agent info to all events.
+func (h *CoordinatorEventHandler) SetTaskContext(ctx *TaskEventContext) {
+	h.taskContext = ctx
 }
 
 // OnTurnStart is called when a new turn starts
@@ -238,6 +256,17 @@ func (h *CoordinatorEventHandler) broadcastEvent(event *websocket.TaskStreamEven
 		broadcastEvent.Text = truncateString(event.Text, 2000)
 		broadcastEvent.ToolInput = truncateString(event.ToolInput, 1000)
 		broadcastEvent.ToolOutput = truncateString(event.ToolOutput, 2000)
+
+		// Enrich with task context if available
+		if h.taskContext != nil {
+			broadcastEvent.Workspace = h.taskContext.Workspace
+			broadcastEvent.AgentID = h.taskContext.AgentID
+			broadcastEvent.SourceType = h.taskContext.SourceType
+			// Truncate directive for preview, include full for detail view
+			broadcastEvent.Directive = truncateString(h.taskContext.Directive, 200)
+			broadcastEvent.DirectiveFull = h.taskContext.Directive
+		}
+
 		h.broadcast(&broadcastEvent)
 	}
 }

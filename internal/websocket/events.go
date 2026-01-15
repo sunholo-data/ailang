@@ -134,6 +134,13 @@ type TaskStreamEvent struct {
 	TokensOut   int                 `json:"tokens_out,omitempty"`
 	Cost        float64             `json:"cost,omitempty"`
 	DurationSec int                 `json:"duration_sec,omitempty"`
+
+	// Context fields for task identification (added for dashboard event queue)
+	Workspace     string `json:"workspace,omitempty"`      // Working directory path
+	Directive     string `json:"directive,omitempty"`      // Initial user prompt (truncated)
+	DirectiveFull string `json:"directive_full,omitempty"` // Full directive (for detail views)
+	AgentID       string `json:"agent_id,omitempty"`       // Agent identifier (e.g., "design-doc-creator")
+	SourceType    string `json:"source_type,omitempty"`    // Event source: coordinator, eval, github, direct
 }
 
 // NewEvent creates a new event with timestamp

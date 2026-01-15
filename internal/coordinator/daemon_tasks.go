@@ -629,6 +629,14 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		eventHandler = NewCoordinatorEventHandler(task.ID, task.ThreadID, d.eventBroadcaster)
 		opts.EventHandler = eventHandler
 
+		// Set task context for event enrichment (workspace, directive, agent info)
+		eventHandler.SetTaskContext(&TaskEventContext{
+			Workspace:  task.Workspace,
+			Directive:  task.Content,
+			AgentID:    task.AgentID,
+			SourceType: "coordinator",
+		})
+
 		// Set up event storage for historical replay
 		if sqliteStore, ok := d.taskStore.(*SQLiteStore); ok {
 			eventHandler.SetEventStorer(func(record *TaskEventRecord) error {
