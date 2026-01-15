@@ -23,6 +23,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -37,14 +39,30 @@ type Engine struct {
 	runtime  *runtime.ModuleRuntime
 	basePath string
 	closed   bool
+	compiled map[string]bool // tracks which modules have been compiled through pipeline
 }
 
 // New creates a new AILANG embedding engine.
 // basePath is the root directory for resolving module imports.
+// The basePath should be the root of the project containing both
+// user modules and the stdlib directory.
 func New(basePath string) *Engine {
+	// Resolve basePath to absolute for consistent path handling
+	absBasePath, err := filepath.Abs(basePath)
+	if err != nil {
+		absBasePath = basePath
+	}
+
+	// Set AILANG_STDLIB_PATH to basePath so stdlib modules can be found
+	// This is needed because the loader resolves stdlib relative to CWD by default
+	if os.Getenv("AILANG_STDLIB_PATH") == "" {
+		os.Setenv("AILANG_STDLIB_PATH", absBasePath)
+	}
+
 	return &Engine{
-		basePath: basePath,
-		runtime:  runtime.NewModuleRuntime(basePath),
+		basePath: absBasePath,
+		runtime:  runtime.NewModuleRuntime(absBasePath),
+		compiled: make(map[string]bool),
 	}
 }
 
@@ -70,8 +88,66 @@ func (e *Engine) Load(modulePath string) error {
 		return nil // Already loaded
 	}
 
+	// Compile module through pipeline first (applies OpLowering)
+	if !e.compiled[modulePath] {
+		if err := e.compileModule(modulePath); err != nil {
+			return err
+		}
+	}
+
 	_, err := e.runtime.LoadAndEvaluate(modulePath)
 	return err
+}
+
+// compileModule runs the module through the pipeline to apply all transforms
+// including OpLowering, then preloads the result into the runtime.
+func (e *Engine) compileModule(modulePath string) error {
+	// Construct the file path (make absolute for pipeline)
+	filePath := filepath.Join(e.basePath, modulePath+".ail")
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Run through pipeline with ModeCheck to get compiled modules
+	cfg := pipeline.Config{
+		Mode:         pipeline.ModeCheck,
+		RelaxModules: true, // Allow module path to not match file path exactly
+	}
+	src := pipeline.Source{
+		Filename: absPath,
+	}
+
+	result, err := pipeline.RunWithContext(context.Background(), cfg, src)
+	if err != nil {
+		return fmt.Errorf("compilation error: %w", err)
+	}
+
+	if len(result.Errors) > 0 {
+		return fmt.Errorf("compilation errors: %v", result.Errors)
+	}
+
+	// Preload all compiled modules to the runtime
+	if result.Modules != nil {
+		for path, loaded := range result.Modules {
+			e.runtime.PreloadModule(path, loaded)
+			e.compiled[path] = true
+		}
+	}
+
+	// Also preload with the requested modulePath since pipeline may use different paths
+	// (e.g., absolute vs relative, or canonical vs declared path)
+	if result.Interface != nil {
+		// Get the module that was actually loaded (by declared module path)
+		declaredPath := result.Interface.Module
+		if loaded, ok := result.Modules[declaredPath]; ok {
+			// Preload with the user's requested path for lookup
+			e.runtime.PreloadModule(modulePath, loaded)
+			e.compiled[modulePath] = true
+		}
+	}
+
+	return nil
 }
 
 // Call invokes an exported function from a module with the given arguments.
@@ -88,6 +164,13 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 	// Load module if needed
 	inst := e.runtime.GetInstance(modulePath)
 	if inst == nil {
+		// Compile through pipeline first (applies OpLowering)
+		if !e.compiled[modulePath] {
+			if err := e.compileModule(modulePath); err != nil {
+				return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
+			}
+		}
+
 		var err error
 		inst, err = e.runtime.LoadAndEvaluate(modulePath)
 		if err != nil {

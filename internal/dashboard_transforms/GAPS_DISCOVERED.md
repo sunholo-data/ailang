@@ -137,3 +137,29 @@ result, _ := engine.Call(
 - Concise lambda syntax with foldl
 - Row polymorphism for flexible record types
 - Complete stdlib for string/list operations
+
+---
+
+## Performance Benchmarks (v0.6.6)
+
+**Go vs AILANG comparison** (Apple M2):
+
+| Operation | Go | AILANG | Slowdown |
+|-----------|-----|--------|----------|
+| truncate (1 call) | 25 ns | 26 µs | ~1,000x |
+| countTurns (10 events) | 4 ns | 211 µs | ~50,000x |
+| countTurns (100 events) | 33 ns | 2.1 ms | ~64,000x |
+| summarize (10 events) | 161 ns | 418 µs | ~2,600x |
+| summarize (100 events) | 400 ns | 4.1 ms | ~10,000x |
+
+**Assessment:**
+- **Function call overhead:** ~26µs per call
+- **Dashboard use case:** 4ms latency acceptable for human-refreshed data
+- **Usability:** Good for <100 events per call, <10 calls/second
+
+**Benchmark file:** `internal/dashboard_transforms/benchmark_test.go`
+
+Run benchmarks:
+```bash
+go test -bench=. -benchmem ./internal/dashboard_transforms/...
+```
