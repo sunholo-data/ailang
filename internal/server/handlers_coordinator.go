@@ -519,7 +519,8 @@ func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID s
 	}
 
 	// Get the diff using coordinator's GetWorktreeDiff
-	diff, err := coordinator.GetWorktreeDiff(ctx, task.WorktreePath)
+	// Pass task.BaseBranch - if empty, GetWorktreeDiff will query git for default
+	diff, err := coordinator.GetWorktreeDiff(ctx, task.WorktreePath, task.BaseBranch)
 	if err != nil {
 		log.Printf("Failed to get diff for task %s: %v", taskID, err)
 		http.Error(w, "Failed to get diff", http.StatusInternalServerError)

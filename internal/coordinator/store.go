@@ -151,7 +151,7 @@ type Store interface {
 	// Task state transitions
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
-	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error // Work done, awaiting human review
+	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch string, result *ExecuteResult) error // Work done, awaiting human review
 	MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error
 	MarkTaskFailed(ctx context.Context, id string, err error) error
 	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work

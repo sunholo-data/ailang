@@ -39,8 +39,8 @@ func MergeWorktree(ctx context.Context, worktreePath, mainBranch string) (*Merge
 		return result, nil
 	}
 
-	// Get list of changed files in worktree
-	changedFiles, err := getChangedFiles(ctx, worktreePath)
+	// Get list of changed files in worktree (compare against target merge branch)
+	changedFiles, err := getChangedFiles(ctx, worktreePath, mainBranch)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to get changed files: %v", err)
 		return result, nil
@@ -88,23 +88,25 @@ func MergeWorktree(ctx context.Context, worktreePath, mainBranch string) (*Merge
 	return result, nil
 }
 
-// GetWorktreeDiff returns the git diff for a worktree against its parent branch.
-func GetWorktreeDiff(ctx context.Context, worktreePath string) (string, error) {
+// GetWorktreeDiff returns the git diff for a worktree against its base branch.
+// baseBranch is the branch the worktree was created from (e.g., "dev").
+// If baseBranch is empty, it queries git for the remote's default branch.
+func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch string) (string, error) {
 	if worktreePath == "" {
 		return "", fmt.Errorf("worktree path is empty")
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "diff", "HEAD~1..HEAD")
+	// If base branch not provided, query git for the default branch
+	if baseBranch == "" {
+		baseBranch = GetDefaultBranch(worktreePath)
+	}
+
+	// Compare against the base branch to show all changes made by this task
+	cmd := exec.CommandContext(ctx, "git", "diff", baseBranch+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Try diffing against main if HEAD~1 doesn't exist
-		cmd = exec.CommandContext(ctx, "git", "diff", "main..HEAD")
-		cmd.Dir = worktreePath
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			return "", fmt.Errorf("git diff failed: %w\n%s", err, output)
-		}
+		return "", fmt.Errorf("git diff against %s failed: %w\n%s", baseBranch, err, output)
 	}
 	return string(output), nil
 }
@@ -121,18 +123,19 @@ func getWorktreeBranch(ctx context.Context, worktreePath string) (string, error)
 }
 
 // getChangedFiles returns a list of files changed in the worktree.
-func getChangedFiles(ctx context.Context, worktreePath string) ([]string, error) {
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", "HEAD~1..HEAD")
+// baseBranch is the branch the worktree was created from (e.g., "dev").
+// If baseBranch is empty, it queries git for the remote's default branch.
+func getChangedFiles(ctx context.Context, worktreePath, baseBranch string) ([]string, error) {
+	// If base branch not provided, query git for the default branch
+	if baseBranch == "" {
+		baseBranch = GetDefaultBranch(worktreePath)
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", baseBranch+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Try diffing against main if HEAD~1 doesn't exist
-		cmd = exec.CommandContext(ctx, "git", "diff", "--name-only", "main..HEAD")
-		cmd.Dir = worktreePath
-		output, err = cmd.CombinedOutput()
-		if err != nil {
-			return nil, fmt.Errorf("git diff failed: %w\n%s", err, output)
-		}
+		return nil, fmt.Errorf("git diff against %s failed: %w\n%s", baseBranch, err, output)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")

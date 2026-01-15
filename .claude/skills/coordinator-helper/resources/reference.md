@@ -246,6 +246,25 @@ CREATE TABLE task_events (
 );
 ```
 
+## Approval Types (v0.6.5+)
+
+| Type | CLI Display | On Approve |
+|------|-------------|------------|
+| `merge` | `[merge]` | Merges code to dev branch only |
+| `merge_handoff` | `[merge+handoff] → agent` | Merges code AND triggers next agent |
+| `handoff` | `[handoff]` | (legacy) Sends to next agent only |
+
+**Combined approvals** are created automatically when agent has `trigger_on_complete` with `auto_approve_handoffs: false`. This lets you review code AND approve handoff in one action.
+
+**Context JSON for merge_handoff:**
+```json
+{
+  "handoff_targets": ["sprint-planner"],
+  "session_id": "sess-abc123",
+  "source_agent": "design-doc-creator"
+}
+```
+
 ## Event Stream Types
 
 Events stored in `task_events` table:
@@ -262,6 +281,7 @@ Events stored in `task_events` table:
 | `human_feedback` | text, turn_num, status | Human rejection feedback (v0.6.4+) |
 | `human_approval` | text, status | Human approval event (v0.6.4+) |
 | `iteration_start` | turn_num, text | New iteration started after feedback (v0.6.4+) |
+| `handoff_triggered` | text | Handoff sent to next agent (v0.6.5+) |
 
 ## Configuration
 

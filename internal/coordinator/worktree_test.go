@@ -84,7 +84,7 @@ func TestWorktreeManagerMaxLimit(t *testing.T) {
 	}
 
 	// Create first worktree
-	wt1, err := wm.CreateWorktree("task-1")
+	wt1, err := wm.CreateWorktree("task-1", "main")
 	if err != nil {
 		t.Fatalf("failed to create first worktree: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestWorktreeManagerMaxLimit(t *testing.T) {
 	}
 
 	// Create second worktree
-	wt2, err := wm.CreateWorktree("task-2")
+	wt2, err := wm.CreateWorktree("task-2", "main")
 	if err != nil {
 		t.Fatalf("failed to create second worktree: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestWorktreeManagerMaxLimit(t *testing.T) {
 	}
 
 	// Third should fail due to limit
-	_, err = wm.CreateWorktree("task-3")
+	_, err = wm.CreateWorktree("task-3", "main")
 	if err == nil {
 		t.Error("expected error when exceeding max worktrees limit")
 		_ = wm.RemoveWorktree("task-3")
@@ -129,7 +129,7 @@ func TestWorktreeManagerCreateAndRemove(t *testing.T) {
 	}
 
 	// Create worktree
-	wt, err := wm.CreateWorktree("test-task")
+	wt, err := wm.CreateWorktree("test-task", "main")
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestWorktreeManagerListWorktrees(t *testing.T) {
 
 	// Create multiple worktrees
 	for _, id := range []string{"task-a", "task-b"} {
-		_, err := wm.CreateWorktree(id)
+		_, err := wm.CreateWorktree(id, "main")
 		if err != nil {
 			t.Fatalf("failed to create worktree %s: %v", id, err)
 		}
@@ -217,14 +217,14 @@ func TestWorktreeManagerDuplicateCreate(t *testing.T) {
 	}
 
 	// Create worktree
-	wt1, err := wm.CreateWorktree("duplicate-task")
+	wt1, err := wm.CreateWorktree("duplicate-task", "main")
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}
 	defer func() { _ = wm.RemoveWorktree("duplicate-task") }()
 
 	// Create again should return existing
-	wt2, err := wm.CreateWorktree("duplicate-task")
+	wt2, err := wm.CreateWorktree("duplicate-task", "main")
 	if err != nil {
 		t.Fatalf("duplicate create returned error: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestWorktreeManagerCleanupOrphaned(t *testing.T) {
 	}
 
 	// Create worktree
-	wt, err := wm.CreateWorktree("orphan-task")
+	wt, err := wm.CreateWorktree("orphan-task", "main")
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}

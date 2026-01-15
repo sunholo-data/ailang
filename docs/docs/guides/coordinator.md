@@ -402,23 +402,37 @@ Changes merged to main branch
 
 ### Approval Gates
 
-Each agent can require human approval before:
-1. **Handoff approval** - Before triggering the next agent
-2. **Merge approval** - Before merging changes to main branch
+Each agent can require human approval before proceeding. The approval system uses a **unified approval** model (v0.6.5+) where merge and handoff are combined into a single approval action.
+
+#### Configuration Options
 
 ```yaml
-# Require approval for both
+# Combined approval (recommended) - Single approval covers merge + handoff
 auto_approve_handoffs: false
 auto_merge: false
+# Creates: merge_handoff approval type
+# Human reviews once → merge + handoff triggered together
 
-# Auto-approve handoffs but require merge approval
+# Auto-approve handoffs - Handoff triggers immediately after merge approval
 auto_approve_handoffs: true
 auto_merge: false
+# Creates: merge approval type only
+# Human reviews code → merge → handoff auto-triggers
 
 # Fully autonomous (dangerous!)
 auto_approve_handoffs: true
 auto_merge: true
+# No approvals required - agent chain runs automatically
 ```
+
+#### Session Continuity
+
+When `session_continuity: true` is set:
+- **Handoffs**: Next agent receives `session_id` and can use `--resume` (Claude) or `--conversation-id` (Gemini)
+- **Rejections**: Same agent retries with same `session_id`, preserving full conversation history
+- **Worktrees**: Same git worktree is reused across iterations
+
+This means agents can "pick up where they left off" with full context of previous work.
 
 ## GitHub Integration
 
@@ -628,33 +642,46 @@ GET /api/coordinator/tasks/{task_id}/diff
 
 ```json
 {
-  "id": "approval-123",
-  "task_id": "task-456",
-  "type": "task_completion",
-  "description": "Review changes for: Fix parser bug",
+  "id": "apr-456789",
+  "task_id": "task-456789",
+  "type": "merge_handoff",
+  "description": "Agent completed work on: Fix parser bug (will handoff to: sprint-planner)",
+  "context_json": "{\"handoff_targets\":[\"sprint-planner\"],\"session_id\":\"sess-abc\",\"source_agent\":\"design-doc-creator\"}",
   "status": "pending",
-  "created_at": "2025-12-31T10:00:00Z",
-  "worktree_path": "/Users/mark/.ailang/state/worktrees/coordinator/task-456",
-  "session_id": "claude-session-abc",
-  "task_title": "Fix parser bug",
-  "task_status": "pending_approval",
-  "provider": "claude-code"
+  "created_at": "2025-12-31T10:00:00Z"
 }
 ```
 
+### Approval Types (v0.6.5+)
+
+| Type | Description | What Happens on Approve |
+|------|-------------|------------------------|
+| `merge` | Simple merge approval | Merges changes to dev branch |
+| `merge_handoff` | Combined merge + handoff | Merges changes AND triggers next agent |
+| `handoff` | Legacy separate handoff | (deprecated) Sends to next agent |
+
+The `merge_handoff` type is created automatically when an agent has `trigger_on_complete` configured with `auto_approve_handoffs: false`. This provides a single approval that covers both the code review and agent handoff.
+
 ### What Happens on Approve
 
-1. Worktree changes are merged to main branch
-2. Merge conflicts are detected and reported
-3. If agent has `trigger_on_complete`, handoff message is sent
-4. Worktree is cleaned up
+1. **Merge**: Worktree changes are merged to dev branch
+2. **Conflict detection**: Merge conflicts are detected and reported
+3. **Handoff triggered**: If approval type is `merge_handoff`, extracts handoff data from `context_json` and sends message to next agent's inbox with:
+   - `session_id` for continuity (agent can use `--resume`)
+   - `parent_task_id` for hierarchy tracking
+   - Full task context and result
+4. **Cleanup**: Worktree is cleaned up after successful merge
 
 ### What Happens on Reject
 
-1. Worktree is preserved for manual inspection
-2. Task is marked as "rejected"
-3. No handoff is triggered
-4. Changes are NOT merged
+1. **Worktree preserved**: Changes are kept for manual inspection
+2. **Feedback stored**: Your feedback is recorded as `human_feedback` event
+3. **Re-trigger** (if under max iterations):
+   - Sends feedback message to same agent's inbox
+   - Agent resumes with `--resume <sessionId>` (same worktree, same context)
+   - Iteration counter increments (max 3 attempts)
+4. **No handoff**: Next agent is NOT triggered
+5. **Changes NOT merged**: Code stays in worktree only
 
 ### Multi-Channel Approval Workflow (v0.6.4+)
 

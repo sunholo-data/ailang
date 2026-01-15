@@ -543,7 +543,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		d.logger.Printf("Script agent %s using workspace directly: %s", targetAgent, workspacePath)
 	} else if worktreeMgr != nil {
 		var wtErr error
-		worktree, wtErr = worktreeMgr.CreateWorktree(task.ID)
+		// Get merge branch from agent config (inherits from global if not set)
+		mergeBranch := ""
+		if agentConfig != nil {
+			mergeBranch = agentConfig.MergeBranch
+		}
+		worktree, wtErr = worktreeMgr.CreateWorktree(task.ID, mergeBranch)
 		if wtErr != nil {
 			// Check if this is a recoverable "limit reached" error
 			if errors.Is(wtErr, ErrWorktreeLimitReached) {
@@ -725,9 +730,11 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// Human must approve/reject before worktree is cleaned up
 		worktreePath := ""
 		worktreeBranch := ""
+		baseBranch := ""
 		if worktree != nil {
 			worktreePath = worktree.Path
 			worktreeBranch = worktree.Branch
+			baseBranch = worktree.BaseBranch
 
 			// AUTO-COMMIT: Deterministically commit any uncommitted changes
 			// Agents may forget to commit, so we do it automatically before approval
@@ -757,7 +764,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
 			// Normal agents: mark as pending approval
-			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, result); err != nil {
+			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, baseBranch, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 			}
 

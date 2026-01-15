@@ -95,6 +95,32 @@ pending → queued → running → pending_approval → completed
 
 **Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Claude uses `--resume` to continue with full conversation context.
 
+## Unified Approvals (v0.6.5+)
+
+When an agent has `trigger_on_complete` configured with `auto_approve_handoffs: false`, approvals are **combined**:
+
+| Approval Type | Description | On Approve |
+|--------------|-------------|------------|
+| `merge` | Simple merge only | Merges code to dev branch |
+| `merge_handoff` | Combined merge + handoff | Merges code AND triggers next agent |
+
+**CLI display shows:**
+```
+⏳ [1] [merge+handoff] → sprint-planner  task-12345678
+       Title: Agent completed work on: Fix parser bug
+```
+
+**What happens on approve:**
+1. Code is merged to dev branch
+2. Handoff message is sent to next agent's inbox with `session_id` for continuity
+3. Worktree is cleaned up
+
+**What happens on reject:**
+1. Worktree is preserved
+2. Feedback is sent to same agent's inbox
+3. Agent resumes with `--resume <sessionId>` (same context, same worktree)
+4. Iteration counter increments (max 3 attempts)
+
 ## GitHub-Driven Workflow (v0.6.2+)
 
 For tasks linked to GitHub issues, the coordinator supports a fully GitHub-native approval workflow.

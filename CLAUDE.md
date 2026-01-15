@@ -967,15 +967,38 @@ ailang messages send coordinator "Fix the null pointer bug in parser.go" \
 **Approval Workflow:**
 - Task completes → Approval request created
 - Dashboard shows pending approvals with git diff viewer
-- Approve → Changes merged to main, next agent triggered
+- Approve → Changes merged to dev, next agent triggered (if configured)
 - Reject → Feedback loop with re-trigger support
+
+**Approval Types (v0.6.5+):**
+
+When an agent has `trigger_on_complete` configured with `auto_approve_handoffs: false`, approvals are **combined**:
+
+| Type | CLI Display | On Approve |
+|------|-------------|------------|
+| `merge` | `[merge]` | Merges code to dev branch only |
+| `merge_handoff` | `[merge+handoff] → agent` | Merges code AND triggers next agent |
+
+**Session Continuity:**
+- **On Approve**: Handoff message sent to next agent with `session_id` for context
+- **On Reject**: Same agent retries with same worktree, same session, feedback added
+- Both preserve git worktree and conversation context via `--resume <sessionId>`
+
+**Approval Response Format (API):**
+```json
+{
+  "id": "apr-123",
+  "type": "merge_handoff",
+  "context_json": "{\"handoff_targets\":[\"sprint-planner\"],\"session_id\":\"...\",\"source_agent\":\"design-doc-creator\"}"
+}
+```
 
 **CLI Approval Actions (v0.6.4+):**
 When reviewing pending approvals with `ailang coordinator pending`:
 
 | Key | Action | Description |
 |-----|--------|-------------|
-| `a` | Approve | Merge changes to dev branch, trigger next agent |
+| `a` | Approve | Merge changes to dev branch; trigger next agent if `merge_handoff` |
 | `r` | Reject | Prompt for feedback, send to agent inbox, re-trigger task |
 | `c` | Chat | View conversation history (turn-by-turn with tool calls) |
 | `d` | Diff | View git diff of changes |

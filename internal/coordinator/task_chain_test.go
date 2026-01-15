@@ -108,7 +108,7 @@ func (m *MockStore) MarkTaskRunning(ctx context.Context, id, provider, worktreeI
 	return nil
 }
 
-func (m *MockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch string, result *ExecuteResult) error {
+func (m *MockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch string, result *ExecuteResult) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls["MarkTaskPendingApproval"]++

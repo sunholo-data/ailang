@@ -92,7 +92,35 @@ Diagnose Collaboration Hub and Observatory issues.
 - `GET /api/observatory/spans?task_id=X` - Spans by task
 - `GET /api/observatory/traces/{id}` - Trace with all spans
 
+**Approvals (v0.6.5+):**
+- `GET /api/coordinator/pending` - List pending approvals
+- `POST /api/coordinator/approve/{id}` - Approve (merge + optional handoff)
+- `POST /api/coordinator/reject/{id}` - Reject with feedback
+
 **For complete API reference:** See [resources/rest_api_reference.md](resources/rest_api_reference.md)
+
+## Approval Workflow (v0.6.5+)
+
+The approval system uses **unified approvals** where merge and handoff are combined:
+
+| Approval Type | UI Display | On Approve |
+|--------------|------------|------------|
+| `merge` | "Approve" button | Merges code to dev |
+| `merge_handoff` | "Approve & Handoff" button | Merges code AND triggers next agent |
+
+**API response includes:**
+```json
+{
+  "id": "apr-123",
+  "type": "merge_handoff",
+  "context_json": "{\"handoff_targets\":[\"sprint-planner\"],\"session_id\":\"...\"}"
+}
+```
+
+**UI considerations:**
+- Show handoff targets when `type === "merge_handoff"`
+- Update button text to indicate handoff will occur
+- Show session continuity info (agent will resume with context)
 
 ## Hierarchy & Trace Correlation
 
