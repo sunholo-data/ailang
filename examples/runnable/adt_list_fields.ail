@@ -1,0 +1,38 @@
+-- adt_list_fields.ail - ADT Record Types with List Fields (v0.6.6+)
+-- Demonstrates record types containing list fields for Go codegen
+-- Issue #116: Fix for *List undefined type in generated Go code
+
+module examples/runnable/adt_list_fields
+
+import std/io (println)
+import std/list (length)
+
+type StarSystem = {
+  name: string,
+  planets: [string]
+}
+
+type Galaxy = {
+  name: string,
+  systems: [StarSystem]
+}
+
+type DataSet = {
+  label: string,
+  values: [int]
+}
+
+func main() -> unit ! {IO} = {
+  let sol = { name: "Sol", planets: ["Earth", "Mars"] };
+  println("Star system: " ++ sol.name);
+  println("Planet count: " ++ show(length(sol.planets)));
+  let proxima = { name: "Proxima", planets: ["Proxima b"] };
+  let milkyWay = { name: "Milky Way", systems: [sol, proxima] };
+  println("Galaxy: " ++ milkyWay.name);
+  println("System count: " ++ show(length(milkyWay.systems)));
+  let data = { label: "Temps", values: [72, 68, 75] };
+  println("Data: " ++ data.label);
+  println("Value count: " ++ show(length(data.values)));
+  println("All ADT list field examples passed!");
+  ()
+}

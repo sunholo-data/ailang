@@ -4,7 +4,7 @@
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import type { EventMessage, DateRange } from './types';
-import type { ControlPlaneFilters } from '../types';
+import type { ControlPlaneFilters, SortField, SortOrder } from '../types';
 import { hasActiveFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
 import styles from '../ControlPlane.module.css';
@@ -21,6 +21,10 @@ export interface MessageQueueProps {
   onDateRangeChange?: (range: DateRange | null) => void;
   selectedTypes?: EventType[];
   onTypeFilterChange?: (types: EventType[]) => void;
+  // Sort props
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+  onSortChange?: (sort: SortField, order: SortOrder) => void;
   // Filters for CLI hint
   filters?: ControlPlaneFilters;
   // Selection highlighting
@@ -79,6 +83,15 @@ const getWorkspaceName = (workspace: string): string => {
   return parts[parts.length - 1] || workspace;
 };
 
+// Sort options configuration
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: 'timestamp', label: 'Recent' },
+  { value: 'cost', label: 'Cost' },
+  { value: 'tokens', label: 'Tokens' },
+  { value: 'turns', label: 'Turns' },
+  { value: 'duration', label: 'Duration' },
+];
+
 export const MessageQueue: React.FC<MessageQueueProps> = ({
   events,
   onEventClick,
@@ -88,11 +101,15 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   onDateRangeChange,
   selectedTypes,
   onTypeFilterChange,
+  sortBy = 'timestamp',
+  sortOrder = 'desc',
+  onSortChange,
   filters,
   selectedEventId,
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [showTypeFilter, setShowTypeFilter] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   // Filter events by date range and types
@@ -213,7 +230,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
           title={selectedDateRange ? 'Clear date filter' : 'Select dates from heatmap'}
         >
           <span className={styles.filterIcon}>📅</span>
-          {selectedDateRange ? formatDateRange(selectedDateRange) : 'All dates'}
+          {selectedDateRange ? formatDateRange(selectedDateRange) : 'Dates'}
           {selectedDateRange && <span className={styles.filterClear}>×</span>}
         </button>
 
@@ -224,7 +241,7 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
             onClick={() => setShowTypeFilter(!showTypeFilter)}
           >
             <span className={styles.filterIcon}>◉</span>
-            {selectedTypes && selectedTypes.length > 0 ? `${selectedTypes.length} types` : 'All types'}
+            {selectedTypes && selectedTypes.length > 0 ? `${selectedTypes.length} types` : 'types'}
             <span className={styles.filterChevron}>{showTypeFilter ? '▲' : '▼'}</span>
           </button>
           {showTypeFilter && (
@@ -251,6 +268,44 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                     {getEventIcon(type)}
                   </span>
                   <span className={styles.filterOptionLabel}>{type.replace('_', ' ')}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Sort dropdown */}
+        <div className={styles.filterDropdown}>
+          <button
+            className={`${styles.filterBtn} ${sortBy !== 'timestamp' ? styles.filterBtnActive : ''}`}
+            onClick={() => setShowSortDropdown(!showSortDropdown)}
+          >
+            <span className={styles.filterIcon}>{sortOrder === 'desc' ? '↓' : '↑'}</span>
+            {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort'}
+            <span className={styles.filterChevron}>{showSortDropdown ? '▲' : '▼'}</span>
+          </button>
+          {showSortDropdown && (
+            <div className={styles.filterMenu}>
+              {SORT_OPTIONS.map((option) => (
+                <div
+                  key={option.value}
+                  className={`${styles.filterOption} ${sortBy === option.value ? styles.filterOptionSelected : ''}`}
+                  onClick={() => {
+                    if (onSortChange) {
+                      // If clicking same sort, toggle order; otherwise select new sort with desc
+                      if (sortBy === option.value) {
+                        onSortChange(option.value, sortOrder === 'desc' ? 'asc' : 'desc');
+                      } else {
+                        onSortChange(option.value, 'desc');
+                      }
+                    }
+                    setShowSortDropdown(false);
+                  }}
+                >
+                  <span className={styles.filterOptionIcon}>
+                    {sortBy === option.value ? (sortOrder === 'desc' ? '↓' : '↑') : '○'}
+                  </span>
+                  <span className={styles.filterOptionLabel}>{option.label}</span>
                 </div>
               ))}
             </div>

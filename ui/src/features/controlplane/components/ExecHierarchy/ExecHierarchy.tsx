@@ -1075,7 +1075,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
                 <span className={styles.filterText}>
                   {effectiveHiddenCount > 0
                     ? `${uniqueSpanTypes.length - effectiveHiddenCount}/${uniqueSpanTypes.length}`
-                    : 'All'}
+                    : 'Types'}
                 </span>
                 <span className={styles.filterChevron}>{showSpanTypeFilter ? '▴' : '▾'}</span>
               </button>

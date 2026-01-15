@@ -1,0 +1,259 @@
+-- Heatmap Grid Builder
+--
+-- AILANG port of internal/server/handlers_controlplane.go:buildHeatmapGrid
+-- Purpose: Dogfooding AILANG for real-world data transformation
+--
+-- This module transforms flat heatmap cells into a week-by-week grid
+-- suitable for GitHub-style contribution heatmap visualization.
+
+module internal/dashboard_transforms/heatmap
+
+import std/clock (now)
+import std/datetime (
+  weekday, day, month,
+  addDays,
+  startOfWeek as alignToMonday,
+  formatISODate, formatMonthShort
+)
+import std/list (filter, map, foldl, length)
+import std/string (intToStr)
+
+-- ============================================================================
+-- Input Types
+-- ============================================================================
+
+-- HeatmapCell: Input cell from database query
+-- Each cell represents one day's aggregated data
+export type HeatmapCell = {
+  date: string,        -- "YYYY-MM-DD"
+  taskCount: int,
+  cost: float,
+  successRate: float   -- 0.0 to 1.0
+}
+
+-- ============================================================================
+-- Output Types
+-- ============================================================================
+
+-- HeatmapGridCell: Output cell for the grid
+export type HeatmapGridCell = {
+  date: string,
+  count: int,
+  cost: float,
+  successRate: float,
+  intensity: float,    -- 0.0-1.0 for coloring
+  dayOfWeek: int       -- 0=Sunday...6=Saturday
+}
+
+-- HeatmapMonthLabel: Month label for grid header
+export type HeatmapMonthLabel = {
+  name: string,        -- "Jan", "Feb", etc.
+  weekIndex: int       -- 0-based week column index
+}
+
+-- HeatmapGridResponse: Complete grid response
+export type HeatmapGridResponse = {
+  weeks: [[HeatmapGridCell]],
+  monthLabels: [HeatmapMonthLabel],
+  totalTasks: int,
+  totalCost: float,
+  startDate: string,
+  endDate: string
+}
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+-- lookupCell: Find a cell by date string (O(n) scan, no maps in AILANG)
+pure func lookupCell(cells: [HeatmapCell], targetDate: string) -> HeatmapCell {
+  let matches = filter(\c. c.date == targetDate, cells);
+  if length(matches) > 0
+  then
+    -- GAP: No list head/first function, use match
+    match matches {
+      [] => { date: targetDate, taskCount: 0, cost: 0.0, successRate: 0.0 },
+      [first, ..._] => first
+    }
+  else { date: targetDate, taskCount: 0, cost: 0.0, successRate: 0.0 }
+}
+
+-- maxTaskCount: Find maximum task count across all cells
+pure func maxTaskCount(cells: [HeatmapCell]) -> int =
+  foldl(func(acc: int, c: HeatmapCell) -> int {
+    if c.taskCount > acc then c.taskCount else acc
+  }, 0, cells)
+
+-- calcIntensity: Calculate intensity 0.0-1.0 for coloring
+pure func calcIntensity(count: int, maxCount: int) -> float
+  tests [
+    ((0, 10), 0.0),
+    ((10, 0), 0.0),
+    ((0, 0), 0.0),
+    ((5, 10), 0.5),
+    ((10, 10), 1.0)
+  ]
+{
+  if maxCount == 0 || count == 0
+  then 0.0
+  else _int_to_float(count) / _int_to_float(maxCount)
+}
+
+-- ============================================================================
+-- Week Building
+-- ============================================================================
+
+-- buildDayCell: Create a grid cell for a single day
+pure func buildDayCell(
+  cells: [HeatmapCell],
+  ts: int,
+  maxCount: int
+) -> HeatmapGridCell {
+  let dateStr = formatISODate(ts);
+  let cell = lookupCell(cells, dateStr);
+  let intensity = calcIntensity(cell.taskCount, maxCount);
+  {
+    date: dateStr,
+    count: cell.taskCount,
+    cost: cell.cost,
+    successRate: cell.successRate,
+    intensity: intensity,
+    dayOfWeek: weekday(ts)
+  }
+}
+
+-- buildWeek: Build one week of cells (7 days starting from ts)
+-- Returns: (week cells, next timestamp, updated month labels)
+pure func buildWeekCells(
+  cells: [HeatmapCell],
+  ts: int,
+  maxCount: int,
+  dayIndex: int
+) -> [HeatmapGridCell] =
+  if dayIndex >= 7
+  then []
+  else {
+    let dayTs = addDays(ts, dayIndex);
+    let cell = buildDayCell(cells, dayTs, maxCount);
+    [cell] ++ buildWeekCells(cells, ts, maxCount, dayIndex + 1)
+  }
+
+-- shouldAddMonthLabel: Check if we should add a month label for this date
+-- Add label when: month changes AND we're in first week of month (day 1-7)
+pure func shouldAddMonthLabel(ts: int, lastMonth: int) -> bool {
+  let m = month(ts);
+  let d = day(ts);
+  m != lastMonth && d <= 7
+}
+
+-- ============================================================================
+-- Grid Building
+-- ============================================================================
+
+-- WeekAccumulator: State for building weeks
+type WeekAccumulator = {
+  weeks: [[HeatmapGridCell]],
+  monthLabels: [HeatmapMonthLabel],
+  lastMonth: int,
+  currentTs: int
+}
+
+-- buildWeeksLoop: Recursively build weeks until we pass endTs
+pure func buildWeeksLoop(
+  cells: [HeatmapCell],
+  acc: WeekAccumulator,
+  endTs: int,
+  maxCount: int
+) -> WeekAccumulator =
+  if acc.currentTs > endTs
+  then acc
+  else {
+    let weekCells = buildWeekCells(cells, acc.currentTs, maxCount, 0);
+    let weekIndex = length(acc.weeks);
+
+    -- Check for month label at first day of this week
+    let m = month(acc.currentTs);
+    let newLabels = if shouldAddMonthLabel(acc.currentTs, acc.lastMonth)
+      then acc.monthLabels ++ [{name: formatMonthShort(acc.currentTs), weekIndex: weekIndex}]
+      else acc.monthLabels;
+
+    let newAcc = {
+      weeks: acc.weeks ++ [weekCells],
+      monthLabels: newLabels,
+      lastMonth: m,
+      currentTs: addDays(acc.currentTs, 7)
+    };
+
+    buildWeeksLoop(cells, newAcc, endTs, maxCount)
+  }
+
+-- ============================================================================
+-- Main Entry Point
+-- ============================================================================
+
+-- buildHeatmapGrid: Main entry point - transforms flat cells to grid
+-- Requires Clock to get current time
+export func buildHeatmapGrid(
+  cells: [HeatmapCell],
+  totalTasks: int,
+  totalCost: float,
+  days: int
+) -> HeatmapGridResponse ! {Clock} {
+  let endTs = now();
+  let rawStartTs = addDays(endTs, 0 - days);
+  let startTs = alignToMonday(rawStartTs);
+  let maxCount = maxTaskCount(cells);
+
+  let initAcc: WeekAccumulator = {
+    weeks: [],
+    monthLabels: [],
+    lastMonth: 0 - 1,
+    currentTs: startTs
+  };
+
+  let result = buildWeeksLoop(cells, initAcc, endTs, maxCount);
+
+  {
+    weeks: result.weeks,
+    monthLabels: result.monthLabels,
+    totalTasks: totalTasks,
+    totalCost: totalCost,
+    startDate: formatISODate(startTs),
+    endDate: formatISODate(endTs)
+  }
+}
+
+-- ============================================================================
+-- Pure Version (for testing without Clock)
+-- ============================================================================
+
+-- buildHeatmapGridAt: Pure version that takes timestamp instead of using now()
+export pure func buildHeatmapGridAt(
+  cells: [HeatmapCell],
+  totalTasks: int,
+  totalCost: float,
+  days: int,
+  endTs: int
+) -> HeatmapGridResponse {
+  let rawStartTs = addDays(endTs, 0 - days);
+  let startTs = alignToMonday(rawStartTs);
+  let maxCount = maxTaskCount(cells);
+
+  let initAcc: WeekAccumulator = {
+    weeks: [],
+    monthLabels: [],
+    lastMonth: 0 - 1,
+    currentTs: startTs
+  };
+
+  let result = buildWeeksLoop(cells, initAcc, endTs, maxCount);
+
+  {
+    weeks: result.weeks,
+    monthLabels: result.monthLabels,
+    totalTasks: totalTasks,
+    totalCost: totalCost,
+    startDate: formatISODate(startTs),
+    endDate: formatISODate(endTs)
+  }
+}

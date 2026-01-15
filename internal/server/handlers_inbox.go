@@ -33,6 +33,7 @@ type UnifiedEvent struct {
 	CostUSD       float64 `json:"cost_usd,omitempty"`
 	TokensIn      int64   `json:"tokens_in,omitempty"`
 	TokensOut     int64   `json:"tokens_out,omitempty"`
+	TurnCount     int     `json:"turn_count,omitempty"`
 	DurationMs    int     `json:"duration_ms,omitempty"`
 	Workspace     string  `json:"workspace,omitempty"`      // Working directory for Claude Code events
 	Model         string  `json:"model,omitempty"`          // AI model used (e.g., "claude-opus-4-5-20251101")
@@ -98,6 +99,16 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	modelFilter := q.Get("model")
 	workspaceFilter := q.Get("workspace")
 	sourceTypeFilter := q.Get("source_type") // coordinator, user_session, eval, etc.
+
+	// Sorting parameters
+	sortBy := q.Get("sort")     // timestamp (default), turns, cost, tokens, duration
+	sortOrder := q.Get("order") // asc, desc (default: desc)
+	if sortBy == "" {
+		sortBy = "timestamp"
+	}
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
 
 	messages, err := s.store.ListInboxMessages(opts)
 	if err != nil {
@@ -165,11 +176,12 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 
 			if s.coordStoreRaw != nil {
 				// Use lookup to resolve coordinator task → agent info
-				// Pass source_type filter to filter by coordinator vs user sessions
-				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo, sourceTypeFilter)
+				// Pass source_type and workspace filters to apply at SQL level (before LIMIT)
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo, sourceTypeFilter, workspaceFilter)
 			} else {
 				// Fallback: no coordinator store, use defaults (claude-code → user)
-				ccEvents, err = sqliteBackend.GetClaudeCodeEvents(ctx, opts.Limit)
+				// Still apply workspace filter at SQL level
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, nil, sourceTypeFilter, workspaceFilter)
 			}
 
 			if err != nil {
@@ -210,6 +222,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						CostUSD:       cc.CostUSD,
 						TokensIn:      cc.TokensIn,
 						TokensOut:     cc.TokensOut,
+						TurnCount:     cc.TurnCount,
 						DurationMs:    cc.DurationMs,
 						Source:        "claude_code",
 						Model:         cc.Model,
@@ -224,12 +237,8 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Sort all events by timestamp (most recent first)
-	sort.Slice(events, func(i, j int) bool {
-		ti, _ := time.Parse(time.RFC3339, events[i].CreatedAt)
-		tj, _ := time.Parse(time.RFC3339, events[j].CreatedAt)
-		return ti.After(tj)
-	})
+	// Sort events by requested field
+	sortEvents(events, sortBy, sortOrder)
 
 	// Apply limit after merging
 	if len(events) > opts.Limit {
@@ -554,4 +563,35 @@ func inboxMessageMatchesSourceType(fromAgent, toInbox, sourceType string) bool {
 		return true
 	}
 	return InferInboxSourceType(fromAgent, toInbox) == sourceType
+}
+
+// sortEvents sorts unified events by the specified field and order.
+// Supported sort fields: timestamp (default), turns, cost, tokens, duration
+// When sorting by turns/cost/tokens, inbox messages (which have 0 values) sort to the end.
+func sortEvents(events []UnifiedEvent, sortBy, order string) {
+	descending := order != "asc"
+
+	sort.Slice(events, func(i, j int) bool {
+		var less bool
+		switch sortBy {
+		case "turns":
+			less = events[i].TurnCount < events[j].TurnCount
+		case "cost":
+			less = events[i].CostUSD < events[j].CostUSD
+		case "tokens":
+			totalI := events[i].TokensIn + events[i].TokensOut
+			totalJ := events[j].TokensIn + events[j].TokensOut
+			less = totalI < totalJ
+		case "duration":
+			less = events[i].DurationMs < events[j].DurationMs
+		default: // timestamp
+			ti, _ := time.Parse(time.RFC3339, events[i].CreatedAt)
+			tj, _ := time.Parse(time.RFC3339, events[j].CreatedAt)
+			less = ti.Before(tj)
+		}
+		if descending {
+			return !less
+		}
+		return less
+	})
 }

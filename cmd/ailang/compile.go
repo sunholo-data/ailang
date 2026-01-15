@@ -806,6 +806,19 @@ func ailangTypeToGo(t ast.Type) string {
 	case *ast.RecordType:
 		return "map[string]interface{}"
 	case *ast.TypeApp:
+		// M-CODEGEN-LIST-TYPE: Handle list types normalized from [T] syntax
+		// Parser creates TypeApp("list", [T]) for [T] syntax (DX-17 Phase 2)
+		if typ.Constructor == "list" && len(typ.Args) > 0 {
+			elemType := ailangTypeToGo(typ.Args[0])
+			// Same logic as ast.ListType case
+			if strings.HasPrefix(elemType, "*") {
+				return "[]" + elemType // []*TypeName
+			}
+			if isUserDefinedGoType(elemType) {
+				return "[]*" + elemType
+			}
+			return "[]" + elemType
+		}
 		// M-CODEGEN-OPTION-TYPE-ASSERT: Handle generic type applications like Option[Color]
 		// ADTs (including Option) are always pointers in Go
 		// The type argument is erased - Option[Color] and Option[int] both become *Option
@@ -868,6 +881,17 @@ func ailangTypeToGoWithValueRecords(t ast.Type, valueRecords map[string]bool) st
 	case *ast.RecordType:
 		return "map[string]interface{}"
 	case *ast.TypeApp:
+		// M-CODEGEN-LIST-TYPE: Handle list types normalized from [T] syntax
+		if typ.Constructor == "list" && len(typ.Args) > 0 {
+			elemType := ailangTypeToGoWithValueRecords(typ.Args[0], valueRecords)
+			if strings.HasPrefix(elemType, "*") {
+				return "[]" + elemType
+			}
+			if isUserDefinedGoType(elemType) {
+				return "[]" + elemType
+			}
+			return "[]" + elemType
+		}
 		// ADTs (including Option) are always pointers in Go
 		return "*" + capitalize(typ.Constructor)
 	default:

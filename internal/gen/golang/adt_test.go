@@ -155,6 +155,93 @@ func TestGenerateRecordType(t *testing.T) {
 	}
 }
 
+// TestGenerateRecordWithListField tests that record types with list fields
+// generate proper Go slice types (M-CODEGEN-LIST-TYPE fix).
+// Previously this would generate *List which caused undefined: List errors.
+func TestGenerateRecordWithListField(t *testing.T) {
+	tests := []struct {
+		name       string
+		decl       *ast.TypeDecl
+		wantField  string // Expected field type in generated code
+		wantNoList bool   // Should NOT contain *List
+	}{
+		{
+			name: "primitive list field",
+			decl: &ast.TypeDecl{
+				Name: "StarSystem",
+				Definition: &ast.RecordType{
+					Fields: []*ast.RecordField{
+						{Name: "name", Type: &ast.SimpleType{Name: "string"}},
+						// [string] is parsed as TypeApp("list", [SimpleType("string")])
+						{Name: "planets", Type: &ast.TypeApp{
+							Constructor: "list",
+							Args:        []ast.Type{&ast.SimpleType{Name: "string"}},
+						}},
+					},
+				},
+			},
+			wantField:  "Planets []string",
+			wantNoList: true,
+		},
+		{
+			name: "nested ADT list field",
+			decl: &ast.TypeDecl{
+				Name: "Galaxy",
+				Definition: &ast.RecordType{
+					Fields: []*ast.RecordField{
+						{Name: "name", Type: &ast.SimpleType{Name: "string"}},
+						// [StarSystem] parsed as TypeApp("list", [SimpleType("StarSystem")])
+						{Name: "systems", Type: &ast.TypeApp{
+							Constructor: "list",
+							Args:        []ast.Type{&ast.SimpleType{Name: "StarSystem"}},
+						}},
+					},
+				},
+			},
+			wantField:  "Systems []*StarSystem",
+			wantNoList: true,
+		},
+		{
+			name: "list of int field",
+			decl: &ast.TypeDecl{
+				Name: "Numbers",
+				Definition: &ast.RecordType{
+					Fields: []*ast.RecordField{
+						{Name: "values", Type: &ast.TypeApp{
+							Constructor: "list",
+							Args:        []ast.Type{&ast.SimpleType{Name: "int"}},
+						}},
+					},
+				},
+			},
+			wantField:  "Values []int64",
+			wantNoList: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gen := NewADTGenerator("test")
+			code, err := gen.GenerateTypeDecl(tt.decl)
+			if err != nil {
+				t.Fatalf("GenerateTypeDecl failed: %v", err)
+			}
+
+			codeStr := string(code)
+
+			// Check for expected field type
+			if !strings.Contains(codeStr, tt.wantField) {
+				t.Errorf("Missing expected field %q in:\n%s", tt.wantField, codeStr)
+			}
+
+			// Check that *List is NOT present (the bug we're fixing)
+			if tt.wantNoList && strings.Contains(codeStr, "*List") {
+				t.Errorf("Found *List in generated code (should be []T):\n%s", codeStr)
+			}
+		})
+	}
+}
+
 func TestGenerateTypeAlias(t *testing.T) {
 	// type Names = [string]
 	decl := &ast.TypeDecl{

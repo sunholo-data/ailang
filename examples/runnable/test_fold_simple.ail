@@ -1,4 +1,0 @@
-module examples/runnable/test_fold_simple
-import std/list (foldl)
-let x = foldl(\a b. a + b, 0, [1])
-x

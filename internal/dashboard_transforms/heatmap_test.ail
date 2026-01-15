@@ -1,0 +1,76 @@
+-- Heatmap Test
+--
+-- Tests for the heatmap grid builder
+
+module internal/dashboard_transforms/heatmap_test
+
+import internal/dashboard_transforms/heatmap (
+  HeatmapCell, HeatmapGridResponse,
+  buildHeatmapGridAt
+)
+import std/io (println)
+import std/datetime (makeDate, formatISODate)
+import std/list (length)
+import std/string (intToStr)
+
+-- ============================================================================
+-- Test Data
+-- ============================================================================
+
+-- Create test cells for a week
+pure func testCells() -> [HeatmapCell] = [
+  { date: "2024-01-15", taskCount: 5, cost: 0.25, successRate: 1.0 },
+  { date: "2024-01-16", taskCount: 3, cost: 0.15, successRate: 0.67 },
+  { date: "2024-01-17", taskCount: 10, cost: 0.50, successRate: 0.90 },
+  { date: "2024-01-18", taskCount: 2, cost: 0.10, successRate: 1.0 },
+  { date: "2024-01-19", taskCount: 0, cost: 0.0, successRate: 0.0 },
+  { date: "2024-01-20", taskCount: 1, cost: 0.05, successRate: 1.0 },
+  { date: "2024-01-21", taskCount: 7, cost: 0.35, successRate: 0.86 }
+]
+
+-- ============================================================================
+-- Main Test
+-- ============================================================================
+
+export func main() -> () ! {IO} {
+  println("=== Heatmap Grid Builder Test ===");
+  println("");
+
+  let cells = testCells();
+  println("Input cells: " ++ intToStr(length(cells)));
+
+  -- Use a fixed "now" timestamp for deterministic testing
+  -- Jan 21, 2024 00:00:00 UTC
+  let endTs = makeDate(2024, 1, 21);
+
+  -- Build grid for 14 days
+  let result = buildHeatmapGridAt(cells, 28, 1.40, 14, endTs);
+
+  println("");
+  println("--- Grid Statistics ---");
+  println("Weeks: " ++ intToStr(length(result.weeks)));
+  println("Month labels: " ++ intToStr(length(result.monthLabels)));
+  println("Total tasks: " ++ intToStr(result.totalTasks));
+  println("Date range: " ++ result.startDate ++ " to " ++ result.endDate);
+
+  println("");
+  println("--- Week Structure ---");
+  -- Show first week
+  match result.weeks {
+    [] => println("No weeks!"),
+    [firstWeek, ..._] => {
+      println("First week has " ++ intToStr(length(firstWeek)) ++ " days");
+      match firstWeek {
+        [] => println("  Empty week!"),
+        [day1, ..._] => {
+          println("  Day 1: " ++ day1.date ++ " (weekday " ++ intToStr(day1.dayOfWeek) ++ ")");
+          ()
+        }
+      }
+    }
+  };
+
+  println("");
+  println("=== Test Complete ===");
+  ()
+}

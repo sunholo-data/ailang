@@ -1,0 +1,83 @@
+-- datetime_demo.ail - Demonstrates std/datetime module
+--
+-- This example shows how to use the pure date/time manipulation functions.
+-- All datetime functions are pure (no effects), except for now() which needs Clock.
+
+module examples/datetime_demo
+
+import std/clock (now)
+import std/io (println)
+import std/string (intToStr)
+import std/datetime (
+  year, month, day, weekday,
+  addDays, addMonths, diffDays,
+  startOfDay, startOfWeek, startOfMonth,
+  makeDate, formatISODate, formatRFC3339, formatMonthShort, formatWeekdayFull,
+  parseISODate
+)
+import std/option (Option, Some, None)
+
+-- =============================================================================
+-- Helper to print Option[int] parse results
+-- =============================================================================
+func showParseResult(label: string, result: Option[int]) -> () ! {IO} =
+  match result {
+    Some(ts) => println(label ++ ": Some(" ++ formatISODate(ts) ++ ")"),
+    None => println(label ++ ": None (parse failed)")
+  }
+
+-- =============================================================================
+-- Main demo
+-- =============================================================================
+export func main() -> () ! {IO, Clock} {
+  println("=== std/datetime Demo ===");
+  println("");
+
+  -- Get current time (requires Clock capability)
+  let ts = now();
+  println("Current timestamp: " ++ formatRFC3339(ts));
+  println("");
+
+  -- Date extraction (all pure, no effects)
+  println("--- Date Extraction ---");
+  println("Year: " ++ intToStr(year(ts)));
+  println("Month: " ++ intToStr(month(ts)) ++ " (" ++ formatMonthShort(ts) ++ ")");
+  println("Day: " ++ intToStr(day(ts)));
+  println("Weekday: " ++ intToStr(weekday(ts)) ++ " (" ++ formatWeekdayFull(ts) ++ ")");
+  println("");
+
+  -- Date arithmetic (pure)
+  println("--- Date Arithmetic ---");
+  let tomorrow = addDays(ts, 1);
+  let nextWeek = addDays(ts, 7);
+  let nextMonth = addMonths(ts, 1);
+  println("Tomorrow: " ++ formatISODate(tomorrow));
+  println("Next week: " ++ formatISODate(nextWeek));
+  println("Next month: " ++ formatISODate(nextMonth));
+  println("");
+
+  -- Date boundaries (pure)
+  println("--- Date Boundaries ---");
+  println("Start of day: " ++ formatRFC3339(startOfDay(ts)));
+  println("Start of week (Monday): " ++ formatISODate(startOfWeek(ts)));
+  println("Start of month: " ++ formatISODate(startOfMonth(ts)));
+  println("");
+
+  -- Date construction (pure)
+  println("--- Date Construction ---");
+  let christmas = makeDate(2024, 12, 25);
+  println("Christmas 2024: " ++ formatISODate(christmas) ++ " (" ++ formatWeekdayFull(christmas) ++ ")");
+  let daysUntil = diffDays(christmas, startOfDay(ts));
+  println("Days until Christmas: " ++ intToStr(daysUntil));
+  println("");
+
+  -- Date parsing (pure, returns Option)
+  println("--- Date Parsing ---");
+  showParseResult("Parse '2024-07-04'", parseISODate("2024-07-04"));
+  showParseResult("Parse 'invalid'", parseISODate("invalid"));
+  showParseResult("Parse '2024-02-29'", parseISODate("2024-02-29"));
+  println("");
+
+  println("=== Demo Complete ===");
+  ()
+}

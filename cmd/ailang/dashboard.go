@@ -226,6 +226,8 @@ func dashboardInboxCommand() {
 	endDate := fs.String("end", "", "End date (YYYY-MM-DD)")
 	workspace := fs.String("workspace", "", "Filter by workspace path")
 	status := fs.String("status", "", "Filter by status (unread, read)")
+	sortBy := fs.String("sort", "timestamp", "Sort by: timestamp, turns, cost, tokens, duration")
+	sortOrder := fs.String("order", "desc", "Sort order: asc, desc")
 	limit := fs.Int("limit", 50, "Maximum results")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 
@@ -260,6 +262,8 @@ func dashboardInboxCommand() {
 	if *status != "" {
 		params.Set("status", *status)
 	}
+	params.Set("sort", *sortBy)
+	params.Set("order", *sortOrder)
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
 	apiURL := fmt.Sprintf("%s/api/inbox?%s", baseURL, params.Encode())
@@ -299,8 +303,8 @@ func dashboardInboxCommand() {
 
 	// Table output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTYPE\tFROM\tTO\tTITLE\tAGE")
-	fmt.Fprintln(w, strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 15)+"\t"+strings.Repeat("-", 15)+"\t"+strings.Repeat("-", 25)+"\t"+strings.Repeat("-", 10))
+	fmt.Fprintln(w, "ID\tTYPE\tFROM\tCOST\tTOKENS\tTURNS\tAGE")
+	fmt.Fprintln(w, strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 12)+"\t"+strings.Repeat("-", 8)+"\t"+strings.Repeat("-", 8)+"\t"+strings.Repeat("-", 5)+"\t"+strings.Repeat("-", 8))
 
 	msgCount := 0
 	ccCount := 0
@@ -315,10 +319,29 @@ func dashboardInboxCommand() {
 		if msgType == "" {
 			msgType = getString(msg, "message_type")
 		}
-		from := truncate(getString(msg, "from_agent"), 15)
-		to := truncate(getString(msg, "to_inbox"), 15)
-		title := truncate(getString(msg, "title"), 25)
+		from := truncate(getString(msg, "from_agent"), 12)
 		age := formatTimestampAge(getString(msg, "created_at"))
+
+		// Cost and token info (only for claude_code events)
+		cost := "-"
+		tokens := "-"
+		turns := "-"
+		if costVal := getFloat(msg, "cost_usd"); costVal > 0 {
+			cost = fmt.Sprintf("$%.2f", costVal)
+		}
+		tokensIn := getInt(msg, "tokens_in")
+		tokensOut := getInt(msg, "tokens_out")
+		if tokensIn > 0 || tokensOut > 0 {
+			totalTokens := tokensIn + tokensOut
+			if totalTokens >= 1000 {
+				tokens = fmt.Sprintf("%.1fk", float64(totalTokens)/1000)
+			} else {
+				tokens = fmt.Sprintf("%d", totalTokens)
+			}
+		}
+		if turnCount := getInt(msg, "turn_count"); turnCount > 0 {
+			turns = fmt.Sprintf("%d", turnCount)
+		}
 
 		if msgType == "claude_code" || msgType == "claude_code_session" {
 			ccCount++
@@ -329,7 +352,7 @@ func dashboardInboxCommand() {
 			msgCount++
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, msgType, from, to, title, age)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", id, msgType, from, cost, tokens, turns, age)
 	}
 	w.Flush()
 	fmt.Printf("\nTotal: %d events (%d messages, %d claude_code)\n", len(messages), msgCount, ccCount)

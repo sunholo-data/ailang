@@ -407,7 +407,23 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 
 	// M-TAPP-FIX: Handle TypeApp (generic type application like Option[int])
 	case *ast.TypeApp:
-		// For generic types, use the constructor name with pointer for ADTs
+		// M-CODEGEN-LIST-TYPE: Handle list types normalized from [T] syntax
+		// Parser creates TypeApp("list", [T]) for [T] syntax (DX-17 Phase 2)
+		if typ.Constructor == "list" && len(typ.Args) > 0 {
+			elemType := g.mapASTType(typ.Args[0])
+			// Same logic as ast.ListType case
+			if isUserDefinedType(elemType) {
+				baseType := strings.TrimPrefix(elemType, "*")
+				g.adtSliceTypes[baseType] = true
+				if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
+					return fmt.Sprintf("[]%s", elemType)
+				}
+				return fmt.Sprintf("[]*%s", elemType)
+			}
+			return fmt.Sprintf("[]%s", elemType)
+		}
+
+		// For other generic types, use the constructor name with pointer for ADTs
 		goType := g.mapNamedType(typ.Constructor)
 		// Most generic types (Option, Result, etc.) are ADTs and need pointers
 		if isUserDefinedType(goType) {

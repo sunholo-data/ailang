@@ -1,0 +1,158 @@
+-- std/datetime - Pure date and time operations
+--
+-- This module provides pure (effect-free) date/time manipulation functions.
+-- All timestamps are Unix milliseconds in UTC.
+-- For getting current time, use std/clock.now() which requires Clock capability.
+--
+-- Key design decisions:
+-- - All functions are pure (no effects required)
+-- - All timestamps are interpreted as UTC
+-- - Weekday: 0=Sunday, 1=Monday, ..., 6=Saturday
+-- - Month: 1-12 (January=1, December=12)
+-- - Uses Go time.AddDate semantics for month boundary edge cases
+
+module std/datetime
+
+-- =============================================================================
+-- DATE EXTRACTION
+-- Extract individual components from a UTC timestamp (milliseconds)
+-- =============================================================================
+
+-- Extract year (e.g., 2024)
+export pure func year(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.year
+}
+
+-- Extract month (1-12)
+export pure func month(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.month
+}
+
+-- Extract day of month (1-31)
+export pure func day(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.day
+}
+
+-- Extract weekday (0=Sunday, 1=Monday, ..., 6=Saturday)
+export pure func weekday(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.weekday
+}
+
+-- Extract hour (0-23)
+export pure func hour(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.hour
+}
+
+-- Extract minute (0-59)
+export pure func minute(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.minute
+}
+
+-- Extract second (0-59)
+export pure func second(ts: int) -> int {
+  let parts = _dt_parts(ts);
+  parts.second
+}
+
+-- =============================================================================
+-- DATE ARITHMETIC
+-- Add/subtract time units from timestamps
+-- Uses Go time.AddDate semantics for edge cases (e.g., Jan 31 + 1 month)
+-- =============================================================================
+
+-- Add days to timestamp (can be negative to subtract)
+export pure func addDays(ts: int, days: int) -> int =
+  _dt_add(ts, 0, 0, days)
+
+-- Add months to timestamp (can be negative to subtract)
+-- Note: Jan 31 + 1 month = Mar 2 (Go AddDate semantics)
+export pure func addMonths(ts: int, months: int) -> int =
+  _dt_add(ts, 0, months, 0)
+
+-- Add years to timestamp (can be negative to subtract)
+export pure func addYears(ts: int, years: int) -> int =
+  _dt_add(ts, years, 0, 0)
+
+-- Calculate difference in whole days (a - b, truncated toward zero)
+export pure func diffDays(a: int, b: int) -> int =
+  _dt_diffDays(a, b)
+
+-- =============================================================================
+-- DATE BOUNDARIES
+-- Get the start of day/week/month for a given timestamp
+-- =============================================================================
+
+-- Get midnight (00:00:00) of the same day
+export pure func startOfDay(ts: int) -> int {
+  let p = _dt_parts(ts);
+  _dt_make(p.year, p.month, p.day, 0, 0, 0)
+}
+
+-- Get Monday 00:00:00 of the same week
+-- Note: Uses Monday as start of week (ISO standard)
+export pure func startOfWeek(ts: int) -> int {
+  let wd = weekday(ts);
+  let daysBack = if wd == 0 then 6 else wd - 1;
+  startOfDay(addDays(ts, 0 - daysBack))
+}
+
+-- Get first day of the month at 00:00:00
+export pure func startOfMonth(ts: int) -> int {
+  let p = _dt_parts(ts);
+  _dt_make(p.year, p.month, 1, 0, 0, 0)
+}
+
+-- =============================================================================
+-- DATE CONSTRUCTION
+-- Create timestamps from components
+-- =============================================================================
+
+-- Create timestamp from year, month, day (at midnight UTC)
+export pure func makeDate(y: int, m: int, d: int) -> int =
+  _dt_make(y, m, d, 0, 0, 0)
+
+-- Create timestamp from full components
+export pure func makeDateTime(y: int, m: int, d: int, h: int, mi: int, s: int) -> int =
+  _dt_make(y, m, d, h, mi, s)
+
+-- =============================================================================
+-- DATE FORMATTING
+-- Format timestamps as strings (all output is UTC)
+-- =============================================================================
+
+-- Format as ISO 8601 date: "2024-01-15"
+export pure func formatISODate(ts: int) -> string =
+  _dt_formatISODate(ts)
+
+-- Format as RFC 3339: "2024-01-15T14:30:45Z"
+export pure func formatRFC3339(ts: int) -> string =
+  _dt_formatRFC3339(ts)
+
+-- Format as short month name: "Jan", "Feb", ...
+export pure func formatMonthShort(ts: int) -> string =
+  _dt_formatMonthShort(ts)
+
+-- Format as full weekday name: "Monday", "Tuesday", ...
+export pure func formatWeekdayFull(ts: int) -> string =
+  _dt_formatWeekdayFull(ts)
+
+-- =============================================================================
+-- DATE PARSING
+-- Parse strings to timestamps (interprets input as UTC)
+-- Returns Option[int]: Some(timestamp) on success, None on failure
+-- =============================================================================
+
+-- Parse ISO 8601 date: "2024-01-15" -> Some(timestamp) or None
+export pure func parseISODate(s: string) -> Option[int] =
+  _dt_parseISODate(s)
+
+-- Parse RFC 3339: "2024-01-15T14:30:45Z" -> Some(timestamp) or None
+-- Also accepts timezone offsets (e.g., +02:00), converts to UTC
+export pure func parseRFC3339(s: string) -> Option[int] =
+  _dt_parseRFC3339(s)

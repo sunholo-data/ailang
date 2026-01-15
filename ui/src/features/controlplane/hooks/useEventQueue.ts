@@ -27,6 +27,12 @@ export interface EventMessage {
   directive_full?: string;    // Full directive (for detail views)
   agent_id?: string;          // Agent identifier (e.g., "design-doc-creator")
   source_type?: string;       // Event source: coordinator, eval, github, direct
+  // Sorting fields (from Claude Code events)
+  turn_count?: number;        // Number of turns in session
+  cost_usd?: number;          // AI cost in USD
+  tokens_in?: number;         // Input tokens
+  tokens_out?: number;        // Output tokens
+  duration_ms?: number;       // Execution duration in ms
   metadata?: Record<string, unknown>;
 }
 
@@ -53,6 +59,12 @@ interface InboxMessage {
   directive?: string;
   directive_full?: string;
   agent_id?: string;
+  // Sorting fields (from Claude Code events)
+  turn_count?: number;
+  cost_usd?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  duration_ms?: number;
 }
 
 interface UseEventQueueOptions {
@@ -98,6 +110,13 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       if (filters?.end_date) {
         params.set('end_date', filters.end_date);
       }
+      // Sorting parameters
+      if (filters?.sort) {
+        params.set('sort', filters.sort);
+      }
+      if (filters?.order) {
+        params.set('order', filters.order);
+      }
       params.set('limit', String(maxEvents));
 
       const url = `/api/inbox${params.toString() ? '?' + params.toString() : ''}`;
@@ -129,6 +148,12 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
         directive_full: msg.directive_full,
         agent_id: msg.agent_id,
         source_type: msg.source_type,
+        // Sorting fields
+        turn_count: msg.turn_count,
+        cost_usd: msg.cost_usd,
+        tokens_in: msg.tokens_in,
+        tokens_out: msg.tokens_out,
+        duration_ms: msg.duration_ms,
         metadata: {
           payload: msg.payload,
           status: msg.status,
@@ -152,7 +177,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters?.source_type, filters?.provider, filters?.model, filters?.workspace, filters?.status, filters?.start_date, filters?.end_date, maxEvents]);
+  }, [filters?.source_type, filters?.provider, filters?.model, filters?.workspace, filters?.status, filters?.start_date, filters?.end_date, filters?.sort, filters?.order, maxEvents]);
 
   // Fetch on mount and when filters change
   useEffect(() => {
@@ -267,7 +292,35 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
     setEvents([]);
   }, []);
 
-  // Combine real-time events with historical, apply filters, sort by timestamp
+  // Sort function that respects filter settings
+  const sortEvents = (a: EventMessage, b: EventMessage): number => {
+    const sortBy = filters?.sort || 'timestamp';
+    const descending = filters?.order !== 'asc';
+
+    let less: boolean;
+    switch (sortBy) {
+      case 'turns':
+        less = (a.turn_count || 0) < (b.turn_count || 0);
+        break;
+      case 'cost':
+        less = (a.cost_usd || 0) < (b.cost_usd || 0);
+        break;
+      case 'tokens': {
+        const totalA = (a.tokens_in || 0) + (a.tokens_out || 0);
+        const totalB = (b.tokens_in || 0) + (b.tokens_out || 0);
+        less = totalA < totalB;
+        break;
+      }
+      case 'duration':
+        less = (a.duration_ms || 0) < (b.duration_ms || 0);
+        break;
+      default: // timestamp
+        less = new Date(a.timestamp).getTime() < new Date(b.timestamp).getTime();
+    }
+    return descending ? (less ? 1 : -1) : (less ? -1 : 1);
+  };
+
+  // Combine real-time events with historical, apply filters and sort
   const allEvents = [...events, ...historicalEvents]
     .filter((event) => {
       // Date range filter
@@ -293,7 +346,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       }
       return true;
     })
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .sort(sortEvents)
     .slice(0, maxEvents);
 
   return {

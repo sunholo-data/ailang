@@ -858,6 +858,7 @@ type ClaudeCodeEvent struct {
 	Provider      string  `json:"provider,omitempty"`       // AI provider (e.g., "claude", "gemini")
 	Directive     string  `json:"directive,omitempty"`      // Initial user prompt (truncated preview)
 	DirectiveFull string  `json:"directive_full,omitempty"` // Full directive (for detail views)
+	TurnCount     int     `json:"turn_count"`               // Number of turns in session
 }
 
 // TaskAgentLookup is a callback to resolve coordinator task_id to agent info.
@@ -969,6 +970,7 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			Workspace:     workspace.String,
 			Directive:     directivePreview,
 			DirectiveFull: directiveFull,
+			TurnCount:     turnCount,
 		})
 	}
 
@@ -984,7 +986,13 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 //   - "coordinator": Only sessions with agent_assignment (coordinator-spawned)
 //   - "user_session": Only sessions without agent_assignment (user-initiated)
 //   - "": No filter (all sessions)
-func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup, sourceType string) ([]ClaudeCodeEvent, error) {
+//
+// The workspaceFilter parameter filters by workspace path:
+//   - Full path: "/Users/mark/dev/TwilightGame" (exact or contains match)
+//   - "unknown" or "No Workspace": Sessions with empty workspace
+//   - "coordinator_worktrees": Sessions in worktree directories
+//   - "": No filter (all workspaces)
+func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup, sourceType, workspaceFilter string) ([]ClaudeCodeEvent, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -1000,6 +1008,28 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		sourceFilter = " AND (aa.agent_id IS NULL OR aa.agent_id = '')"
 	default:
 		sourceFilter = "" // No filter
+	}
+
+	// Build workspace filter condition
+	// This is applied at the SQL level to ensure LIMIT works correctly
+	var workspaceFilterSQL string
+	var workspaceArg interface{}
+	switch workspaceFilter {
+	case "":
+		workspaceFilterSQL = ""
+		workspaceArg = nil
+	case "unknown", "No Workspace":
+		// Match sessions with empty or null workspace
+		workspaceFilterSQL = " AND (json_extract(s.resource_attributes, '$.\"process.cwd\"') IS NULL OR json_extract(s.resource_attributes, '$.\"process.cwd\"') = '')"
+		workspaceArg = nil
+	case "coordinator_worktrees", "Coordinator Tasks":
+		// Match worktree directories
+		workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE '%/worktrees/%'"
+		workspaceArg = nil
+	default:
+		// Match by path - use LIKE for substring matching to handle path variations
+		workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE ?"
+		workspaceArg = "%" + workspaceFilter + "%"
 	}
 
 	// Aggregate by session.id, join with agent_assignments to get agent info
@@ -1027,13 +1057,20 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'
 		  AND json_extract(s.resource_attributes, '$."service.name"') = 'claude-code'
-		  AND json_extract(s.attributes, '$."session.id"') IS NOT NULL` + sourceFilter + `
+		  AND json_extract(s.attributes, '$."session.id"') IS NOT NULL` + sourceFilter + workspaceFilterSQL + `
 		GROUP BY json_extract(s.attributes, '$."session.id"')
 		ORDER BY latest_time DESC
 		LIMIT ?
 	`
 
-	rows, err := b.store.DB().QueryContext(ctx, query, limit)
+	// Build query arguments
+	var args []interface{}
+	if workspaceArg != nil {
+		args = append(args, workspaceArg)
+	}
+	args = append(args, limit)
+
+	rows, err := b.store.DB().QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1112,6 +1149,7 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			Workspace:     workspace.String,
 			Directive:     directivePreview,
 			DirectiveFull: directiveFull,
+			TurnCount:     turnCount,
 		})
 	}
 
@@ -1205,10 +1243,13 @@ func (b *SQLiteBackend) GetClaudeCodeHierarchy(ctx context.Context, sessionID st
 	}
 
 	// Calculate totals for the session
+	// NOTE: Only sum api_request durations to avoid double-counting.
+	// Tool calls happen INSIDE api_request turns - their duration is already
+	// part of the turn's duration. Summing all spans would double-count.
 	var totalTokensIn, totalTokensOut int64
 	var totalCost float64
 	var totalDuration int64
-	for _, span := range spans {
+	for _, span := range apiRequests {
 		totalTokensIn += span.TokensIn
 		totalTokensOut += span.TokensOut
 		totalCost += span.CostUSD

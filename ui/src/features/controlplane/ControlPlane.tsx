@@ -17,6 +17,8 @@ import {
 import {
   ControlPlaneFilters,
   StatusFilter,
+  SortField,
+  SortOrder,
   mergeFilters,
 } from './types';
 
@@ -144,6 +146,9 @@ export const ControlPlane: React.FC = () => {
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | null>(null);
   // Track event type filter (for MessageQueue)
   const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
+  // Track sort state for event queue
+  const [sortBy, setSortBy] = useState<SortField>('timestamp');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   // Span type filtering (Milestone 14) - generic filter for any span type
   // Default: hide api_request spans (LLM turns are noisy, tool calls are useful)
   const [hiddenSpanTypes, setHiddenSpanTypes] = useState<Set<string>>(new Set(['api_request']));
@@ -196,7 +201,13 @@ export const ControlPlane: React.FC = () => {
     setSelectedFilters({});
   }, []);
 
-  // Merge dimension filters with time range from heatmap selection, status, and search
+  // Handle sort changes from MessageQueue
+  const handleSortChange = useCallback((sort: SortField, order: SortOrder) => {
+    setSortBy(sort);
+    setSortOrder(order);
+  }, []);
+
+  // Merge dimension filters with time range from heatmap selection, status, search, and sort
   const filters = useMemo((): ControlPlaneFilters => {
     let merged = { ...dimensionFilters };
     if (selectedDateRange && selectedDateRange.start && selectedDateRange.end) {
@@ -213,8 +224,10 @@ export const ControlPlane: React.FC = () => {
     if (searchQuery.trim()) {
       merged = mergeFilters(merged, { search: searchQuery.trim() });
     }
+    // Add sort parameters
+    merged = mergeFilters(merged, { sort: sortBy, order: sortOrder });
     return merged;
-  }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery]);
+  }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery, sortBy, sortOrder]);
 
   // Fetch real data from APIs - pass merged filters to all applicable hooks
   // Use grid format for server-side date calculations (removes ~80 lines of client-side logic)
@@ -570,6 +583,9 @@ export const ControlPlane: React.FC = () => {
             onDateRangeChange={setSelectedDateRange}
             selectedTypes={selectedEventTypes}
             onTypeFilterChange={setSelectedEventTypes}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
             filters={filters}
             selectedEventId={detailPanel.type === 'event' ? detailPanel.id : null}
           />

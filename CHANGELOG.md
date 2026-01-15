@@ -46,6 +46,43 @@ getName({name: "Bob", age: 30})  -- Works!
 
 **Design Doc:** `design_docs/planned/v0_6_4/m-gap4-record-width-subtyping.md` → Status: IMPLEMENTED
 
+### Fixed - Go Codegen: List Fields in Record Types (Issue #116)
+
+Fixed undefined `*List` type error in generated Go code when AILANG record types contain list fields.
+
+**Root Cause:**
+- Parser normalizes `[T]` syntax to `TypeApp("list", [T])` (DX-17 Phase 2)
+- The `mapASTType` in codegen didn't special-case the `"list"` constructor
+- Result: `[string]` → `*List` instead of `[]string`
+
+**Fix:**
+Added handling for `TypeApp` with constructor `"list"` in three locations:
+- `internal/gen/golang/adt.go`: `mapASTType()` function (~20 LOC)
+- `cmd/ailang/compile.go`: `ailangTypeToGo()` function (~12 LOC)
+- `cmd/ailang/compile.go`: `ailangTypeToGoWithValueRecords()` function (~12 LOC)
+
+**Before:**
+```go
+type Galaxy struct {
+    Name    string
+    Systems *List  // ERROR: undefined *List
+}
+```
+
+**After:**
+```go
+type Galaxy struct {
+    Name    string
+    Systems []*StarSystem  // Correct!
+}
+```
+
+**Tests:**
+- `internal/gen/golang/adt_test.go`: Added `TestGenerateRecordWithListField` (3 sub-tests)
+- `examples/runnable/adt_list_fields.ail`: New example demonstrating list field records
+
+**Design Doc:** `design_docs/planned/v0_6_4/m-codegen-list-type.md`
+
 ### Added - Generic AILANG Embedding API (M-EMBED)
 
 New `internal/embed/` package enables Go applications to embed AILANG as a scripting/extension language.

@@ -922,6 +922,17 @@
       "description": "Record width subtyping via open record types ({a: T | r} and {a: T, ...})"
     },
     {
+      "path": "runnable/adt_list_fields.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "lists",
+        "codegen",
+        "types"
+      ],
+      "description": "ADT record types with list fields for Go codegen (Issue #116)"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [

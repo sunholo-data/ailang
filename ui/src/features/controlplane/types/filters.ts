@@ -5,6 +5,12 @@
 // Status filter values
 export type StatusFilter = 'all' | 'running' | 'pending' | 'completed' | 'failed';
 
+// Sort field options
+export type SortField = 'timestamp' | 'turns' | 'cost' | 'tokens' | 'duration';
+
+// Sort order options
+export type SortOrder = 'asc' | 'desc';
+
 // Filter parameters that can be passed to Control Plane API endpoints
 export interface ControlPlaneFilters {
   source_type?: string; // eval, coordinator, direct_api, local, other
@@ -15,6 +21,8 @@ export interface ControlPlaneFilters {
   end_date?: string;    // YYYY-MM-DD format for time range filter (inclusive)
   status?: StatusFilter; // Filter by task/span status
   search?: string;      // Search query for filtering by name/content
+  sort?: SortField;     // Sort by: timestamp, turns, cost, tokens, duration
+  order?: SortOrder;    // Sort order: asc, desc
 }
 
 // Check if any filters are active
@@ -47,6 +55,8 @@ export function buildFilterQueryString(filters: ControlPlaneFilters): string {
   if (filters.end_date) params.set('end_date', filters.end_date);
   if (filters.status && filters.status !== 'all') params.set('status', filters.status);
   if (filters.search) params.set('search', filters.search);
+  if (filters.sort) params.set('sort', filters.sort);
+  if (filters.order) params.set('order', filters.order);
   const queryString = params.toString();
   return queryString ? `?${queryString}` : '';
 }

@@ -23,6 +23,16 @@ _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _debug_check : (bool, string, string) -> () ! {Debug}
 _debug_log : (string, string) -> () ! {Debug}
+_dt_add : (int, int, int, int) -> int
+_dt_diffDays : (int, int) -> int
+_dt_formatISODate : int -> string
+_dt_formatMonthShort : int -> string
+_dt_formatRFC3339 : int -> string
+_dt_formatWeekdayFull : int -> string
+_dt_make : (int, int, int, int, int, int) -> int
+_dt_parseISODate : string -> Option[int]
+_dt_parseRFC3339 : string -> Option[int]
+_dt_parts : int -> {day: int, hour: int, minute: int, month: int, second: int, weekday: int, year: int}
 _embedding_decode : bytes -> Option[list[float]]
 _embedding_encode : list[float] -> bytes
 _env_getArgs : () -> list[string] ! {Env}

@@ -4,6 +4,11 @@
 -- In production mode, uses real system time.
 -- In deterministic mode (--virtual-time), uses virtual clock for reproducibility.
 --
+-- IMPORTANT: All timestamps are UTC
+-- The now() function returns time.Now().UTC().UnixMilli() to ensure
+-- consistent behavior regardless of host timezone configuration.
+-- For date manipulation, use std/datetime which provides pure functions.
+--
 -- Requires: Clock capability (--caps Clock)
 
 module std/clock
