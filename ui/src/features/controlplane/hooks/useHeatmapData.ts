@@ -32,8 +32,9 @@ export function useHeatmapData(options: UseHeatmapDataOptions = {}) {
   const [error, setError] = useState<string | null>(null);
 
   // Build query string with days + filters
+  // Use format=flat until frontend is updated to use grid format
   const filterString = buildFilterQueryString(filters);
-  const queryString = filterString ? `?days=${days}&${filterString.slice(1)}` : `?days=${days}`;
+  const queryString = filterString ? `?days=${days}&format=flat&${filterString.slice(1)}` : `?days=${days}&format=flat`;
 
   const fetchData = useCallback(async () => {
     try {
