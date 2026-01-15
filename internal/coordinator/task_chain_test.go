@@ -289,6 +289,13 @@ func (m *MockStore) ResolveApprovalRequest(ctx context.Context, id, status, reso
 	return nil
 }
 
+func (m *MockStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["ResolveApprovalRequestByTask"]++
+	return nil
+}
+
 func (m *MockStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

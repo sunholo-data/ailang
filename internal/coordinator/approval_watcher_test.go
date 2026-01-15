@@ -611,6 +611,9 @@ func (m *mockStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalReques
 func (m *mockStore) ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error {
 	return nil
 }
+func (m *mockStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error {
+	return nil
+}
 func (m *mockStore) DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error) {
 	return 0, nil
 }

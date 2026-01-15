@@ -153,6 +153,12 @@ func buildFilterConditions(filter *ControlPlaneFilter) ([]string, []interface{})
 		conditions = append(conditions, "date(start_time) <= ?")
 		args = append(args, filter.EndDate)
 	}
+	if filter.Workspace != "" {
+		// Workspace is stored in process.cwd resource attribute
+		// Use LIKE for partial matching (workspace ID may be embedded in path)
+		conditions = append(conditions, `json_extract(resource_attributes, '$."process.cwd"') LIKE ?`)
+		args = append(args, "%"+filter.Workspace+"%")
+	}
 
 	return conditions, args
 }
@@ -714,6 +720,114 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 	for rows.Next() {
 		var item BreakdownItem
 		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// GetFilteredBreakdownByWorkspace returns workspace breakdown with filters applied
+func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, filter *ControlPlaneFilter) ([]BreakdownItem, error) {
+	if filter == nil || filter.IsEmpty() {
+		return b.GetBreakdownByWorkspace(ctx)
+	}
+
+	// Build conditions using shared helper
+	// Note: For workspace breakdown, we exclude workspace from filter conditions
+	// since the query groups BY workspace
+	tempFilter := &ControlPlaneFilter{
+		SourceType: filter.SourceType,
+		Provider:   filter.Provider,
+		Model:      filter.Model,
+		StartDate:  filter.StartDate,
+		EndDate:    filter.EndDate,
+	}
+	conditions, args := buildFilterConditions(tempFilter)
+
+	// Build WHERE clause (empty if no conditions)
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + conditions[0]
+		for _, c := range conditions[1:] {
+			whereClause += " AND " + c
+		}
+	}
+
+	// Use same normalization logic as GetBreakdownByWorkspace but with filters
+	query := fmt.Sprintf(`
+		WITH workspace_data AS (
+			SELECT
+				COALESCE(json_extract(resource_attributes, '$."process.cwd"'), 'unknown') as cwd,
+				tokens_in,
+				tokens_out,
+				cost_usd,
+				id
+			FROM spans
+			%s
+		),
+		-- Normalize workspaces: group eval workspaces and worktrees
+		normalized AS (
+			SELECT
+				CASE
+					WHEN cwd = 'unknown' THEN 'unknown'
+					WHEN cwd LIKE '%%/.eval_workspace/%%' THEN 'eval_workspace'
+					WHEN cwd LIKE '%%/worktrees/%%' THEN 'coordinator_worktrees'
+					ELSE cwd
+				END as workspace_id,
+				CASE
+					WHEN cwd = 'unknown' THEN 'No Workspace'
+					WHEN cwd LIKE '%%/.eval_workspace/%%' THEN 'Eval Benchmarks'
+					WHEN cwd LIKE '%%/worktrees/%%' THEN 'Coordinator Tasks'
+					ELSE cwd
+				END as workspace_label,
+				tokens_in,
+				tokens_out,
+				cost_usd
+			FROM workspace_data
+		),
+		-- Map known paths to friendly labels
+		with_labels AS (
+			SELECT
+				workspace_id,
+				CASE
+					WHEN workspace_label = 'No Workspace' THEN 'No Workspace'
+					WHEN workspace_label = 'Eval Benchmarks' THEN 'Eval Benchmarks'
+					WHEN workspace_label = 'Coordinator Tasks' THEN 'Coordinator Tasks'
+					WHEN workspace_id LIKE '%%/sunholo/ailang/ui' THEN 'ailang/ui'
+					WHEN workspace_id LIKE '%%/sunholo/ailang' THEN 'ailang'
+					WHEN workspace_id LIKE '%%/twilight%%' THEN 'twilight'
+					WHEN workspace_id LIKE '%%/stapledon%%' THEN 'stapledon'
+					ELSE workspace_id
+				END as label,
+				tokens_in,
+				tokens_out,
+				cost_usd
+			FROM normalized
+		)
+		SELECT
+			workspace_id as id,
+			label,
+			COUNT(*) as span_count,
+			0 as task_count,
+			COALESCE(SUM(tokens_in), 0) as tokens_in,
+			COALESCE(SUM(tokens_out), 0) as tokens_out,
+			COALESCE(SUM(cost_usd), 0) as cost_usd
+		FROM with_labels
+		GROUP BY workspace_id
+		ORDER BY cost_usd DESC
+	`, whereClause)
+
+	rows, err := b.store.DB().QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []BreakdownItem
+	for rows.Next() {
+		var item BreakdownItem
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

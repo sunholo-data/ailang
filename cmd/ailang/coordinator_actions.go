@@ -5,16 +5,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func coordinatorApprove(args []string) error {
@@ -23,12 +19,6 @@ func coordinatorApprove(args []string) error {
 	}
 
 	taskID := args[0]
-
-	// Accept both task IDs (task-xxx) and approval IDs (apr-xxx)
-	// Convert approval ID to task ID if needed
-	if strings.HasPrefix(taskID, "apr-") {
-		taskID = "task-" + strings.TrimPrefix(taskID, "apr-")
-	}
 	stateDir := ""
 	skipMerge := false
 	keepWorktree := false
@@ -64,138 +54,48 @@ func coordinatorApprove(args []string) error {
 	}
 	defer store.Close()
 
+	// Load agent registry for per-agent merge branch lookup
+	agentRegistry, _ := coordinator.LoadAgentRegistry()
+
 	ctx := context.Background()
 
-	// Create OTEL span for human approval (M-TRANSCRIPT, M-DASHBOARD-APPROVAL-INTEGRATION)
-	tracer := otel.Tracer("coordinator.cli")
-	ctx, span := tracer.Start(ctx, "approval.decision",
-		trace.WithAttributes(
-			attribute.String("task.id", taskID),
-			attribute.String("approval.action", "approve"),
-			attribute.String("approval.channel", "cli"),
-			attribute.String("approval.by", "cli-user"),
-		),
-	)
-	defer span.End()
-
-	// Get the task to verify status and get worktree path
-	task, err := store.GetTask(ctx, taskID)
+	// Use unified approval processor
+	// Note: MergeBranch is resolved by processor from AgentRegistry or defaults
+	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+		TaskID:        taskID,
+		Action:        "approve",
+		ApprovedBy:    "cli-user",
+		Channel:       "cli",
+		SkipMerge:     skipMerge,
+		KeepWorktree:  keepWorktree,
+		Store:         store,
+		AgentRegistry: agentRegistry,
+	})
 	if err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("failed to get task: %w", err)
-	}
-	if task == nil {
-		return fmt.Errorf("task not found: %s", taskID)
+		return err
 	}
 
-	// Add task iteration to span (M-TRANSCRIPT)
-	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
-
-	// Verify task is pending approval
-	if task.Status != coordinator.TaskStatusPendingApproval {
-		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
-	}
-
-	// Store approval event for audit trail (M-TRANSCRIPT)
-	if err := coordinator.StoreApprovalEvent(ctx, store, taskID, "cli-user"); err != nil {
-		// Log but don't fail - approval can still proceed
-		fmt.Println(yellow("!"), "Warning: Failed to store approval event:", err)
-	}
-
-	// Resolve the approval request in database
-	if err := store.ResolveApprovalRequestByTask(ctx, taskID, "approved", "cli-user"); err != nil {
-		span.RecordError(err)
-		return fmt.Errorf("failed to approve task: %w", err)
-	}
-
-	fmt.Println(green("✓"), "Task approved:", taskID)
-
-	// Skip merge if requested or no worktree
-	if skipMerge {
-		fmt.Println(yellow("!"), "Merge skipped (--skip-merge)")
-		return nil
-	}
-
-	if task.WorktreePath == "" {
-		fmt.Println(yellow("!"), "No worktree path - nothing to merge")
-		return nil
-	}
-
-	// Check worktree exists
-	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
-		fmt.Println(yellow("!"), "Worktree no longer exists:", task.WorktreePath)
-		return nil
-	}
-
-	// Auto-commit any uncommitted changes in the worktree
-	if err := autoCommitWorktreeChanges(task.WorktreePath, task.Title); err != nil {
-		fmt.Println(yellow("!"), "Warning: Failed to auto-commit:", err)
-		// Continue anyway - user can manually commit
-	}
-
-	// Perform the merge
-	fmt.Println(cyan("→"), "Merging changes to dev branch...")
-	fmt.Printf("  Worktree: %s\n", task.WorktreePath)
-
-	mergeResult, err := coordinator.MergeWorktree(ctx, task.WorktreePath, "dev")
-	if err != nil {
-		return fmt.Errorf("merge failed: %w", err)
-	}
-
-	if !mergeResult.Success {
-		if len(mergeResult.ConflictFiles) > 0 {
+	// Display result
+	if result.Success {
+		fmt.Println(green("✓"), result.Message)
+		if result.MergeCommit != "" {
+			fmt.Printf("  Commit: %s\n", result.MergeCommit)
+		}
+		if len(result.MergedFiles) > 0 {
+			fmt.Printf("  Files: %s\n", strings.Join(result.MergedFiles, ", "))
+		}
+	} else {
+		if len(result.ConflictFiles) > 0 {
 			fmt.Println(red("✗"), "Merge conflicts detected:")
-			for _, f := range mergeResult.ConflictFiles {
+			for _, f := range result.ConflictFiles {
 				fmt.Printf("    - %s\n", f)
 			}
 			fmt.Println()
 			fmt.Println("Resolve conflicts manually in the worktree, then retry approval.")
-			return fmt.Errorf("merge conflicts: %v", mergeResult.ConflictFiles)
-		}
-		return fmt.Errorf("merge failed: %s", mergeResult.Error)
-	}
-
-	// Update task status to completed
-	if err := store.MarkTaskCompleted(ctx, taskID, &coordinator.ExecuteResult{
-		Success: true,
-		Output:  fmt.Sprintf("Merged to dev (commit: %s)", mergeResult.CommitHash),
-	}); err != nil {
-		fmt.Println(yellow("!"), "Warning: Failed to update task status:", err)
-	}
-
-	fmt.Println(green("✓"), "Changes merged successfully")
-	fmt.Printf("  Commit: %s\n", mergeResult.CommitHash)
-	if len(mergeResult.MergedFiles) > 0 {
-		fmt.Printf("  Files: %s\n", strings.Join(mergeResult.MergedFiles, ", "))
-	}
-
-	// Clean up worktree after successful merge (unless --keep-worktree)
-	if keepWorktree {
-		fmt.Println()
-		fmt.Printf("Worktree preserved at: %s\n", task.WorktreePath)
-		fmt.Println("To remove: git worktree remove", task.WorktreePath)
-	} else {
-		// Get the branch name before removing worktree
-		branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
-		branchOutput, _ := branchCmd.Output()
-		branchName := strings.TrimSpace(string(branchOutput))
-
-		// Remove the worktree
-		fmt.Println(cyan("→"), "Cleaning up worktree...")
-		removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
-		if output, err := removeCmd.CombinedOutput(); err != nil {
-			fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
 		} else {
-			fmt.Println(green("✓"), "Worktree removed")
+			fmt.Println(red("✗"), result.Error)
 		}
-
-		// Also delete the branch
-		if branchName != "" && branchName != "HEAD" {
-			deleteCmd := exec.Command("git", "branch", "-D", branchName)
-			if _, err := deleteCmd.CombinedOutput(); err == nil {
-				fmt.Printf("  Deleted branch: %s\n", branchName)
-			}
-		}
+		return fmt.Errorf("approval failed: %s", result.Error)
 	}
 
 	return nil
@@ -215,13 +115,6 @@ func coordinatorReject(args []string) error {
 	}
 
 	taskID := args[0]
-
-	// Accept both task IDs (task-xxx) and approval IDs (apr-xxx)
-	// Convert approval ID to task ID if needed
-	if strings.HasPrefix(taskID, "apr-") {
-		taskID = "task-" + strings.TrimPrefix(taskID, "apr-")
-	}
-
 	stateDir := ""
 	feedbackText := ""
 	skipPrompt := false
@@ -255,7 +148,7 @@ func coordinatorReject(args []string) error {
 		cfg.StateDir = stateDir
 	}
 
-	// Open the coordinator database to resolve approval
+	// Open the coordinator database
 	dbPath := filepath.Join(cfg.StateDir, "coordinator.db")
 	store, err := coordinator.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -263,79 +156,7 @@ func coordinatorReject(args []string) error {
 	}
 	defer store.Close()
 
-	// Use enhanced rejection with feedback (unless --no-retrigger specified)
-	if noRetrigger {
-		// Legacy behavior: immediate rejection without feedback loop
-		ctx := context.Background()
-		if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
-			return fmt.Errorf("failed to reject task: %w", err)
-		}
-
-		fmt.Println(green("✓"), "Task rejected:", taskID)
-
-		// Clean up worktree if it exists
-		task, err := store.GetTask(ctx, taskID)
-		if err == nil && task != nil && task.WorktreePath != "" {
-			if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
-				branchCmd := exec.Command("git", "-C", task.WorktreePath, "rev-parse", "--abbrev-ref", "HEAD")
-				branchOutput, _ := branchCmd.Output()
-				branchName := strings.TrimSpace(string(branchOutput))
-
-				fmt.Println(cyan("→"), "Cleaning up worktree...")
-				removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
-				if output, err := removeCmd.CombinedOutput(); err != nil {
-					fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
-				} else {
-					fmt.Println(green("✓"), "Worktree removed")
-				}
-
-				if branchName != "" && branchName != "HEAD" {
-					deleteCmd := exec.Command("git", "branch", "-D", branchName)
-					if _, err := deleteCmd.CombinedOutput(); err == nil {
-						fmt.Printf("  Deleted branch: %s\n", branchName)
-					}
-				}
-			}
-		}
-		return nil
-	}
-
-	// Enhanced rejection with feedback and re-trigger support
-	return coordinatorRejectWithFeedback(store, taskID, skipPrompt, feedbackText)
-}
-
-// coordinatorRejectWithFeedback handles rejection with feedback, message sending, and re-triggering.
-// This implements the M-TRANSCRIPT feedback loop:
-// 1. Prompts for feedback reason
-// 2. Stores feedback as human_feedback event
-// 3. Sends message to agent inbox
-// 4. Re-triggers task with iteration+1 (if under MaxIterations)
-func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string, skipPrompt bool, feedbackText string) error {
-	ctx := context.Background()
-
-	// Get the task
-	task, err := store.GetTask(ctx, taskID)
-	if err != nil {
-		return fmt.Errorf("failed to get task: %w", err)
-	}
-	if task == nil {
-		return fmt.Errorf("task not found: %s", taskID)
-	}
-
-	// Create OTEL span for rejection decision (M-DASHBOARD-APPROVAL-INTEGRATION)
-	tracer := otel.Tracer("coordinator.cli")
-	ctx, span := tracer.Start(ctx, "approval.decision",
-		trace.WithAttributes(
-			attribute.String("task.id", taskID),
-			attribute.String("approval.action", "reject"),
-			attribute.String("approval.channel", "cli"),
-			attribute.String("approval.by", "cli-user"),
-			attribute.Int("task.iteration", task.Iteration),
-		),
-	)
-	defer span.End()
-
-	// Prompt for feedback if not provided
+	// Prompt for feedback if not provided and not skipped
 	if feedbackText == "" && !skipPrompt {
 		fmt.Print(yellow("📝"), " Feedback for agent (why was this rejected?): ")
 		reader := bufio.NewReader(os.Stdin)
@@ -346,129 +167,50 @@ func coordinatorRejectWithFeedback(store *coordinator.SQLiteStore, taskID string
 		feedbackText = strings.TrimSpace(input)
 	}
 
-	// If still no feedback after prompting, use default
-	if feedbackText == "" {
-		feedbackText = "Rejected without specific feedback"
-	}
-
-	// Store feedback as human_feedback event
-	feedback := &coordinator.HumanFeedback{
-		TaskID:    taskID,
-		Iteration: task.Iteration,
-		Feedback:  feedbackText,
-		Action:    "reject",
-		Timestamp: time.Now(),
-		UserID:    "cli-user",
-	}
-	if err := coordinator.StoreFeedbackEvent(ctx, store, feedback); err != nil {
-		fmt.Println(yellow("!"), "Warning: Failed to store feedback event:", err)
-		// Continue anyway
-	}
-
-	// Post feedback to GitHub if task has a linked issue (M-DASHBOARD-APPROVAL-INTEGRATION)
-	if task.GithubIssue > 0 {
-		iteration := task.Iteration
-		if iteration < 1 {
-			iteration = 1
-		}
-		poster, err := coordinator.NewGitHubPoster() // Uses default repo from config
+	// Open messaging store for feedback loop
+	var msgStore *messaging.Store
+	if !noRetrigger {
+		msgStore, err = messaging.OpenStore(messaging.GetDefaultDatabasePath())
 		if err != nil {
-			fmt.Println(yellow("!"), "Warning: Could not create GitHub poster:", err)
-		} else {
-			if err := poster.PostFeedback(task.GithubIssue, feedbackText, iteration, "cli"); err != nil {
-				fmt.Println(yellow("!"), fmt.Sprintf("Warning: Failed to post feedback to GitHub issue #%d: %v", task.GithubIssue, err))
-			} else {
-				fmt.Println(green("✓"), fmt.Sprintf("Feedback posted to GitHub issue #%d", task.GithubIssue))
-			}
-		}
-	}
-
-	// Check if we can re-trigger (under max iterations)
-	canRetrigger := coordinator.CanRetrigger(task)
-
-	if canRetrigger {
-		// Calculate next iteration (for the new task that will be created)
-		nextIteration := task.Iteration + 1
-		if nextIteration < 2 {
-			nextIteration = 2 // First rejection creates iteration 2
-		}
-
-		// Store iteration start event
-		if err := coordinator.StoreIterationStartEvent(ctx, store, taskID, nextIteration); err != nil {
-			fmt.Println(yellow("!"), "Warning: Failed to store iteration start:", err)
-		}
-
-		// Mark OLD task as rejected (don't modify in place, create new task via message)
-		// This ensures proper hierarchy: old task (rejected) → new task (pending)
-		if err := store.MarkTaskRejected(ctx, taskID); err != nil {
-			fmt.Println(yellow("!"), "Warning: Failed to mark old task as rejected:", err)
-			// Continue anyway - new task will still be created
-		}
-
-		// Send feedback message to agent inbox with parent_task_id and github_issue
-		// The coordinator daemon will create a NEW task linked to the original
-		msgStore, err := messaging.OpenStore(messaging.GetDefaultDatabasePath())
-		if err != nil {
-			fmt.Println(yellow("!"), "Warning: Could not send message to agent:", err)
+			fmt.Println(yellow("!"), "Warning: Could not open messaging store:", err)
 		} else {
 			defer msgStore.Close()
-
-			agentInbox := task.AgentID
-			if agentInbox == "" {
-				agentInbox = "coordinator" // Default fallback
-			}
-
-			// Build payload with feedback context
-			payload := fmt.Sprintf("Task rejected with feedback:\n\n%s\n\n---\n**Original Task:** %s\n**Iteration:** %d/%d\n**Context:** Session will resume with feedback incorporated.",
-				feedbackText, task.Title, nextIteration, coordinator.MaxIterations)
-
-			msg := &messaging.InboxMessage{
-				FromAgent:     "cli-user",
-				ToInbox:       agentInbox,
-				MessageType:   messaging.InboxTypeNotification,
-				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), nextIteration),
-				Payload:       payload,
-				CorrelationID: taskID,            // Link to original task for reference
-				ParentTaskID:  taskID,            // M-TASK-HIERARCHY: Hierarchy link for task chain tracing
-				GitHubIssue:   &task.GithubIssue, // M-TASK-HIERARCHY: Inherit GitHub issue number
-				Iteration:     nextIteration,     // M-TASK-HIERARCHY: Carry iteration forward to new task
-			}
-			if err := msgStore.InsertInboxMessage(msg); err != nil {
-				fmt.Println(yellow("!"), "Warning: Failed to send message:", err)
-			} else {
-				fmt.Println(green("✓"), "Feedback sent to agent inbox:", agentInbox)
-			}
 		}
+	}
 
-		fmt.Println(green("✓"), fmt.Sprintf("Task re-queued for iteration %d (max: %d)", nextIteration, coordinator.MaxIterations))
+	// Create GitHub poster for issue updates
+	var githubPoster *coordinator.GitHubPoster
+	poster, err := coordinator.NewGitHubPoster()
+	if err == nil {
+		githubPoster = poster
+	}
+
+	// Load agent registry for per-agent merge branch lookup
+	agentRegistry, _ := coordinator.LoadAgentRegistry()
+
+	ctx := context.Background()
+
+	// Use unified approval processor
+	result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+		TaskID:            taskID,
+		Action:            "reject",
+		ApprovedBy:        "cli-user",
+		Channel:           "cli",
+		Feedback:          feedbackText,
+		RetriggerOnReject: !noRetrigger,
+		Store:             store,
+		MsgStore:          msgStore,
+		GitHubPoster:      githubPoster,
+		AgentRegistry:     agentRegistry,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Display result
+	fmt.Println(green("✓"), result.Message)
+	if result.NewTaskID != "" {
 		fmt.Println(cyan("→"), "Session will resume with context preserved (--resume)")
-
-	} else {
-		// Max iterations reached - permanent rejection
-		if err := store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", "cli-user"); err != nil {
-			return fmt.Errorf("failed to reject task: %w", err)
-		}
-
-		// Update task status
-		task.Status = coordinator.TaskStatusRejected
-		if err := store.UpdateTask(ctx, task); err != nil {
-			fmt.Println(yellow("!"), "Warning: Failed to update task status:", err)
-		}
-
-		fmt.Println(yellow("!"), fmt.Sprintf("Max iterations (%d) reached - task permanently rejected", coordinator.MaxIterations))
-
-		// Clean up worktree
-		if task.WorktreePath != "" {
-			if _, statErr := os.Stat(task.WorktreePath); statErr == nil {
-				fmt.Println(cyan("→"), "Cleaning up worktree...")
-				removeCmd := exec.Command("git", "worktree", "remove", task.WorktreePath, "--force")
-				if output, err := removeCmd.CombinedOutput(); err != nil {
-					fmt.Println(yellow("!"), "Warning: Failed to remove worktree:", string(output))
-				} else {
-					fmt.Println(green("✓"), "Worktree removed")
-				}
-			}
-		}
 	}
 
 	return nil

@@ -43,6 +43,7 @@ import type {
 import type { EventType } from './components/MessageQueue';
 import { useObservatoryWs, useApprovals } from '../../hooks/useObservatory';
 import { ApprovalDetailModal, ApprovalData } from '../approvals/ApprovalDetailModal';
+import { HeaderStats } from '../../components/HeaderStats';
 import type { Approval } from '../../types';
 
 /**
@@ -116,42 +117,26 @@ const findAgentPath = (
   return path;
 };
 
-// Parse selectedLevel to ControlPlaneFilters
-const parseSelectedLevelToFilters = (selectedLevel: string): ControlPlaneFilters => {
-  if (!selectedLevel || selectedLevel === 'global') {
-    return {};
-  }
-  // Format: "source-eval", "provider-claude", "model-claude-sonnet-4-5", "workspace-abc123"
-  const parts = selectedLevel.split('-');
-  if (parts.length < 2) return {};
+// Multi-filter type: maps dimension to selected value
+// e.g., { workspace: 'ailang', source: 'eval', provider: 'claude' }
+type SelectedFilters = Record<string, string>;
 
-  const filterType = parts[0];
-  const filterValue = parts.slice(1).join('-'); // Handle model names with dashes
-
-  switch (filterType) {
-    case 'source':
-      return { source_type: filterValue };
-    case 'provider':
-      return { provider: filterValue };
-    case 'model':
-      return { model: filterValue };
-    case 'workspace':
-      return { workspace: filterValue };
-    default:
-      return {};
-  }
+// Parse multi-filter object to ControlPlaneFilters
+const parseSelectedFiltersToFilters = (selected: SelectedFilters): ControlPlaneFilters => {
+  return {
+    source_type: selected.source,
+    provider: selected.provider,
+    model: selected.model,
+    workspace: selected.workspace,
+  };
 };
 
-interface ControlPlaneProps {
-  onSwitchToOldDashboard?: () => void;
-}
-
 // Main Component
-export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboard }) => {
+export const ControlPlane: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [timeRange, setTimeRange] = useState('24h');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedLevel, setSelectedLevel] = useState('global');
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({});
   const [trustCapabilities, setTrustCapabilities] = useState<TrustCapability[]>(defaultTrustCapabilities);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
@@ -188,8 +173,28 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
     source_type?: string;
   } | null>(null);
 
-  // Convert selectedLevel to dimension filters
-  const dimensionFilters = useMemo(() => parseSelectedLevelToFilters(selectedLevel), [selectedLevel]);
+  // Convert selectedFilters to ControlPlaneFilters
+  const dimensionFilters = useMemo(() => parseSelectedFiltersToFilters(selectedFilters), [selectedFilters]);
+
+  // Handler to toggle a filter dimension (for AggregationNav)
+  const handleFilterToggle = useCallback((dimension: string, value: string) => {
+    setSelectedFilters(prev => {
+      const newFilters = { ...prev };
+      if (newFilters[dimension] === value) {
+        // Same value clicked - deselect this dimension
+        delete newFilters[dimension];
+      } else {
+        // Different value - select this value for this dimension
+        newFilters[dimension] = value;
+      }
+      return newFilters;
+    });
+  }, []);
+
+  // Clear all filters (for "Global" click or "Clear All" button)
+  const handleClearFilters = useCallback(() => {
+    setSelectedFilters({});
+  }, []);
 
   // Merge dimension filters with time range from heatmap selection, status, and search
   const filters = useMemo((): ControlPlaneFilters => {
@@ -212,7 +217,8 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
   }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery]);
 
   // Fetch real data from APIs - pass merged filters to all applicable hooks
-  const { data: heatmapResponse } = useHeatmapData({ days: 90, filters });
+  // Use grid format for server-side date calculations (removes ~80 lines of client-side logic)
+  const { gridData, data: heatmapResponse } = useHeatmapData({ days: 90, filters, format: 'grid' });
   const { data: topologyData } = useTopologyData({ refreshInterval: 5000 });
   const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
   const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
@@ -475,6 +481,9 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           </div>
         </div>
         <div className={styles.headerActions}>
+          {/* Dashboard Stats */}
+          <HeaderStats />
+
           {/* Pending Approvals Dropdown */}
           <div className={styles.approvalsDropdownWrapper}>
             <button
@@ -566,6 +575,7 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           <div className={`${styles.canvasRow} ${styles.canvasRowSplit}`}>
             <ActivityHeatmap
               data={heatmapData}
+              gridData={gridData}
               selectedRange={selectedDateRange}
               onDateSelect={handleDateSelect}
               onCellClick={handleCellClick}
@@ -608,8 +618,9 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
         {/* Right Sidebar - Aggregations (Analysis/Metrics) */}
         <aside className={styles.aggregationPanel}>
           <AggregationNav
-            selectedLevel={selectedLevel}
-            onSelectLevel={setSelectedLevel}
+            selectedFilters={selectedFilters}
+            onFilterToggle={handleFilterToggle}
+            onClearFilters={handleClearFilters}
             stats={stats ? {
               totalTasks: stats.totalTasks,
               totalCost: parseFloat(stats.totalCost.replace('$', '')),
@@ -645,11 +656,6 @@ export const ControlPlane: React.FC<ControlPlaneProps> = ({ onSwitchToOldDashboa
           <span className={styles.footerDot} />
           Coordinator Active
         </span>
-        {onSwitchToOldDashboard && (
-          <button className={styles.oldDashboardLink} onClick={onSwitchToOldDashboard}>
-            View Old Dashboard →
-          </button>
-        )}
         <span className={styles.footerTime}>{new Date().toISOString()}</span>
       </footer>
 

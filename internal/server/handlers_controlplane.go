@@ -747,8 +747,8 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		if items, err := sqliteBackend.GetFilteredBreakdownByModel(ctx, filter); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		// Workspace breakdown doesn't need filtering (it shows all workspaces always)
-		if items, err := sqliteBackend.GetBreakdownByWorkspace(ctx); err == nil {
+		// Workspace breakdown also respects filters (shows workspaces matching current filter)
+		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspace(ctx, filter); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}
 	} else {
@@ -762,7 +762,7 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		if items, err := sqliteBackend.GetBreakdownByModel(ctx); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		if items, err := sqliteBackend.GetBreakdownByWorkspace(ctx); err == nil {
+		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspace(ctx, filter); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}
 	}

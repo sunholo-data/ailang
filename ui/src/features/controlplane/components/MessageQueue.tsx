@@ -127,7 +127,16 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   const goToPrevPage = () => setCurrentPage((p) => Math.max(0, p - 1));
   const goToNextPage = () => setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
 
-  const handleTypeToggle = useCallback((type: EventType) => {
+  // Exclusive selection: click type to select ONLY that type
+  const handleTypeSelect = useCallback((type: EventType) => {
+    if (!onTypeFilterChange) return;
+    onTypeFilterChange([type]);  // Select ONLY this type
+    setShowTypeFilter(false);    // Close dropdown after selection
+  }, [onTypeFilterChange]);
+
+  // Additive toggle: checkbox adds/removes from current selection
+  const handleTypeToggle = useCallback((type: EventType, e: React.MouseEvent) => {
+    e.stopPropagation();  // Prevent row click
     if (!onTypeFilterChange) return;
     const current = selectedTypes || [];
 
@@ -218,17 +227,24 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                 <button onClick={handleClearTypeFilter} className={styles.filterMenuAction}>Clear</button>
               </div>
               {ALL_EVENT_TYPES.map((type) => (
-                <label key={type} className={styles.filterOption}>
+                <div
+                  key={type}
+                  className={styles.filterOption}
+                  onClick={() => handleTypeSelect(type)}
+                  title={`Click to show only ${type.replace('_', ' ')} events`}
+                >
                   <input
                     type="checkbox"
                     checked={!selectedTypes || selectedTypes.length === 0 || selectedTypes.includes(type)}
-                    onChange={() => handleTypeToggle(type)}
+                    onChange={(e) => handleTypeToggle(type, e as unknown as React.MouseEvent)}
+                    onClick={(e) => e.stopPropagation()}
+                    title="Toggle in selection"
                   />
                   <span className={styles.filterOptionIcon} data-type={getEventColor(type)}>
                     {getEventIcon(type)}
                   </span>
                   <span className={styles.filterOptionLabel}>{type.replace('_', ' ')}</span>
-                </label>
+                </div>
               ))}
             </div>
           )}

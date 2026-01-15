@@ -185,6 +185,7 @@ type Store interface {
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
 	ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error)
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
+	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
 
 	// Cleanup
 	DeleteOldTasks(ctx context.Context, olderThan time.Duration) (int, error)

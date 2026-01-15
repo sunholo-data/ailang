@@ -212,5 +212,10 @@ func (s *CloudStore) GetTaskAgentInfo(ctx context.Context, taskID string) (agent
 	return "", "", "", fmt.Errorf("cloud store: GetTaskAgentInfo not implemented")
 }
 
+// ResolveApprovalRequestByTask resolves approval request by task ID (stub)
+func (s *CloudStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error {
+	return fmt.Errorf("cloud store: ResolveApprovalRequestByTask not implemented")
+}
+
 // Compile-time check that CloudStore implements Store
 var _ Store = (*CloudStore)(nil)

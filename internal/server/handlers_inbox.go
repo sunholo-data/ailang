@@ -34,9 +34,10 @@ type UnifiedEvent struct {
 	TokensIn   int64   `json:"tokens_in,omitempty"`
 	TokensOut  int64   `json:"tokens_out,omitempty"`
 	DurationMs int     `json:"duration_ms,omitempty"`
-	Workspace  string  `json:"workspace,omitempty"` // Working directory for Claude Code events
-	Model      string  `json:"model,omitempty"`     // AI model used (e.g., "claude-opus-4-5-20251101")
-	Provider   string  `json:"provider,omitempty"`  // AI provider (e.g., "claude", "gemini")
+	Workspace  string  `json:"workspace,omitempty"`   // Working directory for Claude Code events
+	Model      string  `json:"model,omitempty"`       // AI model used (e.g., "claude-opus-4-5-20251101")
+	Provider   string  `json:"provider,omitempty"`    // AI provider (e.g., "claude", "gemini")
+	SourceType string  `json:"source_type,omitempty"` // Source type: coordinator, eval, user_session, etc.
 }
 
 // GET /api/inbox - List inbox messages
@@ -146,6 +147,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 			Payload:       msg.Payload,
 			CorrelationID: msg.CorrelationID,
 			Source:        "inbox",
+			SourceType:    InferInboxSourceType(msg.FromAgent, msg.ToInbox),
 		})
 	}
 
@@ -211,6 +213,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						Model:      cc.Model,
 						Provider:   cc.Provider,
 						Workspace:  cc.Workspace,
+						SourceType: InferInboxSourceType(cc.FromAgent, cc.ToInbox),
 					})
 				}
 			}

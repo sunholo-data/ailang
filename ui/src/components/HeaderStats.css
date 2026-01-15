@@ -1,0 +1,45 @@
+/**
+ * HeaderStats - Inline stats display for header
+ */
+
+.header-stats-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: linear-gradient(135deg, rgba(231, 60, 23, 0.06), rgba(221, 107, 32, 0.08));
+  border: 1px solid rgba(231, 60, 23, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.header-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-stat-item:not(:last-child) {
+  padding-right: var(--space-3);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-stat-icon {
+  font-size: 12px;
+  opacity: 0.7;
+  color: var(--color-primary-light);
+}
+
+.header-stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+}
+
+.header-stat-label {
+  font-size: 10px;
+  font-weight: var(--font-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

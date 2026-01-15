@@ -1,14 +1,22 @@
 /**
  * ActivityHeatmap - GitHub-style activity heatmap for Control Plane
+ *
+ * Supports two modes:
+ * 1. Grid mode (preferred): Uses pre-computed weeks/months from API
+ * 2. Flat mode (legacy): Computes grid client-side from flat cell array
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { HeatmapCell, DateRange } from './types';
+import type { HeatmapGridData, HeatmapGridCell } from '../hooks/useHeatmapData';
 import styles from '../ControlPlane.module.css';
 
 type HeatmapRange = '3m' | '6m' | '1y';
 
 export interface ActivityHeatmapProps {
+  /** Flat cell array (legacy mode) */
   data: HeatmapCell[];
+  /** Pre-computed grid data from API (preferred) */
+  gridData?: HeatmapGridData | null;
   selectedRange: DateRange | null;
   onDateSelect: (range: DateRange) => void;
   onCellClick: (cell: HeatmapCell) => void;
@@ -23,6 +31,7 @@ const formatDuration = (ms: number): string => {
 
 export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   data,
+  gridData,
   selectedRange,
   onDateSelect,
   onCellClick,
@@ -54,16 +63,44 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     return counts.length > 0 ? Math.max(...counts) : 1;
   }, [filteredData]);
 
-  const getIntensity = (count: number): number => {
-    if (count === 0) return 0;
-    const ratio = count / maxCount;
+  // Get intensity level (0-4) for a cell
+  // Uses pre-computed intensity from API when available (grid mode)
+  const getIntensity = (cell: HeatmapCell & { _intensity?: number }): number => {
+    // Use pre-computed intensity from grid mode (0-1 range → 0-4 levels)
+    if (typeof cell._intensity === 'number') {
+      if (cell._intensity === 0) return 0;
+      if (cell._intensity <= 0.25) return 1;
+      if (cell._intensity <= 0.50) return 2;
+      if (cell._intensity <= 0.75) return 3;
+      return 4;
+    }
+    // Legacy fallback: compute from count
+    if (cell.taskCount === 0) return 0;
+    const ratio = cell.taskCount / maxCount;
     if (ratio <= 0.25) return 1;  // 0-25% of max
     if (ratio <= 0.50) return 2;  // 25-50% of max
     if (ratio <= 0.75) return 3;  // 50-75% of max
     return 4;                      // 75-100% of max
   };
 
+  // Use server-computed grid data if available, otherwise compute client-side
   const weeks = useMemo(() => {
+    // Grid mode: Use pre-computed weeks from API (removes ~50 lines of client-side calculation)
+    if (gridData?.weeks) {
+      // Convert HeatmapGridCell to HeatmapCell for compatibility with tooltips/selection
+      return gridData.weeks.map(week =>
+        week.map(cell => ({
+          date: cell.date,
+          taskCount: cell.count,
+          cost: cell.cost,
+          successRate: cell.successRate,
+          // Store pre-computed intensity for getIntensity optimization
+          _intensity: cell.intensity,
+        } as HeatmapCell & { _intensity?: number }))
+      );
+    }
+
+    // Legacy mode: Compute grid client-side from flat data
     const result: HeatmapCell[][] = [];
     let currentWeek: HeatmapCell[] = [];
 
@@ -112,10 +149,21 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       result.push(currentWeek);
     }
     return result;
-  }, [filteredData, displayRange]);
+  }, [gridData, filteredData, displayRange]);
 
   // Get month labels with their positions
+  // Use server-computed labels if available (removes ~30 lines of client-side calculation)
   const monthLabels = useMemo(() => {
+    // Grid mode: Use pre-computed month labels from API
+    if (gridData?.monthLabels) {
+      return gridData.monthLabels.map(m => ({
+        label: m.name,
+        weekIdx: m.weekIndex,
+        span: 1, // API doesn't provide span, but CSS handles it
+      }));
+    }
+
+    // Legacy mode: Compute month labels client-side
     const labels: { label: string; weekIdx: number; span: number }[] = [];
     let currentMonth = -1;
     let currentLabel: { label: string; weekIdx: number; span: number } | null = null;
@@ -144,7 +192,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
       labels.push(currentLabel);
     }
     return labels;
-  }, [weeks]);
+  }, [gridData, weeks]);
 
   const handleCellHover = (cell: HeatmapCell, e: React.MouseEvent) => {
     if (cell.taskCount >= 0) {
@@ -209,12 +257,15 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     return { totalTasks, totalCost, avgSuccess, days: cells.length };
   }, [filteredData, selectedRange]);
 
-  // Calculate totals for display
+  // Calculate totals for display (use server totals when available)
   const totals = useMemo(() => {
+    if (gridData?.totals) {
+      return { totalTasks: gridData.totals.tasks, totalCost: gridData.totals.cost };
+    }
     const totalTasks = filteredData.reduce((sum, c) => sum + c.taskCount, 0);
     const totalCost = filteredData.reduce((sum, c) => sum + c.cost, 0);
     return { totalTasks, totalCost };
-  }, [filteredData]);
+  }, [gridData, filteredData]);
 
   return (
     <div className={styles.heatmapContainer}>
@@ -291,7 +342,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
                   <div
                     key={dayIdx}
                     className={`${styles.heatmapCell} ${
-                      cell.taskCount < 0 ? styles.cellEmpty : styles[`intensity${getIntensity(cell.taskCount)}`]
+                      cell.taskCount < 0 ? styles.cellEmpty : styles[`intensity${getIntensity(cell)}`]
                     } ${isInRange(cell.date) ? styles.cellSelected : ''}`}
                     onMouseEnter={(e) => handleCellHover(cell, e)}
                     onMouseLeave={() => !isDragging && setHoveredCell(null)}

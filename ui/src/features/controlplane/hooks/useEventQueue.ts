@@ -42,6 +42,7 @@ interface InboxMessage {
   workspace?: string;
   provider?: string;
   model?: string;
+  source_type?: string;
 }
 
 interface UseEventQueueOptions {
@@ -122,6 +123,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
           workspace: msg.workspace,
           provider: msg.provider,
           model: msg.model,
+          source_type: msg.source_type,
         },
       }));
 
@@ -285,14 +287,20 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
 // Map message types to event types
 function mapMessageTypeToEventType(msgType: string): EventMessage['type'] {
   switch (msgType) {
+    // Task lifecycle
     case 'task':
     case 'task_request':
+    case 'task_started':
       return 'task_start';
     case 'task_result':
     case 'result':
+    case 'task_completed':
       return 'task_complete';
     case 'error':
+    case 'task_error':
+    case 'task_failed':
       return 'task_error';
+    // Coordination
     case 'handoff':
     case 'agent_handoff':
       return 'handoff';
@@ -307,17 +315,30 @@ function mapMessageTypeToEventType(msgType: string): EventMessage['type'] {
 // Map stream types to event types
 function mapStreamTypeToEventType(streamType: string): EventMessage['type'] {
   switch (streamType) {
+    // Task lifecycle
     case 'task_started':
+    case 'turn_start':        // Turn start = task activity
       return 'task_start';
     case 'task_completed':
+    case 'turn_end':          // Turn end = completion signal
       return 'task_complete';
     case 'task_failed':
     case 'task_error':
+    case 'error':             // Generic error events
       return 'task_error';
+    // Coordination
     case 'handoff':
       return 'handoff';
     case 'approval_request':
+    case 'human_approval':      // Human approved a task
       return 'approval';
+    // Execution details → generic message
+    case 'text':
+    case 'tool_use':
+    case 'tool_result':
+    case 'status':
+    case 'human_feedback':      // Human provided feedback
+    case 'iteration_start':     // New iteration started
     default:
       return 'message';
   }

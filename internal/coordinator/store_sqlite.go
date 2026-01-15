@@ -804,6 +804,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
+	var messageID sql.NullString
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
@@ -813,7 +814,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var estimatedCost sql.NullFloat64
 
 	err := row.Scan(
-		&task.ID, &task.MessageID, &threadID, &parentTaskID, &task.Title, &task.Content,
+		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
@@ -833,6 +834,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if durationNs.Valid {
 		task.Duration = time.Duration(durationNs.Int64)
+	}
+	if messageID.Valid {
+		task.MessageID = messageID.String
 	}
 	if provider.Valid {
 		task.Provider = provider.String
@@ -898,6 +902,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	task := &TaskRecord{}
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
+	var messageID sql.NullString
 	var provider, agentID, worktreeID, worktreePath, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
@@ -907,7 +912,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var estimatedCost sql.NullFloat64
 
 	err := rows.Scan(
-		&task.ID, &task.MessageID, &threadID, &parentTaskID, &task.Title, &task.Content,
+		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
@@ -927,6 +932,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if durationNs.Valid {
 		task.Duration = time.Duration(durationNs.Int64)
+	}
+	if messageID.Valid {
+		task.MessageID = messageID.String
 	}
 	if provider.Valid {
 		task.Provider = provider.String

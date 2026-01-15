@@ -784,17 +784,16 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			// M-DASHBOARD-APPROVAL-INTEGRATION: Create inbox message for Event Queue visibility
 			// This allows approvals to show up in the dashboard's event queue with pulsing animation
 			if d.msgStore != nil {
-				approvalContent := fmt.Sprintf("**Approval Required**\n\nTask: %s\nAgent: %s\n\nReview and approve via dashboard or CLI:\n`ailang coordinator approve %s`",
-					task.Title, task.AgentID, approvalID)
-				_, msgErr := d.msgStore.CreateMessage(
-					"",                               // New thread
-					"ailang_instance", "coordinator", // from
-					"approvals", "", // to inbox "approvals"
-					"approval_request", // kind (maps to 'approval' event type in dashboard)
-					approvalContent,
-					fmt.Sprintf(`{"task_id":"%s","approval_id":"%s","agent_id":"%s"}`, task.ID, approvalID, task.AgentID),
-				)
-				if msgErr != nil {
+				approvalMsg := &messaging.InboxMessage{
+					FromAgent:     "coordinator",
+					ToInbox:       "approvals",
+					MessageType:   "approval_request",
+					Title:         fmt.Sprintf("Approval Required: %s", task.Title),
+					Payload:       fmt.Sprintf("**Approval Required**\n\nTask: %s\nAgent: %s\n\nReview and approve via dashboard or CLI:\n`ailang coordinator approve %s`", task.Title, task.AgentID, approvalID),
+					CorrelationID: task.ID,
+					Status:        messaging.InboxStatusUnread,
+				}
+				if msgErr := d.msgStore.InsertInboxMessage(approvalMsg); msgErr != nil {
 					d.logger.Printf("Warning: Failed to create approval inbox message: %v", msgErr)
 				}
 			}

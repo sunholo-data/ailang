@@ -48,7 +48,10 @@ func dashboardCommand() {
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang dashboard spans --provider gemini")
+		fmt.Println("  ailang dashboard spans --workspace /path/to/repo")
 		fmt.Println("  ailang dashboard inbox --model gemini-2.5-flash")
+		fmt.Println("  ailang dashboard inbox --status unread")
+		fmt.Println("  ailang dashboard traces --trace-id abc123")
 		fmt.Println("  ailang dashboard hierarchy --limit 10")
 		fmt.Println("  ailang dashboard sessions --limit 10")
 		fmt.Println("  ailang dashboard tools <session-id> --summary")
@@ -91,6 +94,7 @@ func dashboardSpansCommand() {
 	provider := fs.String("provider", "", "Filter by provider (claude, gemini, openai)")
 	model := fs.String("model", "", "Filter by model name")
 	status := fs.String("status", "", "Filter by status (ok, error)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
 	taskID := fs.String("task-id", "", "Filter by task ID")
 	traceID := fs.String("trace-id", "", "Filter by trace ID")
 	limit := fs.Int("limit", 50, "Maximum results")
@@ -112,6 +116,9 @@ func dashboardSpansCommand() {
 	}
 	if *status != "" {
 		params.Set("status", *status)
+	}
+	if *workspace != "" {
+		params.Set("workspace", *workspace)
 	}
 	if *taskID != "" {
 		params.Set("task_id", *taskID)
@@ -217,6 +224,8 @@ func dashboardInboxCommand() {
 	sourceType := fs.String("source", "", "Filter by source type (github, eval, coordinator, user_session, messaging, cli, direct_api)")
 	startDate := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	endDate := fs.String("end", "", "End date (YYYY-MM-DD)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
+	status := fs.String("status", "", "Filter by status (unread, read)")
 	limit := fs.Int("limit", 50, "Maximum results")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 
@@ -244,6 +253,12 @@ func dashboardInboxCommand() {
 	}
 	if *endDate != "" {
 		params.Set("end_date", *endDate)
+	}
+	if *workspace != "" {
+		params.Set("workspace", *workspace)
+	}
+	if *status != "" {
+		params.Set("status", *status)
 	}
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
@@ -325,6 +340,7 @@ func dashboardTracesCommand() {
 	fs := flag.NewFlagSet("dashboard traces", flag.ExitOnError)
 	server := fs.String("server", "", "Dashboard server URL")
 	taskID := fs.String("task-id", "", "Filter by task ID")
+	traceID := fs.String("trace-id", "", "Filter by trace ID")
 	limit := fs.Int("limit", 20, "Maximum results")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 
@@ -337,6 +353,9 @@ func dashboardTracesCommand() {
 	params := url.Values{}
 	if *taskID != "" {
 		params.Set("task_id", *taskID)
+	}
+	if *traceID != "" {
+		params.Set("trace_id", *traceID)
 	}
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
@@ -615,6 +634,7 @@ func dashboardStatsCommand() {
 	server := fs.String("server", "", "Dashboard server URL")
 	startDate := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	endDate := fs.String("end", "", "End date (YYYY-MM-DD)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
 	sourceType := fs.String("source", "", "Filter by source type (github, eval, coordinator, user_session, messaging, cli, direct_api)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 
@@ -630,6 +650,9 @@ func dashboardStatsCommand() {
 	}
 	if *endDate != "" {
 		params.Set("end_date", *endDate)
+	}
+	if *workspace != "" {
+		params.Set("workspace", *workspace)
 	}
 	if *sourceType != "" {
 		params.Set("source_type", *sourceType)

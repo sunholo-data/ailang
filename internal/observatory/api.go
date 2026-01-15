@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -517,7 +518,10 @@ func (a *API) handleCreateSpanEvent(w http.ResponseWriter, r *http.Request) {
 // ===== Enriched Spans Handler =====
 
 // handleGetEnrichedSpans returns spans with enriched display_name from session tool metadata.
-// GET /api/observatory/spans/enriched?trace_id=X&task_id=Y&limit=100
+// GET /api/observatory/spans/enriched?trace_id=X&task_id=Y&limit=100&hierarchical=true
+//
+// When hierarchical=true, returns spans as a tree structure with children[] arrays.
+// This eliminates client-side hierarchy building (~50 lines of frontend code).
 func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 	opts := SpanListOptions{
 		TaskID:            r.URL.Query().Get("task_id"),
@@ -527,6 +531,9 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		Model:             r.URL.Query().Get("model"),
 		Status:            r.URL.Query().Get("status"),
 	}
+
+	// Parse hierarchical flag (default: false for backwards compatibility)
+	hierarchical := r.URL.Query().Get("hierarchical") == "true"
 
 	if startTime := r.URL.Query().Get("start_after"); startTime != "" {
 		if t, err := time.Parse(time.RFC3339, startTime); err == nil {
@@ -564,7 +571,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
 		// No enrichment available, return spans as-is
-		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false})
+		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
 		return
 	}
 
@@ -596,15 +603,12 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		allToolsInRange, _ = sqliteBackend.store.GetToolsByTimestampRange(r.Context(), minTime, maxTime, "")
 	}
 
-	// Enrich spans with tool metadata
-	enrichedSpans := make([]map[string]any, 0, len(spans))
+	// Build display names map for all spans
+	displayNames := make(map[string]string, len(spans))
 	for _, span := range spans {
-		enriched := spanToMap(span)
-
 		var displayName string
 
 		// Try timestamp + tool name correlation (cross-system correlation)
-		// This works even when OTEL spans and hook session_tools use different session IDs
 		toolNameFromSpan := extractToolNameFromSpan(span)
 		if toolNameFromSpan != "" {
 			displayName = findMatchingToolByTimestamp(span, allToolsInRange, toolNameFromSpan)
@@ -616,13 +620,32 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if displayName != "" {
-			enriched["display_name"] = displayName
+			displayNames[span.ID] = displayName
 		}
+	}
 
+	// Return hierarchical format if requested
+	if hierarchical {
+		hierarchicalSpans := buildHierarchicalSpans(spans, displayNames)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"spans":        hierarchicalSpans,
+			"enriched":     true,
+			"hierarchical": true,
+		})
+		return
+	}
+
+	// Return flat format (default, backwards compatible)
+	enrichedSpans := make([]map[string]any, 0, len(spans))
+	for _, span := range spans {
+		enriched := spanToMap(span)
+		if dn, ok := displayNames[span.ID]; ok {
+			enriched["display_name"] = dn
+		}
 		enrichedSpans = append(enrichedSpans, enriched)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true})
+	writeJSON(w, http.StatusOK, map[string]any{"spans": enrichedSpans, "enriched": true, "hierarchical": false})
 }
 
 // extractDisplayNameFromSpan extracts a display name from span attributes or name.
@@ -972,7 +995,105 @@ func spanToMap(span *Span) map[string]any {
 	if len(span.Events) > 0 {
 		m["events"] = span.Events
 	}
+	// DurationMs is calculated, include if available
+	if span.DurationMs > 0 {
+		m["duration_ms"] = span.DurationMs
+	}
 	return m
+}
+
+// HierarchicalSpan represents a span with children for hierarchical JSON response.
+// This type is used by the /spans/enriched?hierarchical=true endpoint.
+type HierarchicalSpan struct {
+	ID           string              `json:"id"`
+	TraceID      string              `json:"trace_id"`
+	ParentSpanID string              `json:"parent_span_id,omitempty"`
+	Name         string              `json:"name"`
+	DisplayName  string              `json:"display_name,omitempty"`
+	StartTime    time.Time           `json:"start_time"`
+	EndTime      *time.Time          `json:"end_time,omitempty"`
+	DurationMs   int64               `json:"duration_ms"`
+	Status       SpanStatus          `json:"status"`
+	Attributes   map[string]any      `json:"attributes,omitempty"`
+	Provider     Provider            `json:"provider,omitempty"`
+	Model        string              `json:"model,omitempty"`
+	TokensIn     int64               `json:"tokens_in,omitempty"`
+	TokensOut    int64               `json:"tokens_out,omitempty"`
+	CostUSD      float64             `json:"cost_usd,omitempty"`
+	TaskID       string              `json:"task_id,omitempty"`
+	Children     []*HierarchicalSpan `json:"children,omitempty"`
+}
+
+// buildHierarchicalSpans transforms flat spans into a tree structure.
+// Returns only root spans (no parent_span_id) with their children populated.
+func buildHierarchicalSpans(spans []*Span, displayNames map[string]string) []*HierarchicalSpan {
+	if len(spans) == 0 {
+		return nil
+	}
+
+	// Build lookup maps
+	spanMap := make(map[string]*HierarchicalSpan, len(spans))
+	childMap := make(map[string][]*HierarchicalSpan)
+
+	// Convert all spans to HierarchicalSpan
+	for _, span := range spans {
+		hs := &HierarchicalSpan{
+			ID:           span.ID,
+			TraceID:      span.TraceID,
+			ParentSpanID: span.ParentSpanID,
+			Name:         span.Name,
+			DisplayName:  displayNames[span.ID],
+			StartTime:    span.StartTime,
+			EndTime:      span.EndTime,
+			DurationMs:   span.DurationMs,
+			Status:       span.Status,
+			Attributes:   span.Attributes,
+			Provider:     span.Provider,
+			Model:        span.Model,
+			TokensIn:     span.TokensIn,
+			TokensOut:    span.TokensOut,
+			CostUSD:      span.CostUSD,
+			TaskID:       span.TaskID,
+			Children:     nil,
+		}
+		if hs.DisplayName == "" {
+			hs.DisplayName = span.Name
+		}
+		spanMap[span.ID] = hs
+
+		if span.ParentSpanID != "" {
+			childMap[span.ParentSpanID] = append(childMap[span.ParentSpanID], hs)
+		}
+	}
+
+	// Link children to parents
+	for parentID, children := range childMap {
+		if parent, ok := spanMap[parentID]; ok {
+			parent.Children = children
+			// Sort children by start time
+			sort.Slice(parent.Children, func(i, j int) bool {
+				return parent.Children[i].StartTime.Before(parent.Children[j].StartTime)
+			})
+		}
+	}
+
+	// Collect root spans (no parent or parent not in this set)
+	var roots []*HierarchicalSpan
+	for _, span := range spans {
+		if span.ParentSpanID == "" {
+			roots = append(roots, spanMap[span.ID])
+		} else if _, hasParent := spanMap[span.ParentSpanID]; !hasParent {
+			// Parent not in result set, treat as root
+			roots = append(roots, spanMap[span.ID])
+		}
+	}
+
+	// Sort roots by start time
+	sort.Slice(roots, func(i, j int) bool {
+		return roots[i].StartTime.Before(roots[j].StartTime)
+	})
+
+	return roots
 }
 
 // ===== Trace Handlers =====

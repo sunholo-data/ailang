@@ -46,6 +46,7 @@ type AgentConfig struct {
 	AutoMerge           bool     `yaml:"auto_merge" json:"auto_merge"`                       // Automatically merge approved work
 	SkipApproval        bool     `yaml:"skip_approval" json:"skip_approval"`                 // Skip approval workflow entirely (for script agents)
 	Provider            string   `yaml:"provider" json:"provider"`                           // "claude" or "gemini"
+	MergeBranch         string   `yaml:"merge_branch" json:"merge_branch"`                   // Target branch for merges (e.g., "dev", "main")
 	MaxConcurrentTasks  int      `yaml:"max_concurrent_tasks" json:"max_concurrent_tasks"`   // 0 = unlimited
 	SessionContinuity   bool     `yaml:"session_continuity" json:"session_continuity"`       // Use --resume for Claude Code / --conversation-id for Gemini
 

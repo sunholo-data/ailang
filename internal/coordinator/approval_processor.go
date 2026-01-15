@@ -1,0 +1,398 @@
+// Package coordinator provides unified approval processing for CLI, Dashboard, and Daemon.
+package coordinator
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/sunholo/ailang/internal/messaging"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+)
+
+var approvalProcessorTracer = otel.Tracer("coordinator.approval")
+
+// ApprovalParams contains all parameters for processing an approval or rejection.
+// This is the single interface used by CLI, Dashboard, and Daemon.
+type ApprovalParams struct {
+	TaskID      string // Required: task ID or approval ID (apr-xxx converted to task-xxx)
+	Action      string // Required: "approve" or "reject"
+	ApprovedBy  string // Required: who is approving/rejecting (e.g., "cli-user", "dashboard-user")
+	Channel     string // Required: source channel ("cli", "dashboard", "daemon")
+	Feedback    string // Optional: feedback text for rejections
+	MergeBranch string // Optional: target branch for merge (defaults from config, then channel)
+
+	// Behavior options
+	SkipMerge         bool // If true, don't merge worktree on approval
+	KeepWorktree      bool // If true, don't clean up worktree after merge
+	RetriggerOnReject bool // If true, send feedback to agent for re-attempt (feedback loop)
+
+	// Dependencies (injected by caller)
+	Store         Store            // Required: coordinator store for task/approval operations
+	MsgStore      *messaging.Store // Optional: messaging store for sending feedback to agents
+	GitHubPoster  *GitHubPoster    // Optional: for posting feedback to GitHub issues
+	AgentRegistry *AgentRegistry   // Optional: for looking up per-agent merge branch
+}
+
+// ApprovalResult contains the result of processing an approval or rejection.
+type ApprovalResult struct {
+	Success       bool
+	Message       string   // Human-readable result message
+	MergeCommit   string   // Commit hash if merged
+	MergedFiles   []string // Files that were merged
+	ConflictFiles []string // Files with conflicts (if merge failed)
+	NewTaskID     string   // ID of new task if re-triggered
+	Error         string   // Error message if failed
+}
+
+// ProcessApprovalRequest handles approval/rejection from any channel (CLI, dashboard, daemon).
+// This is the SINGLE source of truth for approval logic.
+func ProcessApprovalRequest(ctx context.Context, params *ApprovalParams) (*ApprovalResult, error) {
+	if params.Store == nil {
+		return nil, fmt.Errorf("store is required")
+	}
+	if params.TaskID == "" {
+		return nil, fmt.Errorf("task ID is required")
+	}
+	if params.Action != "approve" && params.Action != "reject" {
+		return nil, fmt.Errorf("action must be 'approve' or 'reject'")
+	}
+
+	// Normalize task ID (accept both task-xxx and apr-xxx)
+	taskID := params.TaskID
+	if strings.HasPrefix(taskID, "apr-") {
+		taskID = "task-" + strings.TrimPrefix(taskID, "apr-")
+	}
+
+	// Get the task first (needed for agent lookup)
+	task, err := params.Store.GetTask(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+	if task == nil {
+		return nil, fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Resolve merge branch with priority: explicit param > per-agent > global > default
+	mergeBranch := params.MergeBranch
+	if mergeBranch == "" && params.AgentRegistry != nil && task.AgentID != "" {
+		// Look up agent's merge branch
+		if agent := params.AgentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
+			mergeBranch = agent.MergeBranch
+		}
+	}
+	if mergeBranch == "" {
+		// Fall back to "dev" (global config default is applied during loading)
+		mergeBranch = "dev"
+	}
+
+	// Verify task is pending approval
+	if task.Status != TaskStatusPendingApproval {
+		return nil, fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
+	}
+
+	// Create OTEL span for approval decision
+	ctx, span := approvalProcessorTracer.Start(ctx, "approval.decision",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("approval.action", params.Action),
+			attribute.String("approval.channel", params.Channel),
+			attribute.String("approval.by", params.ApprovedBy),
+			attribute.Int("task.iteration", task.Iteration),
+			attribute.String("task.stage", string(task.Stage)),
+		),
+	)
+	defer span.End()
+
+	if params.Action == "approve" {
+		return processApproval(ctx, span, params, task, taskID, mergeBranch)
+	}
+	return processRejection(ctx, span, params, task, taskID)
+}
+
+// processApproval handles the approval action.
+func processApproval(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID, mergeBranch string) (*ApprovalResult, error) {
+	result := &ApprovalResult{Success: true}
+
+	// 1. Store approval event for audit trail
+	if err := StoreApprovalEvent(ctx, params.Store, taskID, params.ApprovedBy); err != nil {
+		// Log but don't fail - approval can still proceed
+		span.AddEvent("warning: failed to store approval event", trace.WithAttributes(
+			attribute.String("error", err.Error()),
+		))
+	}
+
+	// 2. Resolve the approval request in database
+	if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to resolve approval")
+		return nil, fmt.Errorf("failed to approve task: %w", err)
+	}
+
+	result.Message = fmt.Sprintf("Task approved: %s", taskID)
+
+	// 3. Skip merge if requested or no worktree
+	if params.SkipMerge {
+		result.Message += " (merge skipped)"
+		span.SetStatus(codes.Ok, "approved, merge skipped")
+		return result, nil
+	}
+
+	if task.WorktreePath == "" {
+		result.Message += " (no worktree to merge)"
+		span.SetStatus(codes.Ok, "approved, no worktree")
+		return result, nil
+	}
+
+	// Check worktree exists
+	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
+		result.Message += " (worktree no longer exists)"
+		span.SetStatus(codes.Ok, "approved, worktree missing")
+		return result, nil
+	}
+
+	// 4. Auto-commit any uncommitted changes in the worktree
+	if err := autoCommitWorktreeChanges(task.WorktreePath, task.Title); err != nil {
+		span.AddEvent("warning: failed to auto-commit", trace.WithAttributes(
+			attribute.String("error", err.Error()),
+		))
+	}
+
+	// 5. Perform the merge
+	mergeResult, err := MergeWorktree(ctx, task.WorktreePath, mergeBranch)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "merge failed")
+		return nil, fmt.Errorf("merge failed: %w", err)
+	}
+
+	if !mergeResult.Success {
+		if len(mergeResult.ConflictFiles) > 0 {
+			result.Success = false
+			result.ConflictFiles = mergeResult.ConflictFiles
+			result.Error = fmt.Sprintf("merge conflicts: %v", mergeResult.ConflictFiles)
+			span.SetStatus(codes.Error, "merge conflicts")
+			return result, nil
+		}
+		result.Success = false
+		result.Error = mergeResult.Error
+		span.SetStatus(codes.Error, mergeResult.Error)
+		return result, nil
+	}
+
+	result.MergeCommit = mergeResult.CommitHash
+	result.MergedFiles = mergeResult.MergedFiles
+
+	// 6. Update task status to completed
+	if err := params.Store.MarkTaskCompleted(ctx, taskID, &ExecuteResult{
+		Success: true,
+		Output:  fmt.Sprintf("Merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash),
+	}); err != nil {
+		span.AddEvent("warning: failed to update task status", trace.WithAttributes(
+			attribute.String("error", err.Error()),
+		))
+	}
+
+	result.Message = fmt.Sprintf("Task approved and merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash)
+
+	// 7. Clean up worktree (unless --keep-worktree)
+	if !params.KeepWorktree {
+		cleanupWorktree(task.WorktreePath)
+	}
+
+	span.SetAttributes(attribute.String("merge.commit", mergeResult.CommitHash))
+	span.SetStatus(codes.Ok, "approved and merged")
+
+	return result, nil
+}
+
+// processRejection handles the rejection action.
+func processRejection(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID string) (*ApprovalResult, error) {
+	result := &ApprovalResult{Success: true}
+
+	feedback := params.Feedback
+	if feedback == "" {
+		feedback = "Rejected without specific feedback"
+	}
+
+	// Add feedback to span attributes
+	span.SetAttributes(attribute.String("approval.reason", truncateForAttribute(feedback, 500)))
+
+	// 1. Store feedback event for audit trail
+	feedbackEvent := &HumanFeedback{
+		TaskID:    taskID,
+		Iteration: task.Iteration,
+		Feedback:  feedback,
+		Action:    "reject",
+		Timestamp: time.Now(),
+		UserID:    params.ApprovedBy,
+	}
+	if err := StoreFeedbackEvent(ctx, params.Store, feedbackEvent); err != nil {
+		span.AddEvent("warning: failed to store feedback event", trace.WithAttributes(
+			attribute.String("error", err.Error()),
+		))
+	}
+
+	// 2. Post feedback to GitHub if task has a linked issue
+	if task.GithubIssue > 0 && params.GitHubPoster != nil {
+		iteration := task.Iteration
+		if iteration < 1 {
+			iteration = 1
+		}
+		if err := params.GitHubPoster.PostFeedback(task.GithubIssue, feedback, iteration, params.Channel); err != nil {
+			span.AddEvent("warning: failed to post to GitHub", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+	}
+
+	// 3. Check if we can re-trigger (under max iterations)
+	canRetrigger := params.RetriggerOnReject && CanRetrigger(task)
+
+	if canRetrigger {
+		// Calculate next iteration
+		nextIteration := task.Iteration + 1
+		if nextIteration < 2 {
+			nextIteration = 2 // First rejection creates iteration 2
+		}
+
+		// Store iteration start event
+		if err := StoreIterationStartEvent(ctx, params.Store, taskID, nextIteration); err != nil {
+			span.AddEvent("warning: failed to store iteration start", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+
+		// Mark OLD task as rejected
+		if err := params.Store.MarkTaskRejected(ctx, taskID); err != nil {
+			span.AddEvent("warning: failed to mark task rejected", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+
+		// Send feedback message to agent inbox
+		if params.MsgStore != nil {
+			agentInbox := task.AgentID
+			if agentInbox == "" {
+				agentInbox = "coordinator"
+			}
+
+			payload := fmt.Sprintf("Task rejected with feedback:\n\n%s\n\n---\n**Original Task:** %s\n**Iteration:** %d/%d\n**Context:** Session will resume with feedback incorporated.",
+				feedback, task.Title, nextIteration, MaxIterations)
+
+			msg := &messaging.InboxMessage{
+				FromAgent:     params.ApprovedBy,
+				ToInbox:       agentInbox,
+				MessageType:   messaging.InboxTypeNotification,
+				Title:         fmt.Sprintf("Feedback: %s (iteration %d)", truncateString(task.Title, 30), nextIteration),
+				Payload:       payload,
+				CorrelationID: taskID,
+				ParentTaskID:  taskID,
+				GitHubIssue:   &task.GithubIssue,
+				Iteration:     nextIteration,
+			}
+			if err := params.MsgStore.InsertInboxMessageWithContext(ctx, msg); err != nil {
+				span.AddEvent("warning: failed to send feedback message", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			} else {
+				result.NewTaskID = msg.ID
+			}
+		}
+
+		result.Message = fmt.Sprintf("Task rejected and re-queued for iteration %d (max: %d)", nextIteration, MaxIterations)
+		span.SetStatus(codes.Ok, "rejected with re-trigger")
+
+	} else {
+		// Max iterations reached or re-trigger disabled - permanent rejection
+		if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", params.ApprovedBy); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to resolve rejection")
+			return nil, fmt.Errorf("failed to reject task: %w", err)
+		}
+
+		// Update task status
+		if err := params.Store.MarkTaskRejected(ctx, taskID); err != nil {
+			span.AddEvent("warning: failed to update task status", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+
+		// Clean up worktree
+		if task.WorktreePath != "" {
+			cleanupWorktree(task.WorktreePath)
+		}
+
+		if !params.RetriggerOnReject {
+			result.Message = fmt.Sprintf("Task rejected: %s (re-trigger disabled)", taskID)
+		} else {
+			result.Message = fmt.Sprintf("Task permanently rejected: %s (max iterations %d reached)", taskID, MaxIterations)
+		}
+		span.SetStatus(codes.Ok, "rejected permanently")
+	}
+
+	return result, nil
+}
+
+// autoCommitWorktreeChanges commits any uncommitted changes in the worktree.
+func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
+	// Check for changes
+	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %w", err)
+	}
+
+	if len(strings.TrimSpace(string(statusOutput))) == 0 {
+		return nil // No changes to commit
+	}
+
+	// Add all changes
+	addCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+	if output, err := addCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to stage changes: %s", output)
+	}
+
+	// Commit
+	commitMsg := fmt.Sprintf("Agent work: %s\n\nAuto-committed on approval", taskTitle)
+	commitCmd := exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg)
+	if output, err := commitCmd.CombinedOutput(); err != nil {
+		// Check if it's just "nothing to commit"
+		if strings.Contains(string(output), "nothing to commit") {
+			return nil
+		}
+		return fmt.Errorf("failed to commit: %s", output)
+	}
+
+	return nil
+}
+
+// cleanupWorktree removes the worktree and its branch.
+func cleanupWorktree(worktreePath string) {
+	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+		return
+	}
+
+	// Get the branch name before removing worktree
+	branchCmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchOutput, _ := branchCmd.Output()
+	branchName := strings.TrimSpace(string(branchOutput))
+
+	// Remove the worktree
+	removeCmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
+	removeCmd.Run() // Ignore errors
+
+	// Also delete the branch
+	if branchName != "" && branchName != "HEAD" {
+		deleteCmd := exec.Command("git", "branch", "-D", branchName)
+		deleteCmd.Run() // Ignore errors
+	}
+}
+
+// Note: truncateString and truncateForAttribute are defined in other files in this package

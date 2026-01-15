@@ -79,19 +79,48 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
     }
   }, [limit]);
 
-  // Fetch spans by trace_id using enriched endpoint for display names
-  const fetchByTraceId = async (tid: string): Promise<RawSpan[]> => {
-    // Use enriched endpoint to get display_name with tool metadata
-    const response = await fetch(`/api/observatory/spans/enriched?trace_id=${tid}&limit=100`);
+  // Convert HierarchicalSpan from API to local Span type
+  // Must be defined before fetchByTraceId to avoid use-before-define linter error
+  const convertHierarchicalSpan = (hs: any): Span => {
+    const span: Span = {
+      id: hs.id,
+      name: hs.name,
+      display_name: hs.display_name,
+      startMs: new Date(hs.start_time).getTime(),
+      durationMs: hs.duration_ms,
+      status: hs.status === 'error' || hs.status === 'ERROR' ? 'error' : 'ok',
+      attributes: hs.attributes,
+      cost_usd: hs.cost_usd,
+      tokens_in: hs.tokens_in,
+      tokens_out: hs.tokens_out,
+      provider: hs.provider,
+      children: hs.children?.map(convertHierarchicalSpan) || [],
+    };
+    return span;
+  };
+
+  // Fetch spans by trace_id using enriched endpoint with hierarchical format
+  // Returns Span[] with children already populated (server-side hierarchy building)
+  const fetchByTraceId = async (tid: string): Promise<Span[]> => {
+    // Use enriched endpoint with hierarchical=true for server-side hierarchy building
+    // This removes ~50 lines of client-side buildSpanHierarchy logic
+    const response = await fetch(`/api/observatory/spans/enriched?trace_id=${tid}&limit=100&hierarchical=true`);
     if (!response.ok) {
-      // Fallback to regular endpoint
+      // Fallback to regular endpoint with client-side hierarchy
       const fallbackResponse = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
       if (!fallbackResponse.ok) return [];
-      return await fallbackResponse.json() || [];
+      const rawSpans = await fallbackResponse.json() || [];
+      return buildSpanHierarchy(rawSpans);
     }
     const result = await response.json();
-    // Enriched endpoint returns {spans: [...], enriched: boolean}
-    return result.spans || [];
+
+    // If server returned hierarchical format, spans already have children
+    if (result.hierarchical) {
+      return (result.spans || []).map(convertHierarchicalSpan);
+    }
+
+    // Fallback: server returned flat format, build hierarchy client-side
+    return buildSpanHierarchy(result.spans || []);
   };
 
   // Fetch spans by task_id using the hierarchy endpoint
@@ -183,6 +212,7 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
   };
 
   // Fetch spans for a specific trace or task - tries multiple approaches
+  // Both fetchByTraceId and fetchByTaskId now return hierarchical Span[] directly
   const fetchSpans = useCallback(async (id: string, idType?: 'trace' | 'task' | 'auto') => {
     if (!id) return;
 
@@ -192,19 +222,16 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
       const type = idType || 'auto';
 
       if (type === 'trace') {
-        // Trace ID path: returns RawSpan[], needs buildSpanHierarchy
-        const rawSpans = await fetchByTraceId(id);
-        hierarchicalSpans = buildSpanHierarchy(rawSpans);
+        // Trace ID path: server returns hierarchical format
+        hierarchicalSpans = await fetchByTraceId(id);
       } else if (type === 'task') {
         // Task ID path: returns Span[] with hierarchy already preserved
         hierarchicalSpans = await fetchByTaskId(id);
       } else {
         // Auto mode: try trace_id first, then task_id
-        const rawSpans = await fetchByTraceId(id);
-        if (rawSpans.length > 0) {
-          hierarchicalSpans = buildSpanHierarchy(rawSpans);
-        } else {
-          // Try as task_id (returns Span[] with hierarchy preserved)
+        hierarchicalSpans = await fetchByTraceId(id);
+        if (hierarchicalSpans.length === 0) {
+          // Try as task_id
           hierarchicalSpans = await fetchByTaskId(id);
           if (hierarchicalSpans.length === 0) {
             // Try with "task-" prefix if not already present

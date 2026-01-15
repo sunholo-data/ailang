@@ -12,6 +12,7 @@ import (
 type CoordinatorConfig struct {
 	Agents          []*AgentConfig    `yaml:"agents" json:"agents"`
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
+	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"` // Target branch for approvals (default: "dev")
 	GitHubSync      *GitHubSyncConfig `yaml:"github_sync" json:"github_sync"`
 }
 
@@ -94,6 +95,11 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 		cfg.DefaultProvider = "claude"
 	}
 
+	// Apply global merge branch default first (so agents can inherit it)
+	if cfg.MergeBranch == "" {
+		cfg.MergeBranch = "dev"
+	}
+
 	// Apply defaults to agents
 	for _, agent := range cfg.Agents {
 		if agent.Provider == "" {
@@ -101,6 +107,10 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 		}
 		if agent.MaxConcurrentTasks == 0 {
 			agent.MaxConcurrentTasks = 1 // Default: 1 task at a time
+		}
+		// Per-agent merge branch - inherits from global if not set
+		if agent.MergeBranch == "" {
+			agent.MergeBranch = cfg.MergeBranch
 		}
 	}
 

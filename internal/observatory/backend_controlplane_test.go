@@ -401,3 +401,123 @@ func TestGetFilteredBreakdownByModel(t *testing.T) {
 		t.Errorf("expected claude-sonnet model, got %s", breakdown[0].ID)
 	}
 }
+
+// createTestSpanWithWorkspace creates a span with workspace in resource attributes.
+func createTestSpanWithWorkspace(t *testing.T, backend *SQLiteBackend, name, provider, model, sourceType, workspace string, tokensIn, tokensOut int64, costUSD float64) *Span {
+	t.Helper()
+	ctx := context.Background()
+
+	span := &Span{
+		ID:        generateSpanID(),
+		TraceID:   generateTraceID(),
+		Name:      name,
+		Kind:      SpanKindClient,
+		Status:    SpanStatusOK,
+		StartTime: time.Now().Add(-time.Hour),
+		TokensIn:  tokensIn,
+		TokensOut: tokensOut,
+		CostUSD:   costUSD,
+		Model:     model,
+		Provider:  Provider(provider),
+		Attributes: map[string]any{
+			"source_type": sourceType,
+		},
+		ResourceAttributes: map[string]any{
+			"process.cwd": workspace,
+		},
+	}
+
+	if err := backend.CreateSpan(ctx, span); err != nil {
+		t.Fatalf("failed to create span: %v", err)
+	}
+	return span
+}
+
+func TestGetFilteredBreakdownByWorkspace(t *testing.T) {
+	backend, cleanup := setupControlPlaneBackend(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create spans with different workspaces
+	createTestSpanWithWorkspace(t, backend, "eval.benchmark", "claude", "claude-sonnet", "eval", "/Users/mark/dev/sunholo/ailang", 1000, 500, 0.05)
+	createTestSpanWithWorkspace(t, backend, "eval.benchmark2", "claude", "claude-haiku", "eval", "/Users/mark/dev/sunholo/ailang", 500, 250, 0.02)
+	createTestSpanWithWorkspace(t, backend, "coordinator.task", "gemini", "gemini-pro", "coordinator", "/Users/mark/dev/sunholo/twilight", 1500, 750, 0.03)
+	createTestSpanWithWorkspace(t, backend, "coordinator.task2", "claude", "claude-sonnet", "coordinator", "/Users/mark/dev/sunholo/stapledon", 2000, 1000, 0.04)
+
+	// Test 1: Filter by source_type=eval (should show workspaces with eval spans only)
+	filter := &ControlPlaneFilter{SourceType: "eval"}
+	breakdown, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter)
+	if err != nil {
+		t.Fatalf("GetFilteredBreakdownByWorkspace failed: %v", err)
+	}
+
+	// Should only have ailang workspace (the only one with eval spans)
+	if len(breakdown) != 1 {
+		t.Errorf("expected 1 workspace with eval filter, got %d", len(breakdown))
+		for _, b := range breakdown {
+			t.Logf("  workspace: %s, label: %s", b.ID, b.Label)
+		}
+	}
+
+	if len(breakdown) > 0 && breakdown[0].Label != "ailang" {
+		t.Errorf("expected ailang workspace, got %s", breakdown[0].Label)
+	}
+
+	// Test 2: Filter by provider=gemini (should show workspaces with gemini spans only)
+	filter2 := &ControlPlaneFilter{Provider: "gemini"}
+	breakdown2, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter2)
+	if err != nil {
+		t.Fatalf("GetFilteredBreakdownByWorkspace (provider filter) failed: %v", err)
+	}
+
+	// Should only have twilight workspace
+	if len(breakdown2) != 1 {
+		t.Errorf("expected 1 workspace with gemini filter, got %d", len(breakdown2))
+		for _, b := range breakdown2 {
+			t.Logf("  workspace: %s, label: %s", b.ID, b.Label)
+		}
+	}
+
+	if len(breakdown2) > 0 && breakdown2[0].Label != "twilight" {
+		t.Errorf("expected twilight workspace, got %s", breakdown2[0].Label)
+	}
+
+	// Test 3: No filter - should return all workspaces
+	breakdown3, err := backend.GetFilteredBreakdownByWorkspace(ctx, nil)
+	if err != nil {
+		t.Fatalf("GetFilteredBreakdownByWorkspace (no filter) failed: %v", err)
+	}
+
+	if len(breakdown3) != 3 {
+		t.Errorf("expected 3 workspaces with no filter, got %d", len(breakdown3))
+		for _, b := range breakdown3 {
+			t.Logf("  workspace: %s, label: %s", b.ID, b.Label)
+		}
+	}
+}
+
+func TestWorkspaceFilterInBuildFilterConditions(t *testing.T) {
+	// Test that workspace filter generates correct SQL condition
+	filter := &ControlPlaneFilter{
+		Workspace: "ailang",
+	}
+
+	conditions, args := buildFilterConditions(filter)
+
+	if len(conditions) != 1 {
+		t.Errorf("expected 1 condition, got %d", len(conditions))
+	}
+
+	if len(args) != 1 {
+		t.Errorf("expected 1 arg, got %d", len(args))
+	}
+
+	// Verify the arg contains the workspace with wildcards
+	if len(args) > 0 {
+		expectedArg := "%ailang%"
+		if args[0] != expectedArg {
+			t.Errorf("expected arg %q, got %q", expectedArg, args[0])
+		}
+	}
+}

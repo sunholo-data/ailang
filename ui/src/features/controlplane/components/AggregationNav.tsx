@@ -31,9 +31,14 @@ export interface HighlightedAggItems {
   source_type?: string;
 }
 
+// Multi-filter type: maps dimension to selected value
+// e.g., { workspace: 'ailang', source: 'eval', provider: 'claude' }
+export type SelectedFilters = Record<string, string>;
+
 export interface AggregationNavProps {
-  selectedLevel: string;
-  onSelectLevel: (level: string) => void;
+  selectedFilters: SelectedFilters;
+  onFilterToggle: (dimension: string, value: string) => void;
+  onClearFilters: () => void;
   stats?: AggregationStats | null;
   breakdowns?: BreakdownData | null;
   loading?: boolean;
@@ -67,41 +72,46 @@ const formatTokens = (count: number): string => {
 };
 
 export const AggregationNav: React.FC<AggregationNavProps> = ({
-  selectedLevel,
-  onSelectLevel,
+  selectedFilters,
+  onFilterToggle,
+  onClearFilters,
   stats,
   breakdowns,
   loading,
   filters,
   highlightedItems,
 }) => {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['global', 'source-type']));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['global']));
 
   // Calculate aggregate metrics from breakdowns
   const metrics = useMemo(() => {
     if (!breakdowns) return null;
 
-    // Sum up tokens from provider breakdowns (they cover all data)
-    const totals = breakdowns.byProvider.reduce(
+    // Sum up tokens from provider breakdowns
+    const providerTotals = breakdowns.byProvider.reduce(
       (acc, item) => {
-        // Access the original BreakdownItem properties
         const original = item as FormattedBreakdownItem & { tokens_in?: number; tokens_out?: number; cost_usd?: number };
         return {
           tokensIn: acc.tokensIn + (original.tokens_in || 0),
           tokensOut: acc.tokensOut + (original.tokens_out || 0),
           cost: acc.cost + (original.cost_usd || 0),
-          spans: acc.spans + (item.span_count || 0),
         };
       },
-      { tokensIn: 0, tokensOut: 0, cost: 0, spans: 0 }
+      { tokensIn: 0, tokensOut: 0, cost: 0 }
     );
 
+    // Use workspace breakdown for total spans (most complete view)
+    const totalSpans = breakdowns.byWorkspace?.reduce(
+      (sum, item) => sum + (item.span_count || 0),
+      0
+    ) || 0;
+
     return {
-      tokensIn: formatTokens(totals.tokensIn),
-      tokensOut: formatTokens(totals.tokensOut),
-      totalTokens: formatTokens(totals.tokensIn + totals.tokensOut),
+      tokensIn: formatTokens(providerTotals.tokensIn),
+      tokensOut: formatTokens(providerTotals.tokensOut),
+      totalTokens: formatTokens(providerTotals.tokensIn + providerTotals.tokensOut),
       totalCost: breakdowns.totalCost,
-      totalSpans: totals.spans,
+      totalSpans,
     };
   }, [breakdowns]);
 
@@ -119,25 +129,40 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
     label: string;
     icon: string;
     depth: number;
+    dimension?: string;  // Filter dimension: 'source', 'provider', 'model', 'workspace'
+    value?: string;      // Filter value within dimension
     count?: number;
     cost?: string;
     percentage?: string;
     children?: React.ReactNode;
     isHighlighted?: boolean;
-  }> = ({ id, label, icon, depth, count, cost, percentage, children, isHighlighted }) => {
+  }> = ({ id, label, icon, depth, dimension, value, count, cost, percentage, children, isHighlighted }) => {
     const isExpanded = expanded.has(id);
-    const isSelected = selectedLevel === id;
+    // For leaf items (with dimension/value), check if this dimension is selected
+    // For "global", selected when no filters are active
+    const isSelected = dimension && value
+      ? selectedFilters[dimension] === value
+      : id === 'global' && Object.keys(selectedFilters).length === 0;
     const hasChildren = React.Children.count(children) > 0;
+
+    const handleClick = () => {
+      if (dimension && value) {
+        // Leaf item: toggle this filter
+        onFilterToggle(dimension, value);
+      } else if (id === 'global') {
+        // Global: clear all filters
+        onClearFilters();
+      }
+      // Category headers just expand/collapse
+      if (hasChildren) toggleExpand(id);
+    };
 
     return (
       <div className={styles.navGroup}>
         <button
           className={`${styles.navItem} ${isSelected ? styles.navItemSelected : ''} ${isHighlighted ? styles.navItemHighlighted : ''}`}
           style={{ paddingLeft: `${12 + depth * 16}px` }}
-          onClick={() => {
-            onSelectLevel(id);
-            if (hasChildren) toggleExpand(id);
-          }}
+          onClick={handleClick}
         >
           {hasChildren && (
             <span className={`${styles.navChevron} ${isExpanded ? styles.navChevronOpen : ''}`}>
@@ -145,15 +170,29 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
             </span>
           )}
           <span className={styles.navIcon}>{icon}</span>
-          <span className={styles.navLabel}>{label}</span>
-          {count !== undefined && (
-            <span className={styles.navCount}>{count.toLocaleString()}</span>
+          <span className={styles.navLabel} title={label}>{label}</span>
+          {/* Show count inline only for global (no percentage), otherwise in tooltip */}
+          {count !== undefined && !percentage && (
+            <span className={styles.navCount} title="Total spans">
+              {count.toLocaleString()}
+            </span>
           )}
           {percentage && (
-            <span className={styles.navPct}>{percentage}</span>
+            <span
+              className={styles.navPct}
+              title={count !== undefined ? `${count.toLocaleString()} spans (${percentage} of total)` : `${percentage} of total`}
+            >
+              {percentage}
+            </span>
           )}
           {cost && (
-            <span className={styles.navCost}>{cost}</span>
+            <span className={styles.navCost} title="Estimated cost (USD)">
+              {cost}
+            </span>
+          )}
+          {/* Show remove indicator for selected leaf items */}
+          {isSelected && dimension && (
+            <span className={styles.navRemove} title="Click to remove filter">×</span>
           )}
         </button>
         {hasChildren && isExpanded && (
@@ -163,10 +202,39 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
     );
   };
 
+  // Count active filters for display
+  const activeFilterCount = Object.keys(selectedFilters).length;
+
   return (
     <nav className={styles.aggregationNav}>
+      {/* Compact stats row above aggregations */}
+      <div className={styles.statsBar}>
+        <div className={styles.statsBarItem} title="Agents currently running tasks">
+          <span className={styles.statsBarValue}>
+            {loading ? '—' : stats?.activeAgents ?? 0}
+          </span>
+          <span className={styles.statsBarLabel}>Active Agents</span>
+        </div>
+        <div className={styles.statsBarDivider} />
+        <div className={`${styles.statsBarItem} ${stats?.pendingApprovals ? styles.statsBarWarning : ''}`} title="Tasks awaiting human approval">
+          <span className={styles.statsBarValue}>
+            {loading ? '—' : stats?.pendingApprovals ?? 0}
+          </span>
+          <span className={styles.statsBarLabel}>Pending</span>
+        </div>
+      </div>
+
       <div className={styles.navHeader}>
         <span className={styles.navTitle}>AGGREGATIONS</span>
+        {activeFilterCount > 0 && (
+          <button
+            className={styles.clearFiltersBtn}
+            onClick={onClearFilters}
+            title="Clear all filters"
+          >
+            Clear ({activeFilterCount})
+          </button>
+        )}
       </div>
       <div className={styles.navTree}>
         <NavItem
@@ -174,9 +242,35 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
           label="Global"
           icon="◎"
           depth={0}
-          count={loading ? undefined : stats?.totalTasks}
+          count={loading ? undefined : metrics?.totalSpans}
           cost={loading ? undefined : breakdowns?.totalCost}
         >
+          {/* Workspace breakdown - PRIMARY filter for multi-project users */}
+          {breakdowns?.byWorkspace && breakdowns.byWorkspace.length > 0 && (
+            <NavItem
+              id="workspace"
+              label="By Workspace"
+              icon="⬡"
+              depth={1}
+            >
+              {breakdowns.byWorkspace.slice(0, 10).map(item => (
+                <NavItem
+                  key={item.id}
+                  id={`workspace-${item.id}`}
+                  label={item.label || item.id}
+                  icon="·"
+                  depth={2}
+                  dimension="workspace"
+                  value={item.id}
+                  count={item.span_count}
+                  percentage={item.percentageFormatted}
+                  cost={item.costFormatted}
+                  isHighlighted={highlightedItems?.workspace === item.id}
+                />
+              ))}
+            </NavItem>
+          )}
+
           {/* Source Type breakdown */}
           <NavItem
             id="source-type"
@@ -191,6 +285,8 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 label={item.label}
                 icon={sourceIcons[item.id] || '○'}
                 depth={2}
+                dimension="source"
+                value={item.id}
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
@@ -213,6 +309,8 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 label={item.label}
                 icon={providerIcons[item.id] || '○'}
                 depth={2}
+                dimension="provider"
+                value={item.id}
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
@@ -220,30 +318,6 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
               />
             ))}
           </NavItem>
-
-          {/* Workspace breakdown - higher visibility for multi-project filtering */}
-          {breakdowns?.byWorkspace && breakdowns.byWorkspace.length > 0 && (
-            <NavItem
-              id="workspace"
-              label="By Workspace"
-              icon="⬡"
-              depth={1}
-            >
-              {breakdowns.byWorkspace.slice(0, 10).map(item => (
-                <NavItem
-                  key={item.id}
-                  id={`workspace-${item.id}`}
-                  label={item.label || item.id}
-                  icon="·"
-                  depth={2}
-                  count={item.span_count}
-                  percentage={item.percentageFormatted}
-                  cost={item.costFormatted}
-                  isHighlighted={highlightedItems?.workspace === item.id}
-                />
-              ))}
-            </NavItem>
-          )}
 
           {/* Model breakdown */}
           <NavItem
@@ -259,6 +333,8 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
                 label={item.label}
                 icon="·"
                 depth={2}
+                dimension="model"
+                value={item.id}
                 count={item.span_count}
                 percentage={item.percentageFormatted}
                 cost={item.costFormatted}
@@ -299,21 +375,6 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
             </span>
             <span className={styles.metricLabel}>Tokens Out</span>
           </div>
-        </div>
-      </div>
-
-      <div className={styles.navFooter}>
-        <div className={styles.navStat}>
-          <span className={styles.navStatLabel}>Active Agents</span>
-          <span className={styles.navStatValue}>
-            {loading ? '...' : stats?.activeAgents ?? 0}
-          </span>
-        </div>
-        <div className={styles.navStat}>
-          <span className={styles.navStatLabel}>Pending Approvals</span>
-          <span className={`${styles.navStatValue} ${stats?.pendingApprovals ? styles.navStatWarning : ''}`}>
-            {loading ? '...' : stats?.pendingApprovals ?? 0}
-          </span>
         </div>
       </div>
 

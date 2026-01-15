@@ -1,4 +1,7 @@
 {
+  "env": {
+    "OTEL_LOG_USER_PROMPTS": "1"
+  },
   "permissions": {
     "allow": [
       "Bash(ailang:*)",

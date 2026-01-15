@@ -309,8 +309,27 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 
 	d.logger.Printf("Processing merge approval for task %s (worktree: %s)", taskID, task.WorktreePath)
 
+	// Store approval event for audit trail (consistent with CLI/Dashboard via ProcessApprovalRequest)
+	if storeErr := StoreApprovalEvent(ctx, d.taskStore, taskID, approvedBy); storeErr != nil {
+		d.logger.Printf("Warning: Failed to store approval event: %v", storeErr)
+	}
+
+	// Resolve merge branch: per-agent > global config > default
+	mergeBranch := "dev"
+	if d.agentRegistry != nil && task.AgentID != "" {
+		if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil && agent.MergeBranch != "" {
+			mergeBranch = agent.MergeBranch
+		}
+	}
+	if mergeBranch == "dev" {
+		// Check global config as fallback
+		if coordConfig, _ := LoadCoordinatorConfig(); coordConfig != nil && coordConfig.MergeBranch != "" {
+			mergeBranch = coordConfig.MergeBranch
+		}
+	}
+
 	// Attempt to merge worktree changes
-	mergeResult, err := MergeWorktree(ctx, task.WorktreePath, "main")
+	mergeResult, err := MergeWorktree(ctx, task.WorktreePath, mergeBranch)
 	if err != nil {
 		return fmt.Errorf("merge failed: %w", err)
 	}
@@ -347,12 +366,12 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	// Merge succeeded - update task status
 	if err := d.taskStore.MarkTaskCompleted(ctx, taskID, &ExecuteResult{
 		Success: true,
-		Output:  fmt.Sprintf("Merged to main (commit: %s)", mergeResult.CommitHash),
+		Output:  fmt.Sprintf("Merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash),
 	}); err != nil {
 		d.logger.Printf("Warning: Failed to update task status: %v", err)
 	}
 
-	// Clean up worktree (changes are now in main)
+	// Clean up worktree (changes are now merged)
 	if d.worktreeMgr != nil {
 		if rmErr := d.worktreeMgr.RemoveWorktree(taskID); rmErr != nil {
 			d.logger.Printf("Warning: Failed to remove worktree: %v", rmErr)
@@ -362,9 +381,11 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	// Notify success
 	if task.ThreadID != "" && d.msgStore != nil {
 		content := fmt.Sprintf("**Changes Merged Successfully**\n\n"+
+			"Branch: %s\n"+
 			"Commit: `%s`\n"+
 			"Files: %s\n"+
 			"Approved by: %s",
+			mergeBranch,
 			mergeResult.CommitHash,
 			strings.Join(mergeResult.MergedFiles, ", "),
 			approvedBy)
@@ -386,7 +407,7 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 			ThreadID:   task.ThreadID,
 			StreamType: websocket.TaskStreamStatus,
 			Status:     "merged",
-			Text:       fmt.Sprintf("Changes merged to main (commit: %s)", mergeResult.CommitHash[:8]),
+			Text:       fmt.Sprintf("Changes merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash[:8]),
 		})
 	}
 
@@ -451,6 +472,19 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 	}
 
 	d.logger.Printf("Processing rejection for task %s (worktree preserved: %s)", taskID, task.WorktreePath)
+
+	// Store feedback event for audit trail (consistent with CLI/Dashboard via ProcessApprovalRequest)
+	feedback := &HumanFeedback{
+		TaskID:    taskID,
+		Iteration: task.Iteration,
+		Feedback:  reason,
+		Action:    "reject",
+		Timestamp: time.Now(),
+		UserID:    rejectedBy,
+	}
+	if storeErr := StoreFeedbackEvent(ctx, d.taskStore, feedback); storeErr != nil {
+		d.logger.Printf("Warning: Failed to store feedback event: %v", storeErr)
+	}
 
 	// Mark task as rejected - worktree is preserved for reference
 	if err := d.taskStore.MarkTaskRejected(ctx, taskID); err != nil {

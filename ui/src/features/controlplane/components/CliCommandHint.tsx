@@ -85,6 +85,7 @@ export const CliCommandHint: React.FC<CliCommandHintProps> = ({
   compact = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const command = buildCliCommand(commandType, filters, limit, taskId, traceId);
 
@@ -98,10 +99,21 @@ export const CliCommandHint: React.FC<CliCommandHintProps> = ({
     }
   }, [command]);
 
+  const handleToggleExpand = useCallback(() => {
+    setExpanded(prev => !prev);
+  }, []);
+
   return (
     <div className={`${styles.cliHint} ${compact ? styles.cliHintCompact : ''}`}>
       <span className={styles.cliHintLabel}>CLI:</span>
-      <code className={styles.cliHintCommand}>{command}</code>
+      <code
+        className={`${styles.cliHintCommand} ${expanded ? styles.cliHintExpanded : ''}`}
+        onClick={handleToggleExpand}
+        title={expanded ? "Click to collapse" : "Click to expand full command"}
+        style={{ cursor: 'pointer' }}
+      >
+        {command}
+      </code>
       <button
         className={styles.cliHintCopy}
         onClick={handleCopy}
