@@ -1,7 +1,7 @@
-# M-GAP2: Fix Path-Dependent Lambda Arity Bug
+# M-GAP2: Fix Final Expression Lambda Arity Bug
 
 ## Status
-- **Status:** Planned
+- **Status:** Planned (Root Cause Identified)
 - **Target:** v0.6.4
 - **Priority:** P0 (Critical)
 - **Estimated:** 4-8 hours
@@ -9,196 +9,171 @@
 
 ## Problem Statement
 
-**CRITICAL BUG:** Lambda syntax with `foldl` works in `examples/runnable/` but fails with "arity mismatch: 2 vs 1" error when the identical code is placed in a different directory.
+**CRITICAL BUG:** Multi-param lambda type inference fails when the module's final expression is a bare identifier referencing a value computed with that lambda.
+
+### Root Cause (Identified 2026-01-15)
+
+**The bug is NOT path-dependent.** The actual issue:
+
+| Final Expression | Result |
+|------------------|--------|
+| `sum` (bare identifier) | ❌ FAILS: "arity mismatch: 2 vs 1" |
+| `(sum)` (parenthesized) | ✅ WORKS |
+| `(sum, product)` (tuple) | ✅ WORKS |
 
 ### Reproduction
 
-**Works:**
-```bash
-ailang check examples/runnable/no_loops_fold.ail  # ✓ passes
+**Fails:**
+```ailang
+module test_bare
+import std/list (foldl)
+let numbers = [1, 2, 3]
+let sum = foldl(\acc x. acc + x, 0, numbers)
+sum  -- ❌ bare identifier fails
 ```
 
-**Fails (identical code):**
-```bash
-ailang check internal/dashboard_transforms/test_fold.ail  # ✗ fails
-# Error: arity mismatch: 2 vs 1
+**Works (identical except final expression):**
+```ailang
+module test_parens
+import std/list (foldl)
+let numbers = [1, 2, 3]
+let sum = foldl(\acc x. acc + x, 0, numbers)
+(sum)  -- ✅ parenthesized works
 ```
 
-### Symptoms
-- Same lambda syntax `\acc x. ...` works in some locations but not others
-- Error is "arity mismatch: 2 vs 1" - suggests type checker sees lambda as 1-arity instead of 2-arity
-- Non-deterministic behavior based on file path
+### Why `examples/runnable/no_loops_fold.ail` Works
+
+The original example returns a **tuple** `(sum, product, countEvens)` not a bare identifier:
+```ailang
+-- This works because of the tuple!
+(sum, product, countEvens)
+```
 
 ### Impact
-- Users cannot reliably use lambda syntax with higher-order functions
-- Forces use of verbose `func` syntax as workaround (GAP-3)
-- Breaks AILANG's determinism guarantee (Axiom A1)
+- Users cannot use bare identifiers as final expressions when lambdas are involved
+- Forces wrapping return values in parentheses or tuples
+- Confusing error message doesn't indicate the actual problem
+- Breaks AILANG's principle of least surprise
 
 ## Goals
 
-**Primary Goal:** Lambda syntax behaves identically regardless of file location
+**Primary Goal:** Bare identifier final expressions should work identically to parenthesized ones
 
 **Success Metrics:**
-- `\acc x. expr` parses as 2-arity lambda everywhere
-- All `foldl` examples work in any directory
-- No path-dependent type checking behavior
+- `sum` and `(sum)` produce identical type checking behavior
+- All lambda patterns work regardless of final expression style
+- Clear error messages if actual type errors exist
 
-## Investigation Plan
+## Technical Analysis
 
-### Hypothesis 1: Cached Type Information
-The type checker may be caching results that differ by path.
+### Hypothesis: Type Generalization Timing
 
-**Investigation:**
-```bash
-# Clear any caches
-rm -rf ~/.ailang/cache/
-rm -rf /tmp/ailang*
+The issue appears to be in how type variables are generalized when the final expression is a bare identifier vs a compound expression:
 
-# Test fresh
-ailang check internal/dashboard_transforms/test_fold.ail
-```
+1. **Bare identifier path:** The type checker may be trying to generalize the lambda's type variables before the final usage, causing the arity to be miscounted.
 
-### Hypothesis 2: Module Path Resolution
-The module system may influence type checking based on canonical path.
+2. **Parenthesized path:** The parentheses create a compound expression that delays generalization, allowing correct type inference.
 
-**Investigation:**
-```bash
-# Check if module declaration affects behavior
-# Create test file with different module declarations
-echo 'module test' > /tmp/test1.ail
-echo 'module internal/test' > /tmp/test2.ail
-# Add identical foldl code to both
-```
+### Investigation Points
 
-### Hypothesis 3: Parser Token Position Bug
-The lexer/parser may have path-dependent behavior affecting lambda parsing.
+1. **`internal/types/infer.go`** - Check `InferModule` handling of final expressions
+2. **`internal/elaborate/elaborate.go`** - Check if bare identifiers are elaborated differently
+3. **`internal/types/generalize.go`** - Check generalization timing for top-level bindings
 
-**Investigation:**
-```bash
-DEBUG_PARSER=1 ailang check examples/runnable/no_loops_fold.ail 2>&1 | tee working.log
-DEBUG_PARSER=1 ailang check internal/dashboard_transforms/test_fold.ail 2>&1 | tee failing.log
-diff working.log failing.log
-```
+### Likely Fix Location
 
-### Hypothesis 4: stdlib Import Differences
-Different paths may resolve stdlib imports differently, affecting `foldl` type.
+```go
+// internal/types/infer.go - InferModule function
+// The issue is likely in how the module's return expression is typed
 
-**Investigation:**
-```bash
-# Check if foldl has same type in both contexts
-ailang repl
-:type foldl
-# Compare with explicit import in test file
+// Current (buggy): Bare identifier may trigger early generalization
+case *core.Var:
+    // Look up type without proper instantiation?
+
+// Fixed: Ensure all expression paths have consistent typing
 ```
 
 ## Solution Design
 
-### Phase 1: Diagnosis (~2-4 hours)
+### Phase 1: Diagnosis (~2 hours)
 
-1. **Create minimal reproduction:**
-   ```ailang
-   -- test_lambda_arity.ail
-   module test
-   import std/list (foldl)
-
-   let sum = foldl(\acc x. acc + x, 0, [1,2,3])
-   ```
-
-2. **Test in multiple locations:**
-   - `examples/runnable/`
-   - `internal/`
-   - `/tmp/`
-   - Project root
-
-3. **Enable debug output:**
-   ```bash
-   DEBUG_STRICT=1 DEBUG_MONO_VERBOSE=1 ailang check test.ail
-   ```
-
-4. **Compare AST output:**
-   ```bash
-   ailang debug ast working.ail --show-types > working_ast.txt
-   ailang debug ast failing.ail --show-types > failing_ast.txt
-   diff working_ast.txt failing_ast.txt
-   ```
+1. Add debug logging to type inference for final expressions
+2. Compare type state between `sum` and `(sum)` paths
+3. Identify where generalization/instantiation differs
 
 ### Phase 2: Fix (~2-4 hours)
 
-Based on diagnosis, fix will be one of:
+Based on diagnosis, fix will likely be:
+- Ensure bare identifiers in final position are treated identically to parenthesized ones
+- May need to delay type generalization for module-level bindings
+- Or ensure proper instantiation when referencing polymorphic bindings
 
-**If cache issue:**
-- Clear path-dependent caching
-- Ensure cache keys include full context
+### Files to Modify
 
-**If module resolution:**
-- Normalize paths before module resolution
-- Ensure canonical path handling is consistent
-
-**If parser bug:**
-- Fix token position tracking
-- Ensure lambda parameter parsing is context-free
-
-**If stdlib import:**
-- Ensure `foldl` type is resolved identically
-- Fix import path normalization
-
-### Files Likely to Modify
-
-| File | Possible Change |
-|------|-----------------|
-| `internal/types/unify.go` | Lambda arity unification |
-| `internal/elaborate/elaborate.go` | Lambda elaboration |
-| `internal/loader/loader.go` | Module path resolution |
-| `internal/pipeline/pipeline.go` | Caching behavior |
+| File | Change |
+|------|--------|
+| `internal/types/infer.go` | Fix final expression type inference |
+| `internal/types/generalize.go` | Fix generalization timing (if needed) |
 
 ## Testing
 
-### Regression Test Suite
-```bash
-# Create test cases in multiple directories
-mkdir -p tests/lambda_arity/{root,nested/deep,absolute}
+### Minimal Test Cases
 
-# Each contains identical lambda test
-for dir in tests/lambda_arity/*/; do
-  cp test_lambda_arity.ail "$dir"
-  ailang check "$dir/test_lambda_arity.ail" || echo "FAIL: $dir"
-done
+```ailang
+-- test_gap2_bare.ail (should pass after fix)
+module test_gap2_bare
+import std/list (foldl)
+let xs = [1, 2, 3]
+let sum = foldl(\acc x. acc + x, 0, xs)
+sum
+
+-- test_gap2_parens.ail (already passes)
+module test_gap2_parens
+import std/list (foldl)
+let xs = [1, 2, 3]
+let sum = foldl(\acc x. acc + x, 0, xs)
+(sum)
 ```
 
 ### Edge Cases
-- [ ] Lambda in REPL vs file
-- [ ] Lambda in imported module vs main module
-- [ ] Lambda with 1, 2, 3+ parameters
-- [ ] Nested lambdas `\x. \y. \z. ...`
+- [ ] Bare identifier referencing non-lambda binding (should work)
+- [ ] Bare identifier referencing simple lambda (1-param)
+- [ ] Bare identifier referencing multi-param lambda (2+ params)
+- [ ] Multiple let bindings with bare identifier return
 
 ## Success Criteria
 
-- [ ] `\acc x. expr` works identically in all file locations
-- [ ] No "arity mismatch" errors for correct code
-- [ ] Deterministic behavior (Axiom A1 compliance)
+- [ ] `sum` works identically to `(sum)`
 - [ ] All existing tests pass
-- [ ] New regression tests added
+- [ ] New regression tests for bare identifier final expressions
+- [ ] No "arity mismatch" errors for correct code
 
 ## Timeline
 
-**Day 1:** Diagnosis and minimal reproduction (2-4 hours)
-**Day 2:** Implement fix and test (2-4 hours)
+**Day 1:** Diagnosis (2 hours) + Fix (2-4 hours)
 
 ## Axiom Alignment
 
 | Axiom | Score | Rationale |
 |-------|-------|-----------|
-| A1: Determinism | +1 | Fixes non-deterministic path-dependent behavior |
-| A5: Bounded Verification | +1 | Enables local reasoning about lambda types |
-| A7: Machines First | +1 | AI-generated code will work reliably |
+| A1: Determinism | +1 | Consistent behavior regardless of syntax |
+| A7: Machines First | +1 | AI-generated code works reliably |
+| A8: Syntax Is Liability | +1 | Removes surprising syntax sensitivity |
 
 **Net Score:** +3 (Accept - Critical fix)
 
 ## Related Documents
 
 - [GAPS_DISCOVERED.md](../../../internal/dashboard_transforms/GAPS_DISCOVERED.md) - Discovery context
-- GAP-3 is the workaround for this bug (use inline `func` syntax)
+- GAP-3 (now obsolete) - The "path-dependent" symptom was incorrect
 
-## Notes
+## Workaround
 
-This is the root cause of GAP-3. Fixing this bug will eliminate the need for the verbose `func` workaround.
+Until fixed, wrap final expressions in parentheses:
+```ailang
+-- Instead of:
+sum
+
+-- Use:
+(sum)
+```
