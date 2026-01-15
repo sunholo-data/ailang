@@ -32,6 +32,12 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 	leftExp := prefix()
 
 	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
+		// DEBUG: understand infix loop behavior
+		if p.peekTokenIs(lexer.LPAREN) && p.peekToken.Line > p.curToken.Line {
+			fmt.Printf("[DEBUG NO-FIX] LPAREN across lines: cur=%s at %d:%d, peek=LPAREN at %d:%d, leftExp=%T, prec=%d, peekPrec=%d\n",
+				p.curToken.Literal, p.curToken.Line, p.curToken.Column,
+				p.peekToken.Line, p.peekToken.Column, leftExp, precedence, p.peekPrecedence())
+		}
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp
@@ -632,12 +638,15 @@ func (p *Parser) parseConsExpression(left ast.Expr) ast.Expr {
 }
 
 func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
+	fmt.Printf("[DEBUG CALL] parseCallExpression called: fn=%T at %d:%d\n",
+		fn, p.curToken.Line, p.curToken.Column)
 	call := &ast.FuncCall{
 		Func: fn,
 		Pos:  p.curPos(),
 	}
 
 	call.Args = p.parseCallArguments()
+	fmt.Printf("[DEBUG CALL] parseCallExpression done: %d args\n", len(call.Args))
 	return call
 }
 

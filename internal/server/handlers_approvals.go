@@ -266,7 +266,8 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body for review notes
 	var body struct {
-		Notes string `json:"notes"`
+		Notes     string `json:"notes"`
+		Permanent bool   `json:"permanent"` // If true, permanent rejection (no retry)
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -314,7 +315,7 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 				Feedback:          body.Notes,
 				SkipMerge:         false,
 				KeepWorktree:      false,
-				RetriggerOnReject: true, // Enable feedback loop for dashboard too
+				RetriggerOnReject: !body.Permanent, // false = permanent rejection, true = retry with feedback
 				Store:             s.coordStoreRaw,
 				MsgStore:          s.store, // For feedback messages
 				GitHubPoster:      githubPoster,

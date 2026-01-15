@@ -185,6 +185,47 @@
   cursor: not-allowed;
 }
 
+/* Cancel Task button (permanent rejection) */
+.cancelTaskButton {
+  padding: 8px 16px;
+  border: 1px solid var(--color-warning, #9a6700);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-warning, #9a6700);
+}
+
+.cancelTaskButton:hover:not(:disabled) {
+  background: var(--color-warning-bg, #fff8c5);
+}
+
+.cancelTaskButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancelTaskConfirmButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--color-warning, #9a6700);
+  color: white;
+}
+
+.cancelTaskConfirmButton:hover:not(:disabled) {
+  background: var(--color-warning-hover, #7d5200);
+}
+
+.cancelTaskConfirmButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Rejection form */
 .rejectForm {
   padding: 16px 20px;

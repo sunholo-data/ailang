@@ -50,6 +50,7 @@ interface ApprovalDetailModalProps {
   onClose: () => void;
   onApprove: (id: string, notes?: string) => Promise<void>;
   onReject: (id: string, notes: string) => Promise<void>;
+  onCancel?: (id: string, notes?: string) => Promise<void>; // Permanent rejection, no retry
   // Optional: pre-loaded diff data
   diff?: string;
   // Optional: task events for logs tab
@@ -62,6 +63,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   onClose,
   onApprove,
   onReject,
+  onCancel,
   diff: propDiff,
   events = [],
 }) => {
@@ -72,7 +74,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   const [isLoading, setIsLoading] = useState(!propDiff);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackNotes, setFeedbackNotes] = useState('');
-  const [showFeedbackForm, setShowFeedbackForm] = useState<'approve' | 'reject' | null>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState<'approve' | 'reject' | 'cancel' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch diff if not provided
@@ -182,6 +184,20 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
     }
   }, [approval.id, feedbackNotes, onReject, onClose]);
 
+  const handleCancel = useCallback(async () => {
+    if (!onCancel) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await onCancel(approval.id, feedbackNotes || undefined);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel task');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [approval.id, feedbackNotes, onCancel, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -224,9 +240,20 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                   className={styles.rejectButton}
                   onClick={() => setShowFeedbackForm('reject')}
                   disabled={isSubmitting}
+                  title="Reject with feedback - agent will retry"
                 >
                   Reject
                 </button>
+                {onCancel && (
+                  <button
+                    className={styles.cancelTaskButton}
+                    onClick={() => setShowFeedbackForm('cancel')}
+                    disabled={isSubmitting}
+                    title="Cancel permanently - no retry"
+                  >
+                    Cancel Task
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -250,10 +277,18 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
             <FeedbackInput
               value={feedbackNotes}
               onChange={setFeedbackNotes}
-              label={showFeedbackForm === 'approve' ? 'Approval feedback (optional)' : 'Rejection feedback (required)'}
-              placeholder={showFeedbackForm === 'approve'
-                ? 'Add any notes or feedback for the next iteration (optional)...'
-                : 'Please explain why this change is being rejected and what needs to be fixed...'}
+              label={
+                showFeedbackForm === 'approve' ? 'Approval feedback (optional)' :
+                showFeedbackForm === 'cancel' ? 'Cancellation reason (optional)' :
+                'Rejection feedback (required)'
+              }
+              placeholder={
+                showFeedbackForm === 'approve'
+                  ? 'Add any notes or feedback for the next iteration (optional)...'
+                  : showFeedbackForm === 'cancel'
+                  ? 'Why are you cancelling this task? (optional)...'
+                  : 'Please explain why this change is being rejected and what needs to be fixed...'
+              }
               maxLength={1000}
               required={showFeedbackForm === 'reject'}
               autoFocus
@@ -268,6 +303,14 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                   disabled={isSubmitting || feedbackNotes.length > 1000}
                 >
                   {isSubmitting ? 'Approving...' : 'Confirm Approval'}
+                </button>
+              ) : showFeedbackForm === 'cancel' ? (
+                <button
+                  className={styles.cancelTaskConfirmButton}
+                  onClick={handleCancel}
+                  disabled={isSubmitting || feedbackNotes.length > 1000}
+                >
+                  {isSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
                 </button>
               ) : (
                 <button

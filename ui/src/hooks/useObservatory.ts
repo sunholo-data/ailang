@@ -710,11 +710,11 @@ export function useApprovals(options: UseApprovalsOptions = {}) {
     await refresh();
   }, [refresh]);
 
-  const rejectApproval = useCallback(async (approvalId: string, notes?: string) => {
+  const rejectApproval = useCallback(async (approvalId: string, notes?: string, permanent?: boolean) => {
     const response = await fetch(`/api/approvals/${approvalId}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notes: notes || '' }),
+      body: JSON.stringify({ notes: notes || '', permanent: permanent || false }),
     });
     if (!response.ok) {
       throw new Error('Failed to reject');

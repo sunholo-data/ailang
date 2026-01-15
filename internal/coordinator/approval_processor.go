@@ -276,6 +276,13 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 			))
 		}
 
+		// Resolve the approval request as rejected (so dashboard shows correct state)
+		if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "rejected", params.ApprovedBy); err != nil {
+			span.AddEvent("warning: failed to resolve approval", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+
 		// Send feedback message to agent inbox
 		if params.MsgStore != nil {
 			agentInbox := task.AgentID

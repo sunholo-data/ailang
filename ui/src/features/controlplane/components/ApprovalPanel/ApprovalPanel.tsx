@@ -87,6 +87,13 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
     setSelectedApproval(null);
   }, [rejectApproval]);
 
+  // Handle modal cancel (permanent rejection)
+  const handleModalCancel = useCallback(async (id: string, notes?: string) => {
+    await rejectApproval(id, notes || '', true); // permanent=true
+    setIsModalOpen(false);
+    setSelectedApproval(null);
+  }, [rejectApproval]);
+
   // Toggle selection
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -287,6 +294,7 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
           }}
           onApprove={handleModalApprove}
           onReject={handleModalReject}
+          onCancel={handleModalCancel}
         />
       )}
     </div>

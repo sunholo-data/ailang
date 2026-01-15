@@ -333,6 +333,12 @@ export const ControlPlane: React.FC = () => {
     refreshApprovals();
   }, [rejectApproval, refreshApprovals, handleApprovalModalClose]);
 
+  const handleApprovalCancel = useCallback(async (id: string, notes?: string) => {
+    await rejectApproval(id, notes || '', true); // permanent=true for cancel
+    handleApprovalModalClose();
+    refreshApprovals();
+  }, [rejectApproval, refreshApprovals, handleApprovalModalClose]);
+
   const handleAgentClick = useCallback((agent: Agent) => {
     setDetailPanel({ type: 'agent', id: agent.id, data: agent });
     // Highlight the clicked agent and its path in topology (use full graph for path finding)
@@ -668,6 +674,7 @@ export const ControlPlane: React.FC = () => {
           onClose={handleApprovalModalClose}
           onApprove={handleApprovalApprove}
           onReject={handleApprovalReject}
+          onCancel={handleApprovalCancel}
           onNavigate={(approval) => setSelectedApproval(approval as Approval)}
         />
       )}
