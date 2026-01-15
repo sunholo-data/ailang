@@ -435,13 +435,16 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 
 	case "summary":
 		// Return compact summary
-		summary := coordinator.SummarizeEvents(events)
+		// Uses AILANG implementation when AILANG_DASHBOARD=1
+		bridge := GetAILANGBridge()
+		summary := bridge.SummarizeEvents(events)
 		resp := map[string]interface{}{
-			"task_id":      taskID,
-			"format":       "summary",
-			"content":      summary,
-			"total_events": len(events),
-			"total_turns":  countTurns(events),
+			"task_id":       taskID,
+			"format":        "summary",
+			"content":       summary,
+			"total_events":  len(events),
+			"total_turns":   countTurns(events),
+			"ailang_active": bridge.IsEnabled(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -464,8 +467,14 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 	}
 }
 
-// countTurns counts unique turn numbers in event list
+// countTurns counts unique turn numbers in event list.
+// Uses AILANG implementation when AILANG_DASHBOARD=1.
 func countTurns(events []*coordinator.TaskEventRecord) int {
+	bridge := GetAILANGBridge()
+	if bridge.IsEnabled() {
+		return bridge.CountTurns(events)
+	}
+	// Go fallback
 	turns := make(map[int]bool)
 	for _, e := range events {
 		if e.TurnNum > 0 {

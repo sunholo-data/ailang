@@ -154,28 +154,37 @@ func (e *Engine) compileModule(modulePath string) error {
 // Arguments are automatically converted from Go types to AILANG values.
 // The module is loaded if not already cached.
 func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Value, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
+	// Fast path: check if module is already loaded (read lock only)
+	e.mu.RLock()
 	if e.closed {
+		e.mu.RUnlock()
 		return nil, fmt.Errorf("engine is closed")
 	}
-
-	// Load module if needed
 	inst := e.runtime.GetInstance(modulePath)
+	alreadyCompiled := e.compiled[modulePath]
+	e.mu.RUnlock()
+
+	// Slow path: compile and load module (write lock)
 	if inst == nil {
-		// Compile through pipeline first (applies OpLowering)
-		if !e.compiled[modulePath] {
-			if err := e.compileModule(modulePath); err != nil {
-				return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
+		e.mu.Lock()
+		// Double-check after acquiring write lock
+		inst = e.runtime.GetInstance(modulePath)
+		if inst == nil {
+			if !alreadyCompiled {
+				if err := e.compileModule(modulePath); err != nil {
+					e.mu.Unlock()
+					return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
+				}
+			}
+
+			var err error
+			inst, err = e.runtime.LoadAndEvaluate(modulePath)
+			if err != nil {
+				e.mu.Unlock()
+				return nil, fmt.Errorf("failed to load module %s: %w", modulePath, err)
 			}
 		}
-
-		var err error
-		inst, err = e.runtime.LoadAndEvaluate(modulePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load module %s: %w", modulePath, err)
-		}
+		e.mu.Unlock()
 	}
 
 	// Get the function

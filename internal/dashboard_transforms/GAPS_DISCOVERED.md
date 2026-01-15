@@ -144,18 +144,41 @@ result, _ := engine.Call(
 
 **Go vs AILANG comparison** (Apple M2):
 
-| Operation | Go | AILANG | Slowdown |
-|-----------|-----|--------|----------|
-| truncate (1 call) | 25 ns | 26 µs | ~1,000x |
-| countTurns (10 events) | 4 ns | 211 µs | ~50,000x |
-| countTurns (100 events) | 33 ns | 2.1 ms | ~64,000x |
-| summarize (10 events) | 161 ns | 418 µs | ~2,600x |
-| summarize (100 events) | 400 ns | 4.1 ms | ~10,000x |
+| Operation | Go | AILANG | Slowdown | AILANG Allocs |
+|-----------|-----|--------|----------|---------------|
+| truncate (1 call) | 25 ns | 26 µs | ~1,000x | 153 |
+| countTurns (10 events) | 4 ns | 215 µs | ~50,000x | 1,475 |
+| countTurns (100 events) | 31 ns | 2.1 ms | ~68,000x | 14,268 |
+| summarize (10 events) | 162 ns | 426 µs | ~2,600x | 3,371 |
+| summarize (100 events) | 407 ns | 4.1 ms | ~10,000x | 30,605 |
 
-**Assessment:**
-- **Function call overhead:** ~26µs per call
-- **Dashboard use case:** 4ms latency acceptable for human-refreshed data
-- **Usability:** Good for <100 events per call, <10 calls/second
+**Performance Analysis:**
+- **Function call overhead:** ~26µs base cost per call (even for trivial operations)
+- **Scaling:** Linear with data size (~10x data → ~10x time)
+- **Allocation overhead:** ~150 allocations per call + ~140 per event
+
+**Root Causes:**
+1. Interpreted execution (no JIT or compilation to native code)
+2. Value boxing (every primitive wrapped in interface{})
+3. Reflection-based Go↔AILANG conversion
+
+**Optimization Attempts:**
+- RWMutex for read-heavy paths: ~100ns improvement (minimal)
+- Further optimization requires compiler work (JIT, AOT)
+
+**Dashboard Use Case Assessment:**
+- ✅ **4ms latency acceptable** for human-refreshed data (100 events)
+- ✅ **Good for <100 events** per call, <10 calls/second
+- ⚠️ **Not suitable** for hot paths or high-frequency calls
+- ⚠️ **Memory pressure** may matter for very large event lists
+
+**Live Dashboard Integration:**
+```bash
+# Enable AILANG for dashboard transforms
+AILANG_DASHBOARD=1 AILANG_PROJECT_ROOT=/path/to/ailang ailang serve
+```
+
+The dashboard API returns `"ailang_active": true` when AILANG is processing events.
 
 **Benchmark file:** `internal/dashboard_transforms/benchmark_test.go`
 
