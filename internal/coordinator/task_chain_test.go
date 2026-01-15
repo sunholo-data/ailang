@@ -275,6 +275,13 @@ func (m *MockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequ
 	return nil
 }
 
+func (m *MockStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["GetApprovalRequestByTask"]++
+	return nil, nil
+}
+
 func (m *MockStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

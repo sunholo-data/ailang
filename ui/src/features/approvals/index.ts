@@ -1,2 +1,2 @@
-export { ApprovalQueue } from './ApprovalQueue/ApprovalQueue';
-export { ApprovalHistory } from './ApprovalHistory/ApprovalHistory';
+export { ApprovalDetailModal } from './ApprovalDetailModal/ApprovalDetailModal';
+export type { ApprovalData } from './ApprovalDetailModal/ApprovalDetailModal';

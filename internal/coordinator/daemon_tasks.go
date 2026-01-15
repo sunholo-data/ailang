@@ -769,11 +769,41 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 
 			// Create approval request record for the CLI/dashboard to show
 			approvalID := fmt.Sprintf("apr-%s", task.ID[5:]) // apr-<hash> from task-<hash>
+
+			// Check if handoffs are pending for this agent (will be embedded in approval)
+			var contextJSON string
+			var handoffTargets []string
+			if d.agentRegistry != nil && task.AgentID != "" {
+				agent := d.agentRegistry.GetAgentByID(task.AgentID)
+				if agent != nil && len(agent.TriggerOnComplete) > 0 && !agent.AutoApproveHandoffs {
+					handoffTargets = agent.TriggerOnComplete
+					// Build context with embedded handoff data
+					handoffContext := map[string]interface{}{
+						"handoff_targets": handoffTargets,
+						"session_id":      result.SessionID,
+						"source_agent":    task.AgentID,
+					}
+					if contextBytes, err := json.Marshal(handoffContext); err == nil {
+						contextJSON = string(contextBytes)
+					}
+					d.logger.Printf("Embedding handoff to %v in merge approval for task %s", handoffTargets, task.ID)
+				}
+			}
+
+			// Determine approval type based on whether handoff is embedded
+			approvalType := string(ApprovalTypeMerge)
+			description := fmt.Sprintf("Agent completed work on: %s", task.Title)
+			if len(handoffTargets) > 0 {
+				approvalType = "merge_handoff" // Combined type for UI clarity
+				description = fmt.Sprintf("Agent completed work on: %s (will handoff to: %v)", task.Title, handoffTargets)
+			}
+
 			approvalReq := &ApprovalRequestRecord{
 				ID:          approvalID,
 				TaskID:      task.ID,
-				Type:        string(ApprovalTypeMerge),
-				Description: fmt.Sprintf("Agent completed work on: %s", task.Title),
+				Type:        approvalType,
+				Description: description,
+				ContextJSON: contextJSON,
 				Status:      "pending",
 				CreatedAt:   time.Now(),
 			}

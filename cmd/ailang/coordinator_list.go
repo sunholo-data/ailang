@@ -134,12 +134,22 @@ taskList:
 		for i, req := range pending {
 			// Get task details for worktree info
 			task, _ := store.GetTask(ctx, req.TaskID)
-			// Show type indicator
+			// Show type indicator with handoff targets for combined approvals
 			typeLabel := "[merge]"
+			handoffInfo := ""
 			if req.Type == "handoff" {
 				typeLabel = "[handoff]"
+			} else if req.Type == "merge_handoff" {
+				typeLabel = "[merge+handoff]"
+				// Extract handoff targets from context
+				var ctx struct {
+					HandoffTargets []string `json:"handoff_targets"`
+				}
+				if err := json.Unmarshal([]byte(req.ContextJSON), &ctx); err == nil && len(ctx.HandoffTargets) > 0 {
+					handoffInfo = " → " + strings.Join(ctx.HandoffTargets, ", ")
+				}
 			}
-			fmt.Printf("  %s [%d] %s %s\n", yellow("⏳"), i+1, cyan(typeLabel), req.TaskID)
+			fmt.Printf("  %s [%d] %s%s %s\n", yellow("⏳"), i+1, cyan(typeLabel), cyan(handoffInfo), req.TaskID)
 			fmt.Printf("       Title: %s\n", req.Description)
 			if task != nil && task.WorktreePath != "" {
 				if _, err := os.Stat(task.WorktreePath); err == nil {
@@ -176,6 +186,7 @@ taskList:
 		selectedReq := pending[num-1]
 		selectedTask, _ := store.GetTask(ctx, selectedReq.TaskID)
 		isHandoff := selectedReq.Type == "handoff"
+		isCombined := selectedReq.Type == "merge_handoff"
 
 		// INNER LOOP: Action menu for selected task
 		for {
@@ -183,6 +194,8 @@ taskList:
 			fmt.Println()
 			if isHandoff {
 				fmt.Println(bold("Type: ") + cyan("Handoff Approval"))
+			} else if isCombined {
+				fmt.Println(bold("Type: ") + cyan("Merge + Handoff Approval"))
 			} else {
 				fmt.Println(bold("Type: ") + cyan("Merge Approval"))
 			}
@@ -199,6 +212,22 @@ taskList:
 					}
 				}
 			}
+			// Show embedded handoff targets for combined approvals
+			if isCombined && selectedReq.ContextJSON != "" {
+				var ctxJSON struct {
+					HandoffTargets []string `json:"handoff_targets"`
+					SourceAgent    string   `json:"source_agent"`
+				}
+				if err := json.Unmarshal([]byte(selectedReq.ContextJSON), &ctxJSON); err == nil {
+					if len(ctxJSON.HandoffTargets) > 0 {
+						src := ctxJSON.SourceAgent
+						if src == "" {
+							src = "current-agent"
+						}
+						fmt.Println(bold("On Approval: ") + src + " → " + strings.Join(ctxJSON.HandoffTargets, ", "))
+					}
+				}
+			}
 			fmt.Println()
 			fmt.Println(bold("Actions:"))
 			if !isHandoff {
@@ -206,7 +235,11 @@ taskList:
 				fmt.Println("  [s]  View diff summary (--stat)")
 				fmt.Println("  [f]  Browse changed files")
 				fmt.Println("  [o]  Open worktree in Finder")
-				fmt.Println("  [a]  " + green("Approve and merge"))
+				if isCombined {
+					fmt.Println("  [a]  " + green("Approve, merge, and handoff"))
+				} else {
+					fmt.Println("  [a]  " + green("Approve and merge"))
+				}
 			} else {
 				fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
 			}

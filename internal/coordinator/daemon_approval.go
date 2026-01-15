@@ -84,13 +84,10 @@ func (d *Daemon) handleAgentHandoffs(task *TaskRecord, result *ExecuteResult) er
 			d.logger.Printf("Auto-approved handoff from %s to %s for task %s",
 				sourceAgentID, targetAgentID, task.ID)
 		} else {
-			// Require approval: create approval request
-			if err := d.requestHandoffApproval(sourceAgent, targetAgent, task, result, handoffMessage, sessionID); err != nil {
-				d.logger.Printf("Warning: Failed to create handoff approval request: %v", err)
-				continue
-			}
-			d.logger.Printf("Created handoff approval request from %s to %s for task %s",
-				sourceAgentID, targetAgentID, task.ID)
+			// Handoff is embedded in merge approval (combined approval created in daemon_tasks.go)
+			// Skip creating separate handoff approval - will be triggered when merge is approved
+			d.logger.Printf("Handoff to %s embedded in merge approval for task %s (will trigger on approval)",
+				targetAgentID, task.ID)
 		}
 	}
 
@@ -233,6 +230,12 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	}
 	if task == nil {
 		return fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Get the approval record to access embedded handoff data (M-COORD-UNIFIED-APPROVAL)
+	var approvalRecord *ApprovalRequestRecord
+	if d.taskStore != nil {
+		approvalRecord, _ = d.taskStore.GetApprovalRequestByTask(ctx, taskID)
 	}
 
 	// Determine channel source (M-DASHBOARD-APPROVAL-INTEGRATION)
@@ -414,15 +417,10 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	d.logger.Printf("Task %s approved and merged by %s (commit: %s)",
 		taskID, approvedBy, mergeResult.CommitHash)
 
-	// Check for pending handoff approvals for this task
-	if d.approvalCheckpoint != nil {
-		if req := d.approvalCheckpoint.GetRequestByTask(taskID); req != nil {
-			if req.Type == ApprovalTypeHandoff {
-				// Auto-approve the handoff now that the work is merged
-				if err := d.processHandoffApproval(ctx, req); err != nil {
-					d.logger.Printf("Warning: Failed to process handoff: %v", err)
-				}
-			}
+	// Trigger embedded handoffs from combined approval (M-COORD-UNIFIED-APPROVAL)
+	if approvalRecord != nil && approvalRecord.ContextJSON != "" {
+		if err := d.triggerEmbeddedHandoffs(ctx, task, approvalRecord.ContextJSON); err != nil {
+			d.logger.Printf("Warning: Failed to trigger embedded handoffs: %v", err)
 		}
 	}
 
@@ -612,6 +610,82 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 
 	d.logger.Printf("Handoff approved: %s → %s (task: %s)",
 		req.SourceAgentID, req.TargetAgentID, task.ID)
+
+	return nil
+}
+
+// triggerEmbeddedHandoffs extracts handoff data from approval contextJSON and triggers handoffs.
+// This is used for combined merge+handoff approvals (M-COORD-UNIFIED-APPROVAL).
+func (d *Daemon) triggerEmbeddedHandoffs(ctx context.Context, task *TaskRecord, contextJSON string) error {
+	if d.agentRegistry == nil || d.msgStore == nil {
+		return fmt.Errorf("agent registry or message store not available")
+	}
+
+	// Parse the embedded handoff data
+	var handoffContext struct {
+		HandoffTargets []string `json:"handoff_targets"`
+		SessionID      string   `json:"session_id"`
+		SourceAgent    string   `json:"source_agent"`
+	}
+	if err := json.Unmarshal([]byte(contextJSON), &handoffContext); err != nil {
+		return fmt.Errorf("failed to parse handoff context: %w", err)
+	}
+
+	// No handoffs embedded
+	if len(handoffContext.HandoffTargets) == 0 {
+		return nil
+	}
+
+	d.logger.Printf("Triggering embedded handoffs for task %s to: %v",
+		task.ID, handoffContext.HandoffTargets)
+
+	// Build handoff message
+	handoffMessage := fmt.Sprintf("**Handoff from %s (merged)**\n\n"+
+		"Task: %s\n"+
+		"Original Request: %s\n\n"+
+		"Please continue this work.",
+		handoffContext.SourceAgent, task.ID, task.Content)
+
+	// Trigger each handoff
+	for _, targetAgentID := range handoffContext.HandoffTargets {
+		targetAgent := d.agentRegistry.GetAgentByID(targetAgentID)
+		if targetAgent == nil {
+			d.logger.Printf("Warning: Handoff target agent %s not found", targetAgentID)
+			continue
+		}
+
+		// Include hierarchy data in metadata for dashboard tracing
+		metadataMap := map[string]interface{}{
+			"parent_task_id": task.ID,
+			"handoff_source": task.ID,
+			"source_agent":   handoffContext.SourceAgent,
+			"target_agent":   targetAgentID,
+		}
+		if handoffContext.SessionID != "" {
+			metadataMap["session_id"] = handoffContext.SessionID
+		}
+		metadata := ""
+		if data, err := json.Marshal(metadataMap); err == nil {
+			metadata = string(data)
+		}
+
+		// Send to target agent's inbox
+		_, err := d.msgStore.CreateMessage(
+			"",                               // New thread
+			"ailang_instance", "coordinator", // from
+			targetAgent.Inbox, targetAgent.ID, // to
+			"handoff",
+			handoffMessage,
+			metadata,
+		)
+		if err != nil {
+			d.logger.Printf("Warning: Failed to send handoff to %s: %v", targetAgentID, err)
+			continue
+		}
+
+		d.logger.Printf("Triggered embedded handoff: %s → %s (task: %s)",
+			handoffContext.SourceAgent, targetAgentID, task.ID)
+	}
 
 	return nil
 }

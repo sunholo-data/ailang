@@ -21,6 +21,7 @@ type TaskRecord struct {
 	AgentID      string     `json:"agent_id,omitempty"` // ID of agent that processed this task
 	WorktreeID   string     `json:"worktree_id,omitempty"`
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
+	BaseBranch   string     `json:"base_branch,omitempty"`   // Base branch worktree was created from (for diff comparison)
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
@@ -183,6 +184,7 @@ type Store interface {
 
 	// Approval requests
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
+	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)
 	ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error)
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error

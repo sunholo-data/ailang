@@ -15,9 +15,9 @@ import { TraceWaterfall } from '../TraceWaterfall';
 import { useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
 import styles from './ExecHierarchy.module.css';
 
-// Popover max dimensions - large to show full tool metadata
-const POPOVER_MAX_WIDTH = 800;
-const POPOVER_MAX_HEIGHT = 700;
+// Popover max dimensions - compact design
+const POPOVER_MAX_WIDTH = 420;
+const POPOVER_MAX_HEIGHT = 480;
 const POPOVER_MARGIN = 16;
 
 // Extended node types for better visualization
@@ -695,7 +695,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   // Popover state
   const [popoverNode, setPopoverNode] = useState<HierarchyNode | null>(null);
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
-  const [attributesExpanded, setAttributesExpanded] = useState(true);
+  const [attributesExpanded, setAttributesExpanded] = useState(false);
+  const [metricsExpanded, setMetricsExpanded] = useState(false);
+  const [toolDetailsExpanded, setToolDetailsExpanded] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Transform spans to hierarchy nodes (same data as TraceWaterfall)
@@ -1013,7 +1015,10 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         setPopoverNode(null);
       } else {
         setPopoverNode(node);
-        setAttributesExpanded(true); // Keep attributes expanded by default
+        // Reset all collapsible sections to collapsed by default
+        setAttributesExpanded(false);
+        setMetricsExpanded(false);
+        setToolDetailsExpanded(false);
         // Position with viewport awareness
         if (event) {
           const pos = calculatePopoverPosition(event.clientX, event.clientY);
@@ -1326,92 +1331,114 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           <div className={styles.popoverHeader}>
             <span className={styles.popoverIcon}>{getNodeIcon(popoverNode.type)}</span>
             <span className={styles.popoverTitle}>{popoverNode.label}</span>
-            <button
-              className={styles.popoverClose}
-              onClick={() => setPopoverNode(null)}
-              title="Close"
-            >
-              ×
-            </button>
+            <div className={styles.popoverHeaderActions}>
+              {/* Filter toggle button */}
+              {popoverNode._span && (
+                <button
+                  className={`${styles.popoverFilterBtn} ${hiddenSpanTypes?.has(popoverNode._span.name) ? styles.popoverFilterActive : ''}`}
+                  onClick={() => toggleSpanType(popoverNode._span?.name || '')}
+                  title={hiddenSpanTypes?.has(popoverNode._span.name) ? 'Show this span type' : 'Hide this span type'}
+                >
+                  {hiddenSpanTypes?.has(popoverNode._span.name) ? '◯' : '◉'}
+                </button>
+              )}
+              <button
+                className={styles.popoverClose}
+                onClick={() => setPopoverNode(null)}
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
           </div>
           <div className={styles.popoverBody}>
-            {/* Summary Grid */}
-            <div className={styles.popoverSummary}>
-              <div className={styles.popoverSummaryItem}>
-                <span className={styles.popoverSummaryLabel}>Type</span>
-                <span className={styles.popoverSummaryValue}>{popoverNode.type}</span>
+            {/* Hero Row - Duration + Status prominently displayed */}
+            <div className={styles.popoverHero}>
+              <div className={styles.popoverDuration}>
+                <span className={styles.popoverDurationIcon}>⏱</span>
+                <span className={styles.popoverDurationValue}>{formatDuration(popoverNode.durationMs)}</span>
               </div>
-              <div className={styles.popoverSummaryItem}>
-                <span className={styles.popoverSummaryLabel}>Status</span>
-                <span className={`${styles.popoverSummaryValue} ${styles[`status${popoverNode.status.charAt(0).toUpperCase() + popoverNode.status.slice(1)}`]}`}>
-                  {popoverNode.status}
+              <span className={`${styles.popoverStatusBadge} ${styles[`status${popoverNode.status.charAt(0).toUpperCase() + popoverNode.status.slice(1)}`]}`}>
+                {popoverNode.status === 'ok' || popoverNode.status === 'complete' ? '✓' : popoverNode.status === 'error' ? '✕' : '◎'}
+                {' '}{popoverNode.status}
+              </span>
+            </div>
+
+            {/* Quick Info Row - Type, Provider, Turn */}
+            <div className={styles.popoverQuickInfo}>
+              <span className={styles.popoverQuickItem}>
+                <span className={styles.popoverQuickLabel}>Type</span>
+                <span className={styles.popoverQuickValue}>{popoverNode.type}</span>
+              </span>
+              {popoverNode.provider && (
+                <span className={styles.popoverQuickItem}>
+                  <span className={styles.popoverQuickLabel}>Provider</span>
+                  <span className={styles.popoverQuickValue}>{popoverNode.provider}</span>
                 </span>
-              </div>
-              <div className={styles.popoverSummaryItem}>
-                <span className={styles.popoverSummaryLabel}>Duration</span>
-                <span className={styles.popoverSummaryValue}>{formatDuration(popoverNode.durationMs)}</span>
-              </div>
+              )}
               {popoverNode.turnNumber && (
-                <div className={styles.popoverSummaryItem}>
-                  <span className={styles.popoverSummaryLabel}>Turn</span>
-                  <span className={styles.popoverSummaryValue}>{popoverNode.turnNumber}</span>
-                </div>
+                <span className={styles.popoverQuickItem}>
+                  <span className={styles.popoverQuickLabel}>Turn</span>
+                  <span className={styles.popoverQuickValue}>{popoverNode.turnNumber}</span>
+                </span>
               )}
             </div>
 
-            {/* Metrics Section */}
+            {/* Metrics Section - Collapsible */}
             {(popoverNode.cost || popoverNode.tokensIn || popoverNode.tokensOut) && (
               <div className={styles.popoverSection}>
-                <div className={styles.popoverSectionTitle}>Metrics</div>
-                <div className={styles.popoverMetricsGrid}>
-                  {popoverNode.cost !== undefined && popoverNode.cost > 0 && (
-                    <div className={styles.popoverMetricItem}>
-                      <span className={styles.popoverMetricLabel}>Cost</span>
-                      <span className={styles.popoverMetricValue}>
-                        ${popoverNode.cost < 0.01 ? popoverNode.cost.toFixed(4) : popoverNode.cost.toFixed(3)}
+                <button
+                  className={styles.popoverSectionToggle}
+                  onClick={() => setMetricsExpanded(!metricsExpanded)}
+                >
+                  <span className={styles.popoverToggleIcon}>
+                    {metricsExpanded ? '▼' : '▶'}
+                  </span>
+                  <span className={styles.popoverSectionTitle}>
+                    Metrics
+                    {popoverNode.cost && popoverNode.cost > 0 && (
+                      <span className={styles.popoverSectionBadge}>
+                        ${popoverNode.cost < 0.01 ? popoverNode.cost.toFixed(4) : popoverNode.cost.toFixed(2)}
                       </span>
-                    </div>
-                  )}
-                  {popoverNode.tokensIn !== undefined && popoverNode.tokensIn > 0 && (
-                    <div className={styles.popoverMetricItem}>
-                      <span className={styles.popoverMetricLabel}>Input</span>
-                      <span className={styles.popoverMetricValue}>
-                        {popoverNode.tokensIn >= 1000 ? `${(popoverNode.tokensIn / 1000).toFixed(1)}K` : popoverNode.tokensIn} tokens
-                      </span>
-                    </div>
-                  )}
-                  {popoverNode.tokensOut !== undefined && popoverNode.tokensOut > 0 && (
-                    <div className={styles.popoverMetricItem}>
-                      <span className={styles.popoverMetricLabel}>Output</span>
-                      <span className={styles.popoverMetricValue}>
-                        {popoverNode.tokensOut >= 1000 ? `${(popoverNode.tokensOut / 1000).toFixed(1)}K` : popoverNode.tokensOut} tokens
-                      </span>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </span>
+                </button>
+                {metricsExpanded && (
+                  <div className={styles.popoverMetricsGrid}>
+                    {popoverNode.cost !== undefined && popoverNode.cost > 0 && (
+                      <div className={styles.popoverMetricItem}>
+                        <span className={styles.popoverMetricLabel}>Cost</span>
+                        <span className={styles.popoverMetricValue}>
+                          ${popoverNode.cost < 0.01 ? popoverNode.cost.toFixed(4) : popoverNode.cost.toFixed(3)}
+                        </span>
+                      </div>
+                    )}
+                    {popoverNode.tokensIn !== undefined && popoverNode.tokensIn > 0 && (
+                      <div className={styles.popoverMetricItem}>
+                        <span className={styles.popoverMetricLabel}>Input</span>
+                        <span className={styles.popoverMetricValue}>
+                          {popoverNode.tokensIn >= 1000 ? `${(popoverNode.tokensIn / 1000).toFixed(1)}K` : popoverNode.tokensIn} tokens
+                        </span>
+                      </div>
+                    )}
+                    {popoverNode.tokensOut !== undefined && popoverNode.tokensOut > 0 && (
+                      <div className={styles.popoverMetricItem}>
+                        <span className={styles.popoverMetricLabel}>Output</span>
+                        <span className={styles.popoverMetricValue}>
+                          {popoverNode.tokensOut >= 1000 ? `${(popoverNode.tokensOut / 1000).toFixed(1)}K` : popoverNode.tokensOut} tokens
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Provider/Agent Info */}
-            {(popoverNode.provider || popoverNode.agentId) && (
-              <div className={styles.popoverSection}>
-                <div className={styles.popoverSectionTitle}>Agent Info</div>
-                <div className={styles.popoverInfoList}>
-                  {popoverNode.provider && (
-                    <div className={styles.popoverInfoRow}>
-                      <span className={styles.popoverInfoLabel}>Provider</span>
-                      <span className={`${styles.popoverInfoValue} ${styles[`provider${popoverNode.provider.charAt(0).toUpperCase() + popoverNode.provider.slice(1)}`]}`}>
-                        {popoverNode.provider}
-                      </span>
-                    </div>
-                  )}
-                  {popoverNode.agentId && (
-                    <div className={styles.popoverInfoRow}>
-                      <span className={styles.popoverInfoLabel}>Agent ID</span>
-                      <span className={styles.popoverInfoValue}>{popoverNode.agentId}</span>
-                    </div>
-                  )}
-                </div>
+            {/* Agent ID - only show if present (provider already in quick info) */}
+            {popoverNode.agentId && (
+              <div className={styles.popoverCompactInfo}>
+                <span className={styles.popoverCompactLabel}>Agent</span>
+                <span className={styles.popoverCompactValue}>{popoverNode.agentId}</span>
               </div>
             )}
 
@@ -1455,78 +1482,92 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
 
             {popoverNode._span && (
               <>
-                {/* Tool Details Section */}
+                {/* Tool Details Section - Collapsible */}
                 <div className={styles.popoverSection}>
-                  <div className={styles.popoverSectionTitle}>Tool Details</div>
-                  <div className={styles.popoverInfoList}>
-                    {/* Display Name (enriched) */}
-                    <div className={styles.popoverInfoRow}>
-                      <span className={styles.popoverInfoLabel}>Display Name</span>
-                      <span className={styles.popoverInfoValue}>
-                        {(popoverNode._span as any).display_name || popoverNode.label}
-                      </span>
-                    </div>
-                    {/* Raw Span Name */}
-                    <div className={styles.popoverInfoRow}>
-                      <span className={styles.popoverInfoLabel}>Span Type</span>
-                      <span className={styles.popoverInfoValue} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                  <button
+                    className={styles.popoverSectionToggle}
+                    onClick={() => setToolDetailsExpanded(!toolDetailsExpanded)}
+                  >
+                    <span className={styles.popoverToggleIcon}>
+                      {toolDetailsExpanded ? '▼' : '▶'}
+                    </span>
+                    <span className={styles.popoverSectionTitle}>
+                      Tool Details
+                      <span className={styles.popoverSectionBadge}>
                         {popoverNode._span.name}
                       </span>
-                    </div>
-                    {/* Timestamp */}
-                    <div className={styles.popoverInfoRow}>
-                      <span className={styles.popoverInfoLabel}>Start Time</span>
-                      <span className={styles.popoverInfoValue}>
-                        {popoverNode._span.startMs
-                          ? new Date(popoverNode._span.startMs).toLocaleString()
-                          : '-'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tool Input - if available from enrichment */}
-                {(popoverNode._span as any).tool_input && (
-                  <div className={styles.popoverSection}>
-                    <div className={styles.popoverSectionTitle}>
-                      Tool Input
-                      {(popoverNode._span as any).tool_success !== undefined && (
-                        <span className={(popoverNode._span as any).tool_success ? styles.popoverToolSuccess : styles.popoverToolError}>
-                          {(popoverNode._span as any).tool_success ? ' ✓' : ' ✗'}
+                    </span>
+                  </button>
+                  {toolDetailsExpanded && (
+                    <div className={styles.popoverInfoList}>
+                      {/* Display Name (enriched) */}
+                      <div className={styles.popoverInfoRow}>
+                        <span className={styles.popoverInfoLabel}>Display Name</span>
+                        <span className={styles.popoverInfoValue}>
+                          {(popoverNode._span as any).display_name || popoverNode.label}
                         </span>
+                      </div>
+                      {/* Raw Span Name */}
+                      <div className={styles.popoverInfoRow}>
+                        <span className={styles.popoverInfoLabel}>Span Type</span>
+                        <span className={styles.popoverInfoValue} style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+                          {popoverNode._span.name}
+                        </span>
+                      </div>
+                      {/* Timestamp */}
+                      <div className={styles.popoverInfoRow}>
+                        <span className={styles.popoverInfoLabel}>Start Time</span>
+                        <span className={styles.popoverInfoValue}>
+                          {popoverNode._span.startMs
+                            ? new Date(popoverNode._span.startMs).toLocaleString()
+                            : '-'}
+                        </span>
+                      </div>
+                      {/* Tool Input - nested inside Tool Details */}
+                      {(popoverNode._span as any).tool_input && (
+                        <div className={styles.popoverNestedSection}>
+                          <div className={styles.popoverSectionTitle}>
+                            Tool Input
+                            {(popoverNode._span as any).tool_success !== undefined && (
+                              <span className={(popoverNode._span as any).tool_success ? styles.popoverToolSuccess : styles.popoverToolError}>
+                                {(popoverNode._span as any).tool_success ? ' ✓' : ' ✗'}
+                              </span>
+                            )}
+                          </div>
+                          <pre className={styles.popoverCodeBlock}>
+                            {(() => {
+                              try {
+                                const input = (popoverNode._span as any).tool_input;
+                                const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+                                return JSON.stringify(parsed, null, 2);
+                              } catch {
+                                return String((popoverNode._span as any).tool_input);
+                              }
+                            })()}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Tool Response - nested inside Tool Details */}
+                      {(popoverNode._span as any).tool_response && (
+                        <div className={styles.popoverNestedSection}>
+                          <div className={styles.popoverSectionTitle}>Tool Response</div>
+                          <pre className={styles.popoverCodeBlock}>
+                            {(() => {
+                              try {
+                                const response = (popoverNode._span as any).tool_response;
+                                const parsed = typeof response === 'string' ? JSON.parse(response) : response;
+                                return JSON.stringify(parsed, null, 2);
+                              } catch {
+                                return String((popoverNode._span as any).tool_response);
+                              }
+                            })()}
+                          </pre>
+                        </div>
                       )}
                     </div>
-                    <pre className={styles.popoverCodeBlock}>
-                      {(() => {
-                        try {
-                          const input = (popoverNode._span as any).tool_input;
-                          const parsed = typeof input === 'string' ? JSON.parse(input) : input;
-                          return JSON.stringify(parsed, null, 2);
-                        } catch {
-                          return String((popoverNode._span as any).tool_input);
-                        }
-                      })()}
-                    </pre>
-                  </div>
-                )}
-
-                {/* Tool Response - if available from enrichment */}
-                {(popoverNode._span as any).tool_response && (
-                  <div className={styles.popoverSection}>
-                    <div className={styles.popoverSectionTitle}>Tool Response</div>
-                    <pre className={styles.popoverCodeBlock}>
-                      {(() => {
-                        try {
-                          const response = (popoverNode._span as any).tool_response;
-                          const parsed = typeof response === 'string' ? JSON.parse(response) : response;
-                          return JSON.stringify(parsed, null, 2);
-                        } catch {
-                          return String((popoverNode._span as any).tool_response);
-                        }
-                      })()}
-                    </pre>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Span ID */}
                 <div className={styles.popoverSection}>

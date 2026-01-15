@@ -104,7 +104,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       const transformed: EventMessage[] = messages.map((msg) => ({
         id: msg.id,
         timestamp: msg.created_at,
-        type: mapMessageTypeToEventType(msg.message_type),
+        type: mapMessageTypeToEventType(msg.message_type, msg.title),
         source: msg.from_agent || 'unknown',
         target: msg.to_inbox,
         content: msg.title || msg.payload,
@@ -167,7 +167,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
             const newEvent: EventMessage = {
               id: msg.id,
               timestamp: msg.created_at || new Date().toISOString(),
-              type: mapMessageTypeToEventType(msg.message_type),
+              type: mapMessageTypeToEventType(msg.message_type, msg.title),
               source: msg.from_agent || 'unknown',
               target: msg.to_inbox,
               content: msg.title || msg.payload,
@@ -284,32 +284,48 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
   };
 }
 
-// Map message types to event types
-function mapMessageTypeToEventType(msgType: string): EventMessage['type'] {
+// Map message types to event types, considering title patterns for notifications
+function mapMessageTypeToEventType(msgType: string, title?: string): EventMessage['type'] {
+  // First check explicit message types
   switch (msgType) {
-    // Task lifecycle
     case 'task':
     case 'task_request':
-    case 'task_started':
       return 'task_start';
     case 'task_result':
     case 'result':
-    case 'task_completed':
       return 'task_complete';
     case 'error':
-    case 'task_error':
-    case 'task_failed':
       return 'task_error';
-    // Coordination
     case 'handoff':
     case 'agent_handoff':
       return 'handoff';
     case 'approval':
     case 'approval_request':
       return 'approval';
-    default:
-      return 'message';
   }
+
+  // For 'notification' type, infer from title patterns
+  if (msgType === 'notification' && title) {
+    const lowerTitle = title.toLowerCase();
+
+    if (lowerTitle.startsWith('approval required:')) {
+      return 'approval';
+    }
+    if (lowerTitle.startsWith('sprint ready:') || lowerTitle.includes('handoff')) {
+      return 'handoff';
+    }
+    if (lowerTitle.startsWith('task completed:') || lowerTitle.startsWith('completed:')) {
+      return 'task_complete';
+    }
+    if (lowerTitle.startsWith('task failed:') || lowerTitle.startsWith('error:')) {
+      return 'task_error';
+    }
+    if (lowerTitle.startsWith('feature:') || lowerTitle.startsWith('bug:')) {
+      return 'task_start';
+    }
+  }
+
+  return 'message';
 }
 
 // Map stream types to event types

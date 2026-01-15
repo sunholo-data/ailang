@@ -901,13 +901,13 @@
   bottom: -4px;
 }
 
-/* Node Popover Styles */
+/* Node Popover Styles - Redesigned for compactness */
 .nodePopover {
   position: fixed;
   z-index: 1000;  /* High z-index to ensure above all headers */
-  min-width: 600px;
-  max-width: 800px;
-  max-height: 700px;
+  min-width: 340px;
+  max-width: 420px;
+  max-height: 480px;
   background: var(--bg-elevated, #141d2b);
   border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-lg, 12px);
@@ -1326,6 +1326,178 @@
 
 .popoverToolError {
   color: var(--error, #f85149);
+}
+
+/* ============================================
+   Redesigned Popover Styles (2025)
+   ============================================ */
+
+/* Header actions container */
+.popoverHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-left: auto;
+}
+
+/* Filter toggle button */
+.popoverFilterBtn {
+  padding: var(--space-1, 4px) var(--space-2, 6px);
+  background: transparent;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary, #8b949e);
+  transition: all var(--transition-fast, 150ms ease);
+  line-height: 1;
+}
+
+.popoverFilterBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--sunholo-purple, #6b46c1);
+  color: var(--text-primary, #e6edf3);
+}
+
+.popoverFilterActive {
+  opacity: 0.5;
+  text-decoration: line-through;
+  border-color: var(--error, #f85149);
+  color: var(--error, #f85149);
+}
+
+/* Hero row - Duration + Status prominently displayed */
+.popoverHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3, 12px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-md, 8px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.popoverDuration {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.popoverDurationIcon {
+  font-size: var(--text-lg, 18px);
+  color: var(--text-tertiary, #6e7681);
+}
+
+.popoverDurationValue {
+  font-size: var(--text-xl, 20px);
+  font-weight: var(--font-bold, 700);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--text-primary, #e6edf3);
+}
+
+.popoverStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Status badge variants (reuse existing status colors) */
+.popoverStatusBadge.statusOk,
+.popoverStatusBadge.statusComplete {
+  background: rgba(56, 161, 105, 0.15);
+  color: var(--color-success-light, #48bb78);
+}
+
+.popoverStatusBadge.statusError {
+  background: rgba(229, 62, 62, 0.15);
+  color: var(--color-danger-light, #fc8181);
+}
+
+.popoverStatusBadge.statusPending,
+.popoverStatusBadge.statusRunning,
+.popoverStatusBadge.statusBusy {
+  background: rgba(66, 153, 225, 0.15);
+  color: var(--color-info-light, #63b3ed);
+}
+
+/* Quick info row */
+.popoverQuickInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  margin-bottom: var(--space-2, 8px);
+}
+
+.popoverQuickItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
+.popoverQuickLabel {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+}
+
+.popoverQuickValue {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #8b949e);
+  font-weight: var(--font-medium, 500);
+}
+
+/* Compact single-line info */
+.popoverCompactInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.popoverCompactLabel {
+  font-size: var(--text-xs, 10px);
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+}
+
+.popoverCompactValue {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #8b949e);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* Section badge (shows preview in collapsed state) */
+.popoverSectionBadge {
+  margin-left: var(--space-2, 8px);
+  padding: var(--space-1, 2px) var(--space-2, 6px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 10px);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--text-tertiary, #6e7681);
+  font-weight: var(--font-normal, 400);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Nested section (for tool input/response inside tool details) */
+.popoverNestedSection {
+  margin-top: var(--space-2, 8px);
+  padding-top: var(--space-2, 8px);
+  border-top: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.05));
 }
 
 /* ============================================

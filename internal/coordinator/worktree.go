@@ -17,10 +17,11 @@ var ErrWorktreeLimitReached = errors.New("max worktrees limit reached")
 
 // Worktree represents a git worktree for task isolation
 type Worktree struct {
-	TaskID    string
-	Path      string
-	Branch    string
-	CreatedAt time.Time
+	TaskID     string
+	Path       string
+	Branch     string
+	BaseBranch string // Base branch the worktree was created from (for diff comparison)
+	CreatedAt  time.Time
 }
 
 // WorktreeManager manages git worktrees for isolated task execution
@@ -72,8 +73,10 @@ func NewWorktreeManager(repoDir, baseDir string, maxWorktrees int) (*WorktreeMan
 	return wm, nil
 }
 
-// CreateWorktree creates a new worktree for a task
-func (wm *WorktreeManager) CreateWorktree(taskID string) (*Worktree, error) {
+// CreateWorktree creates a new worktree for a task.
+// baseBranch specifies the branch to create the worktree from (e.g., "dev").
+// If baseBranch is empty, it queries git for the remote's default branch.
+func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree, error) {
 	wm.mu.Lock()
 	defer wm.mu.Unlock()
 
@@ -87,12 +90,17 @@ func (wm *WorktreeManager) CreateWorktree(taskID string) (*Worktree, error) {
 		return nil, fmt.Errorf("%w (%d)", ErrWorktreeLimitReached, wm.maxWorktrees)
 	}
 
+	// If baseBranch not specified, query git for the default branch
+	if baseBranch == "" {
+		baseBranch = GetDefaultBranch(wm.repoDir)
+	}
+
 	// Create branch name and path
 	branchName := fmt.Sprintf("coordinator/%s", sanitizeTaskID(taskID))
 	worktreePath := filepath.Join(wm.baseDir, sanitizeTaskID(taskID))
 
-	// Create the worktree with a new branch
-	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreePath)
+	// Create the worktree with a new branch from the specified base branch
+	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreePath, baseBranch)
 	cmd.Dir = wm.repoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -100,10 +108,11 @@ func (wm *WorktreeManager) CreateWorktree(taskID string) (*Worktree, error) {
 	}
 
 	wt := &Worktree{
-		TaskID:    taskID,
-		Path:      worktreePath,
-		Branch:    branchName,
-		CreatedAt: time.Now(),
+		TaskID:     taskID,
+		Path:       worktreePath,
+		Branch:     branchName,
+		BaseBranch: baseBranch,
+		CreatedAt:  time.Now(),
 	}
 
 	wm.worktrees[taskID] = wt
@@ -359,4 +368,39 @@ func sanitizeTaskID(taskID string) string {
 	}
 
 	return safe
+}
+
+// GetDefaultBranch queries git for the remote's default branch.
+// It first tries git symbolic-ref, then falls back to git remote show.
+// This avoids hardcoding branch names like "main" or "dev".
+func GetDefaultBranch(repoPath string) string {
+	// Method 1: Check symbolic ref (works if origin/HEAD is set)
+	cmd := exec.Command("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+	cmd.Dir = repoPath
+	if output, err := cmd.Output(); err == nil {
+		// Output: refs/remotes/origin/dev -> extract "dev"
+		ref := strings.TrimSpace(string(output))
+		if parts := strings.Split(ref, "/"); len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+	}
+
+	// Method 2: Query remote directly (slower but more reliable)
+	cmd = exec.Command("git", "remote", "show", "origin")
+	cmd.Dir = repoPath
+	if output, err := cmd.Output(); err == nil {
+		// Parse "HEAD branch: dev" from output
+		for _, line := range strings.Split(string(output), "\n") {
+			if strings.Contains(line, "HEAD branch:") {
+				parts := strings.Split(line, ":")
+				if len(parts) == 2 {
+					return strings.TrimSpace(parts[1])
+				}
+			}
+		}
+	}
+
+	// Last resort fallback - should rarely be reached
+	// Users should configure merge_branch in config to avoid this
+	return "main"
 }
