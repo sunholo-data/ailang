@@ -3,13 +3,16 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
 )
@@ -396,14 +399,88 @@ func showFileContents(worktreePath, filePath string) {
 	fmt.Scanln()
 }
 
-// showTaskLogs shows the execution logs for a task with grouped conversation view
-func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coordinator.TaskRecord) {
-	events, err := store.GetTaskEvents(ctx, task.ID, 500) // Get more events for full conversation
+// fetchFormattedEventsFromAPI tries to get formatted events from the server API.
+// Returns (content, summary, totalEvents, totalTurns, nil) on success.
+// Returns ("", "", 0, 0, err) if API is unavailable.
+func fetchFormattedEventsFromAPI(taskID string) (string, string, int, int, error) {
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// Try to get text format from API
+	url := fmt.Sprintf("http://localhost:1957/api/coordinator/tasks/%s/events?format=text", taskID)
+	resp, err := client.Get(url)
 	if err != nil {
-		fmt.Println(red("✗"), "Failed to get logs:", err)
-		fmt.Print("Press Enter to continue...")
-		fmt.Scanln()
-		return
+		return "", "", 0, 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", 0, 0, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", 0, 0, err
+	}
+
+	var result struct {
+		Content     string `json:"content"`
+		TotalEvents int    `json:"total_events"`
+		TotalTurns  int    `json:"total_turns"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", "", 0, 0, err
+	}
+
+	// Get summary separately
+	summaryURL := fmt.Sprintf("http://localhost:1957/api/coordinator/tasks/%s/events?format=summary", taskID)
+	summaryResp, err := client.Get(summaryURL)
+	summary := ""
+	if err == nil {
+		defer summaryResp.Body.Close()
+		if summaryResp.StatusCode == http.StatusOK {
+			summaryBody, _ := io.ReadAll(summaryResp.Body)
+			var summaryResult struct {
+				Content string `json:"content"`
+			}
+			if json.Unmarshal(summaryBody, &summaryResult) == nil {
+				summary = summaryResult.Content
+			}
+		}
+	}
+
+	return result.Content, summary, result.TotalEvents, result.TotalTurns, nil
+}
+
+// showTaskLogs shows the execution logs for a task with grouped conversation view.
+// Uses API if available, falls back to local store formatting.
+func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coordinator.TaskRecord) {
+	// Try API first for consistent formatting
+	content, summary, totalEvents, totalTurns, apiErr := fetchFormattedEventsFromAPI(task.ID)
+
+	// Fall back to local store if API unavailable
+	var events []*coordinator.TaskEventRecord
+	if apiErr != nil {
+		var err error
+		events, err = store.GetTaskEvents(ctx, task.ID, 500)
+		if err != nil {
+			fmt.Println(red("✗"), "Failed to get logs:", err)
+			fmt.Print("Press Enter to continue...")
+			fmt.Scanln()
+			return
+		}
+		// Use shared formatter for consistency
+		opts := coordinator.DefaultFormatOptions()
+		content = coordinator.FormatEventsAsText(events, opts)
+		summary = coordinator.SummarizeEvents(events)
+		totalEvents = len(events)
+		// Count turns
+		turnSet := make(map[int]bool)
+		for _, e := range events {
+			if e.TurnNum > 0 {
+				turnSet[e.TurnNum] = true
+			}
+		}
+		totalTurns = len(turnSet)
 	}
 
 	for {
@@ -411,114 +488,15 @@ func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coo
 		fmt.Println(bold("Execution Logs - Conversation View"))
 		fmt.Println(strings.Repeat("─", 70))
 
-		if len(events) == 0 {
+		if totalEvents == 0 {
 			fmt.Println(yellow("No events recorded for this task."))
 		} else {
-			// Group events by turn and aggregate text
-			type TurnContent struct {
-				TurnNum   int
-				StartTime string
-				EndTime   string
-				Text      strings.Builder
-				Tools     []string
-			}
+			// Show summary
+			fmt.Printf("%s %s (%d events, %d turns)\n", dim("Summary:"), summary, totalEvents, totalTurns)
+			fmt.Println()
 
-			turns := make(map[int]*TurnContent)
-			var statusEvents []string
-			var errorEvents []string
-
-			for _, event := range events {
-				timestamp := event.CreatedAt.Format("15:04:05")
-
-				switch event.StreamType {
-				case "turn_start":
-					if _, exists := turns[event.TurnNum]; !exists {
-						turns[event.TurnNum] = &TurnContent{
-							TurnNum:   event.TurnNum,
-							StartTime: timestamp,
-						}
-					}
-				case "turn_end":
-					if turn, exists := turns[event.TurnNum]; exists {
-						turn.EndTime = timestamp
-					}
-				case "text":
-					if event.TurnNum > 0 {
-						if _, exists := turns[event.TurnNum]; !exists {
-							turns[event.TurnNum] = &TurnContent{TurnNum: event.TurnNum}
-						}
-						turns[event.TurnNum].Text.WriteString(event.Text)
-					}
-				case "tool_use":
-					if event.TurnNum > 0 {
-						if _, exists := turns[event.TurnNum]; !exists {
-							turns[event.TurnNum] = &TurnContent{TurnNum: event.TurnNum}
-						}
-						turns[event.TurnNum].Tools = append(turns[event.TurnNum].Tools, event.ToolName)
-					}
-				case "status":
-					statusEvents = append(statusEvents, fmt.Sprintf("%s %s", timestamp, event.Status))
-				case "error":
-					errorEvents = append(errorEvents, fmt.Sprintf("%s %s", timestamp, event.ErrorMsg))
-				}
-			}
-
-			// Show status events
-			if len(statusEvents) > 0 {
-				fmt.Println(dim("Status:"))
-				for _, s := range statusEvents {
-					fmt.Printf("  %s %s\n", yellow("●"), s)
-				}
-				fmt.Println()
-			}
-
-			// Show turns in order
-			turnNums := make([]int, 0, len(turns))
-			for num := range turns {
-				turnNums = append(turnNums, num)
-			}
-			sort.Ints(turnNums)
-
-			for _, num := range turnNums {
-				turn := turns[num]
-				// Turn header
-				timeRange := turn.StartTime
-				if turn.EndTime != "" && turn.EndTime != turn.StartTime {
-					timeRange = turn.StartTime + " - " + turn.EndTime
-				}
-				fmt.Printf("%s %s\n", blue(fmt.Sprintf("◆ Turn %d", num)), dim("["+timeRange+"]"))
-
-				// Tools used
-				if len(turn.Tools) > 0 {
-					fmt.Printf("  %s ", cyan("Tools:"))
-					for i, tool := range turn.Tools {
-						if i > 0 {
-							fmt.Print(", ")
-						}
-						fmt.Print(tool)
-					}
-					fmt.Println()
-				}
-
-				// Text content - wrap nicely
-				text := strings.TrimSpace(turn.Text.String())
-				if text != "" {
-					// Wrap text at ~70 chars with indent
-					wrapped := wrapText(text, 66)
-					for _, line := range strings.Split(wrapped, "\n") {
-						fmt.Printf("    %s\n", line)
-					}
-				}
-				fmt.Println()
-			}
-
-			// Show errors if any
-			if len(errorEvents) > 0 {
-				fmt.Println(red("Errors:"))
-				for _, e := range errorEvents {
-					fmt.Printf("  %s %s\n", red("✗"), e)
-				}
-			}
+			// Show formatted content
+			fmt.Println(content)
 		}
 
 		// Interactive menu
@@ -550,6 +528,15 @@ func showTaskLogs(ctx context.Context, store *coordinator.SQLiteStore, task *coo
 				fmt.Println(red("✗"), "No worktree available")
 			}
 		case "r":
+			// For raw logs, need to fetch events if we used API
+			if apiErr == nil && events == nil {
+				var err error
+				events, err = store.GetTaskEvents(ctx, task.ID, 500)
+				if err != nil {
+					fmt.Println(red("✗"), "Failed to get raw logs:", err)
+					continue
+				}
+			}
 			showRawLogs(events)
 		case "q", "":
 			return

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/display"
 	"github.com/sunholo/ailang/internal/messaging"
 )
 
@@ -279,8 +280,8 @@ taskList:
 					}
 					fmt.Println(green("✓"), "Handoff rejected:", selectedReq.ID)
 				} else {
-					// Use enhanced rejection with feedback loop
-					if err := coordinatorRejectWithFeedback(store, selectedReq.TaskID, false, ""); err != nil {
+					// Use unified rejection with feedback loop
+					if err := coordinatorReject([]string{selectedReq.TaskID}); err != nil {
 						return fmt.Errorf("failed to reject: %w", err)
 					}
 				}
@@ -550,30 +551,29 @@ func coordinatorList(args []string) error {
 	}
 }
 
-// formatTaskStatus returns an icon and colored status string
+// formatTaskStatus returns an icon and colored status string.
+// Uses shared display.StatusDisplay for consistency with API responses.
 func formatTaskStatus(status coordinator.TaskStatus) (string, string) {
-	switch status {
-	case coordinator.TaskStatusPending:
-		return yellow("○"), "pending"
-	case coordinator.TaskStatusQueued:
-		return yellow("◎"), "queued"
-	case coordinator.TaskStatusRunning:
-		return cyan("▶"), cyan("running")
-	case coordinator.TaskStatusPendingApproval:
-		return magenta("⏳"), magenta("approval")
-	case coordinator.TaskStatusCompleted:
-		return green("✓"), green("completed")
-	case coordinator.TaskStatusFailed:
-		return red("✗"), red("failed")
-	case coordinator.TaskStatusRejected:
-		return red("⊘"), red("rejected")
-	case coordinator.TaskStatusCancelled:
-		return dim("⊗"), dim("cancelled")
-	case coordinator.TaskStatusDuplicate:
-		return dim("⊜"), dim("duplicate")
-	default:
-		return "?", string(status)
+	sd := display.TaskStatusDisplay(string(status))
+	// Apply terminal colors based on severity
+	coloredLabel := sd.Label
+	switch sd.Severity {
+	case display.SeveritySuccess:
+		coloredLabel = green(sd.Label)
+	case display.SeverityError:
+		coloredLabel = red(sd.Label)
+	case display.SeverityWarning:
+		coloredLabel = magenta(sd.Label)
+	case display.SeverityInfo:
+		if string(status) == "running" {
+			coloredLabel = cyan(sd.Label)
+		} else {
+			coloredLabel = yellow(sd.Label)
+		}
+	case display.SeverityMuted:
+		coloredLabel = dim(sd.Label)
 	}
+	return sd.Icon, coloredLabel
 }
 
 func printCoordinatorListHelp() {
