@@ -263,7 +263,9 @@ func TestLambdaClosures(t *testing.T) {
 		// Basic lambda evaluation
 		{"identity lambda", `(\x. x)(42)`, "42"},
 		{"arithmetic lambda", `(\x. x + 1)(5)`, "6"},
-		{"curried lambda", `(\x y. x + y)(3)(4)`, "7"},
+		// M-GAP2: \x y. is multi-param (tuple-style), use \x. \y. for curried
+		{"curried lambda", `(\x. \y. x + y)(3)(4)`, "7"},
+		{"multi-param lambda", `(\x y. x + y)(3, 4)`, "7"},
 
 		// Closure capture
 		{"simple closure", `let y = 10 in (\x. x + y)(5)`, "15"},
@@ -281,7 +283,8 @@ func TestLambdaClosures(t *testing.T) {
 		{"closure with record", `let person = {name: "Alice", age: 30} in (\prefix. prefix ++ person.name)("Ms. ")`, "Ms. Alice"},
 
 		// Partial application preserving closures
-		{"partial application closure", `let base = 100 in let add = \x y. x + y + base in add(1)(2)`, "103"},
+		// M-GAP2: \x y. is multi-param, use \x. \y. for curried partial application
+		{"partial application closure", `let base = 100 in let add = \x. \y. x + y + base in add(1)(2)`, "103"},
 	}
 
 	for _, tt := range tests {

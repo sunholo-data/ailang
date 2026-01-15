@@ -32,14 +32,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expr {
 	leftExp := prefix()
 
 	for !p.peekTokenIs(lexer.SEMICOLON) && precedence < p.peekPrecedence() {
-		// DEBUG: understand infix loop behavior
-		if p.peekTokenIs(lexer.LPAREN) && p.peekToken.Line > p.curToken.Line {
-			fmt.Printf("[DEBUG NO-FIX] LPAREN across lines: cur=%s at %d:%d, peek=LPAREN at %d:%d, leftExp=%T, prec=%d, peekPrec=%d\n",
-				p.curToken.Literal, p.curToken.Line, p.curToken.Column,
-				p.peekToken.Line, p.peekToken.Column, leftExp, precedence, p.peekPrecedence())
-		}
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
+			return leftExp
+		}
+
+		// M-GAP2: Break the infix loop when LPAREN appears on a new line
+		// This prevents `expr\n(next)` from being parsed as `expr(next)`
+		// The LPAREN on a new line should start a new statement, not continue the previous one
+		if p.peekToken.Type == lexer.LPAREN && p.peekToken.Line > p.curToken.Line {
 			return leftExp
 		}
 
@@ -552,40 +553,14 @@ func (p *Parser) parseBackslashLambda() ast.Expr {
 		lambda.Effects = p.parseEffectAnnotation()
 	}
 
-	// Convert curried parameters to nested lambdas: \x y. body -> \x. \y. body
+	// M-GAP2: Keep multi-param lambdas as multi-param (NOT curried)
+	// \x y. body should be a single lambda with params=[x,y], NOT nested lambdas
+	// This allows \acc x. acc + x to unify with (b, a) -> b for foldl
 	if len(params) == 0 {
 		p.errors = append(p.errors, fmt.Errorf("lambda requires at least one parameter at %s", lambda.Pos.String()))
 		return nil
-	} else if len(params) == 1 {
-		lambda.Params = params
-	} else {
-		// Create nested lambdas for curried syntax
-		lambda.Params = []*ast.Param{params[0]}
-
-		// Create nested lambda for remaining parameters
-		innerLambda := &ast.Lambda{
-			Pos:  lambda.Pos,
-			Body: lambda.Body,
-		}
-
-		// Recursively create nested structure
-		current := innerLambda
-		for i := 1; i < len(params)-1; i++ {
-			current.Params = []*ast.Param{params[i]}
-			next := &ast.Lambda{
-				Pos: lambda.Pos,
-			}
-			current.Body = next
-			current = next
-		}
-
-		// Set the last parameter and body
-		current.Params = []*ast.Param{params[len(params)-1]}
-		current.Body = lambda.Body
-
-		lambda.Body = innerLambda
 	}
-
+	lambda.Params = params
 	return lambda
 }
 
@@ -638,15 +613,12 @@ func (p *Parser) parseConsExpression(left ast.Expr) ast.Expr {
 }
 
 func (p *Parser) parseCallExpression(fn ast.Expr) ast.Expr {
-	fmt.Printf("[DEBUG CALL] parseCallExpression called: fn=%T at %d:%d\n",
-		fn, p.curToken.Line, p.curToken.Column)
 	call := &ast.FuncCall{
 		Func: fn,
 		Pos:  p.curPos(),
 	}
 
 	call.Args = p.parseCallArguments()
-	fmt.Printf("[DEBUG CALL] parseCallExpression done: %d args\n", len(call.Args))
 	return call
 }
 

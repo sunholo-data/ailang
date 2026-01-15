@@ -3,29 +3,24 @@
     "decls": [
       {
         "body": {
-          "body": {
-            "left": {
-              "name": "x",
-              "type": "Identifier"
-            },
-            "op": "+",
-            "right": {
-              "name": "y",
-              "type": "Identifier"
-            },
-            "type": "BinaryOp"
+          "left": {
+            "name": "x",
+            "type": "Identifier"
           },
-          "params": [
-            {
-              "name": "y",
-              "type": "Param"
-            }
-          ],
-          "type": "Lambda"
+          "op": "+",
+          "right": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "type": "BinaryOp"
         },
         "params": [
           {
             "name": "x",
+            "type": "Param"
+          },
+          {
+            "name": "y",
             "type": "Param"
           }
         ],
@@ -36,29 +31,24 @@
     "statements": [
       {
         "body": {
-          "body": {
-            "left": {
-              "name": "x",
-              "type": "Identifier"
-            },
-            "op": "+",
-            "right": {
-              "name": "y",
-              "type": "Identifier"
-            },
-            "type": "BinaryOp"
+          "left": {
+            "name": "x",
+            "type": "Identifier"
           },
-          "params": [
-            {
-              "name": "y",
-              "type": "Param"
-            }
-          ],
-          "type": "Lambda"
+          "op": "+",
+          "right": {
+            "name": "y",
+            "type": "Identifier"
+          },
+          "type": "BinaryOp"
         },
         "params": [
           {
             "name": "x",
+            "type": "Param"
+          },
+          {
+            "name": "y",
             "type": "Param"
           }
         ],
