@@ -258,7 +258,7 @@ func TestJSONConversion(t *testing.T) {
 }
 
 func TestEngineEval(t *testing.T) {
-	// TODO: Eval() for standalone expressions needs pipeline fix
+	// GAP-5: Standalone expressions still don't work in Eval()
 	// The pipeline returns "empty program" for expressions without module context
 	// See: internal/pipeline/pipeline_single.go:297-300
 	t.Skip("Eval() for standalone expressions requires pipeline fix (GAP-5)")

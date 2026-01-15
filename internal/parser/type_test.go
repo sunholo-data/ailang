@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/lexer"
 )
 
 // TestTypeAliases tests basic type alias declarations
@@ -480,6 +481,91 @@ func TestDerivingEq(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestOpenRecordTypes tests M-GAP4: open record type syntax
+func TestOpenRecordTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantRow    bool   // expect row variable in parsed record type
+		wantRowVar string // expected row variable name (empty if generated)
+	}{
+		{
+			name:       "explicit row variable",
+			input:      "pure func f(x: {name: string | r}) -> string = x.name",
+			wantRow:    true,
+			wantRowVar: "r",
+		},
+		{
+			name:       "explicit row variable with multiple fields",
+			input:      "pure func f(x: {name: string, age: int | rest}) -> string = x.name",
+			wantRow:    true,
+			wantRowVar: "rest",
+		},
+		{
+			name:       "ellipsis sugar syntax",
+			input:      "pure func f(x: {name: string, ...}) -> string = x.name",
+			wantRow:    true,
+			wantRowVar: "_r", // generated names start with _r
+		},
+		{
+			name:       "ellipsis sugar with multiple fields",
+			input:      "pure func f(x: {name: string, age: int, ...}) -> string = x.name",
+			wantRow:    true,
+			wantRowVar: "_r",
+		},
+		{
+			name:       "exact record (no row)",
+			input:      "pure func f(x: {name: string}) -> string = x.name",
+			wantRow:    false,
+			wantRowVar: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prog := mustParse(t, tt.input)
+			require.NotNil(t, prog.File, "expected File")
+			require.Len(t, prog.File.Funcs, 1, "expected 1 function")
+
+			// Get the function declaration
+			funcDecl := prog.File.Funcs[0]
+			require.NotNil(t, funcDecl, "expected FuncDecl")
+
+			// Get the first parameter type
+			require.Len(t, funcDecl.Params, 1, "expected 1 parameter")
+			paramType := funcDecl.Params[0].Type
+
+			// Should be a RecordType
+			recordType, ok := paramType.(*ast.RecordType)
+			require.True(t, ok, "expected RecordType, got %T", paramType)
+
+			if tt.wantRow {
+				assert.NotNil(t, recordType.Row, "expected row variable")
+				if recordType.Row != nil && tt.wantRowVar != "" {
+					if tt.wantRowVar == "_r" {
+						// Generated name should start with _r
+						assert.True(t, len(recordType.Row.Name) >= 2 && recordType.Row.Name[:2] == "_r",
+							"expected generated row var name starting with _r, got %s", recordType.Row.Name)
+					} else {
+						assert.Equal(t, tt.wantRowVar, recordType.Row.Name)
+					}
+				}
+			} else {
+				assert.Nil(t, recordType.Row, "expected no row variable")
+			}
+		})
+	}
+}
+
+// TestEllipsisSugarMarked tests that ellipsis sugar sets the SugarUsed flag
+func TestEllipsisSugarMarked(t *testing.T) {
+	input := "pure func f(x: {name: string, ...}) -> string = x.name"
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	_ = p.Parse()
+	assert.True(t, p.SugarUsed(), "expected SugarUsed to be true after parsing ellipsis syntax")
 }
 
 // TestDerivingEqErrors tests error handling for invalid deriving syntax

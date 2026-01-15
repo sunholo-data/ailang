@@ -33,6 +33,17 @@
 - [ ] Update sprint plan with completion status (✅)
 - [ ] Add metrics (actual LOC vs estimated, time spent)
 
+## Example Files (REQUIRED for new language features)
+- [ ] Create example file in `examples/runnable/<feature>.ail`
+- [ ] Add entry to `examples/manifest.json`:
+  - `path`: relative path from examples/
+  - `status`: "working"
+  - `tags`: relevant tags (e.g., "records", "types")
+  - `description`: brief description of what example demonstrates
+- [ ] Update statistics in manifest (increment total, working counts)
+- [ ] Verify searchable: `ailang examples search "<feature>"`
+- [ ] Verify viewable: `ailang examples show <name>`
+
 ## Sprint JSON Update (CRITICAL)
 **⚠️ The checkpoint script will remind you, but DON'T SKIP THIS!**
 - [ ] Update `.ailang/state/sprints/sprint_<id>.json`:

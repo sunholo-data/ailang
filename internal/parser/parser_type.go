@@ -585,6 +585,7 @@ func (p *Parser) parseRecordTypeDef() ast.TypeDef {
 
 // parseRecordTypeExpr parses a record type expression that can appear in type positions
 // Example: { street: string, city: string }
+// Open record: { name: string | r } - accepts records with at least 'name' field
 // This is used for nested record types like: type User = { addr: { street: string } }
 func (p *Parser) parseRecordTypeExpr() ast.Type {
 	startPos := p.curPos()
@@ -596,6 +597,8 @@ func (p *Parser) parseRecordTypeExpr() ast.Type {
 	p.nextToken() // consume LBRACE
 
 	var fields []*ast.RecordField
+	var rowVar *ast.TypeVar
+
 	if !p.curTokenIs(lexer.RBRACE) {
 		// Parse first field
 		field := p.parseRecordFieldDef()
@@ -604,17 +607,50 @@ func (p *Parser) parseRecordTypeExpr() ast.Type {
 		}
 		p.nextToken() // advance past the field we just parsed
 
-		// Parse remaining fields
+		// Parse remaining fields or row variable
 		for p.curTokenIs(lexer.COMMA) {
 			p.nextToken() // consume COMMA
 			if p.curTokenIs(lexer.RBRACE) {
 				break // trailing comma
+			}
+			// M-GAP4: Check for ellipsis sugar after comma: { a: T, ... }
+			if p.curTokenIs(lexer.ELLIPSIS) {
+				p.sugarUsed = true
+				rowVar = &ast.TypeVar{
+					Name: p.freshRowVarName(),
+					Pos:  p.curPos(),
+				}
+				p.nextToken() // consume ELLIPSIS
+				break         // stop field parsing
 			}
 			field := p.parseRecordFieldDef()
 			if field != nil {
 				fields = append(fields, field)
 			}
 			p.nextToken() // advance past the field
+		}
+
+		// M-GAP4: Check for row variable syntax: { field: T | r }
+		// Also handle sugar syntax: { field: T, .. } (desugars to fresh row variable)
+		if p.curTokenIs(lexer.PIPE) {
+			p.nextToken() // consume PIPE
+			if !p.curTokenIs(lexer.IDENT) {
+				p.report("PAR_ROW_VAR_EXPECTED", "expected row variable name after '|'", "Add row variable name (e.g., '| r')")
+			} else {
+				rowVar = &ast.TypeVar{
+					Name: p.curToken.Literal,
+					Pos:  p.curPos(),
+				}
+				p.nextToken() // consume row variable name
+			}
+		} else if p.curTokenIs(lexer.ELLIPSIS) {
+			// M-GAP4: Sugar syntax {a: T, ..} desugars to {a: T | _rN} with fresh row variable
+			p.sugarUsed = true
+			rowVar = &ast.TypeVar{
+				Name: p.freshRowVarName(),
+				Pos:  p.curPos(),
+			}
+			p.nextToken() // consume ELLIPSIS
 		}
 	}
 
@@ -624,6 +660,7 @@ func (p *Parser) parseRecordTypeExpr() ast.Type {
 
 	return &ast.RecordType{
 		Fields: fields,
+		Row:    rowVar,
 		Pos:    startPos,
 	}
 }

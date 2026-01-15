@@ -1,9 +1,0 @@
--- test_fold_new.ail - Testing lambda syntax with foldl
-module examples/runnable/test_fold_new
-import std/list (foldl)
-
--- Sum a list using foldl (same syntax as no_loops_fold.ail)
-let numbers = [1, 2, 3, 4, 5]
-let sum = foldl(\acc x. acc + x, 0, numbers)
-
-sum

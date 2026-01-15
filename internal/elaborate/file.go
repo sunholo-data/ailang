@@ -713,10 +713,15 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		return &types.TVar2{Name: typ.Name, Kind: types.Star}
 
 	case *ast.RecordType:
-		// Convert record type to TRecord
+		// Convert record type to TRecord or TRecordOpen
 		fields := make(map[string]types.Type)
 		for _, field := range typ.Fields {
 			fields[field.Name] = e.astTypeToInternalType(field.Type)
+		}
+		// M-GAP4: If row variable present, create open record type
+		if typ.Row != nil {
+			rowVar := &types.RowVar{Name: typ.Row.Name, Kind: &types.KRow{ElemKind: &types.KRecord{}}}
+			return &types.TRecordOpen{Fields: fields, Row: rowVar}
 		}
 		return &types.TRecord{Fields: fields}
 

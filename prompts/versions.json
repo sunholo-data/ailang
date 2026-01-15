@@ -411,9 +411,22 @@
         "language-gaps"
       ],
       "notes": "PRELUDE FIX: println is now in prelude (no import needed), print (no newline) requires import std/io (print). STDLIB GAPS (M-STDLIB-GAPS): Added std/list functions (nth, last, any, findIndex), std/string join and chars, JSON array extraction. LANGUAGE GAP WARNINGS (from agent analysis): Added letrec for recursive lambdas section, type annotations for HOFs section, expanded 'What AILANG Does NOT Have' table (tuple let-destructuring, lambda tuple syntax outside foldl, nested func syntax)."
+    },
+    "v0.6.6": {
+      "file": "prompts/v0.6.6.md",
+      "hash": "e842754f847a53b6b920408788a6938225fd992b6dc3ac1afbb848b1d6d89bd6",
+      "description": "Record width subtyping with open record syntax ({a: T | r} and {a: T, ...})",
+      "created": "2026-01-15",
+      "tags": [
+        "production",
+        "latest",
+        "row-polymorphism",
+        "width-subtyping"
+      ],
+      "notes": "RECORD WIDTH SUBTYPING (M-GAP4): Added open record types for functions that accept extra fields. Syntax: {field: T | r} with explicit row variable, or {field: T, ...} sugar with fresh variable. Exact records (default) reject extra fields. Open records enable generic field extractors and flexible APIs."
     }
   },
-  "active": "v0.6.5",
+  "active": "v0.6.6",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

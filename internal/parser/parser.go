@@ -24,6 +24,9 @@ type Parser struct {
 
 	// Loop detection (M-PARSER-LOOP): track last position to detect infinite loops
 	lastExprPos ast.Pos
+
+	// M-GAP4: Fresh row variable counter for sugar syntax {a: T, ..}
+	rowVarCounter int
 }
 
 type (
@@ -222,4 +225,12 @@ func (p *Parser) registerPrefix(tokenType lexer.TokenType, fn prefixParseFn) {
 
 func (p *Parser) registerInfix(tokenType lexer.TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
+}
+
+// freshRowVarName generates a fresh row variable name for sugar syntax {a: T, ..}
+// Names are like _r0, _r1, etc. - underscore prefix indicates compiler-generated
+func (p *Parser) freshRowVarName() string {
+	name := fmt.Sprintf("_r%d", p.rowVarCounter)
+	p.rowVarCounter++
+	return name
 }

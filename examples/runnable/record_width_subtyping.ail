@@ -1,0 +1,104 @@
+-- record_width_subtyping.ail - Record Width Subtyping via Row Polymorphism (v0.6.4+)
+-- Demonstrates open record types that accept extra fields
+
+module examples/runnable/record_width_subtyping
+
+import std/io (println)
+
+-- =======================
+-- EXACT RECORDS (DEFAULT)
+-- =======================
+
+-- By default, records are exact - they must have exactly the fields specified
+-- This provides type safety: callers know exactly what fields are expected
+
+-- Exact record parameter: accepts only {name: string}
+pure func getNameExact(person: {name: string}) -> string = person.name
+
+-- =======================
+-- OPEN RECORDS WITH | r
+-- =======================
+
+-- Open records use the syntax {field: T | r} where r is a row variable
+-- This means "a record with at least this field, plus any additional fields"
+
+-- Open record parameter: accepts {name: string} and anything with more fields
+pure func getName(person: {name: string | r}) -> string = person.name
+
+-- Multiple required fields with row variable
+pure func getFullName(person: {first: string, last: string | r}) -> string =
+  person.first ++ " " ++ person.last
+
+-- =======================
+-- SUGAR SYNTAX: { ... }
+-- =======================
+
+-- The ellipsis syntax {a: T, ...} is sugar for {a: T | r} with a fresh row variable
+-- This is more concise when you don't need to name the row variable
+
+-- Using ellipsis syntax
+pure func getEmail(user: {email: string, ...}) -> string = user.email
+
+-- Multiple fields with ellipsis
+pure func formatUser(user: {name: string, age: int, ...}) -> string =
+  user.name ++ " (age " ++ show(user.age) ++ ")"
+
+-- =======================
+-- GENERIC FIELD EXTRACTORS
+-- =======================
+
+pure func getId(entity: {id: int | r}) -> int = entity.id
+
+-- =======================
+-- EXTENSIBLE CONFIGURATIONS
+-- =======================
+
+pure func getHost(config: {host: string, port: int, ...}) -> string = config.host
+
+-- =======================
+-- MAIN
+-- =======================
+
+func main() -> unit ! {IO} = {
+  println("=== Record Width Subtyping Demo ===");
+  println("");
+
+  -- Exact record: only accepts {name: string}
+  let alice = getNameExact({name: "Alice"});
+  println("Exact record: " ++ alice);
+
+  -- Open record with | r: accepts extra fields
+  let bob = getName({name: "Bob", age: 30});
+  println("Open record (| r): " ++ bob);
+
+  -- Even more extra fields
+  let charlie = getName({name: "Charlie", age: 25, city: "NYC", active: true});
+  println("Open record with extras: " ++ charlie);
+
+  -- Multiple required fields
+  let fullName = getFullName({first: "John", last: "Doe", email: "john@example.com"});
+  println("Full name: " ++ fullName);
+
+  -- Ellipsis syntax
+  let email = getEmail({email: "test@example.com", name: "Test", id: 123});
+  println("Email: " ++ email);
+
+  -- Multiple fields with ellipsis
+  let formatted = formatUser({name: "Eve", age: 28, role: "admin", active: true});
+  println("Formatted: " ++ formatted);
+
+  -- Generic extractors work on any record with required fields
+  let userId = getId({id: 1, name: "User"});
+  let productId = getId({id: 100, name: "Widget", price: 29.99});
+  println("User ID: " ++ show(userId));
+  println("Product ID: " ++ show(productId));
+
+  -- Extensible configurations
+  let host = getHost({host: "localhost", port: 8080, ssl: true, maxRetries: 30});
+  println("Host: " ++ host);
+
+  println("");
+  println("All examples passed!");
+
+  ()
+}

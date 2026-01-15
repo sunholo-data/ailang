@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 )
 
 // unifyRecord2 unifies TRecord2 (new row-polymorphic record type)
@@ -64,7 +66,8 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 	if t2Rec, ok := t2.(*TRecord); ok {
 		// Check that both have the same fields
 		if len(t1.Fields) != len(t2Rec.Fields) {
-			return nil, fmt.Errorf("record field count mismatch: %d vs %d", len(t1.Fields), len(t2Rec.Fields))
+			// M-GAP4: Improved error message with field lists and suggestions
+			return nil, recordFieldMismatchError(t1.Fields, t2Rec.Fields)
 		}
 		// Unify each field
 		for name, typ1 := range t1.Fields {
@@ -417,4 +420,57 @@ func TRecord2ToTRecord(new *TRecord2) *TRecord {
 		Fields: new.Row.Labels,
 		Row:    rowType,
 	}
+}
+
+// recordFieldMismatchError creates a helpful error message for record field mismatches
+// M-GAP4: Lists missing/extra fields and suggests open record syntax
+func recordFieldMismatchError(expectedFields, actualFields map[string]Type) error {
+	// Collect field names
+	expected := make([]string, 0, len(expectedFields))
+	for name := range expectedFields {
+		expected = append(expected, name)
+	}
+	sort.Strings(expected)
+
+	actual := make([]string, 0, len(actualFields))
+	for name := range actualFields {
+		actual = append(actual, name)
+	}
+	sort.Strings(actual)
+
+	// Find extra fields (in actual but not expected)
+	extraFields := []string{}
+	for _, name := range actual {
+		if _, exists := expectedFields[name]; !exists {
+			extraFields = append(extraFields, name)
+		}
+	}
+
+	// Find missing fields (in expected but not actual)
+	missingFields := []string{}
+	for _, name := range expected {
+		if _, exists := actualFields[name]; !exists {
+			missingFields = append(missingFields, name)
+		}
+	}
+
+	var msg strings.Builder
+	msg.WriteString(fmt.Sprintf("record field mismatch: expected %d fields, got %d\n", len(expected), len(actual)))
+	msg.WriteString(fmt.Sprintf("  expected fields: {%s}\n", strings.Join(expected, ", ")))
+	msg.WriteString(fmt.Sprintf("  actual fields:   {%s}\n", strings.Join(actual, ", ")))
+
+	if len(extraFields) > 0 {
+		msg.WriteString(fmt.Sprintf("  extra fields:    %s\n", strings.Join(extraFields, ", ")))
+	}
+	if len(missingFields) > 0 {
+		msg.WriteString(fmt.Sprintf("  missing fields:  %s\n", strings.Join(missingFields, ", ")))
+	}
+
+	// Suggest open record syntax if there are extra fields
+	if len(extraFields) > 0 && len(missingFields) == 0 {
+		msg.WriteString("\n  Hint: Use open record syntax to accept extra fields:\n")
+		msg.WriteString(fmt.Sprintf("        {%s | r} or {%s, ...}", strings.Join(expected, ", "), strings.Join(expected, ", ")))
+	}
+
+	return fmt.Errorf("%s", msg.String())
 }

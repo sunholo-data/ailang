@@ -911,6 +911,17 @@
       "description": "Demonstrates std/string contains and find functions"
     },
     {
+      "path": "runnable/record_width_subtyping.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "row-polymorphism",
+        "width-subtyping",
+        "types"
+      ],
+      "description": "Record width subtyping via open record types ({a: T | r} and {a: T, ...})"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [
@@ -992,11 +1003,11 @@
     }
   ],
   "statistics": {
-    "total": 105,
-    "working": 98,
+    "total": 106,
+    "working": 99,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.933
+    "coverage": 0.934
   },
   "milestones": {
     "completed": [

@@ -888,7 +888,10 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			MAX(model) as model,
 			MAX(provider) as provider,
 			MAX(json_extract(resource_attributes, '$."process.cwd"')) as workspace,
-			MAX(json_extract(attributes, '$."task.directive"')) as directive
+			COALESCE(
+				MAX(json_extract(attributes, '$."task.directive"')),
+				MAX(json_extract(attributes, '$.prompt'))
+			) as directive
 		FROM spans
 		WHERE name = 'api_request'
 		  AND json_extract(resource_attributes, '$."service.name"') = 'claude-code'
@@ -1016,7 +1019,10 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			MAX(s.model) as model,
 			MAX(s.provider) as provider,
 			MAX(json_extract(s.resource_attributes, '$."process.cwd"')) as workspace,
-			MAX(json_extract(s.attributes, '$."task.directive"')) as directive
+			COALESCE(
+				MAX(json_extract(s.attributes, '$."task.directive"')),
+				MAX(json_extract(s.attributes, '$.prompt'))
+			) as directive
 		FROM spans s
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
 		WHERE s.name = 'api_request'

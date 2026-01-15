@@ -214,8 +214,10 @@ type Constructor struct {
 func (a *AlgebraicType) typeDefNode() {}
 
 // RecordType represents record types
+// If Row is non-nil, this is an open record type {a: T | r}
 type RecordType struct {
 	Fields []*RecordField
+	Row    *TypeVar // Row variable for open records (e.g., {a: T | r})
 	Pos    Pos
 }
 
@@ -231,6 +233,9 @@ func (r *RecordType) String() string {
 	fieldStrs := make([]string, len(r.Fields))
 	for i, f := range r.Fields {
 		fieldStrs[i] = fmt.Sprintf("%s: %s", f.Name, f.Type.String())
+	}
+	if r.Row != nil {
+		return fmt.Sprintf("{ %s | %s }", strings.Join(fieldStrs, ", "), r.Row.Name)
 	}
 	return fmt.Sprintf("{ %s }", strings.Join(fieldStrs, ", "))
 }

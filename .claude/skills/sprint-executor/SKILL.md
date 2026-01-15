@@ -221,7 +221,11 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 4. **Verify Quality** - Run `milestone_checkpoint.sh <milestone-name>` (tests + lint must pass)
 5. **Update Documentation**:
    - CHANGELOG.md (what, LOC, key decisions)
-   - Example files (REQUIRED for new features)
+   - Example files (REQUIRED for new language features):
+     - Create `examples/runnable/<feature>.ail` with comprehensive examples
+     - Add entry to `examples/manifest.json` (path, status, tags, description)
+     - Update statistics in manifest (total, working counts)
+     - Verify searchable: `ailang examples search "<feature>"`
    - Sprint plan markdown (mark milestone as ✅)
 6. **Update Sprint JSON** ⚠️ **CRITICAL** - The checkpoint script reminds you!
    - Update `passes: true/false` in `.ailang/state/sprints/sprint_<id>.json`
@@ -243,14 +247,15 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 
 1. **Final Testing** - Run `make test`, `make lint`, `make test-coverage-badge`
 2. **Documentation Review** - Verify CHANGELOG.md, example files, sprint plan complete
-3. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
-4. **Move Design Docs** - Run `finalize_sprint.sh <sprint-id> [version]` to:
+3. **Example Manifest** - For new language features, verify `examples/manifest.json` updated
+4. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
+5. **Move Design Docs** - Run `finalize_sprint.sh <sprint-id> [version]` to:
    - Move design docs from `planned/` to `implemented/<version>/`
    - Update design doc status to IMPLEMENTED
    - Update sprint JSON status to "completed"
    - Update file paths in sprint JSON
-5. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
-6. **DX Impact Summary** - Document improvements made during sprint
+6. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
+7. **DX Impact Summary** - Document improvements made during sprint
 
 ## Key Features
 

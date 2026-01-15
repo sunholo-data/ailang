@@ -164,6 +164,30 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		visited[t] = result
 		return result
 
+	case *TRecordOpen:
+		// M-GAP4: Handle substitution for open records
+		changed := false
+		fields := make(map[string]Type)
+		for name, fieldType := range typ.Fields {
+			fields[name] = safeSubstitute(fieldType, sub, visited)
+			if fields[name] != fieldType {
+				changed = true
+			}
+		}
+		var row Type
+		if typ.Row != nil {
+			row = safeSubstitute(typ.Row, sub, visited)
+			if row != typ.Row {
+				changed = true
+			}
+		}
+		if !changed {
+			return t
+		}
+		result := &TRecordOpen{Fields: fields, Row: row}
+		visited[t] = result
+		return result
+
 	case *TRecord2:
 		if typ.Row == nil {
 			return t

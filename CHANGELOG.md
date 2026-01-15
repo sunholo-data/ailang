@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Added - Record Width Subtyping (M-GAP4)
+
+Implemented row polymorphism for records, enabling functions to accept records with extra fields.
+
+**New Syntax:**
+- `{field: T | r}` - Open record with explicit row variable `r`
+- `{field: T, ...}` - Sugar syntax with fresh row variable
+
+**Example:**
+```ailang
+-- EXACT record: rejects extra fields (default)
+pure func getNameExact(p: {name: string}) -> string = p.name
+
+-- OPEN record: accepts extra fields via | r
+pure func getName(p: {name: string | r}) -> string = p.name
+
+-- OPEN record: accepts extra fields via ...
+pure func getEmail(u: {email: string, ...}) -> string = u.email
+
+-- Usage: open records accept records with more fields
+getName({name: "Bob", age: 30})  -- Works!
+```
+
+**Implementation Files:**
+- `internal/ast/ast.go`: Added `Row` field to `RecordTypeExpr` (~10 LOC)
+- `internal/parser/parser.go`: Added `rowVarCounter`, `freshRowVarName()` (~20 LOC)
+- `internal/parser/parser_type.go`: Handle `|` and `...` in record types (~30 LOC)
+- `internal/types/types.go`: Added `TRecordOpen`, `RowVar` types (~30 LOC)
+- `internal/types/unification_records.go`: `unifyRecordOpen()`, error messages (~100 LOC)
+- `internal/elaborate/types.go`: Create `TRecordOpen` from AST (~20 LOC)
+- `internal/types/substitute.go`: Handle `TRecordOpen` substitution (~10 LOC)
+
+**Tests:**
+- `internal/parser/type_test.go`: Added `TestOpenRecordTypes`, `TestEllipsisSugarMarked`
+- `examples/runnable/record_width_subtyping.ail`: Comprehensive example (~105 LOC)
+
+**Error Messages:**
+- Record field mismatch now lists expected/actual/extra/missing fields
+- Suggests open record syntax when extra fields detected
+
+**Teaching Prompt:** Updated to v0.6.6 with open record documentation
+
+**Design Doc:** `design_docs/planned/v0_6_4/m-gap4-record-width-subtyping.md` → Status: IMPLEMENTED
+
 ### Added - Generic AILANG Embedding API (M-EMBED)
 
 New `internal/embed/` package enables Go applications to embed AILANG as a scripting/extension language.
@@ -45,7 +89,7 @@ Created `internal/dashboard_transforms/` with AILANG port of event formatter for
 | GAP-1: Teaching prompt foldl syntax | High | Fixed |
 | GAP-2: Path-dependent type checking | Critical | Needs investigation |
 | GAP-3: Lambda syntax with foldl | Medium | Workaround available |
-| GAP-4: No record width subtyping | High | Future work |
+| GAP-4: No record width subtyping | High | ✅ Fixed (M-GAP4) |
 | GAP-5: Standalone expression eval | Medium | Workaround available |
 
 ### Fixed - Coordinator Merge Helper Bug

@@ -1,11 +1,26 @@
 # M-GAP4: Record Width Subtyping via Row Polymorphism
 
 ## Status
-- **Status:** Planned
+- **Status:** IMPLEMENTED (2026-01-15)
 - **Target:** v0.6.4+
 - **Priority:** P1 (High)
-- **Estimated:** 2-3 days
+- **Actual:** 1 day (~6 hours)
 - **Dependencies:** None (extends existing row polymorphism)
+
+### Implementation Summary
+- **M1 Investigation:** Parser needed changes (AST, parser, elaboration). Unification already worked.
+- **M2 Unification:** Added `TRecordOpen` to substitution handling (critical fix).
+- **M3 Sugar:** `{a: T, ...}` implemented using existing ELLIPSIS token.
+- **M4 Docs:** Improved error messages with field lists and hints.
+
+**Files Modified:**
+- `internal/ast/ast_decl.go` - Added `Row` field to `RecordType`
+- `internal/parser/parser.go` - Added `rowVarCounter` for fresh names
+- `internal/parser/parser_type.go` - Parse `| r` and `...` syntax
+- `internal/elaborate/file.go` - Create `TRecordOpen` from AST
+- `internal/types/unification_substitution.go` - Handle `TRecordOpen` in substitution
+- `internal/types/unification_records.go` - Improved error messages
+- `examples/runnable/record_width_subtyping.ail` - Example file
 
 ## Problem Statement
 
@@ -456,24 +471,55 @@ If records are runtime structs with fixed layout, extra fields need somewhere to
 - Verify current runtime representation supports extra fields
 - If fixed-layout structs: may need map fallback for open records
 
-## Open Questions (Need Investigation)
+## Investigation Findings (M1 Complete)
 
-Before implementation, answer these:
+Answered during sprint M-GAP4 execution:
 
-1. **Row tail syntax:** Is `{a: T | r}` already user-facing syntax, or internal only?
-   - Check parser and examples for evidence of user-facing row syntax
+### 1. Row tail syntax: INTERNAL ONLY (not user-facing)
 
-2. **Record representation:** How are record types represented internally?
-   - Ordered list, map, or canonical sorted list?
-   - This affects the `normalizeRecord` implementation
+**Parser:** `parseRecordTypeExpr()` at `parser_type.go:589` does NOT support `| r` syntax.
+- Parses fields until `}`, no row variable handling
+- Test: `{name: string | r}` produces parse error "expected '}' to close record type"
 
-3. **Current unification failure:** Where exactly does unification fail today for open records?
-   - Is it `unifyRecord` field count check, or somewhere else?
-   - Need to trace through a failing example
+**AST:** `ast.RecordType` at `ast_decl.go:217` has NO Row field:
+```go
+type RecordType struct {
+    Fields []*RecordField
+    Pos    Pos
+}
+```
 
-4. **Runtime record representation:** Are records runtime structs (fixed layout) or maps?
-   - Affects pattern compilation
-   - May constrain implementation approach
+### 2. Record representation: Map-based
+
+**Internal types:**
+- `types.TRecord` - exact record with `Fields map[string]Type`
+- `types.TRecordOpen` - open record with `Fields map[string]Type` + `Row Type`
+- `types.TRecord2` - new row-polymorphic with `Row *Row` (normalized rows)
+
+All use `map[string]Type` for fields - ordering is irrelevant.
+
+### 3. Where unification fails: Parser stage (not unification!)
+
+**Root cause:** `TRecordOpen` is NEVER created from user code!
+- Elaboration at `file.go:721` always creates `types.TRecord` (no row)
+- `unifyRecordOpen()` exists and works (lines 132-232 in `unification_records.go`)
+- But never invoked because `TRecordOpen` never generated from parsing
+
+### 4. Runtime representation: Map-based
+
+Records compile to Go maps or structs depending on usage:
+- Codegen uses maps for dynamic records
+- Named type aliases can use structs
+
+### Integration Path Identified
+
+The unification infrastructure EXISTS (`TRecordOpen`, `unifyRecordOpen()`).
+Changes needed are ONLY in parser and elaboration:
+
+1. **AST:** Add `Row *TypeVar` field to `ast.RecordType`
+2. **Parser:** Handle `| varName` syntax in `parseRecordTypeExpr()`
+3. **Elaboration:** Create `TRecordOpen` when `Row != nil`
+4. **Unification:** Already done! `unifyRecordOpen()` handles subsumption
 
 ## Timeline
 
