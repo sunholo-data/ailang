@@ -410,18 +410,69 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 		opts.TypeFilter = strings.Split(typeFilter, ",")
 	}
 
-	// Use the event formatter for consistent JSON structure
-	resp, err := coordinator.FormatEventsAsJSON(taskID, events, opts)
-	if err != nil {
-		log.Printf("Failed to format events for %s: %v", taskID, err)
-		http.Error(w, "Failed to format events", http.StatusInternalServerError)
-		return
+	// Check format parameter (json, text, summary)
+	format := query.Get("format")
+	if format == "" {
+		format = "json"
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("Failed to encode task events: %v", err)
+	switch format {
+	case "text":
+		// Return formatted text for CLI/human consumption
+		text := coordinator.FormatEventsAsText(events, opts)
+		resp := map[string]interface{}{
+			"task_id":      taskID,
+			"format":       "text",
+			"content":      text,
+			"total_events": len(events),
+			"total_turns":  countTurns(events),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("Failed to encode text events: %v", err)
+		}
+		return
+
+	case "summary":
+		// Return compact summary
+		summary := coordinator.SummarizeEvents(events)
+		resp := map[string]interface{}{
+			"task_id":      taskID,
+			"format":       "summary",
+			"content":      summary,
+			"total_events": len(events),
+			"total_turns":  countTurns(events),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("Failed to encode summary events: %v", err)
+		}
+		return
+
+	default: // "json" or unrecognized -> default to JSON
+		resp, err := coordinator.FormatEventsAsJSON(taskID, events, opts)
+		if err != nil {
+			log.Printf("Failed to format events for %s: %v", taskID, err)
+			http.Error(w, "Failed to format events", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			log.Printf("Failed to encode task events: %v", err)
+		}
 	}
+}
+
+// countTurns counts unique turn numbers in event list
+func countTurns(events []*coordinator.TaskEventRecord) int {
+	turns := make(map[int]bool)
+	for _, e := range events {
+		if e.TurnNum > 0 {
+			turns[e.TurnNum] = true
+		}
+	}
+	return len(turns)
 }
 
 // handleTaskDiff returns the git diff for a task's worktree

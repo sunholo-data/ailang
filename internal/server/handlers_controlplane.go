@@ -35,6 +35,36 @@ type HeatmapResponse struct {
 	} `json:"totals"`
 }
 
+// HeatmapGridCell is a cell in the grid format response
+type HeatmapGridCell struct {
+	Date        string  `json:"date"`
+	TaskCount   int     `json:"count"`
+	Cost        float64 `json:"cost"`
+	SuccessRate float64 `json:"successRate"`
+	Intensity   float64 `json:"intensity"` // 0.0-1.0 for coloring
+	DayOfWeek   int     `json:"dayOfWeek"` // 0=Sunday, 6=Saturday
+}
+
+// HeatmapMonthLabel is a month label for the grid header
+type HeatmapMonthLabel struct {
+	Name      string `json:"name"`      // "Jan", "Feb", etc.
+	WeekIndex int    `json:"weekIndex"` // 0-based week column index
+}
+
+// HeatmapGridResponse is the grid format response for heatmap
+type HeatmapGridResponse struct {
+	Weeks       [][]HeatmapGridCell `json:"weeks"`       // weeks[weekIndex][dayIndex]
+	MonthLabels []HeatmapMonthLabel `json:"monthLabels"` // month markers
+	Totals      struct {
+		Tasks int     `json:"tasks"`
+		Cost  float64 `json:"cost"`
+	} `json:"totals"`
+	DateRange struct {
+		Start string `json:"start"`
+		End   string `json:"end"`
+	} `json:"dateRange"`
+}
+
 // ============================================================================
 // Topology API Types
 // ============================================================================
@@ -196,6 +226,22 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
+	// Check format parameter - grid is now the default
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "grid" // Changed default per plan
+	}
+
+	if format == "grid" {
+		gridResponse := buildHeatmapGrid(cells, totalTasks, totalCost, days)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(gridResponse); err != nil {
+			log.Printf("Failed to encode heatmap grid response: %v", err)
+		}
+		return
+	}
+
+	// Legacy flat format
 	response := HeatmapResponse{
 		Cells: cells,
 	}
@@ -206,6 +252,82 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode heatmap response: %v", err)
 	}
+}
+
+// buildHeatmapGrid builds a week-by-week grid structure from flat cells
+func buildHeatmapGrid(cells []HeatmapCell, totalTasks int, totalCost float64, days int) HeatmapGridResponse {
+	now := time.Now()
+	endDate := now
+	startDate := now.AddDate(0, 0, -days)
+
+	// Build a map for O(1) lookup
+	cellMap := make(map[string]HeatmapCell)
+	maxCount := 0
+	for _, cell := range cells {
+		cellMap[cell.Date] = cell
+		if cell.TaskCount > maxCount {
+			maxCount = cell.TaskCount
+		}
+	}
+
+	// Align to Monday start
+	for startDate.Weekday() != time.Monday {
+		startDate = startDate.AddDate(0, 0, -1)
+	}
+
+	// Build weeks array
+	var weeks [][]HeatmapGridCell
+	var monthLabels []HeatmapMonthLabel
+	lastMonth := -1
+
+	for d := startDate; !d.After(endDate); {
+		week := make([]HeatmapGridCell, 7)
+		weekIndex := len(weeks)
+
+		for i := 0; i < 7; i++ {
+			dateStr := d.Format("2006-01-02")
+			cell := cellMap[dateStr]
+
+			// Calculate intensity (0-1) for coloring
+			intensity := 0.0
+			if maxCount > 0 && cell.TaskCount > 0 {
+				intensity = float64(cell.TaskCount) / float64(maxCount)
+			}
+
+			week[i] = HeatmapGridCell{
+				Date:        dateStr,
+				TaskCount:   cell.TaskCount,
+				Cost:        cell.Cost,
+				SuccessRate: cell.SuccessRate,
+				Intensity:   intensity,
+				DayOfWeek:   int(d.Weekday()),
+			}
+
+			// Track month labels
+			month := int(d.Month())
+			if month != lastMonth && d.Day() <= 7 {
+				monthLabels = append(monthLabels, HeatmapMonthLabel{
+					Name:      d.Format("Jan"),
+					WeekIndex: weekIndex,
+				})
+				lastMonth = month
+			}
+
+			d = d.AddDate(0, 0, 1)
+		}
+		weeks = append(weeks, week)
+	}
+
+	response := HeatmapGridResponse{
+		Weeks:       weeks,
+		MonthLabels: monthLabels,
+	}
+	response.Totals.Tasks = totalTasks
+	response.Totals.Cost = totalCost
+	response.DateRange.Start = startDate.Format("2006-01-02")
+	response.DateRange.End = endDate.Format("2006-01-02")
+
+	return response
 }
 
 // GET /api/controlplane/topology - Get agent topology graph

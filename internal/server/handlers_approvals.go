@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/display"
 )
 
 // UIApproval is the format expected by the frontend Approval interface
@@ -33,10 +35,13 @@ type UIApproval struct {
 	WorktreePath string `json:"worktree_path,omitempty"`
 	BranchName   string `json:"branch_name,omitempty"`
 	Summary      string `json:"summary,omitempty"` // Short summary for display
+	// Display info for consistent rendering
+	StatusDisplay *display.StatusDisplay `json:"status_display,omitempty"`
 }
 
 // mapCoordinatorApprovalToUI maps a coordinator ApprovalRequestRecord to the UI format
 func (s *Server) mapCoordinatorApprovalToUI(ctx context.Context, rec *coordinator.ApprovalRequestRecord) UIApproval {
+	statusDisplay := display.ApprovalStatusDisplay(rec.Status)
 	approval := UIApproval{
 		ID:              rec.ID,
 		ThreadID:        rec.TaskID,
@@ -49,6 +54,7 @@ func (s *Server) mapCoordinatorApprovalToUI(ctx context.Context, rec *coordinato
 		RequestType:     rec.Type,
 		TaskID:          rec.TaskID,
 		Summary:         rec.Description,
+		StatusDisplay:   &statusDisplay,
 	}
 
 	// Set impact based on type
@@ -84,7 +90,17 @@ func (s *Server) mapCoordinatorApprovalToUI(ctx context.Context, rec *coordinato
 	return approval
 }
 
+// ApprovalsResponse wraps approval list with metadata for the unified endpoint
+type ApprovalsResponse struct {
+	Approvals []UIApproval `json:"approvals"`
+	Total     int          `json:"total"`
+	Pending   int          `json:"pending_count"`
+	Approved  int          `json:"approved_count"`
+	Rejected  int          `json:"rejected_count"`
+}
+
 // GET /api/approvals?status={status} - Get approvals by status
+// GET /api/approvals?status=all - Get all approvals sorted by time (merged history)
 // Now uses coordinator store instead of messaging store
 func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -115,6 +131,77 @@ func (s *Server) handleApprovals(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var result []UIApproval
 
+	if status == "all" {
+		// Unified history: get all approvals (pending + resolved), sorted by time
+		pending, err := s.approvalStore.ListPendingApprovals(ctx)
+		if err != nil {
+			log.Printf("Failed to list pending approvals: %v", err)
+			http.Error(w, "Failed to get approvals", http.StatusInternalServerError)
+			return
+		}
+		for _, rec := range pending {
+			result = append(result, s.mapCoordinatorApprovalToUI(ctx, rec))
+		}
+
+		resolved, err := s.approvalStore.ListResolvedApprovals(ctx, 100)
+		if err != nil {
+			log.Printf("Failed to list resolved approvals: %v", err)
+			http.Error(w, "Failed to get approvals", http.StatusInternalServerError)
+			return
+		}
+		for _, rec := range resolved {
+			result = append(result, s.mapCoordinatorApprovalToUI(ctx, rec))
+		}
+
+		// Sort by time (most recent first)
+		sort.Slice(result, func(i, j int) bool {
+			// Use ReviewedAt if available (for resolved), otherwise CreatedAt
+			iTime := result[i].CreatedAt
+			jTime := result[j].CreatedAt
+			if result[i].ReviewedAt != nil {
+				iTime = *result[i].ReviewedAt
+			}
+			if result[j].ReviewedAt != nil {
+				jTime = *result[j].ReviewedAt
+			}
+			return iTime > jTime // Most recent first
+		})
+
+		// Return wrapped response with counts
+		pendingCount := 0
+		approvedCount := 0
+		rejectedCount := 0
+		for _, a := range result {
+			switch a.Status {
+			case "pending":
+				pendingCount++
+			case "approved":
+				approvedCount++
+			case "rejected":
+				rejectedCount++
+			}
+		}
+
+		if result == nil {
+			result = []UIApproval{}
+		}
+
+		response := ApprovalsResponse{
+			Approvals: result,
+			Total:     len(result),
+			Pending:   pendingCount,
+			Approved:  approvedCount,
+			Rejected:  rejectedCount,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Failed to encode approvals response: %v", err)
+		}
+		return
+	}
+
+	// Original behavior for specific status
 	if status == "pending" {
 		pending, err := s.approvalStore.ListPendingApprovals(ctx)
 		if err != nil {
@@ -186,17 +273,10 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Perform action - try coordinator store first, fall back to messaging store
-	var err error
 	ctx := r.Context()
 
-	if s.approvalStore != nil {
-		// Use coordinator store
-		status := "approved"
-		if action == "reject" {
-			status = "rejected"
-		}
-
+	// Use coordinator store with unified processor if available
+	if s.approvalStore != nil && s.coordStoreRaw != nil {
 		// Get the approval request to find the task ID
 		req, getErr := s.approvalStore.GetApprovalRequest(ctx, approvalID)
 		if getErr != nil {
@@ -204,72 +284,75 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Store feedback as a task event if provided (matching CLI pattern)
-		if body.Notes != "" && s.coordStoreRaw != nil && req.TaskID != "" {
-			// Get task to retrieve iteration number
-			iteration := 1
-			if task, getTaskErr := s.taskEventStore.GetTask(ctx, req.TaskID); getTaskErr == nil && task != nil {
-				iteration = task.Iteration
-				if iteration == 0 {
-					iteration = 1
-				}
+		// For handoff approvals, use the existing resolve-only path
+		if req.Type == "handoff" {
+			status := "approved"
+			if action == "reject" {
+				status = "rejected"
 			}
-
-			// Use StoreFeedbackEvent with HumanFeedback struct (same as CLI)
-			feedback := &coordinator.HumanFeedback{
-				TaskID:    req.TaskID,
-				Iteration: iteration,
-				Feedback:  body.Notes,
-				Action:    action,
-				Timestamp: time.Now(),
-				UserID:    "dashboard-user",
+			if err := s.approvalStore.ResolveApprovalRequest(ctx, approvalID, status, "dashboard-user"); err != nil {
+				http.Error(w, fmt.Sprintf("Failed to %s handoff: %v", action, err), http.StatusInternalServerError)
+				return
 			}
-			if storeErr := coordinator.StoreFeedbackEvent(ctx, s.coordStoreRaw, feedback); storeErr != nil {
-				log.Printf("Warning: Failed to store feedback event: %v", storeErr)
-			} else {
-				log.Printf("Stored %s feedback for task %s (iteration %d)", action, req.TaskID, iteration)
-			}
-		}
-
-		err = s.approvalStore.ResolveApprovalRequest(ctx, approvalID, status, "dashboard-user")
-
-		// For merge approvals, also perform the merge (matching CLI behavior)
-		if err == nil && req.Type == "merge" && action == "approve" && s.coordStoreRaw != nil {
-			task, getTaskErr := s.taskEventStore.GetTask(ctx, req.TaskID)
-			if getTaskErr == nil && task != nil && task.WorktreePath != "" {
-				log.Printf("Dashboard approval: merging worktree for task %s", req.TaskID)
-
-				// Store approval event for audit trail
-				if auditErr := coordinator.StoreApprovalEvent(ctx, s.coordStoreRaw, req.TaskID, "dashboard-user"); auditErr != nil {
-					log.Printf("Warning: Failed to store approval event: %v", auditErr)
-				}
-
-				// Perform the merge
-				mergeResult, mergeErr := coordinator.MergeWorktree(ctx, task.WorktreePath, "dev")
-				if mergeErr != nil {
-					log.Printf("Warning: Merge failed for task %s: %v", req.TaskID, mergeErr)
-					// Don't fail the approval - the approval is resolved, merge can be done manually
-				} else if mergeResult != nil && mergeResult.Success {
-					log.Printf("Successfully merged worktree for task %s", req.TaskID)
-					// Mark task as completed
-					if markErr := s.coordStoreRaw.MarkTaskCompleted(ctx, req.TaskID, &coordinator.ExecuteResult{
-						Success: true,
-						Output:  "Approved and merged via dashboard",
-					}); markErr != nil {
-						log.Printf("Warning: Failed to mark task completed: %v", markErr)
-					}
-				} else if mergeResult != nil && len(mergeResult.ConflictFiles) > 0 {
-					log.Printf("Merge conflicts in task %s: %v", req.TaskID, mergeResult.ConflictFiles)
-				}
-			}
-		}
-	} else {
-		// Fall back to messaging store for backwards compatibility
-		if action == "approve" {
-			err = s.store.ApproveApproval(approvalID, "user", body.Notes, 24*time.Hour)
 		} else {
-			err = s.store.RejectApproval(approvalID, "user", body.Notes)
+			// For merge approvals, use the unified ProcessApprovalRequest
+			// Load agent registry for per-agent merge branch lookup
+			agentRegistry, _ := coordinator.LoadAgentRegistry()
+
+			// Create GitHub poster for issue updates
+			var githubPoster *coordinator.GitHubPoster
+			if poster, err := coordinator.NewGitHubPoster(); err == nil {
+				githubPoster = poster
+			}
+
+			// Note: MergeBranch is resolved by processor from AgentRegistry or defaults
+			result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+				TaskID:            req.TaskID,
+				Action:            action,
+				ApprovedBy:        "dashboard-user",
+				Channel:           "dashboard",
+				Feedback:          body.Notes,
+				SkipMerge:         false,
+				KeepWorktree:      false,
+				RetriggerOnReject: true, // Enable feedback loop for dashboard too
+				Store:             s.coordStoreRaw,
+				MsgStore:          s.store, // For feedback messages
+				GitHubPoster:      githubPoster,
+				AgentRegistry:     agentRegistry,
+			})
+
+			if err != nil {
+				log.Printf("Approval processing failed for %s: %v", req.TaskID, err)
+				http.Error(w, fmt.Sprintf("Failed to %s: %v", action, err), http.StatusInternalServerError)
+				return
+			}
+
+			if !result.Success && len(result.ConflictFiles) > 0 {
+				// Report conflicts but don't fail - approval is resolved
+				log.Printf("Merge conflicts in task %s: %v", req.TaskID, result.ConflictFiles)
+			}
+
+			log.Printf("Dashboard %s: %s", action, result.Message)
 		}
+
+		// Success response
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"status":  "success",
+			"action":  action,
+			"message": fmt.Sprintf("Approval %s successfully", action+"d"),
+		}); err != nil {
+			log.Printf("Failed to encode approval response: %v", err)
+		}
+		return
+	}
+
+	// Fall back to messaging store for backwards compatibility
+	var err error
+	if action == "approve" {
+		err = s.store.ApproveApproval(approvalID, "user", body.Notes, 24*time.Hour)
+	} else {
+		err = s.store.RejectApproval(approvalID, "user", body.Notes)
 	}
 
 	if err != nil {
