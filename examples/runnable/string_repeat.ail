@@ -1,0 +1,21 @@
+-- Test repeat function from std/string
+module examples/runnable/string_repeat
+
+import std/string (repeat)
+
+export func main() -> () ! {IO} =
+  let _ = println("Testing repeat:") in
+  let _ = println(repeat("x", 3)) in       -- "xxx"
+  let _ = println(repeat("ab", 2)) in      -- "abab"
+
+  let _ = println("Edge cases:") in
+  let _ = println(repeat("x", 0)) in       -- ""
+  let _ = println(repeat("x", 1)) in       -- "x"
+  let _ = println(repeat("", 5)) in        -- ""
+  let _ = println(repeat("x", -1)) in      -- ""
+
+  -- Border drawing example
+  let border = "+" ++ repeat("-", 20) ++ "+" in
+  let _ = println(border) in               -- "+--------------------+"
+
+  println("All tests passed!")

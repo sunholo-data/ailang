@@ -400,7 +400,7 @@
     },
     "v0.6.5": {
       "file": "prompts/v0.6.5.md",
-      "hash": "53508b2f9cc0f8314a9f547863d01e50a2cdb9f358f7e9db5eaff5e81abd4dab",
+      "hash": "feaea916693cfcb5d28bd2265e349ccc7599bfefc562ec1fdcbd43e0c95eff6e",
       "description": "stdlib gaps + language gaps (polymorphic ADT) + record_update + error handling examples",
       "created": "2026-01-05",
       "tags": [

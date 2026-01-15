@@ -171,3 +171,81 @@ pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
     [x, ...rest] => if p(x) then Some(idx) else findIndexHelper(p, rest, idx + 1)
   }
 }
+
+-- ============================================================================
+-- Extremes (v0.6.4) - Find minimum/maximum elements
+-- ============================================================================
+-- Monomorphic versions for int, float, string.
+-- Returns Option to handle empty lists safely (unlike Haskell's partial maximum).
+
+-- maximumInt: Find largest int in list
+export pure func maximumInt(xs: [int]) -> Option[int] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match maximumInt(rest) {
+      None => Some(x),
+      Some(m) => if x > m then Some(x) else Some(m)
+    }
+  }
+}
+
+-- minimumInt: Find smallest int in list
+export pure func minimumInt(xs: [int]) -> Option[int] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match minimumInt(rest) {
+      None => Some(x),
+      Some(m) => if x < m then Some(x) else Some(m)
+    }
+  }
+}
+
+-- maximumFloat: Find largest float in list
+export pure func maximumFloat(xs: [float]) -> Option[float] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match maximumFloat(rest) {
+      None => Some(x),
+      Some(m) => if x > m then Some(x) else Some(m)
+    }
+  }
+}
+
+-- minimumFloat: Find smallest float in list
+export pure func minimumFloat(xs: [float]) -> Option[float] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match minimumFloat(rest) {
+      None => Some(x),
+      Some(m) => if x < m then Some(x) else Some(m)
+    }
+  }
+}
+
+-- maximumString: Find lexicographically largest string in list
+export pure func maximumString(xs: [string]) -> Option[string] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match maximumString(rest) {
+      None => Some(x),
+      Some(m) => if x > m then Some(x) else Some(m)
+    }
+  }
+}
+
+-- minimumString: Find lexicographically smallest string in list
+export pure func minimumString(xs: [string]) -> Option[string] {
+  match xs {
+    [] => None,
+    [x] => Some(x),
+    [x, ...rest] => match minimumString(rest) {
+      None => Some(x),
+      Some(m) => if x < m then Some(x) else Some(m)
+    }
+  }
+}

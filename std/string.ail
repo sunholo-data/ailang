@@ -60,3 +60,11 @@ export pure func join(delimiter: string, xs: [string]) -> string {
     [x, ...rest] => x ++ delimiter ++ join(delimiter, rest)
   }
 }
+
+-- repeat: Repeat a string n times
+-- Complexity: O(n) concatenations - acceptable for typical use (n < 1000)
+-- repeat("ab", 3) = "ababab"
+-- repeat("x", 0) = ""
+export pure func repeat(s: string, n: int) -> string {
+  if n <= 0 then "" else s ++ repeat(s, n - 1)
+}
