@@ -374,30 +374,31 @@ AILANG supports end-to-end distributed tracing across process boundaries. When t
 
 The trace context flows via W3C TRACEPARENT environment variables:
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Coordinator (traced)                                                  │
-│   └─ coordinator.execute_task                                        │
-│        │                                                             │
-│        ├── Injects: TRACEPARENT=00-{trace_id}-{span_id}-01          │
-│        ├── Injects: AILANG_TASK_ID=...                              │
-│        └── Injects: AILANG_SESSION_ID=...                           │
-│                        │                                             │
-│                        ▼                                             │
-│              ┌─────────────────────────────────────────────┐         │
-│              │ Claude Code / Gemini CLI (may add spans)    │         │
-│              │   └─ Environment variables inherited        │         │
-│              │                        │                     │         │
-│              │                        ▼                     │         │
-│              │              ┌───────────────────────┐       │         │
-│              │              │ ailang run (traced)   │       │         │
-│              │              │   └─ Extracts         │       │         │
-│              │              │      TRACEPARENT      │       │         │
-│              │              │   └─ Creates child    │       │         │
-│              │              │      spans            │       │         │
-│              │              └───────────────────────┘       │         │
-│              └─────────────────────────────────────────────┘         │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Coordinator["Coordinator (traced)"]
+        ExecTask["coordinator.execute_task"]
+
+        subgraph Inject["Environment Injection"]
+            TP["TRACEPARENT=00-trace_id-span_id-01"]
+            TID["AILANG_TASK_ID=..."]
+            SID["AILANG_SESSION_ID=..."]
+        end
+
+        subgraph CLI["Claude Code / Gemini CLI"]
+            Inherit["Environment variables inherited"]
+
+            subgraph AILANG["ailang run (traced)"]
+                Extract["Extracts TRACEPARENT"]
+                Child["Creates child spans"]
+            end
+        end
+    end
+
+    ExecTask --> Inject
+    Inject --> CLI
+    Inherit --> AILANG
+    Extract --> Child
 ```
 
 ### Environment Variables

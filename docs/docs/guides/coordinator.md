@@ -365,39 +365,43 @@ The coordinator supports chained agent workflows where one agent's output trigge
 
 ### Example: Issue to Implementation
 
-```
-GitHub Issue
-    ↓ (github_sync imports to design-doc-creator inbox)
-┌─────────────────────────────────────────────────────────┐
-│  design-doc-creator                                      │
-│  • Reads issue                                           │
-│  • Creates design doc in design_docs/planned/            │
-│  • trigger_on_complete: [sprint-planner]                 │
-└─────────────────────────────────────────────────────────┘
-    ↓ (handoff message with session ID)
-[Human Approval] ← Review design doc before planning
-    ↓
-┌─────────────────────────────────────────────────────────┐
-│  sprint-planner                                          │
-│  • Reads design doc                                      │
-│  • Creates sprint plan with milestones                   │
-│  • Creates JSON progress file                            │
-│  • trigger_on_complete: [sprint-executor]                │
-└─────────────────────────────────────────────────────────┘
-    ↓ (handoff message with session ID)
-[Human Approval] ← Review sprint plan before execution
-    ↓
-┌─────────────────────────────────────────────────────────┐
-│  sprint-executor                                         │
-│  • Implements sprint plan with TDD                       │
-│  • Updates CHANGELOG, design docs                        │
-│  • Runs tests and linting                                │
-│  • trigger_on_complete: []  (end of chain)               │
-└─────────────────────────────────────────────────────────┘
-    ↓
-[Human Approval] ← Review code changes before merge
-    ↓
-Changes merged to main branch
+```mermaid
+flowchart TB
+    Issue["GitHub Issue"]
+
+    subgraph DDC["design-doc-creator"]
+        DDC1["Reads issue"]
+        DDC2["Creates design doc"]
+        DDC3["trigger_on_complete: sprint-planner"]
+    end
+
+    Approval1{{"Human Approval<br/>Review design doc"}}
+
+    subgraph SP["sprint-planner"]
+        SP1["Reads design doc"]
+        SP2["Creates sprint plan"]
+        SP3["trigger_on_complete: sprint-executor"]
+    end
+
+    Approval2{{"Human Approval<br/>Review sprint plan"}}
+
+    subgraph SE["sprint-executor"]
+        SE1["Implements with TDD"]
+        SE2["Updates CHANGELOG"]
+        SE3["Runs tests & linting"]
+    end
+
+    Approval3{{"Human Approval<br/>Review code changes"}}
+
+    Merged["Changes merged to main"]
+
+    Issue -->|"github_sync imports"| DDC
+    DDC -->|"handoff + session ID"| Approval1
+    Approval1 --> SP
+    SP -->|"handoff + session ID"| Approval2
+    Approval2 --> SE
+    SE --> Approval3
+    Approval3 --> Merged
 ```
 
 ### Approval Gates
@@ -817,47 +821,46 @@ ailang messages send design-doc-creator \
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Coordinator Daemon                          │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    Agent Registry                          │  │
-│  │  design-doc-creator │ sprint-planner │ sprint-executor    │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│         ↓                      ↓                    ↓           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   Watcher   │→ │  Analyzer   │→ │      Task Executor      │  │
-│  │ (per inbox) │  │ (classify)  │  │  (Claude/Gemini CLI)    │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
-│         ↑                                      ↓                │
-│  ┌─────────────┐                    ┌─────────────────────────┐ │
-│  │  Messages   │                    │    Worktree Manager     │ │
-│  │  (SQLite)   │                    │   (per agent workspace) │ │
-│  └─────────────┘                    └─────────────────────────┘ │
-│                                                ↓                │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │                  Approval Checkpoint                        ││
-│  │   pending_approval → [Human Review] → merge OR reject       ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                ↓                │
-│                                     ┌─────────────────────────┐ │
-│                                     │   HTTP Broadcaster      │ │
-│                                     │  (streams to dashboard) │ │
-│                                     └─────────────────────────┘ │
-└────────────────────────────────────────────────┬────────────────┘
-                                                 │ HTTP POST
-                                                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Collaboration Hub Server                        │
-│                    (ailang serve :1957)                          │
-├─────────────────────────────────────────────────────────────────┤
-│  POST /api/coordinator/events → WebSocket broadcast → Browser   │
-│  GET /api/coordinator/pending → Pending approvals list          │
-│  GET /api/coordinator/tasks/{id}/diff → Git diff viewer         │
-│  POST /api/coordinator/approve/{id} → Merge changes             │
-│  POST /api/coordinator/reject/{id} → Preserve worktree          │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Daemon["Coordinator Daemon"]
+        subgraph Registry["Agent Registry"]
+            DDC2["design-doc-creator"]
+            SP2["sprint-planner"]
+            SE2["sprint-executor"]
+        end
+
+        Watcher["Watcher<br/>(per inbox)"]
+        Analyzer["Analyzer<br/>(classify)"]
+        Executor["Task Executor<br/>(Claude/Gemini CLI)"]
+        Messages[("Messages<br/>SQLite")]
+        Worktree["Worktree Manager<br/>(per agent workspace)"]
+        Approval["Approval Checkpoint<br/>pending → review → merge/reject"]
+        Broadcaster["HTTP Broadcaster<br/>(streams to dashboard)"]
+
+        Registry --> Watcher
+        Messages --> Watcher
+        Watcher --> Analyzer
+        Analyzer --> Executor
+        Executor --> Worktree
+        Worktree --> Approval
+        Approval --> Broadcaster
+    end
+
+    subgraph Server["Collaboration Hub Server (:1957)"]
+        Events["POST /api/coordinator/events"]
+        Pending["GET /api/coordinator/pending"]
+        Diff["GET /api/coordinator/tasks/diff"]
+        ApproveAPI["POST /api/coordinator/approve"]
+        RejectAPI["POST /api/coordinator/reject"]
+        WS["WebSocket broadcast"]
+    end
+
+    Browser["Browser"]
+
+    Broadcaster -->|"HTTP POST"| Events
+    Events --> WS
+    WS --> Browser
 ```
 
 ## Task Processing

@@ -211,22 +211,30 @@ internal/eval_analysis/
 ```
 
 ### Data Flow
-```
-JSON Results (disk)
-    ↓
-LoadResults() → []*BenchmarkResult
-    ↓
-┌────────────────┬──────────────────┬────────────────┐
-│ Compare()      │ GenerateMatrix() │ ValidateFix()  │
-│ (diff two)     │ (aggregates)     │ (run + compare)│
-└────────────────┴──────────────────┴────────────────┘
-    ↓
-┌────────────────┬──────────────────┬────────────────┐
-│ FormatComparison() │ FormatMatrix() │ ExportMarkdown() │
-│ (terminal)     │ (terminal/JSON)  │ (MD/HTML/CSV)  │
-└────────────────┴──────────────────┴────────────────┘
-    ↓
-Output (stdout/file)
+
+```mermaid
+flowchart TB
+    JSON["JSON Results (disk)"]
+    Load["LoadResults() → []*BenchmarkResult"]
+
+    subgraph Analysis["Analysis Functions"]
+        Compare["Compare()<br/>(diff two)"]
+        Matrix["GenerateMatrix()<br/>(aggregates)"]
+        Validate["ValidateFix()<br/>(run + compare)"]
+    end
+
+    subgraph Format["Formatters"]
+        FmtComp["FormatComparison()<br/>(terminal)"]
+        FmtMatrix["FormatMatrix()<br/>(terminal/JSON)"]
+        Export["ExportMarkdown()<br/>(MD/HTML/CSV)"]
+    end
+
+    Output["Output (stdout/file)"]
+
+    JSON --> Load
+    Load --> Analysis
+    Analysis --> Format
+    Format --> Output
 ```
 
 ---
