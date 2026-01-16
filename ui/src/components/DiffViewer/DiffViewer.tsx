@@ -22,6 +22,16 @@ import css from 'highlight.js/lib/languages/css';
 import { parseDiff, FileDiff, DiffHunk, DiffLine } from './diffParser';
 import styles from './DiffViewer.module.css';
 
+// Escape HTML entities to prevent XSS when rendering diff content
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Register languages
 hljs.registerLanguage('go', go);
 hljs.registerLanguage('typescript', typescript);
@@ -254,13 +264,18 @@ const DiffLineView: React.FC<DiffLineViewProps> = ({ line, language, compact }) 
   // Syntax highlight the content
   const highlightedContent = useMemo(() => {
     if (!line.content || line.type === 'header' || line.type === 'hunk') {
-      return line.content;
+      return escapeHtml(line.content || '');
+    }
+    // Skip highlighting for unknown languages (empty string)
+    if (!language) {
+      return escapeHtml(line.content);
     }
     try {
       const result = hljs.highlight(line.content, { language, ignoreIllegals: true });
       return result.value;
     } catch {
-      return line.content;
+      // Language not registered - return escaped raw content
+      return escapeHtml(line.content);
     }
   }, [line.content, language, line.type]);
 
@@ -393,11 +408,16 @@ interface SplitLineContentProps {
 const SplitLineContent: React.FC<SplitLineContentProps> = ({ line, language }) => {
   const highlightedContent = useMemo(() => {
     if (!line.content) return '';
+    // Skip highlighting for unknown languages (empty string)
+    if (!language) {
+      return escapeHtml(line.content);
+    }
     try {
       const result = hljs.highlight(line.content, { language, ignoreIllegals: true });
       return result.value;
     } catch {
-      return line.content;
+      // Language not registered - return escaped raw content
+      return escapeHtml(line.content);
     }
   }, [line.content, language]);
 

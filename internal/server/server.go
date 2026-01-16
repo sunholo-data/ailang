@@ -265,6 +265,7 @@ func getEnv(key string) string {
 // CoordinatorStore provides coordinator statistics
 type CoordinatorStore interface {
 	GetCoordinatorStats() (*CoordinatorStats, error)
+	GetCostByProvider() (map[string]float64, error)
 }
 
 // CoordinatorStats holds coordinator daemon statistics
@@ -351,6 +352,15 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/controlplane/stats", s.handleControlPlaneStats)
 	mux.HandleFunc("/api/controlplane/stats/breakdown", s.handleControlPlaneStatsBreakdown)
 	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.handleControlPlaneExecHierarchy)
+
+	// REST API endpoints - Analytics (Phase 2+)
+	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)
+	mux.HandleFunc("/api/controlplane/usage-timeseries", s.handleUsageTimeSeries)
+	mux.HandleFunc("/api/controlplane/token-distribution", s.handleTokenDistribution)
+
+	// REST API endpoints - Budget (AILANG dogfooding)
+	mux.HandleFunc("/api/budget/status", s.handleBudgetStatus)
+	mux.HandleFunc("/api/budget/check", s.handleBudgetCheck)
 
 	// Observatory API endpoints (if configured)
 	if s.obsAPI != nil {

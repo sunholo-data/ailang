@@ -635,3 +635,6 @@ func (m *mockStore) GetTaskEvents(ctx context.Context, taskID string, limit int)
 func (m *mockStore) ResetTaskToPending(ctx context.Context, id string) error {
 	return nil
 }
+func (m *mockStore) GetCostByProvider() (map[string]float64, error) {
+	return make(map[string]float64), nil
+}

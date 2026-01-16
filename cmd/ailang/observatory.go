@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -18,14 +19,18 @@ func observatoryCommand() {
 		fmt.Println("Subcommands:")
 		fmt.Println("  seed        Generate test data for dashboard development")
 		fmt.Println("  backfill    Link existing spans to tasks by time correlation")
+		fmt.Println("  heatmap     Get activity heatmap data (daily aggregates)")
+		fmt.Println("  evolution   Get task evolution data (cumulative metrics over time)")
+		fmt.Println("  usage       Get usage time series data (bucketed by hour/day/week)")
+		fmt.Println("  tokens      Get token distribution histogram")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang observatory seed                    # Default: realistic workload")
 		fmt.Println("  ailang observatory seed --minimal          # Quick: 1 workspace, 2 tasks")
-		fmt.Println("  ailang observatory seed --stress           # Load test: 10 workspaces, 1000 spans")
-		fmt.Println("  ailang observatory seed --clean            # Wipe all data first")
-		fmt.Println("  ailang observatory backfill --dry-run")
-		fmt.Println("  ailang observatory backfill --window 5m")
+		fmt.Println("  ailang observatory heatmap --days 30 --format ascii")
+		fmt.Println("  ailang observatory evolution --metric cost --limit 5")
+		fmt.Println("  ailang observatory usage --interval day --split-by provider")
+		fmt.Println("  ailang observatory tokens --format ascii")
 		return
 	}
 
@@ -35,6 +40,14 @@ func observatoryCommand() {
 		observatorySeedCommand()
 	case "backfill":
 		observatoryBackfillCommand()
+	case "heatmap":
+		observatoryHeatmapCommand()
+	case "evolution":
+		observatoryEvolutionCommand()
+	case "usage":
+		observatoryUsageCommand()
+	case "tokens":
+		observatoryTokensCommand()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown observatory subcommand: %s\n", subcommand)
 		os.Exit(1)
@@ -435,4 +448,608 @@ func observatorySeedCommand() {
 	fmt.Printf("Messages created:     %d\n", result.MessagesCreated)
 	fmt.Println()
 	fmt.Println("View the data at: http://localhost:1957 (run 'ailang serve' first)")
+}
+
+// observatoryHeatmapCommand outputs activity heatmap data.
+func observatoryHeatmapCommand() {
+	fs := flag.NewFlagSet("observatory heatmap", flag.ExitOnError)
+	days := fs.Int("days", 90, "Number of days of history to show")
+	format := fs.String("format", "json", "Output format: json or ascii")
+	provider := fs.String("provider", "", "Filter by provider")
+	workspace := fs.String("workspace", "", "Filter by workspace")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	dbPath := observatory.DefaultDatabasePath()
+
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	// Query for daily aggregates
+	db := backend.DB()
+	if db == nil {
+		fmt.Fprintf(os.Stderr, "Error: database connection is nil\n")
+		os.Exit(1)
+	}
+
+	startDate := time.Now().AddDate(0, 0, -*days)
+
+	query := `
+		SELECT
+			date(start_time) as day,
+			COUNT(*) as span_count,
+			SUM(COALESCE(cost_usd, 0)) as total_cost,
+			SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
+		FROM spans
+		WHERE start_time >= ?
+	`
+	args := []interface{}{startDate.Format("2006-01-02")}
+
+	if *provider != "" {
+		query += " AND provider = ?"
+		args = append(args, *provider)
+	}
+	if *workspace != "" {
+		query += " AND workspace = ?"
+		args = append(args, *workspace)
+	}
+
+	query += " GROUP BY date(start_time) ORDER BY day"
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
+		os.Exit(1)
+	}
+	defer rows.Close()
+
+	type DayData struct {
+		Day       string  `json:"day"`
+		SpanCount int     `json:"span_count"`
+		Cost      float64 `json:"cost"`
+		Tokens    int64   `json:"tokens"`
+	}
+
+	var data []DayData
+	for rows.Next() {
+		var d DayData
+		if err := rows.Scan(&d.Day, &d.SpanCount, &d.Cost, &d.Tokens); err != nil {
+			fmt.Fprintf(os.Stderr, "Error scanning row: %v\n", err)
+			continue
+		}
+		data = append(data, d)
+	}
+
+	if *format == "ascii" {
+		// Build CLI command for display
+		cliCmd := fmt.Sprintf("ailang observatory heatmap --days %d", *days)
+		if *provider != "" {
+			cliCmd += fmt.Sprintf(" --provider %s", *provider)
+		}
+		if *workspace != "" {
+			cliCmd += fmt.Sprintf(" --workspace %s", *workspace)
+		}
+		cliCmd += " --format ascii"
+
+		fmt.Println("=== Activity Heatmap ===")
+		fmt.Println(strings.Repeat("─", 60))
+
+		if len(data) == 0 {
+			fmt.Println("No data found for the specified period.")
+			return
+		}
+
+		// Find max for scaling
+		maxCount := 0
+		for _, d := range data {
+			if d.SpanCount > maxCount {
+				maxCount = d.SpanCount
+			}
+		}
+
+		// Heatmap characters from low to high intensity
+		heatChars := []rune{'░', '▒', '▓', '█'}
+
+		// Group by week for display
+		fmt.Printf("\nDaily Activity (last %d days):\n\n", *days)
+
+		// Show last 12 weeks in a grid format
+		currentDate := time.Now()
+		dataMap := make(map[string]DayData)
+		for _, d := range data {
+			dataMap[d.Day] = d
+		}
+
+		// Print week headers
+		fmt.Print("       ")
+		for i := 0; i < 7; i++ {
+			fmt.Printf(" %s", []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}[i])
+		}
+		fmt.Println()
+
+		// Print 12 weeks
+		for week := 11; week >= 0; week-- {
+			weekStart := currentDate.AddDate(0, 0, -week*7-int(currentDate.Weekday()))
+			fmt.Printf("W%-2d    ", 12-week)
+
+			for day := 0; day < 7; day++ {
+				d := weekStart.AddDate(0, 0, day)
+				dayStr := d.Format("2006-01-02")
+				if dd, ok := dataMap[dayStr]; ok {
+					// Scale to heatmap character
+					level := 0
+					if maxCount > 0 {
+						level = int(float64(dd.SpanCount) / float64(maxCount) * float64(len(heatChars)-1))
+						if level >= len(heatChars) {
+							level = len(heatChars) - 1
+						}
+					}
+					fmt.Printf(" %c ", heatChars[level])
+				} else if d.After(time.Now()) {
+					fmt.Print(" · ")
+				} else {
+					fmt.Print(" · ")
+				}
+			}
+			fmt.Println()
+		}
+
+		fmt.Println()
+		fmt.Printf("Legend: · = no activity, ░ = low, ▒ = medium, ▓ = high, █ = max\n")
+		fmt.Println()
+		fmt.Printf("CLI: %s\n", cliCmd)
+	} else {
+		// JSON output
+		output := map[string]interface{}{
+			"days": data,
+			"cli_command": fmt.Sprintf("ailang observatory heatmap --days %d --format json",
+				*days),
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(output)
+	}
+}
+
+// observatoryEvolutionCommand outputs task evolution data for line charts.
+func observatoryEvolutionCommand() {
+	fs := flag.NewFlagSet("observatory evolution", flag.ExitOnError)
+	metric := fs.String("metric", "cost", "Metric to track: cost, tokens, turns, spans")
+	limit := fs.Int("limit", 10, "Maximum number of tasks to return")
+	format := fs.String("format", "json", "Output format: json or ascii")
+	provider := fs.String("provider", "", "Filter by provider")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	dbPath := observatory.DefaultDatabasePath()
+
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	db := backend.DB()
+	if db == nil {
+		fmt.Fprintf(os.Stderr, "Error: database connection is nil\n")
+		os.Exit(1)
+	}
+
+	// Get recent tasks
+	taskQuery := `
+		SELECT id, title, source_type, status,
+		       COALESCE(total_cost_usd, 0) as total_cost,
+		       COALESCE(total_tokens_in + total_tokens_out, 0) as total_tokens,
+		       COALESCE(agent_count, 0) as total_turns,
+		       COALESCE(span_count, 0) as total_spans
+		FROM tasks
+		WHERE 1=1
+	`
+	args := []interface{}{}
+
+	if *provider != "" {
+		taskQuery += " AND source_type = ?"
+		args = append(args, *provider)
+	}
+
+	taskQuery += " ORDER BY created_at DESC LIMIT ?"
+	args = append(args, *limit)
+
+	rows, err := db.QueryContext(ctx, taskQuery, args...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error querying tasks: %v\n", err)
+		os.Exit(1)
+	}
+	defer rows.Close()
+
+	type TaskEvolution struct {
+		TaskID      string  `json:"task_id"`
+		Title       string  `json:"title"`
+		SourceType  string  `json:"source_type"`
+		Status      string  `json:"status"`
+		TotalCost   float64 `json:"total_cost"`
+		TotalTokens int64   `json:"total_tokens"`
+		TotalTurns  int     `json:"total_turns"`
+		TotalSpans  int     `json:"total_spans"`
+	}
+
+	var tasks []TaskEvolution
+	for rows.Next() {
+		var t TaskEvolution
+		if err := rows.Scan(&t.TaskID, &t.Title, &t.SourceType, &t.Status,
+			&t.TotalCost, &t.TotalTokens, &t.TotalTurns, &t.TotalSpans); err != nil {
+			continue
+		}
+		tasks = append(tasks, t)
+	}
+
+	cliCmd := fmt.Sprintf("ailang observatory evolution --metric %s --limit %d", *metric, *limit)
+	if *provider != "" {
+		cliCmd += fmt.Sprintf(" --provider %s", *provider)
+	}
+
+	if *format == "ascii" {
+		fmt.Println("=== Task Evolution ===")
+		fmt.Println(strings.Repeat("─", 60))
+		fmt.Printf("Metric: %s\n\n", *metric)
+
+		if len(tasks) == 0 {
+			fmt.Println("No tasks found.")
+			return
+		}
+
+		// Find max value for scaling
+		maxVal := 0.0
+		for _, t := range tasks {
+			var val float64
+			switch *metric {
+			case "cost":
+				val = t.TotalCost
+			case "tokens":
+				val = float64(t.TotalTokens)
+			case "turns":
+				val = float64(t.TotalTurns)
+			case "spans":
+				val = float64(t.TotalSpans)
+			}
+			if val > maxVal {
+				maxVal = val
+			}
+		}
+
+		// Display as sparklines
+		barWidth := 30
+		for _, t := range tasks {
+			var val float64
+			var suffix string
+			switch *metric {
+			case "cost":
+				val = t.TotalCost
+				suffix = fmt.Sprintf("$%.2f", val)
+			case "tokens":
+				val = float64(t.TotalTokens)
+				if val > 1000 {
+					suffix = fmt.Sprintf("%.1fK", val/1000)
+				} else {
+					suffix = fmt.Sprintf("%.0f", val)
+				}
+			case "turns":
+				val = float64(t.TotalTurns)
+				suffix = fmt.Sprintf("%d", t.TotalTurns)
+			case "spans":
+				val = float64(t.TotalSpans)
+				suffix = fmt.Sprintf("%d", t.TotalSpans)
+			}
+
+			// Render bar
+			filled := 0
+			if maxVal > 0 {
+				filled = int(val / maxVal * float64(barWidth))
+			}
+			bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+
+			// Truncate title
+			title := t.Title
+			if len(title) > 25 {
+				title = title[:22] + "..."
+			}
+
+			fmt.Printf("%-25s %s %s\n", title, bar, suffix)
+		}
+
+		fmt.Println()
+		cliCmd += " --format ascii"
+		fmt.Printf("CLI: %s\n", cliCmd)
+	} else {
+		output := map[string]interface{}{
+			"tasks":       tasks,
+			"metric":      *metric,
+			"cli_command": cliCmd + " --format json",
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(output)
+	}
+}
+
+// observatoryUsageCommand outputs time-bucketed usage data for column charts.
+func observatoryUsageCommand() {
+	fs := flag.NewFlagSet("observatory usage", flag.ExitOnError)
+	metric := fs.String("metric", "cost", "Metric to aggregate: cost, tokens, turns, spans")
+	interval := fs.String("interval", "day", "Time interval: hour, day, week")
+	splitBy := fs.String("split-by", "", "Split by dimension: provider, model, workspace")
+	format := fs.String("format", "json", "Output format: json or ascii")
+	days := fs.Int("days", 30, "Number of days of history")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	dbPath := observatory.DefaultDatabasePath()
+
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	db := backend.DB()
+	if db == nil {
+		fmt.Fprintf(os.Stderr, "Error: database connection is nil\n")
+		os.Exit(1)
+	}
+
+	startDate := time.Now().AddDate(0, 0, -*days)
+
+	// Build date grouping expression based on interval
+	var dateExpr string
+	switch *interval {
+	case "hour":
+		dateExpr = "strftime('%Y-%m-%d %H:00', start_time)"
+	case "week":
+		dateExpr = "strftime('%Y-W%W', start_time)"
+	default: // day
+		dateExpr = "date(start_time)"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			%s as bucket,
+			COUNT(*) as span_count,
+			SUM(COALESCE(cost_usd, 0)) as total_cost,
+			SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
+		FROM spans
+		WHERE start_time >= ?
+		GROUP BY bucket
+		ORDER BY bucket
+	`, dateExpr)
+
+	rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
+		os.Exit(1)
+	}
+	defer rows.Close()
+
+	type UsagePoint struct {
+		Bucket    string  `json:"bucket"`
+		SpanCount int     `json:"span_count"`
+		Cost      float64 `json:"cost"`
+		Tokens    int64   `json:"tokens"`
+	}
+
+	var points []UsagePoint
+	for rows.Next() {
+		var p UsagePoint
+		if err := rows.Scan(&p.Bucket, &p.SpanCount, &p.Cost, &p.Tokens); err != nil {
+			continue
+		}
+		points = append(points, p)
+	}
+
+	cliCmd := fmt.Sprintf("ailang observatory usage --metric %s --interval %s --days %d",
+		*metric, *interval, *days)
+	if *splitBy != "" {
+		cliCmd += fmt.Sprintf(" --split-by %s", *splitBy)
+	}
+
+	if *format == "ascii" {
+		fmt.Println("=== Usage Time Series ===")
+		fmt.Println(strings.Repeat("─", 60))
+		fmt.Printf("Metric: %s, Interval: %s\n\n", *metric, *interval)
+
+		if len(points) == 0 {
+			fmt.Println("No data found.")
+			return
+		}
+
+		// Find max for scaling
+		maxVal := 0.0
+		for _, p := range points {
+			var val float64
+			switch *metric {
+			case "cost":
+				val = p.Cost
+			case "tokens":
+				val = float64(p.Tokens)
+			case "turns", "spans":
+				val = float64(p.SpanCount)
+			}
+			if val > maxVal {
+				maxVal = val
+			}
+		}
+
+		barWidth := 40
+		for _, p := range points {
+			var val float64
+			var suffix string
+			switch *metric {
+			case "cost":
+				val = p.Cost
+				suffix = fmt.Sprintf("$%.2f", val)
+			case "tokens":
+				val = float64(p.Tokens)
+				if val > 1000000 {
+					suffix = fmt.Sprintf("%.1fM", val/1000000)
+				} else if val > 1000 {
+					suffix = fmt.Sprintf("%.1fK", val/1000)
+				} else {
+					suffix = fmt.Sprintf("%.0f", val)
+				}
+			case "turns", "spans":
+				val = float64(p.SpanCount)
+				suffix = fmt.Sprintf("%d", p.SpanCount)
+			}
+
+			filled := 0
+			if maxVal > 0 {
+				filled = int(val / maxVal * float64(barWidth))
+			}
+			bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+
+			fmt.Printf("%-12s %s %s\n", p.Bucket, bar, suffix)
+		}
+
+		fmt.Println()
+		cliCmd += " --format ascii"
+		fmt.Printf("CLI: %s\n", cliCmd)
+	} else {
+		output := map[string]interface{}{
+			"points":      points,
+			"metric":      *metric,
+			"interval":    *interval,
+			"cli_command": cliCmd + " --format json",
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(output)
+	}
+}
+
+// observatoryTokensCommand outputs token distribution histogram.
+func observatoryTokensCommand() {
+	fs := flag.NewFlagSet("observatory tokens", flag.ExitOnError)
+	format := fs.String("format", "json", "Output format: json or ascii")
+	days := fs.Int("days", 30, "Number of days of history")
+
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	dbPath := observatory.DefaultDatabasePath()
+
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	db := backend.DB()
+	if db == nil {
+		fmt.Fprintf(os.Stderr, "Error: database connection is nil\n")
+		os.Exit(1)
+	}
+
+	startDate := time.Now().AddDate(0, 0, -*days)
+
+	// Define buckets for token distribution
+	buckets := []struct {
+		label string
+		min   int64
+		max   int64
+	}{
+		{"0-1K", 0, 1000},
+		{"1K-5K", 1000, 5000},
+		{"5K-20K", 5000, 20000},
+		{"20K-50K", 20000, 50000},
+		{"50K-100K", 50000, 100000},
+		{"100K+", 100000, 999999999},
+	}
+
+	type BucketCount struct {
+		Label string `json:"label"`
+		Min   int64  `json:"min"`
+		Max   int64  `json:"max"`
+		Count int    `json:"count"`
+	}
+
+	var results []BucketCount
+
+	for _, b := range buckets {
+		query := `
+			SELECT COUNT(*) FROM spans
+			WHERE start_time >= ?
+			AND (COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) >= ?
+			AND (COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) < ?
+		`
+		var count int
+		err := db.QueryRowContext(ctx, query, startDate.Format("2006-01-02"), b.min, b.max).Scan(&count)
+		if err != nil {
+			continue
+		}
+		results = append(results, BucketCount{
+			Label: b.label,
+			Min:   b.min,
+			Max:   b.max,
+			Count: count,
+		})
+	}
+
+	cliCmd := fmt.Sprintf("ailang observatory tokens --days %d", *days)
+
+	if *format == "ascii" {
+		fmt.Println("=== Token Distribution ===")
+		fmt.Println(strings.Repeat("─", 60))
+		fmt.Printf("Period: last %d days\n\n", *days)
+
+		// Find max for scaling
+		maxCount := 0
+		for _, r := range results {
+			if r.Count > maxCount {
+				maxCount = r.Count
+			}
+		}
+
+		barWidth := 40
+		for _, r := range results {
+			filled := 0
+			if maxCount > 0 {
+				filled = int(float64(r.Count) / float64(maxCount) * float64(barWidth))
+			}
+			bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+			fmt.Printf("%-10s %s %d spans\n", r.Label, bar, r.Count)
+		}
+
+		fmt.Println()
+		cliCmd += " --format ascii"
+		fmt.Printf("CLI: %s\n", cliCmd)
+	} else {
+		output := map[string]interface{}{
+			"buckets":     results,
+			"cli_command": cliCmd + " --format json",
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(output)
+	}
 }

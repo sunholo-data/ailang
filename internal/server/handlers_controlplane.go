@@ -233,7 +233,8 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 	}
 
 	if format == "grid" {
-		gridResponse := buildHeatmapGrid(cells, totalTasks, totalCost, days)
+		// Use AILANG bridge if enabled, falls back to Go
+		gridResponse := GetAILANGBridge().BuildHeatmapGrid(cells, totalTasks, totalCost, days)
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(gridResponse); err != nil {
 			log.Printf("Failed to encode heatmap grid response: %v", err)

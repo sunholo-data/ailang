@@ -1,0 +1,84 @@
+-- Effect Budget Demo
+--
+-- Demonstrates AILANG's effect budget feature: limiting IO operations.
+-- This is for demonstration/documentation purposes only.
+--
+-- Effect budgets allow constraining how many times an effect can be used:
+--   ! {IO @limit=3}  -- Function can perform at most 3 IO operations
+--
+-- Use cases:
+-- - Rate limiting API calls
+-- - Capping database queries in sandboxed contexts
+-- - Limiting file system operations
+-- - Enforcing resource quotas in multi-tenant systems
+
+module examples/effect_budget_demo
+
+import std/io (println)
+import std/list (filter, length)
+import std/string (intToStr)
+
+-- Example: Budget alert status
+type AlertStatus = {
+  level: string,    -- "ok" | "warning" | "critical" | "exceeded"
+  message: string
+}
+
+-- Log budget decisions with limited IO operations
+-- The @limit=3 annotation ensures this function can only call println 3 times max
+-- If the limit is exceeded, a runtime error occurs (effect budget exhausted)
+export func logAlerts(alerts: [AlertStatus]) -> () ! {IO @limit=3} {
+  let critical = filter(\a. a.level == "critical" || a.level == "exceeded", alerts);
+  match critical {
+    [] => (),
+    [a1] => println("Alert: " ++ a1.message),
+    [a1, a2] => {
+      println("Alert 1: " ++ a1.message);
+      println("Alert 2: " ++ a2.message)
+    },
+    [a1, a2, a3, ..._] => {
+      -- Even with many alerts, we only use 3 IO calls
+      println("Alert 1: " ++ a1.message);
+      println("Alert 2: " ++ a2.message);
+      println("Multiple alerts (" ++ intToStr(length(critical)) ++ " total)")
+    }
+  }
+}
+
+-- Example: Rate-limited external API calls
+-- In production, you might limit calls to expensive external services
+export func fetchWithRateLimit(urls: [string]) -> [string] ! {IO @limit=5} {
+  -- This would make at most 5 IO calls regardless of input size
+  -- Implementation would use IO to fetch each URL
+  -- For demo purposes, just log what we would fetch
+  match urls {
+    [] => [],
+    [u1] => { println("Would fetch: " ++ u1); [u1] },
+    [u1, u2] => { println("Would fetch: " ++ u1); println("Would fetch: " ++ u2); [u1, u2] },
+    [u1, u2, u3, ..._] => {
+      println("Would fetch: " ++ u1);
+      println("Would fetch: " ++ u2);
+      println("Rate limited - skipping remaining " ++ intToStr(length(urls) - 2) ++ " URLs");
+      [u1, u2]
+    }
+  }
+}
+
+-- Entry point for demo
+export func main() -> () ! {IO} {
+  let alerts = [
+    { level: "critical", message: "Budget exceeded for claude-sonnet" },
+    { level: "warning", message: "Approaching daily limit" },
+    { level: "exceeded", message: "Workspace budget exhausted" },
+    { level: "ok", message: "gemini-flash within budget" }
+  ];
+
+  println("=== Effect Budget Demo ===");
+  println("");
+  println("Logging alerts with IO @limit=3:");
+  logAlerts(alerts);
+  println("");
+  println("Rate-limited URL fetching with IO @limit=5:");
+  let _ = fetchWithRateLimit(["url1", "url2", "url3", "url4", "url5", "url6"]);
+  ()
+}

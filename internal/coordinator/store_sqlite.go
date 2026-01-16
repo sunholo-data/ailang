@@ -483,6 +483,36 @@ func (s *SQLiteStore) GetTaskStats(ctx context.Context) (*TaskStats, error) {
 	return stats, nil
 }
 
+// GetCostByProvider returns total cost per provider for budget tracking.
+// Returns a map of provider name to total cost in USD.
+func (s *SQLiteStore) GetCostByProvider() (map[string]float64, error) {
+	result := make(map[string]float64)
+
+	rows, err := s.db.Query(`
+		SELECT
+			COALESCE(provider, 'unknown') as provider,
+			COALESCE(SUM(cost), 0) as total_cost
+		FROM tasks
+		WHERE provider IS NOT NULL
+		GROUP BY provider
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var provider string
+		var cost float64
+		if err := rows.Scan(&provider, &cost); err != nil {
+			return nil, err
+		}
+		result[provider] = cost
+	}
+
+	return result, nil
+}
+
 // MarkTaskQueued marks a task as queued
 func (s *SQLiteStore) MarkTaskQueued(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,

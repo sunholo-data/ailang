@@ -30,6 +30,7 @@ import {
   MessageQueue,
   DetailPanel,
   EventDetail,
+  VisualizationPanel,
   defaultTrustCapabilities,
 } from './components';
 import type {
@@ -593,14 +594,33 @@ export const ControlPlane: React.FC = () => {
 
         {/* Main Canvas */}
         <main className={`${styles.mainCanvas} ${topologyExpanded ? styles.canvasWithExpanded : ''}`}>
-          {/* Top Row: Heatmap + Event Detail (always side by side) */}
+          {/* Top Row: Visualization Panel + Event Detail (always side by side) */}
           <div className={`${styles.canvasRow} ${styles.canvasRowSplit}`}>
-            <ActivityHeatmap
-              data={heatmapData}
-              gridData={gridData}
-              selectedRange={selectedDateRange}
+            <VisualizationPanel
+              filters={filters}
+              heatmapData={heatmapData}
+              heatmapGridData={gridData}
+              selectedDateRange={selectedDateRange}
               onDateSelect={handleDateSelect}
-              onCellClick={handleCellClick}
+              onHeatmapCellClick={handleCellClick}
+              onClearFilter={(key) => {
+                // Handle different filter types
+                if (key === 'start_date' || key === 'end_date') {
+                  setSelectedDateRange(null);
+                } else if (key === 'status') {
+                  setStatusFilter('all');
+                } else if (key === 'search') {
+                  setSearchQuery('');
+                } else {
+                  // Dimension filters (provider, model, workspace, source_type)
+                  setSelectedFilters(prev => {
+                    const newFilters = { ...prev };
+                    delete newFilters[key];
+                    return newFilters;
+                  });
+                }
+              }}
+              onClearAllFilters={handleClearFilters}
             />
             {/* Event Detail Panel - always visible, shows placeholder when no event selected */}
             {!topologyExpanded && (

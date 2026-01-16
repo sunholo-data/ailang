@@ -354,6 +354,10 @@ func (m *MockStore) Close() error {
 	return nil
 }
 
+func (m *MockStore) GetCostByProvider() (map[string]float64, error) {
+	return make(map[string]float64), nil
+}
+
 func (m *MockStore) GetCallCount(method string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()

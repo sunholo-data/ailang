@@ -222,5 +222,10 @@ func (s *CloudStore) ResolveApprovalRequestByTask(ctx context.Context, taskID, s
 	return fmt.Errorf("cloud store: ResolveApprovalRequestByTask not implemented")
 }
 
+// GetCostByProvider returns total cost per provider for budget tracking (stub)
+func (s *CloudStore) GetCostByProvider() (map[string]float64, error) {
+	return nil, fmt.Errorf("cloud store: GetCostByProvider not implemented")
+}
+
 // Compile-time check that CloudStore implements Store
 var _ Store = (*CloudStore)(nil)

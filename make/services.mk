@@ -19,16 +19,22 @@ run: build ## Run an AILANG file (FILE=path/to/file.ail)
 	@$(BUILD_DIR)/$(BINARY) run $(FILE)
 
 # Server
+# AILANG_DASHBOARD=1 enables AILANG transforms (event_formatter.ail, heatmap.ail, budget_checker.ail)
+# AILANG_PROJECT_ROOT tells the embed.Engine where to find the .ail files
+AILANG_ENV := AILANG_DASHBOARD=1 AILANG_PROJECT_ROOT="$(CURDIR)"
+
 serve: quick-install ## Start Collaboration Hub server (foreground)
 	@echo "Starting AILANG Collaboration Hub..."
-	@ailang serve
+	@echo "  AILANG transforms: enabled"
+	@$(AILANG_ENV) ailang serve
 
 serve-bg: quick-install ## Start server in background
 	@if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
 		echo "$(GREEN)$(CHECKMARK) Server already running on port 1957$(RESET)"; \
 	else \
 		echo "Starting AILANG server in background..."; \
-		nohup ailang serve > ~/.ailang/logs/server.log 2>&1 & \
+		echo "  AILANG transforms: enabled"; \
+		$(AILANG_ENV) nohup ailang serve > ~/.ailang/logs/server.log 2>&1 & \
 		sleep 2; \
 		if curl -s http://127.0.0.1:1957/health >/dev/null 2>&1; then \
 			echo "$(GREEN)$(CHECKMARK) Server started$(RESET)"; \

@@ -41,3 +41,9 @@ export type { EventDetailProps } from './EventDetail';
 
 export { CliCommandHint } from './CliCommandHint';
 export type { CliCommandHintProps, CommandType } from './CliCommandHint';
+
+export { FilterIndicator } from './FilterIndicator';
+export type { FilterIndicatorProps } from './FilterIndicator';
+
+export { VisualizationPanel } from './VisualizationPanel';
+export type { VisualizationPanelProps, ChartType } from './VisualizationPanel';

@@ -650,6 +650,7 @@ export interface Approval {
   status: 'pending' | 'approved' | 'rejected' | 'expired';
   branch_name?: string;
   worktree_path?: string;
+  workspace?: string;        // Source workspace path (e.g., /Users/.../stapledons_voyage)
   summary?: string;
   diff_preview?: string;
   created_at: string;

@@ -79,13 +79,13 @@ pure func lookupCell(cells: [HeatmapCell], targetDate: string) -> HeatmapCell {
 }
 
 -- maxTaskCount: Find maximum task count across all cells
-pure func maxTaskCount(cells: [HeatmapCell]) -> int =
+export pure func maxTaskCount(cells: [HeatmapCell]) -> int =
   foldl(func(acc: int, c: HeatmapCell) -> int {
     if c.taskCount > acc then c.taskCount else acc
   }, 0, cells)
 
 -- calcIntensity: Calculate intensity 0.0-1.0 for coloring
-pure func calcIntensity(count: int, maxCount: int) -> float
+export pure func calcIntensity(count: int, maxCount: int) -> float
   tests [
     ((0, 10), 0.0),
     ((10, 0), 0.0),

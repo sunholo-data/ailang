@@ -182,6 +182,9 @@ type Store interface {
 	// Resource metrics
 	UpdateTaskMetrics(ctx context.Context, id string, peakCPU, peakMemory float64) error
 
+	// Budget tracking (per-provider)
+	GetCostByProvider() (map[string]float64, error)
+
 	// Approval requests
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
 	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)

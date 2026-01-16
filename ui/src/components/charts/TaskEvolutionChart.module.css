@@ -1,0 +1,53 @@
+/**
+ * TaskEvolutionChart Styles
+ */
+
+.container {
+  width: 100%;
+  min-height: 200px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.tooltip {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  box-shadow: var(--shadow-md);
+}
+
+.tooltipHeader {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 2px 0;
+}
+
+.tooltipLabel {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.tooltipValue {
+  font-weight: 500;
+  color: inherit;
+}

@@ -1957,8 +1957,9 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  flex: 1; /* Fill available space to match sibling */
   min-height: 180px;
-  max-height: 220px;
+  /* No max-height - let it stretch to match VisualizationPanel */
 }
 
 .eventDetailHeader {

@@ -34,7 +34,8 @@ type UIApproval struct {
 	TaskID       string `json:"task_id,omitempty"`      // Direct task reference
 	WorktreePath string `json:"worktree_path,omitempty"`
 	BranchName   string `json:"branch_name,omitempty"`
-	Summary      string `json:"summary,omitempty"` // Short summary for display
+	Workspace    string `json:"workspace,omitempty"` // Source workspace (e.g., "/Users/mark/dev/sunholo/stapledons_voyage")
+	Summary      string `json:"summary,omitempty"`   // Short summary for display
 	// Display info for consistent rendering
 	StatusDisplay *display.StatusDisplay `json:"status_display,omitempty"`
 }
@@ -80,6 +81,9 @@ func (s *Server) mapCoordinatorApprovalToUI(ctx context.Context, rec *coordinato
 			approval.InstanceID = task.AgentID
 			if task.WorktreePath != "" {
 				approval.WorktreePath = task.WorktreePath
+			}
+			if task.Workspace != "" {
+				approval.Workspace = task.Workspace
 			}
 			if task.Cost > 0 {
 				approval.EstimatedCost = task.Cost

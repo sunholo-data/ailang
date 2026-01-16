@@ -254,6 +254,12 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
                 )}
                 <span className={styles.itemDate}>{formatDate(approval.created_at)}</span>
               </div>
+              {approval.workspace && (
+                <div className={styles.itemWorkspace}>
+                  <span className={styles.workspaceIcon}>📁</span>
+                  {approval.workspace.split('/').pop()}
+                </div>
+              )}
               {approval.branch_name && (
                 <div className={styles.itemBranch}>
                   <span className={styles.branchIcon}>⎇</span>

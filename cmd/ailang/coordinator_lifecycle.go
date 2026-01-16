@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -102,6 +103,7 @@ func coordinatorStart(args []string) error {
 
 func coordinatorStop(args []string) error {
 	cfg := coordinator.DefaultConfig()
+	forceCleanup := false
 
 	// Parse flags
 	for i := 0; i < len(args); i++ {
@@ -112,10 +114,25 @@ func coordinatorStop(args []string) error {
 				cfg.PIDFile = filepath.Join(args[i+1], "coordinator.pid")
 				i++
 			}
+		case "--force", "-f":
+			forceCleanup = true
 		case "--help", "-h":
 			printCoordinatorStopHelp()
 			return nil
 		}
+	}
+
+	// Force cleanup mode: remove lock files and PID file without checking status
+	// This is the escape hatch when processes are stuck in uninterruptible sleep
+	if forceCleanup {
+		fmt.Println(cyan("→"), "Force cleanup mode...")
+		cleaned := cleanupCoordinatorLockFiles(cfg.StateDir)
+		if cleaned {
+			fmt.Println(green("✓"), "Lock files cleaned up")
+		} else {
+			fmt.Println(yellow("⚠"), "No lock files found to clean")
+		}
+		return nil
 	}
 
 	daemon, err := coordinator.NewDaemon(cfg)
@@ -123,7 +140,7 @@ func coordinatorStop(args []string) error {
 		return fmt.Errorf("failed to create daemon: %w", err)
 	}
 
-	// Check if running
+	// Check if running (with timeout protection now)
 	status, _ := daemon.Status()
 	if !status.Running {
 		fmt.Println(yellow("⚠"), "Coordinator is not running")
@@ -138,6 +155,51 @@ func coordinatorStop(args []string) error {
 
 	fmt.Println(green("✓"), "Coordinator daemon stopped")
 	return nil
+}
+
+// cleanupCoordinatorLockFiles removes SQLite lock files and PID file
+// This is the recovery mechanism when processes are stuck in uninterruptible sleep
+func cleanupCoordinatorLockFiles(stateDir string) bool {
+	cleaned := false
+
+	// Files to clean up
+	lockFiles := []string{
+		filepath.Join(stateDir, "coordinator.db-shm"),
+		filepath.Join(stateDir, "coordinator.db-wal"),
+		filepath.Join(stateDir, "collaboration.db-shm"),
+		filepath.Join(stateDir, "collaboration.db-wal"),
+		filepath.Join(stateDir, "coordinator.pid"),
+	}
+
+	for _, f := range lockFiles {
+		if _, err := os.Stat(f); err == nil {
+			if err := os.Remove(f); err != nil {
+				fmt.Printf("  Warning: could not remove %s: %v\n", filepath.Base(f), err)
+			} else {
+				fmt.Printf("  Removed: %s\n", filepath.Base(f))
+				cleaned = true
+			}
+		}
+	}
+
+	// Try to checkpoint the databases to flush WAL
+	dbFiles := []string{
+		filepath.Join(stateDir, "coordinator.db"),
+		filepath.Join(stateDir, "collaboration.db"),
+	}
+
+	for _, dbPath := range dbFiles {
+		if _, err := os.Stat(dbPath); err == nil {
+			// Try to checkpoint using sqlite3 CLI
+			cmd := exec.Command("sqlite3", dbPath, "PRAGMA wal_checkpoint(TRUNCATE);")
+			if err := cmd.Run(); err == nil {
+				fmt.Printf("  Checkpointed: %s\n", filepath.Base(dbPath))
+				cleaned = true
+			}
+		}
+	}
+
+	return cleaned
 }
 
 func coordinatorStatus(args []string) error {
@@ -281,8 +343,14 @@ func printCoordinatorStopHelp() {
 	fmt.Println("Stop the coordinator daemon")
 	fmt.Println("")
 	fmt.Println("Options:")
+	fmt.Println("  --force, -f       Force cleanup: remove lock files without checking status")
+	fmt.Println("                    Use this if normal stop hangs (SQLite lock contention)")
 	fmt.Println("  --state-dir DIR   State directory (default: ~/.ailang/state)")
 	fmt.Println("  --help, -h        Show this help message")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  ailang coordinator stop              # Normal graceful stop")
+	fmt.Println("  ailang coordinator stop --force      # Emergency cleanup if hung")
 }
 
 func printCoordinatorStatusHelp() {

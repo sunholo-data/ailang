@@ -78,9 +78,9 @@ export function detectLanguage(filename: string): string {
   const basename = filename.split('/').pop()?.toLowerCase() || '';
   if (basename === 'makefile') return 'makefile';
   if (basename === 'dockerfile') return 'dockerfile';
-  if (basename.startsWith('.') && !ext) return 'plaintext';
+  if (basename.startsWith('.') && !ext) return '';  // No highlighting for dotfiles without extension
 
-  return languageMap[ext] || 'plaintext';
+  return languageMap[ext] || '';  // Empty string = no highlighting (safe fallback)
 }
 
 /**

@@ -222,3 +222,8 @@ func (a *coordStoreAdapter) GetCoordinatorStats() (*server.CoordinatorStats, err
 		TotalTokens:  stats.TotalTokens,
 	}, nil
 }
+
+// GetCostByProvider implements server.CoordinatorStore
+func (a *coordStoreAdapter) GetCostByProvider() (map[string]float64, error) {
+	return a.store.GetCostByProvider()
+}

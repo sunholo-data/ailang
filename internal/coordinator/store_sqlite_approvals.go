@@ -121,12 +121,12 @@ func (s *SQLiteStore) ResolveApprovalRequest(ctx context.Context, id string, sta
 }
 
 // ResolveApprovalRequestByTask marks approval requests for a task as approved or rejected.
-// Only resolves "merge" type approvals - handoff approvals must be resolved separately via ResolveApprovalRequest.
+// Resolves both "merge" and "merge_handoff" type approvals - pure "handoff" approvals must be resolved separately via ResolveApprovalRequest.
 func (s *SQLiteStore) ResolveApprovalRequestByTask(ctx context.Context, taskID string, status string, resolvedBy string) error {
 	now := time.Now()
-	// Only resolve merge approvals - handoff approvals require explicit approval via separate CLI command
+	// Resolve merge and merge_handoff approvals - pure handoff approvals require explicit approval via separate CLI command
 	result, err := s.db.ExecContext(ctx,
-		"UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ? WHERE task_id = ? AND status = 'pending' AND type = 'merge'",
+		"UPDATE approval_requests SET status = ?, resolved_by = ?, resolved_at = ? WHERE task_id = ? AND status = 'pending' AND type IN ('merge', 'merge_handoff')",
 		status, resolvedBy, now, taskID,
 	)
 	if err != nil {

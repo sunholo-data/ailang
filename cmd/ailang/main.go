@@ -235,6 +235,9 @@ func main() {
 	case "dashboard":
 		dashboardCommand()
 
+	case "budget":
+		budgetCommand()
+
 	case "coordinator":
 		if err := coordinatorCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

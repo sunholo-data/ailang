@@ -288,6 +288,22 @@
   color: var(--color-info, #2b6cb0);
 }
 
+.itemWorkspace {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-2, 6px);
+  padding-top: var(--space-2, 6px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary, #8b949e);
+}
+
+.workspaceIcon {
+  color: var(--color-warning-light, #ed8936);
+  font-size: 12px;
+}
+
 /* Status badges */
 .statusPending {
   font-size: var(--text-xs, 10px);

@@ -94,11 +94,30 @@ func (d *Daemon) Status() (*Status, error) {
 		_ = os.Remove(d.config.PIDFile)
 	}
 
-	// Get actual task stats from database (in-memory counter resets on restart)
-	store, err := NewSQLiteStore(filepath.Join(d.config.StateDir, "coordinator.db"))
-	if err == nil {
+	// Get actual task stats from database with timeout
+	// This prevents hanging on SQLite lock contention (macOS ARM64 mmap issue)
+	d.fetchTaskStatsWithTimeout(status, 3*time.Second)
+
+	return status, nil
+}
+
+// fetchTaskStatsWithTimeout fetches task stats with a timeout to prevent hanging
+// on SQLite lock contention. This is critical on macOS where mmap-based SQLite
+// locking can cause uninterruptible sleep (UE state) that can't be killed.
+func (d *Daemon) fetchTaskStatsWithTimeout(status *Status, timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		store, err := NewSQLiteStore(filepath.Join(d.config.StateDir, "coordinator.db"))
+		if err != nil {
+			return
+		}
 		defer store.Close()
-		stats, err := store.GetTaskStats(context.Background())
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		stats, err := store.GetTaskStats(ctx)
 		if err == nil {
 			status.TasksRun = stats.CompletedTasks
 			status.PendingTasks = stats.PendingTasks
@@ -108,9 +127,16 @@ func (d *Daemon) Status() (*Status, error) {
 			status.TotalCost = stats.TotalCost
 			status.TotalTokens = stats.TotalTokens
 		}
-	}
+	}()
 
-	return status, nil
+	select {
+	case <-done:
+		// Success
+	case <-time.After(timeout):
+		// Timeout - database might be locked, continue without stats
+		// Log warning but don't block
+		log.Printf("Warning: timeout fetching task stats (database may be locked)")
+	}
 }
 
 // StatusJSON returns status as JSON string

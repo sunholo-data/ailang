@@ -17,19 +17,162 @@ type CoordinatorConfig struct {
 }
 
 // GitHubSyncConfig configures automatic GitHub issue import.
+// Supports both single-repo (legacy) and multi-repo configurations.
 type GitHubSyncConfig struct {
+	// Legacy single-repo fields (for backwards compatibility)
 	Enabled           bool     `yaml:"enabled" json:"enabled"`
 	IntervalSecs      int      `yaml:"interval_secs" json:"interval_secs"`               // Default: 300 (5 min)
 	WatchLabels       []string `yaml:"watch_labels" json:"watch_labels"`                 // Filter by labels
 	TargetInbox       string   `yaml:"target_inbox" json:"target_inbox"`                 // Where to send imported issues
 	ResyncLabels      bool     `yaml:"resync_labels" json:"resync_labels"`               // Re-check labels on imported messages
 	ResyncIntervalSec int      `yaml:"resync_interval_secs" json:"resync_interval_secs"` // Default: 3600 (1 hour)
+
+	// Multi-repo configuration (v0.6.6+)
+	// If Repos is non-empty, uses multi-repo mode (ignores legacy fields above except ResyncLabels)
+	Repos []RepoSyncConfig `yaml:"repos" json:"repos"`
+}
+
+// RepoSyncConfig configures GitHub sync for a single repository.
+type RepoSyncConfig struct {
+	Repo         string             `yaml:"repo" json:"repo"`                   // GitHub repo (owner/repo)
+	Enabled      bool               `yaml:"enabled" json:"enabled"`             // Enable sync for this repo
+	IntervalSecs int                `yaml:"interval_secs" json:"interval_secs"` // Override default interval
+	WatchLabels  []string           `yaml:"watch_labels" json:"watch_labels"`   // Filter by labels
+	TargetInbox  string             `yaml:"target_inbox" json:"target_inbox"`   // Default inbox for this repo
+	LabelRouting []LabelRouteConfig `yaml:"label_routing" json:"label_routing"` // Route by label prefix
+}
+
+// LabelRouteConfig maps a label prefix to a target inbox.
+type LabelRouteConfig struct {
+	LabelPrefix string `yaml:"label_prefix" json:"label_prefix"` // Match labels starting with this
+	Target      string `yaml:"target" json:"target"`             // Route to this inbox
+}
+
+// GetRepos returns the list of repos to sync, handling backwards compatibility.
+// If Repos is non-empty, returns it directly.
+// Otherwise, constructs a single-repo config from legacy fields.
+func (c *GitHubSyncConfig) GetRepos(defaultRepo string) []RepoSyncConfig {
+	if len(c.Repos) > 0 {
+		return c.Repos
+	}
+	// Legacy single-repo mode
+	if !c.Enabled {
+		return nil
+	}
+	return []RepoSyncConfig{
+		{
+			Repo:         defaultRepo,
+			Enabled:      c.Enabled,
+			IntervalSecs: c.IntervalSecs,
+			WatchLabels:  c.WatchLabels,
+			TargetInbox:  c.TargetInbox,
+		},
+	}
 }
 
 // ConfigFile represents the full ~/.ailang/config.yaml structure.
-// Only the coordinator section is defined here; other sections are ignored.
 type ConfigFile struct {
 	Coordinator *CoordinatorConfig `yaml:"coordinator"`
+	Budgets     *BudgetsConfig     `yaml:"budgets"`
+}
+
+// BudgetsConfig represents budget limits from config.yaml
+type BudgetsConfig struct {
+	Global    *GlobalBudget             `yaml:"global"`
+	Providers map[string]*ProviderLimit `yaml:"providers"`
+}
+
+// GlobalBudget defines default budget limits
+type GlobalBudget struct {
+	WorkspaceBudget  float64 `yaml:"workspace_budget"`
+	DailyBudget      float64 `yaml:"daily_budget"`
+	TaskMaxCost      float64 `yaml:"task_max_cost"`
+	WarningThreshold float64 `yaml:"warning_threshold"`
+}
+
+// ProviderLimit defines per-provider budget overrides
+type ProviderLimit struct {
+	DailyBudget      float64 `yaml:"daily_budget"`
+	TaskMaxCost      float64 `yaml:"task_max_cost"`
+	HardLimit        bool    `yaml:"hard_limit"`
+	WarningThreshold float64 `yaml:"warning_threshold"`
+}
+
+// DefaultBudgetsConfig returns sensible default budget limits
+func DefaultBudgetsConfig() *BudgetsConfig {
+	return &BudgetsConfig{
+		Global: &GlobalBudget{
+			WorkspaceBudget:  100.0, // $100 workspace budget
+			DailyBudget:      50.0,  // $50 daily budget
+			TaskMaxCost:      25.0,  // $25 max per task
+			WarningThreshold: 0.8,   // Warn at 80% usage
+		},
+		Providers: map[string]*ProviderLimit{
+			"claude": {
+				DailyBudget: 30.0,
+				TaskMaxCost: 15.0,
+				HardLimit:   true,
+			},
+			"gemini": {
+				DailyBudget: 20.0,
+				TaskMaxCost: 10.0,
+				HardLimit:   false,
+			},
+		},
+	}
+}
+
+// LoadBudgetsConfig loads budget configuration from ~/.ailang/config.yaml
+func LoadBudgetsConfig() (*BudgetsConfig, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return DefaultBudgetsConfig(), nil
+	}
+
+	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
+	return LoadBudgetsConfigFrom(configPath)
+}
+
+// LoadBudgetsConfigFrom loads budget configuration from a specific path
+func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return DefaultBudgetsConfig(), nil
+		}
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config ConfigFile
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	if config.Budgets == nil {
+		return DefaultBudgetsConfig(), nil
+	}
+
+	// Apply defaults
+	budgets := config.Budgets
+	if budgets.Global == nil {
+		budgets.Global = DefaultBudgetsConfig().Global
+	} else {
+		// Apply individual defaults
+		if budgets.Global.WorkspaceBudget == 0 {
+			budgets.Global.WorkspaceBudget = 100.0
+		}
+		if budgets.Global.DailyBudget == 0 {
+			budgets.Global.DailyBudget = 50.0
+		}
+		if budgets.Global.TaskMaxCost == 0 {
+			budgets.Global.TaskMaxCost = 25.0
+		}
+		if budgets.Global.WarningThreshold == 0 {
+			budgets.Global.WarningThreshold = 0.8
+		}
+	}
+
+	return budgets, nil
 }
 
 // DefaultCoordinatorConfig returns a minimal default configuration.
@@ -116,11 +259,22 @@ func LoadCoordinatorConfigFrom(configPath string) (*CoordinatorConfig, error) {
 
 	// Apply defaults to GitHub sync
 	if cfg.GitHubSync != nil {
+		// Legacy single-repo defaults
 		if cfg.GitHubSync.IntervalSecs == 0 {
 			cfg.GitHubSync.IntervalSecs = 300
 		}
 		if cfg.GitHubSync.TargetInbox == "" {
 			cfg.GitHubSync.TargetInbox = "coordinator"
+		}
+		// Multi-repo defaults
+		for i := range cfg.GitHubSync.Repos {
+			repo := &cfg.GitHubSync.Repos[i]
+			if repo.IntervalSecs == 0 {
+				repo.IntervalSecs = 300
+			}
+			if repo.TargetInbox == "" {
+				repo.TargetInbox = "coordinator"
+			}
 		}
 	}
 
@@ -212,10 +366,31 @@ coordinator:
       output_markers: ["EVAL_RESULT:", "PASS_RATE:"]
       trigger_on_complete: []           # End of pipeline
 
+  # GitHub sync - single repo (legacy)
   github_sync:
     enabled: true
     interval_secs: 300  # Check every 5 minutes
     watch_labels: [from:external, bug, feature]
     target_inbox: coordinator
+
+  # GitHub sync - multi-repo (v0.6.6+)
+  # github_sync:
+  #   repos:
+  #     - repo: sunholo-data/ailang
+  #       enabled: true
+  #       interval_secs: 300
+  #       target_inbox: design-doc-creator
+  #       label_routing:
+  #         - label_prefix: "coordinator:bug"
+  #           target: design-doc-creator
+  #         - label_prefix: "coordinator:docs"
+  #           target: coordinator
+  #     - repo: sunholo-data/stapledons_voyage
+  #       enabled: true
+  #       interval_secs: 300
+  #       target_inbox: stapledon-design-doc
+  #       label_routing:
+  #         - label_prefix: "feature"
+  #           target: stapledon-design-doc
 `
 }

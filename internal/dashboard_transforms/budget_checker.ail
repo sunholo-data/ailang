@@ -1,0 +1,179 @@
+-- Budget Checker Module
+--
+-- Production AILANG module for dashboard cost enforcement.
+-- Used by the Collaboration Hub to validate task budgets before execution.
+--
+-- Features:
+-- 1. requires contracts for input validation
+-- 2. Pure functions for deterministic budget calculations
+-- 3. Burn rate calculation and budget exhaustion forecasting
+--
+-- Called from: internal/server/ailang_bridge.go
+
+module internal/dashboard_transforms/budget_checker
+
+import std/list (foldl, length)
+import std/option (Option, Some, None)
+
+-- ============================================================================
+-- Types
+-- ============================================================================
+
+-- Budget configuration type
+export type BudgetConfig = {
+  workspaceBudget: float,    -- USD limit per workspace
+  dailyBudget: float,        -- USD limit per day
+  taskMaxCost: float,        -- Max cost per single task
+  warningThreshold: float    -- 0.0-1.0 (e.g., 0.8 = warn at 80%)
+}
+
+-- Budget status result
+export type BudgetStatus = {
+  allowed: bool,
+  remainingWorkspace: float,
+  remainingDaily: float,
+  warningLevel: string,      -- "ok" | "warning" | "critical" | "exceeded"
+  message: string
+}
+
+-- Cost record for burn rate calculation
+export type CostRecord = {
+  timestamp: int,  -- Unix millis
+  cost: float
+}
+
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
+
+-- Calculate minimum of two floats
+pure func minFloat(a: float, b: float) -> float =
+  if a < b then a else b
+
+-- Determine warning level from usage ratio
+pure func warningLevelFromRatio(ratio: float, threshold: float) -> string =
+  if ratio > 0.9 then "critical"
+  else if ratio > threshold then "warning"
+  else "ok"
+
+-- ============================================================================
+-- Core Budget Functions (with Contracts)
+-- ============================================================================
+
+-- Check if task can proceed within budget
+-- Demonstrates: requires contracts for input validation
+-- Note: Combined all preconditions into single requires (AILANG supports one requires per function)
+export func checkTaskBudget(config: BudgetConfig, estimatedCost: float, currentWorkspaceSpend: float, currentDailySpend: float) -> BudgetStatus ! {}
+requires { estimatedCost >= 0.0 && currentWorkspaceSpend >= 0.0 && currentDailySpend >= 0.0 && config.workspaceBudget > 0.0 && config.dailyBudget > 0.0 }
+{
+  let remainingWorkspace = config.workspaceBudget - currentWorkspaceSpend;
+  let remainingDaily = config.dailyBudget - currentDailySpend;
+  let minRemaining = minFloat(remainingWorkspace, remainingDaily);
+
+  if estimatedCost > minRemaining then {
+    allowed: false,
+    remainingWorkspace: remainingWorkspace,
+    remainingDaily: remainingDaily,
+    warningLevel: "exceeded",
+    message: "Task cost exceeds remaining budget"
+  }
+  else if estimatedCost > config.taskMaxCost then {
+    allowed: false,
+    remainingWorkspace: remainingWorkspace,
+    remainingDaily: remainingDaily,
+    warningLevel: "exceeded",
+    message: "Task exceeds maximum single-task cost"
+  }
+  else {
+    let usageRatio = (currentDailySpend + estimatedCost) / config.dailyBudget;
+    let level = warningLevelFromRatio(usageRatio, config.warningThreshold);
+    {
+      allowed: true,
+      remainingWorkspace: remainingWorkspace - estimatedCost,
+      remainingDaily: remainingDaily - estimatedCost,
+      warningLevel: level,
+      message: "Task approved"
+    }
+  }
+}
+
+-- ============================================================================
+-- Burn Rate & Forecasting
+-- ============================================================================
+
+-- Calculate burn rate (cost per hour) from recent costs
+export func calculateBurnRate(costs: [CostRecord], windowMillis: int) -> float ! {}
+requires { windowMillis > 0 }
+{
+  if length(costs) == 0 then 0.0
+  else {
+    let totalCost = foldl(func(acc: float, c: CostRecord) -> float { acc + c.cost }, 0.0, costs);
+    let windowHours = _int_to_float(windowMillis) / 3600000.0;
+    totalCost / windowHours
+  }
+}
+
+-- Forecast hours until budget exhaustion
+export func forecastExhaustion(remainingBudget: float, burnRate: float) -> Option[int] ! {}
+requires { remainingBudget >= 0.0 }
+{
+  if burnRate <= 0.0 then None
+  else Some(_float_to_int(remainingBudget / burnRate))
+}
+
+-- ============================================================================
+-- Pure Calculation Functions (with inline tests)
+-- ============================================================================
+
+-- Calculate usage percentage
+export pure func usagePercent(spent: float, budget: float) -> float
+  tests [
+    ((0.0, 100.0), 0.0),
+    ((50.0, 100.0), 50.0),
+    ((100.0, 100.0), 100.0),
+    ((75.0, 100.0), 75.0)
+  ]
+{
+  if budget <= 0.0 then 0.0
+  else (spent / budget) * 100.0
+}
+
+-- Check if budget is in warning zone
+export pure func isWarningZone(spent: float, budget: float, threshold: float) -> bool
+  tests [
+    ((0.0, 100.0, 0.8), false),
+    ((79.0, 100.0, 0.8), false),
+    ((80.0, 100.0, 0.8), true),
+    ((90.0, 100.0, 0.8), true),
+    ((100.0, 100.0, 0.8), true)
+  ]
+{
+  if budget <= 0.0 then false
+  else (spent / budget) >= threshold
+}
+
+-- Check if budget is exceeded
+export pure func isExceeded(spent: float, budget: float) -> bool
+  tests [
+    ((0.0, 100.0), false),
+    ((50.0, 100.0), false),
+    ((100.0, 100.0), false),
+    ((100.01, 100.0), true),
+    ((150.0, 100.0), true)
+  ]
+{
+  spent > budget
+}
+
+-- Calculate remaining budget
+export pure func remaining(spent: float, budget: float) -> float
+  tests [
+    ((0.0, 100.0), 100.0),
+    ((50.0, 100.0), 50.0),
+    ((100.0, 100.0), 0.0),
+    ((150.0, 100.0), 0.0)
+  ]
+{
+  let diff = budget - spent;
+  if diff < 0.0 then 0.0 else diff
+}

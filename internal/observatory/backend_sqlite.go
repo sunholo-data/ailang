@@ -18,6 +18,14 @@ func (b *SQLiteBackend) Store() *Store {
 	return b.store
 }
 
+// DB returns the underlying database for direct SQL queries.
+func (b *SQLiteBackend) DB() *sql.DB {
+	if b.store == nil {
+		return nil
+	}
+	return b.store.DB()
+}
+
 // NewSQLiteBackend creates a new SQLite backend.
 func NewSQLiteBackend(db *sql.DB) (*SQLiteBackend, error) {
 	if err := Migrate(db); err != nil {

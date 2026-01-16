@@ -1,0 +1,160 @@
+.budget-status {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid var(--border-color, #2d2d44);
+}
+
+.budget-status.ok {
+  border-color: var(--success-color, #10b981);
+}
+
+.budget-status.warning {
+  border-color: var(--warning-color, #f59e0b);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.budget-status.critical {
+  border-color: var(--error-color, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.budget-status.exceeded {
+  border-color: var(--error-color, #ef4444);
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.budget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.budget-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary, #e5e5e5);
+}
+
+.ailang-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.budget-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #252538);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.budget-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--success-color, #10b981);
+  transition: width 0.3s ease;
+}
+
+.budget-status.warning .budget-fill {
+  background: var(--warning-color, #f59e0b);
+}
+
+.budget-status.critical .budget-fill,
+.budget-status.exceeded .budget-fill {
+  background: var(--error-color, #ef4444);
+}
+
+.budget-details {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.budget-spent {
+  font-weight: 600;
+  color: var(--text-primary, #e5e5e5);
+}
+
+.budget-separator {
+  color: var(--text-muted, #6b6b7b);
+}
+
+.budget-limit {
+  color: var(--text-secondary, #a5a5b5);
+}
+
+.budget-label {
+  color: var(--text-muted, #6b6b7b);
+  margin-left: 4px;
+}
+
+.budget-warning {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-secondary, #a5a5b5);
+}
+
+/* Burn rate info */
+.burn-rate-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, #2d2d44);
+  font-size: 11px;
+}
+
+.burn-rate-label {
+  color: var(--text-muted, #6b6b7b);
+}
+
+.burn-rate-value {
+  font-weight: 600;
+  color: var(--text-primary, #e5e5e5);
+}
+
+.burn-rate-forecast {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--bg-tertiary, #252538);
+  color: var(--text-secondary, #a5a5b5);
+}
+
+.burn-rate-forecast.forecast-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning-color, #f59e0b);
+}
+
+.burn-rate-forecast.forecast-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--error-color, #ef4444);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.budget-status.loading,
+.budget-status.error {
+  color: var(--text-muted, #6b6b7b);
+  font-size: 12px;
+  text-align: center;
+}
