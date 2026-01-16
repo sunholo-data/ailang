@@ -149,7 +149,7 @@ The compilation pipeline emits detailed spans for each phase:
 
 ### Eval Harness (`ailang eval-suite`)
 
-The benchmark evaluation system emits spans for suite execution and individual benchmarks:
+The [benchmark evaluation system](/docs/guides/evaluation) emits spans for suite execution and individual benchmarks:
 
 | Span | Description | Key Attributes |
 |------|-------------|----------------|
@@ -228,6 +228,8 @@ When using `--timeout`, the `timed_out` attribute is set if compilation exceeds 
 - Filters out `/health` and `/ws` endpoints
 
 ### Coordinator (`ailang coordinator start`)
+
+The [coordinator daemon](/docs/guides/coordinator) emits task lifecycle spans:
 
 - Task lifecycle spans: `coordinator.execute_task`
 - Attributes: `task.id`, `task.type`, `task.stage`
@@ -912,3 +914,10 @@ The AILANG server will export to both destinations.
 1. Verify telemetry is initialized before AI calls
 2. Check spans are ending: `defer span.End()` in all paths
 3. Enable debug logging: set `OTEL_LOG_LEVEL=debug`
+
+## See Also
+
+- [Debugging Guide](/docs/guides/debugging) - Environment variables and CLI debug flags for troubleshooting
+- [Collaboration Hub](/docs/guides/collaboration-hub) - Real-time dashboard with Observatory integration
+- [Coordinator Guide](/docs/guides/coordinator) - Task execution lifecycle with traced spans
+- [Evaluation Framework](/docs/guides/evaluation) - AI benchmarks with `eval.suite` and `eval.benchmark` traces

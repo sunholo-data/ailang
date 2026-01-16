@@ -530,6 +530,9 @@ ailang msg send ...    # Same as: ailang messages send ...
 
 ## See Also
 
+- [Collaboration Hub](/docs/guides/collaboration-hub) - Web UI shares the same SQLite database
+- [Coordinator Guide](/docs/guides/coordinator) - Message routing and task execution
+- [Semantic Search](/docs/guides/semantic-search) - Deep dive on SimHash and neural embeddings
 - [Semantic Caching vs Vector DBs](/docs/guides/semantic-caching-vs-vectordb) - When to use semantic caching
 - [Cross-Project Messaging](/docs/guides/cross-project-messaging) - Send feedback from your projects
 - [Agent Workflows](/docs/guides/agent-workflows) - Automated agent workflows

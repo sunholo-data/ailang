@@ -233,3 +233,11 @@ Every change must update:
 - [ ] Confirm precedence levels are correct
 - [ ] Check that all AST nodes implement correct interfaces
 - [ ] Verify type substitution is working correctly
+
+## See Also
+
+- [Testing Guide](/docs/guides/testing) - Writing and running tests
+- [Debugging Guide](/docs/guides/debugging) - Debug flags and troubleshooting
+- [Development Workflow](/docs/guides/development-workflow) - Sprint planning and execution
+- [Implementation Status](/docs/reference/implementation-status) - Feature completion tracking
+- [Architecture Overview](/docs/architecture) - System design and internals

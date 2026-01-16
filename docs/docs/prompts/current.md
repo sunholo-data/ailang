@@ -1161,3 +1161,10 @@ ailang repl                                           # Interactive REPL
 ```
 
 **Flags must come BEFORE the filename!**
+
+## See Also
+
+- [Quick Start Examples](/docs/guides/quick-start-examples) - Practical code examples
+- [Examples Gallery](/docs/examples) - Complete collection of working examples
+- [AI Integration Guide](/docs/guides/agent-integration) - Using prompts with AI agents
+- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference

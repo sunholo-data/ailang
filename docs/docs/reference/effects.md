@@ -381,8 +381,11 @@ pure func double(x: int) -> int
 
 ## Related Resources
 
+- [AI Effect Guide](/docs/guides/ai-effect) - Using the AI effect for LLM calls
 - [Capability Budgets](/docs/reference/capability-budgets) - Fine-grained effect limiting
+- [Module Execution](/docs/guides/module_execution) - Running modules with effects
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
 - [Module System](/docs/reference/modules) - Imports and exports
 - [Testing Guide](/docs/guides/testing) - Writing tests
+- [Debugging Guide](/docs/guides/debugging) - Troubleshooting effect-related issues
 - [Limitations](/docs/reference/limitations) - Known limitations

@@ -354,5 +354,7 @@ This means the coordinator is trying to create a worktree from branch `dev`, but
 ## Related Documentation
 
 - [Coordinator Guide](./coordinator.md) - Full coordinator documentation
+- [Telemetry & Tracing](./telemetry.md) - Trace task execution with distributed tracing
 - [Agent Messaging](./agent-messaging.md) - Message system details
 - [Collaboration Hub](./collaboration-hub.md) - Web UI for approvals
+- [Debugging Guide](./debugging.md) - Troubleshoot coordinator issues

@@ -589,6 +589,14 @@ property "division correctness" (x: int, y: int) =
 
 ---
 
+## See Also
+
+- [Development Workflow](/docs/guides/development-workflow) - Tests are part of sprint execution
+- [Debugging Guide](/docs/guides/debugging) - Debug flags for troubleshooting test failures
+- [Module Execution](/docs/guides/module_execution) - Running modules with effects
+- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
+- [Evaluation Framework](/docs/guides/evaluation) - AI code generation benchmarks
+
 ## Resources
 
 - **Examples**: `examples/testing_basic.ail`, `examples/testing_advanced.ail`

@@ -342,3 +342,11 @@ let eq1 = 42 == 42              -- true
 let lt = 5 < 10                 -- true
 let double = \x. x + x          -- polymorphic function
 ```
+
+## See Also
+
+- [Examples](/docs/examples) - Working code examples demonstrating syntax
+- [Effect System](/docs/reference/effects) - Effect annotations and capabilities
+- [Module Reference](/docs/reference/modules) - Module imports and exports
+- [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
+- [Architecture: Types](/docs/architecture/types) - Type system internals

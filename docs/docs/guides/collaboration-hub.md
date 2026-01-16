@@ -99,7 +99,7 @@ ailang coordinator start
 The coordinator:
 - Watches for new messages automatically
 - Executes tasks in isolated git worktrees
-- Streams progress to the dashboard in real-time
+- Streams progress to the dashboard in real-time (see [Telemetry](/docs/guides/telemetry) for Observatory integration)
 - Stores results in SQLite
 
 #### 3. Send a Task
@@ -564,6 +564,9 @@ The Collaboration Hub is functional with the coordinator daemon providing real-t
 
 ## See Also
 
+- [Telemetry & Tracing](/docs/guides/telemetry) - Observatory dashboard integration and distributed tracing
 - [Coordinator Guide](/docs/guides/coordinator) - Multi-agent workflows with approval gates
+- [Coordinator Setup](/docs/guides/coordinator-setup) - External project configuration
 - [Agent Messaging](/docs/guides/agent-messaging) - CLI-based messaging between projects
+- [Debugging Guide](/docs/guides/debugging) - Troubleshooting service issues
 - [Evaluation Guide](/docs/guides/evaluation) - Running AI benchmarks

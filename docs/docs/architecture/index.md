@@ -107,3 +107,10 @@ For detailed design decisions and implementation history, see:
 
 - [Design Docs (GitHub)](https://github.com/sunholo-data/ailang/tree/main/design_docs)
 - [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md)
+
+## See Also
+
+- [Development Guide](/docs/guides/development) - Contributing to the codebase
+- [Development Workflow](/docs/guides/development-workflow) - Sprint planning and execution
+- [Testing Guide](/docs/guides/testing) - Writing and running tests
+- [Debugging Guide](/docs/guides/debugging) - Debug flags and troubleshooting

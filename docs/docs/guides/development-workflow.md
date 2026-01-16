@@ -298,6 +298,10 @@ design_docs/
 
 ## See Also
 
+- [Testing Guide](/docs/guides/testing) - Tests are part of sprint execution
+- [Debugging Guide](/docs/guides/debugging) - Debug flags for troubleshooting
+- [Architecture Overview](/docs/architecture) - System design before modifying
+- [Evaluation Framework](/docs/guides/evaluation) - AI benchmark baselines during development
 - [Design Documents](/docs/design-docs) - Browse all design docs
 - [Roadmap](/docs/roadmap) - Planned features
 - [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md) - Release history

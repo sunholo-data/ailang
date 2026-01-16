@@ -121,7 +121,7 @@ $ DEBUG_PARSER=1 ailang run test.ail
 
 | Flag | Purpose | Use When |
 |------|---------|----------|
-| `--debug-compile` | Show compilation phases/timing | Performance issues |
+| `--debug-compile` | Show compilation phases/timing (see also [Telemetry](/docs/guides/telemetry)) | Performance issues |
 | `--debug-types` | Type inference debug output | Type mismatch errors |
 | `--debug-types --node N` | Filter to specific node ID | Investigating specific node |
 | `--trace` | Execution tracing | Runtime debugging |
@@ -430,5 +430,7 @@ make doc PKG=<package>    # Show package documentation
 
 ## See Also
 
+- [Telemetry & Tracing](/docs/guides/telemetry) - Distributed tracing for performance analysis and debugging
+- [Evaluation Framework](/docs/guides/evaluation) - Debugging failed AI benchmarks
 - [Development Guide](/docs/guides/development) - Full development workflow
 - [Known Limitations](/docs/reference/limitations) - Current limitations and workarounds
