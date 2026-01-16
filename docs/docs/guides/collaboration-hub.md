@@ -6,7 +6,38 @@ description: Human-AI collaboration via the web UI and coordinator daemon
 
 # Collaboration Hub Guide
 
-The AILANG Collaboration Hub enables human-AI collaboration through a web UI and the coordinator daemon.
+The AILANG Collaboration Hub enables human-AI collaboration through a web UI and the coordinator daemon. It provides real-time visibility into autonomous agent execution, approval workflows, and multi-agent pipelines.
+
+## Overview
+
+The Collaboration Hub consists of two interfaces:
+
+### Web Dashboard (React)
+
+The web dashboard provides real-time monitoring of agent execution with:
+- **Task Execution Panel** - Live streaming of agent activity
+- **Approval Queue** - Review and approve/reject agent work with git diff viewer
+- **Message Center** - Send directives and view results
+- **Analytics** - Cost tracking, token usage, and performance metrics
+
+![AILANG Collaboration Hub - React Dashboard](/img/aitana-dashboard-react.png)
+
+### CLI Dashboard
+
+For terminal-based workflows, the CLI provides the same functionality:
+
+```bash
+# View pending approvals
+ailang coordinator pending
+
+# Interactive approval with diff viewer
+ailang coordinator approve <task-id>
+
+# Reject with feedback
+ailang coordinator reject <task-id> -f "Needs error handling"
+```
+
+![AILANG Collaboration Hub - CLI Dashboard](/img/aitana-dashboard-cli.png)
 
 ## Installation
 
@@ -87,34 +118,39 @@ Watch the coordinator execute in real-time!
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Browser (localhost:1957)                   │
-│  ┌───────────────┐  ┌───────────────┐  ┌─────────────────┐  │
-│  │ Messages Tab  │  │ Approvals Tab │  │ Task Execution  │  │
-│  │ - Send tasks  │  │ - Approve caps│  │ - Live progress │  │
-│  │ - See results │  │ - Reject risky│  │ - Real-time     │  │
-│  └───────────────┘  └───────────────┘  └─────────────────┘  │
-└────────────────────────────┬────────────────────────────────┘
-                             │ WebSocket + REST API
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    ailang serve (:1957)                      │
-│  - HTTP server on port 1957                                 │
-│  - WebSocket /ws for real-time updates                      │
-│  - REST API: /api/threads, /api/messages, /api/approvals   │
-│  - Coordinator endpoint: /api/coordinator/events            │
-└─────────────────┬──────────────────────┬────────────────────┘
-                  │                      │
-                  ▼                      ▼
-┌─────────────────────────────┐  ┌────────────────────────────┐
-│ ~/.ailang/state/            │  │   Coordinator Daemon       │
-│    collaboration.db         │  │   (ailang coordinator)     │
-│  - threads                  │  │  - Polls for messages      │
-│  - messages                 │  │  - Executes in worktrees   │
-│  - approvals                │←─│  - POSTs events to server  │
-│  - coordinator tasks        │  │  - Claude Code/Gemini CLI  │
-└─────────────────────────────┘  └────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Browser["Browser (localhost:1957)"]
+        Messages["Messages Tab<br/>Send tasks, see results"]
+        Approvals["Approvals Tab<br/>Approve/reject requests"]
+        TaskExec["Task Execution<br/>Live progress streaming"]
+    end
+
+    subgraph Server["ailang serve (:1957)"]
+        HTTP["HTTP Server"]
+        WS["WebSocket /ws"]
+        REST["REST API<br/>/api/threads, /api/messages"]
+        CoordAPI["Coordinator API<br/>/api/coordinator/events"]
+    end
+
+    subgraph Storage["~/.ailang/state/"]
+        DB[("collaboration.db<br/>threads, messages,<br/>approvals, tasks")]
+    end
+
+    subgraph Coordinator["Coordinator Daemon"]
+        Watcher["Message Watcher"]
+        Executor["Task Executor"]
+        Worktrees["Git Worktrees"]
+        AI["Claude Code /<br/>Gemini CLI"]
+    end
+
+    Browser -->|"WebSocket + REST"| Server
+    Server --> DB
+    Coordinator -->|"POST events"| CoordAPI
+    Coordinator --> DB
+    Watcher --> Executor
+    Executor --> Worktrees
+    Executor --> AI
 ```
 
 ## Approval Workflow
