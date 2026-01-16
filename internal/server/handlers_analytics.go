@@ -666,6 +666,11 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 				return nil, 0, fmt.Errorf("scan failed: %w", err)
 			}
 
+			// Normalize workspace paths to aggregate evals and tasks
+			if splitBy == "workspace" {
+				dimension = normalizeWorkspacePath(dimension)
+			}
+
 			// Initialize bucket if needed
 			if bucketMap[bucket] == nil {
 				bucketMap[bucket] = &UsageTimeSeriesPoint{
@@ -681,7 +686,8 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 			point.Turns += turns
 			point.Spans += spans
 			point.TaskCount += taskCount
-			point.ByDimension[dimension] = cost
+			// Aggregate by normalized dimension (sum if same dimension appears multiple times)
+			point.ByDimension[dimension] += cost
 		} else {
 			if err := rows.Scan(&bucket, &cost, &tokensIn, &tokensOut, &turns, &spans, &taskCount); err != nil {
 				return nil, 0, fmt.Errorf("scan failed: %w", err)
@@ -739,6 +745,57 @@ func buildSourceTypeCondition(sourceType string) string {
 	default:
 		return "1=1"
 	}
+}
+
+// normalizeWorkspacePath converts raw workspace paths to clean, aggregated names.
+// - Eval workspaces (.Eval_workspace) -> "Eval"
+// - Task worktrees (Worktrees/) -> "Tasks"
+// - Regular workspaces -> project name (last meaningful directory)
+func normalizeWorkspacePath(path string) string {
+	if path == "" || path == "unknown" {
+		return "unknown"
+	}
+
+	// Check for eval workspace
+	if strings.Contains(path, ".Eval_workspace") || strings.Contains(path, ".eval_workspace") {
+		return "Eval"
+	}
+
+	// Check for coordinator task worktree (case-insensitive)
+	lowerPath := strings.ToLower(path)
+	if strings.Contains(lowerPath, "/worktrees/") || strings.Contains(lowerPath, "/.ailang/state/worktrees/") {
+		return "Tasks"
+	}
+
+	// Extract project name from regular workspace path
+	parts := strings.Split(path, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		part := parts[i]
+		if part == "" {
+			continue
+		}
+		// Skip hidden directories
+		if strings.HasPrefix(part, ".") {
+			continue
+		}
+		// Skip common non-project directories
+		switch part {
+		case "Users", "home", "var", "tmp", "temp", "Worktrees":
+			continue
+		}
+		// Skip numeric-looking temp dirs (timestamps)
+		if len(part) > 10 && part[0] >= '0' && part[0] <= '9' {
+			continue
+		}
+		// Found a good project name
+		return part
+	}
+
+	// Fallback to last segment
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return path
 }
 
 // ============================================================================

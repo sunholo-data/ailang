@@ -1539,12 +1539,13 @@
 .heatmapExpanded {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   min-height: 100%;
+  height: 100%;
 }
 
 .heatmapExpanded .heatmapBody {
-  justify-content: center;
+  flex: 1;
+  align-items: flex-start;
 }
 
 .heatmapExpanded .heatmapDayLabels {
@@ -1579,7 +1580,7 @@
 
 .heatmapExpanded .heatmapScrollArea {
   overflow-x: auto;
-  justify-content: center;
+  flex: 1;
 }
 
 .heatmapSelection {

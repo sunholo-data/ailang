@@ -179,18 +179,40 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 3
 	}
 
+	// Migration v4: Remove unused span_events table (M-DB-CLEANUP)
+	// - span_events: designed for OTEL events but never implemented (0 rows)
+	// NOTE: messages table kept - has API endpoints in observatory/api.go
+	if currentVersion < 4 {
+		// Drop unused span_events table (IF EXISTS for idempotency)
+		_, err = db.Exec("DROP TABLE IF EXISTS span_events")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to drop span_events table: %w", err)
+		}
+
+		// Drop associated indices
+		_, _ = db.Exec("DROP INDEX IF EXISTS idx_span_events_span")
+		_, _ = db.Exec("DROP INDEX IF EXISTS idx_span_events_type")
+		_, _ = db.Exec("DROP INDEX IF EXISTS idx_span_events_time")
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (4)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 4: %w", err)
+		}
+		currentVersion = 4
+	}
+
 	return currentVersion, nil
 }
 
 // ValidateSchema checks that all expected tables exist.
 // Returns nil if schema is valid, error describing what's missing otherwise.
+// NOTE: span_events table removed in v4 migration (M-DB-CLEANUP)
 func ValidateSchema(db *sql.DB) error {
 	expectedTables := []string{
 		"workspaces",
 		"tasks",
 		"agent_assignments",
 		"spans",
-		"span_events",
 		"messages",
 		"sessions",
 		"session_tools",

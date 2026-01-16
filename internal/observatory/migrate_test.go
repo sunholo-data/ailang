@@ -64,8 +64,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrateWithVersion failed: %v", err)
 	}
-	// Current schema version is 3 (v1=base, v2=parent_task_id, v3=sessions)
-	expectedVersion := 3
+	// Current schema version is 4 (v1=base, v2=parent_task_id, v3=sessions, v4=remove unused tables)
+	expectedVersion := 4
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
@@ -107,12 +107,12 @@ func TestSchema_TablesExist(t *testing.T) {
 	}
 
 	// Check each table exists
+	// NOTE: span_events removed in v4 migration (M-DB-CLEANUP)
 	tables := []string{
 		"workspaces",
 		"tasks",
 		"agent_assignments",
 		"spans",
-		"span_events",
 		"messages",
 		"sessions",
 		"session_tools",
@@ -146,6 +146,7 @@ func TestSchema_IndexesExist(t *testing.T) {
 	}
 
 	// Check some key indexes exist
+	// NOTE: idx_span_events_* removed in v4 migration (M-DB-CLEANUP)
 	indexes := []string{
 		"idx_tasks_workspace",
 		"idx_tasks_status",
@@ -377,51 +378,4 @@ func TestSchema_SetNull_SpansOnTaskDelete(t *testing.T) {
 	}
 }
 
-func TestSchema_CascadeDelete_SpanEvents(t *testing.T) {
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open in-memory database: %v", err)
-	}
-	defer db.Close()
-
-	// Enable foreign keys
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
-	if err != nil {
-		t.Fatalf("failed to enable foreign keys: %v", err)
-	}
-
-	err = Migrate(db)
-	if err != nil {
-		t.Fatalf("Migrate failed: %v", err)
-	}
-
-	// Insert span -> event
-	_, err = db.Exec(`
-		INSERT INTO spans (id, trace_id, name, kind, status, start_time, created_at)
-		VALUES ('span1', 'trace1', 'test', 'internal', 'ok', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`)
-	if err != nil {
-		t.Fatalf("failed to insert span: %v", err)
-	}
-
-	_, err = db.Exec(`
-		INSERT INTO span_events (span_id, name, timestamp)
-		VALUES ('span1', 'test_event', CURRENT_TIMESTAMP)
-	`)
-	if err != nil {
-		t.Fatalf("failed to insert span_event: %v", err)
-	}
-
-	// Delete span - events should cascade delete
-	_, err = db.Exec("DELETE FROM spans WHERE id = 'span1'")
-	if err != nil {
-		t.Fatalf("failed to delete span: %v", err)
-	}
-
-	// Verify span_event is deleted
-	var count int
-	db.QueryRow("SELECT COUNT(*) FROM span_events WHERE span_id = 'span1'").Scan(&count)
-	if count != 0 {
-		t.Error("span_event should be deleted on span delete")
-	}
-}
+// NOTE: TestSchema_CascadeDelete_SpanEvents removed - span_events table dropped in v4 migration (M-DB-CLEANUP)

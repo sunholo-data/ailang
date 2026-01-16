@@ -196,8 +196,17 @@ func buildAgentHandoffDirectiveWithConfig(task *TaskRecord, agent *AgentConfig, 
 
 // buildTemplateDirective creates a directive from a custom template.
 // Template uses Go text/template syntax with {{.Field}} placeholders.
+// Supports loading templates from files via template_file config (v0.6.7+).
 func buildTemplateDirective(task *TaskRecord, agent *AgentConfig) string {
-	template := agent.Invoke.Template
+	// Resolve template from file or inline
+	template, err := agent.Invoke.ResolveTemplate(agent.Workspace)
+	if err != nil {
+		// Log error and fall back to task content
+		// Note: Using fmt.Printf for now - caller should handle logging
+		fmt.Printf("[WARN] Failed to resolve template for agent %s: %v\n", agent.ID, err)
+		return task.Content
+	}
+
 	if template == "" {
 		return task.Content
 	}

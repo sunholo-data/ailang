@@ -426,9 +426,24 @@ func (s *Server) Start() error {
 					return false
 				}
 				// Skip high-frequency polling endpoints (UI polls these constantly)
+				// M-DB-CLEANUP: These endpoints generate 97% of ailang-server span noise
 				if path == "/api/approvals" || path == "/api/hierarchy" ||
 					path == "/api/statistics" || path == "/api/version" ||
-					path == "/api/monitor" || path == "/api/telemetry/config" {
+					path == "/api/monitor" || path == "/api/telemetry/config" ||
+					path == "/api/inbox" {
+					return false
+				}
+				// Skip control plane polling endpoints (dashboard polls these every few seconds)
+				// M-DB-CLEANUP: /api/controlplane/* generated 140K+ spans
+				if strings.HasPrefix(path, "/api/controlplane/") {
+					return false
+				}
+				// Skip coordinator events SSE endpoint (long-lived connection, creates noise)
+				if path == "/api/coordinator/events" {
+					return false
+				}
+				// Skip budget status polling
+				if strings.HasPrefix(path, "/api/budget/") {
 					return false
 				}
 				// Skip observatory API (tracing our own traces would be confusing)

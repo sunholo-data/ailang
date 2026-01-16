@@ -15,7 +15,7 @@ import (
 // This schema extends the existing file-based agent inbox (.ailang/state/messages/)
 // to provide ordering guarantees, real-time updates, and effect-gated approvals.
 
-const schemaVersion = "1.5.0" // v1.5.0: Added parent_task_id for task hierarchy (M-UNIFIED-AI-CONTROL-PLANE)
+const schemaVersion = "1.6.0" // v1.6.0: Removed unused approvals/attachments tables (M-DB-CLEANUP)
 
 // InitDB creates and initializes a new SQLite database with the collaboration hub schema.
 // Returns the database connection and any error encountered.
@@ -100,6 +100,8 @@ func createSchema(db *sql.DB) error {
 	}
 
 	// Create core tables
+	// NOTE: attachments table removed in v1.6.0 (M-DB-CLEANUP) - never used, no consumers
+	// NOTE: approvals table kept - used by server handlers (but duplicates coordinator.approval_requests - see design doc)
 	tables := []struct {
 		name   string
 		schema string
@@ -108,7 +110,6 @@ func createSchema(db *sql.DB) error {
 		{"messages", messagesTable},
 		{"subscriptions", subscriptionsTable},
 		{"approvals", approvalsTable},
-		{"attachments", attachmentsTable},
 		{"replay_snapshots", replaySnapshotsTable},
 		{"agents", agentsTable},
 		{"metrics_aggregates", metricsAggregatesTable},
@@ -124,6 +125,7 @@ func createSchema(db *sql.DB) error {
 	}
 
 	// Create indices
+	// NOTE: attachmentsMessageIndex removed in v1.6.0 (attachments table dropped)
 	indices := []string{
 		messagesThreadSeqIndex,
 		messagesToIndex,
@@ -131,7 +133,6 @@ func createSchema(db *sql.DB) error {
 		threadsStatusIndex,
 		subscriptionsThreadIndex,
 		approvalsStatusIndex,
-		attachmentsMessageIndex,
 		replayThreadIndex,
 		metricsAggregatesPeriodIndex,
 		approvalHistoryThreadIndex,
@@ -476,6 +477,13 @@ func MigrateDB(db *sql.DB) error {
 		if err := migrateV140ToV150(db); err != nil {
 			return fmt.Errorf("migration to v1.5.0 failed: %w", err)
 		}
+		currentVersion = "1.5.0"
+	}
+
+	if currentVersion == "1.5.0" {
+		if err := migrateV150ToV160(db); err != nil {
+			return fmt.Errorf("migration to v1.6.0 failed: %w", err)
+		}
 	}
 
 	return nil
@@ -781,6 +789,29 @@ func migrateV140ToV150(db *sql.DB) error {
 
 	// Update schema version
 	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.5.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// migrateV150ToV160 removes unused attachments table (M-DB-CLEANUP)
+// - attachments: designed for large payloads but never implemented (0 rows)
+// NOTE: approvals table kept - used by server handlers even though it duplicates coordinator.approval_requests
+func migrateV150ToV160(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Drop unused attachments table (IF EXISTS for idempotency)
+	if _, err := tx.Exec("DROP TABLE IF EXISTS attachments"); err != nil {
+		return fmt.Errorf("failed to drop attachments table: %w", err)
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.6.0"); err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
 

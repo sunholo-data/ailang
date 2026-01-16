@@ -292,15 +292,17 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
       {/* Chart content */}
       <div className={styles.content}>
         {activeChart === 'heatmap' && (
-          <ActivityHeatmap
-            data={heatmapData}
-            gridData={heatmapGridData}
-            selectedRange={selectedDateRange}
-            onDateSelect={onDateSelect}
-            onCellClick={onHeatmapCellClick}
-            isExpanded={isExpanded}
-            metric={metric === 'cost' ? 'cost' : 'tasks'}
-          />
+          <div className={styles.chartContainer}>
+            <ActivityHeatmap
+              data={heatmapData}
+              gridData={heatmapGridData}
+              selectedRange={selectedDateRange}
+              onDateSelect={onDateSelect}
+              onCellClick={onHeatmapCellClick}
+              isExpanded={isExpanded}
+              metric={metric === 'cost' ? 'cost' : 'tasks'}
+            />
+          </div>
         )}
 
         {activeChart === 'evolution' && (
@@ -411,25 +413,18 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
         )}
       </div>
 
-      {/* CLI Command hint */}
+      {/* CLI Command hint - centralized component */}
       <div className={styles.cliRow}>
-        {activeChart === 'evolution' && evolutionData?.cli_command ? (
-          <div className={styles.cliHintCustom}>
-            <span className={styles.cliLabel}>CLI:</span>
-            <code className={styles.cliCommand}>{evolutionData.cli_command}</code>
-          </div>
-        ) : activeChart === 'usage' && usageData?.cli_command ? (
-          <div className={styles.cliHintCustom}>
-            <span className={styles.cliLabel}>CLI:</span>
-            <code className={styles.cliCommand}>{usageData.cli_command}</code>
-          </div>
-        ) : (
-          <CliCommandHint
-            commandType={currentCommandType}
-            filters={filters}
-            compact={!isExpanded}
-          />
-        )}
+        <CliCommandHint
+          command={
+            activeChart === 'evolution' ? evolutionData?.cli_command :
+            activeChart === 'usage' ? usageData?.cli_command :
+            undefined
+          }
+          commandType={activeChart !== 'evolution' && activeChart !== 'usage' ? currentCommandType : undefined}
+          filters={filters}
+          compact={!isExpanded}
+        />
       </div>
       </div>
     </>

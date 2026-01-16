@@ -2,6 +2,9 @@ package coordinator
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -12,9 +15,10 @@ import (
 //   - "prompt": Use custom prompt template with variable substitution
 //   - "script": Execute a shell script with JSON payload as environment variables (v0.6.4+)
 type InvokeConfig struct {
-	Type     string `yaml:"type" json:"type"`         // "skill", "agent", "prompt", or "script"
-	Name     string `yaml:"name" json:"name"`         // Skill/agent name (for skill/agent types)
-	Template string `yaml:"template" json:"template"` // Custom template (for prompt type)
+	Type         string `yaml:"type" json:"type"`                   // "skill", "agent", "prompt", or "script"
+	Name         string `yaml:"name" json:"name"`                   // Skill/agent name (for skill/agent types)
+	Template     string `yaml:"template" json:"template"`           // Custom template (for prompt type) - inline
+	TemplateFile string `yaml:"template_file" json:"template_file"` // Path to template file (for prompt type) - v0.6.7+
 
 	// Script-specific fields (v0.6.4+)
 	// Used when Type == "script" for deterministic workflow execution
@@ -23,6 +27,42 @@ type InvokeConfig struct {
 	EnvFromPayload bool   `yaml:"env_from_payload" json:"env_from_payload,omitempty"` // Parse JSON payload as env vars
 	Timeout        string `yaml:"timeout" json:"timeout,omitempty"`                   // Execution timeout (e.g., "30m", "2h")
 	WorkingDir     string `yaml:"working_dir" json:"working_dir,omitempty"`           // Working directory (supports {{.Workspace}})
+}
+
+// ResolveTemplate returns the template content, loading from file if template_file is set.
+// Priority: template_file > template (inline)
+// Supports:
+//   - Absolute paths: /path/to/template.md
+//   - Home directory: ~/.ailang/templates/design-doc.md
+//   - Relative to workspace: templates/design-doc.md (requires workspace param)
+func (ic *InvokeConfig) ResolveTemplate(workspace string) (string, error) {
+	// If template_file is set, load from file
+	if ic.TemplateFile != "" {
+		path := ic.TemplateFile
+
+		// Expand ~ to home directory
+		if strings.HasPrefix(path, "~/") {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("failed to get home directory: %w", err)
+			}
+			path = filepath.Join(home, path[2:])
+		}
+
+		// If not absolute, resolve relative to workspace
+		if !filepath.IsAbs(path) && workspace != "" {
+			path = filepath.Join(workspace, path)
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("failed to read template file %q: %w", ic.TemplateFile, err)
+		}
+		return string(content), nil
+	}
+
+	// Fall back to inline template
+	return ic.Template, nil
 }
 
 // ApprovalConfig specifies the approval workflow for an agent.

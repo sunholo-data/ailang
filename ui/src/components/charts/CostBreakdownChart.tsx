@@ -153,11 +153,16 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
   // Custom legend renderer
   const renderLegend = (props: any) => {
     const { payload } = props;
+    if (!payload || payload.length === 0) return null;
+
     return (
       <div className={styles.legend}>
         {payload.map((entry: any, index: number) => {
           const item = chartData[index];
-          const value = item.value;
+          // Guard against undefined item (can happen during data transitions)
+          if (!item) return null;
+
+          const value = item.value ?? 0;
           const percentage = metricTotal > 0 ? (value / metricTotal) * 100 : 0;
           return (
             <div

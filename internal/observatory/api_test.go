@@ -223,41 +223,7 @@ func TestAPI_SpanEndpoints(t *testing.T) {
 		t.Errorf("ListSpans: expected 200, got %d", rec.Code)
 	}
 
-	// Create span event
-	event := &SpanEvent{
-		SpanID:    "span-api-test",
-		Name:      "tool.call",
-		EventType: EventTypeTool,
-		ToolName:  "Read",
-		Timestamp: now,
-	}
-	body, _ = json.Marshal(event)
-
-	req = httptest.NewRequest("POST", "/api/observatory/spans/span-api-test/events", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec = httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Errorf("CreateSpanEvent: expected 201, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	// Get span events
-	req = httptest.NewRequest("GET", "/api/observatory/spans/span-api-test/events", nil)
-	rec = httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("GetSpanEvents: expected 200, got %d", rec.Code)
-	}
-
-	var events []SpanEvent
-	if err := json.NewDecoder(rec.Body).Decode(&events); err != nil {
-		t.Fatalf("Failed to decode events: %v", err)
-	}
-	if len(events) != 1 {
-		t.Errorf("Expected 1 event, got %d", len(events))
-	}
+	// NOTE: span_events tests removed - span_events table dropped in v4 migration (M-DB-CLEANUP)
 }
 
 func TestAPI_MessageEndpoints(t *testing.T) {

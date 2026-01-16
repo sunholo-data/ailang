@@ -12,7 +12,7 @@ export type CommandType = 'inbox' | 'spans' | 'stats' | 'traces' | 'hierarchy' |
 
 export interface CliCommandHintProps {
   /** Type of dashboard command (inbox, spans, stats, traces, hierarchy, health) */
-  commandType: CommandType;
+  commandType?: CommandType;
   /** Current filters to include in the command */
   filters?: ControlPlaneFilters;
   /** Optional limit parameter */
@@ -23,6 +23,8 @@ export interface CliCommandHintProps {
   traceId?: string;
   /** Whether to show in compact mode (single line) */
   compact?: boolean;
+  /** Direct command string (overrides built command from commandType/filters) */
+  command?: string;
 }
 
 /**
@@ -83,11 +85,13 @@ export const CliCommandHint: React.FC<CliCommandHintProps> = ({
   taskId,
   traceId,
   compact = false,
+  command: directCommand,
 }) => {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const command = buildCliCommand(commandType, filters, limit, taskId, traceId);
+  // Use direct command if provided, otherwise build from commandType/filters
+  const command = directCommand || (commandType ? buildCliCommand(commandType, filters, limit, taskId, traceId) : '');
 
   const handleCopy = useCallback(async () => {
     try {

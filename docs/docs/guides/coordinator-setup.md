@@ -104,9 +104,50 @@ When `auto_approve_handoffs: false`, each stage requires human approval before t
 | `merge_branch` | **If not `dev`** | Target branch for worktrees (default: `dev`) |
 | `invoke.type` | Yes | `skill`, `script`, or `prompt` |
 | `invoke.name` | For skills | Skill directory name |
+| `invoke.template` | For prompts | Inline prompt template |
+| `invoke.template_file` | For prompts | Path to template file (v0.6.7+) |
 | `trigger_on_complete` | No | Agent IDs to trigger on success |
 | `output_markers` | No | Lines to extract from output |
 | `artifact_patterns` | No | Glob patterns for git diff |
+
+### Template Files (v0.6.7+)
+
+For `invoke.type: prompt`, you can store templates in external files instead of inline YAML:
+
+```yaml
+invoke:
+  type: prompt
+  template_file: ~/.ailang/templates/design-doc.md  # Absolute or ~ path
+  # OR relative to workspace:
+  template_file: .claude/templates/design-doc.md
+```
+
+**Path resolution:**
+- `~/...` expands to home directory
+- Absolute paths used as-is
+- Relative paths resolved from agent's `workspace`
+
+**Template variables:**
+- `{{.TaskID}}` - Task identifier
+- `{{.GithubIssue}}` - GitHub issue number
+- `{{.Content}}` - Task content/message
+- `{{.Stage}}` - Current stage name
+- `{{.OutputMarkers}}` - Expected output markers
+
+### Generic Templates
+
+AILANG provides generic templates you can use as a starting point:
+
+```
+ailang/templates/
+├── design-doc.md       # Create design documents
+├── sprint-planner.md   # Plan implementation sprints
+└── sprint-executor.md  # Implement sprint tasks
+```
+
+Copy these to `~/.ailang/templates/` or your project, then customize for your needs.
+
+See [templates/README.md](../../../templates/README.md) for details.
 
 ## Step 3: GitHub Sync (Optional)
 

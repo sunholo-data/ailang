@@ -420,6 +420,7 @@ func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
 	}
 
 	// Filter out high-frequency polling endpoints (UI polls these constantly)
+	// M-DB-CLEANUP: These generated 97% of ailang-server span noise
 	pollingEndpoints := []string{
 		"/api/approvals",
 		"/api/hierarchy",
@@ -430,6 +431,8 @@ func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
 		"/api/metrics",
 		"/api/observatory/traces",
 		"/api/observatory/metrics",
+		"/api/inbox",
+		"/api/budget/",
 	}
 	for _, ep := range pollingEndpoints {
 		if strings.HasPrefix(name, ep) {
@@ -437,11 +440,23 @@ func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
 		}
 	}
 
-	// Filter out coordinator daemon polling operations
-	// These run every 30 seconds and clutter the trace view
+	// Filter out control plane polling endpoints (dashboard polls these every few seconds)
+	if strings.HasPrefix(name, "/api/controlplane/") {
+		return true
+	}
+
+	// Filter coordinator events SSE endpoint
+	if name == "/api/coordinator/events" {
+		return true
+	}
+
+	// Filter out daemon/server polling operations
+	// These run frequently and clutter the trace view
+	// M-DB-CLEANUP: messages.list generated 10K+ spans from automated polling
 	serviceName, _ := resourceAttrs["service.name"].(string)
-	if serviceName == "ailang-coordinator" {
-		// Filter coordinator internal polling - messages.list runs every poll cycle
+	switch serviceName {
+	case "ailang-coordinator":
+		// Filter coordinator internal polling - runs every 30 seconds
 		coordinatorPolling := []string{
 			"messages.list",
 			"messages.count",
@@ -453,7 +468,19 @@ func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
 				return true
 			}
 		}
+	case "ailang-server":
+		// Filter server-side message polling (API calls from dashboard)
+		serverPolling := []string{
+			"messages.list",
+			"messages.count",
+		}
+		for _, op := range serverPolling {
+			if name == op {
+				return true
+			}
+		}
 	}
+	// NOTE: messages.list from ailang-messages (CLI) is kept - deliberate user commands
 
 	return false
 }

@@ -91,22 +91,11 @@ CREATE TABLE IF NOT EXISTS spans (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Span events (approvals, tool calls, errors, etc.)
-CREATE TABLE IF NOT EXISTS span_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    span_id TEXT NOT NULL REFERENCES spans(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,            -- 'approval.requested', 'tool.call', 'error'
-    timestamp TIMESTAMP NOT NULL,
-    attributes TEXT NOT NULL DEFAULT '{}',
+-- NOTE: span_events table removed in migration v4 (M-DB-CLEANUP)
+-- span_events: designed for OTEL events but never implemented (0 rows)
 
-    -- Denormalized for common event types
-    event_type TEXT,               -- 'approval', 'tool', 'error', 'custom'
-    approval_status TEXT,          -- 'pending', 'approved', 'rejected'
-    tool_name TEXT,
-    error_message TEXT
-);
-
--- Messages (separate table for rich message model)
+-- Messages (observatory-specific messaging - note: overlaps with collaboration.db:inbox_messages)
+-- TODO: Consider consolidating with collaboration.db in M-DB-UNIFY
 CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
@@ -154,9 +143,7 @@ CREATE INDEX IF NOT EXISTS idx_spans_name ON spans(name);
 CREATE INDEX IF NOT EXISTS idx_spans_time ON spans(start_time DESC);
 CREATE INDEX IF NOT EXISTS idx_spans_parent ON spans(parent_span_id);
 
-CREATE INDEX IF NOT EXISTS idx_span_events_span ON span_events(span_id);
-CREATE INDEX IF NOT EXISTS idx_span_events_type ON span_events(event_type);
-CREATE INDEX IF NOT EXISTS idx_span_events_time ON span_events(timestamp DESC);
+-- NOTE: idx_span_events_* indices removed in migration v4
 
 CREATE INDEX IF NOT EXISTS idx_messages_task ON messages(task_id);
 CREATE INDEX IF NOT EXISTS idx_messages_inbox ON messages(inbox);

@@ -490,43 +490,10 @@ func TestStore_GetTrace(t *testing.T) {
 }
 
 // ===== Span Event Tests =====
+// NOTE: span_events table removed in v4 migration (M-DB-CLEANUP) - test skipped
 
 func TestStore_CreateAndGetSpanEvents(t *testing.T) {
-	store := setupTestStore(t)
-	defer store.DB().Close()
-
-	now := time.Now().Truncate(time.Second)
-	span := &Span{ID: "span-1", TraceID: "trace-1", Name: "test", Kind: SpanKindInternal, Status: SpanStatusOK, StartTime: now, CreatedAt: now}
-	store.CreateSpan(span)
-
-	events := []SpanEvent{
-		{SpanID: "span-1", Name: "tool.call", Timestamp: now, EventType: EventTypeTool, ToolName: "Read"},
-		{SpanID: "span-1", Name: "approval.request", Timestamp: now.Add(time.Second), EventType: EventTypeApproval, ApprovalStatus: ApprovalStatusPending},
-	}
-
-	for i := range events {
-		if err := store.CreateSpanEvent(&events[i]); err != nil {
-			t.Fatalf("CreateSpanEvent failed: %v", err)
-		}
-		if events[i].ID == 0 {
-			t.Error("Event ID not set")
-		}
-	}
-
-	got, err := store.GetSpanEvents("span-1")
-	if err != nil {
-		t.Fatalf("GetSpanEvents failed: %v", err)
-	}
-
-	if len(got) != 2 {
-		t.Errorf("expected 2 events, got %d", len(got))
-	}
-	if got[0].ToolName != "Read" {
-		t.Errorf("ToolName mismatch: got %s", got[0].ToolName)
-	}
-	if got[1].ApprovalStatus != ApprovalStatusPending {
-		t.Errorf("ApprovalStatus mismatch")
-	}
+	t.Skip("span_events table removed in v4 migration (M-DB-CLEANUP)")
 }
 
 // ===== Message Tests =====

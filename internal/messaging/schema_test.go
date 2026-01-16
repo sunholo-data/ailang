@@ -45,6 +45,7 @@ func TestSchemaVersion(t *testing.T) {
 }
 
 // TestTablesExist tests that all required tables are created
+// NOTE: attachments table removed in v1.6.0 (M-DB-CLEANUP)
 func TestTablesExist(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -55,7 +56,6 @@ func TestTablesExist(t *testing.T) {
 		"messages",
 		"subscriptions",
 		"approvals",
-		"attachments",
 		"replay_snapshots",
 	}
 
@@ -71,6 +71,7 @@ func TestTablesExist(t *testing.T) {
 }
 
 // TestIndicesExist tests that all required indices are created
+// NOTE: idx_attachments_message removed in v1.6.0 (M-DB-CLEANUP)
 func TestIndicesExist(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -82,7 +83,6 @@ func TestIndicesExist(t *testing.T) {
 		"idx_threads_status",
 		"idx_subscriptions_thread",
 		"idx_approvals_status",
-		"idx_attachments_message",
 		"idx_replay_thread",
 	}
 

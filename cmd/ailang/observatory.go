@@ -6,11 +6,63 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/observatory"
 )
+
+// normalizeWorkspacePath converts raw workspace paths to clean, aggregated names.
+// - Eval workspaces (.Eval_workspace) -> "Eval"
+// - Task worktrees (Worktrees/) -> "Tasks"
+// - Regular workspaces -> project name (last meaningful directory)
+func normalizeWorkspacePath(path string) string {
+	if path == "" || path == "unknown" {
+		return "unknown"
+	}
+
+	// Check for eval workspace
+	if strings.Contains(path, ".Eval_workspace") || strings.Contains(path, ".eval_workspace") {
+		return "Eval"
+	}
+
+	// Check for coordinator task worktree (case-insensitive)
+	lowerPath := strings.ToLower(path)
+	if strings.Contains(lowerPath, "/worktrees/") || strings.Contains(lowerPath, "/.ailang/state/worktrees/") {
+		return "Tasks"
+	}
+
+	// Extract project name from regular workspace path
+	parts := strings.Split(path, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		part := parts[i]
+		if part == "" {
+			continue
+		}
+		// Skip hidden directories
+		if strings.HasPrefix(part, ".") {
+			continue
+		}
+		// Skip common non-project directories
+		switch part {
+		case "Users", "home", "var", "tmp", "temp", "Worktrees":
+			continue
+		}
+		// Skip numeric-looking temp dirs (timestamps)
+		if len(part) > 10 && part[0] >= '0' && part[0] <= '9' {
+			continue
+		}
+		// Found a good project name
+		return part
+	}
+
+	// Fallback to last segment
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return path
+}
 
 func observatoryCommand() {
 	if flag.NArg() < 2 {
@@ -19,6 +71,7 @@ func observatoryCommand() {
 		fmt.Println("Subcommands:")
 		fmt.Println("  seed        Generate test data for dashboard development")
 		fmt.Println("  backfill    Link existing spans to tasks by time correlation")
+		fmt.Println("  cleanup     Delete old/noise spans based on retention policy")
 		fmt.Println("  heatmap     Get activity heatmap data (daily aggregates)")
 		fmt.Println("  evolution   Get task evolution data (cumulative metrics over time)")
 		fmt.Println("  usage       Get usage time series data (bucketed by hour/day/week)")
@@ -27,6 +80,8 @@ func observatoryCommand() {
 		fmt.Println("Examples:")
 		fmt.Println("  ailang observatory seed                    # Default: realistic workload")
 		fmt.Println("  ailang observatory seed --minimal          # Quick: 1 workspace, 2 tasks")
+		fmt.Println("  ailang observatory cleanup --dry-run       # Preview what would be deleted")
+		fmt.Println("  ailang observatory cleanup --vacuum        # Delete and reclaim disk space")
 		fmt.Println("  ailang observatory heatmap --days 30 --format ascii")
 		fmt.Println("  ailang observatory evolution --metric cost --limit 5")
 		fmt.Println("  ailang observatory usage --interval day --split-by provider")
@@ -40,6 +95,8 @@ func observatoryCommand() {
 		observatorySeedCommand()
 	case "backfill":
 		observatoryBackfillCommand()
+	case "cleanup":
+		observatoryCleanupCommand()
 	case "heatmap":
 		observatoryHeatmapCommand()
 	case "evolution":
@@ -111,6 +168,147 @@ func observatoryBackfillCommand() {
 	if *dryRun {
 		fmt.Println()
 		fmt.Println("Run without --dry-run to apply these changes.")
+	}
+}
+
+// observatoryCleanupCommand deletes old/noise spans based on retention policy.
+// M-DB-CLEANUP: Implements the retention strategy from design_docs/planned/m-db-cleanup.md
+func observatoryCleanupCommand() {
+	fs := flag.NewFlagSet("observatory cleanup", flag.ExitOnError)
+	dryRun := fs.Bool("dry-run", false, "Preview what would be deleted without making changes")
+	vacuum := fs.Bool("vacuum", false, "Run VACUUM after cleanup to reclaim disk space")
+	noiseRetention := fs.Int("noise-days", 7, "Days to keep orphan noise spans (default: 7)")
+	toolRetention := fs.Int("tool-days", 30, "Days to keep tool usage spans (default: 30)")
+	compileRetention := fs.Int("compile-days", 90, "Days to keep compilation spans (default: 90)")
+	verbose := fs.Bool("verbose", false, "Show detailed output for each category")
+
+	// Skip "ailang observatory cleanup" args
+	if err := fs.Parse(os.Args[3:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+
+	// Get database path
+	dbPath := observatory.DefaultDatabasePath()
+
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	db := backend.DB()
+	if db == nil {
+		fmt.Fprintf(os.Stderr, "Error: database connection is nil\n")
+		os.Exit(1)
+	}
+
+	// Get current span count and size
+	var totalSpans int
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM spans").Scan(&totalSpans)
+
+	fmt.Println("=== Observatory Cleanup ===")
+	fmt.Println(strings.Repeat("─", 60))
+	fmt.Printf("Database: %s\n", dbPath)
+	fmt.Printf("Total spans before: %d\n\n", totalSpans)
+
+	// Define cleanup categories with their retention policies
+	type CleanupCategory struct {
+		Name       string
+		Days       int
+		Condition  string
+		Exclusions []string // Span names to exclude from deletion
+	}
+
+	categories := []CleanupCategory{
+		{
+			Name:      "Orphan noise spans (no task_id)",
+			Days:      *noiseRetention,
+			Condition: "task_id IS NULL",
+			Exclusions: []string{
+				// Keep LLM call spans - they have cost data
+				"anthropic.%", "openai.%", "gemini.%", "ollama.%",
+			},
+		},
+		{
+			Name:      "Server HTTP spans (ailang-server)",
+			Days:      *noiseRetention,
+			Condition: "name = 'ailang-server'",
+		},
+		{
+			Name:      "Tool usage spans (claude_code.tool.*)",
+			Days:      *toolRetention,
+			Condition: "name LIKE 'claude_code.tool.%'",
+		},
+		{
+			Name:      "Compilation spans (compile.*)",
+			Days:      *compileRetention,
+			Condition: "name LIKE 'compile.%'",
+		},
+	}
+
+	var totalDeleted int
+
+	for _, cat := range categories {
+		// Build query with exclusions
+		whereClause := cat.Condition + fmt.Sprintf(" AND created_at < datetime('now', '-%d days')", cat.Days)
+		for _, excl := range cat.Exclusions {
+			whereClause += fmt.Sprintf(" AND name NOT LIKE '%s'", excl)
+		}
+
+		// Count spans to delete
+		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM spans WHERE %s", whereClause)
+		var count int
+		if err := db.QueryRowContext(ctx, countQuery).Scan(&count); err != nil {
+			fmt.Fprintf(os.Stderr, "Error counting %s: %v\n", cat.Name, err)
+			continue
+		}
+
+		if *verbose || count > 0 {
+			fmt.Printf("%-45s %6d spans (>%d days old)\n", cat.Name+":", count, cat.Days)
+		}
+
+		if count > 0 && !*dryRun {
+			deleteQuery := fmt.Sprintf("DELETE FROM spans WHERE %s", whereClause)
+			result, err := db.ExecContext(ctx, deleteQuery)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error deleting %s: %v\n", cat.Name, err)
+				continue
+			}
+			deleted, _ := result.RowsAffected()
+			totalDeleted += int(deleted)
+		} else if count > 0 {
+			totalDeleted += count
+		}
+	}
+
+	fmt.Println(strings.Repeat("─", 60))
+
+	if *dryRun {
+		fmt.Printf("Would delete: %d spans\n", totalDeleted)
+		fmt.Println()
+		fmt.Println("Run without --dry-run to apply these changes.")
+	} else {
+		fmt.Printf("Deleted: %d spans\n", totalDeleted)
+
+		// Get new span count
+		var newTotal int
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM spans").Scan(&newTotal)
+		fmt.Printf("Total spans after: %d\n", newTotal)
+
+		// Vacuum if requested
+		if *vacuum {
+			fmt.Println()
+			fmt.Println("Running VACUUM to reclaim disk space...")
+			if _, err := db.ExecContext(ctx, "VACUUM"); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: VACUUM failed: %v\n", err)
+			} else {
+				fmt.Println("VACUUM complete.")
+			}
+		}
 	}
 }
 
@@ -828,39 +1026,116 @@ func observatoryUsageCommand() {
 		dateExpr = "date(start_time)"
 	}
 
-	query := fmt.Sprintf(`
-		SELECT
-			%s as bucket,
-			COUNT(*) as span_count,
-			SUM(COALESCE(cost_usd, 0)) as total_cost,
-			SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
-		FROM spans
-		WHERE start_time >= ?
-		GROUP BY bucket
-		ORDER BY bucket
-	`, dateExpr)
-
-	rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
-		os.Exit(1)
-	}
-	defer rows.Close()
-
 	type UsagePoint struct {
-		Bucket    string  `json:"bucket"`
-		SpanCount int     `json:"span_count"`
-		Cost      float64 `json:"cost"`
-		Tokens    int64   `json:"tokens"`
+		Bucket      string             `json:"bucket"`
+		SpanCount   int                `json:"span_count"`
+		Cost        float64            `json:"cost"`
+		Tokens      int64              `json:"tokens"`
+		ByDimension map[string]float64 `json:"by_dimension,omitempty"`
 	}
 
 	var points []UsagePoint
-	for rows.Next() {
-		var p UsagePoint
-		if err := rows.Scan(&p.Bucket, &p.SpanCount, &p.Cost, &p.Tokens); err != nil {
-			continue
+
+	if *splitBy != "" {
+		// Query with dimension split
+		var splitCol string
+		switch *splitBy {
+		case "provider":
+			splitCol = "COALESCE(provider, 'unknown')"
+		case "model":
+			splitCol = "COALESCE(model, 'unknown')"
+		case "workspace":
+			splitCol = "COALESCE(json_extract(resource_attributes, '$.\"process.cwd\"'), 'unknown')"
+		default:
+			splitCol = "COALESCE(provider, 'unknown')"
 		}
-		points = append(points, p)
+
+		query := fmt.Sprintf(`
+			SELECT
+				%s as bucket,
+				%s as dimension,
+				COUNT(*) as span_count,
+				SUM(COALESCE(cost_usd, 0)) as total_cost,
+				SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
+			FROM spans
+			WHERE start_time >= ?
+			GROUP BY bucket, dimension
+			ORDER BY bucket
+		`, dateExpr, splitCol)
+
+		rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+
+		// Aggregate by bucket with dimension breakdown
+		bucketMap := make(map[string]*UsagePoint)
+		for rows.Next() {
+			var bucket, dimension string
+			var spanCount int
+			var cost float64
+			var tokens int64
+			if err := rows.Scan(&bucket, &dimension, &spanCount, &cost, &tokens); err != nil {
+				continue
+			}
+
+			// Normalize workspace paths
+			if *splitBy == "workspace" {
+				dimension = normalizeWorkspacePath(dimension)
+			}
+
+			if bucketMap[bucket] == nil {
+				bucketMap[bucket] = &UsagePoint{
+					Bucket:      bucket,
+					ByDimension: make(map[string]float64),
+				}
+			}
+			p := bucketMap[bucket]
+			p.SpanCount += spanCount
+			p.Cost += cost
+			p.Tokens += tokens
+			p.ByDimension[dimension] += cost // Aggregate by normalized dimension
+		}
+
+		// Convert map to sorted slice
+		buckets := make([]string, 0, len(bucketMap))
+		for b := range bucketMap {
+			buckets = append(buckets, b)
+		}
+		sort.Strings(buckets)
+		for _, b := range buckets {
+			points = append(points, *bucketMap[b])
+		}
+	} else {
+		// Query without split
+		query := fmt.Sprintf(`
+			SELECT
+				%s as bucket,
+				COUNT(*) as span_count,
+				SUM(COALESCE(cost_usd, 0)) as total_cost,
+				SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
+			FROM spans
+			WHERE start_time >= ?
+			GROUP BY bucket
+			ORDER BY bucket
+		`, dateExpr)
+
+		rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var p UsagePoint
+			if err := rows.Scan(&p.Bucket, &p.SpanCount, &p.Cost, &p.Tokens); err != nil {
+				continue
+			}
+			points = append(points, p)
+		}
 	}
 
 	cliCmd := fmt.Sprintf("ailang observatory usage --metric %s --interval %s --days %d",

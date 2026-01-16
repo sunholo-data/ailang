@@ -270,50 +270,9 @@ func TestSQLiteBackend_MessageOperations(t *testing.T) {
 	}
 }
 
+// NOTE: span_events table removed in v4 migration (M-DB-CLEANUP) - test skipped
 func TestSQLiteBackend_SpanEventOperations(t *testing.T) {
-	backend := setupTestBackend(t)
-	defer backend.Close()
-	ctx := context.Background()
-
-	now := time.Now().Truncate(time.Second)
-
-	// Create span first
-	span := &Span{
-		ID:        "span-1",
-		TraceID:   "trace-1",
-		Name:      "test",
-		Kind:      SpanKindClient,
-		Status:    SpanStatusOK,
-		StartTime: now,
-		CreatedAt: now,
-	}
-	backend.CreateSpan(ctx, span)
-
-	event := &SpanEvent{
-		SpanID:    "span-1",
-		Name:      "test.event",
-		Timestamp: now,
-		EventType: EventTypeCustom,
-	}
-
-	// Create
-	if err := backend.CreateSpanEvent(ctx, event); err != nil {
-		t.Fatalf("CreateSpanEvent failed: %v", err)
-	}
-
-	// Get events
-	events, err := backend.GetSpanEvents(ctx, "span-1")
-	if err != nil {
-		t.Fatalf("GetSpanEvents failed: %v", err)
-	}
-	if len(events) != 1 {
-		t.Errorf("expected 1 event, got %d", len(events))
-	}
-
-	// Delete
-	if err := backend.DeleteSpanEvent(ctx, events[0].ID); err != nil {
-		t.Fatalf("DeleteSpanEvent failed: %v", err)
-	}
+	t.Skip("span_events table removed in v4 migration (M-DB-CLEANUP)")
 }
 
 func TestSQLiteBackend_AggregateOperations(t *testing.T) {

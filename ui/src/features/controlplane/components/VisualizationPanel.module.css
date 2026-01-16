@@ -379,29 +379,6 @@
   background: var(--bg-base);
 }
 
-.cliHintCustom {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.cliLabel {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.cliCommand {
-  color: var(--text-secondary);
-  background: var(--bg-elevated);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Backdrop overlay for expanded mode */
 .backdrop {
   position: fixed;
