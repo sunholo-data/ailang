@@ -7,6 +7,7 @@ import { BreakdownItem } from '../hooks';
 import type { AggregationStats } from './types';
 import type { ControlPlaneFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
+import type { BurnRateInfo } from '../../../hooks/useBudgetStatus';
 import styles from '../ControlPlane.module.css';
 
 interface FormattedBreakdownItem extends BreakdownItem {
@@ -44,6 +45,7 @@ export interface AggregationNavProps {
   loading?: boolean;
   filters?: ControlPlaneFilters;
   highlightedItems?: HighlightedAggItems | null;
+  burnRate?: BurnRateInfo | null;
 }
 
 // Icons for different breakdown categories
@@ -71,6 +73,28 @@ const formatTokens = (count: number): string => {
   return String(count);
 };
 
+// Format burn rate for display
+const formatBurnRate = (burnRate: BurnRateInfo | null | undefined): string => {
+  if (!burnRate || burnRate.costPerHour <= 0) return '--';
+  return `$${burnRate.costPerHour.toFixed(2)}/hr`;
+};
+
+// Format hours until exhaustion for display
+const formatExhaustion = (burnRate: BurnRateInfo | null | undefined): string => {
+  if (!burnRate || burnRate.costPerHour <= 0) return '--';
+  if (burnRate.hoursUntilExhaustion < 0) return 'Safe';
+  if (burnRate.hoursUntilExhaustion === 0) return 'Now!';
+  return `${burnRate.hoursUntilExhaustion}h`;
+};
+
+// Get exhaustion status class
+const getExhaustionClass = (burnRate: BurnRateInfo | null | undefined): string => {
+  if (!burnRate || burnRate.costPerHour <= 0) return '';
+  if (burnRate.hoursUntilExhaustion >= 0 && burnRate.hoursUntilExhaustion < 4) return styles.metricCritical;
+  if (burnRate.hoursUntilExhaustion >= 0 && burnRate.hoursUntilExhaustion < 12) return styles.metricWarning;
+  return '';
+};
+
 export const AggregationNav: React.FC<AggregationNavProps> = ({
   selectedFilters,
   onFilterToggle,
@@ -80,6 +104,7 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
   loading,
   filters,
   highlightedItems,
+  burnRate,
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['global']));
 
@@ -374,6 +399,18 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
               {loading ? '...' : metrics?.tokensOut || '0'}
             </span>
             <span className={styles.metricLabel}>Tokens Out</span>
+          </div>
+          <div className={styles.metricCard} title={burnRate ? `Based on last ${burnRate.windowHours}h of activity` : 'No recent activity'}>
+            <span className={styles.metricValue}>
+              {loading ? '...' : formatBurnRate(burnRate)}
+            </span>
+            <span className={styles.metricLabel}>Burn Rate</span>
+          </div>
+          <div className={`${styles.metricCard} ${getExhaustionClass(burnRate)}`} title="Hours until daily budget exhaustion">
+            <span className={styles.metricValue}>
+              {loading ? '...' : formatExhaustion(burnRate)}
+            </span>
+            <span className={styles.metricLabel}>Budget ETA</span>
           </div>
         </div>
       </div>

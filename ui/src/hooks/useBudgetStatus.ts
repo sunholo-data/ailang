@@ -2,7 +2,8 @@
  * useBudgetStatus - Hook to fetch budget status from AILANG bridge
  * Demonstrates AILANG dogfooding: contracts (requires) and effect budgets
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { ControlPlaneFilters, buildFilterQueryString } from '../features/controlplane/types/filters';
 
 interface BudgetConfig {
   workspaceBudget: number;
@@ -41,7 +42,7 @@ interface ProviderUsage {
   hardLimit: boolean;
 }
 
-interface BurnRateInfo {
+export interface BurnRateInfo {
   costPerHour: number;
   hoursUntilExhaustion: number; // -1 if no burn rate
   windowHours: number;
@@ -63,14 +64,31 @@ interface UseBudgetStatusResult {
   refetch: () => void;
 }
 
-export function useBudgetStatus(refreshInterval = 30000): UseBudgetStatusResult {
+export function useBudgetStatus(
+  refreshInterval = 30000,
+  filters?: ControlPlaneFilters
+): UseBudgetStatusResult {
   const [budget, setBudget] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Build query string from filters (memoized to prevent unnecessary re-renders)
+  const queryString = useMemo(() => {
+    if (!filters) return '';
+    // Only include budget-relevant filters (not status, sort, search)
+    const budgetFilters: ControlPlaneFilters = {
+      provider: filters.provider,
+      workspace: filters.workspace,
+      model: filters.model,
+      start_date: filters.start_date,
+      end_date: filters.end_date,
+    };
+    return buildFilterQueryString(budgetFilters);
+  }, [filters?.provider, filters?.workspace, filters?.model, filters?.start_date, filters?.end_date]);
+
   const fetchBudget = async () => {
     try {
-      const response = await fetch('/api/budget/status');
+      const response = await fetch(`/api/budget/status${queryString}`);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -91,7 +109,7 @@ export function useBudgetStatus(refreshInterval = 30000): UseBudgetStatusResult 
       const interval = setInterval(fetchBudget, refreshInterval);
       return () => clearInterval(interval);
     }
-  }, [refreshInterval]);
+  }, [refreshInterval, queryString]);
 
   return { budget, loading, error, refetch: fetchBudget };
 }

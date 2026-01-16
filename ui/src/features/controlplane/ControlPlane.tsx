@@ -45,6 +45,7 @@ import type {
 } from './components';
 import type { EventType } from './components/MessageQueue';
 import { useObservatoryWs, useApprovals } from '../../hooks/useObservatory';
+import { useBudgetStatus } from '../../hooks/useBudgetStatus';
 import { ApprovalDetailModal, ApprovalData } from '../approvals/ApprovalDetailModal';
 import { HeaderStats } from '../../components/HeaderStats';
 import type { Approval } from '../../types';
@@ -236,6 +237,7 @@ export const ControlPlane: React.FC = () => {
   const { data: topologyData } = useTopologyData({ refreshInterval: 5000 });
   const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
   const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
+  const { budget } = useBudgetStatus(30000, filters);
   const { events: liveEvents, loading: eventsLoading } = useEventQueue({ maxEvents: 50, filters });
   // WebSocket connection status for header indicator
   const { isConnected, connectionState, lastEventTime } = useObservatoryWs({});
@@ -613,14 +615,17 @@ export const ControlPlane: React.FC = () => {
                   setSearchQuery('');
                 } else {
                   // Dimension filters (provider, model, workspace, source_type)
+                  // Note: selectedFilters uses 'source' but filters use 'source_type'
+                  const internalKey = key === 'source_type' ? 'source' : key;
                   setSelectedFilters(prev => {
                     const newFilters = { ...prev };
-                    delete newFilters[key];
+                    delete newFilters[internalKey];
                     return newFilters;
                   });
                 }
               }}
               onClearAllFilters={handleClearFilters}
+              onSetFilter={handleFilterToggle}
             />
             {/* Event Detail Panel - always visible, shows placeholder when no event selected */}
             {!topologyExpanded && (
@@ -673,6 +678,7 @@ export const ControlPlane: React.FC = () => {
             loading={statsLoading || breakdownLoading}
             filters={filters}
             highlightedItems={highlightedAggItems}
+            burnRate={budget?.burnRate}
           />
         </aside>
       </div>

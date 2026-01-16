@@ -105,11 +105,22 @@ func DefaultBudgetConfig() BudgetConfig {
 }
 
 // GET /api/budget/status - Get current budget status
+// Supports filter params: provider, workspace, model, start_date, end_date
 // Demonstrates: AILANG dogfooding with contracts
 func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
+	}
+
+	// Parse filter params from query string
+	query := r.URL.Query()
+	filter := &observatory.ControlPlaneFilter{
+		Provider:  query.Get("provider"),
+		Workspace: query.Get("workspace"),
+		Model:     query.Get("model"),
+		StartDate: query.Get("start_date"),
+		EndDate:   query.Get("end_date"),
 	}
 
 	// Get current spend from observatory spans (same source as aggregations panel)
@@ -121,11 +132,20 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 	if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 		ctx := r.Context()
 
-		// Get daily costs (today only)
-		todayStr := time.Now().Format("2006-01-02")
+		// Get daily costs - apply filters if provided, otherwise use today only
 		dailyFilter := &observatory.ControlPlaneFilter{
-			StartDate: todayStr,
-			EndDate:   todayStr,
+			Provider:  filter.Provider,
+			Workspace: filter.Workspace,
+			Model:     filter.Model,
+		}
+		if filter.StartDate != "" {
+			dailyFilter.StartDate = filter.StartDate
+			dailyFilter.EndDate = filter.EndDate
+		} else {
+			// Default to today only
+			todayStr := time.Now().Format("2006-01-02")
+			dailyFilter.StartDate = todayStr
+			dailyFilter.EndDate = todayStr
 		}
 		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter); err == nil {
 			for _, item := range breakdown {
@@ -134,8 +154,13 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Get workspace total (all time) - no time filter
-		if breakdown, err := sqliteBackend.GetBreakdownByProvider(ctx); err == nil {
+		// Get workspace total - apply dimension filters but no date filter for "all time"
+		workspaceFilter := &observatory.ControlPlaneFilter{
+			Provider:  filter.Provider,
+			Workspace: filter.Workspace,
+			Model:     filter.Model,
+		}
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, workspaceFilter); err == nil {
 			for _, item := range breakdown {
 				workspaceSpend += item.CostUSD
 			}
@@ -169,9 +194,9 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 		response.Usage.UsagePercent = (dailySpend / config.DailyBudget) * 100
 	}
 
-	// Calculate burn rate from recent tasks (last 4 hours)
+	// Calculate burn rate from recent tasks (last 4 hours), with filters
 	windowHours := 4
-	response.BurnRate = s.calculateBurnRate(bridge, config, windowHours)
+	response.BurnRate = s.calculateBurnRateFiltered(bridge, config, windowHours, filter)
 
 	// Build per-provider breakdown
 	if len(costByProvider) > 0 || len(config.ProviderBudgets) > 0 {
@@ -339,13 +364,76 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// calculateBurnRate calculates the cost per hour from recent tasks
+// calculateBurnRate calculates the cost per hour from recent tasks (no filters)
 func (s *Server) calculateBurnRate(bridge *AILANGBridge, config BudgetConfig, windowHours int) BurnRateInfo {
+	return s.calculateBurnRateFiltered(bridge, config, windowHours, nil)
+}
+
+// calculateBurnRateFiltered calculates the cost per hour from recent spans, with optional filters
+func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetConfig, windowHours int, filter *observatory.ControlPlaneFilter) BurnRateInfo {
 	info := BurnRateInfo{
 		WindowHours:          windowHours,
 		HoursUntilExhaustion: -1, // Default: no forecast
 	}
 
+	// Prefer observatory spans for burn rate (same data source as dashboard)
+	if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
+		ctx := context.Background()
+
+		// Build filter with time window
+		burnFilter := &observatory.ControlPlaneFilter{}
+		if filter != nil {
+			burnFilter.Provider = filter.Provider
+			burnFilter.Workspace = filter.Workspace
+			burnFilter.Model = filter.Model
+		}
+
+		// Set time window for burn rate calculation
+		windowStart := time.Now().Add(-time.Duration(windowHours) * time.Hour)
+		burnFilter.StartDate = windowStart.Format("2006-01-02")
+		burnFilter.EndDate = time.Now().Format("2006-01-02")
+
+		// Get costs within window
+		var totalCost float64
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, burnFilter); err == nil {
+			for _, item := range breakdown {
+				totalCost += item.CostUSD
+			}
+		}
+
+		if totalCost > 0 {
+			info.CostPerHour = totalCost / float64(windowHours)
+		}
+
+		// Calculate hours until exhaustion
+		if info.CostPerHour > 0 {
+			// Get current daily spend for remaining budget calculation
+			var dailySpend float64
+			todayStr := time.Now().Format("2006-01-02")
+			dailyFilter := &observatory.ControlPlaneFilter{
+				Provider:  burnFilter.Provider,
+				Workspace: burnFilter.Workspace,
+				Model:     burnFilter.Model,
+				StartDate: todayStr,
+				EndDate:   todayStr,
+			}
+			if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter); err == nil {
+				for _, item := range breakdown {
+					dailySpend += item.CostUSD
+				}
+			}
+
+			remainingBudget := config.DailyBudget - dailySpend
+			if remainingBudget < 0 {
+				remainingBudget = 0
+			}
+			info.HoursUntilExhaustion = bridge.ForecastExhaustion(remainingBudget, info.CostPerHour)
+		}
+
+		return info
+	}
+
+	// Fallback to coordinator tasks (no filter support)
 	if s.coordStoreRaw == nil {
 		return info
 	}
@@ -353,11 +441,11 @@ func (s *Server) calculateBurnRate(bridge *AILANGBridge, config BudgetConfig, wi
 	// Get recent tasks from the last N hours
 	ctx := context.Background()
 	windowStart := time.Now().Add(-time.Duration(windowHours) * time.Hour)
-	filter := &coordinator.TaskFilter{
+	taskFilter := &coordinator.TaskFilter{
 		Since: &windowStart,
 	}
 
-	tasks, err := s.coordStoreRaw.ListTasks(ctx, filter)
+	tasks, err := s.coordStoreRaw.ListTasks(ctx, taskFilter)
 	if err != nil {
 		log.Printf("Failed to get recent tasks for burn rate: %v", err)
 		return info

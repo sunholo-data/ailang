@@ -4,7 +4,7 @@
  * Displays cost, tokens, turns, or spans bucketed by hour/day/week,
  * optionally split by provider, model, or workspace.
  */
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -12,11 +12,21 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import type { UsageTimeSeriesPoint } from '../../hooks/useAnalytics';
 import styles from './UsageColumnChart.module.css';
+
+// Maximum number of legend items to show before collapsing
+const MAX_LEGEND_ITEMS = 8;
+
+// Type for dimension totals
+interface DimensionTotal {
+  name: string;
+  total: number;
+  color: string;
+  taskCount?: number;
+}
 
 export interface UsageColumnChartProps {
   points: UsageTimeSeriesPoint[];
@@ -84,6 +94,9 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
   height = 300,
   onBarClick,
 }) => {
+  // Track which legend item is hovered
+  const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
+
   // Extract all unique dimensions for stacked bars
   const dimensions = React.useMemo(() => {
     if (!splitBy || !points.length) return [];
@@ -95,6 +108,33 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     });
     return Array.from(dims);
   }, [points, splitBy]);
+
+  // Calculate totals per dimension for sorting and display
+  const dimensionTotals = useMemo((): DimensionTotal[] => {
+    if (!splitBy || !dimensions.length) return [];
+
+    const totals: Record<string, number> = {};
+    dimensions.forEach((dim) => {
+      totals[dim] = 0;
+    });
+
+    points.forEach((p) => {
+      if (p.by_dimension) {
+        Object.entries(p.by_dimension).forEach(([dim, value]) => {
+          totals[dim] = (totals[dim] || 0) + value;
+        });
+      }
+    });
+
+    // Sort by total descending and assign colors
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, total], index) => ({
+        name,
+        total,
+        color: DIMENSION_COLORS[name.toLowerCase()] || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      }));
+  }, [points, dimensions, splitBy]);
 
   // Transform data for Recharts
   const chartData = React.useMemo(() => {
@@ -170,6 +210,88 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     );
   };
 
+  // Truncate long dimension names for legend (show last path segment for workspaces)
+  const truncateName = (name: string): string => {
+    // For workspace paths like /Users/mark/dev/project, show "project"
+    if (name.includes('/')) {
+      const parts = name.split('/').filter(Boolean);
+      return parts[parts.length - 1] || name;
+    }
+    // For other long names, truncate
+    if (name.length > 15) {
+      return name.substring(0, 12) + '...';
+    }
+    return name;
+  };
+
+  // Calculate grand total for percentages
+  const grandTotal = useMemo(() => {
+    return dimensionTotals.reduce((sum, d) => sum + d.total, 0);
+  }, [dimensionTotals]);
+
+  // Custom legend renderer with hover popups
+  const renderCustomLegend = () => {
+    if (!splitBy || dimensionTotals.length === 0) return null;
+
+    const visibleItems = dimensionTotals.slice(0, MAX_LEGEND_ITEMS);
+    const hiddenCount = dimensionTotals.length - MAX_LEGEND_ITEMS;
+    const hiddenTotal = dimensionTotals
+      .slice(MAX_LEGEND_ITEMS)
+      .reduce((sum, d) => sum + d.total, 0);
+
+    return (
+      <div className={styles.legend}>
+        {visibleItems.map((item) => {
+          const percentage = grandTotal > 0 ? (item.total / grandTotal) * 100 : 0;
+          return (
+            <div
+              key={item.name}
+              className={styles.legendItem}
+              onMouseEnter={() => setHoveredDimension(item.name)}
+              onMouseLeave={() => setHoveredDimension(null)}
+            >
+              <span
+                className={styles.legendColor}
+                style={{ backgroundColor: item.color }}
+              />
+              <span className={styles.legendLabel} title={item.name}>
+                {truncateName(item.name)}
+              </span>
+              {hoveredDimension === item.name && (
+                <div className={styles.legendPopup}>
+                  <div className={styles.legendPopupTitle}>{item.name}</div>
+                  <div className={styles.legendPopupRow}>
+                    <span>{METRIC_LABELS[metric]}:</span>
+                    <span className={styles.legendPopupValue}>
+                      {formatMetricValue(item.total, metric)}
+                    </span>
+                  </div>
+                  <div className={styles.legendPopupRow}>
+                    <span>Share:</span>
+                    <span className={styles.legendPopupValue}>
+                      {percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className={styles.legendPopupRow}>
+                    <span>Type:</span>
+                    <span className={styles.legendPopupValue}>
+                      {splitBy}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <span className={styles.legendMore} title={`${hiddenCount} more items totaling ${formatMetricValue(hiddenTotal, metric)}`}>
+            +{hiddenCount} more
+          </span>
+        )}
+      </div>
+    );
+  };
+
   if (!points || points.length === 0) {
     return (
       <div className={styles.empty}>
@@ -209,7 +331,6 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
             tickFormatter={(value) => formatMetricValue(value, metric)}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--bg-hover)' }} />
-          {splitBy && dimensions.length > 0 && <Legend />}
           {splitBy && dimensions.length > 0 ? (
             dimensions.map((dim, index) => (
               <Bar
@@ -225,6 +346,7 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
           )}
         </BarChart>
       </ResponsiveContainer>
+      {renderCustomLegend()}
     </div>
   );
 };

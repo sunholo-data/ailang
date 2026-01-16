@@ -20,6 +20,8 @@ export interface ActivityHeatmapProps {
   selectedRange: DateRange | null;
   onDateSelect: (range: DateRange) => void;
   onCellClick: (cell: HeatmapCell) => void;
+  /** Whether the heatmap is in expanded mode (larger cells) */
+  isExpanded?: boolean;
 }
 
 // Format duration for display
@@ -35,7 +37,12 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   selectedRange,
   onDateSelect,
   onCellClick,
+  isExpanded = false,
 }) => {
+  // Grid sizing based on expanded mode
+  const cellSize = isExpanded ? 20 : 12;
+  const columnWidth = isExpanded ? 22 : 14;
+  const gap = 2;
   const [hoveredCell, setHoveredCell] = useState<HeatmapCell | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [selectionStart, setSelectionStart] = useState<string | null>(null);
@@ -268,7 +275,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   }, [gridData, filteredData]);
 
   return (
-    <div className={styles.heatmapContainer}>
+    <div className={`${styles.heatmapContainer} ${isExpanded ? styles.heatmapExpanded : ''}`}>
       <div className={styles.heatmapHeader}>
         <h3 className={styles.panelTitle}>
           <span className={styles.panelIcon}>▤</span>
@@ -335,7 +342,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
             ))}
           </div>
 
-          <div className={styles.heatmapGrid} style={{ gridTemplateColumns: `repeat(${weeks.length}, 14px)` }}>
+          <div className={styles.heatmapGrid} style={{ gridTemplateColumns: `repeat(${weeks.length}, ${columnWidth}px)` }}>
             {weeks.map((week, weekIdx) => (
               <div key={weekIdx} className={styles.heatmapWeek}>
                 {week.map((cell, dayIdx) => (

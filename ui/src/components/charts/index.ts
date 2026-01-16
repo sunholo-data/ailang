@@ -9,3 +9,6 @@ export type { TaskEvolutionChartProps } from './TaskEvolutionChart';
 
 export { UsageColumnChart } from './UsageColumnChart';
 export type { UsageColumnChartProps } from './UsageColumnChart';
+
+export { CostBreakdownChart } from './CostBreakdownChart';
+export type { CostBreakdownChartProps, BreakdownDimension } from './CostBreakdownChart';

@@ -1267,6 +1267,31 @@
   letter-spacing: 0.3px;
 }
 
+/* Burn rate warning/critical states */
+.metricWarning {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+}
+
+.metricWarning .metricValue {
+  color: var(--warning);
+}
+
+.metricCritical {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 15%, var(--bg-surface));
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.metricCritical .metricValue {
+  color: var(--error);
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
 /* ================================================================
    Main Canvas
    ================================================================ */
@@ -1508,6 +1533,53 @@
 .intensity4, .legendCell.intensity4 {
   background: var(--primary);
   box-shadow: 0 0 4px var(--primary-glow);
+}
+
+/* Expanded mode styles - larger cells for modal view */
+.heatmapExpanded {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.heatmapExpanded .heatmapBody {
+  justify-content: center;
+}
+
+.heatmapExpanded .heatmapDayLabels {
+  padding-top: 26px;
+  width: 36px;
+}
+
+.heatmapExpanded .heatmapDayLabels span {
+  height: 20px;
+  font-size: 11px;
+  line-height: 20px;
+}
+
+.heatmapExpanded .heatmapCell {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.heatmapExpanded .heatmapWeek {
+  gap: 2px;
+}
+
+.heatmapExpanded .heatmapMonthRow {
+  grid-auto-columns: 22px;
+  min-height: 20px;
+}
+
+.heatmapExpanded .monthLabel {
+  font-size: 11px;
+}
+
+.heatmapExpanded .heatmapScrollArea {
+  overflow-x: auto;
+  justify-content: center;
 }
 
 .heatmapSelection {

@@ -64,3 +64,103 @@
   font-weight: 600;
   color: var(--text-primary);
 }
+
+/* Custom Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  justify-content: center;
+  padding: var(--space-2) var(--space-1);
+  max-width: 100%;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  position: relative;
+}
+
+.legendItem:hover {
+  background: var(--bg-hover);
+}
+
+.legendColor {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendMore {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px var(--space-1);
+  cursor: help;
+}
+
+/* Legend Hover Popup */
+.legendPopup {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 180px;
+  max-width: 280px;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.legendPopup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-elevated);
+}
+
+.legendPopupTitle {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+  word-break: break-all;
+}
+
+.legendPopupRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  padding: 1px 0;
+}
+
+.legendPopupValue {
+  color: var(--text-primary);
+  font-weight: 500;
+}
