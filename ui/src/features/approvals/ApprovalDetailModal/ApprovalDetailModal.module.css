@@ -145,6 +145,96 @@
   color: var(--color-info, #0969da);
 }
 
+/* Budget widget for cost-type approvals */
+.budgetSection {
+  background: var(--color-warning-bg, #fff8c5);
+  border: 1px solid var(--color-warning-border, #d4a72c);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.budgetSection h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--color-warning-dark, #7a5500);
+}
+
+.budgetProvider {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--color-fg-default, #24292f);
+}
+
+.budgetMeter {
+  margin-bottom: 12px;
+}
+
+.budgetLabels {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.budgetSpend {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-danger, #cf222e);
+}
+
+.budgetLimit {
+  font-size: 14px;
+  color: var(--color-fg-muted, #57606a);
+}
+
+.budgetBarContainer {
+  height: 8px;
+  background: var(--color-neutral-muted, #d0d7de);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.budgetBar {
+  height: 100%;
+  background: var(--color-warning, #9a6700);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.budgetBarExceeded {
+  background: var(--color-danger, #cf222e);
+}
+
+.budgetPercent {
+  font-size: 12px;
+  color: var(--color-fg-muted, #57606a);
+  margin-top: 4px;
+}
+
+.budgetExceeded {
+  color: var(--color-danger, #cf222e);
+  font-weight: 600;
+}
+
+.budgetReason {
+  font-size: 14px;
+  color: var(--color-fg-default, #24292f);
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--color-canvas-default, white);
+  border-radius: 4px;
+}
+
+.budgetWarning {
+  font-size: 13px;
+  color: var(--color-warning-dark, #7a5500);
+  padding: 8px 12px;
+  background: var(--color-attention-subtle, #fff8c5);
+  border-left: 3px solid var(--color-warning, #9a6700);
+  border-radius: 0 4px 4px 0;
+}
+
 .approveButton {
   padding: 8px 16px;
   border: none;

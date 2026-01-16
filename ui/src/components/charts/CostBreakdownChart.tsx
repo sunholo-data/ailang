@@ -1,7 +1,7 @@
 /**
- * CostBreakdownChart - Donut chart showing cost breakdown by dimension
+ * CostBreakdownChart - Donut chart showing metric breakdown by dimension
  *
- * Displays cost distribution by provider, model, workspace, or source type
+ * Displays cost/tokens/tasks/spans distribution by provider, model, workspace, or source type
  * using a Recharts PieChart with a donut hole and interactive legend.
  */
 import React, { useMemo } from 'react';
@@ -17,11 +17,13 @@ import type { BreakdownItem } from '../../features/controlplane/hooks/useBreakdo
 import styles from './CostBreakdownChart.module.css';
 
 export type BreakdownDimension = 'provider' | 'model' | 'workspace' | 'source_type';
+export type BreakdownMetric = 'cost' | 'tokens' | 'turns' | 'spans';
 
 export interface CostBreakdownChartProps {
   items: BreakdownItem[];
   dimension: BreakdownDimension;
   totalCost: number;
+  metric?: BreakdownMetric;
   height?: number;
   onSegmentClick?: (item: BreakdownItem) => void;
 }
@@ -45,11 +47,25 @@ const DIMENSION_LABELS: Record<BreakdownDimension, string> = {
   source_type: 'Source',
 };
 
+const METRIC_LABELS: Record<BreakdownMetric, string> = {
+  cost: 'Cost',
+  tokens: 'Tokens',
+  turns: 'Tasks',
+  spans: 'Spans',
+};
+
 const formatCost = (cost: number): string => {
   if (cost >= 1000) return `$${(cost / 1000).toFixed(1)}K`;
   if (cost >= 1) return `$${cost.toFixed(2)}`;
   if (cost >= 0.01) return `$${cost.toFixed(2)}`;
   return `$${cost.toFixed(4)}`;
+};
+
+const formatMetricValue = (value: number, metric: BreakdownMetric): string => {
+  if (metric === 'cost') return formatCost(value);
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return value.toLocaleString();
 };
 
 const formatPercentage = (pct: number): string => {
@@ -58,51 +74,78 @@ const formatPercentage = (pct: number): string => {
   return `${pct.toFixed(2)}%`;
 };
 
+// Extract metric value from breakdown item
+const getMetricValue = (item: BreakdownItem, metric: BreakdownMetric): number => {
+  switch (metric) {
+    case 'cost': return item.cost_usd;
+    case 'tokens': return item.tokens_in + item.tokens_out;
+    case 'turns': return item.task_count || 0;
+    case 'spans': return item.span_count;
+  }
+};
+
 export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
   items,
   dimension,
   totalCost,
+  metric = 'cost',
   height = 300,
   onSegmentClick,
 }) => {
+  // Calculate total for the selected metric
+  const metricTotal = useMemo(() => {
+    return items.reduce((sum, item) => sum + getMetricValue(item, metric), 0);
+  }, [items, metric]);
+
   // Transform items for Recharts
   const chartData = useMemo(() => {
     return items.map((item, index) => ({
       ...item,
       name: item.label,
-      value: item.cost_usd,
+      value: getMetricValue(item, metric),
       color: COLORS[index % COLORS.length],
     }));
-  }, [items]);
+  }, [items, metric]);
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const data = payload[0].payload;
-    const percentage = totalCost > 0 ? (data.cost_usd / totalCost) * 100 : 0;
+    const value = getMetricValue(data, metric);
+    const percentage = metricTotal > 0 ? (value / metricTotal) * 100 : 0;
 
     return (
       <div className={styles.tooltip}>
         <div className={styles.tooltipHeader}>{data.label}</div>
         <div className={styles.tooltipRow}>
-          <span className={styles.tooltipLabel}>Cost:</span>
-          <span className={styles.tooltipValue}>{formatCost(data.cost_usd)}</span>
+          <span className={styles.tooltipLabel}>{METRIC_LABELS[metric]}:</span>
+          <span className={styles.tooltipValue}>{formatMetricValue(value, metric)}</span>
         </div>
         <div className={styles.tooltipRow}>
           <span className={styles.tooltipLabel}>Percentage:</span>
           <span className={styles.tooltipValue}>{formatPercentage(percentage)}</span>
         </div>
-        <div className={styles.tooltipRow}>
-          <span className={styles.tooltipLabel}>Tasks:</span>
-          <span className={styles.tooltipValue}>{data.task_count || 0}</span>
-        </div>
-        <div className={styles.tooltipRow}>
-          <span className={styles.tooltipLabel}>Tokens:</span>
-          <span className={styles.tooltipValue}>
-            {(data.tokens_in + data.tokens_out).toLocaleString()}
-          </span>
-        </div>
+        {metric !== 'cost' && (
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipLabel}>Cost:</span>
+            <span className={styles.tooltipValue}>{formatCost(data.cost_usd)}</span>
+          </div>
+        )}
+        {metric !== 'turns' && (
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipLabel}>Tasks:</span>
+            <span className={styles.tooltipValue}>{data.task_count || 0}</span>
+          </div>
+        )}
+        {metric !== 'tokens' && (
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipLabel}>Tokens:</span>
+            <span className={styles.tooltipValue}>
+              {(data.tokens_in + data.tokens_out).toLocaleString()}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -114,7 +157,8 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
       <div className={styles.legend}>
         {payload.map((entry: any, index: number) => {
           const item = chartData[index];
-          const percentage = totalCost > 0 ? (item.cost_usd / totalCost) * 100 : 0;
+          const value = item.value;
+          const percentage = metricTotal > 0 ? (value / metricTotal) * 100 : 0;
           return (
             <div
               key={`legend-${index}`}
@@ -126,7 +170,7 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
                 style={{ backgroundColor: entry.color }}
               />
               <span className={styles.legendLabel}>{entry.value}</span>
-              <span className={styles.legendValue}>{formatCost(item.cost_usd)}</span>
+              <span className={styles.legendValue}>{formatMetricValue(value, metric)}</span>
               <span className={styles.legendPct}>{formatPercentage(percentage)}</span>
             </div>
           );
@@ -146,8 +190,8 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={styles.title}>Cost by {DIMENSION_LABELS[dimension]}</span>
-        <span className={styles.total}>Total: {formatCost(totalCost)}</span>
+        <span className={styles.title}>{METRIC_LABELS[metric]} by {DIMENSION_LABELS[dimension]}</span>
+        <span className={styles.total}>Total: {formatMetricValue(metricTotal, metric)}</span>
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <PieChart>

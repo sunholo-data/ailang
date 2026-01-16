@@ -8,7 +8,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import type { ControlPlaneFilters } from '../types';
 import type { HeatmapCell, DateRange } from './types';
 import type { HeatmapGridData } from '../hooks/useHeatmapData';
-import { ActivityHeatmap } from './ActivityHeatmap';
+import { ActivityHeatmap, HeatmapMetric } from './ActivityHeatmap';
 import { FilterIndicator } from './FilterIndicator';
 import { CliCommandHint, CommandType } from './CliCommandHint';
 import { TaskEvolutionChart } from '../../../components/charts/TaskEvolutionChart';
@@ -29,6 +29,8 @@ export interface VisualizationPanelProps {
   onClearAllFilters: () => void;
   /** Handler to set/add a filter (for interactive exploration) */
   onSetFilter?: (dimension: string, value: string) => void;
+  /** Handler when a task is selected in evolution chart */
+  onTaskSelect?: (taskId: string) => void;
 
   // Heatmap props
   heatmapData: HeatmapCell[];
@@ -62,6 +64,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
   onClearFilter,
   onClearAllFilters,
   onSetFilter,
+  onTaskSelect,
   heatmapData,
   heatmapGridData,
   selectedDateRange,
@@ -77,6 +80,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
   const [interval, setInterval] = useState<IntervalType>('day');
   const [splitBy, setSplitBy] = useState<SplitByType>('');
   const [breakdownDimension, setBreakdownDimension] = useState<BreakdownDimension>('provider');
+  const [logScale, setLogScale] = useState(false);
 
   // Fetch evolution data when on evolution tab
   const { data: evolutionData, loading: evolutionLoading } = useTaskEvolution(
@@ -168,6 +172,21 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                 {!tab.available && <span className={styles.tabBadge}>Soon</span>}
               </button>
             ))}
+          </div>
+
+          {/* Global metric selector */}
+          <div className={styles.globalMetric}>
+            <select
+              value={metric}
+              onChange={(e) => setMetric(e.target.value as MetricType)}
+              className={styles.metricSelect}
+              title="Select metric for all visualizations"
+            >
+              <option value="cost">Cost</option>
+              <option value="tokens">Tokens</option>
+              <option value="turns">Tasks</option>
+              <option value="spans">Spans</option>
+            </select>
           </div>
 
           <div className={styles.controls}>
@@ -280,24 +299,20 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
             onDateSelect={onDateSelect}
             onCellClick={onHeatmapCellClick}
             isExpanded={isExpanded}
+            metric={metric === 'cost' ? 'cost' : 'tasks'}
           />
         )}
 
         {activeChart === 'evolution' && (
           <div className={styles.chartContainer}>
             <div className={styles.chartControls}>
-              <label className={styles.controlLabel}>
-                Metric:
-                <select
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value as MetricType)}
-                  className={styles.controlSelect}
-                >
-                  <option value="cost">Cost</option>
-                  <option value="tokens">Tokens</option>
-                  <option value="turns">Turns</option>
-                  <option value="spans">Spans</option>
-                </select>
+              <label className={styles.controlCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={logScale}
+                  onChange={(e) => setLogScale(e.target.checked)}
+                />
+                Log scale
               </label>
             </div>
             {evolutionLoading ? (
@@ -306,7 +321,9 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
               <TaskEvolutionChart
                 tasks={evolutionData?.tasks || []}
                 metric={metric}
+                logScale={logScale}
                 height={isExpanded ? 500 : 280}
+                onTaskClick={onTaskSelect}
               />
             )}
           </div>
@@ -315,19 +332,6 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
         {activeChart === 'usage' && (
           <div className={styles.chartContainer}>
             <div className={styles.chartControls}>
-              <label className={styles.controlLabel}>
-                Metric:
-                <select
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value as MetricType)}
-                  className={styles.controlSelect}
-                >
-                  <option value="cost">Cost</option>
-                  <option value="tokens">Tokens</option>
-                  <option value="turns">Turns</option>
-                  <option value="spans">Spans</option>
-                </select>
-              </label>
               <label className={styles.controlLabel}>
                 Interval:
                 <select
@@ -397,6 +401,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                 }
                 dimension={breakdownDimension}
                 totalCost={breakdownData.total_cost}
+                metric={metric}
                 height={isExpanded ? 450 : 260}
               />
             ) : (
@@ -408,11 +413,23 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
 
       {/* CLI Command hint */}
       <div className={styles.cliRow}>
-        <CliCommandHint
-          commandType={currentCommandType}
-          filters={filters}
-          compact={!isExpanded}
-        />
+        {activeChart === 'evolution' && evolutionData?.cli_command ? (
+          <div className={styles.cliHintCustom}>
+            <span className={styles.cliLabel}>CLI:</span>
+            <code className={styles.cliCommand}>{evolutionData.cli_command}</code>
+          </div>
+        ) : activeChart === 'usage' && usageData?.cli_command ? (
+          <div className={styles.cliHintCustom}>
+            <span className={styles.cliLabel}>CLI:</span>
+            <code className={styles.cliCommand}>{usageData.cli_command}</code>
+          </div>
+        ) : (
+          <CliCommandHint
+            commandType={currentCommandType}
+            filters={filters}
+            compact={!isExpanded}
+          />
+        )}
       </div>
       </div>
     </>

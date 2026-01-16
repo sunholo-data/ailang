@@ -88,6 +88,36 @@
   text-transform: uppercase;
 }
 
+/* Global metric selector */
+.globalMetric {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.metricSelect {
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.metricSelect:hover {
+  border-color: var(--primary);
+}
+
+.metricSelect:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-dim);
+}
+
 /* Controls */
 .controls {
   display: flex;
@@ -217,6 +247,31 @@
   box-shadow: 0 0 0 2px var(--primary-dim);
 }
 
+.controlCheckbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.controlCheckbox:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.controlCheckbox input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 /* Loading state */
 .loading {
   display: flex;
@@ -322,6 +377,29 @@
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--border-subtle);
   background: var(--bg-base);
+}
+
+.cliHintCustom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.cliLabel {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cliCommand {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Backdrop overlay for expanded mode */

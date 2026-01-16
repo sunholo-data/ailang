@@ -422,6 +422,33 @@ export const ControlPlane: React.FC = () => {
     });
   }, [fetchSpansForTrace]);
 
+  // Handler for task selection from Evolution chart
+  const handleTaskSelect = useCallback((taskId: string) => {
+    // Try to find matching event in the events list
+    const matchingEvent = events.find((event) => {
+      // Check direct task_id field
+      if (event.task_id === taskId) return true;
+      // Check metadata fields
+      const metadata = event.metadata as Record<string, unknown> | undefined;
+      if (metadata?.task_id === taskId) return true;
+      if (metadata?.parent_task_id === taskId) return true;
+      // Check if event.id matches the short task ID format
+      if (taskId.includes('/') && event.id?.startsWith(taskId.split('/')[1])) return true;
+      return false;
+    });
+
+    if (matchingEvent) {
+      // Found matching event, use the full event click handler
+      handleEventClick(matchingEvent);
+    } else {
+      // No matching event found, but still show spans for this task
+      setSelectedEventTraceId(taskId);
+      fetchSpansForTrace(taskId, 'auto');
+      // Clear detail panel to show "Select an event" state
+      setDetailPanel({ type: null, id: null });
+    }
+  }, [events, handleEventClick, fetchSpansForTrace]);
+
   const closeDetailPanel = useCallback(() => {
     setDetailPanel({ type: null, id: null });
     setSelectedEventTraceId(null);
@@ -626,6 +653,7 @@ export const ControlPlane: React.FC = () => {
               }}
               onClearAllFilters={handleClearFilters}
               onSetFilter={handleFilterToggle}
+              onTaskSelect={handleTaskSelect}
             />
             {/* Event Detail Panel - always visible, shows placeholder when no event selected */}
             {!topologyExpanded && (

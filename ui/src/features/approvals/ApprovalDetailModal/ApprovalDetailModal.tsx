@@ -500,7 +500,64 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                     </div>
                   )}
 
-                  {approval.context_json && (
+                  {/* Budget widget for cost-type approvals */}
+                  {(approval.type === 'cost' || approval.request_type === 'cost') && approval.context_json && (() => {
+                    try {
+                      const ctx = JSON.parse(approval.context_json);
+                      const usagePercent = ctx.daily_limit > 0
+                        ? Math.min((ctx.current_spend / ctx.daily_limit) * 100, 100)
+                        : 0;
+                      const isOverBudget = ctx.current_spend >= ctx.daily_limit;
+
+                      return (
+                        <div className={styles.budgetSection}>
+                          <h3>💰 Budget Status</h3>
+                          <div className={styles.budgetProvider}>
+                            Provider: <strong>{ctx.provider}</strong>
+                          </div>
+                          <div className={styles.budgetMeter}>
+                            <div className={styles.budgetLabels}>
+                              <span className={styles.budgetSpend}>
+                                ${ctx.current_spend?.toFixed(2) || '0.00'}
+                              </span>
+                              <span className={styles.budgetLimit}>
+                                / ${ctx.daily_limit?.toFixed(2) || '0.00'} daily limit
+                              </span>
+                            </div>
+                            <div className={styles.budgetBarContainer}>
+                              <div
+                                className={`${styles.budgetBar} ${isOverBudget ? styles.budgetBarExceeded : ''}`}
+                                style={{ width: `${usagePercent}%` }}
+                              />
+                            </div>
+                            <div className={styles.budgetPercent}>
+                              {usagePercent.toFixed(1)}% used
+                              {isOverBudget && <span className={styles.budgetExceeded}> — EXCEEDED</span>}
+                            </div>
+                          </div>
+                          <div className={styles.budgetReason}>
+                            <strong>Reason:</strong> {ctx.reason}
+                          </div>
+                          <div className={styles.budgetWarning}>
+                            ⚠️ Approving this task will allow it to proceed despite exceeding the budget limit.
+                          </div>
+                        </div>
+                      );
+                    } catch {
+                      // Fall back to raw JSON if parsing fails
+                      return (
+                        <div className={styles.contextSection}>
+                          <h3>Context</h3>
+                          <pre className={styles.contextJson}>
+                            {JSON.stringify(JSON.parse(approval.context_json), null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    }
+                  })()}
+
+                  {/* Generic context for non-cost approvals */}
+                  {approval.type !== 'cost' && approval.request_type !== 'cost' && approval.context_json && (
                     <div className={styles.contextSection}>
                       <h3>Context</h3>
                       <pre className={styles.contextJson}>

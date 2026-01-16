@@ -51,3 +51,159 @@
   font-weight: 500;
   color: inherit;
 }
+
+.tooltipDetails {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.tooltipDetail {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 1px 0;
+}
+
+/* Custom Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  justify-content: center;
+  padding: var(--space-2) var(--space-1);
+  max-width: 100%;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  position: relative;
+}
+
+.legendItem:hover {
+  background: var(--bg-hover);
+}
+
+.legendColor {
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendMore {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px var(--space-1);
+  cursor: help;
+}
+
+/* Legend Hover Popup */
+.legendPopup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 320px;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.legendPopup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-elevated);
+}
+
+.legendPopupTitle {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.legendPopupMeta {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.legendPopupTag {
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.legendPopupTag.provider {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.legendPopupTag.status {
+  background: var(--bg-success);
+  color: var(--text-success);
+}
+
+.legendPopupTag.statusFailed {
+  background: var(--bg-error);
+  color: var(--text-error);
+}
+
+.legendPopupRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.legendPopupValue {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.legendPopupId {
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+  font-size: 9px;
+  color: var(--text-muted);
+  word-break: break-all;
+}

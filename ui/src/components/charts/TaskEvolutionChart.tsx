@@ -4,7 +4,7 @@
  * Displays cost, tokens, turns, or spans accumulation over the course
  * of task execution. Each task starts at 0 for easy comparison.
  */
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -12,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import type { TaskEvolutionData } from '../../hooks/useAnalytics';
@@ -22,8 +21,12 @@ export interface TaskEvolutionChartProps {
   tasks: TaskEvolutionData[];
   metric: 'cost' | 'tokens' | 'turns' | 'spans';
   height?: number;
+  logScale?: boolean;
   onTaskClick?: (taskId: string) => void;
 }
+
+// Maximum legend items before collapsing
+const MAX_LEGEND_ITEMS = 8;
 
 // Color palette for multiple task lines
 const COLORS = [
@@ -60,8 +63,29 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
   tasks,
   metric,
   height = 300,
+  logScale = false,
   onTaskClick,
 }) => {
+  // Track which legend item is hovered
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+
+  // Calculate totals for each task (for sorting legend)
+  const taskTotals = useMemo(() => {
+    return tasks.map((task) => {
+      const lastPoint = task.points?.[task.points.length - 1];
+      let total = 0;
+      if (lastPoint) {
+        switch (metric) {
+          case 'cost': total = lastPoint.cost; break;
+          case 'tokens': total = lastPoint.tokens; break;
+          case 'turns': total = lastPoint.turns; break;
+          case 'spans': total = lastPoint.spans; break;
+        }
+      }
+      return { task, total };
+    }).sort((a, b) => b.total - a.total);
+  }, [tasks, metric]);
+
   // Transform data for Recharts
   // We need to align all tasks on a common X axis (turn number)
   const chartData = useMemo(() => {
@@ -102,7 +126,7 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
     return data;
   }, [tasks, metric]);
 
-  // Custom tooltip
+  // Custom tooltip with task details
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || payload.length === 0) return null;
 
@@ -112,20 +136,130 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
         {payload.map((entry: any, index: number) => {
           const task = tasks.find((t) => t.task_id === entry.dataKey);
           return (
-            <div
-              key={index}
-              className={styles.tooltipRow}
-              style={{ color: entry.color }}
-            >
-              <span className={styles.tooltipLabel}>
-                {task?.title?.substring(0, 20) || entry.dataKey}
-              </span>
-              <span className={styles.tooltipValue}>
-                {formatMetricValue(entry.value, metric)}
-              </span>
+            <div key={index}>
+              <div
+                className={styles.tooltipRow}
+                style={{ color: entry.color }}
+              >
+                <span className={styles.tooltipLabel}>
+                  {task?.title?.substring(0, 30) || entry.dataKey.substring(0, 8)}
+                </span>
+                <span className={styles.tooltipValue}>
+                  {formatMetricValue(entry.value, metric)}
+                </span>
+              </div>
+              {task && (
+                <div className={styles.tooltipDetails}>
+                  <div className={styles.tooltipDetail}>
+                    <span>Provider:</span>
+                    <span>{task.provider}</span>
+                  </div>
+                  <div className={styles.tooltipDetail}>
+                    <span>Status:</span>
+                    <span>{task.status}</span>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  // Truncate title for legend
+  const truncateTitle = (title: string, maxLen: number = 18): string => {
+    if (!title) return 'Untitled';
+    if (title.length <= maxLen) return title;
+    return title.substring(0, maxLen - 3) + '...';
+  };
+
+  // Custom legend renderer with hover popups
+  const renderCustomLegend = () => {
+    if (!tasks || tasks.length === 0) return null;
+
+    const visibleTasks = taskTotals.slice(0, MAX_LEGEND_ITEMS);
+    const hiddenCount = taskTotals.length - MAX_LEGEND_ITEMS;
+
+    return (
+      <div className={styles.legend}>
+        {visibleTasks.map(({ task, total }, index) => {
+          const color = COLORS[tasks.indexOf(task) % COLORS.length];
+          const lastPoint = task.points?.[task.points.length - 1];
+
+          return (
+            <div
+              key={task.task_id}
+              className={styles.legendItem}
+              onMouseEnter={() => setHoveredTaskId(task.task_id)}
+              onMouseLeave={() => setHoveredTaskId(null)}
+              onClick={() => onTaskClick?.(task.task_id)}
+            >
+              <span
+                className={styles.legendColor}
+                style={{ backgroundColor: color }}
+              />
+              <span className={styles.legendLabel}>
+                {truncateTitle(task.title)}
+              </span>
+              {hoveredTaskId === task.task_id && (
+                <div className={styles.legendPopup}>
+                  <div className={styles.legendPopupTitle}>{task.title || 'Untitled Task'}</div>
+                  <div className={styles.legendPopupMeta}>
+                    <span className={`${styles.legendPopupTag} ${styles.provider}`}>
+                      {task.provider}
+                    </span>
+                    <span className={`${styles.legendPopupTag} ${task.status === 'failed' ? styles.statusFailed : styles.status}`}>
+                      {task.status}
+                    </span>
+                  </div>
+                  <div className={styles.legendPopupRow}>
+                    <span>Total {METRIC_LABELS[metric]}:</span>
+                    <span className={styles.legendPopupValue}>
+                      {formatMetricValue(total, metric)}
+                    </span>
+                  </div>
+                  {lastPoint && (
+                    <>
+                      <div className={styles.legendPopupRow}>
+                        <span>Total Cost:</span>
+                        <span className={styles.legendPopupValue}>
+                          ${lastPoint.cost.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className={styles.legendPopupRow}>
+                        <span>Turns:</span>
+                        <span className={styles.legendPopupValue}>
+                          {lastPoint.turns?.toLocaleString() || 0}
+                        </span>
+                      </div>
+                      <div className={styles.legendPopupRow}>
+                        <span>Total Tokens:</span>
+                        <span className={styles.legendPopupValue}>
+                          {lastPoint.tokens.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className={styles.legendPopupRow}>
+                        <span>Spans:</span>
+                        <span className={styles.legendPopupValue}>
+                          {lastPoint.spans?.toLocaleString() || task.points?.length || 0}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className={styles.legendPopupId}>
+                    ID: {task.task_id}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <span className={styles.legendMore}>
+            +{hiddenCount} more
+          </span>
+        )}
       </div>
     );
   };
@@ -158,8 +292,11 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
             axisLine={{ stroke: 'var(--border-default)' }}
           />
           <YAxis
+            scale={logScale ? 'log' : 'auto'}
+            domain={logScale ? ['auto', 'auto'] : [0, 'auto']}
+            allowDataOverflow={logScale}
             label={{
-              value: METRIC_LABELS[metric],
+              value: `${METRIC_LABELS[metric]}${logScale ? ' (log)' : ''}`,
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'var(--text-muted)' },
@@ -169,15 +306,6 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
             tickFormatter={(value) => formatMetricValue(value, metric)}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            formatter={(value) => {
-              const task = tasks.find((t) => t.task_id === value);
-              const label = task?.title || value;
-              return label.length > 25 ? label.substring(0, 22) + '...' : label;
-            }}
-            onClick={(e) => onTaskClick?.(String(e.dataKey))}
-            wrapperStyle={{ cursor: 'pointer' }}
-          />
           {tasks.map((task, index) => (
             <Line
               key={task.task_id}
@@ -192,6 +320,7 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
           ))}
         </LineChart>
       </ResponsiveContainer>
+      {renderCustomLegend()}
     </div>
   );
 };

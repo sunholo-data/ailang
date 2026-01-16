@@ -97,19 +97,44 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
   // Track which legend item is hovered
   const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
 
-  // Extract all unique dimensions for stacked bars
+  // Check if a dimension is an eval workspace path
+  const isEvalWorkspace = (dim: string): boolean => {
+    return dim.includes('.Eval_workspace') || dim.includes('.eval_workspace');
+  };
+
+  // Check if a dimension is a coordinator task worktree
+  const isTaskWorktree = (dim: string): boolean => {
+    return dim.includes('/Worktrees/') || dim.includes('/.Ailang/State/Worktrees/');
+  };
+
+  // Normalize dimension name (aggregate eval workspaces and task worktrees)
+  const normalizeDimension = (dim: string): string => {
+    if (splitBy === 'workspace') {
+      if (isEvalWorkspace(dim)) {
+        return 'Eval';
+      }
+      if (isTaskWorktree(dim)) {
+        return 'Tasks';
+      }
+    }
+    return dim;
+  };
+
+  // Extract all unique dimensions for stacked bars (with aggregation)
   const dimensions = React.useMemo(() => {
     if (!splitBy || !points.length) return [];
     const dims = new Set<string>();
     points.forEach((p) => {
       if (p.by_dimension) {
-        Object.keys(p.by_dimension).forEach((d) => dims.add(d));
+        Object.keys(p.by_dimension).forEach((d) => {
+          dims.add(normalizeDimension(d));
+        });
       }
     });
     return Array.from(dims);
   }, [points, splitBy]);
 
-  // Calculate totals per dimension for sorting and display
+  // Calculate totals per dimension for sorting and display (with aggregation)
   const dimensionTotals = useMemo((): DimensionTotal[] => {
     if (!splitBy || !dimensions.length) return [];
 
@@ -121,7 +146,8 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     points.forEach((p) => {
       if (p.by_dimension) {
         Object.entries(p.by_dimension).forEach(([dim, value]) => {
-          totals[dim] = (totals[dim] || 0) + value;
+          const normalizedDim = normalizeDimension(dim);
+          totals[normalizedDim] = (totals[normalizedDim] || 0) + value;
         });
       }
     });
@@ -136,7 +162,7 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
       }));
   }, [points, dimensions, splitBy]);
 
-  // Transform data for Recharts
+  // Transform data for Recharts (with aggregation)
   const chartData = React.useMemo(() => {
     return points.map((p) => {
       const base: Record<string, any> = {
@@ -145,9 +171,15 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
       };
 
       if (splitBy && p.by_dimension) {
-        // Use dimension values
+        // Aggregate dimension values by normalized name
+        const aggregated: Record<string, number> = {};
+        Object.entries(p.by_dimension).forEach(([dim, value]) => {
+          const normalizedDim = normalizeDimension(dim);
+          aggregated[normalizedDim] = (aggregated[normalizedDim] || 0) + value;
+        });
+        // Apply to base
         dimensions.forEach((dim) => {
-          base[dim] = p.by_dimension?.[dim] || 0;
+          base[dim] = aggregated[dim] || 0;
         });
       } else {
         // Use total value
@@ -171,6 +203,56 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     });
   }, [points, metric, splitBy, dimensions, interval]);
 
+  // Format workspace path to a clean, readable name
+  const formatWorkspaceName = (path: string): string => {
+    if (!path.includes('/')) return path;
+
+    const parts = path.split('/').filter(Boolean);
+
+    // Check if this is an eval workspace path - aggregate all evals together
+    const evalIdx = parts.findIndex(p => p === '.Eval_workspace' || p === '.eval_workspace');
+    if (evalIdx !== -1) {
+      return 'Eval';
+    }
+
+    // Check if this is a coordinator task worktree - aggregate all tasks together
+    const worktreeIdx = parts.findIndex(p => p === 'Worktrees');
+    if (worktreeIdx !== -1) {
+      return 'Tasks';
+    }
+
+    // For regular workspaces, find the project name (skip hidden dirs, temp dirs)
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      // Skip hidden directories
+      if (part.startsWith('.')) continue;
+      // Skip common non-project directories
+      if (['Users', 'home', 'var', 'tmp', 'temp'].includes(part)) continue;
+      // Skip numeric-looking temp dirs (timestamps)
+      if (/^\d{10,}/.test(part)) continue;
+      // Skip worktree paths
+      if (part === 'Worktrees' || part === '.Ailang') continue;
+      // Found a good project name
+      return part;
+    }
+
+    // Fallback to last segment
+    return parts[parts.length - 1] || path;
+  };
+
+  // Truncate long dimension names for legend
+  const truncateName = (name: string, isSplitByWorkspace: boolean): string => {
+    // For workspace paths, use smart formatting
+    if (isSplitByWorkspace && name.includes('/')) {
+      return formatWorkspaceName(name);
+    }
+    // For other long names, truncate
+    if (name.length > 15) {
+      return name.substring(0, 12) + '...';
+    }
+    return name;
+  };
+
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || payload.length === 0) return null;
@@ -186,20 +268,29 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     return (
       <div className={styles.tooltip}>
         <div className={styles.tooltipHeader}>{dataPoint?.bucket || label}</div>
-        {payload.map((entry: any, index: number) => (
-          <div
-            key={index}
-            className={styles.tooltipRow}
-            style={{ color: entry.color }}
-          >
-            <span className={styles.tooltipLabel}>
-              {entry.dataKey === 'value' ? METRIC_LABELS[metric] : entry.dataKey}
-            </span>
-            <span className={styles.tooltipValue}>
-              {formatMetricValue(entry.value, metric)}
-            </span>
-          </div>
-        ))}
+        {payload.map((entry: any, index: number) => {
+          // Format the label - use the dataKey as-is since it's already normalized
+          let displayLabel = entry.dataKey;
+          if (entry.dataKey === 'value') {
+            displayLabel = METRIC_LABELS[metric];
+          } else if (splitBy === 'workspace' && entry.dataKey.includes('/')) {
+            // Non-aggregated workspace paths (shouldn't happen with aggregation)
+            displayLabel = formatWorkspaceName(entry.dataKey);
+          }
+          // dataKey is already normalized (e.g., "Eval" for eval workspaces)
+          return (
+            <div
+              key={index}
+              className={styles.tooltipRow}
+              style={{ color: entry.color }}
+            >
+              <span className={styles.tooltipLabel}>{displayLabel}</span>
+              <span className={styles.tooltipValue}>
+                {formatMetricValue(entry.value, metric)}
+              </span>
+            </div>
+          );
+        })}
         {splitBy && payload.length > 1 && (
           <div className={styles.tooltipTotal}>
             <span>Total</span>
@@ -208,20 +299,6 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
         )}
       </div>
     );
-  };
-
-  // Truncate long dimension names for legend (show last path segment for workspaces)
-  const truncateName = (name: string): string => {
-    // For workspace paths like /Users/mark/dev/project, show "project"
-    if (name.includes('/')) {
-      const parts = name.split('/').filter(Boolean);
-      return parts[parts.length - 1] || name;
-    }
-    // For other long names, truncate
-    if (name.length > 15) {
-      return name.substring(0, 12) + '...';
-    }
-    return name;
   };
 
   // Calculate grand total for percentages
@@ -255,7 +332,7 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
                 style={{ backgroundColor: item.color }}
               />
               <span className={styles.legendLabel} title={item.name}>
-                {truncateName(item.name)}
+                {truncateName(item.name, splitBy === 'workspace')}
               </span>
               {hoveredDimension === item.name && (
                 <div className={styles.legendPopup}>

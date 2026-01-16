@@ -163,8 +163,20 @@ func (s *Server) handleTaskEvolution(w http.ResponseWriter, r *http.Request) {
 	if filter.Provider != "" {
 		cliParts = append(cliParts, "--provider", filter.Provider)
 	}
+	if filter.Model != "" {
+		cliParts = append(cliParts, "--model", filter.Model)
+	}
+	if filter.SourceType != "" {
+		cliParts = append(cliParts, "--source", filter.SourceType)
+	}
+	if filter.Workspace != "" {
+		cliParts = append(cliParts, "--workspace", filter.Workspace)
+	}
 	if filter.StartDate != "" {
 		cliParts = append(cliParts, "--since", filter.StartDate)
+	}
+	if filter.EndDate != "" {
+		cliParts = append(cliParts, "--until", filter.EndDate)
 	}
 	cliParts = append(cliParts, "--format", "json")
 	cliCommand := strings.Join(cliParts, " ")
@@ -257,6 +269,13 @@ func getRecentTasksForEvolution(ctx context.Context, db *sql.DB, filter *observa
 		conditions = append(conditions, "date(start_time) <= ?")
 		args = append(args, filter.EndDate)
 	}
+	if filter.SourceType != "" {
+		conditions = append(conditions, buildSourceTypeCondition(filter.SourceType))
+	}
+	if filter.Workspace != "" {
+		conditions = append(conditions, `json_extract(resource_attributes, '$."process.cwd"') LIKE ?`)
+		args = append(args, "%"+filter.Workspace+"%")
+	}
 
 	query := fmt.Sprintf(`
 		SELECT task_id, MAX(start_time) as latest
@@ -289,6 +308,66 @@ func getRecentTasksForEvolution(ctx context.Context, db *sql.DB, filter *observa
 
 // getTaskEvolutionForTask gets evolution points for a single task
 func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, interval string) (*TaskEvolutionTask, error) {
+	// First, try to get task title from tasks table
+	var taskTitle string
+	var taskStatus string
+	titleQuery := `SELECT COALESCE(title, ''), COALESCE(status, '') FROM tasks WHERE id = ?`
+	_ = db.QueryRowContext(ctx, titleQuery, taskID).Scan(&taskTitle, &taskStatus)
+
+	// If no title found, try to derive from span's workspace path
+	if taskTitle == "" {
+		// For eval tasks, use a clean format
+		if strings.HasPrefix(taskID, "eval-") {
+			shortID := taskID
+			if len(shortID) > 12 {
+				shortID = shortID[:12]
+			}
+			taskTitle = shortID
+		} else {
+			workspaceQuery := `
+				SELECT json_extract(resource_attributes, '$."process.cwd"')
+				FROM spans
+				WHERE task_id = ? AND resource_attributes IS NOT NULL
+				LIMIT 1
+			`
+			var workspace sql.NullString
+			if err := db.QueryRowContext(ctx, workspaceQuery, taskID).Scan(&workspace); err == nil && workspace.Valid && workspace.String != "" {
+				// Extract project name from workspace path
+				parts := strings.Split(workspace.String, "/")
+				projectName := ""
+				for i := len(parts) - 1; i >= 0; i-- {
+					part := parts[i]
+					// Skip temp workspace components
+					if part == "" || part == ".eval_workspace" || strings.HasPrefix(part, ".") {
+						continue
+					}
+					// Skip numeric-looking temp dirs
+					if len(part) > 15 && part[0] >= '0' && part[0] <= '9' {
+						continue
+					}
+					projectName = part
+					break
+				}
+				if projectName == "" {
+					projectName = "session"
+				}
+				// Add short task ID suffix to distinguish sessions in same project
+				shortID := taskID
+				if len(shortID) > 8 {
+					shortID = shortID[:8]
+				}
+				taskTitle = fmt.Sprintf("%s/%s", projectName, shortID)
+			} else {
+				// Fallback to just short task ID
+				shortID := taskID
+				if len(shortID) > 8 {
+					shortID = shortID[:8]
+				}
+				taskTitle = fmt.Sprintf("session/%s", shortID)
+			}
+		}
+	}
+
 	// Query spans for this task ordered by time
 	query := `
 		SELECT
@@ -312,6 +391,8 @@ func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, int
 
 	task := &TaskEvolutionTask{
 		TaskID: taskID,
+		Title:  taskTitle,
+		Status: taskStatus,
 		Points: []TaskEvolutionPoint{},
 	}
 

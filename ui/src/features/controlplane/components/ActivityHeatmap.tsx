@@ -11,6 +11,7 @@ import type { HeatmapGridData, HeatmapGridCell } from '../hooks/useHeatmapData';
 import styles from '../ControlPlane.module.css';
 
 type HeatmapRange = '3m' | '6m' | '1y';
+export type HeatmapMetric = 'tasks' | 'cost';
 
 export interface ActivityHeatmapProps {
   /** Flat cell array (legacy mode) */
@@ -22,6 +23,8 @@ export interface ActivityHeatmapProps {
   onCellClick: (cell: HeatmapCell) => void;
   /** Whether the heatmap is in expanded mode (larger cells) */
   isExpanded?: boolean;
+  /** Metric to use for intensity (tasks or cost) */
+  metric?: HeatmapMetric;
 }
 
 // Format duration for display
@@ -31,6 +34,26 @@ const formatDuration = (ms: number): string => {
   return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
 };
 
+// Get metric value from cell
+const getCellMetricValue = (cell: HeatmapCell, metric: HeatmapMetric): number => {
+  return metric === 'cost' ? cell.cost : cell.taskCount;
+};
+
+// Format metric value for display
+const formatMetricValue = (value: number, metric: HeatmapMetric): string => {
+  if (metric === 'cost') {
+    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+    if (value >= 1) return `$${value.toFixed(2)}`;
+    return `$${value.toFixed(3)}`;
+  }
+  return value.toLocaleString();
+};
+
+const METRIC_LABELS: Record<HeatmapMetric, string> = {
+  tasks: 'tasks',
+  cost: 'cost',
+};
+
 export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   data,
   gridData,
@@ -38,6 +61,7 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
   onDateSelect,
   onCellClick,
   isExpanded = false,
+  metric = 'tasks',
 }) => {
   // Grid sizing based on expanded mode
   const cellSize = isExpanded ? 20 : 12;
@@ -64,26 +88,28 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     return data.filter(cell => cell.date >= cutoffStr);
   }, [data, displayRange]);
 
-  // Calculate max task count for relative intensity scaling
-  const maxCount = useMemo(() => {
-    const counts = filteredData.map(c => c.taskCount).filter(c => c > 0);
-    return counts.length > 0 ? Math.max(...counts) : 1;
-  }, [filteredData]);
+  // Calculate max value for relative intensity scaling (based on selected metric)
+  const maxValue = useMemo(() => {
+    const values = filteredData.map(c => getCellMetricValue(c, metric)).filter(v => v > 0);
+    return values.length > 0 ? Math.max(...values) : 1;
+  }, [filteredData, metric]);
 
   // Get intensity level (0-4) for a cell
-  // Uses pre-computed intensity from API when available (grid mode)
+  // Uses pre-computed intensity from API when available (grid mode, only for tasks)
   const getIntensity = (cell: HeatmapCell & { _intensity?: number }): number => {
     // Use pre-computed intensity from grid mode (0-1 range → 0-4 levels)
-    if (typeof cell._intensity === 'number') {
+    // Only use for tasks metric since API computes intensity for task counts
+    if (metric === 'tasks' && typeof cell._intensity === 'number') {
       if (cell._intensity === 0) return 0;
       if (cell._intensity <= 0.25) return 1;
       if (cell._intensity <= 0.50) return 2;
       if (cell._intensity <= 0.75) return 3;
       return 4;
     }
-    // Legacy fallback: compute from count
-    if (cell.taskCount === 0) return 0;
-    const ratio = cell.taskCount / maxCount;
+    // Compute from metric value
+    const value = getCellMetricValue(cell, metric);
+    if (value === 0) return 0;
+    const ratio = value / maxValue;
     if (ratio <= 0.25) return 1;  // 0-25% of max
     if (ratio <= 0.50) return 2;  // 25-50% of max
     if (ratio <= 0.75) return 3;  // 50-75% of max
@@ -274,6 +300,20 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
     return { totalTasks, totalCost };
   }, [gridData, filteredData]);
 
+  // Format totals based on selected metric (primary metric shown first)
+  const formattedTotals = useMemo(() => {
+    if (metric === 'cost') {
+      return {
+        primary: `$${totals.totalCost.toFixed(2)}`,
+        secondary: `${totals.totalTasks} tasks`,
+      };
+    }
+    return {
+      primary: `${totals.totalTasks} tasks`,
+      secondary: `$${totals.totalCost.toFixed(2)}`,
+    };
+  }, [metric, totals]);
+
   return (
     <div className={`${styles.heatmapContainer} ${isExpanded ? styles.heatmapExpanded : ''}`}>
       <div className={styles.heatmapHeader}>
@@ -282,8 +322,8 @@ export const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
           Activity
         </h3>
         <div className={styles.heatmapTotals}>
-          <span className={styles.heatmapTotal}>{totals.totalTasks} tasks</span>
-          <span className={styles.heatmapTotal}>${totals.totalCost.toFixed(2)}</span>
+          <span className={styles.heatmapTotal}>{formattedTotals.primary}</span>
+          <span className={styles.heatmapTotal}>{formattedTotals.secondary}</span>
         </div>
         <div className={styles.heatmapRangeSelector}>
           <button
