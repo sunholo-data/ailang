@@ -9,7 +9,7 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Basic terminal-like styling (customize to match your theme)
 const styles = {
@@ -62,7 +62,7 @@ export default function AilangRepl() {
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const containerRef = useRef(null);
-  // Use absolute path directly - useBaseUrl was incorrectly prepending /ailang/
+  // Use absolute path - site is now at root, not /ailang/ subdirectory
   const wasmUrl = '/wasm/ailang.wasm';
 
   // Initialize WASM REPL

@@ -18,7 +18,7 @@ func TestNewApprovalWatcher(t *testing.T) {
 	watcher := NewApprovalWatcher(poster, store, 0)
 
 	if watcher == nil {
-		t.Error("NewApprovalWatcher returned nil")
+		t.Fatal("NewApprovalWatcher returned nil")
 	}
 
 	// Verify default poll interval is set when 0 is passed
@@ -506,12 +506,14 @@ func TestConcurrentRegisterAgent(t *testing.T) {
 
 // Mock implementations for testing
 
+//nolint:unused // Scaffolded for future GitHub API mocking tests
 type mockGitHubPoster struct {
 	getLabels              func(issueNum int) ([]string, error)
 	removeLabel            func(issueNum int, label string) error
 	getRecentHumanComments func(issueNum int, since time.Time) ([]IssueComment, error)
 }
 
+//nolint:unused // Implements interface method for mock
 func (m *mockGitHubPoster) GetLabels(issueNum int) ([]string, error) {
 	if m.getLabels != nil {
 		return m.getLabels(issueNum)
@@ -519,6 +521,7 @@ func (m *mockGitHubPoster) GetLabels(issueNum int) ([]string, error) {
 	return []string{}, nil
 }
 
+//nolint:unused // Implements interface method for mock
 func (m *mockGitHubPoster) RemoveLabel(issueNum int, label string) error {
 	if m.removeLabel != nil {
 		return m.removeLabel(issueNum, label)
@@ -526,6 +529,7 @@ func (m *mockGitHubPoster) RemoveLabel(issueNum int, label string) error {
 	return nil
 }
 
+//nolint:unused // Implements interface method for mock
 func (m *mockGitHubPoster) GetRecentHumanComments(issueNum int, since time.Time) ([]IssueComment, error) {
 	if m.getRecentHumanComments != nil {
 		return m.getRecentHumanComments(issueNum, since)

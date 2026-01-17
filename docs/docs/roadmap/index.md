@@ -16,8 +16,10 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.8.0
 
+- [M-CLOUD-INFRA: GCP Cloud Infrastructure for AILANG Services](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-cloud-infra.md)
 - [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-contracts-assert.md)
 - [M-CSP-SESSION-TYPES: CSP Concurrency with Session Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-csp-session-types.md)
+- [M-GENERIC-PIPELINE: Config-Driven Agent Pipelines](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-generic-pipeline.md)
 - [M-LOCOBENCH: Long-Context Benchmark Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-locobench-long-context-benchmark.md)
 - [M-SEM-KERNEL: AILANG as a Symbolic Reasoning Kernel](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-sem-kernel-vision.md)
 - [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_0/m-verify-smt-verification.md)
@@ -30,6 +32,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-UX2: Dev Experience Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/M-UX2_dev_experience_polish.md)
 - [AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/execution-profiles.md)
 - [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/global-collaboration-hub.md)
+- [M-ARCH-BOUNDARIES: Formalize Dashboard/Core Separation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-arch-boundaries.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-call-sugar-optional.md)
 - [M-CLOUD-EVAL: Distributed Cloud Evaluation Workers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-cloud-eval-workers.md)
 - [M-CLOUD-STORAGE: Cloud Database Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-cloud-storage.md)
@@ -37,12 +40,16 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-codegen-v3-binding-hoisting.md)
 - [M-COORDINATOR: Always-On Autonomous Development Daemon](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-coordinator-always-on-daemon.md)
 - [M-D4: Design-Doc-Driven Development (D4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-d4-design-doc-driven-development.md)
+- [M-ENTROPY: Semantic Entropy Budgets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-entropy-budgets.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-error-propagation.md)
 - [M-EVAL-UNIFIED-EXEC-CODEGEN: Unified Exec-Based Code Generation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-eval-unified-exec-codegen.md)
 - [M-PERF3: Performance Quick Wins for 1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-perf3-performance-quick-wins.md)
+- [M-PIPELINE-STANDALONE-EXPR: Standalone Expression Evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-pipeline-standalone-expr.md)
 - [M-POLY-ARITH: Fix Polymorphic Arithmetic Operators in Lambdas](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-poly-arithmetic-fix.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-quasi-typed-quasiquotes.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-reflect-structural-reflection.md)
+- [Sprint Plan: M-STDLIB-DATETIME](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-stdlib-datetime-sprint-plan.md)
+- [M-STDLIB-DATETIME: Date and Time Standard Library](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-stdlib-datetime.md)
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-string-interpolation.md)
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-trace-export.md)
 - [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/semantic-caching-future.md)
@@ -68,35 +75,12 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.6.4
 
-- [M-CODEGEN-LIST-TYPE-DEFINITION: Fix Undefined List Type in Generated Code](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-codegen-list-type-definition.md)
-- [M-CODEGEN-LIST-TYPE: Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-codegen-list-type-sprint-plan.md)
-- [M-CONTROL-PLANE-INTERACTIVE-FILTERING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-control-plane-interactive-filtering.md)
-- [Sprint Plan: M-CONTROL-PLANE-V4-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-control-plane-v4-integration-sprint-plan.md)
-- [M-CONTROL-PLANE-V4-INTEGRATION: Unified Telemetry for Agent Monitoring](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-control-plane-v4-integration.md)
-- [M-CONTROL-PLANE-V4: AILANG Operations Control Plane](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-control-plane-v4.md)
 - [M-COORD-THINKING: Extended Thinking Levels for Coordinator Skills](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-coord-thinking-levels.md)
-- [M-COORDINATOR-TEST-WORKFLOW: Simple Coordinator Test File Creation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-coordinator-test-workflow.md)
 - [M-COPILOT-CLI: GitHub Copilot CLI Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-copilot-cli-integration.md)
-- [Sprint Plan: M-DASHBOARD-APPROVAL-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-dashboard-approval-integration-sprint-plan.md)
-- [M-DASHBOARD-CLI: Dashboard API CLI Commands](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-dashboard-cli.md)
-- [M-EMBED: Generic AILANG Embedding API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-embed-go-ailang-bridge.md)
-- [M-GAP1: Fix Teaching Prompt Lambda Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap1-teaching-prompt-lambda-syntax.md)
-- [M-GAP2: Fix Path-Dependent Lambda Arity Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap2-lambda-arity-path-dependent-bug.md)
+- [M-GAP2: Fix Final Expression Lambda Arity Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap2-lambda-arity-path-dependent-bug.md)
 - [Sprint Plan: M-GAP2 Fix Path-Dependent Lambda Arity Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap2-lambda-arity-sprint-plan.md)
-- [Sprint Plan: M-GAP4 Record Width Subtyping](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap4-record-width-subtyping-sprint.md)
-- [M-GAP4: Record Width Subtyping via Row Polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap4-record-width-subtyping.md)
-- [Sprint Plan: M-GAP5 - Add `repeat` to std/string](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap5-stdlib-repeat-sprint-plan.md)
-- [M-GAP5: Add `repeat` to std/string](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap5-stdlib-repeat.md)
-- [Sprint Plan: M-GAP6 - Add maximum/minimum to std/list](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap6-stdlib-maximum-sprint-plan.md)
-- [M-GAP6: Add `maximum` and `minimum` to std/list](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap6-stdlib-maximum.md)
+- [Sprint Plan: M-GAP2 Final Expression Lambda Arity Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gap2-sprint-plan.md)
 - [M-GEMINI-TRACE: Gemini CLI Trace Investigation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-gemini-trace-investigation.md)
-- [Sprint Plan: M-JSON-HELPERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-json-helpers-sprint-plan.md)
-- [M-JSON-HELPERS: Convenience Functions for JSON Access](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-json-helpers.md)
-- [M-SESSION-WORKSPACE: Claude Code Rich Telemetry via Hooks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-session-workspace-hooks.md)
-- [Sprint Plan: M-TRANSCRIPT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-transcript-sprint-plan.md)
-- [M-TRANSCRIPT: Unified Conversation History & Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-transcript-unified-conversation-history.md)
-- [Sprint Plan: M-UNIFIED-AI-CONTROL-PLANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-unified-ai-control-plane-sprint-plan.md)
-- [M-UNIFIED-AI-CONTROL-PLANE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_6_4/m-unified-ai-control-plane.md)
 
 ## Planned for v0.6.3
 
@@ -139,4 +123,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 95 planned features across 7 upcoming versions.*
+*Generated at build time. 79 planned features across 7 upcoming versions.*

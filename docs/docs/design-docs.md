@@ -8,6 +8,11 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.6.6
+
+- [AILANG Dogfooding: Gaps Discovered](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_6/GAPS_DISCOVERED.md)
+- [M-DASHBOARD-DOGFOODING: AILANG Dashboard Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_6/m-dashboard-dogfooding.md)
+
 ## v0.6.5
 
 - [Retrospective: Observability Dashboard Development](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_5/RETROSPECTIVE-observability-dashboard.md)
@@ -17,14 +22,37 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.6.4
 
+- [M-CODEGEN-LIST-TYPE-DEFINITION: Fix Undefined List Type in Generated Code](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-codegen-list-type-definition.md)
+- [M-CODEGEN-LIST-TYPE: Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-codegen-list-type-sprint-plan.md)
+- [M-CONTROL-PLANE-INTERACTIVE-FILTERING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-control-plane-interactive-filtering.md)
+- [Sprint Plan: M-CONTROL-PLANE-V4-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-control-plane-v4-integration-sprint-plan.md)
+- [M-CONTROL-PLANE-V4-INTEGRATION: Unified Telemetry for Agent Monitoring](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-control-plane-v4-integration.md)
+- [M-CONTROL-PLANE-V4: AILANG Operations Control Plane](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-control-plane-v4.md)
+- [M-COORDINATOR-TEST-WORKFLOW: Simple Coordinator Test File Creation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-coordinator-test-workflow.md)
+- [Sprint Plan: M-DASHBOARD-APPROVAL-INTEGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-dashboard-approval-integration-sprint-plan.md)
 - [M-DASHBOARD-APPROVAL-INTEGRATION: Complete Dashboard Coordinator Approval Workflow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-dashboard-approval-integration.md)
+- [M-DASHBOARD-CLI: Dashboard API CLI Commands](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-dashboard-cli.md)
+- [M-EMBED: Generic AILANG Embedding API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-embed-go-ailang-bridge.md)
+- [M-GAP1: Fix Teaching Prompt Lambda Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap1-teaching-prompt-lambda-syntax.md)
+- [Sprint Plan: M-GAP4 - Record Width Subtyping via Row Polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap4-record-width-subtyping-sprint.md)
+- [M-GAP4: Record Width Subtyping via Row Polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap4-record-width-subtyping.md)
+- [Sprint Plan: M-GAP5 - Add `repeat` to std/string](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap5-stdlib-repeat-sprint-plan.md)
+- [M-GAP5: Add `repeat` to std/string](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap5-stdlib-repeat.md)
+- [Sprint Plan: M-GAP6 - Add maximum/minimum to std/list](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap6-stdlib-maximum-sprint-plan.md)
+- [M-GAP6: Add `maximum` and `minimum` to std/list](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-gap6-stdlib-maximum.md)
+- [Sprint Plan: M-JSON-HELPERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-json-helpers-sprint-plan.md)
+- [M-JSON-HELPERS: Convenience Functions for JSON Access](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-json-helpers.md)
 - [M-SCRIPT-INVOKE Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-script-invoke-sprint-plan.md)
 - [M-SCRIPT-INVOKE: Deterministic Script Execution for Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-script-invoke.md)
+- [M-SESSION-WORKSPACE: Claude Code Rich Telemetry via Hooks](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-session-workspace-hooks.md)
+- [Sprint Plan: M-TRANSCRIPT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-transcript-sprint-plan.md)
+- [M-TRANSCRIPT: Unified Conversation History & Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/m-transcript-unified-conversation-history.md)
 - [Observatory Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_4/observatory-architecture.md)
 
 ## v0.6.3
 
 - [M-COORD-GENERIC-WORKFLOWS: Configurable Agent Workflows](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-coord-generic-workflows.md)
+- [M-DB-CLEANUP: Database Schema Cleanup and Consolidation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-db-cleanup.md)
 - [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-eval-ollama-local-models.md)
 - [Sprint Plan: M-OPENAI-RESPONSES-API Completion](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-openai-responses-api-completion-sprint.md)
 - [Sprint Plan: M-OPENAI-RESPONSES-API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_3/m-openai-responses-api-sprint.md)
@@ -435,4 +463,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 299 design documents across 42 versions.*
+*Generated at build time. 324 design documents across 43 versions.*

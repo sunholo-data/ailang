@@ -10,6 +10,8 @@ import (
 )
 
 // wrapText wraps text at the specified width
+//
+//nolint:unused // Scaffolded for future coordinator UI improvements
 func wrapText(text string, width int) string {
 	var result strings.Builder
 	lines := strings.Split(text, "\n")
@@ -123,6 +125,8 @@ func openInFinder(path string) {
 // autoCommitWorktreeChanges checks if there are uncommitted changes in the worktree
 // and commits them automatically. This handles the case where the agent creates
 // files but doesn't commit them.
+//
+//nolint:unused // Scaffolded for auto-commit feature
 func autoCommitWorktreeChanges(worktreePath, taskTitle string) error {
 	// Check for uncommitted changes (untracked or modified)
 	statusCmd := exec.Command("git", "-C", worktreePath, "status", "--porcelain")

@@ -365,6 +365,8 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 // calculateBurnRate calculates the cost per hour from recent tasks (no filters)
+//
+//nolint:unused // Convenience wrapper for unfiltered burn rate calculation
 func (s *Server) calculateBurnRate(bridge *AILANGBridge, config BudgetConfig, windowHours int) BurnRateInfo {
 	return s.calculateBurnRateFiltered(bridge, config, windowHours, nil)
 }

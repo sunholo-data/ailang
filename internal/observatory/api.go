@@ -678,6 +678,8 @@ func extractDisplayNameFromSpan(span *Span) string {
 }
 
 // extractSessionIDsFromSpans extracts unique session IDs from span attributes.
+//
+//nolint:unused // Scaffolded for session grouping feature
 func extractSessionIDsFromSpans(spans []*Span) []string {
 	seen := make(map[string]bool)
 	var ids []string
@@ -693,6 +695,8 @@ func extractSessionIDsFromSpans(spans []*Span) []string {
 }
 
 // extractSessionIDFromSpan extracts session.id from span attributes or resource attributes.
+//
+//nolint:unused // Scaffolded for session grouping feature
 func extractSessionIDFromSpan(span *Span) string {
 	// Try span attributes first
 	if span.Attributes != nil {
@@ -710,6 +714,8 @@ func extractSessionIDFromSpan(span *Span) string {
 }
 
 // findMatchingToolDisplayName finds a tool that matches the span by timestamp and generates display name.
+//
+//nolint:unused // Scaffolded for tool display enhancement
 func findMatchingToolDisplayName(span *Span, tools []SessionTool) string {
 	// Look for tool with matching timestamp (within 100ms window)
 	const timestampTolerance = 100 * time.Millisecond
@@ -739,6 +745,8 @@ func findMatchingToolDisplayName(span *Span, tools []SessionTool) string {
 }
 
 // containsToolName checks if span name contains the tool name.
+//
+//nolint:unused // Helper for findMatchingToolDisplayName
 func containsToolName(spanName, toolName string) bool {
 	// Simple substring match
 	return len(spanName) >= len(toolName) && spanName[:len(toolName)] == toolName

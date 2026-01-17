@@ -33,6 +33,7 @@ func goCountTurns(events []Event) int {
 	return maxTurn
 }
 
+//nolint:unused // Test helper for future filter tests
 func goFilterByType(events []Event, typeFilter []string) []Event {
 	if len(typeFilter) == 0 {
 		return events

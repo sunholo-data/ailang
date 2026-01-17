@@ -1157,6 +1157,8 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 }
 
 // splitPath splits a file path into components (works for both Unix and Windows paths)
+//
+//nolint:unused // Utility for path-based span filtering
 func splitPath(path string) []string {
 	// Remove trailing slashes
 	path = strings.TrimRight(path, "/\\")
@@ -1380,6 +1382,8 @@ func (b *SQLiteBackend) getSpansBySessionID(ctx context.Context, sessionID strin
 }
 
 // getSessionSpans retrieves all api_request spans for a Claude Code session.
+//
+//nolint:unused // Scaffolded for session-level analytics
 func (b *SQLiteBackend) getSessionSpans(ctx context.Context, sessionID string) ([]*Span, error) {
 	query := `
 		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
@@ -1456,6 +1460,8 @@ func (b *SQLiteBackend) getSessionSpans(ctx context.Context, sessionID string) (
 }
 
 // getSpanByID retrieves a single span by its ID.
+//
+//nolint:unused // Scaffolded for span detail view
 func (b *SQLiteBackend) getSpanByID(ctx context.Context, spanID string) (*Span, error) {
 	query := `
 		SELECT id, trace_id, parent_span_id, name, start_time, end_time, duration_ms,
@@ -1522,6 +1528,8 @@ func (b *SQLiteBackend) getSpanByID(ctx context.Context, spanID string) (*Span, 
 
 // getToolCallsInWindow finds tool call spans within a time window.
 // These are spans from claude_code.tool.* that started within the given time range.
+//
+//nolint:unused // Scaffolded for timestamp correlation feature
 func (b *SQLiteBackend) getToolCallsInWindow(ctx context.Context, start time.Time, end *time.Time) ([]*Span, error) {
 	if end == nil {
 		return nil, nil // Can't correlate without end time

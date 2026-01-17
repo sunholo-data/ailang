@@ -147,7 +147,7 @@ ailang/templates/
 
 Copy these to `~/.ailang/templates/` or your project, then customize for your needs.
 
-See [templates/README.md](../../../templates/README.md) for details.
+See [templates README](https://github.com/sunholo-data/ailang/tree/dev/templates) for details.
 
 ## Step 3: GitHub Sync (Optional)
 

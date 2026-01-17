@@ -232,12 +232,7 @@ type ailangHeatmapCell struct {
 func convertHeatmapCellsForAILANG(cells []HeatmapCell) []ailangHeatmapCell {
 	result := make([]ailangHeatmapCell, len(cells))
 	for i, c := range cells {
-		result[i] = ailangHeatmapCell{
-			Date:        c.Date,
-			TaskCount:   c.TaskCount,
-			Cost:        c.Cost,
-			SuccessRate: c.SuccessRate,
-		}
+		result[i] = ailangHeatmapCell(c)
 	}
 	return result
 }

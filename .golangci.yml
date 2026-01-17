@@ -15,32 +15,24 @@ linters:
     - unused
     - misspell
 
-issues:
-  # Disable default excludes to ensure our patterns work
-  exclude-use-default: false
+  settings:
+    staticcheck:
+      # Disable style suggestions - focus on bugs only
+      checks:
+        - "all"
+        - "-QF*"     # Disable all QuickFix (style) suggestions
+        - "-ST*"     # Disable all Style suggestions
+        - "-SA1019"  # Disable deprecated warnings (tracked separately)
+        - "-SA9003"  # Disable empty branch warnings
+        - "-SA5011"  # Disable nil pointer (false positives)
+        - "-SA5012"  # Disable variadic argument count
 
+issues:
   # Exclude directories
   exclude-dirs:
     - examples/agents
     - scripts
 
-  # Global excludes - regex patterns matching the issue text
-  exclude:
-    - "could merge conditional assignment"           # QF1007
-    - "could use tagged switch"                      # QF1003
-    - "could remove embedded field"                  # QF1008
-    - "could omit type"                              # QF1011
-    - "could apply De Morgan"                        # QF1001
-    - "could lift into loop"                         # QF1006
-    - "Use fmt.Fprintf"                              # QF1012
-    - "should omit type"                             # ST1023
-    - "is deprecated"                                # SA1019
-    - "empty branch"                                 # SA9003
-    - "possible nil pointer"                         # SA5011
-    - "variadic argument.*expected to have even"     # SA5012
-    - "is unused"                                    # unused test helpers
-
-  # Exclude rules for path-specific patterns
   exclude-rules:
     # Allow underscore in package names for eval packages (M-EVAL framework)
     - path: internal/eval_harness/

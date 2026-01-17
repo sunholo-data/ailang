@@ -258,6 +258,8 @@ CREATE TABLE IF NOT EXISTS approvals (
 )`
 
 // Attachments table - large payloads separate from messages
+//
+//nolint:unused // Schema prepared for M-COLLAB-2 attachments feature
 const attachmentsTable = `
 CREATE TABLE IF NOT EXISTS attachments (
     id TEXT PRIMARY KEY,
@@ -422,6 +424,8 @@ const messagesCreatedIndex = `CREATE INDEX IF NOT EXISTS idx_messages_created ON
 const threadsStatusIndex = `CREATE INDEX IF NOT EXISTS idx_threads_status ON threads(status, updated_at)`
 const subscriptionsThreadIndex = `CREATE INDEX IF NOT EXISTS idx_subscriptions_thread ON subscriptions(thread_id)`
 const approvalsStatusIndex = `CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, created_at)`
+
+//nolint:unused // Schema prepared for M-COLLAB-2 attachments feature
 const attachmentsMessageIndex = `CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)`
 const replayThreadIndex = `CREATE INDEX IF NOT EXISTS idx_replay_thread ON replay_snapshots(thread_id, created_at)`
 const metricsAggregatesPeriodIndex = `CREATE INDEX IF NOT EXISTS idx_metrics_period ON metrics_aggregates(scope_type, period, period_start)`

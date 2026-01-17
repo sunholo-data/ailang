@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.6.5) - auto-synced from source
+description: The active AILANG teaching prompt (v0.6.6) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.5.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.6.6.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.6.5.md -->
-<!-- Active Version: v0.6.5 -->
+<!-- Source: prompts/v0.6.6.md -->
+<!-- Active Version: v0.6.6 -->
 
-# AILANG v0.6.5 - AI Teaching Prompt
+# AILANG v0.6.6 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -123,6 +123,32 @@ export func main() -> () ! {IO} {
 }
 ```
 
+**Open records (width subtyping) - v0.6.6:**
+```ailang
+module benchmark/solution
+
+-- EXACT record: only accepts {name: string}, rejects extra fields
+pure func getNameExact(p: {name: string}) -> string = p.name
+
+-- OPEN record with | r: accepts extra fields
+pure func getName(p: {name: string | r}) -> string = p.name
+
+-- OPEN record with ... sugar (equivalent to | r with fresh variable)
+pure func getEmail(u: {email: string, ...}) -> string = u.email
+
+export func main() -> () ! {IO} {
+  -- Exact: only works with exact shape
+  println(getNameExact({name: "Alice"}));
+
+  -- Open: accepts any record with at least name field
+  println(getName({name: "Bob", age: 30}));
+  println(getName({name: "Charlie", age: 25, city: "NYC"}));
+
+  -- Ellipsis sugar: same behavior
+  println(getEmail({email: "test@example.com", name: "Test", id: 123}))
+}
+```
+
 **AI effect (call LLM):**
 ```ailang
 module benchmark/solution
@@ -229,13 +255,13 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**foldl syntax options (most to least reliable):**
+**foldl syntax options:**
 ```ailang
--- BEST: inline func (always works)
-foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
-
--- SOMETIMES WORKS: space-separated lambda (may fail in some contexts)
+-- RECOMMENDED: space-separated multi-param lambda (concise)
 foldl(\acc x. acc + x, 0, xs)
+
+-- VERBOSE: inline func with explicit types (also works)
+foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
 
 -- WRONG: curried lambda (arity mismatch error!)
 foldl(\acc. \x. acc + x, 0, xs)
@@ -321,6 +347,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 | ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
+| Open record type | `{name: string \| r}` or `{name: string, ...}` |
 | List cons | `x :: xs` or `::(x, xs)` |
 | Array literal | `#[1, 2, 3]` |
 | Effect | `! {IO, FS, Net}` after return type |
@@ -1161,10 +1188,3 @@ ailang repl                                           # Interactive REPL
 ```
 
 **Flags must come BEFORE the filename!**
-
-## See Also
-
-- [Quick Start Examples](/docs/guides/quick-start-examples) - Practical code examples
-- [Examples Gallery](/docs/examples) - Complete collection of working examples
-- [AI Integration Guide](/docs/guides/agent-integration) - Using prompts with AI agents
-- [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference

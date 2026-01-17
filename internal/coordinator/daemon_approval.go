@@ -131,6 +131,8 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 }
 
 // requestHandoffApproval creates an approval request for a handoff
+//
+//nolint:unused // Scaffolded for handoff approval workflow
 func (d *Daemon) requestHandoffApproval(
 	sourceAgent, targetAgent *AgentConfig,
 	task *TaskRecord,
@@ -560,6 +562,8 @@ func truncateForAttribute(s string, maxLen int) string {
 }
 
 // processHandoffApproval sends a handoff message after approval.
+//
+//nolint:unused // Scaffolded for handoff approval workflow
 func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalRequest) error {
 	if d.agentRegistry == nil || d.msgStore == nil {
 		return fmt.Errorf("agent registry or message store not available")
