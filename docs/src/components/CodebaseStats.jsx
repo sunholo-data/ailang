@@ -195,17 +195,17 @@ export default function CodebaseStats() {
               <tr style={styles.tr}>
                 <td style={styles.td}>Standard Library</td>
                 <td style={styles.tdRight}>{lines.ailang_stdlib.toLocaleString()}</td>
-                <td style={styles.tdRight}>-</td>
+                <td style={styles.tdRight}>{files.stdlib?.toLocaleString() || '-'}</td>
               </tr>
               <tr style={styles.tr}>
                 <td style={styles.td}>TypeScript/React</td>
                 <td style={styles.tdRight}>{lines.typescript.toLocaleString()}</td>
-                <td style={styles.tdRight}>-</td>
+                <td style={styles.tdRight}>{files.typescript?.toLocaleString() || '-'}</td>
               </tr>
               <tr style={styles.tr}>
                 <td style={styles.td}>Shell Scripts</td>
                 <td style={styles.tdRight}>{lines.shell.toLocaleString()}</td>
-                <td style={styles.tdRight}>-</td>
+                <td style={styles.tdRight}>{files.shell?.toLocaleString() || '-'}</td>
               </tr>
               <tr style={styles.tr}>
                 <td style={styles.td}>Documentation</td>
@@ -215,7 +215,7 @@ export default function CodebaseStats() {
               <tr style={styles.tr}>
                 <td style={styles.td}>Design Docs</td>
                 <td style={styles.tdRight}>{lines.design_docs.toLocaleString()}</td>
-                <td style={styles.tdRight}>-</td>
+                <td style={styles.tdRight}>{files.design_docs?.toLocaleString() || '-'}</td>
               </tr>
             </tbody>
           </table>

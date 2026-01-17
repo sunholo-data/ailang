@@ -28,12 +28,15 @@ AIL_FILES=$(find . -name "*.ail" -not -path "./.git/*" | wc -l | tr -d ' ')
 
 # Count stdlib
 STD_TOTAL=$(find ./std -name "*.ail" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+STD_FILES=$(find ./std -name "*.ail" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
 
 # Count TypeScript/React
 TS_TOTAL=$(find ./ui ./docs/src -name "*.ts" -o -name "*.tsx" 2>/dev/null | grep -v node_modules | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+TS_FILES=$(find ./ui ./docs/src \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | grep -v node_modules | wc -l | tr -d ' ' || echo "0")
 
 # Count Shell scripts
 SH_TOTAL=$(find . -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+SH_FILES=$(find . -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" | wc -l | tr -d ' ')
 
 # Count Documentation (exclude all node_modules)
 DOC_TOTAL=$(find . \( -name "*.md" -o -name "*.mdx" \) -not -path "*/node_modules/*" -not -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
@@ -41,6 +44,7 @@ DOC_FILES=$(find . \( -name "*.md" -o -name "*.mdx" \) -not -path "*/node_module
 
 # Count Design docs specifically
 DESIGN_TOTAL=$(find ./design_docs -name "*.md" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+DESIGN_FILES=$(find ./design_docs -name "*.md" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
 
 # Count website docs
 WEBSITE_DOCS=$(find ./docs/docs -name "*.md" -o -name "*.mdx" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
@@ -87,6 +91,10 @@ CURRENT_STATS=$(cat <<EOF
   "files": {
     "go": $GO_FILES,
     "ailang": $AIL_FILES,
+    "stdlib": $STD_FILES,
+    "typescript": $TS_FILES,
+    "shell": $SH_FILES,
+    "design_docs": $DESIGN_FILES,
     "documentation": $DOC_FILES
   },
   "tokens": {

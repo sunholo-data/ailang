@@ -488,38 +488,44 @@ func (s *Server) handleUsageTimeSeries(w http.ResponseWriter, r *http.Request) {
 	}
 	splitBy := q.Get("split_by")
 
-	// Parse time range
+	// Parse filters (includes start_date, end_date, workspace, provider)
+	filter := parseControlPlaneFilter(r)
+
+	// Determine time range from filter
 	now := time.Now()
-	until := now
+	until := now.AddDate(0, 0, 1)  // Include today
 	since := now.AddDate(0, 0, -7) // Default 7 days
 
-	if sinceParam := q.Get("since"); sinceParam != "" {
-		if t, err := time.Parse("2006-01-02", sinceParam); err == nil {
-			since = t
-		} else if t, err := time.Parse(time.RFC3339, sinceParam); err == nil {
+	if filter.StartDate != "" {
+		if t, err := time.Parse("2006-01-02", filter.StartDate); err == nil {
 			since = t
 		}
 	}
-	if untilParam := q.Get("until"); untilParam != "" {
-		if t, err := time.Parse("2006-01-02", untilParam); err == nil {
-			until = t
-		} else if t, err := time.Parse(time.RFC3339, untilParam); err == nil {
-			until = t
+	if filter.EndDate != "" {
+		if t, err := time.Parse("2006-01-02", filter.EndDate); err == nil {
+			// Add 1 day to include the full end date
+			until = t.AddDate(0, 0, 1)
 		}
 	}
-
-	// Parse filters
-	filter := parseControlPlaneFilter(r)
 
 	// Build CLI command
 	cliParts := []string{"ailang", "observatory", "usage"}
 	cliParts = append(cliParts, "--metric", metric)
 	cliParts = append(cliParts, "--interval", interval)
-	if splitBy != "" {
-		cliParts = append(cliParts, "--split-by", splitBy)
+	if filter.StartDate != "" {
+		cliParts = append(cliParts, "--since", filter.StartDate)
+	}
+	if filter.EndDate != "" {
+		cliParts = append(cliParts, "--until", filter.EndDate)
+	}
+	if filter.Workspace != "" {
+		cliParts = append(cliParts, "--workspace", filter.Workspace)
 	}
 	if filter.Provider != "" {
 		cliParts = append(cliParts, "--provider", filter.Provider)
+	}
+	if splitBy != "" {
+		cliParts = append(cliParts, "--split-by", splitBy)
 	}
 	cliParts = append(cliParts, "--format", "json")
 	cliCommand := strings.Join(cliParts, " ")
@@ -589,6 +595,10 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 	}
 	if filter.SourceType != "" {
 		conditions = append(conditions, buildSourceTypeCondition(filter.SourceType))
+	}
+	if filter.Workspace != "" {
+		conditions = append(conditions, "json_extract(resource_attributes, '$.\"process.cwd\"') = ?")
+		args = append(args, filter.Workspace)
 	}
 
 	whereClause := strings.Join(conditions, " AND ")

@@ -651,10 +651,12 @@ func observatorySeedCommand() {
 // observatoryHeatmapCommand outputs activity heatmap data.
 func observatoryHeatmapCommand() {
 	fs := flag.NewFlagSet("observatory heatmap", flag.ExitOnError)
-	days := fs.Int("days", 90, "Number of days of history to show")
+	days := fs.Int("days", 90, "Number of days of history to show (ignored if --since is set)")
 	format := fs.String("format", "json", "Output format: json or ascii")
 	provider := fs.String("provider", "", "Filter by provider")
 	workspace := fs.String("workspace", "", "Filter by workspace")
+	since := fs.String("since", "", "Start date (YYYY-MM-DD)")
+	until := fs.String("until", "", "End date (YYYY-MM-DD)")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -678,29 +680,55 @@ func observatoryHeatmapCommand() {
 		os.Exit(1)
 	}
 
-	startDate := time.Now().AddDate(0, 0, -*days)
+	// Determine date range
+	var startDate, endDate time.Time
+	if *since != "" {
+		if t, err := time.Parse("2006-01-02", *since); err == nil {
+			startDate = t
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --since date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		startDate = time.Now().AddDate(0, 0, -*days)
+	}
+	if *until != "" {
+		if t, err := time.Parse("2006-01-02", *until); err == nil {
+			endDate = t.AddDate(0, 0, 1) // Include the end date
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --until date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		endDate = time.Now().AddDate(0, 0, 1)
+	}
 
-	query := `
+	// Build filter conditions
+	conditions := []string{"start_time >= ?", "start_time < ?"}
+	args := []interface{}{startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02 15:04:05")}
+
+	if *provider != "" {
+		conditions = append(conditions, "provider = ?")
+		args = append(args, *provider)
+	}
+	if *workspace != "" {
+		conditions = append(conditions, "json_extract(resource_attributes, '$.\"process.cwd\"') = ?")
+		args = append(args, *workspace)
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
+	query := fmt.Sprintf(`
 		SELECT
 			date(start_time) as day,
 			COUNT(*) as span_count,
 			SUM(COALESCE(cost_usd, 0)) as total_cost,
 			SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
 		FROM spans
-		WHERE start_time >= ?
-	`
-	args := []interface{}{startDate.Format("2006-01-02")}
-
-	if *provider != "" {
-		query += " AND provider = ?"
-		args = append(args, *provider)
-	}
-	if *workspace != "" {
-		query += " AND workspace = ?"
-		args = append(args, *workspace)
-	}
-
-	query += " GROUP BY date(start_time) ORDER BY day"
+		WHERE %s
+		GROUP BY date(start_time)
+		ORDER BY day
+	`, whereClause)
 
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -728,7 +756,15 @@ func observatoryHeatmapCommand() {
 
 	if *format == "ascii" {
 		// Build CLI command for display
-		cliCmd := fmt.Sprintf("ailang observatory heatmap --days %d", *days)
+		cliCmd := "ailang observatory heatmap"
+		if *since != "" {
+			cliCmd += fmt.Sprintf(" --since %s", *since)
+		} else {
+			cliCmd += fmt.Sprintf(" --days %d", *days)
+		}
+		if *until != "" {
+			cliCmd += fmt.Sprintf(" --until %s", *until)
+		}
 		if *provider != "" {
 			cliCmd += fmt.Sprintf(" --provider %s", *provider)
 		}
@@ -805,11 +841,27 @@ func observatoryHeatmapCommand() {
 		fmt.Println()
 		fmt.Printf("CLI: %s\n", cliCmd)
 	} else {
-		// JSON output
+		// JSON output - build CLI command with filters
+		jsonCliCmd := "ailang observatory heatmap"
+		if *since != "" {
+			jsonCliCmd += fmt.Sprintf(" --since %s", *since)
+		} else {
+			jsonCliCmd += fmt.Sprintf(" --days %d", *days)
+		}
+		if *until != "" {
+			jsonCliCmd += fmt.Sprintf(" --until %s", *until)
+		}
+		if *provider != "" {
+			jsonCliCmd += fmt.Sprintf(" --provider %s", *provider)
+		}
+		if *workspace != "" {
+			jsonCliCmd += fmt.Sprintf(" --workspace %s", *workspace)
+		}
+		jsonCliCmd += " --format json"
+
 		output := map[string]interface{}{
-			"days": data,
-			"cli_command": fmt.Sprintf("ailang observatory heatmap --days %d --format json",
-				*days),
+			"days":        data,
+			"cli_command": jsonCliCmd,
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -824,6 +876,9 @@ func observatoryEvolutionCommand() {
 	limit := fs.Int("limit", 10, "Maximum number of tasks to return")
 	format := fs.String("format", "json", "Output format: json or ascii")
 	provider := fs.String("provider", "", "Filter by provider")
+	since := fs.String("since", "", "Start date (YYYY-MM-DD)")
+	until := fs.String("until", "", "End date (YYYY-MM-DD)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -862,6 +917,18 @@ func observatoryEvolutionCommand() {
 		taskQuery += " AND source_type = ?"
 		args = append(args, *provider)
 	}
+	if *since != "" {
+		taskQuery += " AND date(created_at) >= ?"
+		args = append(args, *since)
+	}
+	if *until != "" {
+		taskQuery += " AND date(created_at) <= ?"
+		args = append(args, *until)
+	}
+	if *workspace != "" {
+		taskQuery += " AND workspace = ?"
+		args = append(args, *workspace)
+	}
 
 	taskQuery += " ORDER BY created_at DESC LIMIT ?"
 	args = append(args, *limit)
@@ -895,6 +962,15 @@ func observatoryEvolutionCommand() {
 	}
 
 	cliCmd := fmt.Sprintf("ailang observatory evolution --metric %s --limit %d", *metric, *limit)
+	if *since != "" {
+		cliCmd += fmt.Sprintf(" --since %s", *since)
+	}
+	if *until != "" {
+		cliCmd += fmt.Sprintf(" --until %s", *until)
+	}
+	if *workspace != "" {
+		cliCmd += fmt.Sprintf(" --workspace %s", *workspace)
+	}
 	if *provider != "" {
 		cliCmd += fmt.Sprintf(" --provider %s", *provider)
 	}
@@ -990,7 +1066,11 @@ func observatoryUsageCommand() {
 	interval := fs.String("interval", "day", "Time interval: hour, day, week")
 	splitBy := fs.String("split-by", "", "Split by dimension: provider, model, workspace")
 	format := fs.String("format", "json", "Output format: json or ascii")
-	days := fs.Int("days", 30, "Number of days of history")
+	days := fs.Int("days", 30, "Number of days of history (ignored if --since is set)")
+	since := fs.String("since", "", "Start date (YYYY-MM-DD)")
+	until := fs.String("until", "", "End date (YYYY-MM-DD)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
+	provider := fs.String("provider", "", "Filter by provider")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -1013,7 +1093,29 @@ func observatoryUsageCommand() {
 		os.Exit(1)
 	}
 
-	startDate := time.Now().AddDate(0, 0, -*days)
+	// Determine date range
+	var startDate, endDate time.Time
+	if *since != "" {
+		if t, err := time.Parse("2006-01-02", *since); err == nil {
+			startDate = t
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --since date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		startDate = time.Now().AddDate(0, 0, -*days)
+	}
+	if *until != "" {
+		if t, err := time.Parse("2006-01-02", *until); err == nil {
+			// Add 1 day to include the full end date
+			endDate = t.AddDate(0, 0, 1)
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --until date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		endDate = time.Now().AddDate(0, 0, 1) // Include today
+	}
 
 	// Build date grouping expression based on interval
 	var dateExpr string
@@ -1035,6 +1137,21 @@ func observatoryUsageCommand() {
 	}
 
 	var points []UsagePoint
+
+	// Build filter conditions
+	conditions := []string{"start_time >= ?", "start_time < ?"}
+	args := []interface{}{startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02 15:04:05")}
+
+	if *workspace != "" {
+		conditions = append(conditions, "json_extract(resource_attributes, '$.\"process.cwd\"') = ?")
+		args = append(args, *workspace)
+	}
+	if *provider != "" {
+		conditions = append(conditions, "provider = ?")
+		args = append(args, *provider)
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
 
 	if *splitBy != "" {
 		// Query with dimension split
@@ -1058,12 +1175,12 @@ func observatoryUsageCommand() {
 				SUM(COALESCE(cost_usd, 0)) as total_cost,
 				SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
 			FROM spans
-			WHERE start_time >= ?
+			WHERE %s
 			GROUP BY bucket, dimension
 			ORDER BY bucket
-		`, dateExpr, splitCol)
+		`, dateExpr, splitCol, whereClause)
 
-		rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
+		rows, err := db.QueryContext(ctx, query, args...)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
 			os.Exit(1)
@@ -1117,12 +1234,12 @@ func observatoryUsageCommand() {
 				SUM(COALESCE(cost_usd, 0)) as total_cost,
 				SUM(COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) as total_tokens
 			FROM spans
-			WHERE start_time >= ?
+			WHERE %s
 			GROUP BY bucket
 			ORDER BY bucket
-		`, dateExpr)
+		`, dateExpr, whereClause)
 
-		rows, err := db.QueryContext(ctx, query, startDate.Format("2006-01-02"))
+		rows, err := db.QueryContext(ctx, query, args...)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error querying database: %v\n", err)
 			os.Exit(1)
@@ -1138,8 +1255,21 @@ func observatoryUsageCommand() {
 		}
 	}
 
-	cliCmd := fmt.Sprintf("ailang observatory usage --metric %s --interval %s --days %d",
-		*metric, *interval, *days)
+	cliCmd := fmt.Sprintf("ailang observatory usage --metric %s --interval %s", *metric, *interval)
+	if *since != "" {
+		cliCmd += fmt.Sprintf(" --since %s", *since)
+	} else {
+		cliCmd += fmt.Sprintf(" --days %d", *days)
+	}
+	if *until != "" {
+		cliCmd += fmt.Sprintf(" --until %s", *until)
+	}
+	if *workspace != "" {
+		cliCmd += fmt.Sprintf(" --workspace %s", *workspace)
+	}
+	if *provider != "" {
+		cliCmd += fmt.Sprintf(" --provider %s", *provider)
+	}
 	if *splitBy != "" {
 		cliCmd += fmt.Sprintf(" --split-by %s", *splitBy)
 	}
@@ -1222,7 +1352,11 @@ func observatoryUsageCommand() {
 func observatoryTokensCommand() {
 	fs := flag.NewFlagSet("observatory tokens", flag.ExitOnError)
 	format := fs.String("format", "json", "Output format: json or ascii")
-	days := fs.Int("days", 30, "Number of days of history")
+	days := fs.Int("days", 30, "Number of days of history (ignored if --since is set)")
+	since := fs.String("since", "", "Start date (YYYY-MM-DD)")
+	until := fs.String("until", "", "End date (YYYY-MM-DD)")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
+	provider := fs.String("provider", "", "Filter by provider")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -1245,7 +1379,43 @@ func observatoryTokensCommand() {
 		os.Exit(1)
 	}
 
-	startDate := time.Now().AddDate(0, 0, -*days)
+	// Determine date range
+	var startDate, endDate time.Time
+	if *since != "" {
+		if t, err := time.Parse("2006-01-02", *since); err == nil {
+			startDate = t
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --since date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		startDate = time.Now().AddDate(0, 0, -*days)
+	}
+	if *until != "" {
+		if t, err := time.Parse("2006-01-02", *until); err == nil {
+			endDate = t.AddDate(0, 0, 1) // Include the end date
+		} else {
+			fmt.Fprintf(os.Stderr, "Invalid --until date format (use YYYY-MM-DD): %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		endDate = time.Now().AddDate(0, 0, 1)
+	}
+
+	// Build filter conditions
+	conditions := []string{"start_time >= ?", "start_time < ?"}
+	baseArgs := []interface{}{startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02 15:04:05")}
+
+	if *workspace != "" {
+		conditions = append(conditions, "json_extract(resource_attributes, '$.\"process.cwd\"') = ?")
+		baseArgs = append(baseArgs, *workspace)
+	}
+	if *provider != "" {
+		conditions = append(conditions, "provider = ?")
+		baseArgs = append(baseArgs, *provider)
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
 
 	// Define buckets for token distribution
 	buckets := []struct {
@@ -1271,14 +1441,15 @@ func observatoryTokensCommand() {
 	var results []BucketCount
 
 	for _, b := range buckets {
-		query := `
+		query := fmt.Sprintf(`
 			SELECT COUNT(*) FROM spans
-			WHERE start_time >= ?
+			WHERE %s
 			AND (COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) >= ?
 			AND (COALESCE(tokens_in, 0) + COALESCE(tokens_out, 0)) < ?
-		`
+		`, whereClause)
+		args := append(baseArgs, b.min, b.max)
 		var count int
-		err := db.QueryRowContext(ctx, query, startDate.Format("2006-01-02"), b.min, b.max).Scan(&count)
+		err := db.QueryRowContext(ctx, query, args...).Scan(&count)
 		if err != nil {
 			continue
 		}
@@ -1290,7 +1461,22 @@ func observatoryTokensCommand() {
 		})
 	}
 
-	cliCmd := fmt.Sprintf("ailang observatory tokens --days %d", *days)
+	// Build CLI command
+	cliCmd := "ailang observatory tokens"
+	if *since != "" {
+		cliCmd += fmt.Sprintf(" --since %s", *since)
+	} else {
+		cliCmd += fmt.Sprintf(" --days %d", *days)
+	}
+	if *until != "" {
+		cliCmd += fmt.Sprintf(" --until %s", *until)
+	}
+	if *workspace != "" {
+		cliCmd += fmt.Sprintf(" --workspace %s", *workspace)
+	}
+	if *provider != "" {
+		cliCmd += fmt.Sprintf(" --provider %s", *provider)
+	}
 
 	if *format == "ascii" {
 		fmt.Println("=== Token Distribution ===")
