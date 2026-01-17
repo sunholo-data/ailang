@@ -3,7 +3,9 @@ package coordinator
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -462,6 +464,14 @@ func TestIntegration_WorktreeManager(t *testing.T) {
 		gitRoot = filepath.Dir(gitRoot)
 	}
 
+	// Get current branch name (CI may only have 'dev', not 'main')
+	branchCmd := exec.Command("git", "-C", gitRoot, "rev-parse", "--abbrev-ref", "HEAD")
+	branchOutput, err := branchCmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get current branch: %v", err)
+	}
+	currentBranch := strings.TrimSpace(string(branchOutput))
+
 	mgr, err := NewWorktreeManager(gitRoot, worktreeBase, 3)
 	if err != nil {
 		t.Fatalf("failed to create worktree manager: %v", err)
@@ -470,8 +480,8 @@ func TestIntegration_WorktreeManager(t *testing.T) {
 	// Record initial count (may have existing worktrees from other tests/runs)
 	initialCount := mgr.Count()
 
-	// Create a worktree
-	wt, err := mgr.CreateWorktree("test-task-integ-1", "main")
+	// Create a worktree from the current branch (not hardcoded 'main')
+	wt, err := mgr.CreateWorktree("test-task-integ-1", currentBranch)
 	if err != nil {
 		t.Fatalf("failed to create worktree: %v", err)
 	}

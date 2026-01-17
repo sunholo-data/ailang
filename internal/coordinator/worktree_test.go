@@ -319,5 +319,12 @@ func initTestGitRepo(path string) error {
 
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = path
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	// Ensure the branch is named 'main' (CI might use different default)
+	cmd = exec.Command("git", "branch", "-M", "main")
+	cmd.Dir = path
 	return cmd.Run()
 }
