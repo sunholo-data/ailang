@@ -29,6 +29,15 @@ func findProjectRoot() string {
 	return ""
 }
 
+// setStdlibPath ensures AILANG_STDLIB_PATH is set to the std/ directory.
+// This is needed because the stdlib resolver expects the path to point
+// directly to the std/ directory, not its parent.
+func setStdlibPath(root string) {
+	// Set AILANG_STDLIB_PATH to the std/ directory
+	stdPath := filepath.Join(root, "std")
+	os.Setenv("AILANG_STDLIB_PATH", stdPath)
+}
+
 // newTestEngine creates an embed.Engine with the correct project root.
 // Skips the test if the project root (with std/) cannot be found.
 func newTestEngine(t *testing.T) *embed.Engine {
@@ -38,6 +47,9 @@ func newTestEngine(t *testing.T) *embed.Engine {
 	if root == "" {
 		t.Skip("Cannot find project root with std/ directory - skipping AILANG integration test")
 	}
+
+	// Explicitly set AILANG_STDLIB_PATH before creating engine
+	setStdlibPath(root)
 
 	return embed.New(root)
 }
@@ -51,6 +63,9 @@ func newBenchEngine(b *testing.B) *embed.Engine {
 	if root == "" {
 		b.Skip("Cannot find project root with std/ directory - skipping AILANG benchmark")
 	}
+
+	// Explicitly set AILANG_STDLIB_PATH before creating engine
+	setStdlibPath(root)
 
 	return embed.New(root)
 }
