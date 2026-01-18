@@ -32,10 +32,8 @@ jobs:
     - name: Run parser tests
       run: make test-parser
 
-    - name: Check per-package coverage gates (M-P2)
-      run: |
-        make cover-all-packages
-        make gate-all-packages
+    - name: Check coverage gate (M-P2)
+      run: make test-coverage-gate
 
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
@@ -98,9 +96,9 @@ jobs:
 
     - name: Generate test coverage
       run: |
-        make test-coverage-ci
+        make test-coverage
         # Extract coverage percentage for badge
-        COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+        COVERAGE=$(go tool cover -func=coverage/coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
         echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
         echo "Coverage: $COVERAGE%"
         
