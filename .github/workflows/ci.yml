@@ -133,28 +133,14 @@ jobs:
       run: |
         # Use the Makefile which handles module paths correctly
         make update-readme
-        
-        # Get coverage percentage
-        make test-coverage-badge
-        COVERAGE=$(cat coverage.txt)
-        
-        # Determine badge color based on coverage (using awk for POSIX compatibility)
-        if awk "BEGIN {exit !($COVERAGE < 20)}"; then
-          COLOR="red"
-        elif awk "BEGIN {exit !($COVERAGE < 40)}"; then
-          COLOR="orange"
-        elif awk "BEGIN {exit !($COVERAGE < 60)}"; then
-          COLOR="yellow"
-        elif awk "BEGIN {exit !($COVERAGE < 80)}"; then
-          COLOR="green"
-        else
-          COLOR="brightgreen"
-        fi
-        
+
+        # Use COVERAGE from GITHUB_ENV (set in "Generate test coverage" step)
+        # and COVERAGE_COLOR also from env
+
         # Update the coverage badge in README
-        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR}.svg)|g" README.md
-        
-        echo "Updated coverage badge to ${COVERAGE}% with color ${COLOR}"
+        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COVERAGE_COLOR}.svg)|g" README.md
+
+        echo "Updated coverage badge to ${COVERAGE}% with color ${COVERAGE_COLOR}"
     
     - name: Commit README and docs updates
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
