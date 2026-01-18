@@ -1,10 +1,12 @@
 /**
  * EventDetail - Inline event detail view
  * Shows event metadata (Source, Target, Time, Task ID, Content)
+ * Plus outliers summary for the selected task
  * Span visualization is now in the Execution Spans panel
  */
 import React from 'react';
 import type { EventMessage } from './types';
+import type { OutliersResponse, SpanOutlier } from '../hooks/useOutliersAnalysis';
 import styles from '../ControlPlane.module.css';
 
 export interface EventDetailProps {
@@ -15,6 +17,12 @@ export interface EventDetailProps {
   onNavigate?: (direction: 'prev' | 'next') => void;
   currentIndex?: number;
   totalEvents?: number;
+  /** Outliers analysis data for the selected task */
+  outliers?: OutliersResponse | null;
+  /** Loading state for outliers data */
+  outliersLoading?: boolean;
+  /** Callback when an outlier span is clicked (to highlight in ExecHierarchy) */
+  onOutlierClick?: (spanId: string) => void;
 }
 
 const getEventTypeLabel = (type: EventMessage['type']): string => {
@@ -39,6 +47,20 @@ const getEventTypeColor = (type: EventMessage['type']): string => {
   }
 };
 
+// Format outlier metric value for display
+const formatOutlierValue = (value: number, metric: string): string => {
+  if (metric === 'cost_usd') return `$${value.toFixed(4)}`;
+  if (metric === 'duration_ms') return `${value.toLocaleString()}ms`;
+  if (metric === 'tokens') return value.toLocaleString();
+  return value.toFixed(2);
+};
+
+// Format z-score with direction indicator
+const formatZScore = (zScore: number): string => {
+  const sign = zScore > 0 ? '+' : '';
+  return `${sign}${zScore.toFixed(2)}σ`;
+};
+
 export const EventDetail: React.FC<EventDetailProps> = ({
   event,
   traceId,
@@ -47,6 +69,9 @@ export const EventDetail: React.FC<EventDetailProps> = ({
   onNavigate,
   currentIndex,
   totalEvents,
+  outliers,
+  outliersLoading,
+  onOutlierClick,
 }) => {
   // Empty state when no event selected
   if (!event) {
@@ -158,6 +183,49 @@ export const EventDetail: React.FC<EventDetailProps> = ({
             <div className={styles.eventDetailRow}>
               <span className={styles.eventDetailRowLabel}>Status</span>
               <span className={styles.eventDetailRowValue}>Loading trace data...</span>
+            </div>
+          )}
+
+          {/* Outliers Summary Section */}
+          {traceId && (outliersLoading || outliers) && (
+            <div className={styles.eventDetailOutliers}>
+              <div className={styles.eventDetailOutliersHeader}>
+                <span className={styles.eventDetailRowLabel}>
+                  Outliers {outliers?.outliers?.length ? `(${outliers.outliers.length})` : ''}
+                </span>
+                {outliersLoading && <span className={styles.eventDetailOutliersLoading}>...</span>}
+              </div>
+              {outliers?.outliers && outliers.outliers.length > 0 ? (
+                <div className={styles.eventDetailOutliersList}>
+                  {outliers.outliers.slice(0, 5).map((outlier, idx) => (
+                    <button
+                      key={`${outlier.span.id}-${outlier.metric}-${idx}`}
+                      className={styles.eventDetailOutlierItem}
+                      onClick={() => onOutlierClick?.(outlier.span.id)}
+                      title={`Click to highlight in Execution Spans\n${outlier.span.name}\n${formatOutlierValue(outlier.value, outlier.metric)} (${formatZScore(outlier.z_score)})`}
+                    >
+                      <span className={styles.eventDetailOutlierName}>
+                        {outlier.span.name.length > 25
+                          ? outlier.span.name.substring(0, 22) + '...'
+                          : outlier.span.name}
+                      </span>
+                      <span className={styles.eventDetailOutlierMetric}>
+                        {outlier.metric.replace('_usd', '').replace('_ms', '')}
+                      </span>
+                      <span
+                        className={styles.eventDetailOutlierZScore}
+                        data-severity={Math.abs(outlier.z_score) > 3 ? 'high' : 'medium'}
+                      >
+                        {formatZScore(outlier.z_score)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : !outliersLoading && outliers ? (
+                <div className={styles.eventDetailOutliersEmpty}>
+                  No statistical outliers detected (threshold: {outliers.threshold}σ)
+                </div>
+              ) : null}
             </div>
           )}
         </div>

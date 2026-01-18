@@ -947,3 +947,123 @@ func getTokenDistributionData(ctx context.Context, backend *observatory.SQLiteBa
 
 	return buckets, totalTasks, totalCost, nil
 }
+
+// ============================================================================
+// Outliers Analysis Handler
+// ============================================================================
+
+// OutliersAnalysisResponse is the response for GET /api/controlplane/outliers
+type OutliersAnalysisResponse struct {
+	TaskID       string                         `json:"task_id"`
+	TaskTitle    string                         `json:"task_title"`
+	SpanCount    int                            `json:"span_count"`
+	Threshold    float64                        `json:"threshold"`
+	Stats        []*observatory.TaskMetricStats `json:"stats"`
+	Outliers     []*observatory.SpanOutlier     `json:"outliers"`
+	RateOfChange *observatory.RateAnalysis      `json:"rate_of_change,omitempty"`
+	CliCommand   string                         `json:"cli_command"`
+	AnalyzedAt   string                         `json:"analyzed_at"`
+}
+
+// GET /api/controlplane/outliers - Get statistical outlier analysis for a task
+// Detects spans with metrics (cost, duration, tokens) that deviate significantly from the mean.
+//
+// Query params:
+//   - task_id: Task ID to analyze (required)
+//   - threshold: Z-score threshold (default: 2.0)
+//   - metric: Filter to specific metric: cost, duration, tokens (default: all)
+//   - rate: Include rate-of-change analysis (default: false)
+//   - limit: Max outliers to return (default: 10)
+func (s *Server) handleOutliersAnalysis(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	// Parse task_id (required)
+	taskID := q.Get("task_id")
+	if taskID == "" {
+		http.Error(w, "task_id parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse optional parameters
+	threshold := 2.0
+	if thresholdParam := q.Get("threshold"); thresholdParam != "" {
+		if t, err := strconv.ParseFloat(thresholdParam, 64); err == nil && t > 0 {
+			threshold = t
+		}
+	}
+
+	metric := q.Get("metric")
+	showRate := q.Get("rate") == "true"
+
+	limit := 10
+	if limitParam := q.Get("limit"); limitParam != "" {
+		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	// Build CLI command
+	cliParts := []string{"ailang", "observatory", "outliers"}
+	cliParts = append(cliParts, "--task", taskID)
+	cliParts = append(cliParts, "--threshold", fmt.Sprintf("%.1f", threshold))
+	if metric != "" {
+		cliParts = append(cliParts, "--metric", metric)
+	}
+	if showRate {
+		cliParts = append(cliParts, "--show-rate")
+	}
+	if limit != 10 {
+		cliParts = append(cliParts, "--limit", strconv.Itoa(limit))
+	}
+	cliParts = append(cliParts, "--format", "json")
+	cliCommand := strings.Join(cliParts, " ")
+
+	// Perform analysis
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	opts := observatory.OutlierOptions{
+		Threshold: threshold,
+		Metric:    metric,
+		ShowRate:  showRate,
+		Limit:     limit,
+	}
+
+	analysis, err := observatory.AnalyzeTaskOutliers(ctx, s.obsBackend, taskID, opts)
+	if err != nil {
+		// Check if task was not found (sql.ErrNoRows)
+		if err == sql.ErrNoRows || strings.Contains(err.Error(), "no rows") {
+			log.Printf("Task not found for outliers analysis: %s", taskID)
+			http.Error(w, fmt.Sprintf("Task not found: %s", taskID), http.StatusNotFound)
+			return
+		}
+		log.Printf("Failed to analyze outliers for task %s: %v", taskID, err)
+		http.Error(w, fmt.Sprintf("Failed to analyze task: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	response := OutliersAnalysisResponse{
+		TaskID:       analysis.TaskID,
+		TaskTitle:    analysis.TaskTitle,
+		SpanCount:    analysis.SpanCount,
+		Threshold:    analysis.Threshold,
+		Stats:        analysis.Stats,
+		Outliers:     analysis.Outliers,
+		RateOfChange: analysis.RateOfChange,
+		CliCommand:   cliCommand,
+		AnalyzedAt:   analysis.AnalyzedAt.Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode outliers response: %v", err)
+	}
+}

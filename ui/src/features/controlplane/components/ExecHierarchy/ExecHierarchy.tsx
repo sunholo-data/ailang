@@ -639,6 +639,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   hiddenSpanTypes: propsHiddenSpanTypes,
   onToggleSpanType,
   filters,
+  highlightedSpanId,
+  onClearHighlight,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
@@ -840,6 +842,57 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   const hasMoreNodes = totalNodeCount > displayLimit;
   const loadMoreNodes = () => setDisplayLimit(prev => prev + LOAD_MORE_INCREMENT);
   const showAllNodes = () => setDisplayLimit(totalNodeCount);
+
+  // Handle highlighted span (from outliers click) - auto-expand path and scroll to node
+  useEffect(() => {
+    if (!highlightedSpanId || !spans || spans.length === 0) return;
+
+    // Find the path to the highlighted span
+    const findPathToNode = (nodeList: HierarchyNode[], targetId: string, path: string[] = []): string[] | null => {
+      for (const node of nodeList) {
+        // Check if this node matches the highlighted span
+        if (node._span?.id === targetId || node.id === targetId) {
+          return path;
+        }
+        if (node.children && node.children.length > 0) {
+          const foundPath = findPathToNode(node.children, targetId, [...path, node.id]);
+          if (foundPath) return foundPath;
+        }
+      }
+      return null;
+    };
+
+    // Delay to ensure nodes are rendered
+    const timer = setTimeout(() => {
+      const pathToExpand = findPathToNode(nodes, highlightedSpanId);
+      if (pathToExpand) {
+        // Expand all nodes in the path
+        setExpandedNodes(prev => {
+          const next = new Set(prev);
+          pathToExpand.forEach(id => next.add(id));
+          return next;
+        });
+        setExpandChangeCounter(c => c + 1);
+
+        // Scroll to the highlighted element after expansion
+        setTimeout(() => {
+          const element = document.querySelector(`[data-span-id="${highlightedSpanId}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Add pulse animation class
+            element.classList.add(styles.highlightedSpan);
+            // Remove after animation
+            setTimeout(() => {
+              element.classList.remove(styles.highlightedSpan);
+              onClearHighlight?.();
+            }, 3000);
+          }
+        }, 100);
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [highlightedSpanId, spans, nodes, onClearHighlight]);
 
   // Expand ONE LEVEL: expand children of currently expanded nodes (or roots if nothing expanded)
   const expandOneLevel = useCallback(() => {
@@ -1272,6 +1325,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             onNodeClick={handleNodeClick}
             loading={loading}
             error={null}
+            expandedNodeIds={expandedNodes}
+            onToggleExpand={handleToggleExpand}
+            highlightedSpanId={highlightedSpanId}
           />
         )}
         {viewMode === 'graph' && (

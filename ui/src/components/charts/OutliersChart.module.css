@@ -1,0 +1,235 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-base);
+  border-radius: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backButton {
+  padding: 4px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.backButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.taskInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.taskTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.taskMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+}
+
+/* Stats Table */
+.statsTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.statsHeader {
+  display: grid;
+  grid-template-columns: 1fr 0.6fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: 1fr 0.6fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+}
+
+.statsRow:hover {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.statsCol {
+  text-align: right;
+}
+
+.statsCol:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+/* Outliers List */
+.outliersList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.outlierItem {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.outlierItem:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.outlierRank {
+  font-weight: 600;
+  color: var(--accent-color);
+  font-size: 13px;
+  min-width: 24px;
+}
+
+.outlierContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.outlierName {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.outlierDetails {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.outlierMetric {
+  color: var(--text-secondary);
+}
+
+.outlierValue {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.outlierZScore {
+  color: var(--warning-color, #f59e0b);
+  font-weight: 500;
+}
+
+.outlierPercent {
+  color: var(--text-secondary);
+}
+
+.outlierMeta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.noOutliers {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 24px;
+  font-size: 13px;
+}
+
+/* CLI Hint */
+.cliHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.cliLabel {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.cliCommand {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Loading / Error / Empty states */
+.loading,
+.error,
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--error-color, #ef4444);
+  gap: 8px;
+}
+
+.errorIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--error-color, #ef4444);
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 12px;
+}

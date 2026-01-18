@@ -152,6 +152,7 @@ const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
     <div
       className={`${styles.rfNode} ${selected ? styles.rfNodeSelected : ''} ${data.provider ? styles[`rfNodeProvider${data.provider.charAt(0).toUpperCase() + data.provider.slice(1)}`] : ''} ${isCoordinator ? styles.rfNodeCoordinator : ''} ${isFiltered ? styles.rfNodeFiltered : ''}`}
       style={{ borderLeftColor: nodeColor }}
+      data-span-id={data._span?.id || data.id}
     >
       <Handle type="target" position={Position.Top} className={styles.rfHandle} />
       <div className={styles.rfNodeHeader}>

@@ -412,3 +412,54 @@ type TraceSummary struct {
 	ServiceName string      `json:"service_name,omitempty"` // e.g., "ailang-run", "ailang-eval", "claude-code"
 	Source      TraceSource `json:"source,omitempty"`       // Where trace came from: local, gcp, jaeger
 }
+
+// SpanOutlier represents a span that is statistically anomalous within its task.
+type SpanOutlier struct {
+	Span           *Span   `json:"span"`
+	Metric         string  `json:"metric"`           // "cost_usd", "duration_ms", "tokens"
+	Value          float64 `json:"value"`            // Actual metric value
+	Mean           float64 `json:"mean"`             // Task mean for this metric
+	StdDev         float64 `json:"std_dev"`          // Task standard deviation
+	ZScore         float64 `json:"z_score"`          // (value - mean) / stddev
+	PercentOfTotal float64 `json:"percent_of_total"` // What % of task total this span represents
+}
+
+// TaskMetricStats holds statistical summary for a single metric within a task.
+type TaskMetricStats struct {
+	Metric string  `json:"metric"`
+	Count  int     `json:"count"`   // Number of spans with non-zero values
+	Sum    float64 `json:"sum"`     // Total value across all spans
+	Mean   float64 `json:"mean"`    // Average value
+	StdDev float64 `json:"std_dev"` // Standard deviation
+	Min    float64 `json:"min"`
+	Max    float64 `json:"max"`
+}
+
+// OutlierAnalysis contains the full outlier analysis for a task.
+type OutlierAnalysis struct {
+	TaskID       string             `json:"task_id"`
+	TaskTitle    string             `json:"task_title"`
+	SpanCount    int                `json:"span_count"`
+	Stats        []*TaskMetricStats `json:"stats"`                    // Per-metric statistics
+	Outliers     []*SpanOutlier     `json:"outliers"`                 // Detected outliers (sorted by |z-score| desc)
+	RateOfChange *RateAnalysis      `json:"rate_of_change,omitempty"` // Optional rate analysis
+	Threshold    float64            `json:"threshold"`                // Z-score threshold used
+	AnalyzedAt   time.Time          `json:"analyzed_at"`
+}
+
+// RateAnalysis shows how metrics accumulated during task execution.
+type RateAnalysis struct {
+	CumulativeCost     []CumulativePoint `json:"cumulative_cost"`
+	CumulativeTokens   []CumulativePoint `json:"cumulative_tokens"`
+	CumulativeDuration []CumulativePoint `json:"cumulative_duration"`
+}
+
+// CumulativePoint represents a point in the cumulative progression.
+type CumulativePoint struct {
+	SpanIndex    int       `json:"span_index"`
+	SpanName     string    `json:"span_name"`
+	Timestamp    time.Time `json:"timestamp"`
+	Value        float64   `json:"value"`         // Value of this span
+	Cumulative   float64   `json:"cumulative"`    // Running total up to this span
+	DeltaPercent float64   `json:"delta_percent"` // This span's contribution as % of final total
+}

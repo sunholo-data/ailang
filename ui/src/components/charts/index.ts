@@ -12,3 +12,6 @@ export type { UsageColumnChartProps } from './UsageColumnChart';
 
 export { CostBreakdownChart } from './CostBreakdownChart';
 export type { CostBreakdownChartProps, BreakdownDimension, BreakdownMetric } from './CostBreakdownChart';
+
+export { OutliersChart } from './OutliersChart';
+export type { OutliersChartProps } from './OutliersChart';

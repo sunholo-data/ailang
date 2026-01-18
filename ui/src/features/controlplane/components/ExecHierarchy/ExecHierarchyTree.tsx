@@ -67,16 +67,38 @@ interface TreeNodeProps {
   depth: number;
   selectedId?: string | null;
   onNodeClick?: (node: HierarchyNode) => void;
+  /** Lifted expanded state - if provided, use this instead of internal state */
+  expandedNodeIds?: Set<string>;
+  /** Callback for toggling expanded state when using lifted state */
+  onToggleExpand?: (nodeId: string) => void;
+  /** Span ID to highlight */
+  highlightedSpanId?: string | null;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, selectedId, onNodeClick }) => {
-  const [expanded, setExpanded] = useState(depth < 2);
+const TreeNode: React.FC<TreeNodeProps> = ({
+  node,
+  depth,
+  selectedId,
+  onNodeClick,
+  expandedNodeIds,
+  onToggleExpand,
+  highlightedSpanId,
+}) => {
+  // Use lifted state if provided, otherwise use internal state
+  const [internalExpanded, setInternalExpanded] = useState(depth < 2);
+  const expanded = expandedNodeIds ? expandedNodeIds.has(node.id) : internalExpanded;
+
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = selectedId === node.id;
+  const isHighlighted = highlightedSpanId && (node._span?.id === highlightedSpanId || node.id === highlightedSpanId);
 
   const handleClick = () => {
     if (hasChildren) {
-      setExpanded(!expanded);
+      if (onToggleExpand) {
+        onToggleExpand(node.id);
+      } else {
+        setInternalExpanded(!internalExpanded);
+      }
     }
     onNodeClick?.(node);
   };
@@ -85,9 +107,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, selectedId, onNodeClic
   const provider = (node as { provider?: string }).provider;
 
   return (
-    <div className={styles.treeNode}>
+    <div
+      className={`${styles.treeNode} ${isHighlighted ? styles.highlightedSpan : ''}`}
+      data-span-id={node._span?.id || node.id}
+    >
       <div
-        className={`${styles.treeNodeHeader} ${isSelected ? styles.treeNodeSelected : ''}`}
+        className={`${styles.treeNodeHeader} ${isSelected ? styles.treeNodeSelected : ''} ${isHighlighted ? styles.highlightedSpan : ''}`}
         style={{ paddingLeft: `${depth * 20 + 8}px` }}
         onClick={handleClick}
       >
@@ -134,6 +159,9 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, selectedId, onNodeClic
               depth={depth + 1}
               selectedId={selectedId}
               onNodeClick={onNodeClick}
+              expandedNodeIds={expandedNodeIds}
+              onToggleExpand={onToggleExpand}
+              highlightedSpanId={highlightedSpanId}
             />
           ))}
         </div>
@@ -148,6 +176,12 @@ export interface ExecHierarchyTreeProps {
   onNodeClick?: (node: HierarchyNode) => void;
   loading?: boolean;
   error?: string | null;
+  /** Set of node IDs that should be expanded (lifted state from parent) */
+  expandedNodeIds?: Set<string>;
+  /** Callback when a node's expand state changes */
+  onToggleExpand?: (nodeId: string) => void;
+  /** Span ID to highlight (for outlier click-to-highlight) */
+  highlightedSpanId?: string | null;
 }
 
 export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
@@ -156,6 +190,9 @@ export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
   onNodeClick,
   loading,
   error,
+  expandedNodeIds,
+  onToggleExpand,
+  highlightedSpanId,
 }) => {
   if (loading) {
     return (
@@ -196,6 +233,9 @@ export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
           depth={0}
           selectedId={selectedNodeId}
           onNodeClick={onNodeClick}
+          expandedNodeIds={expandedNodeIds}
+          onToggleExpand={onToggleExpand}
+          highlightedSpanId={highlightedSpanId}
         />
       ))}
     </div>

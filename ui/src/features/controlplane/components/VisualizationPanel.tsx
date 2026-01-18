@@ -45,14 +45,17 @@ export type MetricType = 'cost' | 'tokens' | 'turns' | 'spans';
 export type IntervalType = 'hour' | 'day' | 'week';
 export type SplitByType = 'provider' | 'model' | 'workspace' | '';
 
-// Chart type configuration
-const chartTabs: Array<{
+// Chart tab type
+interface ChartTab {
   type: ChartType;
   label: string;
   icon: string;
   commandType: CommandType;
   available: boolean;
-}> = [
+}
+
+// Static chart tabs (always visible)
+const staticChartTabs: ChartTab[] = [
   { type: 'heatmap', label: 'Activity', icon: '▤', commandType: 'stats', available: true },
   { type: 'evolution', label: 'Evolution', icon: '📈', commandType: 'traces', available: true },
   { type: 'usage', label: 'Usage', icon: '📊', commandType: 'stats', available: true },
@@ -103,8 +106,13 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
     refreshInterval: 30000,
   });
 
+  // Handle task click from evolution chart - just trigger selection, don't switch tabs
+  const handleTaskClick = useCallback((taskId: string) => {
+    onTaskSelect?.(taskId);
+  }, [onTaskSelect]);
+
   const handleChartChange = useCallback((chartType: ChartType) => {
-    const tab = chartTabs.find(t => t.type === chartType);
+    const tab = staticChartTabs.find(t => t.type === chartType);
     if (tab?.available) {
       setActiveChart(chartType);
     }
@@ -130,7 +138,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
 
   // Get the current chart's command type
   const currentCommandType = useMemo(() => {
-    return chartTabs.find(t => t.type === activeChart)?.commandType || 'stats';
+    return staticChartTabs.find(t => t.type === activeChart)?.commandType || 'stats';
   }, [activeChart]);
 
   // Check if there are any active filters to show
@@ -157,7 +165,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
         {/* Header with tabs and controls */}
         <div className={styles.header}>
           <div className={styles.tabs}>
-            {chartTabs.map((tab) => (
+            {staticChartTabs.map((tab) => (
               <button
                 key={tab.type}
                 className={`${styles.tab} ${activeChart === tab.type ? styles.tabActive : ''} ${
@@ -325,7 +333,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                 metric={metric}
                 logScale={logScale}
                 height={isExpanded ? 500 : 280}
-                onTaskClick={onTaskSelect}
+                onTaskClick={handleTaskClick}
               />
             )}
           </div>

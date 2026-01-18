@@ -357,6 +357,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)
 	mux.HandleFunc("/api/controlplane/usage-timeseries", s.handleUsageTimeSeries)
 	mux.HandleFunc("/api/controlplane/token-distribution", s.handleTokenDistribution)
+	mux.HandleFunc("/api/controlplane/outliers", s.handleOutliersAnalysis)
 
 	// REST API endpoints - Budget (AILANG dogfooding)
 	mux.HandleFunc("/api/budget/status", s.handleBudgetStatus)

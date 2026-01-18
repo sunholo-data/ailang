@@ -13,6 +13,7 @@ import {
   useEventQueue,
   useTraceData,
   useBreakdownData,
+  useOutliersAnalysis,
 } from './hooks';
 import {
   ControlPlaneFilters,
@@ -248,12 +249,20 @@ export const ControlPlane: React.FC = () => {
   const [approvalDropdownOpen, setApprovalDropdownOpen] = useState(false);
   // Track selected event for trace correlation
   const [selectedEventTraceId, setSelectedEventTraceId] = useState<string | null>(null);
+  // Track highlighted span ID (for outlier click-to-highlight)
+  const [highlightedSpanId, setHighlightedSpanId] = useState<string | null>(null);
   // Detail panel state - must be defined before memos that use it
   const [detailPanel, setDetailPanel] = useState<DetailPanelState>({ type: null, id: null });
 
   const { spans: traceSpans, spansLoading, fetchSpansForTrace } = useTraceData({
     limit: 100  // Don't auto-fetch, we'll call fetchSpansForTrace manually with auto mode
   });
+
+  // Fetch outliers analysis for selected task (used in EventDetail)
+  const { data: outliersData, loading: outliersLoading } = useOutliersAnalysis(
+    selectedEventTraceId,
+    { showRate: true, limit: 5 }
+  );
 
   // Transform data for components - NO MOCK FALLBACKS
   const heatmapData = useMemo(() => {
@@ -665,6 +674,9 @@ export const ControlPlane: React.FC = () => {
                 onNavigate={navigateEvent}
                 currentIndex={events.findIndex(e => e.id === detailPanel.id)}
                 totalEvents={events.length}
+                outliers={outliersData}
+                outliersLoading={outliersLoading}
+                onOutlierClick={(spanId) => setHighlightedSpanId(spanId)}
               />
             )}
           </div>
@@ -673,6 +685,8 @@ export const ControlPlane: React.FC = () => {
               isExpanded={topologyExpanded}
               onToggleExpand={() => setTopologyExpanded(!topologyExpanded)}
               selectedNodeId={selectedEventTraceId}
+              highlightedSpanId={highlightedSpanId}
+              onClearHighlight={() => setHighlightedSpanId(null)}
               spans={spans}
               loading={spansLoading}
               filterCriteria={{

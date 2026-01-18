@@ -112,7 +112,7 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
     const depthPrefix = depth === 0 ? '' : '├─'.repeat(Math.max(0, depth - 1)) + '└─ ';
 
     return (
-      <div key={`${span.id}-${index}`} className={styles.waterfallRow} data-depth={depth}>
+      <div key={`${span.id}-${index}`} className={styles.waterfallRow} data-depth={depth} data-span-id={span.id}>
         <div className={styles.waterfallLabel} style={{ paddingLeft: `${depth * 20}px` }}>
           <span className={styles.waterfallName}>
             {depth > 0 && (

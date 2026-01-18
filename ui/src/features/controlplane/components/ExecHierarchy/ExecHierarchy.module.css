@@ -681,6 +681,23 @@
   }
 }
 
+/* Highlighted Span (from outliers click) */
+.highlightedSpan {
+  animation: spanPulse 0.6s ease-in-out 3;
+  box-shadow: 0 0 0 3px var(--accent-primary, #8b5cf6) !important;
+  border-color: var(--accent-primary, #8b5cf6) !important;
+  z-index: 10;
+}
+
+@keyframes spanPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px var(--accent-primary, #8b5cf6);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.4);
+  }
+}
+
 /* Graph View Styles (ReactFlow) */
 .graphContainer {
   width: 100%;

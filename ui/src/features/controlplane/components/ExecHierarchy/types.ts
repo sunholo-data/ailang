@@ -185,4 +185,7 @@ export interface ExecHierarchyProps {
   onToggleSpanType?: (spanType: string) => void;
   // Filters for CLI hint
   filters?: ControlPlaneFilters;
+  // Span highlighting for outliers (click from EventDetail outliers list)
+  highlightedSpanId?: string | null;
+  onClearHighlight?: () => void;
 }
