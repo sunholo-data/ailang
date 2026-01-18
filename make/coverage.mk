@@ -37,10 +37,11 @@ test-coverage-detailed: test-coverage ## Show detailed coverage by package
 	@$(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep -v "total" | sort -t':' -k2 -rn | head -20
 
 # Coverage gate (fails if below threshold)
+# Uses awk for POSIX-compatible float comparison (dash/sh doesn't support bash's (( )) )
 test-coverage-gate: test-coverage ## Verify coverage meets threshold
 	@coverage=$$($(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep "^total:" | awk '{print $$3}' | sed 's/%//'); \
 	threshold=$(COVERAGE_THRESHOLD); \
-	if (( $$(echo "$$coverage >= $$threshold" | bc -l) )); then \
+	if awk "BEGIN {exit !($$coverage >= $$threshold)}"; then \
 		echo "$(GREEN)$(CHECKMARK) Coverage $$coverage% meets threshold $$threshold%$(RESET)"; \
 	else \
 		echo "$(RED)$(CROSS) Coverage $$coverage% below threshold $$threshold%$(RESET)"; \
