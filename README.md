@@ -2,6 +2,7 @@
 
 <!-- EXAMPLES_STATUS_START -->
 ![Examples](https://img.shields.io/badge/examples-80%20passing%2024%20failing-orange.svg)
+![Coverage](https://img.shields.io/badge/coverage-35%25-orange.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 **80/104 examples passing (77%)** | [Full status](https://ailang.sunholo.com/docs/examples)
