@@ -130,7 +130,7 @@ func BenchmarkRemaining_Go(b *testing.B) {
 // Benchmarks - AILANG
 
 func BenchmarkCheckTaskBudget_AILANG(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	config := defaultConfig()
@@ -150,7 +150,7 @@ func BenchmarkCheckTaskBudget_AILANG(b *testing.B) {
 }
 
 func BenchmarkUsagePercent_AILANG(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	// Warm up
@@ -166,7 +166,7 @@ func BenchmarkUsagePercent_AILANG(b *testing.B) {
 }
 
 func BenchmarkRemaining_AILANG(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	// Warm up
@@ -184,7 +184,7 @@ func BenchmarkRemaining_AILANG(b *testing.B) {
 // Functional correctness tests
 
 func TestCheckTaskBudget_Allowed(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	config := defaultConfig()
@@ -210,7 +210,7 @@ func TestCheckTaskBudget_Allowed(t *testing.T) {
 }
 
 func TestCheckTaskBudget_Exceeded(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	config := defaultConfig()
@@ -237,7 +237,7 @@ func TestCheckTaskBudget_Exceeded(t *testing.T) {
 }
 
 func TestUsagePercent_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	testCases := []struct {
@@ -266,7 +266,7 @@ func TestUsagePercent_Correctness(t *testing.T) {
 }
 
 func TestIsWarningZone_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	testCases := []struct {
@@ -297,7 +297,7 @@ func TestIsWarningZone_Correctness(t *testing.T) {
 }
 
 func TestRemaining_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	testCases := []struct {

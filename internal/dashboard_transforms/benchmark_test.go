@@ -111,7 +111,7 @@ func BenchmarkTruncate_Go(b *testing.B) {
 }
 
 func BenchmarkTruncate_AILANG(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	text := strings.Repeat("hello world ", 100)
@@ -137,7 +137,7 @@ func BenchmarkCountTurns_Go_10(b *testing.B) {
 }
 
 func BenchmarkCountTurns_AILANG_10(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	events := generateEvents(10)
@@ -163,7 +163,7 @@ func BenchmarkCountTurns_Go_100(b *testing.B) {
 }
 
 func BenchmarkCountTurns_AILANG_100(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	events := generateEvents(100)
@@ -189,7 +189,7 @@ func BenchmarkSummarize_Go_10(b *testing.B) {
 }
 
 func BenchmarkSummarize_AILANG_10(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	events := generateEvents(10)
@@ -215,7 +215,7 @@ func BenchmarkSummarize_Go_100(b *testing.B) {
 }
 
 func BenchmarkSummarize_AILANG_100(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	events := generateEvents(100)
@@ -234,7 +234,7 @@ func BenchmarkSummarize_AILANG_100(b *testing.B) {
 
 // Functional correctness test
 func TestAILANGMatchesGo(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	// Test truncate

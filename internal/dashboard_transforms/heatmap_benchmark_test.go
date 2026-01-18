@@ -96,7 +96,7 @@ func BenchmarkLookupCell_Go_7(b *testing.B) {
 // Benchmarks - AILANG
 
 func BenchmarkCalcIntensity_AILANG(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	// Warm up
@@ -112,7 +112,7 @@ func BenchmarkCalcIntensity_AILANG(b *testing.B) {
 }
 
 func BenchmarkMaxTaskCount_AILANG_7(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	cells := generateHeatmapCells(7)
@@ -130,7 +130,7 @@ func BenchmarkMaxTaskCount_AILANG_7(b *testing.B) {
 }
 
 func BenchmarkMaxTaskCount_AILANG_30(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	cells := generateHeatmapCells(30)
@@ -148,7 +148,7 @@ func BenchmarkMaxTaskCount_AILANG_30(b *testing.B) {
 }
 
 func BenchmarkBuildHeatmapGridAt_AILANG_7(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	cells := generateHeatmapCells(7)
@@ -170,7 +170,7 @@ func BenchmarkBuildHeatmapGridAt_AILANG_7(b *testing.B) {
 }
 
 func BenchmarkBuildHeatmapGridAt_AILANG_30(b *testing.B) {
-	engine := embed.New("../..")
+	engine := newBenchEngine(b)
 	defer engine.Close()
 
 	cells := generateHeatmapCells(30)
@@ -194,7 +194,7 @@ func BenchmarkBuildHeatmapGridAt_AILANG_30(b *testing.B) {
 // Functional correctness tests
 
 func TestCalcIntensity_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	testCases := []struct {
@@ -224,7 +224,7 @@ func TestCalcIntensity_Correctness(t *testing.T) {
 }
 
 func TestMaxTaskCount_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	cells := generateHeatmapCells(14)
@@ -244,7 +244,7 @@ func TestMaxTaskCount_Correctness(t *testing.T) {
 }
 
 func TestBuildHeatmapGridAt_Correctness(t *testing.T) {
-	engine := embed.New("../..")
+	engine := newTestEngine(t)
 	defer engine.Close()
 
 	cells := []HeatmapCell{
