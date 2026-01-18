@@ -98,7 +98,7 @@ jobs:
       run: |
         make test-coverage
         # Extract coverage percentage for badge
-        COVERAGE=$(go tool cover -func=coverage/coverage.out | grep total: | awk '{print $3}' | sed 's/%//')
+        COVERAGE=$(go tool cover -func=coverage/coverage.out | grep "^total:" | awk '{print $3}' | sed 's/%//')
         echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
         echo "Coverage: $COVERAGE%"
         

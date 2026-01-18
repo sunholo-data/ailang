@@ -21,7 +21,7 @@ test-coverage: ## Run tests with coverage
 # Display quick coverage badge
 test-coverage-badge: test-coverage ## Show coverage percentage badge
 	@echo ""
-	@coverage=$$($(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}'); \
+	@coverage=$$($(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep "^total:" | awk '{print $$3}'); \
 	echo "$(BOLD)Coverage: $$coverage$(RESET)"
 
 # Generate HTML coverage report
@@ -38,7 +38,7 @@ test-coverage-detailed: test-coverage ## Show detailed coverage by package
 
 # Coverage gate (fails if below threshold)
 test-coverage-gate: test-coverage ## Verify coverage meets threshold
-	@coverage=$$($(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}' | sed 's/%//'); \
+	@coverage=$$($(GOCMD) tool cover -func=$(COVERAGE_FILE) | grep "^total:" | awk '{print $$3}' | sed 's/%//'); \
 	threshold=$(COVERAGE_THRESHOLD); \
 	if (( $$(echo "$$coverage >= $$threshold" | bc -l) )); then \
 		echo "$(GREEN)$(CHECKMARK) Coverage $$coverage% meets threshold $$threshold%$(RESET)"; \
