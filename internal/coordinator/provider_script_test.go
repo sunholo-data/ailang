@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -140,6 +141,11 @@ func TestToEnvKey(t *testing.T) {
 }
 
 func TestScriptProvider_Execute(t *testing.T) {
+	// Skip on Windows - these tests use Unix shell commands (/bin/sh, /bin/bash)
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping Unix-specific shell tests on Windows")
+	}
+
 	provider := NewScriptProvider()
 
 	t.Run("simple echo command", func(t *testing.T) {
