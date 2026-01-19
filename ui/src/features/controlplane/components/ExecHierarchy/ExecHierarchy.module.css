@@ -1965,3 +1965,246 @@
   color: var(--text-inverse, #ffffff);
   border-color: var(--sunholo-purple, #6b46c1);
 }
+
+/* ============================================
+   Task Hierarchy Graph Styles
+   ============================================ */
+
+/* Task Stats Bar */
+.taskStatsBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  background: var(--bg-elevated, #141d2b);
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.taskStat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1, 4px);
+}
+
+.taskStatValue {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-base, 14px);
+  font-weight: var(--font-bold, 700);
+  color: var(--text-primary, #e6edf3);
+}
+
+.taskStatLabel {
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-medium, 500);
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Task Node specific styles */
+.rfNodeHandoffTarget {
+  border: 2px dashed var(--color-warning, #f59e0b);
+  background: linear-gradient(135deg, var(--bg-surface, #1a2332) 0%, rgba(245, 158, 11, 0.06) 100%);
+}
+
+.rfIterationBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 16px;
+  padding: 0 6px;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-inverse, #ffffff);
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* Spans indicator */
+.rfNodeSpans {
+  margin-top: var(--space-1, 4px);
+  padding-top: var(--space-1, 4px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+}
+
+.rfSpanBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--color-primary, #58a6ff);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.rfSpanBadge:hover {
+  color: var(--color-primary-light, #79b8ff);
+}
+
+.rfNodeId {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  color: var(--text-tertiary, #6e7681);
+  margin-top: var(--space-1, 4px);
+  padding-top: var(--space-1, 4px);
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  opacity: 0.6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Span Expand Button */
+.rfSpanExpandBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--color-primary, #58a6ff);
+  background: var(--bg-base, #0f1419);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rfSpanExpandBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--color-primary, #58a6ff);
+}
+
+.rfExpandIcon {
+  font-size: 8px;
+  transition: transform 0.15s ease;
+}
+
+/* Span Node Styles (execution details) */
+.rfSpanNode {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-left-width: 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  min-width: 140px;
+  max-width: 180px;
+  transition: all 0.15s ease;
+}
+
+.rfSpanNode:hover {
+  border-color: var(--border-default, rgba(255, 255, 255, 0.15));
+  background: var(--bg-elevated, #232d3a);
+}
+
+.rfSpanHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.rfSpanIcon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.rfSpanLabel {
+  font-weight: 500;
+  color: var(--text-primary, #e6edf3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rfSpanError {
+  color: var(--color-error, #f85149);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.rfSpanMeta {
+  font-size: 9px;
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* View mode selector for task vs span view */
+.viewModeSelector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 2px;
+  background: var(--bg-base, #0f1419);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 6px);
+}
+
+.viewModeBtn {
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--font-medium, 500);
+  color: var(--text-tertiary, #6e7681);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.viewModeBtn:hover {
+  color: var(--text-secondary, #8b949e);
+  background: var(--bg-hover, #232d3a);
+}
+
+.viewModeBtnActive {
+  color: var(--text-primary, #e6edf3);
+  background: var(--bg-surface, #1a2332);
+}
+
+/* Expand/Collapse Button for Graph Nodes */
+.rfExpandBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #8b949e);
+  background: var(--bg-base, #0f1419);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 150ms ease);
+}
+
+.rfExpandBtn:hover {
+  background: var(--bg-hover, #232d3a);
+  border-color: var(--color-primary, #e73c17);
+  color: var(--text-primary, #e6edf3);
+}
+
+/* Child count badge on expand button */
+.rfExpandCount {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  font-weight: var(--font-semibold, 600);
+  background: var(--color-primary, #e73c17);
+  color: var(--text-inverse, #ffffff);
+  border-radius: var(--radius-full, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

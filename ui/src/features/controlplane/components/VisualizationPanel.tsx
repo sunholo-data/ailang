@@ -41,7 +41,7 @@ export interface VisualizationPanelProps {
 }
 
 // Metric type for charts
-export type MetricType = 'cost' | 'tokens' | 'turns' | 'spans';
+export type MetricType = 'cost' | 'tokens' | 'turns' | 'spans' | 'duration';
 export type IntervalType = 'hour' | 'day' | 'week';
 export type SplitByType = 'provider' | 'model' | 'workspace' | '';
 
@@ -194,6 +194,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
               <option value="tokens">Tokens</option>
               <option value="turns">Tasks</option>
               <option value="spans">Spans</option>
+              <option value="duration">Duration</option>
             </select>
           </div>
 

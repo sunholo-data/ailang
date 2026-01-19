@@ -57,6 +57,13 @@ func coordinatorApprove(args []string) error {
 	// Load agent registry for per-agent merge branch lookup
 	agentRegistry, _ := coordinator.LoadAgentRegistry()
 
+	// Create GitHubPoster for label operations (M-GENERIC-PIPELINE)
+	var githubPoster *coordinator.GitHubPoster
+	if poster, err := coordinator.NewGitHubPoster(); err == nil {
+		githubPoster = poster
+	}
+	// If poster creation fails, continue without it - labels won't be updated
+
 	ctx := context.Background()
 
 	// Use unified approval processor
@@ -70,6 +77,7 @@ func coordinatorApprove(args []string) error {
 		KeepWorktree:  keepWorktree,
 		Store:         store,
 		AgentRegistry: agentRegistry,
+		GitHubPoster:  githubPoster,
 	})
 	if err != nil {
 		return err

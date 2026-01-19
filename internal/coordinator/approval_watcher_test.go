@@ -642,3 +642,176 @@ func (m *mockStore) ResetTaskToPending(ctx context.Context, id string) error {
 func (m *mockStore) GetCostByProvider() (map[string]float64, error) {
 	return make(map[string]float64), nil
 }
+
+// TestRegisterAgentApprovalHandlers_NilRegistry tests with nil registry
+func TestRegisterAgentApprovalHandlers_NilRegistry(t *testing.T) {
+	poster := &GitHubPoster{}
+	store := &mockStore{}
+	watcher := NewApprovalWatcher(poster, store, 10*time.Second)
+
+	count, err := watcher.RegisterAgentApprovalHandlers(nil, nil)
+	if err == nil {
+		t.Error("Expected error for nil registry, got nil")
+	}
+	if count != 0 {
+		t.Errorf("Expected count 0, got %d", count)
+	}
+}
+
+// TestRegisterAgentApprovalHandlers_EmptyRegistry tests with empty registry
+func TestRegisterAgentApprovalHandlers_EmptyRegistry(t *testing.T) {
+	poster := &GitHubPoster{}
+	store := &mockStore{}
+	watcher := NewApprovalWatcher(poster, store, 10*time.Second)
+
+	registry := NewAgentRegistry()
+
+	count, err := watcher.RegisterAgentApprovalHandlers(registry, nil)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected 0 registered agents, got %d", count)
+	}
+}
+
+// TestRegisterAgentApprovalHandlers_WithAgents tests registering multiple agents
+func TestRegisterAgentApprovalHandlers_WithAgents(t *testing.T) {
+	poster := &GitHubPoster{}
+	store := &mockStore{}
+	watcher := NewApprovalWatcher(poster, store, 10*time.Second)
+
+	registry := NewAgentRegistry()
+
+	// Agent with approval config
+	agent1 := &AgentConfig{
+		ID:    "design-doc-creator",
+		Label: "Design Doc Creator",
+		Inbox: "design-doc-creator",
+		Approval: &ApprovalConfig{
+			NeedsLabel:    "needs-design-approval",
+			ApprovedLabel: "design-approved",
+		},
+	}
+	if err := registry.Register(agent1); err != nil {
+		t.Fatalf("Failed to register agent1: %v", err)
+	}
+
+	// Agent without approval config (should be skipped)
+	agent2 := &AgentConfig{
+		ID:    "coordinator",
+		Label: "Coordinator",
+		Inbox: "coordinator",
+		// No Approval field
+	}
+	if err := registry.Register(agent2); err != nil {
+		t.Fatalf("Failed to register agent2: %v", err)
+	}
+
+	// Agent with approval config
+	agent3 := &AgentConfig{
+		ID:    "sprint-planner",
+		Label: "Sprint Planner",
+		Inbox: "sprint-planner",
+		Approval: &ApprovalConfig{
+			NeedsLabel:    "needs-sprint-approval",
+			ApprovedLabel: "sprint-approved",
+		},
+	}
+	if err := registry.Register(agent3); err != nil {
+		t.Fatalf("Failed to register agent3: %v", err)
+	}
+
+	handlerCalled := make(map[string]bool)
+	handler := func(ctx context.Context, event *ApprovalEvent) error {
+		handlerCalled[event.Label] = true
+		return nil
+	}
+
+	count, err := watcher.RegisterAgentApprovalHandlers(registry, handler)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected 2 registered agents, got %d", count)
+	}
+
+	// Verify agents are registered by label
+	labels := watcher.GetRegisteredLabels()
+	if len(labels) != 2 {
+		t.Errorf("Expected 2 labels, got %d: %v", len(labels), labels)
+	}
+
+	// Verify agent lookup by label
+	if agent := watcher.GetAgentByLabel("design-approved"); agent == nil || agent.ID != "design-doc-creator" {
+		t.Error("Agent design-doc-creator not registered by label")
+	}
+	if agent := watcher.GetAgentByLabel("sprint-approved"); agent == nil || agent.ID != "sprint-planner" {
+		t.Error("Agent sprint-planner not registered by label")
+	}
+}
+
+// TestRegisterAgentApprovalHandlers_DefaultsForKnownAgents tests that known agents get defaults
+func TestRegisterAgentApprovalHandlers_DefaultsForKnownAgents(t *testing.T) {
+	poster := &GitHubPoster{}
+	store := &mockStore{}
+	watcher := NewApprovalWatcher(poster, store, 10*time.Second)
+
+	registry := NewAgentRegistry()
+
+	// Known agent WITHOUT explicit approval config - should get defaults
+	agent := &AgentConfig{
+		ID:    "design-doc-creator",
+		Label: "Design Doc Creator",
+		Inbox: "design-doc-creator",
+		// No Approval field - GetEffectiveApprovalConfig() should return defaults
+	}
+	if err := registry.Register(agent); err != nil {
+		t.Fatalf("Failed to register agent: %v", err)
+	}
+
+	count, err := watcher.RegisterAgentApprovalHandlers(registry, nil)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 registered agent (from defaults), got %d", count)
+	}
+
+	// Verify the default label was registered
+	if watcher.GetAgentByLabel("design-approved") == nil {
+		t.Error("Default design-approved label not registered")
+	}
+}
+
+// TestRegisterAgentApprovalHandlers_SetsRegistry tests that registry is set on watcher
+func TestRegisterAgentApprovalHandlers_SetsRegistry(t *testing.T) {
+	poster := &GitHubPoster{}
+	store := &mockStore{}
+	watcher := NewApprovalWatcher(poster, store, 10*time.Second)
+
+	registry := NewAgentRegistry()
+	agent := &AgentConfig{
+		ID:    "test-agent",
+		Label: "Test",
+		Inbox: "test-agent",
+		Approval: &ApprovalConfig{
+			NeedsLabel:    "needs-test",
+			ApprovedLabel: "test-approved",
+		},
+	}
+	if err := registry.Register(agent); err != nil {
+		t.Fatalf("Failed to register agent: %v", err)
+	}
+
+	watcher.RegisterAgentApprovalHandlers(registry, nil)
+
+	// Verify registry was set
+	watcher.mu.Lock()
+	registrySet := watcher.agentRegistry
+	watcher.mu.Unlock()
+
+	if registrySet != registry {
+		t.Error("Registry was not set on watcher")
+	}
+}

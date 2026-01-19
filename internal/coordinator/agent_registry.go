@@ -261,13 +261,12 @@ func (r *AgentRegistry) Validate() []string {
 // Default Configs (Backwards Compatibility for AILANG Workflow)
 // =============================================================================
 // These functions provide legacy defaults for agents without explicit config.
-// Deprecated: New agents should use explicit Invoke, OutputMarkers, and Approval config.
-// These defaults will be removed in v0.7.0.
+// New agents should use explicit Invoke, OutputMarkers, and Approval config in YAML.
+// These defaults are used by GetEffective*() methods when YAML config is not set.
 
-// DefaultInvokeConfig returns the legacy invoke config for known AILANG agent IDs.
+// DefaultInvokeConfig returns the default invoke config for known AILANG agent IDs.
 // Returns nil for unknown agents (no default behavior).
-//
-// Deprecated: Agents should have explicit InvokeConfig in YAML.
+// Used by GetEffectiveInvokeConfig() when agent has no explicit YAML config.
 func DefaultInvokeConfig(agentID string) *InvokeConfig {
 	switch agentID {
 	case "design-doc-creator":
@@ -290,10 +289,9 @@ func DefaultInvokeConfig(agentID string) *InvokeConfig {
 	}
 }
 
-// DefaultOutputMarkers returns the legacy output markers for known AILANG agent IDs.
+// DefaultOutputMarkers returns the default output markers for known AILANG agent IDs.
 // Returns nil for unknown agents (no markers expected).
-//
-// Deprecated: Agents should have explicit OutputMarkers in YAML.
+// Used by GetEffectiveOutputMarkers() when agent has no explicit YAML config.
 // Consider using ArtifactPatterns + git diff instead for deterministic artifact discovery.
 func DefaultOutputMarkers(agentID string) []string {
 	switch agentID {
@@ -333,10 +331,9 @@ func DefaultArtifactPatterns(agentID string) []string {
 	}
 }
 
-// DefaultApprovalConfig returns the legacy approval config for known AILANG agent IDs.
+// DefaultApprovalConfig returns the default approval config for known AILANG agent IDs.
 // Returns nil for unknown agents (no approval workflow).
-//
-// Deprecated: Agents should have explicit ApprovalConfig in YAML.
+// Used by GetEffectiveApprovalConfig() when agent has no explicit YAML config.
 func DefaultApprovalConfig(agentID string) *ApprovalConfig {
 	switch agentID {
 	case "design-doc-creator":

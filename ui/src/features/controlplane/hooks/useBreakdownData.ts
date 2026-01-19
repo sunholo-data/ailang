@@ -14,6 +14,7 @@ export interface BreakdownItem {
   tokens_in: number;
   tokens_out: number;
   cost_usd: number;
+  duration_ms: number;  // Total execution time in ms
   percentage?: number;
 }
 

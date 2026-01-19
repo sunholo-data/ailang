@@ -51,10 +51,11 @@ interface UseTraceDataOptions {
   taskId?: string;
   limit?: number;
   refreshInterval?: number;
+  workspace?: string;  // Filter by workspace to prevent cross-workspace span bleeding
 }
 
 export function useTraceData(options: UseTraceDataOptions = {}) {
-  const { traceId, taskId, limit = 10, refreshInterval = 0 } = options;
+  const { traceId, taskId, limit = 10, refreshInterval = 0, workspace } = options;
   const [traces, setTraces] = useState<Trace[]>([]);
   const [spans, setSpans] = useState<Span[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,10 +128,20 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
   // Preserves the hierarchical structure from the backend (children[] arrays)
   const fetchByTaskId = async (tid: string): Promise<Span[]> => {
     // Use hierarchy endpoint which does proper trace expansion
-    const response = await fetch(`/api/observatory/tasks/${tid}/hierarchy`);
+    // Include workspace param to prevent cross-workspace span bleeding
+    const params = new URLSearchParams();
+    if (workspace) params.set('workspace', workspace);
+    const query = params.toString();
+    const url = query
+      ? `/api/observatory/tasks/${tid}/hierarchy?${query}`
+      : `/api/observatory/tasks/${tid}/hierarchy`;
+    const response = await fetch(url);
     if (!response.ok) {
       // Fallback to direct spans query if hierarchy fails
-      const fallbackResponse = await fetch(`/api/observatory/spans?task_id=${tid}&limit=100`);
+      const fallbackUrl = workspace
+        ? `/api/observatory/spans?task_id=${tid}&limit=100&workspace=${encodeURIComponent(workspace)}`
+        : `/api/observatory/spans?task_id=${tid}&limit=100`;
+      const fallbackResponse = await fetch(fallbackUrl);
       if (!fallbackResponse.ok) return [];
       const rawSpans = await fallbackResponse.json() || [];
       return buildSpanHierarchy(rawSpans);  // Use old approach for fallback

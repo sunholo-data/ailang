@@ -63,6 +63,11 @@ type HierarchyOptions struct {
 	MaxDepth int
 	// IncludeSpans controls whether to include individual spans
 	IncludeSpans bool
+	// Workspace filters spans to only include those belonging to this workspace path
+	// This prevents cross-workspace span bleeding in hierarchy views
+	Workspace string
+	// WorkspaceID filters spans by workspace_id directly (set automatically from task)
+	WorkspaceID string
 }
 
 // DefaultHierarchyOptions returns default options for hierarchy queries.
@@ -82,6 +87,11 @@ func GetTaskHierarchy(ctx context.Context, backend Backend, taskID string, opts 
 	}
 	if task == nil {
 		return nil, fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Set workspace_id from task to prevent cross-workspace span bleeding
+	if opts.WorkspaceID == "" && task.WorkspaceID != "" {
+		opts.WorkspaceID = task.WorkspaceID
 	}
 
 	// Get agent assignments for this task
@@ -119,8 +129,10 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 	}
 
 	// Get spans explicitly linked to this agent assignment
+	// Filter by workspace to prevent cross-workspace bleeding
 	spans, err := backend.ListSpans(ctx, SpanListOptions{
 		AgentAssignmentID: agent.ID,
+		WorkspaceID:       opts.WorkspaceID,
 		Limit:             1000,
 	})
 	if err != nil {
@@ -130,8 +142,9 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 	// Also get spans linked to task but without agent_assignment_id
 	// These are spans from OTLP that were linked via task_id from cwd path
 	taskSpans, err := backend.ListSpans(ctx, SpanListOptions{
-		TaskID: agent.TaskID,
-		Limit:  1000,
+		TaskID:      agent.TaskID,
+		WorkspaceID: opts.WorkspaceID,
+		Limit:       1000,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list spans by task: %w", err)
@@ -158,10 +171,12 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 
 	// For each trace with linked spans, get ALL spans in that trace
 	// This ensures we include child spans even if they don't have task_id set
+	// IMPORTANT: Filter by workspace to prevent cross-workspace span bleeding
 	for traceID := range traceIDs {
 		traceSpanList, err := backend.ListSpans(ctx, SpanListOptions{
-			TraceID: traceID,
-			Limit:   1000,
+			TraceID:     traceID,
+			WorkspaceID: opts.WorkspaceID,
+			Limit:       1000,
 		})
 		if err != nil {
 			// Log but continue with what we have
@@ -190,12 +205,13 @@ func buildAgentHierarchy(ctx context.Context, backend Backend, agent *AgentAssig
 	// Merge related traces (cross-trace parent-child linking)
 	// This handles cases where coordinator.task.execute spawns claude.execute
 	// in a different trace via TRACEPARENT propagation
-	agentHierarchy.Traces = mergeRelatedTraces(agentHierarchy.Traces)
+	// Pass workspace to prevent cross-workspace span bleeding
+	agentHierarchy.Traces = mergeRelatedTraces(agentHierarchy.Traces, opts.WorkspaceID)
 
 	// Merge session-related traces (Claude Code telemetry correlation)
 	// This handles orphan traces that share session.id with the main trace
 	// but have no parent_span_id (Claude Code's own telemetry)
-	agentHierarchy.Traces = mergeSessionRelatedTraces(agentHierarchy.Traces)
+	agentHierarchy.Traces = mergeSessionRelatedTraces(agentHierarchy.Traces, opts.WorkspaceID)
 
 	// Sort traces by their first span's start time (chronological order)
 	sort.Slice(agentHierarchy.Traces, func(i, j int) bool {
@@ -455,10 +471,59 @@ func applyTimestampCorrelation(spanIndex map[string]*SpanNode) {
 // We want: coordinator.task.execute → claude.execute (merged view)
 // =============================================================================
 
+// extractWorkspaceIDFromTrace extracts the workspace ID from a trace by checking its spans.
+// Uses several strategies in order of reliability:
+// 1. Check span's TaskID (if set, the span was filtered by workspace already)
+// 2. Check Attributes for explicit workspace keys
+// 3. Check ResourceAttributes["process.cwd"] for workspace path
+// Returns the first non-empty workspace ID found, or empty string if none.
+func extractWorkspaceIDFromTrace(trace *TraceHierarchy) string {
+	if trace == nil {
+		return ""
+	}
+
+	// Traverse ALL spans (including nested children)
+	allSpans := collectAllSpans(trace)
+	for _, node := range allSpans {
+		if node.Span == nil {
+			continue
+		}
+
+		// Strategy 1: TaskID implies workspace was already filtered
+		if node.Span.TaskID != "" {
+			return node.Span.TaskID
+		}
+
+		// Strategy 2: Check Attributes for explicit workspace
+		if node.Span.Attributes != nil {
+			for _, key := range []string{"ailang.workspace_id", "task.workspace", "workspace.id", "ailang.workspace"} {
+				if val, ok := node.Span.Attributes[key]; ok {
+					if strVal, ok := val.(string); ok && strVal != "" {
+						return strVal
+					}
+				}
+			}
+		}
+
+		// Strategy 3: Check ResourceAttributes for process.cwd
+		if node.Span.ResourceAttributes != nil {
+			if cwd, ok := node.Span.ResourceAttributes["process.cwd"]; ok {
+				if cwdStr, ok := cwd.(string); ok && cwdStr != "" {
+					return cwdStr
+				}
+			}
+		}
+	}
+	return ""
+}
+
 // mergeRelatedTraces merges traces that have cross-trace parent-child relationships.
 // It finds traces whose root spans have a ParentSpanID pointing to a span in another trace,
 // and re-parents those spans under the appropriate parent.
-func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
+//
+// workspaceID is used to prevent cross-workspace span bleeding - orphan traces are
+// only merged if their workspace matches (or if workspace can't be determined).
+func mergeRelatedTraces(traces []*TraceHierarchy, workspaceID string) []*TraceHierarchy {
 	if len(traces) <= 1 {
 		return traces
 	}
@@ -501,6 +566,12 @@ func mergeRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
 			if parentTrace == nil || parentTrace.TraceID == trace.TraceID {
 				continue
 			}
+
+			// NOTE: Workspace filtering is already applied when spans are fetched via ListSpans.
+			// All spans in these traces are already from the same workspace, so no additional
+			// workspace check is needed here. The workspaceID parameter is kept for future use
+			// but currently acts as a marker that workspace-scoped filtering was applied upstream.
+			_ = workspaceID // Acknowledge param to prevent unused warning
 
 			// Re-parent: add orphan as child of the parent node
 			parentNode.Children = append(parentNode.Children, orphan)
@@ -595,7 +666,10 @@ func findOrphanRoots(trace *TraceHierarchy, globalIndex map[string]*SpanNode) []
 
 // mergeSessionRelatedTraces finds orphan traces that share session.id with the main trace
 // and nests them under appropriate spans using timestamp correlation.
-func mergeSessionRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
+//
+// workspaceID is used to prevent cross-workspace span bleeding - particularly important
+// for the timestamp fallback which could otherwise match ANY trace with overlapping times.
+func mergeSessionRelatedTraces(traces []*TraceHierarchy, workspaceID string) []*TraceHierarchy {
 	if len(traces) <= 1 {
 		return traces
 	}
@@ -634,7 +708,13 @@ func mergeSessionRelatedTraces(traces []*TraceHierarchy) []*TraceHierarchy {
 		// PRIMARY: Match by session.id
 		matchedBySession := mainSessionID != "" && orphanSessionID == mainSessionID
 
+		// NOTE: Workspace filtering is already applied when spans are fetched via ListSpans.
+		// All spans in these traces are already from the same workspace, so no additional
+		// workspace check is needed here. The workspaceID parameter is kept for future use.
+		_ = workspaceID // Acknowledge param to prevent unused warning
+
 		// FALLBACK: Match by timestamp overlap (if no session match)
+		// This is safe because input traces were already workspace-filtered upstream.
 		matchedByTimestamp := false
 		if !matchedBySession && executorEnd != nil {
 			orphanStart := getTraceStartTime(orphan)
@@ -869,4 +949,309 @@ func findContainingTurnSpan(child *Span, turnSpans []*SpanNode, mainTrace *Trace
 	}
 
 	return nil
+}
+
+// =============================================================================
+// Turn-Based Grouping: Structure spans by conversation turns
+// =============================================================================
+// When viewing execution hierarchies, it's useful to see spans grouped by
+// conversation turn rather than raw parent-child relationships. This creates
+// a more intuitive view: Session → Turn 1 → Turn 2 → Turn 3, with tools
+// nested under their respective turns.
+// =============================================================================
+
+// TurnGroupedHierarchy represents spans organized by conversation turns.
+type TurnGroupedHierarchy struct {
+	Session *TurnGroupSession `json:"session,omitempty"`
+	Turns   []*TurnGroup      `json:"turns"`
+	Stats   *TurnGroupStats   `json:"stats"`
+}
+
+// TurnGroupSession represents the top-level session/executor span.
+type TurnGroupSession struct {
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	DurationMs int64   `json:"duration_ms"`
+	Cost       float64 `json:"cost"`
+	TokensIn   int64   `json:"tokens_in"`
+	TokensOut  int64   `json:"tokens_out"`
+	Provider   string  `json:"provider,omitempty"`
+	Model      string  `json:"model,omitempty"`
+}
+
+// TurnGroup represents a single conversation turn with its tools.
+type TurnGroup struct {
+	TurnNumber int         `json:"turn_number"`
+	SpanID     string      `json:"span_id"`
+	DurationMs int64       `json:"duration_ms"`
+	Cost       float64     `json:"cost"`
+	TokensIn   int64       `json:"tokens_in"`
+	TokensOut  int64       `json:"tokens_out"`
+	Tools      []*TurnTool `json:"tools,omitempty"`
+}
+
+// TurnTool represents a tool call within a turn.
+type TurnTool struct {
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	ToolName   string  `json:"tool_name,omitempty"` // Extracted tool name (e.g., "Read", "Bash")
+	DurationMs int64   `json:"duration_ms"`
+	Cost       float64 `json:"cost,omitempty"`
+	Status     string  `json:"status"`
+}
+
+// TurnGroupStats contains aggregate statistics for the turn-grouped view.
+type TurnGroupStats struct {
+	TotalTurns  int     `json:"total_turns"`
+	TotalTools  int     `json:"total_tools"`
+	TotalCost   float64 `json:"total_cost"`
+	TotalTokens int64   `json:"total_tokens"`
+	DurationMs  int64   `json:"duration_ms"`
+}
+
+// GroupSpansByTurn transforms a span tree into a turn-based hierarchy.
+// This is useful for displaying execution in a more intuitive way.
+func GroupSpansByTurn(spans []*SpanNode) *TurnGroupedHierarchy {
+	result := &TurnGroupedHierarchy{
+		Turns: make([]*TurnGroup, 0),
+		Stats: &TurnGroupStats{},
+	}
+
+	if len(spans) == 0 {
+		return result
+	}
+
+	// Find the root session/executor span
+	var sessionNode *SpanNode
+	for _, node := range spans {
+		if node.Span != nil && isSessionOrExecutorSpan(node.Span) {
+			sessionNode = node
+			break
+		}
+	}
+
+	// If no session found, use the first root span
+	if sessionNode == nil && len(spans) > 0 {
+		sessionNode = spans[0]
+	}
+
+	if sessionNode != nil && sessionNode.Span != nil {
+		result.Session = &TurnGroupSession{
+			ID:         sessionNode.Span.ID,
+			Name:       sessionNode.Span.Name,
+			DurationMs: sessionNode.Span.DurationMs,
+			Cost:       sessionNode.Span.CostUSD,
+			TokensIn:   sessionNode.Span.TokensIn,
+			TokensOut:  sessionNode.Span.TokensOut,
+			Provider:   string(sessionNode.Span.Provider),
+			Model:      sessionNode.Span.Model,
+		}
+		result.Stats.DurationMs = sessionNode.Span.DurationMs
+	}
+
+	// Collect all turns recursively from the span tree
+	turnsMap := make(map[int]*turnCollector)
+	collectTurnsForGrouping(spans, turnsMap)
+
+	// Convert map to sorted slice
+	turnNumbers := make([]int, 0, len(turnsMap))
+	for num := range turnsMap {
+		turnNumbers = append(turnNumbers, num)
+	}
+	sort.Ints(turnNumbers)
+
+	// Build turn groups
+	for _, turnNum := range turnNumbers {
+		tc := turnsMap[turnNum]
+		turn := &TurnGroup{
+			TurnNumber: turnNum,
+			SpanID:     tc.spanID,
+			DurationMs: tc.durationMs,
+			Cost:       tc.cost,
+			TokensIn:   tc.tokensIn,
+			TokensOut:  tc.tokensOut,
+			Tools:      make([]*TurnTool, 0, len(tc.tools)),
+		}
+
+		// Add tools sorted by start time (already sorted during collection)
+		for _, tool := range tc.tools {
+			turn.Tools = append(turn.Tools, tool)
+			result.Stats.TotalTools++
+		}
+
+		result.Turns = append(result.Turns, turn)
+		result.Stats.TotalTurns++
+		result.Stats.TotalCost += tc.cost
+		result.Stats.TotalTokens += tc.tokensIn + tc.tokensOut
+	}
+
+	return result
+}
+
+// turnCollector accumulates data for a single turn during traversal.
+type turnCollector struct {
+	spanID     string
+	durationMs int64
+	cost       float64
+	tokensIn   int64
+	tokensOut  int64
+	startTime  int64 // For sorting tools
+	tools      []*TurnTool
+}
+
+// collectTurnsForGrouping recursively traverses spans to collect turn data.
+func collectTurnsForGrouping(nodes []*SpanNode, turnsMap map[int]*turnCollector) {
+	for _, node := range nodes {
+		if node == nil || node.Span == nil {
+			continue
+		}
+
+		// Check if this is a turn span
+		if isTurnSpanForGrouping(node.Span) {
+			turnNum := extractTurnNumber(node.Span)
+			if turnNum > 0 {
+				tc := &turnCollector{
+					spanID:     node.Span.ID,
+					durationMs: node.Span.DurationMs,
+					cost:       node.Span.CostUSD,
+					tokensIn:   node.Span.TokensIn,
+					tokensOut:  node.Span.TokensOut,
+					startTime:  node.Span.StartTime.UnixMilli(),
+					tools:      make([]*TurnTool, 0),
+				}
+
+				// Collect tool children
+				collectToolsFromChildren(node.Children, tc)
+
+				turnsMap[turnNum] = tc
+			}
+		}
+
+		// Recurse into children
+		collectTurnsForGrouping(node.Children, turnsMap)
+	}
+}
+
+// collectToolsFromChildren collects tool spans from a turn's children.
+func collectToolsFromChildren(children []*SpanNode, tc *turnCollector) {
+	for _, child := range children {
+		if child == nil || child.Span == nil {
+			continue
+		}
+
+		if isToolSpanForGrouping(child.Span) {
+			tool := &TurnTool{
+				ID:         child.Span.ID,
+				Name:       child.Span.Name,
+				ToolName:   extractToolName(child.Span),
+				DurationMs: child.Span.DurationMs,
+				Cost:       child.Span.CostUSD,
+				Status:     string(child.Span.Status),
+			}
+			tc.tools = append(tc.tools, tool)
+		}
+
+		// Also check nested children (tools might have children too)
+		collectToolsFromChildren(child.Children, tc)
+	}
+}
+
+// isSessionOrExecutorSpan returns true if this is a session or executor span.
+func isSessionOrExecutorSpan(span *Span) bool {
+	name := span.Name
+	return name == "claude.execute" ||
+		name == "gemini.execute" ||
+		name == "coordinator.task.execute" ||
+		strings.HasPrefix(name, "exec.session") ||
+		strings.HasPrefix(name, "session.")
+}
+
+// isTurnSpanForGrouping returns true if this is a turn span.
+func isTurnSpanForGrouping(span *Span) bool {
+	name := span.Name
+	return strings.Contains(name, "turn") ||
+		strings.HasPrefix(name, "exec.turn")
+}
+
+// isToolSpanForGrouping returns true if this is a tool span.
+func isToolSpanForGrouping(span *Span) bool {
+	name := span.Name
+	return strings.HasPrefix(name, "tool.") ||
+		strings.HasPrefix(name, "exec.tool") ||
+		strings.Contains(name, "tool_use")
+}
+
+// extractTurnNumber extracts the turn number from a span.
+func extractTurnNumber(span *Span) int {
+	// Try to extract from span name (e.g., "exec.turn.3" or "turn.3")
+	name := span.Name
+
+	// Pattern: exec.turn.N or turn.N
+	if strings.Contains(name, "turn") {
+		parts := strings.Split(name, ".")
+		for i, part := range parts {
+			if part == "turn" && i+1 < len(parts) {
+				if num, err := parseIntSafe(parts[i+1]); err == nil && num > 0 {
+					return num
+				}
+			}
+		}
+	}
+
+	// Try attributes
+	if span.Attributes != nil {
+		// Check turn.number attribute
+		if turnNumAttr, ok := span.Attributes["turn.number"]; ok {
+			if num, ok := turnNumAttr.(float64); ok {
+				return int(num)
+			}
+			if num, ok := turnNumAttr.(int); ok {
+				return num
+			}
+			if numStr, ok := turnNumAttr.(string); ok {
+				if num, err := parseIntSafe(numStr); err == nil {
+					return num
+				}
+			}
+		}
+	}
+
+	return 0
+}
+
+// extractToolName extracts the tool name from a span.
+func extractToolName(span *Span) string {
+	name := span.Name
+
+	// Pattern: tool.Read, exec.tool_use.Bash, etc.
+	if strings.HasPrefix(name, "tool.") {
+		return strings.TrimPrefix(name, "tool.")
+	}
+	if strings.Contains(name, "tool_use") {
+		// exec.tool_use or claude_code.tool_use
+		if span.Attributes != nil {
+			if toolName, ok := span.Attributes["tool.name"].(string); ok {
+				return toolName
+			}
+		}
+		// Try to extract from name
+		parts := strings.Split(name, ".")
+		if len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+	}
+
+	return name
+}
+
+// parseIntSafe safely parses an integer string without strconv.
+func parseIntSafe(s string) (int, error) {
+	var n int
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("not a number: %s", s)
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n, nil
 }

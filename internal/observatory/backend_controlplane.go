@@ -35,13 +35,14 @@ func (f *ControlPlaneFilter) HasTimeRange() bool {
 
 // BreakdownItem represents a single item in a breakdown aggregation
 type BreakdownItem struct {
-	ID        string  `json:"id"`
-	Label     string  `json:"label"`
-	SpanCount int     `json:"span_count"`
-	TaskCount int     `json:"task_count,omitempty"`
-	TokensIn  int64   `json:"tokens_in"`
-	TokensOut int64   `json:"tokens_out"`
-	CostUSD   float64 `json:"cost_usd"`
+	ID         string  `json:"id"`
+	Label      string  `json:"label"`
+	SpanCount  int     `json:"span_count"`
+	TaskCount  int     `json:"task_count,omitempty"`
+	TokensIn   int64   `json:"tokens_in"`
+	TokensOut  int64   `json:"tokens_out"`
+	CostUSD    float64 `json:"cost_usd"`
+	DurationMs int64   `json:"duration_ms"` // Total execution time in ms
 }
 
 // HeatmapDataPoint represents activity data for a single day
@@ -174,7 +175,8 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 			COUNT(*) as span_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM spans
 		WHERE provider IS NOT NULL AND provider != ''
 		GROUP BY provider
@@ -188,7 +190,7 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -257,7 +259,8 @@ func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]Breakdo
 			COUNT(*) as span_count,
 			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
 			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
-			COALESCE(SUM(s.cost_usd), 0) as cost_usd
+			COALESCE(SUM(s.cost_usd), 0) as cost_usd,
+			COALESCE(SUM(s.duration_ms), 0) as duration_ms
 		FROM spans s
 		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		GROUP BY 1, 2
@@ -271,7 +274,7 @@ func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]Breakdo
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -288,7 +291,8 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 			COUNT(*) as span_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM spans
 		WHERE model IS NOT NULL AND model != ''
 		GROUP BY model
@@ -303,7 +307,7 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -323,6 +327,7 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				tokens_in,
 				tokens_out,
 				cost_usd,
+				duration_ms,
 				id
 			FROM spans
 		),
@@ -343,7 +348,8 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				END as workspace_label,
 				tokens_in,
 				tokens_out,
-				cost_usd
+				cost_usd,
+				duration_ms
 			FROM workspace_data
 		),
 		-- Map known paths to friendly labels
@@ -362,7 +368,8 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				END as label,
 				tokens_in,
 				tokens_out,
-				cost_usd
+				cost_usd,
+				duration_ms
 			FROM normalized
 		)
 		SELECT
@@ -372,7 +379,8 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 			0 as task_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM with_labels
 		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
@@ -385,7 +393,7 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -539,7 +547,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 			COUNT(*) as span_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM spans
 		%s
 		GROUP BY provider
@@ -555,7 +564,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -646,7 +655,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 			COUNT(*) as span_count,
 			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
 			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
-			COALESCE(SUM(s.cost_usd), 0) as cost_usd
+			COALESCE(SUM(s.cost_usd), 0) as cost_usd,
+			COALESCE(SUM(s.duration_ms), 0) as duration_ms
 		FROM spans s
 		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		%s
@@ -663,7 +673,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -702,7 +712,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 			COUNT(*) as span_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM spans
 		%s
 		GROUP BY model
@@ -719,7 +730,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
@@ -762,6 +773,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				tokens_in,
 				tokens_out,
 				cost_usd,
+				duration_ms,
 				id
 			FROM spans
 			%s
@@ -783,7 +795,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				END as workspace_label,
 				tokens_in,
 				tokens_out,
-				cost_usd
+				cost_usd,
+				duration_ms
 			FROM workspace_data
 		),
 		-- Map known paths to friendly labels
@@ -802,7 +815,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				END as label,
 				tokens_in,
 				tokens_out,
-				cost_usd
+				cost_usd,
+				duration_ms
 			FROM normalized
 		)
 		SELECT
@@ -812,7 +826,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 			0 as task_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms
 		FROM with_labels
 		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
@@ -827,7 +842,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

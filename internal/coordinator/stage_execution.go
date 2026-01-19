@@ -42,10 +42,18 @@ func BuildStageDirective(task *TaskRecord) string {
 		return task.Content
 	}
 
-	// Use AgentID if available (from inbox), otherwise derive from Stage (legacy path)
+	// Use AgentID if available (from inbox), otherwise derive from Stage (legacy tasks)
 	agentID := task.AgentID
 	if agentID == "" {
-		agentID = stageToAgentIDForDirective(task.Stage)
+		// Legacy fallback: map stage to agent ID for old tasks without AgentID
+		switch task.Stage {
+		case TaskStageDesign:
+			agentID = "design-doc-creator"
+		case TaskStageSprint:
+			agentID = "sprint-planner"
+		case TaskStageImplementation:
+			agentID = "sprint-executor"
+		}
 	}
 
 	if agentID == "" {
@@ -55,20 +63,6 @@ func BuildStageDirective(task *TaskRecord) string {
 	// Use config-driven approach with effective defaults
 	agent := &AgentConfig{ID: agentID}
 	return BuildDirectiveFromConfig(task, agent)
-}
-
-// stageToAgentIDForDirective maps task stages to agent IDs for directive building.
-func stageToAgentIDForDirective(stage TaskStage) string {
-	switch stage {
-	case TaskStageDesign:
-		return "design-doc-creator"
-	case TaskStageSprint:
-		return "sprint-planner"
-	case TaskStageImplementation:
-		return "sprint-executor"
-	default:
-		return ""
-	}
 }
 
 // BuildDirectiveFromConfig creates a directive based on agent configuration.
@@ -427,7 +421,15 @@ func (d *Daemon) ProcessStageCompletion(ctx context.Context, task *TaskRecord, e
 	// Prefer task.AgentID if set, otherwise fall back to stage-to-agent mapping
 	agentID := task.AgentID
 	if agentID == "" {
-		agentID = stageToAgentIDForDirective(task.Stage)
+		// Legacy fallback: map stage to agent ID for old tasks without AgentID
+		switch task.Stage {
+		case TaskStageDesign:
+			agentID = "design-doc-creator"
+		case TaskStageSprint:
+			agentID = "sprint-planner"
+		case TaskStageImplementation:
+			agentID = "sprint-executor"
+		}
 	}
 	agent := &AgentConfig{ID: agentID}
 	patterns := agent.GetEffectiveArtifactPatterns()

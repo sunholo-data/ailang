@@ -208,6 +208,7 @@ make ui-deploy              # Clean build
 - **REST API Reference**: [resources/rest_api_reference.md](resources/rest_api_reference.md)
 - **Database Diagnosis**: [resources/database_diagnosis.md](resources/database_diagnosis.md)
 - **Hierarchy Algorithm**: [resources/hierarchy_algorithm.md](resources/hierarchy_algorithm.md)
+- **ID Relationships**: [resources/id_relationships.md](resources/id_relationships.md) - How IDs link across all 3 databases
 
 ## Progressive Disclosure
 

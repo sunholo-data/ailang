@@ -77,10 +77,11 @@ export function useSessionsData(options: UseSessionsDataOptions = {}) {
 
 interface UseSessionToolsOptions {
   summary?: boolean;
+  workspace?: string;  // Filter by workspace path
 }
 
 export function useSessionTools(sessionId: string | null, options: UseSessionToolsOptions = {}) {
-  const { summary = true } = options;
+  const { summary = true, workspace } = options;
   const [tools, setTools] = useState<ToolSummaryItem[] | SessionTool[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +95,13 @@ export function useSessionTools(sessionId: string | null, options: UseSessionToo
     const fetchTools = async () => {
       setLoading(true);
       try {
-        const endpoint = summary
+        let endpoint = summary
           ? `/api/observatory/sessions/${sessionId}/tools/summary`
           : `/api/observatory/sessions/${sessionId}/tools`;
+        // Add workspace filter if provided
+        if (workspace) {
+          endpoint += `?workspace=${encodeURIComponent(workspace)}`;
+        }
         const response = await fetch(endpoint);
         if (!response.ok) {
           throw new Error(`HTTP error: ${response.status}`);
@@ -112,7 +117,7 @@ export function useSessionTools(sessionId: string | null, options: UseSessionToo
     };
 
     fetchTools();
-  }, [sessionId, summary]);
+  }, [sessionId, summary, workspace]);
 
   return { tools, loading, error };
 }

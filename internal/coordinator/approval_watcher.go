@@ -13,19 +13,9 @@ import (
 // debugApprovalWatcher controls verbose logging (set via DEBUG_APPROVAL_WATCHER=1)
 var debugApprovalWatcher = os.Getenv("DEBUG_APPROVAL_WATCHER") == "1"
 
-// ApprovalLabel constants for GitHub label-based approval workflow
-const (
-	// Request labels - added by coordinator when work is complete
-	LabelNeedsDesignApproval = "needs-design-approval"
-	LabelNeedsSprintApproval = "needs-sprint-approval"
-	LabelNeedsMergeApproval  = "needs-merge-approval"
-	LabelNeedsRevision       = "needs-revision"
-
-	// Approval labels - added by human to approve
-	LabelDesignApproved = "design-approved"
-	LabelSprintApproved = "sprint-approved"
-	LabelMergeApproved  = "merge-approved"
-)
+// LabelNeedsRevision is the universal label for requesting revisions.
+// This is the only hardcoded label - all others come from AgentConfig.Approval.
+const LabelNeedsRevision = "needs-revision"
 
 // ApprovalEvent represents a detected approval or revision request
 type ApprovalEvent struct {
@@ -158,6 +148,52 @@ func (w *ApprovalWatcher) GetRegisteredLabels() []string {
 		labels = append(labels, label)
 	}
 	return labels
+}
+
+// RegisterAgentApprovalHandlers registers approval handlers for all agents in the registry
+// that have approval configurations. This is a convenience method that iterates through
+// all registered agents and calls RegisterAgentApproval for each one.
+//
+// The provided defaultHandler is called for any agent that has an approval config.
+// If you need per-agent handlers, use RegisterAgentApproval directly.
+//
+// This enables config-driven approval workflows where new agents can be added
+// without code changes - just add to the config file and restart.
+//
+// Deprecated hardcoded labels (design-approved, sprint-approved, merge-approved)
+// continue to work for backwards compatibility, but new agents should use
+// config-driven labels.
+func (w *ApprovalWatcher) RegisterAgentApprovalHandlers(registry *AgentRegistry, defaultHandler ApprovalHandler) (int, error) {
+	if registry == nil {
+		return 0, fmt.Errorf("registry is nil")
+	}
+
+	w.SetAgentRegistry(registry)
+
+	registered := 0
+	for _, agent := range registry.ListAgents() {
+		approval := agent.GetEffectiveApprovalConfig()
+		if approval == nil || approval.ApprovedLabel == "" {
+			continue
+		}
+
+		// Use effective approval config (which includes defaults for known agents)
+		// directly register instead of calling RegisterAgentApproval which checks
+		// agent.Approval directly
+		w.mu.Lock()
+		label := approval.ApprovedLabel
+		w.agentByLabel[label] = agent
+		if defaultHandler != nil {
+			w.customHandlers[label] = defaultHandler
+		}
+		w.mu.Unlock()
+
+		log.Printf("[ApprovalWatcher] Registered approval label %q for agent %s", label, agent.ID)
+		registered++
+	}
+
+	log.Printf("[ApprovalWatcher] Registered %d agents with approval configs", registered)
+	return registered, nil
 }
 
 // RegisterHandler registers a handler for a specific approval event type.
@@ -369,18 +405,6 @@ func (w *ApprovalWatcher) checkIssueLabels(ctx context.Context, issueNum int, ta
 		}
 	}
 
-	// Third pass: Check legacy hardcoded labels (for backwards compatibility)
-	for _, label := range labels {
-		switch label {
-		case LabelDesignApproved:
-			return createEventWithComments(label, ApprovalEventDesign)
-		case LabelSprintApproved:
-			return createEventWithComments(label, ApprovalEventSprint)
-		case LabelMergeApproved:
-			return createEventWithComments(label, ApprovalEventMerge)
-		}
-	}
-
 	return nil
 }
 
@@ -436,23 +460,16 @@ func (w *ApprovalWatcher) handleEvent(ctx context.Context, event *ApprovalEvent)
 			event.Label, event.IssueNumber, err)
 	}
 
-	// Also remove the corresponding "needs-*" label if present
+	// Also remove the corresponding "needs-*" label if present (config-driven)
+	w.mu.Lock()
 	var needsLabel string
-	switch event.EventType {
-	case ApprovalEventDesign:
-		needsLabel = LabelNeedsDesignApproval
-	case ApprovalEventSprint:
-		needsLabel = LabelNeedsSprintApproval
-	case ApprovalEventMerge:
-		needsLabel = LabelNeedsMergeApproval
-	default:
-		// For custom labels, check if the agent has a needs_label configured
-		w.mu.Lock()
-		if agent, ok := w.agentByLabel[event.Label]; ok && agent.Approval != nil {
-			needsLabel = agent.Approval.NeedsLabel
+	if agent, ok := w.agentByLabel[event.Label]; ok {
+		approval := agent.GetEffectiveApprovalConfig()
+		if approval != nil {
+			needsLabel = approval.NeedsLabel
 		}
-		w.mu.Unlock()
 	}
+	w.mu.Unlock()
 	if needsLabel != "" {
 		_ = w.poster.RemoveLabel(event.IssueNumber, needsLabel)
 	}

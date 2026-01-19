@@ -352,6 +352,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/controlplane/stats", s.handleControlPlaneStats)
 	mux.HandleFunc("/api/controlplane/stats/breakdown", s.handleControlPlaneStatsBreakdown)
 	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.handleControlPlaneExecHierarchy)
+	mux.HandleFunc("/api/controlplane/span-hierarchy", s.handleSpanHierarchy)
+	mux.HandleFunc("/api/controlplane/task-hierarchy", s.handleTaskHierarchy)
 
 	// REST API endpoints - Analytics (Phase 2+)
 	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)

@@ -14,6 +14,9 @@ export interface TaskEvolutionPoint {
   tokens_out: number;
   turns: number;
   spans: number;
+  duration_ms: number;       // Cumulative execution time in ms
+  delta_duration_ms: number; // Duration of this span in ms
+  elapsed_ms: number;        // Wall clock time since task start in ms
 }
 
 export interface TaskEvolutionData {
@@ -41,6 +44,7 @@ export interface UsageTimeSeriesPoint {
   turns: number;
   spans: number;
   task_count: number;
+  duration_ms: number; // Total duration in bucket (ms)
   by_dimension?: Record<string, number>;
 }
 
@@ -81,7 +85,7 @@ function buildQueryString(
 // Hook for Task Evolution data
 export function useTaskEvolution(
   filters: ControlPlaneFilters,
-  metric: 'cost' | 'tokens' | 'turns' | 'spans' = 'cost',
+  metric: 'cost' | 'tokens' | 'turns' | 'spans' | 'duration' = 'cost',
   limit: number = 10
 ) {
   const [data, setData] = useState<TaskEvolutionResponse | null>(null);
@@ -130,7 +134,7 @@ export function useTaskEvolution(
 // Hook for Usage Time Series data
 export function useUsageTimeSeries(
   filters: ControlPlaneFilters,
-  metric: 'cost' | 'tokens' | 'turns' | 'spans' = 'cost',
+  metric: 'cost' | 'tokens' | 'turns' | 'spans' | 'duration' = 'cost',
   interval: 'hour' | 'day' | 'week' = 'day',
   splitBy?: 'provider' | 'model' | 'workspace'
 ) {

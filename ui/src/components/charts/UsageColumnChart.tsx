@@ -15,6 +15,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { UsageTimeSeriesPoint } from '../../hooks/useAnalytics';
+import { formatDurationMs } from '../../utils/formatters';
 import styles from './UsageColumnChart.module.css';
 
 // Maximum number of legend items to show before collapsing
@@ -30,7 +31,7 @@ interface DimensionTotal {
 
 export interface UsageColumnChartProps {
   points: UsageTimeSeriesPoint[];
-  metric: 'cost' | 'tokens' | 'turns' | 'spans';
+  metric: 'cost' | 'tokens' | 'turns' | 'spans' | 'duration';
   splitBy?: string;
   interval: 'hour' | 'day' | 'week';
   height?: number;
@@ -54,6 +55,7 @@ const METRIC_LABELS: Record<string, string> = {
   tokens: 'Tokens',
   turns: 'Turns',
   spans: 'Spans',
+  duration: 'Duration',
 };
 
 const formatMetricValue = (value: number, metric: string): string => {
@@ -63,6 +65,9 @@ const formatMetricValue = (value: number, metric: string): string => {
   if (metric === 'tokens') {
     if (value > 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value > 1000) return `${(value / 1000).toFixed(1)}K`;
+  }
+  if (metric === 'duration') {
+    return formatDurationMs(value);
   }
   return value.toLocaleString();
 };
@@ -164,6 +169,9 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
             break;
           case 'spans':
             base.value = p.spans;
+            break;
+          case 'duration':
+            base.value = p.duration_ms;
             break;
         }
       }

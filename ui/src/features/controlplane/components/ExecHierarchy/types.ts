@@ -2,6 +2,7 @@
  * Types for the Exec Hierarchy component
  * 4-level hierarchy: Messages -> Execs -> Turns -> Tool Uses
  */
+import type React from 'react';
 
 // Node types in the hierarchy
 export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use' | 'approval';
@@ -188,4 +189,144 @@ export interface ExecHierarchyProps {
   // Span highlighting for outliers (click from EventDetail outliers list)
   highlightedSpanId?: string | null;
   onClearHighlight?: () => void;
+}
+
+// ============================================================================
+// Cross-Task Hierarchy Types (M-EXEC-HIERARCHY-REFACTOR)
+// For visualizing task relationships across the system
+// ============================================================================
+
+// Span node nested within a task (from observatory.db)
+export interface TaskSpanNode {
+  id: string;
+  name: string;
+  node_type: 'coordinator' | 'executor' | 'turn' | 'tool' | 'other';
+  duration_ms: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  cost_usd?: number;
+  turn_number?: number;
+  tool_name?: string;
+  status: string;
+  children?: TaskSpanNode[];
+}
+
+// Task node for cross-task visualization
+export interface TaskHierarchyNode {
+  id: string;
+  title: string;
+  agent_id?: string;
+  parent_task_id?: string;      // Links to parent task (creates handoff edge)
+  session_id?: string;          // Links tasks with shared context
+  status: string;
+  approval_status?: 'pending' | 'approved' | 'rejected' | '';
+  approval_type?: string;       // "merge", "merge_handoff", etc.
+  iteration?: number;
+  cost: number;
+  tokens_in: number;
+  tokens_out: number;
+  turns?: number;
+  duration_ms: number;
+  created_at: string;
+  provider?: string;
+  workspace?: string;
+  children?: TaskHierarchyNode[];  // Child tasks (via parent_task_id)
+  // Execution spans nested within this task
+  spans?: TaskSpanNode[];
+  // Turn-grouped hierarchy (when group_by=turns is requested)
+  turn_grouped?: TurnGroupedHierarchy;
+}
+
+// ============================================================================
+// Turn-Based Grouping Types (from API group_by=turns)
+// Structures spans by conversation turns for intuitive visualization
+// ============================================================================
+
+// Turn-grouped hierarchy response from API
+export interface TurnGroupedHierarchy {
+  session?: TurnGroupSession;
+  turns: TurnGroup[];
+  stats: TurnGroupStats;
+}
+
+// Top-level session/executor span
+export interface TurnGroupSession {
+  id: string;
+  name: string;
+  duration_ms: number;
+  cost: number;
+  tokens_in: number;
+  tokens_out: number;
+  provider?: string;
+  model?: string;
+}
+
+// Single conversation turn with its tools
+export interface TurnGroup {
+  turn_number: number;
+  span_id: string;
+  duration_ms: number;
+  cost: number;
+  tokens_in: number;
+  tokens_out: number;
+  tools?: TurnTool[];
+}
+
+// Tool call within a turn
+export interface TurnTool {
+  id: string;
+  name: string;
+  tool_name?: string;  // Extracted tool name (e.g., "Read", "Bash")
+  duration_ms: number;
+  cost?: number;
+  status: string;
+}
+
+// Aggregate statistics for turn-grouped view
+export interface TurnGroupStats {
+  total_turns: number;
+  total_tools: number;
+  total_cost: number;
+  total_tokens: number;
+  duration_ms: number;
+}
+
+// Edge between tasks
+export interface TaskHierarchyEdge {
+  source: string;
+  target: string;
+  type: 'handoff' | 'session';  // handoff = parent_task_id, session = shared session_id
+}
+
+// Stats for the cross-task hierarchy
+export interface TaskHierarchyStats {
+  total_tasks: number;
+  total_spans: number;
+  pending_approvals: number;
+  total_cost: number;
+}
+
+// API response from /api/controlplane/task-hierarchy
+export interface TaskHierarchyResult {
+  tasks: TaskHierarchyNode[];
+  edges: TaskHierarchyEdge[];
+  stats: TaskHierarchyStats;
+}
+
+// Graph node for ReactFlow visualization
+export interface TaskGraphNode {
+  id: string;
+  type: 'task';
+  position: { x: number; y: number };
+  data: TaskHierarchyNode;
+}
+
+// Graph edge for ReactFlow visualization
+export interface TaskGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: 'handoff' | 'session';
+  animated?: boolean;
+  style?: React.CSSProperties;
 }

@@ -14,10 +14,11 @@ import {
   Legend,
 } from 'recharts';
 import type { BreakdownItem } from '../../features/controlplane/hooks/useBreakdownData';
+import { formatDurationMs } from '../../utils/formatters';
 import styles from './CostBreakdownChart.module.css';
 
 export type BreakdownDimension = 'provider' | 'model' | 'workspace' | 'source_type';
-export type BreakdownMetric = 'cost' | 'tokens' | 'turns' | 'spans';
+export type BreakdownMetric = 'cost' | 'tokens' | 'turns' | 'spans' | 'duration';
 
 export interface CostBreakdownChartProps {
   items: BreakdownItem[];
@@ -52,6 +53,7 @@ const METRIC_LABELS: Record<BreakdownMetric, string> = {
   tokens: 'Tokens',
   turns: 'Tasks',
   spans: 'Spans',
+  duration: 'Duration',
 };
 
 const formatCost = (cost: number): string => {
@@ -63,6 +65,7 @@ const formatCost = (cost: number): string => {
 
 const formatMetricValue = (value: number, metric: BreakdownMetric): string => {
   if (metric === 'cost') return formatCost(value);
+  if (metric === 'duration') return formatDurationMs(value);
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
   return value.toLocaleString();
@@ -81,6 +84,7 @@ const getMetricValue = (item: BreakdownItem, metric: BreakdownMetric): number =>
     case 'tokens': return item.tokens_in + item.tokens_out;
     case 'turns': return item.task_count || 0;
     case 'spans': return item.span_count;
+    case 'duration': return item.duration_ms || 0;
   }
 };
 
@@ -143,6 +147,14 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
             <span className={styles.tooltipLabel}>Tokens:</span>
             <span className={styles.tooltipValue}>
               {(data.tokens_in + data.tokens_out).toLocaleString()}
+            </span>
+          </div>
+        )}
+        {metric !== 'duration' && (
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipLabel}>Duration:</span>
+            <span className={styles.tooltipValue}>
+              {formatDurationMs(data.duration_ms || 0)}
             </span>
           </div>
         )}

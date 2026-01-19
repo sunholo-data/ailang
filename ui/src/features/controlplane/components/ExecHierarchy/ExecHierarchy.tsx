@@ -9,7 +9,9 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, NodeStatus, CoordinatorViewMode, FilterCriteria, ControlPlaneFilters, ExecHierarchyNode } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
+import { TaskHierarchyGraph } from './TaskHierarchyGraph';
 import { ChatHistory } from './ChatHistory';
+import type { TaskHierarchyNode } from './types';
 import { CliCommandHint } from '../CliCommandHint';
 import { TraceWaterfall } from '../TraceWaterfall';
 import { useObservatoryWs, Approval, Span as ObsSpan } from '../../../../hooks/useObservatory';
@@ -398,6 +400,7 @@ function spanToHierarchyNode(span: Span, siblingIndex?: number, depth: number = 
     label,
     status: getNodeStatus(span),
     durationMs: span.durationMs,
+    startTime: span.startMs ? new Date(span.startMs).toISOString() : undefined,
     turnNumber,
     _span: span,  // Preserve original span for popover
     children,
@@ -725,6 +728,25 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   const effectiveHiddenCount = useMemo(() => {
     return uniqueSpanTypes.filter(type => hiddenSpanTypes.has(type)).length;
   }, [uniqueSpanTypes, hiddenSpanTypes]);
+
+  // Extract unique task_ids from spans (for filtering TaskHierarchyGraph)
+  // Task IDs can be in various attribute fields
+  const spanTaskIds = useMemo(() => {
+    const taskIds = new Set<string>();
+    const collect = (spanList: Span[]) => {
+      for (const span of spanList) {
+        const attrs = span.attributes || {};
+        // Check various attribute names where task_id might be stored
+        const taskId = attrs['task.id'] || attrs['task_id'] || attrs['ailang.task_id'];
+        if (taskId && taskId.startsWith('task-')) {
+          taskIds.add(taskId);
+        }
+        if (span.children) collect(span.children);
+      }
+    };
+    if (spans) collect(spans);
+    return Array.from(taskIds);
+  }, [spans]);
 
   // Show All / Hide All handlers for span type filter
   const handleShowAllSpanTypes = useCallback(() => {
@@ -1331,16 +1353,21 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           />
         )}
         {viewMode === 'graph' && (
-          <ExecHierarchyGraph
-            nodes={limitedNodes}
+          <TaskHierarchyGraph
             selectedNodeId={selectedNodeId}
+            // FIX: Pass spans directly - same data source as Tree/Timeline/Chat views
+            // This ensures filtering works correctly when events are selected
+            spans={spans}
+            // Keep legacy filter props for fallback when no spans loaded
+            filterTaskId={selectedNodeId?.startsWith('task-') ? selectedNodeId : undefined}
+            spanTaskIds={spanTaskIds.length > 0 ? spanTaskIds : undefined}
+            filterTraceId={selectedNodeId && !selectedNodeId.startsWith('task-') && spanTaskIds.length === 0 ? selectedNodeId : undefined}
+            // Use handleNodeClick for popover (same as Tree view)
             onNodeClick={handleNodeClick}
-            loading={loading}
-            error={null}
             isExpanded={isExpanded}
-            expandedNodes={expandedNodes}
-            onToggleNodeExpand={handleToggleExpand}
             recenterTrigger={expandChangeCounter}
+            workspace={filters?.workspace}
+            provider={filters?.provider}
           />
         )}
         {viewMode === 'timeline' && (

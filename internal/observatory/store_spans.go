@@ -23,6 +23,10 @@ type SpanListOptions struct {
 	Model string
 	// Filter by span status (ok, error)
 	Status string
+	// Filter by workspace path (filters via task→workspace relationship)
+	Workspace string
+	// Filter by workspace ID directly (more efficient when workspace_id is known)
+	WorkspaceID string
 }
 
 // CreateSpan inserts a new span.
@@ -147,6 +151,22 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	if opts.Status != "" {
 		query += " AND status = ?"
 		args = append(args, opts.Status)
+	}
+	if opts.Workspace != "" {
+		// Filter spans by workspace via task→workspace relationship
+		query += ` AND task_id IN (
+			SELECT id FROM tasks WHERE workspace_id IN (
+				SELECT id FROM workspaces WHERE path = ?
+			)
+		)`
+		args = append(args, opts.Workspace)
+	}
+	if opts.WorkspaceID != "" {
+		// Filter spans by workspace_id directly (more efficient)
+		query += ` AND task_id IN (
+			SELECT id FROM tasks WHERE workspace_id = ?
+		)`
+		args = append(args, opts.WorkspaceID)
 	}
 
 	query += " ORDER BY start_time ASC"

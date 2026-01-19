@@ -265,47 +265,41 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 		return fmt.Errorf("task %s is not pending approval (status: %s)", taskID, task.Status)
 	}
 
-	// For GitHub-linked tasks at design/sprint stages, trigger next stage instead of merge
-	if task.GithubIssue > 0 && d.taskChain != nil {
-		switch task.Stage {
-		case TaskStageDesign:
-			d.logger.Printf("Approving design for task %s (GitHub #%d)", taskID, task.GithubIssue)
-			// Add design-approved label on GitHub
-			if d.taskChain.poster != nil {
-				if err := d.taskChain.poster.AddLabel(task.GithubIssue, LabelDesignApproved); err != nil {
-					d.logger.Printf("Warning: Failed to add design-approved label: %v", err)
-				}
-				// Remove needs-design-approval label
-				if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, LabelNeedsDesignApproval); err != nil {
-					d.logger.Printf("Warning: Failed to remove needs-design-approval label: %v", err)
-				}
-			}
-			// Trigger next stage via TaskChain
-			return d.taskChain.OnDesignApproved(ctx, &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: task.GithubIssue,
-			})
+	// Config-driven approval handling (M-GENERIC-PIPELINE)
+	// Look up agent from task.AgentID and use GetEffectiveApprovalConfig() for labels
+	if task.GithubIssue > 0 && d.taskChain != nil && d.agentRegistry != nil && task.AgentID != "" {
+		agent := d.agentRegistry.GetAgentByID(task.AgentID)
+		if agent != nil {
+			approval := agent.GetEffectiveApprovalConfig()
+			if approval != nil && approval.ApprovedLabel != "" {
+				d.logger.Printf("Approving task %s (agent: %s, GitHub #%d)",
+					taskID, task.AgentID, task.GithubIssue)
 
-		case TaskStageSprint:
-			d.logger.Printf("Approving sprint for task %s (GitHub #%d)", taskID, task.GithubIssue)
-			// Add sprint-approved label on GitHub
-			if d.taskChain.poster != nil {
-				if err := d.taskChain.poster.AddLabel(task.GithubIssue, LabelSprintApproved); err != nil {
-					d.logger.Printf("Warning: Failed to add sprint-approved label: %v", err)
+				// Add approved label and remove needs-approval label via config
+				if d.taskChain.poster != nil {
+					if err := d.taskChain.poster.AddLabel(task.GithubIssue, approval.ApprovedLabel); err != nil {
+						d.logger.Printf("Warning: Failed to add %s label: %v", approval.ApprovedLabel, err)
+					}
+					if approval.NeedsLabel != "" {
+						if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+							d.logger.Printf("Warning: Failed to remove %s label: %v", approval.NeedsLabel, err)
+						}
+					}
 				}
-				// Remove needs-sprint-approval label
-				if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, LabelNeedsSprintApproval); err != nil {
-					d.logger.Printf("Warning: Failed to remove needs-sprint-approval label: %v", err)
+
+				// If agent has trigger_on_complete, trigger handoff via OnAgentApproved
+				// Otherwise fall through to merge logic
+				if len(agent.TriggerOnComplete) > 0 {
+					return d.taskChain.OnAgentApproved(ctx, &ApprovalEvent{
+						TaskID:      taskID,
+						IssueNumber: task.GithubIssue,
+					}, task.AgentID)
 				}
 			}
-			// Trigger next stage via TaskChain
-			return d.taskChain.OnSprintApproved(ctx, &ApprovalEvent{
-				TaskID:      taskID,
-				IssueNumber: task.GithubIssue,
-			})
 		}
-		// For implementation/merge stage, fall through to merge logic
 	}
+
+	// For tasks without agent config handoffs, fall through to merge logic
 
 	// Get worktree path for merge
 	if task.WorktreePath == "" {

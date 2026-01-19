@@ -8,11 +8,12 @@ import (
 
 // TaskListOptions configures task listing.
 type TaskListOptions struct {
-	WorkspaceID string
-	Status      TaskStatus
-	SourceType  TaskSourceType
-	Limit       int
-	Offset      int
+	WorkspaceID  string
+	ParentTaskID string // Filter by parent_task_id (for handoff chains)
+	Status       TaskStatus
+	SourceType   TaskSourceType
+	Limit        int
+	Offset       int
 }
 
 // CreateTask inserts a new task.
@@ -80,6 +81,10 @@ func (s *Store) ListTasks(opts TaskListOptions) ([]*Task, error) {
 	if opts.WorkspaceID != "" {
 		query += " AND workspace_id = ?"
 		args = append(args, opts.WorkspaceID)
+	}
+	if opts.ParentTaskID != "" {
+		query += " AND parent_task_id = ?"
+		args = append(args, opts.ParentTaskID)
 	}
 	if opts.Status != "" {
 		query += " AND status = ?"

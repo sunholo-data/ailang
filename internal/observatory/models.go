@@ -463,3 +463,58 @@ type CumulativePoint struct {
 	Cumulative   float64   `json:"cumulative"`    // Running total up to this span
 	DeltaPercent float64   `json:"delta_percent"` // This span's contribution as % of final total
 }
+
+// SpanHierarchyNodeType categorizes spans for visualization.
+type SpanHierarchyNodeType string
+
+const (
+	NodeTypeCoordinator SpanHierarchyNodeType = "coordinator"
+	NodeTypeExecutor    SpanHierarchyNodeType = "executor"
+	NodeTypeTurn        SpanHierarchyNodeType = "turn"
+	NodeTypeTool        SpanHierarchyNodeType = "tool"
+	NodeTypeOther       SpanHierarchyNodeType = "other"
+)
+
+// SpanHierarchyNode represents a span with its children for hierarchy visualization.
+// Unlike Span, this is optimized for graph/tree rendering with parent_span_id-based relationships.
+type SpanHierarchyNode struct {
+	ID         string                 `json:"id"`
+	Name       string                 `json:"name"`
+	ParentID   string                 `json:"parent_id,omitempty"`
+	Depth      int                    `json:"depth"`
+	StartTime  time.Time              `json:"start_time"`
+	DurationMs int64                  `json:"duration_ms"`
+	TokensIn   int64                  `json:"tokens_in,omitempty"`
+	TokensOut  int64                  `json:"tokens_out,omitempty"`
+	CostUSD    float64                `json:"cost_usd,omitempty"`
+	TurnNumber int                    `json:"turn_number,omitempty"`
+	ToolName   string                 `json:"tool_name,omitempty"`
+	NodeType   SpanHierarchyNodeType  `json:"node_type"`
+	SessionID  string                 `json:"session_id,omitempty"`
+	Status     SpanStatus             `json:"status"`
+	Provider   Provider               `json:"provider,omitempty"`
+	Children   []*SpanHierarchyNode   `json:"children,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"` // Selected useful attributes
+}
+
+// SpanHierarchyStats contains aggregated stats for a hierarchy result.
+type SpanHierarchyStats struct {
+	TotalSpans  int     `json:"total_spans"`
+	TotalCost   float64 `json:"total_cost"`
+	TotalTokens struct {
+		In  int64 `json:"in"`
+		Out int64 `json:"out"`
+	} `json:"total_tokens"`
+	TimeRange struct {
+		Start time.Time `json:"start"`
+		End   time.Time `json:"end"`
+	} `json:"time_range"`
+	MaxDepth int `json:"max_depth"`
+}
+
+// SpanHierarchyResult contains the complete hierarchy result with roots and sessions.
+type SpanHierarchyResult struct {
+	Roots    []*SpanHierarchyNode `json:"roots"`
+	Sessions map[string]int       `json:"sessions"` // session_id -> turn_count
+	Stats    SpanHierarchyStats   `json:"stats"`
+}

@@ -128,6 +128,38 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		))
 	}
 
+	// 1.5. Config-driven GitHub label handling (M-GENERIC-PIPELINE)
+	// Look up agent from task.AgentID and use GetEffectiveApprovalConfig() for labels
+	if task.GithubIssue > 0 && params.GitHubPoster != nil && params.AgentRegistry != nil && task.AgentID != "" {
+		agent := params.AgentRegistry.GetAgentByID(task.AgentID)
+		if agent != nil {
+			approval := agent.GetEffectiveApprovalConfig()
+			if approval != nil && approval.ApprovedLabel != "" {
+				span.AddEvent("updating GitHub labels", trace.WithAttributes(
+					attribute.String("agent.id", task.AgentID),
+					attribute.String("label.approved", approval.ApprovedLabel),
+					attribute.String("label.needs", approval.NeedsLabel),
+				))
+
+				// Add approved label
+				if err := params.GitHubPoster.AddLabel(task.GithubIssue, approval.ApprovedLabel); err != nil {
+					span.AddEvent("warning: failed to add approved label", trace.WithAttributes(
+						attribute.String("error", err.Error()),
+					))
+				}
+
+				// Remove needs-approval label
+				if approval.NeedsLabel != "" {
+					if err := params.GitHubPoster.RemoveLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+						span.AddEvent("warning: failed to remove needs label", trace.WithAttributes(
+							attribute.String("error", err.Error()),
+						))
+					}
+				}
+			}
+		}
+	}
+
 	// 2. Resolve the approval request in database
 	if err := params.Store.ResolveApprovalRequestByTask(ctx, taskID, "approved", params.ApprovedBy); err != nil {
 		span.RecordError(err)

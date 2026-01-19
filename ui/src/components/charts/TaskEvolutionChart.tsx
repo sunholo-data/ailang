@@ -15,11 +15,12 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { TaskEvolutionData } from '../../hooks/useAnalytics';
+import { formatDurationMs } from '../../utils/formatters';
 import styles from './TaskEvolutionChart.module.css';
 
 export interface TaskEvolutionChartProps {
   tasks: TaskEvolutionData[];
-  metric: 'cost' | 'tokens' | 'turns' | 'spans';
+  metric: 'cost' | 'tokens' | 'turns' | 'spans' | 'duration';
   height?: number;
   logScale?: boolean;
   onTaskClick?: (taskId: string) => void;
@@ -47,6 +48,7 @@ const METRIC_LABELS: Record<string, string> = {
   tokens: 'Tokens',
   turns: 'Turns',
   spans: 'Spans',
+  duration: 'Duration',
 };
 
 const formatMetricValue = (value: number, metric: string): string => {
@@ -55,6 +57,9 @@ const formatMetricValue = (value: number, metric: string): string => {
   }
   if (metric === 'tokens' && value > 1000) {
     return `${(value / 1000).toFixed(1)}K`;
+  }
+  if (metric === 'duration') {
+    return formatDurationMs(value);
   }
   return value.toLocaleString();
 };
@@ -80,6 +85,7 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
           case 'tokens': total = lastPoint.tokens; break;
           case 'turns': total = lastPoint.turns; break;
           case 'spans': total = lastPoint.spans; break;
+          case 'duration': total = lastPoint.duration_ms; break;
         }
       }
       return { task, total };
@@ -115,6 +121,9 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
               break;
             case 'spans':
               point[task.task_id] = p.spans;
+              break;
+            case 'duration':
+              point[task.task_id] = p.duration_ms;
               break;
           }
         }
@@ -243,6 +252,12 @@ export const TaskEvolutionChart: React.FC<TaskEvolutionChartProps> = ({
                         <span>Spans:</span>
                         <span className={styles.legendPopupValue}>
                           {lastPoint.spans?.toLocaleString() || task.points?.length || 0}
+                        </span>
+                      </div>
+                      <div className={styles.legendPopupRow}>
+                        <span>Duration:</span>
+                        <span className={styles.legendPopupValue}>
+                          {formatDurationMs(lastPoint.duration_ms || 0)}
                         </span>
                       </div>
                     </>

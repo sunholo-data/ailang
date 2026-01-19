@@ -345,6 +345,7 @@ func (a *API) handleListSpans(w http.ResponseWriter, r *http.Request) {
 		Provider:          r.URL.Query().Get("provider"),
 		Model:             r.URL.Query().Get("model"),
 		Status:            r.URL.Query().Get("status"),
+		Workspace:         r.URL.Query().Get("workspace"),
 	}
 
 	if startTime := r.URL.Query().Get("start_after"); startTime != "" {
@@ -1401,6 +1402,11 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 		opts.IncludeSpans = false
 	}
 
+	// Parse workspace filter to prevent cross-workspace span bleeding
+	if workspace := r.URL.Query().Get("workspace"); workspace != "" {
+		opts.Workspace = workspace
+	}
+
 	hierarchy, err := GetTaskHierarchy(r.Context(), a.backend, id, opts)
 	if err != nil {
 		if isNotFoundError(err) {
@@ -1564,6 +1570,19 @@ func (a *API) handleGetSessionTools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Verify workspace ownership if workspace filter is specified
+	if requestedWorkspace := r.URL.Query().Get("workspace"); requestedWorkspace != "" {
+		sessionWorkspace, err := sqliteBackend.store.GetSessionWorkspace(id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if sessionWorkspace != "" && sessionWorkspace != requestedWorkspace {
+			writeError(w, http.StatusForbidden, "session belongs to different workspace")
+			return
+		}
+	}
+
 	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -1619,6 +1638,19 @@ func (a *API) handleGetSessionToolsSummary(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		writeError(w, http.StatusNotImplemented, "session queries require SQLite backend")
 		return
+	}
+
+	// Verify workspace ownership if workspace filter is specified
+	if requestedWorkspace := r.URL.Query().Get("workspace"); requestedWorkspace != "" {
+		sessionWorkspace, err := sqliteBackend.store.GetSessionWorkspace(id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if sessionWorkspace != "" && sessionWorkspace != requestedWorkspace {
+			writeError(w, http.StatusForbidden, "session belongs to different workspace")
+			return
+		}
 	}
 
 	tools, err := sqliteBackend.store.GetSessionTools(r.Context(), id)

@@ -21,16 +21,19 @@ import (
 
 // TaskEvolutionPoint represents a single point in time for task metrics
 type TaskEvolutionPoint struct {
-	X          int     `json:"x"`          // Normalized index (0 = start)
-	Timestamp  string  `json:"timestamp"`  // ISO8601
-	Cost       float64 `json:"cost"`       // Cumulative cost
-	Tokens     int64   `json:"tokens"`     // Cumulative tokens (in + out)
-	TokensIn   int64   `json:"tokens_in"`  // Cumulative input tokens
-	TokensOut  int64   `json:"tokens_out"` // Cumulative output tokens
-	Turns      int     `json:"turns"`      // Cumulative turn count
-	Spans      int     `json:"spans"`      // Cumulative span count
-	DeltaCost  float64 `json:"delta_cost"` // Cost change since last point
-	DeltaSpans int     `json:"delta_spans"`
+	X               int     `json:"x"`                 // Normalized index (0 = start)
+	Timestamp       string  `json:"timestamp"`         // ISO8601
+	Cost            float64 `json:"cost"`              // Cumulative cost
+	Tokens          int64   `json:"tokens"`            // Cumulative tokens (in + out)
+	TokensIn        int64   `json:"tokens_in"`         // Cumulative input tokens
+	TokensOut       int64   `json:"tokens_out"`        // Cumulative output tokens
+	Turns           int     `json:"turns"`             // Cumulative turn count
+	Spans           int     `json:"spans"`             // Cumulative span count
+	DeltaCost       float64 `json:"delta_cost"`        // Cost change since last point
+	DeltaSpans      int     `json:"delta_spans"`       // Span count change since last point
+	DurationMs      int64   `json:"duration_ms"`       // Cumulative execution time in ms
+	DeltaDurationMs int64   `json:"delta_duration_ms"` // Duration of this span in ms
+	ElapsedMs       int64   `json:"elapsed_ms"`        // Wall clock time since task start in ms
 }
 
 // TaskEvolutionTask represents a single task's evolution data
@@ -66,6 +69,7 @@ type UsageTimeSeriesPoint struct {
 	Turns       int                `json:"turns"`                  // Turn count (api_request spans)
 	Spans       int                `json:"spans"`                  // Total span count
 	TaskCount   int                `json:"task_count"`             // Distinct tasks
+	DurationMs  int64              `json:"duration_ms"`            // Total duration in bucket (ms)
 	ByDimension map[string]float64 `json:"by_dimension,omitempty"` // Split by dimension
 }
 
@@ -377,7 +381,8 @@ func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, int
 			COALESCE(tokens_out, 0) as tokens_out,
 			CASE WHEN name = 'api_request' THEN 1 ELSE 0 END as is_turn,
 			COALESCE(provider, '') as provider,
-			COALESCE(model, '') as model
+			COALESCE(model, '') as model,
+			COALESCE(duration_ms, 0) as duration_ms
 		FROM spans
 		WHERE task_id = ?
 		ORDER BY start_time ASC
@@ -399,8 +404,11 @@ func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, int
 	var cumulCost float64
 	var cumulTokensIn, cumulTokensOut int64
 	var cumulTurns, cumulSpans int
+	var cumulDurationMs int64
 	var prevCost float64
 	var prevSpans int
+	var prevDurationMs int64
+	var firstSpanTime time.Time
 
 	for rows.Next() {
 		var startTime string
@@ -408,8 +416,9 @@ func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, int
 		var tokensIn, tokensOut int64
 		var isTurn int
 		var provider, model string
+		var durationMs int64
 
-		if err := rows.Scan(&startTime, &cost, &tokensIn, &tokensOut, &isTurn, &provider, &model); err != nil {
+		if err := rows.Scan(&startTime, &cost, &tokensIn, &tokensOut, &isTurn, &provider, &model, &durationMs); err != nil {
 			continue
 		}
 
@@ -419,32 +428,51 @@ func getTaskEvolutionForTask(ctx context.Context, db *sql.DB, taskID string, int
 		cumulTokensOut += tokensOut
 		cumulTurns += isTurn
 		cumulSpans++
+		cumulDurationMs += durationMs
+
+		// Parse current span time for elapsed calculation
+		currentTime, _ := time.Parse(time.RFC3339, startTime)
+		if currentTime.IsZero() {
+			// Try alternate format
+			currentTime, _ = time.Parse("2006-01-02 15:04:05", startTime)
+		}
 
 		// Set task metadata from first span
 		if task.StartTime == "" {
 			task.StartTime = startTime
 			task.Provider = provider
 			task.Model = model
+			firstSpanTime = currentTime
 		}
 		task.EndTime = startTime // Will be last span's time
 
+		// Calculate elapsed time since first span
+		var elapsedMs int64
+		if !firstSpanTime.IsZero() && !currentTime.IsZero() {
+			elapsedMs = currentTime.Sub(firstSpanTime).Milliseconds()
+		}
+
 		// Create point
 		point := TaskEvolutionPoint{
-			X:          len(task.Points),
-			Timestamp:  startTime,
-			Cost:       cumulCost,
-			Tokens:     cumulTokensIn + cumulTokensOut,
-			TokensIn:   cumulTokensIn,
-			TokensOut:  cumulTokensOut,
-			Turns:      cumulTurns,
-			Spans:      cumulSpans,
-			DeltaCost:  cumulCost - prevCost,
-			DeltaSpans: cumulSpans - prevSpans,
+			X:               len(task.Points),
+			Timestamp:       startTime,
+			Cost:            cumulCost,
+			Tokens:          cumulTokensIn + cumulTokensOut,
+			TokensIn:        cumulTokensIn,
+			TokensOut:       cumulTokensOut,
+			Turns:           cumulTurns,
+			Spans:           cumulSpans,
+			DeltaCost:       cumulCost - prevCost,
+			DeltaSpans:      cumulSpans - prevSpans,
+			DurationMs:      cumulDurationMs,
+			DeltaDurationMs: cumulDurationMs - prevDurationMs,
+			ElapsedMs:       elapsedMs,
 		}
 		task.Points = append(task.Points, point)
 
 		prevCost = cumulCost
 		prevSpans = cumulSpans
+		prevDurationMs = cumulDurationMs
 	}
 
 	if len(task.Points) == 0 {
@@ -630,7 +658,8 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 				SUM(COALESCE(tokens_out, 0)) as tokens_out,
 				COUNT(CASE WHEN name = 'api_request' THEN 1 END) as turns,
 				COUNT(*) as spans,
-				COUNT(DISTINCT task_id) as task_count
+				COUNT(DISTINCT task_id) as task_count,
+				SUM(COALESCE(duration_ms, 0)) as duration_ms
 			FROM spans
 			WHERE %s
 			GROUP BY bucket, dimension
@@ -646,7 +675,8 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 				SUM(COALESCE(tokens_out, 0)) as tokens_out,
 				COUNT(CASE WHEN name = 'api_request' THEN 1 END) as turns,
 				COUNT(*) as spans,
-				COUNT(DISTINCT task_id) as task_count
+				COUNT(DISTINCT task_id) as task_count,
+				SUM(COALESCE(duration_ms, 0)) as duration_ms
 			FROM spans
 			WHERE %s
 			GROUP BY bucket
@@ -669,10 +699,11 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 		var cost float64
 		var tokensIn, tokensOut int64
 		var turns, spans, taskCount int
+		var durationMs int64
 
 		if splitBy != "" {
 			var dimension string
-			if err := rows.Scan(&bucket, &dimension, &cost, &tokensIn, &tokensOut, &turns, &spans, &taskCount); err != nil {
+			if err := rows.Scan(&bucket, &dimension, &cost, &tokensIn, &tokensOut, &turns, &spans, &taskCount, &durationMs); err != nil {
 				return nil, 0, fmt.Errorf("scan failed: %w", err)
 			}
 
@@ -696,22 +727,24 @@ func getUsageTimeSeriesData(ctx context.Context, backend *observatory.SQLiteBack
 			point.Turns += turns
 			point.Spans += spans
 			point.TaskCount += taskCount
+			point.DurationMs += durationMs
 			// Aggregate by normalized dimension (sum if same dimension appears multiple times)
 			point.ByDimension[dimension] += cost
 		} else {
-			if err := rows.Scan(&bucket, &cost, &tokensIn, &tokensOut, &turns, &spans, &taskCount); err != nil {
+			if err := rows.Scan(&bucket, &cost, &tokensIn, &tokensOut, &turns, &spans, &taskCount, &durationMs); err != nil {
 				return nil, 0, fmt.Errorf("scan failed: %w", err)
 			}
 
 			bucketMap[bucket] = &UsageTimeSeriesPoint{
-				Bucket:    bucket,
-				Cost:      cost,
-				TokensIn:  tokensIn,
-				TokensOut: tokensOut,
-				Tokens:    tokensIn + tokensOut,
-				Turns:     turns,
-				Spans:     spans,
-				TaskCount: taskCount,
+				Bucket:     bucket,
+				Cost:       cost,
+				TokensIn:   tokensIn,
+				TokensOut:  tokensOut,
+				Tokens:     tokensIn + tokensOut,
+				Turns:      turns,
+				Spans:      spans,
+				TaskCount:  taskCount,
+				DurationMs: durationMs,
 			}
 		}
 		totalCost += cost

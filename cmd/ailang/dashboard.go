@@ -985,6 +985,7 @@ func dashboardToolsCommand() {
 	server := fs.String("server", "", "Dashboard server URL")
 	summary := fs.Bool("summary", false, "Show aggregated summary by tool type")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
+	workspace := fs.String("workspace", "", "Filter by workspace path")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -994,7 +995,7 @@ func dashboardToolsCommand() {
 	// Session ID is the first positional arg after flags
 	args := fs.Args()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: ailang dashboard tools <session-id> [--summary] [--json]\n")
+		fmt.Fprintf(os.Stderr, "Usage: ailang dashboard tools [--summary] [--json] [--workspace PATH] <session-id>\n")
 		fmt.Fprintf(os.Stderr, "\nGet session IDs from: ailang dashboard sessions\n")
 		os.Exit(1)
 	}
@@ -1006,6 +1007,9 @@ func dashboardToolsCommand() {
 		apiURL = fmt.Sprintf("%s/api/observatory/sessions/%s/tools/summary", baseURL, sessionID)
 	} else {
 		apiURL = fmt.Sprintf("%s/api/observatory/sessions/%s/tools", baseURL, sessionID)
+	}
+	if *workspace != "" {
+		apiURL += "?workspace=" + url.QueryEscape(*workspace)
 	}
 
 	resp, err := dashboardHTTPClient.Get(apiURL)

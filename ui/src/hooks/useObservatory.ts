@@ -552,6 +552,7 @@ export interface TaskHierarchy {
 interface UseTaskHierarchyOptions {
   depth?: number;
   includeSpans?: boolean;
+  workspace?: string;  // Filter by workspace to prevent cross-workspace span bleeding
 }
 
 export function useTaskHierarchy(taskId: string | null, options: UseTaskHierarchyOptions = {}) {
@@ -570,6 +571,7 @@ export function useTaskHierarchy(taskId: string | null, options: UseTaskHierarch
       const params = new URLSearchParams();
       if (options.depth !== undefined) params.set('depth', options.depth.toString());
       if (options.includeSpans === false) params.set('include_spans', 'false');
+      if (options.workspace) params.set('workspace', options.workspace);
 
       const query = params.toString();
       const endpoint = query ? `/tasks/${taskId}/hierarchy?${query}` : `/tasks/${taskId}/hierarchy`;
@@ -582,7 +584,7 @@ export function useTaskHierarchy(taskId: string | null, options: UseTaskHierarch
     } finally {
       setLoading(false);
     }
-  }, [taskId, options.depth, options.includeSpans]);
+  }, [taskId, options.depth, options.includeSpans, options.workspace]);
 
   useEffect(() => {
     refresh();

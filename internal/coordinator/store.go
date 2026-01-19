@@ -66,15 +66,30 @@ const (
 	TaskStatusDuplicate       TaskStatus = "duplicate"
 )
 
-// TaskStage represents the pipeline stage for GitHub-linked tasks
+// TaskStage represents the pipeline stage for GitHub-linked tasks.
+//
+// Deprecated: Use agent_id tracking with trigger_on_complete configuration instead.
+// Stage is maintained for backwards compatibility with existing tasks.
+// Will be removed in v0.9.0. See M-GENERIC-PIPELINE design doc for migration guidance.
+//
+// Migration guide:
+//   - Replace TaskStageDesign with agent_id = "design-doc-creator"
+//   - Replace TaskStageSprint with agent_id = "sprint-planner"
+//   - Replace TaskStageImplementation with agent_id = "sprint-executor"
+//   - Configure trigger_on_complete in ~/.ailang/config.yaml for automatic handoffs
 type TaskStage string
 
 const (
-	TaskStageNone           TaskStage = ""               // Not part of a pipeline
-	TaskStageDesign         TaskStage = "design"         // Creating design document
-	TaskStageSprint         TaskStage = "sprint"         // Creating sprint plan
+	// Deprecated: Use agent_id tracking instead
+	TaskStageNone TaskStage = "" // Not part of a pipeline
+	// Deprecated: Use agent_id = "design-doc-creator" with approval config instead
+	TaskStageDesign TaskStage = "design" // Creating design document
+	// Deprecated: Use agent_id = "sprint-planner" with approval config instead
+	TaskStageSprint TaskStage = "sprint" // Creating sprint plan
+	// Deprecated: Use agent_id = "sprint-executor" with approval config instead
 	TaskStageImplementation TaskStage = "implementation" // Implementing the sprint
-	TaskStageMerge          TaskStage = "merge"          // Awaiting merge approval
+	// Deprecated: Use agent_id with approval config for merge workflow instead
+	TaskStageMerge TaskStage = "merge" // Awaiting merge approval
 )
 
 // TaskFilter for querying tasks

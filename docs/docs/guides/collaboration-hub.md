@@ -311,6 +311,86 @@ CREATE TABLE approvals (
 );
 ```
 
+## ID Relationships Across Databases
+
+AILANG uses three SQLite databases that cross-reference each other through shared IDs. Understanding these relationships is essential for debugging and extending the system.
+
+### Database Overview
+
+| Database | Location | Purpose |
+|----------|----------|---------|
+| **collaboration.db** | `~/.ailang/state/collaboration.db` | Messages, threads, agents |
+| **coordinator.db** | `~/.ailang/state/coordinator.db` | Task execution state, approvals, events |
+| **observatory.db** | `~/.ailang/state/observatory.db` | OTEL spans, traces, task/agent hierarchy |
+
+### ID Flow
+
+When a message triggers task execution, IDs flow across all three databases:
+
+```
+collaboration.db                coordinator.db                    observatory.db
+================                ==============                    ==============
+
+threads.id ─────────────────────► tasks.thread_id
+
+messages.id (UUID) ─────────────► tasks.message_id
+                                       │
+                                       ├── tasks.id = "task-" + first_8(message_id)
+                                       │        │
+                                       │        └─────────────────────► tasks.id (same)
+                                       │                                     │
+                                       │                                spans.task_id (FK)
+```
+
+### Key ID Formats
+
+| ID Type | Format | Example |
+|---------|--------|---------|
+| `task_id` | `task-<8-char-uuid>` | `task-29404032` |
+| `message_id` | Full UUID | `29404032-74b3-40c6-acc3-23d6bbe14b68` |
+| `thread_id` | `thread_<ts>_<rand>` | `thread_1768064360112_5f96886d` |
+| `span_id` | 16-char hex | `0f9632b58df815e4` |
+| `trace_id` | 32-char hex | `0ebf5e64bb654fcc1d19256b59f05ae3` |
+| `session.id` | UUID (span attribute) | `4df60536-caed-4e2f-af2c-e386c361f4e7` |
+
+### Cross-Database Queries
+
+```bash
+# Find all data for a task
+TASK_ID="task-29404032"
+
+# 1. Task in coordinator
+sqlite3 ~/.ailang/state/coordinator.db \
+  "SELECT id, message_id, thread_id, session_id FROM tasks WHERE id = '$TASK_ID'"
+
+# 2. Spans in observatory
+sqlite3 ~/.ailang/state/observatory.db \
+  "SELECT id, name, trace_id FROM spans WHERE task_id = '$TASK_ID'"
+
+# 3. Original message in collaboration
+MSG_ID="29404032-74b3-40c6-acc3-23d6bbe14b68"  # Full UUID
+sqlite3 ~/.ailang/state/collaboration.db \
+  "SELECT id, thread_id, content FROM messages WHERE id = '$MSG_ID'"
+```
+
+### Span Hierarchy
+
+Within observatory.db, spans form a tree using `parent_span_id`:
+
+```bash
+# Use the hierarchy CLI command for visualization
+ailang trace hierarchy --limit 5
+
+# Or query directly
+sqlite3 ~/.ailang/state/observatory.db \
+  "SELECT name, json_extract(attributes, '\$.turn.number') as turn \
+   FROM spans WHERE json_extract(attributes, '\$.session.id') = 'SESSION_UUID'"
+```
+
+:::tip Session Correlation
+When spans don't have `task_id` set (common with CLI tools), use `session.id` from span attributes for correlation. This is the most reliable way to link orphan spans.
+:::
+
 ## API Endpoints
 
 ### Threads
