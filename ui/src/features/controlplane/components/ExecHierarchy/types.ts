@@ -8,7 +8,7 @@ import type React from 'react';
 export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use' | 'approval';
 
 // View mode toggle
-export type ViewMode = 'tree' | 'graph' | 'timeline' | 'chat';
+export type ViewMode = 'tree' | 'graph' | 'timeline' | 'chat' | 'evolution';
 
 // Coordinator task view mode
 export type CoordinatorViewMode = 'nested' | 'breakout';
@@ -46,6 +46,8 @@ export interface HierarchyNode {
   agentId?: string;         // Agent that executed this task
   // Filtering (Milestone 10)
   isFiltered?: boolean;     // True if node doesn't match current filter criteria (greyed out)
+  // Custom attributes (for nodes without _span, e.g., shared tool aggregations from Evolution Tree)
+  attributes?: Record<string, unknown>;
 }
 
 // Message node (Level 1) - triggers coordinator tasks

@@ -324,11 +324,42 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
 }
 
 /**
+ * Check if a span should be hidden based on hiddenSpanTypes
+ */
+function shouldHideSpan(span: AnySpan, hiddenSpanTypes?: Set<string>): boolean {
+  if (!hiddenSpanTypes || hiddenSpanTypes.size === 0) return false;
+  return hiddenSpanTypes.has(span.name);
+}
+
+/**
+ * Recursively filter spans, removing hidden ones and their descendants
+ * Returns filtered span array with updated children
+ */
+function filterSpans(spans: AnySpan[], hiddenSpanTypes?: Set<string>): AnySpan[] {
+  if (!hiddenSpanTypes || hiddenSpanTypes.size === 0) return spans;
+
+  const filtered: AnySpan[] = [];
+  for (const span of spans) {
+    if (shouldHideSpan(span, hiddenSpanTypes)) continue;
+
+    // Recursively filter children
+    if (span.children && span.children.length > 0) {
+      const filteredChildren = filterSpans(span.children, hiddenSpanTypes);
+      filtered.push({ ...span, children: filteredChildren });
+    } else {
+      filtered.push(span);
+    }
+  }
+  return filtered;
+}
+
+/**
  * Build ReactFlow graph with turn-based hierarchy
  */
 export function buildGraphFromSpans(
   spans: AnySpan[] | undefined,
-  selectedNodeId?: string | null
+  selectedNodeId?: string | null,
+  hiddenSpanTypes?: Set<string>
 ): GraphData {
   const emptyResult: GraphData = {
     nodes: [],
@@ -342,6 +373,12 @@ export function buildGraphFromSpans(
     return emptyResult;
   }
 
+  // Apply span type filtering
+  const filteredSpans = filterSpans(spans, hiddenSpanTypes);
+  if (filteredSpans.length === 0) {
+    return emptyResult;
+  }
+
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const stats = { totalSpans: 0, totalCost: 0, totalTokens: 0, totalDurationMs: 0, totalTurns: 0 };
@@ -350,7 +387,7 @@ export function buildGraphFromSpans(
 
   // Find root span (session/executor)
   let rootSpan: AnySpan | null = null;
-  for (const span of spans) {
+  for (const span of filteredSpans) {
     if (isRootSpan(span)) {
       rootSpan = span;
       break;
@@ -358,8 +395,8 @@ export function buildGraphFromSpans(
   }
 
   // If no root span, use first span as root
-  if (!rootSpan && spans.length > 0) {
-    rootSpan = spans[0];
+  if (!rootSpan && filteredSpans.length > 0) {
+    rootSpan = filteredSpans[0];
   }
 
   if (!rootSpan) {

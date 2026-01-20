@@ -11,6 +11,7 @@ import { ExecHierarchyTree } from './ExecHierarchyTree';
 import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import { TaskHierarchyGraph } from './TaskHierarchyGraph';
 import { ChatHistory } from './ChatHistory';
+import { EvolutionTree } from './EvolutionTree';
 import type { TaskHierarchyNode } from './types';
 import { CliCommandHint } from '../CliCommandHint';
 import { TraceWaterfall } from '../TraceWaterfall';
@@ -1272,6 +1273,13 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             >
               💬
             </button>
+            <button
+              className={`${styles.viewToggleBtn} ${viewMode === 'evolution' ? styles.viewToggleBtnActive : ''}`}
+              onClick={() => setViewMode('evolution')}
+              title="Evolution Tree"
+            >
+              🌳
+            </button>
           </div>
 
           {/* Reverse Order Toggle */}
@@ -1368,6 +1376,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             recenterTrigger={expandChangeCounter}
             workspace={filters?.workspace}
             provider={filters?.provider}
+            // Span type filtering - same as other views
+            hiddenSpanTypes={hiddenSpanTypes}
           />
         )}
         {viewMode === 'timeline' && (
@@ -1385,6 +1395,16 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             onNodeClick={handleNodeClick}
             loading={loading}
             spans={spans}
+          />
+        )}
+        {viewMode === 'evolution' && (
+          <EvolutionTree
+            spans={spans}
+            nodes={transformedNodes}
+            selectedNodeId={selectedNodeId}
+            onNodeClick={handleNodeClick}
+            hiddenSpanTypes={hiddenSpanTypes}
+            isExpanded={isExpanded}
           />
         )}
 
@@ -1751,6 +1771,40 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
                   </div>
                 )}
               </>
+            )}
+
+            {/* Custom Attributes Section - for nodes without _span (e.g., shared tool nodes from Evolution Tree) */}
+            {!popoverNode._span && popoverNode.attributes && Object.keys(popoverNode.attributes).length > 0 && (
+              <div className={styles.popoverSection}>
+                <button
+                  className={styles.popoverSectionToggle}
+                  onClick={() => setAttributesExpanded(!attributesExpanded)}
+                >
+                  <span className={styles.popoverToggleIcon}>
+                    {attributesExpanded ? '▼' : '▶'}
+                  </span>
+                  <span className={styles.popoverSectionTitle}>
+                    Details ({Object.keys(popoverNode.attributes).length})
+                  </span>
+                </button>
+                {attributesExpanded && (
+                  <div className={styles.popoverAttributesList}>
+                    {Object.entries(popoverNode.attributes).map(([key, value]) => (
+                      <div key={key} className={styles.popoverAttrRow}>
+                        <span className={styles.popoverAttrKey}>{key}</span>
+                        <span
+                          className={styles.popoverAttrValue}
+                          style={{ whiteSpace: 'pre-wrap' }}
+                        >
+                          {String(value).length > 500
+                            ? `${String(value).substring(0, 500)}...`
+                            : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

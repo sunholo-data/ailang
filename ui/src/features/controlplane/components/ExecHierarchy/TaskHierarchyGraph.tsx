@@ -202,7 +202,7 @@ const TaskNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
           </span>
         )}
         <span style={{ color: nodeColor }}>{data.status}</span>
-        {data.duration_ms > 0 && <span> \u2022 {formatDuration(data.duration_ms)}</span>}
+        {data.duration_ms > 0 && <span> • {formatDuration(data.duration_ms)}</span>}
         {iterationBadge && (
           <span
             className={styles.rfIterationBadge}
@@ -220,7 +220,7 @@ const TaskNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
           {data.tokens_in > 0 && <span>{formatTokens(data.tokens_in)} in</span>}
           {data.tokens_in > 0 && data.tokens_out > 0 && <span> / </span>}
           {data.tokens_out > 0 && <span>{formatTokens(data.tokens_out)} out</span>}
-          {data.turns && data.turns > 0 && <span> \u2022 {data.turns} turns</span>}
+          {data.turns && data.turns > 0 && <span> • {data.turns} turns</span>}
         </div>
       )}
 
@@ -322,8 +322,8 @@ const SpanNodeComponent: React.FC<NodeProps> = ({ data }) => {
         <span>{formatDuration(durationMs)}</span>
         {hasMetrics && (
           <>
-            {cost > 0 && <span> \u2022 {formatCost(cost)}</span>}
-            {tokensIn > 0 && <span> [{formatTokens(tokensIn)}\u2192{formatTokens(tokensOut)}]</span>}
+            {cost > 0 && <span> • {formatCost(cost)}</span>}
+            {tokensIn > 0 && <span> [{formatTokens(tokensIn)}→{formatTokens(tokensOut)}]</span>}
           </>
         )}
       </div>
@@ -559,6 +559,9 @@ export interface TaskHierarchyGraphProps {
   useTurnGrouping?: boolean;
   // Task ID to fetch with turn grouping (when useTurnGrouping is true)
   taskIdForTurnGrouping?: string;
+  // Span type filtering - Set of span names to hide (e.g., 'api_request')
+  // Same as other views (Tree, Timeline, Chat, Waterfall)
+  hiddenSpanTypes?: Set<string>;
 }
 
 // Inner component that uses ReactFlow hooks
@@ -976,7 +979,7 @@ export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => 
 
     // Convert Span[] to HierarchySpan[] for buildGraphFromSpans
     const hierarchySpans = spans as unknown as HierarchySpan[];
-    const graphData = buildGraphFromSpans(hierarchySpans, props.selectedNodeId);
+    const graphData = buildGraphFromSpans(hierarchySpans, props.selectedNodeId, props.hiddenSpanTypes);
 
     // Convert to TaskHierarchyResult format for stats display
     const result: TaskHierarchyResult = {
@@ -991,7 +994,7 @@ export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => 
     };
 
     return { graphData, result };
-  }, [spans, props.selectedNodeId, useTurnGrouping, turnGroupedData]);
+  }, [spans, props.selectedNodeId, props.hiddenSpanTypes, useTurnGrouping, turnGroupedData]);
 
   // NO FALLBACK to useTaskHierarchy - if no spans, show empty state
   // This prevents the overwhelming "show everything" behavior

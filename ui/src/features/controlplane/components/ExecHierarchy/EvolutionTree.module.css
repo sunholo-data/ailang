@@ -1,0 +1,1270 @@
+/* ============================================
+   Evolution Tree - Bioluminescent Data Organism
+
+   An organic visualization showing AI execution
+   flow as a living, growing tree structure.
+   ============================================ */
+
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  max-height: 100%;
+  background: #0f1419;
+  overflow: hidden; /* Fixed viewport - no scrolling */
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ambient background glow */
+.ambientGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.08) 0%,
+    rgba(6, 182, 212, 0.04) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  animation: ambientPulse 8s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* Session header */
+.sessionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #0f1419 0%, rgba(15, 20, 25, 0.95) 80%, transparent 100%);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.sessionIcon {
+  font-size: 20px;
+  color: #10b981;
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+  animation: iconPulse 3s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; text-shadow: 0 0 20px rgba(16, 185, 129, 0.8); }
+}
+
+.sessionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sessionName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6edf3;
+  letter-spacing: -0.02em;
+}
+
+.sessionMeta {
+  font-size: 11px;
+  color: #8b949e;
+}
+
+/* Zoom controls */
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 4px 8px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.zoomControls button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+  color: #10b981;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.zoomControls button:hover {
+  background: rgba(16, 185, 129, 0.3);
+  color: #a7f3d0;
+}
+
+.zoomLevel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b949e;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* Tree SVG - spiral fits in fixed viewport */
+.treeSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0; /* Allow flex shrinking */
+}
+
+/* Stem path animation */
+.stemPath {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  transition: stroke-dashoffset 2s ease-out;
+}
+
+.grown .stemPath {
+  stroke-dashoffset: 0;
+}
+
+.stemGlow {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  transition: stroke-dashoffset 2.2s ease-out;
+}
+
+.grown .stemGlow {
+  stroke-dashoffset: 0;
+}
+
+/* Turn groups */
+.turnGroup {
+  opacity: 0;
+  transform: scale(0.8);
+  animation: turnAppear 0.5s ease-out forwards;
+}
+
+@keyframes turnAppear {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Turn node */
+.turnNode {
+  transition: all 0.2s ease-out;
+}
+
+.nodeCircle {
+  transition: r 0.2s ease-out, filter 0.2s ease-out;
+}
+
+.pulseRing {
+  animation: ringPulse 3s ease-in-out infinite;
+}
+
+@keyframes ringPulse {
+  0%, 100% { r: 22; opacity: 0.2; }
+  50% { r: 28; opacity: 0.4; }
+}
+
+.turnNode.selected .pulseRing {
+  animation: selectedPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes selectedPulse {
+  0%, 100% { r: 22; opacity: 0.6; stroke-width: 2; }
+  50% { r: 32; opacity: 0.3; stroke-width: 1; }
+}
+
+.turnNode.error .nodeCircle {
+  animation: errorGlow 2s ease-in-out infinite;
+}
+
+@keyframes errorGlow {
+  0%, 100% { filter: none; }
+  50% { filter: url(#errorGlow); }
+}
+
+/* Anomaly nodes - direction change indicators */
+.turnNode.anomaly .pulseRing {
+  animation: anomalyPulse 2s ease-in-out infinite;
+}
+
+@keyframes anomalyPulse {
+  0%, 100% { r: 18; opacity: 0.4; stroke-width: 2; }
+  50% { r: 26; opacity: 0.7; stroke-width: 3; }
+}
+
+.turnNode.anomaly .nodeCircle {
+  animation: anomalyGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes anomalyGlow {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 8px #f59e0b); }
+}
+
+/* Turn labels */
+.turnLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.turnMeta {
+  font-size: 10px;
+}
+
+/* Tool groups */
+.toolGroup {
+  opacity: 0;
+  animation: toolAppear 0.4s ease-out forwards;
+}
+
+@keyframes toolAppear {
+  to { opacity: 1; }
+}
+
+/* Branch paths */
+.branchPath {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: branchGrow 0.6s ease-out forwards;
+}
+
+@keyframes branchGrow {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Tool node */
+.toolNode {
+  transition: all 0.15s ease-out;
+}
+
+.leafShape {
+  transition: rx 0.15s ease-out, ry 0.15s ease-out;
+}
+
+.toolNode:hover .leafShape {
+  filter: url(#glow);
+}
+
+.toolLabel {
+  font-size: 10px;
+  font-weight: 500;
+  transition: fill 0.15s ease-out;
+}
+
+.toolNode.error .leafShape {
+  animation: leafShake 0.5s ease-in-out;
+}
+
+@keyframes leafShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Stats footer */
+.statsFooter {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding: 12px 20px;
+  background: linear-gradient(0deg, #0f1419 0%, rgba(15, 20, 25, 0.95) 80%, transparent 100%);
+  border-top: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: #10b981;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Legend panel */
+.legendPanel {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  z-index: 20;
+  padding: 12px 16px;
+  background: rgba(15, 20, 25, 0.95);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #e6edf3;
+  min-width: 180px;
+}
+
+.legendTitle {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #10b981;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 10px 0;
+}
+
+.legendHint {
+  font-size: 10px;
+  color: #8b949e;
+  margin-bottom: 4px;
+}
+
+.legendHint strong {
+  color: #a7f3d0;
+}
+
+/* Controls panel */
+.controlsPanel {
+  position: absolute;
+  top: 60px;
+  left: 16px;
+  z-index: 20;
+  padding: 12px 16px;
+  background: rgba(15, 20, 25, 0.95);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #e6edf3;
+  min-width: 200px;
+}
+
+.controlItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.controlItem label {
+  font-size: 11px;
+  color: #8b949e;
+}
+
+.controlItem input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 2px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.controlItem input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.controlItem input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #10b981;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.controlItem span {
+  font-size: 10px;
+  color: #6b7280;
+  text-align: right;
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 300px;
+  padding: 40px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  animation: seedSway 3s ease-in-out infinite;
+}
+
+@keyframes seedSway {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e6edf3;
+  margin-bottom: 8px;
+}
+
+.emptyText {
+  font-size: 13px;
+  color: #8b949e;
+  max-width: 280px;
+}
+
+/* Scrollbar styling */
+.container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.container::-webkit-scrollbar-track {
+  background: #1a2332;
+}
+
+.container::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.5);
+}
+
+/* ============================================
+   Bioluminescent Tool Nodes
+   ============================================ */
+
+/* Tool node aura - outer glow that breathes */
+.toolAura {
+  pointer-events: none;
+  animation: auraBreath var(--pulse-speed, 4s) ease-in-out infinite;
+}
+
+@keyframes auraBreath {
+  0%, 100% {
+    transform-origin: center;
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Orbital rings - gentle rotation */
+.orbitalRing {
+  animation: orbitalDrift 20s linear infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes orbitalDrift {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 100; }
+}
+
+/* Core node pulse */
+.toolCore {
+  transition: r 0.2s ease-out, filter 0.2s ease-out;
+  cursor: pointer;
+}
+
+/* Inner pulse - heartbeat effect */
+.innerPulse {
+  animation: heartbeat var(--pulse-speed, 4s) ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes heartbeat {
+  0%, 100% {
+    stroke-opacity: 0.3;
+  }
+  50% {
+    stroke-opacity: 0.6;
+  }
+}
+
+/* Spread arc - subtle shimmer */
+.spreadArc {
+  animation: arcShimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes arcShimmer {
+  0%, 100% { stroke-opacity: 0.4; }
+  50% { stroke-opacity: 0.7; }
+}
+
+/* Error indicator rotation */
+.errorIndicator {
+  animation: errorSpin 8s linear infinite, errorPulse 2s ease-in-out infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes errorSpin {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 20; }
+}
+
+@keyframes errorPulse {
+  0%, 100% { stroke-opacity: 0.4; }
+  50% { stroke-opacity: 0.8; }
+}
+
+/* Usage count text on tool nodes */
+.toolUsageCount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  fill: #0f1419;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Tool label on hover */
+.toolHoverLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  fill: #e6edf3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.toolHoverLabel.visible {
+  opacity: 1;
+}
+
+/* ============================================
+   Bioluminescent Popup
+   ============================================ */
+
+.bioPopover {
+  position: fixed;
+  z-index: 1000;
+  min-width: 300px;
+  max-width: 380px;
+  background: radial-gradient(
+    ellipse at top left,
+    rgba(16, 185, 129, 0.08) 0%,
+    rgba(15, 20, 25, 0.98) 40%,
+    rgba(15, 20, 25, 0.99) 100%
+  );
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 20px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow:
+    0 0 40px rgba(16, 185, 129, 0.15),
+    0 0 80px rgba(16, 185, 129, 0.08),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  animation: popoverEmerge 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: top left;
+}
+
+@keyframes popoverEmerge {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-8px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Ambient glow layer */
+.bioPopover::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(16, 185, 129, 0.1) 0%,
+    transparent 50%
+  );
+  animation: ambientDrift 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ambientDrift {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(5%, 3%) rotate(2deg); }
+  66% { transform: translate(-3%, 5%) rotate(-1deg); }
+}
+
+/* Header - nucleus of the cell */
+.bioPopoverHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 185, 129, 0.1) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.bioPopoverIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.3) 0%,
+    rgba(16, 185, 129, 0.1) 70%,
+    transparent 100%
+  );
+  border-radius: 50%;
+  font-size: 18px;
+  animation: bioIconPulse 3s ease-in-out infinite;
+}
+
+@keyframes bioIconPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
+    transform: scale(1.05);
+  }
+}
+
+.bioPopoverTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.bioPopoverName {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+  letter-spacing: -0.02em;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bioPopoverType {
+  font-size: 10px;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.bioPopoverClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: #8b949e;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bioPopoverClose:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+/* Metrics grid - vital signs */
+.bioPopoverMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(16, 185, 129, 0.1);
+  margin: 0;
+}
+
+.bioMetric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  background: #0f1419;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+
+.bioMetric:hover {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.bioMetricValue {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #10b981;
+  line-height: 1.2;
+  text-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+}
+
+.bioMetricValue.error {
+  color: #ef4444;
+  text-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
+.bioMetricLabel {
+  font-size: 9px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+/* Details section */
+.bioPopoverDetails {
+  padding: 14px 16px;
+}
+
+.bioDetailSection {
+  margin-bottom: 14px;
+}
+
+.bioDetailSection:last-child {
+  margin-bottom: 0;
+}
+
+.bioSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bioSectionToggle {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 4px;
+  color: #10b981;
+  font-size: 9px;
+  transition: all 0.2s ease;
+}
+
+.bioSectionToggle.expanded {
+  transform: rotate(90deg);
+}
+
+.bioSectionTitle {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bioSectionCount {
+  font-size: 9px;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+/* Turn timeline - DNA strand style */
+.bioTurnTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.bioTurnTimeline::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bioTurnTimeline::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 2px;
+}
+
+.bioTurnEntry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: rgba(16, 185, 129, 0.03);
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.bioTurnEntry:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: #10b981;
+}
+
+.bioTurnEntry.error {
+  border-left-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.bioTurnNumber {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #10b981;
+  min-width: 28px;
+}
+
+.bioTurnStatus {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  flex-shrink: 0;
+}
+
+.bioTurnStatus.error {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.bioTurnDuration {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #8b949e;
+  margin-left: auto;
+}
+
+.bioTurnCost {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #6b7280;
+}
+
+/* Duration bar visualization */
+.bioDurationBar {
+  position: relative;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.bioDurationFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #06d6a0);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.bioDurationMarkers {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.bioDurationMarker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #6b7280;
+}
+
+/* Status badge */
+.bioStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 16px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #10b981;
+}
+
+.bioStatusBadge.error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.bioStatusDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.8); }
+}
+
+/* More entries indicator */
+.bioMoreEntries {
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Additional popup elements */
+.bioPopoverGlow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(16, 185, 129, 0.15) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.bioPopoverToolType {
+  display: block;
+  font-size: 10px;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.bioPopoverToolName {
+  display: block;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6edf3;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bioPopoverFullName {
+  padding: 8px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #6b7280;
+  background: rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.bioMetricError {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+.bioMetricError .bioMetricValue {
+  color: #ef4444;
+  text-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
+/* Duration bar with labels */
+.bioDurationBarLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.bioDurationBarTitle {
+  font-size: 8px;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bioDurationBarTrack {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bioDurationBarFill {
+  height: 100%;
+  border-radius: 2px;
+  box-shadow: 0 0 8px currentColor;
+  transition: width 0.3s ease;
+}
+
+/* Timeline toggle and content */
+.bioTimelineToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(16, 185, 129, 0.1);
+  color: #8b949e;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bioTimelineToggle:hover {
+  background: rgba(16, 185, 129, 0.05);
+  color: #e6edf3;
+}
+
+.bioTimelineToggleIcon {
+  font-size: 8px;
+  color: #10b981;
+  transition: transform 0.2s ease;
+}
+
+.bioTimelineCount {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #10b981;
+}
+
+.bioTimelineContent {
+  padding: 0 12px 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.bioTimelineContent::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bioTimelineContent::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 2px;
+}
+
+.bioTimelineItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  margin: 2px 0;
+  background: rgba(16, 185, 129, 0.03);
+  border-radius: 6px;
+  border-left: 2px solid rgba(16, 185, 129, 0.3);
+  transition: all 0.15s ease;
+}
+
+.bioTimelineItem:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: #10b981;
+}
+
+.bioTimelineItemError {
+  border-left-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.bioTimelineTurn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #10b981;
+  min-width: 28px;
+}
+
+.bioTimelineItemError .bioTimelineTurn {
+  color: #ef4444;
+}
+
+.bioTimelineDuration {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #8b949e;
+  flex: 1;
+}
+
+.bioTimelineCost {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: #6b7280;
+}
+
+.bioTimelineStatus {
+  width: 16px;
+  text-align: center;
+  font-size: 10px;
+  color: #10b981;
+}
+
+.bioTimelineItemError .bioTimelineStatus {
+  color: #ef4444;
+}
+
+.bioTimelineMore {
+  padding: 8px 10px;
+  text-align: center;
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Turn status badge */
+.turnStatusBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  border-top: 1px solid;
+  border-bottom: 1px solid;
+}
+
+/* ============================================
+   Turn Node Pulse Animations
+   Tokens In = Pulse Speed (faster = more input)
+   Tokens Out = Node Size (bigger = more output)
+   ============================================ */
+
+/* Primary pulse ring - breathing based on tokens in */
+.turnPulseRing {
+  stroke-opacity: 0.2;
+  animation: turnPulse var(--turn-pulse-speed, 3s) ease-in-out infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes turnPulse {
+  0%, 100% {
+    stroke-opacity: calc(0.15 * var(--turn-pulse-intensity, 0.5));
+    r: inherit;
+    transform: scale(1);
+  }
+  50% {
+    stroke-opacity: calc(0.6 * var(--turn-pulse-intensity, 0.5));
+    transform: scale(1.15);
+  }
+}
+
+/* Outer pulse ring - slower, wider sweep for high input turns */
+.turnPulseRingOuter {
+  stroke-opacity: 0.1;
+  animation: turnPulseOuter calc(var(--turn-pulse-speed, 3s) * 1.5) ease-in-out infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+@keyframes turnPulseOuter {
+  0%, 100% {
+    stroke-opacity: calc(0.08 * var(--turn-pulse-intensity, 0.5));
+    transform: scale(1);
+  }
+  50% {
+    stroke-opacity: calc(0.35 * var(--turn-pulse-intensity, 0.5));
+    transform: scale(1.25);
+  }
+}
+
+/* Inner glow for high output turns - subtle shimmer */
+.turnInnerGlow {
+  animation: turnInnerShimmer 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes turnInnerShimmer {
+  0%, 100% {
+    stroke-opacity: 0.3;
+  }
+  50% {
+    stroke-opacity: 0.6;
+  }
+}
