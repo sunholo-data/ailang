@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.7.0] - 2026-01-21
 
 ### Added - Record Width Subtyping (M-GAP4)
 
@@ -44,7 +44,7 @@ getName({name: "Bob", age: 30})  -- Works!
 
 **Teaching Prompt:** Updated to v0.6.6 with open record documentation
 
-**Design Doc:** `design_docs/planned/v0_6_4/m-gap4-record-width-subtyping.md` → Status: IMPLEMENTED
+**Design Doc:** `design_docs/implemented/v0_7_0/m-gap4-record-width-subtyping.md`
 
 ### Fixed - Go Codegen: List Fields in Record Types (Issue #116)
 
@@ -81,7 +81,7 @@ type Galaxy struct {
 - `internal/gen/golang/adt_test.go`: Added `TestGenerateRecordWithListField` (3 sub-tests)
 - `examples/runnable/adt_list_fields.ail`: New example demonstrating list field records
 
-**Design Doc:** `design_docs/planned/v0_6_4/m-codegen-list-type.md`
+**Design Doc:** `design_docs/implemented/v0_7_0/m-codegen-list-type-definition.md`
 
 ### Added - Generic AILANG Embedding API (M-EMBED)
 
@@ -110,7 +110,7 @@ text, _ := embed.ToString(result)  // "Hello, Wor..."
 
 **Documentation:** [Go Interop Guide - Runtime Embedding](docs/docs/guides/go-interop.md#runtime-embedding-v064)
 
-**Design Doc:** `design_docs/planned/v0_6_4/m-embed-go-ailang-bridge.md`
+**Design Doc:** `design_docs/implemented/v0_7_0/m-embed-go-ailang-bridge.md`
 
 ### Added - AILANG Dogfooding: Dashboard Transforms
 
@@ -143,8 +143,6 @@ Created `internal/dashboard_transforms/` with AILANG port of event formatter for
 **Tests:**
 - Updated `internal/coordinator/merge_test.go`: Test now passes
 - `TestGetMainRepoPath` verifies empty input returns empty string
-
-## [v0.6.3] - 2026-01-03
 
 ### Added - OpenAI Responses API Support (M-OPENAI-RESPONSES-API)
 
@@ -180,7 +178,7 @@ resp, err := client.Generate(ctx, &ai.Request{
 
 **Tests:** 6 new tests for Responses API (basic, reasoning tokens, effort, polymorphic output, no output error, API errors)
 
-**Design Doc:** `design_docs/implemented/v0_6_3/m-openai-responses-api-sprint.md`
+**Design Doc:** `design_docs/implemented/v0_7_0/m-openai-responses-api-sprint.md`
 
 ### Deprecated - ailang-agent Binary (M-DEPRECATE-AILANG-AGENT)
 
@@ -207,7 +205,7 @@ ailang coordinator start
 ailang coordinator status
 ```
 
-**Design Doc:** `design_docs/planned/v0_6_3/m-deprecate-ailang-agent.md`
+**Design Doc:** `design_docs/planned/v0_7_1/m-deprecate-ailang-agent.md`
 
 ### Added - Human-Friendly Tracing (M-OTEL-ENHANCED-TRACING-DX)
 

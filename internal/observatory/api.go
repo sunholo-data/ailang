@@ -791,10 +791,26 @@ func findMatchingToolByTimestamp(span *Span, tools []SessionTool, expectedToolNa
 			continue
 		}
 
-		// Calculate timestamp difference
-		diff := span.StartTime.Sub(tool.StartTime)
-		if diff < 0 {
-			diff = -diff
+		// OTEL tool_result events are logged when the tool COMPLETES,
+		// so span.StartTime often matches tool.EndTime rather than StartTime.
+		// Check both and use whichever has the better match.
+		diffStart := span.StartTime.Sub(tool.StartTime)
+		if diffStart < 0 {
+			diffStart = -diffStart
+		}
+
+		diffEnd := 24 * time.Hour // Default to large diff if no EndTime
+		if tool.EndTime != nil {
+			diffEnd = span.StartTime.Sub(*tool.EndTime)
+			if diffEnd < 0 {
+				diffEnd = -diffEnd
+			}
+		}
+
+		// Use the better of the two diffs
+		diff := diffStart
+		if diffEnd < diffStart {
+			diff = diffEnd
 		}
 
 		// Check if within tolerance and is better than current best
@@ -819,9 +835,18 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 	}
 
 	switch toolName {
-	case "Read", "Write", "Edit":
+	case "Read", "Write":
 		if path, ok := data["file_path"].(string); ok {
 			return fmt.Sprintf("%s: %s", toolName, shortenPath(path))
+		}
+	case "Edit":
+		if path, ok := data["file_path"].(string); ok {
+			// Show what's being changed if available
+			if oldStr, ok := data["old_string"].(string); ok {
+				preview := truncateString(oldStr, 25)
+				return fmt.Sprintf("Edit: %s (%q)", shortenPath(path), preview)
+			}
+			return fmt.Sprintf("Edit: %s", shortenPath(path))
 		}
 	case "Grep":
 		if pattern, ok := data["pattern"].(string); ok {
@@ -875,9 +900,83 @@ func generateDisplayName(toolName string, input json.RawMessage) string {
 			}
 		}
 		return "AskUser"
+	case "TodoWrite":
+		// Show todo count and status breakdown
+		if todos, ok := data["todos"].([]any); ok {
+			total := len(todos)
+			if total == 0 {
+				return "TodoWrite: Clear todos"
+			}
+			// Count by status
+			completed, inProgress, pending := 0, 0, 0
+			for _, t := range todos {
+				if todo, ok := t.(map[string]any); ok {
+					if status, ok := todo["status"].(string); ok {
+						switch status {
+						case "completed":
+							completed++
+						case "in_progress":
+							inProgress++
+						case "pending":
+							pending++
+						}
+					}
+				}
+			}
+			// Build summary
+			parts := []string{}
+			if completed > 0 {
+				parts = append(parts, fmt.Sprintf("%d done", completed))
+			}
+			if inProgress > 0 {
+				parts = append(parts, fmt.Sprintf("%d active", inProgress))
+			}
+			if pending > 0 {
+				parts = append(parts, fmt.Sprintf("%d pending", pending))
+			}
+			if len(parts) > 0 {
+				return fmt.Sprintf("TodoWrite: %d todos (%s)", total, joinStrings(parts, ", "))
+			}
+			return fmt.Sprintf("TodoWrite: %d todos", total)
+		}
+	case "TaskOutput":
+		// Show which task we're getting output from
+		if taskID, ok := data["task_id"].(string); ok {
+			return fmt.Sprintf("TaskOutput: %s", truncateString(taskID, 20))
+		}
+	case "KillShell":
+		// Show which shell is being killed
+		if shellID, ok := data["shell_id"].(string); ok {
+			return fmt.Sprintf("KillShell: %s", truncateString(shellID, 12))
+		}
+	case "BashOutput":
+		// Show which bash output is being read
+		if bashID, ok := data["bash_id"].(string); ok {
+			return fmt.Sprintf("BashOutput: %s", truncateString(bashID, 12))
+		}
+	case "NotebookEdit":
+		// Show notebook being edited
+		if path, ok := data["notebook_path"].(string); ok {
+			if editMode, ok := data["edit_mode"].(string); ok {
+				return fmt.Sprintf("NotebookEdit: %s (%s)", shortenPath(path), editMode)
+			}
+			return fmt.Sprintf("NotebookEdit: %s", shortenPath(path))
+		}
 	}
 
 	return toolName
+}
+
+// joinStrings joins strings with a separator (avoiding strings.Join import).
+func joinStrings(parts []string, sep string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result += sep + parts[i]
+	}
+	return result
 }
 
 // shortenPath truncates a file path to show only the last 2-3 components.

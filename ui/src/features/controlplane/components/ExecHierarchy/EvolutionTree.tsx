@@ -1211,7 +1211,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
 
-  // Use passed theme prop if provided, otherwise fall back to system preference
+  // Use theme prop when provided (from app toggle), fall back to system preference
   const colorScheme = theme ?? systemScheme;
 
   // Theme colors based on color scheme
@@ -1826,77 +1826,154 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
   return (
     <div
       ref={containerRef}
-      className={styles.container}
+      className={`${styles.container} ${colorScheme === 'light' ? styles.lightMode : ''}`}
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleContainerClick}
-      style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+      style={{ cursor: isPanning ? 'grabbing' : 'grab', background: themeColors.bg }}
     >
       {/* Background ambient glow */}
       <div className={styles.ambientGlow} />
 
       {/* Session header with zoom controls */}
-      <div className={styles.sessionHeader}>
-        <div className={styles.sessionIcon}>◉</div>
+      <div
+        className={styles.sessionHeader}
+        style={{
+          background: colorScheme === 'light'
+            ? 'linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(248, 250, 252, 0.9) 80%, transparent 100%)'
+            : 'linear-gradient(180deg, rgba(15, 20, 25, 0.98) 0%, rgba(15, 20, 25, 0.9) 80%, transparent 100%)',
+        }}
+      >
+        <div className={styles.sessionIcon} style={{ color: '#10b981' }}>◉</div>
         <div className={styles.sessionInfo}>
-          <span className={styles.sessionName}>{session.name}</span>
-          <span className={styles.sessionMeta}>
+          <span
+            className={styles.sessionName}
+            style={{ color: colorScheme === 'light' ? '#1f2937' : '#e6edf3' }}
+          >
+            {session.name}
+          </span>
+          <span
+            className={styles.sessionMeta}
+            style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}
+          >
             {turns.length} turns • {formatDuration(session.durationMs)}
             {session.cost > 0 && ` • ${formatCost(session.cost)}`}
           </span>
         </div>
         {/* Zoom controls */}
-        <div className={styles.zoomControls}>
-          <button onClick={handleZoomOut} title="Zoom out">−</button>
-          <span className={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
-          <button onClick={handleZoomIn} title="Zoom in">+</button>
-          <button onClick={handleZoomFit} title="Fit to view">⊡</button>
-          <button onClick={() => setShowControls(!showControls)} title="Layout controls">⚙</button>
-          <button onClick={() => setShowLegend(!showLegend)} title="Show legend">?</button>
+        <div
+          className={styles.zoomControls}
+          style={{
+            background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.15)',
+            borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+          }}
+        >
+          <button
+            onClick={handleZoomOut}
+            title="Zoom out"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.2)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
+          >
+            −
+          </button>
+          <span
+            className={styles.zoomLevel}
+            style={{ color: colorScheme === 'light' ? '#059669' : '#10b981' }}
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            onClick={handleZoomIn}
+            title="Zoom in"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.2)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
+          >
+            +
+          </button>
+          <button
+            onClick={handleZoomFit}
+            title="Fit to view"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.2)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
+          >
+            ⊡
+          </button>
+          <button
+            onClick={() => setShowControls(!showControls)}
+            title="Layout controls"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.2)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
+          >
+            ⚙
+          </button>
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            title="Show legend"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.2)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
+          >
+            ?
+          </button>
         </div>
       </div>
 
       {/* Legend panel */}
       {showLegend && (
-        <div className={styles.legendPanel}>
-          <div className={styles.legendTitle}>Turns (Outer Spiral)</div>
-          <div className={styles.legendItem}>
+        <div
+          className={styles.legendPanel}
+          style={{
+            background: colorScheme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 20, 25, 0.95)',
+            borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+          }}
+        >
+          <div className={styles.legendTitle} style={{ color: colorScheme === 'light' ? '#059669' : '#10b981' }}>Turns (Outer Spiral)</div>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#10b981' }} />
             <span>Normal turn</span>
           </div>
-          <div className={styles.legendItem}>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#f59e0b' }} />
             <span>Anomaly (&gt;2σ)</span>
           </div>
-          <div className={styles.legendItem}>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#ef4444' }} />
             <span>Error</span>
           </div>
-          <div className={styles.legendDivider} />
-          <div className={styles.legendTitle}>Tools (Inner Rings)</div>
-          <div className={styles.legendHint} style={{ marginBottom: '6px' }}>
+          <div className={styles.legendDivider} style={{ borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.2)' }} />
+          <div className={styles.legendTitle} style={{ color: colorScheme === 'light' ? '#059669' : '#10b981' }}>Tools (Inner Rings)</div>
+          <div className={styles.legendHint} style={{ marginBottom: '6px', color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
             Grouped by type into concentric rings
           </div>
-          <div className={styles.legendItem}>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#60a5fa' }} />
             <span>Read/Edit/Write (innermost)</span>
           </div>
-          <div className={styles.legendItem}>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#fbbf24' }} />
             <span>Bash/Grep/Glob (middle)</span>
           </div>
-          <div className={styles.legendItem}>
+          <div className={styles.legendItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <span className={styles.legendDot} style={{ background: '#fb923c' }} />
             <span>Task/Web (outer)</span>
           </div>
-          <div className={styles.legendDivider} />
-          <div className={styles.legendHint}>
+          <div className={styles.legendDivider} style={{ borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.2)' }} />
+          <div className={styles.legendHint} style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
             Only tools used 2+ times shown by default
           </div>
-          <div className={styles.legendHint}>
+          <div className={styles.legendHint} style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
             Use ⚙ controls to show all tools
           </div>
         </div>
@@ -1904,10 +1981,16 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
 
       {/* Controls panel */}
       {showControls && (
-        <div className={styles.controlsPanel}>
-          <div className={styles.legendTitle}>Layout Controls</div>
+        <div
+          className={styles.controlsPanel}
+          style={{
+            background: colorScheme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 20, 25, 0.95)',
+            borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+          }}
+        >
+          <div className={styles.legendTitle} style={{ color: colorScheme === 'light' ? '#059669' : '#10b981' }}>Layout Controls</div>
 
-          <div className={styles.controlItem}>
+          <div className={styles.controlItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <label>Spiral Tightness</label>
             <input
               type="range"
@@ -1919,7 +2002,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
             <span>{spiralTightness}</span>
           </div>
 
-          <div className={styles.controlItem}>
+          <div className={styles.controlItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <label>Tool Ring Size</label>
             <input
               type="range"
@@ -1931,7 +2014,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
             <span>{toolRingScale}</span>
           </div>
 
-          <div className={styles.controlItem}>
+          <div className={styles.controlItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <label>Node Size</label>
             <input
               type="range"
@@ -1943,9 +2026,9 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
             <span>{nodeScale}</span>
           </div>
 
-          <div className={styles.legendDivider} />
+          <div className={styles.legendDivider} style={{ borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.2)' }} />
 
-          <div className={styles.controlItem}>
+          <div className={styles.controlItem} style={{ color: colorScheme === 'light' ? '#374151' : '#e6edf3' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
               <input
                 type="checkbox"
@@ -1955,16 +2038,16 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
               />
               Show all tools ({totalUniqueTools})
             </label>
-            <span style={{ fontSize: '9px', color: '#6b7280' }}>
+            <span style={{ fontSize: '9px', color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
               {showAllTools ? 'Showing all' : `Showing ${sharedToolNodes.length} (used 2+ times)`}
             </span>
           </div>
 
-          <div className={styles.legendDivider} />
-          <div className={styles.legendHint}>
+          <div className={styles.legendDivider} style={{ borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.2)' }} />
+          <div className={styles.legendHint} style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
             Turns/rotation: {turnsPerRotation.toFixed(1)}
           </div>
-          <div className={styles.legendHint}>
+          <div className={styles.legendHint} style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}>
             Radii: {MIN_RADIUS.toFixed(0)} - {MAX_RADIUS.toFixed(0)}
           </div>
         </div>
@@ -2690,7 +2773,15 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
       <div className={styles.playbackContainer}>
         {/* Now Playing Banner - shows recent activity history during playback */}
         {!visibilityState.showAll && visibilityState.currentTurnIndex >= 0 && (
-          <div className={styles.nowPlayingBanner}>
+          <div
+            className={styles.nowPlayingBanner}
+            style={{
+              background: colorScheme === 'light'
+                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)'
+                : 'linear-gradient(135deg, rgba(15, 20, 25, 0.98) 0%, rgba(10, 15, 20, 0.95) 100%)',
+              borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(16, 185, 129, 0.4)',
+            }}
+          >
             <div className={styles.nowPlayingHeader}>
               <span className={styles.nowPlayingTurnBadge}>
                 Turn {turns[visibilityState.currentTurnIndex]?.turnNumber ?? '?'}
@@ -2747,7 +2838,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
                       >
                         {toolType}
                       </span>
-                      <span className={styles.nowPlayingToolName}>
+                      <span className={styles.nowPlayingToolName} style={{ color: colorScheme === 'light' ? '#1f2937' : '#e6edf3' }}>
                         {item.tool.fullName || item.tool.name}
                       </span>
                     </div>
@@ -2759,12 +2850,22 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
         )}
 
         {/* Playback Controls Bar */}
-        <div className={styles.playbackControls}>
+        <div
+          className={styles.playbackControls}
+          style={{
+            background: colorScheme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 20, 25, 0.95)',
+            borderColor: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(16, 185, 129, 0.3)',
+          }}
+        >
           {/* Play/Pause */}
           <button
             className={styles.playbackButton}
             onClick={togglePlayback}
             title={playback.isPlaying ? 'Pause' : 'Play'}
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
           >
             {playback.isPlaying ? '⏸' : '▶'}
           </button>
@@ -2774,6 +2875,10 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
             className={styles.playbackButton}
             onClick={() => seekTo(0)}
             title="Skip to start"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
           >
             ⏮
           </button>
@@ -2783,6 +2888,10 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
             className={styles.playbackButton}
             onClick={() => seekTo(totalDurationMs)}
             title="Skip to end"
+            style={{
+              background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.15)',
+              color: colorScheme === 'light' ? '#059669' : '#10b981',
+            }}
           >
             ⏭
           </button>
@@ -2795,6 +2904,10 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
                 className={`${styles.speedButton} ${playback.speed === s ? styles.activeSpeed : ''}`}
                 onClick={() => setPlaybackSpeed(s)}
                 title={`${Math.round(totalDurationMs / s / 1000)}s playback`}
+                style={playback.speed !== s ? {
+                  background: colorScheme === 'light' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)',
+                  color: colorScheme === 'light' ? '#6b7280' : '#8b949e',
+                } : undefined}
               >
                 {s}x
               </button>
@@ -2803,7 +2916,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
 
           {/* Decay control - how many turns until connections fade */}
           <div className={styles.decayControl} title={`Highlight decay: ${highlightDecay} turns (0=off)`}>
-            <span className={styles.decayLabel}>Decay</span>
+            <span className={styles.decayLabel} style={{ color: colorScheme === 'light' ? '#6b7280' : '#6e7681' }}>Decay</span>
             <input
               type="range"
               className={styles.decayScrubber}
@@ -2828,6 +2941,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
           {/* Time display - shows actual time and estimated playback time */}
           <span
             className={styles.playbackTime}
+            style={{ color: colorScheme === 'light' ? '#6b7280' : '#8b949e' }}
             title={`Actual session: ${formatPlaybackTime(totalDurationMs)} | Playback at ${playback.speed}x: ${Math.round(totalDurationMs / playback.speed / 1000)}s`}
           >
             {formatPlaybackTime(playback.currentTimeMs, totalDurationMs)} / {formatPlaybackTime(totalDurationMs)}

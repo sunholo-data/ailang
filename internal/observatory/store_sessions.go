@@ -376,22 +376,33 @@ func (s *Store) GetToolsByTimestampRange(ctx context.Context, start, end time.Ti
 	startStr := start.UTC().Format("2006-01-02 15:04:05")
 	endStr := end.UTC().Format("2006-01-02 15:04:05")
 
+	// Match tools that overlap with the time range:
+	// 1. Tools that start within the range
+	// 2. Tools that end within the range
+	// 3. Tools whose execution spans across the range (start before, end after)
 	if toolName != "" {
 		query = `
 			SELECT tool_use_id, session_id, tool_name, tool_input, tool_response, start_time, end_time, success
 			FROM session_tools
-			WHERE start_time BETWEEN ? AND ? AND tool_name = ?
+			WHERE tool_name = ?
+			  AND (
+			    (start_time BETWEEN ? AND ?)
+			    OR (end_time BETWEEN ? AND ?)
+			    OR (start_time <= ? AND end_time >= ?)
+			  )
 			ORDER BY start_time ASC
 		`
-		args = []interface{}{startStr, endStr, toolName}
+		args = []interface{}{toolName, startStr, endStr, startStr, endStr, startStr, endStr}
 	} else {
 		query = `
 			SELECT tool_use_id, session_id, tool_name, tool_input, tool_response, start_time, end_time, success
 			FROM session_tools
-			WHERE start_time BETWEEN ? AND ?
+			WHERE (start_time BETWEEN ? AND ?)
+			   OR (end_time BETWEEN ? AND ?)
+			   OR (start_time <= ? AND end_time >= ?)
 			ORDER BY start_time ASC
 		`
-		args = []interface{}{startStr, endStr}
+		args = []interface{}{startStr, endStr, startStr, endStr, startStr, endStr}
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -426,8 +437,9 @@ func (s *Store) GetToolsByTimestampRange(ctx context.Context, start, end time.Ti
 		// Parse as RFC3339 and convert to local timezone for comparison with spans
 		parsedTime, parseErr := time.Parse(time.RFC3339, startTimeRaw)
 		if parseErr != nil {
-			// Try space format as fallback (raw SQLite format)
-			parsedTime, _ = time.ParseInLocation("2006-01-02 15:04:05", startTimeRaw, time.Local)
+			// Session_tools uses CURRENT_TIMESTAMP which is UTC
+			// Parse as UTC then convert to local for comparison with spans
+			parsedTime, _ = time.ParseInLocation("2006-01-02 15:04:05", startTimeRaw, time.UTC)
 		}
 		// Convert UTC to local for comparison with spans (which use local time with TZ offset)
 		tool.StartTime = parsedTime.In(time.Local)
@@ -435,7 +447,9 @@ func (s *Store) GetToolsByTimestampRange(ctx context.Context, start, end time.Ti
 		if endTimeRaw.Valid {
 			endT, _ := time.Parse(time.RFC3339, endTimeRaw.String)
 			if endT.IsZero() {
-				endT, _ = time.ParseInLocation("2006-01-02 15:04:05", endTimeRaw.String, time.Local)
+				// Session_tools uses CURRENT_TIMESTAMP which is UTC
+				// Parse as UTC then convert to local for comparison with spans
+				endT, _ = time.ParseInLocation("2006-01-02 15:04:05", endTimeRaw.String, time.UTC)
 			}
 			endT = endT.In(time.Local)
 			tool.EndTime = &endT

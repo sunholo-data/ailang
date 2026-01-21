@@ -2257,7 +2257,7 @@ func printUnifiedHierarchy(h *UnifiedHierarchy) {
 	if len(h.ParentChain) > 0 {
 		fmt.Printf("\n┌─ Parent Chain (%d levels):\n", len(h.ParentChain))
 		for i, parent := range h.ParentChain {
-			prefix := "│  "
+			var prefix string
 			if i == len(h.ParentChain)-1 {
 				prefix = "└─ "
 			} else {
