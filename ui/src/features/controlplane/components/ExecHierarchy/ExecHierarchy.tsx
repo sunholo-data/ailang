@@ -645,6 +645,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   filters,
   highlightedSpanId,
   onClearHighlight,
+  theme,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
@@ -1405,6 +1406,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             onNodeClick={handleNodeClick}
             hiddenSpanTypes={hiddenSpanTypes}
             isExpanded={isExpanded}
+            theme={theme}
           />
         )}
 

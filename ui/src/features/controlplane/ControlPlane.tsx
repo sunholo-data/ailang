@@ -700,6 +700,7 @@ export const ControlPlane: React.FC = () => {
               hiddenSpanTypes={hiddenSpanTypes}
               onToggleSpanType={toggleHiddenSpanType}
               filters={filters}
+              theme={theme}
             />
           </div>
         </main>

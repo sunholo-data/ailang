@@ -176,6 +176,8 @@ export interface ExecHierarchyProps {
   onNodeClick?: (node: HierarchyNode) => void;
   selectedNodeId?: string | null;
   isEmpty?: boolean;
+  // Theme from parent (syncs with app-level theme toggle)
+  theme?: 'dark' | 'light';
   // Same data source as TraceWaterfall
   spans?: Span[];
   loading?: boolean;

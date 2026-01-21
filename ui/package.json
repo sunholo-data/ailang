@@ -11,7 +11,9 @@
     "lint:errors": "eslint src --ext ts,tsx --quiet"
   },
   "dependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
     "@types/dagre": "^0.7.53",
+    "d3-hierarchy": "^3.1.2",
     "dagre": "^0.8.5",
     "highlight.js": "^11.11.1",
     "react": "^18.2.0",
