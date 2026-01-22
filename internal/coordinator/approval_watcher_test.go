@@ -642,6 +642,12 @@ func (m *mockStore) ResetTaskToPending(ctx context.Context, id string) error {
 func (m *mockStore) GetCostByProvider() (map[string]float64, error) {
 	return make(map[string]float64), nil
 }
+func (m *mockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, nil
+}
+func (m *mockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+	return nil
+}
 
 // TestRegisterAgentApprovalHandlers_NilRegistry tests with nil registry
 func TestRegisterAgentApprovalHandlers_NilRegistry(t *testing.T) {

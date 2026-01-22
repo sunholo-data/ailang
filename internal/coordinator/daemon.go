@@ -286,7 +286,7 @@ func (d *Daemon) triggerMissedHandoffs() (int, error) {
 			traceAttribute.String("approval.type", approval.Type),
 		)
 
-		handoffTriggered, err := triggerEmbeddedHandoffsFromProcessor(ctx, span, params, task, approval.TaskID)
+		handoffTriggered, err := triggerHandoffsFromApprovalRecord(ctx, span, params, task, approval.TaskID, approval)
 		if err != nil {
 			d.logger.Printf("Warning: failed to trigger missed handoff for %s: %v", approval.TaskID, err)
 			span.End()

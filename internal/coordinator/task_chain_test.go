@@ -358,6 +358,14 @@ func (m *MockStore) GetCostByProvider() (map[string]float64, error) {
 	return make(map[string]float64), nil
 }
 
+func (m *MockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, nil
+}
+
+func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+	return nil
+}
+
 func (m *MockStore) GetCallCount(method string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()

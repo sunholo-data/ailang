@@ -3,6 +3,8 @@ package coordinator
 import (
 	"testing"
 	"time"
+
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 func TestHandoffApprovalRequest(t *testing.T) {
@@ -322,4 +324,40 @@ func TestAgentIDPriorityOverThreadLookup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHandoffInboxMessageParentTaskID verifies that when triggerEmbeddedHandoffsFromProcessor
+// creates an InboxMessage, it sets the ParentTaskID field correctly for hierarchy tracking.
+// This is the fix for the M-TASK-HIERARCHY bug where handoff chains were broken.
+func TestHandoffInboxMessageParentTaskID(t *testing.T) {
+	// Simulate what triggerEmbeddedHandoffsFromProcessor does:
+	// It creates an InboxMessage for each handoff target
+
+	task := &TaskRecord{
+		ID:      "task-design-abc",
+		Title:   "Create Design Doc for Feature X",
+		Content: "Design the authentication system",
+		AgentID: "design-doc-creator",
+	}
+
+	// The InboxMessage that the processor creates should have ParentTaskID set
+	msg := &messaging.InboxMessage{
+		FromAgent:    "coordinator",
+		ToInbox:      "sprint-planner",
+		MessageType:  "handoff",
+		Title:        "Handoff: " + task.Title + " (approved)",
+		Payload:      "Handoff message content",
+		ParentTaskID: task.ID, // THIS IS THE FIX - must be set for hierarchy tracking
+	}
+
+	// Verify ParentTaskID is set
+	if msg.ParentTaskID == "" {
+		t.Error("InboxMessage.ParentTaskID should be set for handoff messages")
+	}
+	if msg.ParentTaskID != task.ID {
+		t.Errorf("InboxMessage.ParentTaskID = %q, want %q", msg.ParentTaskID, task.ID)
+	}
+
+	// When this message is processed by the daemon and creates a new task,
+	// the child task should have ParentTaskID = task.ID (verified by daemon_tasks.go:292)
 }

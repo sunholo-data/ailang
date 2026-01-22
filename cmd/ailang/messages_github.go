@@ -193,13 +193,22 @@ func runMessagesImportGitHub(args []string) {
 			}
 		}
 
+		// Extract and cache images from issue body (before JWT tokens expire)
+		modifiedBody, imagePaths, err := messaging.ExtractAndCacheImages(ctx, issue.Body, issue.Number, repoName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s extracting images from issue #%d: %v\n", yellow("⚠"), issue.Number, err)
+			modifiedBody = issue.Body // Fall back to original
+		} else if len(imagePaths) > 0 {
+			fmt.Printf("  Cached %d image(s) for issue #%d\n", len(imagePaths), issue.Number)
+		}
+
 		// Create inbox message
 		msg := &messaging.InboxMessage{
 			FromAgent:   fromAgent,
 			ToInbox:     targetInbox,
 			MessageType: messaging.InboxTypeNotification,
 			Title:       title,
-			Payload:     issue.Body,
+			Payload:     modifiedBody, // Use modified body with local image paths
 			Category:    category,
 			GitHubIssue: &issue.Number,
 			GitHubRepo:  repoName,

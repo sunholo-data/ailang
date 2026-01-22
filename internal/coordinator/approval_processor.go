@@ -158,6 +158,22 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 					}
 				}
 			}
+
+			// 1.6. Post approval completion comment to GitHub
+			var comment string
+			if len(agent.TriggerOnComplete) > 0 {
+				nextAgents := strings.Join(agent.TriggerOnComplete, ", ")
+				comment = fmt.Sprintf("**Approval Complete** - Work by %s approved.\n\n"+
+					"Triggering next stage: %s", agent.Label, nextAgents)
+			} else {
+				comment = fmt.Sprintf("**Approval Complete** - Work by %s approved.", agent.Label)
+			}
+
+			if err := params.GitHubPoster.PostComment(task.GithubIssue, comment); err != nil {
+				span.AddEvent("warning: failed to post approval comment", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
 		}
 	}
 
@@ -457,9 +473,20 @@ func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, 
 	}
 
 	// Get the approval request to retrieve context_json with handoff targets
+	// Note: GetApprovalRequestByTask only returns PENDING approvals
 	approvalReq, err := params.Store.GetApprovalRequestByTask(ctx, taskID)
 	if err != nil || approvalReq == nil {
 		return false, nil // No approval request found, not an error
+	}
+
+	return triggerHandoffsFromApprovalRecord(ctx, span, params, task, taskID, approvalReq)
+}
+
+// triggerHandoffsFromApprovalRecord triggers handoffs from an already-fetched approval record.
+// This variant is used by the catch-up mechanism which already has the approval record.
+func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID string, approvalReq *ApprovalRequestRecord) (bool, error) {
+	if params.MsgStore == nil || params.AgentRegistry == nil {
+		return false, nil
 	}
 
 	// Only trigger handoffs for merge_handoff type approvals
@@ -507,11 +534,12 @@ func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, 
 
 		// Send to target agent's inbox
 		msg := &messaging.InboxMessage{
-			FromAgent:   "coordinator",
-			ToInbox:     targetAgent.Inbox,
-			MessageType: "handoff",
-			Title:       fmt.Sprintf("Handoff: %s (approved)", task.Title),
-			Payload:     handoffMessage,
+			FromAgent:    "coordinator",
+			ToInbox:      targetAgent.Inbox,
+			MessageType:  "handoff",
+			Title:        fmt.Sprintf("Handoff: %s (approved)", task.Title),
+			Payload:      handoffMessage,
+			ParentTaskID: task.ID, // M-TASK-HIERARCHY: Link to parent task for handoff chains
 		}
 
 		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {

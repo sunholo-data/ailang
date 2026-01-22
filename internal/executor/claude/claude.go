@@ -194,6 +194,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		stdoutScanner := bufio.NewScanner(stdout)
 		stderrScanner := bufio.NewScanner(stderr)
 
+		// Increase buffer size to 1MB to handle large JSON output from Claude Code
+		// (e.g., tool results with large file contents or base64-encoded images)
+		const maxScannerBuffer = 1024 * 1024 // 1MB
+		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
+
 		// Read stderr in background
 		go func() {
 			for stderrScanner.Scan() {
