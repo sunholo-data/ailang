@@ -11,6 +11,8 @@ Expected output:
 
 ## Requirements
 
+**⚠️ CRITICAL: Write RAW AILANG code only! NO markdown fences (```` ```ailang ````) in solution.ail!**
+
 - Timeout: {{TIMEOUT}} seconds
 - Write your solution to: **{{SOLUTION_PATH}}**
 - Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)

@@ -1,0 +1,33 @@
+{
+  "id": "adt_option",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 827,
+  "total_tokens": 840,
+  "cost_usd": 0.038686750000000006,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 16573,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 5.0\nError: Division by zero\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it produces the expected output.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the solution with an Option type and safe division function:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `Result: 5.0`\n- `Error: Division by zero`\n\nThe solution successfully:\n1. Defines an Option type hierarchy with Some and NoneType classes\n2. Implements a safe division function that returns Option[float]\n3. Tests with divide(10, 2) returning Some(5.0) and divide(10, 0) returning NoneType()\n4. Prints the results in the correct format\n\nThe solution is complete and verified!",
+  "expected_stdout": "Result: 5.0\nError: Division by zero\n",
+  "timestamp": "2026-01-22T14:40:16.50974+01:00",
+  "code": "from typing import Generic, TypeVar\n\nT = TypeVar('T')\n\nclass Option(Generic[T]):\n    pass\n\nclass Some(Option[T]):\n    def __init__(self, value: T):\n        self.value = value\n\nclass NoneType(Option[T]):\n    pass\n\ndef divide(a: float, b: float) -\u003e Option[float]:\n    if b == 0:\n        return NoneType()\n    return Some(a / b)\n\ndef main():\n    result1 = divide(10, 2)\n    result2 = divide(10, 0)\n\n    if isinstance(result1, Some):\n        print(f\"Result: {result1.value}\")\n    else:\n        print(\"Error: Division by zero\")\n\n    if isinstance(result2, Some):\n        print(f\"Result: {result2.value}\")\n    else:\n        print(\"Error: Division by zero\")\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it produces the expected output.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the solution with an Option type and safe division function:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `Result: 5.0`\n- `Error: Division by zero`\n\nThe solution successfully:\n1. Defines an Option type hierarchy with Some and NoneType classes\n2. Implements a safe division function that returns Option[float]\n3. Tests with divide(10, 2) returning Some(5.0) and divide(10, 0) returning NoneType()\n4. Prints the results in the correct format\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

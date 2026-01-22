@@ -1,0 +1,33 @@
+{
+  "id": "symbolic_diff",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 12,
+  "output_tokens": 1336,
+  "total_tokens": 1348,
+  "cost_usd": 0.06756714999999999,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 26588,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "((x + x) + 3)\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG symbolic differentiation benchmark step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly: `((x + x) + 3)`\n\nLet me verify this is correct by tracing through the logic:\n- Input expression: x² + 3x + 5 → `Add(Add(Mul(Var(\"x\"), Var(\"x\")), Mul(Const(3), Var(\"x\"))), Const(5))`\n- Differentiate d/dx:\n  - d/dx(x*x) = x*1 + x*1 = x + x\n  - d/dx(3*x) = 3*1 + x*0 = 3\n  - d/dx(5) = 0\n  - Result: (x + x) + 3 + 0\n- Simplify: removes the + 0, giving us `((x + x) + 3)`\n\nThe solution is complete and verified! ✅",
+  "expected_stdout": "((x + x) + 3)\n",
+  "timestamp": "2026-01-22T14:39:58.661953+01:00",
+  "code": "module benchmark/solution\n\ntype Expr = Const(int) | Var(string) | Add(Expr, Expr) | Mul(Expr, Expr)\n\npure func diff(expr: Expr, var: string) -\u003e Expr =\n  match expr {\n    Const(n) =\u003e Const(0),\n    Var(name) =\u003e if name == var then Const(1) else Const(0),\n    Add(f, g) =\u003e Add(diff(f, var), diff(g, var)),\n    Mul(f, g) =\u003e Add(Mul(f, diff(g, var)), Mul(g, diff(f, var)))\n  }\n\npure func simplify(expr: Expr) -\u003e Expr =\n  match expr {\n    Const(n) =\u003e Const(n),\n    Var(name) =\u003e Var(name),\n    Add(e1, e2) =\u003e {\n      let s1 = simplify(e1);\n      let s2 = simplify(e2);\n      match s1 {\n        Const(0) =\u003e s2,\n        _ =\u003e match s2 {\n          Const(0) =\u003e s1,\n          _ =\u003e Add(s1, s2)\n        }\n      }\n    },\n    Mul(e1, e2) =\u003e {\n      let s1 = simplify(e1);\n      let s2 = simplify(e2);\n      match s1 {\n        Const(0) =\u003e Const(0),\n        Const(1) =\u003e s2,\n        _ =\u003e match s2 {\n          Const(0) =\u003e Const(0),\n          Const(1) =\u003e s1,\n          _ =\u003e Mul(s1, s2)\n        }\n      }\n    }\n  }\n\npure func showExpr(expr: Expr) -\u003e string =\n  match expr {\n    Const(n) =\u003e show(n),\n    Var(name) =\u003e name,\n    Add(a, b) =\u003e \"(\" ++ showExpr(a) ++ \" + \" ++ showExpr(b) ++ \")\",\n    Mul(a, b) =\u003e \"(\" ++ showExpr(a) ++ \" * \" ++ showExpr(b) ++ \")\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let expr = Add(Add(Mul(Var(\"x\"), Var(\"x\")), Mul(Const(3), Var(\"x\"))), Const(5));\n  let derivative = diff(expr, \"x\");\n  let simplified = simplify(derivative);\n  println(showExpr(simplified))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG symbolic differentiation benchmark step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly: `((x + x) + 3)`\n\nLet me verify this is correct by tracing through the logic:\n- Input expression: x² + 3x + 5 → `Add(Add(Mul(Var(\"x\"), Var(\"x\")), Mul(Const(3), Var(\"x\"))), Const(5))`\n- Differentiate d/dx:\n  - d/dx(x*x) = x*1 + x*1 = x + x\n  - d/dx(3*x) = 3*1 + x*0 = 3\n  - d/dx(5) = 0\n  - Result: (x + x) + 3 + 0\n- Simplify: removes the + 0, giving us `((x + x) + 3)`\n\nThe solution is complete and verified! ✅",
+  "eval_mode": "agent"
+}

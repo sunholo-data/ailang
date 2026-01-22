@@ -74,7 +74,7 @@ interface UseEventQueueOptions {
 }
 
 export function useEventQueue(options: UseEventQueueOptions = {}) {
-  const { maxEvents = 100, wsUrl, filters } = options;
+  const { maxEvents = 0, wsUrl, filters } = options; // 0 = no limit
   const [events, setEvents] = useState<EventMessage[]>([]);
   const [historicalEvents, setHistoricalEvents] = useState<EventMessage[]>([]);
   const [connected, setConnected] = useState(false);
@@ -117,7 +117,10 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       if (filters?.order) {
         params.set('order', filters.order);
       }
-      params.set('limit', String(maxEvents));
+      // Only set limit if maxEvents > 0 (0 = no limit)
+      if (maxEvents > 0) {
+        params.set('limit', String(maxEvents));
+      }
 
       const url = `/api/inbox${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
@@ -225,7 +228,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
 
             setEvents((prev) => {
               const updated = [newEvent, ...prev];
-              return updated.slice(0, maxEvents);
+              return maxEvents > 0 ? updated.slice(0, maxEvents) : updated;
             });
           }
           // Also handle task_stream_event for live coordinator updates
@@ -250,7 +253,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
 
             setEvents((prev) => {
               const updated = [newEvent, ...prev];
-              return updated.slice(0, maxEvents);
+              return maxEvents > 0 ? updated.slice(0, maxEvents) : updated;
             });
           }
         } catch (err) {
@@ -346,11 +349,13 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
       }
       return true;
     })
-    .sort(sortEvents)
-    .slice(0, maxEvents);
+    .sort(sortEvents);
+
+  // Only apply limit if maxEvents > 0
+  const finalEvents = maxEvents > 0 ? allEvents.slice(0, maxEvents) : allEvents;
 
   return {
-    events: allEvents,
+    events: finalEvents,
     connected,
     loading,
     error,

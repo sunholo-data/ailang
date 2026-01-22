@@ -1,0 +1,33 @@
+{
+  "id": "graph_bfs",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 819,
+  "total_tokens": 832,
+  "cost_usd": 0.03967895,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 17690,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "1\n2\n3\n4\n5\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file to understand what structure I need to follow.[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete BFS solution according to the specifications:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- 1\n- 2\n- 3\n- 4\n- 5\n\nThe solution implements:\n1. A graph as an adjacency list\n2. BFS using a queue (list with append/pop(0))\n3. Visited tracking to avoid cycles\n4. Helper functions `contains()` and `enqueue()`\n5. Prints nodes in BFS order starting from node 1\n\nThe output is correct and matches the expected output exactly!",
+  "expected_stdout": "1\n2\n3\n4\n5\n",
+  "timestamp": "2026-01-22T14:38:39.805756+01:00",
+  "code": "def contains(x, lst):\n    return x in lst\n\ndef enqueue(x, queue):\n    queue.append(x)\n\ndef bfs(graph, start):\n    visited = []\n    queue = [start]\n    result = []\n\n    while queue:\n        node = queue.pop(0)\n\n        if not contains(node, visited):\n            visited.append(node)\n            result.append(node)\n\n            for neighbor in dict(graph).get(node, []):\n                if not contains(neighbor, visited):\n                    enqueue(neighbor, queue)\n\n    return result\n\ndef main():\n    graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n    visited_order = bfs(graph, 1)\n\n    for node in visited_order:\n        print(node)\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file to understand what structure I need to follow.[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete BFS solution according to the specifications:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- 1\n- 2\n- 3\n- 4\n- 5\n\nThe solution implements:\n1. A graph as an adjacency list\n2. BFS using a queue (list with append/pop(0))\n3. Visited tracking to avoid cycles\n4. Helper functions `contains()` and `enqueue()`\n5. Prints nodes in BFS order starting from node 1\n\nThe output is correct and matches the expected output exactly!",
+  "eval_mode": "agent"
+}

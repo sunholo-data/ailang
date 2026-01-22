@@ -1,0 +1,33 @@
+{
+  "id": "effect_pure_separation",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 16,
+  "output_tokens": 1062,
+  "total_tokens": 1078,
+  "cost_usd": 0.06740225,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 27865,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 13\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution that demonstrates pure vs effectful function separation:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output \"Result: 13\".\n\nLet me also verify the type checking works correctly:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution is complete and verified. \n\n## Summary\n\nThe solution demonstrates pure vs effectful function separation in AILANG:\n\n1. **Pure functions** (`double` and `add`): Marked with `pure` keyword, no side effects, no `! {IO}` effect declaration\n2. **Effectful functions** (`printResult` and `compute_and_print`): Declare `! {IO}` effect, can perform I/O operations\n3. **Type system enforcement**: AILANG's type system enforces that:\n   - Pure functions cannot call effectful functions (would cause type error)\n   - Effectful functions can call pure functions (as demonstrated in `compute_and_print`)\n\nThe output matches exactly: `Result: 13`",
+  "expected_stdout": "Result: 13\n",
+  "timestamp": "2026-01-22T14:41:35.40349+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\n// Pure function: no side effects\npure func double(x: int) -\u003e int = x * 2\n\n// Pure function: no side effects\npure func add(a: int, b: int) -\u003e int = a + b\n\n// Effectful function: has IO side effect\nfunc printResult(label: string, value: int) -\u003e () ! {IO} =\n  println(label ++ \": \" ++ show(value))\n\n// Effectful function: can call pure functions\nfunc compute_and_print() -\u003e () ! {IO} {\n  let doubled = double(5);\n  let sum = add(doubled, 3);\n  printResult(\"Result\", sum)\n}\n\nexport func main() -\u003e () ! {IO} = compute_and_print()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 13,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG benchmark step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution that demonstrates pure vs effectful function separation:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The solution runs successfully and produces the expected output \"Result: 13\".\n\nLet me also verify the type checking works correctly:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution is complete and verified. \n\n## Summary\n\nThe solution demonstrates pure vs effectful function separation in AILANG:\n\n1. **Pure functions** (`double` and `add`): Marked with `pure` keyword, no side effects, no `! {IO}` effect declaration\n2. **Effectful functions** (`printResult` and `compute_and_print`): Declare `! {IO}` effect, can perform I/O operations\n3. **Type system enforcement**: AILANG's type system enforces that:\n   - Pure functions cannot call effectful functions (would cause type error)\n   - Effectful functions can call pure functions (as demonstrated in `compute_and_print`)\n\nThe output matches exactly: `Result: 13`",
+  "eval_mode": "agent"
+}

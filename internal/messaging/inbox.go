@@ -71,7 +71,7 @@ type InboxListOptions struct {
 	Status      string // Filter by status (empty = all)
 	UnreadOnly  bool   // Only unread messages
 	FromAgent   string // Filter by sender
-	Limit       int    // Max results (0 = default 50)
+	Limit       int    // Max results (0 = no limit)
 	IncludeRead bool   // Include read messages (default: true unless UnreadOnly)
 	Collapsed   bool   // Hide messages where dup_of IS NOT NULL (semantic dedup)
 	DupOf       string // Only messages that are duplicates of this ID
@@ -238,12 +238,11 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 
 	query += " ORDER BY created_at DESC"
 
-	limit := opts.Limit
-	if limit <= 0 {
-		limit = 50
+	// Only apply LIMIT if opts.Limit > 0 (0 = no limit)
+	if opts.Limit > 0 {
+		query += " LIMIT ?"
+		args = append(args, opts.Limit)
 	}
-	query += " LIMIT ?"
-	args = append(args, limit)
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {

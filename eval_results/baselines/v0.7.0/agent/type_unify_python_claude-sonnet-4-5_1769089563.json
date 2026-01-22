@@ -1,0 +1,33 @@
+{
+  "id": "type_unify",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 16,
+  "output_tokens": 1658,
+  "total_tokens": 1674,
+  "cost_usd": 0.06290950000000001,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 28518,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "a = TBool\nb = TInt\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this Python type unification problem step by step.\n\nFirst, let me read the template file to see what's there:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `a = TBool`\n- `b = TInt`\n\nLet me also verify the syntax is correct:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution compiles without errors and produces the exact expected output.\n\n## Summary\n\nThe solution successfully implements a simple type unification algorithm with:\n\n1. **Type ADT** using dataclasses:\n   - `TVar(name)` - type variable\n   - `TInt` - integer type\n   - `TBool` - boolean type\n   - `TFunc(arg, result)` - function type\n\n2. **Substitution** as a list of (varName, Type) pairs\n\n3. **`apply(subst, type)`** - applies a substitution to a type by recursively replacing type variables\n\n4. **`unify(t1, t2)`** - unifies two types:\n   - Returns empty substitution for identical base types\n   - Returns binding for type variables\n   - Recursively unifies function types by first unifying arguments, applying that substitution, then unifying results\n\n5. **Test case**: Unifies `TFunc(TVar(\"a\"), TInt)` with `TFunc(TBool, TVar(\"b\"))` correctly producing:\n   - `a = TBool`\n   - `b = TInt`\n\nThe output matches exactly as required!",
+  "expected_stdout": "a = TBool\nb = TInt\n",
+  "timestamp": "2026-01-22T14:46:03.566683+01:00",
+  "code": "from dataclasses import dataclass\nfrom typing import List, Tuple, Union\n\n@dataclass\nclass TVar:\n    name: str\n\n@dataclass\nclass TInt:\n    pass\n\n@dataclass\nclass TBool:\n    pass\n\n@dataclass\nclass TFunc:\n    arg: 'Type'\n    result: 'Type'\n\nType = Union[TVar, TInt, TBool, TFunc]\nSubstitution = List[Tuple[str, Type]]\n\ndef apply(subst: Substitution, t: Type) -\u003e Type:\n    if isinstance(t, TVar):\n        for var_name, var_type in subst:\n            if var_name == t.name:\n                return var_type\n        return t\n    elif isinstance(t, (TInt, TBool)):\n        return t\n    elif isinstance(t, TFunc):\n        return TFunc(apply(subst, t.arg), apply(subst, t.result))\n    return t\n\ndef unify(t1: Type, t2: Type) -\u003e Substitution:\n    if isinstance(t1, TInt) and isinstance(t2, TInt):\n        return []\n    elif isinstance(t1, TBool) and isinstance(t2, TBool):\n        return []\n    elif isinstance(t1, TVar):\n        return [(t1.name, t2)]\n    elif isinstance(t2, TVar):\n        return [(t2.name, t1)]\n    elif isinstance(t1, TFunc) and isinstance(t2, TFunc):\n        subst1 = unify(t1.arg, t2.arg)\n        t1_result_applied = apply(subst1, t1.result)\n        t2_result_applied = apply(subst1, t2.result)\n        subst2 = unify(t1_result_applied, t2_result_applied)\n        return subst1 + subst2\n    else:\n        raise Exception(\"Cannot unify types\")\n\ndef type_to_string(t: Type) -\u003e str:\n    if isinstance(t, TVar):\n        return f\"TVar({t.name})\"\n    elif isinstance(t, TInt):\n        return \"TInt\"\n    elif isinstance(t, TBool):\n        return \"TBool\"\n    elif isinstance(t, TFunc):\n        return f\"TFunc({type_to_string(t.arg)}, {type_to_string(t.result)})\"\n    return str(t)\n\ndef main():\n    t1 = TFunc(TVar(\"a\"), TInt())\n    t2 = TFunc(TBool(), TVar(\"b\"))\n\n    subst = unify(t1, t2)\n\n    for var_name, var_type in subst:\n        print(f\"{var_name} = {type_to_string(var_type)}\")\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 13,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this Python type unification problem step by step.\n\nFirst, let me read the template file to see what's there:[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `a = TBool`\n- `b = TInt`\n\nLet me also verify the syntax is correct:[TOOL] Bash\n\n[TURN 5]\nExcellent! The solution compiles without errors and produces the exact expected output.\n\n## Summary\n\nThe solution successfully implements a simple type unification algorithm with:\n\n1. **Type ADT** using dataclasses:\n   - `TVar(name)` - type variable\n   - `TInt` - integer type\n   - `TBool` - boolean type\n   - `TFunc(arg, result)` - function type\n\n2. **Substitution** as a list of (varName, Type) pairs\n\n3. **`apply(subst, type)`** - applies a substitution to a type by recursively replacing type variables\n\n4. **`unify(t1, t2)`** - unifies two types:\n   - Returns empty substitution for identical base types\n   - Returns binding for type variables\n   - Recursively unifies function types by first unifying arguments, applying that substitution, then unifying results\n\n5. **Test case**: Unifies `TFunc(TVar(\"a\"), TInt)` with `TFunc(TBool, TVar(\"b\"))` correctly producing:\n   - `a = TBool`\n   - `b = TInt`\n\nThe output matches exactly as required!",
+  "eval_mode": "agent"
+}

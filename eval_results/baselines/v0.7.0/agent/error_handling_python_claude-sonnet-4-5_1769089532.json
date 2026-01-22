@@ -1,0 +1,33 @@
+{
+  "id": "error_handling",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1104,
+  "total_tokens": 1117,
+  "cost_usd": 0.0458766,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 22438,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 5\nError: Division by zero\nError: Invalid integer\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file to see what structure is expected, then implement the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the Result/Either type solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- \"Result: 5\" for parsing \"10\" and dividing by 2\n- \"Error: Division by zero\" for parsing \"10\" and dividing by 0\n- \"Error: Invalid integer\" for parsing \"abc\"\n\nThe solution implements:\n1. A Result type with Ok(value) and Err(message) variants using Python classes\n2. `parse_int(s)` function that returns Ok(n) or Err(\"Invalid integer\")\n3. `divide_safe(a, b)` function that returns Ok(a//b) or Err(\"Division by zero\")\n4. Chaining operations through the `chain_parse_and_divide` function\n5. Proper printing of results with the specified format\n\nThe solution has been verified and produces the exact expected output.",
+  "expected_stdout": "Result: 5\nError: Division by zero\nError: Invalid integer\n",
+  "timestamp": "2026-01-22T14:45:32.276418+01:00",
+  "code": "from typing import Generic, TypeVar, Union\n\nT = TypeVar('T')\n\nclass Ok(Generic[T]):\n    def __init__(self, value: T):\n        self.value = value\n\n    def is_ok(self) -\u003e bool:\n        return True\n\n    def is_err(self) -\u003e bool:\n        return False\n\nclass Err:\n    def __init__(self, message: str):\n        self.message = message\n\n    def is_ok(self) -\u003e bool:\n        return False\n\n    def is_err(self) -\u003e bool:\n        return True\n\nResult = Union[Ok[T], Err]\n\ndef parse_int(s: str) -\u003e Result:\n    try:\n        n = int(s)\n        return Ok(n)\n    except ValueError:\n        return Err(\"Invalid integer\")\n\ndef divide_safe(a: int, b: int) -\u003e Result:\n    if b == 0:\n        return Err(\"Division by zero\")\n    return Ok(a // b)\n\ndef chain_parse_and_divide(s: str, divisor: int):\n    result = parse_int(s)\n    if result.is_err():\n        return result\n\n    value = result.value\n    return divide_safe(value, divisor)\n\ndef print_result(result: Result):\n    if result.is_ok():\n        print(f\"Result: {result.value}\")\n    else:\n        print(f\"Error: {result.message}\")\n\nif __name__ == \"__main__\":\n    result1 = chain_parse_and_divide(\"10\", 2)\n    print_result(result1)\n\n    result2 = chain_parse_and_divide(\"10\", 0)\n    print_result(result2)\n\n    result3 = parse_int(\"abc\")\n    print_result(result3)\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file to see what structure is expected, then implement the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the Result/Either type solution:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- \"Result: 5\" for parsing \"10\" and dividing by 2\n- \"Error: Division by zero\" for parsing \"10\" and dividing by 0\n- \"Error: Invalid integer\" for parsing \"abc\"\n\nThe solution implements:\n1. A Result type with Ok(value) and Err(message) variants using Python classes\n2. `parse_int(s)` function that returns Ok(n) or Err(\"Invalid integer\")\n3. `divide_safe(a, b)` function that returns Ok(a//b) or Err(\"Division by zero\")\n4. Chaining operations through the `chain_parse_and_divide` function\n5. Proper printing of results with the specified format\n\nThe solution has been verified and produces the exact expected output.",
+  "eval_mode": "agent"
+}

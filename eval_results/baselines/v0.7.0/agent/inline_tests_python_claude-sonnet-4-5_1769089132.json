@@ -1,0 +1,33 @@
+{
+  "id": "inline_tests",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 622,
+  "total_tokens": 635,
+  "cost_usd": 0.033926500000000005,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 14403,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "49\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution according to the requirements:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: `49`\n\nThe solution is complete and verified:\n- ✅ Defined `square(n)` function that returns n * n\n- ✅ Defined `isEven(n)` function that returns true if n is even\n- ✅ Called `square(7)` in main and printed the result\n- ✅ Output matches expected: `49`",
+  "expected_stdout": "49\n",
+  "timestamp": "2026-01-22T14:38:52.936643+01:00",
+  "code": "def square(n):\n    return n * n\n\ndef isEven(n):\n    return n % 2 == 0\n\ndef main():\n    result = square(7)\n    print(result)\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution according to the requirements:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: `49`\n\nThe solution is complete and verified:\n- ✅ Defined `square(n)` function that returns n * n\n- ✅ Defined `isEven(n)` function that returns true if n is even\n- ✅ Called `square(7)` in main and printed the result\n- ✅ Output matches expected: `49`",
+  "eval_mode": "agent"
+}

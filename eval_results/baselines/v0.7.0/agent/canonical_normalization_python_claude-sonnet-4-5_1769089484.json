@@ -1,0 +1,33 @@
+{
+  "id": "canonical_normalization",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 742,
+  "total_tokens": 755,
+  "cost_usd": 0.0372892,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 18463,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Sum of evens: 30\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it produces the correct output.[TOOL] Read\n\n[TURN 2]\nNow I'll write the most idiomatic Python solution using functional composition and standard library functions:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: \"Sum of evens: 30\"\n\nThe solution is complete and verified. I've implemented:\n1. `filterEvens(numbers)` - uses a list comprehension (idiomatic Python) to filter even numbers\n2. `sumList(numbers)` - uses the built-in `sum()` function (standard library)\n3. A `main()` function that composes these functions to process the list and print the result\n4. Proper script entry point with `if __name__ == \"__main__\":`\n\nThe output matches the expected output exactly.",
+  "expected_stdout": "Sum of evens: 30\n",
+  "timestamp": "2026-01-22T14:44:44.305825+01:00",
+  "code": "def filterEvens(numbers):\n    return [n for n in numbers if n % 2 == 0]\n\ndef sumList(numbers):\n    return sum(numbers)\n\ndef main():\n    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    evens = filterEvens(numbers)\n    result = sumList(evens)\n    print(f\"Sum of evens: {result}\")\n\nif __name__ == \"__main__\":\n    main()\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it produces the correct output.[TOOL] Read\n\n[TURN 2]\nNow I'll write the most idiomatic Python solution using functional composition and standard library functions:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly: \"Sum of evens: 30\"\n\nThe solution is complete and verified. I've implemented:\n1. `filterEvens(numbers)` - uses a list comprehension (idiomatic Python) to filter even numbers\n2. `sumList(numbers)` - uses the built-in `sum()` function (standard library)\n3. A `main()` function that composes these functions to process the list and print the result\n4. Proper script entry point with `if __name__ == \"__main__\":`\n\nThe output matches the expected output exactly.",
+  "eval_mode": "agent"
+}

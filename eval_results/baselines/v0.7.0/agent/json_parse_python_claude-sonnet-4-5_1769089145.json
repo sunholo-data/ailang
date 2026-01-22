@@ -1,0 +1,33 @@
+{
+  "id": "json_parse",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 599,
+  "total_tokens": 612,
+  "cost_usd": 0.03371375,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 16891,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Alice\nCharlie\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow I'll verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Alice\n- Charlie\n\nThe solution:\n1. Parses the JSON array using `json.loads()`\n2. Filters people aged 30 or older using an if condition\n3. Prints each name on a separate line\n\nThe output is verified and matches the expected result.",
+  "expected_stdout": "Alice\nCharlie\n",
+  "timestamp": "2026-01-22T14:39:05.912531+01:00",
+  "code": "import json\n\ndata = json.loads('[{\"name\":\"Alice\",\"age\":30},{\"name\":\"Bob\",\"age\":25},{\"name\":\"Charlie\",\"age\":35}]')\nfor person in data:\n    if person[\"age\"] \u003e= 30:\n        print(person[\"name\"])\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then write the solution, and verify it.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow I'll verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Alice\n- Charlie\n\nThe solution:\n1. Parses the JSON array using `json.loads()`\n2. Filters people aged 30 or older using an if condition\n3. Prints each name on a separate line\n\nThe output is verified and matches the expected result.",
+  "eval_mode": "agent"
+}

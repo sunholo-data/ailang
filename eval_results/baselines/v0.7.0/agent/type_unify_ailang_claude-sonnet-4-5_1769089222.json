@@ -1,0 +1,33 @@
+{
+  "id": "type_unify",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1649,
+  "total_tokens": 1662,
+  "cost_usd": 0.0739696,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 29476,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "a = TBool\nb = TInt\n\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement the type unification algorithm.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the type unification algorithm:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify the output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `a = TBool`\n- `b = TInt`\n\nThe solution successfully:\n1. Defines the `Type` ADT with TVar, TInt, TBool, and TFunc constructors\n2. Implements substitution as a list of records with var and typ fields\n3. Implements `apply` function to apply substitutions to types\n4. Implements `unify` function that handles all the required cases:\n   - TInt with TInt (empty substitution)\n   - TBool with TBool (empty substitution)\n   - TVar with any type (creates substitution)\n   - TFunc with TFunc (recursively unifies arguments and results, applying substitutions)\n5. Successfully unifies `TFunc(TVar(\"a\"), TInt)` with `TFunc(TBool, TVar(\"b\"))` to produce `a = TBool` and `b = TInt`\n\nThe verification is complete and the output matches exactly!",
+  "expected_stdout": "a = TBool\nb = TInt\n",
+  "timestamp": "2026-01-22T14:40:22.00346+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\ntype Type = TVar(string) | TInt | TBool | TFunc(Type, Type)\n\ntype Subst = {var: string, typ: Type}\n\ntype UnifyResult = Success([Subst]) | Failure\n\npure func apply(subst: [Subst], t: Type) -\u003e Type =\n  match t {\n    TVar(name) =\u003e applyVar(subst, name),\n    TFunc(arg, res) =\u003e TFunc(apply(subst, arg), apply(subst, res)),\n    _ =\u003e t\n  }\n\npure func applyVar(subst: [Subst], name: string) -\u003e Type =\n  match subst {\n    [] =\u003e TVar(name),\n    s :: rest =\u003e if s.var == name then s.typ else applyVar(rest, name)\n  }\n\npure func unify(t1: Type, t2: Type) -\u003e UnifyResult =\n  match t1 {\n    TInt =\u003e match t2 {\n      TInt =\u003e Success([]),\n      TVar(a) =\u003e Success([{var: a, typ: TInt}]),\n      _ =\u003e Failure\n    },\n    TBool =\u003e match t2 {\n      TBool =\u003e Success([]),\n      TVar(a) =\u003e Success([{var: a, typ: TBool}]),\n      _ =\u003e Failure\n    },\n    TVar(a) =\u003e Success([{var: a, typ: t2}]),\n    TFunc(a1, r1) =\u003e match t2 {\n      TFunc(a2, r2) =\u003e unifyFunc(a1, r1, a2, r2),\n      TVar(a) =\u003e Success([{var: a, typ: t1}]),\n      _ =\u003e Failure\n    }\n  }\n\npure func unifyFunc(a1: Type, r1: Type, a2: Type, r2: Type) -\u003e UnifyResult =\n  match unify(a1, a2) {\n    Success(s1) =\u003e {\n      let r1_applied = apply(s1, r1);\n      let r2_applied = apply(s1, r2);\n      match unify(r1_applied, r2_applied) {\n        Success(s2) =\u003e Success(concat(s1, s2)),\n        Failure =\u003e Failure\n      }\n    },\n    Failure =\u003e Failure\n  }\n\npure func concat(xs: [Subst], ys: [Subst]) -\u003e [Subst] =\n  match xs {\n    [] =\u003e ys,\n    x :: rest =\u003e x :: concat(rest, ys)\n  }\n\npure func showType(t: Type) -\u003e string =\n  match t {\n    TInt =\u003e \"TInt\",\n    TBool =\u003e \"TBool\",\n    TVar(name) =\u003e \"TVar(\" ++ name ++ \")\",\n    TFunc(arg, res) =\u003e \"TFunc(\" ++ showType(arg) ++ \", \" ++ showType(res) ++ \")\"\n  }\n\npure func printSubst(subst: [Subst]) -\u003e string =\n  match subst {\n    [] =\u003e \"\",\n    s :: rest =\u003e s.var ++ \" = \" ++ showType(s.typ) ++ \"\\n\" ++ printSubst(rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let t1 = TFunc(TVar(\"a\"), TInt);\n  let t2 = TFunc(TBool, TVar(\"b\"));\n  match unify(t1, t2) {\n    Success(subst) =\u003e {\n      let output = printSubst(subst);\n      let lines = output;\n      println(lines)\n    },\n    Failure =\u003e println(\"Unification failed\")\n  }\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement the type unification algorithm.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the type unification algorithm:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify the output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- `a = TBool`\n- `b = TInt`\n\nThe solution successfully:\n1. Defines the `Type` ADT with TVar, TInt, TBool, and TFunc constructors\n2. Implements substitution as a list of records with var and typ fields\n3. Implements `apply` function to apply substitutions to types\n4. Implements `unify` function that handles all the required cases:\n   - TInt with TInt (empty substitution)\n   - TBool with TBool (empty substitution)\n   - TVar with any type (creates substitution)\n   - TFunc with TFunc (recursively unifies arguments and results, applying substitutions)\n5. Successfully unifies `TFunc(TVar(\"a\"), TInt)` with `TFunc(TBool, TVar(\"b\"))` to produce `a = TBool` and `b = TInt`\n\nThe verification is complete and the output matches exactly!",
+  "eval_mode": "agent"
+}

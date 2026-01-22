@@ -1,0 +1,33 @@
+{
+  "id": "exhaustive_pattern_matching",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 826,
+  "total_tokens": 839,
+  "cost_usd": 0.05398574999999999,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 20866,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Waiting to start\nCurrently working\nAll done\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file to understand the structure, then write the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n- \"Waiting to start\"\n- \"Currently working\"\n- \"All done\"\n\nThe solution successfully demonstrates exhaustive pattern matching in AILANG:\n1. ✅ Defined a `Status` ADT with three variants: Pending, InProgress, Completed\n2. ✅ Implemented `describeStatus` that pattern matches on ALL variants explicitly\n3. ✅ Created instances of all three statuses\n4. ✅ Printed descriptions for each status\n5. ✅ Pattern matching is exhaustive - all cases are explicitly handled with no wildcards\n\nThe AILANG type checker will enforce exhaustiveness, and adding a new variant would require updating the match expression.",
+  "expected_stdout": "Waiting to start\nCurrently working\nAll done\n",
+  "timestamp": "2026-01-22T14:41:47.062573+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\ntype Status = Pending | InProgress | Completed\n\npure func describeStatus(status: Status) -\u003e string =\n  match status {\n    Pending =\u003e \"Waiting to start\",\n    InProgress =\u003e \"Currently working\",\n    Completed =\u003e \"All done\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let s1 = Pending;\n  let s2 = InProgress;\n  let s3 = Completed;\n  println(describeStatus(s1));\n  println(describeStatus(s2));\n  println(describeStatus(s3))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file to understand the structure, then write the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n- \"Waiting to start\"\n- \"Currently working\"\n- \"All done\"\n\nThe solution successfully demonstrates exhaustive pattern matching in AILANG:\n1. ✅ Defined a `Status` ADT with three variants: Pending, InProgress, Completed\n2. ✅ Implemented `describeStatus` that pattern matches on ALL variants explicitly\n3. ✅ Created instances of all three statuses\n4. ✅ Printed descriptions for each status\n5. ✅ Pattern matching is exhaustive - all cases are explicitly handled with no wildcards\n\nThe AILANG type checker will enforce exhaustiveness, and adding a new variant would require updating the match expression.",
+  "eval_mode": "agent"
+}

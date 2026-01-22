@@ -1,0 +1,33 @@
+{
+  "id": "higher_order_functions",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 848,
+  "total_tokens": 861,
+  "cost_usd": 0.0382778,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 17701,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Result: 30\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it works correctly.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution implementing higher-order functions with composition, partial application, and the required functionality:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly: \"Result: 30\"\n\nLet me verify the computation is correct:\n- add5(10) = 10 + 5 = 15\n- double(15) = 2 * 15 = 30\n- compose(double, add5)(10) = double(add5(10)) = 30 ✓\n\nThe solution successfully demonstrates:\n1. ✅ `compose(f, g)` - returns a function that computes f(g(x))\n2. ✅ `add(x, y)` - adds two numbers\n3. ✅ `multiply(x, y)` - multiplies two numbers\n4. ✅ `add5` using partial application with `functools.partial`\n5. ✅ `double` using partial application with `functools.partial`\n6. ✅ `add5_then_double` composed function\n7. ✅ Applied to 10 and printed the result\n\nThe output matches exactly: **Result: 30**",
+  "expected_stdout": "Result: 30\n",
+  "timestamp": "2026-01-22T14:38:47.084192+01:00",
+  "code": "from functools import partial\n\ndef compose(f, g):\n    return lambda x: f(g(x))\n\ndef add(x, y):\n    return x + y\n\ndef multiply(x, y):\n    return x * y\n\nadd5 = partial(add, 5)\ndouble = partial(multiply, 2)\nadd5_then_double = compose(double, add5)\n\nresult = add5_then_double(10)\nprint(f\"Result: {result}\")\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement the solution, and verify it works correctly.[TOOL] Read\n\n[TURN 2]\nNow I'll write the solution implementing higher-order functions with composition, partial application, and the required functionality:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly: \"Result: 30\"\n\nLet me verify the computation is correct:\n- add5(10) = 10 + 5 = 15\n- double(15) = 2 * 15 = 30\n- compose(double, add5)(10) = double(add5(10)) = 30 ✓\n\nThe solution successfully demonstrates:\n1. ✅ `compose(f, g)` - returns a function that computes f(g(x))\n2. ✅ `add(x, y)` - adds two numbers\n3. ✅ `multiply(x, y)` - multiplies two numbers\n4. ✅ `add5` using partial application with `functools.partial`\n5. ✅ `double` using partial application with `functools.partial`\n6. ✅ `add5_then_double` composed function\n7. ✅ Applied to 10 and printed the result\n\nThe output matches exactly: **Result: 30**",
+  "eval_mode": "agent"
+}

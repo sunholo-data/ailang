@@ -1,0 +1,33 @@
+{
+  "id": "red_black_tree",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 1636,
+  "total_tokens": 1649,
+  "cost_usd": 0.05832045,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 26963,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "[3, 7, 8, 10, 11, 18, 22, 26]\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement the red-black tree solution.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the red-black tree solution with the insertion and balancing logic:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Expected: `[3, 7, 8, 10, 11, 18, 22, 26]`\n- Actual: `[3, 7, 8, 10, 11, 18, 22, 26]`\n\nThe solution successfully implements:\n1. Color enum with Red and Black\n2. RBTree hierarchy with Empty and Node classes\n3. Balance function that handles all 4 rotation cases for red-red violations\n4. Insert function that uses a helper `ins` function and recolors the root to black\n5. Inorder traversal function that returns sorted values\n6. Insertion of the specified values [7, 3, 18, 10, 22, 8, 11, 26]\n7. Output of the inorder traversal showing the sorted result\n\nThe solution is complete and verified!",
+  "expected_stdout": "[3, 7, 8, 10, 11, 18, 22, 26]\n",
+  "timestamp": "2026-01-22T14:44:04.369502+01:00",
+  "code": "from enum import Enum\n\nclass Color(Enum):\n    Red = 0\n    Black = 1\n\nclass RBTree:\n    pass\n\nclass Empty(RBTree):\n    pass\n\nclass Node(RBTree):\n    def __init__(self, color, left, value, right):\n        self.color = color\n        self.left = left\n        self.value = value\n        self.right = right\n\ndef balance(color, left, value, right):\n    # Case 1: left-left (left is red with red left child)\n    if (color == Color.Black and\n        isinstance(left, Node) and left.color == Color.Red and\n        isinstance(left.left, Node) and left.left.color == Color.Red):\n        return Node(Color.Red,\n                    Node(Color.Black, left.left.left, left.left.value, left.left.right),\n                    left.value,\n                    Node(Color.Black, left.right, value, right))\n\n    # Case 2: left-right (left is red with red right child)\n    if (color == Color.Black and\n        isinstance(left, Node) and left.color == Color.Red and\n        isinstance(left.right, Node) and left.right.color == Color.Red):\n        return Node(Color.Red,\n                    Node(Color.Black, left.left, left.value, left.right.left),\n                    left.right.value,\n                    Node(Color.Black, left.right.right, value, right))\n\n    # Case 3: right-left (right is red with red left child)\n    if (color == Color.Black and\n        isinstance(right, Node) and right.color == Color.Red and\n        isinstance(right.left, Node) and right.left.color == Color.Red):\n        return Node(Color.Red,\n                    Node(Color.Black, left, value, right.left.left),\n                    right.left.value,\n                    Node(Color.Black, right.left.right, right.value, right.right))\n\n    # Case 4: right-right (right is red with red right child)\n    if (color == Color.Black and\n        isinstance(right, Node) and right.color == Color.Red and\n        isinstance(right.right, Node) and right.right.color == Color.Red):\n        return Node(Color.Red,\n                    Node(Color.Black, left, value, right.left),\n                    right.value,\n                    Node(Color.Black, right.right.left, right.right.value, right.right.right))\n\n    # No balancing needed\n    return Node(color, left, value, right)\n\ndef ins(x, tree):\n    if isinstance(tree, Empty):\n        return Node(Color.Red, Empty(), x, Empty())\n\n    if x \u003c tree.value:\n        return balance(tree.color, ins(x, tree.left), tree.value, tree.right)\n    elif x \u003e tree.value:\n        return balance(tree.color, tree.left, tree.value, ins(x, tree.right))\n    else:\n        return tree\n\ndef insert(x, tree):\n    result = ins(x, tree)\n    if isinstance(result, Node):\n        return Node(Color.Black, result.left, result.value, result.right)\n    return result\n\ndef inorder(tree):\n    if isinstance(tree, Empty):\n        return []\n    result = []\n    result.extend(inorder(tree.left))\n    result.append(tree.value)\n    result.extend(inorder(tree.right))\n    return result\n\nif __name__ == \"__main__\":\n    tree = Empty()\n    values = [7, 3, 18, 10, 22, 8, 11, 26]\n    for val in values:\n        tree = insert(val, tree)\n    print(inorder(tree))\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement the red-black tree solution.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the red-black tree solution with the insertion and balancing logic:[TOOL] Write\n\n[TURN 3]\nNow let me run the solution to verify it produces the expected output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- Expected: `[3, 7, 8, 10, 11, 18, 22, 26]`\n- Actual: `[3, 7, 8, 10, 11, 18, 22, 26]`\n\nThe solution successfully implements:\n1. Color enum with Red and Black\n2. RBTree hierarchy with Empty and Node classes\n3. Balance function that handles all 4 rotation cases for red-red violations\n4. Insert function that uses a helper `ins` function and recolors the root to black\n5. Inorder traversal function that returns sorted values\n6. Insertion of the specified values [7, 3, 18, 10, 22, 8, 11, 26]\n7. Output of the inorder traversal showing the sorted result\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

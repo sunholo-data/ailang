@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/internal/telemetry"
 )
 
 // ScriptProvider executes shell scripts for deterministic workflow tasks.
@@ -84,6 +86,10 @@ func (p *ScriptProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *
 
 	// Build environment
 	env := os.Environ()
+
+	// Inject trace context for distributed tracing (M-TRACE-HIERARCHY)
+	// This enables script child processes (ailang eval-suite) to link to coordinator's trace
+	env = telemetry.InjectTraceContext(ctx, env)
 
 	// Add AILANG context variables
 	// AILANG_PARENT_TASK_ID enables hierarchy tracking: when the script calls

@@ -1,0 +1,33 @@
+{
+  "id": "exhaustive_pattern_matching",
+  "lang": "python",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 809,
+  "total_tokens": 822,
+  "cost_usd": 0.03839359999999999,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 18787,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Waiting to start\nCurrently working\nAll done\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file, then implement a solution with exhaustive pattern matching in Python.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the solution. Python 3.10+ has structural pattern matching with the `match` statement. I'll use an Enum for the Status type and match on it exhaustively.[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- \"Waiting to start\"\n- \"Currently working\"  \n- \"All done\"\n\nThe solution uses:\n1. **Enum** to define the Status type with three variants (Pending, InProgress, Completed)\n2. **Pattern matching** with Python 3.10's `match` statement that exhaustively handles all cases\n3. No default/wildcard case - each variant is explicitly handled\n4. Type-safe approach where adding a new Status variant would require updating the match statement\n\nThe solution is complete and verified!",
+  "expected_stdout": "Waiting to start\nCurrently working\nAll done\n",
+  "timestamp": "2026-01-22T14:45:31.011882+01:00",
+  "code": "from enum import Enum, auto\n\nclass Status(Enum):\n    Pending = auto()\n    InProgress = auto()\n    Completed = auto()\n\ndef describeStatus(status):\n    match status:\n        case Status.Pending:\n            return \"Waiting to start\"\n        case Status.InProgress:\n            return \"Currently working\"\n        case Status.Completed:\n            return \"All done\"\n\nif __name__ == \"__main__\":\n    pending = Status.Pending\n    in_progress = Status.InProgress\n    completed = Status.Completed\n\n    print(describeStatus(pending))\n    print(describeStatus(in_progress))\n    print(describeStatus(completed))\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file, then implement a solution with exhaustive pattern matching in Python.[TOOL] Read\n\n[TURN 2]\nNow I'll implement the solution. Python 3.10+ has structural pattern matching with the `match` statement. I'll use an Enum for the Status type and match on it exhaustively.[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches the expected output exactly:\n- \"Waiting to start\"\n- \"Currently working\"  \n- \"All done\"\n\nThe solution uses:\n1. **Enum** to define the Status type with three variants (Pending, InProgress, Completed)\n2. **Pattern matching** with Python 3.10's `match` statement that exhaustively handles all cases\n3. No default/wildcard case - each variant is explicitly handled\n4. Type-safe approach where adding a new Status variant would require updating the match statement\n\nThe solution is complete and verified!",
+  "eval_mode": "agent"
+}

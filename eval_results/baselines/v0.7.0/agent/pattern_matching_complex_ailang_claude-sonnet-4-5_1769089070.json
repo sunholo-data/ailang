@@ -1,0 +1,33 @@
+{
+  "id": "pattern_matching_complex",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 13,
+  "output_tokens": 990,
+  "total_tokens": 1003,
+  "cost_usd": 0.058143749999999994,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 22615,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "Sum: 18\nMax: 7\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll start by reading the template file to understand the structure, then write the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution with the Tree ADT and the required functions:[TOOL] Write\n\n[TURN 3]\nNow let's run the solution to verify the output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n```\nSum: 18\nMax: 7\n```\n\nThe solution demonstrates:\n1. ✅ Algebraic data type `Tree` with `Leaf(int)` and `Node(Tree, int, Tree)` constructors\n2. ✅ `tree_sum` using pattern matching with nested constructors (recursively calling on left and right subtrees)\n3. ✅ `find_max` using pattern matching with nested patterns and guards (using if-then-else to find maximum)\n4. ✅ Exhaustiveness - all cases covered (Leaf and Node)\n5. ✅ Correct calculation: sum = 1+5+3+7+2 = 18, max = 7\n\nThe solution has been verified and produces the exact expected output.",
+  "expected_stdout": "Sum: 18\nMax: 7\n",
+  "timestamp": "2026-01-22T14:37:50.932706+01:00",
+  "code": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\npure func tree_sum(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n\npure func find_max(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e {\n      let lmax = find_max(l);\n      let rmax = find_max(r);\n      let max_lr = if lmax \u003e rmax then lmax else rmax;\n      if v \u003e max_lr then v else max_lr\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n  let sum = tree_sum(tree);\n  let max = find_max(tree);\n  println(\"Sum: \" ++ show(sum));\n  println(\"Max: \" ++ show(max))\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 10,
+  "agent_transcript": "\n[TURN 1]\nI'll start by reading the template file to understand the structure, then write the solution.[TOOL] Read\n\n[TURN 2]\nNow I'll write the complete solution with the Tree ADT and the required functions:[TOOL] Write\n\n[TURN 3]\nNow let's run the solution to verify the output:[TOOL] Bash\n\n[TURN 4]\nPerfect! The output matches exactly:\n```\nSum: 18\nMax: 7\n```\n\nThe solution demonstrates:\n1. ✅ Algebraic data type `Tree` with `Leaf(int)` and `Node(Tree, int, Tree)` constructors\n2. ✅ `tree_sum` using pattern matching with nested constructors (recursively calling on left and right subtrees)\n3. ✅ `find_max` using pattern matching with nested patterns and guards (using if-then-else to find maximum)\n4. ✅ Exhaustiveness - all cases covered (Leaf and Node)\n5. ✅ Correct calculation: sum = 1+5+3+7+2 = 18, max = 7\n\nThe solution has been verified and produces the exact expected output.",
+  "eval_mode": "agent"
+}

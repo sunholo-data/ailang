@@ -1,0 +1,33 @@
+{
+  "id": "graph_bfs",
+  "lang": "ailang",
+  "model": "claude-sonnet-4-5",
+  "executor": "claude",
+  "seed": 42,
+  "input_tokens": 20,
+  "output_tokens": 2117,
+  "total_tokens": 2137,
+  "cost_usd": 0.10566795,
+  "compile_ok": true,
+  "runtime_ok": true,
+  "stdout_ok": true,
+  "duration_ms": 39799,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "none",
+  "stdout": "1\n2\n3\n4\n5\n",
+  "stderr": "\n\n=== Claude Session Transcript ===\n\n[TURN 1]\nI'll solve this AILANG breadth-first search problem step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the BFS solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI see the issue - AILANG doesn't support pattern matching inside function body blocks with `{ }`. I need to refactor to avoid nested pattern matching in the bfs function. Let me rewrite:[TOOL] Write\n\n[TURN 5]\nNow let me run it again:[TOOL] Bash\n\n[TURN 6]\nPerfect! The output matches exactly:\n```\n1\n2\n3\n4\n5\n```\n\nThe solution successfully implements BFS on the graph:\n- Uses a queue (list) where we add to the end and remove from the front\n- Tracks visited nodes to avoid revisiting\n- Processes nodes in breadth-first order\n- The output shows the correct BFS traversal order: 1 → 2 → 3 → 4 → 5\n\nThe solution has been verified and produces the exact expected output.",
+  "expected_stdout": "1\n2\n3\n4\n5\n",
+  "timestamp": "2026-01-22T14:42:48.779303+01:00",
+  "code": "module benchmark/solution\n\ntype Graph = [(int, [int])]\n\npure func contains(x: int, xs: [int]) -\u003e bool =\n  match xs {\n    [] =\u003e false,\n    y :: rest =\u003e if x == y then true else contains(x, rest)\n  }\n\npure func enqueue(x: int, queue: [int]) -\u003e [int] =\n  match queue {\n    [] =\u003e [x],\n    head :: rest =\u003e head :: enqueue(x, rest)\n  }\n\npure func getNeighbors(node: int, graph: Graph) -\u003e [int] =\n  match graph {\n    [] =\u003e [],\n    (n, neighbors) :: rest =\u003e if n == node then neighbors else getNeighbors(node, rest)\n  }\n\npure func enqueueAll(nodes: [int], queue: [int]) -\u003e [int] =\n  match nodes {\n    [] =\u003e queue,\n    n :: rest =\u003e enqueueAll(rest, enqueue(n, queue))\n  }\n\npure func bfs(queue: [int], visited: [int], graph: Graph) -\u003e [int] =\n  match queue {\n    [] =\u003e visited,\n    current :: newQueue =\u003e\n      if contains(current, visited) then\n        bfs(newQueue, visited, graph)\n      else\n        let neighbors = getNeighbors(current, graph) in\n        let newVisited = visited ++ [current] in\n        let queueWithNeighbors = enqueueAll(neighbors, newQueue) in\n        bfs(queueWithNeighbors, newVisited, graph)\n  }\n\npure func bfsFromStart(start: int, graph: Graph) -\u003e [int] =\n  bfs([start], [], graph)\n\nfunc printNodes(nodes: [int]) -\u003e () ! {IO} =\n  match nodes {\n    [] =\u003e (),\n    n :: rest =\u003e {\n      println(show(n));\n      printNodes(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])];\n  let visited = bfsFromStart(1, graph);\n  printNodes(visited)\n}\n",
+  "first_attempt_ok": true,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "v0.6.6",
+  "caps": [
+    "IO"
+  ],
+  "agent_turns": 16,
+  "agent_transcript": "\n[TURN 1]\nI'll solve this AILANG breadth-first search problem step by step.\n\nFirst, let me read the template file:[TOOL] Read\n\n[TURN 2]\nNow I'll write the BFS solution:[TOOL] Write\n\n[TURN 3]\nNow let me verify the solution by running it:[TOOL] Bash\n\n[TURN 4]\nI see the issue - AILANG doesn't support pattern matching inside function body blocks with `{ }`. I need to refactor to avoid nested pattern matching in the bfs function. Let me rewrite:[TOOL] Write\n\n[TURN 5]\nNow let me run it again:[TOOL] Bash\n\n[TURN 6]\nPerfect! The output matches exactly:\n```\n1\n2\n3\n4\n5\n```\n\nThe solution successfully implements BFS on the graph:\n- Uses a queue (list) where we add to the end and remove from the front\n- Tracks visited nodes to avoid revisiting\n- Processes nodes in breadth-first order\n- The output shows the correct BFS traversal order: 1 → 2 → 3 → 4 → 5\n\nThe solution has been verified and produces the exact expected output.",
+  "eval_mode": "agent"
+}

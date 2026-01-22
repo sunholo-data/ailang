@@ -84,7 +84,8 @@ export default function BenchmarkDashboard() {
   let trend = null;
   if (history && history.length > 1) {
     const current = ailangSuccess;
-    const previous = history[history.length - 2]?.languages?.ailang?.success_rate ||
+    // Note: history[i].languages is a string (e.g., "ailang,python"), use languageStats for stats
+    const previous = history[history.length - 2]?.languageStats?.ailang?.success_rate ||
                     history[history.length - 2]?.aggregates?.finalSuccess || 0;
     const diff = current - previous;
     if (Math.abs(diff) > 0.01) {

@@ -239,7 +239,7 @@ export const ControlPlane: React.FC = () => {
   const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
   const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
   const { budget } = useBudgetStatus(30000, filters);
-  const { events: liveEvents, loading: eventsLoading } = useEventQueue({ maxEvents: 50, filters });
+  const { events: liveEvents, loading: eventsLoading } = useEventQueue({ filters });
   // WebSocket connection status for header indicator
   const { isConnected, connectionState, lastEventTime } = useObservatoryWs({});
   // Approvals data and modal state

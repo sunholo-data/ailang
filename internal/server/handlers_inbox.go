@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,7 +88,14 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 		UnreadOnly: q.Get("unread") == "true",
 		StartDate:  q.Get("start_date"),
 		EndDate:    q.Get("end_date"),
-		Limit:      50,
+		Limit:      0, // 0 = no limit (pagination handles display)
+	}
+
+	// Parse limit from query parameter (0 = no limit)
+	if limitStr := q.Get("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			opts.Limit = limit
+		}
 	}
 
 	if q.Get("status") != "" {
@@ -240,8 +248,8 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 	// Sort events by requested field
 	sortEvents(events, sortBy, sortOrder)
 
-	// Apply limit after merging
-	if len(events) > opts.Limit {
+	// Apply limit after merging (0 = no limit)
+	if opts.Limit > 0 && len(events) > opts.Limit {
 		events = events[:opts.Limit]
 	}
 
