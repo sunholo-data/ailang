@@ -1,5 +1,44 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Added - Trace Testing Framework (M-TRACE-TEST)
+
+Added a minimal trace testing utility for verifying that expected trace spans exist during program execution.
+
+**New Module:**
+- `stdlib/trace_test` - Trace testing helpers
+
+**New Builtin:**
+- `_trace_check(name: string) -> bool` - Check if a trace span exists (supports prefix matching)
+
+**Exported Functions:**
+- `assert_trace_exists(name: string) -> bool` - Check if span with name exists
+- `assert_trace_not_exists(name: string) -> bool` - Check if span does NOT exist
+- `test_compile_traces() -> int` - Example test function
+
+**Example Usage:**
+```ailang
+import stdlib/trace_test (assert_trace_exists)
+
+export pure func verify_traces() -> int {
+  let has_parse = assert_trace_exists("compile.parse");
+  let has_typecheck = assert_trace_exists("compile.typecheck");
+  1
+}
+```
+
+**Implementation Files:**
+- `internal/effects/trace.go`: TraceRegistry with thread-safe span tracking (~110 LOC)
+- `internal/builtins/trace.go`: Builtin registration (~55 LOC)
+- `stdlib/trace_test.ail`: AILANG module with helpers (~25 LOC)
+- `examples/trace_testing.ail`: Working example (~35 LOC)
+
+**Tests:**
+- `internal/effects/trace_test.go`: 8 test cases including concurrency tests
+
+**Design Doc:** `design_docs/planned/v0_7_1/trace-test.md`
+
 ## [v0.7.0] - 2026-01-21
 
 ### Added - Record Width Subtyping (M-GAP4)

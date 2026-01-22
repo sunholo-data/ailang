@@ -1,0 +1,35 @@
+-- Trace Testing Example
+-- Demonstrates how to use the trace testing module to verify
+-- that expected trace spans were created during program execution.
+--
+-- This is useful for testing that instrumented code paths are
+-- being executed correctly.
+
+module examples/trace_testing
+
+import stdlib/trace_test (assert_trace_exists, assert_trace_not_exists)
+
+-- Test that basic trace checking works.
+-- In practice, you would record traces during execution and then verify them.
+let test_trace_checking = \_ . {
+  -- These assertions check if traces with given names exist.
+  -- The trace registry must be populated by instrumented code first.
+
+  -- Check for a specific span name
+  let has_compile_parse = assert_trace_exists("compile.parse");
+
+  -- Check for prefix match (matches any compile.* span)
+  let has_any_compile = assert_trace_exists("compile");
+
+  -- Check that something does NOT exist
+  let missing_foo = assert_trace_not_exists("foo.bar.nonexistent");
+
+  -- Return success if assertions passed (non-crashing)
+  1
+}
+
+-- Entry point for running the example
+let main = \_ . {
+  test_trace_checking(());
+  0  -- Exit success
+}

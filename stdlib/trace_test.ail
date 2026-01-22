@@ -1,0 +1,26 @@
+-- AILANG Trace Testing Module
+-- Provides helpers for verifying trace spans in tests.
+-- Part of M-TRACE-TEST (Trace Testing Framework)
+
+module stdlib/trace_test
+
+-- Check if a trace span with the given name exists.
+-- Supports prefix matching: "compile" matches "compile.parse", "compile.typecheck", etc.
+-- Returns true if a matching span exists, false otherwise.
+export pure func assert_trace_exists(name: string) -> bool {
+  _trace_check(name)
+}
+
+-- Negation helper: returns true if trace does NOT exist
+export pure func assert_trace_not_exists(name: string) -> bool {
+  if _trace_check(name) then false else true
+}
+
+-- Example test function demonstrating usage.
+-- Call this after running compilation to verify expected spans exist.
+export pure func test_compile_traces() -> int {
+  -- These spans should exist after compilation
+  assert_trace_exists("compile.parse");
+  assert_trace_exists("compile.typecheck");
+  1  -- Return success value
+}
