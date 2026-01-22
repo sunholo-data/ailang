@@ -280,3 +280,44 @@ func (s *SQLiteStore) scanApprovalRequestFromRows(rows *sql.Rows) (*ApprovalRequ
 
 	return req, nil
 }
+
+// MarkApprovalHandoffsTriggered marks that handoffs have been sent for an approval request.
+// This is used to track whether handoffs were triggered, enabling catch-up on daemon startup.
+func (s *SQLiteStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE approval_requests SET handoffs_triggered = 1 WHERE task_id = ?",
+		taskID,
+	)
+	return err
+}
+
+// ListApprovedMergeHandoffsWithoutTrigger finds approved merge_handoff requests where handoffs were never sent.
+// These are approvals that were processed before the handoff triggering code was deployed (catch-up mechanism).
+// Only returns approvals from the last 7 days to avoid re-triggering very old approvals.
+func (s *SQLiteStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	cutoff := time.Now().Add(-7 * 24 * time.Hour) // Only last 7 days
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests
+		WHERE type = 'merge_handoff'
+		  AND status = 'approved'
+		  AND (handoffs_triggered IS NULL OR handoffs_triggered = 0)
+		  AND created_at > ?
+		ORDER BY resolved_at ASC
+	`
+	rows, err := s.db.QueryContext(ctx, query, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []*ApprovalRequestRecord
+	for rows.Next() {
+		req, err := s.scanApprovalRequestFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, req)
+	}
+	return requests, rows.Err()
+}

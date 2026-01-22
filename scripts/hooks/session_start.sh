@@ -103,13 +103,12 @@ USER_ID=$(echo "$HOOK_JSON" | jq -r '.userId // "unknown"')
 log "Session ID: $SESSION_ID"
 log "User ID: $USER_ID"
 
-# Import GitHub issues as messages (respects auto_import config setting)
-# This is silent if disabled or if there are no new issues
-if ailang messages import-github 2>/dev/null; then
-    log "GitHub import check completed"
-else
-    log "GitHub import check skipped or failed (this is normal if not configured)"
-fi
+# GitHub issue import is now handled by the coordinator daemon's github_sync
+# (see coordinator.github_sync.enabled in ~/.ailang/config.yaml)
+# The hook no longer imports directly to avoid routing to wrong inbox.
+# If coordinator is not running, issues can still be imported manually:
+#   ailang messages import-github --inbox design-doc-creator
+log "GitHub import handled by coordinator (github_sync enabled)"
 
 # Use ailang messages CLI to get unread messages (SQLite-backed)
 # The CLI handles all inbox types via the unified collaboration.db

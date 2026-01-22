@@ -19,6 +19,8 @@ type GitHubPoster struct {
 }
 
 // NewGitHubPoster creates a new GitHub poster for coordinator tasks.
+// Enables auto-switch so the coordinator can automatically switch GitHub accounts
+// if there's a mismatch with the expected user.
 func NewGitHubPoster() (*GitHubPoster, error) {
 	config, err := messaging.LoadGitHubConfig()
 	if err != nil {
@@ -26,6 +28,10 @@ func NewGitHubPoster() (*GitHubPoster, error) {
 	}
 
 	client := messaging.NewGitHubClient(config)
+	// Enable auto-switch for daemon/background operations
+	// This allows the coordinator to seamlessly switch GitHub accounts
+	// if the user has switched to a different account temporarily
+	client.SetAutoSwitch(true)
 
 	repo := ""
 	if config != nil {

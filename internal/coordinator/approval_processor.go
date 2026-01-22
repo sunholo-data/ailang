@@ -3,6 +3,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -233,7 +234,18 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 
 	result.Message = fmt.Sprintf("Task approved and merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash)
 
-	// 7. Clean up worktree (unless --keep-worktree)
+	// 7. Trigger embedded handoffs if this was a merge_handoff approval
+	if params.MsgStore != nil && params.AgentRegistry != nil {
+		if handoffTriggered, err := triggerEmbeddedHandoffsFromProcessor(ctx, span, params, task, taskID); err != nil {
+			span.AddEvent("warning: failed to trigger handoffs", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		} else if handoffTriggered {
+			span.AddEvent("handoffs triggered successfully")
+		}
+	}
+
+	// 8. Clean up worktree (unless --keep-worktree)
 	if !params.KeepWorktree {
 		cleanupWorktree(task.WorktreePath)
 	}
@@ -435,3 +447,96 @@ func cleanupWorktree(worktreePath string) {
 }
 
 // Note: truncateString and truncateForAttribute are defined in other files in this package
+
+// triggerEmbeddedHandoffsFromProcessor triggers handoffs embedded in a merge_handoff approval.
+// This is called from ProcessApprovalRequest to handle dashboard/CLI approvals that bypass the daemon.
+// Returns (triggered bool, error) - triggered is true if handoffs were sent.
+func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, params *ApprovalParams, task *TaskRecord, taskID string) (bool, error) {
+	if params.MsgStore == nil || params.AgentRegistry == nil {
+		return false, nil
+	}
+
+	// Get the approval request to retrieve context_json with handoff targets
+	approvalReq, err := params.Store.GetApprovalRequestByTask(ctx, taskID)
+	if err != nil || approvalReq == nil {
+		return false, nil // No approval request found, not an error
+	}
+
+	// Only trigger handoffs for merge_handoff type approvals
+	if approvalReq.Type != "merge_handoff" || approvalReq.ContextJSON == "" {
+		return false, nil
+	}
+
+	// Parse the embedded handoff data
+	var handoffContext struct {
+		HandoffTargets []string `json:"handoff_targets"`
+		SessionID      string   `json:"session_id"`
+		SourceAgent    string   `json:"source_agent"`
+	}
+	if err := json.Unmarshal([]byte(approvalReq.ContextJSON), &handoffContext); err != nil {
+		return false, fmt.Errorf("failed to parse handoff context: %w", err)
+	}
+
+	if len(handoffContext.HandoffTargets) == 0 {
+		return false, nil
+	}
+
+	span.AddEvent("triggering embedded handoffs", trace.WithAttributes(
+		attribute.StringSlice("handoff.targets", handoffContext.HandoffTargets),
+		attribute.String("handoff.source", handoffContext.SourceAgent),
+	))
+
+	// Build handoff message
+	handoffMessage := fmt.Sprintf("**Handoff from %s (approved)**\n\n"+
+		"Task: %s\n"+
+		"Title: %s\n"+
+		"Original Request: %s\n\n"+
+		"Please continue this work.",
+		handoffContext.SourceAgent, task.ID, task.Title, truncateString(task.Content, 500))
+
+	// Trigger each handoff
+	triggered := false
+	for _, targetAgentID := range handoffContext.HandoffTargets {
+		targetAgent := params.AgentRegistry.GetAgentByID(targetAgentID)
+		if targetAgent == nil {
+			span.AddEvent("warning: handoff target not found", trace.WithAttributes(
+				attribute.String("target.agent", targetAgentID),
+			))
+			continue
+		}
+
+		// Send to target agent's inbox
+		msg := &messaging.InboxMessage{
+			FromAgent:   "coordinator",
+			ToInbox:     targetAgent.Inbox,
+			MessageType: "handoff",
+			Title:       fmt.Sprintf("Handoff: %s (approved)", task.Title),
+			Payload:     handoffMessage,
+		}
+
+		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {
+			span.AddEvent("warning: failed to send handoff", trace.WithAttributes(
+				attribute.String("target.agent", targetAgentID),
+				attribute.String("error", err.Error()),
+			))
+			continue
+		}
+
+		span.AddEvent("handoff sent", trace.WithAttributes(
+			attribute.String("target.agent", targetAgentID),
+			attribute.String("target.inbox", targetAgent.Inbox),
+		))
+		triggered = true
+	}
+
+	// Mark handoffs as triggered to prevent re-triggering on daemon restart
+	if triggered {
+		if err := params.Store.MarkApprovalHandoffsTriggered(ctx, taskID); err != nil {
+			span.AddEvent("warning: failed to mark handoffs as triggered", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+	}
+
+	return triggered, nil
+}

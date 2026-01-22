@@ -227,5 +227,15 @@ func (s *CloudStore) GetCostByProvider() (map[string]float64, error) {
 	return nil, fmt.Errorf("cloud store: GetCostByProvider not implemented")
 }
 
+// MarkApprovalHandoffsTriggered marks handoffs as triggered (stub)
+func (s *CloudStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
+	return fmt.Errorf("cloud store: MarkApprovalHandoffsTriggered not implemented")
+}
+
+// ListApprovedMergeHandoffsWithoutTrigger finds approvals with pending handoffs (stub)
+func (s *CloudStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, fmt.Errorf("cloud store: ListApprovedMergeHandoffsWithoutTrigger not implemented")
+}
+
 // Compile-time check that CloudStore implements Store
 var _ Store = (*CloudStore)(nil)

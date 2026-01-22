@@ -162,6 +162,8 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN parent_task_id TEXT",
 		// Iteration tracking for feedback loops (M-TRANSCRIPT)
 		"ALTER TABLE tasks ADD COLUMN iteration INTEGER DEFAULT 0",
+		// Handoff tracking - to detect missed handoffs on daemon startup
+		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist

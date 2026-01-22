@@ -22,6 +22,8 @@ type GitHubClient struct {
 	execCommand func(name string, arg ...string) ([]byte, error)
 	// Override user: if set, skips expected_user validation when this user is active
 	overrideUser string
+	// AutoSwitch: if true, PreFlightChecks will attempt to auto-switch accounts on mismatch
+	autoSwitch bool
 }
 
 // GitHubIssue represents a GitHub issue returned from the API.
@@ -76,6 +78,13 @@ func (c *GitHubClient) GetConfig() *GitHubConfig {
 // This allows CLI users to bypass the expected_user check with --github-user flag.
 func (c *GitHubClient) SetOverrideUser(user string) {
 	c.overrideUser = user
+}
+
+// SetAutoSwitch enables or disables automatic account switching on mismatch.
+// When enabled, PreFlightChecks will attempt `gh auth switch` to the expected user.
+// Use this in daemon/background contexts where auto-switching is acceptable.
+func (c *GitHubClient) SetAutoSwitch(enabled bool) {
+	c.autoSwitch = enabled
 }
 
 // CheckGHInstalled verifies that the gh CLI is installed and returns the version.
@@ -133,6 +142,19 @@ func (c *GitHubClient) CheckGHAuth() (string, error) {
 //
 // If SetOverrideUser() was called, that user is also accepted.
 func (c *GitHubClient) ValidateUser() error {
+	return c.validateUserInternal(false)
+}
+
+// ValidateUserWithAutoSwitch checks that the authenticated gh user matches the expected user.
+// If there's a mismatch, it will attempt to auto-switch to the expected account.
+// Returns nil if validation passes (either immediately or after auto-switch).
+// Use this in daemon/background contexts where auto-switching is acceptable.
+func (c *GitHubClient) ValidateUserWithAutoSwitch() error {
+	return c.validateUserInternal(true)
+}
+
+// validateUserInternal is the shared implementation for user validation.
+func (c *GitHubClient) validateUserInternal(autoSwitch bool) error {
 	// If no override and no config, fail fast without checking auth
 	if c.overrideUser == "" && c.config == nil {
 		return fmt.Errorf("GitHub config not loaded")
@@ -156,6 +178,11 @@ func (c *GitHubClient) ValidateUser() error {
 
 	// Check override mismatch (when override is set but doesn't match)
 	if c.overrideUser != "" {
+		if autoSwitch {
+			if switchErr := c.tryAutoSwitch(c.overrideUser); switchErr == nil {
+				return nil // Switch succeeded
+			}
+		}
 		return fmt.Errorf("%w\n"+
 			"  Override user: %s\n"+
 			"  Active:        %s\n\n"+
@@ -166,6 +193,11 @@ func (c *GitHubClient) ValidateUser() error {
 
 	// Check expected_user from config
 	if activeUser != c.config.ExpectedUser {
+		if autoSwitch {
+			if switchErr := c.tryAutoSwitch(c.config.ExpectedUser); switchErr == nil {
+				return nil // Switch succeeded
+			}
+		}
 		return fmt.Errorf("%w\n"+
 			"  Expected: %s (from config)\n"+
 			"  Active:   %s\n\n"+
@@ -179,16 +211,24 @@ func (c *GitHubClient) ValidateUser() error {
 	return nil
 }
 
+// tryAutoSwitch attempts to switch to the target GitHub account.
+// Returns nil on success, error on failure.
+func (c *GitHubClient) tryAutoSwitch(targetUser string) error {
+	_, err := c.execCommand("gh", "auth", "switch", "--user", targetUser)
+	return err
+}
+
 // PreFlightChecks runs all pre-flight checks before GitHub operations.
 // Returns nil if all checks pass, or the first error encountered.
+// If autoSwitch is enabled on the client, attempts to auto-switch on account mismatch.
 func (c *GitHubClient) PreFlightChecks() error {
 	// Check gh is installed
 	if _, err := c.CheckGHInstalled(); err != nil {
 		return err
 	}
 
-	// Validate user matches expected
-	if err := c.ValidateUser(); err != nil {
+	// Validate user matches expected (with auto-switch if enabled)
+	if err := c.validateUserInternal(c.autoSwitch); err != nil {
 		return err
 	}
 

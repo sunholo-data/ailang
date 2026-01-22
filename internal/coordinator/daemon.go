@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
 
 // Config holds daemon configuration
@@ -207,6 +208,13 @@ func (d *Daemon) Run() error {
 		}
 	}
 
+	// Catch-up: trigger any missed handoffs from approvals processed before this code was deployed
+	if count, err := d.triggerMissedHandoffs(); err != nil {
+		d.logger.Printf("Warning: Failed to trigger missed handoffs: %v", err)
+	} else if count > 0 {
+		d.logger.Printf("Triggered %d missed handoff(s) from previous approvals", count)
+	}
+
 	for {
 		select {
 		case <-d.ctx.Done():
@@ -232,4 +240,65 @@ func (d *Daemon) Run() error {
 			d.syncWorktreeState()
 		}
 	}
+}
+
+// triggerMissedHandoffs finds approved merge_handoff approvals that never had their handoffs triggered
+// (due to approvals being processed before the handoff code was deployed) and triggers them now.
+// Returns the count of handoffs triggered.
+func (d *Daemon) triggerMissedHandoffs() (int, error) {
+	if d.taskStore == nil || d.msgStore == nil || d.agentRegistry == nil {
+		return 0, nil
+	}
+
+	// Find approved merge_handoff approvals where handoffs_triggered is still 0
+	missedApprovals, err := d.taskStore.ListApprovedMergeHandoffsWithoutTrigger(d.ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list missed handoffs: %w", err)
+	}
+
+	if len(missedApprovals) == 0 {
+		return 0, nil
+	}
+
+	d.logger.Printf("Found %d approved merge_handoff approval(s) without triggered handoffs", len(missedApprovals))
+
+	triggered := 0
+	for _, approval := range missedApprovals {
+		// Get the task for context
+		task, err := d.taskStore.GetTask(d.ctx, approval.TaskID)
+		if err != nil || task == nil {
+			d.logger.Printf("Warning: could not get task %s for missed handoff: %v", approval.TaskID, err)
+			continue
+		}
+
+		// Create ApprovalParams to reuse the existing handoff triggering logic
+		params := &ApprovalParams{
+			TaskID:        approval.TaskID,
+			Store:         d.taskStore,
+			MsgStore:      d.msgStore,
+			AgentRegistry: d.agentRegistry,
+		}
+
+		// Use a background context span for catch-up
+		ctx, span := approvalProcessorTracer.Start(d.ctx, "approval.catchup_handoff")
+		span.SetAttributes(
+			traceAttribute.String("task.id", approval.TaskID),
+			traceAttribute.String("approval.type", approval.Type),
+		)
+
+		handoffTriggered, err := triggerEmbeddedHandoffsFromProcessor(ctx, span, params, task, approval.TaskID)
+		if err != nil {
+			d.logger.Printf("Warning: failed to trigger missed handoff for %s: %v", approval.TaskID, err)
+			span.End()
+			continue
+		}
+
+		if handoffTriggered {
+			d.logger.Printf("Triggered missed handoff for task %s (title: %s)", approval.TaskID, task.Title)
+			triggered++
+		}
+		span.End()
+	}
+
+	return triggered, nil
 }
