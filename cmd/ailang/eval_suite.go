@@ -740,14 +740,34 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		} else {
 			result, err = eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
 		}
+
+		// Save result to JSON (even on API error for observability)
+		logger := eval_harness.NewMetricsLogger(outputDir)
+
 		if err != nil {
+			// API error - save result with api_error category for observability
 			benchSpan.RecordError(err)
 			benchSpan.SetStatus(codes.Error, "agent benchmark failed")
+
+			apiErrorMetrics := &eval_harness.RunMetrics{
+				ID:             spec.ID,
+				Lang:           lang,
+				Model:          model,
+				Executor:       executorName,
+				Seed:           seed,
+				CompileOk:      false,
+				RuntimeOk:      false,
+				StdoutOk:       false,
+				ErrorCategory:  eval_harness.ErrorCategoryAPI,
+				Stderr:         fmt.Sprintf("API Error: %v", err),
+				ExpectedStdout: spec.ExpectedOut,
+				Timestamp:      time.Now(),
+				Caps:           spec.Caps,
+				EvalMode:       eval_harness.EvalModeAgent,
+			}
+			_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
 		}
-
-		// Save result to JSON
-		logger := eval_harness.NewMetricsLogger(outputDir)
 
 		// Convert AgentBenchmarkResult to RunMetrics format for logging
 		// Agent mode now uses standard validation fields (compile_ok, runtime_ok, stdout_ok)
@@ -925,15 +945,34 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		repairRunner.SetPromptVersion(actualPromptVersion)
 	}
 
+	// Save result to JSON (moved up to handle API errors)
+	logger := eval_harness.NewMetricsLogger(outputDir)
+
 	metrics, err := repairRunner.Run(ctx, prompt)
 	if err != nil {
+		// API error - save result with api_error category for observability
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "benchmark execution failed")
+
+		apiErrorMetrics := &eval_harness.RunMetrics{
+			ID:             spec.ID,
+			Lang:           lang,
+			Model:          model,
+			Seed:           seed,
+			CompileOk:      false,
+			RuntimeOk:      false,
+			StdoutOk:       false,
+			ErrorCategory:  eval_harness.ErrorCategoryAPI,
+			Stderr:         fmt.Sprintf("API Error: %v", err),
+			ExpectedStdout: spec.ExpectedOut,
+			Timestamp:      time.Now(),
+			Caps:           spec.Caps,
+			EvalMode:       eval_harness.EvalModeStandard,
+			PromptVersion:  actualPromptVersion,
+		}
+		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 		return false, fmt.Errorf("benchmark execution failed: %w", err)
 	}
-
-	// Save result to JSON
-	logger := eval_harness.NewMetricsLogger(outputDir)
 	if err := logger.Log(metrics); err != nil {
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "failed to save result")

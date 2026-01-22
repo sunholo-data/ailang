@@ -2,6 +2,24 @@ import React, { useState } from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import styles from './styles.module.css';
 
+function formatModelName(name) {
+  // Check most specific patterns first for proper display names
+  if (name.includes('claude-opus-4-5')) return 'Claude Opus 4.5';
+  if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
+  if (name.includes('claude-haiku-4-5')) return 'Claude Haiku 4.5';
+  if (name.includes('gpt5-1-instant')) return 'GPT-5.1 Instant';
+  if (name.includes('gpt5-1-codex')) return 'GPT-5.1 Codex';
+  if (name.includes('gpt5-1')) return 'GPT-5.1';
+  if (name.includes('gpt-5-mini') || name.includes('gpt5-mini')) return 'GPT-5 Mini';
+  if (name.includes('gpt-5') || name.includes('gpt5')) return 'GPT-5';
+  if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
+  if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
+  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
+  if (name.includes('gemini-3-flash')) return 'Gemini 3.0 Flash';
+  // Fallback: capitalize first letter of each word
+  return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 /**
  * ModelRadarComparison - Three focused radar plots with models as spokes
  *
@@ -78,7 +96,7 @@ export default function ModelRadarComparison() {
     const pythonCostPer1000 = pythonSuccessCount > 0 ? (pythonEstimatedCost / pythonSuccessCount) * 1000 : 0;
 
     return {
-      model: model.replace('claude-', '').replace('gemini-', '').replace('gpt', 'GPT'),
+      model: formatModelName(model),
       // AILANG metrics
       'Zero-Shot': ailangZeroShot,
       'With Repair': ailangSuccess,
@@ -148,7 +166,7 @@ export default function ModelRadarComparison() {
           <h3>AILANG vs Python Gap</h3>
           <p className={styles.subtitle}>How close is AILANG to Python baseline?</p>
           <ResponsiveContainer width="100%" height={350}>
-            <RadarChart data={radarData}>
+            <RadarChart data={radarData.map(d => ({ ...d, 'Parity (0%)': 0 }))}>
               <PolarGrid
                 stroke="var(--ifm-color-emphasis-300)"
                 radialLines={true}
@@ -166,15 +184,24 @@ export default function ModelRadarComparison() {
                   fontSize: 10
                 }}
                 tickFormatter={(value) => {
-                  // Format to 1 decimal place, emphasize 0
-                  const formatted = value.toFixed(1);
-                  return formatted;
+                  if (value === 0) return '0% (PARITY)';
+                  return `${value > 0 ? '+' : ''}${value}%`;
                 }}
                 ticks={[-50, -25, 0, 25, 50]}
                 axisLine={{ stroke: 'var(--ifm-color-emphasis-700)', strokeWidth: 2 }}
               />
               <Tooltip formatter={formatTooltip} />
               <Legend />
+              {/* Reference line at 0% - shows where AILANG matches Python */}
+              <Radar
+                name="Parity Line (0%)"
+                dataKey="Parity (0%)"
+                stroke="#10B981"
+                fill="none"
+                strokeWidth={3}
+                strokeDasharray="8 4"
+                dot={false}
+              />
               <Radar
                 name="Success Gap (%)"
                 dataKey="Success Gap"
@@ -195,7 +222,7 @@ export default function ModelRadarComparison() {
             </RadarChart>
           </ResponsiveContainer>
           <div className={styles.chartNote}>
-            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The outer edge (0%) represents parity with Python.
+            <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The <strong style={{color: '#10B981'}}>green dashed line</strong> at 0% marks parity with Python.
           </div>
         </div>
 

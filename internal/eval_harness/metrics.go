@@ -67,6 +67,7 @@ const (
 	ErrorCategoryCompile = "compile_error"
 	ErrorCategoryRuntime = "runtime_error"
 	ErrorCategoryLogic   = "logic_error"
+	ErrorCategoryAPI     = "api_error" // API call failed (timeout, rate limit, connection error)
 )
 
 // CategorizeError determines the error category based on execution results
