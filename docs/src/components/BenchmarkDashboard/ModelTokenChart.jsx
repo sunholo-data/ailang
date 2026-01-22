@@ -21,12 +21,14 @@ export default function ModelTokenChart({ models }) {
     .filter(([name, stats]) => stats.languages && stats.languages.ailang && stats.languages.python)
     .map(([name, stats]) => {
       // Use output tokens from language breakdown (actual code generated)
-      // Average AILANG and Python output tokens
-      const ailangTokens = stats.languages.ailang.avgTokens;
-      const pythonTokens = stats.languages.python.avgTokens;
+      // Average AILANG and Python output tokens - with safe access
+      const ailang = stats.languages?.ailang;
+      const python = stats.languages?.python;
+      const ailangTokens = ailang?.avgTokens || 0;
+      const pythonTokens = python?.avgTokens || 0;
       const avgOutputTokens = (ailangTokens + pythonTokens) / 2;
 
-      const avgCost = stats.aggregates.totalCostUSD / stats.totalRuns;
+      const avgCost = (stats.aggregates?.totalCostUSD || 0) / (stats.totalRuns || 1);
 
       return {
         name: formatModelName(name),

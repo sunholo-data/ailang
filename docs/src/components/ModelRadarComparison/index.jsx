@@ -35,19 +35,25 @@ export default function ModelRadarComparison() {
   const models = Object.keys(data.models).sort();
 
   // Transform data: each model becomes a spoke (axis)
-  const radarData = models.map(model => {
+  // Filter to only include models that have language data
+  const modelsWithLanguages = models.filter(model => {
     const modelData = data.models[model];
-    const ailangSuccess = (modelData.languages.ailang?.successRate || 0) * 100;
-    const pythonSuccess = (modelData.languages.python?.successRate || 0) * 100;
+    return modelData?.languages?.ailang && modelData?.languages?.python;
+  });
+
+  const radarData = modelsWithLanguages.map(model => {
+    const modelData = data.models[model];
+    const ailangSuccess = (modelData.languages?.ailang?.successRate || 0) * 100;
+    const pythonSuccess = (modelData.languages?.python?.successRate || 0) * 100;
 
     // Calculate zero-shot rates (approximation based on repair impact)
-    const repairBoost = modelData.aggregates.finalSuccess / (modelData.aggregates.zeroShotSuccess || 1);
-    const ailangZeroShot = ailangSuccess / repairBoost;
-    const pythonZeroShot = pythonSuccess / repairBoost;
+    const repairBoost = modelData.aggregates?.finalSuccess / (modelData.aggregates?.zeroShotSuccess || 1);
+    const ailangZeroShot = ailangSuccess / (repairBoost || 1);
+    const pythonZeroShot = pythonSuccess / (repairBoost || 1);
 
     // AILANG tokens vs Python tokens (per language)
-    const ailangTokens = modelData.languages.ailang?.avgTokens || 0;
-    const pythonTokens = modelData.languages.python?.avgTokens || 0;
+    const ailangTokens = modelData.languages?.ailang?.avgTokens || 0;
+    const pythonTokens = modelData.languages?.python?.avgTokens || 0;
 
     // Cost per 1000 successful runs per language (in dollars)
     // Estimate language cost proportionally based on token usage

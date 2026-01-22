@@ -9,30 +9,28 @@ timeout: 120  # Hard complexity: 120 seconds
 task_prompt: |
   Implement a binary tree transformation pipeline in <LANG> with recursive operations and higher-order functions.
 
-  <LANG=AILANG> Write to: benchmark/solution.ail
-
   **Task Requirements**:
 
-  1. **Define Tree ADT** (2 variants):
-     ```ailang
-     type Tree =
-       | Leaf(int)                        // Leaf node with value
-       | Node(Tree, int, Tree)            // Internal node: (left, value, right)
-     ```
+  1. **Define a Tree type** with two variants:
+     - Leaf: contains a single integer value
+     - Node: contains left subtree, integer value, right subtree
 
-  2. **Implement mapTree(fn: int -> int, tree: Tree) -> Tree**:
-     - Recursively apply function to all values
+  2. **Implement mapTree(fn, tree)**:
+     - Recursively apply function to all values in tree
      - Return new tree with transformed values
 
-  3. **Implement foldTree(fn: int -> int -> int, acc: int, tree: Tree) -> int**:
+  3. **Implement foldTree(fn, acc, tree)**:
      - In-order fold over tree values
-     - Combine all values using the function
+     - Combine all values using the binary function
 
-  4. **Implement treeToList(tree: Tree) -> List[int]**:
-     - In-order traversal to list
+  4. **Implement treeToList(tree)**:
+     - In-order traversal returning list of integers
      - Used for printing results
 
-  5. **Test with example tree** (complete binary tree):
+  5. **Implement treeDepth(tree)**:
+     - Return maximum depth of tree (Leaf has depth 1)
+
+  6. **Test with this tree structure**:
      ```
            4
           / \
@@ -40,21 +38,13 @@ task_prompt: |
         / \ / \
        1  3 5  7
      ```
+     This is: Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)))
 
-     Represented as:
-     ```ailang
-     Node(
-       Node(Leaf(1), 2, Leaf(3)),  // left subtree: 2 with children 1, 3
-       4,
-       Node(Leaf(5), 6, Leaf(7))   // right subtree: 6 with children 5, 7
-     )
-     ```
-
-  6. **Operations to perform** (print each on its own line):
-     - In-order values: [1, 2, 3, 4, 5, 6, 7]
-     - Doubled values: [2, 4, 6, 8, 10, 12, 14]
-     - Sum of all values: 28
-     - Tree depth: 3
+  7. **Print these results** (each on its own line):
+     - treeToList(tree): [1, 2, 3, 4, 5, 6, 7]
+     - treeToList(mapTree(double, tree)): [2, 4, 6, 8, 10, 12, 14]
+     - foldTree(add, 0, tree): 28
+     - treeDepth(tree): 3
 
 expected_stdout: |
   [1, 2, 3, 4, 5, 6, 7]

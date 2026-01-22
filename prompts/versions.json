@@ -419,14 +419,25 @@
       "created": "2026-01-15",
       "tags": [
         "production",
-        "latest",
         "row-polymorphism",
         "width-subtyping"
       ],
       "notes": "RECORD WIDTH SUBTYPING (M-GAP4): Added open record types for functions that accept extra fields. Syntax: {field: T | r} with explicit row variable, or {field: T, ...} sugar with fresh variable. Exact records (default) reject extra fields. Open records enable generic field extractors and flexible APIs."
+    },
+    "v0.7.0": {
+      "file": "prompts/v0.7.0.md",
+      "hash": "f2c66e82a8fe456f5e54f3f3745e74c9a2c736e8c6050a1b3eb95ebf34a6dcdc",
+      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2→v0.7.0 eval",
+      "created": "2026-01-22",
+      "tags": [
+        "production",
+        "latest",
+        "gap-analysis"
+      ],
+      "notes": "Gap analysis integration from v0.6.2→v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
     }
   },
-  "active": "v0.6.6",
+  "active": "v0.7.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

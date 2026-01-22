@@ -11,19 +11,21 @@ export default function ModelChart({ models }) {
     })
     .map(([name, stats]) => {
       const shortName = formatModelName(name);
+      const ailang = stats.languages?.ailang;
+      const python = stats.languages?.python;
       const data = {
         name: shortName,
         fullName: name,
         runs: stats.totalRuns
       };
 
-      // Use per-language stats
-      data['AILANG'] = (stats.languages.ailang.successRate * 100).toFixed(1);
-      data['Python'] = (stats.languages.python.successRate * 100).toFixed(1);
-      data.ailangTokens = Math.round(stats.languages.ailang.avgTokens);
-      data.pythonTokens = Math.round(stats.languages.python.avgTokens);
-      data.ailangRuns = stats.languages.ailang.totalRuns;
-      data.pythonRuns = stats.languages.python.totalRuns;
+      // Use per-language stats with safe access
+      data['AILANG'] = ((ailang?.successRate || 0) * 100).toFixed(1);
+      data['Python'] = ((python?.successRate || 0) * 100).toFixed(1);
+      data.ailangTokens = Math.round(ailang?.avgTokens || 0);
+      data.pythonTokens = Math.round(python?.avgTokens || 0);
+      data.ailangRuns = ailang?.totalRuns || 0;
+      data.pythonRuns = python?.totalRuns || 0;
 
       return data;
     });

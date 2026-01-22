@@ -27,21 +27,25 @@ export default function ModelComparisonTable({ models }) {
       return stats.languages && stats.languages.ailang && stats.languages.python;
     })
     .map(([name, stats]) => {
-      const ailang = stats.languages.ailang;
-      const python = stats.languages.python;
-      const gap = (ailang.successRate - python.successRate) * 100;
+      const ailang = stats.languages?.ailang;
+      const python = stats.languages?.python;
+      const ailangSuccess = (ailang?.successRate || 0) * 100;
+      const pythonSuccess = (python?.successRate || 0) * 100;
+      const ailangTokens = ailang?.avgTokens || 0;
+      const pythonTokens = python?.avgTokens || 1; // Avoid div by zero
+      const gap = ailangSuccess - pythonSuccess;
 
       return {
         modelName: name,
         displayName: formatModelName(name),
-        ailangSuccess: ailang.successRate * 100,
-        ailangRuns: ailang.totalRuns,
-        ailangTokens: Math.round(ailang.avgTokens),
-        pythonSuccess: python.successRate * 100,
-        pythonRuns: python.totalRuns,
-        pythonTokens: Math.round(python.avgTokens),
+        ailangSuccess: ailangSuccess,
+        ailangRuns: ailang?.totalRuns || 0,
+        ailangTokens: Math.round(ailangTokens),
+        pythonSuccess: pythonSuccess,
+        pythonRuns: python?.totalRuns || 0,
+        pythonTokens: Math.round(python?.avgTokens || 0),
         gap: gap,
-        tokenRatio: ailang.avgTokens / python.avgTokens,
+        tokenRatio: ailangTokens / pythonTokens,
       };
     });
 

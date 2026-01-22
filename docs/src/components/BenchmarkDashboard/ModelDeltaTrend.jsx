@@ -75,9 +75,9 @@ export default function ModelDeltaTrend({ history }) {
     // Add delta for each model
     if (baseline.modelStats) {
       Object.entries(baseline.modelStats).forEach(([modelName, langStats]) => {
-        if (langStats.ailang && langStats.python) {
-          const ailangRate = langStats.ailang.successRate * 100;
-          const pythonRate = langStats.python.successRate * 100;
+        if (langStats?.ailang && langStats?.python) {
+          const ailangRate = (langStats.ailang?.successRate || 0) * 100;
+          const pythonRate = (langStats.python?.successRate || 0) * 100;
           const delta = ailangRate - pythonRate;
           point[modelName] = parseFloat(delta.toFixed(1));
         }
