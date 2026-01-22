@@ -21,6 +21,7 @@ type Worktree struct {
 	Path       string
 	Branch     string
 	BaseBranch string // Base branch the worktree was created from (for diff comparison)
+	BaseCommit string // Base commit hash at worktree creation (stable reference - branch may move)
 	CreatedAt  time.Time
 }
 
@@ -95,6 +96,15 @@ func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree,
 		baseBranch = GetDefaultBranch(wm.repoDir)
 	}
 
+	// Capture the commit hash of baseBranch BEFORE creating worktree
+	// This is stable - the branch ref may move later, but this commit is fixed
+	baseCommit := ""
+	commitCmd := exec.Command("git", "rev-parse", baseBranch)
+	commitCmd.Dir = wm.repoDir
+	if commitOutput, err := commitCmd.Output(); err == nil {
+		baseCommit = strings.TrimSpace(string(commitOutput))
+	}
+
 	// Create branch name and path
 	branchName := fmt.Sprintf("coordinator/%s", sanitizeTaskID(taskID))
 	worktreePath := filepath.Join(wm.baseDir, sanitizeTaskID(taskID))
@@ -112,6 +122,7 @@ func (wm *WorktreeManager) CreateWorktree(taskID, baseBranch string) (*Worktree,
 		Path:       worktreePath,
 		Branch:     branchName,
 		BaseBranch: baseBranch,
+		BaseCommit: baseCommit,
 		CreatedAt:  time.Now(),
 	}
 

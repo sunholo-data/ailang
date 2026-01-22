@@ -13,6 +13,7 @@ type ArtifactDiscovery struct {
 	WorktreePath string   // Path to git worktree
 	Patterns     []string // Glob patterns to filter files (e.g., "*.md", "design_docs/**")
 	BaseBranch   string   // Base branch to compare against (default: auto-detect)
+	BaseCommit   string   // Base commit hash (stable - branch may have moved since worktree creation)
 }
 
 // NewArtifactDiscovery creates a new artifact discovery instance.
@@ -27,6 +28,13 @@ func NewArtifactDiscovery(worktreePath string, patterns []string) *ArtifactDisco
 // WithBaseBranch sets the base branch for comparison.
 func (ad *ArtifactDiscovery) WithBaseBranch(branch string) *ArtifactDiscovery {
 	ad.BaseBranch = branch
+	return ad
+}
+
+// WithBaseCommit sets the base commit hash for comparison (stable reference).
+// This is preferred over BaseBranch as the branch may have moved since worktree creation.
+func (ad *ArtifactDiscovery) WithBaseCommit(commit string) *ArtifactDiscovery {
+	ad.BaseCommit = commit
 	return ad
 }
 
@@ -64,13 +72,18 @@ func (ad *ArtifactDiscovery) DiscoverChangedFiles() ([]string, error) {
 func (ad *ArtifactDiscovery) getChangedFiles() ([]string, error) {
 	var allFiles []string
 
-	// Determine base branch for comparison
-	baseBranch := ad.detectBaseBranch()
+	// Determine base for comparison - prefer commit hash (stable) over branch (may move)
+	base := ad.BaseCommit
+	if base == "" {
+		base = ad.detectBaseBranch()
+	}
 
 	// Primary: Get all changes since branching from base (includes commits)
 	// This catches files that the agent committed during execution
-	if baseBranch != "" {
-		cmd := exec.Command("git", "diff", "--name-only", baseBranch+"...HEAD")
+	// NOTE: Uses two-dot (..) not three-dot (...) to show only what HEAD added,
+	// not symmetric difference which would show changes from parallel branches
+	if base != "" {
+		cmd := exec.Command("git", "diff", "--name-only", base+"..HEAD")
 		cmd.Dir = ad.WorktreePath
 		output, err := cmd.Output()
 		if err == nil && len(output) > 0 {

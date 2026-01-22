@@ -146,6 +146,7 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN workspace TEXT",
 		"ALTER TABLE tasks ADD COLUMN worktree_path TEXT",
 		"ALTER TABLE tasks ADD COLUMN base_branch TEXT",
+		"ALTER TABLE tasks ADD COLUMN base_commit TEXT",
 		"ALTER TABLE tasks ADD COLUMN session_id TEXT",
 		// M-COORD-GITHUB-AUTO-ROUTING: GitHub integration columns
 		"ALTER TABLE tasks ADD COLUMN github_issue INTEGER",
@@ -202,7 +203,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -251,7 +252,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -574,15 +575,15 @@ func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
 }
 
 // MarkTaskPendingApproval marks a task as awaiting human approval
-func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch string, result *ExecuteResult) error {
+func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error {
 	now := time.Now()
-	// Store status, worktree path, branch, base_branch, AND execution metrics (cost, tokens) to avoid race condition
+	// Store status, worktree path, branch, base_branch, base_commit, AND execution metrics (cost, tokens) to avoid race condition
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE tasks SET
-			status = ?, completed_at = ?, worktree_path = ?, worktree_id = ?, base_branch = ?,
+			status = ?, completed_at = ?, worktree_path = ?, worktree_id = ?, base_branch = ?, base_commit = ?,
 			duration_ns = ?, output = ?, cost = ?, tokens_used = ?
 		WHERE id = ?`,
-		TaskStatusPendingApproval, now, worktreePath, worktreeBranch, baseBranch,
+		TaskStatusPendingApproval, now, worktreePath, worktreeBranch, baseBranch, baseCommit,
 		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, id,
 	)
 	return err
@@ -625,7 +626,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		        worktree_id, worktree_path, base_branch, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used,
@@ -717,7 +718,7 @@ func (s *SQLiteStore) SetTaskSprintPlanPath(ctx context.Context, id string, path
 func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -746,7 +747,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -839,7 +840,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var messageID sql.NullString
-	var provider, agentID, worktreeID, worktreePath, baseBranch, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
+	var provider, agentID, worktreeID, worktreePath, baseBranch, baseCommit, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
@@ -850,7 +851,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	err := row.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
-		&worktreeID, &worktreePath, &baseBranch, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -886,6 +887,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if baseBranch.Valid {
 		task.BaseBranch = baseBranch.String
+	}
+	if baseCommit.Valid {
+		task.BaseCommit = baseCommit.String
 	}
 	if workspace.Valid {
 		task.Workspace = workspace.String
@@ -940,7 +944,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var startedAt, completedAt sql.NullTime
 	var durationNs sql.NullInt64
 	var messageID sql.NullString
-	var provider, agentID, worktreeID, worktreePath, baseBranch, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
+	var provider, agentID, worktreeID, worktreePath, baseBranch, baseCommit, workspace, errStr, output, threadID, parentTaskID, stage sql.NullString
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
@@ -951,7 +955,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	err := rows.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
-		&worktreeID, &worktreePath, &baseBranch, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -987,6 +991,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if baseBranch.Valid {
 		task.BaseBranch = baseBranch.String
+	}
+	if baseCommit.Valid {
+		task.BaseCommit = baseCommit.String
 	}
 	if workspace.Valid {
 		task.Workspace = workspace.String

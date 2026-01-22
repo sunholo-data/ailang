@@ -566,7 +566,7 @@ func (m *mockStore) MarkTaskQueued(ctx context.Context, id string) error  { retu
 func (m *mockStore) MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error {
 	return nil
 }
-func (m *mockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch string, result *ExecuteResult) error {
+func (m *mockStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error {
 	return nil
 }
 func (m *mockStore) MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error {

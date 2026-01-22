@@ -22,6 +22,7 @@ type TaskRecord struct {
 	WorktreeID   string     `json:"worktree_id,omitempty"`
 	WorktreePath string     `json:"worktree_path,omitempty"` // Path to git worktree (preserved until approval)
 	BaseBranch   string     `json:"base_branch,omitempty"`   // Base branch worktree was created from (for diff comparison)
+	BaseCommit   string     `json:"base_commit,omitempty"`   // Base commit hash at worktree creation (stable reference for diff)
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
@@ -166,7 +167,7 @@ type Store interface {
 	// Task state transitions
 	MarkTaskQueued(ctx context.Context, id string) error
 	MarkTaskRunning(ctx context.Context, id, provider, worktreeID string) error
-	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch string, result *ExecuteResult) error // Work done, awaiting human review
+	MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error // Work done, awaiting human review
 	MarkTaskCompleted(ctx context.Context, id string, result *ExecuteResult) error
 	MarkTaskFailed(ctx context.Context, id string, err error) error
 	MarkTaskRejected(ctx context.Context, id string) error // Human rejected the work

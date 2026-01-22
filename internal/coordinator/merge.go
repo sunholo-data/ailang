@@ -40,7 +40,8 @@ func MergeWorktree(ctx context.Context, worktreePath, mainBranch string) (*Merge
 	}
 
 	// Get list of changed files in worktree (compare against target merge branch)
-	changedFiles, err := getChangedFiles(ctx, worktreePath, mainBranch)
+	// Note: For merge, we compare against current mainBranch (not base commit) to detect conflicts
+	changedFiles, err := getChangedFiles(ctx, worktreePath, mainBranch, "")
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to get changed files: %v", err)
 		return result, nil
@@ -88,25 +89,30 @@ func MergeWorktree(ctx context.Context, worktreePath, mainBranch string) (*Merge
 	return result, nil
 }
 
-// GetWorktreeDiff returns the git diff for a worktree against its base branch.
-// baseBranch is the branch the worktree was created from (e.g., "dev").
-// If baseBranch is empty, it queries git for the remote's default branch.
-func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch string) (string, error) {
+// GetWorktreeDiff returns the git diff for a worktree against its base.
+// baseCommit is the commit hash at worktree creation (stable - branch may have moved).
+// baseBranch is the branch name (may have moved since worktree creation).
+// Prefers baseCommit if provided, falls back to baseBranch, then queries git for default.
+func GetWorktreeDiff(ctx context.Context, worktreePath, baseBranch, baseCommit string) (string, error) {
 	if worktreePath == "" {
 		return "", fmt.Errorf("worktree path is empty")
 	}
 
-	// If base branch not provided, query git for the default branch
-	if baseBranch == "" {
-		baseBranch = GetDefaultBranch(worktreePath)
+	// Prefer base commit (stable) over branch (may have moved forward)
+	base := baseCommit
+	if base == "" {
+		base = baseBranch
+		if base == "" {
+			base = GetDefaultBranch(worktreePath)
+		}
 	}
 
-	// Compare against the base branch to show all changes made by this task
-	cmd := exec.CommandContext(ctx, "git", "diff", baseBranch+"..HEAD")
+	// Compare against the base to show all changes made by this task
+	cmd := exec.CommandContext(ctx, "git", "diff", base+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("git diff against %s failed: %w\n%s", baseBranch, err, output)
+		return "", fmt.Errorf("git diff against %s failed: %w\n%s", base, err, output)
 	}
 	return string(output), nil
 }
@@ -123,19 +129,24 @@ func getWorktreeBranch(ctx context.Context, worktreePath string) (string, error)
 }
 
 // getChangedFiles returns a list of files changed in the worktree.
-// baseBranch is the branch the worktree was created from (e.g., "dev").
-// If baseBranch is empty, it queries git for the remote's default branch.
-func getChangedFiles(ctx context.Context, worktreePath, baseBranch string) ([]string, error) {
-	// If base branch not provided, query git for the default branch
-	if baseBranch == "" {
-		baseBranch = GetDefaultBranch(worktreePath)
+// baseCommit is the commit hash at worktree creation (stable - branch may have moved).
+// baseBranch is the branch name (may have moved since worktree creation).
+// Prefers baseCommit if provided, falls back to baseBranch, then queries git for default.
+func getChangedFiles(ctx context.Context, worktreePath, baseBranch, baseCommit string) ([]string, error) {
+	// Prefer base commit (stable) over branch (may have moved forward)
+	base := baseCommit
+	if base == "" {
+		base = baseBranch
+		if base == "" {
+			base = GetDefaultBranch(worktreePath)
+		}
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", baseBranch+"..HEAD")
+	cmd := exec.CommandContext(ctx, "git", "diff", "--name-only", base+"..HEAD")
 	cmd.Dir = worktreePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("git diff against %s failed: %w\n%s", baseBranch, err, output)
+		return nil, fmt.Errorf("git diff against %s failed: %w\n%s", base, err, output)
 	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")

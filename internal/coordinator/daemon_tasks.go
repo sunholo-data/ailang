@@ -749,10 +749,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		worktreePath := ""
 		worktreeBranch := ""
 		baseBranch := ""
+		baseCommit := ""
 		if worktree != nil {
 			worktreePath = worktree.Path
 			worktreeBranch = worktree.Branch
 			baseBranch = worktree.BaseBranch
+			baseCommit = worktree.BaseCommit
 
 			// AUTO-COMMIT: Deterministically commit any uncommitted changes
 			// Agents may forget to commit, so we do it automatically before approval
@@ -782,7 +784,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
 			// Normal agents: mark as pending approval
-			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, baseBranch, result); err != nil {
+			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, baseBranch, baseCommit, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 			}
 
@@ -1219,7 +1221,7 @@ func (d *Daemon) createBudgetApproval(ctx context.Context, task *TaskRecord, pro
 	d.logger.Printf("[BUDGET] Creating cost approval for task %s (provider %s)", task.ID, provider)
 
 	// Mark task as pending approval
-	if err := d.taskStore.MarkTaskPendingApproval(ctx, task.ID, "", "", "", nil); err != nil {
+	if err := d.taskStore.MarkTaskPendingApproval(ctx, task.ID, "", "", "", "", nil); err != nil {
 		d.logger.Printf("Warning: Failed to mark task as pending approval: %v", err)
 	}
 
