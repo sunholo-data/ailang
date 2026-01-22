@@ -82,6 +82,7 @@ import (
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/server/auth"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -137,6 +138,11 @@ type Server struct {
 	obsBackend observatory.Backend
 	obsAPI     *observatory.API
 	obsHub     *observatory.Hub
+
+	// Firebase authentication and authorization
+	tokenVerifier *auth.TokenVerifier
+	accessControl *auth.AccessControlCache
+	auditLogger   *AuditLogger
 }
 
 // NewServer creates a new HTTP server
