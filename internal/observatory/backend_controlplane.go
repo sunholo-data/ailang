@@ -43,6 +43,11 @@ type BreakdownItem struct {
 	TokensOut  int64   `json:"tokens_out"`
 	CostUSD    float64 `json:"cost_usd"`
 	DurationMs int64   `json:"duration_ms"` // Total execution time in ms
+
+	// Cache metrics
+	CacheReadTokens     int64   `json:"cache_read_tokens"`
+	CacheCreationTokens int64   `json:"cache_creation_tokens"`
+	CacheSavingsUSD     float64 `json:"cache_savings_usd"`
 }
 
 // HeatmapDataPoint represents activity data for a single day
@@ -176,7 +181,9 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		WHERE provider IS NOT NULL AND provider != ''
 		GROUP BY provider
@@ -190,8 +197,12 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings (90% discount on cache reads)
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -260,7 +271,9 @@ func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]Breakdo
 			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
 			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
 			COALESCE(SUM(s.cost_usd), 0) as cost_usd,
-			COALESCE(SUM(s.duration_ms), 0) as duration_ms
+			COALESCE(SUM(s.duration_ms), 0) as duration_ms,
+			COALESCE(SUM(s.cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(s.cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans s
 		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		GROUP BY 1, 2
@@ -274,8 +287,12 @@ func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]Breakdo
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -292,7 +309,9 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		WHERE model IS NOT NULL AND model != ''
 		GROUP BY model
@@ -307,8 +326,12 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -328,6 +351,8 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				tokens_out,
 				cost_usd,
 				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens,
 				id
 			FROM spans
 		),
@@ -349,7 +374,9 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				tokens_in,
 				tokens_out,
 				cost_usd,
-				duration_ms
+				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens
 			FROM workspace_data
 		),
 		-- Map known paths to friendly labels
@@ -369,7 +396,9 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 				tokens_in,
 				tokens_out,
 				cost_usd,
-				duration_ms
+				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens
 			FROM normalized
 		)
 		SELECT
@@ -380,7 +409,9 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM with_labels
 		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
@@ -393,8 +424,12 @@ func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]Breakdow
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -487,7 +522,10 @@ func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *C
 			COALESCE(SUM(tokens_out), 0) as total_tokens_out,
 			COALESCE(SUM(cost_usd), 0) as total_cost_usd,
 			CAST(SUM(CASE WHEN status = 'OK' THEN 1 ELSE 0 END) AS REAL) /
-				NULLIF(CAST(COUNT(*) AS REAL), 0) as success_rate
+				NULLIF(CAST(COUNT(*) AS REAL), 0) as success_rate,
+			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
+			SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_count
 		FROM spans
 		%s
 	`, whereClause)
@@ -496,12 +534,18 @@ func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *C
 	var summary MetricsSummary
 	var successRate sql.NullFloat64
 	err := row.Scan(&summary.TotalSpans, &summary.TotalTasks, &summary.TotalAgents,
-		&summary.TotalTokensIn, &summary.TotalTokensOut, &summary.TotalCostUSD, &successRate)
+		&summary.TotalTokensIn, &summary.TotalTokensOut, &summary.TotalCostUSD, &successRate,
+		&summary.TotalCacheReadTokens, &summary.TotalCacheCreationTokens, &summary.ErrorCount)
 	if err != nil {
 		return nil, err
 	}
 	if successRate.Valid {
 		summary.SuccessRate = successRate.Float64
+	}
+
+	// Calculate cache savings
+	if summary.TotalCacheReadTokens > 0 {
+		summary.CacheSavingsUSD = CalculateCacheSavings("", summary.TotalCacheReadTokens)
 	}
 
 	// Workspace count filtered separately if workspace filter is set
@@ -548,7 +592,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		%s
 		GROUP BY provider
@@ -564,8 +610,12 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -656,7 +706,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
 			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
 			COALESCE(SUM(s.cost_usd), 0) as cost_usd,
-			COALESCE(SUM(s.duration_ms), 0) as duration_ms
+			COALESCE(SUM(s.duration_ms), 0) as duration_ms,
+			COALESCE(SUM(s.cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(s.cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans s
 		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
 		%s
@@ -673,8 +725,12 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -713,7 +769,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		%s
 		GROUP BY model
@@ -730,8 +788,12 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}
@@ -774,6 +836,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				tokens_out,
 				cost_usd,
 				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens,
 				id
 			FROM spans
 			%s
@@ -796,7 +860,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				tokens_in,
 				tokens_out,
 				cost_usd,
-				duration_ms
+				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens
 			FROM workspace_data
 		),
 		-- Map known paths to friendly labels
@@ -816,7 +882,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				tokens_in,
 				tokens_out,
 				cost_usd,
-				duration_ms
+				duration_ms,
+				cache_read_tokens,
+				cache_creation_tokens
 			FROM normalized
 		)
 		SELECT
@@ -827,7 +895,9 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
 			COALESCE(SUM(tokens_out), 0) as tokens_out,
 			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM with_labels
 		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
@@ -842,8 +912,12 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 	var items []BreakdownItem
 	for rows.Next() {
 		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs); err != nil {
+		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
+		}
+		// Calculate cache savings
+		if item.CacheReadTokens > 0 {
+			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
 		}
 		items = append(items, item)
 	}

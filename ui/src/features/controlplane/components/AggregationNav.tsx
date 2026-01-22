@@ -112,17 +112,27 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
   const metrics = useMemo(() => {
     if (!breakdowns) return null;
 
-    // Sum up tokens from provider breakdowns
+    // Sum up tokens from provider breakdowns (includes cache tokens)
     const providerTotals = breakdowns.byProvider.reduce(
       (acc, item) => {
-        const original = item as FormattedBreakdownItem & { tokens_in?: number; tokens_out?: number; cost_usd?: number };
+        const original = item as FormattedBreakdownItem & {
+          tokens_in?: number;
+          tokens_out?: number;
+          cost_usd?: number;
+          cache_read_tokens?: number;
+          cache_creation_tokens?: number;
+          cache_savings_usd?: number;
+        };
         return {
           tokensIn: acc.tokensIn + (original.tokens_in || 0),
           tokensOut: acc.tokensOut + (original.tokens_out || 0),
           cost: acc.cost + (original.cost_usd || 0),
+          cacheRead: acc.cacheRead + (original.cache_read_tokens || 0),
+          cacheCreate: acc.cacheCreate + (original.cache_creation_tokens || 0),
+          cacheSavings: acc.cacheSavings + (original.cache_savings_usd || 0),
         };
       },
-      { tokensIn: 0, tokensOut: 0, cost: 0 }
+      { tokensIn: 0, tokensOut: 0, cost: 0, cacheRead: 0, cacheCreate: 0, cacheSavings: 0 }
     );
 
     // Use workspace breakdown for total spans (most complete view)
@@ -137,6 +147,10 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
       totalTokens: formatTokens(providerTotals.tokensIn + providerTotals.tokensOut),
       totalCost: breakdowns.totalCost,
       totalSpans,
+      cacheRead: formatTokens(providerTotals.cacheRead),
+      cacheCreate: formatTokens(providerTotals.cacheCreate),
+      cacheSavings: providerTotals.cacheSavings > 0 ? `$${providerTotals.cacheSavings.toFixed(2)}` : '$0.00',
+      hasCacheData: providerTotals.cacheRead > 0 || providerTotals.cacheCreate > 0,
     };
   }, [breakdowns]);
 
@@ -416,6 +430,23 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
             </span>
             <span className={styles.metricLabel}>Budget ETA</span>
           </div>
+          {/* Cache metrics - only show when there's cache data */}
+          {metrics?.hasCacheData && (
+            <>
+              <div className={styles.metricCard} title="Tokens served from prompt cache (90% cost discount). Cached context re-used across API calls.">
+                <span className={styles.metricValue}>
+                  {loading ? '...' : metrics?.cacheRead || '0'}
+                </span>
+                <span className={styles.metricLabel}>📦 Cache Read</span>
+              </div>
+              <div className={`${styles.metricCard} ${styles.metricSuccess}`} title="Estimated savings from prompt caching. Cache reads cost 90% less than regular input tokens.">
+                <span className={styles.metricValue}>
+                  {loading ? '...' : metrics?.cacheSavings || '$0.00'}
+                </span>
+                <span className={styles.metricLabel}>💰 Cache Savings</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

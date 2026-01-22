@@ -49,12 +49,13 @@ func (s *Store) CreateSpan(span *Span) error {
 	_, err := s.db.Exec(`
 		INSERT INTO spans (id, trace_id, parent_span_id, task_id, agent_assignment_id,
 		                   name, kind, status, status_message, start_time, end_time,
-		                   duration_ms, tokens_in, tokens_out, cost_usd, model, provider,
-		                   attributes, resource_attributes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                   duration_ms, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+		                   cost_usd, model, provider, attributes, resource_attributes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, span.ID, span.TraceID, parentSpanID, taskID, agentAssignmentID,
 		span.Name, span.Kind, span.Status, span.StatusMessage, span.StartTime, span.EndTime,
-		span.DurationMs, span.TokensIn, span.TokensOut, span.CostUSD, span.Model, span.Provider,
+		span.DurationMs, span.TokensIn, span.TokensOut, span.CacheReadTokens, span.CacheCreationTokens,
+		span.CostUSD, span.Model, span.Provider,
 		span.AttributesJSON(), span.ResourceAttributesJSON(), span.CreatedAt)
 	return err
 }
@@ -65,17 +66,22 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 	var parentSpanID, taskID, agentAssignmentID, statusMessage, model sql.NullString
 	var provider sql.NullString
 	var endTime sql.NullTime
+	var cacheReadTokens, cacheCreationTokens sql.NullInt64
 	var attributesJSON, resourceAttributesJSON string
 
 	err := s.db.QueryRow(`
 		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
 		       name, kind, status, status_message, start_time, end_time,
-		       duration_ms, tokens_in, tokens_out, cost_usd, model, provider,
+		       duration_ms, tokens_in, tokens_out,
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
+		       cost_usd, model, provider,
 		       attributes, resource_attributes, created_at
 		FROM spans WHERE id = ?
 	`, id).Scan(&span.ID, &span.TraceID, &parentSpanID, &taskID, &agentAssignmentID,
 		&span.Name, &span.Kind, &span.Status, &statusMessage, &span.StartTime, &endTime,
-		&span.DurationMs, &span.TokensIn, &span.TokensOut, &span.CostUSD, &model, &provider,
+		&span.DurationMs, &span.TokensIn, &span.TokensOut,
+		&cacheReadTokens, &cacheCreationTokens,
+		&span.CostUSD, &model, &provider,
 		&attributesJSON, &resourceAttributesJSON, &span.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -102,6 +108,12 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 	if provider.Valid {
 		span.Provider = Provider(provider.String)
 	}
+	if cacheReadTokens.Valid {
+		span.CacheReadTokens = cacheReadTokens.Int64
+	}
+	if cacheCreationTokens.Valid {
+		span.CacheCreationTokens = cacheCreationTokens.Int64
+	}
 
 	span.ParseAttributes(attributesJSON)
 	span.ParseResourceAttributes(resourceAttributesJSON)
@@ -114,7 +126,9 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	query := `
 		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
 		       name, kind, status, status_message, start_time, end_time,
-		       duration_ms, tokens_in, tokens_out, cost_usd, model, provider,
+		       duration_ms, tokens_in, tokens_out,
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
+		       cost_usd, model, provider,
 		       attributes, resource_attributes, created_at
 		FROM spans WHERE 1=1
 	`
@@ -190,17 +204,26 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 		var parentSpanID, taskID, agentAssignmentID, statusMessage, model sql.NullString
 		var provider sql.NullString
 		var endTime sql.NullTime
+		var cacheReadTokens, cacheCreationTokens sql.NullInt64
 		var attributesJSON, resourceAttributesJSON string
 
 		if err := rows.Scan(&span.ID, &span.TraceID, &parentSpanID, &taskID, &agentAssignmentID,
 			&span.Name, &span.Kind, &span.Status, &statusMessage, &span.StartTime, &endTime,
-			&span.DurationMs, &span.TokensIn, &span.TokensOut, &span.CostUSD, &model, &provider,
+			&span.DurationMs, &span.TokensIn, &span.TokensOut,
+			&cacheReadTokens, &cacheCreationTokens,
+			&span.CostUSD, &model, &provider,
 			&attributesJSON, &resourceAttributesJSON, &span.CreatedAt); err != nil {
 			return nil, err
 		}
 
 		if parentSpanID.Valid {
 			span.ParentSpanID = parentSpanID.String
+		}
+		if cacheReadTokens.Valid {
+			span.CacheReadTokens = cacheReadTokens.Int64
+		}
+		if cacheCreationTokens.Valid {
+			span.CacheCreationTokens = cacheCreationTokens.Int64
 		}
 		if taskID.Valid {
 			span.TaskID = taskID.String

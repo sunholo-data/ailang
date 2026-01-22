@@ -384,9 +384,14 @@ func traceHierarchyCommand() {
 
 	fmt.Printf("Span Hierarchy (local database)\n")
 	fmt.Println(strings.Repeat("─", 80))
-	fmt.Printf("Total spans: %d | Cost: $%.4f | Tokens: %d in / %d out\n",
+	fmt.Printf("Total spans: %d | Cost: $%.4f | Tokens: %d in / %d out",
 		result.Stats.TotalSpans, result.Stats.TotalCost,
 		result.Stats.TotalTokens.In, result.Stats.TotalTokens.Out)
+	if result.Stats.TotalTokens.CacheRead > 0 || result.Stats.TotalTokens.CacheCreation > 0 {
+		fmt.Printf(" | Cache: %d read / %d create",
+			result.Stats.TotalTokens.CacheRead, result.Stats.TotalTokens.CacheCreation)
+	}
+	fmt.Println()
 	if len(result.Sessions) > 0 {
 		fmt.Printf("Sessions: %d\n", len(result.Sessions))
 	}
@@ -778,6 +783,9 @@ func printSpanNode(node *observatory.SpanHierarchyNode, prefix string) {
 	if node.TokensIn > 0 || node.TokensOut > 0 {
 		metrics += fmt.Sprintf(" [%d→%d]", node.TokensIn, node.TokensOut)
 	}
+	if node.CacheReadTokens > 0 || node.CacheCreationTokens > 0 {
+		metrics += fmt.Sprintf(" 📦%d/%d", node.CacheReadTokens, node.CacheCreationTokens)
+	}
 
 	// Add turn number for turn spans
 	if node.TurnNumber > 0 {
@@ -834,6 +842,9 @@ func printSpanNodeChild(node *observatory.SpanHierarchyNode, prefix string) {
 	}
 	if node.CostUSD > 0 {
 		metrics += fmt.Sprintf(" $%.4f", node.CostUSD)
+	}
+	if node.CacheReadTokens > 0 || node.CacheCreationTokens > 0 {
+		metrics += fmt.Sprintf(" 📦%d/%d", node.CacheReadTokens, node.CacheCreationTokens)
 	}
 
 	// Add turn number for turn spans

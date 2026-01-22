@@ -177,11 +177,13 @@ type Span struct {
 	DurationMs        int64      `json:"duration_ms,omitempty"`
 
 	// Normalized attributes (common across providers)
-	TokensIn  int64    `json:"tokens_in,omitempty"`
-	TokensOut int64    `json:"tokens_out,omitempty"`
-	CostUSD   float64  `json:"cost_usd,omitempty"`
-	Model     string   `json:"model,omitempty"`
-	Provider  Provider `json:"provider,omitempty"`
+	TokensIn            int64    `json:"tokens_in,omitempty"`
+	TokensOut           int64    `json:"tokens_out,omitempty"`
+	CacheReadTokens     int64    `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int64    `json:"cache_creation_tokens,omitempty"`
+	CostUSD             float64  `json:"cost_usd,omitempty"`
+	Model               string   `json:"model,omitempty"`
+	Provider            Provider `json:"provider,omitempty"`
 
 	// Full attributes as JSON (for provider-specific data)
 	Attributes         map[string]any `json:"attributes,omitempty"`
@@ -374,6 +376,25 @@ type MetricsSummary struct {
 	TotalTokensOut  int64   `json:"total_tokens_out"`
 	TotalCostUSD    float64 `json:"total_cost_usd"`
 	SuccessRate     float64 `json:"success_rate"`
+
+	// Cache metrics (from spans)
+	TotalCacheReadTokens     int64   `json:"total_cache_read_tokens,omitempty"`
+	TotalCacheCreationTokens int64   `json:"total_cache_creation_tokens,omitempty"`
+	CacheSavingsUSD          float64 `json:"cache_savings_usd,omitempty"`
+
+	// Lines of Code metrics (from metrics table)
+	LinesAdded   int64 `json:"lines_added,omitempty"`
+	LinesRemoved int64 `json:"lines_removed,omitempty"`
+
+	// Activity metrics (from metrics table)
+	CommitCount      int64 `json:"commit_count,omitempty"`
+	PullRequestCount int64 `json:"pull_request_count,omitempty"`
+	ActiveTimeMs     int64 `json:"active_time_ms,omitempty"`
+
+	// Session metrics
+	TurnCount  int `json:"turn_count,omitempty"`
+	ToolCalls  int `json:"tool_calls,omitempty"`
+	ErrorCount int `json:"error_count,omitempty"`
 }
 
 // TimeRange represents a time range for queries.
@@ -478,23 +499,25 @@ const (
 // SpanHierarchyNode represents a span with its children for hierarchy visualization.
 // Unlike Span, this is optimized for graph/tree rendering with parent_span_id-based relationships.
 type SpanHierarchyNode struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name"`
-	ParentID   string                 `json:"parent_id,omitempty"`
-	Depth      int                    `json:"depth"`
-	StartTime  time.Time              `json:"start_time"`
-	DurationMs int64                  `json:"duration_ms"`
-	TokensIn   int64                  `json:"tokens_in,omitempty"`
-	TokensOut  int64                  `json:"tokens_out,omitempty"`
-	CostUSD    float64                `json:"cost_usd,omitempty"`
-	TurnNumber int                    `json:"turn_number,omitempty"`
-	ToolName   string                 `json:"tool_name,omitempty"`
-	NodeType   SpanHierarchyNodeType  `json:"node_type"`
-	SessionID  string                 `json:"session_id,omitempty"`
-	Status     SpanStatus             `json:"status"`
-	Provider   Provider               `json:"provider,omitempty"`
-	Children   []*SpanHierarchyNode   `json:"children,omitempty"`
-	Attributes map[string]interface{} `json:"attributes,omitempty"` // Selected useful attributes
+	ID                  string                 `json:"id"`
+	Name                string                 `json:"name"`
+	ParentID            string                 `json:"parent_id,omitempty"`
+	Depth               int                    `json:"depth"`
+	StartTime           time.Time              `json:"start_time"`
+	DurationMs          int64                  `json:"duration_ms"`
+	TokensIn            int64                  `json:"tokens_in,omitempty"`
+	TokensOut           int64                  `json:"tokens_out,omitempty"`
+	CacheReadTokens     int64                  `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int64                  `json:"cache_creation_tokens,omitempty"`
+	CostUSD             float64                `json:"cost_usd,omitempty"`
+	TurnNumber          int                    `json:"turn_number,omitempty"`
+	ToolName            string                 `json:"tool_name,omitempty"`
+	NodeType            SpanHierarchyNodeType  `json:"node_type"`
+	SessionID           string                 `json:"session_id,omitempty"`
+	Status              SpanStatus             `json:"status"`
+	Provider            Provider               `json:"provider,omitempty"`
+	Children            []*SpanHierarchyNode   `json:"children,omitempty"`
+	Attributes          map[string]interface{} `json:"attributes,omitempty"` // Selected useful attributes
 }
 
 // SpanHierarchyStats contains aggregated stats for a hierarchy result.
@@ -502,10 +525,13 @@ type SpanHierarchyStats struct {
 	TotalSpans  int     `json:"total_spans"`
 	TotalCost   float64 `json:"total_cost"`
 	TotalTokens struct {
-		In  int64 `json:"in"`
-		Out int64 `json:"out"`
+		In            int64 `json:"in"`
+		Out           int64 `json:"out"`
+		CacheRead     int64 `json:"cache_read"`
+		CacheCreation int64 `json:"cache_creation"`
 	} `json:"total_tokens"`
-	TimeRange struct {
+	CacheSavingsUSD float64 `json:"cache_savings_usd,omitempty"`
+	TimeRange       struct {
 		Start time.Time `json:"start"`
 		End   time.Time `json:"end"`
 	} `json:"time_range"`
@@ -517,4 +543,91 @@ type SpanHierarchyResult struct {
 	Roots    []*SpanHierarchyNode `json:"roots"`
 	Sessions map[string]int       `json:"sessions"` // session_id -> turn_count
 	Stats    SpanHierarchyStats   `json:"stats"`
+}
+
+// Metric represents an OTLP counter or gauge metric from Claude Code telemetry.
+// Captures: lines_of_code.count, commit.count, pull_request.count, active_time.total, etc.
+type Metric struct {
+	ID        int64  `json:"id,omitempty"`
+	Name      string `json:"name"`
+	Type      string `json:"metric_type"` // "counter", "gauge"
+	SessionID string `json:"session_id,omitempty"`
+	Workspace string `json:"workspace,omitempty"`
+	Provider  string `json:"provider,omitempty"`
+
+	// Denormalized labels for efficient queries
+	LabelType     string `json:"label_type,omitempty"`     // "added"/"removed" for LOC
+	LabelTool     string `json:"label_tool,omitempty"`     // tool name for tool metrics
+	LabelDecision string `json:"label_decision,omitempty"` // "approved"/"rejected" for code_edit_tool
+	LabelLanguage string `json:"label_language,omitempty"` // language for LOC
+	LabelModel    string `json:"label_model,omitempty"`    // model name for model-specific metrics
+
+	// Values (only one will be set based on metric type)
+	ValueInt   int64   `json:"value_int,omitempty"`
+	ValueFloat float64 `json:"value_float,omitempty"`
+
+	// Full labels as JSON (for provider-specific data)
+	Labels             map[string]any `json:"labels,omitempty"`
+	ResourceAttributes map[string]any `json:"resource_attributes,omitempty"`
+
+	Timestamp time.Time `json:"timestamp"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// LabelsJSON returns labels as a JSON string for storage.
+func (m *Metric) LabelsJSON() string {
+	if m.Labels == nil {
+		return "{}"
+	}
+	b, _ := json.Marshal(m.Labels)
+	return string(b)
+}
+
+// ResourceAttributesJSON returns resource attributes as a JSON string for storage.
+func (m *Metric) ResourceAttributesJSON() string {
+	if m.ResourceAttributes == nil {
+		return "{}"
+	}
+	b, _ := json.Marshal(m.ResourceAttributes)
+	return string(b)
+}
+
+// MetricListOptions specifies filters for listing metrics.
+type MetricListOptions struct {
+	SessionID string     `json:"session_id,omitempty"`
+	Workspace string     `json:"workspace,omitempty"`
+	Name      string     `json:"name,omitempty"` // e.g., "claude_code.lines_of_code.count"
+	TimeRange *TimeRange `json:"time_range,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+	Offset    int        `json:"offset,omitempty"`
+}
+
+// SessionMetricsSummary aggregates all metrics for a session.
+type SessionMetricsSummary struct {
+	SessionID string `json:"session_id"`
+
+	// Token metrics (from spans)
+	TokensIn            int64 `json:"tokens_in"`
+	TokensOut           int64 `json:"tokens_out"`
+	CacheReadTokens     int64 `json:"cache_read_tokens"`
+	CacheCreationTokens int64 `json:"cache_creation_tokens"`
+
+	// Cost metrics (from spans + calculated)
+	TotalCostUSD    float64 `json:"total_cost_usd"`
+	CacheSavingsUSD float64 `json:"cache_savings_usd"` // Savings from cache reads
+
+	// Lines of code (from metrics)
+	LinesAdded   int64 `json:"lines_added"`
+	LinesRemoved int64 `json:"lines_removed"`
+
+	// Activity metrics (from metrics)
+	CommitCount      int64   `json:"commit_count"`
+	PullRequestCount int64   `json:"pull_request_count"`
+	ActiveTimeMs     int64   `json:"active_time_ms"`
+	TurnCount        int     `json:"turn_count"`
+	ToolCalls        int     `json:"tool_calls"`
+	DurationMs       int64   `json:"duration_ms"`
+	SpanCount        int     `json:"span_count"`
+	ErrorCount       int     `json:"error_count"`
+	SuccessRate      float64 `json:"success_rate"`
 }

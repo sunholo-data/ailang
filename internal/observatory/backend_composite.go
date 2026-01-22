@@ -355,5 +355,19 @@ func (b *CompositeBackend) GetToolForSpan(ctx context.Context, sessionID, toolNa
 	return b.local.GetToolForSpan(ctx, sessionID, toolName, spanTime)
 }
 
+// ===== Metric Operations (M-TELEMETRY-CAPTURE) =====
+
+func (b *CompositeBackend) CreateMetric(ctx context.Context, m *Metric) error {
+	return b.local.CreateMetric(ctx, m)
+}
+
+func (b *CompositeBackend) ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error) {
+	return b.local.ListMetrics(ctx, opts)
+}
+
+func (b *CompositeBackend) GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error) {
+	return b.local.GetSessionMetricsSummary(ctx, sessionID)
+}
+
 // Ensure CompositeBackend implements Backend
 var _ Backend = (*CompositeBackend)(nil)

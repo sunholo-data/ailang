@@ -1292,6 +1292,15 @@
   50% { opacity: 0.8; }
 }
 
+.metricSuccess {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-surface));
+}
+
+.metricSuccess .metricValue {
+  color: var(--success);
+}
+
 /* ================================================================
    Main Canvas
    ================================================================ */

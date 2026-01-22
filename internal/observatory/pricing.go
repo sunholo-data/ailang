@@ -178,3 +178,84 @@ func ResetPricingConfig() {
 	pricingConfigOnce = sync.Once{}
 	pricingConfig = nil
 }
+
+// CalculateCostFromTokensWithCache calculates cost including cache token pricing.
+// Cache read tokens are charged at 10% of input price (90% discount).
+// Cache creation tokens are charged at 125% of input price (25% premium).
+// Returns 0.0 if model not found or tokens are all zero.
+func CalculateCostFromTokensWithCache(model string, tokensIn, tokensOut, cacheRead, cacheCreation int64) float64 {
+	if tokensIn == 0 && tokensOut == 0 && cacheRead == 0 && cacheCreation == 0 {
+		return 0.0
+	}
+
+	initPricing()
+
+	if pricingConfig == nil {
+		return 0.0
+	}
+
+	// Find model config
+	normalizedModel := normalizeModelName(model)
+	var inputPer1K, outputPer1K float64
+
+	// Try to find model in config
+	for modelID, m := range pricingConfig.Models {
+		if modelID == model || modelID == normalizedModel || m.APIName == model {
+			inputPer1K = m.Pricing.InputPer1K
+			outputPer1K = m.Pricing.OutputPer1K
+			break
+		}
+	}
+
+	// If model not found, return 0 (no silent fallbacks)
+	if inputPer1K == 0 && outputPer1K == 0 {
+		return 0.0
+	}
+
+	// Calculate costs
+	inputCost := float64(tokensIn) / 1000.0 * inputPer1K
+	outputCost := float64(tokensOut) / 1000.0 * outputPer1K
+
+	// Cache read at 10% of input price (90% discount per Anthropic pricing)
+	cacheReadCost := float64(cacheRead) / 1000.0 * inputPer1K * 0.1
+
+	// Cache creation at 125% of input price (25% premium per Anthropic pricing)
+	cacheCreationCost := float64(cacheCreation) / 1000.0 * inputPer1K * 1.25
+
+	return inputCost + outputCost + cacheReadCost + cacheCreationCost
+}
+
+// CalculateCacheSavings calculates how much was saved by using cache reads.
+// Returns the difference between what full-price input would have cost and cache read cost.
+// Cache reads are 90% cheaper than regular input tokens.
+func CalculateCacheSavings(model string, cacheRead int64) float64 {
+	if cacheRead == 0 {
+		return 0.0
+	}
+
+	initPricing()
+
+	if pricingConfig == nil {
+		return 0.0
+	}
+
+	// Find model config
+	normalizedModel := normalizeModelName(model)
+	var inputPer1K float64
+
+	for modelID, m := range pricingConfig.Models {
+		if modelID == model || modelID == normalizedModel || m.APIName == model {
+			inputPer1K = m.Pricing.InputPer1K
+			break
+		}
+	}
+
+	if inputPer1K == 0 {
+		return 0.0
+	}
+
+	// Full price would be: cacheRead * inputPer1K / 1000
+	// Cache price is: cacheRead * inputPer1K * 0.1 / 1000
+	// Savings is: cacheRead * inputPer1K * 0.9 / 1000
+	return float64(cacheRead) / 1000.0 * inputPer1K * 0.9
+}

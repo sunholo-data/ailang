@@ -19,6 +19,111 @@ import styles from './ApprovalDetailModal.module.css';
 
 type TabType = 'description' | 'files' | 'logs';
 
+// Task event from coordinator API
+interface TaskEvent {
+  id: string;
+  task_id: string;
+  stream_type: string;  // text, tool_use, tool_result, error, status, turn_start, turn_end
+  turn_num: number;
+  text?: string;
+  tool_name?: string;
+  tool_input?: string;
+  tool_output?: string;
+  error_msg?: string;
+  created_at: string;
+}
+
+interface Turn {
+  turnNumber: number;
+  events: TaskEvent[];
+  startTime?: string;
+}
+
+/**
+ * Consolidate consecutive text events into single message blocks.
+ * Streaming text comes as many small chunks - we merge them for display.
+ */
+function consolidateTextEvents(events: TaskEvent[]): TaskEvent[] {
+  const result: TaskEvent[] = [];
+  let currentTextBlock: TaskEvent | null = null;
+
+  for (const event of events) {
+    if (event.stream_type === 'text' && event.text) {
+      if (currentTextBlock) {
+        // Append to existing text block
+        currentTextBlock = {
+          ...currentTextBlock,
+          text: (currentTextBlock.text || '') + event.text,
+        };
+      } else {
+        // Start new text block
+        currentTextBlock = { ...event };
+      }
+    } else {
+      // Non-text event: flush any pending text block
+      if (currentTextBlock) {
+        result.push(currentTextBlock);
+        currentTextBlock = null;
+      }
+      result.push(event);
+    }
+  }
+
+  // Flush final text block
+  if (currentTextBlock) {
+    result.push(currentTextBlock);
+  }
+
+  return result;
+}
+
+/**
+ * Group events by turn number
+ */
+function groupEventsByTurn(events: TaskEvent[]): Turn[] {
+  const turnMap = new Map<number, TaskEvent[]>();
+
+  for (const event of events) {
+    const turnNum = event.turn_num || 0;
+    if (!turnMap.has(turnNum)) {
+      turnMap.set(turnNum, []);
+    }
+    turnMap.get(turnNum)!.push(event);
+  }
+
+  const turns: Turn[] = [];
+  const sortedKeys = Array.from(turnMap.keys()).sort((a, b) => a - b);
+
+  for (const turnNum of sortedKeys) {
+    const turnEvents = turnMap.get(turnNum)!;
+    // Sort by time, then consolidate consecutive text events
+    const sortedEvents = turnEvents.sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const consolidatedEvents = consolidateTextEvents(sortedEvents);
+
+    turns.push({
+      turnNumber: turnNum,
+      events: consolidatedEvents,
+      startTime: turnEvents[0]?.created_at,
+    });
+  }
+
+  return turns;
+}
+
+/**
+ * Format timestamp for display
+ */
+function formatTime(timestamp: string | undefined): string {
+  if (!timestamp) return '';
+  try {
+    return new Date(timestamp).toLocaleTimeString();
+  } catch {
+    return '';
+  }
+}
+
 // Union type to support both PendingApprovalRequest and the Approval from useObservatory
 export interface ApprovalData {
   id: string;
@@ -76,6 +181,47 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
   const [feedbackNotes, setFeedbackNotes] = useState('');
   const [showFeedbackForm, setShowFeedbackForm] = useState<'approve' | 'reject' | 'cancel' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // State for fetched task events (for Logs tab)
+  const [taskEvents, setTaskEvents] = useState<TaskEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
+
+  // Fetch events when modal opens (for Logs tab)
+  useEffect(() => {
+    if (isOpen && approval.task_id) {
+      setEventsLoading(true);
+      fetch(`/api/coordinator/tasks/${approval.task_id}/events?limit=500`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to fetch events: ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          setTaskEvents(data.events || []);
+          setEventsLoading(false);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch task events:', err);
+          setEventsLoading(false);
+        });
+    }
+  }, [isOpen, approval.task_id]);
+
+  // Group events by turn for display
+  const turns = useMemo(() => groupEventsByTurn(taskEvents), [taskEvents]);
+
+  // Toggle tool expansion
+  const toggleToolExpanded = useCallback((eventId: string) => {
+    setExpandedTools(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+  }, []);
 
   // Fetch diff if not provided
   useEffect(() => {
@@ -361,7 +507,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
               className={`${styles.tab} ${activeTab === 'logs' ? styles.active : ''}`}
               onClick={() => setActiveTab('logs')}
             >
-              Logs ({events.length})
+              Logs ({taskEvents.length > 0 ? turns.length + ' turns' : events.length || '—'})
             </button>
           </div>
 
@@ -576,8 +722,38 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
 
               {activeTab === 'logs' && (
                 <div className={styles.logsView}>
-                  {events.length === 0 ? (
-                    <div className={styles.emptyLogs}>No execution logs available</div>
+                  {eventsLoading ? (
+                    <div className={styles.loading}>Loading conversation...</div>
+                  ) : taskEvents.length === 0 && events.length === 0 ? (
+                    <div className={styles.emptyLogs}>
+                      <div>No execution logs available</div>
+                      <div className={styles.logsHint}>
+                        CLI: <code>ailang coordinator logs {approval.task_id}</code>
+                      </div>
+                    </div>
+                  ) : taskEvents.length > 0 ? (
+                    <div className={styles.conversationView}>
+                      {turns.map((turn) => (
+                        <div key={turn.turnNumber} className={styles.turn}>
+                          <div className={styles.turnHeader}>
+                            <span className={styles.turnNumber}>Turn {turn.turnNumber}</span>
+                            {turn.startTime && (
+                              <span className={styles.turnTime}>{formatTime(turn.startTime)}</span>
+                            )}
+                          </div>
+                          <div className={styles.turnEvents}>
+                            {turn.events.map((event, idx) => (
+                              <ConversationEvent
+                                key={event.id || idx}
+                                event={event}
+                                isExpanded={expandedTools.has(event.id)}
+                                onToggle={() => toggleToolExpanded(event.id)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className={styles.eventList}>
                       {events.map((event, index) => (
@@ -639,6 +815,97 @@ const EventItem: React.FC<EventItemProps> = ({ event }) => {
     </div>
   );
 };
+
+/**
+ * ConversationEvent - Renders a single event in conversation style
+ */
+interface ConversationEventProps {
+  event: TaskEvent;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+const ConversationEvent: React.FC<ConversationEventProps> = ({ event, isExpanded, onToggle }) => {
+  // Skip turn_start/turn_end markers - they're just structural
+  if (event.stream_type === 'turn_start' || event.stream_type === 'turn_end') {
+    return null;
+  }
+
+  // Text block - Claude's response
+  if (event.stream_type === 'text' && event.text) {
+    return (
+      <div className={styles.textBlock}>
+        <pre className={styles.textContent}>{event.text}</pre>
+      </div>
+    );
+  }
+
+  // Tool use - expandable
+  if (event.stream_type === 'tool_use' && event.tool_name) {
+    return (
+      <div className={styles.toolBlock}>
+        <div className={styles.toolHeader} onClick={onToggle}>
+          <span className={styles.toolName}>
+            <span className={styles.toolIcon}>🔧</span>
+            {event.tool_name}
+          </span>
+          <span className={styles.toolExpand}>{isExpanded ? '▼' : '▶'}</span>
+        </div>
+        {isExpanded && (
+          <div className={styles.toolContent}>
+            {event.tool_input && (
+              <div className={styles.toolSection}>
+                <div className={styles.toolSectionLabel}>Input:</div>
+                <pre className={styles.toolJson}>{formatToolContent(event.tool_input)}</pre>
+              </div>
+            )}
+            {event.tool_output && (
+              <div className={styles.toolSection}>
+                <div className={styles.toolSectionLabel}>Output:</div>
+                <pre className={styles.toolJson}>{formatToolContent(event.tool_output)}</pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Error event
+  if (event.stream_type === 'error' && event.error_msg) {
+    return (
+      <div className={styles.errorBlock}>
+        <span className={styles.errorIcon}>❌</span>
+        <span className={styles.errorText}>{event.error_msg}</span>
+      </div>
+    );
+  }
+
+  // Status event
+  if (event.stream_type === 'status') {
+    return (
+      <div className={styles.statusBlock}>
+        <span className={styles.statusIcon}>ℹ️</span>
+        <span className={styles.statusText}>{event.text || 'Status update'}</span>
+      </div>
+    );
+  }
+
+  // Fallback for other event types
+  return null;
+};
+
+/**
+ * Format tool input/output for display
+ */
+function formatToolContent(content: string): string {
+  try {
+    const parsed = JSON.parse(content);
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return content;
+  }
+}
 
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);

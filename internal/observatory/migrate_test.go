@@ -64,8 +64,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrateWithVersion failed: %v", err)
 	}
-	// Current schema version is 4 (v1=base, v2=parent_task_id, v3=sessions, v4=remove unused tables)
-	expectedVersion := 4
+	// Current schema version is 5 (v1=base, v2=parent_task_id, v3=sessions, v4=remove unused tables, v5=metrics+cache tokens)
+	expectedVersion := 5
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}

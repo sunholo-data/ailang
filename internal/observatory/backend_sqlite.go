@@ -28,7 +28,8 @@ func (b *SQLiteBackend) DB() *sql.DB {
 
 // NewSQLiteBackend creates a new SQLite backend.
 func NewSQLiteBackend(db *sql.DB) (*SQLiteBackend, error) {
-	if err := Migrate(db); err != nil {
+	// Use versioned migration to support incremental schema updates
+	if _, err := MigrateWithVersion(db); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 	return &SQLiteBackend{store: NewStore(db)}, nil
@@ -325,6 +326,20 @@ func (b *SQLiteBackend) BackfillSpansWorkspace(ctx context.Context, sessionID, w
 
 func (b *SQLiteBackend) GetToolForSpan(ctx context.Context, sessionID, toolName string, spanTime time.Time) (*SessionTool, error) {
 	return b.store.GetToolForSpan(ctx, sessionID, toolName, spanTime)
+}
+
+// ===== Metric Operations (Claude Code telemetry) =====
+
+func (b *SQLiteBackend) CreateMetric(ctx context.Context, m *Metric) error {
+	return b.store.CreateMetric(m)
+}
+
+func (b *SQLiteBackend) ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error) {
+	return b.store.ListMetrics(opts)
+}
+
+func (b *SQLiteBackend) GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error) {
+	return b.store.GetSessionMetricsSummary(sessionID)
 }
 
 // Ensure SQLiteBackend implements Backend

@@ -65,11 +65,25 @@ func (s *Store) GetMetricsSummary() (*MetricsSummary, error) {
 	// Count unique agents
 	s.db.QueryRow("SELECT COUNT(DISTINCT agent_id) FROM agent_assignments").Scan(&summary.TotalAgents)
 
-	// Sum tokens and cost
+	// Sum tokens, cost, and cache tokens from spans
 	s.db.QueryRow(`
-		SELECT COALESCE(SUM(tokens_in), 0), COALESCE(SUM(tokens_out), 0), COALESCE(SUM(cost_usd), 0)
+		SELECT
+			COALESCE(SUM(tokens_in), 0),
+			COALESCE(SUM(tokens_out), 0),
+			COALESCE(SUM(cost_usd), 0),
+			COALESCE(SUM(cache_read_tokens), 0),
+			COALESCE(SUM(cache_creation_tokens), 0)
 		FROM spans
-	`).Scan(&summary.TotalTokensIn, &summary.TotalTokensOut, &summary.TotalCostUSD)
+	`).Scan(&summary.TotalTokensIn, &summary.TotalTokensOut, &summary.TotalCostUSD,
+		&summary.TotalCacheReadTokens, &summary.TotalCacheCreationTokens)
+
+	// Calculate cache savings (90% discount on cache reads)
+	if summary.TotalCacheReadTokens > 0 {
+		summary.CacheSavingsUSD = CalculateCacheSavings("", summary.TotalCacheReadTokens)
+	}
+
+	// Count errors from spans
+	s.db.QueryRow("SELECT COUNT(*) FROM spans WHERE status = 'error'").Scan(&summary.ErrorCount)
 
 	// Calculate success rate
 	var completed, failed int
@@ -78,6 +92,22 @@ func (s *Store) GetMetricsSummary() (*MetricsSummary, error) {
 	if completed+failed > 0 {
 		summary.SuccessRate = float64(completed) / float64(completed+failed) * 100
 	}
+
+	// Aggregate LOC and activity metrics from metrics table
+	s.db.QueryRow(`
+		SELECT
+			COALESCE(SUM(CASE WHEN name = 'claude_code.lines_of_code.count' AND label_type = 'added' THEN value_int ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN name = 'claude_code.lines_of_code.count' AND label_type = 'removed' THEN value_int ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN name = 'claude_code.commit.count' THEN value_int ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN name = 'claude_code.pull_request.count' THEN value_int ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN name = 'claude_code.active_time.total' THEN value_int ELSE 0 END), 0)
+		FROM metrics
+	`).Scan(&summary.LinesAdded, &summary.LinesRemoved, &summary.CommitCount,
+		&summary.PullRequestCount, &summary.ActiveTimeMs)
+
+	// Count turns and tool calls from spans
+	s.db.QueryRow("SELECT COUNT(*) FROM spans WHERE name = 'exec.turn'").Scan(&summary.TurnCount)
+	s.db.QueryRow("SELECT COUNT(*) FROM spans WHERE name = 'exec.tool_use'").Scan(&summary.ToolCalls)
 
 	return summary, nil
 }
@@ -554,7 +584,8 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 	// We look for coordinator.task.execute, claude.execute, gemini.execute as roots
 	rootQuery := `
 		SELECT id, parent_span_id, name, start_time, duration_ms,
-			   tokens_in, tokens_out, cost_usd, status, provider, attributes
+			   tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+			   cost_usd, status, provider, attributes
 		FROM spans
 		WHERE (parent_span_id IS NULL OR parent_span_id = '')
 		  AND name IN ('coordinator.task.execute', 'claude.execute', 'gemini.execute', 'ailang.exec')
@@ -604,7 +635,8 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 		WITH RECURSIVE children AS (
 			-- Base case: direct children of root spans
 			SELECT id, parent_span_id, name, start_time, duration_ms,
-				   tokens_in, tokens_out, cost_usd, status, provider, attributes,
+				   tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+				   cost_usd, status, provider, attributes,
 				   1 as depth
 			FROM spans
 			WHERE parent_span_id IN (` + strings.Join(placeholders, ",") + `)
@@ -613,14 +645,16 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 
 			-- Recursive case: children of children
 			SELECT s.id, s.parent_span_id, s.name, s.start_time, s.duration_ms,
-				   s.tokens_in, s.tokens_out, s.cost_usd, s.status, s.provider, s.attributes,
+				   s.tokens_in, s.tokens_out, s.cache_read_tokens, s.cache_creation_tokens,
+				   s.cost_usd, s.status, s.provider, s.attributes,
 				   c.depth + 1
 			FROM spans s
 			JOIN children c ON s.parent_span_id = c.id
 			WHERE c.depth < ?
 		)
 		SELECT id, parent_span_id, name, start_time, duration_ms,
-			   tokens_in, tokens_out, cost_usd, status, provider, attributes, depth
+			   tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
+			   cost_usd, status, provider, attributes, depth
 		FROM children
 		ORDER BY depth, start_time
 	`
@@ -644,12 +678,13 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 	for childRows.Next() {
 		var id, parentID, name, status, provider, attrsJSON string
 		var startTime sql.NullTime
-		var durationMs, tokensIn, tokensOut sql.NullInt64
+		var durationMs, tokensIn, tokensOut, cacheReadTokens, cacheCreationTokens sql.NullInt64
 		var costUSD sql.NullFloat64
 		var depth int
 
 		if err := childRows.Scan(&id, &parentID, &name, &startTime, &durationMs,
-			&tokensIn, &tokensOut, &costUSD, &status, &provider, &attrsJSON, &depth); err != nil {
+			&tokensIn, &tokensOut, &cacheReadTokens, &cacheCreationTokens,
+			&costUSD, &status, &provider, &attrsJSON, &depth); err != nil {
 			continue
 		}
 
@@ -673,6 +708,12 @@ func (s *Store) GetSpanHierarchy(limit int) (*SpanHierarchyResult, error) {
 		}
 		if tokensOut.Valid {
 			node.TokensOut = tokensOut.Int64
+		}
+		if cacheReadTokens.Valid {
+			node.CacheReadTokens = cacheReadTokens.Int64
+		}
+		if cacheCreationTokens.Valid {
+			node.CacheCreationTokens = cacheCreationTokens.Int64
 		}
 		if costUSD.Valid {
 			node.CostUSD = costUSD.Float64
@@ -722,11 +763,12 @@ func scanSpanHierarchyNode(rows *sql.Rows) (*SpanHierarchyNode, error) {
 	var id, name string
 	var parentID, status, provider, attrsJSON sql.NullString
 	var startTime sql.NullTime
-	var durationMs, tokensIn, tokensOut sql.NullInt64
+	var durationMs, tokensIn, tokensOut, cacheReadTokens, cacheCreationTokens sql.NullInt64
 	var costUSD sql.NullFloat64
 
 	if err := rows.Scan(&id, &parentID, &name, &startTime, &durationMs,
-		&tokensIn, &tokensOut, &costUSD, &status, &provider, &attrsJSON); err != nil {
+		&tokensIn, &tokensOut, &cacheReadTokens, &cacheCreationTokens,
+		&costUSD, &status, &provider, &attrsJSON); err != nil {
 		return nil, err
 	}
 
@@ -749,6 +791,12 @@ func scanSpanHierarchyNode(rows *sql.Rows) (*SpanHierarchyNode, error) {
 	}
 	if tokensOut.Valid {
 		node.TokensOut = tokensOut.Int64
+	}
+	if cacheReadTokens.Valid {
+		node.CacheReadTokens = cacheReadTokens.Int64
+	}
+	if cacheCreationTokens.Valid {
+		node.CacheCreationTokens = cacheCreationTokens.Int64
 	}
 	if costUSD.Valid {
 		node.CostUSD = costUSD.Float64
@@ -842,6 +890,8 @@ func calculateHierarchyStats(roots []*SpanHierarchyNode, allNodes map[string]*Sp
 		stats.TotalCost += node.CostUSD
 		stats.TotalTokens.In += node.TokensIn
 		stats.TotalTokens.Out += node.TokensOut
+		stats.TotalTokens.CacheRead += node.CacheReadTokens
+		stats.TotalTokens.CacheCreation += node.CacheCreationTokens
 
 		if node.Depth > maxDepth {
 			maxDepth = node.Depth

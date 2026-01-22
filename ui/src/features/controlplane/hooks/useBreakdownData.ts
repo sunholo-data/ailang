@@ -16,6 +16,11 @@ export interface BreakdownItem {
   cost_usd: number;
   duration_ms: number;  // Total execution time in ms
   percentage?: number;
+
+  // Cache metrics
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  cache_savings_usd: number;
 }
 
 export interface BreakdownData {

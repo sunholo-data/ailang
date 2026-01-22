@@ -533,6 +533,25 @@ type ObservatoryStats struct {
 	TotalTokensOut  int64   `json:"total_tokens_out"`
 	TotalCostUSD    float64 `json:"total_cost_usd"`
 	SuccessRate     float64 `json:"success_rate"`
+
+	// Cache metrics (from spans)
+	TotalCacheReadTokens     int64   `json:"total_cache_read_tokens"`
+	TotalCacheCreationTokens int64   `json:"total_cache_creation_tokens"`
+	CacheSavingsUSD          float64 `json:"cache_savings_usd"`
+
+	// Lines of Code metrics (from metrics table)
+	LinesAdded   int64 `json:"lines_added"`
+	LinesRemoved int64 `json:"lines_removed"`
+
+	// Activity metrics (from metrics table)
+	CommitCount      int64 `json:"commit_count"`
+	PullRequestCount int64 `json:"pull_request_count"`
+	ActiveTimeMs     int64 `json:"active_time_ms"`
+
+	// Session metrics
+	TurnCount  int `json:"turn_count"`
+	ToolCalls  int `json:"tool_calls"`
+	ErrorCount int `json:"error_count"`
 }
 
 // CoordinatorRuntimeStats holds live coordinator state
@@ -603,14 +622,25 @@ func (s *Server) handleControlPlaneStats(w http.ResponseWriter, r *http.Request)
 			log.Printf("Failed to get observatory metrics: %v", err)
 		} else if metrics != nil {
 			response.Observatory = &ObservatoryStats{
-				TotalSpans:      metrics.TotalSpans,
-				TotalTasks:      metrics.TotalTasks,
-				TotalWorkspaces: metrics.TotalWorkspaces,
-				TotalAgents:     metrics.TotalAgents,
-				TotalTokensIn:   metrics.TotalTokensIn,
-				TotalTokensOut:  metrics.TotalTokensOut,
-				TotalCostUSD:    metrics.TotalCostUSD,
-				SuccessRate:     metrics.SuccessRate,
+				TotalSpans:               metrics.TotalSpans,
+				TotalTasks:               metrics.TotalTasks,
+				TotalWorkspaces:          metrics.TotalWorkspaces,
+				TotalAgents:              metrics.TotalAgents,
+				TotalTokensIn:            metrics.TotalTokensIn,
+				TotalTokensOut:           metrics.TotalTokensOut,
+				TotalCostUSD:             metrics.TotalCostUSD,
+				SuccessRate:              metrics.SuccessRate,
+				TotalCacheReadTokens:     metrics.TotalCacheReadTokens,
+				TotalCacheCreationTokens: metrics.TotalCacheCreationTokens,
+				CacheSavingsUSD:          metrics.CacheSavingsUSD,
+				LinesAdded:               metrics.LinesAdded,
+				LinesRemoved:             metrics.LinesRemoved,
+				CommitCount:              metrics.CommitCount,
+				PullRequestCount:         metrics.PullRequestCount,
+				ActiveTimeMs:             metrics.ActiveTimeMs,
+				TurnCount:                metrics.TurnCount,
+				ToolCalls:                metrics.ToolCalls,
+				ErrorCount:               metrics.ErrorCount,
 			}
 			response.Sources.ObservatoryOK = true
 		}
@@ -678,6 +708,11 @@ type BreakdownItem struct {
 	CostUSD    float64 `json:"cost_usd"`
 	DurationMs int64   `json:"duration_ms"`          // Total execution time in ms
 	Percentage float64 `json:"percentage,omitempty"` // Percentage of total cost
+
+	// Cache metrics
+	CacheReadTokens     int64   `json:"cache_read_tokens"`
+	CacheCreationTokens int64   `json:"cache_creation_tokens"`
+	CacheSavingsUSD     float64 `json:"cache_savings_usd"`
 }
 
 // BreakdownResponse contains hierarchical breakdown data
@@ -803,14 +838,17 @@ func convertBreakdownItems(items []observatory.BreakdownItem) []BreakdownItem {
 	result := make([]BreakdownItem, len(items))
 	for i, item := range items {
 		result[i] = BreakdownItem{
-			ID:         item.ID,
-			Label:      item.Label,
-			SpanCount:  item.SpanCount,
-			TaskCount:  item.TaskCount,
-			TokensIn:   item.TokensIn,
-			TokensOut:  item.TokensOut,
-			CostUSD:    item.CostUSD,
-			DurationMs: item.DurationMs,
+			ID:                  item.ID,
+			Label:               item.Label,
+			SpanCount:           item.SpanCount,
+			TaskCount:           item.TaskCount,
+			TokensIn:            item.TokensIn,
+			TokensOut:           item.TokensOut,
+			CostUSD:             item.CostUSD,
+			DurationMs:          item.DurationMs,
+			CacheReadTokens:     item.CacheReadTokens,
+			CacheCreationTokens: item.CacheCreationTokens,
+			CacheSavingsUSD:     item.CacheSavingsUSD,
 		}
 	}
 	return result

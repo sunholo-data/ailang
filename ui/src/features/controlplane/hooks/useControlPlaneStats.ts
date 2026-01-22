@@ -15,6 +15,25 @@ export interface ObservatoryStats {
   total_tokens_out: number;
   total_cost_usd: number;
   success_rate: number;
+
+  // Cache metrics (from spans)
+  total_cache_read_tokens: number;
+  total_cache_creation_tokens: number;
+  cache_savings_usd: number;
+
+  // Lines of Code metrics (from metrics table)
+  lines_added: number;
+  lines_removed: number;
+
+  // Activity metrics (from metrics table)
+  commit_count: number;
+  pull_request_count: number;
+  active_time_ms: number;
+
+  // Session metrics
+  turn_count: number;
+  tool_calls: number;
+  error_count: number;
 }
 
 // Coordinator runtime state (subset - delegated tasks only)

@@ -264,5 +264,20 @@ func (b *JaegerBackend) GetToolForSpan(ctx context.Context, sessionID, toolName 
 	return nil, nil // Not supported by Jaeger backend
 }
 
+// ===== Metric Operations (M-TELEMETRY-CAPTURE) =====
+// Jaeger backend is read-only for traces, doesn't store metrics
+
+func (b *JaegerBackend) CreateMetric(ctx context.Context, m *Metric) error {
+	return nil // Jaeger backend doesn't store metrics
+}
+
+func (b *JaegerBackend) ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error) {
+	return nil, nil // Jaeger backend doesn't store metrics
+}
+
+func (b *JaegerBackend) GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error) {
+	return nil, nil // Jaeger backend doesn't store metrics
+}
+
 // Ensure JaegerBackend implements Backend
 var _ Backend = (*JaegerBackend)(nil)

@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS spans (
     -- Normalized attributes (common across providers)
     tokens_in INTEGER,
     tokens_out INTEGER,
+    cache_read_tokens INTEGER DEFAULT 0,
+    cache_creation_tokens INTEGER DEFAULT 0,
     cost_usd REAL,
     model TEXT,
     provider TEXT,
@@ -183,6 +185,34 @@ CREATE TABLE IF NOT EXISTS session_tools (
 CREATE INDEX IF NOT EXISTS idx_session_tools_session ON session_tools(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tools_name ON session_tools(tool_name);
 CREATE INDEX IF NOT EXISTS idx_session_tools_time ON session_tools(start_time DESC);
+
+-- OTLP metrics from Claude Code telemetry
+-- Captures: lines_of_code.count, commit.count, pull_request.count, active_time.total, etc.
+CREATE TABLE IF NOT EXISTS metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,                -- e.g., 'claude_code.lines_of_code.count'
+    metric_type TEXT NOT NULL,         -- 'counter', 'gauge'
+    session_id TEXT,
+    workspace TEXT,
+    provider TEXT,
+    -- Denormalized labels for efficient queries
+    label_type TEXT,                   -- 'added'/'removed' for LOC
+    label_tool TEXT,                   -- tool name for tool metrics
+    label_decision TEXT,               -- 'approved'/'rejected' for code_edit_tool
+    label_language TEXT,               -- language for LOC
+    label_model TEXT,                  -- model name for model-specific metrics
+    -- Values
+    value_int INTEGER,
+    value_float REAL,
+    labels TEXT NOT NULL DEFAULT '{}',
+    resource_attributes TEXT DEFAULT '{}',
+    timestamp TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics(name);
+CREATE INDEX IF NOT EXISTS idx_metrics_session ON metrics(session_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp DESC);
 
 -- Aggregation views
 CREATE VIEW IF NOT EXISTS workspace_stats AS

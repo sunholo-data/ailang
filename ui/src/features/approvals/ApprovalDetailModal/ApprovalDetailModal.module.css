@@ -677,6 +677,188 @@
   padding: 48px;
 }
 
+.logsHint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted, #8b949e);
+}
+
+.logsHint code {
+  padding: 2px 6px;
+  background: var(--bg-secondary, #f6f8fa);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+}
+
+/* Conversation View - turn-by-turn display */
+.conversationView {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.turn {
+  border-left: 3px solid var(--color-accent, #0969da);
+  padding-left: 16px;
+}
+
+.turnHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.turnNumber {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent, #0969da);
+}
+
+.turnTime {
+  font-size: 12px;
+  color: var(--text-muted, #8b949e);
+}
+
+.turnEvents {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Text block - Claude's response */
+.textBlock {
+  background: var(--bg-secondary, #f6f8fa);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-color, #d0d7de);
+}
+
+.textContent {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  color: var(--text-primary, #24292f);
+}
+
+/* Tool block - expandable */
+.toolBlock {
+  background: var(--bg-tertiary, #eaeef2);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #d0d7de);
+  overflow: hidden;
+}
+
+.toolHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toolHeader:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.toolName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+  font-weight: 500;
+  color: var(--color-warning, #9a6700);
+}
+
+.toolIcon {
+  font-size: 14px;
+}
+
+.toolExpand {
+  font-size: 10px;
+  color: var(--text-muted, #8b949e);
+}
+
+.toolContent {
+  border-top: 1px solid var(--border-color, #d0d7de);
+  background: var(--bg-secondary, #f6f8fa);
+}
+
+.toolSection {
+  padding: 12px 14px;
+}
+
+.toolSection + .toolSection {
+  border-top: 1px solid var(--border-color, #d0d7de);
+}
+
+.toolSectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b949e);
+  margin-bottom: 8px;
+}
+
+.toolJson {
+  margin: 0;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-primary, #24292f);
+  max-height: 300px;
+  overflow: auto;
+}
+
+/* Error block */
+.errorBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--color-danger-bg, #ffebe9);
+  border: 1px solid var(--color-danger, #cf222e);
+  border-radius: 8px;
+}
+
+.errorIcon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.errorText {
+  font-size: 13px;
+  color: var(--color-danger, #cf222e);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Status block */
+.statusBlock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-info-bg, #ddf4ff);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-info, #0969da);
+}
+
+.statusIcon {
+  font-size: 12px;
+}
+
+.statusText {
+  font-weight: 500;
+}
+
 .eventList {
   display: flex;
   flex-direction: column;

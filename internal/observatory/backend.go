@@ -88,6 +88,11 @@ type Backend interface {
 	// GetExecTaskHierarchy returns hierarchy of ailang command spans (exec, run, check)
 	GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error)
 
+	// Metric operations (Claude Code telemetry metrics)
+	CreateMetric(ctx context.Context, m *Metric) error
+	ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error)
+	GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error)
+
 	// Lifecycle
 	Close() error
 }

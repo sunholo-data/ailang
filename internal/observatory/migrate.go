@@ -201,6 +201,89 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 4
 	}
 
+	// Migration v5: Add metrics table and cache token columns to spans
+	// Captures Claude Code telemetry: LOC, commits, PRs, active time, cache tokens
+	if currentVersion < 5 {
+		// Create metrics table for OTLP counter/gauge metrics
+		_, err = db.Exec(`
+			CREATE TABLE IF NOT EXISTS metrics (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				metric_type TEXT NOT NULL,
+				session_id TEXT,
+				workspace TEXT,
+				provider TEXT,
+				label_type TEXT,
+				label_tool TEXT,
+				label_decision TEXT,
+				label_language TEXT,
+				label_model TEXT,
+				value_int INTEGER,
+				value_float REAL,
+				labels TEXT NOT NULL DEFAULT '{}',
+				resource_attributes TEXT DEFAULT '{}',
+				timestamp TIMESTAMP NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create metrics table: %w", err)
+		}
+
+		// Create indices for metrics table
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics(name)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create metrics name index: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_metrics_session ON metrics(session_id)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create metrics session index: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp DESC)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create metrics timestamp index: %w", err)
+		}
+
+		// Add cache token columns to spans table (idempotent via checking if column exists)
+		var cacheReadExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('spans') WHERE name = 'cache_read_tokens'
+		`).Scan(&cacheReadExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check cache_read_tokens column: %w", err)
+		}
+
+		if cacheReadExists == 0 {
+			_, err = db.Exec("ALTER TABLE spans ADD COLUMN cache_read_tokens INTEGER DEFAULT 0")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add cache_read_tokens column: %w", err)
+			}
+		}
+
+		var cacheCreationExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('spans') WHERE name = 'cache_creation_tokens'
+		`).Scan(&cacheCreationExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check cache_creation_tokens column: %w", err)
+		}
+
+		if cacheCreationExists == 0 {
+			_, err = db.Exec("ALTER TABLE spans ADD COLUMN cache_creation_tokens INTEGER DEFAULT 0")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add cache_creation_tokens column: %w", err)
+			}
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (5)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 5: %w", err)
+		}
+		currentVersion = 5
+	}
+
 	return currentVersion, nil
 }
 
@@ -216,6 +299,7 @@ func ValidateSchema(db *sql.DB) error {
 		"messages",
 		"sessions",
 		"session_tools",
+		"metrics",
 	}
 
 	for _, table := range expectedTables {

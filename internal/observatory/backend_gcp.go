@@ -621,5 +621,20 @@ func (b *GCPTraceBackend) GetToolForSpan(ctx context.Context, sessionID, toolNam
 	return nil, nil // Not supported by GCP backend
 }
 
+// ===== Metric Operations (M-TELEMETRY-CAPTURE) =====
+// GCP backend is read-only for traces, doesn't store metrics
+
+func (b *GCPTraceBackend) CreateMetric(ctx context.Context, m *Metric) error {
+	return nil // GCP backend doesn't store metrics
+}
+
+func (b *GCPTraceBackend) ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error) {
+	return nil, nil // GCP backend doesn't store metrics
+}
+
+func (b *GCPTraceBackend) GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error) {
+	return nil, nil // GCP backend doesn't store metrics
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)
