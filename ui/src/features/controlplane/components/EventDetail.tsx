@@ -33,6 +33,7 @@ const getEventTypeLabel = (type: EventMessage['type']): string => {
     case 'handoff': return 'Handoff';
     case 'approval': return 'Approval Request';
     case 'message': return 'Message';
+    case 'session': return 'Session';
   }
 };
 
@@ -44,7 +45,21 @@ const getEventTypeColor = (type: EventMessage['type']): string => {
     case 'handoff': return 'amber';
     case 'approval': return 'warning';
     case 'message': return 'muted';
+    case 'session': return 'primary';
   }
+};
+
+// Format duration for display
+const formatDuration = (ms: number): string => {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
+};
+
+// Extract workspace name from path
+const getWorkspaceName = (workspace: string): string => {
+  const parts = workspace.split('/');
+  return parts[parts.length - 1] || workspace;
 };
 
 // Format outlier metric value for display
@@ -134,41 +149,87 @@ export const EventDetail: React.FC<EventDetailProps> = ({
       {/* Event Info */}
       <div className={styles.eventDetailContent}>
         <div className={styles.eventDetailInfo}>
-          <div className={styles.eventDetailRow}>
-            <span className={styles.eventDetailRowLabel}>Source</span>
-            <span className={styles.eventDetailRowValue}>{event.source}</span>
-          </div>
-          {event.target && (
-            <div className={styles.eventDetailRow}>
-              <span className={styles.eventDetailRowLabel}>Target</span>
-              <span className={styles.eventDetailRowValue}>{event.target}</span>
+          {/* PRIMARY: Directive/Task Description - most important info */}
+          {(event.directive || event.directive_full) && (
+            <div className={styles.eventDetailDirective}>
+              <div className={styles.eventDetailDirectiveText}>
+                {event.directive_full || event.directive}
+              </div>
             </div>
           )}
-          <div className={styles.eventDetailRow}>
-            <span className={styles.eventDetailRowLabel}>Time</span>
-            <span className={styles.eventDetailRowValue}>
+
+          {/* CONTEXT: Source → Target flow with badges */}
+          <div className={styles.eventDetailContext}>
+            <span className={styles.eventDetailContextFlow}>
+              <span className={styles.eventDetailContextSource}>{event.source}</span>
+              {event.target && (
+                <>
+                  <span className={styles.eventDetailContextArrow}>→</span>
+                  <span className={styles.eventDetailContextTarget}>{event.target}</span>
+                </>
+              )}
+            </span>
+            {event.workspace && (
+              <span className={styles.eventDetailContextBadge} title={event.workspace}>
+                {getWorkspaceName(event.workspace)}
+              </span>
+            )}
+            <span className={styles.eventDetailContextTime}>
               {new Date(event.timestamp).toLocaleString()}
             </span>
           </div>
-          {traceId && (
-            <div className={styles.eventDetailRow}>
-              <span className={styles.eventDetailRowLabel}>Task ID</span>
-              <span
-                className={styles.eventDetailRowValue}
-                title={`Click to copy: ${traceId}`}
-                style={{ cursor: 'pointer', fontFamily: 'monospace' }}
-                onClick={() => {
-                  navigator.clipboard.writeText(traceId);
-                }}
-              >
-                {traceId}
-              </span>
+
+          {/* METRICS: Badges for sessions (turns, cost, duration) */}
+          {(event.turn_count || event.cost_usd || event.duration_ms) && (
+            <div className={styles.eventDetailMetrics}>
+              {event.turn_count !== undefined && event.turn_count > 0 && (
+                <span className={styles.eventDetailMetricBadge} title="Number of turns">
+                  {event.turn_count} turns
+                </span>
+              )}
+              {event.cost_usd !== undefined && event.cost_usd > 0 && (
+                <span className={styles.eventDetailMetricBadge} title="AI cost">
+                  ${event.cost_usd < 0.01 ? event.cost_usd.toFixed(4) : event.cost_usd.toFixed(2)}
+                </span>
+              )}
+              {event.duration_ms !== undefined && event.duration_ms > 0 && (
+                <span className={styles.eventDetailMetricBadge} title="Duration">
+                  {formatDuration(event.duration_ms)}
+                </span>
+              )}
+              {event.tokens_in !== undefined && event.tokens_out !== undefined && (
+                <span className={styles.eventDetailMetricBadge} title="Tokens (in/out)">
+                  {((event.tokens_in + event.tokens_out) / 1000).toFixed(1)}k tokens
+                </span>
+              )}
             </div>
           )}
-          <div className={styles.eventDetailMessage}>
-            <span className={styles.eventDetailRowLabel}>Content</span>
-            <div className={styles.eventDetailMessageContent}>{event.content}</div>
+
+          {/* SECONDARY: Content/Title (if different from directive) */}
+          {event.content && event.content !== event.directive && (
+            <div className={styles.eventDetailMessage}>
+              <span className={styles.eventDetailRowLabel}>Content</span>
+              <div className={styles.eventDetailMessageContent}>{event.content}</div>
+            </div>
+          )}
+
+          {/* TERTIARY: Technical details (collapsible feel) */}
+          <div className={styles.eventDetailTechnical}>
+            {traceId && (
+              <div className={styles.eventDetailTechnicalRow}>
+                <span className={styles.eventDetailTechnicalLabel}>Task ID</span>
+                <span
+                  className={styles.eventDetailTechnicalValue}
+                  title={`Click to copy: ${traceId}`}
+                  onClick={() => navigator.clipboard.writeText(traceId)}
+                >
+                  {traceId}
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* PAYLOAD: Full message payload (expandable) */}
           {payload && payload !== event.content && (
             <div className={styles.eventDetailPayload}>
               <span className={styles.eventDetailRowLabel}>Payload</span>
@@ -179,6 +240,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({
               </pre>
             </div>
           )}
+
           {loading && (
             <div className={styles.eventDetailRow}>
               <span className={styles.eventDetailRowLabel}>Status</span>

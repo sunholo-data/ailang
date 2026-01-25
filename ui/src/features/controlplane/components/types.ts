@@ -16,10 +16,22 @@ export interface Agent {
 export interface EventMessage {
   id: string;
   timestamp: string;
-  type: 'task_start' | 'task_complete' | 'task_error' | 'handoff' | 'approval' | 'message';
+  type: 'task_start' | 'task_complete' | 'task_error' | 'handoff' | 'approval' | 'message' | 'session';
   source: string;
   target?: string;
   content: string;
+  // Task context fields
+  directive?: string;         // Initial user prompt (truncated preview)
+  directive_full?: string;    // Full directive (for detail views)
+  workspace?: string;         // Working directory
+  agent_id?: string;          // Agent identifier
+  // Metrics (for Claude Code sessions)
+  turn_count?: number;
+  cost_usd?: number;
+  tokens_in?: number;
+  tokens_out?: number;
+  duration_ms?: number;
+  metrics_summary?: string;   // "3 turns • $0.42 • 12.5s"
   metadata?: Record<string, unknown>;
 }
 

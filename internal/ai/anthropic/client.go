@@ -10,13 +10,12 @@ import (
 
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var anthropicTracer = otel.Tracer("ai.anthropic")
+var anthropicTracer = telemetry.Tracer("ai.anthropic")
 
 const (
 	defaultBaseURL    = "https://api.anthropic.com/v1"
@@ -115,7 +114,7 @@ type errorResponse struct {
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Start OTEL span
-	ctx, span := anthropicTracer.Start(ctx, "anthropic.generate",
+	ctx, span := telemetry.StartSpan(ctx, anthropicTracer, "anthropic.generate",
 		trace.WithAttributes(
 			attribute.String("ai.provider", "anthropic"),
 			attribute.String("ai.model", req.Model),

@@ -1,0 +1,27 @@
+{
+  "id": "adt_option",
+  "lang": "ailang",
+  "model": "gemini-3-flash",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: first attempt failed: code generation failed: gemini error (403): Vertex AI API has not been used in project ailang-dev before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=ailang-dev then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.",
+  "expected_stdout": "Root: 4.0\nError: Negative input\n",
+  "timestamp": "2026-01-23T15:20:06.255206+01:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "caps": [
+    "IO"
+  ],
+  "eval_mode": "standard"
+}

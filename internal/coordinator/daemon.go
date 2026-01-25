@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/telemetry"
 	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
 
@@ -280,7 +281,7 @@ func (d *Daemon) triggerMissedHandoffs() (int, error) {
 		}
 
 		// Use a background context span for catch-up
-		ctx, span := approvalProcessorTracer.Start(d.ctx, "approval.catchup_handoff")
+		ctx, span := telemetry.StartSpan(d.ctx, approvalProcessorTracer, "approval.catchup_handoff")
 		span.SetAttributes(
 			traceAttribute.String("task.id", approval.TaskID),
 			traceAttribute.String("approval.type", approval.Type),

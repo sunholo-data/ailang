@@ -17,6 +17,7 @@ type Message struct {
 	Kind         string // directive, question (message type)
 	Priority     string // high, medium, low
 	GithubIssue  int    // Linked GitHub issue number (M-COORD-GITHUB-AUTO-ROUTING)
+	GithubRepo   string // GitHub repo (owner/repo) for issue operations (M-COORD-GITHUB-CLOSE-ON-MERGE)
 	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
 	Iteration    int    // Iteration number for feedback loops (M-TASK-HIERARCHY)
 	CreatedAt    time.Time

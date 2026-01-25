@@ -174,50 +174,35 @@ func TestRequireApproverMiddlewareNotApprover(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
-func TestRequireWorkspaceAccessMiddleware(t *testing.T) {
-	user := &auth.User{
-		FirebaseUID: "test-uid",
-		Email:       "test@example.com",
-		WorkspaceID: "workspace-123",
+// Note: RequireWorkspaceAccessMiddleware tests require a full Server with WorkspaceService.
+// These are covered by integration tests in handlers_workspace_test.go.
+
+func TestWorkspaceAccessInfo(t *testing.T) {
+	// Test WorkspaceAccessInfo struct
+	info := WorkspaceAccessInfo{
+		RequestedWorkspace:   "test-workspace",
+		AccessibleWorkspaces: []string{"workspace-1", "workspace-2"},
+		Role:                 "Approver",
+		IsPublicOnly:         false,
 	}
 
-	handler := RequireWorkspaceAccess(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	// Test with matching workspace
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Workspace-ID", "workspace-123")
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
-	req = req.WithContext(ctx)
-
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "test-workspace", info.RequestedWorkspace)
+	assert.Len(t, info.AccessibleWorkspaces, 2)
+	assert.Equal(t, "Approver", info.Role)
+	assert.False(t, info.IsPublicOnly)
 }
 
-func TestRequireWorkspaceAccessMiddlewareForbidden(t *testing.T) {
-	user := &auth.User{
-		FirebaseUID: "test-uid",
-		Email:       "test@example.com",
-		WorkspaceID: "workspace-123",
+func TestWorkspaceAccessInfoPublicOnly(t *testing.T) {
+	// Test unauthenticated user (public only)
+	info := WorkspaceAccessInfo{
+		RequestedWorkspace:   "",
+		AccessibleWorkspaces: []string{"public-workspace"},
+		Role:                 "",
+		IsPublicOnly:         true,
 	}
 
-	handler := RequireWorkspaceAccess(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	// Test with different workspace
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Workspace-ID", "workspace-456")
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
-	req = req.WithContext(ctx)
-
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.True(t, info.IsPublicOnly)
+	assert.Len(t, info.AccessibleWorkspaces, 1)
 }
 
 func TestErrorResponseFields(t *testing.T) {

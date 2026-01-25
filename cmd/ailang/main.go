@@ -217,6 +217,12 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "access-control":
+		if err := accessControlCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "compile":
 		compileCommand()
 
@@ -240,6 +246,12 @@ func main() {
 
 	case "coordinator":
 		if err := coordinatorCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "workspaces":
+		if err := workspacesCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}

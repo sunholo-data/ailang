@@ -1215,6 +1215,31 @@
   opacity: 0.8;
 }
 
+/* Workspace access role badges */
+.navBadge {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.navBadgeApprover {
+  background: var(--success, #10b981);
+  color: #fff;
+}
+
+.navBadgeViewer {
+  background: var(--info, #3b82f6);
+  color: #fff;
+}
+
+.navBadgePublic {
+  background: var(--bg-hover, #374151);
+  color: var(--text-secondary);
+}
+
 .navChildren {
   /* Children rendered inside */
 }
@@ -2213,6 +2238,116 @@
   word-break: break-all;
 }
 
+/* Directive - Primary focus area */
+.eventDetailDirective {
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.eventDetailDirectiveText {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Context row - Source → Target flow */
+.eventDetailContext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: 11px;
+}
+
+.eventDetailContextFlow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.eventDetailContextSource {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.eventDetailContextArrow {
+  color: var(--text-muted);
+}
+
+.eventDetailContextTarget {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+.eventDetailContextBadge {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.eventDetailContextTime {
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Metrics badges row */
+.eventDetailMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+}
+
+.eventDetailMetricBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-dim);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Technical details - de-emphasized */
+.eventDetailTechnical {
+  padding: var(--space-1) 0;
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.eventDetailTechnicalRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.eventDetailTechnicalLabel {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 60px;
+}
+
+.eventDetailTechnicalValue {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.eventDetailTechnicalValue:hover {
+  color: var(--primary);
+}
+
 /* Outliers Summary Section */
 .eventDetailOutliers {
   display: flex;
@@ -3205,6 +3340,26 @@
   background: var(--primary-dim);
   color: var(--primary);
   border: 1px solid var(--primary-glow);
+}
+
+/* Metrics badges for turns, cost, duration */
+.metricBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.metricBadge:hover {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
 }
 
 /* Expand button for long directives */

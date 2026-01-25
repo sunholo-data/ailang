@@ -2,34 +2,41 @@
 -- Demonstrates how to use the trace testing module to verify
 -- that expected trace spans were created during program execution.
 --
--- This is useful for testing that instrumented code paths are
--- being executed correctly.
+-- USAGE: Run with AILANG_TRACE_RECORDING=1 to enable trace bridging:
+--   AILANG_TRACE_RECORDING=1 ailang run --caps IO --entry main examples/trace_testing.ail
+--
+-- When trace recording is enabled, the compiler's OTEL spans are
+-- automatically recorded to the TraceRegistry, making them queryable
+-- via _trace_check and the assert_* helpers.
 
 module examples/trace_testing
 
 import stdlib/trace_test (assert_trace_exists, assert_trace_not_exists)
 
--- Test that basic trace checking works.
--- In practice, you would record traces during execution and then verify them.
-let test_trace_checking = \_ . {
-  -- These assertions check if traces with given names exist.
-  -- The trace registry must be populated by instrumented code first.
+-- Test that compilation traces were recorded.
+-- With AILANG_TRACE_RECORDING=1, these should all pass because
+-- the compiler instruments its phases with OTEL spans.
+let test_compilation_traces = \_ . {
+  -- The compile.* spans are created during parsing, elaboration, type checking, etc.
+  -- When trace recording is enabled, StartSpan records each span name.
 
-  -- Check for a specific span name
-  let has_compile_parse = assert_trace_exists("compile.parse");
+  -- Check for specific compile phase spans
+  let has_parse = assert_trace_exists("compile.parse");
+  let has_elaborate = assert_trace_exists("compile.elaborate");
+  let has_typecheck = assert_trace_exists("compile.typecheck");
 
   -- Check for prefix match (matches any compile.* span)
   let has_any_compile = assert_trace_exists("compile");
 
-  -- Check that something does NOT exist
+  -- Check that non-existent spans return false
   let missing_foo = assert_trace_not_exists("foo.bar.nonexistent");
 
-  -- Return success if assertions passed (non-crashing)
+  -- Return success if we got this far
   1
 }
 
 -- Entry point for running the example
 let main = \_ . {
-  test_trace_checking(());
+  test_compilation_traces(());
   0  -- Exit success
 }

@@ -65,8 +65,19 @@ func (p *GitHubPoster) RemoveLabel(issueNum int, label string) error {
 }
 
 // CloseIssue closes a GitHub issue with an optional comment.
+// Uses the default repo configured in the poster.
 func (p *GitHubPoster) CloseIssue(issueNum int, comment string) error {
 	return p.client.CloseIssue(p.repo, issueNum, comment)
+}
+
+// CloseIssueInRepo closes a GitHub issue in a specific repo with an optional comment.
+// If repo is empty, falls back to the default repo.
+func (p *GitHubPoster) CloseIssueInRepo(repo string, issueNum int, comment string) error {
+	targetRepo := repo
+	if targetRepo == "" {
+		targetRepo = p.repo
+	}
+	return p.client.CloseIssue(targetRepo, issueNum, comment)
 }
 
 // GetLabels returns the current labels on an issue.
@@ -202,8 +213,19 @@ func (p *GitHubPoster) ClaimIssue(issueNum int) error {
 
 // ReleaseIssue releases a claimed issue by removing the in-progress label.
 // Called when a task completes, fails, or is cancelled.
+// Uses the default repo configured in the poster.
 func (p *GitHubPoster) ReleaseIssue(issueNum int) error {
 	return p.RemoveLabel(issueNum, LabelInProgress)
+}
+
+// ReleaseIssueInRepo releases a claimed issue in a specific repo.
+// If repo is empty, falls back to the default repo.
+func (p *GitHubPoster) ReleaseIssueInRepo(repo string, issueNum int) error {
+	targetRepo := repo
+	if targetRepo == "" {
+		targetRepo = p.repo
+	}
+	return p.client.RemoveLabelFromIssue(targetRepo, issueNum, LabelInProgress)
 }
 
 // IsIssueClaimed checks if an issue is already claimed by any coordinator.

@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+### Added - OTEL to TraceRegistry Bridge (M-TRACE-BRIDGE)
+
+Bridged existing OpenTelemetry spans to the TraceRegistry, enabling `_trace_check` to verify spans created by the compiler, REPL, AI providers, and other instrumented components.
+
+**New Functions:**
+- `telemetry.Tracer(name)` - Get a tracer instance (wraps `otel.Tracer`)
+- `telemetry.StartSpan(ctx, tracer, spanName, opts...)` - Create span and record to TraceRegistry
+- `telemetry.RecordSpan(spanName)` - Manually record a span name
+- `telemetry.SetTraceRecordingEnabled(bool)` - Enable/disable recording
+- `telemetry.IsTraceRecordingEnabled()` - Check if recording is enabled
+
+**Environment Variable:**
+- `AILANG_TRACE_RECORDING=1` - Enable trace recording at startup
+
+**Updated Files (13 files):**
+- `internal/telemetry/traced_tracer.go`: New bridge implementation (~60 LOC)
+- `internal/telemetry/traced_tracer_test.go`: Unit tests (~60 LOC)
+- `internal/telemetry/traced_tracer_integration_test.go`: Integration tests (~70 LOC)
+- Updated tracer definitions in: pipeline, repl, ai/*, executor/*, messaging, coordinator
+
+**How it works:**
+When `AILANG_TRACE_RECORDING=1` is set (or enabled programmatically), every span created via `telemetry.StartSpan` is recorded to the global TraceRegistry. This allows `_trace_check("compile.parse")` to return `true` after compilation.
+
+**Zero overhead:** When disabled, `StartSpan` just delegates to the underlying tracer with no additional work.
+
+**Design Doc:** `design_docs/planned/v0_7_1/m-trace-instrumentation.md`
+
 ### Added - Trace Testing Framework (M-TRACE-TEST)
 
 Added a minimal trace testing utility for verifying that expected trace spans exist during program execution.
@@ -38,6 +65,45 @@ export pure func verify_traces() -> int {
 - `internal/effects/trace_test.go`: 8 test cases including concurrency tests
 
 **Design Doc:** `design_docs/planned/v0_7_1/trace-test.md`
+
+### Added - Workspace Access Control (M-WORKSPACE-ACCESS)
+
+Multi-tenant workspace isolation for the AILANG Dashboard. Users only see workspaces they have access to.
+
+**New CLI Commands:**
+- `ailang workspaces list` - List accessible workspaces
+- `ailang workspaces add` - Create a new workspace
+- `ailang workspaces show` - Show workspace details
+- `ailang workspaces grant` - Grant user access to a workspace
+- `ailang workspaces revoke` - Revoke user access from a workspace
+- `ailang workspaces set-public` - Toggle public visibility
+
+**Key Features:**
+- Workspace = GitHub repo identifier (e.g., `sunholo-data/ailang`)
+- Per-workspace roles: Viewer (read-only), Approver (full access)
+- Public/private visibility via `is_public` flag
+- Path pattern matching with `*` and `**` wildcards
+- 5-minute TTL caching for Firestore access checks
+- Defense-in-depth: Frontend filter → API Middleware → Query filtering
+
+**New Files (~1810 LOC total):**
+- `internal/server/auth/workspace.go` (~580 LOC): Core workspace service
+- `internal/server/auth/workspace_test.go` (~254 LOC): Unit tests
+- `cmd/ailang/workspaces.go` (~464 LOC): CLI commands
+- `ui/src/hooks/useWorkspaceAccess.ts` (~112 LOC): React hook
+- `docs/docs/guides/workspaces.md` (~200 LOC): Documentation
+
+**Modified Files:**
+- `internal/coordinator/agent_config.go`: Added WorkspacesConfig
+- `internal/server/handlers_auth.go`: Added RequireWorkspaceAccessMiddleware
+- `internal/server/handlers_threads.go`: Updated handleWorkspaces endpoint
+- `ui/src/features/controlplane/components/AggregationNav.tsx`: Added role badges
+
+**Firestore Schema:**
+- `workspaces/{id}`: Workspace metadata (name, is_public, github_repo)
+- `workspace_access/{workspace_id}/users/{email}`: Per-user access grants
+
+**Design Doc:** `design_docs/planned/v0_7_1/m-workspace-access-control.md`
 
 ## [v0.7.0] - 2026-01-21
 

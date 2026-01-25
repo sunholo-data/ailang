@@ -28,6 +28,7 @@ type TaskRecord struct {
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	GithubIssue    int       `json:"github_issue,omitempty"`     // Linked GitHub issue number
+	GithubRepo     string    `json:"github_repo,omitempty"`      // GitHub repo (owner/repo) for issue operations
 	Stage          TaskStage `json:"stage,omitempty"`            // Pipeline stage (design, sprint, implementation, merge)
 	DesignDocPath  string    `json:"design_doc_path,omitempty"`  // Path to design doc (for merge comment)
 	SprintPlanPath string    `json:"sprint_plan_path,omitempty"` // Path to sprint plan (for merge comment)

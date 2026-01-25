@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
-	"go.opentelemetry.io/otel"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var approvalProcessorTracer = otel.Tracer("coordinator.approval")
+var approvalProcessorTracer = telemetry.Tracer("coordinator.approval")
 
 // ApprovalParams contains all parameters for processing an approval or rejection.
 // This is the single interface used by CLI, Dashboard, and Daemon.
@@ -99,7 +99,7 @@ func ProcessApprovalRequest(ctx context.Context, params *ApprovalParams) (*Appro
 	}
 
 	// Create OTEL span for approval decision
-	ctx, span := approvalProcessorTracer.Start(ctx, "approval.decision",
+	ctx, span := telemetry.StartSpan(ctx, approvalProcessorTracer, "approval.decision",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("approval.action", params.Action),
@@ -261,7 +261,24 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		}
 	}
 
-	// 8. Clean up worktree (unless --keep-worktree)
+	// 8. Close GitHub issue with merge summary (M-COORD-GITHUB-CLOSE-ON-MERGE)
+	if task.GithubIssue > 0 && params.GitHubPoster != nil {
+		comment := fmt.Sprintf("**Merged to %s**\n\nCommit: `%s`\nApproved by: %s",
+			mergeBranch, result.MergeCommit, params.ApprovedBy)
+		if err := params.GitHubPoster.CloseIssueInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
+			span.AddEvent("warning: failed to close GitHub issue", trace.WithAttributes(
+				attribute.Int("github.issue", task.GithubIssue),
+				attribute.String("github.repo", task.GithubRepo),
+				attribute.String("error", err.Error()),
+			))
+		}
+		// Release the claim label
+		if err := params.GitHubPoster.ReleaseIssueInRepo(task.GithubRepo, task.GithubIssue); err != nil {
+			span.AddEvent("warning: failed to release issue claim")
+		}
+	}
+
+	// 9. Clean up worktree (unless --keep-worktree)
 	if !params.KeepWorktree {
 		cleanupWorktree(task.WorktreePath)
 	}

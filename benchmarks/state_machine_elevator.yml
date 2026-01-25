@@ -1,0 +1,68 @@
+id: state_machine_elevator
+description: "State machine with ADTs, exhaustive pattern matching, and state threading"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "very_high"
+timeout: 120  # Hard complexity: 120 seconds
+task_prompt: |
+  Implement an elevator state machine in <LANG> using algebraic data types (or equivalent) and exhaustive pattern matching.
+
+  **Task Requirements**:
+
+  1. **Define State Type** (3 variants):
+     - Idle state with current floor (integer 1-10)
+     - Moving state with current floor and target floor
+     - DoorOpen state with current floor and timer (seconds until door closes)
+
+  2. **Define Event Type** (3 variants):
+     - Call(floor) event - someone calls elevator to a floor
+     - Tick event - time passes (1 second)
+     - Arrive event - elevator reaches target floor
+
+  3. **Implement transition function** that takes a state and event, returns new state:
+     - **Idle(floor) + Call(target)**: If target == floor, go to DoorOpen(floor, 3); else go to Moving(floor, target)
+     - **Moving(cur, target) + Tick**: Stay in Moving (simulating movement)
+     - **Moving(cur, target) + Arrive**: Go to DoorOpen(target, 3)
+     - **DoorOpen(floor, timer) + Tick**: If timer > 1, decrement timer; else go to Idle(floor)
+     - **Any other combination**: Return current state unchanged
+     - Must handle **all combinations exhaustively**
+
+  4. **Implement display function** that takes a state and returns a formatted string:
+     - Idle at floor N → "IDLE @ floor N"
+     - Moving from F to T → "MOVING F -> T"
+     - DoorOpen at floor N with timer T → "DOOR_OPEN @ floor N (Tsec)"
+
+  5. **Main simulation**:
+     - Start with Idle(1)
+     - Apply Call(5) event (print state after)
+     - Apply 2 Tick events (print state after each)
+     - Apply Arrive event (print state after)
+     - Apply 4 Tick events (print state after each)
+     - Apply Call(1) event (print state after)
+     - Total output: 9 lines
+
+  **Expected sequence**:
+  ```
+  MOVING 1 -> 5
+  MOVING 1 -> 5
+  MOVING 1 -> 5
+  DOOR_OPEN @ floor 5 (3sec)
+  DOOR_OPEN @ floor 5 (2sec)
+  DOOR_OPEN @ floor 5 (1sec)
+  IDLE @ floor 5
+  IDLE @ floor 5
+  MOVING 5 -> 1
+  ```
+
+expected_stdout: |
+  MOVING 1 -> 5
+  MOVING 1 -> 5
+  MOVING 1 -> 5
+  DOOR_OPEN @ floor 5 (3sec)
+  DOOR_OPEN @ floor 5 (2sec)
+  DOOR_OPEN @ floor 5 (1sec)
+  IDLE @ floor 5
+  IDLE @ floor 5
+  MOVING 5 -> 1

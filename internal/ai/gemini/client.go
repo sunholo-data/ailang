@@ -8,13 +8,12 @@ import (
 
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var geminiAITracer = otel.Tracer("ai.gemini")
+var geminiAITracer = telemetry.Tracer("ai.gemini")
 
 const (
 	// AI Studio base URL (uses API key)
@@ -101,7 +100,7 @@ func NewVertexAIClient(projectID string, opts ...ClientOption) (*Client, error) 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Start OTEL span
-	ctx, span := geminiAITracer.Start(ctx, "gemini.generate",
+	ctx, span := telemetry.StartSpan(ctx, geminiAITracer, "gemini.generate",
 		trace.WithAttributes(
 			attribute.String("ai.provider", "gemini"),
 			attribute.String("ai.model", req.Model),

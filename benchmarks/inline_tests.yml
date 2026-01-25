@@ -8,18 +8,18 @@ expected_gain: "high"
 task_prompt: |
   Write a program in <LANG> that:
 
-  1. Defines a pure function `square(n)` that returns n * n
-     - In AILANG, annotate with inline tests: `pure func square(n: int) -> int tests [(0, 0), (5, 25), (-3, 9)] { ... }`
+  1. Defines a pure function `cube(n)` that returns n * n * n
+     - In AILANG, annotate with inline tests: `pure func cube(n: int) -> int tests [(0, 0), (2, 8), (3, 27)] { ... }`
 
-  2. Defines a pure function `isEven(n)` that returns true if n is even
-     - In AILANG, annotate with inline tests: `pure func isEven(n: int) -> bool tests [(0, true), (1, false), (4, true)] { ... }`
+  2. Defines a pure function `isPositive(n)` that returns true if n > 0
+     - In AILANG, annotate with inline tests: `pure func isPositive(n: int) -> bool tests [(5, true), (0, false), (-3, false)] { ... }`
 
-  3. In main, call square(7) and print the result
+  3. In main, call cube(4) and print the result
 
-  Expected output: 49
+  Expected output: 64
 
   Note: In Python, just define the functions normally without inline test syntax.
 
   Output only the code, no explanations.
 expected_stdout: |
-  49
+  64

@@ -307,16 +307,4 @@ func Init(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 	return InitOTLP(ctx, serviceName)
 }
 
-// Tracer returns a tracer for the given instrumentation scope.
-// This is a convenience wrapper around otel.Tracer.
-func Tracer(name string) interface{ Tracer() } {
-	return tracerWrapper{name: name}
-}
-
-type tracerWrapper struct {
-	name string
-}
-
-func (t tracerWrapper) Tracer() {
-	// This is just for documentation - use otel.Tracer(name) directly
-}
+// NOTE: Tracer function moved to traced_tracer.go for trace recording integration

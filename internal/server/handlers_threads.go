@@ -185,24 +185,70 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /api/workspaces - List all distinct workspaces
+// WorkspaceWithAccess represents a workspace with access information.
+type WorkspaceWithAccess struct {
+	ID       string `json:"id"`
+	Name     string `json:"name,omitempty"`
+	Role     string `json:"role,omitempty"`
+	IsPublic bool   `json:"is_public"`
+}
+
+// GET /api/workspaces - List accessible workspaces for the current user.
+// For authenticated users, returns public + granted workspaces.
+// For unauthenticated users, returns only public workspaces.
 func (s *Server) handleWorkspaces(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	workspaces, err := s.store.GetDistinctWorkspaces()
+	// If no workspace service, fall back to distinct workspaces from store
+	if s.workspaceService == nil {
+		workspaces, err := s.store.GetDistinctWorkspaces()
+		if err != nil {
+			http.Error(w, "Failed to get workspaces", http.StatusInternalServerError)
+			return
+		}
+		sort.Strings(workspaces)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(workspaces)
+		return
+	}
+
+	ctx := r.Context()
+	user := getUserFromContext(r)
+
+	var email string
+	if user != nil {
+		email = user.Email
+	}
+
+	// Get accessible workspaces from workspace service
+	accessible, err := s.workspaceService.ListAccessibleWorkspaces(ctx, email)
 	if err != nil {
+		log.Printf("Failed to list accessible workspaces: %v", err)
 		http.Error(w, "Failed to get workspaces", http.StatusInternalServerError)
 		return
 	}
 
-	// Sort for consistent ordering
-	sort.Strings(workspaces)
+	// Convert to response format
+	response := make([]WorkspaceWithAccess, len(accessible))
+	for i, ws := range accessible {
+		response[i] = WorkspaceWithAccess{
+			ID:       ws.ID,
+			Name:     ws.Name,
+			Role:     ws.Role,
+			IsPublic: ws.IsPublic,
+		}
+	}
+
+	// Sort by ID for consistent ordering
+	sort.Slice(response, func(i, j int) bool {
+		return response[i].ID < response[j].ID
+	})
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(workspaces); err != nil {
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode workspaces response: %v", err)
 	}
 }

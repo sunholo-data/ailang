@@ -68,6 +68,7 @@ All endpoints pull from the same underlying data stores:
 package server
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -79,6 +80,7 @@ import (
 	"sync"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
@@ -140,9 +142,10 @@ type Server struct {
 	obsHub     *observatory.Hub
 
 	// Firebase authentication and authorization
-	tokenVerifier *auth.TokenVerifier
-	accessControl *auth.AccessControlCache
-	auditLogger   *AuditLogger
+	tokenVerifier    *auth.TokenVerifier
+	accessControl    *auth.AccessControlCache
+	auditLogger      *AuditLogger
+	workspaceService *auth.WorkspaceService
 }
 
 // NewServer creates a new HTTP server
@@ -268,6 +271,58 @@ func getEnv(key string) string {
 	return os.Getenv(key)
 }
 
+// WithFirebaseAuth initializes Firebase authentication and Firestore-based access control.
+// The projectID should match your Firebase/GCP project (e.g., "ailang-dev").
+// Requires GOOGLE_APPLICATION_CREDENTIALS environment variable to be set with service account key.
+//
+// If initialization fails, the server will continue without authentication (all routes public).
+// Check logs for "Firebase Auth initialized" to confirm successful setup.
+func WithFirebaseAuth(projectID string) ServerOption {
+	return func(s *Server) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Initialize Firebase app
+		config := &firebase.Config{ProjectID: projectID}
+		app, err := firebase.NewApp(ctx, config)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize Firebase app: %v", err)
+			log.Printf("Dashboard will run without authentication (all routes public)")
+			return
+		}
+
+		// Get Firebase Auth client
+		authClient, err := app.Auth(ctx)
+		if err != nil {
+			log.Printf("Warning: Failed to get Firebase Auth client: %v", err)
+			log.Printf("Dashboard will run without authentication (all routes public)")
+			return
+		}
+
+		// Get Firestore client
+		fsClient, err := app.Firestore(ctx)
+		if err != nil {
+			log.Printf("Warning: Failed to get Firestore client: %v", err)
+			log.Printf("Dashboard will run with token verification only (no role-based access)")
+			s.tokenVerifier = auth.NewTokenVerifier(authClient)
+			return
+		}
+
+		// Initialize both verifier and access control
+		s.tokenVerifier = auth.NewTokenVerifier(authClient)
+		s.accessControl = auth.NewAccessControlCache(fsClient)
+
+		// Initialize workspace service with Firestore and config
+		workspacesConfig := coordinator.LoadWorkspacesConfig()
+		s.workspaceService = auth.NewWorkspaceService(fsClient, workspacesConfig)
+
+		log.Printf("Firebase Auth initialized for project: %s", projectID)
+		log.Printf("  - Token verification: enabled")
+		log.Printf("  - Firestore access control: enabled")
+		log.Printf("  - Workspace access control: enabled")
+	}
+}
+
 // CoordinatorStore provides coordinator statistics
 type CoordinatorStore interface {
 	GetCoordinatorStats() (*CoordinatorStats, error)
@@ -287,10 +342,29 @@ type CoordinatorStats struct {
 	TotalTokens  int
 }
 
+// requireApprover wraps a handler to require Approver role if auth is enabled.
+// If Firebase auth is not configured, passes through without auth check.
+func (s *Server) requireApprover(handler http.HandlerFunc) http.Handler {
+	if s.tokenVerifier == nil {
+		// No auth configured - pass through
+		return handler
+	}
+	// Chain: AuthMiddleware -> RequireApprover -> handler
+	return s.AuthMiddleware(RequireApprover(handler))
+}
+
 // Start starts the HTTP server and WebSocket server
 func (s *Server) Start() error {
 	// Start WebSocket event loop in background
 	go s.wsServer.Run()
+
+	// Log auth status
+	if s.tokenVerifier != nil {
+		log.Printf("Firebase authentication: ENABLED")
+		log.Printf("  - Approval routes require Approver role")
+	} else {
+		log.Printf("Firebase authentication: DISABLED (all routes public)")
+	}
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -301,7 +375,8 @@ func (s *Server) Start() error {
 	// REST API endpoints - Threads
 	mux.HandleFunc("/api/threads", s.handleThreads)
 	mux.HandleFunc("/api/threads/", s.handleThread)
-	mux.HandleFunc("/api/workspaces", s.handleWorkspaces)
+	// Workspaces endpoint uses OptionalAuth to get user role when authenticated
+	mux.Handle("/api/workspaces", s.OptionalAuthMiddleware(http.HandlerFunc(s.handleWorkspaces)))
 	mux.HandleFunc("/api/statistics", s.handleStatistics)
 
 	// REST API endpoints - Messages
@@ -326,8 +401,9 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
 	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
 	mux.HandleFunc("/api/coordinator/pending", s.handleCoordinatorPendingApprovals)
-	mux.HandleFunc("/api/coordinator/approve/", s.handleCoordinatorApproval)
-	mux.HandleFunc("/api/coordinator/reject/", s.handleCoordinatorApproval)
+	// Protected routes - require Approver role when auth is enabled
+	mux.Handle("/api/coordinator/approve/", s.requireApprover(s.handleCoordinatorApproval))
+	mux.Handle("/api/coordinator/reject/", s.requireApprover(s.handleCoordinatorApproval))
 	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
 	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
 	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
@@ -396,6 +472,11 @@ func (s *Server) Start() error {
 	// Health check and version
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/api/version", s.handleVersion)
+
+	// Auth endpoint (returns user info if authenticated)
+	if s.tokenVerifier != nil {
+		mux.Handle("/api/auth/whoami", s.AuthMiddleware(http.HandlerFunc(WhoAmIHandler)))
+	}
 
 	// Serve static UI files from embedded dist folder
 	distFS, err := fs.Sub(uiAssets, "dist")

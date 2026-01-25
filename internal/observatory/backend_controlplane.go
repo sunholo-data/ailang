@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -129,7 +130,8 @@ func buildSourceTypeCondition(sourceType string) string {
 
 // buildFilterConditions builds WHERE clause conditions from a ControlPlaneFilter
 // Returns conditions slice, args slice, ready for building WHERE clause
-func buildFilterConditions(filter *ControlPlaneFilter) ([]string, []interface{}) {
+// The wsConfig parameter is used to reverse-map workspace IDs to path patterns for filtering.
+func buildFilterConditions(filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]string, []interface{}) {
 	var conditions []string
 	var args []interface{}
 
@@ -160,10 +162,25 @@ func buildFilterConditions(filter *ControlPlaneFilter) ([]string, []interface{})
 		args = append(args, filter.EndDate)
 	}
 	if filter.Workspace != "" {
-		// Workspace is stored in process.cwd resource attribute
-		// Use LIKE for partial matching (workspace ID may be embedded in path)
-		conditions = append(conditions, `json_extract(resource_attributes, '$."process.cwd"') LIKE ?`)
-		args = append(args, "%"+filter.Workspace+"%")
+		// Workspace filter: use reverse mapping to find path patterns that match
+		// Spans store raw paths in process.cwd, but filters use org/repo workspace IDs
+		var patterns []string
+		if wsConfig != nil {
+			patterns = wsConfig.GetPathPatternsForWorkspace(filter.Workspace)
+		}
+		if len(patterns) > 0 {
+			// Build OR clause for all matching patterns
+			var orClauses []string
+			for _, p := range patterns {
+				orClauses = append(orClauses, `json_extract(resource_attributes, '$."process.cwd"') LIKE ?`)
+				args = append(args, p)
+			}
+			conditions = append(conditions, "("+strings.Join(orClauses, " OR ")+")")
+		} else {
+			// Fallback: direct match if no mapping found (supports raw path filtering)
+			conditions = append(conditions, `json_extract(resource_attributes, '$."process.cwd"') LIKE ?`)
+			args = append(args, "%"+filter.Workspace+"%")
+		}
 	}
 
 	return conditions, args
@@ -340,107 +357,35 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 
 // GetBreakdownByWorkspace returns cost/token breakdown by workspace.
 // Extracts workspace directly from spans' process.cwd resource attribute.
-// Groups eval workspaces and coordinator worktrees into single entries.
+// WorkspaceMapping provides workspace path-to-ID and ID-to-label mappings.
+// This interface allows the observatory package to use workspace config without importing coordinator.
+type WorkspaceMapping interface {
+	// BuildWorkspaceMappingSQL returns a SQL CASE statement mapping cwdColumn values to workspace IDs.
+	BuildWorkspaceMappingSQL(cwdColumn string) string
+	// GetWorkspaceLabel returns a human-friendly label for a workspace ID.
+	GetWorkspaceLabel(workspaceID string) string
+	// GetPathPatternsForWorkspace returns SQL LIKE patterns that match a workspace ID.
+	// Used for reverse mapping (workspace ID → path patterns) when filtering spans.
+	GetPathPatternsForWorkspace(workspaceID string) []string
+}
+
+// GetBreakdownByWorkspace groups spans by workspace using config-driven path mapping.
 // Note: Claude Code spans don't include process.cwd, so they show as "Unknown Workspace".
 func (b *SQLiteBackend) GetBreakdownByWorkspace(ctx context.Context) ([]BreakdownItem, error) {
-	rows, err := b.store.DB().QueryContext(ctx, `
-		WITH workspace_data AS (
-			SELECT
-				COALESCE(json_extract(resource_attributes, '$."process.cwd"'), 'unknown') as cwd,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens,
-				id
-			FROM spans
-		),
-		-- Normalize workspaces: group eval workspaces and worktrees
-		normalized AS (
-			SELECT
-				CASE
-					WHEN cwd = 'unknown' THEN 'unknown'
-					WHEN cwd LIKE '%/.eval_workspace/%' THEN 'eval_workspace'
-					WHEN cwd LIKE '%/worktrees/%' THEN 'coordinator_worktrees'
-					ELSE cwd
-				END as workspace_id,
-				CASE
-					WHEN cwd = 'unknown' THEN 'No Workspace'
-					WHEN cwd LIKE '%/.eval_workspace/%' THEN 'Eval Benchmarks'
-					WHEN cwd LIKE '%/worktrees/%' THEN 'Coordinator Tasks'
-					ELSE cwd
-				END as workspace_label,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens
-			FROM workspace_data
-		),
-		-- Map known paths to friendly labels
-		with_labels AS (
-			SELECT
-				workspace_id,
-				CASE
-					WHEN workspace_label = 'No Workspace' THEN 'No Workspace'
-					WHEN workspace_label = 'Eval Benchmarks' THEN 'Eval Benchmarks'
-					WHEN workspace_label = 'Coordinator Tasks' THEN 'Coordinator Tasks'
-					WHEN workspace_id LIKE '%/sunholo/ailang/ui' THEN 'ailang/ui'
-					WHEN workspace_id LIKE '%/sunholo/ailang' THEN 'ailang'
-					WHEN workspace_id LIKE '%/twilight%' THEN 'twilight'
-					WHEN workspace_id LIKE '%/stapledon%' THEN 'stapledon'
-					ELSE workspace_id
-				END as label,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens
-			FROM normalized
-		)
-		SELECT
-			workspace_id as id,
-			label,
-			COUNT(*) as span_count,
-			0 as task_count,
-			COALESCE(SUM(tokens_in), 0) as tokens_in,
-			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms,
-			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
-		FROM with_labels
-		GROUP BY workspace_id
-		ORDER BY cost_usd DESC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	// Use default mapping (returns workspace IDs without config-driven mapping)
+	return b.GetFilteredBreakdownByWorkspace(ctx, nil, nil)
+}
 
-	var items []BreakdownItem
-	for rows.Next() {
-		var item BreakdownItem
-		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
-			return nil, err
-		}
-		// Calculate cache savings
-		if item.CacheReadTokens > 0 {
-			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
-		}
-		items = append(items, item)
-	}
-	return items, rows.Err()
+// GetBreakdownByWorkspaceWithMapping uses the provided mapping to convert file paths to workspace IDs.
+func (b *SQLiteBackend) GetBreakdownByWorkspaceWithMapping(ctx context.Context, mapping WorkspaceMapping, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
+	return b.GetFilteredBreakdownByWorkspaceWithMapping(ctx, nil, mapping, wsConfig)
 }
 
 // ===== Filtered Queries =====
 
 // GetFilteredHeatmapData returns daily activity data aggregated from spans
-func (b *SQLiteBackend) GetFilteredHeatmapData(ctx context.Context, filter *ControlPlaneFilter, days int) ([]HeatmapDataPoint, error) {
-	conditions, args := buildFilterConditions(filter)
+func (b *SQLiteBackend) GetFilteredHeatmapData(ctx context.Context, filter *ControlPlaneFilter, days int, wsConfig WorkspaceMapping) ([]HeatmapDataPoint, error) {
+	conditions, args := buildFilterConditions(filter, wsConfig)
 
 	// If no explicit date range in filter, use days parameter
 	if filter == nil || (filter.StartDate == "" && filter.EndDate == "") {
@@ -496,13 +441,13 @@ func (b *SQLiteBackend) GetFilteredHeatmapData(ctx context.Context, filter *Cont
 }
 
 // GetFilteredMetricsSummary returns metrics filtered by Control Plane filter
-func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *ControlPlaneFilter) (*MetricsSummary, error) {
+func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) (*MetricsSummary, error) {
 	if filter == nil || filter.IsEmpty() {
 		return b.store.GetMetricsSummary()
 	}
 
 	// Build WHERE clause using shared helper (includes time range filtering)
-	conditions, args := buildFilterConditions(filter)
+	conditions, args := buildFilterConditions(filter, wsConfig)
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -569,13 +514,13 @@ func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *C
 }
 
 // GetFilteredBreakdownByProvider returns provider breakdown with filters applied
-func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filter *ControlPlaneFilter) ([]BreakdownItem, error) {
+func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
 	if filter == nil || filter.IsEmpty() {
 		return b.GetBreakdownByProvider(ctx)
 	}
 
 	// Build base conditions (includes time range)
-	conditions, args := buildFilterConditions(filter)
+	conditions, args := buildFilterConditions(filter, wsConfig)
 	// Add provider-specific condition
 	conditions = append([]string{"provider IS NOT NULL AND provider != ''"}, conditions...)
 
@@ -623,7 +568,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 }
 
 // GetFilteredBreakdownBySourceType returns source type breakdown with filters applied
-func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, filter *ControlPlaneFilter) ([]BreakdownItem, error) {
+func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
 	if filter == nil || filter.IsEmpty() {
 		return b.GetBreakdownBySourceType(ctx)
 	}
@@ -634,10 +579,11 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 	tempFilter := &ControlPlaneFilter{
 		Provider:  filter.Provider,
 		Model:     filter.Model,
+		Workspace: filter.Workspace,
 		StartDate: filter.StartDate,
 		EndDate:   filter.EndDate,
 	}
-	conditions, args := buildFilterConditions(tempFilter)
+	conditions, args := buildFilterConditions(tempFilter, wsConfig)
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -738,7 +684,7 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 }
 
 // GetFilteredBreakdownByModel returns model breakdown with filters applied
-func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter *ControlPlaneFilter) ([]BreakdownItem, error) {
+func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
 	if filter == nil || filter.IsEmpty() {
 		return b.GetBreakdownByModel(ctx)
 	}
@@ -749,10 +695,11 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 	tempFilter := &ControlPlaneFilter{
 		SourceType: filter.SourceType,
 		Provider:   filter.Provider,
+		Workspace:  filter.Workspace,
 		StartDate:  filter.StartDate,
 		EndDate:    filter.EndDate,
 	}
-	conditions, args := buildFilterConditions(tempFilter)
+	conditions, args := buildFilterConditions(tempFilter, wsConfig)
 	// Add model-specific condition
 	conditions = append([]string{"model IS NOT NULL AND model != ''"}, conditions...)
 
@@ -800,23 +747,33 @@ func (b *SQLiteBackend) GetFilteredBreakdownByModel(ctx context.Context, filter 
 	return items, rows.Err()
 }
 
-// GetFilteredBreakdownByWorkspace returns workspace breakdown with filters applied
-func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, filter *ControlPlaneFilter) ([]BreakdownItem, error) {
-	if filter == nil || filter.IsEmpty() {
-		return b.GetBreakdownByWorkspace(ctx)
-	}
+// GetFilteredBreakdownByWorkspace returns workspace breakdown with filters applied.
+// Uses a basic fallback mapping - for full config support use GetFilteredBreakdownByWorkspaceWithMapping.
+func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
+	// Use fallback mapping when no config provided
+	return b.GetFilteredBreakdownByWorkspaceWithMapping(ctx, filter, nil, wsConfig)
+}
 
+// GetFilteredBreakdownByWorkspaceWithMapping returns workspace breakdown with config-driven path mapping.
+// The mapping parameter converts file paths to Firestore workspace IDs.
+// Note: Workspace filter is deliberately excluded from conditions since this query groups BY workspace.
+func (b *SQLiteBackend) GetFilteredBreakdownByWorkspaceWithMapping(ctx context.Context, filter *ControlPlaneFilter, mapping WorkspaceMapping, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
 	// Build conditions using shared helper
 	// Note: For workspace breakdown, we exclude workspace from filter conditions
 	// since the query groups BY workspace
-	tempFilter := &ControlPlaneFilter{
-		SourceType: filter.SourceType,
-		Provider:   filter.Provider,
-		Model:      filter.Model,
-		StartDate:  filter.StartDate,
-		EndDate:    filter.EndDate,
+	var conditions []string
+	var args []interface{}
+	if filter != nil && !filter.IsEmpty() {
+		tempFilter := &ControlPlaneFilter{
+			SourceType: filter.SourceType,
+			Provider:   filter.Provider,
+			Model:      filter.Model,
+			StartDate:  filter.StartDate,
+			EndDate:    filter.EndDate,
+			// NOTE: Workspace intentionally excluded - this query groups BY workspace
+		}
+		conditions, args = buildFilterConditions(tempFilter, wsConfig)
 	}
-	conditions, args := buildFilterConditions(tempFilter)
 
 	// Build WHERE clause (empty if no conditions)
 	whereClause := ""
@@ -827,7 +784,25 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 		}
 	}
 
-	// Use same normalization logic as GetBreakdownByWorkspace but with filters
+	// Build workspace mapping SQL - use config if provided, else use cwd directly
+	var workspaceIDMapping string
+	if mapping != nil {
+		workspaceIDMapping = mapping.BuildWorkspaceMappingSQL("cwd")
+	} else {
+		// Fallback: use default mapping patterns (hardcoded for backwards compatibility)
+		workspaceIDMapping = `CASE
+			WHEN cwd = 'unknown' THEN 'unknown'
+			WHEN cwd LIKE '%/.eval_workspace/%' THEN 'eval_workspace'
+			WHEN cwd LIKE '%/worktrees/%' THEN 'coordinator_worktrees'
+			WHEN cwd LIKE '%/sunholo/ailang/ui' THEN 'sunholo-data/ailang'
+			WHEN cwd LIKE '%/sunholo/ailang' THEN 'sunholo-data/ailang'
+			WHEN cwd LIKE '%/stapledon%' THEN 'sunholo-data/stapledons_voyage'
+			WHEN cwd LIKE '%/twilight%' THEN 'MarkEdmondson1234/TwilightGame'
+			ELSE cwd
+		END`
+	}
+
+	// Use config-driven workspace mapping
 	query := fmt.Sprintf(`
 		WITH workspace_data AS (
 			SELECT
@@ -842,21 +817,10 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 			FROM spans
 			%s
 		),
-		-- Normalize workspaces: group eval workspaces and worktrees
-		normalized AS (
+		-- Map file paths to Firestore workspace IDs using config-driven patterns
+		mapped AS (
 			SELECT
-				CASE
-					WHEN cwd = 'unknown' THEN 'unknown'
-					WHEN cwd LIKE '%%/.eval_workspace/%%' THEN 'eval_workspace'
-					WHEN cwd LIKE '%%/worktrees/%%' THEN 'coordinator_worktrees'
-					ELSE cwd
-				END as workspace_id,
-				CASE
-					WHEN cwd = 'unknown' THEN 'No Workspace'
-					WHEN cwd LIKE '%%/.eval_workspace/%%' THEN 'Eval Benchmarks'
-					WHEN cwd LIKE '%%/worktrees/%%' THEN 'Coordinator Tasks'
-					ELSE cwd
-				END as workspace_label,
+				%s as workspace_id,
 				tokens_in,
 				tokens_out,
 				cost_usd,
@@ -864,32 +828,10 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 				cache_read_tokens,
 				cache_creation_tokens
 			FROM workspace_data
-		),
-		-- Map known paths to friendly labels
-		with_labels AS (
-			SELECT
-				workspace_id,
-				CASE
-					WHEN workspace_label = 'No Workspace' THEN 'No Workspace'
-					WHEN workspace_label = 'Eval Benchmarks' THEN 'Eval Benchmarks'
-					WHEN workspace_label = 'Coordinator Tasks' THEN 'Coordinator Tasks'
-					WHEN workspace_id LIKE '%%/sunholo/ailang/ui' THEN 'ailang/ui'
-					WHEN workspace_id LIKE '%%/sunholo/ailang' THEN 'ailang'
-					WHEN workspace_id LIKE '%%/twilight%%' THEN 'twilight'
-					WHEN workspace_id LIKE '%%/stapledon%%' THEN 'stapledon'
-					ELSE workspace_id
-				END as label,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens
-			FROM normalized
 		)
 		SELECT
 			workspace_id as id,
-			label,
+			workspace_id as label,
 			COUNT(*) as span_count,
 			0 as task_count,
 			COALESCE(SUM(tokens_in), 0) as tokens_in,
@@ -898,10 +840,10 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 			COALESCE(SUM(duration_ms), 0) as duration_ms,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
 			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
-		FROM with_labels
+		FROM mapped
 		GROUP BY workspace_id
 		ORDER BY cost_usd DESC
-	`, whereClause)
+	`, whereClause, workspaceIDMapping)
 
 	rows, err := b.store.DB().QueryContext(ctx, query, args...)
 	if err != nil {
@@ -915,6 +857,13 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 		if err := rows.Scan(&item.ID, &item.Label, &item.SpanCount, &item.TaskCount, &item.TokensIn, &item.TokensOut, &item.CostUSD, &item.DurationMs, &item.CacheReadTokens, &item.CacheCreationTokens); err != nil {
 			return nil, err
 		}
+		// Apply workspace labels from mapping if provided
+		if mapping != nil {
+			item.Label = mapping.GetWorkspaceLabel(item.ID)
+		} else {
+			// Fallback labels
+			item.Label = defaultWorkspaceLabel(item.ID)
+		}
 		// Calculate cache savings
 		if item.CacheReadTokens > 0 {
 			item.CacheSavingsUSD = CalculateCacheSavings("", item.CacheReadTokens)
@@ -924,30 +873,139 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspace(ctx context.Context, fil
 	return items, rows.Err()
 }
 
+// defaultWorkspaceLabel returns a human-friendly label for a workspace ID.
+// For internal workspaces, returns predefined labels.
+// For user workspaces (org/repo format), returns a formatted label.
+// For raw paths, derives the label from path segments.
+func defaultWorkspaceLabel(workspaceID string) string {
+	// Internal workspace labels
+	internalLabels := map[string]string{
+		"eval_workspace":        "Eval Benchmarks",
+		"coordinator_worktrees": "Coordinator Tasks",
+		"unknown":               "No Workspace",
+	}
+	if label, ok := internalLabels[workspaceID]; ok {
+		return label
+	}
+
+	// Check if this looks like a raw file path (starts with / or has more than 2 slashes)
+	if strings.HasPrefix(workspaceID, "/") || strings.Count(workspaceID, "/") > 1 {
+		// Derive workspace from path by taking last two meaningful segments
+		derived := deriveWorkspaceFromPath(workspaceID)
+		if parts := strings.Split(derived, "/"); len(parts) == 2 {
+			return formatLabel(parts[1])
+		}
+		return formatLabel(derived)
+	}
+
+	// For org/repo format, make the repo name the label
+	if parts := strings.Split(workspaceID, "/"); len(parts) == 2 {
+		return formatLabel(parts[1])
+	}
+
+	// For single-segment workspace, format it nicely
+	return formatLabel(workspaceID)
+}
+
+// deriveWorkspaceFromPath extracts a workspace ID from a file path.
+// Uses the last two meaningful path segments (parent/basename).
+func deriveWorkspaceFromPath(path string) string {
+	if path == "" || path == "unknown" {
+		return "unknown"
+	}
+
+	// Split path into components
+	parts := strings.Split(filepath.Clean(path), string(filepath.Separator))
+
+	// Collect meaningful path segments (skip empty, hidden, and common dirs)
+	var meaningful []string
+	for _, p := range parts {
+		if p == "" || p == "tmp" || p == "var" || p == "folders" || strings.HasPrefix(p, ".") {
+			continue
+		}
+		// Also skip common home/user path segments
+		if p == "Users" || p == "home" {
+			continue
+		}
+		meaningful = append(meaningful, p)
+	}
+
+	if len(meaningful) == 0 {
+		return "unknown"
+	}
+
+	// Use last two segments as org/repo (or just last one if only one exists)
+	if len(meaningful) >= 2 {
+		return meaningful[len(meaningful)-2] + "/" + meaningful[len(meaningful)-1]
+	}
+	return meaningful[len(meaningful)-1]
+}
+
+// formatLabel converts a workspace name to a human-readable label.
+// Handles camel case: "TwilightGame" -> "Twilight Game"
+func formatLabel(name string) string {
+	if name == "" {
+		return "Unknown"
+	}
+
+	// If all uppercase, keep it (like ROCKGAP, ROCKGPT)
+	if strings.ToUpper(name) == name && len(name) > 1 {
+		return name
+	}
+
+	// Insert spaces before uppercase letters (camel case -> spaces)
+	var result strings.Builder
+	for i, r := range name {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			// Check if previous char was lowercase (camel case boundary)
+			prev := rune(name[i-1])
+			if prev >= 'a' && prev <= 'z' {
+				result.WriteRune(' ')
+			}
+		}
+		result.WriteRune(r)
+	}
+	name = result.String()
+
+	// Replace underscores/dashes with spaces
+	name = strings.ReplaceAll(name, "_", " ")
+	name = strings.ReplaceAll(name, "-", " ")
+
+	// Title case each word
+	words := strings.Fields(name)
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
+		}
+	}
+	return strings.Join(words, " ")
+}
+
 // ===== Claude Code Event Types =====
 
 // ClaudeCodeEvent represents a Claude Code API request span formatted as an event
 // for the Event Queue. Each api_request span becomes an event that can be clicked
 // to show its hierarchy (tool calls correlated by timestamp).
 type ClaudeCodeEvent struct {
-	ID            string  `json:"id"`           // span_id (also used as task_id for hierarchy lookup)
-	CreatedAt     string  `json:"created_at"`   // ISO8601 timestamp (matches inbox message format)
-	Type          string  `json:"message_type"` // "claude_code_turn"
-	FromAgent     string  `json:"from_agent"`   // Agent ID (e.g., "design-doc-creator") or "claude-code" for user sessions
-	ToInbox       string  `json:"to_inbox"`     // Agent inbox (e.g., "design-doc-creator") or "user" for user sessions
-	Title         string  `json:"title"`        // "Claude Code Turn ($X.XX)"
-	TaskID        string  `json:"task_id"`      // Same as ID for hierarchy lookup
-	Status        string  `json:"status"`       // "read" (not actionable like inbox messages)
-	CostUSD       float64 `json:"cost_usd"`
-	TokensIn      int64   `json:"tokens_in"`
-	TokensOut     int64   `json:"tokens_out"`
-	DurationMs    int     `json:"duration_ms"`
-	Workspace     string  `json:"workspace,omitempty"`      // Working directory (from resource attributes)
-	Model         string  `json:"model,omitempty"`          // Model used for this event (e.g., "claude-sonnet-4-5")
-	Provider      string  `json:"provider,omitempty"`       // AI provider (e.g., "claude", "gemini")
-	Directive     string  `json:"directive,omitempty"`      // Initial user prompt (truncated preview)
-	DirectiveFull string  `json:"directive_full,omitempty"` // Full directive (for detail views)
-	TurnCount     int     `json:"turn_count"`               // Number of turns in session
+	ID             string  `json:"id"`           // span_id (also used as task_id for hierarchy lookup)
+	CreatedAt      string  `json:"created_at"`   // ISO8601 timestamp (matches inbox message format)
+	Type           string  `json:"message_type"` // "claude_code_turn"
+	FromAgent      string  `json:"from_agent"`   // Agent ID (e.g., "design-doc-creator") or "claude-code" for user sessions
+	ToInbox        string  `json:"to_inbox"`     // Agent inbox (e.g., "design-doc-creator") or "user" for user sessions
+	Title          string  `json:"title"`        // "Claude Code Turn ($X.XX)"
+	TaskID         string  `json:"task_id"`      // Same as ID for hierarchy lookup
+	Status         string  `json:"status"`       // "read" (not actionable like inbox messages)
+	CostUSD        float64 `json:"cost_usd"`
+	TokensIn       int64   `json:"tokens_in"`
+	TokensOut      int64   `json:"tokens_out"`
+	DurationMs     int     `json:"duration_ms"`
+	Workspace      string  `json:"workspace,omitempty"`       // Working directory (from resource attributes)
+	Model          string  `json:"model,omitempty"`           // Model used for this event (e.g., "claude-sonnet-4-5")
+	Provider       string  `json:"provider,omitempty"`        // AI provider (e.g., "claude", "gemini")
+	Directive      string  `json:"directive,omitempty"`       // Initial user prompt (truncated preview)
+	DirectiveFull  string  `json:"directive_full,omitempty"`  // Full directive (for detail views)
+	TurnCount      int     `json:"turn_count"`                // Number of turns in session
+	MetricsSummary string  `json:"metrics_summary,omitempty"` // "3 turns • $0.42 • 12.5s"
 }
 
 // TaskAgentLookup is a callback to resolve coordinator task_id to agent info.
@@ -980,7 +1038,10 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			MAX(json_extract(resource_attributes, '$."process.cwd"')) as workspace,
 			COALESCE(
 				MAX(json_extract(attributes, '$."task.directive"')),
-				MAX(json_extract(attributes, '$.prompt'))
+				MAX(json_extract(attributes, '$.prompt')),
+				MAX(json_extract(attributes, '$."user.prompt"')),
+				MAX(json_extract(attributes, '$."benchmark.name"')),
+				MAX(json_extract(attributes, '$."eval.benchmark"'))
 			) as directive
 		FROM spans
 		WHERE name = 'api_request'
@@ -1025,8 +1086,8 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			durationStr = fmt.Sprintf("%.1fm", float64(totalDurationMs)/60000)
 		}
 
-		// Build title showing turns count and totals
-		title := fmt.Sprintf("Claude Code Session (%d turns, %s, %s)", turnCount, costStr, durationStr)
+		// Build metrics summary for display as badges
+		metricsSummary := fmt.Sprintf("%d turns • %s • %s", turnCount, costStr, durationStr)
 
 		// Set default provider if not in DB
 		providerVal := "claude"
@@ -1041,25 +1102,32 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 			directivePreview = directivePreview[:200] + "..."
 		}
 
+		// Title = directive preview (for scanability), fallback to generic description
+		title := directivePreview
+		if title == "" {
+			title = "Claude Code Session"
+		}
+
 		events = append(events, ClaudeCodeEvent{
-			ID:            sessionID,  // Use session_id as the event ID
-			CreatedAt:     latestTime, // Most recent activity
-			Type:          "claude_code_session",
-			FromAgent:     "claude-code",
-			ToInbox:       "user",
-			Title:         title,
-			TaskID:        sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
-			Status:        "read",
-			CostUSD:       totalCostUSD,
-			TokensIn:      totalTokensIn,
-			TokensOut:     totalTokensOut,
-			DurationMs:    totalDurationMs,
-			Model:         model.String,
-			Provider:      providerVal,
-			Workspace:     workspace.String,
-			Directive:     directivePreview,
-			DirectiveFull: directiveFull,
-			TurnCount:     turnCount,
+			ID:             sessionID,  // Use session_id as the event ID
+			CreatedAt:      latestTime, // Most recent activity
+			Type:           "claude_code_session",
+			FromAgent:      "claude-code",
+			ToInbox:        "user",
+			Title:          title,
+			TaskID:         sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
+			Status:         "read",
+			CostUSD:        totalCostUSD,
+			TokensIn:       totalTokensIn,
+			TokensOut:      totalTokensOut,
+			DurationMs:     totalDurationMs,
+			Model:          model.String,
+			Provider:       providerVal,
+			Workspace:      workspace.String,
+			Directive:      directivePreview,
+			DirectiveFull:  directiveFull,
+			TurnCount:      turnCount,
+			MetricsSummary: metricsSummary,
 		})
 	}
 
@@ -1081,7 +1149,7 @@ func (b *SQLiteBackend) GetClaudeCodeEvents(ctx context.Context, limit int) ([]C
 //   - "unknown" or "No Workspace": Sessions with empty workspace
 //   - "coordinator_worktrees": Sessions in worktree directories
 //   - "": No filter (all workspaces)
-func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup, sourceType, workspaceFilter string) ([]ClaudeCodeEvent, error) {
+func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit int, lookup TaskAgentLookup, sourceType, workspaceFilter string, wsConfig WorkspaceMapping) ([]ClaudeCodeEvent, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -1099,26 +1167,35 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		sourceFilter = "" // No filter
 	}
 
-	// Build workspace filter condition
-	// This is applied at the SQL level to ensure LIMIT works correctly
+	// Build workspace filter condition using reverse mapping
+	// This converts workspace IDs (org/repo) to path patterns that match process.cwd
 	var workspaceFilterSQL string
-	var workspaceArg interface{}
+	var workspaceArgs []interface{}
 	switch workspaceFilter {
 	case "":
 		workspaceFilterSQL = ""
-		workspaceArg = nil
 	case "unknown", "No Workspace":
 		// Match sessions with empty or null workspace
 		workspaceFilterSQL = " AND (json_extract(s.resource_attributes, '$.\"process.cwd\"') IS NULL OR json_extract(s.resource_attributes, '$.\"process.cwd\"') = '')"
-		workspaceArg = nil
 	case "coordinator_worktrees", "Coordinator Tasks":
 		// Match worktree directories
 		workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE '%/worktrees/%'"
-		workspaceArg = nil
 	default:
-		// Match by path - use LIKE for substring matching to handle path variations
-		workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE ?"
-		workspaceArg = "%" + workspaceFilter + "%"
+		// Use reverse mapping to find path patterns that match the workspace ID
+		patterns := wsConfig.GetPathPatternsForWorkspace(workspaceFilter)
+		if len(patterns) > 0 {
+			// Build OR clause for all matching patterns
+			var orClauses []string
+			for _, p := range patterns {
+				orClauses = append(orClauses, `json_extract(s.resource_attributes, '$."process.cwd"') LIKE ?`)
+				workspaceArgs = append(workspaceArgs, p)
+			}
+			workspaceFilterSQL = " AND (" + strings.Join(orClauses, " OR ") + ")"
+		} else {
+			// Fallback to direct substring match if no mapping found
+			workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE ?"
+			workspaceArgs = append(workspaceArgs, "%"+workspaceFilter+"%")
+		}
 	}
 
 	// Aggregate by session.id, join with agent_assignments to get agent info
@@ -1140,7 +1217,10 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			MAX(json_extract(s.resource_attributes, '$."process.cwd"')) as workspace,
 			COALESCE(
 				MAX(json_extract(s.attributes, '$."task.directive"')),
-				MAX(json_extract(s.attributes, '$.prompt'))
+				MAX(json_extract(s.attributes, '$.prompt')),
+				MAX(json_extract(s.attributes, '$."user.prompt"')),
+				MAX(json_extract(s.attributes, '$."benchmark.name"')),
+				MAX(json_extract(s.attributes, '$."eval.benchmark"'))
 			) as directive
 		FROM spans s
 		LEFT JOIN agent_assignments aa ON s.task_id = aa.task_id
@@ -1154,9 +1234,7 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 
 	// Build query arguments
 	var args []interface{}
-	if workspaceArg != nil {
-		args = append(args, workspaceArg)
-	}
+	args = append(args, workspaceArgs...)
 	args = append(args, limit)
 
 	rows, err := b.store.DB().QueryContext(ctx, query, args...)
@@ -1193,8 +1271,8 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			durationStr = fmt.Sprintf("%.1fm", float64(totalDurationMs)/60000)
 		}
 
-		// Build title showing turns count and totals
-		title := fmt.Sprintf("Claude Code Session (%d turns, %s, %s)", turnCount, costStr, durationStr)
+		// Build metrics summary for display as badges
+		metricsSummary := fmt.Sprintf("%d turns • %s • %s", turnCount, costStr, durationStr)
 
 		// Default values for user-initiated sessions
 		fromAgent := "claude-code"
@@ -1220,25 +1298,32 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 			directivePreview = directivePreview[:200] + "..."
 		}
 
+		// Title = directive preview (for scanability), fallback to generic description
+		title := directivePreview
+		if title == "" {
+			title = "Claude Code Session"
+		}
+
 		events = append(events, ClaudeCodeEvent{
-			ID:            sessionID,  // Use session_id as the event ID
-			CreatedAt:     latestTime, // Most recent activity
-			Type:          "claude_code_session",
-			FromAgent:     fromAgent,
-			ToInbox:       toInbox,
-			Title:         title,
-			TaskID:        sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
-			Status:        "read",
-			CostUSD:       totalCostUSD,
-			TokensIn:      totalTokensIn,
-			TokensOut:     totalTokensOut,
-			DurationMs:    totalDurationMs,
-			Model:         model.String,
-			Provider:      providerVal,
-			Workspace:     workspace.String,
-			Directive:     directivePreview,
-			DirectiveFull: directiveFull,
-			TurnCount:     turnCount,
+			ID:             sessionID,  // Use session_id as the event ID
+			CreatedAt:      latestTime, // Most recent activity
+			Type:           "claude_code_session",
+			FromAgent:      fromAgent,
+			ToInbox:        toInbox,
+			Title:          title,
+			TaskID:         sessionID, // Use session_id for hierarchy lookup (aggregates all turns)
+			Status:         "read",
+			CostUSD:        totalCostUSD,
+			TokensIn:       totalTokensIn,
+			TokensOut:      totalTokensOut,
+			DurationMs:     totalDurationMs,
+			Model:          model.String,
+			Provider:       providerVal,
+			Workspace:      workspace.String,
+			Directive:      directivePreview,
+			DirectiveFull:  directiveFull,
+			TurnCount:      turnCount,
+			MetricsSummary: metricsSummary,
 		})
 	}
 

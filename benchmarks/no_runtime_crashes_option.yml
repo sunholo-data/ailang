@@ -10,26 +10,27 @@ task_prompt: |
 
   Requirements:
   1. Define an Option type: Some(value) | None
-  2. Implement `findFirst(predicate, list)` that returns:
-     - Some(element) if an element matches predicate
-     - None if no element matches
-  3. Implement `mapOption(fn, option)` that applies fn to the value if Some, otherwise returns None
-  4. Test with list [1, 2, 3, 4, 5]:
-     - Find first even number -> Some(2)
-     - Map double over it -> Some(4)
-     - Print result: "Found: 4"
-  5. Test with list [1, 3, 5]:
-     - Find first even number -> None
-     - Map double over it -> None
-     - Print: "Not found"
+  2. Implement `safeLast(list)` that returns:
+     - Some(element) if list is non-empty (returns last element)
+     - None if list is empty
+  3. Implement `flatMapOption(fn, option)` that applies fn (which returns Option) to the value if Some, otherwise returns None
+  4. Implement `safeHead(list)` that returns Some(first element) or None if empty
+  5. Test with list ["apple", "banana", "cherry"]:
+     - Get last element -> Some("cherry")
+     - FlatMap safeHead over chars of that string (get first char) -> Some("c")
+     - Print result: "Last starts with: c"
+  6. Test with empty list []:
+     - Get last element -> None
+     - FlatMap anything -> None
+     - Print: "Empty list"
 
   This demonstrates TOTALITY: no crashes, all cases handled explicitly.
 
   Expected output:
-  "Found: 4"
-  "Not found"
+  "Last starts with: c"
+  "Empty list"
 
   Output only the code, no explanations.
 expected_stdout: |
-  Found: 4
-  Not found
+  Last starts with: c
+  Empty list

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -89,7 +90,7 @@ func (s *Store) InsertInboxMessage(msg *InboxMessage) error {
 // Use this when you want the messages.send span to be a child of the caller's trace.
 func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMessage) error {
 	// Start span for message send operation
-	_, span := messagingTracer.Start(ctx, "messages.send",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.send",
 		trace.WithAttributes(
 			attribute.String("message.to_inbox", msg.ToInbox),
 			attribute.String("message.from_agent", msg.FromAgent),
@@ -180,7 +181,7 @@ func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMes
 func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error) {
 	// Start span for message list operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.list",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.list",
 		trace.WithAttributes(
 			attribute.String("list.inbox", opts.Inbox),
 			attribute.Bool("list.unread_only", opts.UnreadOnly),
@@ -312,7 +313,7 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	// Start span for message read operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.read",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.read",
 		trace.WithAttributes(
 			attribute.String("message.id", id),
 		),
@@ -384,7 +385,7 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 func (s *Store) MarkInboxMessageRead(id string) error {
 	// Start span for message ack operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.ack",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.ack",
 		trace.WithAttributes(
 			attribute.String("message.id", id),
 			attribute.String("message.new_status", InboxStatusRead),
@@ -418,7 +419,7 @@ func (s *Store) MarkInboxMessageRead(id string) error {
 func (s *Store) MarkInboxMessageUnread(id string) error {
 	// Start span for message unack operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.unack",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.unack",
 		trace.WithAttributes(
 			attribute.String("message.id", id),
 			attribute.String("message.new_status", InboxStatusUnread),
@@ -548,7 +549,7 @@ func (s *Store) UpdateInboxMessageGitHub(messageID string, issueNumber int, repo
 func (s *Store) CleanupInboxMessages(olderThan time.Duration, expiredOnly bool) (int64, error) {
 	// Start span for message cleanup operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.cleanup",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.cleanup",
 		trace.WithAttributes(
 			attribute.Bool("cleanup.expired_only", expiredOnly),
 			attribute.Int64("cleanup.older_than_ms", olderThan.Milliseconds()),

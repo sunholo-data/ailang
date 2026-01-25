@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var humanTracer = otel.Tracer("coordinator.human")
+var humanTracer = telemetry.Tracer("coordinator.human")
 
 // HumanFeedback represents feedback provided by a human reviewer.
 type HumanFeedback struct {
@@ -26,7 +26,7 @@ type HumanFeedback struct {
 // StoreFeedbackEvent stores human feedback as a task event for audit trail.
 func StoreFeedbackEvent(ctx context.Context, store Store, feedback *HumanFeedback) error {
 	// Create OTEL span for human feedback
-	ctx, span := humanTracer.Start(ctx, "human.feedback",
+	ctx, span := telemetry.StartSpan(ctx, humanTracer, "human.feedback",
 		trace.WithAttributes(
 			attribute.String("task.id", feedback.TaskID),
 			attribute.Int("task.iteration", feedback.Iteration),
@@ -57,7 +57,7 @@ func StoreFeedbackEvent(ctx context.Context, store Store, feedback *HumanFeedbac
 // StoreApprovalEvent stores human approval as a task event.
 func StoreApprovalEvent(ctx context.Context, store Store, taskID string, approvedBy string) error {
 	// Create OTEL span for human approval
-	ctx, span := humanTracer.Start(ctx, "human.approval",
+	ctx, span := telemetry.StartSpan(ctx, humanTracer, "human.approval",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("approved.by", approvedBy),
@@ -83,7 +83,7 @@ func StoreApprovalEvent(ctx context.Context, store Store, taskID string, approve
 
 // StoreIterationStartEvent marks the start of a new task iteration.
 func StoreIterationStartEvent(ctx context.Context, store Store, taskID string, iteration int) error {
-	ctx, span := humanTracer.Start(ctx, "task.iteration_start",
+	ctx, span := telemetry.StartSpan(ctx, humanTracer, "task.iteration_start",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.Int("task.iteration", iteration),

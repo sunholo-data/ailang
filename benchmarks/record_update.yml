@@ -7,13 +7,13 @@ difficulty: "medium"
 expected_gain: "very_high"
 task_prompt: |
   Write a program in <LANG> that:
-  1. Creates a person record: {name: "Alice", age: 30, city: "NYC"}
-  2. Creates an updated version with age incremented by 1 (using record update syntax)
-  3. Creates another update changing only the city to "SF"
-  4. Prints all three records in format: "{name}, {age}, {city}"
+  1. Creates a product record: {sku: "WDG-001", price: 29, inStock: true}
+  2. Creates an updated version with price reduced by 5 (using record update syntax)
+  3. Creates another update from the discounted version, setting inStock to false
+  4. Prints all three records in format: "{sku}, {price}, {inStock}"
 
   Output only the code, no explanations.
 expected_stdout: |
-  Alice, 30, NYC
-  Alice, 31, NYC
-  Alice, 31, SF
+  WDG-001, 29, true
+  WDG-001, 24, true
+  WDG-001, 24, false

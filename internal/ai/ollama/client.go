@@ -11,13 +11,12 @@ import (
 	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var ollamaTracer = otel.Tracer("ai.ollama")
+var ollamaTracer = telemetry.Tracer("ai.ollama")
 
 const (
 	defaultEndpoint = "http://localhost:11434"
@@ -88,7 +87,7 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 // It uses Ollama's Chat API for instruction following.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
 	// Start OTEL span
-	ctx, span := ollamaTracer.Start(ctx, "ollama.generate",
+	ctx, span := telemetry.StartSpan(ctx, ollamaTracer, "ollama.generate",
 		trace.WithAttributes(
 			attribute.String("ai.provider", "ollama"),
 			attribute.String("ai.model", req.Model),

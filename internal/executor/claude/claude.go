@@ -13,13 +13,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var claudeTracer = otel.Tracer("executor.claude")
+var claudeTracer = telemetry.Tracer("executor.claude")
 
 // ClaudeExecutor executes tasks using Claude Code CLI
 type ClaudeExecutor struct {
@@ -74,7 +73,7 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // ExecuteStreaming runs a task with real-time event callbacks
 func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	// Start OTEL span for Claude execution
-	ctx, span := claudeTracer.Start(ctx, "claude.execute",
+	ctx, span := telemetry.StartSpan(ctx, claudeTracer, "claude.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "claude"),
 			attribute.String("executor.model", e.model),
@@ -238,7 +237,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 						turnSpan.End()
 					}
 					// Start new turn span as child of claude.execute
-					_, turnSpan = claudeTracer.Start(ctx, "exec.turn",
+					_, turnSpan = telemetry.StartSpan(ctx, claudeTracer, "exec.turn",
 						trace.WithAttributes(
 							attribute.Int("turn.number", turnNum),
 							attribute.String("session.id", sessionID),

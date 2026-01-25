@@ -1,0 +1,205 @@
+/* Authentication button styles - matches ControlPlane design system */
+
+/* Container for auth elements */
+.auth-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Base button style - matches header button pattern */
+.auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border-default, #30363d);
+  background: var(--bg-elevated, #1c2128);
+  color: var(--text-secondary, #8b949e);
+  white-space: nowrap;
+}
+
+.auth-button:hover {
+  background: var(--bg-hover, #262c36);
+  border-color: var(--border-emphasis, #484f58);
+  color: var(--text-primary, #e6edf3);
+}
+
+/* Sign in button - accent color */
+.auth-button.login {
+  background: var(--primary, #25c2a0);
+  color: #fff;
+  border-color: var(--primary, #25c2a0);
+}
+
+.auth-button.login:hover {
+  background: var(--primary-glow, rgba(37, 194, 160, 0.4));
+  border-color: var(--primary, #25c2a0);
+  box-shadow: 0 0 8px var(--primary-dim, rgba(37, 194, 160, 0.15));
+}
+
+/* Sign out button - subtle */
+.auth-button.logout {
+  background: transparent;
+  color: var(--text-tertiary, #6e7681);
+  border: 1px solid var(--border-subtle, rgba(48, 54, 61, 0.5));
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.auth-button.logout:hover {
+  background: var(--bg-hover, #262c36);
+  color: var(--text-secondary, #8b949e);
+  border-color: var(--border-default, #30363d);
+}
+
+/* Loading state */
+.auth-button.loading {
+  background: transparent;
+  border: none;
+  cursor: default;
+  color: var(--text-muted, #484f58);
+  padding: 6px;
+}
+
+/* Google icon in button */
+.google-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* User info container */
+.auth-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* User avatar - circular with border */
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default, #30363d);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* User details - name and role */
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.user-name {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary, #e6edf3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Role badge - inline style */
+.user-role {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.user-role.role-approver {
+  background: var(--success, #10b981);
+  color: #fff;
+}
+
+.user-role.role-viewer {
+  background: var(--info, #3b82f6);
+  color: #fff;
+}
+
+.user-role.role-guest {
+  background: var(--bg-hover, #262c36);
+  color: var(--text-tertiary, #6e7681);
+}
+
+/* Light theme overrides */
+:root[data-theme="light"] .auth-button,
+.controlPlaneLight .auth-button {
+  background: var(--bg-elevated, #ffffff);
+  border-color: var(--border-default, #d1d5db);
+  color: var(--text-secondary, #374151);
+}
+
+:root[data-theme="light"] .auth-button:hover,
+.controlPlaneLight .auth-button:hover {
+  background: var(--bg-hover, #ebe9e6);
+  border-color: var(--border-emphasis, #9ca3af);
+  color: var(--text-primary, #0f0f0f);
+}
+
+:root[data-theme="light"] .auth-button.login,
+.controlPlaneLight .auth-button.login {
+  background: var(--primary, #d13510);
+  border-color: var(--primary, #d13510);
+  color: #fff;
+}
+
+:root[data-theme="light"] .auth-button.login:hover,
+.controlPlaneLight .auth-button.login:hover {
+  background: #b92e0e;
+  border-color: #b92e0e;
+}
+
+:root[data-theme="light"] .user-avatar,
+.controlPlaneLight .user-avatar {
+  border-color: var(--border-default, #d1d5db);
+}
+
+:root[data-theme="light"] .user-name,
+.controlPlaneLight .user-name {
+  color: var(--text-primary, #0f0f0f);
+}
+
+:root[data-theme="light"] .user-role.role-guest,
+.controlPlaneLight .user-role.role-guest {
+  background: var(--bg-surface, #f5f4f2);
+  color: var(--text-tertiary, #4b5563);
+}
+
+/* Responsive - hide name on small screens */
+@media (max-width: 768px) {
+  .user-details {
+    display: none;
+  }
+
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+  }
+}

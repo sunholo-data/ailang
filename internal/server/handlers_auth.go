@@ -77,15 +77,55 @@ func (srv *Server) AuthMiddleware(next http.Handler) http.Handler {
 				workspaceID = "default"
 			}
 
-			role, err := srv.accessControl.GetUserRole(r.Context(), user.FirebaseUID, workspaceID)
-			if err != nil {
-				// User might not be in this workspace, but let's continue
+			// Try email-based lookup first (preferred), then fall back to UID
+			var role *auth.WorkspaceRole
+			var err error
+
+			if user.Email != "" {
+				role, err = srv.accessControl.GetUserRoleByEmail(r.Context(), user.Email, workspaceID)
+			}
+
+			if err != nil || role == nil {
+				// Fall back to UID-based lookup
+				role, err = srv.accessControl.GetUserRole(r.Context(), user.FirebaseUID, workspaceID)
+			}
+
+			if err != nil || role == nil {
+				// User not in access control, treat as Guest
 				user.Role = "Guest"
 			} else {
 				user.Role = role.Role
 				user.WorkspaceID = role.WorkspaceID
 			}
 		}
+
+		// Add user to request context
+		ctx := context.WithValue(r.Context(), UserContextKey, user)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// OptionalAuthMiddleware extracts user info if a token is present but doesn't reject unauthenticated requests.
+// Use this for endpoints that work for both authenticated and unauthenticated users.
+func (srv *Server) OptionalAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := extractBearerToken(r)
+		if token == "" {
+			// No token - continue without user context
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Try to verify token
+		claims, err := srv.tokenVerifier.VerifyToken(r.Context(), token)
+		if err != nil {
+			// Invalid token - continue without user context (don't reject)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Create user object
+		user := auth.NewUserFromClaims(claims)
 
 		// Add user to request context
 		ctx := context.WithValue(r.Context(), UserContextKey, user)
@@ -151,34 +191,102 @@ func GetUserFromContext(r *http.Request) (*auth.User, error) {
 	return user, nil
 }
 
+// WorkspaceAccessContextKey is used to store workspace access info in HTTP requests.
+const WorkspaceAccessContextKey AuthContextKey = "workspace_access"
+
+// WorkspaceAccessInfo contains the user's workspace access information for this request.
+type WorkspaceAccessInfo struct {
+	RequestedWorkspace   string   // The workspace requested in query/header
+	AccessibleWorkspaces []string // All workspaces the user can access
+	Role                 string   // User's role in the requested workspace (Viewer/Approver)
+	IsPublicOnly         bool     // True if user is unauthenticated (public workspaces only)
+}
+
 // RequireWorkspaceAccess is a middleware that checks if the user has access to the specified workspace.
-func RequireWorkspaceAccess(next http.Handler) http.Handler {
+// For authenticated users, checks against Firestore permissions.
+// For unauthenticated users, only allows access to public workspaces.
+func (srv *Server) RequireWorkspaceAccessMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
-		if userVal == nil {
-			writeErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Authentication required")
-			return
-		}
-		user, ok := userVal.(*auth.User)
-		if !ok || user == nil {
-			writeErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Authentication required")
-			return
-		}
+		ctx := r.Context()
 
 		// Extract workspace ID from header or URL parameter
 		workspaceID := r.Header.Get("X-Workspace-ID")
 		if workspaceID == "" {
+			workspaceID = r.URL.Query().Get("workspace")
+		}
+		if workspaceID == "" {
 			workspaceID = r.URL.Query().Get("workspace_id")
 		}
 
-		// Check if user has access to workspace
-		if user.WorkspaceID != "" && user.WorkspaceID != workspaceID {
-			writeErrorResponse(w, http.StatusForbidden, "forbidden", "Access to workspace denied")
+		// Get user from context (may be nil for unauthenticated)
+		user := getUserFromContext(r)
+
+		accessInfo := &WorkspaceAccessInfo{
+			RequestedWorkspace: workspaceID,
+		}
+
+		// If no workspace service configured, pass through
+		if srv.workspaceService == nil {
+			ctx = context.WithValue(ctx, WorkspaceAccessContextKey, accessInfo)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		if user == nil || user.Email == "" {
+			// Unauthenticated user - only public workspaces
+			accessInfo.IsPublicOnly = true
+
+			// If specific workspace requested, check if it's public
+			if workspaceID != "" && workspaceID != "public" {
+				workspace, err := srv.workspaceService.GetWorkspace(ctx, workspaceID)
+				if err != nil || !workspace.IsPublic {
+					writeErrorResponse(w, http.StatusForbidden, "forbidden", "Workspace requires authentication")
+					return
+				}
+			}
+
+			// Get list of public workspaces for filtering
+			publicWorkspaces, err := srv.workspaceService.ListAccessibleWorkspaces(ctx, "")
+			if err == nil {
+				for _, ws := range publicWorkspaces {
+					accessInfo.AccessibleWorkspaces = append(accessInfo.AccessibleWorkspaces, ws.ID)
+				}
+			}
+		} else {
+			// Authenticated user - check permissions
+			accessInfo.IsPublicOnly = false
+
+			// Get accessible workspaces
+			accessible, err := srv.workspaceService.ListAccessibleWorkspaces(ctx, user.Email)
+			if err == nil {
+				for _, ws := range accessible {
+					accessInfo.AccessibleWorkspaces = append(accessInfo.AccessibleWorkspaces, ws.ID)
+				}
+			}
+
+			// If specific workspace requested, verify access
+			if workspaceID != "" && workspaceID != "public" {
+				hasAccess, role, err := srv.workspaceService.HasWorkspaceAccess(ctx, user.Email, workspaceID)
+				if err != nil || !hasAccess {
+					writeErrorResponse(w, http.StatusForbidden, "forbidden", "Access to workspace denied")
+					return
+				}
+				accessInfo.Role = role
+			}
+		}
+
+		ctx = context.WithValue(ctx, WorkspaceAccessContextKey, accessInfo)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// GetWorkspaceAccessFromContext retrieves workspace access info from request context.
+func GetWorkspaceAccessFromContext(r *http.Request) *WorkspaceAccessInfo {
+	access, ok := r.Context().Value(WorkspaceAccessContextKey).(*WorkspaceAccessInfo)
+	if !ok {
+		return nil
+	}
+	return access
 }
 
 // HealthHandler returns a simple health check response.

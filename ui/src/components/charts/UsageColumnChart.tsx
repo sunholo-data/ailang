@@ -189,22 +189,48 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
     return name;
   };
 
-  // Custom tooltip
+  // Custom tooltip - filters out zero values and shows top 10
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const dataPoint = points.find(
       (p) => formatBucketLabel(p.bucket, interval) === label
     );
-    const total = payload.reduce(
+
+    // Filter out zero/near-zero values and sort by value descending
+    const filteredPayload = payload
+      .filter((entry: any) => entry.value > 0.001) // Filter out effectively zero values
+      .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
+
+    // Take top 10 for display
+    const MAX_TOOLTIP_ITEMS = 10;
+    const visiblePayload = filteredPayload.slice(0, MAX_TOOLTIP_ITEMS);
+    const hiddenCount = filteredPayload.length - visiblePayload.length;
+    const hiddenTotal = filteredPayload
+      .slice(MAX_TOOLTIP_ITEMS)
+      .reduce((sum: number, entry: any) => sum + (entry.value || 0), 0);
+
+    const total = filteredPayload.reduce(
       (sum: number, entry: any) => sum + (entry.value || 0),
       0
     );
 
+    // If no items have value > 0, show a simple message
+    if (visiblePayload.length === 0) {
+      return (
+        <div className={styles.tooltip}>
+          <div className={styles.tooltipHeader}>{dataPoint?.bucket || label}</div>
+          <div className={styles.tooltipRow}>
+            <span className={styles.tooltipLabel}>No data</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={styles.tooltip}>
         <div className={styles.tooltipHeader}>{dataPoint?.bucket || label}</div>
-        {payload.map((entry: any, index: number) => {
+        {visiblePayload.map((entry: any, index: number) => {
           // Display label - dataKey is already normalized server-side for workspaces
           const displayLabel = entry.dataKey === 'value' ? METRIC_LABELS[metric] : entry.dataKey;
           return (
@@ -220,7 +246,15 @@ export const UsageColumnChart: React.FC<UsageColumnChartProps> = ({
             </div>
           );
         })}
-        {splitBy && payload.length > 1 && (
+        {hiddenCount > 0 && (
+          <div className={styles.tooltipRow} style={{ color: 'var(--text-muted)' }}>
+            <span className={styles.tooltipLabel}>+{hiddenCount} more</span>
+            <span className={styles.tooltipValue}>
+              {formatMetricValue(hiddenTotal, metric)}
+            </span>
+          </div>
+        )}
+        {splitBy && filteredPayload.length > 1 && (
           <div className={styles.tooltipTotal}>
             <span>Total</span>
             <span>{formatMetricValue(total, metric)}</span>

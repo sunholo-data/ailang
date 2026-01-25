@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -16,7 +16,7 @@ import (
 
 // approvalTracer provides OTEL tracing for approval decisions.
 // Spans are linked to the task's trace context for hierarchy visibility.
-var approvalTracer = otel.Tracer("coordinator.approval")
+var approvalTracer = telemetry.Tracer("coordinator.approval")
 
 // handleAgentHandoffs checks if the completed task should trigger handoffs to other agents.
 // This implements the agent-to-agent messaging with optional approval gates.
@@ -247,7 +247,7 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	}
 
 	// Create OTEL span for approval decision (M-DASHBOARD-APPROVAL-INTEGRATION)
-	ctx, span := approvalTracer.Start(ctx, "approval.decision",
+	ctx, span := telemetry.StartSpan(ctx, approvalTracer, "approval.decision",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("approval.action", "approve"),
@@ -413,6 +413,19 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 	d.logger.Printf("Task %s approved and merged by %s (commit: %s)",
 		taskID, approvedBy, mergeResult.CommitHash)
 
+	// Close GitHub issue with merge summary (M-COORD-GITHUB-CLOSE-ON-MERGE)
+	if task.GithubIssue > 0 && d.githubPoster != nil {
+		comment := fmt.Sprintf("**Merged to %s**\n\nCommit: `%s`\nApproved by: %s",
+			mergeBranch, mergeResult.CommitHash, approvedBy)
+		if err := d.githubPoster.CloseIssueInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
+			d.logger.Printf("Warning: Failed to close GitHub issue #%d: %v", task.GithubIssue, err)
+		}
+		// Release the claim label
+		if err := d.githubPoster.ReleaseIssueInRepo(task.GithubRepo, task.GithubIssue); err != nil {
+			d.logger.Printf("Warning: Failed to release issue claim: %v", err)
+		}
+	}
+
 	// Trigger embedded handoffs from combined approval (M-COORD-UNIFIED-APPROVAL)
 	if approvalRecord != nil && approvalRecord.ContextJSON != "" {
 		if err := d.triggerEmbeddedHandoffs(ctx, task, approvalRecord.ContextJSON); err != nil {
@@ -446,7 +459,7 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 	}
 
 	// Create OTEL span for rejection decision (M-DASHBOARD-APPROVAL-INTEGRATION)
-	ctx, span := approvalTracer.Start(ctx, "approval.decision",
+	ctx, span := telemetry.StartSpan(ctx, approvalTracer, "approval.decision",
 		trace.WithAttributes(
 			attribute.String("task.id", taskID),
 			attribute.String("approval.action", "reject"),

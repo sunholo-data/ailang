@@ -36,13 +36,13 @@ import (
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
-	"go.opentelemetry.io/otel"
 )
 
 // compilerTracer is the OpenTelemetry tracer for compiler instrumentation.
 // When no TracerProvider is configured, this returns a no-op tracer with ~2ns overhead.
-var compilerTracer = otel.Tracer("ailang.compiler")
+var compilerTracer = telemetry.Tracer("ailang.compiler")
 
 // Mode determines pipeline execution behavior
 type Mode int

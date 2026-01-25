@@ -49,6 +49,7 @@ import { useObservatoryWs, useApprovals } from '../../hooks/useObservatory';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus';
 import { ApprovalDetailModal, ApprovalData } from '../approvals/ApprovalDetailModal';
 import { HeaderStats } from '../../components/HeaderStats';
+import { AuthButton } from '../../components/AuthButton';
 import type { Approval } from '../../types';
 
 /**
@@ -603,6 +604,9 @@ export const ControlPlane: React.FC = () => {
             <span className={styles.connectionDot} />
             <span className={styles.connectionLabel}>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
           </div>
+
+          {/* User Authentication */}
+          <AuthButton selectedWorkspace={selectedFilters.workspace} />
 
           <button className={styles.themeToggle} onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             <span className={styles.themeToggleIcon}>{theme === 'dark' ? '☀️' : '🌙'}</span>

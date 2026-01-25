@@ -497,6 +497,34 @@ func NewBackends(ctx context.Context) (*Backends, error) {
   ├── provider: string
   ├── trust_scores: map<string, number>
   └── config_json: string
+
+/workspaces/{workspace_id}
+  # NOTE: Document ID encoding - "/" replaced with "__"
+  # Example: "sunholo-data/ailang" → document ID "sunholo-data__ailang"
+  # This is required because Firestore doesn't allow "/" in document IDs
+  ├── id: string              # Original workspace ID with "/" (e.g., "sunholo-data/ailang")
+  ├── name: string            # Display name (e.g., "AILANG Project")
+  ├── github_repo: string     # GitHub repo identifier (same as id)
+  ├── is_public: boolean      # If true, visible to all users
+  ├── created_at: timestamp
+  └── created_by: string      # "cli" or user email
+
+/workspace_access/{workspace_id}/users/{email}
+  # Subcollection for per-user access grants
+  # workspace_id is encoded (same as parent collection)
+  # email is used as document ID (allows @ and .)
+  ├── email: string
+  ├── workspace_id: string    # Original workspace ID with "/"
+  ├── role: "Viewer" | "Approver"
+  ├── granted_at: timestamp
+  └── granted_by: string      # "cli" or admin email
+
+# REQUIRED FIRESTORE INDEXES:
+# The workspace_access subcollection uses collection group queries.
+# Create this index in Firebase Console → Firestore → Indexes:
+#   - Collection group: "users"
+#   - Field: "email" (Ascending)
+#   - Query scope: Collection group
 ```
 
 ### BigQuery Schema (Observatory)

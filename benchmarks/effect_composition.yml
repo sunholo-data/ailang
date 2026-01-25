@@ -9,26 +9,26 @@ task_prompt: |
   Write a program in <LANG> that demonstrates effect composition.
 
   Requirements:
-  1. Implement a PURE function `formatMessage(name, count)` that returns "User {name} has {count} items"
-  2. Implement a function `readCount(filename)` that reads a number from a file (FS effect)
-  3. Implement a function `printMessage(message)` that prints a message (IO effect)
-  4. Implement a function `processUser(name, filename)` that:
-     - Calls readCount(filename) to get count (FS effect)
-     - Calls formatMessage(name, count) to get message (pure)
-     - Calls printMessage(message) to print (IO effect)
+  1. Implement a PURE function `calculateTotal(price, quantity)` that returns price * quantity
+  2. Implement a function `readPrice(filename)` that reads a number from a file (FS effect)
+  3. Implement a function `displayOrder(product, total)` that prints "Order: {product} = ${total}" (IO effect)
+  4. Implement a function `processOrder(product, priceFile, quantity)` that:
+     - Calls readPrice(priceFile) to get unit price (FS effect)
+     - Calls calculateTotal(price, quantity) to get total (pure)
+     - Calls displayOrder(product, total) to print (IO effect)
      - This function has BOTH IO and FS effects
 
   Main should:
-  - Create a test file "count.txt" with content "42"
-  - Call processUser("Alice", "count.txt")
+  - Create a test file "widget_price.txt" with content "15"
+  - Call processOrder("Widget", "widget_price.txt", 4)
 
   Effect propagation:
-  - processUser has both IO and FS effects (because it calls functions with those effects)
+  - processOrder has both IO and FS effects (because it calls functions with those effects)
   - Effect signatures should compose: FS + IO = both in signature
 
   Expected output:
-  "User Alice has 42 items"
+  "Order: Widget = $60"
 
   Output only the code, no explanations.
 expected_stdout: |
-  User Alice has 42 items
+  Order: Widget = $60

@@ -21,6 +21,7 @@ func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
 	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
+	firebaseProject := "" // Firebase project ID for authentication
 
 	// Parse flags
 	for i := 0; i < len(args); i++ {
@@ -35,6 +36,11 @@ func serverCommand(args []string) error {
 				dbPath = args[i+1]
 				i++
 			}
+		case "--firebase-project":
+			if i+1 < len(args) {
+				firebaseProject = args[i+1]
+				i++
+			}
 		case "--help", "-h":
 			fmt.Println("Usage: ailang server [options]")
 			fmt.Println("")
@@ -43,14 +49,20 @@ func serverCommand(args []string) error {
 			fmt.Println("Alias: 'ailang serve' also works (backward compatibility)")
 			fmt.Println("")
 			fmt.Println("Options:")
-			fmt.Println("  --port PORT   HTTP server port (default: 1957)")
-			fmt.Println("  --db PATH     Database path (default: ~/.ailang/state/collaboration.db)")
-			fmt.Println("  --help, -h    Show this help message")
+			fmt.Println("  --port PORT              HTTP server port (default: 1957)")
+			fmt.Println("  --db PATH                Database path (default: ~/.ailang/state/collaboration.db)")
+			fmt.Println("  --firebase-project ID    Firebase project ID for authentication (optional)")
+			fmt.Println("  --help, -h               Show this help message")
+			fmt.Println("")
+			fmt.Println("Authentication:")
+			fmt.Println("  To enable Firebase authentication:")
+			fmt.Println("  1. Run 'gcloud auth application-default login' for ADC")
+			fmt.Println("  2. Use --firebase-project or set firebase.project_id in ~/.ailang/config.yaml")
 			fmt.Println("")
 			fmt.Println("Examples:")
 			fmt.Println("  ailang server")
 			fmt.Println("  ailang server --port 8080")
-			fmt.Println("  ailang server --db /tmp/collab.db")
+			fmt.Println("  ailang server --firebase-project ailang-dev")
 			fmt.Println("")
 			fmt.Println("Endpoints:")
 			fmt.Println("  UI:          http://localhost:PORT/")
@@ -59,6 +71,16 @@ func serverCommand(args []string) error {
 			fmt.Println("  Health:      http://localhost:PORT/health")
 			return nil
 		}
+	}
+
+	// Check for Firebase project from config or environment if not specified via flag
+	if firebaseProject == "" {
+		// Try environment variable first
+		firebaseProject = os.Getenv("AILANG_FIREBASE_PROJECT")
+	}
+	if firebaseProject == "" {
+		// Try config file
+		firebaseProject = getFirebaseProjectFromConfig()
 	}
 
 	// Ensure database directory exists
@@ -113,11 +135,20 @@ func serverCommand(args []string) error {
 	// Observatory database path (for telemetry, traces, metrics)
 	obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
 
-	// Create and start server with version info and observatory
-	srv, err := server.NewServer(dbPath, httpAddr,
+	// Build server options
+	serverOpts := []server.ServerOption{
 		server.WithVersion(Version),
 		server.WithObservatoryDB(obsDbPath),
-	)
+	}
+
+	// Add Firebase auth if configured
+	if firebaseProject != "" {
+		log.Printf("Firebase authentication enabled for project: %s", firebaseProject)
+		serverOpts = append(serverOpts, server.WithFirebaseAuth(firebaseProject))
+	}
+
+	// Create and start server with version info and observatory
+	srv, err := server.NewServer(dbPath, httpAddr, serverOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
@@ -226,4 +257,13 @@ func (a *coordStoreAdapter) GetCoordinatorStats() (*server.CoordinatorStats, err
 // GetCostByProvider implements server.CoordinatorStore
 func (a *coordStoreAdapter) GetCostByProvider() (map[string]float64, error) {
 	return a.store.GetCostByProvider()
+}
+
+// getFirebaseProjectFromConfig loads Firebase project ID from ~/.ailang/config.yaml
+func getFirebaseProjectFromConfig() string {
+	cfg := coordinator.LoadFirebaseConfig()
+	if cfg != nil {
+		return cfg.ProjectID
+	}
+	return ""
 }

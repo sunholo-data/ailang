@@ -933,6 +933,17 @@
       "description": "ADT record types with list fields for Go codegen (Issue #116)"
     },
     {
+      "path": "runnable/poly_adt_result_type.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt"
+      ],
+      "description": "Polymorphic ADT with mixed field types: Result[a] = Ok(a) | Err(string)"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [
@@ -1014,11 +1025,11 @@
     }
   ],
   "statistics": {
-    "total": 106,
-    "working": 99,
+    "total": 107,
+    "working": 100,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.934
+    "coverage": 0.935
   },
   "milestones": {
     "completed": [

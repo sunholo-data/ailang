@@ -39,6 +39,7 @@ const getEventIcon = (type: EventMessage['type']): string => {
     case 'handoff': return '→';
     case 'approval': return '⏳';
     case 'message': return '◉';
+    case 'session': return '◈';
   }
 };
 
@@ -50,6 +51,7 @@ const getEventColor = (type: EventMessage['type']): string => {
     case 'handoff': return 'amber';
     case 'approval': return 'warning';
     case 'message': return 'muted';
+    case 'session': return 'primary';
   }
 };
 
@@ -65,7 +67,7 @@ const formatRelativeTime = (timestamp: string): string => {
   return `${Math.floor(diff / 3600000)}h ago`;
 };
 
-const ALL_EVENT_TYPES: EventType[] = ['task_start', 'task_complete', 'task_error', 'handoff', 'approval', 'message'];
+const ALL_EVENT_TYPES: EventType[] = ['task_start', 'task_complete', 'task_error', 'handoff', 'approval', 'message', 'session'];
 
 const formatDateRange = (range: DateRange): string => {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
@@ -81,6 +83,22 @@ const formatDateRange = (range: DateRange): string => {
 const getWorkspaceName = (workspace: string): string => {
   const parts = workspace.split('/');
   return parts[parts.length - 1] || workspace;
+};
+
+// Helper to format duration in ms to human-readable string
+const formatDuration = (ms: number): string => {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
+};
+
+// Helper to get payload preview when no directive is available
+const getPayloadPreview = (event: EventMessage): string => {
+  const payload = event.metadata?.payload as string;
+  if (!payload) return 'No description';
+  // Remove newlines and trim
+  const clean = payload.replace(/\n+/g, ' ').trim();
+  return clean.length > 100 ? clean.slice(0, 97) + '...' : clean;
 };
 
 // Sort options configuration
@@ -389,10 +407,26 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
                     {event.agent_id}
                   </span>
                 )}
+                {/* Metrics badges - show as compact inline badges */}
+                {event.turn_count !== undefined && event.turn_count > 0 && (
+                  <span className={styles.metricBadge} title="Number of turns">
+                    {event.turn_count}⟳
+                  </span>
+                )}
+                {event.cost_usd !== undefined && event.cost_usd > 0 && (
+                  <span className={styles.metricBadge} title="AI cost">
+                    ${event.cost_usd < 0.01 ? event.cost_usd.toFixed(4) : event.cost_usd.toFixed(2)}
+                  </span>
+                )}
+                {event.duration_ms !== undefined && event.duration_ms > 0 && (
+                  <span className={styles.metricBadge} title="Duration">
+                    {formatDuration(event.duration_ms)}
+                  </span>
+                )}
               </div>
-              {/* Show directive as primary content if available, otherwise show content */}
+              {/* Show directive as primary content, fallback to payload preview */}
               <div className={styles.queueMessage}>
-                {event.directive || event.content}
+                {event.directive || event.content || getPayloadPreview(event)}
               </div>
               {/* Expandable full directive */}
               {event.directive_full && event.directive_full.length > 200 && (

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -35,7 +36,7 @@ type SearchHit struct {
 func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 	// Start span for search operation
 	ctx := context.Background()
-	_, span := messagingTracer.Start(ctx, "messages.search",
+	_, span := telemetry.StartSpan(ctx, messagingTracer, "messages.search",
 		trace.WithAttributes(
 			attribute.String("search.query", opts.Query),
 			attribute.Bool("search.use_neural", opts.UseNeural),

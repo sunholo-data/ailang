@@ -9,11 +9,13 @@ import (
 
 // ConstructorInfo holds information about a constructor for interface building
 type ConstructorInfo struct {
-	TypeName       string     // ADT type name (e.g., "Option")
-	CtorName       string     // Constructor name (e.g., "Some")
-	FieldTypes     []ast.Type // Field types from AST
-	Arity          int        // Number of fields
-	TypeParamCount int        // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	TypeName           string       // ADT type name (e.g., "Option")
+	CtorName           string       // Constructor name (e.g., "Some")
+	FieldTypes         []ast.Type   // Field types from AST
+	Arity              int          // Number of fields
+	TypeParamCount     int          // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	TypeParamNames     []string     // M-POLY-ADT: Type parameter names (e.g., ["a"] for Result[a])
+	InternalFieldTypes []types.Type // M-POLY-ADT: Actual field types for type scheme building
 }
 
 // CompileUnit represents a module compilation unit

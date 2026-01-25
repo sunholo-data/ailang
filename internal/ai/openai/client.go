@@ -7,13 +7,12 @@ import (
 
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var openaiTracer = otel.Tracer("ai.openai")
+var openaiTracer = telemetry.Tracer("ai.openai")
 
 const (
 	defaultBaseURL = "https://api.openai.com/v1"
@@ -71,7 +70,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	apiType := c.detectAPIType(req.Model)
 
 	// Start OTEL span
-	ctx, span := openaiTracer.Start(ctx, "openai.generate",
+	ctx, span := telemetry.StartSpan(ctx, openaiTracer, "openai.generate",
 		trace.WithAttributes(
 			attribute.String("ai.provider", "openai"),
 			attribute.String("ai.model", req.Model),

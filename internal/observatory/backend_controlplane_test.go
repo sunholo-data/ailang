@@ -186,8 +186,8 @@ func TestGetFilteredHeatmapData(t *testing.T) {
 		}
 	}
 
-	// Test with no filter
-	heatmap, err := backend.GetFilteredHeatmapData(ctx, nil, 30)
+	// Test with no filter (nil wsConfig for tests)
+	heatmap, err := backend.GetFilteredHeatmapData(ctx, nil, 30, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredHeatmapData failed: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestGetFilteredHeatmapData_WithProviderFilter(t *testing.T) {
 
 	// Filter by claude
 	filter := &ControlPlaneFilter{Provider: "claude"}
-	heatmap, err := backend.GetFilteredHeatmapData(ctx, filter, 30)
+	heatmap, err := backend.GetFilteredHeatmapData(ctx, filter, 30, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredHeatmapData with filter failed: %v", err)
 	}
@@ -241,8 +241,8 @@ func TestGetFilteredMetricsSummary(t *testing.T) {
 	createTestSpanWithMetrics(t, backend, "op1", "claude", "claude-sonnet", "", 1000, 500, 0.05)
 	createTestSpanWithMetrics(t, backend, "op2", "gemini", "gemini-pro", "", 1500, 750, 0.02)
 
-	// Get metrics without filter
-	metrics, err := backend.GetFilteredMetricsSummary(ctx, nil)
+	// Get metrics without filter (nil wsConfig for tests)
+	metrics, err := backend.GetFilteredMetricsSummary(ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredMetricsSummary failed: %v", err)
 	}
@@ -304,7 +304,8 @@ func TestBuildFilterConditions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			conditions, args := buildFilterConditions(tt.filter)
+			// Pass nil wsConfig - tests don't need workspace reverse mapping
+			conditions, args := buildFilterConditions(tt.filter, nil)
 
 			if len(conditions) != tt.wantConditions {
 				t.Errorf("expected %d conditions, got %d", tt.wantConditions, len(conditions))
@@ -359,7 +360,7 @@ func TestGetFilteredBreakdownByProvider(t *testing.T) {
 
 	// Filter by source_type=eval (matches eval.* and api_request*)
 	filter := &ControlPlaneFilter{SourceType: "eval"}
-	breakdown, err := backend.GetFilteredBreakdownByProvider(ctx, filter)
+	breakdown, err := backend.GetFilteredBreakdownByProvider(ctx, filter, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredBreakdownByProvider failed: %v", err)
 	}
@@ -387,7 +388,7 @@ func TestGetFilteredBreakdownByModel(t *testing.T) {
 
 	// Filter by provider=claude
 	filter := &ControlPlaneFilter{Provider: "claude"}
-	breakdown, err := backend.GetFilteredBreakdownByModel(ctx, filter)
+	breakdown, err := backend.GetFilteredBreakdownByModel(ctx, filter, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredBreakdownByModel failed: %v", err)
 	}
@@ -447,7 +448,7 @@ func TestGetFilteredBreakdownByWorkspace(t *testing.T) {
 
 	// Test 1: Filter by source_type=eval (should show workspaces with eval spans only)
 	filter := &ControlPlaneFilter{SourceType: "eval"}
-	breakdown, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter)
+	breakdown, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredBreakdownByWorkspace failed: %v", err)
 	}
@@ -460,13 +461,15 @@ func TestGetFilteredBreakdownByWorkspace(t *testing.T) {
 		}
 	}
 
-	if len(breakdown) > 0 && breakdown[0].Label != "ailang" {
-		t.Errorf("expected ailang workspace, got %s", breakdown[0].Label)
+	// Label should be derived from path when no mapping config provided
+	// formatLabel("ailang") returns "Ailang" (title case)
+	if len(breakdown) > 0 && breakdown[0].Label != "Ailang" {
+		t.Errorf("expected Ailang workspace label, got %s", breakdown[0].Label)
 	}
 
 	// Test 2: Filter by provider=gemini (should show workspaces with gemini spans only)
 	filter2 := &ControlPlaneFilter{Provider: "gemini"}
-	breakdown2, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter2)
+	breakdown2, err := backend.GetFilteredBreakdownByWorkspace(ctx, filter2, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredBreakdownByWorkspace (provider filter) failed: %v", err)
 	}
@@ -479,12 +482,12 @@ func TestGetFilteredBreakdownByWorkspace(t *testing.T) {
 		}
 	}
 
-	if len(breakdown2) > 0 && breakdown2[0].Label != "twilight" {
-		t.Errorf("expected twilight workspace, got %s", breakdown2[0].Label)
+	if len(breakdown2) > 0 && breakdown2[0].Label != "Twilight Game" {
+		t.Errorf("expected Twilight Game workspace, got %s", breakdown2[0].Label)
 	}
 
 	// Test 3: No filter - should return all workspaces
-	breakdown3, err := backend.GetFilteredBreakdownByWorkspace(ctx, nil)
+	breakdown3, err := backend.GetFilteredBreakdownByWorkspace(ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("GetFilteredBreakdownByWorkspace (no filter) failed: %v", err)
 	}
@@ -499,11 +502,12 @@ func TestGetFilteredBreakdownByWorkspace(t *testing.T) {
 
 func TestWorkspaceFilterInBuildFilterConditions(t *testing.T) {
 	// Test that workspace filter generates correct SQL condition
+	// With nil wsConfig, falls back to direct LIKE match
 	filter := &ControlPlaneFilter{
 		Workspace: "ailang",
 	}
 
-	conditions, args := buildFilterConditions(filter)
+	conditions, args := buildFilterConditions(filter, nil)
 
 	if len(conditions) != 1 {
 		t.Errorf("expected 1 condition, got %d", len(conditions))

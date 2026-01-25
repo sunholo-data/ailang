@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
 )
@@ -31,17 +32,18 @@ type UnifiedEvent struct {
 	Source        string `json:"source"`                   // "inbox" or "claude_code"
 
 	// Claude Code specific fields
-	CostUSD       float64 `json:"cost_usd,omitempty"`
-	TokensIn      int64   `json:"tokens_in,omitempty"`
-	TokensOut     int64   `json:"tokens_out,omitempty"`
-	TurnCount     int     `json:"turn_count,omitempty"`
-	DurationMs    int     `json:"duration_ms,omitempty"`
-	Workspace     string  `json:"workspace,omitempty"`      // Working directory for Claude Code events
-	Model         string  `json:"model,omitempty"`          // AI model used (e.g., "claude-opus-4-5-20251101")
-	Provider      string  `json:"provider,omitempty"`       // AI provider (e.g., "claude", "gemini")
-	SourceType    string  `json:"source_type,omitempty"`    // Source type: coordinator, eval, user_session, etc.
-	Directive     string  `json:"directive,omitempty"`      // Initial user prompt (truncated preview)
-	DirectiveFull string  `json:"directive_full,omitempty"` // Full directive (for detail views)
+	CostUSD        float64 `json:"cost_usd,omitempty"`
+	TokensIn       int64   `json:"tokens_in,omitempty"`
+	TokensOut      int64   `json:"tokens_out,omitempty"`
+	TurnCount      int     `json:"turn_count,omitempty"`
+	DurationMs     int     `json:"duration_ms,omitempty"`
+	Workspace      string  `json:"workspace,omitempty"`       // Working directory for Claude Code events
+	Model          string  `json:"model,omitempty"`           // AI model used (e.g., "claude-opus-4-5-20251101")
+	Provider       string  `json:"provider,omitempty"`        // AI provider (e.g., "claude", "gemini")
+	SourceType     string  `json:"source_type,omitempty"`     // Source type: coordinator, eval, user_session, etc.
+	Directive      string  `json:"directive,omitempty"`       // Initial user prompt (truncated preview)
+	DirectiveFull  string  `json:"directive_full,omitempty"`  // Full directive (for detail views)
+	MetricsSummary string  `json:"metrics_summary,omitempty"` // "3 turns • $0.42 • 12.5s"
 }
 
 // GET /api/inbox - List inbox messages
@@ -177,6 +179,9 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 			ctx := context.Background()
 
+			// Load workspace config for reverse mapping (workspace ID → path patterns)
+			wsConfig := coordinator.LoadWorkspacesConfig()
+
 			// Use lookup function if coordinator store is available
 			// This resolves task_id → agent info for proper event classification
 			var ccEvents []observatory.ClaudeCodeEvent
@@ -185,11 +190,11 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 			if s.coordStoreRaw != nil {
 				// Use lookup to resolve coordinator task → agent info
 				// Pass source_type and workspace filters to apply at SQL level (before LIMIT)
-				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo, sourceTypeFilter, workspaceFilter)
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, s.coordStoreRaw.GetTaskAgentInfo, sourceTypeFilter, workspaceFilter, wsConfig)
 			} else {
 				// Fallback: no coordinator store, use defaults (claude-code → user)
 				// Still apply workspace filter at SQL level
-				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, nil, sourceTypeFilter, workspaceFilter)
+				ccEvents, err = sqliteBackend.GetClaudeCodeEventsWithLookup(ctx, opts.Limit, nil, sourceTypeFilter, workspaceFilter, wsConfig)
 			}
 
 			if err != nil {
@@ -219,26 +224,27 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					events = append(events, UnifiedEvent{
-						ID:            cc.ID,
-						CreatedAt:     cc.CreatedAt,
-						Type:          cc.Type,
-						FromAgent:     cc.FromAgent,
-						ToInbox:       cc.ToInbox,
-						Title:         cc.Title,
-						TaskID:        cc.TaskID,
-						Status:        cc.Status,
-						CostUSD:       cc.CostUSD,
-						TokensIn:      cc.TokensIn,
-						TokensOut:     cc.TokensOut,
-						TurnCount:     cc.TurnCount,
-						DurationMs:    cc.DurationMs,
-						Source:        "claude_code",
-						Model:         cc.Model,
-						Provider:      cc.Provider,
-						Workspace:     cc.Workspace,
-						SourceType:    InferInboxSourceType(cc.FromAgent, cc.ToInbox),
-						Directive:     cc.Directive,
-						DirectiveFull: cc.DirectiveFull,
+						ID:             cc.ID,
+						CreatedAt:      cc.CreatedAt,
+						Type:           cc.Type,
+						FromAgent:      cc.FromAgent,
+						ToInbox:        cc.ToInbox,
+						Title:          cc.Title,
+						TaskID:         cc.TaskID,
+						Status:         cc.Status,
+						CostUSD:        cc.CostUSD,
+						TokensIn:       cc.TokensIn,
+						TokensOut:      cc.TokensOut,
+						TurnCount:      cc.TurnCount,
+						DurationMs:     cc.DurationMs,
+						Source:         "claude_code",
+						Model:          cc.Model,
+						Provider:       cc.Provider,
+						Workspace:      cc.Workspace,
+						SourceType:     InferInboxSourceType(cc.FromAgent, cc.ToInbox),
+						Directive:      cc.Directive,
+						DirectiveFull:  cc.DirectiveFull,
+						MetricsSummary: cc.MetricsSummary,
 					})
 				}
 			}

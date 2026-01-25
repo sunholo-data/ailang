@@ -18,8 +18,8 @@ import (
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -36,7 +36,7 @@ var (
 )
 
 // replTracer is the OpenTelemetry tracer for REPL instrumentation.
-var replTracer = otel.Tracer("ailang.repl")
+var replTracer = telemetry.Tracer("ailang.repl")
 
 // Config holds REPL configuration
 type Config struct {
@@ -163,7 +163,7 @@ func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer
 	inputCount := 0
 
 	// Start session span
-	ctx, sessionSpan := replTracer.Start(ctx, "repl.session",
+	ctx, sessionSpan := telemetry.StartSpan(ctx, replTracer, "repl.session",
 		trace.WithAttributes(
 			attribute.String("session.id", sessionID),
 			attribute.String("version", r.version),
@@ -302,7 +302,7 @@ func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer
 		// Handle commands
 		if strings.HasPrefix(input, ":") {
 			// Start span for command input
-			_, inputSpan := replTracer.Start(ctx, "repl.input",
+			_, inputSpan := telemetry.StartSpan(ctx, replTracer, "repl.input",
 				trace.WithAttributes(
 					attribute.String("input.type", "command"),
 					attribute.String("input.text", inputPreview),
@@ -324,7 +324,7 @@ func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer
 		}
 
 		// Start span for expression input
-		_, inputSpan := replTracer.Start(ctx, "repl.input",
+		_, inputSpan := telemetry.StartSpan(ctx, replTracer, "repl.input",
 			trace.WithAttributes(
 				attribute.String("input.type", "expression"),
 				attribute.String("input.text", inputPreview),

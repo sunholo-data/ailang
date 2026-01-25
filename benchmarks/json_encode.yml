@@ -8,15 +8,15 @@ expected_gain: "high"
 prompt: |
   Write a program in <LANG> that:
   1. Creates a nested JSON structure representing:
-     - A user object with name "Alice", age 30, active status true
-     - An array of hobbies: ["reading", "coding", "hiking"]
-     - A nested address object: city "Seattle", zip 98101
+     - A product object with name "Gadget", price 149, inStock status true
+     - An array of tags: ["electronics", "sale", "featured"]
+     - A nested dimensions object: width 10, height 5, depth 3
   2. Encodes it to a JSON string
   3. Prints the JSON string
 
   The output should be valid JSON with this structure:
-  {"name":"Alice","age":30,"active":true,"hobbies":["reading","coding","hiking"],"address":{"city":"Seattle","zip":98101}}
+  {"name":"Gadget","price":149,"inStock":true,"tags":["electronics","sale","featured"],"dimensions":{"width":10,"height":5,"depth":3}}
 
   Output only the code, no explanations.
 expected_stdout: |
-  {"name":"Alice","age":30,"active":true,"hobbies":["reading","coding","hiking"],"address":{"city":"Seattle","zip":98101}}
+  {"name":"Gadget","price":149,"inStock":true,"tags":["electronics","sale","featured"],"dimensions":{"width":10,"height":5,"depth":3}}

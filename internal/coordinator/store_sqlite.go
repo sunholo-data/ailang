@@ -77,6 +77,7 @@ func (s *SQLiteStore) migrate() error {
 		peak_memory_mb REAL DEFAULT 0,
 		workspace TEXT,
 		github_issue INTEGER,
+		github_repo TEXT,
 		stage TEXT
 	);
 
@@ -150,6 +151,7 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN session_id TEXT",
 		// M-COORD-GITHUB-AUTO-ROUTING: GitHub integration columns
 		"ALTER TABLE tasks ADD COLUMN github_issue INTEGER",
+		"ALTER TABLE tasks ADD COLUMN github_repo TEXT",
 		"ALTER TABLE tasks ADD COLUMN stage TEXT",
 		"ALTER TABLE tasks ADD COLUMN design_doc_path TEXT",
 		"ALTER TABLE tasks ADD COLUMN sprint_plan_path TEXT",
@@ -188,13 +190,14 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 
 	query := `
 		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, priority, status, workspace,
-		                   agent_id, capabilities_json, impact_level, estimated_cost, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
 		task.Type, task.Priority, task.Status, task.Workspace,
-		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost, task.CreatedAt,
+		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
+		task.GithubIssue, task.GithubRepo, task.CreatedAt,
 	)
 	return err
 }
@@ -203,7 +206,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -252,7 +255,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query := strings.Builder{}
 	query.WriteString(`
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -626,7 +629,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// In practice, you'd compute hamming distance in Go after fetching candidates
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used,
@@ -718,7 +721,7 @@ func (s *SQLiteStore) SetTaskSprintPlanPath(ctx context.Context, id string, path
 func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -747,7 +750,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
-		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, stage, design_doc_path, sprint_plan_path,
+		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
@@ -845,13 +848,14 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
 	var githubIssue sql.NullInt64
+	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
 
 	err := row.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
-		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -908,6 +912,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if githubIssue.Valid {
 		task.GithubIssue = int(githubIssue.Int64)
+	}
+	if githubRepo.Valid {
+		task.GithubRepo = githubRepo.String
 	}
 	if stage.Valid {
 		task.Stage = TaskStage(stage.String)
@@ -949,13 +956,14 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
 	var githubIssue sql.NullInt64
+	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
 
 	err := rows.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
-		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &stage, &designDocPath, &sprintPlanPath,
+		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
@@ -1012,6 +1020,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if githubIssue.Valid {
 		task.GithubIssue = int(githubIssue.Int64)
+	}
+	if githubRepo.Valid {
+		task.GithubRepo = githubRepo.String
 	}
 	if stage.Valid {
 		task.Stage = TaskStage(stage.String)

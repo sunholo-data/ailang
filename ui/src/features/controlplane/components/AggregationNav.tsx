@@ -8,6 +8,7 @@ import type { AggregationStats } from './types';
 import type { ControlPlaneFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
 import type { BurnRateInfo } from '../../../hooks/useBudgetStatus';
+import { useWorkspaceAccess } from '../../../hooks/useWorkspaceAccess';
 import styles from '../ControlPlane.module.css';
 
 interface FormattedBreakdownItem extends BreakdownItem {
@@ -108,6 +109,9 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['global']));
 
+  // Get accessible workspaces with roles
+  const { getRole, workspaces } = useWorkspaceAccess();
+
   // Calculate aggregate metrics from breakdowns
   const metrics = useMemo(() => {
     if (!breakdowns) return null;
@@ -175,7 +179,8 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
     percentage?: string;
     children?: React.ReactNode;
     isHighlighted?: boolean;
-  }> = ({ id, label, icon, depth, dimension, value, count, cost, percentage, children, isHighlighted }) => {
+    badge?: { icon: string; type: 'approver' | 'viewer' | 'public'; title: string };
+  }> = ({ id, label, icon, depth, dimension, value, count, cost, percentage, children, isHighlighted, badge }) => {
     const isExpanded = expanded.has(id);
     // For leaf items (with dimension/value), check if this dimension is selected
     // For "global", selected when no filters are active
@@ -210,6 +215,14 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
           )}
           <span className={styles.navIcon}>{icon}</span>
           <span className={styles.navLabel} title={label}>{label}</span>
+          {badge && (
+            <span
+              className={`${styles.navBadge} ${styles[`navBadge${badge.type.charAt(0).toUpperCase() + badge.type.slice(1)}`]}`}
+              title={badge.title}
+            >
+              {badge.icon}
+            </span>
+          )}
           {/* Show count inline only for global (no percentage), otherwise in tooltip */}
           {count !== undefined && !percentage && (
             <span className={styles.navCount} title="Total spans">
@@ -292,21 +305,40 @@ export const AggregationNav: React.FC<AggregationNavProps> = ({
               icon="⬡"
               depth={1}
             >
-              {breakdowns.byWorkspace.slice(0, 10).map(item => (
-                <NavItem
-                  key={item.id}
-                  id={`workspace-${item.id}`}
-                  label={item.label || item.id}
-                  icon="·"
-                  depth={2}
-                  dimension="workspace"
-                  value={item.id}
-                  count={item.span_count}
-                  percentage={item.percentageFormatted}
-                  cost={item.costFormatted}
-                  isHighlighted={highlightedItems?.workspace === item.id}
-                />
-              ))}
+              {breakdowns.byWorkspace.slice(0, 10).map(item => {
+                const role = getRole(item.id);
+                // Check if workspace is public (no explicit role grant)
+                const wsInfo = workspaces.find(w => w.id === item.id);
+                const isPublic = !role && wsInfo?.is_public;
+
+                // Determine badge based on role or public status
+                const badge = role
+                  ? {
+                      icon: role === 'Approver' ? '✓' : '👁',
+                      type: (role === 'Approver' ? 'approver' : 'viewer') as 'approver' | 'viewer',
+                      title: role,
+                    }
+                  : isPublic
+                  ? { icon: '🌐', type: 'public' as const, title: 'Public workspace' }
+                  : undefined;
+
+                return (
+                  <NavItem
+                    key={item.id}
+                    id={`workspace-${item.id}`}
+                    label={item.label || item.id}
+                    icon="·"
+                    depth={2}
+                    dimension="workspace"
+                    value={item.id}
+                    count={item.span_count}
+                    percentage={item.percentageFormatted}
+                    cost={item.costFormatted}
+                    isHighlighted={highlightedItems?.workspace === item.id}
+                    badge={badge}
+                  />
+                );
+              })}
             </NavItem>
           )}
 

@@ -42,11 +42,13 @@ type Elaborator struct {
 
 // ConstructorInfo holds information about an available constructor
 type ConstructorInfo struct {
-	TypeName       string // The ADT type name (e.g., "Option")
-	CtorName       string // Constructor name (e.g., "Some")
-	Arity          int    // Number of fields
-	IsImported     bool   // Whether this constructor is imported
-	TypeParamCount int    // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	TypeName       string       // The ADT type name (e.g., "Option")
+	CtorName       string       // Constructor name (e.g., "Some")
+	Arity          int          // Number of fields
+	IsImported     bool         // Whether this constructor is imported
+	TypeParamCount int          // M-TAPP-FIX: Number of type parameters (e.g., Option[a] = 1)
+	TypeParamNames []string     // M-POLY-ADT: Type parameter names (e.g., ["a"] for Result[a])
+	FieldTypes     []types.Type // M-POLY-ADT: Actual field types from AST (e.g., [string] for Err(string))
 }
 
 // NewElaborator creates a new elaborator
@@ -113,13 +115,23 @@ func (e *Elaborator) AddBuiltinsToGlobalEnv() {
 
 // RegisterConstructor adds a constructor to the elaborator's constructor map
 // M-TAPP-FIX: Added typeParamCount to track ADT type parameters
+// M-POLY-ADT: For backward compatibility, calls RegisterConstructorWithFields with nil fieldTypes
 func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, isImported bool, typeParamCount int) {
+	e.RegisterConstructorWithFields(typeName, ctorName, arity, isImported, typeParamCount, nil, nil)
+}
+
+// RegisterConstructorWithFields adds a constructor with actual field types
+// M-POLY-ADT: Stores field types to correctly build constructor type schemes
+// This fixes the bug where Err(string) in Result[a] was incorrectly typed as ∀a. a -> Result[a]
+func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, arity int, isImported bool, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
 	e.constructors[ctorName] = &ConstructorInfo{
 		TypeName:       typeName,
 		CtorName:       ctorName,
 		Arity:          arity,
 		IsImported:     isImported,
 		TypeParamCount: typeParamCount,
+		TypeParamNames: typeParamNames,
+		FieldTypes:     fieldTypes,
 	}
 }
 

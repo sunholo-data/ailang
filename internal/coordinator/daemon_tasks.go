@@ -14,8 +14,8 @@ import (
 
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -299,6 +299,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			Status:        TaskStatusPending,
 			Workspace:     workspace,
 			GithubIssue:   msg.GithubIssue, // M-COORD-GITHUB-AUTO-ROUTING
+			GithubRepo:    msg.GithubRepo,  // M-COORD-GITHUB-CLOSE-ON-MERGE
 			CreatedAt:     msg.CreatedAt,
 			Capabilities:  analyzed.Capabilities,  // M-DEPRECATE-AILANG-AGENT
 			ImpactLevel:   analyzed.ImpactLevel,   // M-DEPRECATE-AILANG-AGENT
@@ -440,7 +441,7 @@ func (d *Daemon) executeTaskQueue() error {
 }
 
 // coordinatorTracer returns the tracer for coordinator instrumentation.
-var coordinatorTracer = otel.Tracer("coordinator")
+var coordinatorTracer = telemetry.Tracer("coordinator")
 
 // executeTask runs a single task through the executor
 func (d *Daemon) executeTask(task *TaskRecord) error {
@@ -448,7 +449,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	// CRITICAL: Use context.Background() instead of d.ctx to avoid trace contamination
 	// between tasks. Each task gets its own trace_id instead of all tasks sharing
 	// the daemon's trace context (which caused Phase 16 trace mixing bug).
-	taskCtx, span := coordinatorTracer.Start(context.Background(), "coordinator.task.execute",
+	taskCtx, span := telemetry.StartSpan(context.Background(), coordinatorTracer, "coordinator.task.execute",
 		trace.WithNewRoot(), // Force new trace, don't inherit from previous tasks
 		trace.WithAttributes(
 			attribute.String("task.id", task.ID),

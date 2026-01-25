@@ -16,13 +16,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/sunholo/ailang/internal/executor"
 	"github.com/sunholo/ailang/internal/telemetry"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
-var geminiTracer = otel.Tracer("executor.gemini")
+var geminiTracer = telemetry.Tracer("executor.gemini")
 
 // GeminiExecutor executes tasks using Gemini CLI
 type GeminiExecutor struct {
@@ -64,7 +63,7 @@ func (e *GeminiExecutor) Execute(ctx context.Context, task *executor.Task) (*exe
 // Now uses stream-json output format for true NDJSON streaming like Claude
 func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
 	// Start OTEL span for Gemini execution
-	ctx, span := geminiTracer.Start(ctx, "gemini.execute",
+	ctx, span := telemetry.StartSpan(ctx, geminiTracer, "gemini.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "gemini"),
 			attribute.String("executor.model", e.model),
@@ -223,7 +222,7 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					turnSpan.End()
 				}
 				// Start new turn span as child of gemini.execute
-				_, turnSpan = geminiTracer.Start(ctx, "exec.turn",
+				_, turnSpan = telemetry.StartSpan(ctx, geminiTracer, "exec.turn",
 					trace.WithAttributes(
 						attribute.Int("turn.number", turnNum),
 						attribute.String("session.id", sessionID),

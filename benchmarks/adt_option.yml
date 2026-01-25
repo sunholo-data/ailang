@@ -8,15 +8,15 @@ expected_gain: "very_high"
 task_prompt: |
   Write a program in <LANG> that:
   1. Defines an Option type (Some/None, or equivalent)
-  2. Implements a safe division function that returns Option[Float]
-     - Returns Some(result) if divisor is non-zero
-     - Returns None if divisor is zero
-  3. Tests the function with: divide(10, 2) and divide(10, 0)
+  2. Implements a safe square root function that returns Option[Float]
+     - Returns Some(sqrt(n)) if n >= 0
+     - Returns None if n < 0 (can't take sqrt of negative)
+  3. Tests the function with: safeSqrt(16.0) and safeSqrt(-4.0)
   4. Prints the results:
-     - For Some(value): print "Result: {value}"
-     - For None: print "Error: Division by zero"
+     - For Some(value): print "Root: {value}"
+     - For None: print "Error: Negative input"
 
   Output only the code, no explanations.
 expected_stdout: |
-  Result: 5.0
-  Error: Division by zero
+  Root: 4.0
+  Error: Negative input

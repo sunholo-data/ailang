@@ -12,7 +12,7 @@ import type { ControlPlaneFilters } from '../types';
 export interface EventMessage {
   id: string;
   timestamp: string;
-  type: 'task_start' | 'task_complete' | 'task_error' | 'handoff' | 'approval' | 'message';
+  type: 'task_start' | 'task_complete' | 'task_error' | 'handoff' | 'approval' | 'message' | 'session';
   source: string;       // from_agent
   target?: string;      // to_inbox
   content: string;      // title
@@ -33,6 +33,7 @@ export interface EventMessage {
   tokens_in?: number;         // Input tokens
   tokens_out?: number;        // Output tokens
   duration_ms?: number;       // Execution duration in ms
+  metrics_summary?: string;   // "3 turns • $0.42 • 12.5s" for badge display
   metadata?: Record<string, unknown>;
 }
 
@@ -65,6 +66,7 @@ interface InboxMessage {
   tokens_in?: number;
   tokens_out?: number;
   duration_ms?: number;
+  metrics_summary?: string;
 }
 
 interface UseEventQueueOptions {
@@ -157,6 +159,7 @@ export function useEventQueue(options: UseEventQueueOptions = {}) {
         tokens_in: msg.tokens_in,
         tokens_out: msg.tokens_out,
         duration_ms: msg.duration_ms,
+        metrics_summary: msg.metrics_summary,
         metadata: {
           payload: msg.payload,
           status: msg.status,
@@ -382,6 +385,8 @@ function mapMessageTypeToEventType(msgType: string, title?: string): EventMessag
     case 'approval':
     case 'approval_request':
       return 'approval';
+    case 'claude_code_session':
+      return 'session';
   }
 
   // For 'notification' type, infer from title patterns

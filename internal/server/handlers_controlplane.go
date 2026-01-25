@@ -138,10 +138,13 @@ func (s *Server) handleControlPlaneHeatmap(w http.ResponseWriter, r *http.Reques
 	var totalTasks int
 	var totalCost float64
 
+	// Load workspace config for reverse mapping (workspace ID → path patterns)
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Try Observatory backend first (canonical source)
 	if s.obsBackend != nil {
 		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
-			points, err := sqliteBackend.GetFilteredHeatmapData(ctx, filter, days)
+			points, err := sqliteBackend.GetFilteredHeatmapData(ctx, filter, days, wsConfig)
 			if err != nil {
 				log.Printf("Failed to get observatory heatmap data: %v", err)
 			} else {
@@ -606,6 +609,9 @@ func (s *Server) handleControlPlaneStats(w http.ResponseWriter, r *http.Request)
 		},
 	}
 
+	// Load workspace config for reverse mapping (workspace ID → path patterns)
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Get Observatory metrics (canonical source of truth)
 	if s.obsBackend != nil {
 		// Use filtered metrics if SQLite backend with filter support
@@ -613,7 +619,7 @@ func (s *Server) handleControlPlaneStats(w http.ResponseWriter, r *http.Request)
 		var err error
 
 		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok && !filter.IsEmpty() {
-			metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter)
+			metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter, wsConfig)
 		} else {
 			metrics, err = s.obsBackend.GetMetricsSummary(ctx)
 		}
@@ -761,11 +767,15 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		return
 	}
 
+	// Load workspace config for path-to-ID mapping and reverse mapping (workspace ID → path patterns)
+	// This maps file paths (process.cwd) to Firestore workspace IDs
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Get total cost (filtered if filter is set)
 	var metrics *observatory.MetricsSummary
 	var err error
 	if !filter.IsEmpty() {
-		metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter)
+		metrics, err = sqliteBackend.GetFilteredMetricsSummary(ctx, filter, wsConfig)
 	} else {
 		metrics, err = s.obsBackend.GetMetricsSummary(ctx)
 	}
@@ -775,17 +785,17 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 
 	// Get breakdowns (filtered if filter is set)
 	if !filter.IsEmpty() {
-		if items, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, filter); err == nil {
+		if items, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, filter, wsConfig); err == nil {
 			response.ByProvider = convertBreakdownItems(items)
 		}
-		if items, err := sqliteBackend.GetFilteredBreakdownBySourceType(ctx, filter); err == nil {
+		if items, err := sqliteBackend.GetFilteredBreakdownBySourceType(ctx, filter, wsConfig); err == nil {
 			response.BySourceType = convertBreakdownItems(items)
 		}
-		if items, err := sqliteBackend.GetFilteredBreakdownByModel(ctx, filter); err == nil {
+		if items, err := sqliteBackend.GetFilteredBreakdownByModel(ctx, filter, wsConfig); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		// Workspace breakdown also respects filters (shows workspaces matching current filter)
-		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspace(ctx, filter); err == nil {
+		// Workspace breakdown uses config-driven mapping to Firestore workspace IDs
+		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspaceWithMapping(ctx, filter, wsConfig, wsConfig); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}
 	} else {
@@ -799,7 +809,8 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		if items, err := sqliteBackend.GetBreakdownByModel(ctx); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspace(ctx, filter); err == nil {
+		// Workspace breakdown uses config-driven mapping to Firestore workspace IDs
+		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspaceWithMapping(ctx, nil, wsConfig, wsConfig); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}
 	}

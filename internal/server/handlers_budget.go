@@ -128,6 +128,9 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 	var workspaceSpend, dailySpend float64
 	costByProvider := make(map[string]float64)
 
+	// Load workspace config for reverse mapping (workspace ID → path patterns)
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Type assert to SQLiteBackend which has breakdown methods
 	if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 		ctx := r.Context()
@@ -147,7 +150,7 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 			dailyFilter.StartDate = todayStr
 			dailyFilter.EndDate = todayStr
 		}
-		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter); err == nil {
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter, wsConfig); err == nil {
 			for _, item := range breakdown {
 				costByProvider[item.ID] = item.CostUSD
 				dailySpend += item.CostUSD
@@ -160,7 +163,7 @@ func (s *Server) handleBudgetStatus(w http.ResponseWriter, r *http.Request) {
 			Workspace: filter.Workspace,
 			Model:     filter.Model,
 		}
-		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, workspaceFilter); err == nil {
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, workspaceFilter, wsConfig); err == nil {
 			for _, item := range breakdown {
 				workspaceSpend += item.CostUSD
 			}
@@ -289,6 +292,9 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 	// Get current spend from observatory spans (same source as aggregations panel)
 	var workspaceSpend, dailySpend, providerSpend float64
 
+	// Load workspace config for reverse mapping (workspace ID → path patterns)
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Type assert to SQLiteBackend which has breakdown methods
 	if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 		ctx := r.Context()
@@ -299,7 +305,7 @@ func (s *Server) handleBudgetCheck(w http.ResponseWriter, r *http.Request) {
 			StartDate: todayStr,
 			EndDate:   todayStr,
 		}
-		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter); err == nil {
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter, wsConfig); err == nil {
 			for _, item := range breakdown {
 				dailySpend += item.CostUSD
 				// Get provider-specific spend if provider is specified
@@ -378,6 +384,9 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 		HoursUntilExhaustion: -1, // Default: no forecast
 	}
 
+	// Load workspace config for reverse mapping (workspace ID → path patterns)
+	wsConfig := coordinator.LoadWorkspacesConfig()
+
 	// Prefer observatory spans for burn rate (same data source as dashboard)
 	if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
 		ctx := context.Background()
@@ -397,7 +406,7 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 
 		// Get costs within window
 		var totalCost float64
-		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, burnFilter); err == nil {
+		if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, burnFilter, wsConfig); err == nil {
 			for _, item := range breakdown {
 				totalCost += item.CostUSD
 			}
@@ -419,7 +428,7 @@ func (s *Server) calculateBurnRateFiltered(bridge *AILANGBridge, config BudgetCo
 				StartDate: todayStr,
 				EndDate:   todayStr,
 			}
-			if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter); err == nil {
+			if breakdown, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, dailyFilter, wsConfig); err == nil {
 				for _, item := range breakdown {
 					dailySpend += item.CostUSD
 				}

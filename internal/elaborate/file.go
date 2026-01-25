@@ -581,8 +581,18 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 		// M-TAPP-FIX: Track type parameter count for proper TApp generation
 		typeParamCount := len(decl.TypeParams)
 		for _, ctor := range def.Constructors {
-			// Register constructor in elaborator's map
-			e.RegisterConstructor(typeName, ctor.Name, len(ctor.Fields), false, typeParamCount)
+			// M-POLY-ADT: Convert AST field types to internal types
+			// This is critical for correctly typing constructors like Err(string) in Result[a]
+			var fieldTypes []types.Type
+			for _, field := range ctor.Fields {
+				if field.Type != nil {
+					fieldTypes = append(fieldTypes, e.astTypeToInternalType(field.Type))
+				} else {
+					fieldTypes = append(fieldTypes, nil)
+				}
+			}
+			// Register constructor with actual field types and type param names
+			e.RegisterConstructorWithFields(typeName, ctor.Name, len(ctor.Fields), false, typeParamCount, decl.TypeParams, fieldTypes)
 		}
 		// Type declarations don't produce code, return nil
 		return nil, nil

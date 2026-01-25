@@ -33,7 +33,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if src.IsREPL {
 		spanName = "compile: <repl>"
 	}
-	ctx, pipelineSpan := compilerTracer.Start(ctx, spanName,
+	ctx, pipelineSpan := telemetry.StartSpan(ctx, compilerTracer, spanName,
 		trace.WithAttributes(
 			attribute.String("file.path", src.Filename),
 			attribute.Int("file.size_bytes", len(src.Code)),
@@ -78,7 +78,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 1: Parse
 	start := time.Now()
-	_, parseSpan := compilerTracer.Start(ctx, "compile.parse",
+	_, parseSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.parse",
 		trace.WithAttributes(
 			attribute.String("file.path", src.Filename),
 		),
@@ -160,7 +160,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 2: Elaborate to Core
 	start = time.Now()
-	_, elabSpan := compilerTracer.Start(ctx, "compile.elaborate")
+	_, elabSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.elaborate")
 
 	var elaborator *elaborate.Elaborator
 	if src.Filename != "" && src.Filename != "<repl>" {
@@ -200,7 +200,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 3: Type Check
 	start = time.Now()
-	_, typeSpan := compilerTracer.Start(ctx, "compile.typecheck")
+	_, typeSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.typecheck")
 
 	typeChecker := types.NewCoreTypeCheckerWithInstances(cfg.InstEnv)
 	typeChecker.EnableTraceDefaulting(cfg.TraceDefaulting)
@@ -350,7 +350,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	start = time.Now()
 
 	// Validation sub-span for CoreTypeInfo and effects
-	_, validateSpan := compilerTracer.Start(ctx, "compile.validate")
+	_, validateSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.validate")
 
 	// Validate CoreTypeInfo before specialization (M-DX4)
 	// This ensures every Core node has type information before monomorphization/lowering begins
@@ -446,7 +446,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 3.6: Operator Lowering
 	start = time.Now()
-	_, lowerSpan := compilerTracer.Start(ctx, "compile.lower")
+	_, lowerSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.lower")
 
 	// Check if shim is forbidden in CI mode (before any other logic)
 	if cfg.FailOnShim && cfg.ExperimentalBinopShim {

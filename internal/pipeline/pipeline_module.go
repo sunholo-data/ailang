@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -30,7 +31,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Start OTEL span for module compilation pipeline (child of passed context)
 	// Span name includes filename for easy identification in trace UI
-	ctx, pipelineSpan := compilerTracer.Start(ctx, "compile: "+src.Filename,
+	ctx, pipelineSpan := telemetry.StartSpan(ctx, compilerTracer, "compile: "+src.Filename,
 		trace.WithAttributes(
 			attribute.String("file.path", src.Filename),
 			attribute.Int("file.size_bytes", len(src.Code)),
@@ -74,7 +75,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 1: Load module and dependencies
 	start := time.Now()
-	_, loadSpan := compilerTracer.Start(ctx, "compile.load",
+	_, loadSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.load",
 		trace.WithAttributes(
 			attribute.String("root.module", src.Filename),
 		),
@@ -98,7 +99,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// Phase 2: Topological sort
 	start = time.Now()
-	_, topoSpan := compilerTracer.Start(ctx, "compile.topo_sort")
+	_, topoSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.topo_sort")
 
 	modLinker := link.NewModuleLinker(modLoader)
 	// Register $builtin as a first-class module
@@ -131,7 +132,7 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	}
 
 	start = time.Now()
-	_, compileSpan := compilerTracer.Start(ctx, "compile.modules",
+	_, compileSpan := telemetry.StartSpan(ctx, compilerTracer, "compile.modules",
 		trace.WithAttributes(
 			attribute.Int("modules.count", len(sortedModules)),
 		),
@@ -423,19 +424,48 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 				adtTypeVars = append(adtTypeVars, &types.TVar2{Name: varName, Kind: types.Star})
 			}
 
-			// For constructor fields, use the same type vars for the first TypeParamCount fields
-			// (This assumes common case where field types are the ADT's type params)
-			// Additional fields get fresh type vars
+			// M-POLY-ADT: Use actual field types instead of assuming positional match
+			// This fixes the bug where Err(string) in Result[a] was incorrectly typed as ∀a. a -> Result[a]
+			// Build a map of type param names to their ADT type vars (t0, t1, ...)
+			typeParamToVar := make(map[string]types.Type)
+			for i, name := range ctorInfo.TypeParamNames {
+				if i < len(adtTypeVars) {
+					typeParamToVar[name] = adtTypeVars[i]
+				}
+			}
+
 			for i := 0; i < ctorInfo.Arity; i++ {
-				if i < ctorInfo.TypeParamCount {
-					// Use the ADT type var
-					paramTypes = append(paramTypes, adtTypeVars[i])
+				var fieldType types.Type
+				if i < len(ctorInfo.InternalFieldTypes) && ctorInfo.InternalFieldTypes[i] != nil {
+					// M-POLY-ADT: We have the actual field type from elaboration
+					ft := ctorInfo.InternalFieldTypes[i]
+					// Check if field type is a type variable that matches a type parameter
+					if tvar, ok := ft.(*types.TVar2); ok {
+						if mappedVar, found := typeParamToVar[tvar.Name]; found {
+							// This field type IS a type parameter (e.g., 'a' in Ok(a))
+							// Use the corresponding ADT type var (t0, t1, ...)
+							fieldType = mappedVar
+						} else {
+							// Unknown type var - create fresh type var
+							varName := fmt.Sprintf("a%d", i)
+							typeVars = append(typeVars, varName)
+							fieldType = &types.TVar2{Name: varName, Kind: types.Star}
+						}
+					} else {
+						// Concrete type (e.g., 'string' in Err(string))
+						// Use it directly - this is the key fix!
+						fieldType = ft
+					}
+				} else if i < ctorInfo.TypeParamCount {
+					// Fallback: no field types available, use old behavior
+					fieldType = adtTypeVars[i]
 				} else {
 					// Create additional type var for extra fields
 					varName := fmt.Sprintf("a%d", i)
 					typeVars = append(typeVars, varName)
-					paramTypes = append(paramTypes, &types.TVar2{Name: varName, Kind: types.Star})
+					fieldType = &types.TVar2{Name: varName, Kind: types.Star}
 				}
+				paramTypes = append(paramTypes, fieldType)
 			}
 
 			// M-TAPP-FIX: Build correct result type

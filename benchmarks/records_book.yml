@@ -1,0 +1,20 @@
+id: records_book
+description: "Record types with field access and updates"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that:
+  1. Creates a book record/object with fields: title (string), pages (int), genre (string)
+  2. Creates TWO books:
+     - First: title="Dune", pages=412, genre="SciFi"
+     - Second: title="1984", pages=328, genre="Dystopian"
+  3. Prints both books in this exact format (one per line):
+     "{title}, {pages}, {genre}"
+
+  Output only the code for <LANG>, no explanations.
+expected_stdout: |
+  Dune, 412, SciFi
+  1984, 328, Dystopian

@@ -8,24 +8,24 @@ expected_gain: "high"
 task_prompt: |
   Write a program in <LANG> that:
   1. Defines a Result type with Ok(value) and Err(message) variants
-  2. Implements a function `parse_int(s: string) -> Result[int]`:
-     - Returns Ok(n) if string can be parsed as integer
-     - Returns Err("Invalid integer") otherwise
-  3. Implements a function `divide_safe(a: int, b: int) -> Result[int]`:
-     - Returns Ok(a/b) if b != 0
-     - Returns Err("Division by zero") if b == 0
-  4. Chains operations: parse_int("10") -> divide_safe(result, 2)
+  2. Implements a function `validate_age(age: int) -> Result[int]`:
+     - Returns Ok(age) if age is between 0 and 150 (inclusive)
+     - Returns Err("Age out of range") otherwise
+  3. Implements a function `calculate_retirement_years(age: int) -> Result[int]`:
+     - Returns Ok(65 - age) if age < 65
+     - Returns Err("Already retired") if age >= 65
+  4. Chains operations: validate_age(age) -> calculate_retirement_years(result)
   5. Prints the final result:
-     - For Ok(value): "Result: {value}"
+     - For Ok(value): "Years to retirement: {value}"
      - For Err(msg): "Error: {msg}"
 
   Test cases:
-  - parse_int("10") then divide by 2 -> "Result: 5"
-  - parse_int("10") then divide by 0 -> "Error: Division by zero"
-  - parse_int("abc") -> "Error: Invalid integer"
+  - age = 30 -> "Years to retirement: 35"
+  - age = 70 -> "Error: Already retired"
+  - age = -5 -> "Error: Age out of range"
 
   Output only the code, no explanations.
 expected_stdout: |
-  Result: 5
-  Error: Division by zero
-  Error: Invalid integer
+  Years to retirement: 35
+  Error: Already retired
+  Error: Age out of range
