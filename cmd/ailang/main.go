@@ -184,9 +184,6 @@ func main() {
 	case "eval-summary":
 		runEvalSummary()
 
-	case "eval-validate":
-		runEvalValidate()
-
 	case "eval-report":
 		runEvalReport()
 

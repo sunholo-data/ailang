@@ -71,9 +71,9 @@ make eval-baseline
 # Make code changes...
 vim internal/eval/builtins.go
 
-# Validate fix
-make eval-validate-fix BENCH=float_eq
-# Output: "✓ FIX VALIDATED: Benchmark now passing!"
+# Analyze results
+ailang eval-analyze -results eval_results/current -dry-run
+# Shows categorized failures and improvement suggestions
 
 # Compare all changes
 make eval-diff BASELINE=baselines/v0.3.0 NEW=after_fix
@@ -141,19 +141,19 @@ vim internal/eval/builtins.go
 make test
 ```
 
-### Step 4: Validate Fix
+### Step 4: Analyze Results
 
-Prove the fix works for specific benchmarks:
+Analyze failures and identify patterns:
 
 ```bash
-make eval-validate-fix BENCH=float_eq
+ailang eval-analyze -results eval_results/current -dry-run
 ```
 
-**Possible outcomes**:
-- ✅ **FIX VALIDATED**: Was failing, now passing
-- ✗ **REGRESSION**: Was passing, now failing
-- ⚠ **STILL FAILING**: Remains broken
-- ℹ **NO CHANGE**: Was already passing
+**Output shows**:
+- Categorized failures (compile_error, runtime_error, logic_error)
+- Affected benchmarks and models
+- Frequency of each issue
+- Sample error messages
 
 ### Step 5: Compare All Changes
 
@@ -206,7 +206,7 @@ make eval-prompt-ab A=X B=Y  # A/B comparison
 
 ```bash
 make eval-baseline                    # Store baseline
-make eval-validate-fix BENCH=<id>    # Validate fix
+ailang eval-analyze -results X -dry-run  # Analyze failures
 make eval-diff BASELINE=X NEW=Y      # Compare runs
 make eval-summary DIR=<dir>          # Generate JSONL
 make eval-matrix DIR=<dir> VERSION=X # Generate matrix
@@ -265,14 +265,14 @@ print(f"Error distribution: {Counter(e['err_code'] for e in errors)}")
 ### For Automation
 
 ```bash
-# CI/CD integration
-make eval-validate-fix BENCH=float_eq
+# CI/CD integration - run targeted eval suite
+ailang eval-suite --benchmarks float_eq --models gpt5-mini
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
-  echo "Fix validated, safe to merge"
+  echo "Benchmark passing, safe to merge"
 else
-  echo "Fix failed or caused regression"
+  echo "Benchmark failing"
   exit 1
 fi
 ```
@@ -335,8 +335,8 @@ make eval-auto-improve
 make eval-auto-improve-apply
 # AI agent implements the fix automatically
 
-# Validate
-make eval-validate-fix BENCH=<benchmark-id>
+# Analyze and compare
+ailang eval-analyze -results eval_results/current -dry-run
 make eval-diff
 ```
 

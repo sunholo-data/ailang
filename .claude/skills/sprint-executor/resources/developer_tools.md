@@ -235,8 +235,8 @@ ailang eval-summary eval_results/baselines/v0.3.15
 ### Advanced Eval Workflows
 
 ```bash
-# Validate specific fix
-ailang eval-validate fizzbuzz eval_results/baselines/v0.3.14
+# Analyze failures
+ailang eval-analyze -results eval_results/current -dry-run
 # Runs just fizzbuzz against baseline to verify fix works
 
 # A/B test prompts
@@ -637,7 +637,7 @@ cd docs && npm run clear && npm start
 | Run evals (all models) | `make eval-suite FULL=true` |
 | Baseline for release | `make eval-baseline EVAL_VERSION=vX.Y.Z` |
 | Compare baselines | `ailang eval-compare <dir1> <dir2>` |
-| Validate specific fix | `ailang eval-validate <benchmark> <baseline>` |
+| Analyze failures | `ailang eval-analyze -results <dir> -dry-run` |
 | Update dashboard | `ailang eval-report <dir> <ver> --format=json` |
 | Format code | `make fmt` |
 | Lint code | `make lint` |

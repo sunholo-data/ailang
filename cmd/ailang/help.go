@@ -92,7 +92,6 @@ func printHelp() {
 	fmt.Printf("  %s <baseline> <new>    Compare two eval runs\n", cyan("eval-compare"))
 	fmt.Printf("  %s <results_dir> <version>    Performance matrix with stats\n", cyan("eval-matrix"))
 	fmt.Printf("  %s <results_dir>        Summarize eval results\n", cyan("eval-summary"))
-	fmt.Printf("  %s <benchmark> [baseline]  Validate specific fix\n", cyan("eval-validate"))
 	fmt.Println()
 	fmt.Println("Development Tools:")
 	fmt.Printf("  %s [--version V]   Display AILANG teaching prompt (for AI code generation)\n", cyan("prompt"))

@@ -21,8 +21,8 @@ make eval-baseline FULL=true      # Full baseline (all models)
 # Compare results
 ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
 
-# Validate specific fix
-ailang eval-validate float_eq
+# Analyze failures
+ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
 ```
 
 ### Available Commands
@@ -31,7 +31,7 @@ ailang eval-validate float_eq
 |---------|---------|---------|
 | `ailang eval-suite` | Run full benchmark suite | `ailang eval-suite --full` |
 | `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
-| `ailang eval-validate` | Validate specific fix | `ailang eval-validate records_person` |
+| `ailang eval-analyze` | Analyze failures, generate design docs | `ailang eval-analyze -results dir -dry-run` |
 | `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
 | `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0 --format=html` |
@@ -97,13 +97,14 @@ Shows:
 - Token usage deltas
 - Cost differences
 
-### eval-validate: Check Specific Fix
+### eval-analyze: Failure Analysis
 
 ```bash
-ailang eval-validate records_person [version]
+ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
+ailang eval-analyze -results eval_results/baselines/v0.3.0 -generate  # Create design docs
 ```
 
-Validates that a fix works by comparing current implementation against baseline.
+Categorizes failures by type (compile_error, runtime_error, logic_error) and can generate design docs for fixes.
 
 ### Other Commands
 
@@ -120,10 +121,10 @@ ailang eval-report results/ v0.3.0 -f html  # Generate report
 Interprets natural language and routes to correct commands:
 
 ```
-User: "validate the float_eq fix"
-Agent: → ailang eval-validate float_eq
+User: "analyze eval failures"
+Agent: → ailang eval-analyze -results dir -dry-run
       → Interprets results
-      → Suggests next steps
+      → Suggests fixes
 ```
 
 ### eval-fix-implementer (.claude/agents/eval-fix-implementer.md)
@@ -135,7 +136,7 @@ User: "implement the float_eq fix"
 Agent: → Reads design_docs/planned/EVAL_ANALYSIS_float_eq.md
       → Implements fix
       → Runs tests
-      → Validates with ailang eval-validate
+      → Runs eval-suite to verify
       → Reports metrics
 ```
 
@@ -163,7 +164,7 @@ make eval-diff BASELINE=X NEW=Y # Compare runs
 
 ### Direct Commands (Power Users)
 ```bash
-ailang eval-validate records_person
+ailang eval-analyze -results baselines/v0.3.0 -dry-run
 ailang eval-compare baselines/v0.3.0 current
 ailang eval-report results/ v0.3.0 --format=html
 ```
@@ -198,9 +199,9 @@ ailang eval-report results/ v0.3.0 --format=html
   EVAL_ARCHITECTURE.md            # This file
 
 internal/
-  eval_analysis/                  # Native Go implementation (2,070 LOC)
+  eval_analysis/                  # Native Go implementation (~2,000 LOC)
     types.go, loader.go, comparison.go, matrix.go, formatter.go,
-    validate.go, export.go, *_test.go (90%+ coverage)
+    export.go, *_test.go (90%+ coverage)
   eval_harness/                   # Benchmark execution
     models.yml                    # Model configurations
 

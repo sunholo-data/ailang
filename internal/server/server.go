@@ -447,6 +447,13 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/budget/status", s.handleBudgetStatus)
 	mux.HandleFunc("/api/budget/check", s.handleBudgetCheck)
 
+	// REST API endpoints - Claude Code Conversation History
+	mux.HandleFunc("/api/claude-history/projects", s.handleClaudeHistoryProjects)
+	mux.HandleFunc("/api/claude-history/sessions", s.handleClaudeHistorySessions)
+	mux.HandleFunc("/api/claude-history/session/", s.handleClaudeHistorySession)
+	mux.HandleFunc("/api/claude-history/by-span/", s.handleClaudeHistoryBySpan)
+	mux.HandleFunc("/api/claude-history/search", s.handleClaudeHistorySearch)
+
 	// Observatory API endpoints (if configured)
 	if s.obsAPI != nil {
 		s.obsAPI.RegisterRoutes(mux)

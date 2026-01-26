@@ -3,26 +3,48 @@
 #
 # Usage: ./find_language_gaps.sh <baseline_dir>
 # Example: ./find_language_gaps.sh eval_results/baselines/v0.6.2
+#          ./find_language_gaps.sh eval_results/baselines/v0.6.2/agent  # Also works
 
 set -e
 
-BASELINE_DIR="${1:-eval_results/baselines/v0.6.2}"
+INPUT_DIR="${1:-eval_results/baselines/v0.6.2}"
 
-if [ ! -d "$BASELINE_DIR/agent" ]; then
-    echo "Error: No agent results found in $BASELINE_DIR/agent"
-    echo "This script analyzes agent mode eval results."
+# Detect if user passed the agent directory directly or the baseline directory
+if [[ "$INPUT_DIR" == */agent ]]; then
+    # User passed agent directory directly
+    AGENT_DIR="$INPUT_DIR"
+    BASELINE_DIR="${INPUT_DIR%/agent}"
+elif [ -d "$INPUT_DIR/agent" ]; then
+    # User passed baseline directory containing agent/
+    AGENT_DIR="$INPUT_DIR/agent"
+    BASELINE_DIR="$INPUT_DIR"
+else
+    echo "Error: No agent results found"
+    echo "Tried: $INPUT_DIR/agent"
+    echo ""
+    echo "Usage: $0 <baseline_dir>"
+    echo "Example: $0 eval_results/baselines/v0.7.0"
+    echo "         $0 eval_results/baselines/v0.7.0/agent"
+    exit 1
+fi
+
+# Verify agent directory has JSON files
+if ! ls "$AGENT_DIR"/*_ailang_*.json &>/dev/null; then
+    echo "Error: No AILANG agent results found in $AGENT_DIR"
+    echo "Expected files matching: *_ailang_*.json"
     exit 1
 fi
 
 echo "========================================"
 echo "AILANG Language Gap Analysis"
 echo "Baseline: $BASELINE_DIR"
+echo "Agent dir: $AGENT_DIR"
 echo "========================================"
 echo ""
 
 # Count failures
-TOTAL=$(ls "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | wc -l | tr -d ' ')
-FAILURES=$(cat "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | jq -s 'map(select(.stdout_ok == false)) | length')
+TOTAL=$(ls "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | wc -l | tr -d ' ')
+FAILURES=$(cat "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | jq -s 'map(select(.stdout_ok == false)) | length')
 
 echo "Total AILANG agent runs: $TOTAL"
 echo "Failures: $FAILURES"
@@ -34,7 +56,7 @@ echo "   (Agent looking for functions it can't find)"
 echo "========================================"
 echo ""
 
-cat "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | \
+cat "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | \
     jq -r 'select(.stdout_ok == false) | "\(.id): \(.stderr)"' | \
     grep -i "let me check\|what function\|is available\|what.*available\|Let me.*builtins" | \
     head -15 || echo "No search patterns found"
@@ -46,7 +68,7 @@ echo "   (Functions agents tried to use that don't exist)"
 echo "========================================"
 echo ""
 
-cat "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | \
+cat "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | \
     jq -r 'select(.stdout_ok == false) | .stderr // ""' | \
     grep -oE "undefined variable: [a-zA-Z_]+" | \
     sort | uniq -c | sort -rn | head -15 || echo "No undefined variables found"
@@ -58,7 +80,7 @@ echo "   (Repeated type errors suggest unclear type system)"
 echo "========================================"
 echo ""
 
-cat "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | \
+cat "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | \
     jq -r 'select(.stdout_ok == false) | .stderr // ""' | \
     grep -i "type error\|type unification\|cannot unify" | \
     head -10 || echo "No type confusion patterns found"
@@ -69,7 +91,7 @@ echo "4. BENCHMARKS WITH HIGHEST TURNS (stuck loops)"
 echo "========================================"
 echo ""
 
-cat "$BASELINE_DIR/agent"/*_ailang_*.json 2>/dev/null | \
+cat "$AGENT_DIR"/*_ailang_*.json 2>/dev/null | \
     jq -r 'select(.stdout_ok == false) | "\(.agent_turns // 0)\t\(.id)"' | \
     sort -rn | head -10
 

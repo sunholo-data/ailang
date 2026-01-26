@@ -1182,7 +1182,10 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 		workspaceFilterSQL = " AND json_extract(s.resource_attributes, '$.\"process.cwd\"') LIKE '%/worktrees/%'"
 	default:
 		// Use reverse mapping to find path patterns that match the workspace ID
-		patterns := wsConfig.GetPathPatternsForWorkspace(workspaceFilter)
+		var patterns []string
+		if wsConfig != nil {
+			patterns = wsConfig.GetPathPatternsForWorkspace(workspaceFilter)
+		}
 		if len(patterns) > 0 {
 			// Build OR clause for all matching patterns
 			var orClauses []string

@@ -319,7 +319,11 @@ func (ws *WorkspaceService) GetWorkspace(ctx context.Context, workspaceID string
 	if err := doc.DataTo(&workspace); err != nil {
 		return nil, err
 	}
-	workspace.ID = doc.Ref.ID
+	// Only set ID from doc ref if not already populated from document data
+	// Use DecodeDocID to convert "__" back to "/" in workspace IDs
+	if workspace.ID == "" {
+		workspace.ID = DecodeDocID(doc.Ref.ID)
+	}
 
 	// Cache the result
 	ws.mutex.Lock()

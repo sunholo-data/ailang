@@ -110,7 +110,7 @@ ailang eval-report eval_results/baselines/v0.3.15 v0.3.15 --format=markdown
 
 ### ...validate a specific eval fix
 ```bash
-ailang eval-validate fizzbuzz eval_results/baselines/v0.3.14
+ailang eval-analyze -results eval_results/current -dry-run
 # Runs just fizzbuzz benchmark to verify fix works
 ```
 
@@ -407,7 +407,7 @@ cd docs && npm run clear && npm start
 | | All models | `make eval-suite FULL=true` |
 | | Baseline | `make eval-baseline EVAL_VERSION=vX.Y.Z` |
 | | Compare | `ailang eval-compare <dir1> <dir2>` |
-| | Validate fix | `ailang eval-validate <bench> <baseline>` |
+| | Analyze failures | `ailang eval-analyze -results <dir> -dry-run` |
 | **Dashboard** | Update JSON | `ailang eval-report <dir> <ver> --format=json` |
 | | Update markdown | `ailang eval-report <dir> <ver> --format=docusaurus > docs/docs/benchmarks/performance.md` |
 | **Quality** | Format | `make fmt` |

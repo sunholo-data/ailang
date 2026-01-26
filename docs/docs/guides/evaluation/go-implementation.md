@@ -30,8 +30,8 @@ All integrated into `bin/ailang`:
 1. **`eval-compare`** - Compare two evaluation runs
 2. **`eval-matrix`** - Generate performance matrix (JSON)
 3. **`eval-summary`** - Export to JSONL format
-4. **`eval-validate`** - Validate specific fix
-5. **`eval-report`** - Generate comprehensive reports (MD/HTML/CSV)
+4. **`eval-analyze`** - Analyze failures and generate design docs
+5. **`eval-report`** - Generate comprehensive reports (MD/HTML/CSV/JSON)
 
 ### Bash Scripts
 
@@ -42,35 +42,34 @@ All integrated into `bin/ailang`:
 
 ## 🚀 New Features (Stretch Goals)
 
-### 1. Fix Validation (`eval-validate`)
+### 1. Failure Analysis (`eval-analyze`)
 **Usage**:
 ```bash
-ailang eval-validate float_eq
-ailang eval-validate records_person v0.3.0-alpha5
+ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
+ailang eval-analyze -results eval_results/baselines/v0.3.0 -generate
 ```
 
 **Features**:
-- Runs benchmark with current code
-- Compares to baseline automatically
-- Detects: Fixed, Broken, Still Failing, Still Passing
+- Categorizes failures: compile_error, runtime_error, logic_error
+- Shows frequency, affected benchmarks, models, sample errors
+- Can generate design docs for fixes
+- Deduplication and merging of similar issues
 - Color-coded output
-- Exit code for CI/CD integration
 
 **Example Output**:
 ```
-═══════════════════════════════════════════════
-  Validating Fix: float_eq
-═══════════════════════════════════════════════
+━━━ Analysis Summary
+  Total Runs: 448
+  Failures: 87
+  Success Rate: 80.6%
+  Issues Found: 5
 
-Baseline Status:
-  Version: v0.3.0-alpha5
-  Status:  ✗ Failing (compile_error)
+→ Issues Discovered:
 
-Current Status:
-  Status:  ✓ Passing
-
-═══════════════════════════════════════════════
-✓ FIX VALIDATED: Benchmark now passing!
+1. AILANG: Compilation Failures [critical]
+   Category: compile_error
+   Frequency: 23 failures
+   Benchmarks: balanced_parens, binary_tree_sum, ...
 ```
 
 ### 2. Comprehensive Reports (`eval-report`)
@@ -147,9 +146,9 @@ make eval-baseline
 
 # 2. Make code changes to fix float_eq
 
-# 3. Validate the specific fix
-ailang eval-validate float_eq
-# Output: ✓ FIX VALIDATED: Benchmark now passing!
+# 3. Analyze current results
+ailang eval-analyze -results eval_results/current -dry-run
+# Shows categorized failures and suggestions
 
 # 4. Compare full results
 make eval-diff BASELINE=eval_results/baselines/v0.3.0 NEW=eval_results/current
@@ -169,11 +168,8 @@ ailang eval-matrix eval_results/current v0.3.1
 
 ```yaml
 # .github/workflows/eval.yml
-- name: Validate benchmarks
-  run: |
-    for bench in fizzbuzz float_eq records_person; do
-      ailang eval-validate $bench || exit 1
-    done
+- name: Run eval suite
+  run: ailang eval-suite --models gpt5-mini
 
 - name: Generate report
   run: |

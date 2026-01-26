@@ -22,7 +22,7 @@ make eval-baseline FULL=true      # Full baseline (all models)
 ailang eval-compare eval_results/baselines/v0.3.0 eval_results/current
 
 # Validate specific fix
-ailang eval-validate float_eq
+ailang eval-analyze float_eq
 ```
 
 ### Available Commands
@@ -31,7 +31,7 @@ ailang eval-validate float_eq
 |---------|---------|---------|
 | `ailang eval-suite` | Run full benchmark suite | `ailang eval-suite --full` |
 | `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
-| `ailang eval-validate` | Validate specific fix | `ailang eval-validate records_person` |
+| `ailang eval-analyze` | Validate specific fix | `ailang eval-analyze records_person` |
 | `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
 | `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0 --format=html` |
@@ -95,10 +95,10 @@ Shows:
 - Token usage deltas
 - Cost differences
 
-### eval-validate: Check Specific Fix
+### eval-analyze: Check Specific Fix
 
 ```bash
-ailang eval-validate records_person [version]
+ailang eval-analyze records_person [version]
 ```
 
 Validates that a fix works by comparing current implementation against baseline.
@@ -119,7 +119,7 @@ Interprets natural language and routes to correct commands:
 
 ```
 User: "validate the float_eq fix"
-Agent: → ailang eval-validate float_eq
+Agent: → ailang eval-analyze float_eq
       → Interprets results
       → Suggests next steps
 ```
@@ -133,7 +133,7 @@ User: "implement the float_eq fix"
 Agent: → Reads design_docs/planned/EVAL_ANALYSIS_float_eq.md
       → Implements fix
       → Runs tests
-      → Validates with ailang eval-validate
+      → Validates with ailang eval-analyze
       → Reports metrics
 ```
 
@@ -161,7 +161,7 @@ make eval-diff BASELINE=X NEW=Y # Compare runs
 
 ### Direct Commands (Power Users)
 ```bash
-ailang eval-validate records_person
+ailang eval-analyze records_person
 ailang eval-compare baselines/v0.3.0 current
 ailang eval-report results/ v0.3.0 --format=html
 ```

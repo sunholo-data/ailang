@@ -194,45 +194,6 @@ func runEvalSummary() {
 	fmt.Fprintf(os.Stderr, "  jq -s 'group_by(.err_code) | map({code: .[0].err_code, count: length})' %s\n\n", summaryOutput)
 }
 
-// runEvalValidate validates a specific fix against baseline
-// Usage: ailang eval-validate <benchmark_id> [baseline_version]
-func runEvalValidate() {
-	if flag.NArg() < 2 {
-		fmt.Fprintf(os.Stderr, "%s: missing argument\n", red("Error"))
-		fmt.Println("Usage: ailang eval-validate <benchmark_id> [baseline_version]")
-		fmt.Println("")
-		fmt.Println("Validate a fix by comparing current code to baseline.")
-		fmt.Println("")
-		fmt.Println("Examples:")
-		fmt.Println("  ailang eval-validate float_eq")
-		fmt.Println("  ailang eval-validate records_person v0.3.0-alpha5")
-		os.Exit(1)
-	}
-
-	benchmarkID := flag.Arg(1)
-	baselineVersion := ""
-	if flag.NArg() >= 3 {
-		baselineVersion = flag.Arg(2)
-	}
-
-	// Run validation
-	fmt.Fprintf(os.Stderr, "Validating fix for %s...\n\n", benchmarkID)
-	result, err := eval_analysis.ValidateFix(benchmarkID, baselineVersion)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	// Format and print
-	output := eval_analysis.FormatValidationResult(result, true)
-	fmt.Print(output)
-
-	// Exit with error code if not fixed
-	if result.Outcome == eval_analysis.OutcomeBroken || result.Outcome == eval_analysis.OutcomeStillFailing {
-		os.Exit(1)
-	}
-}
-
 // runEvalReport generates a comprehensive evaluation report
 // Usage: ailang eval-report <results_dir|--multi-model> <version> [--format=markdown|html|csv]
 func runEvalReport() {

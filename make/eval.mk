@@ -4,7 +4,7 @@
 
 .PHONY: eval eval-suite eval-models eval-report eval-clean eval-analyze eval-analyze-fresh
 .PHONY: eval-to-design eval-prompt-ab eval-prompt-list eval-prompt-hash
-.PHONY: eval-baseline eval-diff eval-validate-fix eval-summary eval-matrix
+.PHONY: eval-baseline eval-diff eval-summary eval-matrix
 .PHONY: eval-auto-improve eval-auto-improve-apply
 
 # Basic eval commands
@@ -81,17 +81,6 @@ eval-diff: build ## Compare two eval result directories
 		exit 1; \
 	fi
 	@bin/ailang eval-compare "$(BASELINE)" "$(NEW)"
-
-eval-validate-fix: build ## Validate a fix for a specific benchmark
-	@if [ -z "$(BENCH)" ]; then \
-		echo "Usage: make eval-validate-fix BENCH=<benchmark_id> [BASELINE=<version>]"; \
-		exit 1; \
-	fi
-	@if [ -z "$(BASELINE)" ]; then \
-		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)"; \
-	else \
-		$(BUILD_DIR)/$(BINARY) eval-validate "$(BENCH)" "$(BASELINE)"; \
-	fi
 
 eval-summary: ## Show summary of eval results
 	@if [ -z "$(DIR)" ]; then \

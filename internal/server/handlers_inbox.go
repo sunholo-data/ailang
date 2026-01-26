@@ -218,7 +218,7 @@ func (s *Server) handleListInbox(w http.ResponseWriter, r *http.Request) {
 							if cc.Workspace == "" {
 								continue // No workspace data → skip (user wants specific workspace)
 							}
-							if !matchesWorkspace(cc.Workspace, workspaceFilter) {
+							if !matchesWorkspace(cc.Workspace, workspaceFilter, wsConfig) {
 								continue // Has workspace but doesn't match → skip
 							}
 						}
@@ -477,10 +477,11 @@ func (s *Server) handleInboxCleanup(w http.ResponseWriter, r *http.Request) {
 
 // matchesWorkspace checks if a full path matches a workspace filter.
 // The filter can be:
+// - A workspace ID: "MarkEdmondson1234/TwilightGame" (uses wsConfig for reverse mapping)
 // - A full path: "/Users/mark/dev/sunholo/ailang"
 // - A project name: "ailang" (matches paths ending with /ailang)
 // - A special grouping: "Eval Benchmarks", "Coordinator Tasks", "Unknown Workspace"
-func matchesWorkspace(fullPath, filter string) bool {
+func matchesWorkspace(fullPath, filter string, wsConfig *coordinator.WorkspacesConfig) bool {
 	if fullPath == "" || filter == "" {
 		return true
 	}
@@ -498,6 +499,20 @@ func matchesWorkspace(fullPath, filter string) bool {
 		return strings.Contains(fullPath, "/worktrees/")
 	case "No Workspace", "unknown":
 		return fullPath == "" || fullPath == "unknown"
+	}
+
+	// Use workspace config for reverse mapping (workspace ID → path patterns)
+	// This handles workspace IDs like "MarkEdmondson1234/TwilightGame"
+	if wsConfig != nil {
+		patterns := wsConfig.GetPathPatternsForWorkspace(filter)
+		for _, pattern := range patterns {
+			// Convert SQL LIKE pattern to Go matching
+			// Pattern uses % for wildcards, convert to simple contains/prefix/suffix
+			p := strings.ReplaceAll(pattern, "%", "")
+			if p != "" && strings.Contains(fullPath, p) {
+				return true
+			}
+		}
 	}
 
 	// Project name match: filter "ailang" matches "/Users/mark/dev/sunholo/ailang"

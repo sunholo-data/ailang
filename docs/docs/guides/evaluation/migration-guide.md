@@ -89,8 +89,8 @@ ailang eval-summary eval_results/baselines/v0.3.0
 ### Phase 2: Future (Optional)
 - Delete bash wrapper scripts entirely
 - Update Makefile to call Go directly
-- Add more commands: `eval-validate`, `eval-report`
-- HTML/Markdown export formats
+- Add more export formats (HTML, JSON, CSV)
+- Improve eval-analyze design doc generation
 
 ## Testing
 
@@ -153,7 +153,7 @@ Bash scripts still work (they call Go):
 2. ✅ Verify no regressions in eval workflow
 3. ✅ Update CLAUDE.md with new commands
 4. Future: Consider removing bash wrappers entirely
-5. Future: Add `eval-validate` command (validate specific fix)
+5. ✅ `eval-analyze` command for failure analysis and design docs
 
 ## Questions?
 
