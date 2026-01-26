@@ -266,14 +266,9 @@ export const ControlPlane: React.FC = () => {
   );
 
   // Transform data for components - NO MOCK FALLBACKS
-  const heatmapData = useMemo(() => {
-    return heatmapResponse?.cells || [];
-  }, [heatmapResponse]);
-
-  // Full topology data (unfiltered) - from message-based observed topology
-  const messageBasedAgents = useMemo(() => {
-    return topologyData?.agents || [];
-  }, [topologyData]);
+  // Simple property extraction - no memo needed
+  const heatmapData = heatmapResponse?.cells || [];
+  const messageBasedAgents = topologyData?.agents || [];
 
   // Edges with active status based on agent state
   const allEdges = useMemo(() => {
@@ -305,13 +300,9 @@ export const ControlPlane: React.FC = () => {
     return allEdges.filter(e => highlightedPath.has(e.source) && highlightedPath.has(e.target));
   }, [allEdges, highlightedPath]);
 
-  const events = useMemo(() => {
-    return liveEvents;
-  }, [liveEvents]);
-
-  const spans = useMemo(() => {
-    return traceSpans;
-  }, [traceSpans]);
+  // Direct references - no memo needed for pass-through
+  const events = liveEvents;
+  const spans = traceSpans;
 
   // Interactive state
   const [topologyExpanded, setTopologyExpanded] = useState(false);

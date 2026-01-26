@@ -11,10 +11,29 @@
  * - Results show context snippets
  * - Click result to open full conversation
  * - Filters: project, model
+ *
+ * PR 4 Refactoring (M-DASHBOARD-SIMPLIFICATION):
+ * - Utility functions extracted to utils/chatHistoryUtils.ts
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { HierarchyNode, Span } from './types';
 import styles from './ExecHierarchy.module.css';
+
+// Import extracted utilities (PR 4 - M-DASHBOARD-SIMPLIFICATION)
+import {
+  groupEventsByTurn,
+  extractHierarchyTurns,
+  formatTime,
+  formatChatDuration,
+  formatJsonString,
+  extractTaskIdFromContext,
+  extractClaudeSessionId,
+  findSelectedNode,
+  findSelectedSpan,
+  type TaskEvent,
+  type Turn,
+  type HierarchyTurn,
+} from '../../utils/chatHistoryUtils';
 
 export interface ChatHistoryProps {
   /** All hierarchy nodes */
@@ -109,234 +128,23 @@ interface SearchState {
   };
 }
 
-interface TaskEvent {
-  id: string;
-  task_id: string;
-  stream_type: string;
-  turn_num: number;
-  text: string;
-  tool_name?: string;
-  tool_input?: string;
-  tool_output?: string;
-  error_msg?: string;
-  tokens_in?: number;
-  tokens_out?: number;
-  cost?: number;
-  created_at: string;
-}
-
-interface Turn {
-  turnNumber: number;
-  events: TaskEvent[];
-  startTime?: string;
-}
-
-// Simplified turn structure for hierarchy-based display
-interface HierarchyTurn {
-  turnNumber: number;
-  node: HierarchyNode;
-  toolUses: HierarchyNode[];
-}
+// Types and utility functions imported from utils/chatHistoryUtils.ts
+// NOTE: formatJson remains inline as it returns JSX
 
 /**
- * Consolidate consecutive text events into single message blocks.
- * Streaming text comes as many small chunks - we merge them for display.
- */
-function consolidateTextEvents(events: TaskEvent[]): TaskEvent[] {
-  const result: TaskEvent[] = [];
-  let currentTextBlock: TaskEvent | null = null;
-
-  for (const event of events) {
-    if (event.stream_type === 'text' && event.text) {
-      if (currentTextBlock) {
-        // Append to existing text block
-        currentTextBlock = {
-          ...currentTextBlock,
-          text: currentTextBlock.text + event.text,
-        };
-      } else {
-        // Start new text block
-        currentTextBlock = { ...event };
-      }
-    } else {
-      // Non-text event: flush any pending text block
-      if (currentTextBlock) {
-        result.push(currentTextBlock);
-        currentTextBlock = null;
-      }
-      result.push(event);
-    }
-  }
-
-  // Flush final text block
-  if (currentTextBlock) {
-    result.push(currentTextBlock);
-  }
-
-  return result;
-}
-
-/**
- * Group events by turn number (for coordinator task events)
- */
-function groupEventsByTurn(events: TaskEvent[]): Turn[] {
-  const turnMap = new Map<number, TaskEvent[]>();
-
-  for (const event of events) {
-    const turnNum = event.turn_num || 0;
-    if (!turnMap.has(turnNum)) {
-      turnMap.set(turnNum, []);
-    }
-    turnMap.get(turnNum)!.push(event);
-  }
-
-  const turns: Turn[] = [];
-  const sortedKeys = Array.from(turnMap.keys()).sort((a, b) => a - b);
-
-  for (const turnNum of sortedKeys) {
-    const turnEvents = turnMap.get(turnNum)!;
-    // Sort by time, then consolidate consecutive text events
-    const sortedEvents = turnEvents.sort((a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    const consolidatedEvents = consolidateTextEvents(sortedEvents);
-
-    turns.push({
-      turnNumber: turnNum,
-      events: consolidatedEvents,
-      startTime: turnEvents[0]?.created_at,
-    });
-  }
-
-  return turns;
-}
-
-/**
- * Extract turns and tool uses from hierarchy node children (for OTEL spans)
- * Searches recursively since turns may be nested (e.g., coordinator → claude.execute → exec.turn)
- */
-function extractHierarchyTurns(node: HierarchyNode): HierarchyTurn[] {
-  const turns: HierarchyTurn[] = [];
-
-  // Recursively collect all turn nodes from the hierarchy
-  const collectTurns = (n: HierarchyNode) => {
-    if (!n.children) return;
-
-    for (const child of n.children) {
-      if (child.type === 'turn') {
-        const toolUses = child.children?.filter(c => c.type === 'tool_use') || [];
-        turns.push({
-          turnNumber: child.turnNumber || turns.length + 1,
-          node: child,
-          toolUses,
-        });
-      } else {
-        // Recursively search in non-turn children (e.g., exec nodes like claude.execute)
-        collectTurns(child);
-      }
-    }
-  };
-
-  collectTurns(node);
-
-  // Sort turns by turnNumber
-  turns.sort((a, b) => a.turnNumber - b.turnNumber);
-
-  // If no explicit turns found, treat all tool_use children as a single implicit turn
-  if (turns.length === 0 && node.children) {
-    const collectToolUses = (n: HierarchyNode): HierarchyNode[] => {
-      const tools: HierarchyNode[] = [];
-      if (!n.children) return tools;
-      for (const child of n.children) {
-        if (child.type === 'tool_use') {
-          tools.push(child);
-        } else {
-          tools.push(...collectToolUses(child));
-        }
-      }
-      return tools;
-    };
-
-    const toolUses = collectToolUses(node);
-    if (toolUses.length > 0) {
-      turns.push({
-        turnNumber: 1,
-        node: node,
-        toolUses,
-      });
-    }
-  }
-
-  return turns;
-}
-
-/**
- * Find node by ID in hierarchy
- */
-function findNodeById(nodes: HierarchyNode[], id: string): HierarchyNode | null {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    if (node.children) {
-      const found = findNodeById(node.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-/**
- * Find span by ID in spans array (recursive)
- */
-function findSpanById(spans: Span[], id: string): Span | null {
-  for (const span of spans) {
-    if (span.id === id) return span;
-    if (span.children) {
-      const found = findSpanById(span.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-/**
- * Format JSON for display
+ * Format JSON for display (returns JSX, kept inline)
  */
 function formatJson(input: string | undefined): React.ReactNode {
   if (!input) return null;
 
-  try {
-    const parsed = JSON.parse(input);
-    const formatted = JSON.stringify(parsed, null, 2);
-    return <pre className={styles.chatJsonContent}>{formatted}</pre>;
-  } catch {
-    return <pre className={styles.chatJsonContent}>{input}</pre>;
-  }
+  const formatted = formatJsonString(input);
+  return <pre className={styles.chatJsonContent}>{formatted}</pre>;
 }
 
 /**
- * Format timestamp for display
+ * formatDuration alias for backward compatibility
  */
-function formatTime(timestamp: string | number | undefined): string {
-  if (!timestamp) return '—';
-  try {
-    if (typeof timestamp === 'number') {
-      return new Date(timestamp).toLocaleTimeString();
-    }
-    return new Date(timestamp).toLocaleTimeString();
-  } catch {
-    return String(timestamp);
-  }
-}
-
-/**
- * Format duration for display
- */
-function formatDuration(ms: number | undefined): string {
-  if (!ms) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
-}
+const formatDuration = formatChatDuration;
 
 export const ChatHistory: React.FC<ChatHistoryProps> = ({
   nodes,
@@ -369,86 +177,29 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   });
   const [searchDebounceTimer, setSearchDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // Find selected node in hierarchy (by ID or use first root node)
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null;
+  // Find selected node in hierarchy - uses helper from chatHistoryUtils.ts
+  const selectedNode = useMemo(
+    () => findSelectedNode(nodes, selectedNodeId),
+    [nodes, selectedNodeId]
+  );
 
-    // Try exact match first
-    const exactMatch = findNodeById(nodes, selectedNodeId);
-    if (exactMatch) return exactMatch;
+  // Find selected span - uses helper from chatHistoryUtils.ts
+  const selectedSpan = useMemo(
+    () => findSelectedSpan(spans, selectedNodeId),
+    [spans, selectedNodeId]
+  );
 
-    // If selectedNodeId looks like a task_id (e.g., "task-xxxx") but nodes use span_ids,
-    // check if any node's taskId matches, or use the first root node as fallback
-    const nodeWithTaskId = nodes.find(n =>
-      n.taskId === selectedNodeId ||
-      n._span?.attributes?.['task_id'] === selectedNodeId
-    );
-    if (nodeWithTaskId) return nodeWithTaskId;
+  // Extract task ID - uses helper from chatHistoryUtils.ts
+  const taskId = useMemo(
+    () => extractTaskIdFromContext(selectedNode, selectedSpan, selectedNodeId),
+    [selectedNode, selectedSpan, selectedNodeId]
+  );
 
-    // Final fallback: use first root node if we have nodes but ID doesn't match
-    // (This happens when selectedNodeId is a task_id but nodes have span_ids)
-    if (nodes.length > 0) return nodes[0];
-
-    return null;
-  }, [nodes, selectedNodeId]);
-
-  // Find selected span (for additional metadata)
-  const selectedSpan = useMemo(() => {
-    if (!selectedNodeId || !spans) return null;
-
-    // Try exact match first
-    const exactMatch = findSpanById(spans, selectedNodeId);
-    if (exactMatch) return exactMatch;
-
-    // If no match but we have spans, use first root span (same fallback logic as nodes)
-    if (spans.length > 0) return spans[0];
-
-    return null;
-  }, [spans, selectedNodeId]);
-
-  // Extract task ID (for coordinator tasks)
-  // Priority: node.taskId > span.attributes (multiple keys) > selectedNodeId if it looks like a task_id
-  const taskId = useMemo(() => {
-    if (selectedNode?.taskId) return selectedNode.taskId;
-
-    // Check span attributes - different executors use different attribute names!
-    if (selectedSpan?.attributes) {
-      const attrs = selectedSpan.attributes;
-      // Coordinator uses "task.id" (DOT notation) - THIS WAS THE BUG!
-      if (attrs['task.id']) return attrs['task.id'];
-      // Gemini executor uses "exec.task_id"
-      if (attrs['exec.task_id']) return attrs['exec.task_id'];
-      // Fallback: underscore notation (legacy)
-      if (attrs['task_id']) return attrs['task_id'];
-    }
-
-    // If selectedNodeId looks like a task_id, use it directly
-    if (selectedNodeId && selectedNodeId.startsWith('task-')) return selectedNodeId;
-    return undefined;
-  }, [selectedNode, selectedSpan, selectedNodeId]);
-
-  // Extract session.id for Claude Code JSONL lookup
-  // Claude Code sessions have this attribute set
-  // ALSO: selectedNodeId might BE the session.id directly (UUID format from Event Queue)
-  const claudeSessionId = useMemo(() => {
-    // First, check if selectedNodeId itself looks like a UUID (session.id format)
-    // Event Queue often passes the session UUID as the selectedNodeId
-    if (selectedNodeId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedNodeId)) {
-      return selectedNodeId;
-    }
-
-    if (selectedSpan?.attributes) {
-      const attrs = selectedSpan.attributes;
-      // Claude Code uses "session.id"
-      if (attrs['session.id']) return attrs['session.id'];
-    }
-    // Also check node's span attributes
-    if (selectedNode?._span?.attributes) {
-      const attrs = selectedNode._span.attributes;
-      if (attrs['session.id']) return attrs['session.id'];
-    }
-    return undefined;
-  }, [selectedSpan, selectedNode, selectedNodeId]);
+  // Extract Claude session ID - uses helper from chatHistoryUtils.ts
+  const claudeSessionId = useMemo(
+    () => extractClaudeSessionId(selectedSpan, selectedNode, selectedNodeId),
+    [selectedSpan, selectedNode, selectedNodeId]
+  );
 
   // Extract hierarchy turns (for OTEL spans)
   const hierarchyTurns = useMemo(() => {

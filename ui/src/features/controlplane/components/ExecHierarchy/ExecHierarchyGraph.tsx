@@ -19,119 +19,23 @@ import ReactFlow, {
   ReactFlowInstance,
   ReactFlowProvider,
 } from 'reactflow';
-import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import type { HierarchyNode, NodeStatus } from './types';
 import styles from './ExecHierarchy.module.css';
-
-// Get node color based on type
-function getNodeColor(type: HierarchyNode['type']): string {
-  switch (type) {
-    case 'message':
-      return '#f59e0b';
-    case 'exec':
-      return '#25c2a0';
-    case 'turn':
-      return '#3b82f6';
-    case 'tool_use':
-      return '#8b5cf6';
-    case 'approval':
-      return '#10b981'; // Emerald for human decisions
-    default:
-      return '#64748b';
-  }
-}
-
-// Get status color
-function getStatusColor(status: NodeStatus): string {
-  switch (status) {
-    case 'completed':
-      return '#25c2a0';
-    case 'busy':
-      return '#3b82f6';
-    case 'error':
-      return '#ef4444';
-    case 'pending':
-      return '#f59e0b';
-    default:
-      return '#64748b';
-  }
-}
-
-// Get icon for node type
-function getNodeIcon(type: HierarchyNode['type']): string {
-  switch (type) {
-    case 'message':
-      return '✉';
-    case 'exec':
-      return '⚡';
-    case 'turn':
-      return '↻';
-    case 'tool_use':
-      return '⚙';
-    case 'approval':
-      return '👤';
-    default:
-      return '●';
-  }
-}
-
-// Format cost for display
-function formatCost(cost?: number): string {
-  if (!cost || cost === 0) return '';
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
-  if (cost < 1) return `$${cost.toFixed(3)}`;
-  return `$${cost.toFixed(2)}`;
-}
-
-// Format token count for display
-function formatTokens(count?: number): string {
-  if (!count || count === 0) return '';
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
-  return String(count);
-}
-
-// Format duration for display
-function formatDuration(ms?: number): string {
-  if (!ms) return '';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
-}
-
-// Get provider icon
-function getProviderIcon(provider?: string): string {
-  switch (provider) {
-    case 'claude': return '🟠';
-    case 'gemini': return '🔵';
-    case 'ollama': return '🟣';
-    default: return '';
-  }
-}
-
-// Get approval status icon
-function getApprovalIcon(status?: string): string {
-  switch (status) {
-    case 'pending': return '⏳';
-    case 'approved': return '✓';
-    case 'rejected': return '✗';
-    default: return '';
-  }
-}
-
-// Get approval status color
-function getApprovalColor(status?: string): string {
-  switch (status) {
-    case 'pending': return '#f59e0b';  // Amber
-    case 'approved': return '#25c2a0';  // Green
-    case 'rejected': return '#ef4444';  // Red
-    default: return '#64748b';          // Gray
-  }
-}
+import {
+  getNodeTypeColor,
+  getStatusColor,
+  getNodeIcon,
+  getProviderIcon,
+  getApprovalIcon,
+  getApprovalColor,
+} from '../../utils/nodeStyles';
+import { formatDurationMsOpt, formatCostOpt, formatTokensOpt } from '../../../../utils/formatters';
+import { applyDagreLayout } from '../../utils/dagreLayout';
 
 // Custom node component
 const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
-  const nodeColor = getNodeColor(data.type);
+  const nodeColor = getNodeTypeColor(data.type);
   const statusColor = getStatusColor(data.status);
   const isCollapsible = data.isCollapsible;
   const isExpanded = data.isExpanded;
@@ -184,8 +88,8 @@ const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
       </div>
       <div className={styles.rfNodeMeta}>
         <span style={{ color: statusColor }}>{data.status}</span>
-        {data.durationMs > 0 && <span> • {formatDuration(data.durationMs)}</span>}
-        {data.cost > 0 && <span className={styles.rfCost}> • {formatCost(data.cost)}</span>}
+        {data.durationMs > 0 && <span> • {formatDurationMsOpt(data.durationMs)}</span>}
+        {data.cost > 0 && <span className={styles.rfCost}> • {formatCostOpt(data.cost)}</span>}
         {!isExpanded && childCount > 0 && (
           <span className={styles.rfChildBadge}>{childCount}</span>
         )}
@@ -198,9 +102,9 @@ const HierarchyNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
       )}
       {hasMetrics && (data.tokensIn > 0 || data.tokensOut > 0) && (
         <div className={styles.rfNodeMetrics}>
-          {data.tokensIn > 0 && <span>{formatTokens(data.tokensIn)} in</span>}
+          {data.tokensIn > 0 && <span>{formatTokensOpt(data.tokensIn)} in</span>}
           {data.tokensIn > 0 && data.tokensOut > 0 && <span> / </span>}
-          {data.tokensOut > 0 && <span>{formatTokens(data.tokensOut)} out</span>}
+          {data.tokensOut > 0 && <span>{formatTokensOpt(data.tokensOut)} out</span>}
         </div>
       )}
       <Handle type="source" position={Position.Bottom} className={styles.rfHandle} />
@@ -215,49 +119,6 @@ const nodeTypes = {
 // Node dimensions for dagre layout
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 80;
-
-// Apply dagre layout to nodes and edges
-// direction: 'TB' = top-bottom, 'LR' = left-right
-function applyDagreLayout(
-  nodes: Node[],
-  edges: Edge[],
-  direction: 'TB' | 'LR' = 'TB'
-): Node[] {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({
-    rankdir: direction,
-    nodesep: 60,       // Horizontal separation between nodes
-    ranksep: 100,      // Vertical separation between ranks
-    marginx: 20,
-    marginy: 20,
-  });
-  g.setDefaultEdgeLabel(() => ({}));
-
-  // Add nodes with dimensions
-  nodes.forEach(node => {
-    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  });
-
-  // Add edges
-  edges.forEach(edge => {
-    g.setEdge(edge.source, edge.target);
-  });
-
-  // Run dagre layout
-  dagre.layout(g);
-
-  // Apply calculated positions to nodes
-  return nodes.map(node => {
-    const nodeWithPosition = g.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - NODE_WIDTH / 2,
-        y: nodeWithPosition.y - NODE_HEIGHT / 2,
-      },
-    };
-  });
-}
 
 // Flatten hierarchy nodes to ReactFlow nodes and edges
 // Uses dagre for automatic hierarchical layout
@@ -305,12 +166,12 @@ function buildGraphData(
         target: node.id,
         type: 'smoothstep',
         style: {
-          stroke: getNodeColor(node.type),
+          stroke: getNodeTypeColor(node.type),
           strokeWidth: 2,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: getNodeColor(node.type),
+          color: getNodeTypeColor(node.type),
         },
       });
     }
@@ -364,7 +225,11 @@ function buildGraphData(
   });
 
   // Apply dagre layout
-  const layoutedNodes = applyDagreLayout(rfNodes, rfEdges, 'TB');
+  const layoutedNodes = applyDagreLayout(rfNodes, rfEdges, {
+    direction: 'TB',
+    nodeWidth: NODE_WIDTH,
+    nodeHeight: NODE_HEIGHT,
+  });
 
   return { rfNodes: layoutedNodes, rfEdges };
 }
@@ -461,7 +326,7 @@ const ExecHierarchyGraphInner: React.FC<ExecHierarchyGraphProps> = ({
       <Controls className={styles.graphControls} />
       {isExpanded && (
         <MiniMap
-          nodeColor={(node) => getNodeColor(node.data?.type)}
+          nodeColor={(node) => getNodeTypeColor(node.data?.type)}
           maskColor="rgba(13, 17, 23, 0.8)"
         />
       )}

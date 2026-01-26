@@ -14,6 +14,8 @@ export interface TraceWaterfallProps {
   // Span type filtering (Milestone 14) - generic filter for any span type
   hiddenSpanTypes?: Set<string>;
   onToggleSpanType?: (spanType: string) => void;
+  // Chat context indicator (M-CHAT-HISTORY-DB) - callback when user clicks chat icon
+  onChatContextClick?: (span: Span) => void;
 }
 
 // Default display limit
@@ -25,6 +27,7 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
   selectedTraceId,
   loading,
   hiddenSpanTypes,
+  onChatContextClick,
 }) => {
   // Display limit state - start with 100, can load more
   const [displayLimit, setDisplayLimit] = useState(DEFAULT_DISPLAY_LIMIT);
@@ -104,12 +107,18 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
   const zoomOut = () => setZoomLevel((z) => Math.max(z / 2, 1));
   const resetZoom = () => setZoomLevel(1);
 
+  // Check if a span has chat context available (via session.id attribute)
+  const hasChatContext = (span: Span): boolean => {
+    return !!(span.attributes?.['session.id']);
+  };
+
   // Render a single span row (flat, not recursive)
   const renderSpanRow = (span: Span, depth: number, index: number): React.ReactNode => {
     const left = totalDuration > 0 ? (span.startMs / totalDuration) * 100 : 0;
     const width = totalDuration > 0 ? (span.durationMs / totalDuration) * 100 : 100;
     // Visual depth indicator: tree-style prefix showing nesting level
     const depthPrefix = depth === 0 ? '' : '├─'.repeat(Math.max(0, depth - 1)) + '└─ ';
+    const hasChat = hasChatContext(span);
 
     return (
       <div key={`${span.id}-${index}`} className={styles.waterfallRow} data-depth={depth} data-span-id={span.id}>
@@ -122,6 +131,18 @@ export const TraceWaterfall: React.FC<TraceWaterfallProps> = ({
             )}
             {span.display_name || span.name}
           </span>
+          {hasChat && onChatContextClick && (
+            <button
+              className={styles.waterfallChatBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChatContextClick(span);
+              }}
+              title="View conversation context"
+            >
+              💬
+            </button>
+          )}
           <span className={styles.waterfallDuration}>{formatDuration(span.durationMs)}</span>
         </div>
         <div className={styles.waterfallBar}>

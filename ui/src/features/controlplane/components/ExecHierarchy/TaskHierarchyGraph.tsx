@@ -25,112 +25,18 @@ import type { TaskHierarchyNode, TaskHierarchyEdge, TaskHierarchyResult, TaskSpa
 import { useTaskHierarchy } from '../../hooks/useTaskHierarchy';
 import { buildGraphFromSpans, buildGraphFromTurnGrouped, type HierarchySpan } from '../../utils/buildGraphFromSpans';
 import styles from './ExecHierarchy.module.css';
+import {
+  getTaskNodeColor,
+  getSpanNodeColor,
+  getSpanNodeIcon,
+  getProviderIcon,
+  getApprovalBadge,
+} from '../../utils/nodeStyles';
+import { formatDurationMsOpt, formatCostOpt, formatTokensOpt } from '../../../../utils/formatters';
 
-// Get node color based on status and approval
-function getNodeColor(status: string, approvalStatus?: string): string {
-  if (approvalStatus === 'pending') return '#f59e0b'; // Amber for pending approval
-  if (approvalStatus === 'rejected') return '#ef4444'; // Red for rejected
-  switch (status) {
-    case 'completed':
-    case 'done':
-      return '#25c2a0'; // Green
-    case 'running':
-    case 'busy':
-      return '#3b82f6'; // Blue
-    case 'failed':
-    case 'error':
-      return '#ef4444'; // Red
-    case 'pending':
-    case 'pending_approval':
-      return '#f59e0b'; // Amber
-    default:
-      return '#64748b'; // Gray
-  }
-}
-
-// Get span node color based on node_type
-function getSpanNodeColor(nodeType?: string): string {
-  switch (nodeType) {
-    case 'coordinator':
-      return '#8b5cf6'; // Purple
-    case 'executor':
-      return '#3b82f6'; // Blue
-    case 'turn':
-      return '#10b981'; // Green
-    case 'tool':
-      return '#f59e0b'; // Amber
-    default:
-      return '#64748b'; // Gray
-  }
-}
-
-// Get span node icon
-function getSpanNodeIcon(nodeType?: string): string {
-  switch (nodeType) {
-    case 'coordinator':
-      return '\u2B21'; // Hexagon
-    case 'executor':
-      return '\u25CF'; // Circle
-    case 'turn':
-      return '\u25C9'; // Fish eye
-    case 'tool':
-      return '\u2699'; // Gear
-    default:
-      return '\u2022'; // Bullet
-  }
-}
-
-// Get provider icon
-function getProviderIcon(provider?: string): string {
-  switch (provider) {
-    case 'claude':
-    case 'claude-code':
-      return '\u{1F7E0}'; // Orange circle
-    case 'gemini':
-    case 'gemini-cli':
-      return '\u{1F535}'; // Blue circle
-    case 'script':
-      return '\u{1F7E2}'; // Green circle
-    default:
-      return '';
-  }
-}
-
-// Get approval status icon and color
-function getApprovalBadge(status?: string): { icon: string; color: string } {
-  switch (status) {
-    case 'pending':
-      return { icon: '\u23F3', color: '#f59e0b' }; // Hourglass, amber
-    case 'approved':
-      return { icon: '\u2713', color: '#25c2a0' }; // Check, green
-    case 'rejected':
-      return { icon: '\u2717', color: '#ef4444' }; // X, red
-    default:
-      return { icon: '', color: '#64748b' };
-  }
-}
-
-// Format cost for display
-function formatCost(cost?: number): string {
-  if (!cost || cost === 0) return '';
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
-  if (cost < 1) return `$${cost.toFixed(3)}`;
-  return `$${cost.toFixed(2)}`;
-}
-
-// Format token count for display
-function formatTokens(count?: number): string {
-  if (!count || count === 0) return '';
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
-  return String(count);
-}
-
-// Format duration for display
-function formatDuration(ms?: number): string {
-  if (!ms) return '';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
+// Check if a node has chat context available (via session.id in span attributes)
+function hasChatContext(data: any): boolean {
+  return !!(data._span?.attributes?.['session.id']);
 }
 
 // Count spans recursively
@@ -147,7 +53,7 @@ function countSpans(spans?: { children?: unknown[] }[]): number {
 
 // Custom node component for tasks
 const TaskNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
-  const nodeColor = getNodeColor(data.status, data.approval_status);
+  const nodeColor = getTaskNodeColor(data.status, data.approval_status);
   const approvalBadge = getApprovalBadge(data.approval_status);
   const hasMetrics = data.cost || data.tokens_in || data.tokens_out;
   const isHandoffTarget = data.isHandoffTarget;
@@ -202,7 +108,7 @@ const TaskNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
           </span>
         )}
         <span style={{ color: nodeColor }}>{data.status}</span>
-        {data.duration_ms > 0 && <span> • {formatDuration(data.duration_ms)}</span>}
+        {data.duration_ms > 0 && <span> • {formatDurationMsOpt(data.duration_ms)}</span>}
         {iterationBadge && (
           <span
             className={styles.rfIterationBadge}
@@ -216,10 +122,10 @@ const TaskNodeComponent: React.FC<NodeProps> = ({ data, selected }) => {
       {/* Metrics row */}
       {hasMetrics && (
         <div className={styles.rfNodeMetrics}>
-          {data.cost > 0 && <span className={styles.rfCost}>{formatCost(data.cost)}</span>}
-          {data.tokens_in > 0 && <span>{formatTokens(data.tokens_in)} in</span>}
+          {data.cost > 0 && <span className={styles.rfCost}>{formatCostOpt(data.cost)}</span>}
+          {data.tokens_in > 0 && <span>{formatTokensOpt(data.tokens_in)} in</span>}
           {data.tokens_in > 0 && data.tokens_out > 0 && <span> / </span>}
-          {data.tokens_out > 0 && <span>{formatTokens(data.tokens_out)} out</span>}
+          {data.tokens_out > 0 && <span>{formatTokensOpt(data.tokens_out)} out</span>}
           {data.turns && data.turns > 0 && <span> • {data.turns} turns</span>}
         </div>
       )}
@@ -302,6 +208,19 @@ const SpanNodeComponent: React.FC<NodeProps> = ({ data }) => {
         {data.status === 'error' && (
           <span className={styles.rfSpanError}>!</span>
         )}
+        {/* Chat context indicator */}
+        {hasChatContext(data) && data.onChatContextClick && (
+          <button
+            className={styles.chatContextBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onChatContextClick(data);
+            }}
+            title="View chat context"
+          >
+            💬
+          </button>
+        )}
         {/* Expand/collapse button */}
         {isExpandable && (
           <button
@@ -319,11 +238,11 @@ const SpanNodeComponent: React.FC<NodeProps> = ({ data }) => {
 
       {/* Duration and metrics */}
       <div className={styles.rfSpanMeta}>
-        <span>{formatDuration(durationMs)}</span>
+        <span>{formatDurationMsOpt(durationMs)}</span>
         {hasMetrics && (
           <>
-            {cost > 0 && <span> • {formatCost(cost)}</span>}
-            {tokensIn > 0 && <span> [{formatTokens(tokensIn)}→{formatTokens(tokensOut)}]</span>}
+            {cost > 0 && <span> • {formatCostOpt(cost)}</span>}
+            {tokensIn > 0 && <span> [{formatTokensOpt(tokensIn)}→{formatTokensOpt(tokensOut)}]</span>}
           </>
         )}
       </div>
@@ -562,6 +481,8 @@ export interface TaskHierarchyGraphProps {
   // Span type filtering - Set of span names to hide (e.g., 'api_request')
   // Same as other views (Tree, Timeline, Chat, Waterfall)
   hiddenSpanTypes?: Set<string>;
+  // Callback when chat context button is clicked (M-CHAT-HISTORY-DB Phase 3)
+  onChatContextClick?: (node: HierarchyNode) => void;
 }
 
 // Inner component that uses ReactFlow hooks
@@ -688,7 +609,7 @@ const TaskHierarchyGraphInner: React.FC<TaskHierarchyGraphProps & {
       <Controls className={styles.graphControls} />
       {isExpanded && (
         <MiniMap
-          nodeColor={(node) => getNodeColor(node.data?.status, node.data?.approval_status)}
+          nodeColor={(node) => getTaskNodeColor(node.data?.status, node.data?.approval_status)}
           maskColor="rgba(13, 17, 23, 0.8)"
         />
       )}
@@ -704,6 +625,7 @@ interface SpanGraphInnerProps {
   onNodeClick?: (node: HierarchyNode, event?: React.MouseEvent) => void;  // Changed to HierarchyNode for popover
   isExpanded?: boolean;
   recenterTrigger?: number;
+  onChatContextClick?: (node: HierarchyNode) => void;
 }
 
 const SpanGraphInner: React.FC<SpanGraphInnerProps> = ({
@@ -712,6 +634,7 @@ const SpanGraphInner: React.FC<SpanGraphInnerProps> = ({
   onNodeClick,
   isExpanded,
   recenterTrigger,
+  onChatContextClick,
 }) => {
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
 
@@ -763,6 +686,18 @@ const SpanGraphInner: React.FC<SpanGraphInnerProps> = ({
           // Add expansion state to node data for rendering expand button
           isExpanded: expandedSet.has(node.id),
           onToggleExpand: () => handleToggleExpand(node.id),
+          // Add chat context click handler (M-CHAT-HISTORY-DB Phase 3)
+          onChatContextClick: onChatContextClick ? () => {
+            // Build HierarchyNode for callback
+            const hierarchyNode: HierarchyNode = {
+              id: node.id,
+              type: node.data?.nodeType === 'turn' ? 'turn' : node.data?.nodeType === 'tool' ? 'tool_use' : 'exec',
+              label: node.data?.label || node.data?.name,
+              status: 'unknown',
+              _span: node.data?._span,
+            };
+            onChatContextClick(hierarchyNode);
+          } : undefined,
         },
       }));
 
@@ -772,7 +707,7 @@ const SpanGraphInner: React.FC<SpanGraphInnerProps> = ({
     );
 
     return { visibleNodes, visibleEdges };
-  }, [graphData, expandedNodeIds]);
+  }, [graphData, expandedNodeIds, onChatContextClick]);
 
   // Apply layout to visible nodes
   const layoutedData = useMemo(() => {
@@ -933,7 +868,7 @@ const StatsBar: React.FC<{ stats: TaskHierarchyResult['stats'] }> = ({ stats }) 
     )}
     {stats.total_cost > 0 && (
       <div className={styles.taskStat}>
-        <span className={styles.taskStatValue}>{formatCost(stats.total_cost)}</span>
+        <span className={styles.taskStatValue}>{formatCostOpt(stats.total_cost)}</span>
         <span className={styles.taskStatLabel}>Cost</span>
       </div>
     )}
@@ -1023,6 +958,7 @@ export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => 
             onNodeClick={props.onNodeClick}
             isExpanded={props.isExpanded}
             recenterTrigger={props.recenterTrigger}
+            onChatContextClick={props.onChatContextClick}
           />
         ) : (
           // Empty state when no event selected

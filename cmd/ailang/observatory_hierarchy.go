@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/claudehistory"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -16,6 +17,7 @@ func observatoryHierarchyCommand() {
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	includeSpans := fs.Bool("spans", true, "Include individual spans in output")
 	groupByTurns := fs.Bool("turns", false, "Group spans by conversation turn (Session → Turn 1 → Turn 2 → ...)")
+	includeChat := fs.Bool("chat", false, "Include conversation history (user prompts, assistant responses)")
 
 	// Skip "ailang observatory hierarchy" args
 	if err := fs.Parse(os.Args[3:]); err != nil {
@@ -36,11 +38,13 @@ func observatoryHierarchyCommand() {
 		fmt.Println("  -json           Output as JSON")
 		fmt.Println("  -spans=false    Hide individual span details")
 		fmt.Println("  -turns          Group spans by conversation turn")
+		fmt.Println("  -chat           Include conversation history (prompts/responses)")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang observatory hierarchy task-29404032")
 		fmt.Println("  ailang observatory hierarchy -json task-29404032")
 		fmt.Println("  ailang observatory hierarchy -turns task-29404032")
+		fmt.Println("  ailang observatory hierarchy -chat <session-uuid>")
 		return
 	}
 
@@ -69,6 +73,33 @@ func observatoryHierarchyCommand() {
 	// Apply turn grouping if requested
 	if *groupByTurns && result.SpanNodes != nil {
 		result.TurnGrouped = observatory.GroupSpansByTurn(result.SpanNodes)
+	}
+
+	// Fetch chat history if requested
+	if *includeChat {
+		sessionID := ""
+		// Determine session ID based on ID type
+		switch idType {
+		case IDTypeSession:
+			sessionID = id
+		case IDTypeTask, IDTypeTrace:
+			// Try to extract session ID from spans
+			for _, span := range result.Spans {
+				if span != nil && span.ID != "" {
+					// Look up the span to get session.id attribute
+					// For now, use the ID directly if it looks like a session
+					break
+				}
+			}
+		}
+
+		if sessionID != "" {
+			importer := claudehistory.NewImporter(backend.DB())
+			messages, err := importer.GetChatMessages(ctx, sessionID)
+			if err == nil && len(messages) > 0 {
+				result.ChatMessages = messages
+			}
+		}
 	}
 
 	if *jsonOutput {
@@ -136,16 +167,17 @@ func isHexString(s string) bool {
 
 // UnifiedHierarchy represents the complete hierarchy for display
 type UnifiedHierarchy struct {
-	IDType      IDType                            `json:"id_type"`
-	ID          string                            `json:"id"`
-	Task        *unifiedTask                      `json:"task,omitempty"`
-	Message     *unifiedMessage                   `json:"message,omitempty"`
-	Spans       []*unifiedSpan                    `json:"spans,omitempty"`
-	SpanNodes   []*observatory.SpanNode           `json:"-"` // Raw span nodes for grouping (not serialized)
-	TurnGrouped *observatory.TurnGroupedHierarchy `json:"turn_grouped,omitempty"`
-	Handoffs    []*unifiedHandoff                 `json:"handoffs,omitempty"`
-	ParentChain []*unifiedTaskSummary             `json:"parent_chain,omitempty"`
-	Stats       *unifiedStats                     `json:"stats"`
+	IDType       IDType                            `json:"id_type"`
+	ID           string                            `json:"id"`
+	Task         *unifiedTask                      `json:"task,omitempty"`
+	Message      *unifiedMessage                   `json:"message,omitempty"`
+	Spans        []*unifiedSpan                    `json:"spans,omitempty"`
+	SpanNodes    []*observatory.SpanNode           `json:"-"` // Raw span nodes for grouping (not serialized)
+	TurnGrouped  *observatory.TurnGroupedHierarchy `json:"turn_grouped,omitempty"`
+	Handoffs     []*unifiedHandoff                 `json:"handoffs,omitempty"`
+	ParentChain  []*unifiedTaskSummary             `json:"parent_chain,omitempty"`
+	ChatMessages []*claudehistory.ChatMessage      `json:"chat_messages,omitempty"` // Conversation history
+	Stats        *unifiedStats                     `json:"stats"`
 }
 
 type unifiedTask struct {
@@ -577,6 +609,41 @@ func printUnifiedHierarchy(h *UnifiedHierarchy) {
 				agent = "?"
 			}
 			fmt.Printf("%s→ %s (%s) [%s]\n", prefix, handoff.TargetTaskID, agent, handoff.Status)
+		}
+	}
+
+	// Print chat messages if available
+	if len(h.ChatMessages) > 0 {
+		fmt.Printf("\n💬 Conversation History: %d messages\n", len(h.ChatMessages))
+		fmt.Println(strings.Repeat("─", 80))
+		for _, msg := range h.ChatMessages {
+			roleIcon := "👤"
+			if msg.Role == "assistant" {
+				roleIcon = "🤖"
+			}
+			fmt.Printf("\n%s [Turn %d] %s\n", roleIcon, msg.TurnNumber, msg.Role)
+			if msg.ContentText != "" {
+				// Truncate long messages for display
+				content := msg.ContentText
+				if len(content) > 500 {
+					content = content[:500] + "..."
+				}
+				fmt.Printf("   %s\n", strings.ReplaceAll(content, "\n", "\n   "))
+			}
+			if msg.ContentThinking != "" {
+				thinking := msg.ContentThinking
+				if len(thinking) > 200 {
+					thinking = thinking[:200] + "..."
+				}
+				fmt.Printf("   💭 %s\n", strings.ReplaceAll(thinking, "\n", "\n   "))
+			}
+			if msg.TokensIn > 0 || msg.TokensOut > 0 {
+				fmt.Printf("   📊 Tokens: %d in / %d out", msg.TokensIn, msg.TokensOut)
+				if msg.Model != "" {
+					fmt.Printf(" | Model: %s", msg.Model)
+				}
+				fmt.Println()
+			}
 		}
 	}
 

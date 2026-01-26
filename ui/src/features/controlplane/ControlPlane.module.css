@@ -1973,6 +1973,22 @@
   flex-shrink: 0;
 }
 
+/* Chat context button (M-CHAT-HISTORY-DB) */
+.waterfallChatBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.waterfallChatBtn:hover {
+  opacity: 1;
+}
+
 .waterfallBar {
   position: relative;
   height: 18px;
@@ -3313,6 +3329,42 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* M-CHAT-HISTORY-DB: Chat preview styles for session events */
+.queueChatPreview {
+  margin-top: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.queueChatText {
+  color: var(--primary);
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.queueChatLoading {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.queueChatError {
+  color: var(--error);
+  font-style: italic;
+  font-size: 9px;
+}
+
+.queueChatIndicator {
+  color: var(--text-tertiary);
+  opacity: 0.5;
 }
 
 /* Context badges for workspace and agent */

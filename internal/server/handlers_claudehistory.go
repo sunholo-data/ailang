@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/claudehistory"
+	"github.com/sunholo/ailang/internal/observatory"
 )
 
 // ClaudeHistoryHandler provides HTTP handlers for Claude Code conversation history.
@@ -338,4 +340,374 @@ done:
 	if err := json.NewEncoder(w).Encode(results); err != nil {
 		log.Printf("Failed to encode search response: %v", err)
 	}
+}
+
+// ============================================================================
+// Database-backed chat history endpoints (M-CHAT-HISTORY-DB)
+// ============================================================================
+
+// handleClaudeHistorySync handles POST /api/claude-history/sync
+// Triggers import of JSONL files to observatory.db
+func (s *Server) handleClaudeHistorySync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get SQLite backend for database access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "Chat sync requires SQLite backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	importer := claudehistory.NewImporter(sqliteBackend.DB())
+
+	// Check for session_id parameter (sync specific session)
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID != "" {
+		msgCount, err := importer.SyncSession(ctx, sessionID)
+		if err != nil {
+			http.Error(w, "Sync failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		response := struct {
+			SessionID        string `json:"session_id"`
+			MessagesImported int    `json:"messages_imported"`
+		}{
+			SessionID:        sessionID,
+			MessagesImported: msgCount,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Sync all sessions
+	stats, err := importer.SyncAll(ctx)
+	if err != nil {
+		http.Error(w, "Sync failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		log.Printf("Failed to encode sync response: %v", err)
+	}
+}
+
+// handleClaudeHistorySyncStatus handles GET /api/claude-history/sync-status
+// Returns the import status for all sessions
+func (s *Server) handleClaudeHistorySyncStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get SQLite backend for database access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "Chat sync status requires SQLite backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	importer := claudehistory.NewImporter(sqliteBackend.DB())
+
+	// Check for session_id parameter
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID != "" {
+		status, err := importer.GetImportStatus(ctx, sessionID)
+		if err != nil {
+			http.Error(w, "Failed to get status: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if status == nil {
+			http.Error(w, "Session not imported", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(status)
+		return
+	}
+
+	// Get all import statuses
+	statuses, err := importer.GetAllImportStatus(ctx)
+	if err != nil {
+		http.Error(w, "Failed to get status: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		Statuses []*claudehistory.ImportStatus `json:"statuses"`
+		Count    int                           `json:"count"`
+	}{
+		Statuses: statuses,
+		Count:    len(statuses),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode sync status response: %v", err)
+	}
+}
+
+// handleClaudeHistoryDBSession handles GET /api/claude-history/db/session/{id}
+// Gets chat messages from the database (imported from JSONL)
+func (s *Server) handleClaudeHistoryDBSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract session ID from path
+	path := r.URL.Path
+	prefix := "/api/claude-history/db/session/"
+	if !strings.HasPrefix(path, prefix) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	sessionID := strings.TrimPrefix(path, prefix)
+	if sessionID == "" {
+		http.Error(w, "Session ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get SQLite backend for database access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "DB session requires SQLite backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	importer := claudehistory.NewImporter(sqliteBackend.DB())
+
+	messages, err := importer.GetChatMessages(ctx, sessionID)
+	if err != nil {
+		http.Error(w, "Failed to get messages: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(messages) == 0 {
+		http.Error(w, "Session not found in database", http.StatusNotFound)
+		return
+	}
+
+	// Support pagination
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	totalCount := len(messages)
+	if limit > 0 && len(messages) > offset {
+		end := offset + limit
+		if end > len(messages) {
+			end = len(messages)
+		}
+		messages = messages[offset:end]
+	}
+
+	response := struct {
+		SessionID  string                       `json:"session_id"`
+		Messages   []*claudehistory.ChatMessage `json:"messages"`
+		TotalCount int                          `json:"total_count"`
+		Offset     int                          `json:"offset"`
+		Limit      int                          `json:"limit"`
+	}{
+		SessionID:  sessionID,
+		Messages:   messages,
+		TotalCount: totalCount,
+		Offset:     offset,
+		Limit:      limit,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode DB session response: %v", err)
+	}
+}
+
+// handleClaudeHistoryDBBySpan handles GET /api/claude-history/db/by-span/{spanId}
+// Gets chat context for a span from the database, with time-range filtering
+func (s *Server) handleClaudeHistoryDBBySpan(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract span ID from path
+	path := r.URL.Path
+	prefix := "/api/claude-history/db/by-span/"
+	if !strings.HasPrefix(path, prefix) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	spanID := strings.TrimPrefix(path, prefix)
+	if spanID == "" {
+		http.Error(w, "Span ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get span from observatory to extract session.id
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	span, err := s.obsBackend.GetSpan(ctx, spanID)
+	if err != nil {
+		http.Error(w, "Span not found: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Extract session.id from span attributes
+	sessionID, ok := span.Attributes["session.id"].(string)
+	if !ok || sessionID == "" {
+		http.Error(w, "Span has no session.id attribute", http.StatusNotFound)
+		return
+	}
+
+	// Get SQLite backend for database access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "DB by-span requires SQLite backend", http.StatusServiceUnavailable)
+		return
+	}
+
+	importer := claudehistory.NewImporter(sqliteBackend.DB())
+
+	// Get messages, optionally filtered by span time window
+	var messages []*claudehistory.ChatMessage
+	spanStart := span.StartTime
+	var spanEnd time.Time
+	if span.EndTime != nil {
+		spanEnd = *span.EndTime
+	}
+
+	if !spanStart.IsZero() && !spanEnd.IsZero() {
+		// Add 5 minute buffer for context
+		start := spanStart.Add(-5 * time.Minute)
+		end := spanEnd.Add(5 * time.Minute)
+		messages, err = importer.GetChatMessagesByTimeRange(ctx, sessionID, start, end)
+	} else {
+		messages, err = importer.GetChatMessages(ctx, sessionID)
+	}
+
+	if err != nil {
+		http.Error(w, "Failed to get messages: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		SessionID  string                       `json:"session_id"`
+		SpanID     string                       `json:"span_id"`
+		SpanStart  time.Time                    `json:"span_start"`
+		SpanEnd    time.Time                    `json:"span_end"`
+		Messages   []*claudehistory.ChatMessage `json:"messages"`
+		TotalCount int                          `json:"total_count"`
+	}{
+		SessionID:  sessionID,
+		SpanID:     spanID,
+		SpanStart:  spanStart,
+		SpanEnd:    spanEnd,
+		Messages:   messages,
+		TotalCount: len(messages),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode DB by-span response: %v", err)
+	}
+}
+
+// ChatContextPreview represents a preview of chat context for embedding in span responses
+type ChatContextPreview struct {
+	UserPrompt        string `json:"user_prompt,omitempty"`        // First 500 chars of user prompt
+	AssistantResponse string `json:"assistant_response,omitempty"` // First 500 chars of response
+	HasThinking       bool   `json:"has_thinking"`
+	TurnNumber        int    `json:"turn_number"`
+	FullChatURL       string `json:"full_chat_url"` // Link to full conversation
+}
+
+// GetChatContextForSpan retrieves chat context preview for a span from the database.
+// This is used to enrich span responses with conversation context.
+func (s *Server) GetChatContextForSpan(ctx context.Context, span *observatory.Span) *ChatContextPreview {
+	if s.obsBackend == nil {
+		return nil
+	}
+
+	// Extract session.id from span attributes
+	sessionID, ok := span.Attributes["session.id"].(string)
+	if !ok || sessionID == "" {
+		return nil
+	}
+
+	// Get SQLite backend for database access
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		return nil
+	}
+
+	importer := claudehistory.NewImporter(sqliteBackend.DB())
+
+	// Get messages around the span time
+	var messages []*claudehistory.ChatMessage
+	var err error
+
+	spanStart := span.StartTime
+	var spanEnd time.Time
+	if span.EndTime != nil {
+		spanEnd = *span.EndTime
+	}
+
+	if !spanStart.IsZero() && !spanEnd.IsZero() {
+		// Get messages within span time window
+		start := spanStart.Add(-2 * time.Minute)
+		end := spanEnd.Add(2 * time.Minute)
+		messages, err = importer.GetChatMessagesByTimeRange(ctx, sessionID, start, end)
+	} else {
+		// Get all messages for session (limited)
+		messages, err = importer.GetChatMessages(ctx, sessionID)
+		if len(messages) > 10 {
+			messages = messages[:10] // Limit preview to first 10
+		}
+	}
+
+	if err != nil || len(messages) == 0 {
+		return nil
+	}
+
+	// Build preview from messages
+	preview := &ChatContextPreview{
+		FullChatURL: "/api/claude-history/db/session/" + sessionID,
+	}
+
+	for _, msg := range messages {
+		if msg.Role == "user" && preview.UserPrompt == "" {
+			preview.UserPrompt = truncateString(msg.ContentText, 500)
+			preview.TurnNumber = msg.TurnNumber
+		} else if msg.Role == "assistant" {
+			if preview.AssistantResponse == "" {
+				preview.AssistantResponse = truncateString(msg.ContentText, 500)
+			}
+			if msg.ContentThinking != "" {
+				preview.HasThinking = true
+			}
+		}
+	}
+
+	return preview
+}
+
+// truncateString truncates a string to maxLen characters, adding "..." if truncated
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

@@ -1,13 +1,22 @@
 /**
  * MessageQueue - Real-time event feed for Control Plane
  * Now with filtering support for date range and event types
+ * M-CHAT-HISTORY-DB Phase 3: Adds chat preview for Claude Code events
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { EventMessage, DateRange } from './types';
 import type { ControlPlaneFilters, SortField, SortOrder } from '../types';
 import { hasActiveFilters } from '../types';
 import { CliCommandHint } from './CliCommandHint';
 import styles from '../ControlPlane.module.css';
+
+// Chat preview cache type
+interface ChatPreview {
+  sessionId: string;
+  firstUserMessage: string;
+  loading: boolean;
+  error?: string;
+}
 
 export type EventType = EventMessage['type'];
 
@@ -130,6 +139,10 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
+  // M-CHAT-HISTORY-DB: Chat preview cache for Claude Code events
+  const [chatPreviews, setChatPreviews] = useState<Record<string, ChatPreview>>({});
+  const fetchedSessionsRef = useRef<Set<string>>(new Set());
+
   // Filter events by date range and types
   const filteredEvents = useMemo(() => {
     let result = events;
@@ -152,12 +165,80 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
     return result;
   }, [events, selectedDateRange, selectedTypes]);
 
+  // M-CHAT-HISTORY-DB: Fetch chat previews for Claude Code events (session type)
+  // For these events, task_id IS the session_id (see backend_controlplane.go:1112)
+  const fetchChatPreview = useCallback(async (sessionId: string) => {
+    // Skip if already fetched or fetching
+    if (fetchedSessionsRef.current.has(sessionId)) return;
+    fetchedSessionsRef.current.add(sessionId);
+
+    // Mark as loading
+    setChatPreviews((prev) => ({
+      ...prev,
+      [sessionId]: { sessionId, firstUserMessage: '', loading: true },
+    }));
+
+    try {
+      // Fetch first message from chat history
+      // Use the JSONL endpoint with limit=1 to get just the first user message
+      const response = await fetch(`/api/claude-history/session/${sessionId}?limit=1`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      let firstUserMessage = '';
+
+      // Extract first user message text
+      if (data?.messages && data.messages.length > 0) {
+        const firstMsg = data.messages.find((m: { type: string }) => m.type === 'user');
+        if (firstMsg?.content) {
+          // Content is array of content blocks - find text block
+          for (const block of firstMsg.content) {
+            if (block.type === 'text' && block.text) {
+              firstUserMessage = block.text;
+              // Truncate if too long
+              if (firstUserMessage.length > 150) {
+                firstUserMessage = firstUserMessage.slice(0, 147) + '...';
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      setChatPreviews((prev) => ({
+        ...prev,
+        [sessionId]: { sessionId, firstUserMessage, loading: false },
+      }));
+    } catch {
+      setChatPreviews((prev) => ({
+        ...prev,
+        [sessionId]: { sessionId, firstUserMessage: '', loading: false, error: 'Failed to load' },
+      }));
+    }
+  }, []);
+
   // Calculate pagination on filtered events
   const totalPages = useMemo(() => Math.ceil(filteredEvents.length / pageSize), [filteredEvents.length, pageSize]);
   const paginatedEvents = useMemo(() => {
     const start = currentPage * pageSize;
     return filteredEvents.slice(start, start + pageSize);
   }, [filteredEvents, currentPage, pageSize]);
+
+  // Fetch chat previews for visible session events (must be after paginatedEvents is defined)
+  useEffect(() => {
+    const sessionEvents = paginatedEvents.filter(
+      (e) => e.type === 'session' && e.task_id && !chatPreviews[e.task_id]
+    );
+
+    // Fetch in batches to avoid overwhelming the API
+    sessionEvents.slice(0, 5).forEach((event) => {
+      if (event.task_id) {
+        fetchChatPreview(event.task_id);
+      }
+    });
+  }, [paginatedEvents, chatPreviews, fetchChatPreview]);
 
   // Reset to first page when events change significantly
   React.useEffect(() => {
@@ -428,6 +509,25 @@ export const MessageQueue: React.FC<MessageQueueProps> = ({
               <div className={styles.queueMessage}>
                 {event.directive || event.content || getPayloadPreview(event)}
               </div>
+              {/* M-CHAT-HISTORY-DB: Chat preview for session events */}
+              {event.type === 'session' && event.task_id && (
+                <div className={styles.queueChatPreview}>
+                  {chatPreviews[event.task_id]?.loading && (
+                    <span className={styles.queueChatLoading}>💬 Loading...</span>
+                  )}
+                  {chatPreviews[event.task_id]?.firstUserMessage && (
+                    <span className={styles.queueChatText} title="Initial user prompt">
+                      💬 "{chatPreviews[event.task_id].firstUserMessage}"
+                    </span>
+                  )}
+                  {chatPreviews[event.task_id]?.error && (
+                    <span className={styles.queueChatError}>💬 {chatPreviews[event.task_id].error}</span>
+                  )}
+                  {!chatPreviews[event.task_id] && (
+                    <span className={styles.queueChatIndicator}>💬</span>
+                  )}
+                </div>
+              )}
               {/* Expandable full directive */}
               {event.directive_full && event.directive_full.length > 200 && (
                 <button

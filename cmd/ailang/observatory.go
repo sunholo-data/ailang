@@ -65,6 +65,7 @@ func observatoryCommand() {
 		fmt.Println("Subcommands:")
 		fmt.Println("  hierarchy   View unified task/message/span hierarchy (auto-detects ID type)")
 		fmt.Println("  metrics     View session/workspace metrics (LOC, commits, cache savings)")
+		fmt.Println("  sync-chat   Import Claude Code conversation history to database")
 		fmt.Println("  seed        Generate test data for dashboard development")
 		fmt.Println("  backfill    Link existing spans to tasks by time correlation")
 		fmt.Println("  cleanup     Delete old/noise spans based on retention policy")
@@ -88,6 +89,8 @@ func observatoryCommand() {
 		fmt.Println("  ailang observatory usage --interval day --split-by provider")
 		fmt.Println("  ailang observatory tokens --format ascii")
 		fmt.Println("  ailang observatory outliers --task TASK_ID --threshold 2.0")
+		fmt.Println("  ailang observatory sync-chat                # Import all Claude Code history")
+		fmt.Println("  ailang observatory sync-chat --status       # Show import status")
 		return
 	}
 
@@ -97,6 +100,8 @@ func observatoryCommand() {
 		observatoryHierarchyCommand()
 	case "metrics":
 		observatoryMetricsCommand()
+	case "sync-chat":
+		observatorySyncChatCommand()
 	case "seed":
 		observatorySeedCommand()
 	case "backfill":

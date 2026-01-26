@@ -198,7 +198,21 @@ type Span struct {
 	// DisplayName is an enriched human-readable label (not stored in DB, computed from session_tools)
 	DisplayName string `json:"display_name,omitempty"`
 
+	// ChatContext contains embedded chat content (populated with include_chat=true API param)
+	ChatContext *ChatContext `json:"chat_context,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// ChatContext contains conversation content for spans with chat history.
+// Populated when include_chat=true on API requests.
+// This enables embedding chat prompts/responses directly in span data.
+type ChatContext struct {
+	UserPrompt        string `json:"user_prompt,omitempty"`        // First 500 chars of user prompt
+	AssistantResponse string `json:"assistant_response,omitempty"` // First 500 chars of response
+	HasThinking       bool   `json:"has_thinking"`
+	TurnNumber        int    `json:"turn_number,omitempty"`
+	FullChatURL       string `json:"full_chat_url,omitempty"` // Link to full conversation
 }
 
 // AttributesJSON returns attributes as a JSON string for storage.

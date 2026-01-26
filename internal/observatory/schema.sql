@@ -214,6 +214,39 @@ CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics(name);
 CREATE INDEX IF NOT EXISTS idx_metrics_session ON metrics(session_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON metrics(timestamp DESC);
 
+-- Chat messages (imported from Claude Code JSONL files)
+-- Full conversation history including prompts, responses, thinking blocks
+-- Links to spans via session_id for unified queries
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,         -- Links to session.id in spans
+    turn_number INTEGER NOT NULL,     -- 1, 2, 3... conversation turn
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content_text TEXT,                -- Plain text (for search/display)
+    content_thinking TEXT,            -- Thinking blocks
+    content_json TEXT,                -- Full content array as JSON
+    tokens_in INTEGER DEFAULT 0,
+    tokens_out INTEGER DEFAULT 0,
+    model TEXT,
+    request_id TEXT,                  -- Links to api_request spans
+    timestamp TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, turn_number);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_request ON chat_messages(request_id);
+
+-- Track which JSONL files have been imported
+-- Used by importer to detect new/modified files
+CREATE TABLE IF NOT EXISTS chat_import_status (
+    session_id TEXT PRIMARY KEY,
+    file_path TEXT NOT NULL,
+    file_mtime TIMESTAMP NOT NULL,
+    message_count INTEGER NOT NULL,
+    imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Aggregation views
 CREATE VIEW IF NOT EXISTS workspace_stats AS
 SELECT

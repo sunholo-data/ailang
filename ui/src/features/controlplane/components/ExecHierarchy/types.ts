@@ -135,6 +135,16 @@ export interface ExecHierarchyResponse {
   count: number;
 }
 
+// Chat context embedded in spans (when include_chat=true on API)
+// Contains conversation content for spans with chat history.
+export interface ChatContext {
+  user_prompt?: string;        // First 500 chars of user prompt
+  assistant_response?: string; // First 500 chars of assistant response
+  has_thinking?: boolean;      // True if thinking blocks are present
+  turn_number?: number;        // Conversation turn number
+  full_chat_url?: string;      // Link to full conversation endpoint
+}
+
 // Span type from shared types (for same data as TraceWaterfall)
 export interface Span {
   id: string;
@@ -145,6 +155,7 @@ export interface Span {
   children?: Span[];
   status?: 'ok' | 'error';
   attributes?: Record<string, string>;
+  chat_context?: ChatContext;  // Embedded chat content (populated with include_chat=true)
 }
 
 // Filter criteria for greying out (not hiding) nodes

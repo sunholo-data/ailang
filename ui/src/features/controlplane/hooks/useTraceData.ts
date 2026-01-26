@@ -3,6 +3,15 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 
+// Chat context embedded in spans (when include_chat=true on API)
+export interface ChatContext {
+  user_prompt?: string;
+  assistant_response?: string;
+  has_thinking?: boolean;
+  turn_number?: number;
+  full_chat_url?: string;
+}
+
 export interface Span {
   id: string;
   name: string;
@@ -17,6 +26,8 @@ export interface Span {
   tokens_in?: number;
   tokens_out?: number;
   provider?: string;
+  // Chat context (from backend with include_chat=true)
+  chat_context?: ChatContext;
 }
 
 export interface Trace {
@@ -44,6 +55,8 @@ interface RawSpan {
   tokens_in?: number;
   tokens_out?: number;
   provider?: string;
+  // Chat context (from backend with include_chat=true)
+  chat_context?: ChatContext;
 }
 
 interface UseTraceDataOptions {
@@ -95,6 +108,7 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
       tokens_in: hs.tokens_in,
       tokens_out: hs.tokens_out,
       provider: hs.provider,
+      chat_context: hs.chat_context, // Embedded conversation content
       children: hs.children?.map(convertHierarchicalSpan) || [],
     };
     return span;
@@ -105,10 +119,11 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
   const fetchByTraceId = async (tid: string): Promise<Span[]> => {
     // Use enriched endpoint with hierarchical=true for server-side hierarchy building
     // This removes ~50 lines of client-side buildSpanHierarchy logic
-    const response = await fetch(`/api/observatory/spans/enriched?trace_id=${tid}&limit=100&hierarchical=true`);
+    // include_chat=true embeds conversation context from chat_messages table
+    const response = await fetch(`/api/observatory/spans/enriched?trace_id=${tid}&limit=100&hierarchical=true&include_chat=true`);
     if (!response.ok) {
-      // Fallback to regular endpoint with client-side hierarchy
-      const fallbackResponse = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100`);
+      // Fallback to regular endpoint with client-side hierarchy (also request chat context)
+      const fallbackResponse = await fetch(`/api/observatory/spans?trace_id=${tid}&limit=100&include_chat=true`);
       if (!fallbackResponse.ok) return [];
       const rawSpans = await fallbackResponse.json() || [];
       return buildSpanHierarchy(rawSpans);
@@ -137,10 +152,10 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
       : `/api/observatory/tasks/${tid}/hierarchy`;
     const response = await fetch(url);
     if (!response.ok) {
-      // Fallback to direct spans query if hierarchy fails
+      // Fallback to direct spans query if hierarchy fails (also request chat context)
       const fallbackUrl = workspace
-        ? `/api/observatory/spans?task_id=${tid}&limit=100&workspace=${encodeURIComponent(workspace)}`
-        : `/api/observatory/spans?task_id=${tid}&limit=100`;
+        ? `/api/observatory/spans?task_id=${tid}&limit=100&workspace=${encodeURIComponent(workspace)}&include_chat=true`
+        : `/api/observatory/spans?task_id=${tid}&limit=100&include_chat=true`;
       const fallbackResponse = await fetch(fallbackUrl);
       if (!fallbackResponse.ok) return [];
       const rawSpans = await fallbackResponse.json() || [];
@@ -169,6 +184,7 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
         tokens_in: raw.tokens_in,
         tokens_out: raw.tokens_out,
         provider: raw.provider,
+        chat_context: raw.chat_context, // Embedded conversation content
         children: [], // Will populate below
       };
 
@@ -315,6 +331,7 @@ function buildSpanHierarchy(rawSpans: RawSpan[]): Span[] {
       tokens_in: raw.tokens_in,
       tokens_out: raw.tokens_out,
       provider: raw.provider,
+      chat_context: raw.chat_context, // Embedded conversation content
       children: [],
     };
     spanMap.set(span.id, span);

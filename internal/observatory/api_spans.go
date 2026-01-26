@@ -1,12 +1,15 @@
 package observatory
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/internal/claudehistory"
 )
 
 // ===== Span Handlers =====
@@ -48,6 +51,12 @@ func (a *API) handleListSpans(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// Enrich spans with chat context if requested
+	if r.URL.Query().Get("include_chat") == "true" {
+		spans = a.enrichSpansWithChat(r.Context(), spans)
+	}
+
 	writeJSON(w, http.StatusOK, spans)
 }
 
@@ -188,4 +197,84 @@ func (a *API) handleCreateSpanEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, event)
+}
+
+// enrichSpansWithChat populates ChatContext for spans that have session.id attributes.
+// Uses the chat_messages table to retrieve user prompts and assistant responses.
+func (a *API) enrichSpansWithChat(ctx context.Context, spans []*Span) []*Span {
+	// Get SQLite backend for database access
+	sqliteBackend, ok := a.backend.(*SQLiteBackend)
+	if !ok || sqliteBackend == nil {
+		return spans // Can't enrich without SQLite backend
+	}
+
+	db := sqliteBackend.DB()
+	if db == nil {
+		return spans
+	}
+
+	importer := claudehistory.NewImporter(db)
+
+	for _, span := range spans {
+		// Extract session.id from span attributes
+		if span.Attributes == nil {
+			continue
+		}
+		sessionID, ok := span.Attributes["session.id"].(string)
+		if !ok || sessionID == "" {
+			continue
+		}
+
+		// Get chat messages for this span's time window
+		var messages []*claudehistory.ChatMessage
+		var err error
+
+		if !span.StartTime.IsZero() && span.EndTime != nil && !span.EndTime.IsZero() {
+			// Query within span's time window with buffer
+			start := span.StartTime.Add(-2 * time.Minute)
+			end := span.EndTime.Add(2 * time.Minute)
+			messages, err = importer.GetChatMessagesByTimeRange(ctx, sessionID, start, end)
+		} else {
+			// Fallback: get all messages for session (limited)
+			messages, err = importer.GetChatMessages(ctx, sessionID)
+			if len(messages) > 10 {
+				messages = messages[:10]
+			}
+		}
+
+		if err != nil || len(messages) == 0 {
+			continue
+		}
+
+		// Build ChatContext from messages
+		chatCtx := &ChatContext{
+			FullChatURL: "/api/claude-history/db/session/" + sessionID,
+		}
+
+		for _, msg := range messages {
+			if msg.Role == "user" && chatCtx.UserPrompt == "" {
+				chatCtx.UserPrompt = truncateChatString(msg.ContentText, 500)
+				chatCtx.TurnNumber = msg.TurnNumber
+			} else if msg.Role == "assistant" {
+				if chatCtx.AssistantResponse == "" {
+					chatCtx.AssistantResponse = truncateChatString(msg.ContentText, 500)
+				}
+				if msg.ContentThinking != "" {
+					chatCtx.HasThinking = true
+				}
+			}
+		}
+
+		span.ChatContext = chatCtx
+	}
+
+	return spans
+}
+
+// truncateChatString truncates a string to maxLen characters, adding "..." if truncated.
+func truncateChatString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-3] + "..."
 }

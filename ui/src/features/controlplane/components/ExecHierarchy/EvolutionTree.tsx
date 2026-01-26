@@ -6,414 +6,57 @@
  * and tools branch off as smaller tendrils with leaf-like terminals.
  */
 import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { hierarchy, pack } from 'd3-hierarchy';
 import type { HierarchyNode, Span } from './types';
 import styles from './EvolutionTree.module.css';
 
-// Types for our tree structure
-interface TreeSession {
-  id: string;
-  name: string;
-  durationMs: number;
-  cost: number;
-  tokensIn: number;
-  tokensOut: number;
-}
+// Import types and utilities from extracted modules
+import {
+  TOOL_COLORS,
+  getToolColor,
+  getToolType,
+  getToolDisplayName,
+  extractFilePath,
+  getDirectoryPath,
+} from '../../utils/evolutionTreeUtils';
+import {
+  ToolSlideover,
+  TurnSlideover,
+  FileSlideover,
+  FileTooltip,
+  DirTooltip,
+  formatDuration,
+  formatCost,
+  type ThemeColors,
+  type ToolPopupState,
+  type TurnPopupState,
+  type FileHoverState,
+  type DirHoverState,
+} from './EvolutionTreeSlideovers';
+import {
+  type TreeSession,
+  type TreeTurn,
+  type TreeTool,
+  type SharedToolNode,
+  type FileNode,
+  type DirectoryNode,
+  type PackedNode,
+  type SpiralPosition,
+  TOOL_TYPE_RINGS,
+  buildFileHierarchy,
+  calculateFileHubLayout,
+  detectAnomalies,
+  calculateSpiralPositions,
+  buildSharedToolNodes,
+  polarToCartesian,
+  describeArc,
+  generateBranchPath,
+  filterSpans,
+  buildTreeData,
+} from '../../utils/evolutionTreeBuilders';
 
-interface TreeTurn {
-  id: string;
-  turnNumber: number;
-  durationMs: number;
-  cost: number;
-  tokensIn: number;
-  tokensOut: number;
-  status: 'ok' | 'error' | 'pending';
-  tools: TreeTool[];
-}
-
-interface TreeTool {
-  id: string;
-  name: string;
-  fullName?: string;  // Full untruncated name for detailed view
-  durationMs: number;
-  status: 'ok' | 'error';
-  cost?: number;
-}
-
-// Shared tool node - represents a unique tool name used across multiple turns
-interface SharedToolNode {
-  name: string;
-  fullName?: string;  // Full untruncated name for detailed view
-  displayName: string;
-  toolType: string;
-  color: string;
-  usages: { turnIndex: number; turnId: string; tool: TreeTool }[];
-  x: number;
-  y: number;
-  hasError: boolean;
-}
-
-// ============================================
-// File-centric data structures
-// ============================================
-
-interface FileOperation {
-  turnId: string;
-  turnNumber: number;
-  toolType: 'Read' | 'Edit' | 'Write';
-  toolName: string;
-  durationMs: number;
-  status: 'ok' | 'error';
-}
-
-interface FileNode {
-  filePath: string;       // Full path
-  fileName: string;       // Just the filename
-  fileType: string;       // Extension (.go, .tsx, etc.)
-  directory: string;      // Parent directory path
-
-  operations: FileOperation[];
-  totalOps: number;
-  readCount: number;
-  editCount: number;
-  writeCount: number;
-  errorCount: number;
-
-  // Which turns touched this file
-  turnIds: Set<string>;
-  firstTurn: number;
-  lastTurn: number;
-
-  // Positioned by circle packing
-  x: number;
-  y: number;
-  radius: number;
-}
-
-interface DirectoryNode {
-  path: string;           // "/internal/parser"
-  name: string;           // "parser"
-  files: FileNode[];
-  totalOps: number;       // Aggregate of all files
-  errorCount: number;
-
-  // Positioned by circle packing
-  x: number;
-  y: number;
-  radius: number;
-}
-
-// Tool type colors
-const TOOL_COLORS: Record<string, string> = {
-  Read: '#60a5fa',      // Blue - reading files
-  Write: '#a78bfa',     // Purple - writing files
-  Edit: '#f472b6',      // Pink - editing files
-  Bash: '#fbbf24',      // Amber - shell commands
-  Grep: '#34d399',      // Green - searching
-  Glob: '#2dd4bf',      // Teal - file patterns
-  Task: '#fb923c',      // Orange - agent tasks
-  WebFetch: '#38bdf8',  // Sky - web requests
-  WebSearch: '#818cf8', // Indigo - web search
-  default: '#94a3b8',   // Gray - other
-};
-
-// Extract tool type from name
-function getToolType(name: string): string {
-  // Common tool prefixes
-  const prefixes = ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob', 'Task', 'WebFetch', 'WebSearch'];
-  for (const prefix of prefixes) {
-    if (name.startsWith(prefix) || name.toLowerCase().includes(prefix.toLowerCase())) {
-      return prefix;
-    }
-  }
-  return 'default';
-}
-
-// Get color for tool
-function getToolColor(name: string): string {
-  const toolType = getToolType(name);
-  return TOOL_COLORS[toolType] || TOOL_COLORS.default;
-}
-
-// Create display name (truncate file paths)
-function getToolDisplayName(name: string): string {
-  // Extract filename from paths
-  const pathMatch = name.match(/[/\\]([^/\\]+)$/);
-  if (pathMatch) {
-    return pathMatch[1].length > 20 ? pathMatch[1].slice(0, 17) + '...' : pathMatch[1];
-  }
-  return name.length > 20 ? name.slice(0, 17) + '...' : name;
-}
-
-// Extract file path from tool name (e.g., "Read: /path/to/file.go" → "/path/to/file.go")
-function extractFilePath(toolName: string): string | null {
-  // Pattern 1: "ToolType: /path/to/file"
-  const colonMatch = toolName.match(/^[A-Za-z]+:\s*(.+)$/);
-  if (colonMatch) {
-    const path = colonMatch[1].trim();
-    // Verify it looks like a path (has extension or starts with / or contains /)
-    if (path.includes('/') || path.includes('\\') || /\.\w+$/.test(path)) {
-      return path;
-    }
-  }
-
-  // Pattern 2: Direct path in name
-  const pathMatch = toolName.match(/([/\\][\w./\\-]+\.\w+)/);
-  if (pathMatch) {
-    return pathMatch[1];
-  }
-
-  return null;
-}
-
-// Get file extension
-function getFileExtension(filePath: string): string {
-  const match = filePath.match(/\.(\w+)$/);
-  return match ? match[1] : '';
-}
-
-// Get directory path from file path
-function getDirectoryPath(filePath: string): string {
-  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-  if (lastSlash === -1) return '/';
-  return filePath.slice(0, lastSlash) || '/';
-}
-
-// Build file hierarchy from turns
-function buildFileHierarchy(turns: TreeTurn[]): DirectoryNode[] {
-  const fileMap = new Map<string, FileNode>();
-
-  // Extract files from all turns - only file operations (Read, Edit, Write), NOT Bash
-  turns.forEach((turn, turnIdx) => {
-    turn.tools.forEach(tool => {
-      const toolType = getToolType(tool.name);
-
-      // Only include actual file operations, skip Bash commands
-      if (!['Read', 'Edit', 'Write'].includes(toolType)) return;
-
-      const filePath = extractFilePath(tool.name);
-      if (!filePath) return;
-
-      const opType = toolType as 'Read' | 'Edit' | 'Write';
-
-      if (!fileMap.has(filePath)) {
-        fileMap.set(filePath, {
-          filePath,
-          fileName: filePath.split(/[/\\]/).pop() || filePath,
-          fileType: getFileExtension(filePath),
-          directory: getDirectoryPath(filePath),
-          operations: [],
-          totalOps: 0,
-          readCount: 0,
-          editCount: 0,
-          writeCount: 0,
-          errorCount: 0,
-          turnIds: new Set(),
-          firstTurn: turnIdx,
-          lastTurn: turnIdx,
-          x: 0,
-          y: 0,
-          radius: 0,
-        });
-      }
-
-      const file = fileMap.get(filePath)!;
-      file.operations.push({
-        turnId: turn.id,
-        turnNumber: turn.turnNumber,
-        toolType: opType,
-        toolName: tool.name,
-        durationMs: tool.durationMs,
-        status: tool.status,
-      });
-
-      file.totalOps++;
-      file.turnIds.add(turn.id);
-      file.lastTurn = Math.max(file.lastTurn, turnIdx);
-
-      if (opType === 'Read') file.readCount++;
-      else if (opType === 'Edit') file.editCount++;
-      else if (opType === 'Write') file.writeCount++;
-      if (tool.status === 'error') file.errorCount++;
-    });
-  });
-
-  // Group files by directory
-  const dirMap = new Map<string, DirectoryNode>();
-
-  fileMap.forEach(file => {
-    const dirPath = file.directory;
-
-    if (!dirMap.has(dirPath)) {
-      dirMap.set(dirPath, {
-        path: dirPath,
-        name: dirPath.split(/[/\\]/).pop() || dirPath,
-        files: [],
-        totalOps: 0,
-        errorCount: 0,
-        x: 0,
-        y: 0,
-        radius: 0,
-      });
-    }
-
-    const dir = dirMap.get(dirPath)!;
-    dir.files.push(file);
-    dir.totalOps += file.totalOps;
-    dir.errorCount += file.errorCount;
-  });
-
-  // Sort directories by total operations (most active first)
-  let directories = Array.from(dirMap.values())
-    .sort((a, b) => b.totalOps - a.totalOps);
-
-  // Sort files within each directory
-  directories.forEach(dir => {
-    dir.files.sort((a, b) => b.totalOps - a.totalOps);
-  });
-
-  // Promote single-file directories to show files directly at root level
-  // These files will appear without a directory wrapper (no extra click needed)
-  const looseFiles: FileNode[] = [];
-  directories = directories.filter(dir => {
-    if (dir.files.length === 1) {
-      looseFiles.push(dir.files[0]);
-      return false; // Remove single-file directories
-    }
-    return true;
-  });
-
-  // Store loose files in a special marker directory that layout will handle differently
-  // This marker directory will be "auto-expanded" to show files directly
-  if (looseFiles.length > 0) {
-    directories.push({
-      path: '__loose_files__',
-      name: '__loose_files__', // Special marker - layout will show files directly
-      files: looseFiles,
-      totalOps: looseFiles.reduce((sum, f) => sum + f.totalOps, 0),
-      errorCount: looseFiles.reduce((sum, f) => sum + f.errorCount, 0),
-      x: 0,
-      y: 0,
-      radius: 0,
-    });
-  }
-
-  return directories;
-}
-
-// Circle packing layout for file hub
-interface PackedNode {
-  type: 'root' | 'directory' | 'file';
-  data: DirectoryNode | FileNode | null;
-  x: number;
-  y: number;
-  r: number;
-  children?: PackedNode[];
-}
-
-function calculateFileHubLayout(
-  directories: DirectoryNode[],
-  expandedDirs: Set<string>,
-  centerX: number,
-  centerY: number,
-  hubRadius: number
-): PackedNode[] {
-  if (directories.length === 0) return [];
-
-  // Build hierarchy for d3
-  interface HierarchyData {
-    name: string;
-    value?: number;
-    type: 'root' | 'directory' | 'file';
-    data: DirectoryNode | FileNode | null;
-    children?: HierarchyData[];
-  }
-
-  // Build children: directories get wrapped, loose files appear directly at root
-  const children: HierarchyData[] = [];
-
-  directories.forEach(dir => {
-    if (dir.path === '__loose_files__') {
-      // Loose files appear directly at root level (no directory wrapper)
-      dir.files.forEach(file => {
-        children.push({
-          name: file.fileName,
-          type: 'file' as const,
-          data: file,
-          value: Math.max(file.totalOps, 1),
-        });
-      });
-    } else {
-      // Normal directory
-      const isExpanded = expandedDirs.has(dir.path);
-      children.push({
-        name: dir.name,
-        type: 'directory' as const,
-        data: dir,
-        // If expanded, show files as children; otherwise just the directory
-        value: isExpanded ? undefined : Math.max(dir.totalOps, 1),
-        children: isExpanded
-          ? dir.files.map(file => ({
-              name: file.fileName,
-              type: 'file' as const,
-              data: file,
-              value: Math.max(file.totalOps, 1),
-            }))
-          : undefined,
-      });
-    }
-  });
-
-  const rootData: HierarchyData = {
-    name: 'root',
-    type: 'root',
-    data: null,
-    children,
-  };
-
-  // Create d3 hierarchy and apply circle packing
-  const root = hierarchy(rootData)
-    .sum(d => d.value || 0)
-    .sort((a, b) => (b.value || 0) - (a.value || 0));
-
-  const packLayout = pack<HierarchyData>()
-    .size([hubRadius * 2, hubRadius * 2])
-    .padding(4);
-
-  const packed = packLayout(root);
-
-  // Convert to our PackedNode format, offset to center
-  const result: PackedNode[] = [];
-
-  packed.descendants().forEach(node => {
-    if (node.data.type === 'root') return; // Skip root node
-
-    const packedNode: PackedNode = {
-      type: node.data.type,
-      data: node.data.data,
-      x: centerX - hubRadius + node.x,
-      y: centerY - hubRadius + node.y,
-      r: node.r,
-    };
-
-    // Update the original data objects with positions (for edges later)
-    if (node.data.type === 'directory' && node.data.data) {
-      const dir = node.data.data as DirectoryNode;
-      dir.x = packedNode.x;
-      dir.y = packedNode.y;
-      dir.radius = packedNode.r;
-    } else if (node.data.type === 'file' && node.data.data) {
-      const file = node.data.data as FileNode;
-      file.x = packedNode.x;
-      file.y = packedNode.y;
-      file.radius = packedNode.r;
-    }
-
-    result.push(packedNode);
-  });
-
-  return result;
-}
+// ============================================================================
+// Props Interface
+// ============================================================================
 
 export interface EvolutionTreeProps {
   spans?: Span[];
@@ -424,697 +67,30 @@ export interface EvolutionTreeProps {
   isExpanded?: boolean;
   // Theme from parent (syncs with app-level theme toggle)
   theme?: 'dark' | 'light';
+  // Callback when chat context is requested (M-CHAT-HISTORY-DB Phase 3)
+  onChatContextClick?: () => void;
 }
 
-// Detect anomalies in turn metrics
-function detectAnomalies(turns: TreeTurn[]): Set<number> {
-  if (turns.length < 3) return new Set();
+// ============================================================================
+// Component
+// ============================================================================
 
-  // Calculate mean and stdDev for cost, tokens, and duration
-  const costs = turns.map(t => t.cost || 0);
-  const tokens = turns.map(t => (t.tokensIn || 0) + (t.tokensOut || 0));
-  const durations = turns.map(t => t.durationMs || 0);
-
-  const mean = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
-  const stdDev = (arr: number[], m: number) => Math.sqrt(arr.reduce((sum, x) => sum + (x - m) ** 2, 0) / arr.length);
-
-  const costMean = mean(costs);
-  const costStd = stdDev(costs, costMean) || 1;
-  const tokenMean = mean(tokens);
-  const tokenStd = stdDev(tokens, tokenMean) || 1;
-  const durationMean = mean(durations);
-  const durationStd = stdDev(durations, durationMean) || 1;
-
-  const anomalies = new Set<number>();
-  turns.forEach((turn, i) => {
-    const costZ = Math.abs((turn.cost || 0) - costMean) / costStd;
-    const tokenZ = Math.abs(((turn.tokensIn || 0) + (turn.tokensOut || 0)) - tokenMean) / tokenStd;
-    const durationZ = Math.abs((turn.durationMs || 0) - durationMean) / durationStd;
-
-    // Mark as anomaly if any metric is > 2 std devs from mean
-    if (costZ > 2 || tokenZ > 2 || durationZ > 2) {
-      anomalies.add(i);
-    }
-  });
-
-  return anomalies;
-}
-
-// Calculate spiral positions for turns
-interface SpiralPosition {
-  x: number;
-  y: number;
-  angle: number;
-  radius: number;
-  turn: TreeTurn;
-  isAnomaly: boolean;
-  spiralDirection: number; // 1 or -1
-  activity: number; // 0-1, used for node sizing
-}
-
-function calculateSpiralPositions(
-  turns: TreeTurn[],
-  centerX: number,
-  centerY: number,
-  minRadius: number,
-  maxRadius: number,
-  turnsPerRotation: number = 12
-): SpiralPosition[] {
-  if (turns.length === 0) return [];
-
-  const anomalies = detectAnomalies(turns);
-  const n = turns.length;
-
-  // Calculate max metrics for activity visualization (used for node sizing, not spacing)
-  const maxTokens = Math.max(...turns.map(t => (t.tokensIn || 0) + (t.tokensOut || 0)), 1);
-  const maxCost = Math.max(...turns.map(t => t.cost || 0), 0.001);
-
-  // Calculate duration-proportional angle steps
-  // Total angle budget for all turns (based on turnsPerRotation)
-  const totalAngleBudget = (2 * Math.PI * n) / turnsPerRotation;
-
-  // Calculate total duration (use minimum of 1ms to avoid division by zero)
-  const totalDuration = Math.max(
-    turns.reduce((sum, t) => sum + (t.durationMs || 0), 0),
-    1
-  );
-
-  // Pre-calculate proportional angle for each turn
-  // The gap AFTER a turn is proportional to that turn's duration
-  // Use a minimum proportion to ensure very fast turns are still visible
-  const minProportion = 0.3 / n; // Each turn gets at least 30% of uniform spacing
-  const remainingProportion = 1 - (minProportion * n);
-
-  const angleSteps = turns.map(turn => {
-    const duration = turn.durationMs || 0;
-    const durationProportion = remainingProportion * (duration / totalDuration);
-    const totalProportion = minProportion + durationProportion;
-    return totalAngleBudget * totalProportion;
-  });
-
-  const positions: SpiralPosition[] = [];
-  let spiralDirection = 1; // 1 = clockwise, -1 = counter-clockwise
-  let currentAngle = 0;
-  let currentRadius = minRadius;
-  const radiusRange = maxRadius - minRadius;
-
-  turns.forEach((turn, i) => {
-    const progress = i / Math.max(n - 1, 1);
-    const isAnomaly = anomalies.has(i);
-
-    // Activity score for node sizing
-    const tokenActivity = ((turn.tokensIn || 0) + (turn.tokensOut || 0)) / maxTokens;
-    const costActivity = (turn.cost || 0) / maxCost;
-    const activity = tokenActivity * 0.5 + costActivity * 0.5;
-
-    // When anomaly detected: flip direction AND jump radius outward to avoid crossings
-    if (isAnomaly && i > 0) {
-      spiralDirection *= -1;
-      // Jump radius by ~15% to create visual separation and avoid line crossings
-      currentRadius = Math.min(currentRadius + radiusRange * 0.15, maxRadius);
-    } else {
-      // Normal radius progression
-      currentRadius = minRadius + radiusRange * progress;
-    }
-
-    // Advance angle using duration-proportional step
-    currentAngle += angleSteps[i] * spiralDirection;
-
-    // Calculate position
-    const x = centerX + currentRadius * Math.cos(currentAngle);
-    const y = centerY + currentRadius * Math.sin(currentAngle);
-
-    positions.push({
-      x,
-      y,
-      angle: currentAngle,
-      radius: currentRadius,
-      turn,
-      isAnomaly,
-      spiralDirection,
-      activity,
-    });
-  });
-
-  return positions;
-}
-
-// Tool type priority for ring assignment (inner = more important/frequent types)
-const TOOL_TYPE_RINGS: Record<string, number> = {
-  Read: 0,      // Inner ring - file reads
-  Edit: 0,      // Inner ring - file edits
-  Write: 0,     // Inner ring - file writes
-  Bash: 1,      // Middle ring - shell commands
-  Grep: 1,      // Middle ring - searches
-  Glob: 1,      // Middle ring - file patterns
-  Task: 2,      // Outer ring - agent tasks
-  WebFetch: 2,  // Outer ring - web
-  WebSearch: 2, // Outer ring - web
-  default: 1,   // Middle ring - other
-};
-
-// Build shared tool nodes from turns and spiral positions
-function buildSharedToolNodes(
-  turns: TreeTurn[],
-  spiralPositions: SpiralPosition[],
-  centerX: number,
-  centerY: number,
-  baseToolRingRadius: number,
-  showAllTools: boolean = false
-): SharedToolNode[] {
-  // Collect all unique tool names and their usages
-  const toolMap = new Map<string, SharedToolNode>();
-
-  turns.forEach((turn, turnIndex) => {
-    turn.tools.forEach(tool => {
-      const existing = toolMap.get(tool.name);
-      if (existing) {
-        existing.usages.push({ turnIndex, turnId: turn.id, tool });
-        if (tool.status === 'error') existing.hasError = true;
-      } else {
-        toolMap.set(tool.name, {
-          name: tool.name,
-          fullName: tool.fullName,
-          displayName: getToolDisplayName(tool.name),
-          toolType: getToolType(tool.name),
-          color: getToolColor(tool.name),
-          usages: [{ turnIndex, turnId: turn.id, tool }],
-          x: 0,
-          y: 0,
-          hasError: tool.status === 'error',
-        });
-      }
-    });
-  });
-
-  // Convert to array
-  let sharedTools = Array.from(toolMap.values());
-
-  // Exclude file-related tools (Read, Edit, Write) - these are shown in the file hub
-  const FILE_TOOL_TYPES = new Set(['Read', 'Edit', 'Write']);
-  sharedTools = sharedTools.filter(t => !FILE_TOOL_TYPES.has(t.toolType));
-
-  // Filter to only show tools used more than once (unless showAllTools is true)
-  // This dramatically reduces clutter for large sessions
-  if (!showAllTools && sharedTools.length > 30) {
-    sharedTools = sharedTools.filter(t => t.usages.length >= 2);
-  }
-
-  // Group tools by type for ring assignment
-  const toolsByRing: Map<number, SharedToolNode[]> = new Map();
-  sharedTools.forEach(tool => {
-    const ringIndex = TOOL_TYPE_RINGS[tool.toolType] ?? TOOL_TYPE_RINGS.default;
-    if (!toolsByRing.has(ringIndex)) {
-      toolsByRing.set(ringIndex, []);
-    }
-    toolsByRing.get(ringIndex)!.push(tool);
-  });
-
-  // Sort each ring's tools by usage count (most used = first)
-  toolsByRing.forEach(tools => {
-    tools.sort((a, b) => b.usages.length - a.usages.length);
-  });
-
-  // Calculate dynamic ring radii based on tool count per ring
-  // More tools = larger ring to fit them with spacing
-  const ringRadii: number[] = [];
-  const ringGap = 25; // Gap between rings
-  let currentRadius = baseToolRingRadius;
-
-  for (let ring = 0; ring <= 2; ring++) {
-    const toolsInRing = toolsByRing.get(ring) || [];
-    // Minimum circumference to fit tools with ~15px spacing
-    const minCircumference = toolsInRing.length * 18;
-    const minRadiusForTools = minCircumference / (2 * Math.PI);
-    // Use whichever is larger: base radius or calculated minimum
-    ringRadii[ring] = Math.max(currentRadius, minRadiusForTools);
-    currentRadius = ringRadii[ring] + ringGap;
-  }
-
-  // Position tools in their assigned rings
-  toolsByRing.forEach((tools, ringIndex) => {
-    const radius = ringRadii[ringIndex];
-    const angleStep = (2 * Math.PI) / Math.max(tools.length, 1);
-
-    tools.forEach((tool, i) => {
-      // Start angle offset per ring to stagger tools
-      const startAngle = (ringIndex * Math.PI) / 6;
-      const angle = startAngle + i * angleStep;
-
-      tool.x = centerX + radius * Math.cos(angle);
-      tool.y = centerY + radius * Math.sin(angle);
-    });
-  });
-
-  return sharedTools;
-}
-
-// Generate spiral path through turn positions
+// NOTE: All builder functions extracted to evolutionTreeBuilders.ts
+// generateSpiralPath is a local variant that uses smooth S curves
 function generateSpiralPath(positions: SpiralPosition[], centerX: number, centerY: number): string {
   if (positions.length === 0) return '';
-
-  // Start from center
   let path = `M ${centerX} ${centerY}`;
-
-  // Smooth curve through all positions
   positions.forEach((pos, i) => {
     if (i === 0) {
-      // First segment - quadratic curve from center
       path += ` Q ${centerX + (pos.x - centerX) * 0.5} ${centerY + (pos.y - centerY) * 0.5}, ${pos.x} ${pos.y}`;
     } else {
-      // Subsequent segments - smooth curves
       const prev = positions[i - 1];
       const cpX = prev.x + (pos.x - prev.x) * 0.5;
       const cpY = prev.y + (pos.y - prev.y) * 0.5;
       path += ` S ${cpX} ${cpY}, ${pos.x} ${pos.y}`;
     }
   });
-
   return path;
-}
-
-// Helper to convert polar to cartesian coordinates
-function polarToCartesian(cx: number, cy: number, radius: number, angleInDegrees: number) {
-  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-  return {
-    x: cx + radius * Math.cos(angleInRadians),
-    y: cy + radius * Math.sin(angleInRadians),
-  };
-}
-
-// Helper to draw arc paths for turn spread visualization
-function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number): string {
-  const start = polarToCartesian(x, y, radius, endAngle);
-  const end = polarToCartesian(x, y, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
-}
-
-// Generate branch path from stem to tool
-function generateBranchPath(
-  stemX: number,
-  stemY: number,
-  leafX: number,
-  leafY: number,
-  side: 'left' | 'right'
-): string {
-  const controlOffset = side === 'left' ? -40 : 40;
-  const cp1x = stemX + controlOffset * 0.3;
-  const cp1y = stemY;
-  const cp2x = leafX - controlOffset * 0.5;
-  const cp2y = leafY;
-
-  return `M ${stemX} ${stemY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${leafX} ${leafY}`;
-}
-
-// Filter spans based on hiddenSpanTypes
-function filterSpans(spans: Span[], hiddenSpanTypes?: Set<string>): Span[] {
-  if (!hiddenSpanTypes || hiddenSpanTypes.size === 0) return spans;
-
-  const filtered: Span[] = [];
-  for (const span of spans) {
-    if (hiddenSpanTypes.has(span.name)) continue;
-
-    if (span.children && span.children.length > 0) {
-      const filteredChildren = filterSpans(span.children, hiddenSpanTypes);
-      filtered.push({ ...span, children: filteredChildren });
-    } else {
-      filtered.push(span);
-    }
-  }
-  return filtered;
-}
-
-// Check if a span is a turn
-function isTurnSpan(name: string): boolean {
-  return name === 'api_request' ||
-    name.startsWith('exec.turn') ||
-    name.includes('.turn') ||
-    name.includes('turn.');
-}
-
-// Check if a span is a tool call
-function isToolSpan(name: string): boolean {
-  return name.startsWith('claude_code.tool.') ||
-    name === 'exec.tool_use' ||
-    name.includes('.tool') ||
-    name.includes('tool.');
-}
-
-// Check if a span is a root/session span
-function isSessionSpan(name: string): boolean {
-  return name === 'claude_code.session' ||
-    name === 'claude.execute' ||
-    name === 'gemini.execute' ||
-    name === 'coordinator.task.execute' ||
-    name.startsWith('ailang.') ||
-    name.startsWith('eval.');
-}
-
-// Extract full tool name from span attributes (not truncated)
-// Returns null if no full name can be extracted
-function extractFullToolName(span: { name: string; attributes?: Record<string, unknown> }): string | null {
-  if (!span.attributes) return null;
-
-  // Get the tool type from span name
-  const toolType = span.name.replace('claude_code.tool.', '').replace('exec.tool_use.', '').split('.')[0];
-
-  // Try to get tool.input which contains the full command/parameters
-  const toolInput = span.attributes['tool.input'] || span.attributes['tool_input'];
-  if (!toolInput) return null;
-
-  // Parse the tool input JSON
-  let inputData: Record<string, unknown>;
-  try {
-    if (typeof toolInput === 'string') {
-      inputData = JSON.parse(toolInput);
-    } else if (typeof toolInput === 'object') {
-      inputData = toolInput as Record<string, unknown>;
-    } else {
-      return null;
-    }
-  } catch {
-    return null;
-  }
-
-  // Build full name based on tool type
-  switch (toolType) {
-    case 'Bash':
-      if (inputData.command && typeof inputData.command === 'string') {
-        return `Bash: ${inputData.command}`;
-      }
-      break;
-    case 'Read':
-    case 'Write':
-    case 'Edit':
-      if (inputData.file_path && typeof inputData.file_path === 'string') {
-        return `${toolType}: ${inputData.file_path}`;
-      }
-      break;
-    case 'Grep':
-      if (inputData.pattern && typeof inputData.pattern === 'string') {
-        const path = inputData.path && typeof inputData.path === 'string' ? ` in ${inputData.path}` : '';
-        return `Grep: "${inputData.pattern}"${path}`;
-      }
-      break;
-    case 'Glob':
-      if (inputData.pattern && typeof inputData.pattern === 'string') {
-        const path = inputData.path && typeof inputData.path === 'string' ? ` in ${inputData.path}` : '';
-        return `Glob: ${inputData.pattern}${path}`;
-      }
-      break;
-    case 'Task':
-      if (inputData.description && typeof inputData.description === 'string') {
-        return `Task: ${inputData.description}`;
-      }
-      if (inputData.prompt && typeof inputData.prompt === 'string') {
-        return `Task: ${inputData.prompt}`;
-      }
-      break;
-    case 'WebFetch':
-      if (inputData.url && typeof inputData.url === 'string') {
-        return `WebFetch: ${inputData.url}`;
-      }
-      break;
-    case 'WebSearch':
-      if (inputData.query && typeof inputData.query === 'string') {
-        return `WebSearch: "${inputData.query}"`;
-      }
-      break;
-  }
-
-  return null;
-}
-
-// Transform HierarchyNode[] to tree structure (uses pre-transformed data)
-function buildTreeFromNodes(
-  nodes: HierarchyNode[]
-): { session: TreeSession | null; turns: TreeTurn[] } {
-  if (!nodes || nodes.length === 0) {
-    return { session: null, turns: [] };
-  }
-
-  // First node is typically the session/root
-  const rootNode = nodes[0];
-
-  const session: TreeSession = {
-    id: rootNode.id,
-    name: rootNode.label,
-    durationMs: rootNode.durationMs || 0,
-    cost: rootNode.cost || 0,
-    tokensIn: rootNode.tokensIn || 0,
-    tokensOut: rootNode.tokensOut || 0,
-  };
-
-  const turnsList: TreeTurn[] = [];
-  let turnCounter = 0;
-
-  // Recursively collect turns from hierarchy
-  function collectFromNode(node: HierarchyNode) {
-    if (node.type === 'turn') {
-      turnCounter++;
-      const turnNum = node.turnNumber || turnCounter;
-
-      const tools: TreeTool[] = [];
-      if (node.children) {
-        node.children.forEach(child => {
-          if (child.type === 'tool_use') {
-            // Try to extract full name from underlying span or attributes
-            const spanData = child._span || { name: child.label, attributes: child.attributes };
-            const fullName = extractFullToolName(spanData as { name: string; attributes?: Record<string, unknown> });
-            tools.push({
-              id: child.id,
-              name: child.label,
-              fullName: fullName || undefined,
-              durationMs: child.durationMs || 0,
-              status: child.status === 'error' ? 'error' : 'ok',
-              cost: child.cost,
-            });
-          }
-        });
-      }
-
-      turnsList.push({
-        id: node.id,
-        turnNumber: turnNum,
-        durationMs: node.durationMs || 0,
-        cost: node.cost || 0,
-        tokensIn: node.tokensIn || 0,
-        tokensOut: node.tokensOut || 0,
-        status: node.status === 'error' ? 'error' : 'ok',
-        tools,
-      });
-    }
-
-    // Recurse into children
-    if (node.children) {
-      node.children.forEach(child => collectFromNode(child));
-    }
-  }
-
-  nodes.forEach(node => collectFromNode(node));
-
-  // If no turns found, use all non-root nodes as virtual turns
-  if (turnsList.length === 0) {
-    nodes.forEach((node, idx) => {
-      if (idx > 0 || nodes.length === 1) {
-        const tools: TreeTool[] = [];
-        if (node.children) {
-          node.children.forEach(child => {
-            const spanData = child._span || { name: child.label, attributes: child.attributes };
-            const fullName = extractFullToolName(spanData as { name: string; attributes?: Record<string, unknown> });
-            tools.push({
-              id: child.id,
-              name: child.label,
-              fullName: fullName || undefined,
-              durationMs: child.durationMs || 0,
-              status: child.status === 'error' ? 'error' : 'ok',
-              cost: child.cost,
-            });
-          });
-        }
-
-        turnsList.push({
-          id: node.id,
-          turnNumber: idx + 1,
-          durationMs: node.durationMs || 0,
-          cost: node.cost || 0,
-          tokensIn: node.tokensIn || 0,
-          tokensOut: node.tokensOut || 0,
-          status: node.status === 'error' ? 'error' : 'ok',
-          tools,
-        });
-      }
-    });
-  }
-
-  return { session, turns: turnsList.sort((a, b) => a.turnNumber - b.turnNumber) };
-}
-
-// Transform spans to tree structure (fallback when nodes not available)
-function buildTreeFromSpans(
-  spans?: Span[],
-  hiddenSpanTypes?: Set<string>
-): { session: TreeSession | null; turns: TreeTurn[] } {
-  if (!spans || spans.length === 0) {
-    return { session: null, turns: [] };
-  }
-
-  // DON'T filter spans when building tree - we need to count turns first
-  // Filtering happens at display time, not structure time
-  const allSpans = spans;
-
-  // Find session/root span - look for known session types first, then use first span
-  const sessionSpan = allSpans.find(s => isSessionSpan(s.name)) || allSpans[0];
-
-  const session: TreeSession = {
-    id: sessionSpan.id,
-    name: sessionSpan.display_name || sessionSpan.name,
-    durationMs: sessionSpan.durationMs || 0,
-    cost: (sessionSpan as any).cost_usd || 0,
-    tokensIn: (sessionSpan as any).tokens_in || 0,
-    tokensOut: (sessionSpan as any).tokens_out || 0,
-  };
-
-  // Collect turns - walk the entire tree
-  const turnsList: TreeTurn[] = [];
-  let turnCounter = 0;
-
-  function collectTurns(span: Span, depth: number = 0) {
-    const isTurn = isTurnSpan(span.name);
-
-    if (isTurn) {
-      turnCounter++;
-      // Try to extract turn number from attributes or name
-      const attrTurnNum = span.attributes?.['turn.number'] ||
-                          span.attributes?.['turn_number'] ||
-                          span.attributes?.['exec.turn'];
-      const match = span.name.match(/turn[._]?(\d+)/i);
-      const turnNum = attrTurnNum ? parseInt(String(attrTurnNum), 10) :
-                      match ? parseInt(match[1], 10) :
-                      turnCounter;
-
-      const tools: TreeTool[] = [];
-
-      // Collect tool children (direct children only)
-      if (span.children) {
-        span.children.forEach(child => {
-          if (isToolSpan(child.name)) {
-            const displayName = child.display_name || child.name.replace('claude_code.tool.', '').replace('exec.tool_use.', '');
-            const fullName = extractFullToolName(child as { name: string; attributes?: Record<string, unknown> });
-            tools.push({
-              id: child.id,
-              name: displayName,
-              fullName: fullName || undefined,
-              durationMs: child.durationMs || 0,
-              status: child.status === 'error' ? 'error' : 'ok',
-              cost: (child as any).cost_usd,
-            });
-          }
-        });
-      }
-
-      // Get cost from attributes if not directly on span
-      const cost = (span as any).cost_usd ||
-                   parseFloat(span.attributes?.['cost_usd'] || '0') || 0;
-      const tokensIn = (span as any).tokens_in ||
-                       parseInt(span.attributes?.['tokens_in'] || span.attributes?.['input_tokens'] || '0', 10) || 0;
-      const tokensOut = (span as any).tokens_out ||
-                        parseInt(span.attributes?.['tokens_out'] || span.attributes?.['output_tokens'] || '0', 10) || 0;
-
-      turnsList.push({
-        id: span.id,
-        turnNumber: turnNum,
-        durationMs: span.durationMs || 0,
-        cost,
-        tokensIn,
-        tokensOut,
-        status: span.status === 'error' ? 'error' : 'ok',
-        tools,
-      });
-    }
-
-    // Recurse into children
-    if (span.children) {
-      span.children.forEach(child => collectTurns(child, depth + 1));
-    }
-  }
-
-  // Collect from all spans (unfiltered to get turn counts right)
-  allSpans.forEach(span => collectTurns(span, 0));
-
-  // If no turns found, try to create virtual turns from top-level spans
-  // This handles cases where the hierarchy is flat
-  if (turnsList.length === 0 && allSpans.length > 1) {
-    allSpans.forEach((span, idx) => {
-      if (span.id !== sessionSpan.id) {
-        const tools: TreeTool[] = [];
-        if (span.children) {
-          span.children.forEach(child => {
-            const displayName = child.display_name || child.name;
-            const fullName = extractFullToolName(child as { name: string; attributes?: Record<string, unknown> });
-            tools.push({
-              id: child.id,
-              name: displayName,
-              fullName: fullName || undefined,
-              durationMs: child.durationMs || 0,
-              status: child.status === 'error' ? 'error' : 'ok',
-              cost: (child as any).cost_usd,
-            });
-          });
-        }
-
-        turnsList.push({
-          id: span.id,
-          turnNumber: idx,
-          durationMs: span.durationMs || 0,
-          cost: (span as any).cost_usd || 0,
-          tokensIn: (span as any).tokens_in || 0,
-          tokensOut: (span as any).tokens_out || 0,
-          status: span.status === 'error' ? 'error' : 'ok',
-          tools,
-        });
-      }
-    });
-  }
-
-  // Sort by turn number
-  const turns = turnsList.sort((a, b) => a.turnNumber - b.turnNumber);
-
-  return { session, turns };
-}
-
-// Main entry point - try multiple sources to get the best data
-// Priority: nodes (has hierarchical structure) > spans (may be flat)
-function buildTreeData(
-  spans?: Span[],
-  nodes?: HierarchyNode[],
-  _hiddenSpanTypes?: Set<string>
-): { session: TreeSession | null; turns: TreeTurn[] } {
-  // Try nodes first - they have the pre-built hierarchy with tools as children
-  if (nodes && nodes.length > 0) {
-    const fromNodes = buildTreeFromNodes(nodes);
-    // Check if we got meaningful data (turns with tools)
-    const hasTools = fromNodes.turns.some(t => t.tools.length > 0);
-    if (fromNodes.turns.length > 0 && hasTools) {
-      return fromNodes;
-    }
-  }
-
-  // Fall back to spans - may not have children populated
-  if (spans && spans.length > 0) {
-    const fromSpans = buildTreeFromSpans(spans, undefined);
-    if (fromSpans.turns.length > 0) {
-      return fromSpans;
-    }
-  }
-
-  // If nodes exist but had no typed turns, use them anyway (treat all as turns)
-  if (nodes && nodes.length > 0) {
-    return buildTreeFromNodes(nodes);
-  }
-
-  return { session: null, turns: [] };
 }
 
 export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
@@ -1125,6 +101,7 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
   hiddenSpanTypes,
   isExpanded,
   theme,
+  onChatContextClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -1133,29 +110,11 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
   const [showControls, setShowControls] = useState(false);
 
   // Bioluminescent popup state for tools
-  const [toolPopup, setToolPopup] = useState<{
-    node: SharedToolNode;
-    pos: { x: number; y: number };
-    metrics: {
-      totalDuration: number;
-      avgDuration: number;
-      minDuration: number;
-      maxDuration: number;
-      totalCost: number;
-      errorCount: number;
-      errorRate: number;
-      sortedUsages: { turnIndex: number; turnId: string; tool: TreeTool }[];
-    };
-  } | null>(null);
+  const [toolPopup, setToolPopup] = useState<ToolPopupState | null>(null);
   const [usageExpanded, setUsageExpanded] = useState(true);
 
   // Bioluminescent popup state for turns
-  const [turnPopup, setTurnPopup] = useState<{
-    turn: TreeTurn;
-    pos: { x: number; y: number };
-    isAnomaly: boolean;
-    activity: number;
-  } | null>(null);
+  const [turnPopup, setTurnPopup] = useState<TurnPopupState | null>(null);
   const [turnToolsExpanded, setTurnToolsExpanded] = useState(true);
 
   // Layout tuning controls - auto-calculated defaults, user adjustable
@@ -1173,14 +132,8 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
   // File hub state
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
-  const [hoveredFile, setHoveredFile] = useState<{
-    file: FileNode;
-    pos: { x: number; y: number };
-  } | null>(null);
-  const [hoveredDir, setHoveredDir] = useState<{
-    dir: DirectoryNode;
-    pos: { x: number; y: number };
-  } | null>(null);
+  const [hoveredFile, setHoveredFile] = useState<FileHoverState | null>(null);
+  const [hoveredDir, setHoveredDir] = useState<DirHoverState | null>(null);
 
   // Time evolution playback state
   const [playback, setPlayback] = useState<{
@@ -1798,18 +751,72 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
     }
   }, []);
 
-  // Format helpers
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}m`;
-  };
+  // Format helpers imported from EvolutionTreeSlideovers
 
-  const formatCost = (cost: number) => {
-    if (cost === 0) return '';
-    if (cost < 0.01) return `$${cost.toFixed(4)}`;
-    return `$${cost.toFixed(3)}`;
-  };
+  // Handler for opening turn popup (used by tool slideover)
+  const handleTurnClick = useCallback((turn: TreeTurn, isAnomaly: boolean, activity: number) => {
+    setToolPopup(null);
+    setSelectedFile(null);
+    setTurnPopup({
+      turn,
+      pos: { x: 0, y: 0 },
+      isAnomaly,
+      activity,
+    });
+  }, []);
+
+  // Handler for opening tool popup (used by turn slideover)
+  const handleToolClickFromTurn = useCallback((tool: TreeTool, e: React.MouseEvent) => {
+    if (!turnPopup) return;
+    e.stopPropagation();
+
+    const toolType = getToolType(tool.name);
+    const toolColor = getToolColor(tool.name);
+
+    // Create an ad-hoc tool node for the popup (even if filtered)
+    const adHocNode: SharedToolNode = {
+      name: tool.name,
+      fullName: tool.fullName,
+      displayName: getToolDisplayName(tool.name),
+      toolType,
+      color: toolColor,
+      usages: [{ turnIndex: turnPopup.turn.turnNumber - 1, turnId: turnPopup.turn.id, tool }],
+      x: 0,
+      y: 0,
+      hasError: tool.status === 'error',
+    };
+
+    // Find other usages of this tool across all turns
+    turns.forEach((t, tIdx) => {
+      if (t.id === turnPopup.turn.id) return;
+      t.tools.forEach(tt => {
+        if (tt.name === tool.name) {
+          adHocNode.usages.push({ turnIndex: tIdx, turnId: t.id, tool: tt });
+        }
+      });
+    });
+
+    adHocNode.usages.sort((a, b) => a.turnIndex - b.turnIndex);
+    const totalDuration = adHocNode.usages.reduce((sum, u) => sum + u.tool.durationMs, 0);
+    const totalCost = adHocNode.usages.reduce((sum, u) => sum + (u.tool.cost || 0), 0);
+    const errorCount = adHocNode.usages.filter(u => u.tool.status === 'error').length;
+
+    setToolPopup({
+      node: adHocNode,
+      pos: { x: e.clientX + 20, y: e.clientY - 50 },
+      metrics: {
+        totalDuration,
+        avgDuration: totalDuration / adHocNode.usages.length,
+        minDuration: Math.min(...adHocNode.usages.map(u => u.tool.durationMs)),
+        maxDuration: Math.max(...adHocNode.usages.map(u => u.tool.durationMs)),
+        totalCost,
+        errorCount,
+        errorRate: errorCount / adHocNode.usages.length,
+        sortedUsages: adHocNode.usages,
+      },
+    });
+    setTurnPopup(null);
+  }, [turnPopup, turns]);
 
   if (!session || turns.length === 0) {
     return (
@@ -1927,6 +934,18 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
           >
             ?
           </button>
+          {onChatContextClick && (
+            <button
+              onClick={onChatContextClick}
+              title="View chat context"
+              style={{
+                background: colorScheme === 'light' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.2)',
+                color: colorScheme === 'light' ? '#2563eb' : '#3b82f6',
+              }}
+            >
+              💬
+            </button>
+          )}
         </div>
       </div>
 
@@ -2982,851 +2001,58 @@ export const EvolutionTree: React.FC<EvolutionTreeProps> = ({
 
       {/* Tool Detail Slideover Panel */}
       {toolPopup && (
-        <div
-          className={styles.detailSlideover}
-          onClick={(e) => e.stopPropagation()}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className={styles.slideoverHeader}>
-            <div
-              className={styles.slideoverIcon}
-              style={{
-                backgroundColor: toolPopup.node.color,
-                boxShadow: `0 0 20px ${toolPopup.node.color}60`,
-              }}
-            />
-            <div className={styles.slideoverTitle}>
-              <span className={styles.slideoverType}>{toolPopup.node.toolType}</span>
-              <span className={styles.slideoverName}>{toolPopup.node.fullName || toolPopup.node.name}</span>
-            </div>
-            <button
-              className={styles.slideoverClose}
-              onClick={() => setToolPopup(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Body content */}
-          <div className={styles.slideoverBody}>
-
-          {/* Metrics grid */}
-          <div className={styles.bioPopoverMetrics}>
-            {/* Usage count */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{toolPopup.node.usages.length}</span>
-              <span className={styles.bioMetricLabel}>usages</span>
-            </div>
-
-            {/* Duration */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{formatDuration(toolPopup.metrics.totalDuration)}</span>
-              <span className={styles.bioMetricLabel}>total time</span>
-            </div>
-
-            {/* Average duration */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{formatDuration(toolPopup.metrics.avgDuration)}</span>
-              <span className={styles.bioMetricLabel}>avg</span>
-            </div>
-
-            {/* Cost if available */}
-            {toolPopup.metrics.totalCost > 0 && (
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{formatCost(toolPopup.metrics.totalCost)}</span>
-                <span className={styles.bioMetricLabel}>cost</span>
-              </div>
-            )}
-
-            {/* Errors */}
-            {toolPopup.metrics.errorCount > 0 && (
-              <div className={`${styles.bioMetric} ${styles.bioMetricError}`}>
-                <span className={styles.bioMetricValue}>{toolPopup.metrics.errorCount}</span>
-                <span className={styles.bioMetricLabel}>errors</span>
-              </div>
-            )}
-          </div>
-
-          {/* Duration range bar */}
-          <div className={styles.bioDurationBar}>
-            <div className={styles.bioDurationBarLabel}>
-              <span>{formatDuration(toolPopup.metrics.minDuration)}</span>
-              <span className={styles.bioDurationBarTitle}>duration range</span>
-              <span>{formatDuration(toolPopup.metrics.maxDuration)}</span>
-            </div>
-            <div className={styles.bioDurationBarTrack}>
-              <div
-                className={styles.bioDurationBarFill}
-                style={{
-                  width: toolPopup.metrics.maxDuration > 0
-                    ? `${Math.min(100, (toolPopup.metrics.avgDuration / toolPopup.metrics.maxDuration) * 100)}%`
-                    : '50%',
-                  backgroundColor: toolPopup.node.color,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Turn timeline */}
-          <div className={styles.bioTurnTimeline}>
-            <button
-              className={styles.bioTimelineToggle}
-              onClick={() => setUsageExpanded(!usageExpanded)}
-            >
-              <span className={styles.bioTimelineToggleIcon}>{usageExpanded ? '▼' : '▶'}</span>
-              <span>Turn Usage Timeline</span>
-              <span className={styles.bioTimelineCount}>{toolPopup.metrics.sortedUsages.length} calls</span>
-            </button>
-
-            {usageExpanded && (
-              <div className={styles.bioTimelineContent}>
-                {toolPopup.metrics.sortedUsages.slice(0, 20).map((usage, idx) => {
-                  const turn = turns[usage.turnIndex];
-                  return (
-                    <div
-                      key={`${usage.turnId}-${idx}`}
-                      className={`${styles.bioTimelineItem} ${usage.tool.status === 'error' ? styles.bioTimelineItemError : ''}`}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (turn) {
-                          // Find the spiral position for this turn
-                          const pos = spiralPositions.find(p => p.turn.id === turn.id);
-                          // Close tool popup and open turn popup
-                          setToolPopup(null);
-                          setTurnPopup({
-                            turn,
-                            pos: { x: 0, y: 0 },
-                            isAnomaly: pos?.isAnomaly || false,
-                            activity: pos?.activity || 0.5,
-                          });
-                          // Center on the turn node
-                          if (pos) {
-                            centerOnPosition(pos.x, pos.y);
-                          }
-                        }
-                      }}
-                      title={`Click to view Turn ${usage.turnIndex + 1}`}
-                    >
-                      <span className={styles.bioTimelineTurn}>T{usage.turnIndex + 1}</span>
-                      <span className={styles.bioTimelineDuration}>{formatDuration(usage.tool.durationMs)}</span>
-                      {usage.tool.cost && usage.tool.cost > 0 && (
-                        <span className={styles.bioTimelineCost}>{formatCost(usage.tool.cost)}</span>
-                      )}
-                      <span className={styles.bioTimelineStatus}>
-                        {usage.tool.status === 'error' ? '✗' : '✓'}
-                      </span>
-                    </div>
-                  );
-                })}
-                {toolPopup.metrics.sortedUsages.length > 20 && (
-                  <div className={styles.bioTimelineMore}>
-                    +{toolPopup.metrics.sortedUsages.length - 20} more usages
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Mini subgraph - tool to turns (reuses main graph styling) */}
-          <div className={styles.miniSubgraph}>
-            <div className={styles.miniSubgraphTitle}>Connections</div>
-            <svg width="100%" height="120" viewBox="0 0 340 120">
-              <defs>
-                {/* Same glow filter as main graph */}
-                <filter id="miniGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <filter id="miniErrorGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feFlood floodColor="#ef4444" floodOpacity="0.4" />
-                  <feComposite in2="blur" operator="in" />
-                  <feMerge>
-                    <feMergeNode />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {/* Edges first (underneath nodes) */}
-              {toolPopup.metrics.sortedUsages.slice(0, 8).map((usage, i) => {
-                const totalShown = Math.min(toolPopup.metrics.sortedUsages.length, 8);
-                const angle = Math.PI + (Math.PI * (i + 0.5)) / totalShown;
-                const radius = 45;
-                const x = 170 + radius * Math.cos(angle);
-                const y = 60 + radius * Math.sin(angle);
-                const isError = usage.tool.status === 'error';
-                return (
-                  <line
-                    key={`edge-${usage.turnId}-${i}`}
-                    x1={170} y1={60}
-                    x2={x} y2={y}
-                    stroke={isError ? '#ef4444' : themeColors.emerald}
-                    strokeWidth={2}
-                    opacity={0.4}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-
-              {/* Tool node in center - matching main graph styling */}
-              <circle
-                cx={170} cy={60} r={16}
-                fill={toolPopup.node.color}
-                filter="url(#miniGlow)"
-              />
-              <text x={170} y={64} textAnchor="middle" fontSize="10" fill={themeColors.nodeTextOnFill} fontWeight="600">
-                {toolPopup.node.toolType.slice(0, 4)}
-              </text>
-
-              {/* Connected turns - matching main graph turn node styling */}
-              {toolPopup.metrics.sortedUsages.slice(0, 8).map((usage, i) => {
-                const totalShown = Math.min(toolPopup.metrics.sortedUsages.length, 8);
-                const angle = Math.PI + (Math.PI * (i + 0.5)) / totalShown;
-                const radius = 45;
-                const x = 170 + radius * Math.cos(angle);
-                const y = 60 + radius * Math.sin(angle);
-                const isError = usage.tool.status === 'error';
-                return (
-                  <g key={`mini-${usage.turnId}-${i}`}>
-                    <circle
-                      cx={x} cy={y} r={10}
-                      fill={isError ? '#ef4444' : themeColors.emerald}
-                      filter={isError ? 'url(#miniErrorGlow)' : 'url(#miniGlow)'}
-                    />
-                    <text x={x} y={y + 3} textAnchor="middle" fontSize="8" fill={themeColors.nodeTextOnFill} fontWeight="600">
-                      T{usage.turnIndex + 1}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* More indicator */}
-              {toolPopup.metrics.sortedUsages.length > 8 && (
-                <text x={170} y={115} textAnchor="middle" fontSize="10" fill={themeColors.textMuted}>
-                  +{toolPopup.metrics.sortedUsages.length - 8} more
-                </text>
-              )}
-            </svg>
-          </div>
-          </div>{/* End slideoverBody */}
-        </div>
+        <ToolSlideover
+          toolPopup={toolPopup}
+          turns={turns}
+          spiralPositions={spiralPositions}
+          themeColors={themeColors as ThemeColors}
+          usageExpanded={usageExpanded}
+          onClose={() => setToolPopup(null)}
+          onUsageExpandedChange={setUsageExpanded}
+          onTurnClick={handleTurnClick}
+          onCenterOnPosition={centerOnPosition}
+        />
       )}
 
       {/* Turn Detail Slideover Panel */}
       {turnPopup && (
-        <div
-          className={styles.detailSlideover}
-          onClick={(e) => e.stopPropagation()}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className={styles.slideoverHeader}>
-            <div
-              className={styles.slideoverIcon}
-              style={{
-                backgroundColor: turnPopup.isAnomaly ? '#f59e0b' : turnPopup.turn.status === 'error' ? '#ef4444' : '#10b981',
-                boxShadow: `0 0 20px ${turnPopup.isAnomaly ? '#f59e0b' : turnPopup.turn.status === 'error' ? '#ef4444' : '#10b981'}60`,
-              }}
-            >
-              <span style={{ fontSize: '14px', fontWeight: 700, color: themeColors.nodeTextOnFill }}>
-                {turnPopup.turn.turnNumber}
-              </span>
-            </div>
-            <div className={styles.slideoverTitle}>
-              <span className={styles.slideoverType}>
-                {turnPopup.isAnomaly ? 'ANOMALY TURN' : turnPopup.turn.status === 'error' ? 'ERROR TURN' : 'TURN'}
-              </span>
-              <span className={styles.slideoverName}>Turn {turnPopup.turn.turnNumber}</span>
-            </div>
-            <button
-              className={styles.slideoverClose}
-              onClick={() => setTurnPopup(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Body content */}
-          <div className={styles.slideoverBody}>
-
-          {/* Status badge for anomaly/error */}
-          {(turnPopup.isAnomaly || turnPopup.turn.status === 'error') && (
-            <div className={styles.turnStatusBadge} style={{
-              backgroundColor: turnPopup.isAnomaly ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              borderColor: turnPopup.isAnomaly ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)',
-              color: turnPopup.isAnomaly ? '#f59e0b' : '#ef4444',
-            }}>
-              {turnPopup.isAnomaly ? '⚠ Anomaly detected (>2σ from mean)' : '✗ Error occurred'}
-            </div>
-          )}
-
-          {/* Metrics grid */}
-          <div className={styles.bioPopoverMetrics}>
-            {/* Duration */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{formatDuration(turnPopup.turn.durationMs)}</span>
-              <span className={styles.bioMetricLabel}>duration</span>
-            </div>
-
-            {/* Tools */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{turnPopup.turn.tools.length}</span>
-              <span className={styles.bioMetricLabel}>tools</span>
-            </div>
-
-            {/* Cost if available */}
-            {turnPopup.turn.cost > 0 && (
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{formatCost(turnPopup.turn.cost)}</span>
-                <span className={styles.bioMetricLabel}>cost</span>
-              </div>
-            )}
-
-            {/* Tokens In */}
-            {turnPopup.turn.tokensIn > 0 && (
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{turnPopup.turn.tokensIn.toLocaleString()}</span>
-                <span className={styles.bioMetricLabel}>tokens in</span>
-              </div>
-            )}
-
-            {/* Tokens Out */}
-            {turnPopup.turn.tokensOut > 0 && (
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{turnPopup.turn.tokensOut.toLocaleString()}</span>
-                <span className={styles.bioMetricLabel}>tokens out</span>
-              </div>
-            )}
-
-            {/* Activity level */}
-            <div className={styles.bioMetric}>
-              <span className={styles.bioMetricValue}>{Math.round(turnPopup.activity * 100)}%</span>
-              <span className={styles.bioMetricLabel}>activity</span>
-            </div>
-          </div>
-
-          {/* Tools list */}
-          {turnPopup.turn.tools.length > 0 && (
-            <div className={styles.bioTurnTimeline}>
-              <button
-                className={styles.bioTimelineToggle}
-                onClick={() => setTurnToolsExpanded(!turnToolsExpanded)}
-              >
-                <span className={styles.bioTimelineToggleIcon}>{turnToolsExpanded ? '▼' : '▶'}</span>
-                <span>Tools Used</span>
-                <span className={styles.bioTimelineCount}>{turnPopup.turn.tools.length} tools</span>
-              </button>
-
-              {turnToolsExpanded && (
-                <div className={styles.bioTimelineContent}>
-                  {turnPopup.turn.tools.map((tool, idx) => {
-                    const toolType = getToolType(tool.name);
-                    const toolColor = getToolColor(tool.name);
-                    return (
-                      <div
-                        key={`${tool.id}-${idx}`}
-                        className={`${styles.bioTimelineItem} ${tool.status === 'error' ? styles.bioTimelineItemError : ''}`}
-                        style={{ borderLeftColor: tool.status === 'error' ? undefined : toolColor, cursor: 'pointer' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Create an ad-hoc tool node for the popup (even if filtered)
-                          const adHocNode: SharedToolNode = {
-                            name: tool.name,
-                            fullName: tool.fullName,
-                            displayName: getToolDisplayName(tool.name),
-                            toolType,
-                            color: toolColor,
-                            usages: [{ turnIndex: turnPopup.turn.turnNumber - 1, turnId: turnPopup.turn.id, tool }],
-                            x: 0,
-                            y: 0,
-                            hasError: tool.status === 'error',
-                          };
-                          // Find other usages of this tool across all turns
-                          turns.forEach((t, tIdx) => {
-                            if (t.id === turnPopup.turn.id) return;
-                            t.tools.forEach(tt => {
-                              if (tt.name === tool.name) {
-                                adHocNode.usages.push({ turnIndex: tIdx, turnId: t.id, tool: tt });
-                              }
-                            });
-                          });
-                          adHocNode.usages.sort((a, b) => a.turnIndex - b.turnIndex);
-                          const totalDuration = adHocNode.usages.reduce((sum, u) => sum + u.tool.durationMs, 0);
-                          const totalCost = adHocNode.usages.reduce((sum, u) => sum + (u.tool.cost || 0), 0);
-                          const errorCount = adHocNode.usages.filter(u => u.tool.status === 'error').length;
-                          setToolPopup({
-                            node: adHocNode,
-                            pos: { x: e.clientX + 20, y: e.clientY - 50 },
-                            metrics: {
-                              totalDuration,
-                              avgDuration: totalDuration / adHocNode.usages.length,
-                              minDuration: Math.min(...adHocNode.usages.map(u => u.tool.durationMs)),
-                              maxDuration: Math.max(...adHocNode.usages.map(u => u.tool.durationMs)),
-                              totalCost,
-                              errorCount,
-                              errorRate: errorCount / adHocNode.usages.length,
-                              sortedUsages: adHocNode.usages,
-                            },
-                          });
-                          setTurnPopup(null);
-                        }}
-                      >
-                        <span
-                          className={styles.bioTimelineTurn}
-                          style={{ color: tool.status === 'error' ? undefined : toolColor }}
-                        >
-                          {toolType}
-                        </span>
-                        <span className={styles.bioTimelineDuration}>{formatDuration(tool.durationMs)}</span>
-                        {tool.cost && tool.cost > 0 && (
-                          <span className={styles.bioTimelineCost}>{formatCost(tool.cost)}</span>
-                        )}
-                        <span className={styles.bioTimelineStatus}>
-                          {tool.status === 'error' ? '✗' : '✓'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mini subgraph - turn to tools and files (reuses main graph styling) */}
-          <div className={styles.miniSubgraph}>
-            <div className={styles.miniSubgraphTitle}>Connections</div>
-            <svg width="100%" height="140" viewBox="0 0 340 140">
-              <defs>
-                {/* Same glow filters as main graph */}
-                <filter id="turnMiniGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <filter id="turnMiniErrorGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feFlood floodColor="#ef4444" floodOpacity="0.4" />
-                  <feComposite in2="blur" operator="in" />
-                  <feMerge>
-                    <feMergeNode />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <filter id="turnMiniAnomalyGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feFlood floodColor="#f59e0b" floodOpacity="0.4" />
-                  <feComposite in2="blur" operator="in" />
-                  <feMerge>
-                    <feMergeNode />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-
-              {/* Edges first (underneath nodes) */}
-              {turnPopup.turn.tools.slice(0, 5).map((tool, i) => {
-                const totalTools = Math.min(turnPopup.turn.tools.length, 5);
-                const angle = Math.PI * 0.7 + (Math.PI * 0.6 * (i + 0.5)) / totalTools;
-                const radius = 50;
-                const x = 170 + radius * Math.cos(angle);
-                const y = 70 + radius * Math.sin(angle);
-                const toolColor = getToolColor(tool.name);
-                const isError = tool.status === 'error';
-                return (
-                  <line
-                    key={`edge-tool-${tool.id}`}
-                    x1={170} y1={70}
-                    x2={x} y2={y}
-                    stroke={isError ? '#ef4444' : toolColor}
-                    strokeWidth={2}
-                    opacity={0.4}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
-
-              {/* File edges */}
-              {(() => {
-                const turnFiles = fileDirectories.flatMap(dir =>
-                  dir.files.filter(f => f.turnIds.has(turnPopup.turn.id))
-                ).slice(0, 5);
-                return turnFiles.map((file, i) => {
-                  const totalFiles = Math.min(turnFiles.length, 5);
-                  const angle = -Math.PI * 0.3 + (Math.PI * 0.6 * (i + 0.5)) / totalFiles;
-                  const radius = 50;
-                  const x = 170 + radius * Math.cos(angle);
-                  const y = 70 + radius * Math.sin(angle);
-                  const fileColor = {
-                    go: themeColors.cyan,
-                    tsx: '#14b8a6',
-                    ts: '#0d9488',
-                    ail: themeColors.emerald,
-                  }[file.fileType] || themeColors.emerald;
-                  return (
-                    <line
-                      key={`edge-file-${file.filePath}`}
-                      x1={170} y1={70}
-                      x2={x} y2={y}
-                      stroke={fileColor}
-                      strokeWidth={2}
-                      opacity={0.3}
-                      strokeDasharray="4,3"
-                      strokeLinecap="round"
-                    />
-                  );
-                });
-              })()}
-
-              {/* Turn node in center - matching main graph styling */}
-              <circle
-                cx={170} cy={70} r={18}
-                fill={turnPopup.isAnomaly ? '#f59e0b' : turnPopup.turn.status === 'error' ? '#ef4444' : themeColors.emerald}
-                filter={turnPopup.isAnomaly ? 'url(#turnMiniAnomalyGlow)' : turnPopup.turn.status === 'error' ? 'url(#turnMiniErrorGlow)' : 'url(#turnMiniGlow)'}
-              />
-              <text x={170} y={74} textAnchor="middle" fontSize="11" fill={themeColors.nodeTextOnFill} fontWeight="700">
-                T{turnPopup.turn.turnNumber}
-              </text>
-
-              {/* Tool nodes - matching main graph styling */}
-              {turnPopup.turn.tools.slice(0, 5).map((tool, i) => {
-                const totalTools = Math.min(turnPopup.turn.tools.length, 5);
-                const angle = Math.PI * 0.7 + (Math.PI * 0.6 * (i + 0.5)) / totalTools;
-                const radius = 50;
-                const x = 170 + radius * Math.cos(angle);
-                const y = 70 + radius * Math.sin(angle);
-                const toolColor = getToolColor(tool.name);
-                const isError = tool.status === 'error';
-                return (
-                  <g key={`turn-tool-${tool.id}`}>
-                    <circle
-                      cx={x} cy={y} r={10}
-                      fill={isError ? '#ef4444' : toolColor}
-                      filter={isError ? 'url(#turnMiniErrorGlow)' : 'url(#turnMiniGlow)'}
-                    />
-                    <text x={x} y={y + 3} textAnchor="middle" fontSize="7" fill={themeColors.nodeTextOnFill} fontWeight="600">
-                      {getToolType(tool.name).slice(0, 4)}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* File nodes - matching main graph styling */}
-              {(() => {
-                const turnFiles = fileDirectories.flatMap(dir =>
-                  dir.files.filter(f => f.turnIds.has(turnPopup.turn.id))
-                ).slice(0, 5);
-                return turnFiles.map((file, i) => {
-                  const totalFiles = Math.min(turnFiles.length, 5);
-                  const angle = -Math.PI * 0.3 + (Math.PI * 0.6 * (i + 0.5)) / totalFiles;
-                  const radius = 50;
-                  const x = 170 + radius * Math.cos(angle);
-                  const y = 70 + radius * Math.sin(angle);
-                  const fileColor = {
-                    go: themeColors.cyan,
-                    tsx: '#14b8a6',
-                    ts: '#0d9488',
-                    ail: themeColors.emerald,
-                  }[file.fileType] || themeColors.emerald;
-                  return (
-                    <g key={`turn-file-${file.filePath}`}>
-                      <circle
-                        cx={x} cy={y} r={10}
-                        fill={fileColor}
-                        filter="url(#turnMiniGlow)"
-                      />
-                      <text x={x} y={y + 3} textAnchor="middle" fontSize="8" fill={themeColors.nodeTextOnFill}>
-                        📄
-                      </text>
-                    </g>
-                  );
-                });
-              })()}
-
-              {/* Legend */}
-              <text x={20} y={130} fontSize="9" fill={themeColors.textMuted}>Tools</text>
-              <text x={280} y={130} fontSize="9" fill={themeColors.textMuted}>Files</text>
-            </svg>
-          </div>
-          </div>{/* End slideoverBody */}
-        </div>
+        <TurnSlideover
+          turnPopup={turnPopup}
+          turns={turns}
+          spiralPositions={spiralPositions}
+          fileDirectories={fileDirectories}
+          themeColors={themeColors as ThemeColors}
+          turnToolsExpanded={turnToolsExpanded}
+          onClose={() => setTurnPopup(null)}
+          onTurnToolsExpandedChange={setTurnToolsExpanded}
+          onToolClick={handleToolClickFromTurn}
+        />
       )}
 
       {/* File Hover Tooltip */}
       {hoveredFile && !selectedFile && (
-        <div
-          className={styles.fileTooltip}
-          style={{
-            left: hoveredFile.pos.x + 15,
-            top: hoveredFile.pos.y - 10,
-          }}
-        >
-          <div className={styles.fileTooltipName}>{hoveredFile.file.fileName}</div>
-          <div className={styles.fileTooltipPath}>{hoveredFile.file.directory}</div>
-          <div className={styles.fileTooltipOps}>
-            {hoveredFile.file.readCount > 0 && <span>📖{hoveredFile.file.readCount}</span>}
-            {hoveredFile.file.editCount > 0 && <span>✏️{hoveredFile.file.editCount}</span>}
-            {hoveredFile.file.writeCount > 0 && <span>📝{hoveredFile.file.writeCount}</span>}
-            {hoveredFile.file.errorCount > 0 && <span style={{ color: '#ef4444' }}>⚠️{hoveredFile.file.errorCount}</span>}
-          </div>
-        </div>
+        <FileTooltip hoveredFile={hoveredFile} />
       )}
 
       {/* Directory Hover Tooltip */}
       {hoveredDir && (
-        <div
-          className={styles.fileTooltip}
-          style={{
-            left: hoveredDir.pos.x + 15,
-            top: hoveredDir.pos.y - 10,
-          }}
-        >
-          <div className={styles.fileTooltipName}>📁 {hoveredDir.dir.name}</div>
-          <div className={styles.fileTooltipPath}>{hoveredDir.dir.path}</div>
-          <div className={styles.fileTooltipOps}>
-            <span>{hoveredDir.dir.files.length} files</span>
-            <span>{hoveredDir.dir.totalOps} ops</span>
-            {hoveredDir.dir.errorCount > 0 && <span style={{ color: '#ef4444' }}>⚠️{hoveredDir.dir.errorCount}</span>}
-          </div>
-          <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '4px' }}>
-            Click to {expandedDirs.has(hoveredDir.dir.path) ? 'collapse' : 'expand'}
-          </div>
-        </div>
+        <DirTooltip hoveredDir={hoveredDir} expandedDirs={expandedDirs} />
       )}
 
       {/* File Detail Slideover Panel */}
       {selectedFile && (
-        <div
-          className={styles.detailSlideover}
-          onClick={(e) => e.stopPropagation()}
-          onWheel={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className={styles.slideoverHeader}>
-            <div
-              className={styles.slideoverIcon}
-              style={{
-                backgroundColor: {
-                  go: themeColors.cyan,
-                  tsx: '#14b8a6',
-                  ts: '#0d9488',
-                  js: '#34d399',
-                  ail: themeColors.emerald,
-                  md: '#6ee7b7',
-                  json: '#2dd4bf',
-                  yaml: '#5eead4',
-                  css: '#22d3ee',
-                }[selectedFile.fileType] || themeColors.emerald,
-              }}
-            >
-              📄
-            </div>
-            <div className={styles.slideoverTitle}>
-              <span className={styles.slideoverType}>FILE</span>
-              <span className={styles.slideoverName}>{selectedFile.fileName}</span>
-            </div>
-            <button
-              className={styles.slideoverClose}
-              onClick={() => setSelectedFile(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Body content */}
-          <div className={styles.slideoverBody}>
-            {/* Full path */}
-            <div className={styles.filePath}>{selectedFile.filePath}</div>
-
-            {/* Operation Summary - using same metrics grid as other slideovers */}
-            <div className={styles.bioPopoverMetrics}>
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{selectedFile.readCount}</span>
-                <span className={styles.bioMetricLabel}>reads</span>
-              </div>
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{selectedFile.editCount}</span>
-                <span className={styles.bioMetricLabel}>edits</span>
-              </div>
-              <div className={styles.bioMetric}>
-                <span className={styles.bioMetricValue}>{selectedFile.writeCount}</span>
-                <span className={styles.bioMetricLabel}>writes</span>
-              </div>
-              {selectedFile.errorCount > 0 && (
-                <div className={`${styles.bioMetric} ${styles.bioMetricError}`}>
-                  <span className={styles.bioMetricValue}>{selectedFile.errorCount}</span>
-                  <span className={styles.bioMetricLabel}>errors</span>
-                </div>
-              )}
-            </div>
-
-            {/* Turn range */}
-            <div className={styles.bioTurnTimeline}>
-              <button
-                className={styles.bioTimelineToggle}
-                onClick={() => {/* Could add expand/collapse */}}
-              >
-                <span className={styles.bioTimelineToggleIcon}>▼</span>
-                <span>Operations Timeline</span>
-                <span className={styles.bioTimelineCount}>{selectedFile.operations.length} ops</span>
-              </button>
-
-              <div className={styles.bioTimelineContent}>
-                {selectedFile.operations.map((op, i) => {
-                  const opColor = op.toolType === 'Read' ? themeColors.fileRead :
-                                  op.toolType === 'Edit' ? themeColors.fileEdit :
-                                  themeColors.fileWrite;
-                  return (
-                    <div
-                      key={i}
-                      className={`${styles.bioTimelineItem} ${op.status === 'error' ? styles.bioTimelineItemError : ''}`}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        // Navigate to the turn that performed this operation
-                        const turn = turns.find(t => t.id === op.turnId);
-                        if (turn) {
-                          const pos = spiralPositions.find(p => p.turn.id === op.turnId);
-                          setSelectedFile(null);
-                          setTurnPopup({
-                            turn,
-                            pos: { x: 0, y: 0 },
-                            isAnomaly: pos?.isAnomaly || false,
-                            activity: pos?.activity || 0.5,
-                          });
-                          if (pos) {
-                            centerOnPosition(pos.x, pos.y);
-                          }
-                        }
-                      }}
-                      title={`Click to view Turn ${op.turnNumber}`}
-                    >
-                      <span className={styles.bioTimelineTurn}>T{op.turnNumber}</span>
-                      <span
-                        className={styles.bioTimelineDuration}
-                        style={{ color: op.status === 'error' ? undefined : opColor }}
-                      >
-                        {op.toolType}
-                      </span>
-                      <span className={styles.bioTimelineCost}>{formatDuration(op.durationMs)}</span>
-                      <span className={styles.bioTimelineStatus}>
-                        {op.status === 'error' ? '✗' : '✓'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Mini subgraph - file to turns (reuses main graph styling) */}
-            <div className={styles.miniSubgraph}>
-              <div className={styles.miniSubgraphTitle}>Connected Turns</div>
-              <svg width="100%" height="120" viewBox="0 0 340 120">
-                <defs>
-                  {/* Same glow filters as main graph */}
-                  <filter id="fileMiniGlow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                  <filter id="fileMiniErrorGlow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
-                    <feFlood floodColor="#ef4444" floodOpacity="0.4" />
-                    <feComposite in2="blur" operator="in" />
-                    <feMerge>
-                      <feMergeNode />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                {/* Edges first (underneath nodes) */}
-                {(() => {
-                  const uniqueTurnIds = Array.from(selectedFile.turnIds).slice(0, 8);
-                  return uniqueTurnIds.map((turnId, i) => {
-                    const totalShown = Math.min(uniqueTurnIds.length, 8);
-                    const angle = Math.PI + (Math.PI * (i + 0.5)) / totalShown;
-                    const radius = 45;
-                    const x = 170 + radius * Math.cos(angle);
-                    const y = 60 + radius * Math.sin(angle);
-                    const turnOps = selectedFile.operations.filter(op => op.turnId === turnId);
-                    const hasError = turnOps.some(op => op.status === 'error');
-                    return (
-                      <line
-                        key={`edge-${turnId}`}
-                        x1={170} y1={60}
-                        x2={x} y2={y}
-                        stroke={hasError ? '#ef4444' : themeColors.emerald}
-                        strokeWidth={2}
-                        opacity={0.4}
-                        strokeLinecap="round"
-                      />
-                    );
-                  });
-                })()}
-
-                {/* File node in center - matching main graph styling */}
-                <circle
-                  cx={170} cy={60} r={16}
-                  fill={{
-                    go: themeColors.cyan,
-                    tsx: '#14b8a6',
-                    ts: '#0d9488',
-                    ail: themeColors.emerald,
-                  }[selectedFile.fileType] || themeColors.emerald}
-                  filter="url(#fileMiniGlow)"
-                />
-                <text x={170} y={64} textAnchor="middle" fontSize="11" fill={themeColors.nodeTextOnFill}>
-                  📄
-                </text>
-
-                {/* Connected turns - matching main graph turn node styling */}
-                {(() => {
-                  const uniqueTurnIds = Array.from(selectedFile.turnIds).slice(0, 8);
-                  return uniqueTurnIds.map((turnId, i) => {
-                    const totalShown = Math.min(uniqueTurnIds.length, 8);
-                    const angle = Math.PI + (Math.PI * (i + 0.5)) / totalShown;
-                    const radius = 45;
-                    const x = 170 + radius * Math.cos(angle);
-                    const y = 60 + radius * Math.sin(angle);
-                    const turnOps = selectedFile.operations.filter(op => op.turnId === turnId);
-                    const hasError = turnOps.some(op => op.status === 'error');
-                    const turnNum = turnOps[0]?.turnNumber || '?';
-                    return (
-                      <g key={`file-turn-${turnId}`}>
-                        <circle
-                          cx={x} cy={y} r={10}
-                          fill={hasError ? '#ef4444' : themeColors.emerald}
-                          filter={hasError ? 'url(#fileMiniErrorGlow)' : 'url(#fileMiniGlow)'}
-                        />
-                        <text x={x} y={y + 3} textAnchor="middle" fontSize="8" fill={themeColors.nodeTextOnFill} fontWeight="600">
-                          T{turnNum}
-                        </text>
-                      </g>
-                    );
-                  });
-                })()}
-
-                {/* More indicator */}
-                {selectedFile.turnIds.size > 8 && (
-                  <text x={170} y={115} textAnchor="middle" fontSize="10" fill={themeColors.textMuted}>
-                    +{selectedFile.turnIds.size - 8} more
-                  </text>
-                )}
-              </svg>
-            </div>
-          </div>
-        </div>
+        <FileSlideover
+          selectedFile={selectedFile}
+          turns={turns}
+          spiralPositions={spiralPositions}
+          themeColors={themeColors as ThemeColors}
+          onClose={() => setSelectedFile(null)}
+          onTurnClick={(turn, isAnomaly, activity) => {
+            setSelectedFile(null);
+            handleTurnClick(turn, isAnomaly, activity);
+          }}
+          onCenterOnPosition={centerOnPosition}
+        />
       )}
     </div>
   );

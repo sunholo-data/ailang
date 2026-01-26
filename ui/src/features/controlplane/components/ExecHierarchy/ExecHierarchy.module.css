@@ -1518,6 +1518,89 @@
 }
 
 /* ============================================
+   Chat Context (embedded in span popover)
+   ============================================ */
+
+.chatContextContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.chatContextMessage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  background: var(--bg-base, #0f1419);
+  border-radius: var(--radius-sm, 4px);
+  border-left: 3px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+.chatContextMessage.userMessage {
+  border-left-color: var(--color-info, #4299e1);
+}
+
+.chatContextMessage.assistantMessage {
+  border-left-color: var(--color-success, #48bb78);
+}
+
+.chatContextRole {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  font-size: var(--text-xs, 10px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-tertiary, #6e7681);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chatContextText {
+  font-size: var(--text-sm, 12px);
+  color: var(--text-secondary, #8b949e);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.chatContextThinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-1, 4px);
+  padding: var(--space-1, 2px) var(--space-2, 6px);
+  background: rgba(159, 122, 234, 0.15);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 10px);
+  color: var(--color-purple-light, #b794f4);
+}
+
+.chatContextLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-2, 8px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-tertiary, #6e7681);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.chatContextLink:hover {
+  background: var(--bg-hover-strong, rgba(255, 255, 255, 0.06));
+  color: var(--text-secondary, #8b949e);
+  border-color: var(--border-default, rgba(255, 255, 255, 0.1));
+}
+
+/* ============================================
    Chat History View Styles
    ============================================ */
 
@@ -2750,4 +2833,169 @@
 
 .chatSearchHint li {
   margin-bottom: var(--space-1, 4px);
+}
+
+/* ChatPreview Component */
+.chatPreview {
+  background: var(--bg-elevated, #161b22);
+  border: 1px solid var(--border-subtle, #21262d);
+  border-radius: var(--radius-md, 6px);
+  padding: var(--space-3, 12px);
+  max-width: 400px;
+  min-width: 280px;
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.4));
+}
+
+.chatPreviewCompact {
+  padding: var(--space-2, 8px);
+  max-width: 320px;
+  min-width: 200px;
+}
+
+.chatPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2, 8px);
+  padding-bottom: var(--space-2, 8px);
+  border-bottom: 1px solid var(--border-subtle, #21262d);
+}
+
+.chatPreviewTitle {
+  font-size: var(--text-sm, 13px);
+  font-weight: var(--font-medium, 500);
+  color: var(--text-primary, #e6edf3);
+}
+
+.chatPreviewActions {
+  display: flex;
+  gap: var(--space-1, 4px);
+}
+
+.chatPreviewExpandBtn,
+.chatPreviewClose {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  font-size: var(--text-sm, 13px);
+  color: var(--text-secondary, #8b949e);
+  cursor: pointer;
+  border-radius: var(--radius-xs, 3px);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.chatPreviewExpandBtn:hover,
+.chatPreviewClose:hover {
+  background: var(--bg-base, #0d1117);
+  color: var(--text-primary, #e6edf3);
+}
+
+.chatPreviewMessages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chatPreviewCompact .chatPreviewMessages {
+  max-height: 120px;
+}
+
+.chatPreviewMessage {
+  display: flex;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-sm, 13px);
+  line-height: 1.4;
+}
+
+.chatPreviewUser {
+  background: var(--bg-base, #0d1117);
+  border-left: 2px solid var(--accent, #58a6ff);
+}
+
+.chatPreviewAssistant {
+  background: var(--bg-surface, #1c2128);
+  border-left: 2px solid var(--success, #3fb950);
+}
+
+.chatPreviewRole {
+  flex-shrink: 0;
+  font-size: var(--text-xs, 11px);
+}
+
+.chatPreviewContent {
+  color: var(--text-secondary, #8b949e);
+  word-break: break-word;
+}
+
+.chatPreviewCompact .chatPreviewMessage {
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  font-size: var(--text-xs, 11px);
+}
+
+.chatPreviewViewFull {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-2, 8px);
+  padding: var(--space-2, 8px);
+  background: transparent;
+  border: 1px dashed var(--border-subtle, #21262d);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--primary, #58a6ff);
+  font-size: var(--text-xs, 11px);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.chatPreviewViewFull:hover {
+  background: var(--bg-base, #0d1117);
+  border-color: var(--primary, #58a6ff);
+}
+
+.chatPreviewLoading,
+.chatPreviewError,
+.chatPreviewEmpty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px);
+  font-size: var(--text-sm, 13px);
+  color: var(--text-tertiary, #6e7681);
+}
+
+.chatPreviewSpinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.chatPreviewErrorIcon {
+  color: var(--error, #f85149);
+}
+
+.chatPreviewEmptyIcon {
+  opacity: 0.5;
+}
+
+/* Chat context button in tree nodes */
+.chatContextBtn {
+  background: none;
+  border: none;
+  padding: 0 4px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.chatContextBtn:hover {
+  opacity: 1;
+  transform: scale(1.1);
 }

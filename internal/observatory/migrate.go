@@ -284,12 +284,75 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 5
 	}
 
+	// Migration v6: Add chat_messages table for storing Claude Code conversation history
+	// Imports JSONL files from ~/.claude/projects/ for unified queries with spans
+	if currentVersion < 6 {
+		// Create chat_messages table
+		_, err = db.Exec(`
+			CREATE TABLE IF NOT EXISTS chat_messages (
+				id TEXT PRIMARY KEY,
+				session_id TEXT NOT NULL,
+				turn_number INTEGER NOT NULL,
+				role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+				content_text TEXT,
+				content_thinking TEXT,
+				content_json TEXT,
+				tokens_in INTEGER DEFAULT 0,
+				tokens_out INTEGER DEFAULT 0,
+				model TEXT,
+				request_id TEXT,
+				timestamp TIMESTAMP NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_messages table: %w", err)
+		}
+
+		// Create indexes for chat_messages
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, turn_number)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_messages session index: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp DESC)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_messages timestamp index: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_chat_messages_request ON chat_messages(request_id)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_messages request index: %w", err)
+		}
+
+		// Create chat_import_status table to track which JSONL files have been imported
+		_, err = db.Exec(`
+			CREATE TABLE IF NOT EXISTS chat_import_status (
+				session_id TEXT PRIMARY KEY,
+				file_path TEXT NOT NULL,
+				file_mtime TIMESTAMP NOT NULL,
+				message_count INTEGER NOT NULL,
+				imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_import_status table: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (6)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 6: %w", err)
+		}
+		currentVersion = 6
+	}
+
 	return currentVersion, nil
 }
 
 // ValidateSchema checks that all expected tables exist.
 // Returns nil if schema is valid, error describing what's missing otherwise.
 // NOTE: span_events table removed in v4 migration (M-DB-CLEANUP)
+// NOTE: chat_messages and chat_import_status added in v6 migration (M-CHAT-HISTORY-DB)
 func ValidateSchema(db *sql.DB) error {
 	expectedTables := []string{
 		"workspaces",
@@ -300,6 +363,8 @@ func ValidateSchema(db *sql.DB) error {
 		"sessions",
 		"session_tools",
 		"metrics",
+		"chat_messages",
+		"chat_import_status",
 	}
 
 	for _, table := range expectedTables {
