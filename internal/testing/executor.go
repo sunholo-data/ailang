@@ -723,13 +723,38 @@ func (e *Executor) HasCrossFunctionDependencies(
 // injectModuleBindings evaluates all module Core programs and injects their bindings
 // into the evaluator's environment. This allows the test harness to reference functions
 // that were imported and elaborated (like functions from std/fs, std/net, etc.).
+//
+// CRITICAL BUG FIX (M-DX25):
+// The issue was that FunctionValues were capturing `env` at injection time, before all
+// module bindings were added to `env`. When a function's body references another imported
+// function, that reference might not be in the captured environment snapshot.
+//
+// Example of the bug:
+//  1. Module std/fs has function `read` that internally calls `_io_read`
+//  2. We inject `read` with Env: env (capturing current env, which doesn't have `_io_read` yet)
+//  3. Later, we inject `_io_read` into env
+//  4. When evaluating test harness that calls `read`:
+//     - read's body references `_io_read`
+//     - But `_io_read` is not in read's captured env (it was added after the capture!)
+//     - Resolution fails with "cannot apply non-function value: <nil>"
+//
+// Solution: Use a two-pass approach:
+//
+//	Pass 1: Collect all lambda bindings to inject, but don't create FunctionValues yet
+//	Pass 2: After env is populated with all names, create FunctionValues that capture
+//	        the now-complete environment
 func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval.Environment) {
 	if len(e.modules) == 0 {
 		return
 	}
 
-	// For each loaded module, directly inject lambda bindings into the environment
-	// without evaluating module code (which might have side effects)
+	// PASS 1: Collect pending bindings (lambdas) and inject non-lambda values
+	type PendingLambdaBinding struct {
+		name   string
+		lambda *core.Lambda
+	}
+	var pendingLambdas []PendingLambdaBinding
+
 	for _, mod := range e.modules {
 		if mod.Core == nil {
 			continue
@@ -739,17 +764,12 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 		for _, decl := range mod.Core.Decls {
 			switch d := decl.(type) {
 			case *core.Let:
-				// For pure functions, the value is a Lambda that doesn't need evaluation
-				// Just bind the name to the core expression as a closure
+				// For pure functions, the value is a Lambda - queue it for Pass 2
 				if lambda, ok := d.Value.(*core.Lambda); ok {
-					// Create a FunctionValue that wraps the core lambda
-					funcVal := &eval.FunctionValue{
-						Params: extractLambdaParams(lambda),
-						Body:   lambda.Body,
-						Env:    env,
-						Typed:  true,
-					}
-					env.Set(d.Name, funcVal)
+					pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
+						name:   d.Name,
+						lambda: lambda,
+					})
 				} else if _, ok := d.Value.(*core.VarGlobal); ok {
 					// This is a re-export of another module's function
 					// We need to evaluate it to get the actual function value
@@ -760,21 +780,29 @@ func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval
 				}
 
 			case *core.LetRec:
-				// For recursive bindings, we need to create recursive function values
-				// Just add them to the environment directly - the evaluator will handle recursion
+				// For recursive bindings, queue the lambdas for Pass 2
 				for _, binding := range d.Bindings {
 					if lambda, ok := binding.Value.(*core.Lambda); ok {
-						funcVal := &eval.FunctionValue{
-							Params: extractLambdaParams(lambda),
-							Body:   lambda.Body,
-							Env:    env,
-							Typed:  true,
-						}
-						env.Set(binding.Name, funcVal)
+						pendingLambdas = append(pendingLambdas, PendingLambdaBinding{
+							name:   binding.Name,
+							lambda: lambda,
+						})
 					}
 				}
 			}
 		}
+	}
+
+	// PASS 2: Now create FunctionValues with the fully-populated environment
+	// This ensures all function dependencies can be resolved from env.
+	for _, pending := range pendingLambdas {
+		funcVal := &eval.FunctionValue{
+			Params: extractLambdaParams(pending.lambda),
+			Body:   pending.lambda.Body,
+			Env:    env, // Capture the fully-populated environment
+			Typed:  true,
+		}
+		env.Set(pending.name, funcVal)
 	}
 }
 
