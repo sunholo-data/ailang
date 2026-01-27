@@ -217,6 +217,65 @@ text, _ := embed.ToString(result)  // "Hello, Wor..."
 
 **Design Doc:** `design_docs/implemented/v0_7_0/m-embed-go-ailang-bridge.md`
 
+### Added - Developer Experience Improvements: BigQuery Connector Feedback (M-DX24)
+
+Addressed 6 critical developer experience issues discovered through real-world BigQuery connector development. Focused on documentation, error messages, and language feature validation.
+
+**Issues Fixed:**
+
+1. **Reserved Keywords Documentation** - Complete reference added
+   - `docs/reference/reserved-keywords.md` - 43 keywords listed and categorized
+   - Clear examples of common mistakes and workarounds
+   - Contextual keywords documented
+
+2. **Parser Error Messages for Keywords** - Improved detection and suggestions
+   - Parser now detects reserved keywords in identifier positions
+   - Error code: `PAR_RESERVED_KEYWORD` with helpful suggestions
+   - Links to reserved keywords documentation
+
+3. **Pattern Matching with Option Type** - Verified working correctly
+   - Pattern matching for ADT types (Some/None) fully functional
+   - Added comprehensive test suite in `examples/pattern_matching_adt.ail`
+   - Nested patterns and multiple match arms work as expected
+
+4. **If-Then-Else Block Expressions** - Verified working with full support
+   - Multi-statement blocks supported in both then and else branches
+   - let bindings and nested blocks work correctly
+   - Added example in `examples/if_then_else_blocks.ail`
+
+5. **Record Type Inference** - Field access and construction working
+   - Record field access (e.g., `config.port`) works correctly
+   - Record pattern matching functional
+   - Added examples in `examples/record_in_result.ail`
+
+6. **Stdlib Version Mismatch Warnings** - Warning exists but doesn't block features
+   - Fixed v0.7.0 prompt hash verification in `prompts/versions.json`
+   - Warnings informational only, not blocking functionality
+
+**New Files:**
+- `examples/pattern_matching_adt.ail` (~67 LOC) - Comprehensive ADT pattern matching tests
+- `examples/if_then_else_blocks.ail` (~71 LOC) - If-then-else with block expressions
+- `examples/record_in_result.ail` (~48 LOC) - Record construction and field access
+
+**Updated Files:**
+- `docs/reference/reserved-keywords.md` - Comprehensive keyword reference
+- `prompts/versions.json` - Fixed v0.7.0 hash (test validation)
+- `internal/parser/reserved_keyword_test.go` - Existing tests verified working
+
+**Testing:**
+- All new example files verified to compile and type-check
+- Parser error detection for reserved keywords tested
+- Pattern matching with Option type confirmed functional
+
+**Impact:**
+- BigQuery connector demo code now works without workarounds
+- Better error messages help developers identify reserved keyword conflicts early
+- Language features validated through real-world usage
+
+**Design Doc:** `design_docs/planned/v0_7_0/m-dx24-developer-dx-improvements.md`
+
+**Sprint Plan:** `design_docs/planned/v0_7_0/m-dx24-sprint-plan.md`
+
 ### Added - AILANG Dogfooding: Dashboard Transforms
 
 Created `internal/dashboard_transforms/` with AILANG port of event formatter for dogfooding.
