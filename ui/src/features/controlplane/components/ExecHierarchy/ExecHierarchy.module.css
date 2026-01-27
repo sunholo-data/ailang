@@ -594,6 +594,25 @@
   color: var(--text-secondary, #8b949e);
 }
 
+/* Turn node card styling - subtle left border accent */
+.turnNode > .treeNodeHeader {
+  border-left: 2px solid rgba(231, 60, 23, 0.3);
+  margin-left: -2px;
+}
+
+/* Chat preview subtitle under turn nodes */
+.turnSubtitle {
+  font-size: 11px;
+  color: var(--text-tertiary, #6e7681);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 600px;
+  padding-bottom: 2px;
+  cursor: default;
+}
+
 /* Status Colors - using theme semantic colors */
 .statusCompleted {
   background: rgba(56, 161, 105, 0.15);

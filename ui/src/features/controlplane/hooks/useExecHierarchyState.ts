@@ -101,7 +101,7 @@ export interface UseExecHierarchyStateResult {
 // ============================================================================
 
 const DEFAULT_DISPLAY_LIMIT = 100;
-const DEFAULT_HIDDEN_SPAN_TYPES = new Set(['api_request']);
+const DEFAULT_HIDDEN_SPAN_TYPES = new Set<string>();
 
 // ============================================================================
 // Hook Implementation

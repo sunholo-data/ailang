@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import type { HierarchyNode, NodeStatus } from './types';
+import { sanitizeChatPreview } from '../../utils/smartLabel';
 import styles from './ExecHierarchy.module.css';
 
 // Format duration in human-readable format
@@ -106,9 +107,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   // Extract provider for exec nodes
   const provider = (node as { provider?: string }).provider;
 
+  // Chat preview subtitle for turn nodes
+  const chatSubtitle = node.type === 'turn' && node._span?.chat_context?.user_prompt
+    ? sanitizeChatPreview(node._span.chat_context.user_prompt)
+    : undefined;
+
   return (
     <div
-      className={`${styles.treeNode} ${isHighlighted ? styles.highlightedSpan : ''}`}
+      className={`${styles.treeNode} ${node.type === 'turn' ? styles.turnNode : ''} ${isHighlighted ? styles.highlightedSpan : ''}`}
       data-span-id={node._span?.id || node.id}
     >
       <div
@@ -148,6 +154,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           </span>
         )}
       </div>
+
+      {/* Chat preview subtitle for turn nodes */}
+      {chatSubtitle && (
+        <div
+          className={styles.turnSubtitle}
+          style={{ paddingLeft: `${depth * 20 + 44}px` }}
+        >
+          {chatSubtitle}
+        </div>
+      )}
 
       {/* Children */}
       {expanded && hasChildren && (

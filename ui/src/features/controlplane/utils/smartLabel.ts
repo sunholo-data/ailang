@@ -231,30 +231,19 @@ export function getSmartLabel(span: Span): string {
     return getClaudeCodeToolLabel(name, attrs);
   }
 
-  // API requests (Claude Code turns): prefer chat preview, fallback to model/cost
+  // API requests (Claude Code turns): show Turn N (model) $cost
+  // Chat preview text is shown as subtitle via getSmartLabelResult()
   if (name === 'api_request') {
-    // Phase 5: Show first 100 chars of user prompt or assistant response as label
     const chatCtx = span.chat_context;
-    if (chatCtx?.user_prompt) {
-      const preview = chatCtx.user_prompt.substring(0, 100);
-      return preview.length < chatCtx.user_prompt.length ? preview + '...' : preview;
-    }
-    if (chatCtx?.assistant_response) {
-      const preview = chatCtx.assistant_response.substring(0, 100);
-      return preview.length < chatCtx.assistant_response.length ? preview + '...' : preview;
-    }
-    // Fallback: show model and cost when no chat context available
+    const turnNum = chatCtx?.turn_number;
     const model = attrs['model'] || '';
     const cost = parseFloat(attrs['cost_usd'] || '0');
     let modelShort = model.replace('claude-', '').replace('-20251101', '').replace('-20251001', '');
     if (modelShort.length > 15) modelShort = modelShort.substring(0, 15);
-    if (model && cost > 0) {
-      return `Turn (${modelShort}) $${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
-    }
-    if (model) {
-      return `Turn (${modelShort})`;
-    }
-    return 'Turn';
+    let label = turnNum ? `Turn ${turnNum}` : 'Turn';
+    if (modelShort) label += ` (${modelShort})`;
+    if (cost > 0) label += ` $${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
+    return label;
   }
 
   // AILANG operations: show clean operation name
@@ -358,7 +347,23 @@ function getClaudeCodeToolLabel(name: string, attrs: Record<string, string>): st
 }
 
 /**
- * Get full smart label result with all components
+ * Sanitize chat preview text for display as subtitle.
+ * Strips XML-like tags (e.g. <ide_opened_file>, <system-reminder>),
+ * trims whitespace, and truncates to maxLen chars.
+ */
+export function sanitizeChatPreview(text: string, maxLen = 80): string {
+  // Strip XML-like tags
+  let clean = text.replace(/<[^>]+>/g, '');
+  // Collapse whitespace and newlines
+  clean = clean.replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  if (clean.length <= maxLen) return clean;
+  return clean.substring(0, maxLen) + '...';
+}
+
+/**
+ * Get full smart label result with all components.
+ * For api_request (turn) spans, includes a sanitized chat preview as subtitle.
  */
 export function getSmartLabelResult(span: Span): SmartLabelResult {
   const nodeType = getNodeType(span.name);
@@ -383,8 +388,20 @@ export function getSmartLabelResult(span: Span): SmartLabelResult {
     metadata.provider = attrs['provider'];
   }
 
+  // For api_request spans, add chat preview as subtitle
+  let subtitle: string | undefined;
+  if (span.name === 'api_request' && span.chat_context) {
+    const chatCtx = span.chat_context;
+    if (chatCtx.user_prompt) {
+      subtitle = sanitizeChatPreview(chatCtx.user_prompt);
+    } else if (chatCtx.assistant_response) {
+      subtitle = sanitizeChatPreview(chatCtx.assistant_response);
+    }
+  }
+
   return {
     label,
+    subtitle,
     icon,
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };

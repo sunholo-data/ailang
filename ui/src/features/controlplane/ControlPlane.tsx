@@ -154,8 +154,8 @@ export const ControlPlane: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   // Span type filtering (Milestone 14) - generic filter for any span type
-  // Default: hide api_request spans (LLM turns are noisy, tool calls are useful)
-  const [hiddenSpanTypes, setHiddenSpanTypes] = useState<Set<string>>(new Set(['api_request']));
+  // Default: show all span types including api_request (Phase 5: chat-first tree view)
+  const [hiddenSpanTypes, setHiddenSpanTypes] = useState<Set<string>>(new Set());
 
   // Toggle a span type in/out of the hidden set
   const toggleHiddenSpanType = useCallback((spanType: string) => {
