@@ -100,10 +100,16 @@ func dashboardSpansCommand() {
 	limit := fs.Int("limit", 50, "Maximum results")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	enriched := fs.Bool("enriched", false, "Enrich spans with tool metadata (file paths, commands, etc.)")
+	includeChat := fs.Bool("include-chat", false, "Include chat context (user prompt, assistant response) for each span")
 
 	if err := fs.Parse(os.Args[3:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// --include-chat requires the enriched endpoint
+	if *includeChat {
+		*enriched = true
 	}
 
 	baseURL := getDashboardURL(*server)
@@ -125,6 +131,9 @@ func dashboardSpansCommand() {
 	}
 	if *traceID != "" {
 		params.Set("trace_id", *traceID)
+	}
+	if *includeChat {
+		params.Set("include_chat", "true")
 	}
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
@@ -209,6 +218,27 @@ func dashboardSpansCommand() {
 		dur := formatDuration(getFloat(span, "duration_ms"))
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, name, prov, mod, stat, dur)
+
+		// Show chat context below the span row when --include-chat is set
+		if *includeChat {
+			if chatCtx, ok := span["chat_context"].(map[string]interface{}); ok && chatCtx != nil {
+				if prompt, _ := chatCtx["user_prompt"].(string); prompt != "" {
+					fmt.Fprintf(w, "\t  💬 User: %s\n", truncate(prompt, 80))
+				}
+				if response, _ := chatCtx["assistant_response"].(string); response != "" {
+					fmt.Fprintf(w, "\t  🤖 Asst: %s\n", truncate(response, 80))
+				}
+				turn, _ := chatCtx["turn_number"].(float64)
+				thinking, _ := chatCtx["has_thinking"].(bool)
+				if turn > 0 || thinking {
+					extra := fmt.Sprintf("\t  Turn: %.0f", turn)
+					if thinking {
+						extra += " (with thinking)"
+					}
+					fmt.Fprintln(w, extra)
+				}
+			}
+		}
 	}
 	w.Flush()
 	fmt.Printf("\nTotal: %d spans\n", len(spans))

@@ -828,9 +828,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             expandedNodeIds={expandedNodes}
             onToggleExpand={handleToggleExpand}
             highlightedSpanId={highlightedSpanId}
-            onChatContextClick={() => {
-              // Switch to chat view when 💬 button is clicked
-              setViewMode('chat');
+            onChatContextClick={(node) => {
+              // Open popover to show inline chat context (chat_context is embedded in span data)
+              handleNodeClick(node);
             }}
           />
         )}
@@ -852,9 +852,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             provider={filters?.provider}
             // Span type filtering - same as other views
             hiddenSpanTypes={hiddenSpanTypes}
-            // Chat context - switch to chat view when clicked
+            // Chat context - open popover with inline chat content
             onChatContextClick={() => {
-              setViewMode('chat');
+              // Graph nodes don't pass node ref; popover shows chat_context from selected node
             }}
           />
         )}
@@ -865,8 +865,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             hiddenSpanTypes={hiddenSpanTypes}
             onToggleSpanType={toggleSpanType}
             onChatContextClick={(span) => {
-              // Switch to chat view when 💬 button is clicked
-              // ChatHistory will display messages for the current spans/session
+              // Clicking 💬 in timeline: find and open the node popover
+              // The popover shows embedded chat_context (user prompt + assistant response)
+              // Fallback: switch to chat view if popover can't show it
               setViewMode('chat');
             }}
           />
@@ -890,8 +891,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             isExpanded={isExpanded}
             theme={theme}
             onChatContextClick={() => {
-              // Switch to chat view when chat button is clicked
-              setViewMode('chat');
+              // Popover shows inline chat_context when node is clicked
             }}
           />
         )}

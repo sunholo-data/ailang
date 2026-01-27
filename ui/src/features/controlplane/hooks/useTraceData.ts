@@ -146,10 +146,8 @@ export function useTraceData(options: UseTraceDataOptions = {}) {
     // Include workspace param to prevent cross-workspace span bleeding
     const params = new URLSearchParams();
     if (workspace) params.set('workspace', workspace);
-    const query = params.toString();
-    const url = query
-      ? `/api/observatory/tasks/${tid}/hierarchy?${query}`
-      : `/api/observatory/tasks/${tid}/hierarchy`;
+    params.set('include_chat', 'true');
+    const url = `/api/observatory/tasks/${tid}/hierarchy?${params.toString()}`;
     const response = await fetch(url);
     if (!response.ok) {
       // Fallback to direct spans query if hierarchy fails (also request chat context)

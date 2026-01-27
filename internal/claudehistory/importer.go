@@ -346,7 +346,7 @@ func (i *Importer) GetChatMessagesByTimeRange(ctx context.Context, sessionID str
 		FROM chat_messages
 		WHERE session_id = ? AND timestamp >= ? AND timestamp <= ?
 		ORDER BY turn_number, timestamp
-	`, sessionID, start, end)
+	`, sessionID, start.UTC().Format("2006-01-02 15:04:05+00:00"), end.UTC().Format("2006-01-02 15:04:05+00:00"))
 	if err != nil {
 		return nil, fmt.Errorf("query chat messages: %w", err)
 	}

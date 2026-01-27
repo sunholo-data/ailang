@@ -61,6 +61,11 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enrich spans with chat context if requested
+	if r.URL.Query().Get("include_chat") == "true" {
+		spans = a.enrichSpansWithChat(r.Context(), spans)
+	}
+
 	// Try to get SQLite backend for session enrichment
 	sqliteBackend, ok := a.backend.(*SQLiteBackend)
 	if !ok {
@@ -606,6 +611,10 @@ func spanToMap(span *Span) map[string]any {
 	if span.DurationMs > 0 {
 		m["duration_ms"] = span.DurationMs
 	}
+	// Chat context (populated when include_chat=true)
+	if span.ChatContext != nil {
+		m["chat_context"] = span.ChatContext
+	}
 	return m
 }
 
@@ -628,6 +637,7 @@ type HierarchicalSpan struct {
 	TokensOut    int64               `json:"tokens_out,omitempty"`
 	CostUSD      float64             `json:"cost_usd,omitempty"`
 	TaskID       string              `json:"task_id,omitempty"`
+	ChatContext  *ChatContext        `json:"chat_context,omitempty"`
 	Children     []*HierarchicalSpan `json:"children,omitempty"`
 }
 
@@ -661,6 +671,7 @@ func buildHierarchicalSpans(spans []*Span, displayNames map[string]string) []*Hi
 			TokensOut:    span.TokensOut,
 			CostUSD:      span.CostUSD,
 			TaskID:       span.TaskID,
+			ChatContext:  span.ChatContext,
 			Children:     nil,
 		}
 		if hs.DisplayName == "" {

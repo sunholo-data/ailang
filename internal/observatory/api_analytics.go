@@ -134,6 +134,50 @@ func (a *API) enrichHierarchySpans(ctx context.Context, hierarchy *TaskHierarchy
 	}
 }
 
+// enrichHierarchySpansWithChat populates ChatContext for all spans in a TaskHierarchy.
+// Reuses enrichSpansWithChat from api_spans.go which queries chat_messages by session.id + time range.
+func (a *API) enrichHierarchySpansWithChat(ctx context.Context, hierarchy *TaskHierarchy) {
+	if hierarchy == nil {
+		return
+	}
+
+	// Collect all spans from hierarchy (same traversal as enrichHierarchySpans)
+	var allSpans []*Span
+	var collectFromSpanNodes func(nodes []*SpanNode)
+	collectFromSpanNodes = func(nodes []*SpanNode) {
+		for _, node := range nodes {
+			if node != nil && node.Span != nil {
+				allSpans = append(allSpans, node.Span)
+			}
+			if node != nil && len(node.Children) > 0 {
+				collectFromSpanNodes(node.Children)
+			}
+		}
+	}
+
+	for _, agent := range hierarchy.Agents {
+		if agent == nil {
+			continue
+		}
+		for _, trace := range agent.Traces {
+			if trace == nil {
+				continue
+			}
+			collectFromSpanNodes(trace.Spans)
+			if trace.RootSpan != nil {
+				collectFromSpanNodes([]*SpanNode{trace.RootSpan})
+			}
+		}
+	}
+
+	if len(allSpans) == 0 {
+		return
+	}
+
+	// Reuse the existing enrichment logic from api_spans.go
+	a.enrichSpansWithChat(ctx, allSpans)
+}
+
 func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -164,6 +208,9 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 				ccHierarchy, ccErr := sqliteBackend.GetClaudeCodeHierarchy(r.Context(), id)
 				if ccErr == nil {
 					a.enrichHierarchySpans(r.Context(), ccHierarchy)
+					if r.URL.Query().Get("include_chat") == "true" {
+						a.enrichHierarchySpansWithChat(r.Context(), ccHierarchy)
+					}
 					writeJSON(w, http.StatusOK, ccHierarchy)
 					return
 				}
@@ -176,5 +223,11 @@ func (a *API) handleGetTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.enrichHierarchySpans(r.Context(), hierarchy)
+
+	// Enrich with chat context if requested
+	if r.URL.Query().Get("include_chat") == "true" {
+		a.enrichHierarchySpansWithChat(r.Context(), hierarchy)
+	}
+
 	writeJSON(w, http.StatusOK, hierarchy)
 }
