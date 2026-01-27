@@ -1,0 +1,282 @@
+{
+  "sprint_id": "M-DX24",
+  "title": "Developer Experience Improvements - BigQuery Connector Feedback",
+  "version": "1.0",
+  "created_at": "2026-01-27T00:00:00Z",
+  "status": "planned",
+  "design_doc_path": "design_docs/planned/v0_7_0/m-dx24-developer-dx-improvements.md",
+  "sprint_plan_path": "design_docs/planned/v0_7_0/m-dx24-sprint-plan-implementation.md",
+  "target_version": "v0.7.0",
+  "duration_days": 10,
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 110,
+    "estimated_total_loc": 1100,
+    "estimated_days": 10,
+    "recent_velocity_loc_per_day": 90
+  },
+  "features": [
+    {
+      "id": "M1_1_RESERVED_KEYWORDS",
+      "phase": "Phase 1: Documentation & Error Messages",
+      "title": "Reserved Keywords Documentation & Error Messages",
+      "description": "Document all 43 reserved keywords and improve parser error messages to help developers recognize and resolve keyword conflicts early.",
+      "estimated_loc": 280,
+      "estimated_hours": 12,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "All 43 keywords documented in reference doc",
+        "Parser error message: 'Cannot use reserved keyword X as identifier'",
+        "Keyword error test cases passing",
+        "Documentation links properly in SUMMARY.md",
+        "No regressions in existing error handling"
+      ],
+      "files_to_create": [
+        "docs/reference/reserved-keywords.md"
+      ],
+      "files_to_modify": [
+        "internal/errors/errors.go",
+        "internal/errors/errors_test.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_2_MODULE_IMPORTS",
+      "phase": "Phase 1: Documentation & Error Messages",
+      "title": "Module Import Transitivity Documentation",
+      "description": "Document AILANG's explicit import design (imports are not transitive) and improve error messages to guide developers.",
+      "estimated_loc": 190,
+      "estimated_hours": 8,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Import transitivity design clearly documented",
+        "Example showing implicit vs. explicit imports",
+        "Error message mentions missing import with suggestion",
+        "Teaching prompt includes module pattern",
+        "All existing module tests still pass"
+      ],
+      "files_to_create": [],
+      "files_to_modify": [
+        "docs/guides/modules.md",
+        "internal/loader/loader.go",
+        "prompts/v0.7.0.md"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1_3_TEACHING_PROMPT",
+      "phase": "Phase 1: Documentation & Error Messages",
+      "title": "Teaching Prompt Update for Reserved Keywords & Patterns",
+      "description": "Update teaching prompt to include information about reserved keywords, module imports, and common patterns discovered from real-world usage.",
+      "estimated_loc": 120,
+      "estimated_hours": 4,
+      "dependencies": ["M1_1_RESERVED_KEYWORDS", "M1_2_MODULE_IMPORTS"],
+      "acceptance_criteria": [
+        "Teaching prompt includes reserved keywords section",
+        "Real-world examples from BigQuery connector",
+        "Module import rules explained",
+        "All syntax examples valid and tested"
+      ],
+      "files_to_create": [],
+      "files_to_modify": [
+        "prompts/v0.7.0.md"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_1_PATTERN_MATCHING",
+      "phase": "Phase 2: Runtime Fixes",
+      "title": "Fix Option Pattern Matching (CRITICAL)",
+      "description": "Debug and fix pattern matching elaboration for ADT constructors (Option/Some/None). This is the highest-priority runtime fix as it affects core language feature.",
+      "estimated_loc": 320,
+      "estimated_hours": 16,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "match Some(1) { Some(x) => x, None => 0 } works and returns 1",
+        "match None { Some(x) => x, None => 0 } returns 0",
+        "Nested ADT patterns work",
+        "Error messages include location info",
+        "All new tests passing",
+        "No regression in existing pattern matching tests"
+      ],
+      "files_to_create": [
+        "internal/elaborate/pattern_test.go",
+        "examples/pattern_matching_adt.ail"
+      ],
+      "files_to_modify": [
+        "internal/elaborate/pattern.go",
+        "internal/dtree/dtree.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "CRITICAL PATH - highest priority. If takes longer than estimated, defer M2.4"
+    },
+    {
+      "id": "M2_2_VERSION_MISMATCH",
+      "phase": "Phase 2: Runtime Fixes",
+      "title": "Debug & Resolve Stdlib Version Mismatch (CRITICAL)",
+      "description": "Investigate stdlib version mismatch warnings and determine if they indicate real problems. Either relax version checking for development or fix the root cause affecting Option patterns.",
+      "estimated_loc": 150,
+      "estimated_hours": 8,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Version mismatch warning either resolved or clearly explained",
+        "Investigation documented in commit message",
+        "If flag added, documented in ailang run --help",
+        "No false warnings in normal development workflow",
+        "Test for version handling"
+      ],
+      "files_to_create": [],
+      "files_to_modify": [
+        "internal/loader/loader.go",
+        "cmd/ailang/main.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "May be related to Option pattern matching issue. Investigate together."
+    },
+    {
+      "id": "M2_3_IF_THEN_ELSE",
+      "phase": "Phase 2: Runtime Fixes",
+      "title": "Enable If-Then-Else Block Expressions",
+      "description": "Allow block expressions (with let bindings) in if-then-else branches to reduce boilerplate for multi-statement conditions.",
+      "estimated_loc": 180,
+      "estimated_hours": 8,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "if condition then { let x = foo(); doSomething(x) } else ... works",
+        "Block expressions type-check correctly",
+        "Nested blocks work",
+        "All new tests passing",
+        "No regressions in existing if-then-else tests"
+      ],
+      "files_to_create": [
+        "examples/if_then_else_blocks.ail"
+      ],
+      "files_to_modify": [
+        "internal/parser/parser.go",
+        "internal/elaborate/elaborate.go",
+        "internal/elaborate/elaborate_test.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_4_RECORD_INFERENCE",
+      "phase": "Phase 2: Runtime Fixes",
+      "title": "Improve Record Type Inference in ADT Constructor Contexts",
+      "description": "Allow record literals in ADT constructor arguments to benefit from type information (e.g., Ok({ field: value }) without intermediate binding).",
+      "estimated_loc": 200,
+      "estimated_hours": 8,
+      "dependencies": ["M2_1_PATTERN_MATCHING"],
+      "acceptance_criteria": [
+        "let _: Result[{a: int}, str] = Ok({ a: 1 }) works without intermediate binding",
+        "Type inference error messages suggest intermediate binding workaround",
+        "Nested records work",
+        "All new tests passing",
+        "No regressions in record or ADT tests"
+      ],
+      "files_to_create": [
+        "examples/record_type_inference.ail"
+      ],
+      "files_to_modify": [
+        "internal/types/unify.go",
+        "internal/elaborate/elaborate.go"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Deferred if M2_1 takes longer than estimated. Non-critical but high-value."
+    }
+  ],
+  "timeline": {
+    "phase_1_documentation": {
+      "name": "Phase 1: Documentation & Error Messages",
+      "duration_days": 4,
+      "milestones": ["M1_1_RESERVED_KEYWORDS", "M1_2_MODULE_IMPORTS", "M1_3_TEACHING_PROMPT"]
+    },
+    "phase_2_runtime": {
+      "name": "Phase 2: Runtime Fixes",
+      "duration_days": 6,
+      "milestones": ["M2_1_PATTERN_MATCHING", "M2_2_VERSION_MISMATCH", "M2_3_IF_THEN_ELSE", "M2_4_RECORD_INFERENCE"]
+    }
+  },
+  "success_criteria": {
+    "code_quality": [
+      "All new code follows AILANG conventions",
+      "Test coverage >= 85% for new code",
+      "All tests passing: make test",
+      "All linting passing: make lint",
+      "No regressions in existing functionality"
+    ],
+    "documentation": [
+      "docs/reference/reserved-keywords.md created and linked",
+      "docs/guides/modules.md updated with import transitivity section",
+      "Teaching prompt updated with v0.7.0 version",
+      "All example files included and verified working",
+      "README updated with feature status if applicable"
+    ],
+    "examples": [
+      "examples/pattern_matching_adt.ail works without errors",
+      "examples/if_then_else_blocks.ail works without errors",
+      "examples/record_type_inference.ail works without errors"
+    ],
+    "real_world_validation": [
+      "Option pattern matching works in production context",
+      "No stdlib version mismatch warnings in normal workflow",
+      "Error messages helpful for debugging",
+      "Module import errors clearly guide to solutions"
+    ]
+  },
+  "risks": [
+    {
+      "area": "Pattern Matching Fix (M2.1)",
+      "level": "HIGH",
+      "description": "Elaboration changes might break other pattern matching scenarios",
+      "mitigation": "Comprehensive test suite covering nested ADTs, different contexts, edge cases. Run existing test suite after each change."
+    },
+    {
+      "area": "Type Inference Changes (M2.4)",
+      "level": "HIGH",
+      "description": "Unification improvements might affect other type checking",
+      "mitigation": "Test type inference thoroughly before and after. Include tests for edge cases. Review changes carefully in PR."
+    },
+    {
+      "area": "If-Then-Else Blocks (M2.3)",
+      "level": "MEDIUM",
+      "description": "Parser changes might affect other constructs",
+      "mitigation": "Comprehensive test coverage, careful parser review"
+    },
+    {
+      "area": "Version Mismatch (M2.2)",
+      "level": "MEDIUM",
+      "description": "Relaxing version check might hide real incompatibilities",
+      "mitigation": "Research why version check exists before modifying, add fallback if needed"
+    },
+    {
+      "area": "Documentation Changes (M1.x)",
+      "level": "LOW",
+      "description": "Documentation inaccuracy",
+      "mitigation": "Review examples thoroughly, test all code snippets"
+    }
+  ],
+  "notes": [
+    "Assumption: The BigQuery connector example files will be used to validate fixes",
+    "Key Learning: Real-world feedback is invaluable - these 6 issues came from actual developer experience",
+    "Success Factor: Pattern matching fix (M2.1) is critical path; if it requires more time, consider deferring M2.4",
+    "Documentation First: Documentation changes (Phase 1) should complete first to unblock communication"
+  ]
+}
