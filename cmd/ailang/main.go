@@ -214,6 +214,18 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "serve-api":
+		if err := serveAPICommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "init":
+		if err := initCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "access-control":
 		if err := accessControlCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

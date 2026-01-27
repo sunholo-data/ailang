@@ -49,7 +49,13 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 		return &eval.IntValue{Value: int(rv.Uint())}, nil
 
 	case reflect.Float32, reflect.Float64:
-		return &eval.FloatValue{Value: rv.Float()}, nil
+		f := rv.Float()
+		// JSON unmarshals all numbers as float64. If the value is a whole number,
+		// convert to IntValue for compatibility with AILANG int-typed functions.
+		if f == float64(int(f)) && f >= -1e15 && f <= 1e15 {
+			return &eval.IntValue{Value: int(f)}, nil
+		}
+		return &eval.FloatValue{Value: f}, nil
 
 	case reflect.String:
 		return &eval.StringValue{Value: rv.String()}, nil

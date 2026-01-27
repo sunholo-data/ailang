@@ -1,0 +1,22 @@
+module api/handlers
+
+import std/json (encode, jo, kv, js)
+
+-- Example API handlers for AILANG web app
+-- Each exported function becomes a REST endpoint at POST /api/api/handlers/{function}
+
+export type ApiResponse = {
+  status: int,
+  body: string
+}
+
+export pure func hello(name: string) -> string =
+  "Hello, " ++ name ++ "!"
+
+export pure func greet(name: string) -> ApiResponse = {
+  status: 200,
+  body: encode(jo([
+    kv("message", js("Hello, " ++ name ++ "!")),
+    kv("name", js(name))
+  ]))
+}

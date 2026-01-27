@@ -121,6 +121,37 @@ func parseInput(format: string, data: string) -> Result[Data] {
 }
 ```
 
+## Import Transitivity
+
+**Imports are NOT transitive in AILANG.** When module A imports module B, A does **not** automatically get access to B's imports.
+
+```typescript
+-- module myapp/db imports std/fs internally
+module myapp/db
+import std/fs (readFile)
+export func loadConfig() -> string ! {FS} = readFile("config.json")
+
+-- module myapp/main - must explicitly import std/fs
+module myapp/main
+import std/fs (readFile)        -- Required! Not inherited from myapp/db
+import myapp/db (loadConfig)
+
+export func main() -> () ! {IO, FS} {
+  let config = loadConfig();
+  let extra = readFile("other.txt");
+  println(config ++ extra)
+}
+```
+
+**Why?** Explicit imports prevent hidden dependencies and ensure each module clearly declares what it uses. This is similar to Python's "explicit is better than implicit" philosophy.
+
+**Common error:**
+```
+failed to resolve global std/fs.fileExists: module std/fs not imported
+```
+
+**Fix:** Add the missing import to your module. See the [Module Imports Guide](/docs/guides/module-imports) for detailed examples and debugging tips.
+
 ## Exports
 
 ### Exporting Functions

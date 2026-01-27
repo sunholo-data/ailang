@@ -1,0 +1,20 @@
+module api/greet
+
+import std/json (encode, jo, kv, js)
+
+-- String and JSON functions exposed as REST endpoints
+-- POST /api/api/greet/hello     Body: {"args": ["World"]}  -> "Hello, World!"
+-- POST /api/api/greet/farewell  Body: {"args": ["Alice"]}  -> "Goodbye, Alice. Until next time!"
+-- POST /api/api/greet/welcome   Body: {"args": ["Bob"]}    -> {"message": "Welcome, Bob!", "name": "Bob"}
+
+export pure func hello(name: string) -> string =
+  "Hello, " ++ name ++ "!"
+
+export pure func farewell(name: string) -> string =
+  "Goodbye, " ++ name ++ ". Until next time!"
+
+export pure func welcome(name: string) -> string =
+  encode(jo([
+    kv("message", js("Welcome, " ++ name ++ "!")),
+    kv("name", js(name))
+  ]))

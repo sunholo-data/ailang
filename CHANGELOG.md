@@ -2,6 +2,50 @@
 
 ## [Unreleased]
 
+### Added - API Server & React Scaffold (M-SERVE-API)
+
+New `ailang serve-api` command that compiles AILANG modules and auto-generates REST endpoints from exported functions. Paired with `ailang init web-app` to scaffold full-stack projects with a React frontend.
+
+**New CLI Commands:**
+- `ailang serve-api <path...>` - Serve AILANG exports as REST API endpoints
+  - `--port PORT` (default: 8080) - HTTP server port
+  - `--cors` (default: true) - Enable CORS headers
+  - `--frontend PATH` - Proxy to Vite dev server for React hot-reload
+  - `--static PATH` - Serve built frontend from directory
+- `ailang init web-app [name]` - Scaffold a new web app project with AILANG API + React frontend
+
+**Auto-Generated Endpoints:**
+- `POST /api/{modulePath}/{functionName}` - Call any exported function
+  - Body: `{"args": [arg1, arg2]}` (positional) or single JSON value
+  - Response: `{"result": ..., "module": "...", "func": "...", "elapsed_ms": N}`
+- `GET /api/_meta/modules` - List all loaded modules with exports and type signatures
+- `GET /api/_meta/modules/{path}` - Module detail with typed export info
+- `GET /api/_health` - Health check with module/export counts
+
+**Scaffold Structure (`ailang init web-app myproject`):**
+```
+myproject/
+├── api/handlers.ail     # Example AILANG API module
+├── ui/                  # React + Vite + TypeScript
+│   ├── package.json
+│   ├── vite.config.ts   # Proxies /api to AILANG server
+│   └── src/App.tsx      # React app calling AILANG functions
+└── Makefile             # `make dev` starts both servers
+```
+
+**Bug Fix - JSON Integer Conversion:**
+- Fixed `embed.FromGo()` to detect whole-number float64 values from JSON and convert to `IntValue` instead of `FloatValue`. This ensures JSON `{"args": [3, 4]}` correctly calls `add(x: int, y: int)`.
+
+**New Package:** `internal/apiserver/` (~535 LOC)
+- `server.go` - Core server wrapping embed.Engine
+- `handler.go` - Generic function call handler
+- `meta.go` - Introspection and health endpoints
+- `server_test.go` - 18 tests covering health, modules, function calls, CORS, errors, arg parsing
+
+**Template Files:** `internal/apiserver/templates/web_app/` (embedded via `go:embed`)
+
+**Design Doc:** `design_docs/implemented/v0_7_1/m-serve-api-react-frontend.md`
+
 ### Added - OTEL to TraceRegistry Bridge (M-TRACE-BRIDGE)
 
 Bridged existing OpenTelemetry spans to the TraceRegistry, enabling `_trace_check` to verify spans created by the compiler, REPL, AI providers, and other instrumented components.

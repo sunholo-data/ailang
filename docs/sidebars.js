@@ -87,6 +87,7 @@ const sidebars = {
         'guides/debugging',
         'guides/telemetry',
         'guides/go-interop',
+        'guides/serve-api',
         'guides/wasm-integration',
         'guides/benchmarking',
       ],
