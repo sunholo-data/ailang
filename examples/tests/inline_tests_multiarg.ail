@@ -1,0 +1,216 @@
+-- Inline Tests: Multi-Argument Functions
+-- These examples demonstrate the syntax for testing functions with multiple arguments
+-- Format: ((arg1, arg2, ...), expected_value)
+
+module examples/tests/inline_tests_multiarg
+
+-- Binary arithmetic operations
+pure func add(a: int, b: int) -> int
+  tests [
+    ((3, 5), 8),
+    ((0, 0), 0),
+    ((-1, 1), 0),
+    ((100, 200), 300),
+    ((-5, -3), -8)
+  ]
+{
+  a + b
+}
+
+pure func subtract(a: int, b: int) -> int
+  tests [
+    ((5, 3), 2),
+    ((3, 5), -2),
+    ((5, 5), 0),
+    ((0, 5), -5),
+    ((-5, -3), -2)
+  ]
+{
+  a - b
+}
+
+pure func multiply(a: int, b: int) -> int
+  tests [
+    ((3, 4), 12),
+    ((0, 5), 0),
+    ((5, 0), 0),
+    ((-3, 4), -12),
+    ((-3, -4), 12)
+  ]
+{
+  a * b
+}
+
+pure func divide(a: int, b: int) -> int
+  tests [
+    ((10, 2), 5),
+    ((9, 3), 3),
+    ((0, 5), 0),
+    ((5, 1), 5),
+    ((-10, 2), -5)
+  ]
+{
+  a / b
+}
+
+pure func modulo(a: int, b: int) -> int
+  tests [
+    ((10, 3), 1),
+    ((10, 2), 0),
+    ((15, 4), 3),
+    ((0, 5), 0),
+    ((5, 5), 0)
+  ]
+{
+  a % b
+}
+
+-- Binary comparison operations
+pure func minimum(a: int, b: int) -> int
+  tests [
+    ((5, 3), 3),
+    ((3, 5), 3),
+    ((5, 5), 5),
+    ((-5, 3), -5),
+    ((0, 0), 0)
+  ]
+{
+  if a < b then a else b
+}
+
+pure func maximum(a: int, b: int) -> int
+  tests [
+    ((5, 3), 5),
+    ((3, 5), 5),
+    ((5, 5), 5),
+    ((-5, 3), 3),
+    ((0, 0), 0)
+  ]
+{
+  if a > b then a else b
+}
+
+pure func isGreater(a: int, b: int) -> bool
+  tests [
+    ((5, 3), true),
+    ((3, 5), false),
+    ((5, 5), false)
+  ]
+{
+  a > b
+}
+
+pure func isEqual(a: int, b: int) -> bool
+  tests [
+    ((5, 5), true),
+    ((5, 3), false),
+    ((0, 0), true)
+  ]
+{
+  a == b
+}
+
+-- Binary float operations
+pure func addFloats(a: float, b: float) -> float
+  tests [
+    ((1.5, 2.5), 4.0),
+    ((0.0, 0.0), 0.0),
+    ((-1.5, 1.5), 0.0),
+    ((2.0, 3.5), 5.5)
+  ]
+{
+  a + b
+}
+
+pure func subtractFloats(a: float, b: float) -> float
+  tests [
+    ((5.5, 2.5), 3.0),
+    ((2.5, 5.5), -3.0),
+    ((5.0, 5.0), 0.0),
+    ((0.0, -5.5), 5.5)
+  ]
+{
+  a - b
+}
+
+pure func multiplyFloats(a: float, b: float) -> float
+  tests [
+    ((2.0, 3.5), 7.0),
+    ((1.5, 2.0), 3.0),
+    ((0.0, 5.5), 0.0),
+    ((-2.0, 3.5), -7.0)
+  ]
+{
+  a * b
+}
+
+pure func divideFloats(a: float, b: float) -> float
+  tests [
+    ((10.0, 2.0), 5.0),
+    ((9.0, 3.0), 3.0),
+    ((0.0, 5.0), 0.0),
+    ((5.0, 2.0), 2.5)
+  ]
+{
+  a / b
+}
+
+-- Ternary operations (3 arguments)
+pure func mixedOps(a: int, b: int, c: int) -> int
+  tests [
+    ((2, 3, 4), 14),   -- 2 + 3*4 = 14
+    ((1, 2, 3), 7),    -- 1 + 2*3 = 7
+    ((5, 0, 3), 3),    -- 5 + 0*3 = 3
+    ((0, 0, 0), 0)     -- 0 + 0*0 = 0
+  ]
+{
+  a + b * c
+}
+
+pure func threeWayMax(a: int, b: int, c: int) -> int
+  tests [
+    ((5, 3, 7), 7),
+    ((10, 10, 10), 10),
+    ((1, 2, 3), 3),
+    ((3, 1, 2), 3)
+  ]
+{
+  if a >= b && a >= c then a
+  else if b >= c then b
+  else c
+}
+
+pure func threeWayMin(a: int, b: int, c: int) -> int
+  tests [
+    ((5, 3, 7), 3),
+    ((10, 10, 10), 10),
+    ((1, 2, 3), 1),
+    ((3, 1, 2), 1)
+  ]
+{
+  if a <= b && a <= c then a
+  else if b <= c then b
+  else c
+}
+
+-- Quaternary operation (4 arguments)
+pure func average(a: int, b: int, c: int, d: int) -> int
+  tests [
+    ((4, 4, 4, 4), 4),
+    ((1, 2, 3, 4), 2),
+    ((10, 20, 30, 40), 25)
+  ]
+{
+  (a + b + c + d) / 4
+}
+
+-- String operations with multiple arguments
+pure func stringEquals(s1: string, s2: string) -> bool
+  tests [
+    (("hello", "hello"), true),
+    (("hello", "world"), false),
+    (("", ""), true)
+  ]
+{
+  s1 == s2
+}

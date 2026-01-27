@@ -1,0 +1,163 @@
+-- Inline Tests: Algebraic Data Types (ADTs)
+-- These examples demonstrate testing functions that use ADTs and pattern matching
+
+module examples/tests/inline_tests_adt
+
+-- Simple color enumeration
+type Color = Red | Green | Blue
+
+-- Test pattern matching on color ADT
+pure func colorName(c: Color) -> string
+  tests [
+    (Red, "red"),
+    (Green, "green"),
+    (Blue, "blue")
+  ]
+{
+  match c {
+    Red => "red",
+    Green => "green",
+    Blue => "blue"
+  }
+}
+
+-- Check if color is red
+pure func isRed(c: Color) -> bool
+  tests [
+    (Red, true),
+    (Green, false),
+    (Blue, false)
+  ]
+{
+  match c {
+    Red => true,
+    _ => false
+  }
+}
+
+-- Simple tree data structure
+type Tree = Leaf(int) | Node(Tree, int, Tree)
+
+-- Count nodes in tree
+pure func treeSize(t: Tree) -> int
+  tests [
+    (Leaf(5), 1),
+    (Node(Leaf(1), 2, Leaf(3)), 3),
+    (Node(Node(Leaf(1), 2, Leaf(3)), 4, Leaf(5)), 5)
+  ]
+{
+  match t {
+    Leaf(_) => 1,
+    Node(left, _, right) => 1 + treeSize(left) + treeSize(right)
+  }
+}
+
+-- Sum all values in tree
+pure func treeSum(t: Tree) -> int
+  tests [
+    (Leaf(5), 5),
+    (Node(Leaf(1), 2, Leaf(3)), 6),
+    (Node(Leaf(10), 20, Leaf(30)), 60)
+  ]
+{
+  match t {
+    Leaf(n) => n,
+    Node(left, n, right) => treeSum(left) + n + treeSum(right)
+  }
+}
+
+-- Simple boolean logic
+type Expr = BoolLit(bool) | And(Expr, Expr) | Or(Expr, Expr) | Not(Expr)
+
+-- Evaluate boolean expression
+pure func evalExpr(e: Expr) -> bool
+  tests [
+    (BoolLit(true), true),
+    (BoolLit(false), false),
+    (And(BoolLit(true), BoolLit(true)), true),
+    (And(BoolLit(true), BoolLit(false)), false),
+    (Or(BoolLit(true), BoolLit(false)), true),
+    (Or(BoolLit(false), BoolLit(false)), false),
+    (Not(BoolLit(true)), false),
+    (Not(BoolLit(false)), true)
+  ]
+{
+  match e {
+    BoolLit(b) => b,
+    And(left, right) => evalExpr(left) && evalExpr(right),
+    Or(left, right) => evalExpr(left) || evalExpr(right),
+    Not(e) => if evalExpr(e) then false else true
+  }
+}
+
+-- Status type
+type Status = Active | Inactive | Pending
+
+-- Check if status is active
+pure func isActive(s: Status) -> bool
+  tests [
+    (Active, true),
+    (Inactive, false),
+    (Pending, false)
+  ]
+{
+  match s {
+    Active => true,
+    _ => false
+  }
+}
+
+-- Direction type
+type Direction = North | South | East | West
+
+-- Opposite direction
+pure func opposite(d: Direction) -> Direction
+  tests [
+    (North, South),
+    (South, North),
+    (East, West),
+    (West, East)
+  ]
+{
+  match d {
+    North => South,
+    South => North,
+    East => West,
+    West => East
+  }
+}
+
+-- Natural numbers as ADT
+type Nat = Zero | Succ(Nat)
+
+-- Convert Nat to int
+pure func natToInt(n: Nat) -> int
+  tests [
+    (Zero, 0),
+    (Succ(Zero), 1),
+    (Succ(Succ(Zero)), 2),
+    (Succ(Succ(Succ(Zero))), 3)
+  ]
+{
+  match n {
+    Zero => 0,
+    Succ(n) => 1 + natToInt(n)
+  }
+}
+
+-- Simple shape ADT
+type Shape = Circle(float) | Rectangle(float, float) | Square(float)
+
+-- Calculate area of shape
+pure func shapeArea(s: Shape) -> float
+  tests [
+    (Square(5.0), 25.0),
+    (Rectangle(3.0, 4.0), 12.0)
+  ]
+{
+  match s {
+    Circle(r) => r * r,  -- Simplified (no pi)
+    Rectangle(w, h) => w * h,
+    Square(s) => s * s
+  }
+}

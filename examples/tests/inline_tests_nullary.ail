@@ -1,0 +1,75 @@
+-- Inline Tests: Nullary Functions (No Arguments)
+-- These examples demonstrate the syntax for testing functions with zero arguments
+-- Format: ((), expected_value)
+
+module examples/tests/inline_tests_nullary
+
+-- Constant function returning a fixed value
+pure func getConstant() -> int
+  tests [
+    ((), 42)
+  ]
+{
+  42
+}
+
+-- Current year function
+pure func getCurrentYear() -> int
+  tests [
+    ((), 2025)
+  ]
+{
+  2025
+}
+
+-- Constant string function
+pure func getGreeting() -> string
+  tests [
+    ((), "Hello, AILANG!")
+  ]
+{
+  "Hello, AILANG!"
+}
+
+-- Boolean constant
+pure func isValid() -> bool
+  tests [
+    ((), true)
+  ]
+{
+  true
+}
+
+-- Float constant
+pure func getPi() -> float
+  tests [
+    ((), 3.14159)
+  ]
+{
+  3.14159
+}
+
+-- Multiple nullary functions with multiple tests
+pure func getZero() -> int
+  tests [
+    ((), 0)
+  ]
+{
+  0
+}
+
+pure func getOne() -> int
+  tests [
+    ((), 1)
+  ]
+{
+  1
+}
+
+pure func getTwo() -> int
+  tests [
+    ((), 2)
+  ]
+{
+  2
+}
