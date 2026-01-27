@@ -111,7 +111,7 @@ func runMessagesList(args []string) {
 func runMessagesAck(args []string) {
 	fs := flag.NewFlagSet("messages ack", flag.ExitOnError)
 	all := fs.Bool("all", false, "Acknowledge all unread messages")
-	inbox := fs.String("inbox", "", "Filter by inbox when using --all")
+	inbox := fs.String("inbox", "", "Filter by inbox when using --all (default: 'user'; use 'all' for every inbox)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -126,12 +126,26 @@ func runMessagesAck(args []string) {
 	defer store.Close()
 
 	if *all {
-		count, err := store.MarkAllInboxMessagesRead(*inbox)
+		// Default to "user" inbox to avoid accidentally acking agent inboxes
+		// (sprint-executor, sprint-planner, etc.) which the coordinator polls
+		targetInbox := *inbox
+		if targetInbox == "" {
+			targetInbox = "user"
+		}
+		// Special value "all" means ack across every inbox
+		if targetInbox == "all" {
+			targetInbox = ""
+		}
+		count, err := store.MarkAllInboxMessagesRead(targetInbox)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
-		fmt.Printf("%s %d message(s) marked as read.\n", green("✓"), count)
+		if targetInbox == "" {
+			fmt.Printf("%s %d message(s) marked as read (all inboxes).\n", green("✓"), count)
+		} else {
+			fmt.Printf("%s %d message(s) marked as read (inbox: %s).\n", green("✓"), count, targetInbox)
+		}
 		return
 	}
 

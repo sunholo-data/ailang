@@ -148,8 +148,8 @@ func TestMultiChannelScenarios(t *testing.T) {
 			}
 
 			// Verify iteration is valid
-			if s.iteration < 1 || s.iteration > MaxIterations {
-				t.Errorf("Invalid iteration: %d (should be 1-%d)", s.iteration, MaxIterations)
+			if s.iteration < 1 || s.iteration > MaxAgentIterations {
+				t.Errorf("Invalid iteration: %d (should be 1-%d)", s.iteration, MaxAgentIterations)
 			}
 		})
 	}

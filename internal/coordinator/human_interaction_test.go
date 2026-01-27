@@ -63,13 +63,21 @@ func TestPrepareTaskForRetrigger_Iteration2(t *testing.T) {
 		t.Errorf("Status = %s, want %s (should not be modified)", task.Status, TaskStatusPendingApproval)
 	}
 
-	// At iteration 3, we've hit the limit - cannot retrigger again
+	// At iteration 3, agent-to-agent cannot retrigger
 	if CanRetrigger(task) {
-		t.Error("Should NOT be able to retrigger at iteration 3 (max)")
+		t.Error("Agent should NOT be able to retrigger at iteration 3 (max)")
+	}
+
+	// But human (dashboard/cli) can always retrigger
+	if !CanRetrigger(task, "dashboard") {
+		t.Error("Human (dashboard) should always be able to retrigger")
+	}
+	if !CanRetrigger(task, "cli") {
+		t.Error("Human (cli) should always be able to retrigger")
 	}
 }
 
-// TestPrepareTaskForRetrigger_Iteration3_MaxReached tests that iteration 3 is final.
+// TestPrepareTaskForRetrigger_Iteration3_MaxReached tests that iteration 3 is final for agents.
 func TestPrepareTaskForRetrigger_Iteration3_MaxReached(t *testing.T) {
 	task := &TaskRecord{
 		ID:        "task-34567890",
@@ -78,9 +86,14 @@ func TestPrepareTaskForRetrigger_Iteration3_MaxReached(t *testing.T) {
 		Iteration: 3, // Max iteration
 	}
 
-	// Verify cannot retrigger
+	// Verify agent cannot retrigger
 	if CanRetrigger(task) {
-		t.Error("Should NOT be able to retrigger at iteration 3")
+		t.Error("Agent should NOT be able to retrigger at iteration 3")
+	}
+
+	// But human can
+	if !CanRetrigger(task, "dashboard") {
+		t.Error("Human should be able to retrigger even at iteration 3")
 	}
 
 	// If we try to prepare for retrigger anyway...
@@ -127,10 +140,10 @@ func TestHumanFeedback_Struct(t *testing.T) {
 	}
 }
 
-// TestMaxIterations tests the constant value.
-func TestMaxIterations(t *testing.T) {
-	if MaxIterations != 3 {
-		t.Errorf("MaxIterations = %d, want 3", MaxIterations)
+// TestMaxAgentIterations tests the constant value.
+func TestMaxAgentIterations(t *testing.T) {
+	if MaxAgentIterations != 3 {
+		t.Errorf("MaxAgentIterations = %d, want 3", MaxAgentIterations)
 	}
 }
 

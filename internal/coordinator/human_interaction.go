@@ -138,16 +138,29 @@ func PrepareTaskForRetrigger(task *TaskRecord, feedback string) {
 	}
 }
 
-// MaxIterations is the limit to prevent infinite feedback loops.
-const MaxIterations = 3
+// MaxAgentIterations is the limit for agent-to-agent handoffs to prevent infinite loops.
+// Human rejections (via dashboard or CLI) have no iteration limit.
+const MaxAgentIterations = 3
 
-// CanRetrigger checks if a task can be re-triggered (hasn't exceeded iteration limit).
-func CanRetrigger(task *TaskRecord) bool {
+// CanRetrigger checks if a task can be re-triggered.
+// Human channels (dashboard, cli) have no limit; agent-to-agent has a max of MaxAgentIterations.
+func CanRetrigger(task *TaskRecord, channels ...string) bool {
+	channel := ""
+	if len(channels) > 0 {
+		channel = channels[0]
+	}
+
+	// Human rejections have no iteration limit
+	if channel == "dashboard" || channel == "cli" {
+		return true
+	}
+
+	// Agent-to-agent: enforce iteration limit
 	iteration := task.Iteration
 	if iteration == 0 {
 		iteration = 1
 	}
-	return iteration < MaxIterations
+	return iteration < MaxAgentIterations
 }
 
 // truncateForSpan truncates text for OTEL span attributes.

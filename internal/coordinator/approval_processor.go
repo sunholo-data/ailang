@@ -329,8 +329,8 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 		}
 	}
 
-	// 3. Check if we can re-trigger (under max iterations)
-	canRetrigger := params.RetriggerOnReject && CanRetrigger(task)
+	// 3. Check if we can re-trigger (human rejections have no limit; agent-to-agent limited)
+	canRetrigger := params.RetriggerOnReject && CanRetrigger(task, params.Channel)
 
 	if canRetrigger {
 		// Calculate next iteration
@@ -368,7 +368,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 			}
 
 			payload := fmt.Sprintf("Task rejected with feedback:\n\n%s\n\n---\n**Original Task:** %s\n**Iteration:** %d/%d\n**Context:** Session will resume with feedback incorporated.",
-				feedback, task.Title, nextIteration, MaxIterations)
+				feedback, task.Title, nextIteration, MaxAgentIterations)
 
 			msg := &messaging.InboxMessage{
 				FromAgent:     params.ApprovedBy,
@@ -390,7 +390,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 			}
 		}
 
-		result.Message = fmt.Sprintf("Task rejected and re-queued for iteration %d (max: %d)", nextIteration, MaxIterations)
+		result.Message = fmt.Sprintf("Task rejected and re-queued for iteration %d (max: %d)", nextIteration, MaxAgentIterations)
 		span.SetStatus(codes.Ok, "rejected with re-trigger")
 
 	} else {
@@ -416,7 +416,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 		if !params.RetriggerOnReject {
 			result.Message = fmt.Sprintf("Task rejected: %s (re-trigger disabled)", taskID)
 		} else {
-			result.Message = fmt.Sprintf("Task permanently rejected: %s (max iterations %d reached)", taskID, MaxIterations)
+			result.Message = fmt.Sprintf("Task permanently rejected: %s (max iterations %d reached)", taskID, MaxAgentIterations)
 		}
 		span.SetStatus(codes.Ok, "rejected permanently")
 	}
