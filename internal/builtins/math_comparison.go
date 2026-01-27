@@ -135,9 +135,15 @@ func registerCmpFloatWithMeta(name string, fn func(float64, float64) bool, descr
 // registerCmpStringWithMeta registers a String comparison with metadata
 func registerCmpStringWithMeta(name string, fn func(string, string) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.StringValue)
-		b := args[1].(*eval.StringValue)
-		return &eval.BoolValue{Value: fn(a.Value, b.Value)}, nil
+		a, err := SafeAsString(args[0])
+		if err != nil {
+			return nil, fmt.Errorf("%s: arg 0 - %w", name, err)
+		}
+		b, err := SafeAsString(args[1])
+		if err != nil {
+			return nil, fmt.Errorf("%s: arg 1 - %w", name, err)
+		}
+		return &eval.BoolValue{Value: fn(a, b)}, nil
 	}
 	typeFunc := func() types.Type {
 		T := types.NewBuilder()

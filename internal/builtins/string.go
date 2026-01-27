@@ -131,8 +131,14 @@ func makeStrCompareType() types.Type {
 }
 
 func strCompareImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.StringValue).Value
-	b := args[1].(*eval.StringValue).Value
+	a, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_compare: arg 0 - %w", err)
+	}
+	b, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_compare: arg 1 - %w", err)
+	}
 	result := 0
 	if a < b {
 		result = -1
@@ -180,8 +186,14 @@ func makeStrEqType() types.Type {
 }
 
 func strEqImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.StringValue).Value
-	b := args[1].(*eval.StringValue).Value
+	a, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_eq: arg 0 - %w", err)
+	}
+	b, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_eq: arg 1 - %w", err)
+	}
 	return &eval.BoolValue{Value: a == b}, nil
 }
 
@@ -224,8 +236,14 @@ func makeStrFindType() types.Type {
 }
 
 func strFindImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	haystack := args[0].(*eval.StringValue).Value
-	needle := args[1].(*eval.StringValue).Value
+	haystack, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_find: arg 0 - %w", err)
+	}
+	needle, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_find: arg 1 - %w", err)
+	}
 	idx := strings.Index(haystack, needle)
 	return &eval.IntValue{Value: idx}, nil
 }
@@ -271,9 +289,18 @@ func makeStrSliceType() types.Type {
 }
 
 func strSliceImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	str := args[0].(*eval.StringValue).Value
-	start := args[1].(*eval.IntValue).Value
-	end := args[2].(*eval.IntValue).Value
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_slice: arg 0 - %w", err)
+	}
+	start, err := SafeAsInt(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_slice: arg 1 - %w", err)
+	}
+	end, err := SafeAsInt(args[2])
+	if err != nil {
+		return nil, fmt.Errorf("_str_slice: arg 2 - %w", err)
+	}
 
 	runes := []rune(str)
 	length := len(runes)
@@ -329,7 +356,10 @@ func makeStrTrimType() types.Type {
 }
 
 func strTrimImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	str := args[0].(*eval.StringValue).Value
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_trim: arg 0 - %w", err)
+	}
 	return &eval.StringValue{Value: strings.TrimSpace(str)}, nil
 }
 
@@ -370,7 +400,10 @@ func makeStrUpperType() types.Type {
 }
 
 func strUpperImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	str := args[0].(*eval.StringValue).Value
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_upper: arg 0 - %w", err)
+	}
 	return &eval.StringValue{Value: strings.ToUpper(str)}, nil
 }
 
@@ -411,7 +444,10 @@ func makeStrLowerType() types.Type {
 }
 
 func strLowerImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	str := args[0].(*eval.StringValue).Value
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_lower: arg 0 - %w", err)
+	}
 	return &eval.StringValue{Value: strings.ToLower(str)}, nil
 }
 
@@ -458,8 +494,14 @@ func makeStrConcatType() types.Type {
 }
 
 func strConcatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.StringValue).Value
-	b := args[1].(*eval.StringValue).Value
+	a, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("concat_String: arg 0 - %w", err)
+	}
+	b, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("concat_String: arg 1 - %w", err)
+	}
 	return &eval.StringValue{Value: a + b}, nil
 }
 
@@ -663,20 +705,20 @@ func makeStrSplitType() types.Type {
 // strSplitImpl is the implementation for _str_split
 // Uses Go's strings.Split for exact standard behavior
 func strSplitImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	// Extract string arguments (note: pointers!)
-	str, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_str_split: first argument must be string, got %T", args[0])
+	// Extract string arguments with safe casting
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_split: arg 0 - %w", err)
 	}
 
-	delim, ok := args[1].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_str_split: second argument must be string, got %T", args[1])
+	delim, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_split: arg 1 - %w", err)
 	}
 
 	// Use Go's strings.Split for exact standard behavior
 	// This handles all edge cases including split("", "") -> []
-	parts := strings.Split(str.Value, delim.Value)
+	parts := strings.Split(str, delim)
 
 	// Convert []string to [string] (ListValue with Elements slice)
 	elements := make([]eval.Value, len(parts))
@@ -732,13 +774,13 @@ func makeStringReverseType() types.Type {
 // Reverses a UTF-8 string at the rune (character) level
 func stringReverseImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Extract string argument
-	strVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_string_reverse: expected String, got %T", args[0])
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_string_reverse: arg 0 - %w", err)
 	}
 
 	// Convert string to runes for proper Unicode handling
-	runes := []rune(strVal.Value)
+	runes := []rune(str)
 
 	// Reverse the rune slice in-place
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
@@ -803,13 +845,13 @@ func makeStrCharsType() types.Type {
 // Converts string to list of single-character strings (Unicode-aware)
 func strCharsImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	// Extract string argument
-	strVal, ok := args[0].(*eval.StringValue)
-	if !ok {
-		return nil, fmt.Errorf("_str_chars: expected String, got %T", args[0])
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_chars: arg 0 - %w", err)
 	}
 
 	// Convert string to runes for proper Unicode handling
-	runes := []rune(strVal.Value)
+	runes := []rune(str)
 
 	// Build list of single-character strings
 	elements := make([]eval.Value, len(runes))
