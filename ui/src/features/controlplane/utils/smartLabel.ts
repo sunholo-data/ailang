@@ -102,7 +102,8 @@ export interface SmartLabelResult {
 export function getSmartLabel(span: Span): string {
   // Prefer backend-enriched display_name if available (from /api/observatory/spans/enriched)
   // This includes tool metadata like file paths, commands, patterns from Claude Code hooks
-  if (span.display_name) {
+  // Exception: api_request spans with chat_context use chat preview instead (Phase 5)
+  if (span.display_name && !(span.name === 'api_request' && span.chat_context)) {
     return span.display_name;
   }
 
@@ -230,11 +231,21 @@ export function getSmartLabel(span: Span): string {
     return getClaudeCodeToolLabel(name, attrs);
   }
 
-  // API requests (Claude Code turns): show model and cost
+  // API requests (Claude Code turns): prefer chat preview, fallback to model/cost
   if (name === 'api_request') {
+    // Phase 5: Show first 100 chars of user prompt or assistant response as label
+    const chatCtx = span.chat_context;
+    if (chatCtx?.user_prompt) {
+      const preview = chatCtx.user_prompt.substring(0, 100);
+      return preview.length < chatCtx.user_prompt.length ? preview + '...' : preview;
+    }
+    if (chatCtx?.assistant_response) {
+      const preview = chatCtx.assistant_response.substring(0, 100);
+      return preview.length < chatCtx.assistant_response.length ? preview + '...' : preview;
+    }
+    // Fallback: show model and cost when no chat context available
     const model = attrs['model'] || '';
     const cost = parseFloat(attrs['cost_usd'] || '0');
-    // Show shortened model name
     let modelShort = model.replace('claude-', '').replace('-20251101', '').replace('-20251001', '');
     if (modelShort.length > 15) modelShort = modelShort.substring(0, 15);
     if (model && cost > 0) {

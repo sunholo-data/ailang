@@ -307,7 +307,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
 
   // Span type filtering (Milestone 14) - generic filter for any span type
   // Use props if provided (lifted state), otherwise use internal state
-  const [internalHiddenTypes, setInternalHiddenTypes] = useState<Set<string>>(new Set(['api_request']));
+  const [internalHiddenTypes, setInternalHiddenTypes] = useState<Set<string>>(new Set());
   const hiddenSpanTypes = propsHiddenSpanTypes !== undefined ? propsHiddenSpanTypes : internalHiddenTypes;
   const toggleSpanType = onToggleSpanType || ((spanType: string) => {
     setInternalHiddenTypes(prev => {
@@ -828,10 +828,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
             expandedNodeIds={expandedNodes}
             onToggleExpand={handleToggleExpand}
             highlightedSpanId={highlightedSpanId}
-            onChatContextClick={(node) => {
-              // Open popover to show inline chat context (chat_context is embedded in span data)
-              handleNodeClick(node);
-            }}
           />
         )}
         {viewMode === 'graph' && (

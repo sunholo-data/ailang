@@ -62,11 +62,6 @@ function getProviderClass(provider?: string): string {
   }
 }
 
-// Check if a node has chat context available (via session.id attribute)
-function hasChatContext(node: HierarchyNode): boolean {
-  return !!(node._span?.attributes?.['session.id']);
-}
-
 interface TreeNodeProps {
   node: HierarchyNode;
   depth: number;
@@ -78,8 +73,6 @@ interface TreeNodeProps {
   onToggleExpand?: (nodeId: string) => void;
   /** Span ID to highlight */
   highlightedSpanId?: string | null;
-  /** Callback when chat context button is clicked */
-  onChatContextClick?: (node: HierarchyNode) => void;
 }
 
 const TreeNode: React.FC<TreeNodeProps> = ({
@@ -90,7 +83,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   expandedNodeIds,
   onToggleExpand,
   highlightedSpanId,
-  onChatContextClick,
 }) => {
   // Use lifted state if provided, otherwise use internal state
   const [internalExpanded, setInternalExpanded] = useState(depth < 2);
@@ -149,20 +141,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           </span>
         )}
 
-        {/* Chat context indicator */}
-        {hasChatContext(node) && onChatContextClick && (
-          <button
-            className={styles.chatContextBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              onChatContextClick(node);
-            }}
-            title="View chat context"
-          >
-            💬
-          </button>
-        )}
-
         {/* Child count badge */}
         {hasChildren && (
           <span className={styles.childCount}>
@@ -184,7 +162,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({
               expandedNodeIds={expandedNodeIds}
               onToggleExpand={onToggleExpand}
               highlightedSpanId={highlightedSpanId}
-              onChatContextClick={onChatContextClick}
             />
           ))}
         </div>
@@ -205,8 +182,6 @@ export interface ExecHierarchyTreeProps {
   onToggleExpand?: (nodeId: string) => void;
   /** Span ID to highlight (for outlier click-to-highlight) */
   highlightedSpanId?: string | null;
-  /** Callback when chat context button is clicked (M-CHAT-HISTORY-DB Phase 3) */
-  onChatContextClick?: (node: HierarchyNode) => void;
 }
 
 export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
@@ -218,7 +193,6 @@ export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
   expandedNodeIds,
   onToggleExpand,
   highlightedSpanId,
-  onChatContextClick,
 }) => {
   if (loading) {
     return (
@@ -262,7 +236,6 @@ export const ExecHierarchyTree: React.FC<ExecHierarchyTreeProps> = ({
           expandedNodeIds={expandedNodeIds}
           onToggleExpand={onToggleExpand}
           highlightedSpanId={highlightedSpanId}
-          onChatContextClick={onChatContextClick}
         />
       ))}
     </div>

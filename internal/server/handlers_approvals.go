@@ -289,56 +289,43 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// For handoff approvals, use the existing resolve-only path
-		if req.Type == "handoff" {
-			status := "approved"
-			if action == "reject" {
-				status = "rejected"
-			}
-			if err := s.approvalStore.ResolveApprovalRequest(ctx, approvalID, status, "dashboard-user"); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to %s handoff: %v", action, err), http.StatusInternalServerError)
-				return
-			}
-		} else {
-			// For merge approvals, use the unified ProcessApprovalRequest
-			// Load agent registry for per-agent merge branch lookup
-			agentRegistry, _ := coordinator.LoadAgentRegistry()
+		// Use unified ProcessApprovalRequest for ALL approval types (merge, merge_handoff, handoff)
+		// This ensures handoffs are triggered, worktrees merged, and GitHub updated
+		agentRegistry, _ := coordinator.LoadAgentRegistry()
 
-			// Create GitHub poster for issue updates
-			var githubPoster *coordinator.GitHubPoster
-			if poster, err := coordinator.NewGitHubPoster(); err == nil {
-				githubPoster = poster
-			}
-
-			// Note: MergeBranch is resolved by processor from AgentRegistry or defaults
-			result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
-				TaskID:            req.TaskID,
-				Action:            action,
-				ApprovedBy:        "dashboard-user",
-				Channel:           "dashboard",
-				Feedback:          body.Notes,
-				SkipMerge:         false,
-				KeepWorktree:      false,
-				RetriggerOnReject: !body.Permanent, // false = permanent rejection, true = retry with feedback
-				Store:             s.coordStoreRaw,
-				MsgStore:          s.store, // For feedback messages
-				GitHubPoster:      githubPoster,
-				AgentRegistry:     agentRegistry,
-			})
-
-			if err != nil {
-				log.Printf("Approval processing failed for %s: %v", req.TaskID, err)
-				http.Error(w, fmt.Sprintf("Failed to %s: %v", action, err), http.StatusInternalServerError)
-				return
-			}
-
-			if !result.Success && len(result.ConflictFiles) > 0 {
-				// Report conflicts but don't fail - approval is resolved
-				log.Printf("Merge conflicts in task %s: %v", req.TaskID, result.ConflictFiles)
-			}
-
-			log.Printf("Dashboard %s: %s", action, result.Message)
+		// Create GitHub poster for issue updates
+		var githubPoster *coordinator.GitHubPoster
+		if poster, err := coordinator.NewGitHubPoster(); err == nil {
+			githubPoster = poster
 		}
+
+		result, err := coordinator.ProcessApprovalRequest(ctx, &coordinator.ApprovalParams{
+			TaskID:            req.TaskID,
+			Action:            action,
+			ApprovedBy:        "dashboard-user",
+			Channel:           "dashboard",
+			Feedback:          body.Notes,
+			SkipMerge:         false,
+			KeepWorktree:      false,
+			RetriggerOnReject: !body.Permanent, // false = permanent rejection, true = retry with feedback
+			Store:             s.coordStoreRaw,
+			MsgStore:          s.store, // For feedback messages
+			GitHubPoster:      githubPoster,
+			AgentRegistry:     agentRegistry,
+		})
+
+		if err != nil {
+			log.Printf("Approval processing failed for %s: %v", req.TaskID, err)
+			http.Error(w, fmt.Sprintf("Failed to %s: %v", action, err), http.StatusInternalServerError)
+			return
+		}
+
+		if !result.Success && len(result.ConflictFiles) > 0 {
+			// Report conflicts but don't fail - approval is resolved
+			log.Printf("Merge conflicts in task %s: %v", req.TaskID, result.ConflictFiles)
+		}
+
+		log.Printf("Dashboard %s: %s", action, result.Message)
 
 		// Success response
 		w.Header().Set("Content-Type", "application/json")
