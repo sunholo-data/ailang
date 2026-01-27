@@ -99,6 +99,12 @@ type AgentConfig struct {
 	// Per-agent system prompt (v0.8.0+)
 	// Appended to the global meta-prompt for agent-specific instructions.
 	SystemPrompt string `yaml:"system_prompt" json:"system_prompt,omitempty"`
+
+	// Per-agent model override (v0.8.0+)
+	// Controls which Claude model is used for this agent's tasks.
+	// Examples: "opus", "sonnet", "haiku", "claude-opus-4-5-20251101"
+	// If empty, falls back to the executor's default (currently "haiku").
+	Model string `yaml:"model" json:"model,omitempty"`
 }
 
 // AgentRegistry manages the set of configured agents.

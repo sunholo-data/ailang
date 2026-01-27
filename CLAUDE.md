@@ -1090,6 +1090,64 @@ The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Cu
 
 **For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
 
+### Auditing Agent Work
+
+After a coordinator task completes, audit what the agent actually did using these commands:
+
+**View per-turn conversation text (reasoning + tool calls):**
+```bash
+# Raw log stream (quick look)
+ailang coordinator logs <task-id> --limit 500
+
+# Grouped by turn (shows reasoning per turn with tool names)
+ailang coordinator logs <task-id> --limit 1000 --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+events = data.get('events', [])
+turns = {}; tools = {}
+for evt in events:
+    tn = evt.get('turn_num', 0); st = evt.get('stream_type', '')
+    if st == 'text': turns.setdefault(tn, []).append(evt.get('text', ''))
+    elif st == 'tool_use': tools.setdefault(tn, []).append(evt.get('tool_name', '?'))
+for tn in sorted(turns.keys()):
+    text = ''.join(turns[tn]).strip()
+    if len(text) > 20:
+        print(f'=== Turn {tn} (tools: {\", \".join(tools.get(tn, []))}) ===')
+        print(text[:600]); print()
+"
+```
+
+**View tool usage timeline and spans:**
+```bash
+ailang dashboard spans --task-id <task-id> --limit 200          # Tool timeline
+ailang dashboard spans --task-id <task-id> --include-chat --json # With chat context (if available)
+```
+
+**View git changes made by the agent:**
+```bash
+ailang coordinator diff <task-id>
+```
+
+**Key things to check when auditing:**
+- **Model used**: Check `executor.model` attribute in spans - Haiku may be too weak for compiler tasks
+- **Turn count & cost**: High turns + low cost = Haiku; few turns + high cost = Opus/Sonnet
+- **Code changes**: Did `coordinator diff` show changes to `internal/` or just docs/examples?
+- **Skipped tasks**: Did the agent say "already works" without fixing the specific reported bug?
+- **Runtime vs compile**: Did it test with `ailang run` (runtime) or just `ailang check` (compile)?
+
+**Per-agent model config (v0.8.0+):**
+Agents can specify which Claude model to use in `~/.ailang/config.yaml`:
+```yaml
+coordinator:
+  agents:
+    - id: sprint-executor
+      model: opus          # Use Opus 4.5 for complex coding tasks
+    - id: design-doc-creator
+      model: opus          # Use Opus for design documents
+    - id: cheap-agent
+      # model not set = executor default (haiku)
+```
+
 ### Adding Builtin Functions
 
 **To add a builtin function, use the `builtin-developer` skill.**

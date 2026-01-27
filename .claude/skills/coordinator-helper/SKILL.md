@@ -233,6 +233,49 @@ ailang messages send echo-demo '{"model": "gpt5", "benchmark": "fizzbuzz"}' \
 - Auto-injected: `AILANG_TASK_ID`, `AILANG_MESSAGE_ID`, `AILANG_WORKSPACE`
 - Cost: $0.00 (no AI inference)
 
+## Auditing Agent Work
+
+After a task completes, audit what the agent actually did before approving:
+
+```bash
+# View conversation per turn (shows agent reasoning + tool calls)
+ailang coordinator logs <task-id> --limit 1000 --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+events = data.get('events', [])
+turns = {}; tools = {}
+for evt in events:
+    tn = evt.get('turn_num', 0); st = evt.get('stream_type', '')
+    if st == 'text': turns.setdefault(tn, []).append(evt.get('text', ''))
+    elif st == 'tool_use': tools.setdefault(tn, []).append(evt.get('tool_name', '?'))
+for tn in sorted(turns.keys()):
+    text = ''.join(turns[tn]).strip()
+    if len(text) > 20:
+        print(f'=== Turn {tn} (tools: {\", \".join(tools.get(tn, []))}) ===')
+        print(text[:600]); print()
+"
+
+# View tool timeline with spans
+ailang dashboard spans --task-id <task-id> --limit 200
+
+# View git changes
+ailang coordinator diff <task-id>
+```
+
+**Audit checklist:**
+- [ ] Did the agent modify `internal/` code or just create examples/docs?
+- [ ] What model was used? (Check `executor.model` in spans - Haiku may be too weak)
+- [ ] Did it run `ailang run` (runtime test) or just `ailang check` (compile test)?
+- [ ] Did it mark tasks as "already working" without verifying the specific bug scenario?
+
+**Per-agent model config (v0.8.0+):**
+Set `model: opus` in agent config for complex coding tasks:
+```yaml
+agents:
+  - id: sprint-executor
+    model: opus
+```
+
 ## Troubleshooting
 
 **Daemon won't start:** Check `ailang coordinator status`, then `make services-stop && make services-start`

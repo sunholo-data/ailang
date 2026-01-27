@@ -813,3 +813,95 @@ func TestAgentConfig_GetEffectiveApprovalConfig_UnknownAgent(t *testing.T) {
 		t.Error("expected nil config for unknown agent without explicit config")
 	}
 }
+
+// =============================================================================
+// Per-Agent Model Config Tests (v0.8.0+)
+// =============================================================================
+
+func TestAgentConfig_ModelField(t *testing.T) {
+	agent := &AgentConfig{
+		ID:    "test-agent",
+		Inbox: "test",
+		Model: "opus",
+	}
+
+	if agent.Model != "opus" {
+		t.Errorf("expected model 'opus', got %q", agent.Model)
+	}
+}
+
+func TestAgentConfig_ModelFieldEmpty(t *testing.T) {
+	agent := &AgentConfig{
+		ID:    "test-agent",
+		Inbox: "test",
+		// Model not set - should be empty string
+	}
+
+	if agent.Model != "" {
+		t.Errorf("expected empty model, got %q", agent.Model)
+	}
+}
+
+func TestLoadAgentRegistryFrom_WithModel(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `
+coordinator:
+  default_provider: claude
+  agents:
+    - id: design-agent
+      label: Design Agent
+      inbox: design
+      workspace: /tmp/design
+      capabilities: [code]
+      model: opus
+    - id: sprint-agent
+      label: Sprint Agent
+      inbox: sprint
+      workspace: /tmp/sprint
+      capabilities: [code]
+      model: sonnet
+    - id: cheap-agent
+      label: Cheap Agent
+      inbox: cheap
+      workspace: /tmp/cheap
+      capabilities: [docs]
+      # model not set - should use executor default
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	registry, err := LoadAgentRegistryFrom(configPath)
+	if err != nil {
+		t.Fatalf("failed to load registry: %v", err)
+	}
+
+	// Verify design-agent has opus model
+	designAgent := registry.GetAgentByID("design-agent")
+	if designAgent == nil {
+		t.Fatal("expected to find design-agent")
+	}
+	if designAgent.Model != "opus" {
+		t.Errorf("expected model 'opus', got %q", designAgent.Model)
+	}
+
+	// Verify sprint-agent has sonnet model
+	sprintAgent := registry.GetAgentByID("sprint-agent")
+	if sprintAgent == nil {
+		t.Fatal("expected to find sprint-agent")
+	}
+	if sprintAgent.Model != "sonnet" {
+		t.Errorf("expected model 'sonnet', got %q", sprintAgent.Model)
+	}
+
+	// Verify cheap-agent has no model (empty = executor default)
+	cheapAgent := registry.GetAgentByID("cheap-agent")
+	if cheapAgent == nil {
+		t.Fatal("expected to find cheap-agent")
+	}
+	if cheapAgent.Model != "" {
+		t.Errorf("expected empty model for cheap-agent, got %q", cheapAgent.Model)
+	}
+}

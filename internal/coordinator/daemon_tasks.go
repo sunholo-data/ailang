@@ -626,6 +626,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
 	}
 
+	// Pass per-agent model override (v0.8.0+)
+	// If agent config specifies a model, use it instead of the executor default
+	if agentConfig != nil && agentConfig.Model != "" {
+		opts.Model = agentConfig.Model
+		d.logger.Printf("Task %s using agent-configured model: %s", task.ID, agentConfig.Model)
+	}
+
 	// Pass InvokeConfig for script execution (v0.6.4+)
 	// This allows the TaskExecutor to route to ScriptProvider
 	if agentConfig != nil && agentConfig.Invoke != nil {

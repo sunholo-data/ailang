@@ -193,6 +193,42 @@ Reading code in internal/types/... Found 12 implemented
 2. Add TypeCache to design doc (performance optimization)
 ```
 
+## Auditing Agent-Executed Work
+
+When auditing sprint executor or other agent work against design specs, also verify the agent's conversation history to detect skipped tasks:
+
+```bash
+# View agent reasoning per turn (grouped text + tool calls)
+ailang coordinator logs <task-id> --limit 1000 --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+events = data.get('events', [])
+turns = {}; tools = {}
+for evt in events:
+    tn = evt.get('turn_num', 0); st = evt.get('stream_type', '')
+    if st == 'text': turns.setdefault(tn, []).append(evt.get('text', ''))
+    elif st == 'tool_use': tools.setdefault(tn, []).append(evt.get('tool_name', '?'))
+for tn in sorted(turns.keys()):
+    text = ''.join(turns[tn]).strip()
+    if len(text) > 20:
+        print(f'=== Turn {tn} (tools: {\", \".join(tools.get(tn, []))}) ===')
+        print(text[:600]); print()
+"
+
+# View tool usage timeline
+ailang dashboard spans --task-id <task-id> --limit 200
+
+# View git changes made by agent
+ailang coordinator diff <task-id>
+```
+
+**Cross-reference checklist:**
+- [ ] Sprint plan acceptance criteria vs actual git diff
+- [ ] Did agent modify `internal/` code or just create examples/docs?
+- [ ] What model was used? (Check `executor.model` in spans - Haiku may be too weak for compiler tasks)
+- [ ] Did it run `ailang run` (runtime test) or just `ailang check` (compile test)?
+- [ ] Did it mark tasks as "already working" without verifying the specific bug scenario?
+
 ## Tips
 
 - **Newer docs supersede older ones** - check dates
