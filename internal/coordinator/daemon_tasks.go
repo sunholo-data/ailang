@@ -623,6 +623,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		Timeout:            10 * time.Minute, // 10 minute timeout per task
 		Workspace:          workspacePath,    // Worktree path for AI agents, direct workspace for script agents
 		ObservatoryContext: obsContext,
+		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
 	}
 
 	// Pass InvokeConfig for script execution (v0.6.4+)

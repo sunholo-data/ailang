@@ -67,11 +67,15 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		return result, nil
 	}
 
+	// Build system prompt from meta-prompt + task type + agent config
+	systemPrompt := BuildSystemPrompt(task.Type, opts.AgentConfig)
+
 	// Create executor task
 	execTask := &executor.Task{
 		ID:              task.Task.ID,
 		ParentTaskID:    task.Task.ParentTaskID, // M-TASK-HIERARCHY: propagate from coordinator task
 		Directive:       directive,
+		SystemPrompt:    systemPrompt,
 		Workspace:       opts.Workspace,
 		Timeout:         opts.Timeout,
 		Model:           opts.Model,
@@ -123,30 +127,11 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 	return result, nil
 }
 
-// buildDirective creates a directive string for the executor
+// buildDirective returns the directive for the executor.
+// The directive is already fully constructed by BuildDirectiveFromConfig()
+// in stage_execution.go (skill invocation, output markers, etc.).
+// Task type context and commit instructions are now in the system prompt
+// (see meta_prompt.go:BuildSystemPrompt) to avoid burying skill invocations.
 func buildDirective(task *AnalyzedTask) string {
-	// Start with the task content
-	directive := task.Task.Content
-
-	// Add type-specific context
-	switch task.Type {
-	case TaskTypeBugFix:
-		directive = fmt.Sprintf("BUG FIX REQUEST:\n\n%s\n\nPlease fix this bug. Make sure to:\n1. Identify the root cause\n2. Implement the fix\n3. Add or update tests\n4. Run the test suite to verify", directive)
-	case TaskTypeFeature:
-		directive = fmt.Sprintf("FEATURE REQUEST:\n\n%s\n\nPlease implement this feature. Make sure to:\n1. Follow existing code patterns\n2. Add comprehensive tests\n3. Update documentation if needed\n4. Run the test suite to verify", directive)
-	case TaskTypeRefactor:
-		directive = fmt.Sprintf("REFACTORING REQUEST:\n\n%s\n\nPlease refactor the code. Make sure to:\n1. Maintain existing behavior\n2. Keep tests passing\n3. Improve code quality", directive)
-	case TaskTypeTest:
-		directive = fmt.Sprintf("TESTING REQUEST:\n\n%s\n\nPlease add or improve tests. Make sure to:\n1. Cover edge cases\n2. Use existing test patterns\n3. Verify all tests pass", directive)
-	case TaskTypeDocs:
-		directive = fmt.Sprintf("DOCUMENTATION REQUEST:\n\n%s\n\nPlease create or update documentation. Make sure to:\n1. Follow existing documentation patterns\n2. Include examples where helpful\n3. Be clear and concise", directive)
-	case TaskTypeResearch:
-		directive = fmt.Sprintf("RESEARCH REQUEST:\n\n%s\n\nPlease investigate and document your findings.", directive)
-	}
-
-	// CRITICAL: Always add commit instruction for all task types
-	// The coordinator expects work to be committed to the worktree branch
-	directive += "\n\nIMPORTANT: When you are done, commit all your changes with a descriptive commit message. Use 'git add' for any new files you created, then 'git commit'."
-
-	return directive
+	return task.Task.Content
 }

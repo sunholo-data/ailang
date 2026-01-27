@@ -68,10 +68,14 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 		return result, nil
 	}
 
+	// Build system prompt from meta-prompt + task type + agent config
+	systemPrompt := BuildSystemPrompt(task.Type, opts.AgentConfig)
+
 	execTask := &executor.Task{
 		ID:              task.Task.ID,
 		ParentTaskID:    task.Task.ParentTaskID, // M-TASK-HIERARCHY: propagate from coordinator task
 		Directive:       directive,
+		SystemPrompt:    systemPrompt,
 		Workspace:       opts.Workspace,
 		Timeout:         opts.Timeout,
 		Model:           opts.Model,

@@ -64,6 +64,10 @@ type ExecuteOptions struct {
 	// InvokeConfig for script execution (v0.6.4+)
 	// Set when the agent has invoke.type: "script"
 	InvokeConfig *InvokeConfig
+
+	// AgentConfig for system prompt construction (v0.8.0+)
+	// Used by providers to build the meta-prompt with agent-specific instructions.
+	AgentConfig *AgentConfig
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.

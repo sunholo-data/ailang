@@ -165,17 +165,17 @@ func TestIsRetryable(t *testing.T) {
 	}
 }
 
-func TestBuildDirective(t *testing.T) {
+func TestBuildDirective_PassThrough(t *testing.T) {
+	// buildDirective is now a pass-through - it returns task.Task.Content unchanged.
+	// Task type context and commit instructions are in the system prompt (meta_prompt.go).
 	tests := []struct {
 		taskType TaskType
 		content  string
-		contains string
 	}{
-		{TaskTypeBugFix, "fix the bug", "BUG FIX REQUEST"},
-		{TaskTypeFeature, "add feature", "FEATURE REQUEST"},
-		{TaskTypeRefactor, "refactor code", "REFACTORING REQUEST"},
-		{TaskTypeTest, "add tests", "TESTING REQUEST"},
-		{TaskTypeDocs, "write docs", "write docs"}, // No special prefix for docs
+		{TaskTypeBugFix, "fix the bug"},
+		{TaskTypeFeature, "Invoke the sprint-executor skill to complete this task."},
+		{TaskTypeRefactor, "refactor code"},
+		{TaskTypeDocs, "write docs"},
 	}
 
 	for _, tt := range tests {
@@ -185,8 +185,8 @@ func TestBuildDirective(t *testing.T) {
 				Type: tt.taskType,
 			}
 			directive := buildDirective(task)
-			if !containsSubstring(directive, tt.contains) {
-				t.Errorf("directive missing %q, got: %s", tt.contains, directive)
+			if directive != tt.content {
+				t.Errorf("buildDirective should pass through content unchanged.\ngot:  %q\nwant: %q", directive, tt.content)
 			}
 		})
 	}

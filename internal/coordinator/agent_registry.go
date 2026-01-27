@@ -95,6 +95,10 @@ type AgentConfig struct {
 	OutputMarkers    []string        `yaml:"output_markers" json:"output_markers,omitempty"`       // Markers to extract from output (e.g., "DESIGN_DOC_PATH:")
 	ArtifactPatterns []string        `yaml:"artifact_patterns" json:"artifact_patterns,omitempty"` // File patterns for artifacts (e.g., "*.md", "design_docs/**")
 	Approval         *ApprovalConfig `yaml:"approval" json:"approval,omitempty"`                   // Approval workflow configuration
+
+	// Per-agent system prompt (v0.8.0+)
+	// Appended to the global meta-prompt for agent-specific instructions.
+	SystemPrompt string `yaml:"system_prompt" json:"system_prompt,omitempty"`
 }
 
 // AgentRegistry manages the set of configured agents.
