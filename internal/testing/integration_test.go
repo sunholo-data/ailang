@@ -255,3 +255,14 @@ func TestIntegration_EmptyFile(t *testing.T) {
 		t.Error("expected 'No tests found' message for empty file")
 	}
 }
+
+// TestIntegration_InlineTestsWithImports tests inline tests on functions that use imported modules.
+// This is a regression test for the bug where inline tests would fail with "cannot apply non-function value: <nil>"
+// when the function being tested called an imported function.
+// See: M-INLINE-TESTS-IMPORTS regression test
+func TestIntegration_InlineTestsWithImports(t *testing.T) {
+	// We can't test with actual imports here since we'd need the stdlib loaded
+	// But this test exists as a placeholder and integration-level doc
+	// The real test is in examples/tests/ or with ailang test command
+	t.Skip("This test requires stdlib loaded in the test environment; use 'ailang test' command instead")
+}
