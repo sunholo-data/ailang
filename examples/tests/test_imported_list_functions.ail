@@ -1,0 +1,32 @@
+module examples/tests/test_imported_list_functions
+
+-- Regression test for inline tests with imported functions
+-- Bug: Inline tests would fail with "cannot apply non-function value: <nil>"
+-- when the function being tested called an imported function like length()
+-- See: M-INLINE-TESTS-IMPORTS
+
+import std/list (length, tail)
+
+-- Test length with imported function
+pure func list_length(xs: [int]) -> int
+  tests [
+    ([1, 2, 3], 3),
+    ([5], 1),
+    ([], 0),
+    ([10, 20, 30, 40, 50], 5)
+  ]
+{
+  length(xs)
+}
+
+-- Nested imported function calls
+pure func tail_length(xs: [int]) -> int
+  tests [
+    ([1, 2, 3], 2),
+    ([5], 0),
+    ([], 0),
+    ([10, 20, 30, 40], 3)
+  ]
+{
+  length(tail(xs))
+}

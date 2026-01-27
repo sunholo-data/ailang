@@ -3,19 +3,92 @@ package testing
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 )
+
+// CombinedResolver resolves both builtin functions and user-defined functions from the environment.
+// Used for inline test harness evaluation to support functions that depend on imports.
+// It handles:
+// - Builtin references (module="$builtin" or name starts with "_")
+// - Module-qualified references (module="std/list" name="filter")
+// - Local references (module="" or module matches current file)
+type CombinedResolver struct {
+	Builtins *runtime.BuiltinRegistry
+	Env      *eval.Environment               // Environment containing user-defined and imported functions
+	Modules  map[string]*loader.LoadedModule // Loaded modules for module-qualified lookup
+}
+
+// ResolveValue implements eval.GlobalResolver for combined resolution.
+func (r *CombinedResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
+	// Case 1: Builtin references (module="$builtin" or name starts with "_")
+	if ref.Module == "$builtin" || strings.HasPrefix(ref.Name, "_") {
+		if val, ok := r.Builtins.Get(ref.Name); ok {
+			return val, nil
+		}
+		// Not found in builtins - might be in environment
+		if val, ok := r.Env.Get(ref.Name); ok {
+			return val, nil
+		}
+		return nil, fmt.Errorf("builtin %s not found", ref.Name)
+	}
+
+	// Case 2: Module-qualified reference (e.g., std/list.filter)
+	if ref.Module != "" {
+		// Look for the function in the specified module
+		if mod, ok := r.Modules[ref.Module]; ok && mod != nil {
+			// Try to find the function in the module's Core program
+			for _, decl := range mod.Core.Decls {
+				// Check Let bindings
+				if let, ok := decl.(*core.Let); ok {
+					if let.Name == ref.Name {
+						// Try to get this from the environment (should have been evaluated)
+						if val, ok := r.Env.Get(ref.Name); ok {
+							return val, nil
+						}
+						// If not in environment, return error with details
+						return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
+					}
+				}
+				// Check LetRec bindings
+				if letRec, ok := decl.(*core.LetRec); ok {
+					for _, binding := range letRec.Bindings {
+						if binding.Name == ref.Name {
+							if val, ok := r.Env.Get(ref.Name); ok {
+								return val, nil
+							}
+							return nil, fmt.Errorf("function %s.%s not yet evaluated in environment", ref.Module, ref.Name)
+						}
+					}
+				}
+			}
+		}
+		return nil, fmt.Errorf("module %s not found or function %s not in module", ref.Module, ref.Name)
+	}
+
+	// Case 3: Unqualified reference - look in environment
+	// This includes both the test function being tested and any imported functions
+	// that were elaborated and bound during pipeline execution.
+	if val, ok := r.Env.Get(ref.Name); ok {
+		return val, nil
+	}
+
+	// Case 4: Not found - return error (will be caught during harness evaluation)
+	return nil, fmt.Errorf("undefined reference: %s (module: %s)", ref.Name, ref.Module)
+}
 
 // Executor handles evaluation of test expressions through the AILANG pipeline.
 type Executor struct {
 	modulePath  string
 	sourceFile  *ast.File // Full source file for context
 	enableDebug bool
+	modules     map[string]*loader.LoadedModule // Cached modules from last pipeline run
 }
 
 // NewExecutor creates a new test executor.
@@ -24,6 +97,7 @@ func NewExecutor(modulePath string) *Executor {
 		modulePath:  modulePath,
 		sourceFile:  nil,
 		enableDebug: false,
+		modules:     make(map[string]*loader.LoadedModule),
 	}
 }
 
@@ -120,9 +194,23 @@ func (e *Executor) EvaluateInlineTestsWithHarness(binding core.RecBinding, tests
 	// Note: We use the eval package directly since we already have Core
 	evaluator := eval.NewCoreEvaluator()
 
-	// Set up builtin resolver so arithmetic/comparison operators work
+	// Set up builtin registry and combined resolver
+	// The combined resolver handles both builtins and user-defined/imported functions
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	resolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
+
+	// Get the evaluator's environment for the combined resolver
+	env := evaluator.Env()
+
+	// Inject elaborated module functions into the environment
+	// This binds functions that were imported and elaborated during pipeline execution
+	e.injectModuleBindings(evaluator, env)
+
+	// Create combined resolver that can handle both builtins and module functions
+	resolver := &CombinedResolver{
+		Builtins: builtinRegistry,
+		Env:      env,
+		Modules:  e.modules,
+	}
 	evaluator.SetGlobalResolver(resolver)
 
 	// Inject ADT constructor bindings from source file so test inputs like (North, 0) work
@@ -190,6 +278,9 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	if err != nil {
 		return nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
+
+	// Cache the modules from the pipeline result for use in test harness evaluation
+	e.modules = result.Modules
 
 	// Extract the LetRec binding from the Core program
 	if result.Artifacts.Core == nil {
@@ -629,9 +720,69 @@ func (e *Executor) HasCrossFunctionDependencies(
 	return len(closure) > 1
 }
 
-// injectADTConstructors extracts ADT constructor information from the source file
-// and injects them into the evaluator's environment as ConstructorClosure values.
-// This enables test harness evaluation to properly resolve ADT constructors like North, Just, etc.
+// injectModuleBindings evaluates all module Core programs and injects their bindings
+// into the evaluator's environment. This allows the test harness to reference functions
+// that were imported and elaborated (like functions from std/fs, std/net, etc.).
+func (e *Executor) injectModuleBindings(evaluator *eval.CoreEvaluator, env *eval.Environment) {
+	if len(e.modules) == 0 {
+		return
+	}
+
+	// For each loaded module, directly inject lambda bindings into the environment
+	// without evaluating module code (which might have side effects)
+	for _, mod := range e.modules {
+		if mod.Core == nil {
+			continue
+		}
+
+		// Process each declaration in the module
+		for _, decl := range mod.Core.Decls {
+			switch d := decl.(type) {
+			case *core.Let:
+				// For pure functions, the value is a Lambda that doesn't need evaluation
+				// Just bind the name to the core expression as a closure
+				if lambda, ok := d.Value.(*core.Lambda); ok {
+					// Create a FunctionValue that wraps the core lambda
+					funcVal := &eval.FunctionValue{
+						Params: extractLambdaParams(lambda),
+						Body:   lambda.Body,
+						Env:    env,
+						Typed:  true,
+					}
+					env.Set(d.Name, funcVal)
+				} else if _, ok := d.Value.(*core.VarGlobal); ok {
+					// This is a re-export of another module's function
+					// We need to evaluate it to get the actual function value
+					val, err := evaluator.Eval(d.Value)
+					if err == nil && val != nil {
+						env.Set(d.Name, val)
+					}
+				}
+
+			case *core.LetRec:
+				// For recursive bindings, we need to create recursive function values
+				// Just add them to the environment directly - the evaluator will handle recursion
+				for _, binding := range d.Bindings {
+					if lambda, ok := binding.Value.(*core.Lambda); ok {
+						funcVal := &eval.FunctionValue{
+							Params: extractLambdaParams(lambda),
+							Body:   lambda.Body,
+							Env:    env,
+							Typed:  true,
+						}
+						env.Set(binding.Name, funcVal)
+					}
+				}
+			}
+		}
+	}
+}
+
+// extractLambdaParams extracts parameter names from a Core Lambda
+func extractLambdaParams(lambda *core.Lambda) []string {
+	return lambda.Params
+}
+
 func (e *Executor) injectADTConstructors(evaluator *eval.CoreEvaluator) {
 	if e.sourceFile == nil {
 		return
