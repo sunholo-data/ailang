@@ -1,0 +1,67 @@
+module examples/pattern_matching_adt
+
+-- Test pattern matching with Option type (Some/None)
+-- This example demonstrates the fix for M-DX24 issue 2: Option pattern matching broken at runtime
+
+import std/option (Some, None, isSome, getOrElse)
+
+-- Test 1: Simple Option pattern matching (the critical case from M-DX24)
+func testOption() -> string {
+  let opt = Some("home");
+  match opt {
+    Some(h) => h,
+    None => "/tmp"
+  }
+}
+
+-- Test 2: Option pattern matching with default
+func getHomeOrDefault() -> string {
+  match Some("/home/user") {
+    Some(path) => path,
+    None => "/tmp"
+  }
+}
+
+-- Test 3: None case pattern matching
+func testNone() -> string {
+  let opt: Option[string] = None;
+  match opt {
+    Some(v) => v,
+    None => "default"
+  }
+}
+
+-- Test 4: Pattern matching with multiple Some cases
+func testMultiple(opt1: Option[int], opt2: Option[int]) -> int {
+  match opt1 {
+    Some(x) => {
+      match opt2 {
+        Some(y) => x + y,
+        None => x
+      }
+    },
+    None => 0
+  }
+}
+
+-- Test 5: Nested Option matching
+func extractNested(opt: Option[Option[string]]) -> string {
+  match opt {
+    Some(inner) => {
+      match inner {
+        Some(v) => v,
+        None => "nested_none"
+      }
+    },
+    None => "none"
+  }
+}
+
+-- Test 6: Pattern matching with type context (helps type inference)
+func typedOption() -> string {
+  let result: Option[string] = Some("test");
+  match result {
+    Some(s) => s,
+    None => ""
+  }
+}

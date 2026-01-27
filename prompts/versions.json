@@ -426,7 +426,7 @@
     },
     "v0.7.0": {
       "file": "prompts/v0.7.0.md",
-      "hash": "3e4b85850909db4d21f605cc229632cb490cbddd15a2e6b7e2a1534b8c47c07e",
+      "hash": "3a483a3d08d1071b21f605cc229632cb490cbddd15a2e6b7e2a1534b8c47c07e",
       "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2→v0.7.0 eval",
       "created": "2026-01-22",
       "tags": [
