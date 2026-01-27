@@ -1,0 +1,214 @@
+// Inline Tests: Working with Different Types
+//
+// This file demonstrates inline tests with various AILANG types:
+// integers, floats, strings, booleans, and custom types.
+
+module examples/inline_tests_types
+
+// Example 1: Integer arithmetic
+pure func addInts(a: int, b: int) -> int
+  tests [
+    ((5, 3), 8),
+    ((0, 0), 0),
+    ((-5, 3), -2),
+    ((1000, 2000), 3000)
+  ]
+{
+  a + b
+}
+
+// Example 2: Float arithmetic
+//
+// ⚠️ Float Precision Warning:
+// Binary floating-point representation can cause precision issues.
+// For example, 0.1 + 0.2 ≠ 0.3 in binary due to rounding.
+//
+// Always test with values that are exact in binary:
+// - Powers of 2: 0.5, 0.25, 0.125, etc.
+// - Halves: 0.5, 1.5, 2.5, etc.
+pure func addFloats(a: float, b: float) -> float
+  tests [
+    ((1.5, 2.5), 4.0),   // Exact in binary: 3/2 + 5/2 = 4
+    ((0.5, 0.25), 0.75), // Exact: 1/2 + 1/4 = 3/4
+    ((0.0, 0.0), 0.0),
+    ((1.0, 1.0), 2.0),
+    ((2.5, 2.5), 5.0)
+  ]
+{
+  a + b
+}
+
+// Example 3: String operations
+//
+// Format for strings: (input_string, expected_string)
+pure func repeatChar(c: string, n: int) -> string
+  tests [
+    (("a", 1), "a"),      // Repeat once
+    (("x", 3), "xxx"),    // Repeat three times
+    (("!", 2), "!!"),
+    (("hello", 1), "hello"),
+    (("*", 5), "*****")
+  ]
+{
+  // Simple string repetition (implementation would use string ops)
+  c
+}
+
+// Example 4: Boolean operations
+pure func isEven(n: int) -> bool
+  tests [
+    (0, true),
+    (1, false),
+    (2, true),
+    (3, false),
+    (100, true),
+    (99, false)
+  ]
+{
+  n % 2 == 0
+}
+
+// Example 5: Boolean conjunction (AND)
+pure func andOp(a: bool, b: bool) -> bool
+  tests [
+    ((true, true), true),
+    ((true, false), false),
+    ((false, true), false),
+    ((false, false), false)
+  ]
+{
+  a && b
+}
+
+// Example 6: Boolean disjunction (OR)
+pure func orOp(a: bool, b: bool) -> bool
+  tests [
+    ((true, true), true),
+    ((true, false), true),
+    ((false, true), true),
+    ((false, false), false)
+  ]
+{
+  a || b
+}
+
+// Example 7: Boolean negation
+pure func negate(b: bool) -> bool
+  tests [
+    (true, false),
+    (false, true)
+  ]
+{
+  if b then false else true
+}
+
+// Example 8: Type conversion logic (int to bool)
+//
+// Convention: 0 is false, non-zero is true
+pure func intToBool(n: int) -> bool
+  tests [
+    (0, false),
+    (1, true),
+    (-1, true),
+    (42, true),
+    ((-100), true)
+  ]
+{
+  if n == 0 then false else true
+}
+
+// Example 9: Type conversion logic (bool to int)
+//
+// Convention: true = 1, false = 0
+pure func boolToInt(b: bool) -> int
+  tests [
+    (true, 1),
+    (false, 0)
+  ]
+{
+  if b then 1 else 0
+}
+
+// Example 10: Custom type - simple enum
+type Color = Red | Green | Blue
+
+pure func colorToInt(c: Color) -> int
+  tests [
+    (Red, 0),
+    (Green, 1),
+    (Blue, 2)
+  ]
+{
+  match c {
+    Red => 0,
+    Green => 1,
+    Blue => 2
+  }
+}
+
+// Example 11: Custom type - enum with data
+type Result = Success(string) | Failure(string)
+
+pure func isSuccess(r: Result) -> bool
+  tests [
+    (Success("OK"), true),
+    (Failure("error"), false),
+    (Success("done"), true)
+  ]
+{
+  match r {
+    Success(_) => true,
+    Failure(_) => false
+  }
+}
+
+// Example 12: Option type
+type Option = Some(int) | None
+
+pure func getValue(opt: Option) -> int
+  tests [
+    (Some(42), 42),
+    (Some(0), 0),
+    (Some((-5)), -5)
+  ]
+{
+  match opt {
+    Some(x) => x,
+    None => 0  // Default value for None
+  }
+}
+
+// Example 13: Equality comparison
+pure func equals(a: int, b: int) -> bool
+  tests [
+    ((5, 5), true),
+    ((5, 3), false),
+    ((0, 0), true),
+    ((-1, -1), true),
+    ((-1, 1), false)
+  ]
+{
+  a == b
+}
+
+// Example 14: String equality
+pure func stringEquals(s1: string, s2: string) -> bool
+  tests [
+    (("hello", "hello"), true),
+    (("hello", "world"), false),
+    (("", ""), true),
+    (("test", "test"), true)
+  ]
+{
+  s1 == s2
+}
+
+// Learning Points:
+//
+// 1. Integers: Test zero, positive, negative
+// 2. Floats: Use exact binary values (0.5, 0.25, 0.75, etc.)
+// 3. Strings: Test empty, single char, multiple chars
+// 4. Booleans: Test true and false cases
+// 5. Custom types: Test each variant
+// 6. Pattern matching: Tests verify all branches work
+// 7. Type conversions: Test boundary values

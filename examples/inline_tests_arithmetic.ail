@@ -1,0 +1,150 @@
+// Inline Tests: Arithmetic Operations
+//
+// This file demonstrates inline tests for common arithmetic functions
+// with multiple arguments and edge cases.
+
+module examples/inline_tests_arithmetic
+
+// Example 1: Addition with two arguments
+//
+// Format for multi-arg functions: ((arg1, arg2), expected)
+pure func add(a: int, b: int) -> int
+  tests [
+    ((3, 5), 8),       // Normal case
+    ((0, 0), 0),       // Both zero
+    ((-1, 1), 0),      // Negatives
+    ((100, 200), 300), // Large numbers
+    ((5, 0), 5)        // One zero
+  ]
+{
+  a + b
+}
+
+// Example 2: Subtraction
+pure func subtract(a: int, b: int) -> int
+  tests [
+    ((10, 3), 7),      // Normal case
+    ((5, 5), 0),       // Equal values
+    ((0, 10), -10),    // Result is negative
+    (((-5), (-3)), -2) // Both negative
+  ]
+{
+  a - b
+}
+
+// Example 3: Multiplication
+pure func multiply(a: int, b: int) -> int
+  tests [
+    ((3, 4), 12),      // Normal case
+    ((0, 5), 0),       // Zero times anything
+    ((5, 0), 0),       // Anything times zero
+    ((-3, -4), 12),    // Two negatives = positive
+    ((-3, 4), -12)     // Mixed signs
+  ]
+{
+  a * b
+}
+
+// Example 4: Division (integer division)
+pure func divide(a: int, b: int) -> int
+  tests [
+    ((10, 2), 5),      // Exact division
+    ((10, 3), 3),      // Integer division (truncates)
+    ((0, 5), 0),       // Zero divided by non-zero
+    ((5, 1), 5),       // Divisor of 1
+    ((20, 4), 5)       // Another exact case
+  ]
+{
+  a / b
+}
+
+// Example 5: Modulo (remainder)
+pure func modulo(a: int, b: int) -> int
+  tests [
+    ((10, 3), 1),      // 10 = 3*3 + 1
+    ((10, 5), 0),      // Exact division, remainder 0
+    ((7, 2), 1),       // 7 = 2*3 + 1
+    ((15, 4), 3),      // 15 = 4*3 + 3
+    ((0, 5), 0)        // 0 modulo anything is 0
+  ]
+{
+  a % b
+}
+
+// Example 6: Absolute value (single argument)
+//
+// Format for single-arg functions: (input, expected)
+pure func absolute(x: int) -> int
+  tests [
+    (5, 5),        // Positive stays positive
+    (-5, 5),       // Negative becomes positive
+    (0, 0),        // Zero stays zero
+    (-100, 100),   // Large negative
+    (42, 42)       // Another positive
+  ]
+{
+  if x < 0 then 0 - x else x
+}
+
+// Example 7: Negation
+pure func negate(x: int) -> int
+  tests [
+    (5, -5),       // Positive becomes negative
+    (-5, 5),       // Negative becomes positive
+    (0, 0),        // Zero stays zero
+    (100, -100),   // Large positive
+    (-50, 50)      // Large negative
+  ]
+{
+  0 - x
+}
+
+// Example 8: Three-argument expression
+//
+// Format for three+ args: ((arg1, arg2, arg3), expected)
+pure func mixedOps(a: int, b: int, c: int) -> int
+  tests [
+    ((2, 3, 4), 14),   // 2 + 3*4 = 2 + 12 = 14
+    ((1, 2, 3), 7),    // 1 + 2*3 = 1 + 6 = 7
+    ((5, 0, 3), 5),    // 5 + 0*3 = 5 + 0 = 5
+    ((10, 1, 1), 11),  // 10 + 1*1 = 10 + 1 = 11
+    ((0, 0, 0), 0)     // 0 + 0*0 = 0
+  ]
+{
+  a + b * c
+}
+
+// Example 9: Finding maximum of two numbers
+pure func max(a: int, b: int) -> int
+  tests [
+    ((5, 3), 5),       // First is larger
+    ((3, 5), 5),       // Second is larger
+    ((5, 5), 5),       // Equal
+    (((-10), 0), 0),   // One negative, one zero
+    (((-10), (-3)), -3)  // Both negative
+  ]
+{
+  if a > b then a else b
+}
+
+// Example 10: Finding minimum of two numbers
+pure func min(a: int, b: int) -> int
+  tests [
+    ((5, 3), 3),       // First is larger
+    ((3, 5), 3),       // Second is larger
+    ((5, 5), 5),       // Equal
+    (((-10), 0), -10), // One negative, one zero
+    (((-10), (-3)), -10) // Both negative
+  ]
+{
+  if a < b then a else b
+}
+
+// Learning Points:
+//
+// 1. Multi-arg format: ((a, b), expected)
+// 2. Single-arg format: (input, expected)
+// 3. Three+ arg format: ((a, b, c, ...), expected)
+// 4. Include edge cases: zero, negatives, boundaries
+// 5. Test both positive and negative flows
+// 6. Comments explain the test case logic

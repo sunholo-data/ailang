@@ -1,0 +1,96 @@
+// Inline Tests: Nullary Functions (No Arguments)
+//
+// This file demonstrates inline tests for functions with zero arguments.
+// Nullary functions use an empty tuple () as input in the test case format.
+
+module examples/inline_tests_nullary
+
+// Example 1: Simple constant function
+//
+// Format: tests [((), expected_value)]
+// The empty tuple () represents "no arguments"
+pure func getConstant() -> int
+  tests [
+    ((), 42)
+  ]
+{
+  42
+}
+
+// Example 2: Current year (constant)
+pure func getCurrentYear() -> int
+  tests [
+    ((), 2025)
+  ]
+{
+  2025
+}
+
+// Example 3: Magic number (different constant)
+pure func getMagicNumber() -> int
+  tests [
+    ((), 7)
+  ]
+{
+  7
+}
+
+// Example 4: Boolean constant
+pure func isEnabled() -> bool
+  tests [
+    ((), true)
+  ]
+{
+  true
+}
+
+// Example 5: String constant
+pure func getGreeting() -> string
+  tests [
+    ((), "Hello, AILANG!")
+  ]
+{
+  "Hello, AILANG!"
+}
+
+// Example 6: Multiple tests for same nullary function
+//
+// This shows a function that could theoretically have different
+// return values (though in practice it's constant).
+// This demonstrates the tuple format clearly.
+pure func getZero() -> int
+  tests [
+    ((), 0),
+    ((), 0 + 0)
+  ]
+{
+  0
+}
+
+// Example 7: Nullary function returning a list
+pure func getEmptyList() -> [int]
+  tests [
+    ((), [])
+  ]
+{
+  []
+}
+
+// Example 8: Nullary function returning a complex value
+type Status = OK | Error
+
+pure func getDefaultStatus() -> Status
+  tests [
+    ((), OK)
+  ]
+{
+  OK
+}
+
+// Key Learning Points:
+//
+// 1. Empty tuple format: ((), expected)
+// 2. No parentheses around the function name
+// 3. Tests run automatically during compilation
+// 4. Multiple tests can be provided for same function
+// 5. Tests help document expected behavior

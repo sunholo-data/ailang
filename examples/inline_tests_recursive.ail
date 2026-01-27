@@ -1,0 +1,164 @@
+// Inline Tests: Recursive Functions
+//
+// This file demonstrates inline tests for recursive functions.
+// Tests verify both base cases and recursive cases.
+
+module examples/inline_tests_recursive
+
+// Example 1: Factorial
+//
+// Demonstrates:
+// - Base case: factorial(0) = 1
+// - Base case: factorial(1) = 1
+// - Recursive case: factorial(5) = 120
+//
+// Format: (input, expected)
+pure func factorial(n: int) -> int
+  tests [
+    (0, 1),       // Base case: 0! = 1
+    (1, 1),       // Base case: 1! = 1
+    (2, 2),       // 2! = 2
+    (3, 6),       // 3! = 6
+    (5, 120),     // 5! = 120
+    (6, 720)      // 6! = 720
+  ]
+{
+  if n <= 1 then 1 else n * factorial(n - 1)
+}
+
+// Example 2: Fibonacci sequence
+//
+// Demonstrates:
+// - Base case: fib(0) = 0
+// - Base case: fib(1) = 1
+// - Recursive case: fib(n) = fib(n-1) + fib(n-2)
+pure func fibonacci(n: int) -> int
+  tests [
+    (0, 0),       // Base case: fib(0) = 0
+    (1, 1),       // Base case: fib(1) = 1
+    (2, 1),       // fib(2) = fib(1) + fib(0) = 1 + 0 = 1
+    (3, 2),       // fib(3) = fib(2) + fib(1) = 1 + 1 = 2
+    (5, 5),       // fib(5) = 5
+    (6, 8),       // fib(6) = 8
+    (10, 55)      // fib(10) = 55
+  ]
+{
+  if n <= 1 then n else fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+// Example 3: Sum of list (recursive, no builtin)
+//
+// Demonstrates:
+// - Base case: sum of empty list = 0
+// - Recursive case: sum of [head | tail] = head + sum(tail)
+//
+// Format for lists: (input_list, expected)
+pure func sumList(xs: [int]) -> int
+  tests [
+    ([], 0),            // Empty list sums to 0
+    ([5], 5),           // Single element
+    ([1, 2, 3], 6),     // 1 + 2 + 3 = 6
+    ([10, 20, 30], 60), // 10 + 20 + 30 = 60
+    ([5, 5, 5, 5], 20), // Four fives
+    ([-1, 1], 0)        // Negatives cancel out
+  ]
+{
+  match xs {
+    [] => 0,
+    head :: tail => head + sumList(tail)
+  }
+}
+
+// Example 4: List length (recursive)
+pure func listLength(xs: [int]) -> int
+  tests [
+    ([], 0),        // Empty list has length 0
+    ([1], 1),       // Single element
+    ([1, 2, 3], 3), // Three elements
+    ([5, 5, 5, 5], 4),
+    ([1, 2, 3, 4, 5], 5)
+  ]
+{
+  match xs {
+    [] => 0,
+    _ :: tail => 1 + listLength(tail)
+  }
+}
+
+// Example 5: Check if number is even (recursive)
+//
+// Demonstrates:
+// - Base cases: 0 is even, 1 is odd
+// - Recursive case: n is even iff (n-2) is even
+pure func isEven(n: int) -> bool
+  tests [
+    (0, true),      // 0 is even
+    (1, false),     // 1 is odd
+    (2, true),      // 2 is even
+    (3, false),     // 3 is odd
+    (4, true),      // 4 is even
+    (100, true),    // 100 is even
+    (99, false)     // 99 is odd
+  ]
+{
+  if n == 0 then true else if n == 1 then false else isEven(n - 2)
+}
+
+// Example 6: Power function (recursive)
+//
+// Format for multi-arg: ((base, exponent), expected)
+// Note: Simple implementation, not optimized
+pure func power(base: int, exponent: int) -> int
+  tests [
+    ((2, 0), 1),     // Any number to power 0 = 1
+    ((2, 1), 2),     // Any number to power 1 = itself
+    ((2, 3), 8),     // 2^3 = 8
+    ((3, 3), 27),    // 3^3 = 27
+    ((5, 2), 25),    // 5^2 = 25
+    ((10, 2), 100)   // 10^2 = 100
+  ]
+{
+  if exponent == 0 then 1 else base * power(base, exponent - 1)
+}
+
+// Example 7: Greatest Common Divisor (Euclidean algorithm)
+pure func gcd(a: int, b: int) -> int
+  tests [
+    ((48, 18), 6),   // gcd(48, 18) = 6
+    ((7, 7), 7),     // gcd of equal numbers is that number
+    ((0, 5), 5),     // gcd(0, n) = n
+    ((100, 50), 50), // One divides the other
+    ((17, 19), 1)    // Coprime numbers have gcd 1
+  ]
+{
+  if b == 0 then a else gcd(b, a % b)
+}
+
+// Example 8: Count occurrences in a list
+pure func countOccurrences(xs: [int], target: int) -> int
+  tests [
+    (([], 5), 0),          // Empty list: 0 occurrences
+    (([5], 5), 1),         // Single matching element
+    (([1, 2, 3], 2), 1),   // One occurrence
+    (([1, 1, 1], 1), 3),   // Multiple occurrences
+    (([5, 5, 3, 5, 2], 5), 3)  // Multiple occurrences in larger list
+  ]
+{
+  match xs {
+    [] => 0,
+    head :: tail =>
+      if head == target then
+        1 + countOccurrences(tail, target)
+      else
+        countOccurrences(tail, target)
+  }
+}
+
+// Learning Points:
+//
+// 1. Always test base cases first (often n=0 or empty list)
+// 2. Test simple recursive cases (n=1, n=2)
+// 3. Test more complex cases (n=5, n=10)
+// 4. Comments show the mathematical definition
+// 5. Recursive functions benefit from multiple test cases
+// 6. Pattern matching base cases are natural test entry points
