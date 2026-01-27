@@ -1,0 +1,70 @@
+module examples/if_then_else_blocks
+
+-- Test if-then-else with block expressions
+-- This example demonstrates M-DX24 improvement 4: if-then-else with multi-statement blocks
+
+-- Test 1: Basic block in then branch
+func testBasicBlock() -> int {
+  let x = 5;
+  if x > 0 then {
+    let doubled = x * 2;
+    doubled + 1
+  } else {
+    0
+  }
+}
+
+-- Test 2: Block in both branches
+func testBothBlocks(x: int) -> int {
+  if x > 10 then {
+    let squared = x * x;
+    squared / 2
+  } else {
+    let negative = 0 - x;
+    negative * negative
+  }
+}
+
+-- Test 3: Nested blocks in if-then-else
+func testNestedBlocks(x: int, y: int) -> int {
+  if x > y then {
+    let diff = x - y;
+    let squared = diff * diff;
+    squared
+  } else {
+    let sum = x + y;
+    let half = sum / 2;
+    half
+  }
+}
+
+-- Test 4: If-then-else with string blocks
+func formatValue(n: int) -> string {
+  if n >= 0 then {
+    let abs_val = n;
+    show(abs_val)
+  } else {
+    let abs_val = 0 - n;
+    show(abs_val)
+  }
+}
+
+-- Test 5: Deeply nested blocks
+func complexLogic(a: int, b: int) -> int {
+  if a > b then {
+    let ratio = a / b;
+    if ratio > 5 then {
+      let bonus = ratio * 10;
+      a + bonus
+    } else {
+      a + ratio
+    }
+  } else {
+    let diff = b - a;
+    if diff > 3 then {
+      diff * 2
+    } else {
+      diff
+    }
+  }
+}

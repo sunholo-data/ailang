@@ -1,0 +1,48 @@
+module examples/record_in_result
+
+-- Test record type inference in ADT constructor contexts
+-- This example demonstrates M-DX24 improvement 5: better record type inference
+
+-- Define a simple record type
+type Config = { host: string, port: int }
+
+-- Test 1: Direct record construction with type annotation
+func createConfig() -> Config {
+  let config = { host: "localhost", port: 8080 };
+  config
+}
+
+-- Test 2: Using record directly with annotation
+func createConfigDirect() -> Config {
+  { host: "localhost", port: 8080 }
+}
+
+-- Test 3: Record field access
+func getPort(config: Config) -> int {
+  config.port
+}
+
+-- Test 4: Record update
+func updateHost(config: Config, newHost: string) -> Config {
+  {
+    host: newHost,
+    port: config.port
+  }
+}
+
+-- Test 5: Multiple records
+type AuthError = { code: int, message: string }
+
+func createError() -> AuthError {
+  {
+    code: 401,
+    message: "Unauthorized"
+  }
+}
+
+-- Test 6: Record pattern matching
+func processConfig(config: Config) -> int {
+  match config {
+    { host, port } => port
+  }
+}
