@@ -21,6 +21,8 @@
   - Shows helpful error with --path suggestion when neither directory exists
   - Prevents hard failure when running outside source tree
   - Note: Full text search still requires local docs directory (not embedded in binary)
+  - Future: GitHub repository search fallback planned (M-DX27)
+  - Design doc: `design_docs/planned/v0_7_2/m-dx27-docs-search-github-fallback.md`
   - Location: `cmd/ailang/docs_search.go:findDocsDir()`
 - **models.yml**: Embedded models.yml configuration in binary using go:embed
   - Fixes "model not found" errors when using installed binary outside source tree
