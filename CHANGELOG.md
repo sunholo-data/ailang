@@ -16,6 +16,12 @@
   - Addresses demo feedback: runtime validation for API contracts
 
 ### Fixed
+- **docs search**: Added fallback to docs/ directory when design_docs/ not available
+  - `ailang docs search` now tries design_docs/ first (developers), then docs/ (users)
+  - Shows helpful error with --path suggestion when neither directory exists
+  - Prevents hard failure when running outside source tree
+  - Note: Full text search still requires local docs directory (not embedded in binary)
+  - Location: `cmd/ailang/docs_search.go:findDocsDir()`
 - **models.yml**: Embedded models.yml configuration in binary using go:embed
   - Fixes "model not found" errors when using installed binary outside source tree
   - Binary now works anywhere without needing relative path to models.yml

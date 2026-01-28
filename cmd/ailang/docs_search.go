@@ -75,10 +75,12 @@ func docsSearchCommand(args []string) {
 			os.Exit(1)
 		}
 	} else {
-		// Default to design_docs
-		docsPath, err = findDesignDocsDir()
+		// Try to find docs directory (prefer design_docs for developers, fall back to docs/ for users)
+		docsPath, err = findDocsDir()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			fmt.Fprintln(os.Stderr, "\nHint: Use --path flag to specify a documentation directory")
+			fmt.Fprintln(os.Stderr, "Example: ailang docs search --path docs \"query\"")
 			os.Exit(1)
 		}
 	}
@@ -132,23 +134,44 @@ func docsSearchCommand(args []string) {
 	}
 }
 
-// findDesignDocsDir finds the design_docs directory
-func findDesignDocsDir() (string, error) {
-	// Check common locations
-	candidates := []string{
+// findDocsDir finds a documentation directory to search
+// Prefers design_docs (for developers) but falls back to docs/ (for users)
+func findDocsDir() (string, error) {
+	// Try design_docs first (developer docs)
+	designDocsCandidates := []string{
 		"design_docs",
 		"../design_docs",
 		"../../design_docs",
 	}
 
-	for _, path := range candidates {
+	for _, path := range designDocsCandidates {
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
 			absPath, _ := filepath.Abs(path)
 			return absPath, nil
 		}
 	}
 
-	return "", fmt.Errorf("design_docs directory not found")
+	// Fall back to docs/ directory (user-facing docs)
+	docsCandidates := []string{
+		"docs",
+		"../docs",
+		"../../docs",
+	}
+
+	for _, path := range docsCandidates {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			absPath, _ := filepath.Abs(path)
+			return absPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("no documentation directory found (tried design_docs/ and docs/)")
+}
+
+// findDesignDocsDir is deprecated - use findDocsDir instead
+// Kept for backwards compatibility with cache management functions
+func findDesignDocsDir() (string, error) {
+	return findDocsDir()
 }
 
 // printResults displays search results in human-readable format
@@ -219,7 +242,7 @@ func printDocsSearchHelp() {
 	fmt.Println("Search documentation using SimHash or neural embeddings.")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  --path <dir>         Document corpus path (default: design_docs)")
+	fmt.Println("  --path <dir>         Document corpus path (default: design_docs or docs)")
 	fmt.Println("  --subdir <pattern>   Filter by subdirectory (e.g., 'guides', 'planned')")
 	fmt.Println("  --stream <stream>    Alias for --subdir (backwards compatibility)")
 	fmt.Println("  --neural             Use neural embeddings for semantic search (requires Ollama)")
