@@ -298,6 +298,12 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 
 		// Store bindings and add to evaluator environment
 		for name, val := range bindings {
+			// M-VERIFY-CONTRACTS: Attach contracts to FunctionValues
+			if fn, ok := val.(*eval.FunctionValue); ok && inst.Core != nil && inst.Core.Meta != nil {
+				if meta, ok := inst.Core.Meta[name]; ok && len(meta.Contracts) > 0 {
+					attachContracts(fn, meta.Contracts)
+				}
+			}
 			inst.Bindings[name] = val
 			// Add to environment so subsequent bindings can reference these
 			rt.evaluator.Env().Set(name, val)
@@ -314,6 +320,14 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 		if err != nil {
 			return fmt.Errorf("failed to evaluate let %s in module %s: %w", e.Name, inst.Path, err)
 		}
+
+		// M-VERIFY-CONTRACTS: Attach contracts to FunctionValues
+		if fn, ok := val.(*eval.FunctionValue); ok && inst.Core != nil && inst.Core.Meta != nil {
+			if meta, ok := inst.Core.Meta[e.Name]; ok && len(meta.Contracts) > 0 {
+				attachContracts(fn, meta.Contracts)
+			}
+		}
+
 		inst.Bindings[e.Name] = val
 
 		// CRITICAL: Add binding to evaluator's environment so subsequent bindings can reference it
@@ -380,6 +394,17 @@ func (rt *ModuleRuntime) GetInstance(modulePath string) *ModuleInstance {
 func (rt *ModuleRuntime) HasInstance(modulePath string) bool {
 	_, ok := rt.instances[modulePath]
 	return ok
+}
+
+// DeleteInstance removes a cached module instance, forcing re-evaluation on next load.
+// This is used by hot reload to invalidate stale modules.
+func (rt *ModuleRuntime) DeleteInstance(modulePath string) {
+	delete(rt.instances, modulePath)
+}
+
+// GetLoader returns the module loader for cache management.
+func (rt *ModuleRuntime) GetLoader() *loader.ModuleLoader {
+	return rt.loader
 }
 
 // ListInstances returns a list of all cached module paths
@@ -476,5 +501,29 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) *ifa
 		Exports:      exports,
 		Constructors: constructors,
 		Types:        make(map[string]*iface.TypeExport),
+	}
+}
+
+// attachContracts attaches contract specifications to a FunctionValue
+// M-VERIFY-CONTRACTS: Called during module evaluation to connect
+// contracts from core.DeclMeta to the FunctionValue at runtime.
+func attachContracts(fn *eval.FunctionValue, contracts []*core.Contract) {
+	for _, c := range contracts {
+		spec := &eval.ContractSpec{
+			Kind:     c.Kind.String(), // "requires", "ensures", or "invariant"
+			Expr:     c.Expr,
+			Message:  c.Message,
+			Location: c.Location,
+		}
+		switch c.Kind {
+		case core.RequiresKind:
+			fn.Preconditions = append(fn.Preconditions, spec)
+		case core.EnsuresKind:
+			fn.Postconditions = append(fn.Postconditions, spec)
+		case core.InvariantKind:
+			// Invariants are treated as both pre and post conditions
+			fn.Preconditions = append(fn.Preconditions, spec)
+			fn.Postconditions = append(fn.Postconditions, spec)
+		}
 	}
 }

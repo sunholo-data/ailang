@@ -169,13 +169,24 @@ func (r *RecordValue) String() string {
 	return result
 }
 
+// ContractSpec represents a requires/ensures contract for a function (M-VERIFY-CONTRACTS)
+type ContractSpec struct {
+	Kind     string      // "requires" or "ensures"
+	Expr     interface{} // The contract expression (ast.Expr or core.CoreExpr)
+	Message  string      // Auto-generated message from source (e.g., "limit > 0")
+	Location string      // Source location for error messages (e.g., "api.ail:15")
+}
+
 // FunctionValue represents a function value
 type FunctionValue struct {
-	Params        []string
-	Body          interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
-	Env           *Environment
-	Typed         bool           // Whether Body is typed
-	EffectBudgets map[string]int // Budget limits per effect (from type annotation)
+	Params           []string
+	Body             interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
+	Env              *Environment
+	Typed            bool            // Whether Body is typed
+	EffectBudgets    map[string]int  // Budget max limits per effect (from @limit annotation)
+	EffectMinBudgets map[string]int  // Budget min limits per effect (from @min annotation, M-DX25 M4)
+	Preconditions    []*ContractSpec // requires blocks (M-VERIFY-CONTRACTS)
+	Postconditions   []*ContractSpec // ensures blocks (M-VERIFY-CONTRACTS)
 }
 
 func (f *FunctionValue) Type() string   { return "function" }

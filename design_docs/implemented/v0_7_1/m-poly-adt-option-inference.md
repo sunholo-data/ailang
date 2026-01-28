@@ -1,10 +1,43 @@
 # M-POLY-ADT: Polymorphic ADT Type Inference with Option
 
 ## Status
+- **Status**: IMPLEMENTED
+- **Completed**: 2026-01-28
 - **Priority**: High (affects error handling patterns)
 - **Discovered**: 2026-01-06 via eval gap analysis
-- **Verified**: 2026-01-23 (bug still present in v0.7.0)
+- **Verified Working**: 2026-01-28 (fix verified in v0.7.1)
 - **Affects**: Result types, Either types, any polymorphic ADT where constructor fields don't match type parameters
+
+## Implementation Summary
+
+The fix was already implemented in the codebase. Key components:
+
+| File | Change |
+|------|--------|
+| `internal/elaborate/core.go:44-52` | `ConstructorInfo` has `FieldTypes` and `TypeParamNames` fields |
+| `internal/elaborate/file.go:583-595` | Captures field types during ADT elaboration via `astTypeToInternalType` |
+| `internal/pipeline/compile_unit.go:18` | Pipeline's `ConstructorInfo` has `InternalFieldTypes` |
+| `internal/pipeline/pipeline_converters.go:33` | Transfers `FieldTypes` from elaborate to pipeline |
+| `internal/pipeline/pipeline_module.go:427-469` | Uses actual field types when building constructor type schemes |
+| `internal/iface/iface.go:37` | `ConstructorScheme` has `FieldTypes` for cross-module imports |
+
+### Test Results
+
+```bash
+# Local Result[a] with Err(string) compiles correctly
+$ ./bin/ailang run --caps IO --entry main test.ail
+Parsed successfully
+
+# Imported Option[a] from std/option works
+$ ./bin/ailang run --caps IO --entry main test_import.ail
+Got a value
+
+# All tests pass
+$ go test ./internal/elaborate/... ./internal/pipeline/... ./internal/iface/...
+ok  github.com/sunholo/ailang/internal/elaborate
+ok  github.com/sunholo/ailang/internal/pipeline
+ok  github.com/sunholo/ailang/internal/iface
+```
 
 ## Problem Statement
 

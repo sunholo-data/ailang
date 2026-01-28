@@ -55,17 +55,31 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 
 		// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
 		var oldEffContext interface{}
-		if len(fn.EffectBudgets) > 0 && e.effContext != nil {
+		hasBudgetScope := (len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0) && e.effContext != nil
+		if hasBudgetScope {
 			// Use BudgetEnforcer interface to avoid import cycle
 			if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
 				oldEffContext = e.effContext
 				e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
+
+				// M-DX25 M4: Set min budgets if present
+				if len(fn.EffectMinBudgets) > 0 {
+					if minEnforcer, ok := e.effContext.(MinBudgetEnforcer); ok {
+						minEnforcer.SetMinBudgets(fn.EffectMinBudgets)
+					}
+				}
 			}
 		}
 
 		// Evaluate body
 		oldEnv := e.env
 		e.env = newEnv
+
+		// M-VERIFY-CONTRACTS: Check preconditions before executing body
+		if err := e.checkPreconditions(fn); err != nil {
+			e.env = oldEnv
+			return nil, err
+		}
 
 		// Body could be Core or TypedAST depending on origin
 		var result Value
@@ -75,10 +89,29 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			return nil, fmt.Errorf("function body is not Core AST")
 		}
 
+		// M-VERIFY-CONTRACTS: Check postconditions before returning (if no error)
+		if err == nil {
+			if postErr := e.checkPostconditions(fn, result); postErr != nil {
+				e.env = oldEnv
+				return nil, postErr
+			}
+		}
+
 		e.env = oldEnv
 
-		// M-CAPABILITY-BUDGETS: Restore original effect context if we modified it
+		// M-DX25: Handle budget scope exit
 		if oldEffContext != nil {
+			// M-DX25 M4: Check minimums before restoring context (if no error already)
+			if err == nil {
+				if checker, ok := e.effContext.(MinimumChecker); ok {
+					err = checker.CheckMinimums("")
+				}
+			}
+
+			// M-DX25: Charge caller with callee's declared budget
+			if charger, ok := e.effContext.(ScopeCharger); ok {
+				charger.PopScopeAndChargeCaller()
+			}
 			e.effContext = oldEffContext
 		}
 

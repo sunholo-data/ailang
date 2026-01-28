@@ -8,12 +8,27 @@
   - `endsWith(s: string, suffix: string) -> bool` - Check if string ends with suffix
   - Addresses demo feedback: users were reimplementing basic string operations
   - Visible via `ailang docs std/string`
-- **serve-api**: Added `--verify-contracts` flag for runtime contract validation
-  - Enables checking of `requires` (preconditions) and `ensures` (postconditions)
-  - Panics on contract violation with detailed error message
-  - Useful for development/debugging of API endpoints
-  - Example: `ailang serve-api --verify-contracts --caps IO ./api/`
-  - Addresses demo feedback: runtime validation for API contracts
+
+### Fixed - M-VERIFY-CONTRACTS: Runtime Contract Enforcement (Language-Wide)
+- **Contract verification now works across all execution modes** (M-VERIFY-CONTRACTS)
+  - `ailang run --verify-contracts --experimental-binop-shim` - Run with contracts
+  - `ailang serve-api --verify-contracts` - API with contracts
+  - Previously: contracts were parsed but NEVER enforced anywhere
+  - Requires `--experimental-binop-shim` until OpLowering applied to contract expressions
+  - Contract violations produce clear error messages with source location
+  - Example: `contract violation: requires failed in  at api.ail:7:12: (limit > 0)`
+  - Files: `internal/eval/eval_evaluator.go`, `internal/eval/eval_operations.go`, `internal/runtime/runtime.go`
+  - Design doc: `design_docs/implemented/v0_7_1/m-verify-contracts.md`
+
+### Fixed - M-POLY-ADT: Polymorphic ADT Type Inference
+- **Polymorphic ADTs now correctly handle mixed field types** (M-POLY-ADT)
+  - `type Result[a] = Ok(a) | Err(string)` now works correctly
+  - `Err` gets correct type: `∀a. string -> Result[a]` (not `∀a. a -> Result[a]`)
+  - Enables standard error handling patterns with Result types
+  - Cross-module ADT imports work (e.g., Option from std/option)
+  - Files: `internal/elaborate/core.go`, `internal/elaborate/file.go`, `internal/pipeline/pipeline_module.go`
+  - Design doc: `design_docs/implemented/v0_7_1/m-poly-adt-option-inference.md`
+  - Example: `examples/runnable/polymorphic_adt.ail`
 
 ### Fixed
 - **docs search**: Added fallback to docs/ directory when design_docs/ not available

@@ -20,6 +20,29 @@ type BudgetEnforcer interface {
 	WithBudgetLimits(limits map[string]int) interface{}
 }
 
+// MinBudgetEnforcer is implemented by effect contexts that support minimum budget requirements
+// M-DX25 M4: Minimum budgets ensure effects were actually exercised.
+type MinBudgetEnforcer interface {
+	// SetMinBudgets sets minimum usage requirements on the context's budget
+	SetMinBudgets(minLimits map[string]int)
+}
+
+// MinimumChecker is implemented by effect contexts that can verify minimum usage
+// M-DX25 M4: Called on scope exit to ensure effects were exercised.
+type MinimumChecker interface {
+	// CheckMinimums verifies all minimum requirements are met
+	// Returns nil if all minimums satisfied, error otherwise
+	CheckMinimums(position string) error
+}
+
+// ScopeCharger is implemented by effect contexts that support scoped budget charging
+// M-DX25: When a scoped function returns, the caller is charged the callee's declared budget
+type ScopeCharger interface {
+	// PopScopeAndChargeCaller charges the caller context with declared semantic budgets
+	// Called when restoring old context after function evaluation
+	PopScopeAndChargeCaller()
+}
+
 // CoreEvaluator evaluates Core AST programs after dictionary elaboration
 type CoreEvaluator struct {
 	env                   *Environment
@@ -143,17 +166,31 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 
 	// M-CAPABILITY-BUDGETS: Set up budget scoping if function has effect budgets
 	var oldEffContext interface{}
-	if len(fn.EffectBudgets) > 0 && e.effContext != nil {
+	hasBudgetScope := (len(fn.EffectBudgets) > 0 || len(fn.EffectMinBudgets) > 0) && e.effContext != nil
+	if hasBudgetScope {
 		// Use BudgetEnforcer interface to avoid import cycle
 		if enforcer, ok := e.effContext.(BudgetEnforcer); ok {
 			oldEffContext = e.effContext
 			e.effContext = enforcer.WithBudgetLimits(fn.EffectBudgets)
+
+			// M-DX25 M4: Set min budgets if present
+			if len(fn.EffectMinBudgets) > 0 {
+				if minEnforcer, ok := e.effContext.(MinBudgetEnforcer); ok {
+					minEnforcer.SetMinBudgets(fn.EffectMinBudgets)
+				}
+			}
 		}
 	}
 
 	// Evaluate body in new environment
 	oldEnv := e.env
 	e.env = newEnv
+
+	// M-VERIFY-CONTRACTS: Check preconditions before executing body
+	if err := e.checkPreconditions(fn); err != nil {
+		e.env = oldEnv
+		return nil, err
+	}
 
 	var result Value
 	var err error
@@ -163,10 +200,29 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 		err = fmt.Errorf("function body is not Core AST")
 	}
 
+	// M-VERIFY-CONTRACTS: Check postconditions before returning (if no error)
+	if err == nil {
+		if postErr := e.checkPostconditions(fn, result); postErr != nil {
+			e.env = oldEnv
+			return nil, postErr
+		}
+	}
+
 	e.env = oldEnv
 
-	// Restore original effect context if we modified it
+	// M-DX25: Handle budget scope exit
 	if oldEffContext != nil {
+		// M-DX25 M4: Check minimums before restoring context (if no error already)
+		if err == nil {
+			if checker, ok := e.effContext.(MinimumChecker); ok {
+				err = checker.CheckMinimums("")
+			}
+		}
+
+		// M-DX25: Charge caller with callee's declared budget
+		if charger, ok := e.effContext.(ScopeCharger); ok {
+			charger.PopScopeAndChargeCaller()
+		}
 		e.effContext = oldEffContext
 	}
 
@@ -262,4 +318,99 @@ func (e *CoreEvaluator) EvalCoreProgram(prog *core.Program) (Value, error) {
 	}
 
 	return lastResult, nil
+}
+
+// ContractChecker is an interface for checking contract violations via EffContext
+// M-VERIFY-CONTRACTS: Used to integrate with the effects.ContractContext
+type ContractChecker interface {
+	CheckRequires(cond bool, msg, location string) error
+	CheckEnsures(cond bool, msg, location string) error
+	IsContractCheckingEnabled() bool
+}
+
+// checkPreconditions checks all preconditions (requires blocks) before function execution
+// M-VERIFY-CONTRACTS: Evaluates contract expressions in the current environment
+func (e *CoreEvaluator) checkPreconditions(fn *FunctionValue) error {
+	if len(fn.Preconditions) == 0 {
+		return nil
+	}
+
+	// Check if contract checking is enabled
+	checker, ok := e.effContext.(ContractChecker)
+	if !ok || !checker.IsContractCheckingEnabled() {
+		return nil // Contract checking disabled
+	}
+
+	for _, pre := range fn.Preconditions {
+		// Evaluate the contract expression
+		coreExpr, ok := pre.Expr.(core.CoreExpr)
+		if !ok {
+			continue // Skip non-Core expressions
+		}
+
+		result, err := e.evalCore(coreExpr)
+		if err != nil {
+			return fmt.Errorf("precondition evaluation error at %s: %w", pre.Location, err)
+		}
+
+		// Check result is boolean
+		boolVal, ok := result.(*BoolValue)
+		if !ok {
+			return fmt.Errorf("precondition at %s must return bool, got %T", pre.Location, result)
+		}
+
+		// Report via ContractContext
+		if err := checker.CheckRequires(boolVal.Value, pre.Message, pre.Location); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// checkPostconditions checks all postconditions (ensures blocks) after function execution
+// M-VERIFY-CONTRACTS: Evaluates contract expressions with 'result' bound to the return value
+func (e *CoreEvaluator) checkPostconditions(fn *FunctionValue, result Value) error {
+	if len(fn.Postconditions) == 0 {
+		return nil
+	}
+
+	// Check if contract checking is enabled
+	checker, ok := e.effContext.(ContractChecker)
+	if !ok || !checker.IsContractCheckingEnabled() {
+		return nil // Contract checking disabled
+	}
+
+	// Bind 'result' for postcondition checking
+	e.env.Set("result", result)
+	defer func() {
+		// Clean up result binding
+		// Note: We don't need to unset since the env will be restored anyway
+	}()
+
+	for _, post := range fn.Postconditions {
+		// Evaluate the contract expression
+		coreExpr, ok := post.Expr.(core.CoreExpr)
+		if !ok {
+			continue // Skip non-Core expressions
+		}
+
+		checkResult, err := e.evalCore(coreExpr)
+		if err != nil {
+			return fmt.Errorf("postcondition evaluation error at %s: %w", post.Location, err)
+		}
+
+		// Check result is boolean
+		boolVal, ok := checkResult.(*BoolValue)
+		if !ok {
+			return fmt.Errorf("postcondition at %s must return bool, got %T", post.Location, checkResult)
+		}
+
+		// Report via ContractContext
+		if err := checker.CheckEnsures(boolVal.Value, post.Message, post.Location); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -54,20 +54,29 @@ func (p Pos) String() string {
 	return fmt.Sprintf("%s:%d:%d", p.File, p.Line, p.Column)
 }
 
-// EffectAnnotation represents an effect with optional budget limit
-// Syntax: IO or IO @limit=5
+// EffectAnnotation represents an effect with optional budget constraints
+// Syntax: IO or IO @limit=5 or IO @min=1 or IO @min=1 @limit=5
 type EffectAnnotation struct {
 	Name   string // Effect name (e.g., "IO", "FS", "Net")
-	Budget *int   // Optional budget limit (nil = unlimited)
+	Budget *int   // Optional budget limit / max (nil = unlimited)
+	Min    *int   // Optional minimum usage requirement (nil = no minimum) (M-DX25 M4)
 	Pos    Pos
 }
 
 // String formats the effect annotation for display
 func (e *EffectAnnotation) String() string {
-	if e.Budget != nil {
-		return fmt.Sprintf("%s @limit=%d", e.Name, *e.Budget)
+	var parts []string
+	parts = append(parts, e.Name)
+	if e.Min != nil {
+		parts = append(parts, fmt.Sprintf("@min=%d", *e.Min))
 	}
-	return e.Name
+	if e.Budget != nil {
+		parts = append(parts, fmt.Sprintf("@limit=%d", *e.Budget))
+	}
+	if len(parts) == 1 {
+		return e.Name
+	}
+	return strings.Join(parts, " ")
 }
 
 // EffectNames extracts just the effect names from annotations (for backward compatibility)

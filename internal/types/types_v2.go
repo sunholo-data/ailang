@@ -60,10 +60,11 @@ func (r *RowVar) Substitute(subs map[string]Type) Type {
 
 // Row represents a row type (for both records and effects)
 type Row struct {
-	Kind    Kind            // KRow(KEffect) or KRow(KRecord)
-	Labels  map[string]Type // For records: field->type, For effects: effect->unit
-	Tail    *RowVar         // Optional row variable for extension
-	Budgets map[string]*int // For effects: optional budget limits (nil = unlimited)
+	Kind       Kind            // KRow(KEffect) or KRow(KRecord)
+	Labels     map[string]Type // For records: field->type, For effects: effect->unit
+	Tail       *RowVar         // Optional row variable for extension
+	Budgets    map[string]*int // For effects: optional budget limits (nil = unlimited)
+	MinBudgets map[string]*int // For effects: optional minimum usage requirements (M-DX25 M4)
 }
 
 func (r *Row) String() string {
@@ -77,13 +78,20 @@ func (r *Row) String() string {
 	var parts []string
 	for _, k := range keys {
 		if r.Kind.Equals(EffectRow) {
-			// For effect rows, include budget annotation if present
+			// For effect rows, include budget annotations if present
+			var annotations []string
+			if r.MinBudgets != nil {
+				if min, ok := r.MinBudgets[k]; ok && min != nil {
+					annotations = append(annotations, fmt.Sprintf("@min=%d", *min))
+				}
+			}
 			if r.Budgets != nil {
 				if budget, ok := r.Budgets[k]; ok && budget != nil {
-					parts = append(parts, fmt.Sprintf("%s @limit=%d", k, *budget))
-				} else {
-					parts = append(parts, k)
+					annotations = append(annotations, fmt.Sprintf("@limit=%d", *budget))
 				}
+			}
+			if len(annotations) > 0 {
+				parts = append(parts, k+" "+strings.Join(annotations, " "))
 			} else {
 				parts = append(parts, k)
 			}

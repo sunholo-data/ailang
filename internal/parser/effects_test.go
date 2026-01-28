@@ -426,6 +426,155 @@ func intPtr(i int) *int {
 	return &i
 }
 
+// M-DX25 M4: Test @min parsing
+func TestEffectMinBudgetParsing(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		expectedEffects []string
+		expectedMins    []*int // nil = no min, non-nil = min value
+		expectedLimits  []*int // nil = no limit, non-nil = limit value
+		shouldError     bool
+		errorCode       string
+	}{
+		{
+			name:            "effect with min only",
+			input:           "func f() -> int ! {IO @min=1} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedMins:    []*int{intPtr(1)},
+			expectedLimits:  []*int{nil},
+			shouldError:     false,
+		},
+		{
+			name:            "effect with min and limit",
+			input:           "func f() -> int ! {IO @min=1 @limit=5} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedMins:    []*int{intPtr(1)},
+			expectedLimits:  []*int{intPtr(5)},
+			shouldError:     false,
+		},
+		{
+			name:            "effect with limit and min (reverse order)",
+			input:           "func f() -> int ! {IO @limit=5 @min=1} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedMins:    []*int{intPtr(1)},
+			expectedLimits:  []*int{intPtr(5)},
+			shouldError:     false,
+		},
+		{
+			name:            "mixed - one with min, one without",
+			input:           "func f() -> int ! {IO @min=2, FS} { 42 }",
+			expectedEffects: []string{"IO", "FS"},
+			expectedMins:    []*int{intPtr(2), nil},
+			expectedLimits:  []*int{nil, nil},
+			shouldError:     false,
+		},
+		{
+			name:            "all effects with various annotations",
+			input:           "func f() -> int ! {IO @min=1 @limit=10, FS @limit=3, Net @min=2} { 42 }",
+			expectedEffects: []string{"IO", "FS", "Net"},
+			expectedMins:    []*int{intPtr(1), nil, intPtr(2)},
+			expectedLimits:  []*int{intPtr(10), intPtr(3), nil},
+			shouldError:     false,
+		},
+		{
+			name:            "zero min",
+			input:           "func f() -> int ! {IO @min=0} { 42 }",
+			expectedEffects: []string{"IO"},
+			expectedMins:    []*int{intPtr(0)},
+			expectedLimits:  []*int{nil},
+			shouldError:     false,
+		},
+		{
+			name:        "negative min",
+			input:       "func f() -> int ! {IO @min=-1} { 42 }",
+			shouldError: true,
+			errorCode:   "PAR_EFF006_NEGATIVE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input, "test.ail")
+			p := New(l)
+			program := p.Parse()
+
+			if tt.shouldError {
+				if len(p.Errors()) == 0 {
+					t.Fatalf("expected error with code %s, but got no errors", tt.errorCode)
+				}
+
+				// Check that we got the right error code
+				foundError := false
+				for _, err := range p.Errors() {
+					if perr, ok := err.(*ParserError); ok {
+						if perr.Code == tt.errorCode {
+							foundError = true
+							break
+						}
+					}
+				}
+
+				if !foundError {
+					t.Errorf("expected error code %s, but got errors: %v", tt.errorCode, p.Errors())
+				}
+				return
+			}
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("unexpected parser errors: %v", p.Errors())
+			}
+
+			if program == nil {
+				t.Fatal("Parse() returned nil")
+			}
+
+			if len(program.File.Funcs) == 0 {
+				t.Fatal("program has no function declarations")
+			}
+
+			funcDecl := program.File.Funcs[0]
+
+			// Check effects count
+			if len(funcDecl.Effects) != len(tt.expectedEffects) {
+				t.Errorf("expected %d effects, got %d: %v", len(tt.expectedEffects), len(funcDecl.Effects), funcDecl.Effects)
+			}
+
+			// Check each effect name, min, and limit
+			for i, expected := range tt.expectedEffects {
+				if i >= len(funcDecl.Effects) {
+					t.Errorf("missing effect at index %d: expected %s", i, expected)
+					continue
+				}
+				eff := funcDecl.Effects[i]
+				if eff.Name != expected {
+					t.Errorf("effect at index %d: expected name %s, got %s", i, expected, eff.Name)
+				}
+
+				// Check min
+				expectedMin := tt.expectedMins[i]
+				if expectedMin == nil && eff.Min != nil {
+					t.Errorf("effect %s at index %d: expected no min, got %d", expected, i, *eff.Min)
+				} else if expectedMin != nil && eff.Min == nil {
+					t.Errorf("effect %s at index %d: expected min %d, got nil", expected, i, *expectedMin)
+				} else if expectedMin != nil && eff.Min != nil && *expectedMin != *eff.Min {
+					t.Errorf("effect %s at index %d: expected min %d, got %d", expected, i, *expectedMin, *eff.Min)
+				}
+
+				// Check limit
+				expectedLimit := tt.expectedLimits[i]
+				if expectedLimit == nil && eff.Budget != nil {
+					t.Errorf("effect %s at index %d: expected no limit, got %d", expected, i, *eff.Budget)
+				} else if expectedLimit != nil && eff.Budget == nil {
+					t.Errorf("effect %s at index %d: expected limit %d, got nil", expected, i, *expectedLimit)
+				} else if expectedLimit != nil && eff.Budget != nil && *expectedLimit != *eff.Budget {
+					t.Errorf("effect %s at index %d: expected limit %d, got %d", expected, i, *expectedLimit, *eff.Budget)
+				}
+			}
+		})
+	}
+}
+
 func TestEffectAnnotationErrorMessages(t *testing.T) {
 	tests := []struct {
 		name              string

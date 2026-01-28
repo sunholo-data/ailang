@@ -11,6 +11,7 @@ import (
 
 // parseEffectAnnotation parses effect annotations: ! {IO, FS, Net}
 // Also supports budget syntax: ! {IO @limit=5, FS @limit=2}
+// And minimum syntax: ! {IO @min=1} or ! {IO @min=1 @limit=5}
 // Validates effect names and detects duplicates
 func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 	// Known canonical effect names
@@ -74,64 +75,84 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 			seen[effectName] = true
 		}
 
-		// Parse optional budget: @limit=N
+		// Parse optional annotations: @min=N and/or @limit=N (M-DX25 M4)
 		var budget *int
-		if p.peekTokenIs(lexer.AT) {
+		var min *int
+		for p.peekTokenIs(lexer.AT) {
 			p.nextToken() // consume @
 
-			// Expect "limit"
-			if !p.expectPeek(lexer.IDENT) || p.curToken.Literal != "limit" {
+			// Expect "limit" or "min"
+			if !p.expectPeek(lexer.IDENT) {
 				p.report("PAR_EFF005_BUDGET",
-					"expected 'limit' after '@'",
-					"Use @limit=N to set effect budget")
+					"expected 'limit' or 'min' after '@'",
+					"Use @limit=N or @min=N")
+				break
+			}
+
+			annotation := p.curToken.Literal
+			if annotation != "limit" && annotation != "min" {
+				p.report("PAR_EFF005_BUDGET",
+					fmt.Sprintf("unknown annotation '@%s'", annotation),
+					"Use @limit=N to set maximum or @min=N to set minimum")
 				// Skip to next comma or closing brace
-				for !p.peekTokenIs(lexer.COMMA) && !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) {
+				for !p.peekTokenIs(lexer.COMMA) && !p.peekTokenIs(lexer.RBRACE) && !p.peekTokenIs(lexer.EOF) && !p.peekTokenIs(lexer.AT) {
 					p.nextToken()
 				}
-			} else {
-				// Expect =
-				if !p.expectPeek(lexer.ASSIGN) {
-					p.report("PAR_EFF005_BUDGET",
-						"expected '=' after 'limit'",
-						"Use @limit=N to set effect budget")
-				} else {
-					// Expect integer value (possibly negative)
-					isNegative := false
-					if p.peekTokenIs(lexer.MINUS) {
-						p.nextToken() // consume -
-						isNegative = true
-					}
+				continue
+			}
 
-					if !p.expectPeek(lexer.INT) {
-						p.report("PAR_EFF005_BUDGET",
-							"budget must be an integer",
-							"Use a positive integer like @limit=5")
-					} else {
-						val, err := strconv.Atoi(p.curToken.Literal)
-						if err != nil {
-							p.report("PAR_EFF005_BUDGET",
-								fmt.Sprintf("invalid budget value '%s'", p.curToken.Literal),
-								"Use a positive integer like @limit=5")
-						} else {
-							if isNegative {
-								val = -val
-							}
-							if val < 0 {
-								p.report("PAR_EFF006_NEGATIVE",
-									fmt.Sprintf("budget cannot be negative: %d", val),
-									"Use a positive integer (0 is allowed for 'no operations')")
-							} else {
-								budget = &val
-							}
-						}
-					}
-				}
+			// Expect =
+			if !p.expectPeek(lexer.ASSIGN) {
+				p.report("PAR_EFF005_BUDGET",
+					fmt.Sprintf("expected '=' after '%s'", annotation),
+					fmt.Sprintf("Use @%s=N", annotation))
+				continue
+			}
+
+			// Expect integer value (possibly negative)
+			isNegative := false
+			if p.peekTokenIs(lexer.MINUS) {
+				p.nextToken() // consume -
+				isNegative = true
+			}
+
+			if !p.expectPeek(lexer.INT) {
+				p.report("PAR_EFF005_BUDGET",
+					fmt.Sprintf("@%s value must be an integer", annotation),
+					fmt.Sprintf("Use a positive integer like @%s=5", annotation))
+				continue
+			}
+
+			val, err := strconv.Atoi(p.curToken.Literal)
+			if err != nil {
+				p.report("PAR_EFF005_BUDGET",
+					fmt.Sprintf("invalid %s value '%s'", annotation, p.curToken.Literal),
+					fmt.Sprintf("Use a positive integer like @%s=5", annotation))
+				continue
+			}
+
+			if isNegative {
+				val = -val
+			}
+			if val < 0 {
+				p.report("PAR_EFF006_NEGATIVE",
+					fmt.Sprintf("@%s cannot be negative: %d", annotation, val),
+					"Use a positive integer (0 is allowed)")
+				continue
+			}
+
+			// Store in appropriate field
+			if annotation == "limit" {
+				budget = &val
+			} else { // annotation == "min"
+				min = &val
 			}
 		}
 
 		effects = append(effects, ast.EffectAnnotation{
 			Name:   effectName,
 			Budget: budget,
+			Min:    min,
 			Pos:    ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
 		})
 

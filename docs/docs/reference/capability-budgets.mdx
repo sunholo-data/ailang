@@ -9,6 +9,7 @@ import BudgetBasic from '!!raw-loader!@site/../examples/reference/budget_basic.a
 import BudgetPerInvocation from '!!raw-loader!@site/../examples/reference/budget_per_invocation.ail';
 import BudgetExhausted from '!!raw-loader!@site/../examples/reference/budget_exhausted.ail';
 import CapabilityBudgets from '!!raw-loader!@site/../examples/reference/capability_budgets.ail';
+import BudgetMinimum from '!!raw-loader!@site/../examples/reference/budget_minimum.ail';
 
 # Capability Budgets
 
@@ -24,6 +25,8 @@ Traditional capability systems are binary: either you can perform an effect or y
 | Logging control | Global config | `! {IO @limit=5}` |
 | Resource exhaustion | Runtime OOM | Bounded failure |
 | Testing | Mock everything | Limit side effects |
+| Audit verification | Manual checking | `! {IO @min=1}` |
+| Cache bypass | Flags/timestamps | `! {Net @min=1}` |
 
 **Capability budgets give you:**
 - **Compile-time documentation**: See resource usage in function signatures
@@ -33,7 +36,7 @@ Traditional capability systems are binary: either you can perform an effect or y
 
 ## Basic Syntax
 
-Add `@limit=N` to an effect in the function signature:
+Add `@limit=N` to set a maximum budget, or `@min=N` to require a minimum usage:
 
 <CodeBlock language="typescript" title="examples/reference/budget_basic.ail">
   {BudgetBasic}
@@ -47,18 +50,27 @@ ailang run --caps IO --entry main examples/reference/budget_basic.ail
 ### Syntax Rules
 
 ```typescript
--- Single effect with budget
+-- Maximum limit: can use at most 5 IO operations
 func f() -> () ! {IO @limit=5} { ... }
 
--- Multiple effects, one with budget
-func g() -> () ! {IO @limit=10, FS} { ... }
+-- Minimum requirement: must use at least 1 IO operation
+func g() -> () ! {IO @min=1} { ... }
 
--- Multiple effects with budgets
-func h() -> () ! {IO @limit=5, Net @limit=3} { ... }
+-- Combined: between 1 and 5 IO operations (inclusive)
+func h() -> () ! {IO @min=1 @limit=5} { ... }
 
--- No budget = unlimited
+-- Multiple effects with different budgets
+func i() -> () ! {IO @limit=5, Net @min=1 @limit=3} { ... }
+
+-- No budget = unlimited, no minimum
 func unlimited() -> () ! {IO} { ... }
 ```
+
+| Annotation | Meaning |
+|------------|---------|
+| `@limit=N` | Maximum N operations allowed (budget exhausted if exceeded) |
+| `@min=N` | Minimum N operations required (budget underrun if not met) |
+| `@min=M @limit=N` | Between M and N operations (inclusive) |
 
 ## Per-Invocation Semantics
 
@@ -106,6 +118,49 @@ The error includes:
 - **Limit**: The configured budget
 - **Used**: How many operations were performed
 - **Hint**: Suggestions for fixing the issue
+
+## Minimum Budgets
+
+Sometimes you need to **verify that an effect actually occurred** rather than being skipped or cached. The `@min=N` annotation enforces that a function performs at least N operations:
+
+<CodeBlock language="typescript" title="examples/reference/budget_minimum.ail">
+  {BudgetMinimum}
+</CodeBlock>
+
+**Use cases for `@min`:**
+
+| Scenario | Why Minimum Matters |
+|----------|---------------------|
+| API verification | Ensure actual API call happened, not cached response |
+| Audit logging | Verify logging actually occurred for compliance |
+| Data fetching | Confirm fresh data was retrieved, not stale cache |
+| Testing | Assert that effects were exercised, not mocked away |
+
+### Budget Underrun
+
+If a function with `@min` doesn't perform enough operations, it fails with a `BudgetUnderrunError`:
+
+```
+Error: effect 'IO' budget underrun: min=1, actual=0
+Hint: Ensure the function actually performs at least 1 IO operation(s)
+```
+
+### Combined Min and Limit
+
+Use both annotations to specify a valid range:
+
+```typescript
+-- Must call API at least once, but no more than 5 times
+func fetchWithRetry(url: string) -> string ! {Net @min=1 @limit=5} {
+  -- At least 1 call required, up to 5 allowed for retries
+  ...
+}
+```
+
+This is particularly useful for:
+- **Retry logic**: Ensure at least one attempt, cap total retries
+- **Batch operations**: Require some work done, limit total operations
+- **Validation**: Verify minimum processing while preventing runaway loops
 
 ## Complete Example
 

@@ -380,6 +380,33 @@
       "description": "Demonstrates effect budget annotations with Rand capability"
     },
     {
+      "path": "effect_budget_demo.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "m-dx25"
+      ],
+      "description": "Effect budget demo: @limit for max calls, @min for minimum requirements",
+      "expected": {
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "reference/budget_minimum.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "reference",
+        "m-dx25"
+      ],
+      "description": "Reference: Minimum budget (@min) verification for audit logging and cache bypass",
+      "expected": {
+        "exit_code": 0
+      }
+    },
+    {
       "path": "effects_basic.ail",
       "status": "working",
       "tags": [
@@ -944,6 +971,21 @@
       "description": "Polymorphic ADT with mixed field types: Result[a] = Ok(a) | Err(string)"
     },
     {
+      "path": "runnable/polymorphic_adt.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt",
+        "option",
+        "result",
+        "either",
+        "functional"
+      ],
+      "description": "Comprehensive polymorphic ADT examples: Result, Either, mapResult, bindResult, Option integration"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [
@@ -1022,14 +1064,62 @@
         "misc"
       ],
       "description": "values_basic.ail - Working with values and string concatenation"
+    },
+    {
+      "path": "web_api_demo/api/math.ail",
+      "status": "working",
+      "tags": [
+        "api",
+        "serve-api",
+        "pure",
+        "demo"
+      ],
+      "description": "Web API demo: pure math functions (add, multiply, factorial, fibonacci) served via ailang serve-api",
+      "run_mode": "serve-api"
+    },
+    {
+      "path": "web_api_demo/api/greet.ail",
+      "status": "working",
+      "tags": [
+        "api",
+        "serve-api",
+        "json",
+        "demo"
+      ],
+      "description": "Web API demo: string and JSON functions (hello, farewell, welcome) served via ailang serve-api",
+      "run_mode": "serve-api"
+    },
+    {
+      "path": "runnable/contracts/basic.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
+    },
+    {
+      "path": "runnable/contracts/park.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: theme park admission example with age/height constraints",
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
     }
   ],
   "statistics": {
-    "total": 107,
-    "working": 100,
+    "total": 114,
+    "working": 107,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.935
+    "coverage": 0.938
   },
   "milestones": {
     "completed": [

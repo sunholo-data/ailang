@@ -74,6 +74,16 @@ func (e *Engine) Close() error {
 	return nil
 }
 
+// InvalidateModule clears all caches for a module, forcing recompilation on next call.
+// This is used by hot reload to pick up source file changes.
+func (e *Engine) InvalidateModule(modulePath string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	delete(e.compiled, modulePath)
+	e.runtime.DeleteInstance(modulePath)
+	e.runtime.GetLoader().DeleteCached(modulePath)
+}
+
 // Load compiles and loads a module, caching it for future calls.
 // modulePath is the path relative to basePath (e.g., "internal/transforms/event_formatter").
 func (e *Engine) Load(modulePath string) error {
@@ -291,6 +301,14 @@ func (e *Engine) ListExports(modulePath string) ([]string, error) {
 	}
 
 	return inst.ListExports(), nil
+}
+
+// SetEffContext configures the effect context for all subsequent calls.
+// This enables effectful AILANG functions (IO, FS, Net, AI, etc.).
+// The ctx parameter should be an *effects.EffContext; it uses interface{}
+// to avoid an import cycle between embed and effects packages.
+func (e *Engine) SetEffContext(ctx interface{}) {
+	e.runtime.GetEvaluator().SetEffContext(ctx)
 }
 
 // HasExport checks if a module exports a value with the given name.

@@ -1,0 +1,44 @@
+-- Minimum Budget Example
+--
+-- Demonstrates @min annotation to require at least N effect operations.
+-- Use cases: audit logging, cache bypass verification, API call confirmation.
+
+module examples/reference/budget_minimum
+
+import std/io (println)
+
+-- This function MUST perform at least 1 IO operation.
+-- If it returns without any println calls, it fails with BudgetUnderrunError.
+func auditLog(action: string, success: bool) -> () ! {IO @min=1 @limit=2} {
+  -- This println satisfies @min=1 requirement
+  println("AUDIT: " ++ action);
+  -- Optionally log failure (still within @limit=2)
+  if not success then
+    println("  Status: FAILED")
+  else
+    ()
+}
+
+-- Combined @min and @limit: between 1 and 3 operations
+func verifiedFetch(resource: string) -> string ! {IO @min=1 @limit=3} {
+  -- At least 1 IO required (proves we actually did something)
+  println("Fetching: " ++ resource);
+  -- Can do up to 2 more (total 3)
+  println("Response received");
+  "data from " ++ resource
+}
+
+export func main() -> () ! {IO} {
+  println("=== Minimum Budget Demo ===");
+  println("");
+
+  println("1. Audit logging with @min=1 @limit=2:");
+  auditLog("user_login", true);
+  auditLog("payment_failed", false);
+  println("");
+
+  println("2. Verified fetch with @min=1 @limit=3:");
+  let data = verifiedFetch("api/users");
+  println("Got: " ++ data);
+  ()
+}

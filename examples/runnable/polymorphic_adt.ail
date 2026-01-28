@@ -1,0 +1,108 @@
+-- Polymorphic ADT Type Inference (M-POLY-ADT)
+--
+-- Demonstrates polymorphic ADTs where constructor field types
+-- differ from type parameters. This was fixed in v0.7.1.
+--
+-- Key insight: In `type Result[a] = Ok(a) | Err(string)`:
+--   - Ok uses type parameter 'a' for its field
+--   - Err uses concrete type 'string' (not 'a')
+--
+-- The compiler correctly infers:
+--   - Ok : ∀a. a -> Result[a]
+--   - Err : ∀a. string -> Result[a]
+
+module examples/runnable/polymorphic_adt
+
+import std/string (stringToInt, intToStr)
+import std/option (Option, Some, None)
+
+-- Custom Result type with mixed field types
+-- 'a' is used by Ok, but Err uses concrete 'string'
+type Result[a] = Ok(a) | Err(string)
+
+-- Either type - both constructors use type parameters
+type Either[a, b] = Left(a) | Right(b)
+
+-- Parse a string to int, returning Result[int]
+-- This works because Err("...") : Result[int] (not Result[string])
+pure func parseIntResult(s: string) -> Result[int] =
+  match stringToInt(s) {
+    Some(n) => Ok(n),
+    None => Err("Invalid integer: " ++ s)
+  }
+
+-- Map over a Result - transform the success value
+pure func mapResult[a, b](f: (a) -> b, r: Result[a]) -> Result[b] =
+  match r {
+    Ok(x) => Ok(f(x)),
+    Err(e) => Err(e)
+  }
+
+-- Chain Results together (flatMap/bind)
+pure func bindResult[a, b](f: (a) -> Result[b], r: Result[a]) -> Result[b] =
+  match r {
+    Ok(x) => f(x),
+    Err(e) => Err(e)
+  }
+
+-- Get value or default
+pure func getOrElseResult[a](r: Result[a], default: a) -> a =
+  match r {
+    Ok(x) => x,
+    Err(_) => default
+  }
+
+-- Convert Option to Result
+pure func optionToResult[a](opt: Option[a], errMsg: string) -> Result[a] =
+  match opt {
+    Some(x) => Ok(x),
+    None => Err(errMsg)
+  }
+
+-- Either example: partition results
+pure func partitionEither[a, b](e: Either[a, b]) -> string =
+  match e {
+    Left(_) => "left",
+    Right(_) => "right"
+  }
+
+-- Helper to show result
+pure func showResult(r: Result[int]) -> string =
+  match r {
+    Ok(n) => "Ok(" ++ intToStr(n) ++ ")",
+    Err(e) => "Err(" ++ e ++ ")"
+  }
+
+-- Main: demonstrate polymorphic ADT usage
+export func main() -> string ! {IO} {
+  -- Parse valid and invalid inputs
+  let valid = parseIntResult("42");
+  let invalid = parseIntResult("not a number");
+
+  -- Show results
+  let line1 = "Parse '42': " ++ showResult(valid);
+  let line2 = "Parse 'not a number': " ++ showResult(invalid);
+
+  -- Use mapResult to transform success values
+  let doubled = mapResult(\x. x * 2, valid);
+  let line3 = "Double valid: " ++ showResult(doubled);
+
+  -- Chain operations with bindResult
+  let chained = bindResult(\x. if x > 0 then Ok(x * 10) else Err("non-positive"), valid);
+  let line4 = "Chain valid: " ++ showResult(chained);
+
+  -- Get value or default
+  let valOrDefault = getOrElseResult(invalid, -1);
+  let line5 = "Invalid or default: " ++ intToStr(valOrDefault);
+
+  -- Option to Result conversion
+  let fromOption = optionToResult(Some(100), "missing");
+  let line6 = "Option to Result: " ++ showResult(fromOption);
+
+  -- Either example
+  let leftVal: Either[int, string] = Left(42);
+  let rightVal: Either[int, string] = Right("hello");
+  let line7 = "Either Left: " ++ partitionEither(leftVal) ++ ", Right: " ++ partitionEither(rightVal);
+
+  line1 ++ "\n" ++ line2 ++ "\n" ++ line3 ++ "\n" ++ line4 ++ "\n" ++ line5 ++ "\n" ++ line6 ++ "\n" ++ line7
+}

@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/sunholo/ailang/internal/embed"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/pipeline"
@@ -43,6 +44,11 @@ type Server struct {
 	frontendPath string // path to React project (optional)
 	staticPath   string // path to built static files (optional)
 	viteCmd      *exec.Cmd
+
+	// Hot reload
+	watch      bool // whether file watching is enabled
+	watcher    *fsnotify.Watcher
+	watchPaths []string // absolute paths of loaded .ail files (for reload mapping)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -63,8 +69,10 @@ type ExportInfo struct {
 type Config struct {
 	Port         string
 	CORS         bool
-	FrontendPath string // optional: React project path for Vite proxy
-	StaticPath   string // optional: built frontend files
+	FrontendPath string      // optional: React project path for Vite proxy
+	StaticPath   string      // optional: built frontend files
+	Watch        bool        // enable file watching for hot reload
+	EffCtx       interface{} // optional: pre-configured effect context (*effects.EffContext)
 }
 
 // New creates a new API server.
@@ -72,14 +80,19 @@ func New(basePath string, cfg Config) *Server {
 	if cfg.Port == "" {
 		cfg.Port = "8080"
 	}
+	eng := embed.New(basePath)
+	if cfg.EffCtx != nil {
+		eng.SetEffContext(cfg.EffCtx)
+	}
 	return &Server{
-		engine:       embed.New(basePath),
+		engine:       eng,
 		modules:      make(map[string]*ModuleInfo),
 		port:         cfg.Port,
 		basePath:     basePath,
 		cors:         cfg.CORS,
 		frontendPath: cfg.FrontendPath,
 		staticPath:   cfg.StaticPath,
+		watch:        cfg.Watch,
 	}
 }
 
@@ -171,6 +184,9 @@ func (s *Server) loadFile(path string) error {
 	// and load the module on the first Call(). This avoids path resolution
 	// issues where pipeline canonical paths differ from engine basePath resolution.
 
+	// Track absolute path for file watching
+	s.watchPaths = append(s.watchPaths, absPath)
+
 	log.Printf("  Loaded module: %s (%d exports)", modulePath, len(modInfo.Exports))
 	return nil
 }
@@ -229,6 +245,15 @@ func (s *Server) Start() error {
 		}
 	}
 
+	// Start file watcher if enabled
+	if s.watch {
+		if err := s.startWatcher(); err != nil {
+			log.Printf("Warning: failed to start file watcher: %v", err)
+		} else {
+			log.Println("  Hot reload enabled (watching for .ail file changes)")
+		}
+	}
+
 	// Graceful shutdown
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
@@ -236,6 +261,9 @@ func (s *Server) Start() error {
 	go func() {
 		<-done
 		log.Println("Shutting down...")
+		if s.watcher != nil {
+			_ = s.watcher.Close()
+		}
 		if s.viteCmd != nil && s.viteCmd.Process != nil {
 			_ = s.viteCmd.Process.Kill()
 		}
@@ -342,6 +370,10 @@ func (s *Server) printStartupBanner() {
 		log.Println()
 		log.Printf("  Frontend: serving static files from %s", s.staticPath)
 	}
+	if s.watch {
+		log.Println()
+		log.Printf("  Hot reload: watching %d directories for .ail changes", len(s.getWatchDirs()))
+	}
 
 	log.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	log.Println()
@@ -360,6 +392,9 @@ func (s *Server) GetModules() map[string]*ModuleInfo {
 
 // Close shuts down the server and releases resources.
 func (s *Server) Close() error {
+	if s.watcher != nil {
+		_ = s.watcher.Close()
+	}
 	if s.viteCmd != nil && s.viteCmd.Process != nil {
 		_ = s.viteCmd.Process.Kill()
 	}

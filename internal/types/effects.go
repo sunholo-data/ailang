@@ -49,6 +49,7 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 // ElaborateEffectRowWithBudgets converts AST effect annotations (with optional budgets)
 // to a normalized effect row. Returns nil for empty effect sets (purity sentinel).
 // Labels are sorted alphabetically for determinism.
+// Supports @limit=N (max) and @min=N (minimum) annotations (M-DX25 M4).
 func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error) {
 	if len(effects) == 0 {
 		return nil, nil // Purity sentinel
@@ -57,6 +58,7 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 	// Validate and collect effects with budgets
 	validatedEffects := make(map[string]bool)
 	budgets := make(map[string]*int)
+	minBudgets := make(map[string]*int)
 
 	for _, eff := range effects {
 		// Validate against known effects
@@ -68,6 +70,11 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 			// Copy budget value to avoid pointer aliasing
 			val := *eff.Budget
 			budgets[eff.Name] = &val
+		}
+		if eff.Min != nil {
+			// Copy min value to avoid pointer aliasing
+			val := *eff.Min
+			minBudgets[eff.Name] = &val
 		}
 	}
 
@@ -85,17 +92,22 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 		labels[name] = Unit()
 	}
 
-	// Only include budgets map if there are any budgets
+	// Only include budgets/minBudgets maps if there are any values
 	var budgetsMap map[string]*int
 	if len(budgets) > 0 {
 		budgetsMap = budgets
 	}
+	var minBudgetsMap map[string]*int
+	if len(minBudgets) > 0 {
+		minBudgetsMap = minBudgets
+	}
 
 	return &Row{
-		Kind:    EffectRow,
-		Labels:  labels,
-		Tail:    nil, // Closed row (no polymorphism in v0.1.0)
-		Budgets: budgetsMap,
+		Kind:       EffectRow,
+		Labels:     labels,
+		Tail:       nil, // Closed row (no polymorphism in v0.1.0)
+		Budgets:    budgetsMap,
+		MinBudgets: minBudgetsMap,
 	}, nil
 }
 

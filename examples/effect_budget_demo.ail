@@ -1,16 +1,21 @@
 -- Effect Budget Demo
 --
--- Demonstrates AILANG's effect budget feature: limiting IO operations.
+-- Demonstrates AILANG's effect budget feature: limiting and requiring IO operations.
 -- This is for demonstration/documentation purposes only.
 --
 -- Effect budgets allow constraining how many times an effect can be used:
---   ! {IO @limit=3}  -- Function can perform at most 3 IO operations
+--   ! {IO @limit=3}       -- Function can perform at most 3 IO operations
+--   ! {IO @min=1}         -- Function must perform at least 1 IO operation
+--   ! {IO @min=1 @limit=5} -- Between 1 and 5 IO operations
 --
 -- Use cases:
--- - Rate limiting API calls
--- - Capping database queries in sandboxed contexts
--- - Limiting file system operations
--- - Enforcing resource quotas in multi-tenant systems
+-- - Rate limiting API calls (@limit)
+-- - Capping database queries in sandboxed contexts (@limit)
+-- - Limiting file system operations (@limit)
+-- - Enforcing resource quotas in multi-tenant systems (@limit)
+-- - Ensuring actual API calls occur (not cached) (@min)
+-- - Audit trail verification (@min)
+-- - Testing that effects were exercised (@min)
 
 module examples/effect_budget_demo
 
@@ -64,6 +69,29 @@ export func fetchWithRateLimit(urls: [string]) -> [string] ! {IO @limit=5} {
   }
 }
 
+-- Example: Ensure logging actually happened (not skipped/cached)
+-- The @min=1 annotation verifies the function actually performed IO
+-- If the code path skips logging, a runtime error occurs (budget underrun)
+export func logAuditTrail(action: string, success: bool) -> () ! {IO @min=1 @limit=2} {
+  -- Always log the action (satisfies @min=1)
+  println("AUDIT: " ++ action);
+  -- Optionally log failure details (within @limit=2)
+  if not success then
+    println("  Status: FAILED")
+  else
+    ()
+}
+
+-- Example: Verify data was actually fetched (not cached/defaulted)
+-- Combines @min to ensure fetch happened with @limit for rate control
+export func verifiedFetch(url: string) -> string ! {IO @min=1 @limit=3} {
+  -- The @min=1 ensures this function actually performs IO
+  -- If we returned a cached value without IO, it would fail
+  println("Fetching: " ++ url);
+  println("Response: <simulated data>");
+  "data from " ++ url
+}
+
 -- Entry point for demo
 export func main() -> () ! {IO} {
   let alerts = [
@@ -75,10 +103,18 @@ export func main() -> () ! {IO} {
 
   println("=== Effect Budget Demo ===");
   println("");
-  println("Logging alerts with IO @limit=3:");
+  println("1. Logging alerts with IO @limit=3 (max 3 calls):");
   logAlerts(alerts);
   println("");
-  println("Rate-limited URL fetching with IO @limit=5:");
+  println("2. Rate-limited URL fetching with IO @limit=5:");
   let _ = fetchWithRateLimit(["url1", "url2", "url3", "url4", "url5", "url6"]);
+  println("");
+  println("3. Audit logging with IO @min=1 @limit=2 (ensures at least 1 call):");
+  logAuditTrail("user_login", true);
+  logAuditTrail("payment_process", false);
+  println("");
+  println("4. Verified fetch with IO @min=1 @limit=3:");
+  let data = verifiedFetch("https://api.example.com/data");
+  println("Got: " ++ data);
   ()
 }

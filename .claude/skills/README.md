@@ -42,6 +42,15 @@ Skills differ from Agents in that they provide focused, reusable workflows rathe
 - **Scripts**: trace_parser.sh, check_ast_types.sh, find_api.sh
 - **Resources**: token_positioning.md, ast_quick_reference.md, common_patterns.md, api_discovery.md
 
+**[cli-doc-maintainer/](cli-doc-maintainer/)** - Maintain CLI help as source of truth
+- Audits commands in main.go against help.go
+- Validates environment variables are documented
+- Suggests improvements for discoverability
+- Ensures CLI help stays synchronized with implementation
+- **Scripts**: audit_commands.sh, audit_env_vars.sh, suggest_improvements.sh
+- **Resources**: best_practices.md, help_template.md
+- **Critical for**: AI discoverability in external repositories
+
 **[design-doc-creator/](design-doc-creator/)** - Create AILANG design documents
 - Creates design docs in correct format and location
 - Handles both planned/ and implemented/ workflow

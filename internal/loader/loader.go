@@ -72,6 +72,13 @@ func (ml *ModuleLoader) Preload(path string, loaded *LoadedModule) {
 	ml.cache[canonicalID] = loaded
 }
 
+// DeleteCached removes a module from the loader cache, forcing re-load on next access.
+// This is used by hot reload to invalidate stale modules.
+func (ml *ModuleLoader) DeleteCached(modulePath string) {
+	canonicalID := CanonicalModuleID(modulePath)
+	delete(ml.cache, canonicalID)
+}
+
 // canonicalizeModulePath normalizes import paths
 //
 // Returns the canonical path.

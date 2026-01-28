@@ -44,7 +44,9 @@
       "Bash(.claude/skills/gemini-cli-helper/scripts/:*)",
       "Skill(gemini-cli-helper)",
       "Bash(.claude/skills/eval-gap-finder/scripts/:*)",
-      "Skill(eval-gap-finder)"
+      "Skill(eval-gap-finder)",
+      "Bash(.claude/skills/cli-doc-maintainer/scripts/:*)",
+      "Skill(cli-doc-maintainer)"
     ]
   },
   "hooks": {

@@ -328,6 +328,12 @@ func runCommand() {
 	// Budget bypass flag (M-CAPABILITY-BUDGETS)
 	noBudgetsFlag := fs.Bool("no-budgets", false, "Bypass effect budget enforcement (allow unlimited effect operations)")
 
+	// Budget report flag (M-DX25)
+	budgetReportFlag := fs.String("budget-report", "", "Print budget report after execution (flat, json)")
+
+	// Contract verification flag (M-VERIFY-CONTRACTS)
+	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -351,10 +357,10 @@ func runCommand() {
 		programArgs = fs.Args()[1:] // Skip filename, take remaining args
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
@@ -562,6 +568,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			effCtx.DisableBudgets = true
 		}
 
+		// M-DX25: Initialize budget report if requested
+		if budgetReport != "" {
+			effCtx.BudgetReport = effects.NewBudgetReport()
+		}
+
 		// Set up effect handlers if requested
 		setupSharedMemHandler(effCtx)   // SharedMem for semantic caching (M-DX15)
 		setupSharedIndexHandler(effCtx) // SharedIndex for semantic retrieval (M-DX16)
@@ -571,6 +582,14 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 		if debugEffect {
 			effCtx.Debug = effects.NewDebugContext()
+		}
+
+		// M-VERIFY-CONTRACTS: Enable contract verification if requested
+		if verifyContracts {
+			effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+			if !quiet {
+				fmt.Fprintln(os.Stderr, "Contract verification enabled (panic mode)")
+			}
 		}
 
 		// Process environment variable flags
@@ -586,6 +605,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 
 		rt.GetEvaluator().SetEffContext(effCtx)
+
+		// M-VERIFY-CONTRACTS: Enable binop shim for contract evaluation if needed
+		if binopShim {
+			rt.GetEvaluator().SetExperimentalBinopShim(true)
+		}
 
 		// M-DX19: Inject dictionary registry with derived type class instances
 		if result.DictReg != nil {
@@ -606,6 +630,22 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		if err := executeModuleEntrypoint(rt, execParams); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
+		}
+
+		// M-DX25: Print budget report after successful execution
+		if budgetReport != "" && effCtx.BudgetReport != nil && effCtx.BudgetReport.HasUsage() {
+			var output string
+			switch budgetReport {
+			case "json":
+				if data, err := effects.FormatReportJSON(effCtx.BudgetReport); err == nil {
+					output = string(data)
+				}
+			default: // "flat" or any other value
+				output = effects.FormatReport(effCtx.BudgetReport)
+			}
+			if output != "" {
+				fmt.Fprintln(os.Stderr, output)
+			}
 		}
 	} else {
 		// Non-module mode - print result if evaluated by pipeline (ModeEval)

@@ -25,10 +25,15 @@ type EffContext struct {
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
 	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
+	BudgetReport   *BudgetReport         // Budget usage report (--budget-report flag, M-DX25)
 	DisableBudgets bool                  // Bypass budget enforcement (--no-budgets flag)
 	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist   []string              // Env effect: allowed variable names (nil = allow all)
 	Args           []string              // CLI arguments passed to the program (excluding program name)
+
+	// M-DX25: Scoped budget charging
+	DeclaredBudgets map[string]int // Callee's declared @limit values (for charging caller on return)
+	CallerContext   *EffContext    // Reference to caller's context (for charging on scope exit)
 }
 
 // EffEnv provides deterministic effect execution configuration
@@ -250,6 +255,11 @@ func (ctx *EffContext) RequireCapWithBudget(name, position string) error {
 		}
 	}
 
+	// M-DX25: Record usage for budget report (always, even with --no-budgets)
+	if ctx.BudgetReport != nil {
+		ctx.BudgetReport.RecordUsage(name, 1)
+	}
+
 	return nil
 }
 
@@ -273,25 +283,32 @@ func (ctx *EffContext) SetBudget(budget *BudgetContext) {
 func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 	// Shallow copy - share all contexts except Budget
 	return &EffContext{
-		Caps:           ctx.Caps,
-		Env:            ctx.Env,
-		Clock:          ctx.Clock,
-		Net:            ctx.Net,
-		Debug:          ctx.Debug,
-		AI:             ctx.AI,
-		SharedMem:      ctx.SharedMem,
-		SharedIndex:    ctx.SharedIndex,
-		Contracts:      ctx.Contracts,
-		Budget:         budget,
-		DisableBudgets: ctx.DisableBudgets, // Preserve --no-budgets flag
-		EnvSnapshot:    ctx.EnvSnapshot,
-		EnvAllowlist:   ctx.EnvAllowlist,
-		Args:           ctx.Args,
+		Caps:            ctx.Caps,
+		Env:             ctx.Env,
+		Clock:           ctx.Clock,
+		Net:             ctx.Net,
+		Debug:           ctx.Debug,
+		AI:              ctx.AI,
+		SharedMem:       ctx.SharedMem,
+		SharedIndex:     ctx.SharedIndex,
+		Contracts:       ctx.Contracts,
+		Budget:          budget,
+		BudgetReport:    ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
+		DisableBudgets:  ctx.DisableBudgets, // Preserve --no-budgets flag
+		EnvSnapshot:     ctx.EnvSnapshot,
+		EnvAllowlist:    ctx.EnvAllowlist,
+		Args:            ctx.Args,
+		DeclaredBudgets: nil, // Reset for new scope (will be set by WithBudgetLimits)
+		CallerContext:   nil, // Reset for new scope (will be set by WithBudgetLimits)
 	}
 }
 
 // WithBudgetLimits creates a new context with budget limits from a map[string]int
 // This implements the eval.BudgetEnforcer interface to avoid import cycles.
+//
+// M-DX25: This creates a scoped budget context that tracks:
+// - DeclaredBudgets: the callee's declared limits (for charging caller on return)
+// - CallerContext: reference to caller for semantic charging on scope exit
 //
 // Parameters:
 //   - limits: Map of effect name to budget limit (e.g., {"IO": 5, "Rand": 10})
@@ -306,7 +323,90 @@ func (ctx *EffContext) WithBudgetLimits(limits map[string]int) interface{} {
 		ptrLimits[effect] = &l
 	}
 	budget := NewBudgetContext(ptrLimits)
-	return ctx.WithBudget(budget)
+	newCtx := ctx.WithBudget(budget)
+
+	// M-DX25: Store declared budgets and caller reference for scoped charging
+	newCtx.DeclaredBudgets = make(map[string]int, len(limits))
+	for effect, limit := range limits {
+		newCtx.DeclaredBudgets[effect] = limit
+	}
+	newCtx.CallerContext = ctx
+
+	return newCtx
+}
+
+// PopScopeAndChargeCaller charges the caller context with declared semantic budgets
+//
+// M-DX25: When a scoped function returns, the caller is charged the callee's
+// declared budget (not the actual physical usage). This implements the
+// "charge declared amount" semantic charging model.
+//
+// This method should be called when restoring the old effect context after
+// evaluating a function with declared budgets.
+//
+// If this context has no CallerContext (pass-through mode), this is a no-op.
+func (ctx *EffContext) PopScopeAndChargeCaller() {
+	if ctx.CallerContext == nil || len(ctx.DeclaredBudgets) == 0 {
+		return
+	}
+
+	// Charge caller's semantic budget with declared amounts
+	caller := ctx.CallerContext
+	if caller.Budget != nil {
+		for effect, declared := range ctx.DeclaredBudgets {
+			// Increment caller's semantic usage by declared amount
+			caller.Budget.ChargeSemanticOnly(effect, declared)
+		}
+	}
+
+	// Also record in budget report if active
+	if caller.BudgetReport != nil {
+		for effect, declared := range ctx.DeclaredBudgets {
+			// Record semantic charge to caller (not physical - that's tracked separately)
+			// For now we record as function attribution when available
+			if caller.BudgetReport.CurrentFunction != "" {
+				if caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction] == nil {
+					caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction] = make(map[string]int)
+				}
+				caller.BudgetReport.FunctionUsage[caller.BudgetReport.CurrentFunction][effect] += declared
+				caller.BudgetReport.TotalUsage[effect] += declared
+			}
+		}
+	}
+}
+
+// SetMinBudgets sets minimum usage requirements on the context's budget
+//
+// M-DX25 M4: Implements eval.MinBudgetEnforcer interface.
+// Called by evaluator after WithBudgetLimits to set minimum constraints.
+//
+// Parameters:
+//   - minLimits: Map of effect name to minimum required usage
+func (ctx *EffContext) SetMinBudgets(minLimits map[string]int) {
+	if ctx.Budget == nil || len(minLimits) == 0 {
+		return
+	}
+	for effect, min := range minLimits {
+		ctx.Budget.minLimits[effect] = min
+	}
+}
+
+// CheckMinimums verifies all minimum requirements are met
+//
+// M-DX25 M4: Implements eval.MinimumChecker interface.
+// Called by evaluator on scope exit to ensure effects were exercised.
+//
+// Parameters:
+//   - position: Source position for error reporting
+//
+// Returns:
+//   - nil if all minimums satisfied
+//   - BudgetUnderrunError if any minimum is not met
+func (ctx *EffContext) CheckMinimums(position string) error {
+	if ctx.Budget == nil {
+		return nil
+	}
+	return ctx.Budget.CheckMinimum(position)
 }
 
 // loadEffEnv loads effect environment from OS environment variables
@@ -372,4 +472,54 @@ func captureEnvSnapshot() map[string]string {
 		}
 	}
 	return snapshot
+}
+
+// M-VERIFY-CONTRACTS: ContractChecker interface implementation for EffContext
+
+// IsContractCheckingEnabled returns true if contract checking is enabled
+//
+// M-VERIFY-CONTRACTS: Contracts are enabled when a ContractContext exists
+// and its Mode is not ContractModeOff.
+func (ctx *EffContext) IsContractCheckingEnabled() bool {
+	return ctx.Contracts != nil && ctx.Contracts.Mode != ContractModeOff
+}
+
+// CheckRequires delegates precondition checking to ContractContext
+//
+// M-VERIFY-CONTRACTS: Called by the evaluator when checking function preconditions.
+// If no ContractContext is configured, this is a no-op.
+//
+// Parameters:
+//   - cond: The boolean result of evaluating the precondition
+//   - msg: User-provided message or auto-generated predicate string
+//   - location: Source location "file.ail:42"
+//
+// Returns:
+//   - nil if check passes or contracts disabled
+//   - Error in Panic mode if check fails
+func (ctx *EffContext) CheckRequires(cond bool, msg, location string) error {
+	if ctx.Contracts == nil {
+		return nil
+	}
+	return ctx.Contracts.CheckRequires(cond, msg, location)
+}
+
+// CheckEnsures delegates postcondition checking to ContractContext
+//
+// M-VERIFY-CONTRACTS: Called by the evaluator when checking function postconditions.
+// If no ContractContext is configured, this is a no-op.
+//
+// Parameters:
+//   - cond: The boolean result of evaluating the postcondition
+//   - msg: User-provided message or auto-generated predicate string
+//   - location: Source location "file.ail:42"
+//
+// Returns:
+//   - nil if check passes or contracts disabled
+//   - Error in Panic mode if check fails
+func (ctx *EffContext) CheckEnsures(cond bool, msg, location string) error {
+	if ctx.Contracts == nil {
+		return nil
+	}
+	return ctx.Contracts.CheckEnsures(cond, msg, location)
 }

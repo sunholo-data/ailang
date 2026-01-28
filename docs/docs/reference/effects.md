@@ -246,7 +246,7 @@ Use --caps IO to grant this capability.
 You can limit how many times a function can perform an effect using **capability budgets**:
 
 ```typescript
--- Function limited to 5 IO operations
+-- Function limited to 5 IO operations (maximum)
 func rateLimited() -> () ! {IO @limit=5} {
   println("Call 1");  -- Uses 1/5 budget
   println("Call 2");  -- Uses 2/5 budget
@@ -254,11 +254,27 @@ func rateLimited() -> () ! {IO @limit=5} {
   println("Call 6");  -- FAILS: BudgetExhaustedError
   ()
 }
+
+-- Function must perform at least 1 IO operation (minimum)
+func auditRequired() -> () ! {IO @min=1} {
+  println("Audit log entry");  -- Satisfies @min=1
+  ()
+  -- Returning without any IO would FAIL: BudgetUnderrunError
+}
+
+-- Combined: between 1 and 3 IO operations
+func bounded() -> () ! {IO @min=1 @limit=3} {
+  println("Required");  -- Satisfies minimum
+  println("Optional");  -- Within limit
+  ()
+}
 ```
 
 **Key features:**
 - **Per-invocation**: Each function call gets a fresh budget
 - **Composable**: Nested calls have their own budgets
+- **Maximum limits** (`@limit=N`): Prevent runaway effects
+- **Minimum requirements** (`@min=N`): Verify effects actually occurred
 - **Bypass for debugging**: Use `--no-budgets` flag
 
 ```bash

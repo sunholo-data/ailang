@@ -169,13 +169,14 @@ func (e *CoreEvaluator) evalCoreLambda(lam *core.Lambda) (Value, error) {
 	if e.coreTypeInfo != nil {
 		if t, ok := e.coreTypeInfo[lam.NodeID]; ok {
 			fn.EffectBudgets = extractEffectBudgets(t)
+			fn.EffectMinBudgets = extractEffectMinBudgets(t) // M-DX25 M4
 		}
 	}
 
 	return fn, nil
 }
 
-// extractEffectBudgets extracts budget limits from a function type's effect row
+// extractEffectBudgets extracts budget max limits from a function type's effect row
 func extractEffectBudgets(t types.Type) map[string]int {
 	// Check if it's a function type with an effect row
 	fn, ok := t.(*types.TFunc2)
@@ -200,6 +201,34 @@ func extractEffectBudgets(t types.Type) map[string]int {
 	}
 
 	return budgets
+}
+
+// extractEffectMinBudgets extracts budget min limits from a function type's effect row
+// M-DX25 M4: Minimum usage requirements ensure effects were actually exercised.
+func extractEffectMinBudgets(t types.Type) map[string]int {
+	// Check if it's a function type with an effect row
+	fn, ok := t.(*types.TFunc2)
+	if !ok || fn.EffectRow == nil {
+		return nil
+	}
+
+	// Extract min budgets from the effect row
+	if len(fn.EffectRow.MinBudgets) == 0 {
+		return nil
+	}
+
+	minBudgets := make(map[string]int)
+	for effect, minPtr := range fn.EffectRow.MinBudgets {
+		if minPtr != nil {
+			minBudgets[effect] = *minPtr
+		}
+	}
+
+	if len(minBudgets) == 0 {
+		return nil
+	}
+
+	return minBudgets
 }
 
 // evalCoreLet evaluates a let binding

@@ -283,6 +283,10 @@ Flags:
   --cors            Enable CORS for all origins (default: true)
   --frontend PATH   Proxy to Vite dev server at PATH
   --static PATH     Serve static files from PATH
+  --watch           Watch .ail files for changes and hot-reload
+  --caps CAPS       Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)
+  --ai MODEL        AI model for AI effect (e.g., gemini-2-5-flash)
+  --ai-stub         Use stub AI handler (for testing)
 
 Arguments:
   <path...>         One or more .ail files or directories
@@ -401,8 +405,130 @@ const data = await res.json()
 ### Adding New API Functions
 
 1. Edit your `.ail` file to add new exported functions
-2. Restart `ailang serve-api` (hot reload not yet supported)
-3. New endpoints are automatically available
+2. If using `--watch`, changes are picked up automatically (hot reload)
+3. Without `--watch`, restart `ailang serve-api` to pick up changes
+4. New endpoints are automatically available
+
+### Hot Reload
+
+Use `--watch` to automatically recompile modules when `.ail` files change:
+
+```bash
+ailang serve-api --watch ./api/
+```
+
+**How it works:**
+1. The server watches directories containing loaded `.ail` files using `fsnotify`
+2. On file save, all caches are invalidated (loader, runtime, engine)
+3. The module is recompiled through the pipeline
+4. Next API request uses the fresh module
+
+**Graceful degradation:** If a save introduces a compile error, the error is logged but the server continues serving the previous working version. Fix the error and save again.
+
+**Debouncing:** Rapid saves within 200ms are batched into a single reload.
+
+**Limitation:** Dependency-aware reload is not yet supported. If module A imports module B and B changes, only B is reloaded. Save A (or any file) to trigger its reload too.
+
+### Effect Capabilities
+
+By default, `serve-api` only supports **pure functions** (no side effects). AILANG's effect system requires capabilities to be explicitly granted before effectful functions can execute.
+
+#### How It Works
+
+AILANG functions declare their effects in their type signatures:
+
+```ailang
+-- Pure function: no capabilities needed
+export pure func add(x: int, y: int) -> int = x + y
+
+-- IO effect: requires --caps IO
+export func greet(name: string) -> string ! {IO} =
+  "Hello, " ++ name ++ "!"
+
+-- AI effect: requires --caps AI plus --ai MODEL
+export func summarize(text: string) -> string ! {AI} =
+  ai_call("Summarize this: " ++ text)
+
+-- Multiple effects: requires --caps IO,Net
+export func fetchAndLog(url: string) -> string ! {IO, Net} {
+  let body = http_get(url);
+  println("Fetched: " ++ url);
+  body
+}
+```
+
+When serving these modules, grant the matching capabilities:
+
+```bash
+# Pure functions only (default, no flags needed)
+ailang serve-api ./api/
+
+# Grant IO capability
+ailang serve-api --caps IO ./api/
+
+# Grant IO and FS capabilities
+ailang serve-api --caps IO,FS ./api/
+
+# Grant AI capability with a specific model
+ailang serve-api --caps IO,AI --ai gemini-2-5-flash ./api/
+
+# Use stub AI handler for testing (returns fixed responses)
+ailang serve-api --caps IO,AI --ai-stub ./api/
+```
+
+#### Capability Reference
+
+| Capability | Effect | Enables | Example Builtins |
+|------------|--------|---------|-----------------|
+| `IO` | `{IO}` | Console I/O | `println`, `readLine` |
+| `FS` | `{FS}` | File system access | `readFile`, `writeFile` |
+| `Net` | `{Net}` | HTTP requests | `http_get`, `http_post` |
+| `AI` | `{AI}` | LLM API calls | `ai_call` |
+| `Clock` | `{Clock}` | Time operations | `now`, `sleep` |
+| `Env` | `{Env}` | Environment variables | `env_get` |
+| `SharedMem` | `{SharedMem}` | In-memory key-value cache | `cache_get`, `cache_set` |
+| `SharedIndex` | `{SharedIndex}` | Semantic similarity search | `index_add`, `index_search` |
+
+#### AI Model Configuration
+
+The `--ai` flag specifies which AI model to use for the `AI` effect:
+
+```bash
+# OpenAI models (requires OPENAI_API_KEY env var)
+ailang serve-api --caps AI --ai gpt-4o ./api/
+
+# Anthropic models (requires ANTHROPIC_API_KEY env var)
+ailang serve-api --caps AI --ai claude-sonnet-4-5 ./api/
+
+# Google models (requires GOOGLE_API_KEY or ADC)
+ailang serve-api --caps AI --ai gemini-2-5-flash ./api/
+
+# Local Ollama models (requires running Ollama server)
+ailang serve-api --caps AI --ai ollama:llama3 ./api/
+
+# Stub handler for testing (no API key needed)
+ailang serve-api --caps AI --ai-stub ./api/
+```
+
+Model names are resolved via `models.yml` configuration. If not found, the provider is guessed from the model name prefix (`claude-` → Anthropic, `gpt-` → OpenAI, `gemini-` → Google, `ollama:` → Ollama).
+
+#### What Happens Without Capabilities
+
+If an AILANG function uses an effect but the corresponding capability is not granted, the API returns an error:
+
+```bash
+# Server started without --caps
+ailang serve-api ./api/
+
+# Calling a function that needs IO
+curl -X POST http://localhost:8080/api/api/handlers/greet \
+  -H "Content-Type: application/json" -d '{"args": ["World"]}'
+# {"error":"IO: capability not granted","module":"api/handlers","func":"greet","elapsed_ms":0}
+```
+
+To fix: restart with `--caps IO` (or whatever capabilities the function requires).
+
+**Security note:** Capabilities are granted server-wide. All API endpoints share the same capabilities. Only grant capabilities that your AILANG modules actually need.
 
 ### Frontend Proxy
 
