@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/apiserver"
+	"github.com/sunholo/ailang/internal/effects"
 )
 
 func serveAPICommand(args []string) error {
@@ -18,6 +19,11 @@ func serveAPICommand(args []string) error {
 	corsFlag := fs.Bool("cors", true, "Enable CORS for all origins")
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
+	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
+	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)")
+	aiModelFlag := fs.String("ai", "", "AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-5)")
+	aiStubFlag := fs.Bool("ai-stub", false, "Use stub AI handler (for testing)")
+	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 
 	if err := fs.Parse(args); err != nil {
@@ -63,11 +69,31 @@ func serveAPICommand(args []string) error {
 		}
 	}
 
+	// Set up effect context if capabilities, AI, or contract flags are provided
+	var effCtx interface{}
+	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
+		ctx := effects.NewEffContext(nil)
+		grantCapabilities(ctx, *capsFlag)
+		if err := setupAIHandler(ctx, *aiStubFlag, *aiModelFlag); err != nil {
+			return fmt.Errorf("AI handler setup failed: %w", err)
+		}
+
+		// Enable contract verification if requested
+		if *verifyContractsFlag {
+			ctx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+			log.Println("Contract verification enabled (panic mode)")
+		}
+
+		effCtx = ctx
+	}
+
 	cfg := apiserver.Config{
 		Port:         *portFlag,
 		CORS:         *corsFlag,
 		FrontendPath: *frontendFlag,
 		StaticPath:   *staticFlag,
+		Watch:        *watchFlag,
+		EffCtx:       effCtx,
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -149,6 +175,11 @@ func printServeAPIHelp() {
 	fmt.Println("  --cors               Enable CORS for all origins (default: true)")
 	fmt.Println("  --frontend PATH      Path to React/Vite project for dev proxy")
 	fmt.Println("  --static PATH        Path to built frontend files")
+	fmt.Println("  --watch              Watch .ail files for changes and hot-reload")
+	fmt.Println("  --caps CAPS          Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)")
+	fmt.Println("  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-5)")
+	fmt.Println("  --ai-stub            Use stub AI handler (for testing)")
+	fmt.Println("  --verify-contracts   Enable runtime contract validation (requires/ensures)")
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
@@ -156,6 +187,8 @@ func printServeAPIHelp() {
 	fmt.Println("  ailang serve-api ./api/ --port 3000")
 	fmt.Println("  ailang serve-api ./api/ --frontend ./ui")
 	fmt.Println("  ailang serve-api ./api/ --static ./ui/dist")
+	fmt.Println("  ailang serve-api --watch ./api/")
+	fmt.Println("  ailang serve-api --caps IO,AI --ai gemini-2-5-flash ./api/")
 	fmt.Println()
 	fmt.Println("Endpoints generated for each exported function:")
 	fmt.Println("  POST /api/{module}/{function}")

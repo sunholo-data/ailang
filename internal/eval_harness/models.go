@@ -1,12 +1,16 @@
 package eval_harness
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed models.yml
+var embeddedModelsYAML []byte
 
 // ModelConfig represents a single model configuration
 type ModelConfig struct {
@@ -57,7 +61,17 @@ func LoadModelsConfig(path string) (*ModelsConfig, error) {
 
 // InitModelsConfig loads the global models configuration
 func InitModelsConfig() error {
-	// Try to find models.yml in internal/eval_harness/ directory
+	// Try embedded models.yml first (available in installed binary)
+	if len(embeddedModelsYAML) > 0 {
+		var config ModelsConfig
+		if err := yaml.Unmarshal(embeddedModelsYAML, &config); err == nil {
+			GlobalModelsConfig = &config
+			return nil
+		}
+		// If embedded parse fails, fall through to file system
+	}
+
+	// Fall back to file system (for development)
 	paths := []string{
 		"internal/eval_harness/models.yml",
 		"../internal/eval_harness/models.yml",

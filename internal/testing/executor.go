@@ -147,13 +147,15 @@ func (e *Executor) EvaluateExpression(expr ast.Expr) (eval.Value, error) {
 	}
 
 	// Use pipeline with ModeEval (non-module evaluation)
+	// Set IsREPL: true to prevent the pipeline from treating this as a module
+	// and attempting to resolve imports (fixes "module not found: _test" error)
 	cfg := pipeline.Config{
 		Mode: pipeline.ModeEval,
 	}
 	src := pipeline.Source{
 		Code:     source,
 		Filename: "_test.ail",
-		IsREPL:   false,
+		IsREPL:   true, // Treat as REPL-like evaluation, not a module
 	}
 
 	result, err := pipeline.Run(cfg, src)

@@ -2,6 +2,101 @@
 
 ## [Unreleased]
 
+### Added
+- **stdlib**: Added `startsWith()` and `endsWith()` to std/string module
+  - `startsWith(s: string, prefix: string) -> bool` - Check if string starts with prefix
+  - `endsWith(s: string, suffix: string) -> bool` - Check if string ends with suffix
+  - Addresses demo feedback: users were reimplementing basic string operations
+  - Visible via `ailang docs std/string`
+- **serve-api**: Added `--verify-contracts` flag for runtime contract validation
+  - Enables checking of `requires` (preconditions) and `ensures` (postconditions)
+  - Panics on contract violation with detailed error message
+  - Useful for development/debugging of API endpoints
+  - Example: `ailang serve-api --verify-contracts --caps IO ./api/`
+  - Addresses demo feedback: runtime validation for API contracts
+
+### Fixed
+- **models.yml**: Embedded models.yml configuration in binary using go:embed
+  - Fixes "model not found" errors when using installed binary outside source tree
+  - Binary now works anywhere without needing relative path to models.yml
+  - Falls back to file system for development builds
+  - Location: `internal/eval_harness/models.go`
+- **testing**: Fixed "module not found: _test" error in inline tests
+  - Set `IsREPL: true` when evaluating inline test harness
+  - Prevents pipeline from treating synthetic `_test.ail` as a module
+  - Inline tests now work correctly with complex imports
+  - Location: `internal/testing/executor.go:156`
+  - Note: Property tests (auto-generated from contracts) still have issues (empty program error)
+  - Design doc created: `design_docs/planned/v0_7_2/m-dx26-property-test-empty-program.md`
+
+### Added - Scoped Budgets with Dual Counters & Budget Reporting (M-DX25)
+
+Enhanced effect budget system with scoped dual counters and minimum budget requirements.
+
+**New Syntax - Minimum Budgets (`@min`):**
+- `! {IO @min=1}` - Function must perform at least 1 IO operation
+- `! {IO @min=1 @limit=5}` - Between 1 and 5 IO operations
+- `BudgetUnderrunError` raised when minimum not met (e.g., caching bypassed expected API call)
+
+**Dual Counter System:**
+- **Physical count**: Actual builtin invocations (truth of what happened)
+- **Semantic count**: Charged based on declared budgets (contracts between caller/callee)
+- Scoped budget enforcement: callee's `@limit=k` charges caller k semantic units
+
+**New Interfaces (for budget scoping):**
+- `BudgetEnforcer.WithBudgetLimits()` - Create scoped budget context
+- `ScopeCharger.PopScopeAndChargeCaller()` - Charge caller on function return
+- `MinBudgetEnforcer.SetMinBudgets()` - Set minimum usage requirements
+- `MinimumChecker.CheckMinimums()` - Verify minimums on scope exit
+
+**New Constructors:**
+- `effects.NewBudgetContextWithMin(limits, mins)` - Budget context with min/max limits
+- `effects.NewBudgetUnderrunError(effect, min, actual, position)` - Underrun error
+
+**Implementation Details:**
+- Added `Min *int` to `ast.EffectAnnotation` for parser support
+- Added `MinBudgets map[string]*int` to `types.Row` for type system
+- Added `EffectMinBudgets map[string]int` to `eval.FunctionValue` for closures
+- Physical/semantic counters tracked in `BudgetContext`
+- Scoped charging flows: callee scope → pop → charge caller declared amount
+
+**Files modified:** 13 files, ~630 LOC
+- `internal/ast/ast.go`: Min field on EffectAnnotation
+- `internal/parser/parser_effect.go`: @min=N parsing
+- `internal/types/types_v2.go`: MinBudgets on Row
+- `internal/types/effects.go`: ElaborateEffectRowWithBudgets
+- `internal/effects/budget.go`: Dual counters, min checking
+- `internal/effects/errors.go`: BudgetUnderrunError
+- `internal/effects/context.go`: SetMinBudgets, CheckMinimums
+- `internal/eval/value.go`: EffectMinBudgets on FunctionValue
+- `internal/eval/eval_expressions.go`: extractEffectMinBudgets
+- `internal/eval/eval_evaluator.go`: Scoped budget interfaces
+- `internal/eval/eval_operations.go`: Scoped budget handling
+
+**Design Doc:** `design_docs/planned/v0_7_1/m-dx25-budget-report.md`
+
+### Fixed - Effect Context for serve-api
+
+Fixed `embed.Engine.Call()` not setting up an EffContext, which prevented effectful AILANG functions (IO, FS, Net, AI, etc.) from working in `serve-api`.
+
+- New `embed.Engine.SetEffContext()` method for configuring effect context
+- New `--caps` flag for `serve-api` to grant capabilities (IO,FS,Net,AI,Clock,Env)
+- New `--ai MODEL` flag for `serve-api` to configure AI provider
+- New `--ai-stub` flag for `serve-api` to use stub AI handler (testing)
+- Pure functions continue to work without any flags (backward compatible)
+
+### Added - Hot Reload for serve-api (M-HOT-RELOAD)
+
+Added `--watch` flag to `ailang serve-api` for automatic hot reload of `.ail` modules during development.
+
+- `ailang serve-api --watch ./api/` watches for `.ail` file changes and recompiles automatically
+- 4-layer cache invalidation: loader cache, runtime instances, engine compiled, server modules
+- Debounced file watching (200ms) to batch rapid saves
+- Graceful degradation: compile errors are logged but don't crash the server
+- New public APIs: `embed.Engine.InvalidateModule()`, `runtime.DeleteInstance()`, `loader.DeleteCached()`
+- New dependency: `github.com/fsnotify/fsnotify v1.9.0`
+- New file: `internal/apiserver/watcher.go` (~110 LOC)
+
 ### Added - API Server & React Scaffold (M-SERVE-API)
 
 New `ailang serve-api` command that compiles AILANG modules and auto-generates REST endpoints from exported functions. Paired with `ailang init web-app` to scaffold full-stack projects with a React frontend.
