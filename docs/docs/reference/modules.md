@@ -150,7 +150,7 @@ export func main() -> () ! {IO, FS} {
 failed to resolve global std/fs.fileExists: module std/fs not imported
 ```
 
-**Fix:** Add the missing import to your module. See the [Module Imports Guide](/docs/guides/module-imports) for detailed examples and debugging tips.
+**Fix:** Add the missing import to your module. See the [Imports section](#imports) above for syntax examples.
 
 ## Exports
 
