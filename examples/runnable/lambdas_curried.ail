@@ -3,39 +3,39 @@
 module examples/runnable/lambdas_curried
 
 export func main() -> () ! {IO} =
-  let _ = print("=== Curried Functions ===") in
+  let _ = println("=== Curried Functions ===") in
 
   -- Basic curried function (two parameters)
   let add = \x. \y. x + y in
-  let _ = print("Curried add:") in
-  let _ = print("  add(3)(4) = " ++ show(add(3)(4))) in
-  let _ = print("  add(10)(5) = " ++ show(add(10)(5))) in
+  let _ = println("Curried add:") in
+  let _ = println("  add(3)(4) = " ++ show(add(3)(4))) in
+  let _ = println("  add(10)(5) = " ++ show(add(10)(5))) in
 
   -- Partial application - fix first argument
   let add10 = add(10) in
-  let _ = print("") in
-  let _ = print("Partial application (add10 = add(10)):") in
-  let _ = print("  add10(5) = " ++ show(add10(5))) in
-  let _ = print("  add10(20) = " ++ show(add10(20))) in
+  let _ = println("") in
+  let _ = println("Partial application (add10 = add(10)):") in
+  let _ = println("  add10(5) = " ++ show(add10(5))) in
+  let _ = println("  add10(20) = " ++ show(add10(20))) in
 
   -- Three-parameter curried function
   let multiply3 = \x. \y. \z. x * y * z in
-  let _ = print("") in
-  let _ = print("Three-parameter curried function:") in
-  let _ = print("  multiply3(2)(3)(4) = " ++ show(multiply3(2)(3)(4))) in
+  let _ = println("") in
+  let _ = println("Three-parameter curried function:") in
+  let _ = println("  multiply3(2)(3)(4) = " ++ show(multiply3(2)(3)(4))) in
 
   -- Partial application chain
   let times2 = multiply3(2) in
   let times2times3 = times2(3) in
-  let _ = print("") in
-  let _ = print("Partial application chain:") in
-  let _ = print("  times2(3)(4) = " ++ show(times2(3)(4))) in
-  let _ = print("  times2times3(4) = " ++ show(times2times3(4))) in
+  let _ = println("") in
+  let _ = println("Partial application chain:") in
+  let _ = println("  times2(3)(4) = " ++ show(times2(3)(4))) in
+  let _ = println("  times2times3(4) = " ++ show(times2times3(4))) in
 
   -- Curried subtraction (order matters!)
   let sub = \x. \y. x - y in
   let sub10 = sub(10) in
-  let _ = print("") in
-  let _ = print("Curried subtraction (order matters):") in
-  let _ = print("  sub(10)(3) = " ++ show(sub(10)(3))) in
-  print("  sub10(3) = " ++ show(sub10(3)))
+  let _ = println("") in
+  let _ = println("Curried subtraction (order matters):") in
+  let _ = println("  sub(10)(3) = " ++ show(sub(10)(3))) in
+  println("  sub10(3) = " ++ show(sub10(3)))

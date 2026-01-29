@@ -3,15 +3,15 @@
 module examples/runnable/lambdas_advanced
 
 export func main() -> () ! {IO} =
-  let _ = print("=== Advanced Lambda Patterns ===") in
+  let _ = println("=== Advanced Lambda Patterns ===") in
 
   -- Flip function - reverses argument order
   let flip = \f. \x. \y. f(y)(x) in
   let sub = \x. \y. x - y in
   let flippedSub = flip(sub) in
-  let _ = print("Flip function (reverse arguments):") in
-  let _ = print("  sub(10)(3) = " ++ show(sub(10)(3))) in
-  let _ = print("  flip(sub)(10)(3) = " ++ show(flippedSub(10)(3))) in
+  let _ = println("Flip function (reverse arguments):") in
+  let _ = println("  sub(10)(3) = " ++ show(sub(10)(3))) in
+  let _ = println("  flip(sub)(10)(3) = " ++ show(flippedSub(10)(3))) in
 
   -- Church encoding - representing numbers as functions
   let zero = \f. \x. x in
@@ -21,30 +21,30 @@ export func main() -> () ! {IO} =
 
   -- Convert church numeral to int
   let churchToInt = \n. n(\x. x + 1)(0) in
-  let _ = print("") in
-  let _ = print("Church numerals:") in
-  let _ = print("  churchToInt(zero) = " ++ show(churchToInt(zero))) in
-  let _ = print("  churchToInt(one) = " ++ show(churchToInt(one))) in
-  let _ = print("  churchToInt(two) = " ++ show(churchToInt(two))) in
-  let _ = print("  churchToInt(three) = " ++ show(churchToInt(three))) in
+  let _ = println("") in
+  let _ = println("Church numerals:") in
+  let _ = println("  churchToInt(zero) = " ++ show(churchToInt(zero))) in
+  let _ = println("  churchToInt(one) = " ++ show(churchToInt(one))) in
+  let _ = println("  churchToInt(two) = " ++ show(churchToInt(two))) in
+  let _ = println("  churchToInt(three) = " ++ show(churchToInt(three))) in
 
   -- Continuation-passing style
   let addCPS = \x. \y. \k. k(x + y) in
   let id = \x. x in
-  let _ = print("") in
-  let _ = print("Continuation-passing style:") in
-  let _ = print("  addCPS(3)(4)(id) = " ++ show(addCPS(3)(4)(id))) in
+  let _ = println("") in
+  let _ = println("Continuation-passing style:") in
+  let _ = println("  addCPS(3)(4)(id) = " ++ show(addCPS(3)(4)(id))) in
 
   -- Combinator: K combinator (constant function)
   let K = \x. \y. x in
-  let _ = print("") in
-  let _ = print("K combinator (returns first arg):") in
-  let _ = print("  K(42)(99) = " ++ show(K(42)(99))) in
+  let _ = println("") in
+  let _ = println("K combinator (returns first arg):") in
+  let _ = println("  K(42)(99) = " ++ show(K(42)(99))) in
 
   -- Combinator: S combinator
   let S = \x. \y. \z. x(z)(y(z)) in
   let increment = \n. n + 1 in
   let double = \n. n * 2 in
-  let _ = print("") in
-  let _ = print("S combinator:") in
-  print("  S(+)(double)(5) = " ++ show(S(\a. \b. a + b)(double)(5)))
+  let _ = println("") in
+  let _ = println("S combinator:") in
+  println("  S(+)(double)(5) = " ++ show(S(\a. \b. a + b)(double)(5)))

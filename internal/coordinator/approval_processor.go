@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -35,10 +36,11 @@ type ApprovalParams struct {
 	RetriggerOnReject bool // If true, send feedback to agent for re-attempt (feedback loop)
 
 	// Dependencies (injected by caller)
-	Store         Store            // Required: coordinator store for task/approval operations
-	MsgStore      *messaging.Store // Optional: messaging store for sending feedback to agents
-	GitHubPoster  *GitHubPoster    // Optional: for posting feedback to GitHub issues
-	AgentRegistry *AgentRegistry   // Optional: for looking up per-agent merge branch
+	Store         Store               // Required: coordinator store for task/approval operations
+	MsgStore      *messaging.Store    // Optional: messaging store for sending feedback to agents
+	GitHubPoster  *GitHubPoster       // Optional: for posting feedback to GitHub issues
+	AgentRegistry *AgentRegistry      // Optional: for looking up per-agent merge branch
+	ObsBackend    observatory.Backend // Optional: for updating chain/stage status (M-CHAINS-SIMPLIFY)
 }
 
 // ApprovalResult contains the result of processing an approval or rejection.
@@ -248,6 +250,22 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 		))
 	}
 
+	// 6.5 Update chain/stage status (M-CHAINS-SIMPLIFY)
+	if params.ObsBackend != nil && task.StageID != "" {
+		if err := params.ObsBackend.UpdateStageStatus(ctx, task.StageID, observatory.StageStatusCompleted); err != nil {
+			span.AddEvent("warning: failed to update chain stage status", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+	}
+	if params.ObsBackend != nil && task.ChainID != "" {
+		if err := params.ObsBackend.UpdateChainStatus(ctx, task.ChainID, observatory.ChainStatusCompleted); err != nil {
+			span.AddEvent("warning: failed to update chain status", trace.WithAttributes(
+				attribute.String("error", err.Error()),
+			))
+		}
+	}
+
 	result.Message = fmt.Sprintf("Task approved and merged to %s (commit: %s)", mergeBranch, mergeResult.CommitHash)
 
 	// 7. Trigger embedded handoffs if this was a merge_handoff approval
@@ -408,6 +426,22 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 			))
 		}
 
+		// Update chain/stage status to failed (M-CHAINS-SIMPLIFY)
+		if params.ObsBackend != nil && task.StageID != "" {
+			if err := params.ObsBackend.UpdateStageStatus(ctx, task.StageID, observatory.StageStatusFailed); err != nil {
+				span.AddEvent("warning: failed to update chain stage status", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
+		}
+		if params.ObsBackend != nil && task.ChainID != "" {
+			if err := params.ObsBackend.UpdateChainStatus(ctx, task.ChainID, observatory.ChainStatusFailed); err != nil {
+				span.AddEvent("warning: failed to update chain status", trace.WithAttributes(
+					attribute.String("error", err.Error()),
+				))
+			}
+		}
+
 		// Clean up worktree
 		if task.WorktreePath != "" {
 			cleanupWorktree(task.WorktreePath)
@@ -556,7 +590,8 @@ func triggerHandoffsFromApprovalRecord(ctx context.Context, span trace.Span, par
 			MessageType:  "handoff",
 			Title:        fmt.Sprintf("Handoff: %s (approved)", task.Title),
 			Payload:      handoffMessage,
-			ParentTaskID: task.ID, // M-TASK-HIERARCHY: Link to parent task for handoff chains
+			ParentTaskID: task.ID,      // M-TASK-HIERARCHY: Link to parent task for handoff chains
+			ChainID:      task.ChainID, // M-CHAINS-SIMPLIFY: Link to existing chain
 		}
 
 		if err := params.MsgStore.InsertInboxMessage(msg); err != nil {

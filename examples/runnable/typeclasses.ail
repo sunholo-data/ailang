@@ -107,7 +107,7 @@ show(id(42)) ++ ", " ++ show(id("hello"))
 -- Output: "42, hello"
 
 -- Generic comparison
-let equals = \x y. x == y in
+let equals = \x. \y. x == y in
 show(equals(1)(1)) ++ ", " ++ show(equals("a")("b"))
 -- Output: "true, false"
 

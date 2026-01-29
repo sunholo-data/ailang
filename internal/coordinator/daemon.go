@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/telemetry"
 	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
@@ -99,6 +100,9 @@ type Daemon struct {
 
 	// Observatory integration for trace linking (M-TASK-HIERARCHY)
 	observatorySync *ObservatorySync
+
+	// Observatory backend for chain operations (M-CHAINS-SIMPLIFY)
+	obsBackend observatory.Backend
 }
 
 // NewDaemon creates a new daemon instance

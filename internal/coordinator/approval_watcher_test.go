@@ -648,6 +648,9 @@ func (m *mockStore) ListApprovedMergeHandoffsWithoutTrigger(ctx context.Context)
 func (m *mockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error {
 	return nil
 }
+func (m *mockStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
+	return nil
+}
 
 // TestRegisterAgentApprovalHandlers_NilRegistry tests with nil registry
 func TestRegisterAgentApprovalHandlers_NilRegistry(t *testing.T) {

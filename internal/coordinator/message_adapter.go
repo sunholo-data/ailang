@@ -53,6 +53,7 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 			GithubIssue:  githubIssue,    // M-COORD-GITHUB-AUTO-ROUTING
 			GithubRepo:   m.GitHubRepo,   // M-COORD-GITHUB-CLOSE-ON-MERGE
 			ParentTaskID: m.ParentTaskID, // M-TASK-HIERARCHY: propagate from inbox message
+			ChainID:      m.ChainID,      // M-CHAINS-SIMPLIFY: propagate chain ID from inbox message
 			Iteration:    m.Iteration,    // M-TASK-HIERARCHY: propagate iteration for feedback loops
 			CreatedAt:    m.CreatedAt,
 		})

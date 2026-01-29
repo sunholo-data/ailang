@@ -406,6 +406,9 @@ CREATE TABLE IF NOT EXISTS inbox_messages (
     -- Task hierarchy (v1.5.0, M-UNIFIED-AI-CONTROL-PLANE)
     parent_task_id TEXT,         -- Link to parent task for hierarchical execution
 
+    -- Execution chain (v1.7.0, M-CHAINS-SIMPLIFY)
+    chain_id TEXT,               -- Link to execution chain for unified hierarchy
+
     -- State
     status TEXT NOT NULL DEFAULT 'unread',
     created_at TEXT NOT NULL,
@@ -487,6 +490,13 @@ func MigrateDB(db *sql.DB) error {
 	if currentVersion == "1.5.0" {
 		if err := migrateV150ToV160(db); err != nil {
 			return fmt.Errorf("migration to v1.6.0 failed: %w", err)
+		}
+		currentVersion = "1.6.0"
+	}
+
+	if currentVersion == "1.6.0" {
+		if err := migrateV160ToV170(db); err != nil {
+			return fmt.Errorf("migration to v1.7.0 failed: %w", err)
 		}
 	}
 
@@ -816,6 +826,31 @@ func migrateV150ToV160(db *sql.DB) error {
 
 	// Update schema version
 	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.6.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// migrateV160ToV170 adds chain_id column to inbox_messages (M-CHAINS-SIMPLIFY)
+func migrateV160ToV170(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if chain_id column exists
+	var colName string
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='chain_id'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN chain_id TEXT"); err != nil {
+			return fmt.Errorf("failed to add chain_id column: %w", err)
+		}
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.7.0"); err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
 

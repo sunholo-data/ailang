@@ -54,8 +54,8 @@ func process_entities(entities: [Entity]) -> [Entity] ! {Debug} {
 
 -- Main entry point
 export func main() -> () ! {IO, Debug} {
-    print("Debug Effect Demo");
-    print("=================");
+    println("Debug Effect Demo");
+    println("=================");
 
     -- Create some entities
     let hero = { id: 1, name: "Hero", health: 100 };
@@ -68,12 +68,12 @@ export func main() -> () ! {IO, Debug} {
     let damaged_hero = damage(hero, 25);
     let healed_hero = heal(damaged_hero, 10);
 
-    print("Hero health: " ++ show(healed_hero.health));
+    println("Hero health: " ++ show(healed_hero.health));
 
     -- Process multiple entities
     let entities = [hero, monster];
     let updated = process_entities(entities);
 
     Debug.log("Game tick complete");
-    print("Demo complete!")
+    println("Demo complete!")
 }

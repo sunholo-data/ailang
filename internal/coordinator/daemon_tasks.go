@@ -36,6 +36,30 @@ func stageToAgentID(stage TaskStage) string {
 	}
 }
 
+// updateChainStageStatus updates the stage status in observatory (M-CHAINS-SIMPLIFY)
+func (d *Daemon) updateChainStageStatus(ctx context.Context, task *TaskRecord, status observatory.ChainStageStatus) {
+	if d.obsBackend == nil || task.StageID == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateStageStatus(ctx, task.StageID, status); err != nil {
+		d.logger.Printf("Warning: Failed to update chain stage %s status to %s: %v", task.StageID, status, err)
+	} else {
+		d.logger.Printf("Updated chain stage %s status to %s", task.StageID, status)
+	}
+}
+
+// updateChainStatus updates the chain status in observatory (M-CHAINS-SIMPLIFY)
+func (d *Daemon) updateChainStatus(ctx context.Context, task *TaskRecord, status observatory.ChainStatus) {
+	if d.obsBackend == nil || task.ChainID == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateChainStatus(ctx, task.ChainID, status); err != nil {
+		d.logger.Printf("Warning: Failed to update chain %s status to %s: %v", task.ChainID, status, err)
+	} else {
+		d.logger.Printf("Updated chain %s status to %s", task.ChainID, status)
+	}
+}
+
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
 	// Load agent configuration from ~/.ailang/config.yaml
@@ -180,6 +204,7 @@ func (d *Daemon) initTaskProcessing() error {
 		d.logger.Printf("Warning: Failed to initialize Observatory backend: %v", err)
 		d.logger.Println("Observatory trace linking disabled")
 	} else {
+		d.obsBackend = obsBackend // Store backend for chain operations (M-CHAINS-SIMPLIFY)
 		d.observatorySync = NewObservatorySync(obsBackend, d.logger)
 		d.logger.Printf("Observatory sync initialized (db: %s)", obsDBPath)
 	}
@@ -364,6 +389,65 @@ func (d *Daemon) pollAndProcessTasks() error {
 			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
 		}
 
+		// M-CHAINS-SIMPLIFY: Create execution chain and stage for unified hierarchy tracking
+		if d.obsBackend != nil {
+			chainID := msg.ChainID // May be set from handoff
+			var stageID string
+
+			// Determine chain ID: from message (handoff), from parent task, or create new
+			if chainID == "" && task.ParentTaskID != "" {
+				// Look up parent task to get its chain
+				if parentTask, err := d.taskStore.GetTask(d.ctx, task.ParentTaskID); err == nil && parentTask != nil {
+					chainID = parentTask.ChainID
+				}
+			}
+
+			// If still no chain, create a new one
+			if chainID == "" {
+				sourceType := observatory.ChainSourceMessage
+				if task.GithubIssue > 0 {
+					sourceType = observatory.ChainSourceGitHubIssue
+				}
+				chain, err := d.obsBackend.CreateChain(d.ctx, &observatory.ChainCreateRequest{
+					SourceType:        sourceType,
+					SourceRef:         msg.ID,
+					GitHubRepo:        task.GithubRepo,
+					GitHubIssueNumber: task.GithubIssue,
+				})
+				if err != nil {
+					d.logger.Printf("Warning: Failed to create execution chain for task %s: %v", task.ID, err)
+				} else {
+					chainID = chain.ID
+					d.logger.Printf("Created execution chain %s for task %s", chainID, task.ID)
+				}
+			}
+
+			// Create a stage for this agent
+			if chainID != "" {
+				stage, err := d.obsBackend.CreateStage(d.ctx, &observatory.StageCreateRequest{
+					ChainID:   chainID,
+					AgentID:   agentID,
+					MessageID: msg.ID,
+					TaskID:    task.ID,
+				})
+				if err != nil {
+					d.logger.Printf("Warning: Failed to create chain stage for task %s: %v", task.ID, err)
+				} else {
+					stageID = stage.ID
+					d.logger.Printf("Created chain stage %s (agent: %s) in chain %s", stageID, agentID, chainID)
+				}
+			}
+
+			// Store chain context in task
+			if chainID != "" || stageID != "" {
+				task.ChainID = chainID
+				task.StageID = stageID
+				if err := d.taskStore.UpdateTaskChainInfo(d.ctx, task.ID, chainID, stageID); err != nil {
+					d.logger.Printf("Warning: Failed to update chain info for task %s: %v", task.ID, err)
+				}
+			}
+		}
+
 		// M-COORD-GITHUB-AUTO-ROUTING: Initialize GitHub-linked tasks
 		if task.GithubIssue > 0 && d.taskChain != nil {
 			// Start the task chain (posts "working" comment to GitHub)
@@ -470,6 +554,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	if err := d.taskStore.MarkTaskRunning(taskCtx, task.ID, "", ""); err != nil {
 		return fmt.Errorf("failed to mark task as running: %w", err)
 	}
+	// M-CHAINS-SIMPLIFY: Update stage status
+	d.updateChainStageStatus(taskCtx, task, observatory.StageStatusRunning)
+	d.updateChainStatus(taskCtx, task, observatory.ChainStatusActive)
 
 	// Post "starting" message to thread
 	d.postTaskStatus(task, "running", "Starting task execution...")
@@ -614,6 +701,10 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			AgentID:      targetAgent,
 			AssignmentID: assignmentID,
 			WorkspaceID:  workspaceID,
+			// Chain context for unified hierarchy tracking (M-CHAINS-SIMPLIFY)
+			ChainID:   task.ChainID,
+			StageID:   task.StageID,
+			MessageID: task.MessageID,
 		}
 		d.logger.Printf("Observatory context: task=%s agent=%s assignment=%s workspace=%s",
 			task.ID, targetAgent, assignmentID, workspaceID)
@@ -789,6 +880,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			if err := d.taskStore.MarkTaskCompleted(taskCtx, task.ID, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task completed: %v", err)
 			}
+			// M-CHAINS-SIMPLIFY: Update stage and chain status
+			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusCompleted)
+			d.updateChainStatus(taskCtx, task, observatory.ChainStatusCompleted)
 			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
@@ -796,6 +890,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			if err := d.taskStore.MarkTaskPendingApproval(taskCtx, task.ID, worktreePath, worktreeBranch, baseBranch, baseCommit, result); err != nil {
 				d.logger.Printf("Warning: Failed to mark task pending approval: %v", err)
 			}
+			// M-CHAINS-SIMPLIFY: Update stage status to awaiting approval
+			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusAwaitingApproval)
+			d.updateChainStatus(taskCtx, task, observatory.ChainStatusPendingApproval)
 
 			// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 			// This posts the summary to GitHub and adds the appropriate approval label
@@ -883,6 +980,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		if err := d.taskStore.MarkTaskFailed(taskCtx, task.ID, fmt.Errorf("%s", result.Error)); err != nil {
 			d.logger.Printf("Warning: Failed to mark task failed: %v", err)
 		}
+		// M-CHAINS-SIMPLIFY: Update stage and chain status
+		d.updateChainStageStatus(taskCtx, task, observatory.StageStatusFailed)
+		d.updateChainStatus(taskCtx, task, observatory.ChainStatusFailed)
 		d.logger.Printf("Task %s failed: %s", task.ID, result.Error)
 		span.SetStatus(codes.Error, result.Error)
 	}

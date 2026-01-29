@@ -102,6 +102,7 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 
 	// Include hierarchy data in metadata for dashboard tracing
 	// parent_task_id enables the dashboard to show handoff chains
+	// chain_id enables the new task to join the existing chain (M-CHAINS-SIMPLIFY)
 	metadataMap := map[string]interface{}{
 		"parent_task_id": task.ID,        // For hierarchy tracking
 		"handoff_source": task.ID,        // Legacy field for backwards compatibility
@@ -110,6 +111,10 @@ func (d *Daemon) sendHandoffMessage(targetAgent *AgentConfig, task *TaskRecord, 
 	}
 	if sessionID != "" {
 		metadataMap["session_id"] = sessionID
+	}
+	// Include chain_id so the new task joins the existing chain
+	if task.ChainID != "" {
+		metadataMap["chain_id"] = task.ChainID
 	}
 	metadata := ""
 	if data, err := json.Marshal(metadataMap); err == nil {
@@ -592,6 +597,7 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 		req.SourceAgentID, req.Description)
 
 	// Include hierarchy data in metadata for dashboard tracing
+	// chain_id enables the new task to join the existing chain (M-CHAINS-SIMPLIFY)
 	metadataMap := map[string]interface{}{
 		"parent_task_id": req.TaskID,        // For hierarchy tracking
 		"handoff_source": req.TaskID,        // Legacy field for backwards compatibility
@@ -600,6 +606,10 @@ func (d *Daemon) processHandoffApproval(ctx context.Context, req *ApprovalReques
 	}
 	if req.SessionID != "" {
 		metadataMap["session_id"] = req.SessionID
+	}
+	// Include chain_id so the new task joins the existing chain
+	if task.ChainID != "" {
+		metadataMap["chain_id"] = task.ChainID
 	}
 	metadata := ""
 	if data, err := json.Marshal(metadataMap); err == nil {
@@ -666,6 +676,7 @@ func (d *Daemon) triggerEmbeddedHandoffs(ctx context.Context, task *TaskRecord, 
 		}
 
 		// Include hierarchy data in metadata for dashboard tracing
+		// chain_id enables the new task to join the existing chain (M-CHAINS-SIMPLIFY)
 		metadataMap := map[string]interface{}{
 			"parent_task_id": task.ID,
 			"handoff_source": task.ID,
@@ -674,6 +685,10 @@ func (d *Daemon) triggerEmbeddedHandoffs(ctx context.Context, task *TaskRecord, 
 		}
 		if handoffContext.SessionID != "" {
 			metadataMap["session_id"] = handoffContext.SessionID
+		}
+		// Include chain_id so the new task joins the existing chain
+		if task.ChainID != "" {
+			metadataMap["chain_id"] = task.ChainID
 		}
 		metadata := ""
 		if data, err := json.Marshal(metadataMap); err == nil {

@@ -132,18 +132,18 @@ pure func evolve(grid: Array[Cell]) -> Array[Cell] {
 
 -- Main function to run and display Conway's Game of Life
 export func main() -> () ! {IO} = {
-    print("Conway's Game of Life - Blinker Pattern\n");
-    print("========================================\n");
+    println("Conway's Game of Life - Blinker Pattern\n");
+    println("========================================\n");
 
     let gen0 = makeBlinker();
-    print("\nGeneration 0:\n");
-    print(showGrid(gen0, 0, ""));
+    println("\nGeneration 0:\n");
+    println(showGrid(gen0, 0, ""));
 
     let gen1 = evolve(gen0);
-    print("Generation 1:\n");
-    print(showGrid(gen1, 0, ""));
+    println("Generation 1:\n");
+    println(showGrid(gen1, 0, ""));
 
     let gen2 = evolve(gen1);
-    print("Generation 2 (back to original):\n");
-    print(showGrid(gen2, 0, ""))
+    println("Generation 2 (back to original):\n");
+    println(showGrid(gen2, 0, ""))
 }

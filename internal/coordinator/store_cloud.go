@@ -126,6 +126,11 @@ func (s *CloudStore) SetTaskThreadID(ctx context.Context, id string, threadID st
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// UpdateTaskChainInfo updates the chain_id and stage_id for a task (M-CHAINS-SIMPLIFY)
+func (s *CloudStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
+	return fmt.Errorf("cloud store not yet implemented")
+}
+
 // SetTaskGithubIssue links a task to a GitHub issue number
 func (s *CloudStore) SetTaskGithubIssue(ctx context.Context, id string, issueNum int) error {
 	return fmt.Errorf("cloud store not yet implemented")

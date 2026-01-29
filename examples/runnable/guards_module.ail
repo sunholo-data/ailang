@@ -36,8 +36,8 @@ func testTupleGuard() -> string =
 -- Main entry point
 export func main() -> () ! {IO} =
   {
-    print(testBasicGuard());
-    print(testEqualityGuard());
-    print(testMultipleGuards());
-    print(testTupleGuard())
+    println(testBasicGuard());
+    println(testEqualityGuard());
+    println(testMultipleGuards());
+    println(testTupleGuard())
   }

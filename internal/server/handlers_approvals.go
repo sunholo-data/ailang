@@ -312,6 +312,7 @@ func (s *Server) handleApproval(w http.ResponseWriter, r *http.Request) {
 			MsgStore:          s.store, // For feedback messages
 			GitHubPoster:      githubPoster,
 			AgentRegistry:     agentRegistry,
+			ObsBackend:        s.obsBackend, // M-CHAINS-SIMPLIFY: For chain status updates
 		})
 
 		if err != nil {

@@ -26,6 +26,9 @@ type TaskRecord struct {
 	SessionID    string     `json:"session_id,omitempty"`    // Claude Code/Gemini CLI session for resumption
 	Iteration    int        `json:"iteration,omitempty"`     // Iteration number (1 = first, 2+ = re-run with feedback)
 	Workspace    string     `json:"workspace,omitempty"`     // Source workspace from thread (not worktree)
+	// Execution chain tracking (M-CHAINS-SIMPLIFY)
+	ChainID string `json:"chain_id,omitempty"` // ExecutionChain ID for unified hierarchy
+	StageID string `json:"stage_id,omitempty"` // ChainStage ID for this agent's execution
 	// GitHub integration (M-COORD-GITHUB-AUTO-ROUTING)
 	GithubIssue    int       `json:"github_issue,omitempty"`     // Linked GitHub issue number
 	GithubRepo     string    `json:"github_repo,omitempty"`      // GitHub repo (owner/repo) for issue operations
@@ -182,6 +185,9 @@ type Store interface {
 
 	// Thread linking (for dashboard visibility)
 	SetTaskThreadID(ctx context.Context, id string, threadID string) error
+
+	// Execution chain tracking (M-CHAINS-SIMPLIFY)
+	UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error
 
 	// Cross-database correlation (for Control Plane event classification)
 	// Returns agent info for a task: agentID (FromAgent), inbox (ToInbox), title

@@ -69,11 +69,11 @@ let main = {
 }
 
 -- Print results
-print("=== Type Classes Demo ===")
-print("Arithmetic: " ++ show(simple))
-print("Floats: " ++ show(ratios))
-print("Equality: " ++ show(test_eq))
-print("Ordering: " ++ show(test_ord))
-print("Mixed: " ++ show(mixed))
-print("Polymorphic: " ++ show(test_poly))
-print("Complex: " ++ show(complex))
+println("=== Type Classes Demo ===")
+println("Arithmetic: " ++ show(simple))
+println("Floats: " ++ show(ratios))
+println("Equality: " ++ show(test_eq))
+println("Ordering: " ++ show(test_ord))
+println("Mixed: " ++ show(mixed))
+println("Polymorphic: " ++ show(test_poly))
+println("Complex: " ++ show(complex))

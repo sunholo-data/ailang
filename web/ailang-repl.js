@@ -138,6 +138,100 @@ class AilangREPL {
            line.trim().endsWith('let') ||
            line.trim().endsWith('=');
   }
+
+  /**
+   * Load an AILANG module into the registry (v0.7.2+)
+   * @param {string} name - Module name (e.g., 'math', 'invoice_processor')
+   * @param {string} code - AILANG source code
+   * @returns {{success: boolean, exports?: string[], error?: string}}
+   */
+  loadModule(name, code) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangLoadModule(name, code);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * List all loaded modules (v0.7.2+)
+   * @returns {string[]} Array of module names
+   */
+  listModules() {
+    if (!this.ready) {
+      return [];
+    }
+
+    try {
+      return window.ailangListModules() || [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  /**
+   * Import a module's exports into the REPL environment (v0.7.2+)
+   * @param {string} moduleName - Name of a loaded module
+   * @returns {string} Import result message
+   */
+  importModule(moduleName) {
+    if (!this.ready) {
+      return 'Error: REPL not initialized';
+    }
+
+    // Check if module is loaded
+    const modules = this.listModules();
+    if (!modules.includes(moduleName)) {
+      return `Error: module '${moduleName}' not loaded (use loadModule first)`;
+    }
+
+    // Use REPL's :import command
+    return this.eval(`:import ${moduleName}`);
+  }
+
+  /**
+   * Call a function from a loaded module (v0.7.2+)
+   * Convenience method that imports if needed and evaluates the call.
+   * @param {string} moduleName - Module containing the function
+   * @param {string} funcName - Function to call
+   * @param {...any} args - Arguments (converted to AILANG syntax)
+   * @returns {string} Result string (value and type)
+   */
+  call(moduleName, funcName, ...args) {
+    if (!this.ready) {
+      return 'Error: REPL not initialized';
+    }
+
+    // Import the module if not already imported
+    const modules = this.listModules();
+    if (!modules.includes(moduleName)) {
+      return `Error: module '${moduleName}' not loaded (use loadModule first)`;
+    }
+
+    // Import module exports
+    this.importModule(moduleName);
+
+    // Convert args to AILANG syntax
+    const ailangArgs = args.map(arg => {
+      if (typeof arg === 'string') return `"${arg}"`;
+      if (typeof arg === 'number') return String(arg);
+      if (typeof arg === 'boolean') return arg ? 'true' : 'false';
+      if (Array.isArray(arg)) return `[${arg.map(a => typeof a === 'string' ? `"${a}"` : a).join(', ')}]`;
+      return String(arg);
+    });
+
+    // Build curried call: funcName(arg1)(arg2)(arg3)
+    let expr = funcName;
+    for (const arg of ailangArgs) {
+      expr = `${expr}(${arg})`;
+    }
+
+    return this.eval(expr);
+  }
 }
 
 // Make available globally (priority for browser usage)

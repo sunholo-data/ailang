@@ -3,21 +3,21 @@
 module examples/snippets/showcase/lambdas_records
 
 export func main() -> () ! {IO} =
-  let _ = print("=== Lambdas with Records ===") in
+  let _ = println("=== Lambdas with Records ===") in
 
   -- Lambda that creates a record
   let makePoint = \x. \y. {x: x, y: y} in
   let p1 = makePoint(3)(4) in
-  let _ = print("Creating records with lambdas:") in
-  let _ = print("  makePoint(3)(4) = {x: 3, y: 4}") in
+  let _ = println("Creating records with lambdas:") in
+  let _ = println("  makePoint(3)(4) = {x: 3, y: 4}") in
 
   -- Lambda that accesses record fields
   let getX = \point. point.x in
   let getY = \point. point.y in
-  let _ = print("") in
-  let _ = print("Accessing record fields:") in
-  let _ = print("  getX(p1) = " ++ show(getX(p1))) in
-  let _ = print("  getY(p1) = " ++ show(getY(p1))) in
+  let _ = println("") in
+  let _ = println("Accessing record fields:") in
+  let _ = println("  getX(p1) = " ++ show(getX(p1))) in
+  let _ = println("  getY(p1) = " ++ show(getY(p1))) in
 
   -- Lambda that computes with record fields
   let distance = \p. \q. {
@@ -26,18 +26,18 @@ export func main() -> () ! {IO} =
   } in
   let p2 = makePoint(7)(8) in
   let diff = distance(p1)(p2) in
-  let _ = print("") in
-  let _ = print("Computing with records:") in
-  let _ = print("  distance(p1)(p2).dx = " ++ show(diff.dx)) in
-  let _ = print("  distance(p1)(p2).dy = " ++ show(diff.dy)) in
+  let _ = println("") in
+  let _ = println("Computing with records:") in
+  let _ = println("  distance(p1)(p2).dx = " ++ show(diff.dx)) in
+  let _ = println("  distance(p1)(p2).dy = " ++ show(diff.dy)) in
 
   -- Lambda that updates a record field
   let setX = \point. \newX. {x: newX, y: point.y} in
   let p3 = setX(p1)(10) in
-  let _ = print("") in
-  let _ = print("Updating record fields:") in
-  let _ = print("  setX(p1)(10).x = " ++ show(p3.x)) in
-  let _ = print("  setX(p1)(10).y = " ++ show(p3.y)) in
+  let _ = println("") in
+  let _ = println("Updating record fields:") in
+  let _ = println("  setX(p1)(10).x = " ++ show(p3.x)) in
+  let _ = println("  setX(p1)(10).y = " ++ show(p3.y)) in
 
   -- Lambda with record parameter patterns
   let scale = \factor. \point. {
@@ -45,7 +45,7 @@ export func main() -> () ! {IO} =
     y: point.y * factor
   } in
   let p4 = scale(2)(p1) in
-  let _ = print("") in
-  let _ = print("Scaling a point:") in
-  let _ = print("  scale(2)(p1).x = " ++ show(p4.x)) in
-  print("  scale(2)(p1).y = " ++ show(p4.y))
+  let _ = println("") in
+  let _ = println("Scaling a point:") in
+  let _ = println("  scale(2)(p1).x = " ++ show(p4.x)) in
+  println("  scale(2)(p1).y = " ++ show(p4.y))

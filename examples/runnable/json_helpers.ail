@@ -41,4 +41,4 @@ func parsePerson(jsonStr: string) -> string =
 
 -- Entry point - just call parsePerson directly
 export func main() -> () ! {IO} =
-  print(parsePerson("{\"name\":\"Alice\",\"age\":30,\"score\":95.5}"))
+  println(parsePerson("{\"name\":\"Alice\",\"age\":30,\"score\":95.5}"))

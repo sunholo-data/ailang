@@ -20,6 +20,7 @@ type Message struct {
 	GithubRepo   string // GitHub repo (owner/repo) for issue operations (M-COORD-GITHUB-CLOSE-ON-MERGE)
 	ParentTaskID string // Parent task ID for hierarchy tracking (M-TASK-HIERARCHY)
 	Iteration    int    // Iteration number for feedback loops (M-TASK-HIERARCHY)
+	ChainID      string // ExecutionChain ID for unified hierarchy (M-CHAINS-SIMPLIFY)
 	CreatedAt    time.Time
 }
 

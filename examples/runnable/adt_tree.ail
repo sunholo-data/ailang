@@ -23,5 +23,5 @@ pure func countNodes(tree: Tree) -> int =
 
 export func main() -> () ! {IO} =
     let tree = Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5))) in
-    let _ = print("Tree sum: " ++ show(sumTree(tree))) in
-    print("Node count: " ++ show(countNodes(tree)))
+    let _ = println("Tree sum: " ++ show(sumTree(tree))) in
+    println("Node count: " ++ show(countNodes(tree)))

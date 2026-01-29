@@ -366,6 +366,17 @@ func (m *MockStore) MarkApprovalHandoffsTriggered(ctx context.Context, taskID st
 	return nil
 }
 
+func (m *MockStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls["UpdateTaskChainInfo"]++
+	if task, ok := m.tasks[id]; ok {
+		task.ChainID = chainID
+		task.StageID = stageID
+	}
+	return nil
+}
+
 func (m *MockStore) GetCallCount(method string) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()

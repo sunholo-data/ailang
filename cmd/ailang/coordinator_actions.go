@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 )
 
 func coordinatorApprove(args []string) error {
@@ -64,6 +65,14 @@ func coordinatorApprove(args []string) error {
 	}
 	// If poster creation fails, continue without it - labels won't be updated
 
+	// Open observatory database for chain status updates (M-CHAINS-SIMPLIFY)
+	obsDBPath := filepath.Join(cfg.StateDir, "observatory.db")
+	obsBackend, _ := observatory.NewSQLiteBackendFromPath(obsDBPath)
+	if obsBackend != nil {
+		defer obsBackend.Close()
+	}
+	// If observatory fails to open, continue without it - chain status won't be updated
+
 	ctx := context.Background()
 
 	// Use unified approval processor
@@ -78,6 +87,7 @@ func coordinatorApprove(args []string) error {
 		Store:         store,
 		AgentRegistry: agentRegistry,
 		GitHubPoster:  githubPoster,
+		ObsBackend:    obsBackend,
 	})
 	if err != nil {
 		return err
@@ -196,6 +206,14 @@ func coordinatorReject(args []string) error {
 	// Load agent registry for per-agent merge branch lookup
 	agentRegistry, _ := coordinator.LoadAgentRegistry()
 
+	// Open observatory database for chain status updates (M-CHAINS-SIMPLIFY)
+	obsDBPath := filepath.Join(cfg.StateDir, "observatory.db")
+	obsBackend, _ := observatory.NewSQLiteBackendFromPath(obsDBPath)
+	if obsBackend != nil {
+		defer obsBackend.Close()
+	}
+	// If observatory fails to open, continue without it - chain status won't be updated
+
 	ctx := context.Background()
 
 	// Use unified approval processor
@@ -210,6 +228,7 @@ func coordinatorReject(args []string) error {
 		MsgStore:          msgStore,
 		GitHubPoster:      githubPoster,
 		AgentRegistry:     agentRegistry,
+		ObsBackend:        obsBackend,
 	})
 	if err != nil {
 		return err

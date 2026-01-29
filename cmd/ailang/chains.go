@@ -145,6 +145,10 @@ func chainsViewCommand() {
 		fmt.Fprintf(os.Stderr, "Error: failed to get chain: %v\n", err)
 		os.Exit(1)
 	}
+	if chain == nil {
+		fmt.Fprintf(os.Stderr, "Error: chain not found: %s\n", chainID)
+		os.Exit(1)
+	}
 
 	// Get stages
 	stages, err := backend.GetChainStages(ctx, chainID, opts)
@@ -228,6 +232,10 @@ func chainsTreeCommand() {
 	chain, err := backend.GetChain(ctx, chainID, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to get chain: %v\n", err)
+		os.Exit(1)
+	}
+	if chain == nil {
+		fmt.Fprintf(os.Stderr, "Error: chain not found: %s\n", chainID)
 		os.Exit(1)
 	}
 

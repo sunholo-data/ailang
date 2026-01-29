@@ -7,4 +7,4 @@ module examples/runnable/values_basic
 export func main() -> () ! {IO} =
   let name = "AILANG" in
   let version = 0.6 in
-  print("Welcome to " ++ name ++ " v" ++ show(version))
+  println("Welcome to " ++ name ++ " v" ++ show(version))

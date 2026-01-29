@@ -167,6 +167,9 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN iteration INTEGER DEFAULT 0",
 		// Handoff tracking - to detect missed handoffs on daemon startup
 		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
+		// Execution chain tracking (M-CHAINS-SIMPLIFY)
+		"ALTER TABLE tasks ADD COLUMN chain_id TEXT",
+		"ALTER TABLE tasks ADD COLUMN stage_id TEXT",
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -190,14 +193,16 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 
 	query := `
 		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, priority, status, workspace,
-		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo,
+		                   chain_id, stage_id, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
 		task.Type, task.Priority, task.Status, task.Workspace,
 		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
-		task.GithubIssue, task.GithubRepo, task.CreatedAt,
+		task.GithubIssue, task.GithubRepo,
+		task.ChainID, task.StageID, task.CreatedAt,
 	)
 	return err
 }
@@ -207,7 +212,7 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
-		       session_id, iteration,
+		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -256,7 +261,7 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	query.WriteString(`
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
-		       session_id, iteration,
+		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -630,7 +635,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
-		        session_id, iteration,
+		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, duration_ns,
 		        error, output, cost, tokens_used,
 		        capabilities_json, impact_level, estimated_cost
@@ -658,6 +663,15 @@ func (s *SQLiteStore) SetTaskThreadID(ctx context.Context, id string, threadID s
 	_, err := s.db.ExecContext(ctx,
 		"UPDATE tasks SET thread_id = ? WHERE id = ?",
 		threadID, id,
+	)
+	return err
+}
+
+// UpdateTaskChainInfo updates the chain_id and stage_id for a task (M-CHAINS-SIMPLIFY)
+func (s *SQLiteStore) UpdateTaskChainInfo(ctx context.Context, id, chainID, stageID string) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE tasks SET chain_id = ?, stage_id = ? WHERE id = ?",
+		chainID, stageID, id,
 	)
 	return err
 }
@@ -722,7 +736,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
-		       session_id, iteration,
+		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -751,7 +765,7 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 	query := `
 		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
-		       session_id, iteration,
+		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
 		       error, output, cost, tokens_used,
 		       capabilities_json, impact_level, estimated_cost
@@ -847,6 +861,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
+	var chainID, stageID sql.NullString // M-CHAINS-SIMPLIFY
 	var githubIssue sql.NullInt64
 	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
@@ -856,7 +871,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
-		&sessionID, &iteration,
+		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
@@ -930,6 +945,13 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	}
 	if iteration.Valid {
 		task.Iteration = int(iteration.Int64)
+	}
+	// Execution chain fields (M-CHAINS-SIMPLIFY)
+	if chainID.Valid {
+		task.ChainID = chainID.String
+	}
+	if stageID.Valid {
+		task.StageID = stageID.String
 	}
 	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
 	if capsJSON.Valid && capsJSON.String != "" {
@@ -955,6 +977,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var designDocPath, sprintPlanPath sql.NullString
 	var sessionID sql.NullString
 	var iteration sql.NullInt64
+	var chainID, stageID sql.NullString // M-CHAINS-SIMPLIFY
 	var githubIssue sql.NullInt64
 	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
@@ -964,7 +987,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
 		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
-		&sessionID, &iteration,
+		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost,
@@ -1038,6 +1061,13 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	}
 	if iteration.Valid {
 		task.Iteration = int(iteration.Int64)
+	}
+	// Execution chain fields (M-CHAINS-SIMPLIFY)
+	if chainID.Valid {
+		task.ChainID = chainID.String
+	}
+	if stageID.Valid {
+		task.StageID = stageID.String
 	}
 	// Capability detection fields (M-DEPRECATE-AILANG-AGENT)
 	if capsJSON.Valid && capsJSON.String != "" {

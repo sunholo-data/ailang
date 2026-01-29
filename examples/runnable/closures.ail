@@ -5,4 +5,4 @@ module examples/runnable/closures
 export func main() -> () ! {IO} =
   let makeAdder = \n. \x. x + n in
   let add10 = makeAdder(10) in
-  print("Closure: " ++ show(add10(5)))
+  println("Closure: " ++ show(add10(5)))

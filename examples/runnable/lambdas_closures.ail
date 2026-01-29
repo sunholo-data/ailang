@@ -3,38 +3,38 @@
 module examples/runnable/lambdas_closures
 
 export func main() -> () ! {IO} =
-  let _ = print("=== Closures ===") in
+  let _ = println("=== Closures ===") in
 
   -- Basic closure - capturing outer variable
   let x = 10 in
   let addX = \y. x + y in
-  let _ = print("Basic closure (x = 10):") in
-  let _ = print("  addX(5) = " ++ show(addX(5))) in
-  let _ = print("  addX(20) = " ++ show(addX(20))) in
+  let _ = println("Basic closure (x = 10):") in
+  let _ = println("  addX(5) = " ++ show(addX(5))) in
+  let _ = println("  addX(20) = " ++ show(addX(20))) in
 
   -- Closure factory - function that returns a function
   let makeAdder = \n. \x. n + x in
   let add5 = makeAdder(5) in
   let add100 = makeAdder(100) in
-  let _ = print("") in
-  let _ = print("Closure factory (makeAdder):") in
-  let _ = print("  add5(3) = " ++ show(add5(3))) in
-  let _ = print("  add100(3) = " ++ show(add100(3))) in
+  let _ = println("") in
+  let _ = println("Closure factory (makeAdder):") in
+  let _ = println("  add5(3) = " ++ show(add5(3))) in
+  let _ = println("  add100(3) = " ++ show(add100(3))) in
 
   -- Multiple variables captured
   let a = 2 in
   let b = 3 in
   let compute = \x. a * x + b in
-  let _ = print("") in
-  let _ = print("Multiple variables captured (a=2, b=3):") in
-  let _ = print("  compute(5) = " ++ show(compute(5))) in
-  let _ = print("  compute(10) = " ++ show(compute(10))) in
+  let _ = println("") in
+  let _ = println("Multiple variables captured (a=2, b=3):") in
+  let _ = println("  compute(5) = " ++ show(compute(5))) in
+  let _ = println("  compute(10) = " ++ show(compute(10))) in
 
   -- Nested closures
   let makeMultiplier = \factor. \x. factor * x in
   let double = makeMultiplier(2) in
   let triple = makeMultiplier(3) in
-  let _ = print("") in
-  let _ = print("Nested closures (makeMultiplier):") in
-  let _ = print("  double(7) = " ++ show(double(7))) in
-  print("  triple(7) = " ++ show(triple(7)))
+  let _ = println("") in
+  let _ = println("Nested closures (makeMultiplier):") in
+  let _ = println("  double(7) = " ++ show(double(7))) in
+  println("  triple(7) = " ++ show(triple(7)))

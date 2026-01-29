@@ -21,7 +21,7 @@ let world2 = step(world1)
 
 type Point = { x: int, y: int, z: int }
 
-let translate: Point -> int -> int -> Point = \p dx dy. {p | x: p.x + dx, y: p.y + dy}
+let translate: Point -> int -> int -> Point = \p. \dx. \dy. {p | x: p.x + dx, y: p.y + dy}
 
 let origin = { x: 0, y: 0, z: 0 }
 let moved = translate(origin)(10)(20)
@@ -41,7 +41,7 @@ let birthday = {person | age: person.age + 1}
 
 type GameState = { score: int, lives: int, level: int }
 
-let addScore: GameState -> int -> GameState = \state pts. {state | score: state.score + pts}
+let addScore: GameState -> int -> GameState = \state. \pts. {state | score: state.score + pts}
 let loseLife: GameState -> GameState = \state. {state | lives: state.lives - 1}
 let nextLevel: GameState -> GameState = \state. {state | level: state.level + 1}
 
