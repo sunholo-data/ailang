@@ -505,6 +505,67 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 8
 	}
 
+	// Migration v9: Add correlation columns to chat_messages table (M-DETERMINISTIC-CHAT-LINKING Phase 5)
+	// Enables direct task->message queries without timestamp filtering
+	if currentVersion < 9 {
+		// Add task_id column
+		var taskIDExists int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('chat_messages') WHERE name = 'task_id'
+		`).Scan(&taskIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check chat_messages task_id column: %w", err)
+		}
+		if taskIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE chat_messages ADD COLUMN task_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add task_id to chat_messages: %w", err)
+			}
+		}
+
+		// Add chain_id column
+		var chainIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('chat_messages') WHERE name = 'chain_id'
+		`).Scan(&chainIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check chat_messages chain_id column: %w", err)
+		}
+		if chainIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE chat_messages ADD COLUMN chain_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add chain_id to chat_messages: %w", err)
+			}
+		}
+
+		// Add stage_id column
+		var stageIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('chat_messages') WHERE name = 'stage_id'
+		`).Scan(&stageIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check chat_messages stage_id column: %w", err)
+		}
+		if stageIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE chat_messages ADD COLUMN stage_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add stage_id to chat_messages: %w", err)
+			}
+		}
+
+		// Create index for task_id lookup (most common query)
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_chat_messages_task ON chat_messages(task_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chat_messages task_id index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (9)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 9: %w", err)
+		}
+		currentVersion = 9
+	}
+
 	return currentVersion, nil
 }
 

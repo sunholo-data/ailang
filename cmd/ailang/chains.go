@@ -376,12 +376,18 @@ func printChainTreeDetailed(ctx context.Context, backend *observatory.SQLiteBack
 }
 
 func printStageDetails(ctx context.Context, backend *observatory.SQLiteBackend, taskID, prefix string) {
-	// First try to get session info (including time range) from coordinator.db tasks
-	sessionInfo := getSessionInfoFromTask(taskID)
+	// PREFERRED: Try deterministic task_id query first (M-DETERMINISTIC-CHAT-LINKING)
+	// This works when sync-chat has propagated correlation IDs from sessions to chat_messages
+	messages := getChatMessagesForTask(taskID)
+	if len(messages) > 0 {
+		printChatTurnDetails(messages, prefix)
+		return
+	}
 
-	// If we have session_id, show full chat data with tools (filtered by task time range)
+	// FALLBACK: Get session info and use timestamp filtering (legacy approach)
+	sessionInfo := getSessionInfoFromTask(taskID)
 	if sessionInfo != nil && sessionInfo.SessionID != "" {
-		messages := getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
+		messages = getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
 		if len(messages) > 0 {
 			printChatTurnDetails(messages, prefix)
 			return
@@ -733,15 +739,18 @@ func printChainJSONSummary(chain *observatory.ExecutionChain, opts jsonExportOpt
 			TaskID:   stage.TaskID,
 		}
 
-		// Get session info and messages
-		var sessionInfo *taskSessionInfo
+		// Get messages - prefer deterministic task_id query (M-DETERMINISTIC-CHAT-LINKING)
+		var messages []chatMessageExport
 		if stage.TaskID != "" {
-			sessionInfo = getSessionInfoFromTask(stage.TaskID)
+			messages = getChatMessagesForTask(stage.TaskID)
 		}
 
-		var messages []chatMessageExport
-		if sessionInfo != nil && sessionInfo.SessionID != "" {
-			messages = getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
+		// Fallback to timestamp-based query if no deterministic results
+		if len(messages) == 0 && stage.TaskID != "" {
+			sessionInfo := getSessionInfoFromTask(stage.TaskID)
+			if sessionInfo != nil && sessionInfo.SessionID != "" {
+				messages = getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
+			}
 		}
 
 		// Build turn summaries from chat messages
@@ -844,20 +853,31 @@ func printChainJSONFull(chain *observatory.ExecutionChain, opts jsonExportOption
 			Stage: *stage,
 		}
 
-		// Resolve session info
+		// Get messages - prefer deterministic task_id query (M-DETERMINISTIC-CHAT-LINKING)
+		var allMessages []chatMessageExport
 		var sessionInfo *taskSessionInfo
-		if stage.SessionID != "" {
-			sessionInfo = &taskSessionInfo{SessionID: stage.SessionID}
-		}
+
 		if stage.TaskID != "" {
-			if taskInfo := getSessionInfoFromTask(stage.TaskID); taskInfo != nil {
-				sessionInfo = taskInfo
+			allMessages = getChatMessagesForTask(stage.TaskID)
+		}
+
+		// Fallback to timestamp-based query if no deterministic results
+		if len(allMessages) == 0 {
+			if stage.SessionID != "" {
+				sessionInfo = &taskSessionInfo{SessionID: stage.SessionID}
+			}
+			if stage.TaskID != "" {
+				if taskInfo := getSessionInfoFromTask(stage.TaskID); taskInfo != nil {
+					sessionInfo = taskInfo
+				}
+			}
+			if sessionInfo != nil && sessionInfo.SessionID != "" {
+				allMessages = getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
 			}
 		}
 
 		// Get filtered messages
-		if sessionInfo != nil && sessionInfo.SessionID != "" {
-			allMessages := getChatMessagesInRange(sessionInfo.SessionID, sessionInfo.StartedAt, sessionInfo.CompletedAt)
+		if len(allMessages) > 0 {
 
 			// Apply turn and tools filters
 			for _, msg := range allMessages {
@@ -961,6 +981,59 @@ func getSessionIDFromTask(taskID string) string {
 // getChatMessages fetches chat messages from observatory.db with full content
 func getChatMessages(sessionID string) []chatMessageExport {
 	return getChatMessagesInRange(sessionID, time.Time{}, time.Time{})
+}
+
+// getChatMessagesForTask fetches chat messages by task_id directly (M-DETERMINISTIC-CHAT-LINKING)
+// This is the preferred method when task_id is known - no timestamp filtering needed
+func getChatMessagesForTask(taskID string) []chatMessageExport {
+	if taskID == "" {
+		return nil
+	}
+
+	dbPath := observatory.DefaultDatabasePath()
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
+
+	query := `
+		SELECT id, session_id, turn_number, role, content_json,
+		       tokens_in, tokens_out, model, timestamp
+		FROM chat_messages
+		WHERE task_id = ?
+		ORDER BY turn_number, timestamp
+	`
+
+	rows, err := db.Query(query, taskID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	var messages []chatMessageExport
+	for rows.Next() {
+		var msg chatMessageExport
+		var contentJSON, model sql.NullString
+		var timestamp time.Time
+
+		if err := rows.Scan(&msg.ID, &msg.SessionID, &msg.TurnNumber, &msg.Role,
+			&contentJSON, &msg.TokensIn, &msg.TokensOut, &model, &timestamp); err != nil {
+			continue
+		}
+
+		msg.Model = model.String
+		msg.Timestamp = timestamp.Format(time.RFC3339)
+
+		// Parse content_json to get full tool data
+		if contentJSON.Valid && contentJSON.String != "" {
+			msg.Content = parseContentJSON(contentJSON.String)
+		}
+
+		messages = append(messages, msg)
+	}
+
+	return messages
 }
 
 // getChatMessagesInRange fetches chat messages within a time range

@@ -34,11 +34,15 @@ func setupTestDB(t *testing.T) *sql.DB {
 			model TEXT,
 			request_id TEXT,
 			timestamp TIMESTAMP NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			task_id TEXT,
+			chain_id TEXT,
+			stage_id TEXT
 		);
 		CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, turn_number);
 		CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp DESC);
 		CREATE INDEX IF NOT EXISTS idx_chat_messages_request ON chat_messages(request_id);
+		CREATE INDEX IF NOT EXISTS idx_chat_messages_task ON chat_messages(task_id);
 
 		CREATE TABLE IF NOT EXISTS chat_import_status (
 			session_id TEXT PRIMARY KEY,
@@ -46,6 +50,20 @@ func setupTestDB(t *testing.T) *sql.DB {
 			file_mtime TIMESTAMP NOT NULL,
 			message_count INTEGER NOT NULL,
 			imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		CREATE TABLE IF NOT EXISTS sessions (
+			session_id TEXT PRIMARY KEY,
+			workspace TEXT,
+			claude_version TEXT,
+			source TEXT DEFAULT 'hook',
+			started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			ended_at TIMESTAMP,
+			turn_count INTEGER DEFAULT 0,
+			task_id TEXT,
+			chain_id TEXT,
+			stage_id TEXT,
+			message_id TEXT
 		);
 	`)
 	if err != nil {

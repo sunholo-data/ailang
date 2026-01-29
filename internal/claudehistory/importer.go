@@ -93,6 +93,27 @@ func (i *Importer) SyncAll(ctx context.Context) (*SyncStats, error) {
 	return stats, nil
 }
 
+// SessionCorrelation holds task/chain/stage IDs from the sessions table.
+type SessionCorrelation struct {
+	TaskID  sql.NullString
+	ChainID sql.NullString
+	StageID sql.NullString
+}
+
+// getSessionCorrelation looks up correlation IDs from observatory.db sessions table.
+func (i *Importer) getSessionCorrelation(ctx context.Context, sessionID string) *SessionCorrelation {
+	var corr SessionCorrelation
+	err := i.db.QueryRowContext(ctx, `
+		SELECT task_id, chain_id, stage_id
+		FROM sessions WHERE session_id = ?
+	`, sessionID).Scan(&corr.TaskID, &corr.ChainID, &corr.StageID)
+	if err != nil {
+		// No session or no correlation - return nil (not an error)
+		return nil
+	}
+	return &corr
+}
+
 // SyncSession imports a single session by ID.
 // Returns the number of messages imported.
 func (i *Importer) SyncSession(ctx context.Context, sessionID string) (int, error) {
@@ -125,6 +146,9 @@ func (i *Importer) SyncSession(ctx context.Context, sessionID string) (int, erro
 	if err != nil {
 		return 0, fmt.Errorf("deleting existing messages: %w", err)
 	}
+
+	// Look up correlation IDs from sessions table (M-DETERMINISTIC-CHAT-LINKING)
+	corr := i.getSessionCorrelation(ctx, session.ID)
 
 	// Insert messages
 	turnNumber := 0
@@ -173,14 +197,30 @@ func (i *Importer) SyncSession(ctx context.Context, sessionID string) (int, erro
 			role = "assistant" // Default for unknown types
 		}
 
+		// Get correlation values (nil-safe)
+		var taskID, chainID, stageID interface{}
+		if corr != nil {
+			if corr.TaskID.Valid {
+				taskID = corr.TaskID.String
+			}
+			if corr.ChainID.Valid {
+				chainID = corr.ChainID.String
+			}
+			if corr.StageID.Valid {
+				stageID = corr.StageID.String
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO chat_messages (
 				id, session_id, turn_number, role, content_text, content_thinking,
-				content_json, tokens_in, tokens_out, model, request_id, timestamp
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				content_json, tokens_in, tokens_out, model, request_id, timestamp,
+				task_id, chain_id, stage_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
 			msgID, session.ID, turnNumber, role, contentText, contentThinking,
 			string(contentJSON), tokensIn, tokensOut, msg.Model, msg.RequestID, msg.Timestamp,
+			taskID, chainID, stageID,
 		)
 		if err != nil {
 			return 0, fmt.Errorf("inserting message: %w", err)
