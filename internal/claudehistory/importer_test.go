@@ -10,7 +10,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sunholo/ailang/internal/observatory"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -19,11 +18,39 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("failed to open test database: %v", err)
 	}
 
-	// Run migrations to create tables
-	_, err = observatory.MigrateWithVersion(db)
+	// Create only the tables needed by claudehistory (avoids import cycle with observatory)
+	// This is a minimal schema for testing - production uses observatory.MigrateWithVersion
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS chat_messages (
+			id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			turn_number INTEGER NOT NULL,
+			role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+			content_text TEXT,
+			content_thinking TEXT,
+			content_json TEXT,
+			tokens_in INTEGER DEFAULT 0,
+			tokens_out INTEGER DEFAULT 0,
+			model TEXT,
+			request_id TEXT,
+			timestamp TIMESTAMP NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, turn_number);
+		CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestamp DESC);
+		CREATE INDEX IF NOT EXISTS idx_chat_messages_request ON chat_messages(request_id);
+
+		CREATE TABLE IF NOT EXISTS chat_import_status (
+			session_id TEXT PRIMARY KEY,
+			file_path TEXT NOT NULL,
+			file_mtime TIMESTAMP NOT NULL,
+			message_count INTEGER NOT NULL,
+			imported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+	`)
 	if err != nil {
 		db.Close()
-		t.Fatalf("failed to migrate: %v", err)
+		t.Fatalf("failed to create test schema: %v", err)
 	}
 
 	return db

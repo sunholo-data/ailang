@@ -221,6 +221,67 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 	return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
 }
 
+// CallPreserveFloats is like Call but preserves Go float64 values as AILANG FloatValue,
+// even for whole numbers like 100.0. Use this for direct Go calls where you need
+// float arguments to stay as floats (not be converted to int for JSON compatibility).
+func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interface{}) (eval.Value, error) {
+	// Fast path: check if module is already loaded (read lock only)
+	e.mu.RLock()
+	if e.closed {
+		e.mu.RUnlock()
+		return nil, fmt.Errorf("engine is closed")
+	}
+	inst := e.runtime.GetInstance(modulePath)
+	alreadyCompiled := e.compiled[modulePath]
+	e.mu.RUnlock()
+
+	// Slow path: compile and load module (write lock)
+	if inst == nil {
+		e.mu.Lock()
+		// Double-check after acquiring write lock
+		inst = e.runtime.GetInstance(modulePath)
+		if inst == nil {
+			if !alreadyCompiled {
+				if err := e.compileModule(modulePath); err != nil {
+					e.mu.Unlock()
+					return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
+				}
+			}
+
+			var err error
+			inst, err = e.runtime.LoadAndEvaluate(modulePath)
+			if err != nil {
+				e.mu.Unlock()
+				return nil, fmt.Errorf("failed to load module %s: %w", modulePath, err)
+			}
+		}
+		e.mu.Unlock()
+	}
+
+	// Get the function
+	fnVal, err := inst.GetExport(funcName)
+	if err != nil {
+		return nil, fmt.Errorf("function %s not found in module %s: %w", funcName, modulePath, err)
+	}
+
+	if _, ok := fnVal.(*eval.FunctionValue); !ok {
+		return nil, fmt.Errorf("%s is not a function (got %T)", funcName, fnVal)
+	}
+
+	// Convert arguments, preserving float types
+	ailangArgs := make([]eval.Value, len(args))
+	for i, arg := range args {
+		converted, err := FromGoPreserveFloats(arg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert argument %d: %w", i, err)
+		}
+		ailangArgs[i] = converted
+	}
+
+	// Call the function
+	return runtime.CallEntrypoint(e.runtime, inst, funcName, ailangArgs)
+}
+
 // CallJSON is a convenience method that accepts JSON input and returns JSON output.
 // Useful for language-agnostic integrations.
 func (e *Engine) CallJSON(modulePath, funcName string, inputJSON []byte) ([]byte, error) {

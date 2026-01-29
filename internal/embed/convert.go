@@ -21,15 +21,26 @@ import (
 //   - map[string]T → RecordValue (recursive)
 //   - struct → RecordValue (exported fields only)
 func FromGo(v interface{}) (eval.Value, error) {
+	return fromGoInternal(v, false)
+}
+
+// FromGoPreserveFloats converts a Go value to an AILANG value, preserving float64
+// as FloatValue even for whole numbers. Use this for direct Go calls where you want
+// float64 to remain as float (not converted to int for JSON compatibility).
+func FromGoPreserveFloats(v interface{}) (eval.Value, error) {
+	return fromGoInternal(v, true)
+}
+
+func fromGoInternal(v interface{}, preserveFloats bool) (eval.Value, error) {
 	if v == nil {
 		return &eval.UnitValue{}, nil
 	}
 
 	rv := reflect.ValueOf(v)
-	return fromReflect(rv)
+	return fromReflect(rv, preserveFloats)
 }
 
-func fromReflect(rv reflect.Value) (eval.Value, error) {
+func fromReflect(rv reflect.Value, preserveFloats bool) (eval.Value, error) {
 	// Handle pointers
 	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
@@ -52,7 +63,8 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 		f := rv.Float()
 		// JSON unmarshals all numbers as float64. If the value is a whole number,
 		// convert to IntValue for compatibility with AILANG int-typed functions.
-		if f == float64(int(f)) && f >= -1e15 && f <= 1e15 {
+		// However, when preserveFloats is true (direct Go calls), keep float64 as FloatValue.
+		if !preserveFloats && f == float64(int(f)) && f >= -1e15 && f <= 1e15 {
 			return &eval.IntValue{Value: int(f)}, nil
 		}
 		return &eval.FloatValue{Value: f}, nil
@@ -68,7 +80,7 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 		// Other slices → ListValue
 		elements := make([]eval.Value, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
-			elem, err := fromReflect(rv.Index(i))
+			elem, err := fromReflect(rv.Index(i), preserveFloats)
 			if err != nil {
 				return nil, fmt.Errorf("slice element %d: %w", i, err)
 			}
@@ -79,7 +91,7 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 	case reflect.Array:
 		elements := make([]eval.Value, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
-			elem, err := fromReflect(rv.Index(i))
+			elem, err := fromReflect(rv.Index(i), preserveFloats)
 			if err != nil {
 				return nil, fmt.Errorf("array element %d: %w", i, err)
 			}
@@ -95,7 +107,7 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 		iter := rv.MapRange()
 		for iter.Next() {
 			key := iter.Key().String()
-			val, err := fromReflect(iter.Value())
+			val, err := fromReflect(iter.Value(), preserveFloats)
 			if err != nil {
 				return nil, fmt.Errorf("map value for key %q: %w", key, err)
 			}
@@ -116,7 +128,7 @@ func fromReflect(rv reflect.Value) (eval.Value, error) {
 			if tag := field.Tag.Get("json"); tag != "" && tag != "-" {
 				name = tag
 			}
-			val, err := fromReflect(rv.Field(i))
+			val, err := fromReflect(rv.Field(i), preserveFloats)
 			if err != nil {
 				return nil, fmt.Errorf("struct field %s: %w", field.Name, err)
 			}

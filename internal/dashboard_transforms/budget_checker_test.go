@@ -136,7 +136,7 @@ func BenchmarkCheckTaskBudget_AILANG(b *testing.B) {
 	config := defaultConfig()
 
 	// Warm up
-	_, err := engine.Call("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
+	_, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
 		config, 5.0, 20.0, 30.0)
 	if err != nil {
 		b.Fatalf("AILANG warm-up failed: %v", err)
@@ -144,7 +144,7 @@ func BenchmarkCheckTaskBudget_AILANG(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = engine.Call("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
+		_, _ = engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
 			config, 5.0, 20.0, 30.0)
 	}
 }
@@ -154,14 +154,14 @@ func BenchmarkUsagePercent_AILANG(b *testing.B) {
 	defer engine.Close()
 
 	// Warm up
-	_, err := engine.Call("internal/dashboard_transforms/budget_checker", "usagePercent", 75.0, 100.0)
+	_, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "usagePercent", 75.0, 100.0)
 	if err != nil {
 		b.Fatalf("AILANG warm-up failed: %v", err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = engine.Call("internal/dashboard_transforms/budget_checker", "usagePercent", 75.0, 100.0)
+		_, _ = engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "usagePercent", 75.0, 100.0)
 	}
 }
 
@@ -170,14 +170,14 @@ func BenchmarkRemaining_AILANG(b *testing.B) {
 	defer engine.Close()
 
 	// Warm up
-	_, err := engine.Call("internal/dashboard_transforms/budget_checker", "remaining", 75.0, 100.0)
+	_, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "remaining", 75.0, 100.0)
 	if err != nil {
 		b.Fatalf("AILANG warm-up failed: %v", err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = engine.Call("internal/dashboard_transforms/budget_checker", "remaining", 75.0, 100.0)
+		_, _ = engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "remaining", 75.0, 100.0)
 	}
 }
 
@@ -190,7 +190,7 @@ func TestCheckTaskBudget_Allowed(t *testing.T) {
 	config := defaultConfig()
 	goResult := goCheckTaskBudget(config, 5.0, 20.0, 10.0)
 
-	ailangResult, err := engine.Call("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
+	ailangResult, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
 		config, 5.0, 20.0, 10.0)
 	if err != nil {
 		t.Fatalf("AILANG checkTaskBudget failed: %v", err)
@@ -217,7 +217,7 @@ func TestCheckTaskBudget_Exceeded(t *testing.T) {
 	// Spend 45 of 50 daily budget, then try to spend 10 more
 	goResult := goCheckTaskBudget(config, 10.0, 20.0, 45.0)
 
-	ailangResult, err := engine.Call("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
+	ailangResult, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "checkTaskBudget",
 		config, 10.0, 20.0, 45.0)
 	if err != nil {
 		t.Fatalf("AILANG checkTaskBudget failed: %v", err)
@@ -252,7 +252,7 @@ func TestUsagePercent_Correctness(t *testing.T) {
 	for _, tc := range testCases {
 		goResult := goUsagePercent(tc.spent, tc.budget)
 
-		ailangResult, err := engine.Call("internal/dashboard_transforms/budget_checker", "usagePercent",
+		ailangResult, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "usagePercent",
 			tc.spent, tc.budget)
 		if err != nil {
 			t.Fatalf("AILANG usagePercent(%v, %v) failed: %v", tc.spent, tc.budget, err)
@@ -282,7 +282,7 @@ func TestIsWarningZone_Correctness(t *testing.T) {
 	for _, tc := range testCases {
 		goResult := goIsWarningZone(tc.spent, tc.budget, tc.threshold)
 
-		ailangResult, err := engine.Call("internal/dashboard_transforms/budget_checker", "isWarningZone",
+		ailangResult, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "isWarningZone",
 			tc.spent, tc.budget, tc.threshold)
 		if err != nil {
 			t.Fatalf("AILANG isWarningZone failed: %v", err)
@@ -312,7 +312,7 @@ func TestRemaining_Correctness(t *testing.T) {
 	for _, tc := range testCases {
 		goResult := goRemaining(tc.spent, tc.budget)
 
-		ailangResult, err := engine.Call("internal/dashboard_transforms/budget_checker", "remaining",
+		ailangResult, err := engine.CallPreserveFloats("internal/dashboard_transforms/budget_checker", "remaining",
 			tc.spent, tc.budget)
 		if err != nil {
 			t.Fatalf("AILANG remaining(%v, %v) failed: %v", tc.spent, tc.budget, err)
