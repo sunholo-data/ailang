@@ -52,10 +52,19 @@ if [ "$EVENT_NAME" = "unknown" ] || [ "$EVENT_NAME" = "null" ]; then
     exit 0
 fi
 
-# Extract common fields
+# Extract common fields from JSON
 SESSION_ID=$(echo "$HOOK_JSON" | jq -r '.session_id // "unknown"' 2>/dev/null)
 WORKSPACE=$(echo "$HOOK_JSON" | jq -r '.cwd // ""' 2>/dev/null)
 [ -z "$WORKSPACE" ] && WORKSPACE=$(pwd)
+
+# Extract AILANG correlation IDs from environment (M-CHAINS-SIMPLIFY)
+# These are injected by the coordinator when spawning Claude Code
+AILANG_TASK_ID="${AILANG_TASK_ID:-}"
+AILANG_CHAIN_ID="${AILANG_CHAIN_ID:-}"
+AILANG_STAGE_ID="${AILANG_STAGE_ID:-}"
+AILANG_MESSAGE_ID="${AILANG_MESSAGE_ID:-}"
+
+log "Correlation IDs: task=$AILANG_TASK_ID chain=$AILANG_CHAIN_ID stage=$AILANG_STAGE_ID msg=$AILANG_MESSAGE_ID"
 
 log "Processing $EVENT_NAME event for session $SESSION_ID"
 
@@ -68,11 +77,19 @@ case "$EVENT_NAME" in
             --arg s "$SESSION_ID" \
             --arg w "$WORKSPACE" \
             --arg v "$CLAUDE_VERSION" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
+            --arg msg "$AILANG_MESSAGE_ID" \
             '{
                 event: $e,
                 session_id: $s,
                 workspace: $w,
                 claude_version: $v,
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end),
+                message_id: (if $msg != "" then $msg else null end),
                 timestamp: (now | todate)
             }')
         ;;
@@ -89,12 +106,18 @@ case "$EVENT_NAME" in
             --arg tn "$TOOL_NAME" \
             --arg ti "$TOOL_USE_ID" \
             --argjson inp "$TOOL_INPUT" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
             '{
                 event: $e,
                 session_id: $s,
                 tool_name: $tn,
                 tool_use_id: $ti,
                 tool_input: $inp,
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end),
                 timestamp: (now | todate)
             }')
         ;;
@@ -112,12 +135,18 @@ case "$EVENT_NAME" in
             --arg tn "$TOOL_NAME" \
             --arg ti "$TOOL_USE_ID" \
             --argjson resp "$TOOL_RESPONSE" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
             '{
                 event: $e,
                 session_id: $s,
                 tool_name: $tn,
                 tool_use_id: $ti,
                 tool_response: $resp,
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end),
                 timestamp: (now | todate)
             }')
         ;;
@@ -157,15 +186,24 @@ fi
 
 # Also post to exec events endpoint for chat history in dashboard
 # This stores events in task_events table for the Chat History view
+# Include task/chain/stage IDs for deterministic linking (M-CHAINS-SIMPLIFY)
 case "$EVENT_NAME" in
     "SessionStart")
         EXEC_PAYLOAD=$(jq -n \
             --arg s "$SESSION_ID" \
             --arg w "$WORKSPACE" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
+            --arg msg "$AILANG_MESSAGE_ID" \
             '{
                 session_id: $s,
                 workspace: $w,
-                provider: "claude"
+                provider: "claude",
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end),
+                message_id: (if $msg != "" then $msg else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_SESSIONS_ENDPOINT" \
             -H "Content-Type: application/json" \
@@ -178,11 +216,17 @@ case "$EVENT_NAME" in
             --arg s "$SESSION_ID" \
             --arg tn "$TOOL_NAME" \
             --argjson inp "$TOOL_INPUT" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
             '{
                 session_id: $s,
                 stream_type: "tool_use",
                 tool_name: $tn,
-                tool_input: ($inp | tostring)
+                tool_input: ($inp | tostring),
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
             -H "Content-Type: application/json" \
@@ -195,11 +239,17 @@ case "$EVENT_NAME" in
             --arg s "$SESSION_ID" \
             --arg tn "$TOOL_NAME" \
             --argjson resp "$TOOL_RESPONSE" \
+            --arg task "$AILANG_TASK_ID" \
+            --arg chain "$AILANG_CHAIN_ID" \
+            --arg stage "$AILANG_STAGE_ID" \
             '{
                 session_id: $s,
                 stream_type: "tool_result",
                 tool_name: $tn,
-                tool_output: (if ($resp | type) == "string" then $resp else ($resp | tostring) end)
+                tool_output: (if ($resp | type) == "string" then $resp else ($resp | tostring) end),
+                task_id: (if $task != "" then $task else null end),
+                chain_id: (if $chain != "" then $chain else null end),
+                stage_id: (if $stage != "" then $stage else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
             -H "Content-Type: application/json" \

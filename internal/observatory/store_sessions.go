@@ -20,6 +20,13 @@ type Session struct {
 	EndedAt       *time.Time `json:"ended_at,omitempty"`
 	TurnCount     int        `json:"turn_count"`
 	ToolCount     int        `json:"tool_count"`
+
+	// Correlation IDs from environment (M-DETERMINISTIC-CHAT-LINKING)
+	// Set by Claude Code hooks when coordinator spawns with AILANG_* env vars
+	TaskID    string `json:"task_id,omitempty"`
+	ChainID   string `json:"chain_id,omitempty"`
+	StageID   string `json:"stage_id,omitempty"`
+	MessageID string `json:"message_id,omitempty"`
 }
 
 // SessionTool represents a tool call within a Claude Code session.
@@ -34,9 +41,23 @@ type SessionTool struct {
 	Success      *bool           `json:"success,omitempty"`
 }
 
+// SessionCorrelation holds optional correlation IDs from environment.
+type SessionCorrelation struct {
+	TaskID    string
+	ChainID   string
+	StageID   string
+	MessageID string
+}
+
 // UpsertSession inserts or updates a session record.
 // If the session exists, updates workspace and claude_version (for reconnection scenarios).
 func (s *Store) UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error {
+	return s.UpsertSessionWithCorrelation(ctx, sessionID, workspace, version, source, nil)
+}
+
+// UpsertSessionWithCorrelation inserts or updates a session with optional correlation IDs.
+// Correlation IDs enable deterministic linking from Claude Code hooks via AILANG_* env vars.
+func (s *Store) UpsertSessionWithCorrelation(ctx context.Context, sessionID, workspace, version, source string, corr *SessionCorrelation) error {
 	if sessionID == "" {
 		return fmt.Errorf("session_id is required")
 	}
@@ -47,17 +68,45 @@ func (s *Store) UpsertSession(ctx context.Context, sessionID, workspace, version
 		source = "hook"
 	}
 
+	// If no correlation provided, use simple insert
+	if corr == nil || (corr.TaskID == "" && corr.ChainID == "" && corr.StageID == "" && corr.MessageID == "") {
+		_, err := s.db.ExecContext(ctx, `
+			INSERT INTO sessions (session_id, workspace, claude_version, source, started_at)
+			VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+			ON CONFLICT(session_id) DO UPDATE SET
+				workspace = excluded.workspace,
+				claude_version = COALESCE(excluded.claude_version, sessions.claude_version)
+		`, sessionID, workspace, version, source)
+		if err != nil {
+			return fmt.Errorf("failed to upsert session: %w", err)
+		}
+		return nil
+	}
+
+	// Insert with correlation IDs
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO sessions (session_id, workspace, claude_version, source, started_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO sessions (session_id, workspace, claude_version, source, started_at, task_id, chain_id, stage_id, message_id)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
 		ON CONFLICT(session_id) DO UPDATE SET
 			workspace = excluded.workspace,
-			claude_version = COALESCE(excluded.claude_version, sessions.claude_version)
-	`, sessionID, workspace, version, source)
+			claude_version = COALESCE(excluded.claude_version, sessions.claude_version),
+			task_id = COALESCE(excluded.task_id, sessions.task_id),
+			chain_id = COALESCE(excluded.chain_id, sessions.chain_id),
+			stage_id = COALESCE(excluded.stage_id, sessions.stage_id),
+			message_id = COALESCE(excluded.message_id, sessions.message_id)
+	`, sessionID, workspace, version, source, nullIfEmpty(corr.TaskID), nullIfEmpty(corr.ChainID), nullIfEmpty(corr.StageID), nullIfEmpty(corr.MessageID))
 	if err != nil {
-		return fmt.Errorf("failed to upsert session: %w", err)
+		return fmt.Errorf("failed to upsert session with correlation: %w", err)
 	}
 	return nil
+}
+
+// nullIfEmpty returns nil for empty strings, otherwise the string value.
+func nullIfEmpty(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // GetSessionWorkspace returns the workspace for a session.

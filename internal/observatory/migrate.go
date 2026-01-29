@@ -424,6 +424,87 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 7
 	}
 
+	// Migration v8: Add correlation columns to sessions table (M-DETERMINISTIC-CHAT-LINKING)
+	// Enables deterministic linking from Claude Code hooks via env vars
+	if currentVersion < 8 {
+		// Add task_id column
+		var taskIDExists int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'task_id'
+		`).Scan(&taskIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check task_id column: %w", err)
+		}
+		if taskIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE sessions ADD COLUMN task_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add task_id column: %w", err)
+			}
+		}
+
+		// Add chain_id column
+		var chainIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'chain_id'
+		`).Scan(&chainIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check chain_id column: %w", err)
+		}
+		if chainIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE sessions ADD COLUMN chain_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add chain_id column: %w", err)
+			}
+		}
+
+		// Add stage_id column
+		var stageIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'stage_id'
+		`).Scan(&stageIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check stage_id column: %w", err)
+		}
+		if stageIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE sessions ADD COLUMN stage_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add stage_id column: %w", err)
+			}
+		}
+
+		// Add message_id column
+		var messageIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'message_id'
+		`).Scan(&messageIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check message_id column: %w", err)
+		}
+		if messageIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE sessions ADD COLUMN message_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add message_id column: %w", err)
+			}
+		}
+
+		// Create indexes for correlation lookups
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create task_id index: %w", err)
+		}
+
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_sessions_chain ON sessions(chain_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chain_id index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (8)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 8: %w", err)
+		}
+		currentVersion = 8
+	}
+
 	return currentVersion, nil
 }
 

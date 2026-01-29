@@ -331,6 +331,10 @@ func (b *CompositeBackend) UpsertSession(ctx context.Context, sessionID, workspa
 	return b.local.UpsertSession(ctx, sessionID, workspace, version, source)
 }
 
+func (b *CompositeBackend) UpsertSessionWithCorrelation(ctx context.Context, sessionID, workspace, version, source string, corr *SessionCorrelation) error {
+	return b.local.UpsertSessionWithCorrelation(ctx, sessionID, workspace, version, source, corr)
+}
+
 func (b *CompositeBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
 	return b.local.UpdateSessionEnded(ctx, sessionID)
 }

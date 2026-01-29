@@ -304,6 +304,10 @@ func (b *SQLiteBackend) UpsertSession(ctx context.Context, sessionID, workspace,
 	return b.store.UpsertSession(ctx, sessionID, workspace, version, source)
 }
 
+func (b *SQLiteBackend) UpsertSessionWithCorrelation(ctx context.Context, sessionID, workspace, version, source string, corr *SessionCorrelation) error {
+	return b.store.UpsertSessionWithCorrelation(ctx, sessionID, workspace, version, source, corr)
+}
+
 func (b *SQLiteBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
 	return b.store.UpdateSessionEnded(ctx, sessionID)
 }

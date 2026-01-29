@@ -53,6 +53,8 @@ type Backend interface {
 	GetSessionWorkspace(sessionID string) (string, error)
 	// UpsertSession inserts or updates a session record from hook data
 	UpsertSession(ctx context.Context, sessionID, workspace, version, source string) error
+	// UpsertSessionWithCorrelation inserts/updates a session with correlation IDs (M-DETERMINISTIC-CHAT-LINKING)
+	UpsertSessionWithCorrelation(ctx context.Context, sessionID, workspace, version, source string, corr *SessionCorrelation) error
 	// UpdateSessionEnded marks a session as ended
 	UpdateSessionEnded(ctx context.Context, sessionID string) error
 	// InsertToolStart records the start of a tool call

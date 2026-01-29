@@ -585,14 +585,14 @@ func (s *SQLiteStore) MarkTaskCancelled(ctx context.Context, id string) error {
 // MarkTaskPendingApproval marks a task as awaiting human approval
 func (s *SQLiteStore) MarkTaskPendingApproval(ctx context.Context, id, worktreePath, worktreeBranch, baseBranch, baseCommit string, result *ExecuteResult) error {
 	now := time.Now()
-	// Store status, worktree path, branch, base_branch, base_commit, AND execution metrics (cost, tokens) to avoid race condition
+	// Store status, worktree path, branch, base_branch, base_commit, session_id, AND execution metrics (cost, tokens) to avoid race condition
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE tasks SET
 			status = ?, completed_at = ?, worktree_path = ?, worktree_id = ?, base_branch = ?, base_commit = ?,
-			duration_ns = ?, output = ?, cost = ?, tokens_used = ?
+			duration_ns = ?, output = ?, cost = ?, tokens_used = ?, session_id = ?
 		WHERE id = ?`,
 		TaskStatusPendingApproval, now, worktreePath, worktreeBranch, baseBranch, baseCommit,
-		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, id,
+		int64(result.Duration), result.Output, result.Cost, result.TokensUsed, result.SessionID, id,
 	)
 	return err
 }

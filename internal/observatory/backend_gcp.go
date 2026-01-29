@@ -597,6 +597,10 @@ func (b *GCPTraceBackend) UpsertSession(ctx context.Context, sessionID, workspac
 	return nil
 }
 
+func (b *GCPTraceBackend) UpsertSessionWithCorrelation(ctx context.Context, sessionID, workspace, version, source string, corr *SessionCorrelation) error {
+	return nil
+}
+
 func (b *GCPTraceBackend) UpdateSessionEnded(ctx context.Context, sessionID string) error {
 	return nil
 }

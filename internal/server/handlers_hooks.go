@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo/ailang/internal/observatory"
 )
 
 // HookEvent represents a Claude Code hook event from the telemetry script.
@@ -22,6 +23,13 @@ type HookEvent struct {
 	ToolInput     json.RawMessage `json:"tool_input,omitempty"`
 	ToolResponse  json.RawMessage `json:"tool_response,omitempty"`
 	Timestamp     time.Time       `json:"timestamp"`
+
+	// Correlation IDs from environment (M-CHAINS-SIMPLIFY)
+	// These are set when coordinator spawns Claude Code with env vars
+	TaskID    string `json:"task_id,omitempty"`
+	ChainID   string `json:"chain_id,omitempty"`
+	StageID   string `json:"stage_id,omitempty"`
+	MessageID string `json:"message_id,omitempty"`
 }
 
 // handleObservatoryHooks handles POST /api/observatory/hooks
@@ -61,7 +69,20 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		if err := s.obsBackend.UpsertSession(ctx, event.SessionID, event.Workspace, event.ClaudeVersion, "hook"); err != nil {
+		// Build correlation IDs if any are present
+		var corr *observatory.SessionCorrelation
+		if event.TaskID != "" || event.ChainID != "" || event.StageID != "" || event.MessageID != "" {
+			corr = &observatory.SessionCorrelation{
+				TaskID:    event.TaskID,
+				ChainID:   event.ChainID,
+				StageID:   event.StageID,
+				MessageID: event.MessageID,
+			}
+			log.Printf("hooks: SessionStart with correlation task=%s chain=%s stage=%s msg=%s",
+				event.TaskID, event.ChainID, event.StageID, event.MessageID)
+		}
+
+		if err := s.obsBackend.UpsertSessionWithCorrelation(ctx, event.SessionID, event.Workspace, event.ClaudeVersion, "hook", corr); err != nil {
 			log.Printf("hooks: SessionStart upsert error: %v", err)
 			// Continue anyway - don't fail the hook
 		} else {
