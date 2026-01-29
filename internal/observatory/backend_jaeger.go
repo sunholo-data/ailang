@@ -279,5 +279,59 @@ func (b *JaegerBackend) GetSessionMetricsSummary(ctx context.Context, sessionID 
 	return nil, nil // Jaeger backend doesn't store metrics
 }
 
+// Chain operations - Jaeger backend doesn't store chains (local-only feature)
+
+func (b *JaegerBackend) CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error {
+	return nil
+}
+
+func (b *JaegerBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetStage(ctx context.Context, id string) (*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return nil
+}
+
+func (b *JaegerBackend) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {
+	return nil
+}
+
+func (b *JaegerBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+	return nil
+}
+
+func (b *JaegerBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return nil, nil
+}
+
 // Ensure JaegerBackend implements Backend
 var _ Backend = (*JaegerBackend)(nil)

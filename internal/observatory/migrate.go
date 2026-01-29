@@ -7,12 +7,13 @@ import (
 	"fmt"
 )
 
-//go:embed schema.sql
+//go:embed schema.sql schema_chains.sql
 var schemaFS embed.FS
 
 // Migrate runs database migrations to create or update the observatory schema.
 // It is idempotent - safe to call multiple times.
 func Migrate(db *sql.DB) error {
+	// Run base schema
 	schema, err := schemaFS.ReadFile("schema.sql")
 	if err != nil {
 		return fmt.Errorf("failed to read embedded schema: %w", err)
@@ -21,6 +22,17 @@ func Migrate(db *sql.DB) error {
 	_, err = db.Exec(string(schema))
 	if err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
+	}
+
+	// Run chains schema (v7+)
+	chainsSchema, err := schemaFS.ReadFile("schema_chains.sql")
+	if err != nil {
+		return fmt.Errorf("failed to read chains schema: %w", err)
+	}
+
+	_, err = db.Exec(string(chainsSchema))
+	if err != nil {
+		return fmt.Errorf("failed to execute chains schema: %w", err)
 	}
 
 	return nil
@@ -346,6 +358,72 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 6
 	}
 
+	// Migration v7: Add execution_chains and chain_stages tables (M-CHAINS-SIMPLIFY)
+	// Unified hierarchy: Issue -> Message -> Task -> Session -> Turns -> Tools -> Traces
+	// Replaces query-time correlation in hierarchy.go with write-time linking
+	if currentVersion < 7 {
+		// Read the chains schema file
+		chainsSchema, err := schemaFS.ReadFile("schema_chains.sql")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to read chains schema: %w", err)
+		}
+
+		// Execute the chains schema (creates tables, indexes, views)
+		_, err = db.Exec(string(chainsSchema))
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to execute chains schema: %w", err)
+		}
+
+		// Add chain_id and stage_id columns to spans table
+		// Check if chain_id column already exists (idempotent)
+		var chainIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('spans') WHERE name = 'chain_id'
+		`).Scan(&chainIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check chain_id column: %w", err)
+		}
+
+		if chainIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE spans ADD COLUMN chain_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add chain_id column: %w", err)
+			}
+		}
+
+		var stageIDExists int
+		err = db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('spans') WHERE name = 'stage_id'
+		`).Scan(&stageIDExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check stage_id column: %w", err)
+		}
+
+		if stageIDExists == 0 {
+			_, err = db.Exec("ALTER TABLE spans ADD COLUMN stage_id TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add stage_id column: %w", err)
+			}
+		}
+
+		// Create indexes for chain linking on spans
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_spans_chain ON spans(chain_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create chain_id index: %w", err)
+		}
+
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_spans_stage ON spans(stage_id)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create stage_id index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (7)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 7: %w", err)
+		}
+		currentVersion = 7
+	}
+
 	return currentVersion, nil
 }
 
@@ -353,6 +431,7 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 // Returns nil if schema is valid, error describing what's missing otherwise.
 // NOTE: span_events table removed in v4 migration (M-DB-CLEANUP)
 // NOTE: chat_messages and chat_import_status added in v6 migration (M-CHAT-HISTORY-DB)
+// NOTE: execution_chains and chain_stages added in v7 migration (M-CHAINS-SIMPLIFY)
 func ValidateSchema(db *sql.DB) error {
 	expectedTables := []string{
 		"workspaces",
@@ -365,6 +444,8 @@ func ValidateSchema(db *sql.DB) error {
 		"metrics",
 		"chat_messages",
 		"chat_import_status",
+		"execution_chains",
+		"chain_stages",
 	}
 
 	for _, table := range expectedTables {

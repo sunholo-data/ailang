@@ -103,6 +103,16 @@ func (p *ScriptProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *
 		fmt.Sprintf("AILANG_PAYLOAD=%s", task.Task.Content), // Raw JSON payload
 	)
 
+	// Add chain context for unified hierarchy tracking (M-CHAINS-SIMPLIFY)
+	if opts.ObservatoryContext != nil {
+		if opts.ObservatoryContext.ChainID != "" {
+			env = append(env, fmt.Sprintf("AILANG_CHAIN_ID=%s", opts.ObservatoryContext.ChainID))
+		}
+		if opts.ObservatoryContext.StageID != "" {
+			env = append(env, fmt.Sprintf("AILANG_STAGE_ID=%s", opts.ObservatoryContext.StageID))
+		}
+	}
+
 	// Parse JSON payload to environment variables if enabled
 	if invoke.EnvFromPayload && task.Task.Content != "" {
 		payloadEnv, err := ParsePayloadToEnv(task.Task.Content)

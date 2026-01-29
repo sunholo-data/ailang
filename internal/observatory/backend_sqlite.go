@@ -342,5 +342,59 @@ func (b *SQLiteBackend) GetSessionMetricsSummary(ctx context.Context, sessionID 
 	return b.store.GetSessionMetricsSummary(sessionID)
 }
 
+// Chain operations (M-CHAINS-SIMPLIFY)
+
+func (b *SQLiteBackend) CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error) {
+	return b.store.CreateChain(ctx, req)
+}
+
+func (b *SQLiteBackend) GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error) {
+	return b.store.GetChain(ctx, id, opts)
+}
+
+func (b *SQLiteBackend) GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error) {
+	return b.store.GetChainByMessageID(ctx, messageID)
+}
+
+func (b *SQLiteBackend) GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error) {
+	return b.store.GetChainByTaskID(ctx, taskID)
+}
+
+func (b *SQLiteBackend) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
+	return b.store.ListChains(ctx, opts)
+}
+
+func (b *SQLiteBackend) UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error {
+	return b.store.UpdateChainStatus(ctx, chainID, status)
+}
+
+func (b *SQLiteBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
+	return b.store.CreateStage(ctx, req)
+}
+
+func (b *SQLiteBackend) GetStage(ctx context.Context, id string) (*ChainStage, error) {
+	return b.store.GetStage(ctx, id)
+}
+
+func (b *SQLiteBackend) GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error) {
+	return b.store.GetChainStages(ctx, chainID, opts)
+}
+
+func (b *SQLiteBackend) UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return b.store.UpdateStageStatus(ctx, stageID, status)
+}
+
+func (b *SQLiteBackend) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {
+	return b.store.UpdateStageSession(ctx, stageID, sessionID)
+}
+
+func (b *SQLiteBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+	return b.store.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
+}
+
+func (b *SQLiteBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return b.store.ListPendingApprovals(ctx, limit)
+}
+
 // Ensure SQLiteBackend implements Backend
 var _ Backend = (*SQLiteBackend)(nil)

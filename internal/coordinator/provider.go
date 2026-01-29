@@ -71,12 +71,17 @@ type ExecuteOptions struct {
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.
-// This enables the WORKSPACE → TASK → AGENT → SPANS hierarchy in Observatory.
+// This enables the unified hierarchy: CHAIN → STAGE → TASK → SPANS in Observatory.
 type ObservatoryContext struct {
 	TaskID       string // Coordinator task ID
 	AgentID      string // Agent handling the task (e.g., "design-doc-creator")
 	AssignmentID string // Observatory agent_assignment ID (aa_xxx)
 	WorkspaceID  string // Observatory workspace ID (ws_xxx)
+
+	// Chain context for unified hierarchy tracking (M-CHAINS-SIMPLIFY)
+	ChainID   string // Execution chain ID (UUID)
+	StageID   string // Chain stage ID (UUID)
+	MessageID string // Source message ID that triggered this chain
 }
 
 // DefaultExecuteOptions returns sensible defaults

@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS spans (
     parent_span_id TEXT,
     task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
     agent_assignment_id TEXT REFERENCES agent_assignments(id) ON DELETE SET NULL,
+    chain_id TEXT,                 -- M-CHAINS-SIMPLIFY: links to execution_chains (soft reference)
+    stage_id TEXT,                 -- M-CHAINS-SIMPLIFY: links to chain_stages (soft reference)
 
     name TEXT NOT NULL,            -- 'compile.pipeline', 'executor.claude.execute', etc.
     kind TEXT NOT NULL DEFAULT 'internal',  -- 'internal', 'client', 'server', 'producer', 'consumer'
@@ -141,6 +143,8 @@ CREATE INDEX IF NOT EXISTS idx_agent_assignments_provider ON agent_assignments(p
 CREATE INDEX IF NOT EXISTS idx_spans_trace ON spans(trace_id);
 CREATE INDEX IF NOT EXISTS idx_spans_task ON spans(task_id);
 CREATE INDEX IF NOT EXISTS idx_spans_agent ON spans(agent_assignment_id);
+CREATE INDEX IF NOT EXISTS idx_spans_chain ON spans(chain_id);
+CREATE INDEX IF NOT EXISTS idx_spans_stage ON spans(stage_id);
 CREATE INDEX IF NOT EXISTS idx_spans_name ON spans(name);
 CREATE INDEX IF NOT EXISTS idx_spans_time ON spans(start_time DESC);
 CREATE INDEX IF NOT EXISTS idx_spans_parent ON spans(parent_span_id);

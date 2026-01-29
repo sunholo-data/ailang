@@ -512,6 +512,17 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
 
+	// Extract chain context (M-CHAINS-SIMPLIFY)
+	// Chain IDs are passed via OTEL_RESOURCE_ATTRIBUTES from the executor
+	chainID := extractString(resourceAttrs, "ailang.chain_id")
+	if chainID == "" {
+		chainID = extractString(attrs, "chain_id")
+	}
+	stageID := extractString(resourceAttrs, "ailang.stage_id")
+	if stageID == "" {
+		stageID = extractString(attrs, "stage_id")
+	}
+
 	// Session-based correlation (M-TASK-HIERARCHY-SESSION-LINKING)
 	// Claude Code internal events have session.id but not task_id.
 	// Look up the parent claude.execute span which has both session.id AND task_id.
@@ -536,6 +547,8 @@ func (r *OTLPReceiver) convertLogToSpan(log *logspb.LogRecord, resourceAttrs map
 		TraceID:             traceID,
 		TaskID:              taskID,
 		AgentAssignmentID:   assignmentID,
+		ChainID:             chainID,
+		StageID:             stageID,
 		Name:                spanName,
 		Kind:                SpanKindInternal,
 		Status:              status,
@@ -831,12 +844,25 @@ func (r *OTLPReceiver) convertSpan(span *tracepb.Span, resourceAttrs map[string]
 	}
 	assignmentID := extractString(resourceAttrs, "ailang.assignment_id")
 
+	// Extract chain context (M-CHAINS-SIMPLIFY)
+	// Chain IDs are passed via OTEL_RESOURCE_ATTRIBUTES from the executor
+	chainID := extractString(resourceAttrs, "ailang.chain_id")
+	if chainID == "" {
+		chainID = extractString(attrs, "chain_id")
+	}
+	stageID := extractString(resourceAttrs, "ailang.stage_id")
+	if stageID == "" {
+		stageID = extractString(attrs, "stage_id")
+	}
+
 	return &Span{
 		ID:                 fmt.Sprintf("%x", span.SpanId),
 		TraceID:            fmt.Sprintf("%x", span.TraceId),
 		ParentSpanID:       parentSpanID,
 		TaskID:             taskID,
 		AgentAssignmentID:  assignmentID,
+		ChainID:            chainID,
+		StageID:            stageID,
 		Name:               span.Name,
 		Kind:               kind,
 		Status:             status,

@@ -245,6 +245,14 @@ func (r *REPL) showType(input string, out io.Writer) {
 
 // importModule loads type class instances from a module
 func (r *REPL) importModule(module string, out io.Writer) {
+	// Check registry first for user-loaded modules (WASM browser demos)
+	if r.registry != nil {
+		if regModule, ok := r.registry.GetModule(module); ok {
+			r.importFromRegistry(regModule, out)
+			return
+		}
+	}
+
 	switch module {
 	case "std/prelude":
 		// Add standard prelude instances
@@ -346,8 +354,36 @@ func (r *REPL) importModule(module string, out io.Writer) {
 		fmt.Fprintf(out, "%s Imported %s\n", green("✓"), module)
 
 	default:
-		fmt.Fprintf(out, "%s: Unknown module %s\n", red("Error"), module)
+		// Check if module is in registry (but not found earlier - shouldn't happen)
+		if r.registry != nil {
+			fmt.Fprintf(out, "%s: module %s not loaded (use ailangLoadModule first)\n", red("Error"), module)
+		} else {
+			fmt.Fprintf(out, "%s: Unknown module %s\n", red("Error"), module)
+		}
 	}
+}
+
+// importFromRegistry imports exports from a registered module into the REPL environment
+func (r *REPL) importFromRegistry(regModule *RegisteredModule, out io.Writer) {
+	fmt.Fprintf(out, "Importing %s from registry...\n", regModule.Name)
+
+	importedCount := 0
+	for name, export := range regModule.Exports {
+		// Add value to evaluator environment
+		if r.env != nil && export.Value != nil {
+			r.env.Set(name, export.Value.(eval.Value))
+		}
+
+		// Add type to type environment
+		if r.typeEnv != nil && export.Scheme != nil {
+			r.typeEnv.BindScheme(name, export.Scheme)
+		}
+
+		importedCount++
+	}
+
+	r.config.ImportedModules = append(r.config.ImportedModules, regModule.Name)
+	fmt.Fprintf(out, "%s Imported %d export(s) from %s\n", green("✓"), importedCount, regModule.Name)
 }
 
 // showInstances displays available type class instances

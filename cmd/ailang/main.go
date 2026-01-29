@@ -247,6 +247,9 @@ func main() {
 	case "observatory":
 		observatoryCommand()
 
+	case "chains":
+		chainsCommand()
+
 	case "dashboard":
 		dashboardCommand()
 

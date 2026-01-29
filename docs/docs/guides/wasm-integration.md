@@ -13,8 +13,9 @@ AILANG can run entirely in the browser using WebAssembly, enabling interactive d
 The AILANG WebAssembly build provides:
 
 - **Full Language Support**: Complete AILANG interpreter compiled to WASM
+- **Standard Library Included**: All 20 stdlib modules (`std/list`, `std/json`, etc.) embedded and auto-loaded
 - **Client-Side Execution**: No server needed after initial load
-- **Small Bundle Size**: ~5.7MB uncompressed (~1-2MB with gzip)
+- **Small Bundle Size**: ~33MB uncompressed (~5-8MB with gzip)
 - **React Integration**: Ready-made component for easy integration
 - **Offline Capable**: Works offline after first load
 
@@ -201,6 +202,183 @@ repl.onReady(() => {
 });
 ```
 
+##### `getVersion()`
+
+Get version information.
+
+```javascript
+const version = repl.getVersion();
+// Returns: "v0.7.2" (or null if not ready)
+```
+
+**Returns:** Version string or `null`
+
+### Module Loading API (v0.7.2+)
+
+The WASM REPL supports loading complete AILANG modules, enabling complex browser-based demos with multiple function definitions.
+
+:::tip Why Module Loading?
+The REPL evaluates expressions line-by-line, so function definitions like `let add = \x. \y. x + y` don't persist in scope for subsequent calls. The Module Loading API solves this by compiling entire modules and storing their exports for later use.
+:::
+
+##### `loadModule(name, code)`
+
+Load an AILANG module into the registry.
+
+```javascript
+const result = repl.loadModule('math', `
+let add: Int -> Int -> Int = \\x. \\y. x + y
+let mul: Int -> Int -> Int = \\x. \\y. x * y
+`);
+
+if (result.success) {
+  console.log('Exports:', result.exports);
+  // Exports: ["add", "mul"]
+} else {
+  console.error('Error:', result.error);
+}
+```
+
+**Parameters:**
+- `name` (string): Module name (e.g., `"math"`, `"invoice_processor"`)
+- `code` (string): AILANG source code
+
+**Returns:** Object with:
+- `success` (boolean): Whether loading succeeded
+- `exports` (string[]): List of exported function names (on success)
+- `error` (string): Error message (on failure)
+
+:::warning Type Annotations Required
+For functions with numeric operations, you must include explicit type annotations:
+```javascript
+// ✅ Works
+let add: Int -> Int -> Int = \\x. \\y. x + y
+
+// ❌ Fails with "ambiguous type variable"
+let add = \\x. \\y. x + y
+```
+:::
+
+##### `listModules()`
+
+List all loaded modules.
+
+```javascript
+const modules = repl.listModules();
+// Returns: ["math", "utils"]
+```
+
+**Returns:** Array of module names
+
+##### `importModule(moduleName)`
+
+Import a module's exports into the REPL environment.
+
+```javascript
+repl.importModule('math');
+// Now you can use: repl.eval('add(2)(3)')
+```
+
+**Parameters:**
+- `moduleName` (string): Name of a loaded module
+
+**Returns:** Import result message
+
+##### `call(moduleName, funcName, ...args)`
+
+Call a function from a loaded module. This is a convenience method that:
+1. Imports the module if not already imported
+2. Converts JavaScript arguments to AILANG syntax
+3. Evaluates the function call
+
+```javascript
+// Load a module
+repl.loadModule('math', `
+let add: Int -> Int -> Int = \\x. \\y. x + y
+let greet = \\name. "Hello, " <> name
+`);
+
+// Call functions
+const sum = repl.call('math', 'add', 2, 3);
+// Returns: "5 :: Int"
+
+const greeting = repl.call('math', 'greet', 'World');
+// Returns: "\"Hello, World\" :: String"
+```
+
+**Parameters:**
+- `moduleName` (string): Module containing the function
+- `funcName` (string): Function to call
+- `...args` (any): Arguments (converted to AILANG syntax)
+
+**Returns:** Result string (value and type)
+
+**Supported argument types:**
+| JavaScript Type | AILANG Syntax |
+|-----------------|---------------|
+| `number` | `42` or `3.14` |
+| `string` | `"text"` |
+| `boolean` | `true` / `false` |
+| `array` | `[1, 2, 3]` |
+
+### Module Loading Example
+
+Here's a complete example building an invoice processor demo:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice Processor Demo</title>
+  <script src="wasm_exec.js"></script>
+  <script src="ailang-repl.js"></script>
+</head>
+<body>
+  <script>
+    const repl = new AilangREPL();
+
+    repl.init('/wasm/ailang.wasm').then(() => {
+      // Load the invoice processor module
+      const result = repl.loadModule('invoice', `
+-- Invoice processing functions
+let calculateTotal: Int -> Float -> Float = \\quantity. \\unitPrice.
+  int_to_float(quantity) * unitPrice
+
+let applyDiscount: Float -> Float -> Float = \\total. \\discountPercent.
+  total * (1.0 - discountPercent / 100.0)
+
+let formatCurrency: Float -> String = \\amount.
+  "$" <> float_to_string(amount)
+      `);
+
+      if (!result.success) {
+        console.error('Failed to load module:', result.error);
+        return;
+      }
+
+      console.log('Loaded exports:', result.exports);
+      // ["calculateTotal", "applyDiscount", "formatCurrency"]
+
+      // Process an invoice
+      const subtotal = repl.call('invoice', 'calculateTotal', 5, 19.99);
+      console.log('Subtotal:', subtotal);
+      // "99.95 :: Float"
+
+      const total = repl.call('invoice', 'applyDiscount', 99.95, 10);
+      console.log('After 10% discount:', total);
+      // "89.955 :: Float"
+
+      // Or use eval directly after importing
+      repl.importModule('invoice');
+      const formatted = repl.eval('formatCurrency(89.95)');
+      console.log('Formatted:', formatted);
+      // "\"$89.95\" :: String"
+    });
+  </script>
+</body>
+</html>
+```
+
 ## REPL Commands
 
 The WebAssembly REPL supports the same commands as the CLI:
@@ -222,9 +400,13 @@ The browser version has these limitations compared to the CLI:
 | Type inference | Yes | Yes |
 | Pattern matching | Yes | Yes |
 | Type classes | Yes | Yes |
+| Module loading | Yes | Yes (v0.7.2+) |
+| Standard library | Yes | Yes (v0.7.2+)* |
 | File I/O (`FS` effect) | Yes | No |
-| Module imports | Yes | No |
+| Custom file imports | Yes | No |
 | History persistence | Yes | No |
+
+\* The standard library (20 modules including `std/list`, `std/json`, `std/string`) is embedded in the WASM binary and auto-loaded on init. Use `importModule('std/list')` to bring stdlib exports into scope. Custom user file imports require `loadModule()` instead.
 
 ## Deployment
 
@@ -334,6 +516,46 @@ repl.init('/wasm/ailang.wasm').then(() => {
    ```html
    <link rel="preload" href="/wasm/ailang.wasm" as="fetch" crossorigin>
    ```
+
+### Module Loading Errors
+
+#### "ambiguous type variable α with classes [Num]"
+
+**Cause**: Functions with numeric operations need explicit type annotations.
+
+**Solution**: Add type annotations to function definitions:
+```javascript
+// ❌ Fails
+let add = \\x. \\y. x + y
+
+// ✅ Works
+let add: Int -> Int -> Int = \\x. \\y. x + y
+```
+
+#### "module X not loaded (use loadModule first)"
+
+**Cause**: Trying to call or import a module that hasn't been loaded.
+
+**Solution**: Load the module before using it:
+```javascript
+// First load
+repl.loadModule('mymodule', code);
+// Then import or call
+repl.importModule('mymodule');
+```
+
+#### "parse error" or "type error" from loadModule
+
+**Cause**: Invalid AILANG syntax or type errors in module code.
+
+**Solution**: Check the error message and fix the module code:
+```javascript
+const result = repl.loadModule('test', badCode);
+if (!result.success) {
+  console.error('Module error:', result.error);
+  // e.g., "parse error: expected expression at line 3"
+}
+```
 
 ## Examples
 

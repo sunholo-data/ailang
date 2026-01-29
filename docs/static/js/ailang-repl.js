@@ -138,6 +138,97 @@ class AilangREPL {
            line.trim().endsWith('let') ||
            line.trim().endsWith('=');
   }
+
+  // ============================================
+  // Module Loading API (v0.7.2+)
+  // ============================================
+
+  /**
+   * Load an AILANG module into the registry
+   * @param {string} name - Module name (e.g., "math", "invoice_processor")
+   * @param {string} code - AILANG source code
+   * @returns {{success: boolean, exports?: string[], error?: string}}
+   */
+  loadModule(name, code) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangLoadModule(name, code);
+    } catch (err) {
+      return { success: false, error: `Internal error: ${err.message}` };
+    }
+  }
+
+  /**
+   * List all loaded modules
+   * @returns {string[]} Array of module names
+   */
+  listModules() {
+    if (!this.ready) {
+      return [];
+    }
+
+    try {
+      return window.ailangListModules() || [];
+    } catch (err) {
+      console.error('Failed to list modules:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Import a module's exports into the REPL environment
+   * @param {string} moduleName - Name of the loaded module
+   * @returns {string} Import result message
+   */
+  importModule(moduleName) {
+    return this.command(`:import ${moduleName}`);
+  }
+
+  /**
+   * Call a function from a loaded module
+   * This is a convenience method that:
+   * 1. Imports the module if not already imported
+   * 2. Evaluates the function call
+   * @param {string} moduleName - Module containing the function
+   * @param {string} funcName - Function to call
+   * @param {...any} args - Arguments to pass (will be converted to AILANG syntax)
+   * @returns {string} Result of the function call
+   */
+  call(moduleName, funcName, ...args) {
+    if (!this.ready) {
+      return 'Error: REPL not initialized';
+    }
+
+    // Check if module is loaded
+    const modules = this.listModules();
+    if (!modules.includes(moduleName)) {
+      return `Error: module ${moduleName} not loaded (use loadModule first)`;
+    }
+
+    // Import the module to make exports available
+    this.importModule(moduleName);
+
+    // Build the function call expression
+    // Convert JS args to AILANG syntax
+    const ailangArgs = args.map(arg => {
+      if (typeof arg === 'string') return `"${arg}"`;
+      if (typeof arg === 'number') return String(arg);
+      if (typeof arg === 'boolean') return arg ? 'true' : 'false';
+      if (Array.isArray(arg)) return `[${arg.map(a => typeof a === 'string' ? `"${a}"` : String(a)).join(', ')}]`;
+      return String(arg);
+    });
+
+    // Apply arguments one at a time (curried)
+    let expr = funcName;
+    for (const arg of ailangArgs) {
+      expr = `(${expr})(${arg})`;
+    }
+
+    return this.eval(expr);
+  }
 }
 
 // Make available globally (priority for browser usage)

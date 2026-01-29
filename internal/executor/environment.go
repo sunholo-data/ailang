@@ -46,6 +46,9 @@ type EnvironmentOptions struct {
 //   - PWD: Working directory (if workspace specified)
 //   - TRACEPARENT: W3C trace context for distributed tracing
 //   - AILANG_TASK_ID, AILANG_SESSION_ID: Correlation IDs
+//   - AILANG_PARENT_TASK_ID: Parent task for hierarchy tracking
+//   - AILANG_CHAIN_ID, AILANG_STAGE_ID: Execution chain context (M-CHAINS-SIMPLIFY)
+//   - AILANG_MESSAGE_ID: Source message that triggered this chain
 //   - OTEL_RESOURCE_ATTRIBUTES: Resource attributes for trace linking
 //   - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint for trace collection
 //   - GOOGLE_CLOUD_PROJECT: GCP project for cloud tracing
@@ -88,6 +91,20 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	}
 	if effectiveParentID != "" {
 		env = append(env, fmt.Sprintf("AILANG_PARENT_TASK_ID=%s", effectiveParentID))
+	}
+
+	// Inject chain context for unified hierarchy tracking (M-CHAINS-SIMPLIFY)
+	// Chain IDs are passed via Task.Metadata from the coordinator
+	if opts.Task != nil && opts.Task.Metadata != nil {
+		if chainID := opts.Task.Metadata["chain_id"]; chainID != "" {
+			env = append(env, fmt.Sprintf("AILANG_CHAIN_ID=%s", chainID))
+		}
+		if stageID := opts.Task.Metadata["stage_id"]; stageID != "" {
+			env = append(env, fmt.Sprintf("AILANG_STAGE_ID=%s", stageID))
+		}
+		if messageID := opts.Task.Metadata["message_id"]; messageID != "" {
+			env = append(env, fmt.Sprintf("AILANG_MESSAGE_ID=%s", messageID))
+		}
 	}
 
 	// Build resource attributes for trace linking (M-TASK-HIERARCHY)
@@ -172,6 +189,15 @@ func BuildResourceAttributes(task *Task, sessionID string) string {
 	if task != nil {
 		if _, exists := attrs["ailang.task_id"]; !exists && task.ID != "" {
 			attrs["ailang.task_id"] = task.ID
+		}
+		// Add chain context from Task.Metadata (M-CHAINS-SIMPLIFY)
+		if task.Metadata != nil {
+			if chainID := task.Metadata["chain_id"]; chainID != "" {
+				attrs["ailang.chain_id"] = chainID
+			}
+			if stageID := task.Metadata["stage_id"]; stageID != "" {
+				attrs["ailang.stage_id"] = stageID
+			}
 		}
 	}
 	if _, exists := attrs["ailang.session_id"]; !exists && sessionID != "" {

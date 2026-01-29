@@ -93,6 +93,23 @@ type Backend interface {
 	ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error)
 	GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error)
 
+	// Chain operations (M-CHAINS-SIMPLIFY unified hierarchy)
+	CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error)
+	GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error)
+	GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error)
+	GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error)
+	ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error)
+	UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error
+
+	// Chain stage operations
+	CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error)
+	GetStage(ctx context.Context, id string) (*ChainStage, error)
+	GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error)
+	UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
+	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
+	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error
+	ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error)
+
 	// Lifecycle
 	Close() error
 }

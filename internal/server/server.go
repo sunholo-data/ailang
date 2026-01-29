@@ -470,6 +470,11 @@ func (s *Server) Start() error {
 		mux.HandleFunc("/api/observatory/hooks", s.handleObservatoryHooks)
 		log.Printf("Observatory hooks endpoint registered at /api/observatory/hooks")
 	}
+	// Execution chains API endpoints (M-CHAINS-SIMPLIFY)
+	if s.obsBackend != nil {
+		s.registerChainRoutes(mux)
+		log.Printf("Chains API registered at /api/chains/*")
+	}
 	// OTLP receiver for standard trace/log/metrics ingestion
 	if s.obsBackend != nil {
 		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)

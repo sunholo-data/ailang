@@ -64,21 +64,22 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MigrateWithVersion failed: %v", err)
 	}
-	// Current schema version is 6:
+	// Current schema version is 7:
 	// v1=base, v2=parent_task_id, v3=sessions, v4=remove unused tables,
-	// v5=metrics+cache tokens, v6=chat_messages (M-CHAT-HISTORY-DB)
-	expectedVersion := 6
+	// v5=metrics+cache tokens, v6=chat_messages (M-CHAT-HISTORY-DB),
+	// v7=execution_chains (M-CHAINS-SIMPLIFY)
+	expectedVersion := 7
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
 
-	// Second call should return same version without error
+	// Second call should return same version without error (idempotent)
 	version, err = MigrateWithVersion(db)
 	if err != nil {
 		t.Fatalf("second MigrateWithVersion failed: %v", err)
 	}
-	if version != expectedVersion {
-		t.Errorf("expected version %d on second call, got %d", expectedVersion, version)
+	if version != 7 {
+		t.Errorf("expected version 7 on second call, got %d", version)
 	}
 }
 

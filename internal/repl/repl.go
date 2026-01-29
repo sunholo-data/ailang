@@ -66,6 +66,9 @@ type REPL struct {
 	evaluator       *eval.CoreEvaluator
 	builtinRegistry *runtime.BuiltinRegistry
 	effContext      *effects.EffContext
+
+	// Module registry for WASM browser demos (v0.7.2+)
+	registry *ModuleRegistry
 }
 
 // New creates a new REPL instance
@@ -131,6 +134,16 @@ func (r *REPL) EnableTrace() {
 // SetStrictSyntaxMode enables or disables strict syntax mode
 func (r *REPL) SetStrictSyntaxMode(strict bool) {
 	r.config.StrictSyntaxMode = strict
+}
+
+// SetRegistry sets the module registry for import resolution (used by WASM)
+func (r *REPL) SetRegistry(reg *ModuleRegistry) {
+	r.registry = reg
+}
+
+// GetRegistry returns the module registry (nil if not set)
+func (r *REPL) GetRegistry() *ModuleRegistry {
+	return r.registry
 }
 
 // getPrompt returns the REPL prompt with active capabilities

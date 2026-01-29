@@ -35,7 +35,7 @@ type SpanListOptions struct {
 // which wraps this in a transaction with UpdateTaskAggregates and UpdateAgentAssignmentAggregates.
 func (s *Store) CreateSpan(span *Span) error {
 	// Convert empty strings to NULL for foreign key columns
-	var parentSpanID, taskID, agentAssignmentID interface{}
+	var parentSpanID, taskID, agentAssignmentID, chainID, stageID interface{}
 	if span.ParentSpanID != "" {
 		parentSpanID = span.ParentSpanID
 	}
@@ -45,14 +45,22 @@ func (s *Store) CreateSpan(span *Span) error {
 	if span.AgentAssignmentID != "" {
 		agentAssignmentID = span.AgentAssignmentID
 	}
+	if span.ChainID != "" {
+		chainID = span.ChainID
+	}
+	if span.StageID != "" {
+		stageID = span.StageID
+	}
 
 	_, err := s.db.Exec(`
 		INSERT INTO spans (id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		                   chain_id, stage_id,
 		                   name, kind, status, status_message, start_time, end_time,
 		                   duration_ms, tokens_in, tokens_out, cache_read_tokens, cache_creation_tokens,
 		                   cost_usd, model, provider, attributes, resource_attributes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, span.ID, span.TraceID, parentSpanID, taskID, agentAssignmentID,
+		chainID, stageID,
 		span.Name, span.Kind, span.Status, span.StatusMessage, span.StartTime, span.EndTime,
 		span.DurationMs, span.TokensIn, span.TokensOut, span.CacheReadTokens, span.CacheCreationTokens,
 		span.CostUSD, span.Model, span.Provider,
@@ -63,7 +71,7 @@ func (s *Store) CreateSpan(span *Span) error {
 // GetSpan retrieves a span by ID.
 func (s *Store) GetSpan(id string) (*Span, error) {
 	span := &Span{}
-	var parentSpanID, taskID, agentAssignmentID, statusMessage, model sql.NullString
+	var parentSpanID, taskID, agentAssignmentID, chainID, stageID, statusMessage, model sql.NullString
 	var provider sql.NullString
 	var endTime sql.NullTime
 	var cacheReadTokens, cacheCreationTokens sql.NullInt64
@@ -71,6 +79,7 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 
 	err := s.db.QueryRow(`
 		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		       COALESCE(chain_id, ''), COALESCE(stage_id, ''),
 		       name, kind, status, status_message, start_time, end_time,
 		       duration_ms, tokens_in, tokens_out,
 		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
@@ -78,6 +87,7 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 		       attributes, resource_attributes, created_at
 		FROM spans WHERE id = ?
 	`, id).Scan(&span.ID, &span.TraceID, &parentSpanID, &taskID, &agentAssignmentID,
+		&chainID, &stageID,
 		&span.Name, &span.Kind, &span.Status, &statusMessage, &span.StartTime, &endTime,
 		&span.DurationMs, &span.TokensIn, &span.TokensOut,
 		&cacheReadTokens, &cacheCreationTokens,
@@ -95,6 +105,12 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 	}
 	if agentAssignmentID.Valid {
 		span.AgentAssignmentID = agentAssignmentID.String
+	}
+	if chainID.Valid {
+		span.ChainID = chainID.String
+	}
+	if stageID.Valid {
+		span.StageID = stageID.String
 	}
 	if statusMessage.Valid {
 		span.StatusMessage = statusMessage.String
@@ -125,6 +141,7 @@ func (s *Store) GetSpan(id string) (*Span, error) {
 func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	query := `
 		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		       COALESCE(chain_id, ''), COALESCE(stage_id, ''),
 		       name, kind, status, status_message, start_time, end_time,
 		       duration_ms, tokens_in, tokens_out,
 		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
@@ -201,13 +218,14 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 	var spans []*Span
 	for rows.Next() {
 		span := &Span{}
-		var parentSpanID, taskID, agentAssignmentID, statusMessage, model sql.NullString
+		var parentSpanID, taskID, agentAssignmentID, chainID, stageID, statusMessage, model sql.NullString
 		var provider sql.NullString
 		var endTime sql.NullTime
 		var cacheReadTokens, cacheCreationTokens sql.NullInt64
 		var attributesJSON, resourceAttributesJSON string
 
 		if err := rows.Scan(&span.ID, &span.TraceID, &parentSpanID, &taskID, &agentAssignmentID,
+			&chainID, &stageID,
 			&span.Name, &span.Kind, &span.Status, &statusMessage, &span.StartTime, &endTime,
 			&span.DurationMs, &span.TokensIn, &span.TokensOut,
 			&cacheReadTokens, &cacheCreationTokens,
@@ -230,6 +248,12 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 		}
 		if agentAssignmentID.Valid {
 			span.AgentAssignmentID = agentAssignmentID.String
+		}
+		if chainID.Valid {
+			span.ChainID = chainID.String
+		}
+		if stageID.Valid {
+			span.StageID = stageID.String
 		}
 		if statusMessage.Valid {
 			span.StatusMessage = statusMessage.String

@@ -168,6 +168,8 @@ type Span struct {
 	ParentSpanID      string     `json:"parent_span_id,omitempty"`
 	TaskID            string     `json:"task_id,omitempty"`
 	AgentAssignmentID string     `json:"agent_assignment_id,omitempty"`
+	ChainID           string     `json:"chain_id,omitempty"` // M-CHAINS-SIMPLIFY: links to execution_chains
+	StageID           string     `json:"stage_id,omitempty"` // M-CHAINS-SIMPLIFY: links to chain_stages
 	Name              string     `json:"name"`
 	Kind              SpanKind   `json:"kind"`
 	Status            SpanStatus `json:"status"`

@@ -90,6 +90,21 @@ func (p *GeminiCLIProvider) Execute(ctx context.Context, task *AnalyzedTask, opt
 		execTask.Metadata["ailang.agent_id"] = opts.ObservatoryContext.AgentID
 		execTask.Metadata["ailang.assignment_id"] = opts.ObservatoryContext.AssignmentID
 		execTask.Metadata["ailang.workspace_id"] = opts.ObservatoryContext.WorkspaceID
+
+		// Chain context for unified hierarchy (M-CHAINS-SIMPLIFY)
+		// Both ailang.* (for OTEL resource attrs) and non-prefixed (for direct env vars)
+		if opts.ObservatoryContext.ChainID != "" {
+			execTask.Metadata["ailang.chain_id"] = opts.ObservatoryContext.ChainID
+			execTask.Metadata["chain_id"] = opts.ObservatoryContext.ChainID
+		}
+		if opts.ObservatoryContext.StageID != "" {
+			execTask.Metadata["ailang.stage_id"] = opts.ObservatoryContext.StageID
+			execTask.Metadata["stage_id"] = opts.ObservatoryContext.StageID
+		}
+		if opts.ObservatoryContext.MessageID != "" {
+			execTask.Metadata["ailang.message_id"] = opts.ObservatoryContext.MessageID
+			execTask.Metadata["message_id"] = opts.ObservatoryContext.MessageID
+		}
 	}
 
 	// Execute using Gemini CLI - use streaming if handler provided

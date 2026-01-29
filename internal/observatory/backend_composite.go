@@ -369,5 +369,59 @@ func (b *CompositeBackend) GetSessionMetricsSummary(ctx context.Context, session
 	return b.local.GetSessionMetricsSummary(ctx, sessionID)
 }
 
+// Chain operations (M-CHAINS-SIMPLIFY) - delegate to local backend
+
+func (b *CompositeBackend) CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error) {
+	return b.local.CreateChain(ctx, req)
+}
+
+func (b *CompositeBackend) GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error) {
+	return b.local.GetChain(ctx, id, opts)
+}
+
+func (b *CompositeBackend) GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error) {
+	return b.local.GetChainByMessageID(ctx, messageID)
+}
+
+func (b *CompositeBackend) GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error) {
+	return b.local.GetChainByTaskID(ctx, taskID)
+}
+
+func (b *CompositeBackend) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
+	return b.local.ListChains(ctx, opts)
+}
+
+func (b *CompositeBackend) UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error {
+	return b.local.UpdateChainStatus(ctx, chainID, status)
+}
+
+func (b *CompositeBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
+	return b.local.CreateStage(ctx, req)
+}
+
+func (b *CompositeBackend) GetStage(ctx context.Context, id string) (*ChainStage, error) {
+	return b.local.GetStage(ctx, id)
+}
+
+func (b *CompositeBackend) GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error) {
+	return b.local.GetChainStages(ctx, chainID, opts)
+}
+
+func (b *CompositeBackend) UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return b.local.UpdateStageStatus(ctx, stageID, status)
+}
+
+func (b *CompositeBackend) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {
+	return b.local.UpdateStageSession(ctx, stageID, sessionID)
+}
+
+func (b *CompositeBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+	return b.local.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
+}
+
+func (b *CompositeBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return b.local.ListPendingApprovals(ctx, limit)
+}
+
 // Ensure CompositeBackend implements Backend
 var _ Backend = (*CompositeBackend)(nil)

@@ -636,5 +636,59 @@ func (b *GCPTraceBackend) GetSessionMetricsSummary(ctx context.Context, sessionI
 	return nil, nil // GCP backend doesn't store metrics
 }
 
+// Chain operations - GCP backend doesn't store chains (local-only feature)
+
+func (b *GCPTraceBackend) CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetStage(ctx context.Context, id string) (*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) UpdateStageSession(ctx context.Context, stageID, sessionID string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return nil, nil
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)
