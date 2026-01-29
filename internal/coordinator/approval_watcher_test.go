@@ -612,6 +612,9 @@ func (m *mockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequ
 func (m *mockStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
 	return nil, nil
 }
+func (m *mockStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
+	return nil, nil
+}
 func (m *mockStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	return nil, nil
 }

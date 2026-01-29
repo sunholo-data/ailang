@@ -60,6 +60,22 @@ func (s *SQLiteStore) GetApprovalRequestByTask(ctx context.Context, taskID strin
 	return req, err
 }
 
+// GetApprovalRequestByTaskAnyStatus retrieves the approval request for a task regardless of status.
+// Use this when you need to fetch the approval context after the request has been processed (e.g., for handoffs).
+func (s *SQLiteStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
+	query := `
+		SELECT id, task_id, type, description, context_json, status, resolved_by, created_at, resolved_at, timeout_at, auto_reject
+		FROM approval_requests WHERE task_id = ?
+		ORDER BY created_at DESC LIMIT 1
+	`
+	row := s.db.QueryRowContext(ctx, query, taskID)
+	req, err := s.scanApprovalRequest(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return req, err
+}
+
 // ListPendingApprovals retrieves all pending approval requests
 func (s *SQLiteStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
 	query := `

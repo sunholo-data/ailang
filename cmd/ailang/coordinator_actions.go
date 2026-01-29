@@ -73,6 +73,14 @@ func coordinatorApprove(args []string) error {
 	}
 	// If observatory fails to open, continue without it - chain status won't be updated
 
+	// Open messaging store for handoff messages (M-CHAINS-SIMPLIFY)
+	var msgStore *messaging.Store
+	if ms, err := messaging.OpenStore(messaging.GetDefaultDatabasePath()); err == nil {
+		msgStore = ms
+		defer msgStore.Close()
+	}
+	// If messaging store fails to open, continue without it - handoffs won't trigger
+
 	ctx := context.Background()
 
 	// Use unified approval processor
@@ -88,6 +96,7 @@ func coordinatorApprove(args []string) error {
 		AgentRegistry: agentRegistry,
 		GitHubPoster:  githubPoster,
 		ObsBackend:    obsBackend,
+		MsgStore:      msgStore,
 	})
 	if err != nil {
 		return err

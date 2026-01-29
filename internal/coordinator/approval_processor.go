@@ -524,8 +524,8 @@ func triggerEmbeddedHandoffsFromProcessor(ctx context.Context, span trace.Span, 
 	}
 
 	// Get the approval request to retrieve context_json with handoff targets
-	// Note: GetApprovalRequestByTask only returns PENDING approvals
-	approvalReq, err := params.Store.GetApprovalRequestByTask(ctx, taskID)
+	// Note: Use GetApprovalRequestByTaskAnyStatus since the approval may already be marked approved
+	approvalReq, err := params.Store.GetApprovalRequestByTaskAnyStatus(ctx, taskID)
 	if err != nil || approvalReq == nil {
 		return false, nil // No approval request found, not an error
 	}
