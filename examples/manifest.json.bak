@@ -1,0 +1,1140 @@
+{
+  "schema": "ailang.manifest/v1",
+  "schema_version": "1.0.0",
+  "generated_at": "2026-01-02T17:57:08Z",
+  "generator": "auto-metadata-v0.6.2",
+  "examples": [
+    {
+      "path": "hello.ail",
+      "status": "working",
+      "tags": [
+        "basic",
+        "io"
+      ],
+      "description": "Basic hello world program",
+      "expected": {
+        "stdout": "Hello, AILANG!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "simple.ail",
+      "status": "working",
+      "tags": [
+        "basic",
+        "arithmetic",
+        "let"
+      ],
+      "description": "Let bindings and arithmetic",
+      "expected": {
+        "stdout": "10\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "arithmetic.ail",
+      "status": "working",
+      "tags": [
+        "typeclass",
+        "show",
+        "arithmetic"
+      ],
+      "description": "Show type class usage with multiple types",
+      "expected": {
+        "stdout": "42\n3.14159\ntrue\nHello, AILANG!\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "lambda_expressions.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional",
+        "closures",
+        "higher-order"
+      ],
+      "description": "Comprehensive lambda examples: currying, closures, composition"
+    },
+    {
+      "path": "adt_simple.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "pattern-matching",
+        "m-p3"
+      ],
+      "description": "ADT declaration and constructor pattern matching",
+      "expected": {
+        "stdout": "42\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "adt_option.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "pattern-matching",
+        "option",
+        "m-p3"
+      ],
+      "description": "Option type with pattern matching",
+      "expected": {
+        "stdout": "42\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "patterns.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "tuples",
+        "adt",
+        "m-p3"
+      ],
+      "description": "All pattern types: tuples, literals, constructors, nested"
+    },
+    {
+      "path": "typeclasses.ail",
+      "status": "working",
+      "tags": [
+        "typeclass",
+        "num",
+        "eq",
+        "ord",
+        "show"
+      ],
+      "description": "Type class usage: Num, Eq, Ord, Show"
+    },
+    {
+      "path": "records.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "field-access",
+        "nesting"
+      ],
+      "description": "Record literals, field access, nested records"
+    },
+    {
+      "path": "experimental/factorial.ail",
+      "status": "aspirational",
+      "tags": [
+        "func",
+        "recursion",
+        "tests",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "func",
+        "tests",
+        "properties"
+      ],
+      "skip_reason": "tests/properties syntax not implemented. Running causes memory explosion."
+    },
+    {
+      "path": "experimental/quicksort.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "sorting",
+        "pattern-matching",
+        "stdlib"
+      ],
+      "description": "Functional sorting: custom quicksort and std/list sortBy"
+    },
+    {
+      "path": "experimental/concurrent_pipeline.ail",
+      "status": "aspirational",
+      "tags": [
+        "csp",
+        "channels",
+        "concurrency",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "channels",
+        "spawn",
+        "parallel",
+        "session-types"
+      ],
+      "skip_reason": "CSP not implemented. Running causes memory explosion."
+    },
+    {
+      "path": "experimental/web_api.ail",
+      "status": "aspirational",
+      "tags": [
+        "quasiquotes",
+        "http",
+        "effects",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
+      "requires": [
+        "quasiquotes",
+        "http-effects",
+        "db-effects"
+      ],
+      "skip_reason": "Quasiquotes not implemented. Running causes memory explosion."
+    },
+    {
+      "path": "experimental/ai_agent_integration.ail",
+      "status": "aspirational",
+      "tags": [
+        "ai",
+        "effects",
+        "introspection",
+        "future"
+      ],
+      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
+      "requires": [
+        "effects",
+        "introspection",
+        "json-schema"
+      ],
+      "skip_reason": "Uses arrow lambda syntax and spread operators not yet implemented"
+    },
+    {
+      "path": "adt_tree.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "pattern-matching"
+      ],
+      "description": "adt_tree.ail - Binary tree ADT with sum operation"
+    },
+    {
+      "path": "ai_call.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai"
+      ],
+      "description": "AILANG OpenAI API Integration Example"
+    },
+    {
+      "path": "ai_effect.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai"
+      ],
+      "description": "AI Effect Example"
+    },
+    {
+      "path": "array_adt.ail",
+      "status": "working",
+      "tags": [
+        "array",
+        "data-structures"
+      ],
+      "description": "array_adt.ail - M-TYPE1 Integration Test: Array in ADT Constructor"
+    },
+    {
+      "path": "array_basic.ail",
+      "status": "working",
+      "tags": [
+        "array",
+        "data-structures"
+      ],
+      "description": "Array Basics Example"
+    },
+    {
+      "path": "array_grid.ail",
+      "status": "working",
+      "tags": [
+        "array",
+        "data-structures"
+      ],
+      "description": "Array Grid Example"
+    },
+    {
+      "path": "block_demo.ail",
+      "status": "working",
+      "tags": [
+        "syntax",
+        "demo",
+        "blocks"
+      ],
+      "description": "Block Demo example"
+    },
+    {
+      "path": "block_recursion.ail",
+      "status": "working",
+      "tags": [
+        "syntax",
+        "blocks"
+      ],
+      "description": "Blocks with recursive calls"
+    },
+    {
+      "path": "bug_float_comparison.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Bug Demonstration: Float Comparison"
+    },
+    {
+      "path": "claude_haiku_call.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Example: Real Claude Haiku API call using AILANG"
+    },
+    {
+      "path": "cli_args_demo.ail",
+      "status": "working",
+      "tags": [
+        "demo"
+      ],
+      "description": "Demonstrates CLI argument access using getArgs()"
+    },
+    {
+      "path": "closures.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "closures"
+      ],
+      "description": "Showcase: Closures"
+    },
+    {
+      "path": "complex_types.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Example file demonstrating cyclic type patterns"
+    },
+    {
+      "path": "conway_grid.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Conway's Game of Life on an Array grid"
+    },
+    {
+      "path": "debug_effect.ail",
+      "status": "working",
+      "tags": [
+        "debug",
+        "effects"
+      ],
+      "description": "Debug Effect Example"
+    },
+    {
+      "path": "debug_types_demo.ail",
+      "status": "working",
+      "tags": [
+        "demo",
+        "debug",
+        "effects"
+      ],
+      "description": "Debug Types Demo"
+    },
+    {
+      "path": "demo_ai_api.ail",
+      "status": "working",
+      "tags": [
+        "demo"
+      ],
+      "description": "Demo: Call a public API endpoint"
+    },
+    {
+      "path": "effect_budgets.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Demonstrates effect budget annotations"
+    },
+    {
+      "path": "effect_budgets_exhausted.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Demonstrates budget exhaustion behavior"
+    },
+    {
+      "path": "effect_budgets_multi.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Demonstrates multiple effect budgets in a single function"
+    },
+    {
+      "path": "effect_budgets_rand.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Demonstrates effect budget annotations with Rand capability"
+    },
+    {
+      "path": "effect_budget_demo.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "m-dx25"
+      ],
+      "description": "Effect budget demo: @limit for max calls, @min for minimum requirements",
+      "expected": {
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "reference/budget_minimum.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "budget",
+        "reference",
+        "m-dx25"
+      ],
+      "description": "Reference: Minimum budget (@min) verification for audit logging and cache bypass",
+      "expected": {
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "effects_basic.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Effects Basic example"
+    },
+    {
+      "path": "effects_fs_io.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "effects_fs_io.ail - Demonstrates multiple effect capabilities"
+    },
+    {
+      "path": "effects_pure.ail",
+      "status": "working",
+      "tags": [
+        "effects"
+      ],
+      "description": "Pure functional programming: basic list operations"
+    },
+    {
+      "path": "factorial.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Factorial function with inline tests"
+    },
+    {
+      "path": "func_expressions.ail",
+      "status": "working",
+      "tags": [
+        "syntax",
+        "functions"
+      ],
+      "description": "func_expressions.ail"
+    },
+    {
+      "path": "game_npc_dialogue.ail",
+      "status": "working",
+      "tags": [
+        "game",
+        "demo"
+      ],
+      "description": "Game NPC Dialogue Example"
+    },
+    {
+      "path": "guards_basic.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "guards"
+      ],
+      "description": "guards_basic.ail - Basic guard examples"
+    },
+    {
+      "path": "guards_module.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "guards"
+      ],
+      "description": "guards_module.ail - Pattern guards with module structure"
+    },
+    {
+      "path": "http_simple.ail",
+      "status": "working",
+      "tags": [
+        "http",
+        "effects",
+        "net"
+      ],
+      "description": "http_simple.ail - Simple HTTP request example"
+    },
+    {
+      "path": "if_else_chain.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "M-CODEGEN-FLAT-IF-ELSE: Test if-else chain flattening"
+    },
+    {
+      "path": "imported_adt_types.ail",
+      "status": "working",
+      "tags": [
+        "imports",
+        "modules"
+      ],
+      "description": "Example: Imported ADT types with different constructor field types"
+    },
+    {
+      "path": "imports.ail",
+      "status": "working",
+      "tags": [
+        "imports",
+        "modules"
+      ],
+      "description": "Imports example"
+    },
+    {
+      "path": "imports_basic.ail",
+      "status": "working",
+      "tags": [
+        "imports",
+        "modules"
+      ],
+      "description": "Basic import test: imports std/io and uses println"
+    },
+    {
+      "path": "json_basic_decode.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "json"
+      ],
+      "description": "Basic JSON decoding with direct pattern matching"
+    },
+    {
+      "path": "json_parsing.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "json"
+      ],
+      "description": "json_parsing.ail - JSON parsing example"
+    },
+    {
+      "path": "lambdas.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional"
+      ],
+      "description": "Showcase: Lambda Expressions & Composition"
+    },
+    {
+      "path": "lambdas_advanced.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional"
+      ],
+      "description": "Showcase: Advanced Lambda Patterns"
+    },
+    {
+      "path": "lambdas_closures.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional"
+      ],
+      "description": "Showcase: Closures"
+    },
+    {
+      "path": "lambdas_curried.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional"
+      ],
+      "description": "Showcase: Curried Functions"
+    },
+    {
+      "path": "lambdas_higher_order.ail",
+      "status": "working",
+      "tags": [
+        "lambda",
+        "functional"
+      ],
+      "description": "Showcase: Higher-Order Functions"
+    },
+    {
+      "path": "letrec_recursion.ail",
+      "status": "working",
+      "tags": [
+        "recursion",
+        "letrec"
+      ],
+      "description": "letrec_recursion.ail"
+    },
+    {
+      "path": "bugs/list_concat_match.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "list",
+        "type-inference"
+      ],
+      "description": "Bug: ++ operator defaults to string concat in simple expressions. See bugs/concat_operator_list_inference.ail",
+      "skip_reason": "Type inference bug: ++ defaults to string concat instead of list concat"
+    },
+    {
+      "path": "bugs/concat_operator_list_inference.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "list",
+        "type-inference"
+      ],
+      "description": "Bug reproduction: ++ operator list concat inference issue with workaround",
+      "skip_reason": "Demonstrates ++ operator type inference bug with workaround"
+    },
+    {
+      "path": "bugs/parser_infinite_loop_on_test_syntax.ail",
+      "status": "broken",
+      "tags": [
+        "bug",
+        "parser",
+        "critical"
+      ],
+      "description": "Bug: Parser infinite loop on test/property syntax causes 67GB memory usage",
+      "skip_reason": "DO NOT UNCOMMENT - documents parser loop bug. See M-PARSER-LOOP design doc."
+    },
+    {
+      "path": "list_pattern_cons.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures"
+      ],
+      "description": "List pattern matching with :: (cons) constructor"
+    },
+    {
+      "path": "list_pattern_records.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures"
+      ],
+      "description": "List Pattern with Records Example"
+    },
+    {
+      "path": "list_patterns.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures"
+      ],
+      "description": "List Patterns example"
+    },
+    {
+      "path": "list_sum.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures"
+      ],
+      "description": "list_sum.ail - List operations with pattern matching"
+    },
+    {
+      "path": "match_arm_block.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching"
+      ],
+      "description": "Match arm with explicit block containing match"
+    },
+    {
+      "path": "match_arm_block_io.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching"
+      ],
+      "description": "Match arm with block: println THEN nested match"
+    },
+    {
+      "path": "match_in_block.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching"
+      ],
+      "description": "Even simpler: block with let THEN match"
+    },
+    {
+      "path": "math_trig.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Math Trigonometry Example (v0.5.10)"
+    },
+    {
+      "path": "micro_block_if.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Blocks work in if-then-else branches"
+    },
+    {
+      "path": "micro_block_seq.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Block expressions allow sequencing multiple expressions"
+    },
+    {
+      "path": "micro_io_echo.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Micro example: IO effect with println"
+    },
+    {
+      "path": "micro_option_map.ail",
+      "status": "working",
+      "tags": [
+        "higher-order"
+      ],
+      "description": "Micro example: Option map usage (pure ADT operations)"
+    },
+    {
+      "path": "micro_record_person.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "Micro example: Record field access and aliasing"
+    },
+    {
+      "path": "nested_match_minimal.ail",
+      "status": "working",
+      "tags": [
+        "nesting",
+        "pattern-matching",
+        "records"
+      ],
+      "description": "Absolute minimal case: single nested match with block arms"
+    },
+    {
+      "path": "nested_match_simple.ail",
+      "status": "working",
+      "tags": [
+        "nesting",
+        "pattern-matching",
+        "records"
+      ],
+      "description": "Nested Match Simple example"
+    },
+    {
+      "path": "no_loops_filter_map.ail",
+      "status": "working",
+      "tags": [
+        "higher-order",
+        "recursion",
+        "functional"
+      ],
+      "description": "no_loops_filter_map.ail - Transformation without loops"
+    },
+    {
+      "path": "no_loops_fold.ail",
+      "status": "working",
+      "tags": [
+        "higher-order",
+        "recursion",
+        "functional"
+      ],
+      "description": "no_loops_fold.ail - Aggregation without loops"
+    },
+    {
+      "path": "no_loops_recursion.ail",
+      "status": "working",
+      "tags": [
+        "recursion",
+        "functional"
+      ],
+      "description": "no_loops_recursion.ail - Iteration via pattern matching"
+    },
+    {
+      "path": "option_demo.ail",
+      "status": "working",
+      "tags": [
+        "demo"
+      ],
+      "description": "Option type demo: Some, None, map, getOrElse"
+    },
+    {
+      "path": "pattern_sugar.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching"
+      ],
+      "description": "S-CONS Pattern Sugar Example (v0.4.3)"
+    },
+    {
+      "path": "polymorphic_comparison_simple.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "polymorphism"
+      ],
+      "description": "Polymorphic Comparison Functions - Simple Example"
+    },
+    {
+      "path": "polymorphic_lambdas_phase1.ail",
+      "status": "working",
+      "tags": [
+        "types",
+        "polymorphism"
+      ],
+      "description": "Polymorphic Lambdas - Phase 1 Status (M-POLY-B)"
+    },
+    {
+      "path": "record_in_match.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching",
+        "records"
+      ],
+      "description": "Example: Inline Record Literals in Match Arms (M-DX16)"
+    },
+    {
+      "path": "record_patterns.ail",
+      "status": "working",
+      "tags": [
+        "records"
+      ],
+      "description": "record_patterns.ail - Record Pattern Matching Examples"
+    },
+    {
+      "path": "record_update.ail",
+      "status": "working",
+      "tags": [
+        "records"
+      ],
+      "description": "Record Update Examples"
+    },
+    {
+      "path": "recursion_factorial.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "recursion"
+      ],
+      "description": "recursion_factorial.ail"
+    },
+    {
+      "path": "recursion_fibonacci.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "recursion"
+      ],
+      "description": "recursion_fibonacci.ail"
+    },
+    {
+      "path": "recursion_match.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "pattern-matching",
+        "recursion"
+      ],
+      "description": "recursion_match.ail"
+    },
+    {
+      "path": "recursion_mutual.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "recursion"
+      ],
+      "description": "recursion_mutual.ail"
+    },
+    {
+      "path": "recursion_quicksort.ail",
+      "status": "working",
+      "tags": [
+        "algorithms",
+        "recursion"
+      ],
+      "description": "recursion_quicksort.ail"
+    },
+    {
+      "path": "simple_func_match.ail",
+      "status": "working",
+      "tags": [
+        "pattern-matching"
+      ],
+      "description": "Simple Func Match example"
+    },
+    {
+      "path": "stdlib_demo.ail",
+      "status": "working",
+      "tags": [
+        "demo"
+      ],
+      "description": "Standard library demo: string functions and options"
+    },
+    {
+      "path": "stdlib_demo_simple.ail",
+      "status": "working",
+      "tags": [
+        "demo"
+      ],
+      "description": "Simple stdlib demo - Demonstrates basic IO builtins"
+    },
+    {
+      "path": "string_parsing.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "string"
+      ],
+      "description": "Demonstrates string-to-number parsing with Option types"
+    },
+    {
+      "path": "string_split.ail",
+      "status": "working",
+      "tags": [
+        "parsing",
+        "string"
+      ],
+      "description": "String Split example"
+    },
+    {
+      "path": "runnable/string_contains.ail",
+      "status": "working",
+      "tags": [
+        "string",
+        "stdlib"
+      ],
+      "description": "Demonstrates std/string contains and find functions"
+    },
+    {
+      "path": "runnable/record_width_subtyping.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "row-polymorphism",
+        "width-subtyping",
+        "types"
+      ],
+      "description": "Record width subtyping via open record types ({a: T | r} and {a: T, ...})"
+    },
+    {
+      "path": "runnable/adt_list_fields.ail",
+      "status": "working",
+      "tags": [
+        "records",
+        "lists",
+        "codegen",
+        "types"
+      ],
+      "description": "ADT record types with list fields for Go codegen (Issue #116)"
+    },
+    {
+      "path": "runnable/poly_adt_result_type.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt"
+      ],
+      "description": "Polymorphic ADT with mixed field types: Result[a] = Ok(a) | Err(string)"
+    },
+    {
+      "path": "runnable/polymorphic_adt.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "polymorphism",
+        "type-inference",
+        "m-poly-adt",
+        "option",
+        "result",
+        "either",
+        "functional"
+      ],
+      "description": "Comprehensive polymorphic ADT examples: Result, Either, mapResult, bindResult, Option integration"
+    },
+    {
+      "path": "test_cli_io.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Simple IO test for CLI tests"
+    },
+    {
+      "path": "test_fizzbuzz.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Integration Test: FizzBuzz"
+    },
+    {
+      "path": "test_guard_bool.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Test guard with boolean literal"
+    },
+    {
+      "path": "test_import_func.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Test Import Func example"
+    },
+    {
+      "path": "test_io_builtins.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Test builtin IO functions (M-R1 Phase 5)"
+    },
+    {
+      "path": "test_module_minimal.ail",
+      "status": "working",
+      "tags": [
+        "testing"
+      ],
+      "description": "Test Module Minimal example"
+    },
+    {
+      "path": "type_classes.ail",
+      "status": "working",
+      "tags": [
+        "types"
+      ],
+      "description": "Showcase: Type Classes"
+    },
+    {
+      "path": "type_inference.ail",
+      "status": "working",
+      "tags": [
+        "types"
+      ],
+      "description": "Showcase: Type Inference"
+    },
+    {
+      "path": "type_inference_regression.ail",
+      "status": "working",
+      "tags": [
+        "types"
+      ],
+      "description": "Type Inference Regression Test"
+    },
+    {
+      "path": "values_basic.ail",
+      "status": "working",
+      "tags": [
+        "misc"
+      ],
+      "description": "values_basic.ail - Working with values and string concatenation"
+    },
+    {
+      "path": "web_api_demo/api/math.ail",
+      "status": "working",
+      "tags": [
+        "api",
+        "serve-api",
+        "pure",
+        "demo"
+      ],
+      "description": "Web API demo: pure math functions (add, multiply, factorial, fibonacci) served via ailang serve-api",
+      "run_mode": "serve-api"
+    },
+    {
+      "path": "web_api_demo/api/greet.ail",
+      "status": "working",
+      "tags": [
+        "api",
+        "serve-api",
+        "json",
+        "demo"
+      ],
+      "description": "Web API demo: string and JSON functions (hello, farewell, welcome) served via ailang serve-api",
+      "run_mode": "serve-api"
+    },
+    {
+      "path": "runnable/contracts/basic.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
+    },
+    {
+      "path": "runnable/contracts/park.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "requires",
+        "ensures",
+        "m-verify-contracts"
+      ],
+      "description": "Contract verification: theme park admission example with age/height constraints",
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
+    }
+  ],
+  "statistics": {
+    "total": 114,
+    "working": 107,
+    "aspirational": 4,
+    "broken": 3,
+    "coverage": 0.938
+  },
+  "milestones": {
+    "completed": [
+      "M-P1",
+      "M-P2",
+      "M-P3"
+    ],
+    "in_progress": [
+      "M-P4"
+    ],
+    "planned": [
+      "Module-System",
+      "Effect-Runtime",
+      "Quasiquotes",
+      "CSP"
+    ]
+  }
+}
