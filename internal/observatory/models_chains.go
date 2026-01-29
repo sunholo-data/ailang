@@ -202,7 +202,7 @@ type ChainStats struct {
 	TotalCost          float64 `json:"total_cost"`
 	TotalTokens        int64   `json:"total_tokens"`
 	AverageStagesCount float64 `json:"average_stages_count"`
-	AverageDurationMs  int64   `json:"average_duration_ms"`
+	AverageDurationMs  float64 `json:"average_duration_ms"`
 }
 
 // ChainCreateRequest contains the data needed to create a new chain.
