@@ -98,6 +98,33 @@ processInvoice([{description: "Widget", quantity: 10, unit_price: 25.0}])
 // Returns: "250.0 :: float"
 ```
 
+## Axiom Compliance
+
+This feature aligns well with AILANG's design axioms:
+
+| Axiom | Score | Justification |
+|-------|-------|---------------|
+| **A1: Determinism** | 0 | Neutral - module loading is deterministic given same source code |
+| **A2: Replayability** | 0 | Neutral - doesn't affect trace generation |
+| **A3: Effect Legibility** | 0 | Neutral - no new effects introduced |
+| **A4: Explicit Authority** | 0 | Neutral - uses existing REPL capabilities |
+| **A5: Bounded Verification** | +1 | Module compilation checked at load time, not runtime |
+| **A6: Safe Concurrency** | 0 | Neutral - WASM is single-threaded |
+| **A7: Machines First** | +1 | JavaScript API improves toolability for browser demos |
+| **A8: Minimal Syntax** | 0 | Neutral - no new AILANG syntax, just JavaScript API |
+| **A9: Cost Visibility** | 0 | Neutral - no resource tracking added |
+| **A10: Composability** | +1 | Modules compose via import statements |
+| **A11: Structured Failure** | +1 | Returns `{success, error}` not JavaScript exceptions |
+| **A12: System Boundary** | +1 | Explicit `ailangLoadModule()` call marks boundary crossing |
+
+**Net Score: +5** → **APPROVED** (exceeds +2 threshold)
+
+**Key strengths:**
+- **A12**: Module loading is explicit - no implicit module discovery
+- **A11**: Compilation errors return structured data JavaScript can handle
+- **A5**: Type errors caught at load time, not runtime
+- **A7**: JavaScript API enables browser-based tooling without server infrastructure
+
 ### Implementation Plan
 
 #### Phase 1: Module Registry (Go WASM side) - 2 days, ~200 LOC
@@ -110,7 +137,7 @@ processInvoice([{description: "Widget", quantity: 10, unit_price: 25.0}])
 
    import (
        "fmt"
-       "github.com/sunholo-data/ailang/internal/loader"
+       "github.com/sunholo-data/ailang/internal/eval"
        "github.com/sunholo-data/ailang/internal/pipeline"
        "github.com/sunholo-data/ailang/internal/types"
    )
@@ -157,13 +184,25 @@ processInvoice([{description: "Widget", quantity: 10, unit_price: 25.0}])
            return fmt.Errorf("type error: %w", err)
        }
 
-       // 4. Extract exports
+       // 4. Evaluate module to get compiled function closures
+       evaluator := eval.NewEvaluator()
+       env := eval.NewEnvironment()
+
+       for _, decl := range typed.Declarations {
+           val, err := evaluator.EvalDeclaration(decl, env)
+           if err != nil {
+               return fmt.Errorf("eval error in %s: %w", decl.Name, err)
+           }
+           env.Set(decl.Name, val)
+       }
+
+       // 5. Extract exports
        exports := make(map[string]*Export)
        for _, decl := range typed.Declarations {
            if decl.Exported {
                exports[decl.Name] = &Export{
                    Name:   decl.Name,
-                   Value:  decl.CompiledValue,  // From eval
+                   Value:  env.Get(decl.Name),  // Evaluated closure
                    Scheme: decl.Scheme,
                }
            }
@@ -221,7 +260,17 @@ processInvoice([{description: "Widget", quantity: 10, unit_price: 25.0}])
    )
 
    // Exposed as window.ailangLoadModule
-   func ailangLoadModule(this js.Value, args []js.Value) interface{} {
+   func ailangLoadModule(this js.Value, args []js.Value) (result interface{}) {
+       // Panic recovery - prevents WASM runtime crash on Go panic
+       defer func() {
+           if r := recover(); r != nil {
+               result = map[string]interface{}{
+                   "success": false,
+                   "error":   fmt.Sprintf("internal error: %v", r),
+               }
+           }
+       }()
+
        if len(args) != 2 {
            return map[string]interface{}{
                "success": false,
@@ -523,6 +572,20 @@ console.log('Result:', output);
 - Virtual filesystem API (v0.8.0)
 - TypeScript type definitions (v0.9.0)
 - npm package for wrapper (v1.0.0)
+
+## Known Limitations
+
+**v0.7.2 Scope (acceptable for demos):**
+
+1. **Single module at a time** - No inter-module dependencies; each module is self-contained
+2. **Name collision** - If two modules export same function name, last import wins (implicit shadowing)
+3. **No module unloading** - Registry grows indefinitely; acceptable for demos with 1-3 modules
+4. **No type introspection** - Can't query module's type signatures from JavaScript
+5. **Module name must match** - `ailangLoadModule('foo', code)` requires `module foo` declaration in code
+
+**Future versions:**
+- v0.8.0: Multi-module dependencies, `ailangUnloadModule()`, module reloading
+- v0.9.0: TypeScript type definitions, type introspection API (`ailangGetExportTypes()`)
 
 ## Definition of Done
 
