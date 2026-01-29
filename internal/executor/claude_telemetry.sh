@@ -176,7 +176,8 @@ CURL_OUTPUT=$(curl -s --max-time 2 -w "\n%{http_code}" -X POST "$HOOKS_ENDPOINT"
     -d "$PAYLOAD" 2>&1)
 CURL_EXIT=$?
 HTTP_CODE=$(echo "$CURL_OUTPUT" | tail -n1)
-RESPONSE=$(echo "$CURL_OUTPUT" | head -n -1)
+# Use sed instead of head -n -1 for macOS compatibility
+RESPONSE=$(echo "$CURL_OUTPUT" | sed '$d')
 
 if [ $CURL_EXIT -eq 0 ] && [ "$HTTP_CODE" = "200" ]; then
     log "Successfully reported $EVENT_NAME event to observatory (session=$SESSION_ID)"

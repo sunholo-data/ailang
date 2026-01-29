@@ -1,9 +1,19 @@
 # M-DETERMINISTIC-CHAT-LINKING: Deterministic Task-to-Chat Message Linking
 
-**Status:** Partially Implemented
+**Status:** Phases 1-4 Complete (Session Linking Working)
 **Priority:** Medium
 **Complexity:** Medium
 **Target Version:** v0.7.2
+
+### Implementation Status (2026-01-29)
+
+**Session → Task Linking: COMPLETE**
+- Hooks capture AILANG_* env vars and post to server
+- Server stores task_id, chain_id, stage_id, message_id in sessions table
+- Query: `SELECT * FROM sessions WHERE task_id = 'task-xxx'`
+
+**Bug Fix: macOS Compatibility**
+- `head -n -1` is GNU-only, replaced with `sed '$d'` for macOS
 
 ---
 
