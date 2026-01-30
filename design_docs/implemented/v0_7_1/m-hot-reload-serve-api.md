@@ -1,6 +1,6 @@
 # M-HOT-RELOAD: Hot Reload for serve-api
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.7.1
 **Priority**: P1 (Medium)
 **Estimated**: 1 day

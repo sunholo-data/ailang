@@ -1,6 +1,6 @@
 # Trace Test
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.6.3
 **Priority**: P2 (Low)
 **Estimated**: 1 day

@@ -1,6 +1,6 @@
 # M-TRACE-BRIDGE: Bridge OTEL Spans to TraceRegistry
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.7.1
 **Priority**: P2 (Medium)
 **Estimated**: 0.5 days (simpler than expected!)

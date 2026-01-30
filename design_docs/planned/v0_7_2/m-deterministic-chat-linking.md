@@ -1,11 +1,11 @@
 # M-DETERMINISTIC-CHAT-LINKING: Deterministic Task-to-Chat Message Linking
 
-**Status:** Phase 5 Complete (Full Deterministic Chat Linking)
+**Status:** Phase 6 Complete (Full Deterministic Chat Linking + Auto-Sync)
 **Priority:** Medium
 **Complexity:** Medium
 **Target Version:** v0.7.2
 
-### Implementation Status (2026-01-29)
+### Implementation Status (2026-01-30)
 
 **Session → Task Linking: COMPLETE**
 - Hooks capture AILANG_* env vars and post to server
@@ -325,5 +325,20 @@ ailang chains view <chain-id> --json --verbose
 | Phase 5a: Chat_messages schema | ✅ Done | Migration v9 adds correlation columns |
 | Phase 5b: Importer propagation | ✅ Done | importer.go propagates session correlation to messages |
 | Phase 5c: CLI query updates | ✅ Done | getChatMessagesForTask with fallback to timestamp |
+| Phase 6: Auto-sync on session end | ✅ Done | Stop hook triggers single-session sync-chat automatically |
 
 **All phases complete. Deterministic task→chat message linking is now fully operational.**
+
+### Phase 6: Auto-Sync on Session End (2026-01-30)
+
+When a Claude Code session ends, the Stop hook now automatically syncs that session's chat messages to the database with correlation IDs populated.
+
+**Implementation:**
+- `~/.ailang/hooks/claude_telemetry.sh` - Stop handler calls `POST /api/claude-history/sync?session_id=<id>`
+- Single-session sync takes ~100ms (vs 24s for full sync)
+- Correlation IDs (task_id, chain_id, stage_id) propagated from sessions table
+
+**Flow:**
+```
+Session ends → Stop hook fires → POST /sync?session_id=X → chat_messages populated
+```

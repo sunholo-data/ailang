@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.7.1] - 2026-01-30
+
 ### Added
 - **stdlib**: Added `startsWith()` and `endsWith()` to std/string module
   - `startsWith(s: string, prefix: string) -> bool` - Check if string starts with prefix
@@ -96,7 +98,7 @@ Enhanced effect budget system with scoped dual counters and minimum budget requi
 - `internal/eval/eval_evaluator.go`: Scoped budget interfaces
 - `internal/eval/eval_operations.go`: Scoped budget handling
 
-**Design Doc:** `design_docs/planned/v0_7_1/m-dx25-budget-report.md`
+**Design Doc:** `design_docs/implemented/v0_7_1/m-dx25-budget-report.md`
 
 ### Fixed - Effect Context for serve-api
 
@@ -119,6 +121,18 @@ Added `--watch` flag to `ailang serve-api` for automatic hot reload of `.ail` mo
 - New public APIs: `embed.Engine.InvalidateModule()`, `runtime.DeleteInstance()`, `loader.DeleteCached()`
 - New dependency: `github.com/fsnotify/fsnotify v1.9.0`
 - New file: `internal/apiserver/watcher.go` (~110 LOC)
+
+**Design Doc:** `design_docs/implemented/v0_7_1/m-hot-reload-serve-api.md`
+
+### Added - Hello World Example
+
+Added classic "Hello, World!" example demonstrating basic AILANG module structure with IO effects.
+
+- New file: `examples/hello_world.ail`
+- Shows minimal module with main entry point and IO capability
+- `ailang run --caps IO --entry main examples/hello_world.ail`
+
+**Design Doc:** `design_docs/implemented/v0_7_1/hello-world-feature.md`
 
 ### Added - API Server & React Scaffold (M-SERVE-API)
 
@@ -189,7 +203,7 @@ When `AILANG_TRACE_RECORDING=1` is set (or enabled programmatically), every span
 
 **Zero overhead:** When disabled, `StartSpan` just delegates to the underlying tracer with no additional work.
 
-**Design Doc:** `design_docs/planned/v0_7_1/m-trace-instrumentation.md`
+**Design Doc:** `design_docs/implemented/v0_7_1/m-trace-instrumentation.md`
 
 ### Added - Trace Testing Framework (M-TRACE-TEST)
 
@@ -226,7 +240,7 @@ export pure func verify_traces() -> int {
 **Tests:**
 - `internal/effects/trace_test.go`: 8 test cases including concurrency tests
 
-**Design Doc:** `design_docs/planned/v0_7_1/trace-test.md`
+**Design Doc:** `design_docs/implemented/v0_7_1/trace-test.md`
 
 ### Added - Workspace Access Control (M-WORKSPACE-ACCESS)
 
@@ -265,7 +279,7 @@ Multi-tenant workspace isolation for the AILANG Dashboard. Users only see worksp
 - `workspaces/{id}`: Workspace metadata (name, is_public, github_repo)
 - `workspace_access/{workspace_id}/users/{email}`: Per-user access grants
 
-**Design Doc:** `design_docs/planned/v0_7_1/m-workspace-access-control.md`
+**Design Doc:** `design_docs/implemented/v0_7_1/m-workspace-access-control.md`
 
 ## [v0.7.0] - 2026-01-21
 
