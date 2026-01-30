@@ -190,6 +190,46 @@ func (mr *ModuleRegistry) GetModule(name string) (*RegisteredModule, bool) {
 	return mod, ok
 }
 
+// CallExport formats a function call expression string for use with the REPL.
+// This returns the expression that can be evaluated via ProcessExpression.
+// Arguments are converted to their AILANG string representation.
+func (mr *ModuleRegistry) CallExport(moduleName, funcName string, args []eval.Value) (string, error) {
+	// Verify the export exists
+	_, err := mr.GetExport(moduleName, funcName)
+	if err != nil {
+		return "", err
+	}
+
+	// Build curried call expression: moduleName.funcName(arg1)(arg2)...
+	// First we need to import the module, then call the function
+	expr := funcName
+	for _, arg := range args {
+		argStr := formatArgument(arg)
+		expr = fmt.Sprintf("%s(%s)", expr, argStr)
+	}
+
+	return expr, nil
+}
+
+// formatArgument converts an eval.Value to its AILANG source representation
+func formatArgument(v eval.Value) string {
+	switch val := v.(type) {
+	case *eval.IntValue:
+		return fmt.Sprintf("%d", val.Value)
+	case *eval.FloatValue:
+		return fmt.Sprintf("%g", val.Value)
+	case *eval.StringValue:
+		return fmt.Sprintf("%q", val.Value)
+	case *eval.BoolValue:
+		if val.Value {
+			return "true"
+		}
+		return "false"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
 // ListModules returns the names of all loaded modules.
 func (mr *ModuleRegistry) ListModules() []string {
 	mr.mu.RLock()

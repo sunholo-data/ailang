@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall/js"
 
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/repl"
 	"github.com/sunholo/ailang/std"
 )
@@ -217,6 +218,84 @@ func listModules(this js.Value, args []js.Value) interface{} {
 	return jsModules
 }
 
+// callExport calls a function from a loaded module with arguments
+// JavaScript: ailangCall(moduleName, funcName, ...args) -> {success: bool, result?: string, error?: string}
+func callExport(this js.Value, args []js.Value) interface{} {
+	// Validate arguments
+	if len(args) < 2 {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "ailangCall requires at least 2 arguments: moduleName and funcName",
+		}
+	}
+
+	moduleName := args[0].String()
+	funcName := args[1].String()
+
+	// Convert remaining JS arguments to AILANG values
+	ailangArgs := make([]eval.Value, 0, len(args)-2)
+	for i := 2; i < len(args); i++ {
+		arg := args[i]
+		var ailangVal eval.Value
+
+		switch arg.Type() {
+		case js.TypeNumber:
+			// Check if it's an integer or float
+			f := arg.Float()
+			if f == float64(int(f)) {
+				ailangVal = &eval.IntValue{Value: int(f)}
+			} else {
+				ailangVal = &eval.FloatValue{Value: f}
+			}
+		case js.TypeString:
+			ailangVal = &eval.StringValue{Value: arg.String()}
+		case js.TypeBoolean:
+			ailangVal = &eval.BoolValue{Value: arg.Bool()}
+		default:
+			return map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("unsupported argument type at position %d: %v", i-1, arg.Type()),
+			}
+		}
+
+		ailangArgs = append(ailangArgs, ailangVal)
+	}
+
+	// Build call expression (validates export exists)
+	callExpr, err := replInstance.GetRegistry().CallExport(moduleName, funcName, ailangArgs)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}
+	}
+
+	// Import the module first so the function is in scope
+	importResult := replInstance.HandleCommand(fmt.Sprintf(":import %s", moduleName))
+	if strings.Contains(importResult, "Error") || strings.Contains(importResult, "error") {
+		return map[string]interface{}{
+			"success": false,
+			"error":   "failed to import module: " + importResult,
+		}
+	}
+
+	// Evaluate the call expression
+	result := replInstance.Eval(callExpr)
+
+	// Check for errors in result
+	if strings.HasPrefix(result, "Error:") || strings.HasPrefix(result, "error:") {
+		return map[string]interface{}{
+			"success": false,
+			"error":   result,
+		}
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"result":  result,
+	}
+}
+
 func main() {
 	// Initialize REPL
 	replInstance = NewWasmREPL()
@@ -227,6 +306,7 @@ func main() {
 	js.Global().Set("ailangVersion", js.FuncOf(getVersion))
 	js.Global().Set("ailangLoadModule", js.FuncOf(loadModule))
 	js.Global().Set("ailangListModules", js.FuncOf(listModules))
+	js.Global().Set("ailangCall", js.FuncOf(callExport))
 
 	// Signal ready (safely check if console exists)
 	if console := js.Global().Get("console"); !console.IsUndefined() {

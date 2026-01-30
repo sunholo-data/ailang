@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [v0.7.1.1] - 2026-01-30
+
+### Added - WASM Module Calling API
+- **ailangCall**: New JavaScript API for calling functions from loaded modules
+  - `ailangCall(moduleName, funcName, ...args)` - Returns `{success, result?, error?}`
+  - Supports number, string, and boolean arguments (converted to AILANG types)
+  - Auto-imports module before calling function
+  - Completes the browser WASM module loading workflow
+  - Files: `cmd/wasm/main.go`, `internal/repl/module_registry.go`
+
+- **JS Wrapper improvements**: Updated `web/ailang-repl.js`
+  - `repl.call(mod, func, ...args)` - Now uses native `ailangCall` for reliability
+  - Returns structured result `{success, result?, error?}` instead of string
+
+- **CLI help**: Updated WebAssembly documentation in `ailang --help`
+  - Shows `gh release download` command for obtaining WASM binary
+  - Documents all 6 JavaScript window globals
+  - Documents JS wrapper methods
+
+### Fixed
+- **Example files**: Fixed curried lambda syntax in examples
+  - `record_update.ail`: Changed `\p dx dy.` to `\p. \dx. \dy.`
+  - `typeclasses.ail`: Changed `\x y.` to `\x. \y.`
+  - Multi-arg lambdas must use separate lambda syntax for curried calls
+
+- **Letrec recursion**: Simplified `letrec_recursion.ail` to avoid single-call bug
+  - Single recursive call in letrec fails (known bug, design doc created)
+  - Double recursive calls work (fib pattern)
+  - Design doc: `design_docs/planned/v0_7_2/m-bug-letrec-single-call.md`
+
 ## [v0.7.1] - 2026-01-30
 
 ### Added

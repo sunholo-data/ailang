@@ -195,42 +195,23 @@ class AilangREPL {
 
   /**
    * Call a function from a loaded module (v0.7.2+)
-   * Convenience method that imports if needed and evaluates the call.
+   * Uses native ailangCall for direct function invocation.
    * @param {string} moduleName - Module containing the function
    * @param {string} funcName - Function to call
-   * @param {...any} args - Arguments (converted to AILANG syntax)
-   * @returns {string} Result string (value and type)
+   * @param {...any} args - Arguments (numbers, strings, booleans)
+   * @returns {{success: boolean, result?: string, error?: string}}
    */
   call(moduleName, funcName, ...args) {
     if (!this.ready) {
-      return 'Error: REPL not initialized';
+      return { success: false, error: 'REPL not initialized' };
     }
 
-    // Import the module if not already imported
-    const modules = this.listModules();
-    if (!modules.includes(moduleName)) {
-      return `Error: module '${moduleName}' not loaded (use loadModule first)`;
+    try {
+      // Use native ailangCall which handles type conversion
+      return window.ailangCall(moduleName, funcName, ...args);
+    } catch (err) {
+      return { success: false, error: err.message };
     }
-
-    // Import module exports
-    this.importModule(moduleName);
-
-    // Convert args to AILANG syntax
-    const ailangArgs = args.map(arg => {
-      if (typeof arg === 'string') return `"${arg}"`;
-      if (typeof arg === 'number') return String(arg);
-      if (typeof arg === 'boolean') return arg ? 'true' : 'false';
-      if (Array.isArray(arg)) return `[${arg.map(a => typeof a === 'string' ? `"${a}"` : a).join(', ')}]`;
-      return String(arg);
-    });
-
-    // Build curried call: funcName(arg1)(arg2)(arg3)
-    let expr = funcName;
-    for (const arg of ailangArgs) {
-      expr = `${expr}(${arg})`;
-    }
-
-    return this.eval(expr);
   }
 }
 
