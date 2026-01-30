@@ -57,8 +57,18 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 
 	// Step 2: Elaborate to Core
+	// Use ElaborateFile for modules (has module declaration) to get proper Meta map with IsExport flags
+	// Use Elaborate for REPL-style code (bare expressions)
 	elaborator := elaborate.NewElaborator()
-	coreProg, err := elaborator.Elaborate(program)
+	var coreProg *core.Program
+	var err error
+	if program.File != nil && program.File.Module != nil {
+		// Module with explicit module declaration - use ElaborateFile for Meta population
+		coreProg, err = elaborator.ElaborateFile(program.File)
+	} else {
+		// REPL-style code or bare expressions
+		coreProg, err = elaborator.Elaborate(program)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("elaboration error: %w", err)
 	}
@@ -126,23 +136,77 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	builtinResolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
 	evaluator.SetGlobalResolver(builtinResolver)
 
+	// First, check if there are any explicit exports in the module
+	hasExplicitExports := false
+	for _, meta := range coreProg.Meta {
+		if meta != nil && meta.IsExport {
+			hasExplicitExports = true
+			break
+		}
+	}
+
 	exports := make(map[string]*Export)
 	for i, decl := range linkedDecls {
-		if letDecl, ok := coreProg.Decls[i].(*core.Let); ok {
-			val, err := evaluator.Eval(decl)
-			if err != nil {
-				return nil, fmt.Errorf("eval error in %s: %w", letDecl.Name, err)
+		// Extract names and evaluate based on declaration type
+		var names []string
+
+		switch d := coreProg.Decls[i].(type) {
+		case *core.Let:
+			names = []string{d.Name}
+		case *core.LetRec:
+			for _, binding := range d.Bindings {
+				names = append(names, binding.Name)
+			}
+		default:
+			// Unknown declaration type, skip
+			continue
+		}
+
+		// Evaluate the declaration
+		val, err := evaluator.Eval(decl)
+		if err != nil {
+			return nil, fmt.Errorf("eval error: %w", err)
+		}
+
+		// For Let nodes, store the value directly in the environment
+		// For LetRec nodes, the evaluator handles environment binding internally
+		if len(names) == 1 {
+			evaluator.Env().Set(names[0], val)
+		}
+
+		// Process each declared name
+		for _, declName := range names {
+			// Get the actual value for this binding
+			var bindingVal eval.Value
+			if len(names) == 1 {
+				bindingVal = val
+			} else {
+				// For LetRec, get the value from the evaluator's environment
+				var found bool
+				bindingVal, found = evaluator.Env().Get(declName)
+				if !found {
+					return nil, fmt.Errorf("binding %s not found after evaluation", declName)
+				}
 			}
 
-			// Store in evaluator's environment for subsequent declarations
-			evaluator.Env().Set(letDecl.Name, val)
+			// Determine if this should be exported:
+			// - If module has explicit exports, only export those marked with IsExport
+			// - If no explicit exports, export all top-level bindings (REPL/backwards compat)
+			meta := coreProg.Meta[declName]
+			shouldExport := false
+			if hasExplicitExports {
+				shouldExport = meta != nil && meta.IsExport
+			} else {
+				// No explicit exports - export everything
+				shouldExport = true
+			}
 
-			// All top-level declarations are exported for now
-			// TODO: Support explicit export syntax when parser supports it
-			exports[letDecl.Name] = &Export{
-				Name:   letDecl.Name,
-				Value:  val,
-				Scheme: declTypes[letDecl.Name],
+			if shouldExport {
+				exports[declName] = &Export{
+					Name:   declName,
+					Value:  bindingVal,
+					Scheme: declTypes[declName],
+				}
 			}
 		}
 	}

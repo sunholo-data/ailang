@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [v0.7.1.2] - 2026-01-30
+
+### Fixed
+- **WASM ailangLoadModule exports**: Fixed bug where `ailangLoadModule` returned empty exports array
+  - Root cause: `LoadModule` called `Elaborate()` which returns empty `Meta` map
+  - Fix: Call `ElaborateFile()` for modules with `module` declaration to populate `Meta` with `IsExport` flags
+  - Now correctly respects `export` keyword: `export pure func` is exported, plain `pure func` is not
+  - Backwards compatible: Modules without explicit exports still export all bindings
+  - Files: `internal/repl/module_registry.go`
+  - Tests: Added `TestLoadModuleWithExportPureFunc`, `TestLoadModuleExplicitExportFiltering`
+
 ## [v0.7.1.1] - 2026-01-30
 
 ### Added - WASM Module Calling API

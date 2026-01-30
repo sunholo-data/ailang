@@ -348,6 +348,66 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 }
 
+func TestLoadModuleWithExportPureFunc(t *testing.T) {
+	reg := NewModuleRegistry()
+
+	// Module with explicit export declaration
+	code := `module test_export
+export pure func double(x: int) -> int = x * 2`
+
+	exports, err := reg.LoadModule("test_export", code)
+	if err != nil {
+		t.Fatalf("LoadModule failed: %v", err)
+	}
+
+	if len(exports) != 1 {
+		t.Errorf("expected 1 export, got %d: %v", len(exports), exports)
+	}
+
+	found := false
+	for _, name := range exports {
+		if name == "double" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'double' in exports, got %v", exports)
+	}
+}
+
+func TestLoadModuleExplicitExportFiltering(t *testing.T) {
+	reg := NewModuleRegistry()
+
+	// Module with one exported function and one private function
+	code := `module test_filter
+export pure func public_func(x: int) -> int = x * 2
+pure func private_func(x: int) -> int = x * 3`
+
+	exports, err := reg.LoadModule("test_filter", code)
+	if err != nil {
+		t.Fatalf("LoadModule failed: %v", err)
+	}
+
+	// Only the exported function should be in exports
+	if len(exports) != 1 {
+		t.Errorf("expected 1 export (only public_func), got %d: %v", len(exports), exports)
+	}
+
+	// Verify public_func is exported
+	exportSet := make(map[string]bool)
+	for _, name := range exports {
+		exportSet[name] = true
+	}
+
+	if !exportSet["public_func"] {
+		t.Error("public_func should be exported")
+	}
+	if exportSet["private_func"] {
+		t.Error("private_func should NOT be exported")
+	}
+}
+
 func TestREPLImportFromRegistry(t *testing.T) {
 	// Create a REPL with a registry
 	r := New()
