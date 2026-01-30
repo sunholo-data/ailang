@@ -1,7 +1,7 @@
 {
   "schema": "ailang.manifest/v1",
   "schema_version": "1.0.0",
-  "generated_at": "2026-01-29T21:31:54Z",
+  "generated_at": "2026-01-02T17:57:08Z",
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
@@ -127,7 +127,7 @@
         "tests",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
       "requires": [
         "func",
         "tests",
@@ -155,7 +155,7 @@
         "concurrency",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
       "requires": [
         "channels",
         "spawn",
@@ -173,7 +173,7 @@
         "effects",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
       "requires": [
         "quasiquotes",
         "http-effects",
@@ -190,7 +190,7 @@
         "introspection",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
+      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
       "requires": [
         "effects",
         "introspection",
@@ -1099,10 +1099,7 @@
         "m-verify-contracts"
       ],
       "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
-      "run_flags": [
-        "--verify-contracts",
-        "--experimental-binop-shim"
-      ]
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
     },
     {
       "path": "runnable/contracts/park.ail",
@@ -1114,29 +1111,12 @@
         "m-verify-contracts"
       ],
       "description": "Contract verification: theme park admission example with age/height constraints",
-      "run_flags": [
-        "--verify-contracts",
-        "--experimental-binop-shim"
-      ]
-    },
-    {
-      "path": "hello_world.ail",
-      "status": "working",
-      "tags": [
-        "basic",
-        "io",
-        "classic"
-      ],
-      "description": "Classic Hello, World! program",
-      "expected": {
-        "stdout": "Hello, World!\n",
-        "exit_code": 0
-      }
+      "run_flags": ["--verify-contracts", "--experimental-binop-shim"]
     }
   ],
   "statistics": {
-    "total": 115,
-    "working": 108,
+    "total": 114,
+    "working": 107,
     "aspirational": 4,
     "broken": 3,
     "coverage": 0.938

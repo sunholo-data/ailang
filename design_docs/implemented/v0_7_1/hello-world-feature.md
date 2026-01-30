@@ -1,6 +1,6 @@
 # Hello World Feature
 
-**Status:** Planned
+**Status:** Implemented
 **Target:** v0.7.1
 **Priority:** P2 (Low)
 **Estimated:** 1 hour

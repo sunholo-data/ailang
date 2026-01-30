@@ -1,0 +1,8 @@
+-- hello_world.ail - Classic Hello World program
+module examples/hello_world
+
+import std/io (println)
+
+-- Main entry point that prints Hello, World!
+export func main() -> () ! {IO} =
+  println("Hello, World!")
