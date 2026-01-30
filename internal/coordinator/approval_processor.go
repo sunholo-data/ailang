@@ -145,7 +145,7 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 				))
 
 				// Add approved label
-				if err := params.GitHubPoster.AddLabel(task.GithubIssue, approval.ApprovedLabel); err != nil {
+				if err := params.GitHubPoster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.ApprovedLabel); err != nil {
 					span.AddEvent("warning: failed to add approved label", trace.WithAttributes(
 						attribute.String("error", err.Error()),
 					))
@@ -153,7 +153,7 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 
 				// Remove needs-approval label
 				if approval.NeedsLabel != "" {
-					if err := params.GitHubPoster.RemoveLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+					if err := params.GitHubPoster.RemoveLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 						span.AddEvent("warning: failed to remove needs label", trace.WithAttributes(
 							attribute.String("error", err.Error()),
 						))
@@ -171,7 +171,7 @@ func processApproval(ctx context.Context, span trace.Span, params *ApprovalParam
 				comment = fmt.Sprintf("**Approval Complete** - Work by %s approved.", agent.Label)
 			}
 
-			if err := params.GitHubPoster.PostComment(task.GithubIssue, comment); err != nil {
+			if err := params.GitHubPoster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 				span.AddEvent("warning: failed to post approval comment", trace.WithAttributes(
 					attribute.String("error", err.Error()),
 				))
@@ -340,7 +340,7 @@ func processRejection(ctx context.Context, span trace.Span, params *ApprovalPara
 		if iteration < 1 {
 			iteration = 1
 		}
-		if err := params.GitHubPoster.PostFeedback(task.GithubIssue, feedback, iteration, params.Channel); err != nil {
+		if err := params.GitHubPoster.PostFeedbackInRepo(task.GithubRepo, task.GithubIssue, feedback, iteration, params.Channel); err != nil {
 			span.AddEvent("warning: failed to post to GitHub", trace.WithAttributes(
 				attribute.String("error", err.Error()),
 			))

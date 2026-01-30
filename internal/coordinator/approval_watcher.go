@@ -454,8 +454,15 @@ func (w *ApprovalWatcher) handleEvent(ctx context.Context, event *ApprovalEvent)
 		return
 	}
 
+	// Get the task to access GithubRepo
+	task, err := w.store.GetTask(ctx, event.TaskID)
+	if err != nil {
+		log.Printf("[ApprovalWatcher] Failed to get task %s: %v", event.TaskID, err)
+		return
+	}
+
 	// Remove the approval label after processing (to prevent re-triggering)
-	if err := w.poster.RemoveLabel(event.IssueNumber, event.Label); err != nil {
+	if err := w.poster.RemoveLabelInRepo(task.GithubRepo, event.IssueNumber, event.Label); err != nil {
 		log.Printf("[ApprovalWatcher] Failed to remove label %s from issue #%d: %v",
 			event.Label, event.IssueNumber, err)
 	}
@@ -471,7 +478,7 @@ func (w *ApprovalWatcher) handleEvent(ctx context.Context, event *ApprovalEvent)
 	}
 	w.mu.Unlock()
 	if needsLabel != "" {
-		_ = w.poster.RemoveLabel(event.IssueNumber, needsLabel)
+		_ = w.poster.RemoveLabelInRepo(task.GithubRepo, event.IssueNumber, needsLabel)
 	}
 }
 

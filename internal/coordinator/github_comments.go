@@ -137,7 +137,15 @@ func ExtractFeedbackFromComments(comments []IssueComment) string {
 // PostFeedback posts a feedback comment to a GitHub issue.
 // Includes iteration context for tracking.
 // Returns error if issueNum is invalid, iteration is out of bounds, or channel is empty.
+// Deprecated: Use PostFeedbackInRepo with an explicit repo parameter.
 func (p *GitHubPoster) PostFeedback(issueNum int, feedback string, iteration int, channel string) error {
+	return p.PostFeedbackInRepo("", issueNum, feedback, iteration, channel)
+}
+
+// PostFeedbackInRepo posts a feedback comment to a GitHub issue in a specific repo.
+// If repo is empty, falls back to the default repo.
+// Returns error if issueNum is invalid, iteration is out of bounds, or channel is empty.
+func (p *GitHubPoster) PostFeedbackInRepo(repo string, issueNum int, feedback string, iteration int, channel string) error {
 	// Validate inputs
 	if issueNum <= 0 {
 		return fmt.Errorf("issue number must be positive, got %d", issueNum)
@@ -152,7 +160,7 @@ func (p *GitHubPoster) PostFeedback(issueNum int, feedback string, iteration int
 	body := fmt.Sprintf("**Human Feedback**\n\n%s\n\n---\n_Source: %s | Iteration: %d/3_",
 		feedback, channel, iteration)
 
-	if err := p.PostComment(issueNum, body); err != nil {
+	if err := p.PostCommentInRepo(repo, issueNum, body); err != nil {
 		return fmt.Errorf("failed to post feedback: %w", err)
 	}
 	return nil

@@ -54,21 +54,28 @@ func (tc *TaskChain) SetMessageStore(msgStore *messaging.Store) {
 // StartTask initializes a new GitHub-linked task at the design stage.
 // It first claims the issue to prevent race conditions with other coordinator instances.
 func (tc *TaskChain) StartTask(ctx context.Context, taskID string, issueNum int) error {
+	// Get the task to access the GithubRepo field
+	task, err := tc.store.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+	githubRepo := task.GithubRepo
+
 	// Claim the issue first to prevent race conditions
 	// If another coordinator already claimed it, we skip this task
 	if tc.poster != nil {
-		if err := tc.poster.ClaimIssue(issueNum); err != nil {
+		if err := tc.poster.ClaimIssueInRepo(githubRepo, issueNum); err != nil {
 			log.Printf("[TaskChain] Issue #%d already claimed or claim failed: %v", issueNum, err)
 			return fmt.Errorf("failed to claim issue #%d: %w", issueNum, err)
 		}
-		log.Printf("[TaskChain] Claimed issue #%d for task %s", issueNum, taskID)
+		log.Printf("[TaskChain] Claimed issue #%d for task %s in repo %s", issueNum, taskID, githubRepo)
 	}
 
 	// Link task to GitHub issue
 	if err := tc.store.SetTaskGithubIssue(ctx, taskID, issueNum); err != nil {
 		// Release claim on failure
 		if tc.poster != nil {
-			_ = tc.poster.ReleaseIssue(issueNum)
+			_ = tc.poster.ReleaseIssueInRepo(githubRepo, issueNum)
 		}
 		return fmt.Errorf("failed to link task to issue: %w", err)
 	}
@@ -77,7 +84,7 @@ func (tc *TaskChain) StartTask(ctx context.Context, taskID string, issueNum int)
 	if err := tc.store.SetTaskStage(ctx, taskID, TaskStageDesign); err != nil {
 		// Release claim on failure
 		if tc.poster != nil {
-			_ = tc.poster.ReleaseIssue(issueNum)
+			_ = tc.poster.ReleaseIssueInRepo(githubRepo, issueNum)
 		}
 		return fmt.Errorf("failed to set task stage: %w", err)
 	}
@@ -92,7 +99,7 @@ func (tc *TaskChain) StartTask(ctx context.Context, taskID string, issueNum int)
 	if err != nil {
 		log.Printf("[TaskChain] Failed to render working comment: %v", err)
 	} else if tc.poster != nil {
-		if err := tc.poster.PostComment(issueNum, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(githubRepo, issueNum, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post working comment: %v", err)
 		}
 	}
@@ -144,7 +151,7 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 					"Review changes in the dashboard diff viewer.",
 				taskID, result.Duration, len(result.AllArtifacts), fileList,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, infoComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, infoComment); err != nil {
 				log.Printf("[TaskChain] Failed to post files comment: %v", err)
 			}
 		}
@@ -164,7 +171,7 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 					"Check the agent output for details.",
 				taskID, result.Duration,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, failureComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, failureComment); err != nil {
 				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
 			}
 		}
@@ -202,14 +209,14 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 
 	if tc.poster != nil {
 		// Post the comment
-		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 			return fmt.Errorf("failed to post comment: %w", err)
 		}
 
 		// Add the needs-approval label (config-driven)
 		approval := DefaultApprovalConfig("design-doc-creator")
 		if approval != nil && approval.NeedsLabel != "" {
-			if err := tc.poster.AddLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+			if err := tc.poster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 				log.Printf("[TaskChain] Failed to add label: %v", err)
 			}
 		}
@@ -223,6 +230,12 @@ func (tc *TaskChain) OnDesignDocComplete(ctx context.Context, taskID string, res
 func (tc *TaskChain) OnDesignApproved(ctx context.Context, event *ApprovalEvent) error {
 	log.Printf("[TaskChain] Design approved for task %s (issue #%d)", event.TaskID, event.IssueNumber)
 
+	// Get the task to access GithubRepo
+	task, err := tc.store.GetTask(ctx, event.TaskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
 	// Update stage to sprint planning
 	if err := tc.store.SetTaskStage(ctx, event.TaskID, TaskStageSprint); err != nil {
 		return fmt.Errorf("failed to update stage: %w", err)
@@ -233,7 +246,7 @@ func (tc *TaskChain) OnDesignApproved(ctx context.Context, event *ApprovalEvent)
 	if err != nil {
 		log.Printf("[TaskChain] Failed to render working comment: %v", err)
 	} else if tc.poster != nil {
-		if err := tc.poster.PostComment(event.IssueNumber, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, event.IssueNumber, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post working comment: %v", err)
 		}
 	}
@@ -292,7 +305,7 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 					"Review changes in the dashboard diff viewer.",
 				taskID, result.Duration, len(result.AllArtifacts), fileList,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, infoComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, infoComment); err != nil {
 				log.Printf("[TaskChain] Failed to post files comment: %v", err)
 			}
 		}
@@ -312,7 +325,7 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 					"Check the agent output for details.",
 				taskID, result.Duration,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, failureComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, failureComment); err != nil {
 				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
 			}
 		}
@@ -350,14 +363,14 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 
 	if tc.poster != nil {
 		// Post the comment
-		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 			return fmt.Errorf("failed to post comment: %w", err)
 		}
 
 		// Add the needs-approval label (config-driven)
 		approval := DefaultApprovalConfig("sprint-planner")
 		if approval != nil && approval.NeedsLabel != "" {
-			if err := tc.poster.AddLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+			if err := tc.poster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 				log.Printf("[TaskChain] Failed to add label: %v", err)
 			}
 		}
@@ -371,6 +384,12 @@ func (tc *TaskChain) OnSprintPlanComplete(ctx context.Context, taskID string, re
 func (tc *TaskChain) OnSprintApproved(ctx context.Context, event *ApprovalEvent) error {
 	log.Printf("[TaskChain] Sprint approved for task %s (issue #%d)", event.TaskID, event.IssueNumber)
 
+	// Get the task to access GithubRepo
+	task, err := tc.store.GetTask(ctx, event.TaskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
 	// Update stage to implementation
 	if err := tc.store.SetTaskStage(ctx, event.TaskID, TaskStageImplementation); err != nil {
 		return fmt.Errorf("failed to update stage: %w", err)
@@ -381,7 +400,7 @@ func (tc *TaskChain) OnSprintApproved(ctx context.Context, event *ApprovalEvent)
 	if err != nil {
 		log.Printf("[TaskChain] Failed to render working comment: %v", err)
 	} else if tc.poster != nil {
-		if err := tc.poster.PostComment(event.IssueNumber, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, event.IssueNumber, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post working comment: %v", err)
 		}
 	}
@@ -403,6 +422,12 @@ func (tc *TaskChain) OnAgentApproved(ctx context.Context, event *ApprovalEvent, 
 	log.Printf("[TaskChain] Agent %s work approved for task %s (issue #%d)",
 		agentID, event.TaskID, event.IssueNumber)
 
+	// Get the task to access GithubRepo
+	task, err := tc.store.GetTask(ctx, event.TaskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
 	if tc.registry == nil {
 		return fmt.Errorf("agent registry not available")
 	}
@@ -423,7 +448,7 @@ func (tc *TaskChain) OnAgentApproved(ctx context.Context, event *ApprovalEvent, 
 	comment := fmt.Sprintf("**Approval Complete** - Work by %s approved.\n\n"+
 		"Triggering next stage: %s", agent.Label, nextAgents)
 	if tc.poster != nil {
-		if err := tc.poster.PostComment(event.IssueNumber, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, event.IssueNumber, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post approval comment: %v", err)
 		}
 	}
@@ -516,14 +541,14 @@ func (tc *TaskChain) OnImplementationComplete(ctx context.Context, taskID string
 
 	if tc.poster != nil {
 		// Post the comment
-		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 			return fmt.Errorf("failed to post comment: %w", err)
 		}
 
 		// Add the needs-approval label (config-driven)
 		approval := DefaultApprovalConfig("sprint-executor")
 		if approval != nil && approval.NeedsLabel != "" {
-			if err := tc.poster.AddLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+			if err := tc.poster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 				log.Printf("[TaskChain] Failed to add label: %v", err)
 			}
 		}
@@ -570,12 +595,12 @@ func (tc *TaskChain) OnMergeApproved(ctx context.Context, event *ApprovalEvent) 
 
 	if tc.poster != nil {
 		// Close the issue with the comment
-		if err := tc.poster.CloseIssue(event.IssueNumber, comment); err != nil {
+		if err := tc.poster.CloseIssueInRepo(task.GithubRepo, event.IssueNumber, comment); err != nil {
 			return fmt.Errorf("failed to close issue: %w", err)
 		}
 
 		// Release the claim label since task is complete
-		if err := tc.poster.ReleaseIssue(event.IssueNumber); err != nil {
+		if err := tc.poster.ReleaseIssueInRepo(task.GithubRepo, event.IssueNumber); err != nil {
 			log.Printf("[TaskChain] Warning: Failed to release issue claim: %v", err)
 		}
 	}
@@ -599,7 +624,7 @@ func (tc *TaskChain) OnNeedsRevision(ctx context.Context, event *ApprovalEvent) 
 	if err != nil {
 		log.Printf("[TaskChain] Failed to render revision comment: %v", err)
 	} else if tc.poster != nil {
-		if err := tc.poster.PostComment(event.IssueNumber, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, event.IssueNumber, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post revision comment: %v", err)
 		}
 	}
@@ -625,14 +650,14 @@ func (tc *TaskChain) OnError(ctx context.Context, taskID string, errMsg string) 
 	if err != nil {
 		log.Printf("[TaskChain] Failed to render error comment: %v", err)
 	} else if tc.poster != nil {
-		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 			log.Printf("[TaskChain] Failed to post error comment: %v", err)
 		}
 	}
 
 	// Release the claim label so the issue can be retried
 	if tc.poster != nil {
-		if err := tc.poster.ReleaseIssue(task.GithubIssue); err != nil {
+		if err := tc.poster.ReleaseIssueInRepo(task.GithubRepo, task.GithubIssue); err != nil {
 			log.Printf("[TaskChain] Warning: Failed to release issue claim: %v", err)
 		}
 	}
@@ -773,7 +798,7 @@ func (tc *TaskChain) OnAgentComplete(ctx context.Context, taskID, agentID string
 					"Review changes in the dashboard diff viewer.",
 				taskID, agentID, result.Duration, len(result.AllArtifacts), fileList,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, infoComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, infoComment); err != nil {
 				log.Printf("[TaskChain] Failed to post files comment: %v", err)
 			}
 		}
@@ -793,7 +818,7 @@ func (tc *TaskChain) OnAgentComplete(ctx context.Context, taskID, agentID string
 					"Check the agent output for details.",
 				taskID, agentID, result.Duration,
 			)
-			if err := tc.poster.PostComment(task.GithubIssue, failureComment); err != nil {
+			if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, failureComment); err != nil {
 				log.Printf("[TaskChain] Failed to post failure comment: %v", err)
 			}
 		}
@@ -820,13 +845,13 @@ func (tc *TaskChain) OnAgentComplete(ctx context.Context, taskID, agentID string
 
 	if tc.poster != nil {
 		// Post the comment
-		if err := tc.poster.PostComment(task.GithubIssue, comment); err != nil {
+		if err := tc.poster.PostCommentInRepo(task.GithubRepo, task.GithubIssue, comment); err != nil {
 			return fmt.Errorf("failed to post comment: %w", err)
 		}
 
 		// Add the needs-approval label from config
 		if approval.NeedsLabel != "" {
-			if err := tc.poster.AddLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+			if err := tc.poster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 				log.Printf("[TaskChain] Failed to add label %s: %v", approval.NeedsLabel, err)
 			}
 		}

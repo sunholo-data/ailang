@@ -282,11 +282,11 @@ func (d *Daemon) HandleApproval(ctx context.Context, taskID, approvedBy string) 
 
 				// Add approved label and remove needs-approval label via config
 				if d.taskChain.poster != nil {
-					if err := d.taskChain.poster.AddLabel(task.GithubIssue, approval.ApprovedLabel); err != nil {
+					if err := d.taskChain.poster.AddLabelInRepo(task.GithubRepo, task.GithubIssue, approval.ApprovedLabel); err != nil {
 						d.logger.Printf("Warning: Failed to add %s label: %v", approval.ApprovedLabel, err)
 					}
 					if approval.NeedsLabel != "" {
-						if err := d.taskChain.poster.RemoveLabel(task.GithubIssue, approval.NeedsLabel); err != nil {
+						if err := d.taskChain.poster.RemoveLabelInRepo(task.GithubRepo, task.GithubIssue, approval.NeedsLabel); err != nil {
 							d.logger.Printf("Warning: Failed to remove %s label: %v", approval.NeedsLabel, err)
 						}
 					}
@@ -512,7 +512,7 @@ func (d *Daemon) HandleRejection(ctx context.Context, taskID, rejectedBy, reason
 		}
 		// Determine channel - default to "dashboard" for dashboard-initiated rejections
 		channel := "dashboard"
-		if err := d.githubPoster.PostFeedback(task.GithubIssue, reason, iteration, channel); err != nil {
+		if err := d.githubPoster.PostFeedbackInRepo(task.GithubRepo, task.GithubIssue, reason, iteration, channel); err != nil {
 			d.logger.Printf("Warning: Failed to post feedback to GitHub issue #%d: %v", task.GithubIssue, err)
 		} else {
 			d.logger.Printf("Posted rejection feedback to GitHub issue #%d (iteration %d)", task.GithubIssue, iteration)
