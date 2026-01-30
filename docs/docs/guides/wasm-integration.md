@@ -213,7 +213,7 @@ const version = repl.getVersion();
 
 **Returns:** Version string or `null`
 
-### Module Loading API (v0.7.2+)
+### Module Loading API (v0.7.1+)
 
 The WASM REPL supports loading complete AILANG modules, enabling complex browser-based demos with multiple function definitions.
 
@@ -259,7 +259,32 @@ let add = \\x. \\y. x + y
 ```
 :::
 
-##### `listModules()`
+:::info Export Behavior (v0.7.1.2+)
+Modules can use explicit exports or export all bindings:
+
+**Explicit exports** (recommended for libraries):
+```javascript
+// Only public_func is exported, private_func is hidden
+repl.loadModule('mylib', `
+module mylib
+export pure func public_func(x: int) -> int = x * 2
+pure func private_func(x: int) -> int = x * 3
+`);
+// result.exports: ["public_func"]
+```
+
+**Implicit exports** (for REPL-style code):
+```javascript
+// All top-level bindings are exported
+repl.loadModule('utils', `
+let double: Int -> Int = \\x. x * 2
+let triple: Int -> Int = \\x. x * 3
+`);
+// result.exports: ["double", "triple"]
+```
+:::
+
+##### `listModules()` (v0.7.1+)
 
 List all loaded modules.
 
@@ -270,7 +295,7 @@ const modules = repl.listModules();
 
 **Returns:** Array of module names
 
-##### `importModule(moduleName)`
+##### `importModule(moduleName)` (v0.7.1+)
 
 Import a module's exports into the REPL environment.
 
@@ -287,9 +312,9 @@ repl.importModule('math');
 ##### `call(moduleName, funcName, ...args)`
 
 Call a function from a loaded module. This is a convenience method that:
-1. Imports the module if not already imported
-2. Converts JavaScript arguments to AILANG syntax
-3. Evaluates the function call
+1. Looks up the function from the module registry
+2. Converts JavaScript arguments to AILANG values
+3. Invokes the function directly (no eval)
 
 ```javascript
 // Load a module
@@ -300,18 +325,25 @@ let greet = \\name. "Hello, " <> name
 
 // Call functions
 const sum = repl.call('math', 'add', 2, 3);
-// Returns: "5 :: Int"
+if (sum.success) {
+  console.log(sum.result); // "5 :: Int"
+}
 
 const greeting = repl.call('math', 'greet', 'World');
-// Returns: "\"Hello, World\" :: String"
+if (greeting.success) {
+  console.log(greeting.result); // "\"Hello, World\" :: String"
+}
 ```
 
 **Parameters:**
 - `moduleName` (string): Module containing the function
 - `funcName` (string): Function to call
-- `...args` (any): Arguments (converted to AILANG syntax)
+- `...args` (any): Arguments (converted to AILANG values)
 
-**Returns:** Result string (value and type)
+**Returns:** Object with:
+- `success` (boolean): Whether the call succeeded
+- `result` (string): Result with value and type (on success)
+- `error` (string): Error message (on failure)
 
 **Supported argument types:**
 | JavaScript Type | AILANG Syntax |
@@ -361,12 +393,16 @@ let formatCurrency: Float -> String = \\amount.
 
       // Process an invoice
       const subtotal = repl.call('invoice', 'calculateTotal', 5, 19.99);
-      console.log('Subtotal:', subtotal);
-      // "99.95 :: Float"
+      if (subtotal.success) {
+        console.log('Subtotal:', subtotal.result);
+        // "99.95 :: Float"
+      }
 
       const total = repl.call('invoice', 'applyDiscount', 99.95, 10);
-      console.log('After 10% discount:', total);
-      // "89.955 :: Float"
+      if (total.success) {
+        console.log('After 10% discount:', total.result);
+        // "89.955 :: Float"
+      }
 
       // Or use eval directly after importing
       repl.importModule('invoice');
@@ -400,8 +436,9 @@ The browser version has these limitations compared to the CLI:
 | Type inference | Yes | Yes |
 | Pattern matching | Yes | Yes |
 | Type classes | Yes | Yes |
-| Module loading | Yes | Yes (v0.7.2+) |
-| Standard library | Yes | Yes (v0.7.2+)* |
+| Module loading | Yes | Yes (v0.7.1+) |
+| Standard library | Yes | Yes (v0.7.1+)* |
+| Explicit exports | Yes | Yes (v0.7.1.2+) |
 | File I/O (`FS` effect) | Yes | No |
 | Custom file imports | Yes | No |
 | History persistence | Yes | No |
