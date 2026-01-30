@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [v0.7.1.3] - 2026-01-30
+
+### Fixed
+- **WASM stdlib builtin wrappers**: Fixed bug where stdlib functions failed with "undefined variable" after import
+  - Root cause: TWO issues in `LoadModule`:
+    1. Elaborator not calling `AddBuiltinsToGlobalEnv()` - builtins elaborated as `Var` instead of `VarGlobal`
+    2. Type checker's `globalTypes` not populated with builtin type schemes
+  - Fix: Call `AddBuiltinsToGlobalEnv()` and populate `globalTypes` from `$builtin` interface
+  - Now stdlib modules like `std/string` that wrap builtins (e.g., `_str_len`) work correctly
+  - Files: `internal/repl/module_registry.go`
+  - Test: Added `TestLoadModuleWithBuiltinWrapper`
+
 ## [v0.7.1.2] - 2026-01-30
 
 ### Fixed
