@@ -431,3 +431,33 @@ func TestREPLImportFromRegistry(t *testing.T) {
 		t.Errorf("Expected ['math'], got %v", mods)
 	}
 }
+
+func TestLoadModuleWithBuiltinWrapper(t *testing.T) {
+	// This test verifies that modules can call builtin functions like _str_len.
+	// The elaborator must call AddBuiltinsToGlobalEnv() for this to work,
+	// otherwise builtins are treated as regular variables and fail at runtime.
+	reg := NewModuleRegistry()
+
+	// Load a module that wraps a builtin (similar to std/string)
+	code := `module test_builtins
+export pure func len(s: string) -> int = _str_len(s)`
+
+	exports, err := reg.LoadModule("test_builtins", code)
+	if err != nil {
+		t.Fatalf("LoadModule failed: %v", err)
+	}
+
+	if len(exports) != 1 {
+		t.Errorf("expected 1 export, got %d: %v", len(exports), exports)
+	}
+
+	// Verify the export exists
+	export, err := reg.GetExport("test_builtins", "len")
+	if err != nil {
+		t.Fatalf("GetExport failed: %v", err)
+	}
+
+	if export.Value == nil {
+		t.Error("export value should not be nil")
+	}
+}

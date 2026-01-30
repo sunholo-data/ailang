@@ -60,6 +60,10 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Use ElaborateFile for modules (has module declaration) to get proper Meta map with IsExport flags
 	// Use Elaborate for REPL-style code (bare expressions)
 	elaborator := elaborate.NewElaborator()
+	// CRITICAL: Add builtins to global environment so stdlib wrappers can reference them
+	// Without this, calls like _string_intToStr are elaborated as Var instead of VarGlobal,
+	// causing "undefined variable" errors when the closure is later executed.
+	elaborator.AddBuiltinsToGlobalEnv()
 	var coreProg *core.Program
 	var err error
 	if program.File != nil && program.File.Module != nil {
@@ -83,6 +87,20 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 
 	// Use NewCoreTypeChecker which sets up Num/Fractional defaults and loads builtin instances
 	typeChecker := types.NewCoreTypeChecker()
+
+	// CRITICAL: Populate globalTypes with builtin type schemes
+	// Without this, VarGlobal references to builtins (e.g., $builtin._str_len)
+	// fail with "undefined global variable" during type checking.
+	// This mirrors the pattern in pipeline_module.go lines 202-214.
+	modLinker := link.NewModuleLinker(nil)
+	link.RegisterBuiltinModule(modLinker)
+	if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
+		for _, item := range builtinIface.Exports {
+			// Add with qualified key (for VarGlobal references like $builtin._str_len)
+			key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
+			typeChecker.SetGlobalType(key, item.Type)
+		}
+	}
 
 	// Type check each declaration and collect types
 	declTypes := make(map[string]*types.Scheme)
