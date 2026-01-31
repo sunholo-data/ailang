@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v0.7.1.4] - 2026-01-31
+
+### Fixed
+- **Release CI**: Re-release of v0.7.1.3 with assets (CI failed due to immutable release conflict)
+  - Same fixes as v0.7.1.3: WASM stdlib builtin wrappers now work correctly
+
 ## [v0.7.1.3] - 2026-01-30
 
 ### Fixed
