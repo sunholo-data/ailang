@@ -19,8 +19,129 @@ import (
 // It enables loading AILANG modules in the browser via ailangLoadModule()
 // and makes their exports available for subsequent ailangEval() calls.
 type ModuleRegistry struct {
-	mu      sync.RWMutex
-	modules map[string]*RegisteredModule
+	mu           sync.RWMutex
+	modules      map[string]*RegisteredModule
+	constructors map[string]*CachedConstructor // Cached constructors from all loaded modules
+}
+
+// CachedConstructor stores constructor info for cross-module import resolution
+type CachedConstructor struct {
+	TypeName       string
+	CtorName       string
+	Arity          int
+	TypeParamCount int
+	TypeParamNames []string
+	FieldTypes     []types.Type
+}
+
+// RegistryResolver resolves global references for module evaluation in WASM.
+// It resolves:
+// 1. Builtin functions ($builtin module or names starting with _)
+// 2. ADT constructor factories ($adt module)
+// 3. Exports from previously loaded modules
+type RegistryResolver struct {
+	registry *ModuleRegistry
+	builtins *runtime.BuiltinRegistry
+}
+
+// NewRegistryResolver creates a resolver that can access the module registry
+func NewRegistryResolver(registry *ModuleRegistry, builtins *runtime.BuiltinRegistry) *RegistryResolver {
+	return &RegistryResolver{
+		registry: registry,
+		builtins: builtins,
+	}
+}
+
+// ResolveValue resolves a global reference to a runtime value
+func (r *RegistryResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
+	// Case 1: Builtin reference
+	if ref.Module == "$builtin" || (len(ref.Name) > 0 && ref.Name[0] == '_') {
+		if val, ok := r.builtins.Get(ref.Name); ok {
+			return val, nil
+		}
+		// Fall through - might be a module function starting with _
+	}
+
+	// Case 2: ADT constructor factory
+	if ref.Module == "$adt" {
+		return r.resolveAdtFactory(ref)
+	}
+
+	// Case 3: Import from another module
+	if ref.Module != "" && ref.Module != "$builtin" && ref.Module != "$adt" {
+		r.registry.mu.RLock()
+		mod, ok := r.registry.modules[ref.Module]
+		r.registry.mu.RUnlock()
+		if ok {
+			if export, exists := mod.Exports[ref.Name]; exists {
+				if export.Value != nil {
+					return export.Value.(eval.Value), nil
+				}
+			}
+		}
+	}
+
+	// Not found
+	return nil, nil
+}
+
+// resolveAdtFactory resolves $adt.make_Type_Ctor constructor factories
+func (r *RegistryResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
+	// Parse "make_Option_Some" → TypeName="Option", CtorName="Some"
+	name := ref.Name
+	if len(name) < 6 || name[:5] != "make_" {
+		return nil, fmt.Errorf("invalid $adt factory name: %s", name)
+	}
+
+	rest := name[5:]
+	underscoreIdx := -1
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == '_' {
+			underscoreIdx = i
+			break
+		}
+	}
+	if underscoreIdx < 0 {
+		return nil, fmt.Errorf("invalid $adt factory format: %s", name)
+	}
+
+	typeName := rest[:underscoreIdx]
+	ctorName := rest[underscoreIdx+1:]
+
+	// Look up constructor in registry cache
+	r.registry.mu.RLock()
+	ctor, ok := r.registry.constructors[ctorName]
+	r.registry.mu.RUnlock()
+
+	if !ok || ctor.TypeName != typeName {
+		return nil, fmt.Errorf("constructor %s.%s not found", typeName, ctorName)
+	}
+
+	// Nullary constructor: return singleton TaggedValue
+	if ctor.Arity == 0 {
+		return &eval.TaggedValue{
+			TypeName: typeName,
+			CtorName: ctorName,
+			Fields:   nil,
+		}, nil
+	}
+
+	// Non-nullary: return factory function
+	expectedArity := ctor.Arity
+	return &eval.BuiltinFunction{
+		Name: ref.Name,
+		Fn: func(args []eval.Value) (eval.Value, error) {
+			if len(args) != expectedArity {
+				return nil, fmt.Errorf("constructor %s.%s expects %d arguments, got %d",
+					typeName, ctorName, expectedArity, len(args))
+			}
+			return &eval.TaggedValue{
+				TypeName: typeName,
+				CtorName: ctorName,
+				Fields:   args,
+			}, nil
+		},
+	}, nil
 }
 
 // RegisteredModule represents a compiled and evaluated AILANG module.
@@ -40,7 +161,8 @@ type Export struct {
 // NewModuleRegistry creates an empty module registry.
 func NewModuleRegistry() *ModuleRegistry {
 	return &ModuleRegistry{
-		modules: make(map[string]*RegisteredModule),
+		modules:      make(map[string]*RegisteredModule),
+		constructors: make(map[string]*CachedConstructor),
 	}
 }
 
@@ -64,6 +186,62 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Without this, calls like _string_intToStr are elaborated as Var instead of VarGlobal,
 	// causing "undefined variable" errors when the closure is later executed.
 	elaborator.AddBuiltinsToGlobalEnv()
+
+	// CRITICAL: Register constructors from previously loaded modules for import resolution
+	// Without this, imports like "import std/option (Option, Some, None)" fail because
+	// the elaborator doesn't know that None/Some are constructors (they become unresolved Var nodes).
+	mr.mu.RLock()
+	for ctorName, ctor := range mr.constructors {
+		elaborator.RegisterConstructorWithFields(
+			ctor.TypeName,
+			ctorName,
+			ctor.Arity,
+			true, // isImported
+			ctor.TypeParamCount,
+			ctor.TypeParamNames,
+			ctor.FieldTypes,
+		)
+	}
+	mr.mu.RUnlock()
+
+	// CRITICAL: Handle module aliases for qualified access (e.g., cache.get)
+	// Without this, "import std/sharedmem as cache" fails when code uses "cache.get(...)"
+	// This mirrors the pattern in pipeline_module.go lines 360-372.
+	globalRefs := make(map[string]core.GlobalRef)
+	if program.File != nil {
+		for _, imp := range program.File.Imports {
+			// Handle module alias (import std/x as cache -> cache.get)
+			if imp.ModuleAlias != "" {
+				mr.mu.RLock()
+				mod, ok := mr.modules[imp.Path]
+				mr.mu.RUnlock()
+				if ok {
+					// Add all exports with qualified names (cache.get, cache.put, etc.)
+					for exportName := range mod.Exports {
+						qualifiedName := fmt.Sprintf("%s.%s", imp.ModuleAlias, exportName)
+						globalRefs[qualifiedName] = core.GlobalRef{
+							Module: imp.Path,
+							Name:   exportName,
+						}
+					}
+				}
+			}
+
+			// CRITICAL: Handle direct symbol imports (import std/option (wrap) -> wrap)
+			// Without this, imported symbols like 'wrap' are elaborated as local Var
+			// instead of VarGlobal, causing "undefined variable" at runtime.
+			for _, symName := range imp.Symbols {
+				globalRefs[symName] = core.GlobalRef{
+					Module: imp.Path,
+					Name:   symName,
+				}
+			}
+		}
+	}
+	if len(globalRefs) > 0 {
+		elaborator.SetGlobalEnv(globalRefs)
+	}
+
 	var coreProg *core.Program
 	var err error
 	if program.File != nil && program.File.Module != nil {
@@ -102,20 +280,189 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		}
 	}
 
+	// CRITICAL: Register global types for module alias exports
+	// Without this, VarGlobal references to aliased imports (e.g., cache.get -> std/sharedmem.get)
+	// fail with "undefined global variable" during type checking.
+	// This pairs with the globalRefs registration above for the elaborator.
+	for _, ref := range globalRefs {
+		key := fmt.Sprintf("%s.%s", ref.Module, ref.Name)
+		mr.mu.RLock()
+		mod, ok := mr.modules[ref.Module]
+		mr.mu.RUnlock()
+		if ok {
+			if export, exists := mod.Exports[ref.Name]; exists && export.Scheme != nil {
+				typeChecker.SetGlobalType(key, export.Scheme)
+			}
+		}
+	}
+
+	// CRITICAL: Register ADT constructor factory types ($adt.make_X_Y)
+	// Without this, VarGlobal references to constructors fail with "undefined global variable".
+	// This mirrors the pattern in pipeline_module.go lines 407-504.
+	elabCtors := elaborator.GetConstructors()
+	ctorTypes := make(map[string]string)
+	adtTypeParams := make(map[string]int)
+
+	// Helper function to build and register $adt factory type for a constructor
+	registerAdtFactory := func(ctorName string, typeName string, arity int, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
+		// Track constructor → ADT type mapping (for pattern matching)
+		ctorTypes[ctorName] = typeName
+		if _, exists := adtTypeParams[typeName]; !exists {
+			adtTypeParams[typeName] = typeParamCount
+		}
+
+		// Build $adt.make_TypeName_CtorName factory type
+		factoryName := fmt.Sprintf("make_%s_%s", typeName, ctorName)
+		factoryKey := fmt.Sprintf("$adt.%s", factoryName)
+
+		// Build type variables for polymorphic constructors
+		var typeVars []string
+		var adtTypeVars []types.Type
+		for i := 0; i < typeParamCount; i++ {
+			varName := fmt.Sprintf("t%d", i)
+			typeVars = append(typeVars, varName)
+			adtTypeVars = append(adtTypeVars, &types.TVar2{Name: varName, Kind: types.Star})
+		}
+
+		// Build map of type param names to type vars
+		typeParamToVar := make(map[string]types.Type)
+		for i, paramName := range typeParamNames {
+			if i < len(adtTypeVars) {
+				typeParamToVar[paramName] = adtTypeVars[i]
+			}
+		}
+
+		// Build parameter types for the factory function
+		var paramTypes []types.Type
+		for i := 0; i < arity; i++ {
+			var fieldType types.Type
+			if i < len(fieldTypes) && fieldTypes[i] != nil {
+				ft := fieldTypes[i]
+				// Check if field type is a type variable that matches a type parameter
+				if tvar, ok := ft.(*types.TVar2); ok {
+					if mappedVar, found := typeParamToVar[tvar.Name]; found {
+						fieldType = mappedVar
+					} else {
+						varName := fmt.Sprintf("a%d", i)
+						typeVars = append(typeVars, varName)
+						fieldType = &types.TVar2{Name: varName, Kind: types.Star}
+					}
+				} else {
+					// Concrete type - use directly
+					fieldType = ft
+				}
+			} else if i < typeParamCount {
+				fieldType = adtTypeVars[i]
+			} else {
+				varName := fmt.Sprintf("a%d", i)
+				typeVars = append(typeVars, varName)
+				fieldType = &types.TVar2{Name: varName, Kind: types.Star}
+			}
+			paramTypes = append(paramTypes, fieldType)
+		}
+
+		// Build result type: TApp(TypeName, [t0, t1, ...]) for polymorphic, TCon for non-polymorphic
+		var resultType types.Type
+		if typeParamCount > 0 {
+			resultType = &types.TApp{
+				Constructor: &types.TCon{Name: typeName},
+				Args:        adtTypeVars,
+			}
+		} else {
+			resultType = &types.TCon{Name: typeName}
+		}
+
+		// Build factory function type
+		var factoryType types.Type
+		if arity == 0 {
+			factoryType = resultType
+		} else {
+			factoryType = &types.TFunc2{
+				Params:    paramTypes,
+				EffectRow: nil, // Constructors are pure
+				Return:    resultType,
+			}
+		}
+
+		// Register with type checker
+		typeChecker.SetGlobalType(factoryKey, &types.Scheme{
+			TypeVars: typeVars,
+			Type:     factoryType,
+		})
+	}
+
+	// Register $adt factory types for IMPORTED constructors (from previously loaded modules)
+	mr.mu.RLock()
+	for ctorName, ctor := range mr.constructors {
+		registerAdtFactory(ctorName, ctor.TypeName, ctor.Arity, ctor.TypeParamCount, ctor.TypeParamNames, ctor.FieldTypes)
+	}
+	mr.mu.RUnlock()
+
+	// Register $adt factory types for LOCAL constructors (from this module)
+	for ctorName, ctorInfo := range elabCtors {
+		registerAdtFactory(ctorName, ctorInfo.TypeName, ctorInfo.Arity, ctorInfo.TypeParamCount, ctorInfo.TypeParamNames, ctorInfo.FieldTypes)
+	}
+
+	// Set constructor types and ADT type params for pattern matching
+	typeChecker.SetConstructorTypes(ctorTypes)
+	typeChecker.SetADTTypeParams(adtTypeParams)
+
+	// CRITICAL: Register type aliases for unification
+	// Without this, record type aliases like "type Invoice = {...}" fail with
+	// "cannot unify type constructor Invoice with *types.TRecordOpen"
+	// This mirrors the pattern in pipeline_module.go lines 558-563.
+	elabAliases := elaborator.GetTypeAliases()
+	for name, target := range elabAliases {
+		typeChecker.RegisterTypeAlias(name, target)
+	}
+
+	// CRITICAL: Add exported function types from previously loaded modules
+	// Without this, function imports like "import std/list (map)" fail because
+	// the type checker doesn't know the type of `map` when type checking std/json.
+	mr.mu.RLock()
+	for _, mod := range mr.modules {
+		for exportName, export := range mod.Exports {
+			if export.Scheme != nil {
+				// Add to type environment for import resolution
+				typeEnv = typeEnv.ExtendScheme(exportName, export.Scheme)
+			}
+		}
+	}
+	mr.mu.RUnlock()
+
 	// Type check each declaration and collect types
+	// Handle both Let and LetRec declarations
 	declTypes := make(map[string]*types.Scheme)
 	for _, decl := range coreProg.Decls {
-		if letDecl, ok := decl.(*core.Let); ok {
-			_, updatedEnv, _, _, err := typeChecker.InferWithConstraints(decl, typeEnv)
-			if err != nil {
-				return nil, fmt.Errorf("type error in %s: %w", letDecl.Name, err)
-			}
-			typeEnv = updatedEnv
+		var declName string
+		var names []string
 
-			// Extract the scheme for this binding
-			if result, err := typeEnv.Lookup(letDecl.Name); err == nil {
+		switch d := decl.(type) {
+		case *core.Let:
+			declName = d.Name
+			names = []string{d.Name}
+		case *core.LetRec:
+			if len(d.Bindings) > 0 {
+				declName = d.Bindings[0].Name
+			}
+			for _, b := range d.Bindings {
+				names = append(names, b.Name)
+			}
+		default:
+			continue
+		}
+
+		_, updatedEnv, _, _, err := typeChecker.InferWithConstraints(decl, typeEnv)
+		if err != nil {
+			return nil, fmt.Errorf("type error in %s: %w", declName, err)
+		}
+		typeEnv = updatedEnv
+
+		// Extract the scheme for each binding
+		for _, name := range names {
+			if result, err := typeEnv.Lookup(name); err == nil {
 				if scheme, ok := result.(*types.Scheme); ok {
-					declTypes[letDecl.Name] = scheme
+					declTypes[name] = scheme
 				}
 			}
 		}
@@ -151,8 +498,10 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Step 7: Evaluate to get values
 	evaluator := eval.NewCoreEvaluator()
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
-	builtinResolver := runtime.NewBuiltinOnlyResolver(builtinRegistry)
-	evaluator.SetGlobalResolver(builtinResolver)
+	// Use RegistryResolver to resolve imports from previously loaded modules
+	// This enables cross-module imports like "import std/json (js, encode)"
+	registryResolver := NewRegistryResolver(mr, builtinRegistry)
+	evaluator.SetGlobalResolver(registryResolver)
 
 	// First, check if there are any explicit exports in the module
 	hasExplicitExports := false
@@ -229,12 +578,23 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		}
 	}
 
-	// Register module
+	// Register module and cache its constructors for future imports
 	mr.mu.Lock()
 	mr.modules[name] = &RegisteredModule{
 		Name:    name,
 		Source:  sourceCode,
 		Exports: exports,
+	}
+	// Cache constructors from this module for future import resolution
+	for ctorName, ctorInfo := range elabCtors {
+		mr.constructors[ctorName] = &CachedConstructor{
+			TypeName:       ctorInfo.TypeName,
+			CtorName:       ctorInfo.CtorName,
+			Arity:          ctorInfo.Arity,
+			TypeParamCount: ctorInfo.TypeParamCount,
+			TypeParamNames: ctorInfo.TypeParamNames,
+			FieldTypes:     ctorInfo.FieldTypes,
+		}
 	}
 	mr.mu.Unlock()
 
@@ -291,6 +651,50 @@ func (mr *ModuleRegistry) CallExport(moduleName, funcName string, args []eval.Va
 	}
 
 	return expr, nil
+}
+
+// InvokeExport calls an exported function directly with the provided arguments.
+// This method bypasses REPL string evaluation and calls the function closure
+// directly, ensuring that captured imports (like decode, encode from std/json)
+// are properly resolved from the function's environment.
+//
+// Returns the result value and any error that occurred during execution.
+func (mr *ModuleRegistry) InvokeExport(moduleName, funcName string, args []eval.Value) (eval.Value, error) {
+	// Get the export
+	export, err := mr.GetExport(moduleName, funcName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the function value
+	fn, ok := export.Value.(*eval.FunctionValue)
+	if !ok {
+		return nil, fmt.Errorf("export %s.%s is not a function (got %T)", moduleName, funcName, export.Value)
+	}
+
+	// Create an evaluator with the RegistryResolver so that any global references
+	// (builtins, imports from other modules) can be resolved during execution
+	evaluator := eval.NewCoreEvaluator()
+	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
+	registryResolver := NewRegistryResolver(mr, builtinRegistry)
+	evaluator.SetGlobalResolver(registryResolver)
+
+	// Apply arguments one at a time (curried function application)
+	var result eval.Value = fn
+	for i, arg := range args {
+		funcVal, isFn := result.(*eval.FunctionValue)
+		if !isFn {
+			return nil, fmt.Errorf("cannot apply argument %d: value is not a function (got %T)", i+1, result)
+		}
+
+		// Apply single argument using the evaluator's CallFunction
+		result, err = evaluator.CallFunction(funcVal, []eval.Value{arg})
+		if err != nil {
+			return nil, fmt.Errorf("error applying argument %d: %w", i+1, err)
+		}
+	}
+
+	return result, nil
 }
 
 // formatArgument converts an eval.Value to its AILANG source representation

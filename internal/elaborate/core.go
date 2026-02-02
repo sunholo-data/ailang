@@ -105,7 +105,10 @@ func (e *Elaborator) SetModuleLoader(ml *loader.ModuleLoader) {
 // AddBuiltinsToGlobalEnv adds all builtin functions to the global environment
 func (e *Elaborator) AddBuiltinsToGlobalEnv() {
 	// Add all registered builtins to global environment
-	for name := range builtins.Registry {
+	// Use AllSpecs() to get the complete set of builtins, not just the limited Registry
+	// This ensures builtins like _string_intToStr, _clock_now, etc. are properly elaborated
+	// as VarGlobal references instead of Var (which would fail at runtime with "undefined variable")
+	for name := range builtins.AllSpecs() {
 		e.globalEnv[name] = core.GlobalRef{
 			Module: "$builtin",
 			Name:   name,

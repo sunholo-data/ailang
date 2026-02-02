@@ -29,12 +29,21 @@ type WasmREPL struct {
 
 // loadEmbeddedStdlib loads all stdlib modules from the embedded filesystem
 // into the module registry. This enables imports like `import std/list` in browser.
+// Uses multi-pass loading to handle dependencies: modules that fail are retried
+// until all succeed or no more progress can be made.
 func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 	// Read all .ail files from embedded std/ directory
 	entries, err := std.FS.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("failed to read embedded stdlib: %w", err)
 	}
+
+	// Collect all module sources
+	type moduleSource struct {
+		name    string
+		content string
+	}
+	var pending []moduleSource
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".ail") {
@@ -44,15 +53,40 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 		// Read file content
 		content, err := std.FS.ReadFile(entry.Name())
 		if err != nil {
-			// Log but continue - some modules might have issues
 			continue
 		}
 
 		// Module name is "std/<filename without .ail>"
 		moduleName := "std/" + strings.TrimSuffix(entry.Name(), ".ail")
+		pending = append(pending, moduleSource{name: moduleName, content: string(content)})
+	}
 
-		// Load module into registry (ignore errors - some may have dependencies)
-		_, _ = registry.LoadModule(moduleName, string(content))
+	// Multi-pass loading: retry failed modules until no progress
+	const maxPasses = 5
+	for pass := 0; pass < maxPasses && len(pending) > 0; pass++ {
+		var stillPending []moduleSource
+
+		for _, mod := range pending {
+			_, err := registry.LoadModule(mod.name, mod.content)
+			if err != nil {
+				// Module failed - might need dependencies loaded first
+				stillPending = append(stillPending, mod)
+			}
+		}
+
+		// Check if we made progress
+		if len(stillPending) == len(pending) {
+			// No progress made - remaining modules have unresolvable issues
+			// Log warning but don't fail
+			if console := js.Global().Get("console"); !console.IsUndefined() {
+				for _, mod := range stillPending {
+					console.Call("warn", "Failed to load stdlib module: "+mod.name)
+				}
+			}
+			break
+		}
+
+		pending = stillPending
 	}
 
 	return nil
@@ -261,8 +295,10 @@ func callExport(this js.Value, args []js.Value) interface{} {
 		ailangArgs = append(ailangArgs, ailangVal)
 	}
 
-	// Build call expression (validates export exists)
-	callExpr, err := replInstance.GetRegistry().CallExport(moduleName, funcName, ailangArgs)
+	// Call the function directly using InvokeExport
+	// This bypasses REPL string evaluation and properly uses the function's
+	// captured environment, ensuring imports (decode, encode, etc.) are available
+	result, err := replInstance.GetRegistry().InvokeExport(moduleName, funcName, ailangArgs)
 	if err != nil {
 		return map[string]interface{}{
 			"success": false,
@@ -270,29 +306,57 @@ func callExport(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Import the module first so the function is in scope
-	importResult := replInstance.HandleCommand(fmt.Sprintf(":import %s", moduleName))
-	if strings.Contains(importResult, "Error") || strings.Contains(importResult, "error") {
-		return map[string]interface{}{
-			"success": false,
-			"error":   "failed to import module: " + importResult,
-		}
-	}
-
-	// Evaluate the call expression
-	result := replInstance.Eval(callExpr)
-
-	// Check for errors in result
-	if strings.HasPrefix(result, "Error:") || strings.HasPrefix(result, "error:") {
-		return map[string]interface{}{
-			"success": false,
-			"error":   result,
-		}
-	}
+	// Format the result as a string
+	resultStr := formatValue(result)
 
 	return map[string]interface{}{
 		"success": true,
-		"result":  result,
+		"result":  resultStr,
+	}
+}
+
+// formatValue converts an eval.Value to a string representation for JavaScript
+func formatValue(v eval.Value) string {
+	if v == nil {
+		return "null"
+	}
+	switch val := v.(type) {
+	case *eval.IntValue:
+		return fmt.Sprintf("%d", val.Value)
+	case *eval.FloatValue:
+		return fmt.Sprintf("%g", val.Value)
+	case *eval.StringValue:
+		return val.Value // Return raw string, not quoted
+	case *eval.BoolValue:
+		if val.Value {
+			return "true"
+		}
+		return "false"
+	case *eval.ListValue:
+		var parts []string
+		for _, elem := range val.Elements {
+			parts = append(parts, formatValue(elem))
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
+	case *eval.RecordValue:
+		var parts []string
+		for k, v := range val.Fields {
+			parts = append(parts, fmt.Sprintf("%s: %s", k, formatValue(v)))
+		}
+		return "{" + strings.Join(parts, ", ") + "}"
+	case *eval.TaggedValue:
+		if len(val.Fields) == 0 {
+			return val.CtorName
+		}
+		var parts []string
+		for _, f := range val.Fields {
+			parts = append(parts, formatValue(f))
+		}
+		return val.CtorName + "(" + strings.Join(parts, ", ") + ")"
+	case *eval.UnitValue:
+		return "()"
+	default:
+		return fmt.Sprintf("%v", v)
 	}
 }
 
