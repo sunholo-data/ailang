@@ -54,9 +54,15 @@ func NewRegistryResolver(registry *ModuleRegistry, builtins *runtime.BuiltinRegi
 
 // ResolveValue resolves a global reference to a runtime value
 func (r *RegistryResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
+	// Debug: Enable to trace resolutions
+	debug := false // Set to true for debugging
+
 	// Case 1: Builtin reference
 	if ref.Module == "$builtin" || (len(ref.Name) > 0 && ref.Name[0] == '_') {
 		if val, ok := r.builtins.Get(ref.Name); ok {
+			if debug {
+				fmt.Printf("RegistryResolver: %s.%s -> builtin %T\n", ref.Module, ref.Name, val)
+			}
 			return val, nil
 		}
 		// Fall through - might be a module function starting with _
@@ -75,13 +81,22 @@ func (r *RegistryResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) 
 		if ok {
 			if export, exists := mod.Exports[ref.Name]; exists {
 				if export.Value != nil {
+					if debug {
+						fmt.Printf("RegistryResolver: %s.%s -> export %T\n", ref.Module, ref.Name, export.Value)
+					}
 					return export.Value.(eval.Value), nil
 				}
 			}
 		}
+		if debug {
+			fmt.Printf("RegistryResolver: %s.%s -> NOT FOUND (module loaded: %v)\n", ref.Module, ref.Name, ok)
+		}
 	}
 
 	// Not found
+	if debug {
+		fmt.Printf("RegistryResolver: %s.%s -> nil (no match)\n", ref.Module, ref.Name)
+	}
 	return nil, nil
 }
 
@@ -238,8 +253,11 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 			}
 		}
 	}
+	// CRITICAL: Merge globalRefs INTO the existing globalEnv (which contains builtins)
+	// DO NOT call SetGlobalEnv() as it REPLACES the map, losing builtins added by AddBuiltinsToGlobalEnv()
+	// Instead, use MergeGlobalEnv() which adds to the existing map
 	if len(globalRefs) > 0 {
-		elaborator.SetGlobalEnv(globalRefs)
+		elaborator.MergeGlobalEnv(globalRefs)
 	}
 
 	var coreProg *core.Program
@@ -536,8 +554,8 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		}
 
 		// For Let nodes, store the value directly in the environment
-		// For LetRec nodes, the evaluator handles environment binding internally
-		if len(names) == 1 {
+		// Note: LetRec bindings are now propagated to parent env in evalCoreLetRec (Phase 2.5)
+		if _, ok := coreProg.Decls[i].(*core.Let); ok && len(names) == 1 {
 			evaluator.Env().Set(names[0], val)
 		}
 
@@ -545,10 +563,13 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		for _, declName := range names {
 			// Get the actual value for this binding
 			var bindingVal eval.Value
-			if len(names) == 1 {
+
+			// For Let with single binding, use the direct evaluation result
+			// For LetRec (any size), get from environment (set by Phase 2.5 in evalCoreLetRec)
+			if _, ok := coreProg.Decls[i].(*core.Let); ok && len(names) == 1 {
 				bindingVal = val
 			} else {
-				// For LetRec, get the value from the evaluator's environment
+				// LetRec: get the value from the evaluator's environment
 				var found bool
 				bindingVal, found = evaluator.Env().Get(declName)
 				if !found {

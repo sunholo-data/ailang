@@ -93,8 +93,19 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 }
 
 // SetGlobalEnv sets the global environment for import resolution
+// WARNING: This REPLACES the entire globalEnv map. If you've already called
+// AddBuiltinsToGlobalEnv(), use MergeGlobalEnv() instead to avoid losing builtins.
 func (e *Elaborator) SetGlobalEnv(env map[string]core.GlobalRef) {
 	e.globalEnv = env
+}
+
+// MergeGlobalEnv adds entries to the existing global environment
+// Use this after AddBuiltinsToGlobalEnv() to preserve builtin references
+// while adding import aliases and direct symbol imports.
+func (e *Elaborator) MergeGlobalEnv(env map[string]core.GlobalRef) {
+	for name, ref := range env {
+		e.globalEnv[name] = ref
+	}
 }
 
 // SetModuleLoader sets the module loader for import resolution

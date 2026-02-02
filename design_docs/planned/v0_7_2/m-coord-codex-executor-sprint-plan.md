@@ -1,0 +1,99 @@
+# Sprint Plan: M-COORD-CODEX (Codex Executor for Coordinator + Evals)
+
+## Summary
+Enable OpenAI Codex as a first-class executor across coordinator and eval harness, with normalized metrics and robust parsing.
+
+**Duration:** 5 days
+**Dependencies:** Codex CLI installed for integration tests (optional/gated)
+**Risk Level:** Medium
+
+## Current Status Analysis
+
+### Completed Recently
+- ✅ v0.7.1.x releases with WASM and telemetry changes (mixed LOC, ~630 LOC noted in recent CHANGELOG)
+- ✅ E2E agent handoff verification (design docs + sprint infra)
+
+### Velocity
+- Recent average: ~100-150 LOC/day (based on recent CHANGELOG entry and commit activity; LOC metrics are sparse)
+- Estimated capacity: ~700-900 LOC for this sprint
+
+### Remaining from Design Doc
+- ⏳ Codex executor implementation and registration (~400-600 LOC)
+- ⏳ Coordinator provider wiring (~200 LOC)
+- ⏳ Eval harness provider support + tests (~150-250 LOC)
+
+## Proposed Milestones
+
+### Milestone 1: Codex Executor Core
+**Goal:** Implement Codex CLI executor and normalize JSON output into `executor.Result`.
+**Estimated:** 350 LOC implementation + 120 LOC tests = 470 LOC
+**Duration:** 2 days
+
+**Tasks:**
+- Day 1: Implement `internal/executor/codex` with CLI invocation, config defaults, and factory registration.
+- Day 2: Add JSON parsing, metrics mapping, and unit tests (including schema drift tolerance).
+
+**Acceptance Criteria:**
+- [ ] `executor.GlobalFactory().ListAvailable()` includes `codex` when installed
+- [ ] Codex JSON parsing produces `executor.Result` with tokens and cost (if available)
+- [ ] Unit tests cover typical JSON output and missing fields
+- [ ] All tests passing
+- [ ] Linting clean
+
+**Risks:**
+- Codex JSON schema changes - Mitigation: tolerant parsing + store raw data
+
+### Milestone 2: Coordinator Provider Integration
+**Goal:** Add `CodexProvider` to coordinator and enable routing.
+**Estimated:** 150 LOC implementation + 50 LOC tests = 200 LOC
+**Duration:** 1 day
+
+**Tasks:**
+- Day 3: Add `provider_codex.go` mirroring Claude/Gemini; wire selection and health checks.
+
+**Acceptance Criteria:**
+- [ ] Coordinator can run dry-run and live tasks with provider `codex`
+- [ ] Provider honors system prompt and workspace options
+- [ ] All tests passing
+- [ ] Linting clean
+
+**Risks:**
+- Tool allowlist mismatch - Mitigation: best-effort mapping or no-op
+
+### Milestone 3: Eval Harness Integration + Docs
+**Goal:** Enable `--provider codex` in eval suite and update docs.
+**Estimated:** 150 LOC implementation + 60 LOC tests + 40 LOC docs = 250 LOC
+**Duration:** 2 days
+
+**Tasks:**
+- Day 4: Add provider flag support, result aggregation, and CLI plumbing.
+- Day 5: Add tests and update docs to reflect actual Codex support.
+
+**Acceptance Criteria:**
+- [ ] `ailang eval-suite --agent --provider codex` runs (gated if CLI missing)
+- [ ] Eval results include Codex metrics (tokens, cost when available)
+- [ ] Docs updated (multi-provider + eval architecture)
+- [ ] All tests passing
+- [ ] Linting clean
+
+**Risks:**
+- Missing token/cost fields - Mitigation: estimate via CostModel when needed
+
+## Success Metrics
+- Test coverage: maintain current baseline
+- Examples passing: unchanged or improved
+- Documentation: `.claude/MULTI_PROVIDER_SETUP.md`, `.claude/EVAL_ARCHITECTURE.md`
+- All tests passing: ✅
+- All linting passing: ✅
+
+## Dependencies
+- Codex CLI availability for live integration tests
+- OpenAI API key configured for Codex CLI (for live runs)
+
+## Open Questions
+- Which Codex CLI flags are required for model selection and tool control?
+- Is streaming JSON required for coordinator event handlers in v0.7.2, or batch only?
+
+## Notes
+- Integration tests should be gated behind a Codex availability check.
+- If Codex CLI does not support tool allowlists, document limitation and proceed.

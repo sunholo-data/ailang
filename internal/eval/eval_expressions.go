@@ -295,6 +295,19 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec) (Value, error) {
 		cells[binding.Name].Init = true
 	}
 
+	// Phase 2.5: Propagate bindings to parent environment
+	// This ensures module-level LetRec bindings are available to subsequent declarations.
+	// Without this, functions like 'get' that reference 'findInList' (defined in a separate
+	// LetRec) would fail because findInList isn't in the environment when get is evaluated.
+	// The closures still capture recEnv (with IndirectValue) for proper self-recursion,
+	// but the parent env also gets the values for cross-declaration references.
+	for _, binding := range letrec.Bindings {
+		cell := cells[binding.Name]
+		if cell.Init {
+			oldEnv.Set(binding.Name, cell.Val)
+		}
+	}
+
 	// Phase 3: Evaluate body under recursive environment
 	return e.evalCore(letrec.Body)
 }
