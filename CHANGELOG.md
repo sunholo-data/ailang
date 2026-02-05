@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Fixed
+- **M-POLY-ARITH: Polymorphic arithmetic operators in lambdas** (`internal/eval/eval_patterns.go`)
+  - `let add = \x. \y. x + y in add(3.14)(2.71)` now correctly returns `5.85`
+  - Root cause: Num typeclass defaulting resolved lambda to `int -> int -> int` before dict elaboration
+  - Fix: `evalDictApp` now checks actual runtime argument types and corrects `DictRef.TypeName` accordingly
+  - All 5 arithmetic operators work in polymorphic lambdas: `+`, `-`, `*`, `/`
+  - Nested operators work: `(x + y) * (x - y)`
+  - WASM REPL also fixed (same evaluator path)
+  - 12 new integration tests in `internal/pipeline/poly_arithmetic_test.go`
+  - Total new code: ~210 lines (30 fix + 180 tests)
+
 ## [v0.7.1.4] - 2026-01-31
 
 ### Fixed

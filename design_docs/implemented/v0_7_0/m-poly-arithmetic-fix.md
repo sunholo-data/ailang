@@ -1,9 +1,9 @@
 # M-POLY-ARITH: Fix Polymorphic Arithmetic Operators in Lambdas
 
-**Status**: Planned
-**Target**: v0.7.0
+**Status**: IMPLEMENTED
+**Target**: v0.7.2
 **Priority**: P1 (Medium-High) - Blocks common functional patterns
-**Estimated Time**: 4-8 hours
+**Implemented**: 2026-02-05
 **Dependencies**: None (continuation of archived M-POLY-B Phase 2)
 
 ## Problem Statement
@@ -80,3 +80,45 @@ let x = 3.14 + 2.71 in x * 2.0  -- Works
 - [Limitations page](/docs/reference/limitations) — Remove from limitations list
 - [Implementation Status](/docs/reference/implementation-status) — Update status
 - Move this doc from `planned/` to `implemented/`
+
+---
+
+## Implementation Report (2026-02-05)
+
+### Approach: Runtime Type Correction in Evaluator (Option C)
+
+Neither Option A (defer defaulting) nor Option B (re-link in specializer) was used.
+Instead, the fix corrects the DictRef.TypeName at evaluation time based on actual
+runtime argument types.
+
+**Root cause chain:**
+1. `defaultAmbiguitiesTopLevel` defaults type variable α → Int (Num constraint)
+2. Dictionary elaboration creates `DictRef(Num, "Int")` using the defaulted type
+3. Evaluator's `evalDictRef` uses `DictRef.TypeName` to select Int implementation
+4. Int implementation receives Float arguments → "expected int arguments" panic
+
+**Fix location:** `internal/eval/eval_patterns.go` — `evalDictApp()`
+
+**How it works:**
+1. Evaluate arguments first (pure functional, order doesn't matter)
+2. Check if first arg's runtime type matches `DictRef.TypeName`
+3. If mismatch (e.g., FloatValue but DictRef says "Int"), create corrected DictRef
+4. Evaluate the corrected dictionary → gets Float implementations
+5. Apply method with correct type implementations
+
+**Why this approach:**
+- The specializer never updates CoreTypeInfo (it only reads, never writes)
+- CoreTypeInfo has defaulted types (Int) that can't be corrected at compile time
+- Runtime values are ground truth — we always know the actual type
+- Works for all pipelines (file, REPL, WASM) without resolver setup
+
+### Files Modified
+| File | Change | LOC |
+|------|--------|-----|
+| `internal/eval/eval_patterns.go` | Fix `evalDictApp` + add `valueTypeName` helper | ~30 |
+| `internal/pipeline/poly_arithmetic_test.go` | 12 integration tests | ~180 |
+
+### Test Results
+- 12/12 poly arithmetic tests pass
+- All existing tests pass (0 failures)
+- Lint clean

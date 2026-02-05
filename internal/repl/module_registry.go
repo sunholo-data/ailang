@@ -700,18 +700,42 @@ func (mr *ModuleRegistry) InvokeExport(moduleName, funcName string, args []eval.
 	registryResolver := NewRegistryResolver(mr, builtinRegistry)
 	evaluator.SetGlobalResolver(registryResolver)
 
-	// Apply arguments one at a time (curried function application)
+	// Register type class dictionaries (Num, Eq, Ord, Fractional) so that
+	// module functions using arithmetic, comparisons, or string operations work.
+	registerPreludeInstancesForEvaluator(evaluator)
+
+	// Apply arguments, handling both multi-param and curried functions.
+	// Multi-param: func f(a, b) compiled with Params=["a","b"] — needs all args at once.
+	// Curried: func f(a)(b) compiled as nested lambdas — apply one at a time.
 	var result eval.Value = fn
-	for i, arg := range args {
+	remaining := args
+	for len(remaining) > 0 {
 		funcVal, isFn := result.(*eval.FunctionValue)
 		if !isFn {
-			return nil, fmt.Errorf("cannot apply argument %d: value is not a function (got %T)", i+1, result)
+			return nil, fmt.Errorf("too many arguments: value is not a function (got %T) with %d args remaining", result, len(remaining))
 		}
 
-		// Apply single argument using the evaluator's CallFunction
-		result, err = evaluator.CallFunction(funcVal, []eval.Value{arg})
-		if err != nil {
-			return nil, fmt.Errorf("error applying argument %d: %w", i+1, err)
+		arity := len(funcVal.Params)
+		if arity <= 0 {
+			arity = 1
+		}
+
+		if arity <= len(remaining) {
+			// Apply arity-many arguments at once
+			result, err = evaluator.CallFunction(funcVal, remaining[:arity])
+			if err != nil {
+				applied := len(args) - len(remaining)
+				return nil, fmt.Errorf("error applying argument(s) %d-%d: %w", applied+1, applied+arity, err)
+			}
+			remaining = remaining[arity:]
+		} else {
+			// More params than remaining args — apply what we have one at a time
+			// (shouldn't normally happen, but handle gracefully)
+			result, err = evaluator.CallFunction(funcVal, remaining)
+			if err != nil {
+				return nil, fmt.Errorf("error applying final arguments: %w", err)
+			}
+			remaining = nil
 		}
 	}
 
@@ -820,5 +844,135 @@ func registerPreludeInstances(linker *link.Linker) {
 	for methodName := range numFloat.Methods {
 		key := types.MakeDictionaryKey("prelude", "Num", &types.TCon{Name: "Float"}, methodName)
 		linker.AddDictionary(key, numFloat)
+	}
+}
+
+// registerPreludeInstancesForEvaluator registers all type class dictionaries
+// (Num, Eq, Ord, Fractional) with a CoreEvaluator so that functions using
+// arithmetic, comparisons, or string operations work via InvokeExport.
+func registerPreludeInstancesForEvaluator(evaluator *eval.CoreEvaluator) {
+	// --- Wrapper helpers ---
+	wrapInt2 := func(name string, f func(int64, int64) int64) *eval.BuiltinFunction {
+		return &eval.BuiltinFunction{Name: name, Fn: func(args []eval.Value) (eval.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*eval.IntValue)
+			y, ok2 := args[1].(*eval.IntValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected int arguments")
+			}
+			return &eval.IntValue{Value: int(f(int64(x.Value), int64(y.Value)))}, nil
+		}}
+	}
+
+	wrapFloat2 := func(name string, f func(float64, float64) float64) *eval.BuiltinFunction {
+		return &eval.BuiltinFunction{Name: name, Fn: func(args []eval.Value) (eval.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*eval.FloatValue)
+			y, ok2 := args[1].(*eval.FloatValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected float arguments")
+			}
+			return &eval.FloatValue{Value: f(x.Value, y.Value)}, nil
+		}}
+	}
+
+	wrapIntCmp2 := func(name string, f func(int64, int64) bool) *eval.BuiltinFunction {
+		return &eval.BuiltinFunction{Name: name, Fn: func(args []eval.Value) (eval.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*eval.IntValue)
+			y, ok2 := args[1].(*eval.IntValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected int arguments")
+			}
+			return &eval.BoolValue{Value: f(int64(x.Value), int64(y.Value))}, nil
+		}}
+	}
+
+	wrapFloatCmp2 := func(name string, f func(float64, float64) bool) *eval.BuiltinFunction {
+		return &eval.BuiltinFunction{Name: name, Fn: func(args []eval.Value) (eval.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("expected 2 arguments")
+			}
+			x, ok1 := args[0].(*eval.FloatValue)
+			y, ok2 := args[1].(*eval.FloatValue)
+			if !ok1 || !ok2 {
+				return nil, fmt.Errorf("expected float arguments")
+			}
+			return &eval.BoolValue{Value: f(x.Value, y.Value)}, nil
+		}}
+	}
+
+	// --- Build all type class instances ---
+	instances := map[string]core.DictValue{
+		"Num[Int]": {
+			TypeClass: "Num", Type: "Int",
+			Methods: map[string]interface{}{
+				"add": wrapInt2("add", func(a, b int64) int64 { return a + b }),
+				"sub": wrapInt2("sub", func(a, b int64) int64 { return a - b }),
+				"mul": wrapInt2("mul", func(a, b int64) int64 { return a * b }),
+				"div": wrapInt2("div", func(a, b int64) int64 { return a / b }),
+			},
+		},
+		"Num[Float]": {
+			TypeClass: "Num", Type: "Float",
+			Methods: map[string]interface{}{
+				"add": wrapFloat2("add", func(a, b float64) float64 { return a + b }),
+				"sub": wrapFloat2("sub", func(a, b float64) float64 { return a - b }),
+				"mul": wrapFloat2("mul", func(a, b float64) float64 { return a * b }),
+				"div": wrapFloat2("div", func(a, b float64) float64 { return a / b }),
+			},
+		},
+		"Eq[Int]": {
+			TypeClass: "Eq", Type: "Int",
+			Methods: map[string]interface{}{
+				"eq":  wrapIntCmp2("eq", func(a, b int64) bool { return a == b }),
+				"neq": wrapIntCmp2("neq", func(a, b int64) bool { return a != b }),
+			},
+		},
+		"Eq[Float]": {
+			TypeClass: "Eq", Type: "Float",
+			Methods: map[string]interface{}{
+				"eq":  wrapFloatCmp2("eq", func(a, b float64) bool { return a == b }),
+				"neq": wrapFloatCmp2("neq", func(a, b float64) bool { return a != b }),
+			},
+		},
+		"Ord[Int]": {
+			TypeClass: "Ord", Type: "Int",
+			Methods: map[string]interface{}{
+				"lt":  wrapIntCmp2("lt", func(a, b int64) bool { return a < b }),
+				"lte": wrapIntCmp2("lte", func(a, b int64) bool { return a <= b }),
+				"gt":  wrapIntCmp2("gt", func(a, b int64) bool { return a > b }),
+				"gte": wrapIntCmp2("gte", func(a, b int64) bool { return a >= b }),
+			},
+			Provides: []string{"Eq[Int]"},
+		},
+		"Ord[Float]": {
+			TypeClass: "Ord", Type: "Float",
+			Methods: map[string]interface{}{
+				"lt":  wrapFloatCmp2("lt", func(a, b float64) bool { return a < b }),
+				"lte": wrapFloatCmp2("lte", func(a, b float64) bool { return a <= b }),
+				"gt":  wrapFloatCmp2("gt", func(a, b float64) bool { return a > b }),
+				"gte": wrapFloatCmp2("gte", func(a, b float64) bool { return a >= b }),
+			},
+			Provides: []string{"Eq[Float]"},
+		},
+	}
+
+	// Register each instance with canonical keys for evaluator lookups
+	for _, dict := range instances {
+		typeForKey := &types.TCon{Name: dict.Type}
+		for methodName := range dict.Methods {
+			canonicalKey := types.MakeDictionaryKey("prelude", dict.TypeClass, typeForKey, methodName)
+			evaluator.AddDictionary(canonicalKey, dict)
+		}
+		// Also register the base dictionary (no method name) for lookups
+		baseKey := types.MakeDictionaryKey("prelude", dict.TypeClass, typeForKey, "")
+		evaluator.AddDictionary(baseKey, dict)
 	}
 }

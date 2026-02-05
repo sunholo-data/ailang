@@ -274,7 +274,6 @@ func callExport(this js.Value, args []js.Value) interface{} {
 
 		switch arg.Type() {
 		case js.TypeNumber:
-			// Check if it's an integer or float
 			f := arg.Float()
 			if f == float64(int(f)) {
 				ailangVal = &eval.IntValue{Value: int(f)}
@@ -296,8 +295,6 @@ func callExport(this js.Value, args []js.Value) interface{} {
 	}
 
 	// Call the function directly using InvokeExport
-	// This bypasses REPL string evaluation and properly uses the function's
-	// captured environment, ensuring imports (decode, encode, etc.) are available
 	result, err := replInstance.GetRegistry().InvokeExport(moduleName, funcName, ailangArgs)
 	if err != nil {
 		return map[string]interface{}{

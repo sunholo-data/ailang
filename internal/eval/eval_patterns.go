@@ -495,26 +495,10 @@ func (e *CoreEvaluator) evalDictAbs(abs *core.DictAbs) (Value, error) {
 
 // evalDictApp evaluates dictionary application
 func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
-	// Evaluate the dictionary
-	dictVal, err := e.evalCore(app.Dict)
-	if err != nil {
-		return nil, err
-	}
-
-	// Dictionary should be a record with methods
-	dict, ok := dictVal.(*RecordValue)
-	if !ok {
-		return nil, fmt.Errorf("dictionary must be a record, got %T", dictVal)
-	}
-
-	// Look up the method
-	// fmt.Printf("DEBUG: DictApp looking for method '%s' in dictionary with fields: %v\n", app.Method, getFieldNames(dict.Fields))
-	methodVal, ok := dict.Fields[app.Method]
-	if !ok {
-		return nil, fmt.Errorf("dictionary missing method: %s", app.Method)
-	}
-
-	// Evaluate arguments
+	// M-POLY-ARITH: Evaluate arguments first so we can check their actual types.
+	// After Num defaulting, DictRef.TypeName may be "Int" even when the actual
+	// runtime arguments are Float (e.g., let add = \x. \y. x + y in add(3.14)(2.71)).
+	// By evaluating args first, we can correct the dictionary type before lookup.
 	var args []Value
 	for _, argExpr := range app.Args {
 		argVal, err := e.evalCore(argExpr)
@@ -522,6 +506,38 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 			return nil, err
 		}
 		args = append(args, argVal)
+	}
+
+	// M-POLY-ARITH: Correct DictRef type based on actual argument types.
+	// This fixes the case where Num defaulting resolves the lambda to int -> int -> int
+	// but the call site provides float arguments.
+	dict := app.Dict
+	if ref, ok := dict.(*core.DictRef); ok && len(args) > 0 {
+		if actualType := valueTypeName(args[0]); actualType != "" && actualType != ref.TypeName {
+			dict = &core.DictRef{
+				CoreNode:  ref.CoreNode,
+				ClassName: ref.ClassName,
+				TypeName:  actualType,
+			}
+		}
+	}
+
+	// Evaluate the dictionary (with corrected type if needed)
+	dictVal, err := e.evalCore(dict)
+	if err != nil {
+		return nil, err
+	}
+
+	// Dictionary should be a record with methods
+	dictRecord, ok := dictVal.(*RecordValue)
+	if !ok {
+		return nil, fmt.Errorf("dictionary must be a record, got %T", dictVal)
+	}
+
+	// Look up the method
+	methodVal, ok := dictRecord.Fields[app.Method]
+	if !ok {
+		return nil, fmt.Errorf("dictionary missing method: %s", app.Method)
 	}
 
 	// Apply the method with proper type checking
@@ -532,6 +548,23 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 	default:
 		// Raw function that slipped through - this should not happen with proper registration
 		return nil, fmt.Errorf("unsupported dictionary method type: %T", methodVal)
+	}
+}
+
+// valueTypeName returns the AILANG type name for a runtime value.
+// Used by M-POLY-ARITH to correct DictRef.TypeName based on actual argument types.
+func valueTypeName(v Value) string {
+	switch v.(type) {
+	case *IntValue:
+		return "Int"
+	case *FloatValue:
+		return "Float"
+	case *StringValue:
+		return "String"
+	case *BoolValue:
+		return "Bool"
+	default:
+		return ""
 	}
 }
 

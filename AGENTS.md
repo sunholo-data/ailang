@@ -5,6 +5,7 @@ This document summarizes the key facts an agent should know while working in thi
 ## Start Here (Required)
 - **Read `CLAUDE.md` first.** It is the operational source of truth for AILANG workflows, message handling, coordinator commands, and critical guardrails.
 - **Session start routine:** Check for messages with `ailang messages list --unread`, summarize any to the user, and acknowledge with `ailang messages ack --all` after handling.
+- **Programming in AILANG:** Use `ailang prompt` to get the current teaching prompt before writing or editing `.ail` code.
 
 ## Project Overview
 - **Language focus**: AILANG is a purely functional language optimized for AI-assisted development, emphasizing explicit algebraic effects, typed quasiquotes, CSP/session-type concurrency, and deterministic execution traces. Refer to `design_docs/20250926/initial_design.md` for the conceptual specification.
@@ -21,6 +22,12 @@ This document summarizes the key facts an agent should know while working in thi
 - **Messages:** `ailang messages list --unread`, `ailang messages read <id>`, `ailang messages ack <id>`, `ailang messages ack --all`
 - **Coordinator:** `ailang coordinator status`, `ailang coordinator start`, `ailang coordinator stop`, `ailang coordinator pending`
 - **Prompt:** `ailang prompt --version V` (see `CLAUDE.md` for version guidance)
+
+## AILANG Coding Quickstart
+- **Start with the prompt:** `ailang prompt` to get the current teaching prompt and idioms.
+- **Browse working examples:** `examples/` has runnable `.ail` programs.
+- **Use the REPL:** `ailang repl` for quick experiments (see `docs/guides/repl.md`).
+- **Type-check fast:** `ailang check <file>` before running.
 
 ## Key Design Details
 - **Type system**: Hindley–Milner style with row-polymorphic algebraic effects and capability annotations. Review `initial_design.md` for type/effect constructs and idioms.
