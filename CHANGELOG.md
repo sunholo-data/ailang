@@ -1,8 +1,31 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.7.2] - 2026-02-06
+
+### Added
+- **M-WASM-EFFECTS: Generic JS-backed effect handlers for WASM** (`cmd/wasm/main.go`, `cmd/wasm/effects.go`)
+  - `ailangSetEffectHandler(capability, operation, jsCallback)` — register JS functions as effect handlers
+  - `ailangSetAIHandler(jsCallback)` — register AI completion handler for `perform AI.complete`
+  - `ailangGrantCapability(capability)` — grant effect capabilities (IO, FS, Net, AI, Clock)
+  - `ailangEvalAsync(expr)` → Promise — async expression evaluation for effect-using code
+  - `ailangCallAsync(module, func, ...args)` → Promise — async module function calls
+  - Enables browser-side effects (fetch API, localStorage, DOM access) via JS callbacks
+  - Full test coverage: 7 tests in `internal/repl/wasm_effects_test.go`
+
+- **WASM documentation**: Updated `docs/docs/guides/wasm-integration.md` with Effects Handlers API section
 
 ### Fixed
+- **WASM Reset() stdlib loss**: Fixed critical bug where `ailangReset()` destroyed all stdlib modules
+  - Root cause: `Reset()` created new empty registry without reloading embedded stdlib
+  - Also failed to reconnect registry to REPL and share EffContext
+  - Fix: Reset now properly reconnects registry, shares EffContext, reloads all stdlib, re-imports prelude
+  - Files: `cmd/wasm/main.go`
+
+- **WASM loadEmbeddedStdlib panic recovery**: Added per-module panic recovery during stdlib loading
+  - Previously, a panic in any single stdlib module would crash the entire WASM binary
+  - Now panics are caught per-module and logged to `console.warn`
+  - Files: `cmd/wasm/main.go`
+
 - **M-POLY-ARITH: Polymorphic arithmetic operators in lambdas** (`internal/eval/eval_patterns.go`)
   - `let add = \x. \y. x + y in add(3.14)(2.71)` now correctly returns `5.85`
   - Root cause: Num typeclass defaulting resolved lambda to `int -> int -> int` before dict elaboration
@@ -11,7 +34,13 @@
   - Nested operators work: `(x + y) * (x - y)`
   - WASM REPL also fixed (same evaluator path)
   - 12 new integration tests in `internal/pipeline/poly_arithmetic_test.go`
-  - Total new code: ~210 lines (30 fix + 180 tests)
+
+- **Float sum accumulation**: Fixed float arithmetic in WASM pipeline (`internal/pipeline/`)
+
+### Changed
+- **Neural search**: Added timeout and background warmup for embedding search
+- **Sprint execution**: Support for parallel milestone execution via Task sub-agents
+- **Model configuration**: Updated models.yml with latest model entries
 
 ## [v0.7.1.4] - 2026-01-31
 
