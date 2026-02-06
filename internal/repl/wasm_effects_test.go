@@ -241,6 +241,210 @@ export func formatQty(qty: int) -> string =
 	t.Logf("Result: %s", sv.Value)
 }
 
+// TestCapabilityDenied_IOWithoutGrant verifies that IO operations fail
+// when the IO capability is not granted (simulates WASM without grantCapability).
+func TestCapabilityDenied_IOWithoutGrant(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	// Remove the default IO capability that REPL grants
+	delete(ctx.Caps, "IO")
+
+	if ctx.HasCap("IO") {
+		t.Fatal("IO capability should have been removed")
+	}
+
+	// Try to call IO.println — should fail with CapabilityError
+	_, err := effects.Call(ctx, "IO", "println", []eval.Value{
+		&eval.StringValue{Value: "should not print"},
+	})
+	if err == nil {
+		t.Fatal("Expected CapabilityError when IO not granted, got nil")
+	}
+
+	capErr, ok := err.(*effects.CapabilityError)
+	if !ok {
+		t.Fatalf("Expected *CapabilityError, got %T: %v", err, err)
+	}
+	if capErr.Effect != "IO" {
+		t.Errorf("Expected Effect='IO', got %q", capErr.Effect)
+	}
+}
+
+// TestCapabilityDenied_AIWithoutGrant verifies AI calls fail without the AI capability.
+func TestCapabilityDenied_AIWithoutGrant(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	// AI should not be granted by default
+	if ctx.HasCap("AI") {
+		t.Fatal("AI capability should not be granted by default")
+	}
+
+	// Try to call AI.call — should fail with CapabilityError
+	_, err := effects.Call(ctx, "AI", "call", []eval.Value{
+		&eval.StringValue{Value: "test prompt"},
+	})
+	if err == nil {
+		t.Fatal("Expected error when AI not granted, got nil")
+	}
+
+	capErr, ok := err.(*effects.CapabilityError)
+	if !ok {
+		t.Fatalf("Expected *CapabilityError, got %T: %v", err, err)
+	}
+	if capErr.Effect != "AI" {
+		t.Errorf("Expected Effect='AI', got %q", capErr.Effect)
+	}
+}
+
+// TestCapabilityDenied_FSWithoutGrant verifies FS operations fail without the FS capability.
+func TestCapabilityDenied_FSWithoutGrant(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	if ctx.HasCap("FS") {
+		t.Fatal("FS capability should not be granted by default")
+	}
+
+	_, err := effects.Call(ctx, "FS", "readFile", []eval.Value{
+		&eval.StringValue{Value: "/etc/passwd"},
+	})
+	if err == nil {
+		t.Fatal("Expected CapabilityError when FS not granted, got nil")
+	}
+
+	capErr, ok := err.(*effects.CapabilityError)
+	if !ok {
+		t.Fatalf("Expected *CapabilityError, got %T: %v", err, err)
+	}
+	if capErr.Effect != "FS" {
+		t.Errorf("Expected Effect='FS', got %q", capErr.Effect)
+	}
+}
+
+// TestCapabilityDenied_NetWithoutGrant verifies Net operations fail without the Net capability.
+func TestCapabilityDenied_NetWithoutGrant(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	if ctx.HasCap("Net") {
+		t.Fatal("Net capability should not be granted by default")
+	}
+
+	_, err := effects.Call(ctx, "Net", "httpGet", []eval.Value{
+		&eval.StringValue{Value: "https://example.com"},
+	})
+	if err == nil {
+		t.Fatal("Expected CapabilityError when Net not granted, got nil")
+	}
+
+	capErr, ok := err.(*effects.CapabilityError)
+	if !ok {
+		t.Fatalf("Expected *CapabilityError, got %T: %v", err, err)
+	}
+	if capErr.Effect != "Net" {
+		t.Errorf("Expected Effect='Net', got %q", capErr.Effect)
+	}
+}
+
+// TestCapabilityGrantRestoresAccess verifies that granting a previously denied
+// capability allows operations to proceed.
+func TestCapabilityGrantRestoresAccess(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	// Remove IO, verify it's denied
+	delete(ctx.Caps, "IO")
+	_, err := effects.Call(ctx, "IO", "println", []eval.Value{
+		&eval.StringValue{Value: "test"},
+	})
+	if err == nil {
+		t.Fatal("Expected error before grant")
+	}
+
+	// Re-grant IO
+	r.GrantCapability("IO")
+
+	// Now it should work (we just verify no CapabilityError — the actual print goes to stdout)
+	_, err = effects.Call(ctx, "IO", "println", []eval.Value{
+		&eval.StringValue{Value: "test"},
+	})
+	if err != nil {
+		if _, ok := err.(*effects.CapabilityError); ok {
+			t.Fatalf("Got CapabilityError after granting IO: %v", err)
+		}
+		// Other errors (e.g., stdout issues in test) are acceptable
+	}
+}
+
+// TestAICallWithoutHandler verifies that AI.call fails with ErrNoAIHandler
+// even when AI capability is granted but no handler is configured.
+func TestAICallWithoutHandler(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	// Grant AI capability but don't set a handler
+	r.GrantCapability("AI")
+
+	if !ctx.HasCap("AI") {
+		t.Fatal("Expected AI capability to be granted")
+	}
+
+	// AI.call should pass capability check but fail with no handler
+	_, err := effects.Call(ctx, "AI", "call", []eval.Value{
+		&eval.StringValue{Value: "test prompt"},
+	})
+	if err == nil {
+		t.Fatal("Expected ErrNoAIHandler when no AI handler configured")
+	}
+	if err != effects.ErrNoAIHandler {
+		t.Errorf("Expected ErrNoAIHandler, got: %v", err)
+	}
+}
+
+// TestBudgetEnforcementThroughREPL verifies that budget limits are enforced
+// when using effects through the REPL's EffContext.
+func TestBudgetEnforcementThroughREPL(t *testing.T) {
+	r := New()
+	ctx := r.GetEffContext()
+
+	// Set a budget limit of 2 for IO
+	ioLimit := 2
+	ctx.Budget = effects.NewBudgetContext(map[string]*int{"IO": &ioLimit})
+
+	// First two calls should succeed
+	for i := 0; i < 2; i++ {
+		_, err := effects.Call(ctx, "IO", "println", []eval.Value{
+			&eval.StringValue{Value: "call"},
+		})
+		if err != nil {
+			if _, ok := err.(*effects.BudgetExhaustedError); ok {
+				t.Fatalf("Budget exhausted too early on call %d", i+1)
+			}
+		}
+	}
+
+	// Third call should fail with BudgetExhaustedError
+	_, err := effects.Call(ctx, "IO", "println", []eval.Value{
+		&eval.StringValue{Value: "should fail"},
+	})
+	if err == nil {
+		t.Fatal("Expected BudgetExhaustedError on third call with limit=2")
+	}
+
+	budgetErr, ok := err.(*effects.BudgetExhaustedError)
+	if !ok {
+		t.Fatalf("Expected *BudgetExhaustedError, got %T: %v", err, err)
+	}
+	if budgetErr.Effect != "IO" {
+		t.Errorf("Expected Effect='IO', got %q", budgetErr.Effect)
+	}
+	if budgetErr.Limit != 2 {
+		t.Errorf("Expected Limit=2, got %d", budgetErr.Limit)
+	}
+}
+
 // TestEmbeddedStdlibLoading simulates how WASM loads stdlib from the embedded FS.
 // Verifies that all stdlib modules load successfully (like loadEmbeddedStdlib does).
 func TestEmbeddedStdlibLoading(t *testing.T) {

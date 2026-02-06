@@ -1,0 +1,15 @@
+-- Test: FS capability denial
+-- This file is expected to FAIL with CapabilityError when run WITHOUT --caps FS.
+-- It verifies that the runtime enforces FS capability checks.
+--
+-- FAIL: ailang run --entry main examples/tests/test_capability_denied_fs.ail
+-- PASS: ailang run --caps FS,IO --entry main examples/tests/test_capability_denied_fs.ail
+--
+-- Expected error: effect 'FS' requires capability, but none provided
+
+module examples/tests/test_capability_denied_fs
+
+export func main() -> () ! {FS, IO} {
+  let content = _fs_readFile("/nonexistent/file.txt")
+  in _io_println(content)
+}

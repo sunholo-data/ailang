@@ -1,0 +1,15 @@
+-- Test: IO capability denial
+-- This file is expected to FAIL with CapabilityError when run WITHOUT --caps IO.
+-- It verifies that the runtime enforces capability checks.
+--
+-- FAIL: ailang run --entry main examples/tests/test_capability_denied_io.ail
+-- PASS: ailang run --caps IO --entry main examples/tests/test_capability_denied_io.ail
+--
+-- Expected error: effect 'IO' requires capability, but none provided
+
+module examples/tests/test_capability_denied_io
+
+export func main() -> () ! {IO} {
+  _io_println("This should not print without --caps IO");
+  ()
+}
