@@ -30,16 +30,23 @@ jobs:
     - name: Bundle WASM archive with JS dependencies
       run: |
         set -euo pipefail
-        # Get wasm_exec.js from the Go version used for building (version-matched)
         GO_VERSION=$(go env GOVERSION)
-        echo "::group::Fetching wasm_exec.js for ${GO_VERSION}"
         GOROOT=$(go env GOROOT)
+
+        # Get wasm_exec.js - try multiple locations then download
+        echo "::group::Fetching wasm_exec.js for ${GO_VERSION}"
         if [ -f "${GOROOT}/misc/wasm/wasm_exec.js" ]; then
           cp "${GOROOT}/misc/wasm/wasm_exec.js" bin/wasm_exec.js
-          echo "Copied wasm_exec.js from GOROOT (${GO_VERSION})"
+          echo "Copied from GOROOT/misc/wasm/ (${GO_VERSION})"
+        elif [ -f "${GOROOT}/lib/wasm/wasm_exec.js" ]; then
+          cp "${GOROOT}/lib/wasm/wasm_exec.js" bin/wasm_exec.js
+          echo "Copied from GOROOT/lib/wasm/ (${GO_VERSION})"
         else
-          echo "::error::wasm_exec.js not found in GOROOT at ${GOROOT}/misc/wasm/wasm_exec.js"
-          exit 1
+          # Download from Go repository matching the build version
+          DOWNLOAD_URL="https://raw.githubusercontent.com/golang/go/${GO_VERSION}/misc/wasm/wasm_exec.js"
+          echo "Downloading from ${DOWNLOAD_URL}"
+          curl -sfL --retry 3 --retry-delay 5 -o bin/wasm_exec.js "${DOWNLOAD_URL}"
+          echo "Downloaded wasm_exec.js for ${GO_VERSION}"
         fi
         echo "::endgroup::"
 
