@@ -4,199 +4,259 @@ Browser-based AILANG REPL powered by WebAssembly.
 
 ## Quick Start
 
-### 1. Build WASM Binary
+### From Release (Recommended)
+
+Download the pre-built WASM bundle from the latest release:
 
 ```bash
-# From ailang root directory
-make build-wasm
+# Download and extract — includes ailang.wasm, wasm_exec.js, ailang-repl.js
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-wasm.tar.gz | tar -xz
 ```
 
-This creates `bin/ailang.wasm`.
+All three files are version-matched and ready to use.
 
-### 2. Setup for Docusaurus
+### From Source
+
+```bash
+# Build WASM binary
+make build-wasm
+
+# Copy wasm_exec.js from your Go installation
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
+```
+
+## Usage
+
+### Minimal HTML Example
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="wasm_exec.js"></script>
+  <script src="ailang-repl.js"></script>
+</head>
+<body>
+  <script>
+    const repl = new AilangREPL();
+    repl.init('/ailang.wasm').then(() => {
+      console.log(repl.eval('1 + 2'));       // "3 :: Int"
+      console.log(repl.getVersion());        // "v0.7.2"
+    });
+  </script>
+</body>
+</html>
+```
+
+### Docusaurus Integration
 
 ```bash
 # Copy files to your Docusaurus project
-cp bin/ailang.wasm <docusaurus-site>/static/wasm/
-cp web/ailang-repl.js <docusaurus-site>/src/components/
+cp ailang.wasm <docusaurus-site>/static/wasm/
+cp wasm_exec.js <docusaurus-site>/static/wasm/
+cp ailang-repl.js <docusaurus-site>/src/components/
 cp web/AilangRepl.jsx <docusaurus-site>/src/components/
-
-# Download Go's WASM support file
-curl -sL -o <docusaurus-site>/static/wasm/wasm_exec.js \
-  https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js
 ```
 
-### 3. Load WASM Support in Docusaurus
-
-Edit `<docusaurus-site>/docusaurus.config.js`:
+Load WASM support in `docusaurus.config.js`:
 
 ```js
 module.exports = {
-  // ... other config
   scripts: [
-    {
-      src: '/wasm/wasm_exec.js',
-      async: false,
-    },
+    { src: '/wasm/wasm_exec.js', async: false },
   ],
 };
 ```
 
-### 4. Use in MDX Pages
+Use in MDX pages:
 
 ```mdx
----
-title: Try AILANG
----
-
 import AilangRepl from '@site/src/components/AilangRepl';
 
-## Interactive REPL
-
-Try AILANG right in your browser:
-
 <AilangRepl />
-
-## Examples
-
-Try these expressions:
-- `1 + 2`
-- `:type \x. x + x`
-- `let f = \x. x * 2 in f(21)`
-```
-
-## Build Target
-
-Add to your `Makefile`:
-
-```makefile
-build-wasm:
-	@echo "Building WASM binary..."
-	GOOS=js GOARCH=wasm go build -o bin/ailang.wasm cmd/wasm/main.go
-	@echo "✓ WASM binary: bin/ailang.wasm"
 ```
 
 ## API Reference
 
-### JavaScript API
+### Core Methods
 
 ```js
-import AilangREPL from './ailang-repl.js';
-
-// Initialize
 const repl = new AilangREPL();
+
+// Initialize with WASM binary path
 await repl.init('/wasm/ailang.wasm');
 
 // Evaluate expressions
-const result = repl.eval('1 + 2');
-console.log(result); // "3 :: Int"
+repl.eval('1 + 2');                    // "3 :: Int"
+repl.eval('let f = \\x. x * 2 in f(21)');  // "42 :: Int"
 
-// Execute commands
-repl.command(':type \x. x');
+// Execute REPL commands
+repl.command(':type \\x. x');          // "forall a. a -> a"
+repl.command(':help');                 // Help text
 
-// Reset environment
-repl.reset();
+// Reset environment (reloads stdlib)
+repl.reset();                          // "Environment reset"
 
-// Get version
-const version = repl.getVersion();
+// Version info
+repl.getVersion();                     // "v0.7.2"
+repl.getVersionInfo();                 // { version, buildTime, platform }
+
+// Multi-line input helper
+repl.needsContinuation('let x = 5 in');  // true
 ```
 
-### React Component Props
+### Module API (v0.7.1+)
 
-```jsx
-<AilangRepl
-  // No props needed - fully self-contained
-/>
+Load and call AILANG modules from JavaScript:
+
+```js
+// Load a module
+const result = repl.loadModule('math_utils', `
+  module math_utils
+  import std/math (intToFloat)
+  export func circleArea(r: int) -> float =
+    let rf = intToFloat(r)
+    in 3.14159 * rf * rf
+`);
+// result: { success: true, exports: ['circleArea'] }
+
+// List loaded modules
+repl.listModules();
+// ['std/prelude', 'std/math', ..., 'math_utils']
+
+// Call an exported function
+repl.call('math_utils', 'circleArea', 5);
+// { success: true, result: '78.53975' }
+
+// Import module exports into REPL environment
+repl.importModule('math_utils');
+// Now you can use: repl.eval('circleArea(10)')
 ```
 
-## Customization
+### Effect Handlers (v0.7.2+)
 
-### Styling
+Register JavaScript functions as AILANG effect handlers:
 
-Edit the `styles` object in `AilangRepl.jsx`:
+```js
+// Grant capabilities
+repl.grantCapability('IO');
+repl.grantCapability('AI');
 
-```jsx
-const styles = {
-  container: {
-    backgroundColor: '#1e1e1e',  // Change background
-    color: '#d4d4d4',            // Change text color
-    // ... more styles
-  },
-};
+// Register IO.print handler
+repl.setEffectHandler('IO', 'print', (msg) => {
+  document.getElementById('output').textContent += msg + '\n';
+  return msg;
+});
+
+// Register AI completion handler
+repl.setAIHandler(async (prompt) => {
+  const resp = await fetch('/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({ prompt })
+  });
+  const data = await resp.json();
+  return data.response;
+});
 ```
 
-### Theme Integration
+### Async Methods (v0.7.2+)
 
-For Docusaurus dark/light theme support:
+Use async variants when effects may return Promises:
 
-```jsx
-import { useColorMode } from '@docusaurus/theme-common';
+```js
+// Async expression evaluation
+const result = await repl.evalAsync('perform IO.print("hello")');
 
-export default function AilangRepl() {
-  const { colorMode } = useColorMode();
-
-  const styles = {
-    container: {
-      backgroundColor: colorMode === 'dark' ? '#1e1e1e' : '#f5f5f5',
-      // ...
-    },
-  };
-  // ...
-}
+// Async module function call
+const output = await repl.callAsync('my_module', 'processData', 'input');
+// output: { success: true, result: '...' }
 ```
+
+### Complete Method Reference
+
+| Method | Returns | Since | Description |
+|--------|---------|-------|-------------|
+| `init(wasmPath)` | `Promise<this>` | v0.7.0 | Initialize WASM module |
+| `eval(input)` | `string` | v0.7.0 | Evaluate expression |
+| `command(cmd)` | `string` | v0.7.0 | Execute REPL command |
+| `reset()` | `string` | v0.7.0 | Reset environment + reload stdlib |
+| `getVersion()` | `string\|null` | v0.7.0 | Get version string |
+| `getVersionInfo()` | `Object\|null` | v0.7.0 | Get `{version, buildTime, platform}` |
+| `needsContinuation(line)` | `boolean` | v0.7.0 | Check if line needs more input |
+| `onReady(callback)` | `void` | v0.7.0 | Register ready callback |
+| `loadModule(name, code)` | `{success, exports?, error?}` | v0.7.1 | Compile and register module |
+| `listModules()` | `string[]` | v0.7.1 | List loaded module names |
+| `call(mod, func, ...args)` | `{success, result?, error?}` | v0.7.1 | Call module export |
+| `importModule(name)` | `string` | v0.7.1 | Import into REPL env |
+| `setEffectHandler(cap, op, fn)` | `{success, error?}` | v0.7.2 | Register effect handler |
+| `setAIHandler(fn)` | `{success, error?}` | v0.7.2 | Register AI handler |
+| `grantCapability(cap)` | `{success, error?}` | v0.7.2 | Grant effect capability |
+| `evalAsync(input)` | `Promise<string>` | v0.7.2 | Async eval (for effects) |
+| `callAsync(mod, func, ...args)` | `Promise<{success, result?, error?}>` | v0.7.2 | Async call (for effects) |
+
+### Low-Level Window Globals
+
+These are registered by the Go WASM binary. The `AilangREPL` class wraps all of them:
+
+| Global | Description |
+|--------|-------------|
+| `ailangEval(input)` | Evaluate expression |
+| `ailangReset()` | Reset REPL |
+| `ailangVersion()` | Get version info object |
+| `ailangLoadModule(name, code)` | Load module |
+| `ailangListModules()` | List modules |
+| `ailangCall(mod, func, ...args)` | Call export |
+| `ailangSetEffectHandler(cap, op, fn)` | Register effect handler |
+| `ailangSetAIHandler(fn)` | Register AI handler |
+| `ailangGrantCapability(cap)` | Grant capability |
+| `ailangEvalAsync(input)` | Async eval (returns Promise) |
+| `ailangCallAsync(mod, func, ...args)` | Async call (returns Promise) |
+
+## Valid Capabilities
+
+| Capability | Description | Common Operations |
+|------------|-------------|-------------------|
+| `IO` | Console/display I/O | `print`, `readLine` |
+| `FS` | File system access | `readFile`, `writeFile` |
+| `Net` | Network requests | `httpGet`, `httpPost` |
+| `AI` | AI model completion | `complete` |
+| `Clock` | Time operations | `now` |
+
+## Release Artifact
+
+The `ailang-wasm.tar.gz` release asset contains:
+
+| File | Size | Description |
+|------|------|-------------|
+| `ailang.wasm` | ~33MB | Compiled WASM binary |
+| `wasm_exec.js` | ~17KB | Go WASM runtime (version-matched) |
+| `ailang-repl.js` | ~5KB | JavaScript wrapper class |
+
+All three files are version-matched and built from the same commit.
 
 ## Limitations
 
-- **No File I/O**: File system effects disabled in browser
-- **No History Persistence**: History lost on page reload
-- **Binary Size**: ~10MB (compresses well with gzip/brotli)
-- **First Load**: May take 2-3 seconds to initialize
+- **Effects require handlers**: IO/FS/Net/AI effects need JS handlers registered
+- **No persistent storage**: State lost on page reload (use `loadModule` to restore)
+- **Binary size**: ~33MB uncompressed (~7MB with gzip)
+- **First load**: May take 2-3 seconds to initialize
+- **Sync effects only**: Effect handlers must return synchronously unless using async methods
 
 ## Troubleshooting
 
 ### "WebAssembly not supported"
-- Use a modern browser (Chrome 57+, Firefox 52+, Safari 11+)
+Use a modern browser (Chrome 57+, Firefox 52+, Safari 11+).
 
 ### "Failed to load AILANG WASM"
-- Check browser console for details
-- Verify `ailang.wasm` is in `/static/wasm/`
-- Ensure `wasm_exec.js` is loaded first
+Check browser console. Verify `ailang.wasm` path is correct and CORS allows loading.
 
 ### "REPL not initialized"
-- Wait for `onReady()` callback
-- Check network tab for 404s
+Wait for `init()` to resolve or use `onReady()` callback.
 
-### "Module not found: './ailang-repl.js'"
-- Ensure `ailang-repl.js` is in `src/components/`
-- Check import path matches your directory structure
+### "undefined global variable: X from std/Y"
+Module's stdlib import failed. Check browser console for warnings during stdlib loading.
 
-## Advanced: Building for Production
-
-### Optimize Binary Size
-
-```bash
-# Build with size optimization
-GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o bin/ailang.wasm cmd/wasm/main.go
-
-# Further compress (optional)
-wasm-opt -Oz bin/ailang.wasm -o bin/ailang.wasm
-```
-
-### Enable HTTP Compression
-
-Configure your web server to serve `.wasm` with compression:
-
-**Nginx:**
-```nginx
-gzip_types application/wasm;
-```
-
-**Cloudflare/Netlify/Vercel:** Automatic compression enabled by default.
-
-## Examples
-
-See [examples/web/](../examples/web/) for complete Docusaurus integration examples.
-
-## License
-
-Same as AILANG project (see main LICENSE file).
+### Effects don't work
+1. Grant the capability first: `repl.grantCapability('IO')`
+2. Register handlers: `repl.setEffectHandler('IO', 'print', fn)`
+3. Use async methods: `await repl.evalAsync(...)` if handlers return Promises

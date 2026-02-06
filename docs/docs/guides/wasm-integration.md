@@ -15,32 +15,50 @@ The AILANG WebAssembly build provides:
 - **Full Language Support**: Complete AILANG interpreter compiled to WASM
 - **Standard Library Included**: All 20 stdlib modules (`std/list`, `std/json`, etc.) embedded and auto-loaded
 - **Client-Side Execution**: No server needed after initial load
-- **Small Bundle Size**: ~33MB uncompressed (~5-8MB with gzip)
+- **Small Bundle Size**: ~33MB uncompressed (~7MB with gzip)
 - **React Integration**: Ready-made component for easy integration
 - **Offline Capable**: Works offline after first load
 
 ## Quick Start
 
-### 1. Build WASM Binary
+### Option 1: From Release (Recommended)
+
+Download the pre-built WASM bundle from the latest release. All three files are version-matched and built from the same commit:
+
+```bash
+# Download and extract — includes ailang.wasm, wasm_exec.js, ailang-repl.js
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-wasm.tar.gz | tar -xz
+```
+
+The archive contains:
+
+| File | Size | Description |
+|------|------|-------------|
+| `ailang.wasm` | ~33MB | Compiled WASM binary with embedded stdlib |
+| `wasm_exec.js` | ~17KB | Go WASM runtime (version-matched to build toolchain) |
+| `ailang-repl.js` | ~5KB | JavaScript wrapper class (`AilangREPL`) |
+
+### Option 2: Build from Source
 
 ```bash
 cd ailang
 make build-wasm
+
+# Copy wasm_exec.js from your Go installation
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
 ```
 
-This produces `bin/ailang.wasm`.
+This produces `bin/ailang.wasm`. You'll also need [ailang-repl.js](https://github.com/sunholo-data/ailang/blob/main/web/ailang-repl.js) from the `web/` directory.
 
-### 2. Integration Options
+### Integration Options
 
 #### Option A: Docusaurus (Recommended)
 
 1. Copy assets:
 ```bash
-cp bin/ailang.wasm docs/static/wasm/
-# Download Go's WASM support file (more reliable than GOROOT path)
-curl -sL -o docs/static/wasm/wasm_exec.js \
-  https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js
-cp web/ailang-repl.js docs/src/components/
+cp ailang.wasm docs/static/wasm/
+cp wasm_exec.js docs/static/wasm/
+cp ailang-repl.js docs/src/components/
 cp web/AilangRepl.jsx docs/src/components/
 ```
 
@@ -212,6 +230,28 @@ const version = repl.getVersion();
 ```
 
 **Returns:** Version string or `null`
+
+##### `getVersionInfo()`
+
+Get detailed version information.
+
+```javascript
+const info = repl.getVersionInfo();
+// Returns: { version: "v0.7.2", buildTime: "2026-02-06T...", platform: "js/wasm" }
+```
+
+**Returns:** Object with `version`, `buildTime`, `platform` fields, or `null`
+
+##### `needsContinuation(line)`
+
+Check if a line needs continuation (for multi-line input UIs).
+
+```javascript
+repl.needsContinuation('let x = 5 in');  // true
+repl.needsContinuation('1 + 2');          // false
+```
+
+**Returns:** `boolean`
 
 ### Module Loading API (v0.7.1+)
 
@@ -435,6 +475,28 @@ These functions are registered on the global `window` object when the WASM modul
 | `ailangEvalAsync(expr)` | Evaluate with async effect support |
 | `ailangCallAsync(mod, fn, ...args)` | Call module function with async effects |
 
+#### `AilangREPL` Wrapper Methods
+
+The `AilangREPL` class wraps all low-level globals with error handling:
+
+```javascript
+const repl = new AilangREPL();
+await repl.init('/wasm/ailang.wasm');
+
+// Register effect handlers
+repl.setEffectHandler('IO', 'print', (msg) => { output.textContent += msg; });
+repl.setAIHandler(async (input) => { /* call LLM API */ });
+repl.grantCapability('IO');
+
+// Async evaluation (returns Promise)
+const result = await repl.evalAsync('perform IO.print("hello")');
+const output = await repl.callAsync('demo', 'processData', 'input');
+```
+
+:::info Wrapper vs Low-Level API
+The wrapper methods (`repl.setEffectHandler()`) provide error handling and readiness checks. The low-level globals (`ailangSetEffectHandler()`) are called directly on `window` and skip these checks. For most use cases, prefer the wrapper methods.
+:::
+
 #### `ailangSetEffectHandler(effectName, handlers)`
 
 Override any effect's operations with JavaScript callbacks. Auto-grants the named capability.
@@ -524,6 +586,16 @@ ailangGrantCapability("Debug");
 - `name` (string): Capability name
 
 **Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+#### Valid Capabilities
+
+| Capability | Description | Common Operations |
+|------------|-------------|-------------------|
+| `IO` | Console/display I/O | `print`, `println`, `readLine` |
+| `FS` | File system access | `readFile`, `writeFile`, `exists` |
+| `Net` | Network requests | `httpGet`, `httpPost`, `httpRequest` |
+| `AI` | AI model completion | `complete` |
+| `Clock` | Time operations | `now`, `sleep` |
 
 #### `ailangEvalAsync(expression)`
 
@@ -635,6 +707,28 @@ export func ask(question: string) -> string ! {AI} =
 </html>
 ```
 
+### Complete Method Reference
+
+| Method | Returns | Since | Description |
+|--------|---------|-------|-------------|
+| `init(wasmPath)` | `Promise<this>` | v0.7.0 | Initialize WASM module |
+| `eval(input)` | `string` | v0.7.0 | Evaluate expression |
+| `command(cmd)` | `string` | v0.7.0 | Execute REPL command |
+| `reset()` | `string` | v0.7.0 | Reset environment + reload stdlib |
+| `getVersion()` | `string` or `null` | v0.7.0 | Get version string |
+| `getVersionInfo()` | `Object` or `null` | v0.7.0 | Get version, buildTime, platform |
+| `needsContinuation(line)` | `boolean` | v0.7.0 | Check if line needs more input |
+| `onReady(callback)` | `void` | v0.7.0 | Register ready callback |
+| `loadModule(name, code)` | `{success, exports?, error?}` | v0.7.1 | Compile and register module |
+| `listModules()` | `string[]` | v0.7.1 | List loaded module names |
+| `call(mod, func, ...args)` | `{success, result?, error?}` | v0.7.1 | Call module export |
+| `importModule(name)` | `string` | v0.7.1 | Import into REPL env |
+| `setEffectHandler(cap, op, fn)` | `{success, error?}` | v0.7.2 | Register effect handler |
+| `setAIHandler(fn)` | `{success, error?}` | v0.7.2 | Register AI handler |
+| `grantCapability(cap)` | `{success, error?}` | v0.7.2 | Grant effect capability |
+| `evalAsync(input)` | `Promise<string>` | v0.7.2 | Async eval (for effects) |
+| `callAsync(mod, func, ...args)` | `Promise<{success, result?, error?}>` | v0.7.2 | Async call (for effects) |
+
 ## REPL Commands
 
 The WebAssembly REPL supports the same commands as the CLI:
@@ -712,18 +806,22 @@ WASM benefits from HTTP/2 multiplexing for faster loading.
 
 ### GitHub Actions
 
-WASM is automatically built and released:
+The release workflow automatically builds and bundles the WASM archive with all dependencies:
 
 ```yaml
 # .github/workflows/release.yml (excerpt)
 - name: Build WASM binary
   run: make build-wasm
 
-- name: Create Release
-  uses: softprops/action-gh-release@v2
-  with:
-    files: bin/ailang-wasm.tar.gz
+- name: Bundle WASM archive with JS dependencies
+  run: |
+    # Get version-matched wasm_exec.js from Go toolchain
+    cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" bin/
+    cp web/ailang-repl.js bin/
+    cd bin && tar -czf ailang-wasm.tar.gz ailang.wasm wasm_exec.js ailang-repl.js
 ```
+
+The archive is verified (size checks for all 3 files) and attached to the GitHub Release as `ailang-wasm.tar.gz`.
 
 ### Docusaurus Deployment
 
@@ -778,6 +876,20 @@ repl.init('/wasm/ailang.wasm').then(() => {
    ```html
    <link rel="preload" href="/wasm/ailang.wasm" as="fetch" crossorigin>
    ```
+
+### Effects Don't Work
+
+**Solutions**:
+1. Grant the capability first: `repl.grantCapability('IO')`
+2. Register handlers: `repl.setEffectHandler('IO', 'print', fn)`
+3. Use async methods if handlers return Promises: `await repl.evalAsync(...)`
+4. Check that `ailangSetAIHandler` was called before `AI.call()` — it auto-grants the AI capability
+
+### "undefined global variable: X from std/Y"
+
+**Cause**: Module's stdlib import failed during initialization.
+
+**Solution**: Check browser console for warnings during stdlib loading. Try `repl.reset()` to reload the standard library.
 
 ### Module Loading Errors
 
