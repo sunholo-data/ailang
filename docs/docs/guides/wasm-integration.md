@@ -576,7 +576,7 @@ const result = await ailangCallAsync('demo', 'askAI', 'What is 2+2?');
 - `funcName` (string): Function to call
 - `...args` (any): Arguments (number, string, boolean)
 
-**Returns:** Promise\<{ success, result?, error? }\>
+**Returns:** `Promise<{ success, result?, error? }>`
 
 ### Effect Handler Example
 
