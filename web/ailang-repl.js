@@ -213,6 +213,93 @@ class AilangREPL {
       return { success: false, error: err.message };
     }
   }
+
+  // ── Effect Handlers (v0.7.2+) ──────────────────────────────────
+
+  /**
+   * Register a JS function as an effect handler (v0.7.2+)
+   * @param {string} capability - Effect capability (e.g., 'IO', 'Net', 'FS')
+   * @param {string} operation - Operation name (e.g., 'print', 'httpGet')
+   * @param {Function} handler - JS callback: (arg) => result
+   * @returns {{success: boolean, error?: string}}
+   */
+  setEffectHandler(capability, operation, handler) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangSetEffectHandler(capability, operation, handler);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Register a JS function as the AI completion handler (v0.7.2+)
+   * @param {Function} handler - JS callback: (prompt) => response string
+   * @returns {{success: boolean, error?: string}}
+   */
+  setAIHandler(handler) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangSetAIHandler(handler);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Grant an effect capability to the REPL environment (v0.7.2+)
+   * @param {string} capability - Capability to grant (e.g., 'IO', 'AI', 'Net')
+   * @returns {{success: boolean, error?: string}}
+   */
+  grantCapability(capability) {
+    if (!this.ready) {
+      return { success: false, error: 'REPL not initialized' };
+    }
+
+    try {
+      return window.ailangGrantCapability(capability);
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ── Async Methods (v0.7.2+) ────────────────────────────────────
+
+  /**
+   * Evaluate an expression asynchronously (v0.7.2+)
+   * Required when the expression triggers effect handlers that return Promises.
+   * @param {string} input - AILANG code to evaluate
+   * @returns {Promise<string>} Result or error message
+   */
+  async evalAsync(input) {
+    if (!this.ready) {
+      throw new Error('REPL not initialized');
+    }
+
+    return window.ailangEvalAsync(input);
+  }
+
+  /**
+   * Call a module function asynchronously (v0.7.2+)
+   * Required when the function triggers effect handlers that return Promises.
+   * @param {string} moduleName - Module containing the function
+   * @param {string} funcName - Function to call
+   * @param {...any} args - Arguments (numbers, strings, booleans)
+   * @returns {Promise<{success: boolean, result?: string, error?: string}>}
+   */
+  async callAsync(moduleName, funcName, ...args) {
+    if (!this.ready) {
+      throw new Error('REPL not initialized');
+    }
+
+    return window.ailangCallAsync(moduleName, funcName, ...args);
+  }
 }
 
 // Make available globally (priority for browser usage)
