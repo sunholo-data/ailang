@@ -1,6 +1,7 @@
 package docsearch
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -159,9 +160,17 @@ func (c *EmbeddingCache) Close() error {
 	return c.save()
 }
 
-// neuralSearchImpl performs embedding-based semantic search
-// This is the real implementation of neuralSearch
-func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
+// scoredDoc pairs a document with its embedding and similarity score.
+type scoredDoc struct {
+	doc   DocFrame
+	emb   []float32
+	score float64
+}
+
+// neuralSearchImpl performs embedding-based semantic search.
+// The context bounds the overall operation — if it expires mid-embedding,
+// results computed so far are returned (graceful degradation).
+func neuralSearchImpl(ctx context.Context, candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
 	// Load embedding config
 	cfg := messaging.LoadEmbedConfigFromEnv()
 
@@ -190,16 +199,18 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 	}
 
 	// Process candidates: get or compute embeddings
-	type scoredDoc struct {
-		doc   DocFrame
-		emb   []float32
-		score float64
-	}
-
 	var scoredDocs []scoredDoc
 	total := len(candidates)
 
 	for i, doc := range candidates {
+		// Check if overall timeout has fired — return partial results
+		select {
+		case <-ctx.Done():
+			fmt.Fprintf(os.Stderr, "⏱ Neural search timeout after %d/%d embeddings — returning partial results\n", i, total)
+			return collectResults(scoredDocs, limit), stats, nil
+		default:
+		}
+
 		// Compute content hash for staleness detection
 		docHash := hashContent(doc.Content)
 
@@ -238,6 +249,11 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 		})
 	}
 
+	return collectResults(scoredDocs, limit), stats, nil
+}
+
+// collectResults sorts scored docs by score and returns the top N as SearchResults.
+func collectResults(scoredDocs []scoredDoc, limit int) []SearchResult {
 	// Sort by score descending
 	sort.Slice(scoredDocs, func(i, j int) bool {
 		return scoredDocs[i].score > scoredDocs[j].score
@@ -258,7 +274,7 @@ func neuralSearchImpl(candidates []DocFrame, query string, corpus string, limit 
 		}
 	}
 
-	return results, stats, nil
+	return results
 }
 
 // CacheInfo contains cache statistics
@@ -406,4 +422,86 @@ func truncatePath(path string, maxLen int) string {
 func init() {
 	// Replace the stub neuralSearch with real implementation
 	// This is done via init to avoid circular dependencies
+}
+
+// WarmupResult contains statistics from a cache warmup operation.
+type WarmupResult struct {
+	TotalDocs     int
+	AlreadyCached int
+	NewlyEmbedded int
+	Failed        int
+	Model         string
+}
+
+// WarmupCache pre-computes embeddings for all docs in a corpus, populating the cache.
+// This prevents cold-cache hangs during interactive neural search.
+// The context controls the overall timeout — warmup stops gracefully if it expires.
+// If quiet is true, progress is not printed to stderr.
+func WarmupCache(ctx context.Context, docsPath string, quiet bool) (*WarmupResult, error) {
+	result := &WarmupResult{}
+
+	// Discover all docs
+	docs, err := discoverDocs(docsPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("discovering docs: %w", err)
+	}
+	result.TotalDocs = len(docs)
+
+	if len(docs) == 0 {
+		return result, nil
+	}
+
+	// Load embedding config
+	cfg := messaging.LoadEmbedConfigFromEnv()
+	if cfg.Provider == "none" {
+		return nil, fmt.Errorf("embeddings disabled (provider=none)")
+	}
+
+	// Create embedder
+	embedder, err := messaging.NewOllamaEmbedder(cfg.Ollama)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embedder: %w", err)
+	}
+
+	modelName := embedder.ModelName()
+	result.Model = modelName
+
+	// Load cache
+	cache := NewEmbeddingCache(modelName, docsPath)
+	defer cache.Close()
+
+	for i, doc := range docs {
+		// Check context
+		select {
+		case <-ctx.Done():
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "⏱ Warmup stopped after %d/%d docs (timeout)\n", i, len(docs))
+			}
+			return result, nil
+		default:
+		}
+
+		docHash := hashContent(doc.Content)
+
+		// Skip if already cached and fresh
+		if _, ok := cache.Get(doc.Path, docHash); ok {
+			result.AlreadyCached++
+			continue
+		}
+
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "⏳ Warming %d/%d: %s\n", i+1, len(docs), truncatePath(doc.Path, 50))
+		}
+
+		emb, err := embedder.Embed(doc.Content)
+		if err != nil {
+			result.Failed++
+			continue
+		}
+
+		cache.Set(doc.Path, emb, docHash)
+		result.NewlyEmbedded++
+	}
+
+	return result, nil
 }

@@ -1,15 +1,15 @@
 ---
 name: AILANG Sprint Executor
-description: Execute approved sprint plans with test-driven development, continuous linting, progress tracking, and pause points. Use when user says "execute sprint", "start sprint", or wants to implement an approved sprint plan.
+description: Execute approved sprint plans with test-driven development, continuous linting, progress tracking, and pause points. Supports parallel milestone execution via Task sub-agents. Use when user says "execute sprint", "start sprint", or wants to implement an approved sprint plan.
 ---
 
 # AILANG Sprint Executor
 
-Execute an approved sprint plan with continuous progress tracking, testing, and documentation updates.
+Execute an approved sprint plan with continuous progress tracking, testing, and documentation updates. Supports **parallel execution** of independent milestones using Task sub-agents for faster sprints.
 
 ## Quick Start
 
-**Most common usage:**
+**Sequential execution (default):**
 ```bash
 # User says: "Execute the sprint plan in design_docs/20251019/M-S1.md"
 # This skill will:
@@ -21,6 +21,17 @@ Execute an approved sprint plan with continuous progress tracking, testing, and 
 # 6. Pause after each milestone for user review
 ```
 
+**Parallel execution (for independent milestones):**
+```bash
+# User says: "Execute sprint plan at docs/sprint-plans/M-FOO.md in parallel"
+# This skill will:
+# 1. Read sprint plan and identify all milestones
+# 2. Analyze dependencies — group independent milestones for parallel execution
+# 3. Spawn Task sub-agents per milestone (branch, TDD, implement, commit)
+# 4. Act as integration agent — merge branches, run full test suite
+# 5. Write sprint retrospective with timing and friction analysis
+```
+
 ## When to Use This Skill
 
 Invoke this skill when:
@@ -28,6 +39,16 @@ Invoke this skill when:
 - User has an approved sprint plan ready to implement
 - User wants guided execution with built-in quality checks
 - User needs progress tracking and pause points
+
+**Choose parallel mode when:**
+- Sprint has 3+ milestones with independent work
+- Milestones touch different files/packages (low merge conflict risk)
+- User says "execute in parallel", "parallel sprint", or "use sub-agents"
+
+**Choose sequential mode when:**
+- Milestones have strict dependencies (M2 depends on M1's output)
+- All milestones touch the same files
+- Sprint is small (1-2 milestones)
 
 ## Coordinator Integration
 
@@ -65,6 +86,8 @@ All milestones have been completed and tests pass.
 4. **Pause for Breath**: Stop at natural breakpoints for review and approval
 5. **Track Everything**: Use TodoWrite to maintain visible progress
 6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
+7. **Parallelize When Possible**: Independent milestones run as concurrent Task sub-agents for speed
+8. **Failing Tests First**: Sub-agents MUST write failing tests before implementation — no exceptions
 
 ## Multi-Session Continuity (NEW)
 
@@ -211,7 +234,16 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 5. **Initial Status Update** - Mark sprint as "🔄 In Progress"
 6. **Initial DX Review** - Consider tools/helpers that would make sprint easier (see [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md))
 
-### Phase 2: Execute Milestones
+### Phase 2: Choose Execution Mode
+
+After Phase 1 initialization, choose between sequential or parallel execution based on milestone dependencies.
+
+**Decision criteria:**
+- If milestones form a strict chain (each depends on previous) → **Phase 2A: Sequential**
+- If 2+ milestones are independent (no shared file overlap) → **Phase 2B: Parallel**
+- Mixed dependencies → Execute dependent chains sequentially, independent groups in parallel
+
+### Phase 2A: Sequential Execution (default)
 
 **For each milestone:**
 
@@ -234,6 +266,8 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 7. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
 8. **Pause for Breath** - Show progress, ask user if ready to continue
 
+After all milestones complete, proceed to **Phase 4: Finalize Sprint**.
+
 **Quick tips:**
 - Use parser test helpers from `internal/parser/test_helpers.go`
 - Use `DEBUG_PARSER=1` for token flow tracing
@@ -243,7 +277,248 @@ This prints "Here's where we left off" summary. **Then skip to Phase 2** to cont
 - See [resources/api_patterns.md](resources/api_patterns.md) for common API patterns
 - See [resources/dx_improvement_patterns.md](resources/dx_improvement_patterns.md) for DX opportunities
 
-### Phase 3: Finalize Sprint
+### Phase 2B: Parallel Milestone Execution
+
+**Use this mode when independent milestones can be developed concurrently using Task sub-agents.**
+
+#### Step 1: Dependency Analysis
+
+Read the sprint plan and build a dependency graph from the milestones:
+
+```
+For each milestone M:
+  - Parse M.dependencies[] from sprint JSON
+  - Identify files M will touch (use Grep to scope relevant files)
+  - Check for file-level conflicts between milestones
+```
+
+**Group milestones into parallelizable waves:**
+```
+Wave 1: [M1, M3, M5]  ← no dependencies, no shared files
+Wave 2: [M2, M4]       ← depend on Wave 1 results
+Wave 3: [M6]           ← depends on Wave 2 results
+```
+
+Report the dependency graph to the user before proceeding:
+```
+Dependency Analysis:
+  Wave 1 (parallel): M1 (parser), M3 (stdlib), M5 (docs)
+  Wave 2 (parallel): M2 (depends on M1), M4 (depends on M3)
+  Wave 3 (sequential): M6 (depends on M2 + M4)
+
+Estimated speedup: ~2.5x over sequential execution
+Proceed with parallel execution? [y/n]
+```
+
+#### Step 2: Spawn Task Sub-Agents Per Milestone
+
+For each parallelizable wave, spawn one `Task` sub-agent per milestone **in a single message** (so they execute concurrently). Each sub-agent receives a detailed prompt:
+
+```python
+# Example: spawning Wave 1 in parallel (all in ONE message with multiple Task calls)
+Task(
+    description=f"Sprint milestone {milestone.id}",
+    subagent_type="general-purpose",
+    prompt=f"""
+    You are executing milestone {milestone.id}: {milestone.description}
+    Sprint plan: {plan_path}
+
+    ## Your Scope
+    Branch: sprint/{milestone_slug}
+    Relevant files (from dependency analysis): {milestone.relevant_files}
+
+    ## MANDATORY: Test-Driven Development
+
+    **Step 1: Create branch**
+    ```bash
+    git checkout -b sprint/{milestone_slug}
+    ```
+
+    **Step 2: Write FAILING tests FIRST**
+    For each acceptance criterion in the milestone:
+    - Write a test that captures the expected behavior
+    - Run `make test` — confirm the new tests FAIL
+    - Do NOT proceed to implementation until you have failing tests
+
+    Acceptance criteria:
+    {milestone.acceptance_criteria}
+
+    **Step 3: Implement until all tests pass**
+    - Write the minimum code to make each failing test pass
+    - Run `make test` after each change
+    - Run `make lint` — fix any issues immediately
+    - Keep functions small and focused (<50 lines)
+
+    **Step 4: Commit with milestone reference**
+    ```bash
+    git add <specific-files>
+    git commit -m "Complete {milestone.id}: {milestone.description}
+
+    Acceptance criteria met:
+    {acceptance_criteria_checklist}
+
+    Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+    ```
+
+    **Step 5: Report back**
+    At the END of your response, output this EXACT format:
+    ```
+    MILESTONE_REPORT:
+    milestone_id: {milestone.id}
+    status: success|failure
+    tests_passed: <count>
+    tests_failed: <count>
+    files_changed: <comma-separated list>
+    branch: sprint/{milestone_slug}
+    notes: <brief summary of what was done>
+    ```
+
+    ## RULES
+    - Do NOT skip the failing-test-first step
+    - Do NOT commit with failing tests
+    - Do NOT modify files outside your scope: {milestone.relevant_files}
+    - If blocked, report status: failure with clear explanation
+    """
+)
+```
+
+**Critical rules for sub-agent spawning:**
+- All sub-agents in the same wave MUST be launched in a **single message** with multiple `Task` calls
+- Each sub-agent works on its **own branch** (`sprint/<milestone-slug>`)
+- Sub-agents must NOT touch files outside their scoped set
+- Sub-agents must use `Grep` to verify they're only reading relevant files before editing
+
+#### Step 3: Collect Sub-Agent Results
+
+After all sub-agents in a wave complete, parse their `MILESTONE_REPORT` blocks:
+
+```json
+{
+  "wave": 1,
+  "results": [
+    {"milestone_id": "M1", "status": "success", "tests_passed": 12, "tests_failed": 0, "branch": "sprint/m1-parser-fix"},
+    {"milestone_id": "M3", "status": "success", "tests_passed": 8, "tests_failed": 0, "branch": "sprint/m3-stdlib-list"},
+    {"milestone_id": "M5", "status": "failure", "tests_passed": 3, "tests_failed": 2, "branch": "sprint/m5-docs"}
+  ]
+}
+```
+
+**If any milestone in a wave failed:**
+- Do NOT proceed to the next wave
+- Report the failure to the user with the sub-agent's notes
+- Options: (a) retry the failed milestone, (b) fix manually, (c) skip and continue
+- Failed milestones block any downstream milestones that depend on them
+
+**If all milestones in a wave succeeded:**
+- Proceed to Phase 3: Integration for this wave
+- Then continue with the next wave
+
+#### Step 4: Repeat for Each Wave
+
+Execute waves sequentially (Wave 1 → integrate → Wave 2 → integrate → ...). Within each wave, milestones run in parallel.
+
+### Phase 3: Integration Agent
+
+**After parallel milestones complete, act as the integration agent.**
+
+This phase merges all milestone branches and verifies the combined result. The executor (you) performs this directly — do NOT delegate integration to sub-agents.
+
+#### Step 3.1: Create Integration Branch
+
+```bash
+# Start from the base branch (dev or main)
+git checkout dev
+git checkout -b sprint/integration
+```
+
+#### Step 3.2: Merge Milestone Branches
+
+Merge each successful milestone branch into `sprint/integration`, one at a time:
+
+```bash
+# Merge in dependency order (Wave 1 first, then Wave 2, etc.)
+git merge sprint/m1-parser-fix --no-ff -m "Integrate M1: parser fix"
+git merge sprint/m3-stdlib-list --no-ff -m "Integrate M3: stdlib list"
+git merge sprint/m5-docs --no-ff -m "Integrate M5: docs"
+```
+
+**If a merge conflict occurs:**
+1. Identify which milestones conflict (check the conflicting files)
+2. Analyze the conflict — determine which milestone's changes take priority
+3. Resolve the conflict, preserving both milestones' functionality
+4. Run `make test` after resolution to verify nothing broke
+5. Document the conflict and resolution in the sprint retrospective
+
+#### Step 3.3: Run Full Test Suite
+
+```bash
+make test          # ALL tests must pass
+make lint          # ALL linting must pass
+make fmt-check     # Formatting must be clean
+```
+
+**If integration tests fail:**
+1. Identify which milestone introduced the failure using `git bisect` or selective reverts:
+   ```bash
+   # Revert last merge to isolate
+   git revert -m 1 HEAD
+   make test
+   # If tests pass now, the reverted milestone caused the failure
+   ```
+2. Fix the conflict between milestones
+3. Re-run full test suite
+4. Do NOT proceed until all tests pass
+
+#### Step 3.4: Update Sprint Progress JSON
+
+After successful integration, update `.ailang/state/sprints/sprint_<id>.json`:
+- Set `passes: true` for each integrated milestone
+- Update `actual_loc` from git diff stats
+- Set `completed` timestamps
+- Update velocity metrics
+- Set sprint `status: "in_progress"` (or `"completed"` if all waves done)
+
+### Phase 3.5: Sprint Retrospective
+
+**After ALL waves are integrated and tests pass, write a retrospective.**
+
+Create `docs/sprint-retros/<sprint-id>-retro.md` with:
+
+```markdown
+# Sprint Retrospective: <sprint-id>
+
+## Summary
+- **Sprint**: <sprint-id>
+- **Duration**: <actual days> (estimated: <planned days>)
+- **Execution mode**: Parallel (Wave count: N)
+- **Total milestones**: N (passed: X, failed: Y)
+
+## Milestone Timing
+
+| Milestone | Estimated LOC | Actual LOC | Time Taken | Status |
+|-----------|--------------|------------|------------|--------|
+| M1        | 200          | 185        | 45 min     | ✅     |
+| M2        | 150          | 210        | 1h 10min   | ✅     |
+| ...       |              |            |            |        |
+
+## Parallelization Results
+- **Waves executed**: 3
+- **Max parallelism**: 3 agents (Wave 1)
+- **Speedup vs sequential**: ~2.1x
+- **Integration conflicts**: 1 (M1 + M3 shared `types.go`)
+
+## Friction Encountered
+- <Description of any blockers, unexpected complexity, or tooling gaps>
+- <Merge conflicts and how they were resolved>
+- <Sub-agent failures and root causes>
+
+## Recommendations for Next Sprint
+- <Suggestions for improving parallelization>
+- <Files that should NOT be parallelized (high conflict risk)>
+- <DX improvements identified during execution>
+```
+
+### Phase 4: Finalize Sprint
 
 1. **Final Testing** - Run `make test`, `make lint`, `make test-coverage-badge`
 2. **Documentation Review** - Verify CHANGELOG.md, example files, sprint plan complete
@@ -385,6 +660,21 @@ This skill loads information progressively:
 3. Propose: (a) continue as-is, (b) reduce scope, (c) extend timeline
 4. Update sprint plan with revised estimates
 
+### If Sub-Agent Fails (Parallel Mode)
+1. Parse the `MILESTONE_REPORT` from the failed sub-agent
+2. Show failure notes and any test output to the user
+3. Options: (a) retry milestone with a new sub-agent, (b) fix manually on the milestone branch, (c) skip milestone and continue
+4. Do NOT merge a failed milestone's branch into `sprint/integration`
+5. Do NOT proceed to next wave if a failed milestone blocks downstream milestones
+
+### If Integration Merge Conflicts (Parallel Mode)
+1. Identify conflicting files between milestone branches
+2. Merge non-conflicting branches first
+3. For conflicts: resolve preserving both milestones' functionality
+4. Run `make test` after each conflict resolution
+5. Document all conflicts in the sprint retrospective
+6. If resolution is unclear, ask the user before proceeding
+
 ## Coordinator Integration (v0.6.2+)
 
 The sprint-executor skill integrates with the AILANG Coordinator for automated workflows.
@@ -463,5 +753,9 @@ As the last agent in the chain:
 - Git commits create a reversible audit trail
 - TodoWrite provides real-time visibility into progress
 - Test-driven development is non-negotiable - tests must pass
-- **Multi-session continuity** - Sprint can span multiple Claude Code sessions (NEW)
-- **JSON state tracking** - Structured progress in `.ailang/state/sprints/sprint_<id>.json` (NEW)
+- **Multi-session continuity** - Sprint can span multiple Claude Code sessions
+- **JSON state tracking** - Structured progress in `.ailang/state/sprints/sprint_<id>.json`
+- **Parallel execution** - Independent milestones run as concurrent Task sub-agents (Phase 2B)
+- **Failing tests first** - Sub-agents MUST write failing tests before implementation — no exceptions
+- **No merging failing branches** - Only branches with all tests passing enter `sprint/integration`
+- **Sprint retrospectives** - Written to `docs/sprint-retros/` after parallel sprints complete

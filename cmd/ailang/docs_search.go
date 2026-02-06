@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -25,6 +26,9 @@ func docsSearchCommand(args []string) {
 	limitFlag := searchFlags.Int("limit", 10, "Maximum results to return")
 	jsonFlag := searchFlags.Bool("json", false, "Output results as JSON")
 	helpFlag := searchFlags.Bool("help", false, "Show help for docs search")
+
+	// Timeout flag for neural search
+	timeoutFlag := searchFlags.Duration("timeout", 60*time.Second, "Overall timeout for neural search (default: 60s)")
 
 	// Cache management flags
 	cacheInfoFlag := searchFlags.Bool("cache-info", false, "Show embedding cache statistics")
@@ -119,8 +123,12 @@ func docsSearchCommand(args []string) {
 		Rebuild:          *rebuildFlag,
 	}
 
+	// Create context with timeout for neural search
+	ctx, cancel := context.WithTimeout(context.Background(), *timeoutFlag)
+	defer cancel()
+
 	// Run search
-	results, stats, err := docsearch.Search(opts)
+	results, stats, err := docsearch.Search(ctx, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -247,6 +255,7 @@ func printDocsSearchHelp() {
 	fmt.Println("  --stream <stream>    Alias for --subdir (backwards compatibility)")
 	fmt.Println("  --neural             Use neural embeddings for semantic search (requires Ollama)")
 	fmt.Println("  --neural-candidates  Max candidates for neural search (default: max(200, 20*limit))")
+	fmt.Println("  --timeout <dur>      Overall timeout for neural search (default: 60s)")
 	fmt.Println("  --limit <n>          Maximum results to return (default: 10)")
 	fmt.Println("  --json               Output results as JSON")
 	fmt.Println("  --rebuild            Force rebuild of all embeddings (ignore cache)")
@@ -364,5 +373,56 @@ func runCacheCleanup(pathFlag string) {
 		}
 		fmt.Printf("\n   Cache size: %.2f KB → %.2f KB\n",
 			float64(result.OldSize)/1024, float64(result.NewSize)/1024)
+	}
+}
+
+// docsEmbedWarmupCommand implements `ailang docs embed-warmup`
+// Pre-computes embeddings for all docs so neural search doesn't hang on cold cache.
+func docsEmbedWarmupCommand(args []string) {
+	warmupFlags := flag.NewFlagSet("docs embed-warmup", flag.ExitOnError)
+	pathFlag := warmupFlags.String("path", "", "Document corpus path (default: design_docs)")
+	quietFlag := warmupFlags.Bool("quiet", false, "Suppress progress output")
+	timeoutFlag := warmupFlags.Duration("timeout", 5*time.Minute, "Overall warmup timeout (default: 5m)")
+
+	if err := warmupFlags.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	// Determine docs path
+	var docsPath string
+	var err error
+	if *pathFlag != "" {
+		docsPath, err = filepath.Abs(*pathFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: invalid path: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	} else {
+		docsPath, err = findDocsDir()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), *timeoutFlag)
+	defer cancel()
+
+	result, err := docsearch.WarmupCache(ctx, docsPath, *quietFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	if !*quietFlag {
+		fmt.Printf("🔥 Embedding cache warmup complete:\n")
+		fmt.Printf("   Model: %s\n", result.Model)
+		fmt.Printf("   Total docs: %d\n", result.TotalDocs)
+		fmt.Printf("   Already cached: %d\n", result.AlreadyCached)
+		fmt.Printf("   Newly embedded: %d\n", result.NewlyEmbedded)
+		if result.Failed > 0 {
+			fmt.Printf("   Failed: %d\n", result.Failed)
+		}
 	}
 }

@@ -1,5 +1,5 @@
 # AILANG Evaluation Model Configuration
-# Last updated: December 2025
+# Last updated: February 2026
 #
 # This file defines the canonical model names for evaluation benchmarks.
 # Update this file when new model versions are released.
@@ -104,6 +104,45 @@ models:
       Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
+  # OpenAI GPT-5.2-Codex (released January 2026)
+  gpt5-2-codex:
+    api_name: "gpt-5.2-codex"
+    provider: "openai"
+    description: "GPT-5.2-Codex - top-of-the-line agentic coding model"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # Uses Responses API for text generation
+    pricing:
+      input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
+      output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
+    notes: |
+      OpenAI's most capable agentic coding model (Jan 2026).
+      Built on GPT-5.2 with specialized coding fine-tuning.
+      Same pricing as GPT-5.2 ($1.75/$14 per 1M).
+      90% discount on cached tokens ($0.175/M).
+      Uses Responses API (/v1/responses) - NOT Chat Completions API.
+      Supports reasoning.effort parameter (none/low/medium/high).
+      Supersedes gpt-5.1-codex-max for coding tasks.
+      Eval support: ✅ Fully supported via Responses API.
+
+  # OpenAI Codex-Mini-Latest (released January 2026)
+  codex-mini-latest:
+    api_name: "codex-mini-latest"
+    provider: "openai"
+    description: "Codex-Mini - fast, cheap coding model for simple tasks"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: null  # Uses Responses API for text generation
+    pricing:
+      input_per_1k: 0.0015    # $1.50 per 1M = $0.0015 per 1K
+      output_per_1k: 0.006    # $6 per 1M = $0.006 per 1K
+    notes: |
+      Smaller, faster coding model for simple tasks (code completion, unit tests).
+      Fine-tuned from o4-mini for Codex CLI use.
+      Uses Responses API (/v1/responses) - NOT Chat Completions API.
+      75% prompt caching discount ($0.375/M cached input).
+      Heavy reasoning token usage - needs generous max_output_tokens.
+      Good for extending usage limits (~4x cheaper than full codex models).
+      Eval support: ✅ Supported via Responses API.
+
   # OpenAI GPT-5.1-Codex-Max (released December 2025)
   gpt5-1-codex-max:
     api_name: "gpt-5.1-codex-max"
@@ -175,6 +214,27 @@ models:
       200K context window, 64K max output tokens.
       66% cheaper than previous Opus ($15/$75 → $5/$25).
       Cache reads: $0.50/M (0.1x base). Batch: 50% off.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
+
+  # Anthropic Claude Opus 4.6 (released February 2026)
+  claude-opus-4-6:
+    api_name: "claude-opus-4-6"
+    provider: "anthropic"
+    description: "Claude Opus 4.6 - most capable model with 1M context"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "opus"  # Pass to --agent-model flag
+    pricing:
+      input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
+      output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
+    notes: |
+      Anthropic's most capable model (Feb 6, 2026).
+      1M token context window (long context: $10/$37.50 per 1M for >200K input).
+      Improved agentic coding, planning, code review, and debugging.
+      Same base pricing as Opus 4.5 ($5/$25 per 1M).
+      US-only inference available at 1.1x pricing.
+      Cache reads: $0.50/M (0.1x base). Batch: 50% off ($2.50/$12.50).
+      API name uses no date suffix: "claude-opus-4-6" (not dated variant).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
   # Google Gemini 2.5 Pro (released March 2025)
@@ -333,16 +393,16 @@ default: "claude-sonnet-4-5"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-1-codex-max" # OpenAI agentic coding (Dec 2025)
+  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
   - "claude-sonnet-4-5" # Anthropic flagship
   - "gemini-2-5-pro"   # Google flagship
 
-# Extended suite - flagship + best alternatives (5 models)
+# Extended suite - flagship + best alternatives (6 models)
 # Use for: Release baselines, comprehensive comparisons
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-1-codex-max" # OpenAI agentic coding (Dec 2025)
-  - "claude-opus-4-5"  # Anthropic most intelligent
+  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
+  - "claude-opus-4-6"  # Anthropic most capable (Feb 2026)
   - "claude-sonnet-4-5" # Anthropic best for coding
   - "gemini-3-pro"     # Google latest (Nov 2025)
   - "gemini-2-5-pro"   # Google previous flagship
@@ -366,11 +426,14 @@ local_models:
   - "ollama-llama3-2"       # Llama 3.2 3B (fast)
 
 # Available but not in default suites (run with --models flag):
-# - gpt5              # Superseded by gpt5-1-codex-max
-# - gpt5-1            # Superseded by gpt5-1-codex-max
-# - gpt5-2            # GPT-5.2 flagship (use codex-max for coding tasks)
+# - gpt5              # Superseded by gpt5-2-codex
+# - gpt5-1            # Superseded by gpt5-2-codex
+# - gpt5-1-codex-max  # Superseded by gpt5-2-codex (Jan 2026)
+# - gpt5-2            # GPT-5.2 flagship (use gpt5-2-codex for coding tasks)
 # - gpt5-mini         # Cheaper but slower than gpt5-1-instant
 # - gpt5-2-instant    # Fast variant of GPT-5.2
+# - codex-mini-latest # Cheap coding model (use for simple tasks)
+# - claude-opus-4-5   # Superseded by claude-opus-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
 
 # Agent CLI support for agent-based evaluation
