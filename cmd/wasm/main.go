@@ -67,11 +67,22 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 		var stillPending []moduleSource
 
 		for _, mod := range pending {
-			_, err := registry.LoadModule(mod.name, mod.content)
-			if err != nil {
-				// Module failed - might need dependencies loaded first
-				stillPending = append(stillPending, mod)
-			}
+			// Panic recovery per module — prevents one bad module from crashing WASM
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						if console := js.Global().Get("console"); !console.IsUndefined() {
+							console.Call("warn", fmt.Sprintf("Panic loading %s: %v", mod.name, r))
+						}
+						stillPending = append(stillPending, mod)
+					}
+				}()
+				_, err := registry.LoadModule(mod.name, mod.content)
+				if err != nil {
+					// Module failed - might need dependencies loaded first
+					stillPending = append(stillPending, mod)
+				}
+			}()
 		}
 
 		// Check if we made progress
@@ -99,6 +110,10 @@ func NewWasmREPL() *WasmREPL {
 
 	// Connect registry to REPL for import resolution
 	replInstance.SetRegistry(registry)
+
+	// Share REPL's effect context with registry so InvokeExport can use
+	// configured effect handlers (AI, IO, etc.)
+	registry.SetEffContext(replInstance.GetEffContext())
 
 	// Load embedded stdlib modules (enables import std/list, std/json, etc.)
 	if err := loadEmbeddedStdlib(registry); err != nil {
@@ -138,10 +153,28 @@ func (w *WasmREPL) HandleCommand(cmd string) string {
 	return w.output.String()
 }
 
-// Reset clears the REPL environment
+// Reset clears the REPL environment, reconnects registry, and reloads stdlib.
 func (w *WasmREPL) Reset() string {
-	w.repl = repl.New()
 	w.registry = repl.NewModuleRegistry()
+	w.repl = repl.NewWithVersion(Version, BuildTime)
+
+	// Reconnect registry to REPL (required for import resolution)
+	w.repl.SetRegistry(w.registry)
+
+	// Share REPL's effect context with registry (required for effect handlers)
+	w.registry.SetEffContext(w.repl.GetEffContext())
+
+	// Reload embedded stdlib modules
+	if err := loadEmbeddedStdlib(w.registry); err != nil {
+		if console := js.Global().Get("console"); !console.IsUndefined() {
+			console.Call("warn", "Failed to reload stdlib after reset: "+err.Error())
+		}
+	}
+
+	// Re-import prelude for numeric defaults
+	discardBuf := &bytes.Buffer{}
+	w.repl.HandleCommand(":import std/prelude", discardBuf)
+
 	return "Environment reset"
 }
 
@@ -357,11 +390,118 @@ func formatValue(v eval.Value) string {
 	}
 }
 
+// evalAsync: ailangEvalAsync(expr) -> Promise<string>
+// Evaluates an expression asynchronously, returning a JS Promise.
+// Required when the expression may trigger effect handlers that return Promises.
+func evalAsync(this js.Value, args []js.Value) interface{} {
+	if len(args) < 1 {
+		return newRejectedPromise("ailangEvalAsync requires 1 argument: expression")
+	}
+
+	input := args[0].String()
+
+	handler := js.FuncOf(func(_ js.Value, pArgs []js.Value) interface{} {
+		resolve := pArgs[0]
+		reject := pArgs[1]
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					reject.Invoke(fmt.Sprintf("panic: %v", r))
+				}
+			}()
+
+			// Handle commands
+			if len(input) > 0 && input[0] == ':' {
+				result := replInstance.HandleCommand(input)
+				resolve.Invoke(result)
+				return
+			}
+
+			result := replInstance.Eval(input)
+			resolve.Invoke(result)
+		}()
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+// callAsync: ailangCallAsync(moduleName, funcName, ...args) -> Promise<{success, result?, error?}>
+// Calls a module export asynchronously, returning a JS Promise.
+// Required when the function may trigger effect handlers that return Promises.
+func callAsync(this js.Value, args []js.Value) interface{} {
+	if len(args) < 2 {
+		return newRejectedPromise("ailangCallAsync requires at least 2 arguments: moduleName and funcName")
+	}
+
+	moduleName := args[0].String()
+	funcName := args[1].String()
+
+	// Convert remaining JS arguments to AILANG values
+	ailangArgs := make([]eval.Value, 0, len(args)-2)
+	for i := 2; i < len(args); i++ {
+		arg := args[i]
+		var ailangVal eval.Value
+
+		switch arg.Type() {
+		case js.TypeNumber:
+			f := arg.Float()
+			if f == float64(int(f)) {
+				ailangVal = &eval.IntValue{Value: int(f)}
+			} else {
+				ailangVal = &eval.FloatValue{Value: f}
+			}
+		case js.TypeString:
+			ailangVal = &eval.StringValue{Value: arg.String()}
+		case js.TypeBoolean:
+			ailangVal = &eval.BoolValue{Value: arg.Bool()}
+		default:
+			return newRejectedPromise(fmt.Sprintf("unsupported argument type at position %d: %v", i-1, arg.Type()))
+		}
+
+		ailangArgs = append(ailangArgs, ailangVal)
+	}
+
+	handler := js.FuncOf(func(_ js.Value, pArgs []js.Value) interface{} {
+		resolve := pArgs[0]
+		reject := pArgs[1]
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					reject.Invoke(fmt.Sprintf("panic: %v", r))
+				}
+			}()
+
+			result, err := replInstance.GetRegistry().InvokeExport(moduleName, funcName, ailangArgs)
+			if err != nil {
+				resolve.Invoke(map[string]interface{}{
+					"success": false,
+					"error":   err.Error(),
+				})
+				return
+			}
+
+			resolve.Invoke(map[string]interface{}{
+				"success": true,
+				"result":  formatValue(result),
+			})
+		}()
+		return nil
+	})
+
+	return js.Global().Get("Promise").New(handler)
+}
+
+// newRejectedPromise creates a Promise that immediately rejects with the given message.
+func newRejectedPromise(msg string) js.Value {
+	return js.Global().Get("Promise").Call("reject", msg)
+}
+
 func main() {
 	// Initialize REPL
 	replInstance = NewWasmREPL()
 
-	// Register functions for JavaScript to call
+	// Register existing sync functions
 	js.Global().Set("ailangEval", js.FuncOf(evalExpression))
 	js.Global().Set("ailangReset", js.FuncOf(resetREPL))
 	js.Global().Set("ailangVersion", js.FuncOf(getVersion))
@@ -369,10 +509,19 @@ func main() {
 	js.Global().Set("ailangListModules", js.FuncOf(listModules))
 	js.Global().Set("ailangCall", js.FuncOf(callExport))
 
+	// Register effect handler functions (M-WASM-EFFECTS)
+	js.Global().Set("ailangSetEffectHandler", js.FuncOf(setEffectHandler))
+	js.Global().Set("ailangSetAIHandler", js.FuncOf(setAIHandler))
+	js.Global().Set("ailangGrantCapability", js.FuncOf(grantCapability))
+
+	// Register async evaluation functions (for effects that use Promises)
+	js.Global().Set("ailangEvalAsync", js.FuncOf(evalAsync))
+	js.Global().Set("ailangCallAsync", js.FuncOf(callAsync))
+
 	// Signal ready (safely check if console exists)
 	if console := js.Global().Get("console"); !console.IsUndefined() {
 		if logFunc := console.Get("log"); !logFunc.IsUndefined() {
-			console.Call("log", "AILANG WASM REPL loaded")
+			console.Call("log", "AILANG WASM REPL loaded (with effects support)")
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
@@ -22,6 +23,7 @@ type ModuleRegistry struct {
 	mu           sync.RWMutex
 	modules      map[string]*RegisteredModule
 	constructors map[string]*CachedConstructor // Cached constructors from all loaded modules
+	effContext   *effects.EffContext           // Shared effect context for InvokeExport (set by WASM)
 }
 
 // CachedConstructor stores constructor info for cross-module import resolution
@@ -179,6 +181,13 @@ func NewModuleRegistry() *ModuleRegistry {
 		modules:      make(map[string]*RegisteredModule),
 		constructors: make(map[string]*CachedConstructor),
 	}
+}
+
+// SetEffContext sets the shared effect context used by InvokeExport.
+// This allows WASM-configured effect handlers (AI, IO, etc.) to be available
+// when calling module exports.
+func (mr *ModuleRegistry) SetEffContext(ctx *effects.EffContext) {
+	mr.effContext = ctx
 }
 
 // LoadModule compiles and registers a module from source code.
@@ -699,6 +708,14 @@ func (mr *ModuleRegistry) InvokeExport(moduleName, funcName string, args []eval.
 	builtinRegistry := runtime.NewBuiltinRegistry(evaluator)
 	registryResolver := NewRegistryResolver(mr, builtinRegistry)
 	evaluator.SetGlobalResolver(registryResolver)
+
+	// Set effect context if available (enables AI, IO, and other effects in WASM)
+	if mr.effContext != nil {
+		evaluator.SetEffContext(mr.effContext)
+	}
+
+	// Enable experimental binop shim (handles float equality until OpLowering is complete)
+	evaluator.SetExperimentalBinopShim(true)
 
 	// Register type class dictionaries (Num, Eq, Ord, Fractional) so that
 	// module functions using arithmetic, comparisons, or string operations work.

@@ -146,6 +146,22 @@ func (r *REPL) GetRegistry() *ModuleRegistry {
 	return r.registry
 }
 
+// GetEffContext returns the effect context for external configuration (used by WASM)
+func (r *REPL) GetEffContext() *effects.EffContext {
+	return r.effContext
+}
+
+// GrantCapability grants a named capability to the effect context
+func (r *REPL) GrantCapability(name string) {
+	r.effContext.Grant(effects.NewCapability(name))
+}
+
+// SetAIHandler configures the AI effect handler and grants the AI capability
+func (r *REPL) SetAIHandler(handler effects.AIHandler) {
+	r.effContext.AI = effects.NewAIContext(handler)
+	r.effContext.Grant(effects.NewCapability("AI"))
+}
+
 // getPrompt returns the REPL prompt with active capabilities
 func (r *REPL) getPrompt() string {
 	if len(r.effContext.Caps) == 0 {

@@ -415,6 +415,226 @@ let formatCurrency: Float -> String = \\amount.
 </html>
 ```
 
+### Effect Handlers API (v0.7.1+)
+
+The WASM REPL supports configuring AILANG's algebraic effect system from JavaScript. This enables browser-based programs to use effects like AI, IO, Net, FS, and more by providing JavaScript callback implementations.
+
+:::tip Why Effect Handlers?
+AILANG tracks side effects in the type system. A function declared as `func ask(q: string) -> string ! {AI}` requires the `AI` capability to run. In the CLI, capabilities are granted via `--caps`. In the browser, you provide JavaScript implementations for each effect operation.
+:::
+
+#### Low-Level Globals
+
+These functions are registered on the global `window` object when the WASM module loads:
+
+| Global Function | Purpose |
+|----------------|---------|
+| `ailangSetEffectHandler(name, ops)` | Override any effect with JS callbacks |
+| `ailangSetAIHandler(fn)` | Convenience wrapper for AI effect |
+| `ailangGrantCapability(name)` | Grant a capability without a handler |
+| `ailangEvalAsync(expr)` | Evaluate with async effect support |
+| `ailangCallAsync(mod, fn, ...args)` | Call module function with async effects |
+
+#### `ailangSetEffectHandler(effectName, handlers)`
+
+Override any effect's operations with JavaScript callbacks. Auto-grants the named capability.
+
+```javascript
+// IO effect — route print/println to DOM
+ailangSetEffectHandler("IO", {
+  print:    (msg) => { output.textContent += msg; },
+  println:  (msg) => { output.textContent += msg + '\n'; },
+  readLine: ()    => prompt("Enter input:")
+});
+
+// Net effect — use browser fetch
+ailangSetEffectHandler("Net", {
+  httpRequest: async (method, url, headers, body) => {
+    const resp = await fetch(url, {
+      method,
+      headers: JSON.parse(headers),
+      body
+    });
+    return JSON.stringify({
+      status: resp.status,
+      body: await resp.text(),
+      ok: resp.ok
+    });
+  }
+});
+
+// Clock effect — use JS Date
+ailangSetEffectHandler("Clock", {
+  now:   () => Date.now(),
+  sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+});
+```
+
+**Parameters:**
+- `effectName` (string): Effect name matching the AILANG capability (e.g., `"IO"`, `"AI"`, `"Net"`)
+- `handlers` (object): Map of operation names to JS functions
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+**Supported handler return types:**
+- Synchronous values (string, number, boolean, null)
+- Promises (resolved value is converted to AILANG)
+
+#### `ailangSetAIHandler(callback)`
+
+Convenience wrapper for the AI effect. Sets both the effect handler and the dedicated `AIHandler` on the effect context. This is the recommended way to enable `std/ai.call()` in the browser.
+
+```javascript
+// Connect to Gemini Flash API
+ailangSetAIHandler(async function(input) {
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: input }] }]
+      })
+    }
+  );
+  const data = await resp.json();
+  return data.candidates[0].content.parts[0].text;
+});
+```
+
+**Parameters:**
+- `callback` (function): JS function that takes a string and returns a string (or Promise\<string\>)
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+:::info Auto-Grant
+`ailangSetAIHandler` automatically grants the `AI` capability and registers the handler in the effect registry. You don't need to call `ailangGrantCapability("AI")` separately.
+:::
+
+#### `ailangGrantCapability(name)`
+
+Grant a named capability without providing a handler. Useful when the effect operations are already registered (e.g., built-in effects that work in WASM).
+
+```javascript
+ailangGrantCapability("IO");
+ailangGrantCapability("Debug");
+```
+
+**Parameters:**
+- `name` (string): Capability name
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+#### `ailangEvalAsync(expression)`
+
+Evaluate an AILANG expression asynchronously. Returns a JavaScript Promise. **Required when the expression may trigger effect handlers that return Promises** (e.g., AI calls, network requests).
+
+```javascript
+// Sync handler — ailangEval() works fine
+ailangSetAIHandler((input) => "mock: " + input);
+const result = repl.eval('import std/ai as AI in AI.call("hello")');
+
+// Async handler — MUST use ailangEvalAsync
+ailangSetAIHandler(async (input) => {
+  const resp = await fetch('/api/ai', { method: 'POST', body: input });
+  return await resp.text();
+});
+const result = await ailangEvalAsync('import std/ai as AI in AI.call("hello")');
+```
+
+**Parameters:**
+- `expression` (string): AILANG expression or REPL command
+
+**Returns:** Promise\<string\> — resolves with result string, rejects on error
+
+#### `ailangCallAsync(moduleName, funcName, ...args)`
+
+Call a module export asynchronously. Returns a JavaScript Promise. Same as `repl.call()` but supports async effect handlers.
+
+```javascript
+// Load a module that uses AI
+repl.loadModule('demo', `
+module demo
+import std/ai as AI
+
+export func askAI(question: string) -> string ! {AI} =
+    AI.call(question)
+`);
+
+// Call with async AI handler
+ailangSetAIHandler(async (input) => {
+  // ... fetch from LLM API
+  return "AI response";
+});
+
+const result = await ailangCallAsync('demo', 'askAI', 'What is 2+2?');
+// result: { success: true, result: '"AI response" :: String' }
+```
+
+**Parameters:**
+- `moduleName` (string): Module containing the function
+- `funcName` (string): Function to call
+- `...args` (any): Arguments (number, string, boolean)
+
+**Returns:** Promise\<{ success, result?, error? }\>
+
+### Effect Handler Example
+
+Complete example using AI and IO effects in the browser:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AILANG Effects Demo</title>
+  <script src="wasm_exec.js"></script>
+  <script src="ailang-repl.js"></script>
+</head>
+<body>
+  <div id="output"></div>
+
+  <script>
+    const repl = new AilangREPL();
+    const output = document.getElementById('output');
+
+    repl.init('/wasm/ailang.wasm').then(async () => {
+      // Set up IO effect — route output to DOM
+      ailangSetEffectHandler("IO", {
+        print:   (msg) => { output.textContent += msg; },
+        println: (msg) => { output.textContent += msg + '\n'; }
+      });
+
+      // Set up AI effect — mock handler for demo
+      ailangSetAIHandler((input) => {
+        return "The answer is 42";
+      });
+
+      // Load a module that uses both effects
+      repl.loadModule('demo', `
+module demo
+import std/ai as AI
+
+export func greet(name: string) -> () ! {IO} =
+    println("Hello, " ++ name ++ "!")
+
+export func ask(question: string) -> string ! {AI} =
+    AI.call(question)
+      `);
+
+      // Call IO function (sync is fine for sync handlers)
+      repl.call('demo', 'greet', 'World');
+      // DOM shows: "Hello, World!"
+
+      // Call AI function
+      const answer = await ailangCallAsync('demo', 'ask', 'What is the meaning of life?');
+      console.log(answer.result);
+      // '"The answer is 42" :: String'
+    });
+  </script>
+</body>
+</html>
+```
+
 ## REPL Commands
 
 The WebAssembly REPL supports the same commands as the CLI:
@@ -439,8 +659,13 @@ The browser version has these limitations compared to the CLI:
 | Module loading | Yes | Yes (v0.7.1+) |
 | Standard library | Yes | Yes (v0.7.1+)* |
 | Explicit exports | Yes | Yes (v0.7.1.2+) |
-| File I/O (`FS` effect) | Yes | No |
-| Custom file imports | Yes | No |
+| Effect handlers | Yes (`--caps`) | Yes (v0.7.1+, via JS callbacks) |
+| AI effect (`std/ai`) | Yes | Yes (v0.7.1+, via `ailangSetAIHandler`) |
+| IO effect (print/read) | Yes (terminal) | Yes (v0.7.1+, via JS callbacks) |
+| Net effect (HTTP) | Yes | Via JS callbacks (CORS applies) |
+| FS effect (files) | Yes (filesystem) | Via JS callbacks (localStorage/IndexedDB) |
+| Async evaluation | N/A | Yes (v0.7.1+, `ailangEvalAsync`) |
+| Custom file imports | Yes | No (use `loadModule()`) |
 | History persistence | Yes | No |
 
 \* The standard library (20 modules including `std/list`, `std/json`, `std/string`) is embedded in the WASM binary and auto-loaded on init. Use `importModule('std/list')` to bring stdlib exports into scope. Custom user file imports require `loadModule()` instead.
