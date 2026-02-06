@@ -241,5 +241,12 @@ log "Context message prepared (length: ${#CONTEXT_MESSAGE} chars)"
 # Messages are NOT marked as read - Claude must acknowledge them with: ailang messages ack <id>
 echo "$CONTEXT_MESSAGE"
 
+# Background: warm embedding cache for neural search (non-blocking)
+# This prevents cold-cache hangs when design-doc-creator uses --neural
+if command -v ailang &> /dev/null; then
+    ailang docs embed-warmup --quiet --timeout 3m &
+    log "Started background embedding cache warmup (PID: $!)"
+fi
+
 log "=== Session Start Hook Completed ==="
 exit 0

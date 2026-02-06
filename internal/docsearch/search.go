@@ -4,6 +4,7 @@ package docsearch
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"os"
@@ -55,7 +56,9 @@ type DocFrame struct {
 
 // Search executes a documentation search with the given options.
 // Returns results sorted by score (descending) and search statistics.
-func Search(opts SearchOptions) ([]SearchResult, SearchStats, error) {
+// The context controls the overall timeout for neural search — if it expires,
+// partial results are returned gracefully (fallback to SimHash).
+func Search(ctx context.Context, opts SearchOptions) ([]SearchResult, SearchStats, error) {
 	startTime := time.Now()
 	stats := SearchStats{}
 
@@ -78,8 +81,8 @@ func Search(opts SearchOptions) ([]SearchResult, SearchStats, error) {
 	var results []SearchResult
 
 	if opts.Neural {
-		// Stage 2-3: Neural embedding search
-		results, stats, err = neuralSearch(candidates, opts.Query, opts.DocsPath, opts.Limit, stats)
+		// Stage 2-3: Neural embedding search (context-bounded)
+		results, stats, err = neuralSearch(ctx, candidates, opts.Query, opts.DocsPath, opts.Limit, stats)
 		if err != nil {
 			// Fallback to SimHash-only results on neural failure
 			results = simhashResults(candidates, opts.Limit)
@@ -288,7 +291,8 @@ func simhashResults(candidates []DocFrame, limit int) []SearchResult {
 }
 
 // neuralSearch performs embedding-based semantic search (Stage 2-3)
-// Delegates to neuralSearchImpl in embed.go
-func neuralSearch(candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
-	return neuralSearchImpl(candidates, query, corpus, limit, stats)
+// Delegates to neuralSearchImpl in embed.go. The context bounds the overall
+// embedding time — if it expires, partial results are returned.
+func neuralSearch(ctx context.Context, candidates []DocFrame, query string, corpus string, limit int, stats SearchStats) ([]SearchResult, SearchStats, error) {
+	return neuralSearchImpl(ctx, candidates, query, corpus, limit, stats)
 }

@@ -114,7 +114,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
 
     # Neural search (better quality)
     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
-    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    IMPL_NEURAL=$("$AILANG_CMD" docs search --stream implemented --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
     if [ -n "$IMPL_NEURAL" ]; then
         echo "$IMPL_NEURAL" | head -3 | sed 's/^/  /'
     else
@@ -140,7 +140,7 @@ if command -v ailang &> /dev/null || [ -x "$PROJECT_ROOT/bin/ailang" ]; then
 
     # Neural search (better quality)
     echo -e "  ${CYAN}[Neural - semantic matching]${NC}"
-    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
+    PLAN_NEURAL=$("$AILANG_CMD" docs search --stream planned --neural --timeout 15s --limit 5 "$SEARCH_QUERY" 2>/dev/null | grep -E "^\d+\." || echo "")
     if [ -n "$PLAN_NEURAL" ]; then
         echo "$PLAN_NEURAL" | head -3 | sed 's/^/  /'
     else

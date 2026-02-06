@@ -35,6 +35,10 @@ func docsCommand() {
 		docsSearchCommand(args[1:])
 		return
 	}
+	if len(args) > 0 && args[0] == "embed-warmup" {
+		docsEmbedWarmupCommand(args[1:])
+		return
+	}
 
 	// Parse subcommand flags
 	docsFlags := flag.NewFlagSet("docs", flag.ExitOnError)
