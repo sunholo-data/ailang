@@ -27,10 +27,61 @@ jobs:
     - name: Build WASM binary
       run: make build-wasm
 
-    - name: Create WASM archive
+    - name: Bundle WASM archive with JS dependencies
       run: |
+        set -euo pipefail
+        # Get wasm_exec.js from the Go version used for building (version-matched)
+        GO_VERSION=$(go env GOVERSION)
+        echo "::group::Fetching wasm_exec.js for ${GO_VERSION}"
+        GOROOT=$(go env GOROOT)
+        if [ -f "${GOROOT}/misc/wasm/wasm_exec.js" ]; then
+          cp "${GOROOT}/misc/wasm/wasm_exec.js" bin/wasm_exec.js
+          echo "Copied wasm_exec.js from GOROOT (${GO_VERSION})"
+        else
+          echo "::error::wasm_exec.js not found in GOROOT at ${GOROOT}/misc/wasm/wasm_exec.js"
+          exit 1
+        fi
+        echo "::endgroup::"
+
+        # Copy ailang-repl.js wrapper from web/
+        echo "::group::Bundling ailang-repl.js"
+        cp web/ailang-repl.js bin/ailang-repl.js
+        echo "Copied ailang-repl.js from web/"
+        echo "::endgroup::"
+
+        # Create archive with all three files
+        echo "::group::Creating ailang-wasm.tar.gz"
         cd bin
-        tar -czf ailang-wasm.tar.gz ailang.wasm
+        ls -lh ailang.wasm wasm_exec.js ailang-repl.js
+        tar -czf ailang-wasm.tar.gz ailang.wasm wasm_exec.js ailang-repl.js
+        echo "::endgroup::"
+
+    - name: Verify WASM archive contents
+      run: |
+        set -euo pipefail
+        echo "::group::Archive verification"
+        tar -tzf bin/ailang-wasm.tar.gz
+        # Size checks
+        WASM_SIZE=$(stat -c%s bin/ailang.wasm 2>/dev/null || stat -f%z bin/ailang.wasm)
+        EXEC_SIZE=$(stat -c%s bin/wasm_exec.js 2>/dev/null || stat -f%z bin/wasm_exec.js)
+        REPL_SIZE=$(stat -c%s bin/ailang-repl.js 2>/dev/null || stat -f%z bin/ailang-repl.js)
+        echo "ailang.wasm: ${WASM_SIZE} bytes"
+        echo "wasm_exec.js: ${EXEC_SIZE} bytes"
+        echo "ailang-repl.js: ${REPL_SIZE} bytes"
+        if [ "$WASM_SIZE" -lt 1000000 ]; then
+          echo "::error::ailang.wasm is too small (${WASM_SIZE} bytes, expected >1MB)"
+          exit 1
+        fi
+        if [ "$EXEC_SIZE" -lt 10000 ]; then
+          echo "::error::wasm_exec.js is too small (${EXEC_SIZE} bytes, expected >10KB)"
+          exit 1
+        fi
+        if [ "$REPL_SIZE" -lt 3000 ]; then
+          echo "::error::ailang-repl.js is too small (${REPL_SIZE} bytes, expected >3KB)"
+          exit 1
+        fi
+        echo "All files verified"
+        echo "::endgroup::"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -166,6 +217,7 @@ jobs:
         echo 'For embedding AILANG REPL in web applications:' >> changelog.md
         echo '```bash' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/ailang-wasm.tar.gz | tar -xz' >> changelog.md
+        echo '# Contains: ailang.wasm, wasm_exec.js, ailang-repl.js (all version-matched)' >> changelog.md
         echo '```' >> changelog.md
         echo '' >> changelog.md
         echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
