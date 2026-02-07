@@ -9,6 +9,7 @@ import SuccessTrend from './SuccessTrend';
 import PerModelTrend from './PerModelTrend';
 import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
+import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
 import styles from './styles.module.css';
 
@@ -192,6 +193,13 @@ export default function BenchmarkDashboard() {
         </p>
         <RadarCharts data={data} />
       </div>
+
+      {/* Agent Performance Detail */}
+      {aggregates.agentRuns > 0 && (
+        <div className={styles.section}>
+          <AgentRadar data={data} />
+        </div>
+      )}
 
       {/* Success Trend */}
       {history && history.length > 1 && (

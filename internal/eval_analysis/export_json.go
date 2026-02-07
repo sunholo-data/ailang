@@ -313,6 +313,145 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 	}
 
+	// Calculate per-executor agent statistics (claude, gemini, etc.)
+	type executorAgentStats struct {
+		runs        int
+		success     int
+		totalTurns  int
+		totalTokens int
+		totalCost   float64
+	}
+	type executorLangAgentStats struct {
+		runs         int
+		success      int
+		turns        int
+		tokens       int
+		cost         float64
+		successTurns int
+		successCount int
+		failureTurns int
+		failureCount int
+	}
+	perExecutorStats := make(map[string]*executorAgentStats)
+	perExecutorLangStats := make(map[string]map[string]*executorLangAgentStats) // executor -> lang -> stats
+	perExecutorModelStats := make(map[string]map[string]*executorAgentStats)    // executor -> model -> stats
+
+	for _, r := range agentResults {
+		executor := r.Executor
+		if executor == "" {
+			executor = "unknown"
+		}
+
+		// Per-executor totals
+		if perExecutorStats[executor] == nil {
+			perExecutorStats[executor] = &executorAgentStats{}
+		}
+		es := perExecutorStats[executor]
+		es.runs++
+		if r.StdoutOk {
+			es.success++
+		}
+		es.totalTurns += r.AgentTurns
+		es.totalTokens += r.TotalTokens
+		es.totalCost += r.CostUSD
+
+		// Per-executor per-model stats
+		if perExecutorModelStats[executor] == nil {
+			perExecutorModelStats[executor] = make(map[string]*executorAgentStats)
+		}
+		if perExecutorModelStats[executor][r.Model] == nil {
+			perExecutorModelStats[executor][r.Model] = &executorAgentStats{}
+		}
+		ms := perExecutorModelStats[executor][r.Model]
+		ms.runs++
+		if r.StdoutOk {
+			ms.success++
+		}
+		ms.totalTurns += r.AgentTurns
+		ms.totalTokens += r.TotalTokens
+		ms.totalCost += r.CostUSD
+
+		// Per-executor per-language stats
+		if perExecutorLangStats[executor] == nil {
+			perExecutorLangStats[executor] = make(map[string]*executorLangAgentStats)
+		}
+		if perExecutorLangStats[executor][r.Lang] == nil {
+			perExecutorLangStats[executor][r.Lang] = &executorLangAgentStats{}
+		}
+		ls := perExecutorLangStats[executor][r.Lang]
+		ls.runs++
+		ls.turns += r.AgentTurns
+		ls.tokens += r.TotalTokens
+		ls.cost += r.CostUSD
+		if r.StdoutOk {
+			ls.success++
+			ls.successTurns += r.AgentTurns
+			ls.successCount++
+		} else {
+			ls.failureTurns += r.AgentTurns
+			ls.failureCount++
+		}
+	}
+
+	// Build executors map for JSON output
+	executorsJS := make(map[string]interface{})
+	for executor, es := range perExecutorStats {
+		if es.runs == 0 {
+			continue
+		}
+		execData := map[string]interface{}{
+			"runs":        es.runs,
+			"successRate": float64(es.success) / float64(es.runs),
+			"avgTurns":    float64(es.totalTurns) / float64(es.runs),
+			"avgTokens":   float64(es.totalTokens) / float64(es.runs),
+			"avgCost":     es.totalCost / float64(es.runs),
+			"totalCost":   es.totalCost,
+		}
+
+		// Add per-language breakdown
+		if langMap, ok := perExecutorLangStats[executor]; ok {
+			langBreakdown := make(map[string]interface{})
+			for lang, ls := range langMap {
+				if ls.runs == 0 {
+					continue
+				}
+				langEntry := map[string]interface{}{
+					"runs":        ls.runs,
+					"successRate": float64(ls.success) / float64(ls.runs),
+					"avgTurns":    float64(ls.turns) / float64(ls.runs),
+					"avgTokens":   float64(ls.tokens) / float64(ls.runs),
+					"avgCost":     ls.cost / float64(ls.runs),
+				}
+				if ls.successCount > 0 {
+					langEntry["avgTurnsSuccess"] = float64(ls.successTurns) / float64(ls.successCount)
+				}
+				if ls.failureCount > 0 {
+					langEntry["avgTurnsFailure"] = float64(ls.failureTurns) / float64(ls.failureCount)
+				}
+				langBreakdown[lang] = langEntry
+			}
+			execData["languages"] = langBreakdown
+		}
+		// Add per-model breakdown within this executor
+		if modelMap, ok := perExecutorModelStats[executor]; ok {
+			modelBreakdown := make(map[string]interface{})
+			for model, ms := range modelMap {
+				if ms.runs == 0 {
+					continue
+				}
+				modelBreakdown[model] = map[string]interface{}{
+					"runs":        ms.runs,
+					"successRate": float64(ms.success) / float64(ms.runs),
+					"avgTurns":    float64(ms.totalTurns) / float64(ms.runs),
+					"avgTokens":   float64(ms.totalTokens) / float64(ms.runs),
+					"avgCost":     ms.totalCost / float64(ms.runs),
+				}
+			}
+			execData["models"] = modelBreakdown
+		}
+		executorsJS[executor] = execData
+	}
+
 	// Process historical baselines to build complete history with per-model stats
 	// Load results for each baseline and generate matrix to get modelStats
 	for _, baseline := range history {
@@ -582,8 +721,27 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			}
 		}
 
+		// Add per-executor agent breakdown for this language
+		for executor, langMap := range perExecutorLangStats {
+			if ls, ok := langMap[lang]; ok && ls.runs > 0 {
+				langData["agent_success_rate_"+executor] = float64(ls.success) / float64(ls.runs)
+				langData["agent_avg_turns_"+executor] = float64(ls.turns) / float64(ls.runs)
+				langData["agent_avg_tokens_"+executor] = float64(ls.tokens) / float64(ls.runs)
+				langData["agent_avg_cost_"+executor] = ls.cost / float64(ls.runs)
+				langData["agent_runs_"+executor] = ls.runs
+			}
+		}
+
 		languagesMap[lang] = langData
 	}
+
+	// Build sorted executor list for frontend
+	executorList := make([]string, 0, len(perExecutorStats))
+	for executor := range perExecutorStats {
+		executorList = append(executorList, executor)
+	}
+	sort.Strings(executorList)
+	aggregatesJS["agentExecutors"] = executorList
 
 	// Update dashboard with current version data
 	dashboard.Version = matrix.Version
@@ -593,6 +751,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.Models = modelsJS
 	dashboard.Benchmarks = benchmarksJS
 	dashboard.Languages = languagesMap
+	dashboard.Executors = executorsJS
 
 	// Write atomically
 	if err := writeJSONAtomic(outputPath, dashboard); err != nil {

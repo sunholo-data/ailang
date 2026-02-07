@@ -214,6 +214,7 @@ type DashboardJSON struct {
 	Models     map[string]interface{} `json:"models"`
 	Benchmarks map[string]interface{} `json:"benchmarks"`
 	Languages  map[string]interface{} `json:"languages"` // map[language]->stats
+	Executors  map[string]interface{} `json:"executors"` // map[executor]->agent stats (claude, gemini)
 	History    []HistoryEntry         `json:"history"`
 }
 

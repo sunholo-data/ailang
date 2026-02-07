@@ -532,6 +532,12 @@ func printSystemHealth(health SystemHealth) {
 		for _, issue := range health.Issues {
 			fmt.Printf("  ⚠ %s\n", issue)
 		}
+		// Historical context for low link rates
+		if health.SessionLinkRate < 80 || health.TaskIDLinkRate < 50 || health.ChainLinkRate < 50 {
+			fmt.Println()
+			fmt.Println(dim("Note: Sessions before 2026-01-29 pre-date correlation ID tracking (M-DETERMINISTIC-CHAT-LINKING)."))
+			fmt.Println(dim("      Only coordinator-executed sessions from that date onwards have task/chain/stage IDs."))
+		}
 	} else {
 		fmt.Println(green("✓ All systems healthy"))
 	}

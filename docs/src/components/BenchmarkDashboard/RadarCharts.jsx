@@ -4,10 +4,18 @@ import ComparisonTable from './ComparisonTable';
 import RepairEffectiveness from './RepairEffectiveness';
 import styles from './styles.module.css';
 
+// Capitalize executor name for display
+function execLabel(executor) {
+  return executor.charAt(0).toUpperCase() + executor.slice(1);
+}
+
 export default function RadarCharts({ data }) {
   const languages = data.languages || {};
   const aggregates = data.aggregates || {};
+  const executors = data.executors || {};
   const hasAgentData = aggregates.agentRuns > 0;
+  const executorNames = aggregates.agentExecutors || Object.keys(executors);
+  const multiExecutor = executorNames.length > 1;
 
   // Custom tooltip for all radar charts
   const CustomTooltip = ({ active, payload }) => {
@@ -28,8 +36,7 @@ export default function RadarCharts({ data }) {
     return null;
   };
 
-  // Chart 1: Success Rate across all approaches
-  // Use _comparable metrics when agent data exists (same benchmarks only for fair comparison)
+  // Build success rate data with per-executor agent axes when multiple executors exist
   const successRateData = [
     {
       metric: '0-Shot',
@@ -48,67 +55,26 @@ export default function RadarCharts({ data }) {
       Python: hasAgentData
         ? (languages.python?.final_success_comparable || 0) * 100
         : (languages.python?.success_rate || 0) * 100
-    },
-    {
-      metric: 'Agent',
-      AILANG: hasAgentData ? (languages.ailang?.agent_success_rate || 0) * 100 : 0,
-      Python: hasAgentData ? (languages.python?.agent_success_rate || 0) * 100 : 0
     }
   ];
 
-  // Chart 2: Total Tokens across all approaches
-  const totalTokensData = [
-    {
-      metric: '0-Shot',
-      AILANG: hasAgentData
-        ? (languages.ailang?.zero_shot_avg_tokens_comparable || 0)
-        : (languages.ailang?.zero_shot_avg_tokens || 0),
-      Python: hasAgentData
-        ? (languages.python?.zero_shot_avg_tokens_comparable || 0)
-        : (languages.python?.zero_shot_avg_tokens || 0)
-    },
-    {
-      metric: 'With Repair',
-      AILANG: hasAgentData
-        ? (languages.ailang?.final_success_avg_tokens_comparable || 0)
-        : (languages.ailang?.final_success_avg_tokens || 0),
-      Python: hasAgentData
-        ? (languages.python?.final_success_avg_tokens_comparable || 0)
-        : (languages.python?.final_success_avg_tokens || 0)
-    },
-    {
-      metric: 'Agent',
-      AILANG: hasAgentData ? (languages.ailang?.agent_avg_tokens || 0) : 0,
-      Python: hasAgentData ? (languages.python?.agent_avg_tokens || 0) : 0
+  if (hasAgentData && multiExecutor) {
+    // Add one axis per executor
+    for (const exec of executorNames) {
+      successRateData.push({
+        metric: `Agent (${execLabel(exec)})`,
+        AILANG: (languages.ailang?.[`agent_success_rate_${exec}`] || 0) * 100,
+        Python: (languages.python?.[`agent_success_rate_${exec}`] || 0) * 100
+      });
     }
-  ];
-
-  // Chart 3: Cost per 1K runs across all approaches
-  const costData = [
-    {
-      metric: '0-Shot',
-      AILANG: hasAgentData
-        ? (languages.ailang?.zero_shot_avg_cost_comparable || 0) * 1000
-        : (languages.ailang?.zero_shot_avg_cost || 0) * 1000,
-      Python: hasAgentData
-        ? (languages.python?.zero_shot_avg_cost_comparable || 0) * 1000
-        : (languages.python?.zero_shot_avg_cost || 0) * 1000
-    },
-    {
-      metric: 'With Repair',
-      AILANG: hasAgentData
-        ? (languages.ailang?.final_success_avg_cost_comparable || 0) * 1000
-        : (languages.ailang?.final_success_avg_cost || 0) * 1000,
-      Python: hasAgentData
-        ? (languages.python?.final_success_avg_cost_comparable || 0) * 1000
-        : (languages.python?.final_success_avg_cost || 0) * 1000
-    },
-    {
+  } else if (hasAgentData) {
+    // Single executor - show as plain "Agent"
+    successRateData.push({
       metric: 'Agent',
-      AILANG: hasAgentData ? (languages.ailang?.agent_avg_cost || 0) * 1000 : 0,
-      Python: hasAgentData ? (languages.python?.agent_avg_cost || 0) * 1000 : 0
-    }
-  ];
+      AILANG: (languages.ailang?.agent_success_rate || 0) * 100,
+      Python: (languages.python?.agent_success_rate || 0) * 100
+    });
+  }
 
   // Get agent benchmark list from data
   const agentBenchmarks = aggregates.agentBenchmarks || [];
@@ -117,7 +83,10 @@ export default function RadarCharts({ data }) {
     <>
       {hasAgentData && agentBenchmarks.length > 0 && (
         <div className={styles.benchmarkNote}>
-          <strong>Note:</strong> Agent comparison uses only benchmarks tested in agent mode: {agentBenchmarks.join(', ')}
+          <strong>Note:</strong> Comparison uses only the {agentBenchmarks.length} benchmarks tested in agent mode.
+          {multiExecutor && (
+            <> Agents: {executorNames.map(e => execLabel(e)).join(', ')}.</>
+          )}
         </div>
       )}
 
@@ -125,7 +94,11 @@ export default function RadarCharts({ data }) {
       <div className={styles.radarCard} style={{ maxWidth: '600px', margin: '2rem auto' }}>
         <h4 className={styles.radarTitle}>Success Rate (%)</h4>
         <p className={styles.radarSubtitle}>
-          {hasAgentData ? 'Comparing on same benchmarks' : 'Comparing all evaluation approaches'}
+          {hasAgentData
+            ? multiExecutor
+              ? 'Comparing evaluation approaches per executor'
+              : 'Comparing on same benchmarks'
+            : 'Comparing all evaluation approaches'}
         </p>
         <ResponsiveContainer width="100%" height={350}>
           <RadarChart data={successRateData}>

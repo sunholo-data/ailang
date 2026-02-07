@@ -60,6 +60,18 @@ func (d *Daemon) updateChainStatus(ctx context.Context, task *TaskRecord, status
 	}
 }
 
+// updateStageSession links a chain stage to its Claude/Gemini session ID in observatory
+func (d *Daemon) updateStageSession(ctx context.Context, task *TaskRecord, sessionID string) {
+	if d.obsBackend == nil || task.StageID == "" || sessionID == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateStageSession(ctx, task.StageID, sessionID); err != nil {
+		d.logger.Printf("Warning: Failed to link stage %s to session %s: %v", task.StageID, sessionID, err)
+	} else {
+		d.logger.Printf("Linked stage %s to session %s", task.StageID, sessionID)
+	}
+}
+
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
 	// Load agent configuration from ~/.ailang/config.yaml
@@ -883,6 +895,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			// M-CHAINS-SIMPLIFY: Update stage and chain status
 			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusCompleted)
 			d.updateChainStatus(taskCtx, task, observatory.ChainStatusCompleted)
+			d.updateStageSession(taskCtx, task, result.SessionID)
 			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
@@ -893,6 +906,7 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			// M-CHAINS-SIMPLIFY: Update stage status to awaiting approval
 			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusAwaitingApproval)
 			d.updateChainStatus(taskCtx, task, observatory.ChainStatusPendingApproval)
+			d.updateStageSession(taskCtx, task, result.SessionID)
 
 			// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 			// This posts the summary to GitHub and adds the appropriate approval label

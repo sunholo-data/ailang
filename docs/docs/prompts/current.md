@@ -172,7 +172,8 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
 | `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
-| `Result[a]` with Option | Use monomorphic type like `IntResult` |
+| `!condition` | `not condition` - AILANG uses `not` for boolean negation |
+| `concat(a, b)` | `a ++ b` - use `++` for string/list concatenation |
 
 ## Let Bindings: Block Style vs Expression Style
 
@@ -354,20 +355,70 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 
 ## Effects (Side Effects Must Be Declared)
 
-Every function performing I/O must declare effects:
+**Every function performing I/O must declare effects in the signature!**
 
 ```ailang
--- Pure (no effects)
-func add(x: int, y: int) -> int = x + y
+-- Pure (no effects) - use `pure func` or omit effect annotation
+pure func add(x: int, y: int) -> int = x + y
 
--- IO effect
-func greet(name: string) -> () ! {IO} = print("Hello " ++ name)
+-- IO effect - for print/println/readLine
+func greet(name: string) -> () ! {IO} = println("Hello " ++ name)
+
+-- Single effect with return value
+func ask(prompt: string) -> string ! {IO} {
+  println(prompt);
+  readLine()
+}
 
 -- Multiple effects
 func process(path: string) -> () ! {IO, FS} {
   let content = readFile(path);
-  print(content)
+  println(content)
 }
+
+-- Main function typically needs effects
+export func main() -> () ! {IO} {
+  println("Hello, World!")
+}
+
+-- Main with file system access
+export func main() -> () ! {IO, FS} {
+  let content = readFile("data.txt");
+  println(content)
+}
+
+-- Main with network
+export func main() -> () ! {IO, Net} {
+  let body = httpGet("https://example.com");
+  println(body)
+}
+```
+
+**Common effect combinations:**
+| Task | Required Effects |
+|------|------------------|
+| Print output | `! {IO}` |
+| Read files | `! {FS}` (add IO if also printing) |
+| HTTP requests | `! {Net}` (add IO if also printing) |
+| Environment vars | `! {Env}` |
+| AI calls | `! {AI}` |
+| Full program | `! {IO, FS, Net}` as needed |
+
+**Effect errors and how to fix:**
+```
+Error: Effect checking failed for function 'main'
+  Function uses effects not declared in signature
+  Missing effects: IO
+```
+
+**Fix:** Add the missing effect to your function signature:
+```ailang
+-- WRONG: missing IO effect
+export func main() -> () { println("hi") }
+
+-- CORRECT: declare IO effect
+export func main() -> () ! {IO} { println("hi") }
+```
 ```
 
 | Effect | Functions | Import |
@@ -498,38 +549,39 @@ pure func validateAge(age: int) -> Option[int] =
 
 ## Error Handling with Result Type
 
-Define Result ADT and chain operations with pattern matching:
+Use the polymorphic `Result[a]` type for error handling:
 
 ```ailang
 module benchmark/solution
 import std/string (stringToInt)
 
--- Use monomorphic Result type (polymorphic Result[a] has type inference issues)
-type IntResult = IntOk(int) | IntErr(string)
+-- Polymorphic Result type - works with any success type!
+-- Ok(a) takes the polymorphic type, Err(string) is always a string
+type Result[a] = Ok(a) | Err(string)
 
 -- Parse integer, returning Result
-pure func parseIntResult(s: string) -> IntResult =
+pure func parseIntResult(s: string) -> Result[int] =
   match stringToInt(s) {
-    Some(n) => IntOk(n),
-    None => IntErr("Invalid integer")
+    Some(n) => Ok(n),
+    None => Err("Invalid integer")
   }
 
 -- Safe division
-pure func divSafe(a: int, b: int) -> IntResult =
-  if b == 0 then IntErr("Division by zero") else IntOk(a / b)
+pure func divSafe(a: int, b: int) -> Result[int] =
+  if b == 0 then Err("Division by zero") else Ok(a / b)
 
 -- Chain results: parse then divide
-pure func parseAndDivide(s: string, divisor: int) -> IntResult =
+pure func parseAndDivide(s: string, divisor: int) -> Result[int] =
   match parseIntResult(s) {
-    IntOk(n) => divSafe(n, divisor),
-    IntErr(msg) => IntErr(msg)
+    Ok(n) => divSafe(n, divisor),
+    Err(msg) => Err(msg)
   }
 
 -- Format Result for output
-pure func showResult(r: IntResult) -> string =
+pure func showResult(r: Result[int]) -> string =
   match r {
-    IntOk(v) => "Result: " ++ show(v),
-    IntErr(msg) => "Error: " ++ msg
+    Ok(v) => "Result: " ++ show(v),
+    Err(msg) => "Error: " ++ msg
   }
 
 export func main() -> () ! {IO} {
@@ -539,7 +591,21 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Note:** Use monomorphic ADT types (like `IntResult`) rather than polymorphic types (like `Result[a]`) when the ADT interacts with other polymorphic types like `Option`.
+**Polymorphic ADTs with mixed field types:**
+```ailang
+-- Ok(a) uses the type parameter, Err(string) uses a concrete type
+type Result[a] = Ok(a) | Err(string)
+
+-- This works correctly:
+-- Ok  : forall a. a -> Result[a]      (polymorphic field)
+-- Err : forall a. string -> Result[a] (concrete field)
+
+-- Both constructors can be used with any Result[a] type:
+let r1: Result[int] = Ok(42)
+let r2: Result[int] = Err("failed")
+let r3: Result[string] = Ok("hello")
+let r4: Result[string] = Err("also failed")
+```
 
 ## Number Conversions (std/math)
 
@@ -589,9 +655,50 @@ export func main() -> () ! {IO} {
 |------|-----------|
 | Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical | `&&`, `\|\|`, `!` |
-| String | `++` (concatenation) |
+| Logical | `&&`, `\|\|`, `not` |
+| String/List | `++` (concatenation) |
 | List | `::` (cons/prepend) |
+
+## Boolean Operations (IMPORTANT)
+
+**⚠️ AILANG uses `not`, NOT `!` for boolean negation!**
+
+```ailang
+-- WRONG: Python/C-style negation
+if !isEmpty(list) then ...      -- ERROR: unknown unary operator: !
+if !done then ...               -- ERROR
+
+-- CORRECT: AILANG-style negation
+if not isEmpty(list) then ...   -- Works!
+if not done then ...            -- Works!
+```
+
+**Boolean operators:**
+```ailang
+-- AND: &&
+if x > 0 && y > 0 then "both positive" else "no"
+
+-- OR: ||
+if x == 0 || y == 0 then "has zero" else "no"
+
+-- NOT: not (NOT `!`)
+if not isEmpty(list) then process(list) else []
+```
+
+## String and List Concatenation
+
+**Use `++` for concatenation (NOT `concat()`):**
+
+```ailang
+-- String concatenation
+let greeting = "Hello" ++ " " ++ "World"   -- "Hello World"
+
+-- List concatenation
+let combined = [1, 2] ++ [3, 4]            -- [1, 2, 3, 4]
+
+-- Mixed in expressions
+let msg = "Count: " ++ show(length(items))
+```
 
 ## Pattern Matching
 
@@ -690,6 +797,51 @@ export func main() -> () ! {IO} {
 ```
 
 **Note:** Derived equality compares by constructor and field values (structural equality).
+
+## Polymorphic ADTs with Mixed Field Types
+
+ADT constructors can mix polymorphic and concrete field types:
+
+```ailang
+module benchmark/solution
+import std/string (stringToInt)
+
+-- Result type: Ok uses type parameter, Err always takes string
+type Result[a] = Ok(a) | Err(string)
+
+-- Either type: both sides polymorphic
+type Either[a, b] = Left(a) | Right(b)
+
+-- Validation: success is polymorphic, errors are string list
+type Validation[a] = Valid(a) | Invalid([string])
+
+-- Usage examples
+pure func safeDivide(a: int, b: int) -> Result[int] =
+  if b == 0 then Err("division by zero") else Ok(a / b)
+
+pure func parsePositive(s: string) -> Result[int] =
+  match stringToInt(s) {
+    Some(n) => if n > 0 then Ok(n) else Err("must be positive"),
+    None => Err("not a number")
+  }
+
+export func main() -> () ! {IO} {
+  let r1 = safeDivide(10, 2);  -- Ok(5)
+  let r2 = safeDivide(10, 0);  -- Err("division by zero")
+
+  match r1 {
+    Ok(v) => println("Got: " ++ show(v)),
+    Err(msg) => println("Error: " ++ msg)
+  };
+
+  match r2 {
+    Ok(v) => println("Got: " ++ show(v)),
+    Err(msg) => println("Error: " ++ msg)
+  }
+}
+```
+
+**Key pattern:** When a constructor has a concrete type like `Err(string)`, that type is preserved regardless of the ADT's type parameter. This enables idiomatic error handling where errors are always strings but success values can be any type.
 
 **Option type with findFirst and mapOption:**
 ```ailang
@@ -1070,6 +1222,54 @@ export func main() -> () ! {IO} = print("Hello")
 
 Run: `ailang run --entry main --caps IO myapp/main.ail`
 
+## Reserved Keywords
+
+AILANG reserves 43 keywords. You **cannot** use these as variable or function names.
+
+| Category | Keywords |
+|----------|----------|
+| Control Flow | `if`, `then`, `else`, `match`, `with`, `select`, `timeout` |
+| Definitions | `func`, `pure`, `let`, `letrec`, `in` |
+| Type System | `type`, `class`, `instance`, `forall`, `exists`, `deriving` |
+| Modules | `module`, `import`, `export`, `extern` |
+| Testing | `test`, `tests`, `property`, `properties`, `assert` |
+| Verification | `requires`, `ensures`, `invariant` |
+| Concurrency | `spawn`, `parallel`, `channel`, `send`, `recv` |
+| Boolean | `true`, `false`, `and`, `or`, `not` |
+
+**Common mistake:**
+```ailang
+-- WRONG: 'exists' is reserved (for existential types)
+let exists = fileExists(path)
+
+-- CORRECT: use alternative name
+let found = fileExists(path)
+```
+
+## Module Import Rules
+
+**Imports are NOT transitive.** When module A imports module B, A does **not** get B's imports.
+
+```ailang
+-- Module B
+module myapp/db
+import std/fs (readFile)
+export func loadConfig() -> string ! {FS} = readFile("config.json")
+
+-- Module A - WRONG: std/fs not available just because B uses it
+module myapp/main
+import myapp/db (loadConfig)
+let data = readFile("other.txt")  -- ERROR: module std/fs not imported
+
+-- Module A - CORRECT: explicitly import what you use
+module myapp/main
+import std/fs (readFile)
+import myapp/db (loadConfig)
+let data = readFile("other.txt")  -- Works!
+```
+
+**Rule: Import everything you directly use in your module.**
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -1082,6 +1282,8 @@ Run: `ailang run --entry main --caps IO myapp/main.ail`
 | `let x = 1; let y = 2` at top level | Wrap in `{ }` block |
 | Multiple lets in match arm without `{ }` | Wrap in `{ }` block (see Pattern Matching) |
 | `module benchmark/myname` | Use exactly `module benchmark/solution` |
+| Using reserved keyword as name | See Reserved Keywords section above |
+| Expecting transitive imports | Each module must import what it uses directly |
 
 ## Running Programs
 
