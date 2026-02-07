@@ -690,7 +690,55 @@ func (b *GCPTraceBackend) UpdateStageMetrics(ctx context.Context, stageID string
 	return nil
 }
 
+func (b *GCPTraceBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {
+	return nil
+}
+
 func (b *GCPTraceBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetSessionTools(ctx context.Context, sessionID string) ([]SessionTool, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*ChatMessage, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetChatMessagesBySession(ctx context.Context, sessionID string, startTime, endTime time.Time) ([]*ChatMessage, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) CountChatMessages(ctx context.Context, q ChatMessageQuery) (int, int, error) {
+	return 0, 0, nil
+}
+
+func (b *GCPTraceBackend) GetChainByGitHubIssue(ctx context.Context, repo string, issueNumber int) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error {
+	return nil
+}
+
+func (b *GCPTraceBackend) GetChainStats(ctx context.Context) (*ChainStats, error) {
 	return nil, nil
 }
 

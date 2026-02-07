@@ -423,8 +423,56 @@ func (b *CompositeBackend) UpdateStageMetrics(ctx context.Context, stageID strin
 	return b.local.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
 }
 
+func (b *CompositeBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {
+	return b.local.UpdateStageApproval(ctx, stageID, status, approvalType, feedback)
+}
+
+func (b *CompositeBackend) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
+	return b.local.UpdateStageError(ctx, stageID, errorMessage)
+}
+
+func (b *CompositeBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
+	return b.local.GetSpansByStageID(ctx, stageID)
+}
+
+func (b *CompositeBackend) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {
+	return b.local.LinkSpanToChain(ctx, spanID, chainID, stageID)
+}
+
 func (b *CompositeBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
 	return b.local.ListPendingApprovals(ctx, limit)
+}
+
+func (b *CompositeBackend) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	return b.local.GetSession(ctx, sessionID)
+}
+
+func (b *CompositeBackend) GetSessionTools(ctx context.Context, sessionID string) ([]SessionTool, error) {
+	return b.local.GetSessionTools(ctx, sessionID)
+}
+
+func (b *CompositeBackend) GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*ChatMessage, error) {
+	return b.local.GetChatMessagesByTaskID(ctx, taskID)
+}
+
+func (b *CompositeBackend) GetChatMessagesBySession(ctx context.Context, sessionID string, startTime, endTime time.Time) ([]*ChatMessage, error) {
+	return b.local.GetChatMessagesBySession(ctx, sessionID, startTime, endTime)
+}
+
+func (b *CompositeBackend) CountChatMessages(ctx context.Context, q ChatMessageQuery) (int, int, error) {
+	return b.local.CountChatMessages(ctx, q)
+}
+
+func (b *CompositeBackend) GetChainByGitHubIssue(ctx context.Context, repo string, issueNumber int) (*ExecutionChain, error) {
+	return b.local.GetChainByGitHubIssue(ctx, repo, issueNumber)
+}
+
+func (b *CompositeBackend) UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error {
+	return b.local.UpdateChainMetrics(ctx, id, cost, tokens, turns)
+}
+
+func (b *CompositeBackend) GetChainStats(ctx context.Context) (*ChainStats, error) {
+	return b.local.GetChainStats(ctx)
 }
 
 // Ensure CompositeBackend implements Backend

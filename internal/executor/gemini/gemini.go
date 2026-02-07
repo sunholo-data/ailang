@@ -175,8 +175,10 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var finalResult *geminiStreamResult
 	var transcriptBuf strings.Builder
 	var turnNum int
+	var toolCallCount int
 	var inputTokens, outputTokens int
 	var turnSpan trace.Span // Track current turn's OTEL span
+	var stderrBuf strings.Builder
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -188,11 +190,14 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
 		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
 
-		// Read stderr in background (debug/startup output)
+		// Read stderr in background - capture for diagnostics
 		go func() {
 			for stderrScanner.Scan() {
-				// Discard stderr (startup messages, etc.)
-				_ = stderrScanner.Text()
+				line := stderrScanner.Text()
+				stderrBuf.WriteString(line + "\n")
+				if os.Getenv("DEBUG_AGENT") != "" {
+					fmt.Fprintf(os.Stderr, "[GEMINI_STDERR] %s\n", line)
+				}
 			}
 		}()
 
@@ -203,8 +208,16 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				continue
 			}
 
+			// Debug: log raw NDJSON lines to discover actual Gemini CLI event format
+			if os.Getenv("DEBUG_AGENT") != "" {
+				fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI_RAW] %s\n", line)
+			}
+
 			var event geminiStreamEvent
 			if err := json.Unmarshal([]byte(line), &event); err != nil {
+				if os.Getenv("DEBUG_AGENT") != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI] Failed to parse NDJSON: %v\n", err)
+				}
 				continue
 			}
 
@@ -241,14 +254,29 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					transcriptBuf.WriteString(fmt.Sprintf("[USER] %s\n", event.Content))
 				}
 
-			case "tool_call":
-				// Tool invocation
-				handler.OnToolUse(event.ToolName, event.ToolInput)
+			case "tool_use":
+				// Tool invocation (Gemini CLI uses "tool_use", not "tool_call")
+				toolCallCount++
+				handler.OnToolUse(event.ToolName, string(event.Parameters))
 				transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", event.ToolName))
 
 			case "tool_result":
-				// Tool result
-				handler.OnToolResult(event.ToolName, event.ToolOutput)
+				// Tool result - each tool result triggers a new assistant turn
+				handler.OnToolResult(event.ToolName, event.Output)
+				// Count new turn: tool_result → next assistant response = new conversation turn
+				handler.OnTurnEnd(turnNum)
+				if turnSpan != nil {
+					turnSpan.End()
+				}
+				turnNum++
+				_, turnSpan = telemetry.StartSpan(ctx, geminiTracer, "exec.turn",
+					trace.WithAttributes(
+						attribute.Int("turn.number", turnNum),
+						attribute.String("session.id", sessionID),
+					),
+				)
+				handler.OnTurnStart(turnNum)
+				transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
 
 			case "result":
 				// Final result with stats
@@ -267,6 +295,12 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				if turnSpan != nil {
 					turnSpan.End()
 					turnSpan = nil
+				}
+
+			default:
+				// Log unrecognized event types to help discover actual Gemini CLI format
+				if os.Getenv("DEBUG_AGENT") != "" && event.Type != "" {
+					fmt.Fprintf(os.Stderr, "[DEBUG_GEMINI] Unrecognized event type: %q\n", event.Type)
 				}
 			}
 		}
@@ -297,12 +331,13 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.Bool("task.success", false),
 		)
 		return &executor.Result{
-			Success:    false,
-			Error:      fmt.Sprintf("timeout after %v", timeout),
-			DurationMS: int(time.Since(startTime).Milliseconds()),
-			NumTurns:   turnNum,
-			SessionID:  sessionID,
-			Transcript: transcriptBuf.String(),
+			Success:       false,
+			Error:         fmt.Sprintf("timeout after %v", timeout),
+			DurationMS:    int(time.Since(startTime).Milliseconds()),
+			NumTurns:      turnNum,
+			ToolCallCount: toolCallCount,
+			SessionID:     sessionID,
+			Transcript:    transcriptBuf.String(),
 		}, nil
 
 	case err := <-done:
@@ -316,13 +351,19 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", false),
 			)
+			// Include stderr in error for diagnostics
+			errMsg := err.Error()
+			if stderrContent := stderrBuf.String(); stderrContent != "" {
+				errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
+			}
 			return &executor.Result{
-				Success:    false,
-				Error:      err.Error(),
-				DurationMS: int(duration.Milliseconds()),
-				NumTurns:   turnNum,
-				SessionID:  sessionID,
-				Transcript: transcriptBuf.String(),
+				Success:       false,
+				Error:         errMsg,
+				DurationMS:    int(duration.Milliseconds()),
+				NumTurns:      turnNum,
+				ToolCallCount: toolCallCount,
+				SessionID:     sessionID,
+				Transcript:    transcriptBuf.String(),
 			}, nil
 		}
 
@@ -353,15 +394,16 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 
 		return &executor.Result{
-			Success:      success,
-			Output:       transcriptBuf.String(),
-			DurationMS:   int(duration.Milliseconds()),
-			NumTurns:     turnNum,
-			CostUSD:      cost,
-			InputTokens:  inputTokens,
-			OutputTokens: outputTokens,
-			SessionID:    sessionID,
-			Transcript:   transcriptBuf.String(),
+			Success:       success,
+			Output:        transcriptBuf.String(),
+			DurationMS:    int(duration.Milliseconds()),
+			NumTurns:      turnNum,
+			ToolCallCount: toolCallCount,
+			CostUSD:       cost,
+			InputTokens:   inputTokens,
+			OutputTokens:  outputTokens,
+			SessionID:     sessionID,
+			Transcript:    transcriptBuf.String(),
 		}, nil
 	}
 }
@@ -387,10 +429,20 @@ func (e *GeminiExecutor) CostModel() *executor.CostModel {
 
 // HealthCheck verifies the executor is configured and accessible
 func (e *GeminiExecutor) HealthCheck(ctx context.Context) error {
-	// Check if gemini binary exists
-	_, err := exec.LookPath(e.geminiPath)
+	// Check if gemini binary exists - try Node 22 path first (same as ExecuteStreaming)
+	geminiPath := e.geminiPath
+	homeDir, _ := os.UserHomeDir()
+	node22GeminiPath := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin", "gemini")
+	if _, err := os.Stat(node22GeminiPath); err == nil {
+		geminiPath = node22GeminiPath
+	}
+
+	_, err := exec.LookPath(geminiPath)
 	if err != nil {
-		return fmt.Errorf("gemini CLI not found: %w (install with: npm i -g @google/gemini-cli)", err)
+		// Also try the resolved path directly (LookPath fails for absolute paths on some systems)
+		if _, statErr := os.Stat(geminiPath); statErr != nil {
+			return fmt.Errorf("gemini CLI not found: %w (install with: npm i -g @google/gemini-cli)", err)
+		}
 	}
 
 	// Check for API key or gcloud auth
@@ -419,7 +471,7 @@ func (e *GeminiExecutor) getModel(task *executor.Task) string {
 
 // geminiStreamEvent represents a single NDJSON event from stream-json output
 type geminiStreamEvent struct {
-	Type       string            `json:"type"` // init, message, tool_call, tool_result, result
+	Type       string            `json:"type"` // init, message, tool_use, tool_result, result
 	Timestamp  string            `json:"timestamp"`
 	SessionID  string            `json:"session_id,omitempty"`
 	Model      string            `json:"model,omitempty"`
@@ -427,8 +479,9 @@ type geminiStreamEvent struct {
 	Content    string            `json:"content,omitempty"`
 	Delta      bool              `json:"delta,omitempty"` // true if streaming delta
 	ToolName   string            `json:"tool_name,omitempty"`
-	ToolInput  string            `json:"tool_input,omitempty"`
-	ToolOutput string            `json:"tool_output,omitempty"`
+	ToolID     string            `json:"tool_id,omitempty"`
+	Parameters json.RawMessage    `json:"parameters,omitempty"`
+	Output     string            `json:"output,omitempty"`
 	Status     string            `json:"status,omitempty"` // success, error
 	Stats      geminiStreamStats `json:"stats,omitempty"`
 }

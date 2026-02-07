@@ -6,47 +6,51 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/executor"
-	// Import to trigger init() registration
+	// Import to trigger init() registration for all executor packages
 	_ "github.com/sunholo/ailang/internal/executor/claude"
+	_ "github.com/sunholo/ailang/internal/executor/gemini"
 )
 
-// ClaudeCodeProvider executes tasks using Claude Code CLI (headless mode).
-// This uses internal/executor/claude which wraps the `claude` CLI tool.
-type ClaudeCodeProvider struct {
-	exec executor.Executor
+// ExecutorProvider wraps any executor.Executor as a coordinator Provider.
+// This is the unified provider for all CLI-based agentic executors (Claude Code,
+// Gemini CLI, Codex, etc.). Adding a new executor only requires creating the
+// executor package with an init() registration — no coordinator changes needed.
+type ExecutorProvider struct {
+	exec         executor.Executor
+	executorName string // "claude", "gemini", "codex", etc.
 }
 
-// NewClaudeCodeProvider creates a new Claude Code provider
-func NewClaudeCodeProvider() (*ClaudeCodeProvider, error) {
-	exec, err := executor.GlobalFactory().GetExecutor("claude")
+// NewExecutorProvider creates an ExecutorProvider for the named executor.
+// The executor must be registered in the global executor factory (via init()).
+func NewExecutorProvider(executorName string) (*ExecutorProvider, error) {
+	exec, err := executor.GlobalFactory().GetExecutor(executorName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get claude executor: %w", err)
+		return nil, fmt.Errorf("failed to get %s executor: %w", executorName, err)
 	}
 
-	return &ClaudeCodeProvider{
-		exec: exec,
+	return &ExecutorProvider{
+		exec:         exec,
+		executorName: executorName,
 	}, nil
 }
 
-// Name returns the provider name
-func (p *ClaudeCodeProvider) Name() string {
-	return "claude-code"
+// Name returns the provider name (e.g., "claude-code", "gemini-cli").
+func (p *ExecutorProvider) Name() string {
+	return p.executorName + "-cli"
 }
 
-// CanHandle returns true for tasks that Claude Code can handle well
-func (p *ClaudeCodeProvider) CanHandle(task *AnalyzedTask) bool {
-	// Claude Code is best for coding tasks that need file editing
-	switch task.Type {
-	case TaskTypeBugFix, TaskTypeFeature, TaskTypeRefactor, TaskTypeTest:
-		return true
-	default:
-		// Can handle anything as a fallback
-		return true
-	}
+// ExecutorName returns the underlying executor name (e.g., "claude", "gemini").
+func (p *ExecutorProvider) ExecutorName() string {
+	return p.executorName
 }
 
-// Execute runs a task using Claude Code CLI
-func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions) (*ExecuteResult, error) {
+// CanHandle returns true — executor-based providers can handle any coding task.
+func (p *ExecutorProvider) CanHandle(task *AnalyzedTask) bool {
+	return true
+}
+
+// Execute runs a task using the underlying executor CLI.
+func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts *ExecuteOptions) (*ExecuteResult, error) {
 	start := time.Now()
 
 	result := &ExecuteResult{
@@ -57,12 +61,11 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		opts = DefaultExecuteOptions()
 	}
 
-	// Build directive from task
 	directive := buildDirective(task)
 
 	if opts.DryRun {
 		result.Success = true
-		result.Output = fmt.Sprintf("DRY RUN: Would execute Claude Code with directive:\n%s", directive)
+		result.Output = fmt.Sprintf("DRY RUN: Would execute %s with directive:\n%s", p.executorName, directive)
 		result.Duration = time.Since(start)
 		return result, nil
 	}
@@ -81,7 +84,7 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		Model:           opts.Model,
 		Metadata:        make(map[string]string),
 		Iteration:       task.Task.Iteration, // M-TRANSCRIPT: feedback loop iteration
-		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume Claude session if iteration > 1
+		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume session if iteration > 1
 	}
 
 	// Pass Observatory context for trace linking (M-TASK-HIERARCHY)
@@ -92,7 +95,6 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		execTask.Metadata["ailang.workspace_id"] = opts.ObservatoryContext.WorkspaceID
 
 		// Chain context for unified hierarchy (M-CHAINS-SIMPLIFY)
-		// Both ailang.* (for OTEL resource attrs) and non-prefixed (for direct env vars)
 		if opts.ObservatoryContext.ChainID != "" {
 			execTask.Metadata["ailang.chain_id"] = opts.ObservatoryContext.ChainID
 			execTask.Metadata["chain_id"] = opts.ObservatoryContext.ChainID
@@ -112,7 +114,7 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 		execTask.AllowedTools = []string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"}
 	}
 
-	// Execute using Claude Code CLI - use streaming if handler provided
+	// Execute using the CLI executor — use streaming if handler provided
 	var execResult *executor.Result
 	var err error
 	if opts.EventHandler != nil {
@@ -124,7 +126,7 @@ func (p *ClaudeCodeProvider) Execute(ctx context.Context, task *AnalyzedTask, op
 
 	if err != nil {
 		result.Success = false
-		result.Error = fmt.Sprintf("Claude Code execution error: %v", err)
+		result.Error = fmt.Sprintf("%s execution error: %v", p.executorName, err)
 		return result, nil
 	}
 

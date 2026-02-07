@@ -806,7 +806,14 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 
 		// Append transcript to stderr for backward compatibility with existing tools
 		if result.SessionLog != "" {
-			metrics.Stderr += "\n\n=== Claude Session Transcript ===\n" + result.SessionLog
+			execLabel := result.Executor
+			if execLabel == "" {
+				execLabel = "Agent"
+			} else {
+				// Capitalize first letter
+				execLabel = strings.ToUpper(execLabel[:1]) + execLabel[1:]
+			}
+			metrics.Stderr += fmt.Sprintf("\n\n=== %s Session Transcript ===\n", execLabel) + result.SessionLog
 		}
 
 		if err := logger.Log(metrics); err != nil {

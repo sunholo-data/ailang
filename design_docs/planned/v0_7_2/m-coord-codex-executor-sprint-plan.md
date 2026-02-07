@@ -3,9 +3,9 @@
 ## Summary
 Enable OpenAI Codex as a first-class executor across coordinator and eval harness, with normalized metrics and robust parsing.
 
-**Duration:** 5 days
+**Duration:** 3 days (reduced from 5 — coordinator integration eliminated by provider factory refactor)
 **Dependencies:** Codex CLI installed for integration tests (optional/gated)
-**Risk Level:** Medium
+**Risk Level:** Low (reduced from Medium — less code to write)
 
 ## Current Status Analysis
 
@@ -19,7 +19,7 @@ Enable OpenAI Codex as a first-class executor across coordinator and eval harnes
 
 ### Remaining from Design Doc
 - ⏳ Codex executor implementation and registration (~400-600 LOC)
-- ⏳ Coordinator provider wiring (~200 LOC)
+- ~~⏳ Coordinator provider wiring (~200 LOC)~~ **ELIMINATED** — unified `ExecutorProvider` auto-discovers executors from factory
 - ⏳ Eval harness provider support + tests (~150-250 LOC)
 
 ## Proposed Milestones
@@ -43,31 +43,17 @@ Enable OpenAI Codex as a first-class executor across coordinator and eval harnes
 **Risks:**
 - Codex JSON schema changes - Mitigation: tolerant parsing + store raw data
 
-### Milestone 2: Coordinator Provider Integration
-**Goal:** Add `CodexProvider` to coordinator and enable routing.
-**Estimated:** 150 LOC implementation + 50 LOC tests = 200 LOC
+### ~~Milestone 2: Coordinator Provider Integration~~ ELIMINATED
+~~**Goal:** Add `CodexProvider` to coordinator and enable routing.~~
+**Status:** Not needed. The provider factory refactor (Feb 2026) introduced `ExecutorProvider` in `provider_executor.go` which auto-wraps any executor registered in `executor.GlobalFactory()`. Once Milestone 1 registers "codex" via `init()`, the coordinator discovers and uses it automatically. Zero coordinator code changes required.
+
+### Milestone 2 (was 3): Eval Harness Integration + Docs
+**Goal:** Enable `--provider codex` in eval suite and update docs.
+**Estimated:** 150 LOC implementation + 60 LOC tests + 40 LOC docs = 250 LOC
 **Duration:** 1 day
 
 **Tasks:**
-- Day 3: Add `provider_codex.go` mirroring Claude/Gemini; wire selection and health checks.
-
-**Acceptance Criteria:**
-- [ ] Coordinator can run dry-run and live tasks with provider `codex`
-- [ ] Provider honors system prompt and workspace options
-- [ ] All tests passing
-- [ ] Linting clean
-
-**Risks:**
-- Tool allowlist mismatch - Mitigation: best-effort mapping or no-op
-
-### Milestone 3: Eval Harness Integration + Docs
-**Goal:** Enable `--provider codex` in eval suite and update docs.
-**Estimated:** 150 LOC implementation + 60 LOC tests + 40 LOC docs = 250 LOC
-**Duration:** 2 days
-
-**Tasks:**
-- Day 4: Add provider flag support, result aggregation, and CLI plumbing.
-- Day 5: Add tests and update docs to reflect actual Codex support.
+- Day 3: Add provider flag support, result aggregation, CLI plumbing, tests, and docs.
 
 **Acceptance Criteria:**
 - [ ] `ailang eval-suite --agent --provider codex` runs (gated if CLI missing)

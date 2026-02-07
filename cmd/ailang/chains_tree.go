@@ -168,11 +168,56 @@ func printChainTreeDetailed(ctx context.Context, backend *observatory.SQLiteBack
 			printStageDetails(ctx, backend, stage.TaskID, childPrefix)
 		}
 
+		// Show session tool summary if stage has session_id
+		if detailed && backend != nil && stage.SessionID != "" {
+			printStageToolSummary(ctx, backend, stage.SessionID, childPrefix)
+		}
+
 		// Show handoff arrow if applicable
 		if stage.HandoffTo != "" && !isLast {
 			fmt.Printf("%s└── -> %s\n", childPrefix, stage.HandoffTo)
 		}
 	}
+}
+
+// printStageToolSummary shows a compact tool usage summary for a session
+func printStageToolSummary(ctx context.Context, backend *observatory.SQLiteBackend, sessionID, prefix string) {
+	tools, err := backend.GetSessionTools(ctx, sessionID)
+	if err != nil || len(tools) == 0 {
+		return
+	}
+
+	// Aggregate tool counts
+	counts := make(map[string]int)
+	for _, t := range tools {
+		counts[t.ToolName]++
+	}
+
+	// Sort by count descending
+	type tc struct {
+		name  string
+		count int
+	}
+	sorted := make([]tc, 0, len(counts))
+	for n, c := range counts {
+		sorted = append(sorted, tc{n, c})
+	}
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].count > sorted[i].count {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	parts := make([]string, 0, 5)
+	for _, t := range sorted {
+		if len(parts) >= 5 {
+			break
+		}
+		parts = append(parts, fmt.Sprintf("%s:%d", t.name, t.count))
+	}
+	fmt.Printf("%s%s tools: %s\n", prefix, dim(fmt.Sprintf("[%d]", len(tools))), dim(strings.Join(parts, " ")))
 }
 
 func printStageDetails(ctx context.Context, backend *observatory.SQLiteBackend, taskID, prefix string) {

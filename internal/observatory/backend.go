@@ -95,13 +95,25 @@ type Backend interface {
 	ListMetrics(ctx context.Context, opts MetricListOptions) ([]*Metric, error)
 	GetSessionMetricsSummary(ctx context.Context, sessionID string) (*SessionMetricsSummary, error)
 
+	// Session detail operations (M-CHAINS-SOURCE-OF-TRUTH)
+	GetSession(ctx context.Context, sessionID string) (*Session, error)
+	GetSessionTools(ctx context.Context, sessionID string) ([]SessionTool, error)
+
+	// Chat message operations (M-CHAINS-SOURCE-OF-TRUTH)
+	GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*ChatMessage, error)
+	GetChatMessagesBySession(ctx context.Context, sessionID string, startTime, endTime time.Time) ([]*ChatMessage, error)
+	CountChatMessages(ctx context.Context, q ChatMessageQuery) (total int, withTaskID int, err error)
+
 	// Chain operations (M-CHAINS-SIMPLIFY unified hierarchy)
 	CreateChain(ctx context.Context, req *ChainCreateRequest) (*ExecutionChain, error)
 	GetChain(ctx context.Context, id string, opts ChainReadOptions) (*ExecutionChain, error)
 	GetChainByMessageID(ctx context.Context, messageID string) (*ExecutionChain, error)
 	GetChainByTaskID(ctx context.Context, taskID string) (*ExecutionChain, error)
+	GetChainByGitHubIssue(ctx context.Context, repo string, issueNumber int) (*ExecutionChain, error)
 	ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error)
 	UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error
+	UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error
+	GetChainStats(ctx context.Context) (*ChainStats, error)
 
 	// Chain stage operations
 	CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error)
@@ -109,7 +121,11 @@ type Backend interface {
 	GetChainStages(ctx context.Context, chainID string, opts ChainReadOptions) ([]*ChainStage, error)
 	UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error
 	UpdateStageSession(ctx context.Context, stageID, sessionID string) error
+	UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error
 	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error
+	UpdateStageError(ctx context.Context, stageID, errorMessage string) error
+	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
+	LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error
 	ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error)
 
 	// Lifecycle

@@ -1090,9 +1090,74 @@ The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Cu
 
 **For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
 
+### Chain Execution Monitoring (v0.7.2+)
+
+**`ailang chains` is the canonical CLI for examining all past and current executions.** Works offline (direct SQLite), no server required.
+
+```bash
+# LIST CHAINS
+ailang chains list                       # List all chains (most recent first)
+ailang chains list --status active       # Filter by status
+ailang chains list --source github_issue # Filter by source type
+ailang chains list --limit 50            # More results
+ailang chains list --full                # Show full chain IDs
+ailang chains list --json                # JSON output
+
+# ACTIVE CHAINS (shortcut)
+ailang chains active                     # Currently running chains
+
+# VIEW CHAIN DETAILS
+ailang chains view <chain-id>            # Chain + stages overview
+ailang chains view <chain-id> --spans    # Include session/tool details per stage
+ailang chains view <chain-id> --json     # JSON output
+
+# TREE VIEW
+ailang chains tree <chain-id>            # ASCII tree of chain hierarchy
+ailang chains tree <chain-id> --detailed # With session + tool timeline per stage
+
+# COST & TOKEN STATS
+ailang chains stats                      # All-time cost/token summary
+ailang chains stats --hours 168          # Last week
+ailang chains stats --by-agent           # Breakdown by agent
+ailang chains stats --json               # JSON output
+
+# DIAGNOSTICS
+ailang chains diagnose <chain-id>        # Quick health report for specific chain
+ailang chains health                     # System-wide data capture validation
+
+# INTERACTIVE MODE
+ailang chains                            # Interactive menu (in terminal)
+```
+
+**Short chain IDs:** Use first 8+ characters (like git) — `ailang chains view e9c7501d`
+
+**Dashboard vs Chains:**
+- **`ailang chains`**: Chain-centric, execution flow, works offline (direct SQLite)
+- **`ailang dashboard`**: Span-centric, provider/model telemetry, requires running server
+- Both are complementary — different abstraction levels, neither is deprecated
+
+**REST API equivalents (require `ailang serve` running):**
+
+| CLI Command | API Equivalent |
+|------------|----------------|
+| `ailang chains list` | `GET /api/chains` |
+| `ailang chains active` | `GET /api/chains/active` |
+| `ailang chains view <id>` | `GET /api/chains/{id}` |
+| `ailang chains stats` | `GET /api/chains/stats?hours=720&by_agent=true` |
+| (by message) | `GET /api/chains/by-message/{id}` |
+| (by task) | `GET /api/chains/by-task/{id}` |
+| (pending) | `GET /api/chains/pending` |
+
 ### Auditing Agent Work
 
 After a coordinator task completes, audit what the agent actually did using these commands:
+
+**View chain execution flow (recommended first step):**
+```bash
+ailang chains view <chain-id> --spans    # See full execution with sessions + tools
+ailang chains tree <chain-id> --detailed # Tree view with tool timeline
+ailang chains diagnose <chain-id>        # Quick health check
+```
 
 **View per-turn conversation text (reasoning + tool calls):**
 ```bash
@@ -1119,7 +1184,8 @@ for tn in sorted(turns.keys()):
 
 **View tool usage timeline and spans:**
 ```bash
-ailang dashboard spans --task-id <task-id> --limit 200          # Tool timeline
+ailang chains view <chain-id> --spans                           # Chain-level tool usage (offline)
+ailang dashboard spans --task-id <task-id> --limit 200          # Span-level timeline (requires server)
 ailang dashboard spans --task-id <task-id> --include-chat --json # With chat context (if available)
 ```
 
@@ -1130,7 +1196,7 @@ ailang coordinator diff <task-id>
 
 **Key things to check when auditing:**
 - **Model used**: Check `executor.model` attribute in spans - Haiku may be too weak for compiler tasks
-- **Turn count & cost**: High turns + low cost = Haiku; few turns + high cost = Opus/Sonnet
+- **Turn count & cost**: `ailang chains stats --by-agent` for cost overview; high turns + low cost = Haiku
 - **Code changes**: Did `coordinator diff` show changes to `internal/` or just docs/examples?
 - **Skipped tasks**: Did the agent say "already works" without fixing the specific reported bug?
 - **Runtime vs compile**: Did it test with `ailang run` (runtime) or just `ailang check` (compile)?
@@ -1889,6 +1955,8 @@ messages.id (UUID) ─────────────────► tasks.
 | `span_id` | 16-char hex | `0f9632b58df815e4` | OTEL SDK |
 | `trace_id` | 32-char hex | `0ebf5e64bb654fcc1d19256b59f05ae3` | OTEL SDK |
 | `session.id` | UUID | `4df60536-caed-4e2f-af2c-e386c361f4e7` | Claude Code/Gemini CLI |
+| `chain_id` | UUID | `e9c7501d-3f6e-48cd-8900-27a2b91d5345` | Observatory (execution_chains table) |
+| `stage_id` | UUID | `a1b2c3d4-5678-9abc-def0-123456789abc` | Observatory (chain_stages table) |
 
 ### How Spans Link to Tasks
 

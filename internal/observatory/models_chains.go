@@ -127,12 +127,14 @@ type ChainStage struct {
 
 // ChainListOptions specifies filters for listing chains.
 type ChainListOptions struct {
-	Status      ChainStatus `json:"status,omitempty"`
-	SourceType  string      `json:"source_type,omitempty"`
-	WorkspaceID string      `json:"workspace_id,omitempty"`
-	GitHubRepo  string      `json:"github_repo,omitempty"`
-	Limit       int         `json:"limit,omitempty"`
-	Offset      int         `json:"offset,omitempty"`
+	Status       ChainStatus `json:"status,omitempty"`
+	SourceType   string      `json:"source_type,omitempty"`
+	WorkspaceID  string      `json:"workspace_id,omitempty"`
+	GitHubRepo   string      `json:"github_repo,omitempty"`
+	AgentID      string      `json:"agent_id,omitempty"`
+	CreatedAfter *time.Time  `json:"created_after,omitempty"`
+	Limit        int         `json:"limit,omitempty"`
+	Offset       int         `json:"offset,omitempty"`
 }
 
 // ChainWithStages returns the chain with all its stages populated.

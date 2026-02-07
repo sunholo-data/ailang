@@ -72,6 +72,27 @@ func (d *Daemon) updateStageSession(ctx context.Context, task *TaskRecord, sessi
 	}
 }
 
+// updateStageMetrics records cost/token/turn metrics on a chain stage (M-CHAINS-SOURCE-OF-TRUTH)
+func (d *Daemon) updateStageMetrics(ctx context.Context, task *TaskRecord, result *ExecuteResult) {
+	if d.obsBackend == nil || task.StageID == "" || result == nil {
+		return
+	}
+	durationMs := result.Duration.Milliseconds()
+	if err := d.obsBackend.UpdateStageMetrics(ctx, task.StageID, result.Cost, result.InputTokens, result.OutputTokens, 0, 0, durationMs); err != nil {
+		d.logger.Printf("Warning: Failed to update stage %s metrics: %v", task.StageID, err)
+	}
+}
+
+// updateChainMetrics rolls up cost/token metrics to the chain level (M-CHAINS-SOURCE-OF-TRUTH)
+func (d *Daemon) updateChainMetrics(ctx context.Context, task *TaskRecord, result *ExecuteResult) {
+	if d.obsBackend == nil || task.ChainID == "" || result == nil {
+		return
+	}
+	if err := d.obsBackend.UpdateChainMetrics(ctx, task.ChainID, result.Cost, result.TokensUsed, 0); err != nil {
+		d.logger.Printf("Warning: Failed to update chain %s metrics: %v", task.ChainID, err)
+	}
+}
+
 // initTaskProcessing initializes the message adapter, analyzer, and store
 func (d *Daemon) initTaskProcessing() error {
 	// Load agent configuration from ~/.ailang/config.yaml
@@ -700,7 +721,13 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		}
 
 		// Create agent assignment and get ID for context propagation
-		assignmentID, err := d.observatorySync.SyncAgentAssignment(taskCtx, task.ID, targetAgent, "claude")
+		providerName := "claude" // fallback
+		if agentConfig != nil && agentConfig.Provider != "" {
+			providerName = agentConfig.Provider
+		} else if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
+			providerName = d.coordConfig.DefaultProvider
+		}
+		assignmentID, err := d.observatorySync.SyncAgentAssignment(taskCtx, task.ID, targetAgent, providerName)
 		if err != nil {
 			d.logger.Printf("Warning: Failed to sync agent assignment: %v", err)
 		}
@@ -896,6 +923,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusCompleted)
 			d.updateChainStatus(taskCtx, task, observatory.ChainStatusCompleted)
 			d.updateStageSession(taskCtx, task, result.SessionID)
+			// M-CHAINS-SOURCE-OF-TRUTH: Record cost/token metrics on stage and chain
+			d.updateStageMetrics(taskCtx, task, result)
+			d.updateChainMetrics(taskCtx, task, result)
 			d.logger.Printf("Task %s completed (skip_approval=true, cost: $%.4f, tokens: %d)",
 				task.ID, result.Cost, result.TokensUsed)
 		} else {
@@ -907,6 +937,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.updateChainStageStatus(taskCtx, task, observatory.StageStatusAwaitingApproval)
 			d.updateChainStatus(taskCtx, task, observatory.ChainStatusPendingApproval)
 			d.updateStageSession(taskCtx, task, result.SessionID)
+			// M-CHAINS-SOURCE-OF-TRUTH: Record cost/token metrics on stage and chain
+			d.updateStageMetrics(taskCtx, task, result)
+			d.updateChainMetrics(taskCtx, task, result)
 
 			// M-COORD-GITHUB-AUTO-ROUTING: Process stage completion for GitHub-linked tasks
 			// This posts the summary to GitHub and adds the appropriate approval label

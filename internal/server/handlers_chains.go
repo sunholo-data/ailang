@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunholo/ailang/internal/observatory"
 )
@@ -51,6 +52,16 @@ func (s *Server) handleListChains(w http.ResponseWriter, r *http.Request) {
 	if offset := q.Get("offset"); offset != "" {
 		if n, err := strconv.Atoi(offset); err == nil && n >= 0 {
 			opts.Offset = n
+		}
+	}
+	if agentID := q.Get("agent_id"); agentID != "" {
+		opts.AgentID = agentID
+	}
+	if since := q.Get("since"); since != "" {
+		// Parse as hours
+		if n, err := strconv.Atoi(since); err == nil && n > 0 {
+			t := time.Now().Add(-time.Duration(n) * time.Hour)
+			opts.CreatedAfter = &t
 		}
 	}
 
@@ -183,6 +194,48 @@ func (s *Server) handleGetChainByTask(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	chain, err := s.obsBackend.GetChainByTaskID(ctx, taskID)
+	if err != nil || chain == nil {
+		http.Error(w, "Chain not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(chain); err != nil {
+		log.Printf("Failed to encode chain: %v", err)
+	}
+}
+
+// handleGetChainByGitHub returns a chain by GitHub repo and issue number.
+// GET /api/chains/by-github/{repo}/{issueNumber}
+func (s *Server) handleGetChainByGitHub(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Extract repo and issue number from path: /api/chains/by-github/owner/repo/123
+	path := strings.TrimPrefix(r.URL.Path, "/api/chains/by-github/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 3 {
+		http.Error(w, "Expected: /api/chains/by-github/{owner}/{repo}/{issueNumber}", http.StatusBadRequest)
+		return
+	}
+
+	repo := parts[0] + "/" + parts[1]
+	issueNumber, err := strconv.Atoi(parts[2])
+	if err != nil || issueNumber <= 0 {
+		http.Error(w, "Invalid issue number", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	chain, err := s.obsBackend.GetChainByGitHubIssue(ctx, repo, issueNumber)
 	if err != nil || chain == nil {
 		http.Error(w, "Chain not found", http.StatusNotFound)
 		return
@@ -370,6 +423,178 @@ func (s *Server) handleUpdateStageStatus(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleChainsStats returns aggregated chain statistics.
+// GET /api/chains/stats
+// Query params:
+//   - hours: time window in hours (0 = all time)
+//   - by_agent: include per-agent breakdown (default false)
+func (s *Server) handleChainsStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	// Parse time window
+	var hours int
+	if h := q.Get("hours"); h != "" {
+		if n, err := strconv.Atoi(h); err == nil && n > 0 {
+			hours = n
+		}
+	}
+	byAgent := q.Get("by_agent") == "true"
+
+	// Fetch all chains (with high limit)
+	chains, err := s.obsBackend.ListChains(ctx, observatory.ChainListOptions{Limit: 1000})
+	if err != nil {
+		log.Printf("Failed to list chains for stats: %v", err)
+		http.Error(w, "Failed to compute stats", http.StatusInternalServerError)
+		return
+	}
+
+	// Filter by time window
+	var cutoff time.Time
+	timeWindow := "all time"
+	if hours > 0 {
+		cutoff = time.Now().Add(-time.Duration(hours) * time.Hour)
+		timeWindow = strconv.Itoa(hours) + " hours"
+	}
+
+	type agentStat struct {
+		AgentID   string  `json:"agent_id"`
+		Stages    int     `json:"stages"`
+		Completed int     `json:"completed"`
+		Failed    int     `json:"failed"`
+		Cost      float64 `json:"total_cost"`
+		TokensIn  int     `json:"total_tokens_in"`
+		TokensOut int     `json:"total_tokens_out"`
+	}
+
+	result := map[string]interface{}{
+		"time_window": timeWindow,
+	}
+	var totalChains, completed, active, pending, failed int
+	var totalCost float64
+	var totalTokens int64
+	agentMap := make(map[string]*agentStat)
+
+	for _, chain := range chains {
+		if !cutoff.IsZero() && chain.CreatedAt.Before(cutoff) {
+			continue
+		}
+		totalChains++
+		totalCost += chain.TotalCost
+		totalTokens += int64(chain.TotalTokens)
+
+		switch chain.Status {
+		case observatory.ChainStatusCompleted:
+			completed++
+		case observatory.ChainStatusActive:
+			active++
+		case observatory.ChainStatusPendingApproval:
+			pending++
+		case observatory.ChainStatusFailed:
+			failed++
+		}
+
+		if byAgent {
+			stages, err := s.obsBackend.GetChainStages(ctx, chain.ID, observatory.ChainReadOptions{})
+			if err != nil {
+				continue
+			}
+			for _, stage := range stages {
+				as, ok := agentMap[stage.AgentID]
+				if !ok {
+					as = &agentStat{AgentID: stage.AgentID}
+					agentMap[stage.AgentID] = as
+				}
+				as.Stages++
+				as.Cost += stage.Cost
+				as.TokensIn += stage.TokensIn
+				as.TokensOut += stage.TokensOut
+				switch stage.Status {
+				case observatory.StageStatusCompleted:
+					as.Completed++
+				case observatory.StageStatusFailed:
+					as.Failed++
+				}
+			}
+		}
+	}
+
+	result["total_chains"] = totalChains
+	result["completed"] = completed
+	result["active"] = active
+	result["pending_approval"] = pending
+	result["failed"] = failed
+	result["total_cost"] = totalCost
+	result["total_tokens"] = totalTokens
+	if totalChains > 0 {
+		result["avg_cost_per_chain"] = totalCost / float64(totalChains)
+	}
+
+	if byAgent {
+		agents := make([]agentStat, 0, len(agentMap))
+		for _, as := range agentMap {
+			agents = append(agents, *as)
+		}
+		result["by_agent"] = agents
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		log.Printf("Failed to encode chain stats: %v", err)
+	}
+}
+
+// handleChainsActive returns currently active chains.
+// GET /api/chains/active
+// Query params:
+//   - limit: max results (default 20)
+func (s *Server) handleChainsActive(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	limit := 20
+	if l := q.Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	chains, err := s.obsBackend.ListChains(ctx, observatory.ChainListOptions{
+		Status: observatory.ChainStatusActive,
+		Limit:  limit,
+	})
+	if err != nil {
+		log.Printf("Failed to list active chains: %v", err)
+		http.Error(w, "Failed to list active chains", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(chains); err != nil {
+		log.Printf("Failed to encode active chains: %v", err)
+	}
+}
+
 // registerChainRoutes registers all chain-related API routes.
 func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 	// List and create chains
@@ -384,6 +609,12 @@ func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 		}
 	})
 
+	// Stats endpoint (must be before /api/chains/{id} catch-all)
+	mux.HandleFunc("/api/chains/stats", s.handleChainsStats)
+
+	// Active chains (must be before /api/chains/{id} catch-all)
+	mux.HandleFunc("/api/chains/active", s.handleChainsActive)
+
 	// Pending approvals (must be before /api/chains/{id} to match correctly)
 	mux.HandleFunc("/api/chains/pending", s.handleListPendingApprovals)
 
@@ -392,6 +623,9 @@ func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 
 	// Lookup by task
 	mux.HandleFunc("/api/chains/by-task/", s.handleGetChainByTask)
+
+	// Lookup by GitHub issue
+	mux.HandleFunc("/api/chains/by-github/", s.handleGetChainByGitHub)
 
 	// Single chain operations - this catches /api/chains/{id} and /api/chains/{id}/stages
 	mux.HandleFunc("/api/chains/", func(w http.ResponseWriter, r *http.Request) {

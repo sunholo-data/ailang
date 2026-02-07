@@ -1,9 +1,9 @@
 # M-COORD-CODEX: Codex Executor for Coordinator + Evals
 
-**Status**: Planned
+**Status**: Planned (updated post-refactor)
 **Target**: v0.7.2
 **Priority**: P2
-**Estimated**: 4-6 days
+**Estimated**: 2-3 days (reduced from 4-6 after provider factory refactor)
 **Dependencies**: None (optional synergy with `m-arch4-executor-stream-processor`)
 
 ## Axiom Compliance
@@ -55,13 +55,13 @@ The coordinator and eval harness already support multi-provider execution (Claud
 
 **Current State:**
 - Executor abstraction exists but lacks a Codex implementation.
-- Coordinator providers only wrap Claude and Gemini.
+- ~~Coordinator providers only wrap Claude and Gemini.~~ **RESOLVED**: Coordinator now uses unified `ExecutorProvider` that auto-discovers any registered executor from the factory. No per-executor provider files needed.
 - Eval harness supports provider flags but lacks Codex wiring and parsing.
 - Codex JSON output schema differs from Claude/Gemini (`codex_compat_test.go` documents incompatibility).
 
 **Impact:**
 - Users cannot run `ailang eval-suite --agent --provider codex`.
-- Coordinator cannot route tasks to Codex even if installed.
+- ~~Coordinator cannot route tasks to Codex even if installed.~~ **RESOLVED**: Coordinator auto-discovers executors via `executor.GlobalFactory().ListAvailable()`.
 - Documentation promises multi-provider support that is incomplete.
 
 ## Goals
@@ -82,11 +82,11 @@ Implement a Codex executor wrapper around the `codex` CLI and integrate it with 
 
 ### Architecture
 
-Codex is added as a new executor implementation in `internal/executor/codex` and registered in the global factory. Coordinator adds a `CodexProvider` adapter mirroring Claude/Gemini behavior. Eval harness adds `codex` to provider selection and result aggregation.
+Codex is added as a new executor implementation in `internal/executor/codex` and registered in the global factory via `init()`. ~~Coordinator adds a `CodexProvider` adapter mirroring Claude/Gemini behavior.~~ **No coordinator changes needed** — the unified `ExecutorProvider` (from the provider factory refactor) auto-discovers any executor registered in the global factory. Eval harness adds `codex` to provider selection and result aggregation.
 
 **Components:**
 1. **Codex Executor**: CLI wrapper, JSON parsing, normalized result mapping.
-2. **Coordinator Provider**: `provider_codex.go`, uses executor factory and system prompt.
+2. ~~**Coordinator Provider**: `provider_codex.go`, uses executor factory and system prompt.~~ **ELIMINATED** — handled automatically by `ExecutorProvider` in `provider_executor.go`.
 3. **Eval Harness Wiring**: provider selection, metrics extraction, CLI flag support.
 
 ### Implementation Plan
@@ -94,14 +94,14 @@ Codex is added as a new executor implementation in `internal/executor/codex` and
 **Phase 1: Codex Executor Core** (~10-14 hours)
 - [ ] Create `internal/executor/codex` with `Executor` implementation
 - [ ] Implement Codex JSON parsing and normalize to `executor.Result`
-- [ ] Register executor with global factory and add config defaults
+- [ ] Register executor with global factory via `init()` and add config defaults
 
-**Phase 2: Coordinator Integration** (~6-8 hours)
-- [ ] Add `internal/coordinator/provider_codex.go`
-- [ ] Wire provider selection and health checks
-- [ ] Respect `Task.Kind == "question"` tool limitations if possible
+**~~Phase 2: Coordinator Integration~~ ELIMINATED** (0 hours)
+- ~~Add `internal/coordinator/provider_codex.go`~~ — Not needed. The unified `ExecutorProvider` in `provider_executor.go` auto-wraps any executor from the factory. Once Phase 1 registers "codex" via `init()`, the coordinator discovers it automatically via `executor.GlobalFactory().ListAvailable()`.
+- ~~Wire provider selection and health checks~~ — Handled by `ExecutorProvider.CanHandle()` and executor's own `HealthCheck()`.
+- Question-mode tool limitations are handled generically in `ExecutorProvider.Execute()` (line 121 of `provider_executor.go`).
 
-**Phase 3: Eval Harness Integration** (~6-8 hours)
+**Phase 2 (was Phase 3): Eval Harness Integration** (~6-8 hours)
 - [ ] Add provider flag support for `codex`
 - [ ] Ensure result aggregation includes Codex metrics
 - [ ] Add parser unit tests and gated integration test
@@ -109,14 +109,16 @@ Codex is added as a new executor implementation in `internal/executor/codex` and
 ### Files to Modify/Create
 
 **New files:**
-- `internal/executor/codex/` - Codex executor implementation (~400-600 LOC)
-- `internal/coordinator/provider_codex.go` - Coordinator provider adapter (~200 LOC)
+- `internal/executor/codex/` - Codex executor implementation with `init()` registration (~400-600 LOC)
 
 **Modified files:**
-- `internal/executor/factory.go` - Add Codex config defaults and registration (~40 LOC)
-- `internal/coordinator/agent_registry.go` or provider wiring - Add Codex provider (~40-80 LOC)
 - Eval CLI files in `cmd/ailang/` - Add provider selection (~60-120 LOC)
 - `internal/executor/codex_compat_test.go` - Expand tests for parsing (~50 LOC)
+
+**No longer needed (post-refactor):**
+- ~~`internal/coordinator/provider_codex.go`~~ — `ExecutorProvider` handles this
+- ~~`internal/executor/factory.go` changes~~ — Registration via `init()` in the codex package
+- ~~`internal/coordinator/agent_registry.go` wiring~~ — Auto-discovered from factory
 
 ## Examples
 
@@ -173,15 +175,13 @@ Coordinator can route tasks to `codex` and collect metrics.
 
 ## Timeline
 
-**Week 1** (~18-24 hours):
-- Phase 1 implementation
-- Phase 2 integration
+**Days 1-2** (~10-14 hours):
+- Phase 1: Codex executor core + tests
 
-**Week 2** (~10-12 hours):
-- Phase 3 eval harness wiring
-- Tests and docs
+**Day 3** (~6-8 hours):
+- Phase 2: Eval harness wiring + docs
 
-**Total: ~28-36 hours across 2 weeks**
+**Total: ~16-22 hours across 3 days** (reduced from ~28-36 hours; Phase 2/coordinator work eliminated by provider factory refactor)
 
 ## Risks & Mitigations
 
@@ -221,4 +221,4 @@ Coordinator can route tasks to `codex` and collect metrics.
 ---
 
 **Document created**: 2026-02-02
-**Last updated**: 2026-02-02
+**Last updated**: 2026-02-07 (updated for provider factory refactor — Phase 2 eliminated)

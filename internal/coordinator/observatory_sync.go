@@ -289,15 +289,9 @@ func (s *ObservatorySync) GetWorkspaceID(path string) string {
 }
 
 // convertProvider converts provider string to observatory Provider type.
+// observatory.Provider is just `type Provider string`, so this is a direct cast.
+// Named constants (ProviderClaude, ProviderGemini) still exist for typed comparisons
+// but this function works for any executor name without needing updates.
 func (s *ObservatorySync) convertProvider(provider string) observatory.Provider {
-	switch strings.ToLower(provider) {
-	case "claude", "claude-code":
-		return observatory.ProviderClaude
-	case "gemini", "gemini-cli":
-		return observatory.ProviderGemini
-	case "ollama":
-		return observatory.ProviderOllama
-	default:
-		return observatory.ProviderClaude // Default
-	}
+	return observatory.Provider(strings.ToLower(provider))
 }

@@ -116,6 +116,14 @@ func (s *Store) ListChains(ctx context.Context, opts ChainListOptions) ([]*Chain
 		conditions = append(conditions, "c.github_repo = ?")
 		args = append(args, opts.GitHubRepo)
 	}
+	if opts.AgentID != "" {
+		conditions = append(conditions, "s.agent_id = ?")
+		args = append(args, opts.AgentID)
+	}
+	if opts.CreatedAfter != nil {
+		conditions = append(conditions, "c.created_at > ?")
+		args = append(args, *opts.CreatedAfter)
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {

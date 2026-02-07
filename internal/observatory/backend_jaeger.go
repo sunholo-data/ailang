@@ -333,7 +333,55 @@ func (b *JaegerBackend) UpdateStageMetrics(ctx context.Context, stageID string, 
 	return nil
 }
 
+func (b *JaegerBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {
+	return nil
+}
+
+func (b *JaegerBackend) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
+	return nil
+}
+
+func (b *JaegerBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {
+	return nil
+}
+
 func (b *JaegerBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetSessionTools(ctx context.Context, sessionID string) ([]SessionTool, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*ChatMessage, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetChatMessagesBySession(ctx context.Context, sessionID string, startTime, endTime time.Time) ([]*ChatMessage, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) CountChatMessages(ctx context.Context, q ChatMessageQuery) (int, int, error) {
+	return 0, 0, nil
+}
+
+func (b *JaegerBackend) GetChainByGitHubIssue(ctx context.Context, repo string, issueNumber int) (*ExecutionChain, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error {
+	return nil
+}
+
+func (b *JaegerBackend) GetChainStats(ctx context.Context) (*ChainStats, error) {
 	return nil, nil
 }
 

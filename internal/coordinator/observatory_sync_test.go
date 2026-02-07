@@ -287,12 +287,14 @@ func TestConvertProvider(t *testing.T) {
 		expected observatory.Provider
 	}{
 		{"claude", observatory.ProviderClaude},
-		{"claude-code", observatory.ProviderClaude},
-		{"Claude", observatory.ProviderClaude},
+		{"claude-code", observatory.Provider("claude-code")}, // Direct cast, preserves full name
+		{"Claude", observatory.ProviderClaude},               // Lowercased to "claude"
 		{"gemini", observatory.ProviderGemini},
-		{"gemini-cli", observatory.ProviderGemini},
+		{"gemini-cli", observatory.Provider("gemini-cli")}, // Direct cast, preserves full name
 		{"ollama", observatory.ProviderOllama},
-		{"unknown", observatory.ProviderClaude}, // Default
+		{"unknown", observatory.Provider("unknown")},     // No default fallback — any name works
+		{"codex", observatory.Provider("codex")},         // New executors work automatically
+		{"opencoder", observatory.Provider("opencoder")}, // Any name works
 	}
 
 	for _, tt := range tests {

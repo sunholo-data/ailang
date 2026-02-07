@@ -187,6 +187,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var finalResult *claudeHeadlessResult
 	var transcriptBuf strings.Builder
 	var turnNum int
+	var toolCallCount int
 	var turnSpan trace.Span // Track current turn's OTEL span
 
 	go func() {
@@ -250,6 +251,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					contentBlock, _ := streamEvent["content_block"].(map[string]interface{})
 					if contentBlock != nil {
 						if blockType, _ := contentBlock["type"].(string); blockType == "tool_use" {
+							toolCallCount++
 							toolName, _ := contentBlock["name"].(string)
 							// Extract tool input if available (may be in initial block or come via delta)
 							toolInput := ""
@@ -334,12 +336,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.Bool("task.success", false),
 		)
 		return &executor.Result{
-			Success:    false,
-			Error:      fmt.Sprintf("timeout after %v", timeout),
-			DurationMS: int(time.Since(startTime).Milliseconds()),
-			NumTurns:   turnNum,
-			SessionID:  sessionID,
-			Transcript: transcriptBuf.String(),
+			Success:       false,
+			Error:         fmt.Sprintf("timeout after %v", timeout),
+			DurationMS:    int(time.Since(startTime).Milliseconds()),
+			NumTurns:      turnNum,
+			ToolCallCount: toolCallCount,
+			SessionID:     sessionID,
+			Transcript:    transcriptBuf.String(),
 		}, nil
 
 	case err := <-done:
@@ -354,12 +357,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Bool("task.success", false),
 			)
 			return &executor.Result{
-				Success:    false,
-				Error:      err.Error(),
-				DurationMS: int(duration.Milliseconds()),
-				NumTurns:   turnNum,
-				SessionID:  sessionID,
-				Transcript: transcriptBuf.String(),
+				Success:       false,
+				Error:         err.Error(),
+				DurationMS:    int(duration.Milliseconds()),
+				NumTurns:      turnNum,
+				ToolCallCount: toolCallCount,
+				SessionID:     sessionID,
+				Transcript:    transcriptBuf.String(),
 			}, nil
 		}
 
@@ -371,12 +375,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
 			)
 			return &executor.Result{
-				Success:    true,
-				Output:     "Session completed",
-				DurationMS: int(duration.Milliseconds()),
-				NumTurns:   turnNum,
-				SessionID:  sessionID,
-				Transcript: transcriptBuf.String(),
+				Success:       true,
+				Output:        "Session completed",
+				DurationMS:    int(duration.Milliseconds()),
+				NumTurns:      turnNum,
+				ToolCallCount: toolCallCount,
+				SessionID:     sessionID,
+				Transcript:    transcriptBuf.String(),
 			}, nil
 		}
 
@@ -401,6 +406,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			Error:                    getErrorMessage(finalResult),
 			DurationMS:               finalResult.DurationMS,
 			NumTurns:                 finalResult.NumTurns,
+			ToolCallCount:            toolCallCount,
 			CostUSD:                  finalResult.TotalCostUSD,
 			InputTokens:              finalResult.Usage.InputTokens,
 			OutputTokens:             finalResult.Usage.OutputTokens,

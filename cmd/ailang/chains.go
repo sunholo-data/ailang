@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -23,17 +25,23 @@ func chainsCommand() {
 		fmt.Println()
 		fmt.Println("Subcommands:")
 		fmt.Println("  list      List execution chains")
+		fmt.Println("  active    List currently active chains")
 		fmt.Println("  view      View a chain with all stages")
 		fmt.Println("  tree      ASCII tree view of chain hierarchy")
+		fmt.Println("  stats     Cost and token aggregation")
 		fmt.Println("  diagnose  Quick health report for a specific chain")
+		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
 		fmt.Println("  health    System-wide data capture validation")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang chains list                  # List all chains")
-		fmt.Println("  ailang chains list --status active  # Filter by status")
+		fmt.Println("  ailang chains active                # Currently running chains")
 		fmt.Println("  ailang chains view <chain-id>       # View chain details")
+		fmt.Println("  ailang chains view --spans <id>     # View with session/tool details")
 		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
+		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
 		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
+		fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
 		fmt.Println("  ailang chains health                # System-wide validation")
 		fmt.Println()
 		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
@@ -52,6 +60,12 @@ func chainsCommand() {
 		chainsDiagnoseCommand()
 	case "health":
 		chainsHealthCommand()
+	case "stats":
+		chainsStatsCommand()
+	case "active":
+		chainsActiveCommand()
+	case "find":
+		chainsFindCommand()
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)
@@ -62,6 +76,8 @@ func chainsListCommand() {
 	fs := flag.NewFlagSet("chains list", flag.ExitOnError)
 	status := fs.String("status", "", "Filter by status (active, pending_approval, completed, failed)")
 	sourceType := fs.String("source", "", "Filter by source type (github_issue, message, manual)")
+	agent := fs.String("agent", "", "Filter by agent ID (e.g., design-doc-creator)")
+	since := fs.String("since", "", "Show chains created after (e.g., 24h, 7d, 2026-02-01)")
 	limit := fs.Int("limit", 20, "Maximum number of chains to show")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	fullIDs := fs.Bool("full", false, "Show full chain IDs (for copy-paste)")
@@ -85,6 +101,17 @@ func chainsListCommand() {
 	}
 	if *sourceType != "" {
 		opts.SourceType = *sourceType
+	}
+	if *agent != "" {
+		opts.AgentID = *agent
+	}
+	if *since != "" {
+		t, err := parseSinceFlag(*since)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: invalid --since value %q: %v\n", *since, err)
+			os.Exit(1)
+		}
+		opts.CreatedAfter = &t
 	}
 
 	chains, err := backend.ListChains(ctx, opts)
@@ -230,8 +257,106 @@ func chainsViewCommand() {
 			if stage.HandoffTo != "" {
 				fmt.Printf("     Handoff: -> %s\n", stage.HandoffTo)
 			}
+
+			// Show session details and tool usage when --spans is set
+			if *includeSpans && stage.SessionID != "" {
+				printStageSessionDetails(backend, ctx, stage)
+			}
 		}
 	}
+}
+
+// printStageSessionDetails shows session metadata and tool usage for a stage
+func printStageSessionDetails(backend observatory.Backend, ctx context.Context, stage *observatory.ChainStage) {
+	session, err := backend.GetSession(ctx, stage.SessionID)
+	if err == nil && session != nil {
+		if session.Workspace != "" {
+			fmt.Printf("     Workspace: %s\n", session.Workspace)
+		}
+	}
+
+	tools, err := backend.GetSessionTools(ctx, stage.SessionID)
+	if err != nil || len(tools) == 0 {
+		return
+	}
+
+	// Aggregate tool usage counts
+	toolCounts := make(map[string]int)
+	for _, t := range tools {
+		toolCounts[t.ToolName]++
+	}
+
+	// Sort by count descending
+	type toolCount struct {
+		name  string
+		count int
+	}
+	sorted := make([]toolCount, 0, len(toolCounts))
+	for name, count := range toolCounts {
+		sorted = append(sorted, toolCount{name, count})
+	}
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].count > sorted[i].count {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	// Format tool summary
+	parts := make([]string, 0, len(sorted))
+	for _, tc := range sorted {
+		if len(parts) >= 5 { // Show top 5 tools
+			break
+		}
+		parts = append(parts, fmt.Sprintf("%s: %d", tc.name, tc.count))
+	}
+	fmt.Printf("     Tools: %d calls (%s)\n", len(tools), strings.Join(parts, ", "))
+}
+
+// chainsActiveCommand is a convenience alias for list --status active
+func chainsActiveCommand() {
+	dbPath := observatory.DefaultDatabasePath()
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	ctx := context.Background()
+	opts := observatory.ChainListOptions{
+		Status: observatory.ChainStatusActive,
+		Limit:  20,
+	}
+
+	chains, err := backend.ListChains(ctx, opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to list chains: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(chains) == 0 {
+		fmt.Println("No active chains.")
+		return
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tSOURCE\tSTAGES\tCOST\tCREATED")
+	for _, chain := range chains {
+		source := chain.SourceType
+		if chain.SourceRef != "" {
+			source = fmt.Sprintf("%s:%s", chain.SourceType, chain.SourceRef)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%d\t$%.2f\t%s\n",
+			truncateChainID(chain.ID),
+			source,
+			chain.StagesCompleted,
+			chain.TotalCost,
+			chain.CreatedAt.Format("2006-01-02 15:04"),
+		)
+	}
+	w.Flush()
 }
 
 // Formatting helper functions
@@ -283,6 +408,37 @@ func getStatusIcon(status string) string {
 	default:
 		return "○"
 	}
+}
+
+// parseSinceFlag parses a --since value like "24h", "7d", or "2026-02-01".
+func parseSinceFlag(s string) (time.Time, error) {
+	// Try duration suffixes: h (hours), d (days)
+	if strings.HasSuffix(s, "h") {
+		hours, err := strconv.Atoi(strings.TrimSuffix(s, "h"))
+		if err == nil && hours > 0 {
+			return time.Now().Add(-time.Duration(hours) * time.Hour), nil
+		}
+	}
+	if strings.HasSuffix(s, "d") {
+		days, err := strconv.Atoi(strings.TrimSuffix(s, "d"))
+		if err == nil && days > 0 {
+			return time.Now().Add(-time.Duration(days) * 24 * time.Hour), nil
+		}
+	}
+
+	// Try date format: 2006-01-02
+	t, err := time.Parse("2006-01-02", s)
+	if err == nil {
+		return t, nil
+	}
+
+	// Try Go duration format as fallback
+	dur, err := time.ParseDuration(s)
+	if err == nil {
+		return time.Now().Add(-dur), nil
+	}
+
+	return time.Time{}, fmt.Errorf("expected format: 24h, 7d, or 2006-01-02")
 }
 
 func formatDurationHuman(d time.Duration) string {

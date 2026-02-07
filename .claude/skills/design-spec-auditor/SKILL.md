@@ -215,7 +215,11 @@ for tn in sorted(turns.keys()):
         print(text[:600]); print()
 "
 
-# View tool usage timeline
+# View chain execution flow (recommended)
+ailang chains view <chain-id> --spans
+ailang chains tree <chain-id> --detailed
+
+# View tool usage timeline (requires server)
 ailang dashboard spans --task-id <task-id> --limit 200
 
 # View git changes made by agent

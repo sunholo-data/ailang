@@ -39,16 +39,17 @@ func DefaultAgentConfig() AgentBenchmarkConfig {
 
 // AgentBenchmarkResult captures agent evaluation outcome
 type AgentBenchmarkResult struct {
-	BenchmarkID string
-	Executor    string // Executor used: "claude", "gemini", etc.
-	Success     bool
-	Iterations  int     // Number of agent turns
-	Cost        float64 // Total cost in USD
-	DurationMS  int     // Total time in milliseconds
-	NumTurns    int     // Conversation turns
-	Error       string  // Error message if failed
-	SessionID   string  // Session ID from executor
-	Result      string  // Final result text from agent
+	BenchmarkID   string
+	Executor      string // Executor used: "claude", "gemini", etc.
+	Success       bool
+	Iterations    int     // Number of agent turns
+	Cost          float64 // Total cost in USD
+	DurationMS    int     // Total time in milliseconds
+	NumTurns      int     // Conversation turns
+	ToolCallCount int     // Number of tool invocations (validates agentic behavior)
+	Error         string  // Error message if failed
+	SessionID     string  // Session ID from executor
+	Result        string  // Final result text from agent
 
 	// Token usage details
 	Usage      TokenUsage            `json:"usage"`

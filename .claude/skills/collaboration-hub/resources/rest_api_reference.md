@@ -157,6 +157,43 @@ Query param or header: `task_id` or `X-Task-ID`
 | `/api/approvals/:id/approve` | POST | Approve with notes |
 | `/api/approvals/:id/reject` | POST | Reject with notes |
 
+## Chains API (`/api/chains/`)
+
+Execution chain tracking — agent-level view of multi-stage workflows.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/chains` | GET | List chains (with filtering) |
+| `/api/chains/active` | GET | Currently active chains |
+| `/api/chains/stats` | GET | Cost/token aggregation |
+| `/api/chains/pending` | GET | Chains pending approval |
+| `/api/chains/by-message/{id}` | GET | Lookup chain by message ID |
+| `/api/chains/by-task/{id}` | GET | Lookup chain by task ID |
+| `/api/chains/{id}` | GET | Get chain detail with stages |
+| `/api/chains` | POST | Create new chain |
+| `/api/chains/{id}/stages` | POST | Add stage to chain |
+| `/api/chains/{id}/stages/{stageId}/status` | PATCH | Update stage status |
+
+Chain list query params:
+- `status` - Filter by status (active, completed, failed, pending_approval)
+- `source_type` - Filter by source (github_issue, message, manual)
+- `limit`, `offset` - Pagination
+
+Stats query params:
+- `hours` - Time window in hours (0 = all time)
+- `by_agent` - Include per-agent breakdown (true/false)
+
+Active query params:
+- `limit` - Maximum results (default: 20)
+
+**CLI equivalents:**
+```bash
+ailang chains list                       # GET /api/chains
+ailang chains active                     # GET /api/chains/active
+ailang chains view <chain-id>            # GET /api/chains/{id}
+ailang chains stats --hours 168          # GET /api/chains/stats?hours=168
+```
+
 ## Coordinator API (`/api/coordinator/`)
 
 | Endpoint | Method | Description |
@@ -184,6 +221,24 @@ Event types:
 ### Health Check
 ```bash
 curl -s http://localhost:1957/health | jq '.'
+```
+
+### List Chains
+```bash
+# All chains
+curl -s "http://localhost:1957/api/chains?limit=10" | jq '.[].id'
+
+# Active chains only
+curl -s "http://localhost:1957/api/chains/active" | jq '.'
+
+# Chain details with stages
+curl -s "http://localhost:1957/api/chains/CHAIN_ID?include_stages=true" | jq '.'
+
+# Cost/token stats
+curl -s "http://localhost:1957/api/chains/stats?hours=168&by_agent=true" | jq '.'
+
+# Lookup by task
+curl -s "http://localhost:1957/api/chains/by-task/TASK_ID" | jq '.'
 ```
 
 ### Get Overall Metrics

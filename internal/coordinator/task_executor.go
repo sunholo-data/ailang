@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/sunholo/ailang/internal/executor"
 )
 
 // TaskExecutor orchestrates task execution across multiple providers.
@@ -22,42 +24,37 @@ func NewTaskExecutor(providers ...Provider) *TaskExecutor {
 		providers: providers,
 	}
 
-	// Set defaults based on provider capabilities
+	// Set defaults based on provider type
 	for _, p := range providers {
-		// Check if it's a CLI provider (for coding tasks)
-		if p.Name() == "claude-code" || p.Name() == "gemini-cli" {
-			if te.defaultCoding == nil {
-				te.defaultCoding = p
-			}
+		if _, ok := p.(*ExecutorProvider); ok && te.defaultCoding == nil {
+			// ExecutorProvider = CLI-based agentic coding (Claude, Gemini, Codex, etc.)
+			te.defaultCoding = p
 		}
-		// Check if it's an API provider (for simple tasks)
-		if p.Name() == "gemini-api" {
-			if te.defaultSimple == nil {
-				te.defaultSimple = p
-			}
+		if _, ok := p.(*GeminiAPIProvider); ok && te.defaultSimple == nil {
+			// API-based provider for simple text generation tasks
+			te.defaultSimple = p
 		}
 	}
 
 	return te
 }
 
-// DefaultTaskExecutor creates a TaskExecutor with all available providers
+// DefaultTaskExecutor creates a TaskExecutor with all available providers.
+// It discovers executor-based providers from the global executor factory,
+// so adding a new executor (e.g., codex) only requires registering it via init().
 func DefaultTaskExecutor() (*TaskExecutor, error) {
 	var providers []Provider
 
-	// Try to create Claude Code provider
-	claudeProvider, err := NewClaudeCodeProvider()
-	if err == nil {
-		providers = append(providers, claudeProvider)
+	// Discover all registered executors from the factory
+	for _, name := range executor.GlobalFactory().ListAvailable() {
+		provider, err := NewExecutorProvider(name)
+		if err != nil {
+			continue // Skip executors that aren't available (e.g., binary not found)
+		}
+		providers = append(providers, provider)
 	}
 
-	// Try to create Gemini CLI provider
-	geminiCLI, err := NewGeminiCLIProvider()
-	if err == nil {
-		providers = append(providers, geminiCLI)
-	}
-
-	// Try to create Gemini API provider
+	// Try to create Gemini API provider (API-based, not executor-based)
 	geminiAPI, err := NewGeminiAPIProvider()
 	if err == nil {
 		providers = append(providers, geminiAPI)

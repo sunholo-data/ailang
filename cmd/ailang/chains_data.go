@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"os"
@@ -27,7 +28,7 @@ type taskSessionInfo struct {
 	CompletedAt time.Time
 }
 
-// chatMessageExport represents a chat message with full tool data
+// chatMessageExport represents a chat message with full tool data (CLI presentation type)
 type chatMessageExport struct {
 	ID         string         `json:"id"`
 	SessionID  string         `json:"session_id"`
@@ -68,6 +69,8 @@ type toolResultBlock struct {
 	Content   string `json:"content"` // Full tool output
 	IsError   bool   `json:"is_error"`
 }
+
+// --- Coordinator.db queries (kept as direct SQL - separate database) ---
 
 // getTaskEvents queries coordinator.db for basic task events (for tree display)
 func getTaskEvents(taskID string) []taskEvent {
@@ -148,127 +151,77 @@ func getSessionIDFromTask(taskID string) string {
 	return info.SessionID
 }
 
-// getChatMessages fetches chat messages from observatory.db with full content
-func getChatMessages(sessionID string) []chatMessageExport {
-	return getChatMessagesInRange(sessionID, time.Time{}, time.Time{})
-}
+// --- Observatory.db queries (via Backend Store methods) ---
 
 // getChatMessagesForTask fetches chat messages by task_id directly (M-DETERMINISTIC-CHAT-LINKING)
-// This is the preferred method when task_id is known - no timestamp filtering needed
+// Uses observatory.Backend Store methods instead of raw SQL.
 func getChatMessagesForTask(taskID string) []chatMessageExport {
 	if taskID == "" {
 		return nil
 	}
 
-	dbPath := observatory.DefaultDatabasePath()
-	db, err := sql.Open("sqlite3", dbPath)
+	backend, err := getObservatoryBackend()
 	if err != nil {
 		return nil
 	}
-	defer db.Close()
+	defer backend.Close()
 
-	query := `
-		SELECT id, session_id, turn_number, role, content_json,
-		       tokens_in, tokens_out, model, timestamp
-		FROM chat_messages
-		WHERE task_id = ?
-		ORDER BY turn_number, timestamp
-	`
-
-	rows, err := db.Query(query, taskID)
+	msgs, err := backend.GetChatMessagesByTaskID(context.Background(), taskID)
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	return convertChatMessages(msgs)
+}
 
-	var messages []chatMessageExport
-	for rows.Next() {
-		var msg chatMessageExport
-		var contentJSON, model sql.NullString
-		var timestamp time.Time
-
-		if err := rows.Scan(&msg.ID, &msg.SessionID, &msg.TurnNumber, &msg.Role,
-			&contentJSON, &msg.TokensIn, &msg.TokensOut, &model, &timestamp); err != nil {
-			continue
-		}
-
-		msg.Model = model.String
-		msg.Timestamp = timestamp.Format(time.RFC3339)
-
-		// Parse content_json to get full tool data
-		if contentJSON.Valid && contentJSON.String != "" {
-			msg.Content = parseContentJSON(contentJSON.String)
-		}
-
-		messages = append(messages, msg)
-	}
-
-	return messages
+// getChatMessages fetches chat messages from observatory.db with full content
+func getChatMessages(sessionID string) []chatMessageExport {
+	return getChatMessagesInRange(sessionID, time.Time{}, time.Time{})
 }
 
 // getChatMessagesInRange fetches chat messages within a time range
 func getChatMessagesInRange(sessionID string, startTime, endTime time.Time) []chatMessageExport {
+	backend, err := getObservatoryBackend()
+	if err != nil {
+		return nil
+	}
+	defer backend.Close()
+
+	msgs, err := backend.GetChatMessagesBySession(context.Background(), sessionID, startTime, endTime)
+	if err != nil {
+		return nil
+	}
+	return convertChatMessages(msgs)
+}
+
+// getObservatoryBackend opens the observatory backend (caller must Close)
+func getObservatoryBackend() (observatory.Backend, error) {
 	dbPath := observatory.DefaultDatabasePath()
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
+	return observatory.NewSQLiteBackendFromPath(dbPath)
+}
+
+// convertChatMessages converts Store ChatMessage types to CLI export types
+func convertChatMessages(msgs []*observatory.ChatMessage) []chatMessageExport {
+	if len(msgs) == 0 {
 		return nil
 	}
-	defer db.Close()
-
-	// Build query with optional time filtering
-	query := `
-		SELECT id, session_id, turn_number, role, content_json,
-		       tokens_in, tokens_out, model, timestamp
-		FROM chat_messages
-		WHERE session_id = ?
-	`
-	args := []interface{}{sessionID}
-
-	// Add time range filter if provided
-	if !startTime.IsZero() {
-		// Add a buffer before start time (1 min) to catch setup messages
-		bufferedStart := startTime.Add(-1 * time.Minute)
-		query += " AND timestamp >= ?"
-		args = append(args, bufferedStart)
-	}
-	if !endTime.IsZero() {
-		// Add a buffer after end time (1 min) to catch completion messages
-		bufferedEnd := endTime.Add(1 * time.Minute)
-		query += " AND timestamp <= ?"
-		args = append(args, bufferedEnd)
-	}
-
-	query += " ORDER BY turn_number, timestamp"
-
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	var messages []chatMessageExport
-	for rows.Next() {
-		var msg chatMessageExport
-		var contentJSON, model sql.NullString
-		var timestamp time.Time
-
-		if err := rows.Scan(&msg.ID, &msg.SessionID, &msg.TurnNumber, &msg.Role,
-			&contentJSON, &msg.TokensIn, &msg.TokensOut, &model, &timestamp); err != nil {
-			continue
+	exports := make([]chatMessageExport, 0, len(msgs))
+	for _, msg := range msgs {
+		export := chatMessageExport{
+			ID:         msg.ID,
+			SessionID:  msg.SessionID,
+			TurnNumber: msg.TurnNumber,
+			Role:       msg.Role,
+			Model:      msg.Model,
+			TokensIn:   msg.TokensIn,
+			TokensOut:  msg.TokensOut,
+			Timestamp:  msg.Timestamp.Format(time.RFC3339),
 		}
-
-		msg.Model = model.String
-		msg.Timestamp = timestamp.Format(time.RFC3339)
-
-		// Parse content_json to get full tool data
-		if contentJSON.Valid && contentJSON.String != "" {
-			msg.Content = parseContentJSON(contentJSON.String)
+		if msg.ContentJSON != "" {
+			export.Content = parseContentJSON(msg.ContentJSON)
 		}
-
-		messages = append(messages, msg)
+		exports = append(exports, export)
 	}
-
-	return messages
+	return exports
 }
 
 // parseContentJSON parses the content_json into structured blocks

@@ -57,9 +57,10 @@ type Result struct {
 	Error   string // Error message if failed
 
 	// Metrics
-	DurationMS int     // Total execution time in milliseconds
-	NumTurns   int     // Conversation turns
-	CostUSD    float64 // Total cost in USD
+	DurationMS    int     // Total execution time in milliseconds
+	NumTurns      int     // Conversation turns
+	ToolCallCount int     // Number of tool invocations (file edits, bash, etc.)
+	CostUSD       float64 // Total cost in USD
 
 	// Token usage
 	InputTokens              int

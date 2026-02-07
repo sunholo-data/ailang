@@ -372,6 +372,18 @@ func (b *SQLiteBackend) UpdateChainStatus(ctx context.Context, chainID string, s
 	return b.store.UpdateChainStatus(ctx, chainID, status)
 }
 
+func (b *SQLiteBackend) UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error {
+	return b.store.UpdateChainMetrics(ctx, id, cost, tokens, turns)
+}
+
+func (b *SQLiteBackend) GetChainByGitHubIssue(ctx context.Context, repo string, issueNumber int) (*ExecutionChain, error) {
+	return b.store.GetChainByGitHubIssue(ctx, repo, issueNumber)
+}
+
+func (b *SQLiteBackend) GetChainStats(ctx context.Context) (*ChainStats, error) {
+	return b.store.GetChainStats(ctx)
+}
+
 func (b *SQLiteBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
 	return b.store.CreateStage(ctx, req)
 }
@@ -396,8 +408,48 @@ func (b *SQLiteBackend) UpdateStageMetrics(ctx context.Context, stageID string, 
 	return b.store.UpdateStageMetrics(ctx, stageID, cost, tokensIn, tokensOut, turns, toolCalls, durationMs)
 }
 
+func (b *SQLiteBackend) UpdateStageApproval(ctx context.Context, stageID string, status ApprovalStatus, approvalType ApprovalType, feedback string) error {
+	return b.store.UpdateStageApproval(ctx, stageID, status, approvalType, feedback)
+}
+
+func (b *SQLiteBackend) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
+	return b.store.UpdateStageError(ctx, stageID, errorMessage)
+}
+
+func (b *SQLiteBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
+	return b.store.GetSpansByStageID(ctx, stageID)
+}
+
+func (b *SQLiteBackend) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {
+	return b.store.LinkSpanToChain(ctx, spanID, chainID, stageID)
+}
+
 func (b *SQLiteBackend) ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error) {
 	return b.store.ListPendingApprovals(ctx, limit)
+}
+
+// Session detail operations (M-CHAINS-SOURCE-OF-TRUTH)
+
+func (b *SQLiteBackend) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	return b.store.GetSession(ctx, sessionID)
+}
+
+func (b *SQLiteBackend) GetSessionTools(ctx context.Context, sessionID string) ([]SessionTool, error) {
+	return b.store.GetSessionTools(ctx, sessionID)
+}
+
+// Chat message operations (M-CHAINS-SOURCE-OF-TRUTH)
+
+func (b *SQLiteBackend) GetChatMessagesByTaskID(ctx context.Context, taskID string) ([]*ChatMessage, error) {
+	return b.store.GetChatMessagesByTaskID(ctx, taskID)
+}
+
+func (b *SQLiteBackend) GetChatMessagesBySession(ctx context.Context, sessionID string, startTime, endTime time.Time) ([]*ChatMessage, error) {
+	return b.store.GetChatMessagesBySession(ctx, sessionID, startTime, endTime)
+}
+
+func (b *SQLiteBackend) CountChatMessages(ctx context.Context, q ChatMessageQuery) (int, int, error) {
+	return b.store.CountChatMessages(ctx, q)
 }
 
 // Ensure SQLiteBackend implements Backend

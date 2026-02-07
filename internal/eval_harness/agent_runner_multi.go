@@ -52,7 +52,8 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	}
 
 	if executorName == "" {
-		executorName = "claude" // Default fallback
+		return nil, fmt.Errorf("no executor configured for model %q: "+
+			"add an executor mapping in models.yml or specify --executor explicitly", config.ModelName)
 	}
 
 	// Get the executor from factory
@@ -140,6 +141,15 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		return nil, fmt.Errorf("execution failed: %w", err)
 	}
 
+	// Validate agent behavior - NO SILENT FALLBACKS
+	// Agent mode must produce multi-turn agentic behavior, not 0-shot text generation
+	if result.NumTurns <= 1 && result.ToolCallCount == 0 {
+		return nil, fmt.Errorf("executor %q produced non-agentic result: "+
+			"%d turns, %d tool calls. This looks like 0-shot generation, not agent mode. "+
+			"Check that the CLI is configured for agentic coding (tool use, file editing). "+
+			"Model: %s", executorName, result.NumTurns, result.ToolCallCount, modelName)
+	}
+
 	// Read solution code
 	solutionCode, err := os.ReadFile(solutionPath)
 	if err != nil {
@@ -160,6 +170,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Cost:          result.CostUSD,
 		DurationMS:    result.DurationMS,
 		NumTurns:      result.NumTurns,
+		ToolCallCount: result.ToolCallCount,
 		Error:         result.Error,
 		SessionID:     result.SessionID,
 		Result:        result.Output,
