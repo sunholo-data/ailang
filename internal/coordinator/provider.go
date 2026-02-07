@@ -52,7 +52,8 @@ type AnalyzedTask struct {
 
 // ExecuteOptions configures task execution
 type ExecuteOptions struct {
-	Timeout      time.Duration
+	Timeout      time.Duration // Hard ceiling (max wall-clock time)
+	IdleTimeout  time.Duration // Kill if no events for this long (v0.8.1+)
 	DryRun       bool
 	Workspace    string                // Working directory for the task
 	Model        string                // Model to use (provider-specific)

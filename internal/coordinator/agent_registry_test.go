@@ -905,3 +905,55 @@ coordinator:
 		t.Errorf("expected empty model for cheap-agent, got %q", cheapAgent.Model)
 	}
 }
+
+func TestAgentConfig_GetEffectiveTimeout(t *testing.T) {
+	tests := []struct {
+		name    string
+		agent   *AgentConfig
+		wantMin float64 // minutes
+	}{
+		{"nil agent returns 60m", nil, 60},
+		{"empty timeout returns 60m", &AgentConfig{Timeout: ""}, 60},
+		{"15m timeout", &AgentConfig{Timeout: "15m"}, 15},
+		{"30m timeout", &AgentConfig{Timeout: "30m"}, 30},
+		{"1h timeout", &AgentConfig{Timeout: "1h"}, 60},
+		{"invalid timeout returns 60m", &AgentConfig{Timeout: "not-a-duration"}, 60},
+		{"zero timeout returns 60m", &AgentConfig{Timeout: "0s"}, 60},
+		{"negative timeout returns 60m", &AgentConfig{Timeout: "-5m"}, 60},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.agent.GetEffectiveTimeout()
+			gotMin := got.Minutes()
+			if gotMin != tt.wantMin {
+				t.Errorf("GetEffectiveTimeout() = %v (%.0fm), want %.0fm", got, gotMin, tt.wantMin)
+			}
+		})
+	}
+}
+
+func TestAgentConfig_GetEffectiveIdleTimeout(t *testing.T) {
+	tests := []struct {
+		name    string
+		agent   *AgentConfig
+		wantMin float64 // minutes
+	}{
+		{"nil agent returns 3m", nil, 3},
+		{"empty idle_timeout returns 3m", &AgentConfig{IdleTimeout: ""}, 3},
+		{"2m idle_timeout", &AgentConfig{IdleTimeout: "2m"}, 2},
+		{"5m idle_timeout", &AgentConfig{IdleTimeout: "5m"}, 5},
+		{"30s idle_timeout", &AgentConfig{IdleTimeout: "30s"}, 0.5},
+		{"invalid idle_timeout returns 3m", &AgentConfig{IdleTimeout: "not-a-duration"}, 3},
+		{"zero idle_timeout returns 3m", &AgentConfig{IdleTimeout: "0s"}, 3},
+		{"negative idle_timeout returns 3m", &AgentConfig{IdleTimeout: "-1m"}, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.agent.GetEffectiveIdleTimeout()
+			gotMin := got.Minutes()
+			if gotMin != tt.wantMin {
+				t.Errorf("GetEffectiveIdleTimeout() = %v (%.1fm), want %.1fm", got, gotMin, tt.wantMin)
+			}
+		})
+	}
+}

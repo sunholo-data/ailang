@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // InvokeConfig specifies how an agent should be invoked.
@@ -105,6 +106,15 @@ type AgentConfig struct {
 	// Examples: "opus", "sonnet", "haiku", "claude-opus-4-5-20251101"
 	// If empty, falls back to the executor's default (currently "haiku").
 	Model string `yaml:"model" json:"model,omitempty"`
+
+	// Per-agent execution timeout (v0.8.1+)
+	// Go duration string (e.g., "15m", "30m", "1h"). Default: 60m (hard ceiling).
+	Timeout string `yaml:"timeout" json:"timeout,omitempty"`
+
+	// Per-agent idle timeout (v0.8.1+)
+	// Kill if no streaming events for this long. Default: 3m.
+	// Distinguishes "agent is stuck" from "agent is working but slow".
+	IdleTimeout string `yaml:"idle_timeout" json:"idle_timeout,omitempty"`
 }
 
 // AgentRegistry manages the set of configured agents.
@@ -396,6 +406,29 @@ func (a *AgentConfig) GetEffectiveArtifactPatterns() []string {
 		return a.ArtifactPatterns
 	}
 	return DefaultArtifactPatterns(a.ID)
+}
+
+// GetEffectiveTimeout returns the agent's configured hard ceiling timeout, or the default (60m).
+// This is the maximum wall-clock time regardless of activity. Safe to call on nil receiver.
+func (a *AgentConfig) GetEffectiveTimeout() time.Duration {
+	if a != nil && a.Timeout != "" {
+		if d, err := time.ParseDuration(a.Timeout); err == nil && d > 0 {
+			return d
+		}
+	}
+	return 60 * time.Minute
+}
+
+// GetEffectiveIdleTimeout returns the agent's configured idle timeout, or the default (3m).
+// The agent is killed if no streaming events are produced for this duration.
+// Safe to call on nil receiver.
+func (a *AgentConfig) GetEffectiveIdleTimeout() time.Duration {
+	if a != nil && a.IdleTimeout != "" {
+		if d, err := time.ParseDuration(a.IdleTimeout); err == nil && d > 0 {
+			return d
+		}
+	}
+	return 3 * time.Minute
 }
 
 // GetEffectiveApprovalConfig returns the agent's approval config, or defaults for known agents.

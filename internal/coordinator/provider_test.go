@@ -153,6 +153,13 @@ func TestIsRetryable(t *testing.T) {
 		{"syntax error in code", false},
 		{"invalid input", false},
 		{"", false},
+		// Execution timeouts should NOT be retried (v0.8.1)
+		{"timeout after 10m0s", false},
+		{"timeout after 30m0s", false},
+		{"timeout after 1h0m0s", false},
+		// Activity-based idle timeout errors (v0.8.1)
+		{"timeout after 1h0m0s (hard ceiling)", false},
+		{"timeout after 3m0s idle (no output for 3m0s, total runtime 5m30s)", false},
 	}
 
 	for _, tt := range tests {

@@ -233,6 +233,73 @@ ailang messages send echo-demo '{"model": "gpt5", "benchmark": "fizzbuzz"}' \
 - Auto-injected: `AILANG_TASK_ID`, `AILANG_MESSAGE_ID`, `AILANG_WORKSPACE`
 - Cost: $0.00 (no AI inference)
 
+## Chain Execution Monitoring (v0.8.1+)
+
+**`ailang chains` is the canonical CLI for examining multi-agent workflows.** Works offline (direct SQLite).
+
+### Find a Chain
+
+```bash
+# Find by coordinator task ID
+ailang chains find --task-id task-29404032
+
+# Find by message UUID
+ailang chains find --message-id 29404032-74b3-40c6-acc3-23d6bbe14b68
+
+# Find by GitHub issue
+ailang chains find --github sunholo-data/ailang#131
+ailang chains find --github sunholo-data/ailang#131 --json
+```
+
+### Filter Chains
+
+```bash
+# By agent
+ailang chains list --agent design-doc-creator
+ailang chains list --agent sprint-executor --since 7d
+
+# By time
+ailang chains list --since 24h        # Last 24 hours
+ailang chains list --since 7d         # Last week
+ailang chains list --since 2026-02-01 # Since specific date
+
+# Combined
+ailang chains list --agent sprint-executor --status failed --since 7d --json
+```
+
+### View Code Changes
+
+```bash
+# Git diff across all stages in a chain
+ailang chains diff <chain-id>
+
+# Diffstat summary only
+ailang chains diff <chain-id> --stat
+```
+
+### Recommended Timeouts by Agent Type
+
+Two timeout types (v0.8.1+):
+- **`timeout`** (hard ceiling): Max wall-clock time, regardless of activity. Default: 60m.
+- **`idle_timeout`**: Kill if agent produces no output for this long. Default: 3m.
+
+An agent actively writing code for 45 minutes stays alive. An agent that crashes or loops silently dies after 3 minutes.
+
+Configure in `~/.ailang/config.yaml`:
+```yaml
+coordinator:
+  agents:
+    - id: design-doc-creator
+      timeout: "20m"         # Hard ceiling
+      idle_timeout: "3m"     # Kill if no output for 3m
+    - id: sprint-planner
+      timeout: "15m"
+      idle_timeout: "2m"
+    - id: sprint-executor
+      timeout: "60m"         # Allow up to 1 hour
+      idle_timeout: "5m"     # But kill if stuck for 5m
+```
+
 ## Auditing Agent Work
 
 After a task completes, audit what the agent actually did before approving:

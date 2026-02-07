@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/executor"
@@ -192,6 +193,12 @@ func (te *TaskExecutor) ListProviders() []string {
 // isRetryable checks if an error should trigger a retry
 func isRetryable(errMsg string) bool {
 	if errMsg == "" {
+		return false
+	}
+
+	// Our own execution timeouts should NOT be retried —
+	// the agent was given its full configured timeout (v0.8.1)
+	if strings.HasPrefix(errMsg, "timeout after") {
 		return false
 	}
 

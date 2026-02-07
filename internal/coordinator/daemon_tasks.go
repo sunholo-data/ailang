@@ -750,8 +750,9 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	}
 
 	opts := &ExecuteOptions{
-		Timeout:            10 * time.Minute, // 10 minute timeout per task
-		Workspace:          workspacePath,    // Worktree path for AI agents, direct workspace for script agents
+		Timeout:            agentConfig.GetEffectiveTimeout(),     // Hard ceiling (v0.8.1), default 60m
+		IdleTimeout:        agentConfig.GetEffectiveIdleTimeout(), // Idle kill (v0.8.1), default 3m
+		Workspace:          workspacePath,                         // Worktree path for AI agents, direct workspace for script agents
 		ObservatoryContext: obsContext,
 		AgentConfig:        agentConfig, // For system prompt construction (v0.8.0+)
 	}
@@ -1030,6 +1031,11 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// M-CHAINS-SIMPLIFY: Update stage and chain status
 		d.updateChainStageStatus(taskCtx, task, observatory.StageStatusFailed)
 		d.updateChainStatus(taskCtx, task, observatory.ChainStatusFailed)
+		// Capture partial metrics and session even on failure (v0.8.1)
+		// The session existed and made progress before timing out
+		d.updateStageSession(taskCtx, task, result.SessionID)
+		d.updateStageMetrics(taskCtx, task, result)
+		d.updateChainMetrics(taskCtx, task, result)
 		d.logger.Printf("Task %s failed: %s", task.ID, result.Error)
 		span.SetStatus(codes.Error, result.Error)
 	}
@@ -1075,7 +1081,7 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 	var kind string
 
 	if execErr != nil {
-		kind = "error"
+		kind = "status" // DB schema only allows: directive, question, proposal, status, result
 		content = fmt.Sprintf("**Task Failed**\n\n❌ Error: %v", execErr)
 	} else if result != nil {
 		if result.Success {
@@ -1096,7 +1102,7 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 				content += fmt.Sprintf("\n\n**Files Modified:** %v", result.FilesModified)
 			}
 		} else {
-			kind = "error"
+			kind = "status" // DB schema only allows: directive, question, proposal, status, result
 			content = fmt.Sprintf("**Task Failed**\n\n"+
 				"- **Provider:** %s\n"+
 				"- **Duration:** %s\n\n"+
@@ -1104,7 +1110,7 @@ func (d *Daemon) postTaskResult(task *TaskRecord, result *ExecuteResult, execErr
 				result.Provider, result.Duration, result.Error)
 		}
 	} else {
-		kind = "error"
+		kind = "status" // DB schema only allows: directive, question, proposal, status, result
 		content = "**Task Failed**\n\n❌ Unknown error"
 	}
 

@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,7 +76,13 @@ func TestClaudeExecutorNew(t *testing.T) {
 			if exec.model != tt.expectedModel {
 				t.Errorf("expected model %q, got %q", tt.expectedModel, exec.model)
 			}
-			if exec.claudePath != tt.expectedPath {
+			// Path check: when expectedPath is "claude", accept NVM-resolved absolute path too
+			// (NVM paths aren't in PATH, so New() resolves to ~/.nvm/.../bin/claude)
+			if tt.expectedPath == "claude" {
+				if exec.claudePath != "claude" && !strings.HasSuffix(exec.claudePath, "/claude") {
+					t.Errorf("expected path ending with 'claude', got %q", exec.claudePath)
+				}
+			} else if exec.claudePath != tt.expectedPath {
 				t.Errorf("expected path %q, got %q", tt.expectedPath, exec.claudePath)
 			}
 			if len(exec.allowedTools) != tt.expectedTools {

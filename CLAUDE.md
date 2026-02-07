@@ -911,6 +911,8 @@ coordinator:
 | `auto_approve_handoffs` | Skip approval for agent-to-agent handoffs |
 | `auto_merge` | Automatically merge approved changes |
 | `session_continuity` | Use `--resume` (Claude) or `--conversation-id` (Gemini) |
+| `timeout` | Hard ceiling execution timeout as Go duration (e.g., "30m", "1h"). Default: 60m |
+| `idle_timeout` | Kill if no output for this long (e.g., "3m", "5m"). Default: 3m |
 | `approval` | Config-driven GitHub labels (see below) |
 
 **Approval Configuration (v0.8.0+):**
@@ -1099,6 +1101,9 @@ The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Cu
 ailang chains list                       # List all chains (most recent first)
 ailang chains list --status active       # Filter by status
 ailang chains list --source github_issue # Filter by source type
+ailang chains list --agent design-doc-creator  # Filter by agent (v0.8.1+)
+ailang chains list --since 24h           # Created after (24h, 7d, 2026-02-01)
+ailang chains list --agent sprint-executor --since 7d --json
 ailang chains list --limit 50            # More results
 ailang chains list --full                # Show full chain IDs
 ailang chains list --json                # JSON output
@@ -1114,6 +1119,16 @@ ailang chains view <chain-id> --json     # JSON output
 # TREE VIEW
 ailang chains tree <chain-id>            # ASCII tree of chain hierarchy
 ailang chains tree <chain-id> --detailed # With session + tool timeline per stage
+
+# VIEW CHANGES (v0.8.1+)
+ailang chains diff <chain-id>            # Git diff across all stages
+ailang chains diff <chain-id> --stat     # Diffstat summary only
+
+# FIND CHAIN BY REFERENCE (v0.8.1+)
+ailang chains find --task-id <task-id>          # Find by coordinator task
+ailang chains find --message-id <uuid>          # Find by message
+ailang chains find --github owner/repo#123      # Find by GitHub issue
+ailang chains find --github owner/repo#123 --json
 
 # COST & TOKEN STATS
 ailang chains stats                      # All-time cost/token summary
@@ -1141,11 +1156,13 @@ ailang chains                            # Interactive menu (in terminal)
 | CLI Command | API Equivalent |
 |------------|----------------|
 | `ailang chains list` | `GET /api/chains` |
+| `ailang chains list --agent X --since Y` | `GET /api/chains?agent_id=X&since=Y` |
 | `ailang chains active` | `GET /api/chains/active` |
 | `ailang chains view <id>` | `GET /api/chains/{id}` |
 | `ailang chains stats` | `GET /api/chains/stats?hours=720&by_agent=true` |
-| (by message) | `GET /api/chains/by-message/{id}` |
-| (by task) | `GET /api/chains/by-task/{id}` |
+| `ailang chains find --message-id <id>` | `GET /api/chains/by-message/{id}` |
+| `ailang chains find --task-id <id>` | `GET /api/chains/by-task/{id}` |
+| `ailang chains find --github owner/repo#N` | `GET /api/chains/by-github/{owner}/{repo}/{number}` |
 | (pending) | `GET /api/chains/pending` |
 
 ### Auditing Agent Work

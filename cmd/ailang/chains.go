@@ -30,6 +30,7 @@ func chainsCommand() {
 		fmt.Println("  tree      ASCII tree view of chain hierarchy")
 		fmt.Println("  stats     Cost and token aggregation")
 		fmt.Println("  diagnose  Quick health report for a specific chain")
+		fmt.Println("  diff      Show git diff across all stages in a chain")
 		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
 		fmt.Println("  health    System-wide data capture validation")
 		fmt.Println()
@@ -41,6 +42,8 @@ func chainsCommand() {
 		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
 		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
 		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
+		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
+		fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
 		fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
 		fmt.Println("  ailang chains health                # System-wide validation")
 		fmt.Println()
@@ -64,6 +67,8 @@ func chainsCommand() {
 		chainsStatsCommand()
 	case "active":
 		chainsActiveCommand()
+	case "diff":
+		chainsDiffCommand()
 	case "find":
 		chainsFindCommand()
 	default:

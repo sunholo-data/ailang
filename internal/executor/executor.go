@@ -40,7 +40,8 @@ type Task struct {
 	Directive    string            // The instruction/prompt
 	SystemPrompt string            // Optional system-level context
 	Workspace    string            // Working directory (local path)
-	Timeout      time.Duration     // Execution timeout
+	Timeout      time.Duration     // Hard ceiling execution timeout
+	IdleTimeout  time.Duration     // Kill if no events for this long (0 = use default 3m)
 	AllowedTools []string          // Tools the agent can use
 	Model        string            // Model to use (provider-specific)
 	Metadata     map[string]string // Provider-specific options

@@ -81,6 +81,7 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		SystemPrompt:    systemPrompt,
 		Workspace:       opts.Workspace,
 		Timeout:         opts.Timeout,
+		IdleTimeout:     opts.IdleTimeout,
 		Model:           opts.Model,
 		Metadata:        make(map[string]string),
 		Iteration:       task.Task.Iteration, // M-TRANSCRIPT: feedback loop iteration

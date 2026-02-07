@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +36,16 @@ func New(cfg *executor.Config) (*ClaudeExecutor, error) {
 	claudePath := cfg.ClaudePath
 	if claudePath == "" {
 		claudePath = "claude"
+	}
+
+	// Resolve NVM installation if "claude" is not in PATH
+	// NVM paths aren't in daemon PATH, so scan installed versions (newest first)
+	if claudePath == "claude" {
+		if _, err := exec.LookPath("claude"); err != nil {
+			if nvmPath := executor.FindNVMBinary("claude"); nvmPath != "" {
+				claudePath = nvmPath
+			}
+		}
 	}
 
 	model := cfg.ClaudeModel
@@ -174,13 +186,24 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		return nil, fmt.Errorf("failed to start claude: %w", err)
 	}
 
-	// Set up timeout
+	// Set up timeouts: hard ceiling + idle detection (v0.8.1)
 	timeout := task.Timeout
 	if timeout == 0 {
 		timeout = time.Duration(e.timeoutSeconds) * time.Second
 	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+	idleTimeout := task.IdleTimeout
+	if idleTimeout == 0 {
+		idleTimeout = 3 * time.Minute
+	}
+
+	hardTimer := time.NewTimer(timeout)
+	defer hardTimer.Stop()
+	idleCheck := time.NewTimer(idleTimeout)
+	defer idleCheck.Stop()
+
+	// Track last activity time (atomic for goroutine safety)
+	var lastActivity atomic.Int64
+	lastActivity.Store(time.Now().UnixNano())
 
 	// Parse streaming output
 	done := make(chan error, 1)
@@ -214,6 +237,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			if line == "" {
 				continue
 			}
+
+			// Signal activity for idle timeout tracking
+			lastActivity.Store(time.Now().UnixNano())
 
 			var event map[string]interface{}
 			if err := json.Unmarshal([]byte(line), &event); err != nil {
@@ -323,98 +349,128 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		done <- cmd.Wait()
 	}()
 
-	// Wait for completion or timeout
-	select {
-	case <-timer.C:
-		_ = cmd.Process.Kill()
-		timeoutErr := fmt.Errorf("timeout after %v", timeout)
-		handler.OnError(timeoutErr)
-		span.RecordError(timeoutErr)
-		span.SetStatus(codes.Error, "timeout")
-		span.SetAttributes(
-			attribute.Int("task.turns", turnNum),
-			attribute.Bool("task.success", false),
-		)
-		return &executor.Result{
-			Success:       false,
-			Error:         fmt.Sprintf("timeout after %v", timeout),
-			DurationMS:    int(time.Since(startTime).Milliseconds()),
-			NumTurns:      turnNum,
-			ToolCallCount: toolCallCount,
-			SessionID:     sessionID,
-			Transcript:    transcriptBuf.String(),
-		}, nil
-
-	case err := <-done:
-		duration := time.Since(startTime)
-
-		if err != nil {
-			handler.OnError(err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+	// Wait for completion, hard timeout, or idle timeout
+	for {
+		select {
+		case <-hardTimer.C:
+			_ = cmd.Process.Kill()
+			timeoutErr := fmt.Errorf("timeout after %v (hard ceiling)", timeout)
+			handler.OnError(timeoutErr)
+			span.RecordError(timeoutErr)
+			span.SetStatus(codes.Error, "timeout")
 			span.SetAttributes(
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", false),
 			)
 			return &executor.Result{
 				Success:       false,
-				Error:         err.Error(),
-				DurationMS:    int(duration.Milliseconds()),
+				Error:         fmt.Sprintf("timeout after %v (hard ceiling)", timeout),
+				DurationMS:    int(time.Since(startTime).Milliseconds()),
 				NumTurns:      turnNum,
 				ToolCallCount: toolCallCount,
 				SessionID:     sessionID,
 				Transcript:    transcriptBuf.String(),
 			}, nil
-		}
 
-		if finalResult == nil {
-			span.SetStatus(codes.Ok, "session completed")
+		case <-idleCheck.C:
+			last := time.Unix(0, lastActivity.Load())
+			idle := time.Since(last)
+			if idle >= idleTimeout {
+				_ = cmd.Process.Kill()
+				timeoutErr := fmt.Errorf("timeout after %v idle (no output for %v, total runtime %v)",
+					idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second))
+				handler.OnError(timeoutErr)
+				span.RecordError(timeoutErr)
+				span.SetStatus(codes.Error, "idle timeout")
+				span.SetAttributes(
+					attribute.Int("task.turns", turnNum),
+					attribute.Bool("task.success", false),
+				)
+				return &executor.Result{
+					Success:       false,
+					Error:         timeoutErr.Error(),
+					DurationMS:    int(time.Since(startTime).Milliseconds()),
+					NumTurns:      turnNum,
+					ToolCallCount: toolCallCount,
+					SessionID:     sessionID,
+					Transcript:    transcriptBuf.String(),
+				}, nil
+			}
+			// Activity detected since last check — reset idle timer
+			remaining := idleTimeout - idle
+			idleCheck.Reset(remaining)
+
+		case err := <-done:
+			duration := time.Since(startTime)
+
+			if err != nil {
+				handler.OnError(err)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				span.SetAttributes(
+					attribute.Int("task.turns", turnNum),
+					attribute.Bool("task.success", false),
+				)
+				return &executor.Result{
+					Success:       false,
+					Error:         err.Error(),
+					DurationMS:    int(duration.Milliseconds()),
+					NumTurns:      turnNum,
+					ToolCallCount: toolCallCount,
+					SessionID:     sessionID,
+					Transcript:    transcriptBuf.String(),
+				}, nil
+			}
+
+			if finalResult == nil {
+				span.SetStatus(codes.Ok, "session completed")
+				span.SetAttributes(
+					attribute.Int("task.turns", turnNum),
+					attribute.Bool("task.success", true),
+					attribute.Int("task.duration_ms", int(duration.Milliseconds())),
+				)
+				return &executor.Result{
+					Success:       true,
+					Output:        "Session completed",
+					DurationMS:    int(duration.Milliseconds()),
+					NumTurns:      turnNum,
+					ToolCallCount: toolCallCount,
+					SessionID:     sessionID,
+					Transcript:    transcriptBuf.String(),
+				}, nil
+			}
+
+			success := !finalResult.IsError && finalResult.Subtype == "success"
 			span.SetAttributes(
-				attribute.Int("task.turns", turnNum),
-				attribute.Bool("task.success", true),
-				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
+				attribute.Int("task.turns", finalResult.NumTurns),
+				attribute.Bool("task.success", success),
+				attribute.Int("task.duration_ms", finalResult.DurationMS),
+				attribute.Int64("task.tokens_in", int64(finalResult.Usage.InputTokens)),
+				attribute.Int64("task.tokens_out", int64(finalResult.Usage.OutputTokens)),
+				attribute.Float64("task.cost_usd", finalResult.TotalCostUSD),
 			)
+			if !success {
+				span.SetStatus(codes.Error, getErrorMessage(finalResult))
+			} else {
+				span.SetStatus(codes.Ok, "task completed successfully")
+			}
+
 			return &executor.Result{
-				Success:       true,
-				Output:        "Session completed",
-				DurationMS:    int(duration.Milliseconds()),
-				NumTurns:      turnNum,
-				ToolCallCount: toolCallCount,
-				SessionID:     sessionID,
-				Transcript:    transcriptBuf.String(),
+				Success:                  success,
+				Output:                   finalResult.Result,
+				Error:                    getErrorMessage(finalResult),
+				DurationMS:               finalResult.DurationMS,
+				NumTurns:                 finalResult.NumTurns,
+				ToolCallCount:            toolCallCount,
+				CostUSD:                  finalResult.TotalCostUSD,
+				InputTokens:              finalResult.Usage.InputTokens,
+				OutputTokens:             finalResult.Usage.OutputTokens,
+				CacheReadInputTokens:     finalResult.Usage.CacheReadInputTokens,
+				CacheCreationInputTokens: finalResult.Usage.CacheCreationInputTokens,
+				SessionID:                sessionID,
+				Transcript:               transcriptBuf.String(),
 			}, nil
 		}
-
-		success := !finalResult.IsError && finalResult.Subtype == "success"
-		span.SetAttributes(
-			attribute.Int("task.turns", finalResult.NumTurns),
-			attribute.Bool("task.success", success),
-			attribute.Int("task.duration_ms", finalResult.DurationMS),
-			attribute.Int64("task.tokens_in", int64(finalResult.Usage.InputTokens)),
-			attribute.Int64("task.tokens_out", int64(finalResult.Usage.OutputTokens)),
-			attribute.Float64("task.cost_usd", finalResult.TotalCostUSD),
-		)
-		if !success {
-			span.SetStatus(codes.Error, getErrorMessage(finalResult))
-		} else {
-			span.SetStatus(codes.Ok, "task completed successfully")
-		}
-
-		return &executor.Result{
-			Success:                  success,
-			Output:                   finalResult.Result,
-			Error:                    getErrorMessage(finalResult),
-			DurationMS:               finalResult.DurationMS,
-			NumTurns:                 finalResult.NumTurns,
-			ToolCallCount:            toolCallCount,
-			CostUSD:                  finalResult.TotalCostUSD,
-			InputTokens:              finalResult.Usage.InputTokens,
-			OutputTokens:             finalResult.Usage.OutputTokens,
-			CacheReadInputTokens:     finalResult.Usage.CacheReadInputTokens,
-			CacheCreationInputTokens: finalResult.Usage.CacheCreationInputTokens,
-			SessionID:                sessionID,
-			Transcript:               transcriptBuf.String(),
-		}, nil
 	}
 }
 
@@ -444,7 +500,10 @@ func (e *ClaudeExecutor) HealthCheck(ctx context.Context) error {
 	// Check if claude binary exists
 	_, err := exec.LookPath(e.claudePath)
 	if err != nil {
-		return fmt.Errorf("claude CLI not found: %w (install from https://claude.ai/code)", err)
+		// Also try the resolved path directly (LookPath fails for absolute paths on some systems)
+		if _, statErr := os.Stat(e.claudePath); statErr != nil {
+			return fmt.Errorf("claude CLI not found: %w (install from https://claude.ai/code)", err)
+		}
 	}
 	return nil
 }

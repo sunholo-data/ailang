@@ -163,12 +163,13 @@ Execution chain tracking — agent-level view of multi-stage workflows.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/chains` | GET | List chains (with filtering) |
+| `/api/chains` | GET | List chains (with filtering: `status`, `source_type`, `agent_id`, `since`, `limit`, `offset`) |
 | `/api/chains/active` | GET | Currently active chains |
 | `/api/chains/stats` | GET | Cost/token aggregation |
 | `/api/chains/pending` | GET | Chains pending approval |
 | `/api/chains/by-message/{id}` | GET | Lookup chain by message ID |
 | `/api/chains/by-task/{id}` | GET | Lookup chain by task ID |
+| `/api/chains/by-github/{owner}/{repo}/{number}` | GET | Lookup chain by GitHub issue |
 | `/api/chains/{id}` | GET | Get chain detail with stages |
 | `/api/chains` | POST | Create new chain |
 | `/api/chains/{id}/stages` | POST | Add stage to chain |
@@ -177,6 +178,8 @@ Execution chain tracking — agent-level view of multi-stage workflows.
 Chain list query params:
 - `status` - Filter by status (active, completed, failed, pending_approval)
 - `source_type` - Filter by source (github_issue, message, manual)
+- `agent_id` - Filter by agent ID (e.g., design-doc-creator)
+- `since` - ISO timestamp or duration (e.g., 24h, 7d) - chains created after
 - `limit`, `offset` - Pagination
 
 Stats query params:

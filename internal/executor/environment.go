@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -226,6 +227,52 @@ func UpdateEnvVar(env []string, key, value string) []string {
 		}
 	}
 	return append(env, prefix+value)
+}
+
+// FindNVMBinary scans ~/.nvm/versions/node/ for a binary by name, trying the
+// newest Node version first. Returns the full path if found, or empty string.
+// This avoids hardcoding a specific Node version (e.g., v22.20.0) that breaks
+// when NVM upgrades.
+func FindNVMBinary(binaryName string) string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	nvmDir := filepath.Join(homeDir, ".nvm", "versions", "node")
+	entries, err := os.ReadDir(nvmDir)
+	if err != nil {
+		return ""
+	}
+
+	// Collect version directories, sort newest first
+	var versions []string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
+			versions = append(versions, entry.Name())
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(versions)))
+
+	// Return the first version that has the binary
+	for _, ver := range versions {
+		binPath := filepath.Join(nvmDir, ver, "bin", binaryName)
+		if _, err := os.Stat(binPath); err == nil {
+			return binPath
+		}
+	}
+	return ""
+}
+
+// FindNVMNodeBinDir returns the bin/ directory for the newest NVM Node version
+// that contains the given binary. Useful for adding to PATH so all Node tools
+// in that version are available.
+func FindNVMNodeBinDir(binaryName string) string {
+	path := FindNVMBinary(binaryName)
+	if path == "" {
+		return ""
+	}
+	return filepath.Dir(path)
 }
 
 // GetClaudeSettingsPath returns the path to the AILANG-specific Claude settings file.

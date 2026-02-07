@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,12 +109,10 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		args = append(args, "--include-directories", task.Workspace)
 	}
 
-	// Resolve gemini path - prefer Node 22 installation (required for regex /v flag)
+	// Resolve gemini path - scan NVM versions newest-first (required for regex /v flag)
 	geminiPath := e.geminiPath
-	homeDir, _ := os.UserHomeDir()
-	node22GeminiPath := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin", "gemini")
-	if _, err := os.Stat(node22GeminiPath); err == nil {
-		geminiPath = node22GeminiPath
+	if nvmPath := executor.FindNVMBinary("gemini"); nvmPath != "" {
+		geminiPath = nvmPath
 	}
 
 	cmd := exec.CommandContext(ctx, geminiPath, args...)
@@ -136,11 +134,10 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		EnableGeminiTelemetry: true,
 	})
 
-	// Ensure Node 22+ is used (required for Gemini CLI's regex /v flag)
-	node22Path := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin")
-	if _, err := os.Stat(node22Path); err == nil {
+	// Ensure matching Node version is on PATH (required for Gemini CLI's regex /v flag)
+	if nvmBinDir := executor.FindNVMNodeBinDir("gemini"); nvmBinDir != "" {
 		currentPath := os.Getenv("PATH")
-		env = executor.UpdateEnvVar(env, "PATH", node22Path+":"+currentPath)
+		env = executor.UpdateEnvVar(env, "PATH", nvmBinDir+":"+currentPath)
 	}
 
 	cmd.Env = env
@@ -162,13 +159,24 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		return nil, fmt.Errorf("failed to start gemini: %w", err)
 	}
 
-	// Set up timeout
+	// Set up timeouts: hard ceiling + idle detection (v0.8.1)
 	timeout := task.Timeout
 	if timeout == 0 {
 		timeout = time.Duration(e.timeoutSeconds) * time.Second
 	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+	idleTimeout := task.IdleTimeout
+	if idleTimeout == 0 {
+		idleTimeout = 3 * time.Minute
+	}
+
+	hardTimer := time.NewTimer(timeout)
+	defer hardTimer.Stop()
+	idleCheck := time.NewTimer(idleTimeout)
+	defer idleCheck.Stop()
+
+	// Track last activity time (atomic for goroutine safety)
+	var lastActivity atomic.Int64
+	lastActivity.Store(time.Now().UnixNano())
 
 	// Parse streaming NDJSON output
 	done := make(chan error, 1)
@@ -207,6 +215,9 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			if line == "" {
 				continue
 			}
+
+			// Track activity for idle timeout detection (v0.8.1)
+			lastActivity.Store(time.Now().UnixNano())
 
 			// Debug: log raw NDJSON lines to discover actual Gemini CLI event format
 			if os.Getenv("DEBUG_AGENT") != "" {
@@ -318,93 +329,127 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		done <- cmd.Wait()
 	}()
 
-	// Wait for completion or timeout
-	select {
-	case <-timer.C:
-		_ = cmd.Process.Kill()
-		timeoutErr := fmt.Errorf("timeout after %v", timeout)
-		handler.OnError(timeoutErr)
-		span.RecordError(timeoutErr)
-		span.SetStatus(codes.Error, "timeout")
-		span.SetAttributes(
-			attribute.Int("task.turns", turnNum),
-			attribute.Bool("task.success", false),
-		)
-		return &executor.Result{
-			Success:       false,
-			Error:         fmt.Sprintf("timeout after %v", timeout),
-			DurationMS:    int(time.Since(startTime).Milliseconds()),
-			NumTurns:      turnNum,
-			ToolCallCount: toolCallCount,
-			SessionID:     sessionID,
-			Transcript:    transcriptBuf.String(),
-		}, nil
-
-	case err := <-done:
-		duration := time.Since(startTime)
-
-		if err != nil {
-			handler.OnError(err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
+	// Wait for completion, hard timeout, or idle timeout (v0.8.1)
+	for {
+		select {
+		case <-hardTimer.C:
+			// Hard ceiling reached — kill unconditionally
+			_ = cmd.Process.Kill()
+			timeoutErr := fmt.Errorf("timeout after %v (hard ceiling)", timeout)
+			handler.OnError(timeoutErr)
+			span.RecordError(timeoutErr)
+			span.SetStatus(codes.Error, "timeout (hard ceiling)")
 			span.SetAttributes(
 				attribute.Int("task.turns", turnNum),
 				attribute.Bool("task.success", false),
 			)
-			// Include stderr in error for diagnostics
-			errMsg := err.Error()
-			if stderrContent := stderrBuf.String(); stderrContent != "" {
-				errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
-			}
 			return &executor.Result{
 				Success:       false,
-				Error:         errMsg,
-				DurationMS:    int(duration.Milliseconds()),
+				Error:         fmt.Sprintf("timeout after %v (hard ceiling)", timeout),
+				DurationMS:    int(time.Since(startTime).Milliseconds()),
 				NumTurns:      turnNum,
 				ToolCallCount: toolCallCount,
 				SessionID:     sessionID,
 				Transcript:    transcriptBuf.String(),
 			}, nil
+
+		case <-idleCheck.C:
+			// Check if agent has been idle too long
+			last := time.Unix(0, lastActivity.Load())
+			idle := time.Since(last)
+			if idle >= idleTimeout {
+				// Agent is stuck — kill it
+				_ = cmd.Process.Kill()
+				idleErr := fmt.Errorf("timeout after %v idle (no output for %v, total runtime %v)",
+					idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second))
+				handler.OnError(idleErr)
+				span.RecordError(idleErr)
+				span.SetStatus(codes.Error, "timeout (idle)")
+				span.SetAttributes(
+					attribute.Int("task.turns", turnNum),
+					attribute.Bool("task.success", false),
+				)
+				return &executor.Result{
+					Success:       false,
+					Error:         fmt.Sprintf("timeout after %v idle (no output for %v, total runtime %v)", idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second)),
+					DurationMS:    int(time.Since(startTime).Milliseconds()),
+					NumTurns:      turnNum,
+					ToolCallCount: toolCallCount,
+					SessionID:     sessionID,
+					Transcript:    transcriptBuf.String(),
+				}, nil
+			}
+			// Activity detected since last check — reset idle timer for remaining time
+			remaining := idleTimeout - idle
+			idleCheck.Reset(remaining)
+
+		case err := <-done:
+			// Normal completion (success or error)
+			duration := time.Since(startTime)
+
+			if err != nil {
+				handler.OnError(err)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, err.Error())
+				span.SetAttributes(
+					attribute.Int("task.turns", turnNum),
+					attribute.Bool("task.success", false),
+				)
+				// Include stderr in error for diagnostics
+				errMsg := err.Error()
+				if stderrContent := stderrBuf.String(); stderrContent != "" {
+					errMsg = fmt.Sprintf("%s\nstderr: %s", errMsg, stderrContent)
+				}
+				return &executor.Result{
+					Success:       false,
+					Error:         errMsg,
+					DurationMS:    int(duration.Milliseconds()),
+					NumTurns:      turnNum,
+					ToolCallCount: toolCallCount,
+					SessionID:     sessionID,
+					Transcript:    transcriptBuf.String(),
+				}, nil
+			}
+
+			// Calculate cost
+			cost := e.CostModel().CalculateCost(executor.TokenUsage{
+				InputTokens:  inputTokens,
+				OutputTokens: outputTokens,
+			})
+
+			success := true
+			if finalResult != nil && finalResult.Status != "success" {
+				success = false
+			}
+
+			// Record span attributes
+			span.SetAttributes(
+				attribute.Int("task.turns", turnNum),
+				attribute.Bool("task.success", success),
+				attribute.Int("task.duration_ms", int(duration.Milliseconds())),
+				attribute.Int64("task.tokens_in", int64(inputTokens)),
+				attribute.Int64("task.tokens_out", int64(outputTokens)),
+				attribute.Float64("task.cost_usd", cost),
+			)
+			if !success {
+				span.SetStatus(codes.Error, "task failed")
+			} else {
+				span.SetStatus(codes.Ok, "task completed successfully")
+			}
+
+			return &executor.Result{
+				Success:       success,
+				Output:        transcriptBuf.String(),
+				DurationMS:    int(duration.Milliseconds()),
+				NumTurns:      turnNum,
+				ToolCallCount: toolCallCount,
+				CostUSD:       cost,
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
+				SessionID:     sessionID,
+				Transcript:    transcriptBuf.String(),
+			}, nil
 		}
-
-		// Calculate cost
-		cost := e.CostModel().CalculateCost(executor.TokenUsage{
-			InputTokens:  inputTokens,
-			OutputTokens: outputTokens,
-		})
-
-		success := true
-		if finalResult != nil && finalResult.Status != "success" {
-			success = false
-		}
-
-		// Record span attributes
-		span.SetAttributes(
-			attribute.Int("task.turns", turnNum),
-			attribute.Bool("task.success", success),
-			attribute.Int("task.duration_ms", int(duration.Milliseconds())),
-			attribute.Int64("task.tokens_in", int64(inputTokens)),
-			attribute.Int64("task.tokens_out", int64(outputTokens)),
-			attribute.Float64("task.cost_usd", cost),
-		)
-		if !success {
-			span.SetStatus(codes.Error, "task failed")
-		} else {
-			span.SetStatus(codes.Ok, "task completed successfully")
-		}
-
-		return &executor.Result{
-			Success:       success,
-			Output:        transcriptBuf.String(),
-			DurationMS:    int(duration.Milliseconds()),
-			NumTurns:      turnNum,
-			ToolCallCount: toolCallCount,
-			CostUSD:       cost,
-			InputTokens:   inputTokens,
-			OutputTokens:  outputTokens,
-			SessionID:     sessionID,
-			Transcript:    transcriptBuf.String(),
-		}, nil
 	}
 }
 
@@ -429,12 +474,10 @@ func (e *GeminiExecutor) CostModel() *executor.CostModel {
 
 // HealthCheck verifies the executor is configured and accessible
 func (e *GeminiExecutor) HealthCheck(ctx context.Context) error {
-	// Check if gemini binary exists - try Node 22 path first (same as ExecuteStreaming)
+	// Check if gemini binary exists - scan NVM versions newest-first
 	geminiPath := e.geminiPath
-	homeDir, _ := os.UserHomeDir()
-	node22GeminiPath := filepath.Join(homeDir, ".nvm", "versions", "node", "v22.20.0", "bin", "gemini")
-	if _, err := os.Stat(node22GeminiPath); err == nil {
-		geminiPath = node22GeminiPath
+	if nvmPath := executor.FindNVMBinary("gemini"); nvmPath != "" {
+		geminiPath = nvmPath
 	}
 
 	_, err := exec.LookPath(geminiPath)
@@ -480,7 +523,7 @@ type geminiStreamEvent struct {
 	Delta      bool              `json:"delta,omitempty"` // true if streaming delta
 	ToolName   string            `json:"tool_name,omitempty"`
 	ToolID     string            `json:"tool_id,omitempty"`
-	Parameters json.RawMessage    `json:"parameters,omitempty"`
+	Parameters json.RawMessage   `json:"parameters,omitempty"`
 	Output     string            `json:"output,omitempty"`
 	Status     string            `json:"status,omitempty"` // success, error
 	Stats      geminiStreamStats `json:"stats,omitempty"`
