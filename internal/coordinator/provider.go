@@ -105,6 +105,9 @@ type ExecuteResult struct {
 	// Detailed token breakdown
 	InputTokens  int
 	OutputTokens int
+	// Execution detail
+	NumTurns      int
+	ToolCallCount int
 	// Files affected
 	FilesCreated  []string
 	FilesModified []string

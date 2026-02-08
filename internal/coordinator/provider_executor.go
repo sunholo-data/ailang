@@ -138,6 +138,8 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 	result.InputTokens = execResult.InputTokens
 	result.OutputTokens = execResult.OutputTokens
 	result.TokensUsed = execResult.InputTokens + execResult.OutputTokens
+	result.NumTurns = execResult.NumTurns
+	result.ToolCallCount = execResult.ToolCallCount
 	result.FilesCreated = execResult.FilesCreated
 	result.FilesModified = execResult.FilesModified
 	result.SessionID = execResult.SessionID // For agent-to-agent handoffs

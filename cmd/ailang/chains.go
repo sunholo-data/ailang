@@ -255,9 +255,12 @@ func chainsViewCommand() {
 			if stage.ApprovalStatus != "" {
 				fmt.Printf("     Approval: %s\n", stage.ApprovalStatus)
 			}
-			if stage.Cost > 0 {
-				fmt.Printf("     Cost: $%.4f (%d tokens in, %d tokens out)\n",
-					stage.Cost, stage.TokensIn, stage.TokensOut)
+			if stage.Cost > 0 || stage.Turns > 0 || stage.ToolCalls > 0 {
+				fmt.Printf("     Cost: $%.4f (%d tokens in, %d tokens out, %d turns, %d tool calls)\n",
+					stage.Cost, stage.TokensIn, stage.TokensOut, stage.Turns, stage.ToolCalls)
+			}
+			if stage.ErrorMessage != "" {
+				fmt.Printf("     Error: %s\n", red(stage.ErrorMessage))
 			}
 			if stage.HandoffTo != "" {
 				fmt.Printf("     Handoff: -> %s\n", stage.HandoffTo)

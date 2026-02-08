@@ -78,8 +78,18 @@ func (d *Daemon) updateStageMetrics(ctx context.Context, task *TaskRecord, resul
 		return
 	}
 	durationMs := result.Duration.Milliseconds()
-	if err := d.obsBackend.UpdateStageMetrics(ctx, task.StageID, result.Cost, result.InputTokens, result.OutputTokens, 0, 0, durationMs); err != nil {
+	if err := d.obsBackend.UpdateStageMetrics(ctx, task.StageID, result.Cost, result.InputTokens, result.OutputTokens, result.NumTurns, result.ToolCallCount, durationMs); err != nil {
 		d.logger.Printf("Warning: Failed to update stage %s metrics: %v", task.StageID, err)
+	}
+}
+
+// updateStageError records the error message on a failed stage.
+func (d *Daemon) updateStageError(ctx context.Context, task *TaskRecord, errorMsg string) {
+	if d.obsBackend == nil || task.StageID == "" || errorMsg == "" {
+		return
+	}
+	if err := d.obsBackend.UpdateStageError(ctx, task.StageID, errorMsg); err != nil {
+		d.logger.Printf("Warning: Failed to update stage %s error: %v", task.StageID, err)
 	}
 }
 
@@ -1031,11 +1041,11 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		// M-CHAINS-SIMPLIFY: Update stage and chain status
 		d.updateChainStageStatus(taskCtx, task, observatory.StageStatusFailed)
 		d.updateChainStatus(taskCtx, task, observatory.ChainStatusFailed)
-		// Capture partial metrics and session even on failure (v0.8.1)
-		// The session existed and made progress before timing out
+		// Capture partial metrics, session, and error even on failure (v0.8.1)
 		d.updateStageSession(taskCtx, task, result.SessionID)
 		d.updateStageMetrics(taskCtx, task, result)
 		d.updateChainMetrics(taskCtx, task, result)
+		d.updateStageError(taskCtx, task, result.Error)
 		d.logger.Printf("Task %s failed: %s", task.ID, result.Error)
 		span.SetStatus(codes.Error, result.Error)
 	}
