@@ -435,9 +435,20 @@
         "gap-analysis"
       ],
       "notes": "Gap analysis integration from v0.6.2→v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
+    },
+    "v0.7.3": {
+      "file": "prompts/v0.7.3.md",
+      "hash": "0757a43d6ee302feb0766efd3beb7288a96e567fc55e1d8681dfc8835f88dc83",
+      "description": "Add std/zip and std/xml stdlib modules for document parsing",
+      "created": "2026-02-08",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add std/zip and std/xml stdlib modules for document parsing"
     }
   },
-  "active": "v0.7.0",
+  "active": "v0.7.3",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

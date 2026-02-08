@@ -1,38 +1,39 @@
--- XML parsing with std/xml builtins
+-- XML parsing with std/xml
 -- Demonstrates parsing XML and querying the tree with findAll, getText, getAttr
 --
 -- Usage: ailang run --entry main xml_parser.ail
 module examples/runnable/xml_parser
 
 import std/result (Result, Ok, Err)
+import std/xml (parse, findAll, findFirst, getText, getTag)
 
 -- Parse XML and extract information using tree queries
 export func main() -> int ! {IO} {
   let xml = "<catalog><book id=\"1\"><title>AILANG Guide</title><author>Claude</author></book><book id=\"2\"><title>Functional Design</title><author>AI</author></book></catalog>";
 
-  match _xml_parse(xml) {
+  match parse(xml) {
     Ok(root) => {
       -- Find all book elements
-      let books = _xml_findAll(root, "book");
-      _io_println("Found books:");
+      let books = findAll(root, "book");
+      println("Found books:");
 
       -- Find first title element
-      match _xml_findFirst(root, "title") {
+      match findFirst(root, "title") {
         Some(titleNode) => {
-          let titleText = _xml_getText(titleNode);
-          _io_println(titleText)
+          let titleText = getText(titleNode);
+          println(titleText)
         },
-        None => _io_println("No title found")
+        None => println("No title found")
       };
 
-      -- Get tag name of root
-      let tag = _xml_getTag(root);
-      _io_println(tag);
+      -- Get tag name of root (returns string, empty for non-Element)
+      let tag = getTag(root);
+      println(tag);
 
       0
     },
     Err(msg) => {
-      _io_println(msg);
+      println(msg);
       1
     }
   }

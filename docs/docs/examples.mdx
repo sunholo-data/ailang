@@ -18,6 +18,8 @@ import EffectsFsIoExample from '!!raw-loader!@site/../examples/runnable/effects_
 import JsonParsingExample from '!!raw-loader!@site/../examples/runnable/json_parsing.ail';
 import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simple.ail';
 import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recursion_mutual.ail';
+import ZipReaderExample from '!!raw-loader!@site/../examples/runnable/zip_reader.ail';
+import XmlParserExample from '!!raw-loader!@site/../examples/runnable/xml_parser.ail';
 
 # AILANG Examples
 
@@ -260,6 +262,54 @@ ailang run --caps IO,Net examples/runnable/http_simple.ail
 - <CheckIcon inline /> `! {IO, Net}` declares network capability
 - <CheckIcon inline /> `httpGet` returns response body as string
 - <CheckIcon inline /> DNS rebinding protection built-in
+
+---
+
+## <Icon name="archive" /> Data Formats
+
+### ZIP Archives
+
+Read and inspect ZIP archives (including .docx, .xlsx, .pptx files):
+
+<CodeBlock language="typescript" title="examples/runnable/zip_reader.ail">
+  {ZipReaderExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/zip_reader.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO,FS examples/runnable/zip_reader.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `! {FS}` declares filesystem access for ZIP reading
+- <CheckIcon inline /> `_zip_listEntries` lists all entries in the archive
+- <CheckIcon inline /> `_zip_readEntry` reads text content (XML, JSON, etc.)
+- <CheckIcon inline /> `_zip_readEntryBytes` reads binary content as base64
+
+---
+
+### XML Parsing
+
+Parse and query XML documents (pure functions, no effects needed):
+
+<CodeBlock language="typescript" title="examples/runnable/xml_parser.ail">
+  {XmlParserExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/xml_parser.ail)</small>
+
+**Run it:**
+```bash
+ailang run examples/runnable/xml_parser.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `_xml_parse` returns `Result[XmlNode, string]` - pure function
+- <CheckIcon inline /> `_xml_findAll` and `_xml_findFirst` query by tag name
+- <CheckIcon inline /> `_xml_getText`, `_xml_getAttr` extract content
+- <CheckIcon inline /> XmlNode ADT: `Element | Text | CData | Comment`
 
 ---
 

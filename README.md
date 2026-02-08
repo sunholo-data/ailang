@@ -141,7 +141,7 @@ make lint       # Run linter
 ailang/
 ├── cmd/ailang/     # CLI
 ├── internal/       # Compiler (lexer, parser, types, eval, effects)
-├── stdlib/         # Standard library (std/io, std/fs, std/json, etc.)
+├── stdlib/         # Standard library (std/io, std/fs, std/json, std/zip, std/xml, etc.)
 ├── examples/       # Example programs (97 files)
 ├── docs/           # Documentation website source
 └── design_docs/    # Design documents

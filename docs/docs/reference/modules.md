@@ -261,6 +261,77 @@ func main() -> () ! {IO} {
 }
 ```
 
+### std/zip
+
+ZIP archive reading operations (requires FS effect).
+
+```typescript
+import std/result (Result, Ok, Err)
+
+-- List all entries in a ZIP archive
+func listArchive(path: string) -> Result[List[string], string] ! {FS} {
+  _zip_listEntries(path)
+}
+
+-- Read a text entry from a ZIP
+func readText(path: string, entry: string) -> Result[string, string] ! {FS} {
+  _zip_readEntry(path, entry)
+}
+
+-- Read a binary entry as base64
+func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} {
+  _zip_readEntryBytes(path, entry)
+}
+```
+
+**Builtins:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `_zip_listEntries` | `string -> Result[List[string], string] ! {FS}` | List all entry paths in a ZIP archive |
+| `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read a text entry (UTF-8) from a ZIP |
+| `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read a binary entry as base64 string |
+
+**Security:** Path traversal rejected, 10K entry limit, 100MB decompressed size limit.
+
+### std/xml
+
+XML parsing operations (pure functions, no effect required).
+
+```typescript
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+
+-- Parse XML string into XmlNode tree
+let result = _xml_parse("<root><item>Hello</item></root>");
+
+-- Query: find all elements by tag name
+let items = _xml_findAll(node, "item");
+
+-- Query: find first element by tag name
+let first = _xml_findFirst(node, "item");
+
+-- Extract text content, attributes, children, tag
+let text = _xml_getText(node);
+let attr = _xml_getAttr(node, "id");
+let children = _xml_getChildren(node);
+let tag = _xml_getTag(node);
+```
+
+**Builtins:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `_xml_parse` | `string -> Result[XmlNode, string]` | Parse XML string into XmlNode tree |
+| `_xml_findAll` | `(XmlNode, string) -> List[XmlNode]` | Find all descendant elements by tag name |
+| `_xml_findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first descendant element by tag name |
+| `_xml_getText` | `XmlNode -> string` | Extract text content from a node |
+| `_xml_getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value by name |
+| `_xml_getChildren` | `XmlNode -> List[XmlNode]` | Get child nodes of an element |
+| `_xml_getTag` | `XmlNode -> string` | Get tag name (empty string for text/comment nodes) |
+
+**XmlNode ADT:** `Element(tag, attrs, children) | Text(content) | CData(content) | Comment(content)`
+
 ### std/prelude
 
 Common utilities automatically available:

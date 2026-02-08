@@ -1,0 +1,48 @@
+-- std/xml - XML parsing and querying
+--
+-- Parse XML strings into XmlNode trees and query elements.
+-- All operations are pure (no effects required).
+--
+-- XmlNode ADT: Element(tag, attrs, children) | Text(content) | CData(content) | Comment(content)
+--
+-- Security: 256 depth limit, 50MB input size limit.
+--
+-- Usage:
+--   import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
+--   match parse("<root><item id='1'>Hello</item></root>") {
+--     Ok(doc) => println(getText(doc)),
+--     Err(msg) => println(msg)
+--   }
+
+module std/xml
+
+import std/result (Result)
+import std/option (Option)
+
+-- Parse XML string into XmlNode tree
+-- Returns Ok(XmlNode) or Err(message) for malformed XML
+export pure func parse(xml: string) -> Result[XmlNode, string] = _xml_parse(xml)
+
+-- Find all descendant elements matching tag name
+-- Searches recursively through the tree
+export pure func findAll(node: XmlNode, tag: string) -> List[XmlNode] = _xml_findAll(node, tag)
+
+-- Find first descendant element matching tag name
+-- Returns Some(node) or None
+export pure func findFirst(node: XmlNode, tag: string) -> Option[XmlNode] = _xml_findFirst(node, tag)
+
+-- Extract text content from a node
+-- For Element nodes, concatenates all descendant text
+export pure func getText(node: XmlNode) -> string = _xml_getText(node)
+
+-- Get attribute value by name
+-- Returns Some(value) or None if attribute not present
+export pure func getAttr(node: XmlNode, name: string) -> Option[string] = _xml_getAttr(node, name)
+
+-- Get child nodes of an element
+-- Returns empty list for non-Element nodes
+export pure func getChildren(node: XmlNode) -> List[XmlNode] = _xml_getChildren(node)
+
+-- Get tag name of an element
+-- Returns tag string for Element, empty string for Text/CData/Comment
+export pure func getTag(node: XmlNode) -> string = _xml_getTag(node)

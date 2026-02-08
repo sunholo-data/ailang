@@ -90,6 +90,9 @@ func copyFile(src: string, dst: string) -> () ! {FS} {
 | `readFile` | `string -> string ! {FS}` | Read file contents |
 | `writeFile` | `(string, string) -> () ! {FS}` | Write content to file |
 | `exists` | `string -> bool ! {FS}` | Check if file exists |
+| `_zip_listEntries` | `string -> Result[List[string], string] ! {FS}` | List ZIP archive entries |
+| `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read text entry from ZIP |
+| `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read binary entry from ZIP (base64) |
 
 ### Clock Effect
 

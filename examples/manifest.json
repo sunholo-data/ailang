@@ -1132,14 +1132,44 @@
         "stdout": "Hello, World!\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/zip_reader.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "zip",
+        "fs",
+        "effects",
+        "result",
+        "std/zip"
+      ],
+      "description": "ZIP archive reading with std/zip builtins: list entries, read text/binary content",
+      "run_flags": [
+        "--caps", "IO,FS"
+      ]
+    },
+    {
+      "path": "runnable/xml_parser.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "xml",
+        "parsing",
+        "adt",
+        "result",
+        "option",
+        "std/xml"
+      ],
+      "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes"
     }
   ],
   "statistics": {
-    "total": 115,
-    "working": 108,
+    "total": 117,
+    "working": 110,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.938
+    "coverage": 0.940
   },
   "milestones": {
     "completed": [

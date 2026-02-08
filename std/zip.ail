@@ -1,0 +1,37 @@
+-- std/zip - ZIP archive reading
+--
+-- Read entries from ZIP archives (including .docx, .xlsx, .pptx).
+-- All operations are read-only (no extraction to disk).
+--
+-- Requires: FS capability (--caps FS)
+--
+-- Security: Path traversal rejected, 10K entry limit, 100MB decompressed size limit.
+--
+-- Usage:
+--   import std/zip (listEntries, readEntry, readEntryBytes)
+--   match listEntries("archive.zip") {
+--     Ok(entries) => println(show(entries)),
+--     Err(msg) => println(msg)
+--   }
+
+module std/zip
+
+import std/result (Result)
+
+-- List all entry paths in a ZIP archive
+-- Returns Ok([string]) with entry names, or Err(message)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func listEntries(path: string) -> Result[List[string], string] ! {FS} = _zip_listEntries(path)
+
+-- Read a text entry (UTF-8) from a ZIP archive
+-- Returns Ok(string) with entry content, or Err(message)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readEntry(path: string, entry: string) -> Result[string, string] ! {FS} = _zip_readEntry(path, entry)
+
+-- Read a binary entry as base64-encoded string from a ZIP archive
+-- Returns Ok(string) with base64 content, or Err(message)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _zip_readEntryBytes(path, entry)

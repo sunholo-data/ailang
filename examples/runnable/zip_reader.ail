@@ -1,40 +1,25 @@
--- ZIP archive reading with std/zip builtins
+-- ZIP archive reading with std/zip
 -- Demonstrates listing and reading entries from ZIP archives
 -- Requires FS capability and a ZIP file to operate on
 --
--- Usage: ailang run --caps FS --entry main zip_reader.ail
+-- Usage: ailang run --caps IO,FS --entry main zip_reader.ail
 module examples/runnable/zip_reader
 
 import std/result (Result, Ok, Err)
-
--- List all entries in a ZIP archive
--- Returns Ok([entry names]) or Err(message)
-func listArchive(path: string) -> Result[List[string], string] ! {FS} {
-  _zip_listEntries(path)
-}
-
--- Read a text entry (e.g., XML, JSON, TXT) from a ZIP
-func readText(path: string, entry: string) -> Result[string, string] ! {FS} {
-  _zip_readEntry(path, entry)
-}
-
--- Read a binary entry as base64 (e.g., images, fonts)
-func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} {
-  _zip_readEntryBytes(path, entry)
-}
+import std/zip (listEntries, readEntry, readEntryBytes)
 
 -- Example: inspect a .docx file (which is a ZIP archive)
 -- .docx contains: word/document.xml, [Content_Types].xml, etc.
 export func main() -> int ! {IO, FS} {
   let path = "test.docx";
-  match listArchive(path) {
+  match listEntries(path) {
     Ok(entries) => {
-      _io_println("Archive entries:");
+      println("Archive entries:");
       -- entries is a list of strings (entry paths)
       0
     },
     Err(msg) => {
-      _io_println(msg);
+      println(msg);
       1
     }
   }
