@@ -106,6 +106,16 @@ _string_floatToStr : float -> string
 _string_intToStr : int -> string
 _string_reverse : string -> string
 _trace_check : string -> bool
+_xml_findAll : (XmlNode, string) -> list[XmlNode]
+_xml_findFirst : (XmlNode, string) -> Option[XmlNode]
+_xml_getAttr : (XmlNode, string) -> Option[string]
+_xml_getChildren : XmlNode -> list[XmlNode]
+_xml_getTag : XmlNode -> string
+_xml_getText : XmlNode -> string
+_xml_parse : string -> Result[XmlNode, string]
+_zip_listEntries : string -> Result[list[string], string] ! {FS}
+_zip_readEntry : (string, string) -> Result[string, string] ! {FS}
+_zip_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool

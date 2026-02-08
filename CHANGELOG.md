@@ -1,5 +1,37 @@
 # AILANG Changelog
 
+## [v0.7.3] - 2026-02-08
+
+### Added
+- **M-STDLIB-ZIP: ZIP archive reading builtins** (`internal/builtins/zip.go`, ~315 LOC)
+  - `_zip_listEntries(path)` — list all entry names in a ZIP archive
+  - `_zip_readEntry(path, entryName)` — read text entry as UTF-8 string
+  - `_zip_readEntryBytes(path, entryName)` — read binary entry as base64 string
+  - All functions return `Result[T, string]` with proper Ok/Err handling
+  - Requires `FS` capability (effect-guarded)
+  - Security: path traversal rejection (`..`), max 10,000 entries, 100MB decompressed size limit
+  - `io.LimitReader` defense-in-depth for zip bomb protection
+  - Sandbox support via `AILANG_FS_SANDBOX`
+  - 12 tests covering happy path, error cases, security, and sandbox (`zip_test.go`, ~388 LOC)
+  - Example: `examples/runnable/zip_reader.ail`
+  - Design doc: `design_docs/planned/v0_7_3/m-stdlib-zip.md`
+
+- **M-STDLIB-XML: XML parsing and querying builtins** (`internal/builtins/xml.go`, ~530 LOC)
+  - `_xml_parse(xml)` — parse XML string into XmlNode ADT tree
+  - `_xml_findAll(node, tag)` — find all descendant elements matching tag name
+  - `_xml_findFirst(node, tag)` — find first matching element (returns Option)
+  - `_xml_getText(node)` — recursive text content extraction
+  - `_xml_getAttr(node, attrName)` — attribute lookup (returns Option)
+  - `_xml_getChildren(node)` — direct child nodes
+  - `_xml_getTag(node)` — tag name of element
+  - XmlNode ADT: `Element(tag, attrs, children) | Text(content) | CData(content) | Comment(content)`
+  - All 7 functions are pure (no effects required)
+  - Namespace prefix handling for OOXML compatibility (e.g., `w:document`, `w:p`)
+  - Security: depth limit (256), input size limit (50MB)
+  - 30 tests covering parsing, queries, namespaces, OOXML fragments, security (`xml_test.go`, ~530 LOC)
+  - Example: `examples/runnable/xml_parser.ail`
+  - Design doc: `design_docs/planned/v0_7_3/m-stdlib-xml.md`
+
 ## [v0.7.2] - 2026-02-06
 
 ### Added
