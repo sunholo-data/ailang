@@ -54,7 +54,7 @@ export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] {
   }
 }
 
--- Optional: include these now if your polymorphism is happy.
+-- Apply a function to each element, returning a new list.
 export pure func map[a, b](f: (a) -> b, xs: [a]) -> [b] {
   match xs { [] => [], [x, ...rest] => [f(x)] ++ map(f, rest) }
 }
