@@ -2,7 +2,7 @@
 # BUILD & INSTALL TARGETS
 # =============================================================================
 
-.PHONY: build install quick-install dev deps clean prepare-embed
+.PHONY: build install quick-install dev deps clean prepare-embed bootstrap-content
 
 prepare-embed: ## Internal: Copy prompts for embedding
 	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
@@ -74,3 +74,41 @@ build-wasm: ## Build WASM binary for browser REPL
 	@mkdir -p $(BUILD_DIR)
 	GOOS=js GOARCH=wasm $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY).wasm ./cmd/wasm
 	@echo "$(GREEN)$(CHECKMARK) WASM binary: $(BUILD_DIR)/$(BINARY).wasm$(RESET)"
+
+# Bootstrap content bundle for ailang_bootstrap plugin repo
+bootstrap-content: build ## Generate content bundle for bootstrap plugin sync
+	@echo "Generating bootstrap content bundle..."
+	@rm -rf $(BUILD_DIR)/bootstrap-content
+	@mkdir -p $(BUILD_DIR)/bootstrap-content/examples $(BUILD_DIR)/bootstrap-content/examples/runnable
+	@# 1. Active teaching prompt
+	@ACTIVE=$$(python3 -c "import json; d=json.load(open('prompts/versions.json')); print(d['active'])"); \
+		cp "prompts/$${ACTIVE}.md" $(BUILD_DIR)/bootstrap-content/teaching-prompt.md; \
+		echo "  $(ARROW) Teaching prompt: $${ACTIVE}"
+	@# 2. Examples manifest
+	@cp examples/manifest.json $(BUILD_DIR)/bootstrap-content/manifest.json
+	@echo "  $(ARROW) Examples manifest"
+	@# 3. Working example files (top-level)
+	@for f in examples/*.ail; do \
+		cp "$$f" $(BUILD_DIR)/bootstrap-content/examples/; \
+	done
+	@echo "  $(ARROW) Top-level examples"
+	@# 4. Runnable examples
+	@if [ -d examples/runnable ]; then \
+		for f in examples/runnable/*.ail; do \
+			[ -f "$$f" ] && cp "$$f" $(BUILD_DIR)/bootstrap-content/examples/runnable/; \
+		done; \
+		echo "  $(ARROW) Runnable examples"; \
+	fi
+	@# 5. Builtins list
+	@$(BUILD_DIR)/$(BINARY) builtins list --by-module > $(BUILD_DIR)/bootstrap-content/builtins-by-module.txt 2>/dev/null || \
+		echo "(builtins list not available)" > $(BUILD_DIR)/bootstrap-content/builtins-by-module.txt
+	@echo "  $(ARROW) Builtins reference"
+	@# 6. Recent changelog
+	@head -100 CHANGELOG.md > $(BUILD_DIR)/bootstrap-content/changelog-recent.md
+	@echo "  $(ARROW) Recent changelog"
+	@# 7. Version
+	@echo "$(VERSION)" > $(BUILD_DIR)/bootstrap-content/version.txt
+	@echo "  $(ARROW) Version: $(VERSION)"
+	@# 8. Create tarball
+	@cd $(BUILD_DIR) && tar czf bootstrap-content.tar.gz bootstrap-content/
+	@echo "$(GREEN)$(CHECKMARK) Bootstrap content bundle: $(BUILD_DIR)/bootstrap-content.tar.gz$(RESET)"

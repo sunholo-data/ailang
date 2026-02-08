@@ -29,6 +29,8 @@ func init() {
 	registerStrSplit()
 	registerStringReverse()
 	registerStringChars()
+	registerStringStartsWith()
+	registerStringEndsWith()
 }
 
 // ============================================================================
@@ -860,4 +862,108 @@ func strCharsImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	}
 
 	return &eval.ListValue{Elements: elements}, nil
+}
+
+// registerStringStartsWith registers the _str_startsWith builtin
+func registerStringStartsWith() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_startsWith",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrStartsWithType,
+		Impl:    strStartsWithImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Check if a string starts with a given prefix",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to check"},
+				{Name: "prefix", Description: "Prefix to look for"},
+			},
+			Returns: "true if s starts with prefix, false otherwise",
+			Examples: []Example{
+				{Code: `_str_startsWith("hello world", "hello")`, Description: "Returns true"},
+				{Code: `_str_startsWith("hello world", "world")`, Description: "Returns false"},
+				{Code: `_str_startsWith("hello", "")`, Description: "Returns true (empty prefix)"},
+			},
+			SeeAlso:   []string{"_str_endsWith", "_str_find", "_str_slice"},
+			Since:     "v0.7.4",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "prefix", "search", "match"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_startsWith: %v", err))
+	}
+}
+
+func makeStrStartsWithType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String()).Returns(T.Bool()).Build()
+}
+
+func strStartsWithImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_startsWith: arg 0 - %w", err)
+	}
+	prefix, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_startsWith: arg 1 - %w", err)
+	}
+	return &eval.BoolValue{Value: strings.HasPrefix(s, prefix)}, nil
+}
+
+// registerStringEndsWith registers the _str_endsWith builtin
+func registerStringEndsWith() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_endsWith",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrEndsWithType,
+		Impl:    strEndsWithImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Check if a string ends with a given suffix",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to check"},
+				{Name: "suffix", Description: "Suffix to look for"},
+			},
+			Returns: "true if s ends with suffix, false otherwise",
+			Examples: []Example{
+				{Code: `_str_endsWith("hello world", "world")`, Description: "Returns true"},
+				{Code: `_str_endsWith("hello world", "hello")`, Description: "Returns false"},
+				{Code: `_str_endsWith("hello", "")`, Description: "Returns true (empty suffix)"},
+			},
+			SeeAlso:   []string{"_str_startsWith", "_str_find", "_str_slice"},
+			Since:     "v0.7.4",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "suffix", "search", "match"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_endsWith: %v", err))
+	}
+}
+
+func makeStrEndsWithType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String()).Returns(T.Bool()).Build()
+}
+
+func strEndsWithImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_endsWith: arg 0 - %w", err)
+	}
+	suffix, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_endsWith: arg 1 - %w", err)
+	}
+	return &eval.BoolValue{Value: strings.HasSuffix(s, suffix)}, nil
 }

@@ -563,3 +563,141 @@ func TestStrCharsType(t *testing.T) {
 	}
 	// Type should be: String -> [String]
 }
+
+// TestStrStartsWith tests the _str_startsWith builtin
+func TestStrStartsWith(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		prefix   string
+		expected bool
+	}{
+		{"match", "hello world", "hello", true},
+		{"no match", "hello world", "world", false},
+		{"empty prefix", "hello", "", true},
+		{"empty string", "", "hello", false},
+		{"both empty", "", "", true},
+		{"exact match", "hello", "hello", true},
+		{"prefix longer", "hi", "hello", false},
+		{"unicode prefix", "café latte", "café", true},
+		{"unicode no match", "café latte", "latte", false},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{
+				&eval.StringValue{Value: tt.s},
+				&eval.StringValue{Value: tt.prefix},
+			}
+			result, err := strStartsWithImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strStartsWithImpl() error: %v", err)
+			}
+			bv, ok := result.(*eval.BoolValue)
+			if !ok {
+				t.Fatalf("expected *eval.BoolValue, got %T", result)
+			}
+			if bv.Value != tt.expected {
+				t.Errorf("startsWith(%q, %q) = %v, want %v",
+					tt.s, tt.prefix, bv.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestStrStartsWithWrongArgType tests error handling
+func TestStrStartsWithWrongArgType(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	args := []eval.Value{&eval.IntValue{Value: 42}, &eval.StringValue{Value: "hi"}}
+	_, err := strStartsWithImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strStartsWithImpl() should return error for wrong arg type")
+	}
+
+	args = []eval.Value{&eval.StringValue{Value: "hi"}, &eval.IntValue{Value: 42}}
+	_, err = strStartsWithImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strStartsWithImpl() should return error for wrong arg 1 type")
+	}
+}
+
+// TestStrStartsWithType verifies the type signature
+func TestStrStartsWithType(t *testing.T) {
+	typ := makeStrStartsWithType()
+	if typ == nil {
+		t.Error("makeStrStartsWithType() returned nil")
+	}
+}
+
+// TestStrEndsWith tests the _str_endsWith builtin
+func TestStrEndsWith(t *testing.T) {
+	tests := []struct {
+		name     string
+		s        string
+		suffix   string
+		expected bool
+	}{
+		{"match", "hello world", "world", true},
+		{"no match", "hello world", "hello", false},
+		{"empty suffix", "hello", "", true},
+		{"empty string", "", "hello", false},
+		{"both empty", "", "", true},
+		{"exact match", "hello", "hello", true},
+		{"suffix longer", "hi", "hello", false},
+		{"unicode suffix", "café latte", "latte", true},
+		{"unicode no match", "café latte", "café", false},
+		{"file extension", "document.pdf", ".pdf", true},
+		{"wrong extension", "document.pdf", ".txt", false},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{
+				&eval.StringValue{Value: tt.s},
+				&eval.StringValue{Value: tt.suffix},
+			}
+			result, err := strEndsWithImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strEndsWithImpl() error: %v", err)
+			}
+			bv, ok := result.(*eval.BoolValue)
+			if !ok {
+				t.Fatalf("expected *eval.BoolValue, got %T", result)
+			}
+			if bv.Value != tt.expected {
+				t.Errorf("endsWith(%q, %q) = %v, want %v",
+					tt.s, tt.suffix, bv.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestStrEndsWithWrongArgType tests error handling
+func TestStrEndsWithWrongArgType(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	args := []eval.Value{&eval.IntValue{Value: 42}, &eval.StringValue{Value: "hi"}}
+	_, err := strEndsWithImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strEndsWithImpl() should return error for wrong arg type")
+	}
+
+	args = []eval.Value{&eval.StringValue{Value: "hi"}, &eval.IntValue{Value: 42}}
+	_, err = strEndsWithImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("strEndsWithImpl() should return error for wrong arg 1 type")
+	}
+}
+
+// TestStrEndsWithType verifies the type signature
+func TestStrEndsWithType(t *testing.T) {
+	typ := makeStrEndsWithType()
+	if typ == nil {
+		t.Error("makeStrEndsWithType() returned nil")
+	}
+}

@@ -26,17 +26,11 @@ export pure func contains(hay: string, needle: string) -> bool { find(hay, needl
 
 -- startsWith: Check if string starts with prefix
 -- Example: startsWith("hello world", "hello") => true
-export pure func startsWith(s: string, prefix: string) -> bool {
-  if length(prefix) > length(s) then false else substring(s, 0, length(prefix)) == prefix
-}
+export pure func startsWith(s: string, prefix: string) -> bool { _str_startsWith(s, prefix) }
 
 -- endsWith: Check if string ends with suffix
 -- Example: endsWith("hello world", "world") => true
-export pure func endsWith(s: string, suffix: string) -> bool {
-  let sufLen = length(suffix);
-  let sLen = length(s);
-  if sufLen > sLen then false else substring(s, sLen - sufLen, sLen) == suffix
-}
+export pure func endsWith(s: string, suffix: string) -> bool { _str_endsWith(s, suffix) }
 
 -- String parsing (returns Option)
 export pure func stringToInt(s: string) -> Option[int] { _stringToInt(s) }

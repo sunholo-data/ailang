@@ -96,6 +96,30 @@ jobs:
         name: ailang-wasm
         path: bin/ailang-wasm.tar.gz
 
+  build-bootstrap-content:
+    name: Build Bootstrap Content Bundle
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Build bootstrap content bundle
+      run: make bootstrap-content
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: bootstrap-content
+        path: bin/bootstrap-content.tar.gz
+
   build-release:
     name: Build Release ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -178,7 +202,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [build-release, build-wasm]
+    needs: [build-release, build-wasm, build-bootstrap-content]
     runs-on: ubuntu-latest
     
     steps:
