@@ -1,6 +1,7 @@
 package effects
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 // init registers FS effect operations
 func init() {
 	RegisterOp("FS", "readFile", fsReadFile)
+	RegisterOp("FS", "readFileBytes", fsReadFileBytes)
 	RegisterOp("FS", "writeFile", fsWriteFile)
 	RegisterOp("FS", "exists", fsExists)
 }
@@ -154,4 +156,64 @@ func fsExists(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	exists := err == nil
 
 	return &eval.BoolValue{Value: exists}, nil
+}
+
+// Result helpers for Ok/Err return values
+
+func fsMakeOk(val eval.Value) eval.Value {
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Ok",
+		Fields:     []eval.Value{val},
+	}
+}
+
+func fsMakeErr(msg string) eval.Value {
+	return &eval.TaggedValue{
+		ModulePath: "std/result",
+		TypeName:   "Result",
+		CtorName:   "Err",
+		Fields:     []eval.Value{&eval.StringValue{Value: msg}},
+	}
+}
+
+// fsReadFileBytes implements FS.readFileBytes(path: String) -> Result[string, string]
+//
+// Reads the entire contents of a file and returns it as a base64-encoded string.
+// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
+//
+// Parameters:
+//   - ctx: Effect context (with optional Sandbox configuration)
+//   - args: [StringValue] - the file path
+//
+// Returns:
+//   - Ok(base64-encoded string) on success
+//   - Err(error message) if file doesn't exist, permission denied, etc.
+func fsReadFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("readFileBytes: expected 1 argument, got %d", len(args))
+	}
+
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("readFileBytes: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+
+	// Apply sandbox if configured
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	// Read file
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fsMakeErr(fmt.Sprintf("cannot read file: %v", err)), nil
+	}
+
+	// Encode as base64
+	encoded := base64.StdEncoding.EncodeToString(content)
+	return fsMakeOk(&eval.StringValue{Value: encoded}), nil
 }

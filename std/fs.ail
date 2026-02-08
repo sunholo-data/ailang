@@ -16,6 +16,13 @@ module std/fs
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
 
+-- Binary file reading
+-- Reads entire file contents as a base64-encoded string
+-- Use for PDF, images, or other binary files
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
+
 -- File writing
 -- Writes string content to file (truncates if exists)
 -- Creates parent directories if needed (future enhancement)

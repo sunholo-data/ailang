@@ -68,20 +68,21 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 		handler = client.NewHandler(model.APIName)
 
 	case ai.ProviderGoogle:
-		if apiKey != "" {
-			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY is set)\n")
+		// Precedence: ADC first (if available), then GOOGLE_API_KEY.
+		// Many users have GOOGLE_API_KEY set for other tools but prefer ADC
+		// for Vertex AI access. Try ADC silently first; fall back to API key.
+		if client, err := gemini.NewVertexAIClient(""); err == nil {
+			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
+			handler = client.NewHandler(model.APIName)
+		} else if apiKey != "" {
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
 			client := gemini.NewClient(apiKey)
 			handler = client.NewHandler(model.APIName)
 		} else {
-			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (GOOGLE_API_KEY not set, falling back to ADC)\n")
-			client, err := gemini.NewVertexAIClient("")
-			if err != nil {
-				return fmt.Errorf("Gemini auth failed: GOOGLE_API_KEY is not set, and Application Default Credentials (ADC) also failed.\n"+
-					"  Option 1: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
-					"  Option 2: gcloud auth application-default login  (for Vertex AI)\n"+
-					"  Error: %w", err)
-			}
-			handler = client.NewHandler(model.APIName)
+			return fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and GOOGLE_API_KEY is not set.\n"+
+				"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+
+				"  Option 2: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
+				"  ADC error: %w", err)
 		}
 
 	case ai.ProviderOllama:
@@ -130,21 +131,20 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string) error {
 		handler = client.NewHandler(modelName)
 
 	case ai.ProviderGoogle:
+		// Precedence: ADC first (if available), then GOOGLE_API_KEY.
 		apiKey := os.Getenv("GOOGLE_API_KEY")
-		if apiKey != "" {
-			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY is set)\n")
+		if client, err := gemini.NewVertexAIClient(""); err == nil {
+			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
+			handler = client.NewHandler(modelName)
+		} else if apiKey != "" {
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
 			client := gemini.NewClient(apiKey)
 			handler = client.NewHandler(modelName)
 		} else {
-			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (GOOGLE_API_KEY not set, falling back to ADC)\n")
-			client, err := gemini.NewVertexAIClient("")
-			if err != nil {
-				return fmt.Errorf("Gemini auth failed: GOOGLE_API_KEY is not set, and Application Default Credentials (ADC) also failed.\n"+
-					"  Option 1: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
-					"  Option 2: gcloud auth application-default login  (for Vertex AI)\n"+
-					"  Error: %w", err)
-			}
-			handler = client.NewHandler(modelName)
+			return fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and GOOGLE_API_KEY is not set.\n"+
+				"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+
+				"  Option 2: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
+				"  ADC error: %w", err)
 		}
 
 	case ai.ProviderOllama:

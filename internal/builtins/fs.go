@@ -16,7 +16,7 @@ func init() {
 }
 
 // ============================================================================
-// FS Effect Builtins (_fs_readFile, _fs_writeFile, _fs_exists)
+// FS Effect Builtins (_fs_readFile, _fs_readFileBytes, _fs_writeFile, _fs_exists)
 // ============================================================================
 
 func registerFS() {
@@ -50,6 +50,40 @@ func registerFS() {
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_readFile: %v", err))
+	}
+
+	// _fs_readFileBytes
+	impl1b := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "readFileBytes", args)
+	}
+	type1b := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(
+			T.App("Result", T.String(), T.String()),
+		).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_readFileBytes", NumArgs: 1, IsPure: false, Effect: "FS", Type: type1b, Impl: impl1b,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Read entire file contents as a base64-encoded string",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to file to read"},
+			},
+			Returns: "Result[string, string] - Ok(base64 content) or Err(error message)",
+			Examples: []Example{
+				{Code: `_fs_readFileBytes("image.png")`, Description: "Returns Ok(base64-encoded content)"},
+			},
+			LongDesc:  "Reads binary file contents and returns as base64. Use _bytes_from_base64 to decode. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_readFile", "_bytes_from_base64", "_zip_readEntryBytes"},
+			Since:     "v0.8.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "read", "binary", "base64"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_readFileBytes: %v", err))
 	}
 
 	// _fs_writeFile

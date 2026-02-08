@@ -1,5 +1,16 @@
 # AILANG Changelog
 
+## [Unreleased]
+
+### Added
+- **readFileBytes in std/fs** (`internal/builtins/fs.go`, `internal/effects/fs.go`)
+  - `readFileBytes(path)` — read file as binary, return base64-encoded string
+  - Returns `Result[string, string]` with Ok/Err handling (matches std/zip pattern)
+  - Requires `FS` capability (effect-guarded)
+  - Sandbox support via `AILANG_FS_SANDBOX`
+  - 5 tests covering binary content, text content, missing file, sandbox, and empty file
+  - Requested by DocParse for PDF/image file support via std/ai
+
 ## [v0.7.3] - 2026-02-08
 
 ### Added
