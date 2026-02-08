@@ -69,13 +69,17 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 
 	case ai.ProviderGoogle:
 		if apiKey != "" {
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY is set)\n")
 			client := gemini.NewClient(apiKey)
 			handler = client.NewHandler(model.APIName)
 		} else {
-			// Fall back to Vertex AI (ADC) if no API key
+			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (GOOGLE_API_KEY not set, falling back to ADC)\n")
 			client, err := gemini.NewVertexAIClient("")
 			if err != nil {
-				return fmt.Errorf("no GOOGLE_API_KEY set and ADC failed: %w", err)
+				return fmt.Errorf("Gemini auth failed: GOOGLE_API_KEY is not set, and Application Default Credentials (ADC) also failed.\n"+
+					"  Option 1: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
+					"  Option 2: gcloud auth application-default login  (for Vertex AI)\n"+
+					"  Error: %w", err)
 			}
 			handler = client.NewHandler(model.APIName)
 		}
@@ -128,13 +132,17 @@ func setupAIHandlerDirect(effCtx *effects.EffContext, modelName string) error {
 	case ai.ProviderGoogle:
 		apiKey := os.Getenv("GOOGLE_API_KEY")
 		if apiKey != "" {
+			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY is set)\n")
 			client := gemini.NewClient(apiKey)
 			handler = client.NewHandler(modelName)
 		} else {
-			// Fall back to Vertex AI (ADC) if no API key
+			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (GOOGLE_API_KEY not set, falling back to ADC)\n")
 			client, err := gemini.NewVertexAIClient("")
 			if err != nil {
-				return fmt.Errorf("no GOOGLE_API_KEY set and ADC failed: %w", err)
+				return fmt.Errorf("Gemini auth failed: GOOGLE_API_KEY is not set, and Application Default Credentials (ADC) also failed.\n"+
+					"  Option 1: export GOOGLE_API_KEY=<key>  (get one at https://aistudio.google.com/apikey)\n"+
+					"  Option 2: gcloud auth application-default login  (for Vertex AI)\n"+
+					"  Error: %w", err)
 			}
 			handler = client.NewHandler(modelName)
 		}
