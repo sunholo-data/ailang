@@ -14,14 +14,15 @@ var embeddedModelsYAML []byte
 
 // ModelConfig represents a single model configuration
 type ModelConfig struct {
-	APIName        string  `yaml:"api_name"`
-	Provider       string  `yaml:"provider"`
-	Description    string  `yaml:"description"`
-	EnvVar         string  `yaml:"env_var"`
-	AgentCLI       *string `yaml:"agent_cli"`        // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
-	AgentModelName *string `yaml:"agent_model_name"` // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
-	Pricing        Pricing `yaml:"pricing"`
-	Notes          string  `yaml:"notes"`
+	APIName         string  `yaml:"api_name"`
+	Provider        string  `yaml:"provider"`
+	Description     string  `yaml:"description"`
+	EnvVar          string  `yaml:"env_var"`
+	AgentCLI        *string `yaml:"agent_cli"`         // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
+	AgentModelName  *string `yaml:"agent_model_name"`  // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
+	MaxOutputTokens int     `yaml:"max_output_tokens"` // Max output tokens (0 = handler default 4096)
+	Pricing         Pricing `yaml:"pricing"`
+	Notes           string  `yaml:"notes"`
 }
 
 // Pricing represents model pricing information

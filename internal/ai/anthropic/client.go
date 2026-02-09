@@ -75,11 +75,26 @@ type messagesRequest struct {
 	System      string           `json:"system,omitempty"`
 	Messages    []messageContent `json:"messages"`
 	Temperature float64          `json:"temperature,omitempty"`
+	Tools       []toolDef        `json:"tools,omitempty"`
+	ToolChoice  *toolChoice      `json:"tool_choice,omitempty"`
 }
 
 type messageContent struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+}
+
+// toolDef represents a tool definition for structured output via tool_use.
+type toolDef struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	InputSchema json.RawMessage `json:"input_schema"`
+}
+
+// toolChoice forces the model to use a specific tool.
+type toolChoice struct {
+	Type string `json:"type"` // "tool"
+	Name string `json:"name"` // tool name
 }
 
 // messagesResponse represents the response from the Messages API.
@@ -98,8 +113,11 @@ type messagesResponse struct {
 }
 
 type contentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type  string          `json:"type"`
+	Text  string          `json:"text,omitempty"`
+	ID    string          `json:"id,omitempty"`    // tool_use block ID
+	Name  string          `json:"name,omitempty"`  // tool_use tool name
+	Input json.RawMessage `json:"input,omitempty"` // tool_use input (the structured output)
 }
 
 // errorResponse represents an error response from the API.
@@ -143,6 +161,25 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	if req.Temperature > 0 {
 		apiReq.Temperature = req.Temperature
+	}
+
+	// Add structured output via tool_use pattern
+	if req.ResponseFormat == "json" {
+		schema := json.RawMessage(`{"type": "object"}`)
+		if req.ResponseSchema != "" {
+			schema = json.RawMessage(req.ResponseSchema)
+		}
+		apiReq.Tools = []toolDef{
+			{
+				Name:        "respond",
+				Description: "Return the structured JSON response",
+				InputSchema: schema,
+			},
+		}
+		apiReq.ToolChoice = &toolChoice{
+			Type: "tool",
+			Name: "respond",
+		}
 	}
 
 	// Marshal request
@@ -232,10 +269,20 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	}
 
 	// Extract text from content blocks
+	// For structured output (tool_use), extract the tool input as JSON string
 	var text string
-	for _, block := range result.Content {
-		if block.Type == "text" {
-			text += block.Text
+	if req.ResponseFormat == "json" {
+		for _, block := range result.Content {
+			if block.Type == "tool_use" && block.Name == "respond" {
+				text = string(block.Input)
+				break
+			}
+		}
+	} else {
+		for _, block := range result.Content {
+			if block.Type == "text" {
+				text += block.Text
+			}
 		}
 	}
 

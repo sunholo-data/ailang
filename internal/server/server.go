@@ -144,7 +144,6 @@ type Server struct {
 	// Firebase authentication and authorization
 	tokenVerifier    *auth.TokenVerifier
 	accessControl    *auth.AccessControlCache
-	auditLogger      *AuditLogger
 	workspaceService *auth.WorkspaceService
 }
 

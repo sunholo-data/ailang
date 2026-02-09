@@ -1,6 +1,7 @@
 package repl
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -371,7 +372,8 @@ func TestCapabilityGrantRestoresAccess(t *testing.T) {
 		&eval.StringValue{Value: "test"},
 	})
 	if err != nil {
-		if _, ok := err.(*effects.CapabilityError); ok {
+		var capErr *effects.CapabilityError
+		if errors.As(err, &capErr) {
 			t.Fatalf("Got CapabilityError after granting IO: %v", err)
 		}
 		// Other errors (e.g., stdout issues in test) are acceptable
@@ -419,7 +421,8 @@ func TestBudgetEnforcementThroughREPL(t *testing.T) {
 			&eval.StringValue{Value: "call"},
 		})
 		if err != nil {
-			if _, ok := err.(*effects.BudgetExhaustedError); ok {
+			var budgetErr *effects.BudgetExhaustedError
+			if errors.As(err, &budgetErr) {
 				t.Fatalf("Budget exhausted too early on call %d", i+1)
 			}
 		}

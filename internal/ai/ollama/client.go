@@ -4,6 +4,7 @@ package ollama
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -131,12 +132,24 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		options["temperature"] = req.Temperature
 	}
 
-	// Use Chat API for instruction following
-	err := c.client.Chat(ctx, &ollamaapi.ChatRequest{
+	// Build chat request
+	chatReq := &ollamaapi.ChatRequest{
 		Model:    req.Model,
 		Messages: messages,
 		Options:  options,
-	}, func(resp ollamaapi.ChatResponse) error {
+	}
+
+	// Add JSON format if structured output requested
+	if req.ResponseFormat == "json" {
+		if req.ResponseSchema != "" {
+			chatReq.Format = json.RawMessage(req.ResponseSchema)
+		} else {
+			chatReq.Format = json.RawMessage(`"json"`)
+		}
+	}
+
+	// Use Chat API for instruction following
+	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
 		response.WriteString(resp.Message.Content)
 		return nil
 	})

@@ -26,6 +26,13 @@ export func decode(s: string) -> Result[Json, string] {
   _json_decode(s)
 }
 
+-- Repair truncated/malformed JSON string (Go-backed)
+-- Returns the repaired string so callers can inspect or re-decode.
+-- Handles: trailing whitespace, unclosed strings/arrays/objects, trailing commas, truncated keywords.
+export func repair(s: string) -> Result[string, string] {
+  _json_repair(s)
+}
+
 -- Convenience constructors (reduce AI fumbles)
 
 export func jn() -> Json {

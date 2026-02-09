@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -300,25 +299,4 @@ func accessControlList(args []string) error {
 	}
 
 	return nil
-}
-
-// getFirebaseProjectID returns the configured Firebase project ID
-func getFirebaseProjectID() string {
-	if p := os.Getenv("AILANG_FIREBASE_PROJECT"); p != "" {
-		return p
-	}
-
-	// Try config file
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
-	_ = configPath // Use coordinator.LoadFirebaseConfig() instead
-
-	cfg := coordinator.LoadFirebaseConfig()
-	if cfg != nil {
-		return cfg.ProjectID
-	}
-	return ""
 }

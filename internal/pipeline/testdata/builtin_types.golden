@@ -7,6 +7,8 @@
 
 :: : (a, list[a]) -> list[a]
 _ai_call : string -> string ! {AI}
+_ai_call_json : (string, string) -> string ! {AI}
+_ai_call_json_simple : string -> string ! {AI}
 _array_from_list : list[a] -> Array[a]
 _array_get : (Array[a], int) -> a
 _array_length : Array[a] -> int
@@ -53,6 +55,7 @@ _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
+_json_repair : string -> Result[string, string]
 _math_E : () -> float
 _math_PI : () -> float
 _math_abs_Float : float -> float

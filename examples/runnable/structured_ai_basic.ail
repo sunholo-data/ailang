@@ -1,0 +1,27 @@
+-- structured_ai_basic.ail
+-- Demonstrates callJsonSimple: AI returns valid JSON without schema enforcement
+--
+-- Run: ailang run --caps IO,AI --ai-stub --entry main examples/runnable/structured_ai_basic.ail
+
+module examples/runnable/structured_ai_basic
+
+import std/ai (call, callJsonSimple)
+import std/io (println)
+import std/json (decode)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {AI, IO} {
+  -- 1. Basic string call (existing behavior)
+  let raw = call("Return JSON");
+  println("Raw AI response: " ++ raw);
+
+  -- 2. callJsonSimple: returns raw JSON string
+  let jsonStr = callJsonSimple("Return a JSON object");
+  println("JSON string: " ++ jsonStr);
+
+  -- 3. Parse the JSON string
+  match decode(jsonStr) {
+    Ok(json) => println("Parsed valid JSON!")
+    Err(msg) => println("Parse error: " ++ msg)
+  }
+}

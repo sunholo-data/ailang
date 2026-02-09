@@ -23,6 +23,10 @@ var ErrNoAIHandler = errors.New("AI handler not configured (use StubAIHandler fo
 // By convention, JSON is used for input/output, but this is not enforced.
 type AIHandler interface {
 	Call(input string) (string, error)
+	// CallJson sends a request configured for structured JSON output.
+	// If schema is non-empty, providers enforce the schema.
+	// Returns raw JSON string (caller parses to Json ADT).
+	CallJson(input string, schema string) (string, error)
 }
 
 // AIContext holds the handler for the current execution
@@ -52,6 +56,15 @@ func (c *AIContext) Call(input string) (string, error) {
 	return c.handler.Call(input)
 }
 
+// CallJson invokes the AI handler requesting structured JSON output.
+// If schema is non-empty, providers enforce the schema on the response.
+func (c *AIContext) CallJson(input string, schema string) (string, error) {
+	if c.handler == nil {
+		return "", ErrNoAIHandler
+	}
+	return c.handler.CallJson(input, schema)
+}
+
 // StubAIHandler returns deterministic placeholder responses
 //
 // Use for testing and development. Supports:
@@ -78,6 +91,15 @@ func (h *StubAIHandler) Call(input string) (string, error) {
 	return h.defaultResponse, nil
 }
 
+// CallJson returns valid JSON for structured output requests.
+// The stub returns the default response (which is valid JSON).
+func (h *StubAIHandler) CallJson(input string, schema string) (string, error) {
+	if resp, ok := h.responses[input]; ok {
+		return resp, nil
+	}
+	return h.defaultResponse, nil
+}
+
 // SetResponse sets a canned response for an exact input match
 func (h *StubAIHandler) SetResponse(input, response string) {
 	h.responses[input] = response
@@ -91,6 +113,8 @@ func (h *StubAIHandler) SetDefaultResponse(response string) {
 // init registers AI effect operations
 func init() {
 	RegisterOp("AI", "call", aiCall)
+	RegisterOp("AI", "callJson", aiCallJson)
+	RegisterOp("AI", "callJsonSimple", aiCallJsonSimple)
 }
 
 // aiCall implements AI.call(input: string) -> string
@@ -120,6 +144,57 @@ func aiCall(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	output, err := ctx.AI.Call(input.Value)
+	if err != nil {
+		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+	}
+
+	return &eval.StringValue{Value: output}, nil
+}
+
+// aiCallJson implements AI.callJson(input: string, schema: string) -> string
+func aiCallJson(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 2 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJson: expected 2 arguments, got %d", len(args))
+	}
+
+	input, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJson: expected string input, got %T", args[0])
+	}
+
+	schema, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJson: expected string schema, got %T", args[1])
+	}
+
+	if ctx.AI == nil {
+		return nil, ErrNoAIHandler
+	}
+
+	output, err := ctx.AI.CallJson(input.Value, schema.Value)
+	if err != nil {
+		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+	}
+
+	return &eval.StringValue{Value: output}, nil
+}
+
+// aiCallJsonSimple implements AI.callJsonSimple(input: string) -> string
+func aiCallJsonSimple(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJsonSimple: expected 1 argument, got %d", len(args))
+	}
+
+	input, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callJsonSimple: expected string input, got %T", args[0])
+	}
+
+	if ctx.AI == nil {
+		return nil, ErrNoAIHandler
+	}
+
+	output, err := ctx.AI.CallJson(input.Value, "")
 	if err != nil {
 		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
 	}

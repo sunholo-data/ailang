@@ -1,0 +1,26 @@
+-- structured_ai_schema.ail
+-- Demonstrates callJson: AI returns schema-enforced JSON output
+--
+-- Run: ailang run --caps IO,AI --ai-stub --entry main examples/runnable/structured_ai_schema.ail
+
+module examples/runnable/structured_ai_schema
+
+import std/ai (callJson)
+import std/io (println)
+import std/json (Json, JObject, JString, decode)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {AI, IO} {
+  -- Schema for a person object: { name: string, age: integer }
+  let schema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}";
+
+  -- callJson: provider enforces the schema, returns raw JSON string
+  let jsonStr = callJson("Return a person with name Alice and age 30", schema);
+  println("Schema-enforced JSON: " ++ jsonStr);
+
+  -- Parse and inspect the result
+  match decode(jsonStr) {
+    Ok(json) => println("Valid JSON received from provider")
+    Err(msg) => println("Parse error: " ++ msg)
+  }
+}

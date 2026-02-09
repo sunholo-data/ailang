@@ -52,6 +52,27 @@ func (c *Client) generateResponses(ctx context.Context, req *ai.Request) (*ai.Re
 	}
 	apiReq.Reasoning = &responsesReasoning{Effort: effort}
 
+	// Add structured output configuration
+	if req.ResponseFormat == "json" {
+		if req.ResponseSchema != "" {
+			schema := ensureStrictSchemaCompliance(json.RawMessage(req.ResponseSchema))
+			apiReq.Text = &responsesText{
+				Format: responsesTextFormat{
+					Type:   "json_schema",
+					Name:   "response",
+					Schema: schema,
+					Strict: true,
+				},
+			}
+		} else {
+			apiReq.Text = &responsesText{
+				Format: responsesTextFormat{
+					Type: "json_object",
+				},
+			}
+		}
+	}
+
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {

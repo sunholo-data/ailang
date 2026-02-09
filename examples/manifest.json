@@ -226,6 +226,28 @@
       "description": "AI Effect Example"
     },
     {
+      "path": "runnable/structured_ai_basic.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "json",
+        "structured-output"
+      ],
+      "description": "Demonstrates callJsonSimple: AI returns valid JSON without schema enforcement"
+    },
+    {
+      "path": "runnable/structured_ai_schema.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "ai",
+        "json",
+        "structured-output"
+      ],
+      "description": "Demonstrates callJson: AI returns schema-enforced JSON output"
+    },
+    {
       "path": "array_adt.ail",
       "status": "working",
       "tags": [
@@ -1223,7 +1245,7 @@
     "working": 119,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.944
+    "coverage": 0.945
   },
   "milestones": {
     "completed": [

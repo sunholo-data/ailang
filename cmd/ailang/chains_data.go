@@ -142,15 +142,6 @@ func getSessionInfoFromTask(taskID string) *taskSessionInfo {
 	return info
 }
 
-// getSessionIDFromTask looks up session_id from coordinator.db tasks table (legacy helper)
-func getSessionIDFromTask(taskID string) string {
-	info := getSessionInfoFromTask(taskID)
-	if info == nil {
-		return ""
-	}
-	return info.SessionID
-}
-
 // --- Observatory.db queries (via Backend Store methods) ---
 
 // getChatMessagesForTask fetches chat messages by task_id directly (M-DETERMINISTIC-CHAT-LINKING)

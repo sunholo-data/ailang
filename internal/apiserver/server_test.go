@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -390,15 +389,4 @@ func TestCountFunctionArity(t *testing.T) {
 			}
 		})
 	}
-}
-
-// readBody is a helper to read and close an http.Response body.
-func readBody(t *testing.T, body io.ReadCloser) string {
-	t.Helper()
-	defer body.Close()
-	b, err := io.ReadAll(body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
 }

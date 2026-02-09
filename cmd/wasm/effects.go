@@ -106,6 +106,12 @@ func (h *WasmAIHandler) Call(input string) (string, error) {
 	return resolved.String(), nil
 }
 
+// CallJson invokes the JS callback requesting JSON output.
+// WASM delegates to the same JS callback — structured output is not natively enforced.
+func (h *WasmAIHandler) CallJson(input string, schema string) (string, error) {
+	return h.Call(input)
+}
+
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
 func ailangValueToJS(v eval.Value) interface{} {
 	if v == nil {

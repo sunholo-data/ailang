@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"strings"
 )
 
 // Handler wraps a Provider for use with the effects.AIHandler interface.
@@ -68,6 +69,40 @@ func (h *Handler) Call(input string) (string, error) {
 		return "", err
 	}
 	return resp.Text, nil
+}
+
+// jsonMaxTokensMinimum is the minimum max_tokens for JSON structured output.
+// JSON responses are often larger than freeform text (keys, braces, quotes),
+// so we use a higher floor to avoid truncation.
+const jsonMaxTokensMinimum = 8192
+
+// CallJson sends a request configured for JSON structured output.
+// If schema is non-empty, providers enforce the schema on the response.
+// If schema is empty, providers return valid JSON without schema enforcement.
+//
+// Uses at least 8192 max tokens (JSON responses need more room than freeform text).
+// Trims whitespace from the response (some providers pad output to token boundary).
+func (h *Handler) CallJson(input string, schema string) (string, error) {
+	// JSON structured output needs more tokens than freeform text
+	maxTokens := h.maxTokens
+	if maxTokens < jsonMaxTokensMinimum {
+		maxTokens = jsonMaxTokensMinimum
+	}
+
+	resp, err := h.provider.Generate(context.Background(), &Request{
+		Model:          h.model,
+		SystemPrompt:   h.systemPrompt,
+		UserPrompt:     input,
+		MaxTokens:      maxTokens,
+		ResponseFormat: "json",
+		ResponseSchema: schema,
+	})
+	if err != nil {
+		return "", err
+	}
+	// Trim whitespace: some providers (notably Gemini) pad structured output
+	// with trailing spaces when approaching the token limit.
+	return strings.TrimSpace(resp.Text), nil
 }
 
 // CallWithContext is like Call but accepts a context for cancellation/timeout.

@@ -58,16 +58,6 @@ func makeXmlText(content string) eval.Value {
 	}
 }
 
-// makeXmlCData creates CData(content)
-func makeXmlCData(content string) eval.Value {
-	return &eval.TaggedValue{
-		ModulePath: "std/xml",
-		TypeName:   "XmlNode",
-		CtorName:   "CData",
-		Fields:     []eval.Value{&eval.StringValue{Value: content}},
-	}
-}
-
 // makeXmlComment creates Comment(content)
 func makeXmlComment(content string) eval.Value {
 	return &eval.TaggedValue{

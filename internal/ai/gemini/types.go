@@ -2,6 +2,8 @@
 // It supports both AI Studio (API key) and Vertex AI (ADC) authentication.
 package gemini
 
+import "encoding/json"
+
 // generateRequest represents the request body for generateContent API.
 type generateRequest struct {
 	Contents          []content         `json:"contents"`
@@ -17,15 +19,24 @@ type content struct {
 
 // part represents a content part (text, inline_data, etc).
 type part struct {
-	Text string `json:"text,omitempty"`
+	Text       string      `json:"text,omitempty"`
+	InlineData *inlineData `json:"inlineData,omitempty"` // For multimodal (images, PDFs, etc.)
+}
+
+// inlineData represents inline binary data for multimodal requests.
+type inlineData struct {
+	MimeType string `json:"mimeType"` // e.g., "application/pdf", "image/png"
+	Data     string `json:"data"`     // Base64-encoded content
 }
 
 // generationConfig represents generation parameters.
 type generationConfig struct {
-	MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
-	Temperature     float64 `json:"temperature,omitempty"`
-	TopP            float64 `json:"topP,omitempty"`
-	TopK            int     `json:"topK,omitempty"`
+	MaxOutputTokens  int              `json:"maxOutputTokens,omitempty"`
+	Temperature      float64          `json:"temperature,omitempty"`
+	TopP             float64          `json:"topP,omitempty"`
+	TopK             int              `json:"topK,omitempty"`
+	ResponseMimeType string           `json:"responseMimeType,omitempty"` // "application/json" for structured output
+	ResponseSchema   *json.RawMessage `json:"responseSchema,omitempty"`   // JSON Schema for structured output
 }
 
 // generateResponse represents the response from generateContent API.

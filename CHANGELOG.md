@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- **M-STRUCTURED-AI-OUTPUT: Structured JSON output from AI providers** (`std/ai.ail`, `internal/ai/`, `internal/effects/ai.go`, ~370 LOC)
+  - `callJson(prompt, schema)` — schema-enforced JSON output (provider validates against JSON Schema)
+  - `callJsonSimple(prompt)` — valid JSON output without schema enforcement
+  - Both return raw JSON strings; parse with `std/json.decode`
+  - **All 4 providers wired**: Gemini (responseMimeType + responseSchema), OpenAI (response_format.json_schema for Chat, text.format for Responses), Anthropic (tool_use pattern with forced tool_choice), Ollama (format field with schema or "json")
+  - `Handler.CallJson()` bridges provider structured output to effect system
+  - 2 new builtins: `_ai_call_json` (2 args), `_ai_call_json_simple` (1 arg)
+  - Stub handler returns valid JSON (`{"kind":"Wait"}`) for `--ai-stub` testing
+  - Examples: `structured_ai_basic.ail`, `structured_ai_schema.ail`
+  - Teaching prompt v0.7.3 updated with callJson/callJsonSimple docs
+  - Design doc: `design_docs/planned/v0_7_3/m-structured-ai-output.md`
+
 - **M-EFFECTFUL-LIST-COMBINATORS: Effectful list combinators for std/list** (`std/list.ail`, ~74 LOC)
   - `flatMap(f, xs)` — pure flatMap: apply f to each element, flatten results
   - `mapE(f, xs)` — effectful map: apply effectful function to each element

@@ -13,14 +13,13 @@ import (
 
 // generateContent uses the generateContent API.
 func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Response, error) {
-	// Build request
+	// Build request — detect multimodal JSON input and construct proper parts
+	parts := buildParts(req.UserPrompt)
 	apiReq := generateRequest{
 		Contents: []content{
 			{
-				Role: "user",
-				Parts: []part{
-					{Text: req.UserPrompt},
-				},
+				Role:  "user",
+				Parts: parts,
 			},
 		},
 	}
@@ -35,13 +34,20 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	}
 
 	// Add generation config if needed
-	if req.MaxTokens > 0 || req.Temperature > 0 {
+	if req.MaxTokens > 0 || req.Temperature > 0 || req.ResponseFormat == "json" {
 		apiReq.GenerationConfig = &generationConfig{}
 		if req.MaxTokens > 0 {
 			apiReq.GenerationConfig.MaxOutputTokens = req.MaxTokens
 		}
 		if req.Temperature > 0 {
 			apiReq.GenerationConfig.Temperature = req.Temperature
+		}
+		if req.ResponseFormat == "json" {
+			apiReq.GenerationConfig.ResponseMimeType = "application/json"
+			if req.ResponseSchema != "" {
+				raw := json.RawMessage(req.ResponseSchema)
+				apiReq.GenerationConfig.ResponseSchema = &raw
+			}
 		}
 	}
 
@@ -120,6 +126,47 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		ReasonTokens: reasoningTokens,
 		Model:        req.Model,
 	}, nil
+}
+
+// buildParts converts a user prompt into Gemini API parts.
+// If the prompt is a JSON object with "mode": "multimodal", it constructs
+// proper inline_data parts for binary content (PDFs, images, etc.).
+//
+// Multimodal JSON format:
+//
+//	{
+//	  "mode": "multimodal",
+//	  "mimeType": "application/pdf",
+//	  "data": "<base64-encoded-content>",
+//	  "prompt": "Extract content from this document"
+//	}
+//
+// Plain text prompts are returned as a single text part.
+func buildParts(userPrompt string) []part {
+	// Try to parse as multimodal JSON
+	var obj map[string]string
+	if err := json.Unmarshal([]byte(userPrompt), &obj); err == nil {
+		if obj["mode"] == "multimodal" && obj["data"] != "" && obj["mimeType"] != "" {
+			parts := []part{
+				{InlineData: &inlineData{
+					MimeType: obj["mimeType"],
+					Data:     obj["data"],
+				}},
+			}
+			// Add text prompt if present
+			prompt := obj["prompt"]
+			if prompt == "" {
+				prompt = obj["fileName"] // Fallback to filename as context
+			}
+			if prompt != "" {
+				parts = append(parts, part{Text: prompt})
+			}
+			return parts
+		}
+	}
+
+	// Default: plain text
+	return []part{{Text: userPrompt}}
 }
 
 // buildURL constructs the API URL based on auth type.

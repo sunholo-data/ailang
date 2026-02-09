@@ -6,11 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// MockFirestoreClient is a mock Firestore client for testing.
-type MockFirestoreClient struct {
-	roles map[string]*WorkspaceRole
-}
-
 // For testing purposes, we'll verify the AccessControlCache structure without actual Firestore calls.
 
 func TestAccessControlCacheCreation(t *testing.T) {

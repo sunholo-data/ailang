@@ -2,14 +2,30 @@
 // It supports both Chat Completions API and Responses API (for codex models).
 package openai
 
+import "encoding/json"
+
 // chatRequest represents the request body for Chat Completions API.
 type chatRequest struct {
-	Model               string        `json:"model"`
-	Messages            []chatMessage `json:"messages"`
-	MaxTokens           int           `json:"max_tokens,omitempty"`
-	MaxCompletionTokens int           `json:"max_completion_tokens,omitempty"` // GPT-5.1+ use this
-	Temperature         float64       `json:"temperature,omitempty"`
-	Seed                *int64        `json:"seed,omitempty"`
+	Model               string              `json:"model"`
+	Messages            []chatMessage       `json:"messages"`
+	MaxTokens           int                 `json:"max_tokens,omitempty"`
+	MaxCompletionTokens int                 `json:"max_completion_tokens,omitempty"` // GPT-5.1+ use this
+	Temperature         float64             `json:"temperature,omitempty"`
+	Seed                *int64              `json:"seed,omitempty"`
+	ResponseFormat      *chatResponseFormat `json:"response_format,omitempty"` // Structured output
+}
+
+// chatResponseFormat configures structured output for Chat Completions API.
+type chatResponseFormat struct {
+	Type       string          `json:"type"`                  // "json_schema" or "json_object"
+	JSONSchema *chatJSONSchema `json:"json_schema,omitempty"` // Schema definition
+}
+
+// chatJSONSchema defines the JSON schema for structured output.
+type chatJSONSchema struct {
+	Name   string          `json:"name"`
+	Schema json.RawMessage `json:"schema"`
+	Strict bool            `json:"strict"`
 }
 
 // chatMessage represents a message in the Chat Completions API.
@@ -75,6 +91,20 @@ type responsesRequest struct {
 	Input     []responsesInput    `json:"input"`
 	Reasoning *responsesReasoning `json:"reasoning,omitempty"`
 	MaxTokens int                 `json:"max_output_tokens,omitempty"`
+	Text      *responsesText      `json:"text,omitempty"` // Structured output config
+}
+
+// responsesText configures structured output for Responses API.
+type responsesText struct {
+	Format responsesTextFormat `json:"format"`
+}
+
+// responsesTextFormat defines the format constraint for Responses API.
+type responsesTextFormat struct {
+	Type   string          `json:"type"`             // "json_schema" or "json_object"
+	Name   string          `json:"name,omitempty"`   // Schema name
+	Schema json.RawMessage `json:"schema,omitempty"` // JSON Schema
+	Strict bool            `json:"strict,omitempty"` // Enforce strict schema
 }
 
 // responsesInput represents an input item in the Responses API.
@@ -132,4 +162,44 @@ type responsesUsage struct {
 	OutputDetails struct {
 		ReasoningTokens int `json:"reasoning_tokens"`
 	} `json:"output_tokens_details,omitempty"`
+}
+
+// ensureStrictSchemaCompliance makes a JSON Schema compatible with OpenAI's strict
+// mode, which requires "additionalProperties": false and "required" listing all
+// properties on every object-type schema.
+func ensureStrictSchemaCompliance(schema json.RawMessage) json.RawMessage {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(schema, &obj); err != nil {
+		return schema
+	}
+	// Only process object types
+	if typeRaw, ok := obj["type"]; ok {
+		var t string
+		if json.Unmarshal(typeRaw, &t) != nil || t != "object" {
+			return schema
+		}
+	}
+	// Inject additionalProperties: false if missing
+	if _, ok := obj["additionalProperties"]; !ok {
+		obj["additionalProperties"] = json.RawMessage("false")
+	}
+	// Inject required with all property keys if missing
+	if _, ok := obj["required"]; !ok {
+		if propsRaw, ok := obj["properties"]; ok {
+			var props map[string]json.RawMessage
+			if json.Unmarshal(propsRaw, &props) == nil && len(props) > 0 {
+				keys := make([]string, 0, len(props))
+				for k := range props {
+					keys = append(keys, k)
+				}
+				reqJSON, _ := json.Marshal(keys)
+				obj["required"] = json.RawMessage(reqJSON)
+			}
+		}
+	}
+	result, err := json.Marshal(obj)
+	if err != nil {
+		return schema
+	}
+	return result
 }

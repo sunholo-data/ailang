@@ -32,6 +32,15 @@ type Request struct {
 	// Temperature controls randomness (0.0-2.0, 0 = provider default)
 	Temperature float64
 
+	// ResponseFormat controls structured output. Values: "json" or "" (text).
+	// When set to "json", providers configure their native structured output.
+	ResponseFormat string
+
+	// ResponseSchema is an optional JSON Schema string for structured output.
+	// When provided with ResponseFormat="json", providers enforce this schema.
+	// When empty with ResponseFormat="json", providers return valid JSON without schema.
+	ResponseSchema string
+
 	// Options contains provider-specific options
 	Options map[string]any
 }

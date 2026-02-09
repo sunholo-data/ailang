@@ -56,6 +56,25 @@ func (c *Client) generateChat(ctx context.Context, req *ai.Request) (*ai.Respons
 		}
 	}
 
+	// Add structured output configuration
+	if req.ResponseFormat == "json" {
+		if req.ResponseSchema != "" {
+			schema := ensureStrictSchemaCompliance(json.RawMessage(req.ResponseSchema))
+			apiReq.ResponseFormat = &chatResponseFormat{
+				Type: "json_schema",
+				JSONSchema: &chatJSONSchema{
+					Name:   "response",
+					Schema: schema,
+					Strict: true,
+				},
+			}
+		} else {
+			apiReq.ResponseFormat = &chatResponseFormat{
+				Type: "json_object",
+			}
+		}
+	}
+
 	// Marshal request
 	jsonBody, err := json.Marshal(apiReq)
 	if err != nil {

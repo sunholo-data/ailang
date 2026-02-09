@@ -13,6 +13,7 @@ models:
     description: "GPT-5 full reasoning model"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -28,6 +29,7 @@ models:
     description: "GPT-5 mini (faster, cheaper)"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K (~1/5 of GPT-5)
       output_per_1k: 0.002     # $2 per 1M = $0.002 per 1K
@@ -40,6 +42,7 @@ models:
     description: "GPT-5.1 with adaptive reasoning"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -58,6 +61,7 @@ models:
     description: "GPT-5.1 Instant (fast, general purpose)"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -76,6 +80,7 @@ models:
     description: "GPT-5.2 Thinking - 40% smarter than GPT-5.1"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -94,6 +99,7 @@ models:
     description: "GPT-5.2 Instant (fast, daily tasks)"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # OpenAI Codex CLI not yet implemented
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -111,6 +117,7 @@ models:
     description: "GPT-5.2-Codex - top-of-the-line agentic coding model"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
       output_per_1k: 0.014    # $14 per 1M = $0.014 per 1K
@@ -131,6 +138,7 @@ models:
     description: "Codex-Mini - fast, cheap coding model for simple tasks"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.0015    # $1.50 per 1M = $0.0015 per 1K
       output_per_1k: 0.006    # $6 per 1M = $0.006 per 1K
@@ -150,6 +158,7 @@ models:
     description: "GPT-5.1-Codex-Max - purpose-built for agentic coding"
     env_var: "OPENAI_API_KEY"
     agent_cli: null  # Uses Responses API for text generation
+    max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
       output_per_1k: 0.01      # $10 per 1M = $0.01 per 1K
@@ -171,6 +180,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "sonnet"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
@@ -188,6 +198,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "haiku"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.001   # $1.00 per million = $0.001 per 1K
       output_per_1k: 0.005  # $5.00 per million = $0.005 per 1K
@@ -205,6 +216,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "opus"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
       output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
@@ -224,6 +236,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "opus"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K
       output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K
@@ -245,6 +258,7 @@ models:
     env_var: "GOOGLE_API_KEY"
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-pro"  # Pass to -m flag
+    max_output_tokens: 65536   # 65K max output (API limit)
     pricing:
       input_per_1k: 0.00125    # $1.25 per 1M = $0.00125 per 1K (≤200k context)
       output_per_1k: 0.01      # $10.00 per 1M = $0.01 per 1K (≤200k context)
@@ -263,6 +277,7 @@ models:
     env_var: "GOOGLE_API_KEY"
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-flash"  # Pass to -m flag
+    max_output_tokens: 65536   # 65K max output (API limit)
     pricing:
       input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
       output_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
@@ -281,6 +296,7 @@ models:
     env_var: "GOOGLE_API_KEY"
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-flash-preview"  # Pass to -m flag
+    max_output_tokens: 65536   # 65K max output (model limit)
     pricing:
       input_per_1k: 0.0005     # $0.50 per 1M = $0.0005 per 1K
       output_per_1k: 0.003     # $3.00 per 1M = $0.003 per 1K
@@ -302,6 +318,7 @@ models:
     env_var: "GOOGLE_API_KEY"
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-pro-preview"  # Pass to -m flag
+    max_output_tokens: 65536   # 65K max output (same as Gemini 3 Flash)
     pricing:
       input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
       output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)

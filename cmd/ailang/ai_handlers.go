@@ -50,6 +50,12 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 	// Get API key from environment (may be empty for Google ADC)
 	apiKey := os.Getenv(model.EnvVar)
 
+	// Build handler options from model config
+	var opts []ai.HandlerOption
+	if model.MaxOutputTokens > 0 {
+		opts = append(opts, ai.WithMaxTokens(model.MaxOutputTokens))
+	}
+
 	// Create handler based on provider using unified ai package
 	var handler effects.AIHandler
 	switch ai.ProviderFromString(model.Provider) {
@@ -58,14 +64,14 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 			return fmt.Errorf("%s environment variable required for model %s", model.EnvVar, aiModel)
 		}
 		client := anthropic.NewClient(apiKey)
-		handler = client.NewHandler(model.APIName)
+		handler = client.NewHandler(model.APIName, opts...)
 
 	case ai.ProviderOpenAI:
 		if apiKey == "" {
 			return fmt.Errorf("%s environment variable required for model %s", model.EnvVar, aiModel)
 		}
 		client := openai.NewClient(apiKey)
-		handler = client.NewHandler(model.APIName)
+		handler = client.NewHandler(model.APIName, opts...)
 
 	case ai.ProviderGoogle:
 		// Precedence: ADC first (if available), then GOOGLE_API_KEY.
@@ -73,11 +79,11 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 		// for Vertex AI access. Try ADC silently first; fall back to API key.
 		if client, err := gemini.NewVertexAIClient(""); err == nil {
 			fmt.Fprintf(os.Stderr, "AI: Using Vertex AI (ADC)\n")
-			handler = client.NewHandler(model.APIName)
+			handler = client.NewHandler(model.APIName, opts...)
 		} else if apiKey != "" {
 			fmt.Fprintf(os.Stderr, "AI: Using Google AI Studio (GOOGLE_API_KEY)\n")
 			client := gemini.NewClient(apiKey)
-			handler = client.NewHandler(model.APIName)
+			handler = client.NewHandler(model.APIName, opts...)
 		} else {
 			return fmt.Errorf("Gemini auth failed: Application Default Credentials (ADC) not configured, and GOOGLE_API_KEY is not set.\n"+
 				"  Option 1: gcloud auth application-default login  (recommended, for Vertex AI)\n"+
@@ -95,7 +101,7 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 		if err := client.CheckConnection(context.Background()); err != nil {
 			return err
 		}
-		handler = client.NewHandler(model.APIName)
+		handler = client.NewHandler(model.APIName, opts...)
 
 	default:
 		return fmt.Errorf("unsupported AI provider: %s", model.Provider)

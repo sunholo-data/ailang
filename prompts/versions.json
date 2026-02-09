@@ -438,15 +438,16 @@
     },
     "v0.7.3": {
       "file": "prompts/v0.7.3.md",
-      "hash": "719547b034e7fbb7a8b250645da2cfd45366b0f0f790c3cf067b4edbb5555c3d",
-      "description": "Add effectful list combinators (mapE, filterE, foldlE, flatMapE, forEachE, flatMap) + effect row variables",
+      "hash": "d37f707abbaaf8c8812744482a9b31d7e2e89fa681d8d05b0b1e0adf1fcbb89e",
+      "description": "Add structured AI output (callJson, callJsonSimple) + effectful list combinators",
       "created": "2026-02-09",
       "tags": [
         "production",
         "latest",
-        "effectful-combinators"
+        "effectful-combinators",
+        "structured-ai-output"
       ],
-      "notes": "Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled (lowercase identifiers in ! {e}). Replaces 54 hand-rolled recursive traversals from DocParse analysis."
+      "notes": "Structured AI output: callJson (schema-enforced), callJsonSimple (no schema) for validated JSON responses from AI providers. All 4 providers wired (Gemini, OpenAI, Anthropic, Ollama). Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled."
     }
   },
   "active": "v0.7.3",

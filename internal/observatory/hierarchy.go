@@ -471,52 +471,6 @@ func applyTimestampCorrelation(spanIndex map[string]*SpanNode) {
 // We want: coordinator.task.execute → claude.execute (merged view)
 // =============================================================================
 
-// extractWorkspaceIDFromTrace extracts the workspace ID from a trace by checking its spans.
-// Uses several strategies in order of reliability:
-// 1. Check span's TaskID (if set, the span was filtered by workspace already)
-// 2. Check Attributes for explicit workspace keys
-// 3. Check ResourceAttributes["process.cwd"] for workspace path
-// Returns the first non-empty workspace ID found, or empty string if none.
-func extractWorkspaceIDFromTrace(trace *TraceHierarchy) string {
-	if trace == nil {
-		return ""
-	}
-
-	// Traverse ALL spans (including nested children)
-	allSpans := collectAllSpans(trace)
-	for _, node := range allSpans {
-		if node.Span == nil {
-			continue
-		}
-
-		// Strategy 1: TaskID implies workspace was already filtered
-		if node.Span.TaskID != "" {
-			return node.Span.TaskID
-		}
-
-		// Strategy 2: Check Attributes for explicit workspace
-		if node.Span.Attributes != nil {
-			for _, key := range []string{"ailang.workspace_id", "task.workspace", "workspace.id", "ailang.workspace"} {
-				if val, ok := node.Span.Attributes[key]; ok {
-					if strVal, ok := val.(string); ok && strVal != "" {
-						return strVal
-					}
-				}
-			}
-		}
-
-		// Strategy 3: Check ResourceAttributes for process.cwd
-		if node.Span.ResourceAttributes != nil {
-			if cwd, ok := node.Span.ResourceAttributes["process.cwd"]; ok {
-				if cwdStr, ok := cwd.(string); ok && cwdStr != "" {
-					return cwdStr
-				}
-			}
-		}
-	}
-	return ""
-}
-
 // mergeRelatedTraces merges traces that have cross-trace parent-child relationships.
 // It finds traces whose root spans have a ParentSpanID pointing to a span in another trace,
 // and re-parents those spans under the appropriate parent.

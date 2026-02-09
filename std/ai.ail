@@ -13,16 +13,19 @@
 --
 -- Usage:
 --   import std/ai as AI
---   import std/json
+--   import std/json (Json, decode)
+--   import std/result (Result, Ok, Err)
 --
---   func choose_action(ctx: Context) -> Action ! {AI} {
---       let input = json.encode(ctx)
---       let output = AI.call(input)
---       match json.decode[Action](output) {
---           Ok(action) => action,
---           Err(_)     => Wait  -- Safe fallback
---       }
---   }
+--   -- Unstructured: string -> string
+--   let resp = AI.call("What is the capital of France?")
+--
+--   -- Structured JSON (schema-enforced, provider validates):
+--   let raw = AI.callJson("Return name and age", "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}")
+--   let result = decode(raw)
+--
+--   -- Structured JSON (no schema, just valid JSON):
+--   let raw = AI.callJsonSimple("Return [1,2,3] as JSON")
+--   let result = decode(raw)
 --
 -- IMPORTANT: Host must configure AIHandler explicitly:
 --   - game.NewStubAIHandler() for testing
@@ -31,10 +34,19 @@
 
 module std/ai
 
--- Wrapper around Go builtin (_ai_call)
--- Effects are tracked at the type level with ! {AI}
-
 -- call: Call the AI oracle with a string input
 -- Input is typically JSON-encoded context
 -- Output is typically JSON-encoded response
 export func call(input: string) -> string ! {AI} = _ai_call(input)
+
+-- callJson: Call the AI oracle requesting schema-enforced JSON output
+-- The provider enforces the schema on the response.
+-- Returns the raw JSON string. Use std/json.decode to parse.
+export func callJson(input: string, schema: string) -> string ! {AI} =
+  _ai_call_json(input, schema)
+
+-- callJsonSimple: Call the AI oracle requesting valid JSON (no schema)
+-- The provider returns valid JSON but without schema enforcement.
+-- Returns the raw JSON string. Use std/json.decode to parse.
+export func callJsonSimple(input: string) -> string ! {AI} =
+  _ai_call_json_simple(input)
