@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.7.3] - 2026-02-09
+
 ### Added
 - **M-STRUCTURED-AI-OUTPUT: Structured JSON output from AI providers** (`std/ai.ail`, `internal/ai/`, `internal/effects/ai.go`, ~370 LOC)
   - `callJson(prompt, schema)` — schema-enforced JSON output (provider validates against JSON Schema)
@@ -29,20 +31,8 @@
     - Typo detection: `io` still correctly flagged as typo for `IO`
   - 8 type inference regression tests (`examples/runnable/effectful_list_t[1-8]_*.ail`)
   - Smoke test: `examples/runnable/effectful_list.ail`
-  - Teaching prompt v0.7.3 updated with effectful combinator docs
   - Design doc: `design_docs/planned/v0_7_3/m-effectful-list-combinators.md`
 
-- **readFileBytes in std/fs** (`internal/builtins/fs.go`, `internal/effects/fs.go`)
-  - `readFileBytes(path)` — read file as binary, return base64-encoded string
-  - Returns `Result[string, string]` with Ok/Err handling (matches std/zip pattern)
-  - Requires `FS` capability (effect-guarded)
-  - Sandbox support via `AILANG_FS_SANDBOX`
-  - 5 tests covering binary content, text content, missing file, sandbox, and empty file
-  - Requested by DocParse for PDF/image file support via std/ai
-
-## [v0.7.3] - 2026-02-08
-
-### Added
 - **M-STDLIB-ZIP: ZIP archive reading builtins** (`internal/builtins/zip.go`, ~315 LOC)
   - `_zip_listEntries(path)` — list all entry names in a ZIP archive
   - `_zip_readEntry(path, entryName)` — read text entry as UTF-8 string
@@ -71,6 +61,37 @@
   - 30 tests covering parsing, queries, namespaces, OOXML fragments, security (`xml_test.go`, ~530 LOC)
   - Example: `examples/runnable/xml_parser.ail`
   - Design doc: `design_docs/planned/v0_7_3/m-stdlib-xml.md`
+
+- **readFileBytes in std/fs** (`internal/builtins/fs.go`, `internal/effects/fs.go`)
+  - `readFileBytes(path)` — read file as binary, return base64-encoded string
+  - Returns `Result[string, string]` with Ok/Err handling (matches std/zip pattern)
+  - Requires `FS` capability (effect-guarded)
+  - Sandbox support via `AILANG_FS_SANDBOX`
+  - 5 tests covering binary content, text content, missing file, sandbox, and empty file
+  - Requested by DocParse for PDF/image file support via std/ai
+
+- **`json.repair` builtin** (`internal/builtins/json.go`)
+  - Recovers truncated/malformed JSON from AI providers
+  - Closes unclosed strings, arrays, objects; removes trailing commas; completes truncated keywords
+  - Handles dangling backslashes and whitespace padding
+  - Returns `Result[string, string]` for inspect-then-decode workflow
+
+- **Gemini multimodal support** (`internal/ai/gemini/`)
+  - `inlineData` parts for PDF and image inputs via Gemini API
+
+### Fixed
+- **callJson truncation/corruption** — three-layer fix for structured JSON output issues reported by docparse-demo:
+  - TrimSpace on CallJson response (Gemini pads with trailing spaces)
+  - Enforce 8192 minimum max_tokens for JSON structured output
+  - Wire per-model `max_output_tokens` from models.yml through handler options
+- **Model token limits updated** — accurate API limits from provider docs:
+  - OpenAI GPT-5 family: 128K (was unset/default 4096)
+  - Claude 4.5/4.6: 64K (Opus 4.6 was 16384)
+  - Gemini 2.5 Pro/Flash: 65K (were 8192)
+  - Gemini 3 Pro: 65K (was 16384)
+- **REPL module import alias resolution** — `import std/list as L` now correctly resolves `L.map`, `L.filter` etc. in the REPL (`internal/repl/module_registry.go`)
+- **Coordinator Claude executor hang** — reverted dual idle/hard timeout system that caused all coordinator tasks to hang; added NVM bin dir PATH prepending so `#!/usr/bin/env node` resolves correctly
+- **Chain metric data capture** — `NumTurns`, `ToolCallCount`, `ErrorMessage` now populated in chain stage metrics
 
 ## [v0.7.2] - 2026-02-06
 
