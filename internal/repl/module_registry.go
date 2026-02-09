@@ -255,7 +255,15 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 			// Without this, imported symbols like 'wrap' are elaborated as local Var
 			// instead of VarGlobal, causing "undefined variable" at runtime.
 			for _, symName := range imp.Symbols {
-				globalRefs[symName] = core.GlobalRef{
+				// Determine the name to bind (use alias if present)
+				// e.g., import std/list (length as listLength) -> bind "listLength"
+				bindName := symName
+				if imp.SymbolAliases != nil {
+					if alias, ok := imp.SymbolAliases[symName]; ok {
+						bindName = alias
+					}
+				}
+				globalRefs[bindName] = core.GlobalRef{
 					Module: imp.Path,
 					Name:   symName,
 				}
