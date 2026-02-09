@@ -1,0 +1,24 @@
+-- Type inference regression T8: effectful combinators on string lists
+-- Verifies: type inference generalizes beyond int lists
+-- Expected: mapE/filterE/forEachE work on [string] with IO
+module examples/runnable/effectful_list_t8_string_list
+
+import std/io (println)
+import std/list (mapE, filterE, forEachE)
+import std/string (length as strlen)
+
+export func main() -> () ! {IO} {
+  let words = ["hello", "world", "hi", "ailang", "ok"];
+
+  -- mapE: uppercase-ish transform (prepend ">>")
+  let tagged = mapE(\w. { println("  tag " ++ w); ">>" ++ w }, words);
+  println("T8 tagged: " ++ show(tagged));
+
+  -- filterE: keep long words (length > 2)
+  let long = filterE(\w. { println("  len " ++ w); strlen(w) > 2 }, words);
+  println("T8 long: " ++ show(long));
+
+  -- forEachE on filtered results
+  println("T8 forEach:");
+  forEachE(\w. println("  -> " ++ w), long)
+}

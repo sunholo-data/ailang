@@ -56,11 +56,13 @@ func (p Pos) String() string {
 
 // EffectAnnotation represents an effect with optional budget constraints
 // Syntax: IO or IO @limit=5 or IO @min=1 or IO @min=1 @limit=5
+// Row variables: lowercase identifiers like 'e' in ! {e} for effect polymorphism
 type EffectAnnotation struct {
-	Name   string // Effect name (e.g., "IO", "FS", "Net")
-	Budget *int   // Optional budget limit / max (nil = unlimited)
-	Min    *int   // Optional minimum usage requirement (nil = no minimum) (M-DX25 M4)
-	Pos    Pos
+	Name     string // Effect name (e.g., "IO", "FS", "Net") or row variable (e.g., "e")
+	IsRowVar bool   // True if this is an effect row variable (lowercase identifier)
+	Budget   *int   // Optional budget limit / max (nil = unlimited)
+	Min      *int   // Optional minimum usage requirement (nil = no minimum) (M-DX25 M4)
+	Pos      Pos
 }
 
 // String formats the effect annotation for display

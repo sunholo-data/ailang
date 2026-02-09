@@ -1,0 +1,12 @@
+-- Type inference regression T1: mapE basic type inference
+-- Verifies: mapE infers element type and effect from lambda
+-- Expected: type checker infers (int) -> int ! {IO} for lambda
+module examples/runnable/effectful_list_t1_mapE_basic
+
+import std/io (println)
+import std/list (mapE)
+
+export func main() -> () ! {IO} {
+  let result = mapE(\x. { println("  map " ++ show(x)); x * 2 }, [10, 20, 30]);
+  println("T1 mapE: " ++ show(result))
+}

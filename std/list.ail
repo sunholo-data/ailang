@@ -173,6 +173,80 @@ pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
 }
 
 -- ============================================================================
+-- Pure flatMap (v0.7.3) - Map then flatten
+-- ============================================================================
+
+-- flatMap: Apply function returning list to each element, flatten results
+export pure func flatMap[a, b](f: (a) -> [b], xs: [a]) -> [b] {
+  match xs {
+    [] => [],
+    [x, ...rest] => concat(f(x), flatMap(f, rest))
+  }
+}
+
+-- ============================================================================
+-- Effectful Combinators (v0.7.3) - map/filter/fold with effects
+-- ============================================================================
+-- NOTE: Recursive implementation. Stack-safe for lists up to ~10,000 elements.
+-- For larger lists, increase --max-recursion-depth or use explicit recursion.
+-- All effectful combinators evaluate elements left-to-right, sequentially.
+
+-- mapE: Apply an effectful function to each element (left-to-right)
+export func mapE[a, b, e](f: (a) -> b ! {e}, xs: [a]) -> [b] ! {e} {
+  match xs {
+    [] => [],
+    [x, ...rest] => {
+      let y = f(x);
+      [y] ++ mapE(f, rest)
+    }
+  }
+}
+
+-- filterE: Effectful predicate per element (left-to-right)
+export func filterE[a, e](p: (a) -> bool ! {e}, xs: [a]) -> [a] ! {e} {
+  match xs {
+    [] => [],
+    [x, ...rest] => {
+      let keep = p(x);
+      if keep then [x] ++ filterE(p, rest) else filterE(p, rest)
+    }
+  }
+}
+
+-- foldlE: Effectful left fold (left-to-right)
+export func foldlE[a, b, e](f: (b, a) -> b ! {e}, acc: b, xs: [a]) -> b ! {e} {
+  match xs {
+    [] => acc,
+    [x, ...rest] => {
+      let newAcc = f(acc, x);
+      foldlE(f, newAcc, rest)
+    }
+  }
+}
+
+-- flatMapE: Effectful flatMap (map then flatten, left-to-right)
+export func flatMapE[a, b, e](f: (a) -> [b] ! {e}, xs: [a]) -> [b] ! {e} {
+  match xs {
+    [] => [],
+    [x, ...rest] => {
+      let ys = f(x);
+      concat(ys, flatMapE(f, rest))
+    }
+  }
+}
+
+-- forEachE: Execute effect per element, discard results (left-to-right)
+export func forEachE[a, e](f: (a) -> () ! {e}, xs: [a]) -> () ! {e} {
+  match xs {
+    [] => (),
+    [x, ...rest] => {
+      f(x);
+      forEachE(f, rest)
+    }
+  }
+}
+
+-- ============================================================================
 -- Extremes (v0.6.4) - Find minimum/maximum elements
 -- ============================================================================
 -- Monomorphic versions for int, float, string.

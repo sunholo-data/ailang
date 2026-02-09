@@ -1,0 +1,37 @@
+-- Effectful list combinators (v0.7.3)
+-- Demonstrates mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap
+module examples/runnable/effectful_list
+
+import std/io (println)
+import std/list (mapE, filterE, foldlE, flatMapE, forEachE, flatMap)
+
+export func main() -> () ! {IO} {
+  -- Pure flatMap: no effects needed
+  let expanded = flatMap(\x. [x, x * 10], [1, 2, 3]);
+  println("flatMap: " ++ show(expanded));
+
+  -- mapE: effectful map (prints each element, returns doubled)
+  println("--- mapE ---");
+  let doubled = mapE(\x. { println("  mapping " ++ show(x)); x * 2 }, [1, 2, 3]);
+  println("mapE result: " ++ show(doubled));
+
+  -- filterE: effectful filter (prints predicate check)
+  println("--- filterE ---");
+  let evens = filterE(\x. { println("  checking " ++ show(x)); x % 2 == 0 }, [1, 2, 3, 4]);
+  println("filterE result: " ++ show(evens));
+
+  -- foldlE: effectful fold (prints accumulator at each step)
+  println("--- foldlE ---");
+  let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("  acc=" ++ show(acc) ++ " + " ++ show(x)); acc + x }, 0, [10, 20, 30]);
+  println("foldlE result: " ++ show(total));
+
+  -- flatMapE: effectful flatMap (prints then expands)
+  println("--- flatMapE ---");
+  let flat = flatMapE(\x. { println("  expanding " ++ show(x)); [x, x + 100] }, [1, 2]);
+  println("flatMapE result: " ++ show(flat));
+
+  -- forEachE: effectful forEach (prints each, discards result)
+  println("--- forEachE ---");
+  forEachE(\x. println("  item: " ++ show(x)), ["a", "b", "c"]);
+  println("forEachE done")
+}

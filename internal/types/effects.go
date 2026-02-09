@@ -7,17 +7,31 @@ import (
 	"github.com/sunholo/ailang/internal/ast"
 )
 
+// isEffectRowVar returns true if name is a lowercase identifier (effect row variable)
+func isEffectRowVar(name string) bool {
+	return len(name) > 0 && name[0] >= 'a' && name[0] <= 'z'
+}
+
 // ElaborateEffectRow converts AST effect names to a normalized effect row
 // Returns nil for empty effect sets (purity sentinel)
 // Labels are sorted alphabetically for determinism
+// Supports effect row variables (lowercase identifiers like 'e') for polymorphism
 func ElaborateEffectRow(effectNames []string) (*Row, error) {
 	if len(effectNames) == 0 {
 		return nil, nil // Purity sentinel
 	}
 
-	// Validate and collect effects
+	// Validate and collect effects, separating row variables from concrete effects
 	validatedEffects := make(map[string]bool)
+	var rowVarName string
 	for _, name := range effectNames {
+		if isEffectRowVar(name) {
+			if rowVarName != "" && rowVarName != name {
+				return nil, fmt.Errorf("multiple effect row variables: %s, %s", rowVarName, name)
+			}
+			rowVarName = name
+			continue
+		}
 		// Validate against known effects
 		if !IsKnownEffect(name) {
 			return nil, fmt.Errorf("unknown effect: %s", name)
@@ -39,10 +53,16 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 		labels[name] = Unit()
 	}
 
+	// Set row tail for effect polymorphism
+	var tail *RowVar
+	if rowVarName != "" {
+		tail = &RowVar{Name: rowVarName, Kind: EffectRow}
+	}
+
 	return &Row{
 		Kind:   EffectRow,
 		Labels: labels,
-		Tail:   nil, // Closed row (no polymorphism in v0.1.0)
+		Tail:   tail,
 	}, nil
 }
 
@@ -50,17 +70,26 @@ func ElaborateEffectRow(effectNames []string) (*Row, error) {
 // to a normalized effect row. Returns nil for empty effect sets (purity sentinel).
 // Labels are sorted alphabetically for determinism.
 // Supports @limit=N (max) and @min=N (minimum) annotations (M-DX25 M4).
+// Supports effect row variables (lowercase identifiers like 'e') for polymorphism.
 func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error) {
 	if len(effects) == 0 {
 		return nil, nil // Purity sentinel
 	}
 
-	// Validate and collect effects with budgets
+	// Validate and collect effects with budgets, separating row variables
 	validatedEffects := make(map[string]bool)
 	budgets := make(map[string]*int)
 	minBudgets := make(map[string]*int)
+	var rowVarName string
 
 	for _, eff := range effects {
+		if eff.IsRowVar || isEffectRowVar(eff.Name) {
+			if rowVarName != "" && rowVarName != eff.Name {
+				return nil, fmt.Errorf("multiple effect row variables: %s, %s", rowVarName, eff.Name)
+			}
+			rowVarName = eff.Name
+			continue
+		}
 		// Validate against known effects
 		if !IsKnownEffect(eff.Name) {
 			return nil, fmt.Errorf("unknown effect: %s", eff.Name)
@@ -102,10 +131,16 @@ func ElaborateEffectRowWithBudgets(effects []ast.EffectAnnotation) (*Row, error)
 		minBudgetsMap = minBudgets
 	}
 
+	// Set row tail for effect polymorphism
+	var tail *RowVar
+	if rowVarName != "" {
+		tail = &RowVar{Name: rowVarName, Kind: EffectRow}
+	}
+
 	return &Row{
 		Kind:       EffectRow,
 		Labels:     labels,
-		Tail:       nil, // Closed row (no polymorphism in v0.1.0)
+		Tail:       tail,
 		Budgets:    budgetsMap,
 		MinBudgets: minBudgetsMap,
 	}, nil

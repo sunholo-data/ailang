@@ -3,6 +3,23 @@
 ## [Unreleased]
 
 ### Added
+- **M-EFFECTFUL-LIST-COMBINATORS: Effectful list combinators for std/list** (`std/list.ail`, ~74 LOC)
+  - `flatMap(f, xs)` — pure flatMap: apply f to each element, flatten results
+  - `mapE(f, xs)` — effectful map: apply effectful function to each element
+  - `filterE(p, xs)` — effectful filter: keep elements matching effectful predicate
+  - `foldlE(f, acc, xs)` — effectful left fold with accumulator
+  - `flatMapE(f, xs)` — effectful flatMap: apply f, flatten results
+  - `forEachE(f, xs)` — effectful forEach: apply f for side-effects, discard results
+  - All effectful combinators are effect-polymorphic (work with IO, FS, AI, etc.)
+  - Left-to-right evaluation order guaranteed
+  - **Parser enhanced**: Effect row variables (lowercase identifiers like `e` in `! {e}`) now supported
+    - Modified 5 files: `ast.go`, `parser_effect.go`, `effects.go`, `typechecker.go`, `builder.go`
+    - Typo detection: `io` still correctly flagged as typo for `IO`
+  - 8 type inference regression tests (`examples/runnable/effectful_list_t[1-8]_*.ail`)
+  - Smoke test: `examples/runnable/effectful_list.ail`
+  - Teaching prompt v0.7.3 updated with effectful combinator docs
+  - Design doc: `design_docs/planned/v0_7_3/m-effectful-list-combinators.md`
+
 - **readFileBytes in std/fs** (`internal/builtins/fs.go`, `internal/effects/fs.go`)
   - `readFileBytes(path)` — read file as binary, return base64-encoded string
   - Returns `Result[string, string]` with Ok/Err handling (matches std/zip pattern)

@@ -1,0 +1,13 @@
+-- Type inference regression T5: forEachE returns unit
+-- Verifies: forEachE discards results, returns ()
+-- Expected: left-to-right IO output, result is unit
+module examples/runnable/effectful_list_t5_forEachE_unit
+
+import std/io (println)
+import std/list (forEachE)
+
+export func main() -> () ! {IO} {
+  println("T5 forEachE order:");
+  forEachE(\x. println("  " ++ show(x)), [10, 20, 30]);
+  println("T5 done")
+}

@@ -41,6 +41,7 @@ _env_hasEnv : string -> bool ! {Env}
 _float_to_int : float -> int
 _fs_exists : string -> bool ! {FS}
 _fs_readFile : string -> string ! {FS}
+_fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
@@ -92,12 +93,14 @@ _sharedmem_put : (string, bytes) -> () ! {SharedMem}
 _simhash : string -> int
 _str_chars : string -> list[string]
 _str_compare : (string, string) -> int
+_str_endsWith : (string, string) -> bool
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
 _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string
 _str_split : (string, string) -> list[string]
+_str_startsWith : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
 _stringToFloat : string -> Option[float]

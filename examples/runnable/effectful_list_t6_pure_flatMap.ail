@@ -1,0 +1,16 @@
+-- Type inference regression T6: pure flatMap (no effects)
+-- Verifies: flatMap works without any effect annotation
+-- Expected: type checker infers pure function, no effect row needed
+module examples/runnable/effectful_list_t6_pure_flatMap
+
+import std/io (println)
+import std/list (flatMap)
+
+export func main() -> () ! {IO} {
+  let pairs = flatMap(\x. [x, x * 10], [1, 2, 3]);
+  println("T6 flatMap: " ++ show(pairs));
+
+  -- Nested flatMap: cartesian-like expansion
+  let nested = flatMap(\x. flatMap(\y. [x + y], [100, 200]), [1, 2]);
+  println("T6 nested: " ++ show(nested))
+}

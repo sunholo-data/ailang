@@ -1,0 +1,12 @@
+-- Type inference regression T2: filterE infers predicate returns bool
+-- Verifies: filterE correctly infers (a) -> bool ! {IO} from lambda
+-- Expected: type checker infers bool return type from comparison
+module examples/runnable/effectful_list_t2_filterE_bool
+
+import std/io (println)
+import std/list (filterE)
+
+export func main() -> () ! {IO} {
+  let result = filterE(\x. { println("  check " ++ show(x)); x > 2 }, [1, 2, 3, 4, 5]);
+  println("T2 filterE: " ++ show(result))
+}

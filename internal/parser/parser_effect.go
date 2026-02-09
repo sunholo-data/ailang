@@ -55,8 +55,23 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		effectCol := p.curToken.Column
 		effectFile := p.curToken.File
 
-		// Check for unknown effects
-		if !knownEffects[effectName] {
+		// Check if this is an effect row variable (lowercase identifier like 'e', 'eff')
+		// Row variables enable effect polymorphism: func mapE[a, b, e](f: (a) -> b ! {e}, ...) -> [b] ! {e}
+		// BUT: if the lowercase name case-insensitively matches a known effect (e.g., "io" -> "IO"),
+		// it's a typo, not a row variable.
+		isRowVar := len(effectName) > 0 && effectName[0] >= 'a' && effectName[0] <= 'z'
+		if isRowVar {
+			// Check if this is actually a typo for a known effect
+			for k := range knownEffects {
+				if strings.EqualFold(k, effectName) {
+					isRowVar = false
+					break
+				}
+			}
+		}
+
+		// Check for unknown effects (skip check for row variables)
+		if !isRowVar && !knownEffects[effectName] {
 			// Try to suggest closest match
 			suggestion := p.suggestEffect(effectName, knownEffects)
 			fix := fmt.Sprintf("Did you mean '%s'?", suggestion)
@@ -150,10 +165,11 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		}
 
 		effects = append(effects, ast.EffectAnnotation{
-			Name:   effectName,
-			Budget: budget,
-			Min:    min,
-			Pos:    ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
+			Name:     effectName,
+			IsRowVar: isRowVar,
+			Budget:   budget,
+			Min:      min,
+			Pos:      ast.Pos{Line: effectLine, Column: effectCol, File: effectFile},
 		})
 
 		// Check for comma or closing brace

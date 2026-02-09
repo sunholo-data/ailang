@@ -438,14 +438,15 @@
     },
     "v0.7.3": {
       "file": "prompts/v0.7.3.md",
-      "hash": "0757a43d6ee302feb0766efd3beb7288a96e567fc55e1d8681dfc8835f88dc83",
-      "description": "Add std/zip and std/xml stdlib modules for document parsing",
-      "created": "2026-02-08",
+      "hash": "719547b034e7fbb7a8b250645da2cfd45366b0f0f790c3cf067b4edbb5555c3d",
+      "description": "Add effectful list combinators (mapE, filterE, foldlE, flatMapE, forEachE, flatMap) + effect row variables",
+      "created": "2026-02-09",
       "tags": [
         "production",
-        "latest"
+        "latest",
+        "effectful-combinators"
       ],
-      "notes": "Add std/zip and std/xml stdlib modules for document parsing"
+      "notes": "Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled (lowercase identifiers in ! {e}). Replaces 54 hand-rolled recursive traversals from DocParse analysis."
     }
   },
   "active": "v0.7.3",

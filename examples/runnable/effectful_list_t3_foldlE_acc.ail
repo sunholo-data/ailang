@@ -1,0 +1,15 @@
+-- Type inference regression T3: foldlE accumulator type inference
+-- Verifies: foldlE infers accumulator type from initial value
+-- Expected: acc starts as string "", fold concatenates strings
+module examples/runnable/effectful_list_t3_foldlE_acc
+
+import std/io (println)
+import std/list (foldlE)
+
+export func main() -> () ! {IO} {
+  let result = foldlE(func(acc: string, x: int) -> string ! {IO} {
+    println("  acc=" ++ show(acc));
+    acc ++ show(x) ++ " "
+  }, "", [1, 2, 3]);
+  println("T3 foldlE: [" ++ result ++ "]")
+}

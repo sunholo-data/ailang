@@ -1162,14 +1162,68 @@
         "std/xml"
       ],
       "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes"
+    },
+    {
+      "path": "runnable/effectful_list.ail",
+      "status": "working",
+      "tags": ["effects", "higher-order", "std/list", "mapE", "filterE", "foldlE", "flatMapE", "forEachE", "flatMap"],
+      "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap"
+    },
+    {
+      "path": "runnable/effectful_list_t1_mapE_basic.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T1: mapE basic type inference"
+    },
+    {
+      "path": "runnable/effectful_list_t2_filterE_bool.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T2: filterE infers predicate returns bool"
+    },
+    {
+      "path": "runnable/effectful_list_t3_foldlE_acc.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T3: foldlE accumulator type inference"
+    },
+    {
+      "path": "runnable/effectful_list_t4_flatMapE_expand.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T4: flatMapE list expansion"
+    },
+    {
+      "path": "runnable/effectful_list_t5_forEachE_unit.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T5: forEachE returns unit"
+    },
+    {
+      "path": "runnable/effectful_list_t6_pure_flatMap.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T6: pure flatMap (no effects)"
+    },
+    {
+      "path": "runnable/effectful_list_t7_chain_combinators.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "description": "Type inference regression T7: chaining multiple effectful combinators"
+    },
+    {
+      "path": "runnable/effectful_list_t8_string_list.ail",
+      "status": "working",
+      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list", "std/string"],
+      "description": "Type inference regression T8: effectful combinators on string lists"
     }
   ],
   "statistics": {
-    "total": 117,
-    "working": 110,
+    "total": 126,
+    "working": 119,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.940
+    "coverage": 0.944
   },
   "milestones": {
     "completed": [

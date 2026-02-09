@@ -217,17 +217,22 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			paramTypes[i] = tc.astTypeToType(p)
 		}
 
-		// Handle effects
+		// Handle effects (supports row variables for effect polymorphism)
 		var effectRow *Row
 		if len(typ.Effects) > 0 {
 			labels := make(map[string]Type)
+			var tail *RowVar
 			for _, e := range typ.Effects {
-				labels[e.Name] = TUnit
+				if e.IsRowVar || isEffectRowVar(e.Name) {
+					tail = &RowVar{Name: e.Name, Kind: EffectRow}
+				} else {
+					labels[e.Name] = TUnit
+				}
 			}
 			effectRow = &Row{
 				Kind:   EffectRow,
 				Labels: labels,
-				Tail:   nil,
+				Tail:   tail,
 			}
 		} else {
 			effectRow = EmptyEffectRow()
