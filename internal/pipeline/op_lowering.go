@@ -75,7 +75,7 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 	// Create new program with lowered expressions
 	lowered := &core.Program{
 		Decls: make([]core.CoreExpr, len(prog.Decls)),
-		Meta:  prog.Meta, // Preserve metadata
+		Meta:  prog.Meta, // Preserve metadata (overwritten below if contracts exist)
 	}
 
 	for i, decl := range prog.Decls {
@@ -84,6 +84,30 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 			return nil, fmt.Errorf("failed to lower declaration %d", i)
 		}
 		lowered.Decls[i] = loweredDecl
+	}
+
+	// M-CONTRACTS-OPLOWERING: Also lower contract expressions in Meta.
+	// Contract predicates (requires/ensures) contain Intrinsic nodes that
+	// need the same lowering as regular code to avoid requiring --experimental-binop-shim.
+	if prog.Meta != nil {
+		lowered.Meta = make(map[string]*core.DeclMeta, len(prog.Meta))
+		for name, meta := range prog.Meta {
+			if len(meta.Contracts) == 0 {
+				lowered.Meta[name] = meta
+				continue
+			}
+			// Deep-copy meta to avoid mutating the original program
+			newMeta := *meta
+			newMeta.Contracts = make([]*core.Contract, len(meta.Contracts))
+			for i, contract := range meta.Contracts {
+				newContract := *contract
+				if contract.Expr != nil {
+					newContract.Expr = l.lowerExpr(contract.Expr)
+				}
+				newMeta.Contracts[i] = &newContract
+			}
+			lowered.Meta[name] = &newMeta
+		}
 	}
 
 	// Return any collected errors

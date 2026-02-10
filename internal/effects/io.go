@@ -42,7 +42,7 @@ func ioPrint(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("print: expected String, got %T", args[0])
 	}
 
-	fmt.Print(str.Value)
+	fmt.Fprint(ctx.GetIOWriter(), str.Value)
 	return &eval.UnitValue{}, nil
 }
 
@@ -71,7 +71,7 @@ func ioPrintln(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("println: expected String, got %T", args[0])
 	}
 
-	fmt.Println(str.Value)
+	fmt.Fprintln(ctx.GetIOWriter(), str.Value)
 	return &eval.UnitValue{}, nil
 }
 

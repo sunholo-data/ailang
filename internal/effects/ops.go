@@ -96,7 +96,35 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 	}
 
 	// Step 4: Execute operation
-	return op(ctx, args)
+	result, err := op(ctx, args)
+
+	// Step 5: Record trace event (M-TRACE-EXPORT)
+	if err == nil && ctx.Trace != nil && ctx.Trace.Enabled() {
+		argStrs := make([]string, len(args))
+		for i, a := range args {
+			argStrs[i] = a.String()
+		}
+		resultStr := ""
+		if result != nil {
+			resultStr = result.String()
+		}
+		ctx.Trace.RecordEffect(effectName, opName, argStrs, resultStr)
+
+		// Also record budget state after this effect
+		if ctx.Budget != nil {
+			used := ctx.Budget.Used(effectName)
+			limit := -1
+			remaining := -1
+			if l, hasLimit := ctx.Budget.Limit(effectName); hasLimit {
+				limit = l
+				remaining = l - used
+			}
+			physical := ctx.Budget.PhysicalUsed(effectName)
+			ctx.Trace.RecordBudgetDelta(effectName, used, limit, remaining, physical)
+		}
+	}
+
+	return result, err
 }
 
 // RegisterOp registers an effect operation

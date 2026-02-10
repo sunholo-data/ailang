@@ -43,6 +43,14 @@ type ScopeCharger interface {
 	PopScopeAndChargeCaller()
 }
 
+// TraceRecorder is implemented by effect contexts that support semantic trace collection.
+// M-TRACE-EXPORT: Used to record function calls during AILANG program execution.
+type TraceRecorder interface {
+	HasTraceCollector() bool
+	RecordFunctionEnter(name string, args []string)
+	RecordFunctionExit(name string, result string)
+}
+
 // CoreEvaluator evaluates Core AST programs after dictionary elaboration
 type CoreEvaluator struct {
 	env                   *Environment

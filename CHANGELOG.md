@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added
+- **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
+  - New `internal/trace/` package: schema, collector, JSONL serializer
+  - Event types: `function_enter`, `function_exit`, `effect`, `contract_check`, `budget_delta`, `module_start/end`, `error`
+  - Call depth tracking with function entry/exit duration
+  - Trace collector on `EffContext.Trace` — zero-cost when disabled
+  - `--emit-trace jsonl` flag on `ailang run` — JSONL to stdout, program output to stderr
+  - Function tracing via `TraceRecorder` interface in eval (follows `BudgetEnforcer` pattern)
+  - Contract check recording in `CheckRequires`/`CheckEnsures` delegates
+  - Effect + budget delta recording in `effects.Call()`
+  - IO output respects `IOWriter` on EffContext (stderr when tracing)
+  - 12 unit tests for collector, JSONL round-trip, depth tracking
+  - Design doc: `design_docs/planned/v0_8_0/m-trace-export.md`
+
+- **Website: Symbolic Reasoning Kernel vision** (`docs/docs/vision.mdx`)
+  - Reframed from "AI-friendly language" to "symbolic reasoning kernel"
+  - Five Pillars table with implementation status
+  - Two-level trace architecture documented (agent traces + program traces)
+  - Differentiation table: Traditional Languages vs AILANG
+  - Explicit Authority section with budget and contract examples
+
+### Fixed
+- **M-CONTRACTS-OPLOWERING: Contract expressions no longer require `--experimental-binop-shim`** (`internal/pipeline/op_lowering.go`)
+  - OpLowering now processes contract expressions in `prog.Meta`, not just `prog.Decls`
+  - `ailang run --verify-contracts file.ail` works directly without extra flags
+  - 4 new unit tests for contract expression lowering (int comparison, no-contracts, nil-expr, no-mutation)
+  - Design doc: `design_docs/planned/v0_8_0/m-contracts-oplowering.md`
+
 ## [v0.7.3] - 2026-02-09
 
 ### Added

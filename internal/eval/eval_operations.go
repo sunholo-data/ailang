@@ -47,6 +47,16 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 		}
 
+		// M-TRACE-EXPORT: Record function entry
+		funcName := extractFuncName(app.Func)
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
+			argStrs := make([]string, len(args))
+			for i, a := range args {
+				argStrs[i] = a.String()
+			}
+			recorder.RecordFunctionEnter(funcName, argStrs)
+		}
+
 		// Create new environment with parameters bound
 		newEnv := fn.Env.Clone()
 		for i, param := range fn.Params {
@@ -98,6 +108,15 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		}
 
 		e.env = oldEnv
+
+		// M-TRACE-EXPORT: Record function exit
+		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
+			resultStr := ""
+			if result != nil {
+				resultStr = result.String()
+			}
+			recorder.RecordFunctionExit(funcName, resultStr)
+		}
 
 		// M-DX25: Handle budget scope exit
 		if oldEffContext != nil {
@@ -351,4 +370,17 @@ func applyUnOp(op string, operand Value) (Value, error) {
 	}
 
 	return nil, fmt.Errorf("cannot apply unary operator %s to %T", op, operand)
+}
+
+// extractFuncName extracts a human-readable function name from a Core expression.
+// M-TRACE-EXPORT: Used to label function enter/exit trace events.
+func extractFuncName(expr core.CoreExpr) string {
+	switch e := expr.(type) {
+	case *core.Var:
+		return e.Name
+	case *core.VarGlobal:
+		return e.Ref.Module + "." + e.Ref.Name
+	default:
+		return "<lambda>"
+	}
 }

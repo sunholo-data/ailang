@@ -1,31 +1,73 @@
 ---
 sidebar_position: 2
 title: Vision
-description: Why AILANG exists and what makes it different from other programming languages
+description: AILANG as a symbolic reasoning kernel for neural program synthesis
 ---
 
 import Icon from '@site/src/components/Icon';
 
 # AILANG Vision
 
-**A language where AI-generated code is easier to debug, replay, and fix.**
+**A symbolic reasoning kernel for neural program synthesis.**
 
-AILANG provides:
-- **Effect boundaries** that constrain what code can do
-- **Structured traces** that show exactly what happened
-- **Deterministic execution** that enables replay and caching
-- **Inline tests** as machine-readable specs
+AILANG sits between probabilistic program synthesis (LLMs) and deterministic execution environments. It constrains, verifies, and traces programs synthesized by neural systems.
+
+```
+  LLM (Neural Synthesis)
+          │
+          │  Symbolic Program
+          ▼
+  ┌──────────────────────────┐
+  │      AILANG KERNEL       │
+  │                          │
+  │  • Effect relations      │
+  │  • Contract verification │
+  │  • Budget enforcement    │
+  │  • Trace generation      │
+  │  • Authority bounds      │
+  └──────────────────────────┘
+          │
+          │  Constrained Execution
+          ▼
+  OS / Runtime / Cloud
+```
 
 ---
 
-## What Makes AILANG Different
+## The Five Pillars
 
-### 1. Effects as Capability Boundaries (Not Just Types)
+AILANG's design rests on five pillars that together form a coherent system for trustworthy AI execution:
+
+| Pillar | What It Means | Status |
+|--------|---------------|--------|
+| **1. Symbolic/Concrete Separation** | Programs represent symbolic intent; concrete values arise at execution within constraints | Core AST, elaboration, deterministic eval |
+| **2. Effects as Relations** | Effects are `(Intent × EffContext) ⇒ {Outcome | Constraints}`, not opaque functions | Capabilities, budgets (`@limit=N`), policies |
+| **3. Contracts as Specs** | `requires`/`ensures` are symbolic predicates for AI-facing specifications | Runtime enforcement, panic/warn modes |
+| **4. Traces as Artifacts** | Execution produces structured, replayable, auditable traces | Agent traces (`ailang chains`) + program traces (`--emit-trace`) |
+| **5. Explicit Authority** | All authority must be declared, bounded, and enforced — no ambient capabilities | Deny-by-default `--caps`, budget limits, structured failures |
+
+---
+
+## How AILANG Differs from Traditional Languages
+
+| Aspect | Traditional Languages | AILANG |
+|--------|----------------------|--------|
+| **Primary author** | Human | AI |
+| **Execution model** | Direct | Mediated through kernel |
+| **Effects** | Invisible side-effects | Explicit relations with budgets |
+| **Verification** | Type-centric | Contract + trace-centric |
+| **Traces** | Ad-hoc logs | Structured semantic artifacts |
+| **Authority** | Ambient (can do anything) | Declared and bounded |
+| **Purpose** | Program correctness | Trustworthy AI execution |
+
+---
+
+## Effects as Capability Relations
 
 **Normal compilers:**
 - `doAnything()` is fine as long as types line up
 - Side-effects are invisible to the type system
-- Logs are ad-hoc; no semantic boundary between "pure logic" and "this talks to the database"
+- No semantic boundary between "pure logic" and "this talks to the database"
 
 **AILANG:**
 ```
@@ -41,63 +83,82 @@ let pureTransform: User -> UserRecord =
 **Why this matters for AI:**
 - The model literally cannot "hallucinate" a network call in a pure function
 - Effect boundaries are machine-checkable constraints, not just documentation
-- The search space for valid implementations is genuinely smaller
+- Budget limits (`! {IO @limit=5}`) bound resource consumption per function
 
 ---
 
-### 2. Traces Are First-Class (Not Forensic Artifacts)
+## Traces as Semantic Artifacts
 
-**Normal languages give you:**
-- Arbitrary logs scattered throughout code
-- Mutable globals and half-observable state
-- Trace reconstruction is forensic art
+AILANG captures traces at two complementary levels:
 
-**AILANG gives you:**
-- A deterministic core plus effect calls as the interaction points
-- Traces structured as: `pure steps + {effect invocations with typed inputs/outputs}`
-- Sliceable by effect type: "Show only DB writes in this function for this test"
+### Level 1: Agent Execution Traces
 
-**Example trace slice:**
-```
-Function: aggregateUsers
-  Step 1: map(transform, users)         [pure]
-  Step 2: DB.read(userTable)            [effect: DB]
-  Step 3: filter(isActive, _)           [pure]
-  Step 4: DB.write(aggregates)          [effect: DB]
+The `ailang chains` system captures what **AI agents** do during task execution:
 
--- Slice to DB effects only:
-  DB.read(userTable) -> [User×10]
-  DB.write(aggregates) -> [Agg×10]
+- Full conversation history with reasoning blocks
+- Tool usage timeline (file edits, commands, searches)
+- Cost, tokens, turns, and duration metrics
+- Session correlation across multi-step workflows
+- Approval workflow tracking
+
+```bash
+ailang chains view <chain-id> --spans    # See agent execution flow
+ailang chains tree <chain-id> --detailed # Tree view with tool timeline
+ailang chains stats --by-agent           # Cost and token breakdown
 ```
 
-**Why this matters:** When something goes wrong, you know exactly where to look. The model gets structured feedback ("DB.write called 10 times but expected 5 after dedupe"), not "it crashed somewhere."
+### Level 2: Program Execution Traces
+
+The `--emit-trace` flag captures what happens when **AILANG code evaluates**:
+
+- Function call entry/exit with arguments and results
+- Effect invocations (IO, FS, Net operations)
+- Contract check results (requires/ensures)
+- Budget consumption deltas
+- Call depth tracking
+
+```bash
+# Export program-level trace as JSONL
+ailang run --emit-trace jsonl --caps IO --entry main program.ail
+
+# Validate with jq
+ailang run --emit-trace jsonl --quiet --caps IO --entry main program.ail 2>/dev/null | jq .
+```
+
+**Example trace output:**
+```json
+{"version":"1.0","event":"function_enter","timestamp_ns":42459,"depth":1,"function":{"name":"processFile","args":["\"input.txt\""]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":44125,"depth":2,"function":{"name":"std/io.println","args":["\"Processing...\""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45750,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":46500,"depth":1,"function":{"name":"processFile","result":"()","duration_ns":4041}}
+```
+
+**Why both levels matter:** When something goes wrong, agent traces show *what the AI decided to do*; program traces show *what the code actually did*. Together they provide full observability from intent to execution.
 
 ---
 
-### 3. Inline Tests Are a Spec Surface (Not Magic)
+## Explicit Authority and Bounded Power
 
-The critique is valid: "If the AI is smart enough to write a good test, it's smart enough to write correct code."
-
-But that misunderstands the purpose:
-
-**Inline tests are not "AI spontaneously inventing the spec."**
-
-They are:
-1. **A spec channel** — Humans write/approve tests, or they're generated from API contracts, examples in docs, acceptance criteria
-2. **A portable contract** — Tests live next to the function, in the same language, which is what the AI sees and optimizes against
-3. **Strengthened over time** — Today's weak test can be improved by tomorrow's model or human reviewer
+AILANG eliminates ambient authority. Every capability must be explicitly declared:
 
 ```
-let dedupe: List[User] -> List[User] =
-  \users. uniqueBy(_.id, users)
-
-test dedupe {
-  assert dedupe([{id: 1}, {id: 1}, {id: 2}]) == [{id: 1}, {id: 2}]
-  assert len(dedupe(users)) <= len(users)  -- property
-}
+-- Declare: this function needs IO and FS, with bounded IO usage
+export func process(path: string) -> string ! {IO @limit=3, FS} =
+  let data = readFile(path)      -- FS capability required
+  let _ = println("Processing")  -- IO capability, budget: 1 of 3
+  transform(data)                -- Pure: no capability needed
 ```
 
-**Why this matters:** The test isn't magic; it's a machine-readable spec that travels with the code and provides leverage for both humans and future models.
+**Budget enforcement:**
+- Functions declare maximum effect usage: `! {IO @limit=5}`
+- Runtime enforces the limit — exceeding it is a structured failure
+- Callers are charged the callee's declared budget (semantic charging)
+- Minimum budgets ensure effects were actually exercised
+
+**Contract verification:**
+- `requires` blocks check preconditions before execution
+- `ensures` blocks verify postconditions after execution
+- Contract checks are recorded in traces for auditability
 
 ---
 
@@ -109,61 +170,10 @@ AI code generation is iterative. AILANG makes each iteration more productive:
 |-------------|--------|
 | Arbitrary logs | Structured effect traces |
 | "Something crashed" | "Effect mismatch at line 42" |
-| Blind retry | Targeted fix |
+| Blind retry | Targeted fix with trace evidence |
+| No resource bounds | Budget-limited, auditable execution |
 
 The result: faster convergence to working code.
-
----
-
-## What Effects Actually Buy You
-
-The effect system isn't just "types for side effects." It's a **capability constraint surface**.
-
-### Example: The Missed Dedupe Problem
-
-A human asks: "Aggregate users from the database and write a summary."
-
-**In Python/Go:**
-```python
-def aggregate_users():
-    users = db.read_all()  # hidden DB access
-    # Oops, AI forgot to dedupe
-    summary = compute_summary(users)
-    db.write(summary)  # hidden DB write
-    log.info("Done")  # ad-hoc logging
-```
-
-**Debugging this:**
-- Where did it go wrong? Check logs (if you added them)
-- What did the DB see? Unknown without tracing infrastructure
-- Can you replay? Only if you captured all inputs somewhere
-
-**In AILANG:**
-```
-let aggregateUsers: () -> ! {DB, IO} Summary =
-  let users = dbReadAll()
-  -- AI forgot dedupe here
-  let summary = computeSummary(users)
-  let _ = dbWrite(summary)
-  let _ = print("Done")
-  summary
-
--- Trace output:
---   DB.readAll -> [User×100]
---   DB.write(Summary{count: 100})  -- Wait, why 100? Should be unique count
-```
-
-**Debugging this:**
-- Effect trace shows exactly what DB operations happened
-- You can see: "read 100 users, wrote 100 aggregates" — the bug is obvious
-- Replay: deterministic, just re-run with same inputs
-
-**The AI gets structured feedback:**
-```
-Expected: DB.write(Summary{count: <unique_users>})
-Actual: DB.write(Summary{count: 100})
-Hint: No dedupe operation between DB.read and computeSummary
-```
 
 ---
 
@@ -202,8 +212,9 @@ AILANG provides:
 
 - <Icon name="check" inline /> **Algebraic Effects** — `! {IO, FS, Net, AI, SharedMem}` declares capabilities in types
 - <Icon name="check" inline /> **Deterministic Core** — pure functions are referentially transparent
-- <Icon name="check" inline /> **Structured Traces** — effect calls logged with typed inputs/outputs
-- <Icon name="check" inline /> **Inline Tests** — specs travel with code, machine-readable
+- <Icon name="check" inline /> **Structured Traces** — agent-level (`ailang chains`) and program-level (`--emit-trace`)
+- <Icon name="check" inline /> **Contracts** — `requires`/`ensures` as machine-readable specifications
+- <Icon name="check" inline /> **Budget Enforcement** — `@limit=N` bounds effect usage per function
 - <Icon name="check" inline /> **Go Codegen** — compile to native performance
 - <Icon name="check" inline /> **Semantic Caching** — multi-agent coordination through shared memory
 - <Icon name="check" inline /> **AI Effect** — unified interface for LLM calls across providers
@@ -212,45 +223,18 @@ See [Implementation Status](/docs/reference/implementation-status) for detailed 
 
 ---
 
-## Future Directions
-
-AILANG development focuses on three areas:
-
-### Execution Profiles
-Formalized modes for different use cases: simulations, services, and CLI tools — each with validated entry shapes and effect constraints.
-
-### Deterministic Tooling
-AI-friendly code transformation: canonical normalization, import suggestion, and structured code edits via JSON plans.
-
-### Multi-Agent Coordination
-Language-level primitives for agent collaboration: semantic deduplication, CAS-based updates, and effect-tracked caching patterns.
-
-See the [Roadmap](/docs/roadmap) for detailed plans and [CHANGELOG](https://github.com/sunholo-data/ailang/blob/main/CHANGELOG.md) for recent additions.
-
----
-
 ## What AILANG Deliberately Excludes
 
 AILANG prioritizes machine reasoning over human ergonomics:
 
-- ❌ **LSP/IDE servers** — AIs use CLI/API, not text editors
-- ❌ **Multiple syntaxes** — one canonical way to express each concept
-- ❌ **Implicit behaviors** — all effects are explicit
+- No **LSP/IDE servers** — AIs use CLI/API, not text editors
+- No **multiple syntaxes** — one canonical way to express each concept
+- No **implicit behaviors** — all effects are explicit
+- No **ambient authority** — everything requires explicit capability grants
 
-These aren't limitations — they're design choices that make the language more predictable and constrainable for AI generation.
+These aren't limitations — they're design choices that make the language a reliable substrate for AI-synthesized programs.
 
 *See [Design Lineage](/docs/references/design-lineage) for the full adopted/rejected analysis.*
-
----
-
-## Summary
-
-AILANG gives you:
-
-1. **Effect constraints** — Models can't generate impossible side effects
-2. **Structured traces** — See exactly what happened, slice by effect type
-3. **Better error signals** — Specific feedback, not "it crashed"
-4. **Deterministic replay** — Same input, same output, every time
 
 ---
 
@@ -262,7 +246,7 @@ AILANG gives you:
 
 ---
 
-> **AILANG — AI-first programming, done right.**
+> **AILANG — a symbolic reasoning kernel for trustworthy AI execution.**
 
 ---
 

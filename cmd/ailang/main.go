@@ -18,6 +18,7 @@ import (
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/schema"
 	"github.com/sunholo/ailang/internal/telemetry"
+	ailtrace "github.com/sunholo/ailang/internal/trace"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -337,6 +338,9 @@ func runCommand() {
 	// Contract verification flag (M-VERIFY-CONTRACTS)
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
 
+	// Semantic trace export flag (M-TRACE-EXPORT)
+	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl)")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -360,10 +364,10 @@ func runCommand() {
 		programArgs = fs.Args()[1:] // Skip filename, take remaining args
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
@@ -595,6 +599,15 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			}
 		}
 
+		// M-TRACE-EXPORT: Enable semantic execution trace collection
+		if emitTrace == "jsonl" {
+			effCtx.Trace = ailtrace.NewCollector()
+			effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
+			if !quiet {
+				fmt.Fprintln(os.Stderr, "Trace collection enabled (jsonl)")
+			}
+		}
+
 		// Process environment variable flags
 		envConfig := envFlags{
 			allowEnv:         allowEnv,
@@ -648,6 +661,16 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			}
 			if output != "" {
 				fmt.Fprintln(os.Stderr, output)
+			}
+		}
+
+		// M-TRACE-EXPORT: Output semantic execution trace
+		if emitTrace != "" && effCtx.Trace != nil {
+			events := effCtx.Trace.Events()
+			if len(events) > 0 {
+				if err := ailtrace.WriteJSONL(os.Stdout, events); err != nil {
+					fmt.Fprintf(os.Stderr, "%s: trace output: %v\n", red("Error"), err)
+				}
 			}
 		}
 	} else {

@@ -1,9 +1,12 @@
 package effects
 
 import (
+	"io"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/sunholo/ailang/internal/trace"
 )
 
 // EffContext holds runtime capability grants and environment configuration
@@ -30,6 +33,8 @@ type EffContext struct {
 	EnvSnapshot    map[string]string     // Env effect: immutable snapshot of environment variables
 	EnvAllowlist   []string              // Env effect: allowed variable names (nil = allow all)
 	Args           []string              // CLI arguments passed to the program (excluding program name)
+	Trace          *trace.Collector      // Semantic trace collector (--emit-trace flag, M-TRACE-EXPORT)
+	IOWriter       io.Writer             // Override for IO effect output (nil = os.Stdout)
 
 	// M-DX25: Scoped budget charging
 	DeclaredBudgets map[string]int // Callee's declared @limit values (for charging caller on return)
@@ -298,8 +303,10 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		EnvSnapshot:     ctx.EnvSnapshot,
 		EnvAllowlist:    ctx.EnvAllowlist,
 		Args:            ctx.Args,
-		DeclaredBudgets: nil, // Reset for new scope (will be set by WithBudgetLimits)
-		CallerContext:   nil, // Reset for new scope (will be set by WithBudgetLimits)
+		Trace:           ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:        ctx.IOWriter, // Preserve IO writer across budget scopes
+		DeclaredBudgets: nil,          // Reset for new scope (will be set by WithBudgetLimits)
+		CallerContext:   nil,          // Reset for new scope (will be set by WithBudgetLimits)
 	}
 }
 
@@ -501,6 +508,10 @@ func (ctx *EffContext) CheckRequires(cond bool, msg, location string) error {
 	if ctx.Contracts == nil {
 		return nil
 	}
+	// M-TRACE-EXPORT: Record contract check in semantic trace
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordContractCheck("requires", cond, msg, location, ctx.Contracts.CurrentFunction())
+	}
 	return ctx.Contracts.CheckRequires(cond, msg, location)
 }
 
@@ -521,5 +532,46 @@ func (ctx *EffContext) CheckEnsures(cond bool, msg, location string) error {
 	if ctx.Contracts == nil {
 		return nil
 	}
+	// M-TRACE-EXPORT: Record contract check in semantic trace
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordContractCheck("ensures", cond, msg, location, ctx.Contracts.CurrentFunction())
+	}
 	return ctx.Contracts.CheckEnsures(cond, msg, location)
+}
+
+// M-TRACE-EXPORT: Trace delegate methods
+
+// HasTraceCollector returns true if semantic trace collection is active.
+// GetIOWriter returns the writer for IO effect output.
+// Returns os.Stdout unless overridden (e.g., when --emit-trace redirects program output to stderr).
+func (ctx *EffContext) GetIOWriter() io.Writer {
+	if ctx.IOWriter != nil {
+		return ctx.IOWriter
+	}
+	return os.Stdout
+}
+
+func (ctx *EffContext) HasTraceCollector() bool {
+	return ctx.Trace != nil && ctx.Trace.Enabled()
+}
+
+// RecordFunctionEnter delegates to trace collector if present.
+func (ctx *EffContext) RecordFunctionEnter(name string, args []string) {
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordFunctionEnter(name, args)
+	}
+}
+
+// RecordFunctionExit delegates to trace collector if present.
+func (ctx *EffContext) RecordFunctionExit(name string, result string) {
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordFunctionExit(name, result)
+	}
+}
+
+// RecordEffect delegates to trace collector if present.
+func (ctx *EffContext) RecordEffect(effectName, opName string, args []string, result string) {
+	if ctx.Trace != nil && ctx.Trace.Enabled() {
+		ctx.Trace.RecordEffect(effectName, opName, args, result)
+	}
 }

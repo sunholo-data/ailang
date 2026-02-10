@@ -1122,8 +1122,7 @@
       ],
       "description": "Contract verification: requires/ensures blocks with preconditions and postconditions",
       "run_flags": [
-        "--verify-contracts",
-        "--experimental-binop-shim"
+        "--verify-contracts"
       ]
     },
     {
@@ -1137,8 +1136,7 @@
       ],
       "description": "Contract verification: theme park admission example with age/height constraints",
       "run_flags": [
-        "--verify-contracts",
-        "--experimental-binop-shim"
+        "--verify-contracts"
       ]
     },
     {

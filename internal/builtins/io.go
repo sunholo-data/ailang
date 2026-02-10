@@ -27,7 +27,7 @@ func registerIO() {
 	// _io_print
 	impl1 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		s := args[0].(*eval.StringValue)
-		fmt.Print(s.Value)
+		fmt.Fprint(ctx.GetIOWriter(), s.Value)
 		return &eval.UnitValue{}, nil
 	}
 	type1 := func() types.Type {
@@ -60,7 +60,7 @@ func registerIO() {
 	// _io_println
 	impl2 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		s := args[0].(*eval.StringValue)
-		fmt.Println(s.Value)
+		fmt.Fprintln(ctx.GetIOWriter(), s.Value)
 		return &eval.UnitValue{}, nil
 	}
 	type2 := func() types.Type {

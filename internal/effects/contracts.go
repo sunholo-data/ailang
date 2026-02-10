@@ -111,6 +111,12 @@ func (c *ContractContext) SetFunction(name string) {
 	c.function = name
 }
 
+// CurrentFunction returns the current function name.
+// Used by trace recording to annotate contract check events.
+func (c *ContractContext) CurrentFunction() string {
+	return c.function
+}
+
 // CheckRequires records a precondition check result
 //
 // This is called by generated code at function entry.
