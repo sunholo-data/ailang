@@ -235,3 +235,4 @@ jobs:
 
     - name: Go Dependency Submission
       uses: actions/go-dependency-submission@v2.0.3
+      continue-on-error: true  # Known upstream bug: duplicate namespace assertion with multi-module deps

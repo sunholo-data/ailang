@@ -3,10 +3,14 @@ package executor
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestFindNVMBinary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("NVM uses Unix paths; not applicable on Windows")
+	}
 	// Create a fake NVM directory structure
 	tmpDir := t.TempDir()
 	origHome := os.Getenv("HOME")
@@ -46,6 +50,9 @@ func TestFindNVMBinary(t *testing.T) {
 }
 
 func TestFindNVMBinary_NoNVM(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("NVM uses Unix paths; not applicable on Windows")
+	}
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
@@ -57,6 +64,9 @@ func TestFindNVMBinary_NoNVM(t *testing.T) {
 }
 
 func TestFindNVMNodeBinDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("NVM uses Unix paths; not applicable on Windows")
+	}
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
