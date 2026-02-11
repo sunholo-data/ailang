@@ -1,0 +1,10 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/contracts/park"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":18834,"depth":1,"function":{"name":"admissionFee","args":["70","LOW_SEASON"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":29917,"depth":1,"function":{"name":"admissionFee","result":"5","duration_ns":11042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":31209,"depth":1,"function":{"name":"admissionFee","args":["70","HIGH_SEASON"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":33917,"depth":1,"function":{"name":"admissionFee","result":"10","duration_ns":2708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":34875,"depth":1,"function":{"name":"admissionFee","args":["3","LOW_SEASON"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":37250,"depth":1,"function":{"name":"admissionFee","result":"0","duration_ns":2375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":38125,"depth":1,"function":{"name":"admissionFee","args":["30","HIGH_SEASON"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":40625,"depth":1,"function":{"name":"admissionFee","result":"20","duration_ns":2459}}
+{"version":"1.0","event":"module_end","timestamp_ns":51917,"module":{"name":"examples/runnable/contracts/park"}}

@@ -93,8 +93,15 @@ ailang examples list --tags recursion       # Filter by tag
 ailang examples tags                        # List all available tags
 ```
 
-### 5. **Full Documentation**
-- **Teaching prompt**: Check active version in prompts/versions.json, then use that prompt file
+### 5. **Dev Tools Reference** (v0.8.0+)
+Run `ailang devtools-prompt` for toolchain documentation covering:
+- Debugging with traces, replay, determinism verification
+- Agent chains, coordinator, messaging
+- Eval harness, telemetry, compilation
+
+### 6. **Full Documentation**
+- **Teaching prompt**: `ailang prompt` (language syntax)
+- **Dev tools prompt**: `ailang devtools-prompt` (toolchain usage)
 - **Website**: https://ailang.sunholo.com/
 - **Examples**: `examples/runnable/` directory (96 working examples)
 - **REPL commands**: `docs/docs/reference/repl-commands.md`
@@ -279,7 +286,8 @@ make install
 - **Version check**: `.claude/skills/use-ailang/scripts/check_version.sh`
 - **Syntax reference**: `resources/syntax_quick_ref.md`
 - **Common patterns**: `resources/common_patterns.md`
-- **Teaching prompt**: Use active version from prompts/versions.json
+- **Teaching prompt**: `ailang prompt` (language syntax from `prompts/versions.json`)
+- **Dev tools prompt**: `ailang devtools-prompt` (toolchain: debug, trace, eval, chains)
 - **Documentation**: https://ailang.sunholo.com/
 - **Examples**: `examples/` directory
 - **Issues**: https://github.com/sunholo-data/ailang/issues

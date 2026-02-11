@@ -2,8 +2,8 @@
 # EXAMPLE VERIFICATION TARGETS
 # =============================================================================
 
-.PHONY: verify-examples verify-examples-all verify-cli-examples examples-status
-.PHONY: update-readme flag-broken freeze-stdlib verify-stdlib
+.PHONY: verify-examples verify-examples-all verify-examples-trace verify-cli-examples examples-status
+.PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib
 
 # Example verification
 verify-examples: build ## Verify examples in examples/runnable/ (CI mode)
@@ -15,6 +15,14 @@ verify-examples: build ## Verify examples in examples/runnable/ (CI mode)
 verify-examples-all: build ## Verify ALL examples with threshold gate (60%)
 	@echo "Verifying all examples with threshold gate..."
 	@go run ./scripts/verify_examples.go --all --threshold 60
+
+verify-examples-trace: build ## Verify examples with trace capture + determinism replay
+	@echo "Verifying examples with trace determinism..."
+	@go run ./scripts/verify_examples.go --trace
+
+update-trace-baselines: build ## Regenerate trace baselines for all passing examples
+	@echo "Updating trace baselines..."
+	@go run ./scripts/verify_examples.go --trace --update-baselines
 
 verify-cli-examples: ## Verify CLI examples from documentation
 	@echo "Verifying CLI examples..."

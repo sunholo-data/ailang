@@ -1,0 +1,6 @@
+{"version":"1.0","event":"module_start","timestamp_ns":959,"module":{"name":"examples/runnable/imports","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":17959,"depth":1,"function":{"name":"std/io.print","args":["Multiple imports: "]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":24875,"depth":1,"function":{"name":"std/io.print","result":"()","duration_ns":6875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":25542,"depth":1,"function":{"name":"std/io.println","args":["OK"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":27042,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1459}}
+{"version":"1.0","event":"module_end","timestamp_ns":27250,"module":{"name":"examples/runnable/imports"}}

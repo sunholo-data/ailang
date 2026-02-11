@@ -1,0 +1,4 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/micro_block_if","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":13250,"depth":1,"function":{"name":"std/io.println","args":["true branch"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":18667,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5334}}
+{"version":"1.0","event":"module_end","timestamp_ns":20417,"module":{"name":"examples/runnable/micro_block_if"}}

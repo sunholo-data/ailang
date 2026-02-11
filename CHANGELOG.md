@@ -16,6 +16,43 @@
   - 12 unit tests for collector, JSONL round-trip, depth tracking
   - Design doc: `design_docs/planned/v0_8_0/m-trace-export.md`
 
+- **M-TRACE-EXPORT Phase 2: OTEL span emission** (`internal/trace/otel_emitter.go`, ~190 LOC impl + ~320 LOC tests)
+  - `EmitOTELSpans()` converts collected trace events to OTEL spans with parent-child hierarchy
+  - Batch post-execution: walks event list, reconstructs span tree from depth tracking
+  - Span mapping: `eval.function.*`, `eval.effect.*`, `eval.module.*`
+  - Contract checks → span events; budget deltas → span attributes; errors → error status
+  - `--emit-trace` extended: `otel`, `jsonl,otel`, `auto` modes
+  - Auto-enable: when OTEL is configured, program traces emit automatically (zero flags)
+  - `BaseTime()` exposed on Collector for timestamp reconstruction
+  - 11 tests with `tracetest.InMemoryExporter` (nesting, parent context, nil safety, full trace)
+  - Spans flow to Cloud Trace and observatory as children of `"ailang run: <filename>"` root span
+
+- **M-TRACE-EXPORT Phase 3: Trace replay** (`ailang replay`, `internal/trace/reader.go`, `comparator.go`, ~550 LOC)
+  - `ailang replay <trace.jsonl>` re-executes program and compares against baseline
+  - JSONL reader: `ReadJSONL()` with validation, blank line skipping, large line support
+  - Trace comparator: `CompareTraces()` with per-field mismatch reporting
+  - Timestamps and durations correctly skipped (non-deterministic)
+  - `--json` flag for machine-readable comparison output
+  - `--file` override for source file resolution
+  - Module name and capabilities auto-extracted from baseline trace
+  - Exit codes: 0=match, 1=mismatch, 2=error
+  - 19 tests for reader (round-trip, validation, edge cases) and comparator (all event types)
+
+- **M-TRACE-EXPORT Phase 4: Training data export** (`ailang export-training`, `internal/trace/scorer.go`, `exporter.go`, ~450 LOC)
+  - Quality scorer: `ScoreTrace()` produces 0.0-1.0 score with 5 weighted components
+  - Weights: completion (30%), complexity (25%), contracts (20%), budget efficiency (15%), effect diversity (10%)
+  - Complexity uses diminishing returns (log scale) to avoid rewarding bloat
+  - `ScoreTraceFile()` convenience for scoring individual files
+  - Training exporter: `ExportTrainingData()` produces JSONL with source code, trace, score, metadata
+  - Source file auto-resolution from module name (source-dir, trace-dir, CWD)
+  - `ailang export-training traces/` — export directory of traces
+  - `ailang export-training --score trace.jsonl` — score without exporting
+  - `ailang export-training --score --json traces/` — machine-readable scores
+  - `--min-score 0.7` filters low-quality traces
+  - `--output file.jsonl` writes to file instead of stdout
+  - `--source-dir` for source code resolution
+  - 22 tests for scorer (all components, edge cases) and exporter (files, filtering, source resolution)
+
 - **Website: Symbolic Reasoning Kernel vision** (`docs/docs/vision.mdx`)
   - Reframed from "AI-friendly language" to "symbolic reasoning kernel"
   - Five Pillars table with implementation status

@@ -1,0 +1,4 @@
+{"version":"1.0","event":"module_start","timestamp_ns":1042,"module":{"name":"examples/runnable/effects_basic","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14709,"depth":1,"function":{"name":"std/io.println","args":["hello effects"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6083}}
+{"version":"1.0","event":"module_end","timestamp_ns":21209,"module":{"name":"examples/runnable/effects_basic"}}

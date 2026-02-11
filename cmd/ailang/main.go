@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/loader"
@@ -49,8 +50,9 @@ var (
 
 func main() {
 	// Set embedded filesystem for prompts (bundled in binary)
-	// This allows `ailang prompt` to work from anywhere without prompts/ directory
+	// This allows `ailang prompt` and `ailang devtools-prompt` to work from anywhere
 	prompt.SetEmbeddedFS(embeddedPrompts)
+	devtoolsprompt.SetEmbeddedFS(embeddedPrompts)
 
 	var (
 		versionFlag             = flag.Bool("version", false, "Print version information")
@@ -209,6 +211,9 @@ func main() {
 	case "prompt":
 		runPrompt()
 
+	case "devtools-prompt":
+		runDevtoolsPrompt()
+
 	case "server", "serve": // "serve" kept as alias for backward compatibility
 		if err := serverCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -241,6 +246,9 @@ func main() {
 
 	case "axioms":
 		axiomsCommand()
+
+	case "replay":
+		replayCommand()
 
 	case "trace":
 		traceCommand()
@@ -339,7 +347,7 @@ func runCommand() {
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
 
 	// Semantic trace export flag (M-TRACE-EXPORT)
-	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl)")
+	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl, otel, jsonl,otel, auto)")
 
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
@@ -444,6 +452,12 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		os.Exit(1)
 	}
 
+	// When JSONL tracing is active, status messages go to stderr so stdout is clean JSONL
+	statusOut := os.Stdout
+	if strings.Contains(emitTrace, "jsonl") {
+		statusOut = os.Stderr
+	}
+
 	// Check file extension
 	if !strings.HasSuffix(filename, ".ail") {
 		fmt.Fprintf(os.Stderr, "%s: file must have .ail extension\n", yellow("Warning"))
@@ -451,26 +465,26 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 
 	// Type check
 	if !quiet {
-		fmt.Printf("%s Type checking...\n", cyan("→"))
+		fmt.Fprintf(statusOut, "%s Type checking...\n", cyan("→"))
 	}
 
 	// Run effects analysis
 	if !quiet {
-		fmt.Printf("%s Effect checking...\n", cyan("→"))
+		fmt.Fprintf(statusOut, "%s Effect checking...\n", cyan("→"))
 	}
 
 	// Execute
 	if !quiet {
-		fmt.Printf("%s Running %s\n", green("✓"), filename)
+		fmt.Fprintf(statusOut, "%s Running %s\n", green("✓"), filename)
 	}
 	if trace {
-		fmt.Printf("  %s Tracing enabled\n", yellow("⚡"))
+		fmt.Fprintf(statusOut, "  %s Tracing enabled\n", yellow("⚡"))
 	}
 	if seed != 0 {
-		fmt.Printf("  %s Seed: %d\n", yellow("🎲"), seed)
+		fmt.Fprintf(statusOut, "  %s Seed: %d\n", yellow("🎲"), seed)
 	}
 	if virtualTime {
-		fmt.Printf("  %s Virtual time enabled\n", yellow("⏰"))
+		fmt.Fprintf(statusOut, "  %s Virtual time enabled\n", yellow("⏰"))
 	}
 
 	// Create builtin resolver for non-module evaluation (v0.2.0 hotfix)
@@ -600,11 +614,17 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 
 		// M-TRACE-EXPORT: Enable semantic execution trace collection
-		if emitTrace == "jsonl" {
+		// Auto-enable when OTEL is configured (zero extra flags needed)
+		if emitTrace == "" && (telemetry.IsGoogleCloudEnabled() || telemetry.IsEnabled()) {
+			emitTrace = "auto"
+		}
+		if emitTrace != "" {
 			effCtx.Trace = ailtrace.NewCollector()
-			effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
-			if !quiet {
-				fmt.Fprintln(os.Stderr, "Trace collection enabled (jsonl)")
+			if strings.Contains(emitTrace, "jsonl") {
+				effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
+			}
+			if !quiet && emitTrace != "auto" {
+				fmt.Fprintf(os.Stderr, "Trace collection enabled (%s)\n", emitTrace)
 			}
 		}
 
@@ -632,6 +652,19 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			rt.GetEvaluator().SetDictionaryRegistry(result.DictReg)
 		}
 
+		// M-TRACE-EXPORT: Record module start for replay metadata
+		moduleName := ""
+		if result.Interface != nil {
+			moduleName = result.Interface.Module
+		}
+		var capsList []string
+		if caps != "" {
+			capsList = strings.Split(caps, ",")
+		}
+		if effCtx.Trace != nil && effCtx.Trace.Enabled() {
+			effCtx.Trace.RecordModuleStart(moduleName, capsList)
+		}
+
 		// Execute module entrypoint
 		execParams := moduleExecParams{
 			filename:          filename,
@@ -643,8 +676,15 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			noprint:           noprint,
 			maxRecursionDepth: maxRecursionDepth,
 		}
-		if err := executeModuleEntrypoint(rt, execParams); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		execErr := executeModuleEntrypoint(rt, execParams)
+
+		// M-TRACE-EXPORT: Record module end
+		if effCtx.Trace != nil && effCtx.Trace.Enabled() {
+			effCtx.Trace.RecordModuleEnd(moduleName, 0)
+		}
+
+		if execErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
 			os.Exit(1)
 		}
 
@@ -667,9 +707,19 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		// M-TRACE-EXPORT: Output semantic execution trace
 		if emitTrace != "" && effCtx.Trace != nil {
 			events := effCtx.Trace.Events()
-			if len(events) > 0 {
+
+			// Phase 1: JSONL output to stdout
+			if strings.Contains(emitTrace, "jsonl") && len(events) > 0 {
 				if err := ailtrace.WriteJSONL(os.Stdout, events); err != nil {
 					fmt.Fprintf(os.Stderr, "%s: trace output: %v\n", red("Error"), err)
+				}
+			}
+
+			// Phase 2: OTEL span emission
+			if (strings.Contains(emitTrace, "otel") || emitTrace == "auto") && len(events) > 0 {
+				evalTracer := otel.Tracer("ailang.eval")
+				if err := ailtrace.EmitOTELSpans(ctx, evalTracer, events, effCtx.Trace.BaseTime()); err != nil {
+					fmt.Fprintf(os.Stderr, "%s: OTEL trace emission: %v\n", red("Error"), err)
 				}
 			}
 		}

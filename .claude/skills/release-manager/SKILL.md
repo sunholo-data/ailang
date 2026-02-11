@@ -367,6 +367,14 @@ See [`resources/issue_closure_guide.md`](resources/issue_closure_guide.md) for h
 Semantic versioning: `MAJOR.MINOR.PATCH`
 - Examples: `0.0.9`, `0.1.0`, `1.0.0`
 
+## Prompt Version Consistency
+
+After release, verify both prompt registries are consistent:
+- `prompts/versions.json` — syntax teaching prompts (`ailang prompt`)
+- `prompts/devtools/versions.json` — dev tools reference (`ailang devtools-prompt`)
+
+Both are embedded in the binary via `//go:embed all:prompts`. New toolchain features should be reflected in the devtools prompt.
+
 ## Common Issues
 
 ### Tests Fail Before Release

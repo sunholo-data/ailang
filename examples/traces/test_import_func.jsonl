@@ -1,0 +1,4 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/test_import_func"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14125,"depth":1,"function":{"name":"test","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":15792,"depth":1,"function":{"name":"test","result":"42","duration_ns":1667}}
+{"version":"1.0","event":"module_end","timestamp_ns":18708,"module":{"name":"examples/runnable/test_import_func"}}

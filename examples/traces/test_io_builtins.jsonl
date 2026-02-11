@@ -1,0 +1,2 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/test_io_builtins","caps":["IO"]}}
+{"version":"1.0","event":"module_end","timestamp_ns":12958,"module":{"name":"examples/runnable/test_io_builtins"}}

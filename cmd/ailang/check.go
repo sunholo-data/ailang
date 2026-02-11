@@ -415,16 +415,7 @@ func outputInterface(modulePath string) {
 	fmt.Println(string(jsonBytes))
 }
 
-func exportTraining() {
-	fmt.Printf("%s Exporting training data...\n", cyan("→"))
-
-	// TODO: Implement training data export
-	fmt.Printf("  Analyzing execution traces...\n")
-	fmt.Printf("  Filtering high-quality traces (score > 0.8)...\n")
-	fmt.Printf("  Formatting for fine-tuning...\n")
-
-	fmt.Printf("\n%s Exported 0 training examples to training_data.jsonl\n", green("✓"))
-}
+// exportTraining is defined in export_training.go
 
 // checkDirectoryWithContext recursively checks all .ail files with telemetry
 func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {

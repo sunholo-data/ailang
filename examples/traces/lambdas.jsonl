@@ -1,0 +1,12 @@
+{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/lambdas","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":11708,"depth":1,"function":{"name":"\u003clambda\u003e","args":["\u003cfunction\u003e"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":12792,"depth":1,"function":{"name":"\u003clambda\u003e","result":"\u003cfunction\u003e","duration_ns":2458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":13292,"depth":1,"function":{"name":"$tmp2","args":["\u003cfunction\u003e"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":13583,"depth":1,"function":{"name":"$tmp2","result":"\u003cfunction\u003e","duration_ns":292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14250,"depth":1,"function":{"name":"addThenDouble","args":["5"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14667,"depth":2,"function":{"name":"g","args":["5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":19208,"depth":2,"function":{"name":"g","result":"6","duration_ns":4583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":19833,"depth":2,"function":{"name":"f","args":["6"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":23042,"depth":2,"function":{"name":"f","result":"12","duration_ns":3208}}
+{"version":"1.0","event":"function_exit","timestamp_ns":23292,"depth":1,"function":{"name":"addThenDouble","result":"12","duration_ns":9042}}
+{"version":"1.0","event":"module_end","timestamp_ns":32208,"module":{"name":"examples/runnable/lambdas"}}

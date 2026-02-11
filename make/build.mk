@@ -80,10 +80,14 @@ bootstrap-content: build ## Generate content bundle for bootstrap plugin sync
 	@echo "Generating bootstrap content bundle..."
 	@rm -rf $(BUILD_DIR)/bootstrap-content
 	@mkdir -p $(BUILD_DIR)/bootstrap-content/examples $(BUILD_DIR)/bootstrap-content/examples/runnable
-	@# 1. Active teaching prompt
+	@# 1a. Active teaching prompt (language syntax)
 	@ACTIVE=$$(python3 -c "import json; d=json.load(open('prompts/versions.json')); print(d['active'])"); \
 		cp "prompts/$${ACTIVE}.md" $(BUILD_DIR)/bootstrap-content/teaching-prompt.md; \
 		echo "  $(ARROW) Teaching prompt: $${ACTIVE}"
+	@# 1b. Active dev tools prompt (toolchain reference)
+	@DEVTOOLS=$$(python3 -c "import json; d=json.load(open('prompts/devtools/versions.json')); print(d['active'])"); \
+		cp "prompts/devtools/$${DEVTOOLS}.md" $(BUILD_DIR)/bootstrap-content/devtools-prompt.md; \
+		echo "  $(ARROW) Devtools prompt: $${DEVTOOLS}"
 	@# 2. Examples manifest
 	@cp examples/manifest.json $(BUILD_DIR)/bootstrap-content/manifest.json
 	@echo "  $(ARROW) Examples manifest"

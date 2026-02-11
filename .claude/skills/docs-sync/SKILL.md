@@ -192,8 +192,10 @@ The `post-release` skill should invoke docs-sync automatically:
 
 4. **One Source of Truth** - Version comes from:
    - `git describe --tags` → actual version
-   - `prompts/versions.json` → latest prompt
+   - `prompts/versions.json` → latest syntax prompt (`ailang prompt`)
+   - `prompts/devtools/versions.json` → latest dev tools prompt (`ailang devtools-prompt`)
    - These feed into `docs/src/constants/version.js`
+   - Website should reference both prompts and explain when to use each
 
 5. **Themes Over Changelog** - Group features by theme, not by version. Users care about "how do effects work?" not "what changed in v0.5.3?"
 

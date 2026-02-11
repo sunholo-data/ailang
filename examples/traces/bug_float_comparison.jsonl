@@ -1,0 +1,2 @@
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/bug_float_comparison"}}
+{"version":"1.0","event":"module_end","timestamp_ns":17709,"module":{"name":"examples/runnable/bug_float_comparison"}}

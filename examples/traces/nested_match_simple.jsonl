@@ -1,0 +1,10 @@
+{"version":"1.0","event":"module_start","timestamp_ns":1167,"module":{"name":"examples/runnable/nested_match_simple","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":21458,"depth":1,"function":{"name":"simpleNested","args":["Some(5)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":31458,"depth":1,"function":{"name":"simpleNested","result":"6","duration_ns":10000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":33458,"depth":1,"function":{"name":"std/io.println","args":["Simple nested: 6"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":37917,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":38500,"depth":1,"function":{"name":"stateThreading","args":["0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":55792,"depth":1,"function":{"name":"stateThreading","result":"25","duration_ns":17292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":59292,"depth":1,"function":{"name":"std/io.println","args":["State threading: 25"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":64042,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4792}}
+{"version":"1.0","event":"module_end","timestamp_ns":64208,"module":{"name":"examples/runnable/nested_match_simple"}}

@@ -1,0 +1,8 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/micro_option_map"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":16042,"depth":1,"function":{"name":"std/option.map","args":["\u003cfunction\u003e","Some(21)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":19417,"depth":2,"function":{"name":"f","args":["21"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":25042,"depth":2,"function":{"name":"f","result":"42","duration_ns":5542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":25917,"depth":1,"function":{"name":"std/option.map","result":"Some(42)","duration_ns":10042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":26583,"depth":1,"function":{"name":"std/option.getOrElse","args":["Some(42)","0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":27792,"depth":1,"function":{"name":"std/option.getOrElse","result":"42","duration_ns":1167}}
+{"version":"1.0","event":"module_end","timestamp_ns":31042,"module":{"name":"examples/runnable/micro_option_map"}}

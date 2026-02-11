@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "versions": {
+    "v0.8.0": {
+      "file": "prompts/devtools/v0.8.0.md",
+      "hash": "e22bb96586c19c4454221b09e9bfcc46bb3274d5220d1de092a04c4abe548dc8",
+      "description": "Comprehensive dev tools reference covering 16 sections: run/test (all flags), debug, replay, training export, chains, coordinator (15 subcommands), messaging (full), eval (6 commands), stdlib, telemetry/observatory (11 subcommands), dashboard/server, web/API, exec, compilation/advanced, AI provider config, WebAssembly",
+      "created": "2026-02-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Comprehensive dev tools reference. Complements ailang prompt (syntax) with full toolchain documentation. Organized by workflow. Covers all 38 CLI commands, all run flags, AI provider auth, WASM API, coordinator lifecycle, observatory analytics. ~610 lines, ~2960 words."
+    }
+  },
+  "active": "v0.8.0",
+  "notes": [
+    "Hash is SHA256 of the prompt file contents",
+    "Use 'active' field to specify default devtools prompt version",
+    "Dev tools prompts cover toolchain usage, NOT language syntax (see prompts/versions.json for syntax prompts)",
+    "Each version corresponds to an AILANG release and documents available CLI tools"
+  ]
+}

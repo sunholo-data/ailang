@@ -1,0 +1,122 @@
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/math_trig","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":24708,"depth":1,"function":{"name":"std/io.println","args":["=== Mathematical Constants ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":32833,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":33666,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":40166,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":6500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":43083,"depth":1,"function":{"name":"std/io.println","args":["PI = 3.141592653589793"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":47250,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":47791,"depth":1,"function":{"name":"std/math.E","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":51375,"depth":1,"function":{"name":"std/math.E","result":"2.718281828459045","duration_ns":3583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":52541,"depth":1,"function":{"name":"std/io.println","args":["E  = 2.718281828459045"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":57291,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":57750,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":64041,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":64458,"depth":1,"function":{"name":"std/io.println","args":["=== Trigonometric Functions ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":69333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":69750,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":73041,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":3333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":80125,"depth":1,"function":{"name":"std/math.sin","args":["0.7853981633974483"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":83291,"depth":1,"function":{"name":"std/math.sin","result":"0.7071067811865475","duration_ns":3125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":84208,"depth":1,"function":{"name":"std/io.println","args":["sin(PI/4) = 0.7071067811865475"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":87541,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3334}}
+{"version":"1.0","event":"function_enter","timestamp_ns":88083,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":90583,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":2500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":94166,"depth":1,"function":{"name":"std/math.cos","args":["0.7853981633974483"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":97208,"depth":1,"function":{"name":"std/math.cos","result":"0.7071067811865476","duration_ns":3000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":98000,"depth":1,"function":{"name":"std/io.println","args":["cos(PI/4) = 0.7071067811865476"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":105583,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":7583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":106125,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":109916,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":3750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":114958,"depth":1,"function":{"name":"std/math.tan","args":["0.7853981633974483"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":118333,"depth":1,"function":{"name":"std/math.tan","result":"0.9999999999999998","duration_ns":3375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":119583,"depth":1,"function":{"name":"std/io.println","args":["tan(PI/4) = 0.9999999999999998"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":124000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":124541,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":140416,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":15875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":140916,"depth":1,"function":{"name":"std/io.println","args":["=== Point on Circle ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":144458,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":144958,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":148291,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":3334}}
+{"version":"1.0","event":"function_enter","timestamp_ns":152416,"depth":1,"function":{"name":"std/math.cos","args":["0.7853981633974483"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":155750,"depth":1,"function":{"name":"std/math.cos","result":"0.7071067811865476","duration_ns":3292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":160083,"depth":1,"function":{"name":"std/io.println","args":["x = 10*cos(PI/4) = 7.0710678118654755"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":163666,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":164083,"depth":1,"function":{"name":"std/math.PI","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":166708,"depth":1,"function":{"name":"std/math.PI","result":"3.141592653589793","duration_ns":2583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":170041,"depth":1,"function":{"name":"std/math.sin","args":["0.7853981633974483"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":172500,"depth":1,"function":{"name":"std/math.sin","result":"0.7071067811865475","duration_ns":2417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":176625,"depth":1,"function":{"name":"std/io.println","args":["y = 10*sin(PI/4) = 7.071067811865475"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":179666,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":180041,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":183125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":183458,"depth":1,"function":{"name":"std/io.println","args":["=== Distance Calculation ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":189000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":190791,"depth":1,"function":{"name":"distance","args":["0.0","0.0","3.0","4.0"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":208750,"depth":2,"function":{"name":"std/math.sqrt","args":["25.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":211416,"depth":2,"function":{"name":"std/math.sqrt","result":"5.0","duration_ns":2625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":211625,"depth":1,"function":{"name":"distance","result":"5.0","duration_ns":20834}}
+{"version":"1.0","event":"function_enter","timestamp_ns":212708,"depth":1,"function":{"name":"std/io.println","args":["distance(0,0,3,4) = 5.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":216166,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":216500,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":219541,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3041}}
+{"version":"1.0","event":"function_enter","timestamp_ns":220041,"depth":1,"function":{"name":"std/io.println","args":["=== Angle Calculation ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":223541,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":224583,"depth":1,"function":{"name":"angleToPoint","args":["1.0","1.0"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":227375,"depth":2,"function":{"name":"std/math.atan2","args":["1.0","1.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":230458,"depth":2,"function":{"name":"std/math.atan2","result":"0.7853981633974483","duration_ns":3083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":230750,"depth":1,"function":{"name":"angleToPoint","result":"0.7853981633974483","duration_ns":6167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":231791,"depth":1,"function":{"name":"std/io.println","args":["atan2(1,1) = 0.7853981633974483 radians"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":236333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":236833,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":240416,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":240833,"depth":1,"function":{"name":"std/io.println","args":["=== Powers and Logarithms ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":244458,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":245625,"depth":1,"function":{"name":"std/math.pow","args":["2.0","10.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":249541,"depth":1,"function":{"name":"std/math.pow","result":"1024.0","duration_ns":3959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":251041,"depth":1,"function":{"name":"std/io.println","args":["pow(2,10) = 1024.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":255333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":255958,"depth":1,"function":{"name":"std/math.sqrt","args":["2.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":258333,"depth":1,"function":{"name":"std/math.sqrt","result":"1.4142135623730951","duration_ns":2333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":259208,"depth":1,"function":{"name":"std/io.println","args":["sqrt(2) = 1.4142135623730951"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":262666,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":263166,"depth":1,"function":{"name":"std/math.exp","args":["1.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":266750,"depth":1,"function":{"name":"std/math.exp","result":"2.718281828459045","duration_ns":3542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":267875,"depth":1,"function":{"name":"std/io.println","args":["exp(1) = 2.718281828459045"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":274458,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":275083,"depth":1,"function":{"name":"std/math.E","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":278250,"depth":1,"function":{"name":"std/math.E","result":"2.718281828459045","duration_ns":3167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":278916,"depth":1,"function":{"name":"std/math.log","args":["2.718281828459045"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":281875,"depth":1,"function":{"name":"std/math.log","result":"1.0","duration_ns":3000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":283125,"depth":1,"function":{"name":"std/io.println","args":["log(e) = 1.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":287666,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":288083,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":291875,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":292291,"depth":1,"function":{"name":"std/io.println","args":["=== Rounding Functions ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":296958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4666}}
+{"version":"1.0","event":"function_enter","timestamp_ns":297666,"depth":1,"function":{"name":"std/math.floor","args":["3.7"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301583,"depth":1,"function":{"name":"std/math.floor","result":"3.0","duration_ns":3916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":302875,"depth":1,"function":{"name":"std/io.println","args":["floor(3.7) = 3.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":307958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5041}}
+{"version":"1.0","event":"function_enter","timestamp_ns":308541,"depth":1,"function":{"name":"std/math.ceil","args":["3.2"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":311041,"depth":1,"function":{"name":"std/math.ceil","result":"4.0","duration_ns":2459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":311875,"depth":1,"function":{"name":"std/io.println","args":["ceil(3.2) = 4.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":315583,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":316416,"depth":1,"function":{"name":"std/math.round","args":["3.5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":319541,"depth":1,"function":{"name":"std/math.round","result":"4.0","duration_ns":3125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":320750,"depth":1,"function":{"name":"std/io.println","args":["round(3.5) = 4.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":325375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":325833,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":329166,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3334}}
+{"version":"1.0","event":"function_enter","timestamp_ns":329500,"depth":1,"function":{"name":"std/io.println","args":["=== Absolute Value ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":337625,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":341416,"depth":1,"function":{"name":"std/math.abs_Float","args":["-3.14"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":344041,"depth":1,"function":{"name":"std/math.abs_Float","result":"3.14","duration_ns":2583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":345083,"depth":1,"function":{"name":"std/io.println","args":["abs_Float(-3.14) = 3.14"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":348583,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":352791,"depth":1,"function":{"name":"std/math.abs_Int","args":["-42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":356166,"depth":1,"function":{"name":"std/math.abs_Int","result":"42","duration_ns":3334}}
+{"version":"1.0","event":"function_enter","timestamp_ns":357250,"depth":1,"function":{"name":"std/io.println","args":["abs_Int(-42) = 42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":361000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":361333,"depth":1,"function":{"name":"std/io.println","args":["Done!"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":364625,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3292}}
+{"version":"1.0","event":"module_end","timestamp_ns":365291,"module":{"name":"examples/runnable/math_trig"}}

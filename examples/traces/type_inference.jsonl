@@ -1,0 +1,4 @@
+{"version":"1.0","event":"module_start","timestamp_ns":1000,"module":{"name":"examples/runnable/type_inference","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":11083,"depth":1,"function":{"name":"double","args":["21"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":16333,"depth":1,"function":{"name":"double","result":"42","duration_ns":5375}}
+{"version":"1.0","event":"module_end","timestamp_ns":23916,"module":{"name":"examples/runnable/type_inference"}}

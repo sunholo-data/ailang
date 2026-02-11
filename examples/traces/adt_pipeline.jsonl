@@ -1,0 +1,10 @@
+{"version":"1.0","event":"module_start","timestamp_ns":1083,"module":{"name":"examples/runnable/demos/adt_pipeline"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":17208,"depth":1,"function":{"name":"processValue","args":["21"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":95333,"depth":2,"function":{"name":"std/option.map","args":["\u003cfunction\u003e","Some(21)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":102917,"depth":3,"function":{"name":"f","args":["21"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":107708,"depth":3,"function":{"name":"f","result":"42","duration_ns":4500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":110625,"depth":2,"function":{"name":"std/option.map","result":"Some(42)","duration_ns":15375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":111708,"depth":2,"function":{"name":"std/option.getOrElse","args":["Some(42)","42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":113708,"depth":2,"function":{"name":"std/option.getOrElse","result":"42","duration_ns":2000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":113958,"depth":1,"function":{"name":"processValue","result":"42","duration_ns":96834}}
+{"version":"1.0","event":"module_end","timestamp_ns":118792,"module":{"name":"examples/runnable/demos/adt_pipeline"}}

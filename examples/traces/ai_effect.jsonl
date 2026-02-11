@@ -1,0 +1,9 @@
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/ai_effect","caps":["IO","AI"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":15500,"depth":1,"function":{"name":"std/io.println","args":["Asking AI: What is the capital of France?"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":21166,"depth":1,"function":{"name":"std/ai.call","args":["What is the capital of France? Reply in one word."]}}
+{"version":"1.0","event":"effect","timestamp_ns":24875,"depth":1,"effect":{"effect_name":"AI","op_name":"call","args":["What is the capital of France? Reply in one word."],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":25375,"depth":1,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":4166}}
+{"version":"1.0","event":"function_enter","timestamp_ns":26541,"depth":1,"function":{"name":"std/io.println","args":["AI says: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":28416,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1834}}
+{"version":"1.0","event":"module_end","timestamp_ns":28583,"module":{"name":"examples/runnable/ai_effect"}}

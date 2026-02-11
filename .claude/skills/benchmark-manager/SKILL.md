@@ -287,10 +287,11 @@ See [`resources/reference.md`](resources/reference.md) for:
 - **prompt-manager**: When benchmark failures indicate teaching prompt issues
 - **eval-analyzer**: For analyzing results across many benchmarks
 - **use-ailang**: For writing correct AILANG code
+- **devtools-prompt**: For toolchain docs (debugging, tracing, eval workflows) — `ailang devtools-prompt`
 
 ## Notes
 
 - Benchmarks live in `benchmarks/` directory
 - Eval results go to `eval_results/` directory
-- Teaching prompt is embedded in binary - rebuild after changes
+- Teaching prompts are embedded in binary - rebuild after changes (`ailang prompt` for syntax, `ailang devtools-prompt` for toolchain)
 - Use `<LANG>` placeholder in task_prompt - it's replaced with "AILANG" or "Python"

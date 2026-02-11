@@ -1,0 +1,24 @@
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/string_contains","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":25500,"depth":1,"function":{"name":"std/io.println","args":["Text: Hello, AILANG world!"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":36542,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":11083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":37584,"depth":1,"function":{"name":"std/string.contains","args":["Hello, AILANG world!","AILANG"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":41459,"depth":2,"function":{"name":"find","args":["Hello, AILANG world!","AILANG"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":47292,"depth":2,"function":{"name":"find","result":"7","duration_ns":5833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":52125,"depth":1,"function":{"name":"std/string.contains","result":"true","duration_ns":14542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":54792,"depth":1,"function":{"name":"std/io.println","args":["Contains 'AILANG': true"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59250,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":59834,"depth":1,"function":{"name":"std/string.contains","args":["Hello, AILANG world!","Python"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":62875,"depth":2,"function":{"name":"find","args":["Hello, AILANG world!","Python"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":65750,"depth":2,"function":{"name":"find","result":"-1","duration_ns":2875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":67584,"depth":1,"function":{"name":"std/string.contains","result":"false","duration_ns":7708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":68500,"depth":1,"function":{"name":"std/io.println","args":["Contains 'Python': false"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":72959,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":73667,"depth":1,"function":{"name":"std/string.find","args":["Hello, AILANG world!","world"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77042,"depth":1,"function":{"name":"std/string.find","result":"14","duration_ns":3375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":78084,"depth":1,"function":{"name":"std/io.println","args":["Index of 'world': 14"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":83167,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":83875,"depth":1,"function":{"name":"std/string.find","args":["Hello, AILANG world!","missing"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":88542,"depth":1,"function":{"name":"std/string.find","result":"-1","duration_ns":4666}}
+{"version":"1.0","event":"function_enter","timestamp_ns":89709,"depth":1,"function":{"name":"std/io.println","args":["Index of 'missing': -1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":94542,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4833}}
+{"version":"1.0","event":"module_end","timestamp_ns":94875,"module":{"name":"examples/runnable/string_contains"}}

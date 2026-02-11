@@ -409,7 +409,10 @@ The script automatically:
 
 ### 7. Update Public Documentation
 
-- Update `prompts/` with latest AILANG syntax
+- Update `prompts/` with latest AILANG syntax (`ailang prompt`)
+- Update `prompts/devtools/` with latest toolchain docs (`ailang devtools-prompt`)
+  - New CLI commands or flags should be added to the devtools prompt
+  - Verify with: `ailang devtools-prompt | grep "new-command"`
 - Update website docs (`docs/`) with latest features
 - Remove outdated examples or references
 - Add new examples to website

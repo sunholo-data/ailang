@@ -85,6 +85,7 @@ const sidebars = {
         'guides/development',
         'guides/testing',
         'guides/debugging',
+        'guides/traces',
         'guides/telemetry',
         'guides/go-interop',
         'guides/serve-api',

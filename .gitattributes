@@ -10,6 +10,9 @@ prompts/*.md text eol=lf
 # Force LF for shell scripts
 *.sh text eol=lf
 
+# Trace baselines (generated, hide from diffs)
+examples/traces/*.jsonl linguist-generated text eol=lf
+
 # Binary files
 *.png binary
 *.jpg binary

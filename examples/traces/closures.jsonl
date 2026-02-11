@@ -1,0 +1,6 @@
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/closures","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":10292,"depth":1,"function":{"name":"makeAdder","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":11542,"depth":1,"function":{"name":"makeAdder","result":"\u003cfunction\u003e","duration_ns":1083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":12042,"depth":1,"function":{"name":"add10","args":["5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":16542,"depth":1,"function":{"name":"add10","result":"15","duration_ns":4500}}
+{"version":"1.0","event":"module_end","timestamp_ns":24083,"module":{"name":"examples/runnable/closures"}}

@@ -1,0 +1,2 @@
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/test_cli_io","caps":["IO"]}}
+{"version":"1.0","event":"module_end","timestamp_ns":17083,"module":{"name":"examples/runnable/test_cli_io"}}

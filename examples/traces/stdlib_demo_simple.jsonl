@@ -1,0 +1,2 @@
+{"version":"1.0","event":"module_start","timestamp_ns":2708,"module":{"name":"examples/runnable/stdlib_demo_simple","caps":["IO"]}}
+{"version":"1.0","event":"module_end","timestamp_ns":18708,"module":{"name":"examples/runnable/stdlib_demo_simple"}}

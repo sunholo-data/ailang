@@ -1,0 +1,48 @@
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/json_helpers","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":81084,"depth":1,"function":{"name":"parsePerson","args":["{\"name\":\"Alice\",\"age\":30,\"score\":95.5}"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":92542,"depth":2,"function":{"name":"std/json.decode","args":["{\"name\":\"Alice\",\"age\":30,\"score\":95.5}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":165625,"depth":2,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]))","duration_ns":72834}}
+{"version":"1.0","event":"function_enter","timestamp_ns":173500,"depth":2,"function":{"name":"formatPerson","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":244292,"depth":3,"function":{"name":"getName","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":271042,"depth":4,"function":{"name":"std/json.getString","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {value: JNumber(95.5), key: score}])","name"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":296375,"depth":5,"function":{"name":"get","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])","name"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":321959,"depth":6,"function":{"name":"findInList","args":["[{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]","name"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":328667,"depth":6,"function":{"name":"findInList","result":"Some(JString(Alice))","duration_ns":6500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":329167,"depth":5,"function":{"name":"get","result":"Some(JString(Alice))","duration_ns":32791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":330167,"depth":5,"function":{"name":"asString","args":["JString(Alice)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":354584,"depth":5,"function":{"name":"asString","result":"Some(Alice)","duration_ns":24375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":354792,"depth":4,"function":{"name":"std/json.getString","result":"Some(Alice)","duration_ns":83708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":355542,"depth":3,"function":{"name":"getName","result":"Alice","duration_ns":111333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":360500,"depth":3,"function":{"name":"getAge","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":386084,"depth":4,"function":{"name":"std/json.getInt","args":["JObject([{key: name, value: JString(Alice)}, {value: JNumber(30.0), key: age}, {key: score, value: JNumber(95.5)}])","age"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":420625,"depth":5,"function":{"name":"get","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])","age"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":456959,"depth":6,"function":{"name":"findInList","args":["[{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]","age"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":464000,"depth":7,"function":{"name":"findInList","args":["[{key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]","age"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":468667,"depth":7,"function":{"name":"findInList","result":"Some(JNumber(30.0))","duration_ns":4541}}
+{"version":"1.0","event":"function_exit","timestamp_ns":469292,"depth":6,"function":{"name":"findInList","result":"Some(JNumber(30.0))","duration_ns":12333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":469792,"depth":5,"function":{"name":"get","result":"Some(JNumber(30.0))","duration_ns":49166}}
+{"version":"1.0","event":"function_enter","timestamp_ns":473334,"depth":5,"function":{"name":"asNumber","args":["JNumber(30.0)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":495750,"depth":5,"function":{"name":"asNumber","result":"Some(30.0)","duration_ns":22375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":501084,"depth":4,"function":{"name":"std/json.getInt","result":"Some(30)","duration_ns":115000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":504125,"depth":3,"function":{"name":"getAge","result":"30","duration_ns":143625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":505000,"depth":3,"function":{"name":"std/string.intToStr","args":["30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":526250,"depth":3,"function":{"name":"std/string.intToStr","result":"30","duration_ns":21250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":532875,"depth":3,"function":{"name":"getScore","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":556834,"depth":4,"function":{"name":"std/json.getNumber","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])","score"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":580667,"depth":5,"function":{"name":"get","args":["JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}])","score"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":607750,"depth":6,"function":{"name":"findInList","args":["[{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]","score"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":616750,"depth":7,"function":{"name":"findInList","args":["[{key: age, value: JNumber(30.0)}, {key: score, value: JNumber(95.5)}]","score"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":621542,"depth":8,"function":{"name":"findInList","args":["[{key: score, value: JNumber(95.5)}]","score"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":625792,"depth":8,"function":{"name":"findInList","result":"Some(JNumber(95.5))","duration_ns":4167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":626292,"depth":7,"function":{"name":"findInList","result":"Some(JNumber(95.5))","duration_ns":9583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":626917,"depth":6,"function":{"name":"findInList","result":"Some(JNumber(95.5))","duration_ns":19125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":627292,"depth":5,"function":{"name":"get","result":"Some(JNumber(95.5))","duration_ns":46583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":628459,"depth":5,"function":{"name":"asNumber","args":["JNumber(95.5)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":650750,"depth":5,"function":{"name":"asNumber","result":"Some(95.5)","duration_ns":22292}}
+{"version":"1.0","event":"function_exit","timestamp_ns":652959,"depth":4,"function":{"name":"std/json.getNumber","result":"Some(95.5)","duration_ns":96083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":653959,"depth":3,"function":{"name":"getScore","result":"95.5","duration_ns":121083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":654709,"depth":3,"function":{"name":"std/string.floatToStr","args":["95.5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":748084,"depth":3,"function":{"name":"std/string.floatToStr","result":"95.5","duration_ns":93166}}
+{"version":"1.0","event":"function_exit","timestamp_ns":751042,"depth":2,"function":{"name":"formatPerson","result":"Alice (age 30, score 95.5)","duration_ns":577500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":751250,"depth":1,"function":{"name":"parsePerson","result":"Alice (age 30, score 95.5)","duration_ns":670209}}
+{"version":"1.0","event":"module_end","timestamp_ns":757375,"module":{"name":"examples/runnable/json_helpers"}}

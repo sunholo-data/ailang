@@ -1,0 +1,12 @@
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/option_demo"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":17750,"depth":1,"function":{"name":"std/option.getOrElse","args":["Some(42)","0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20708,"depth":1,"function":{"name":"std/option.getOrElse","result":"42","duration_ns":3041}}
+{"version":"1.0","event":"function_enter","timestamp_ns":22292,"depth":1,"function":{"name":"std/option.getOrElse","args":["None","99"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":23333,"depth":1,"function":{"name":"std/option.getOrElse","result":"99","duration_ns":1042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":24583,"depth":1,"function":{"name":"std/option.map","args":["\u003cfunction\u003e","Some(21)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":25917,"depth":2,"function":{"name":"f","args":["21"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":29958,"depth":2,"function":{"name":"f","result":"42","duration_ns":4042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":30625,"depth":1,"function":{"name":"std/option.map","result":"Some(42)","duration_ns":6041}}
+{"version":"1.0","event":"function_enter","timestamp_ns":31167,"depth":1,"function":{"name":"std/option.getOrElse","args":["Some(42)","0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":32375,"depth":1,"function":{"name":"std/option.getOrElse","result":"42","duration_ns":1166}}
+{"version":"1.0","event":"module_end","timestamp_ns":39500,"module":{"name":"examples/runnable/option_demo"}}

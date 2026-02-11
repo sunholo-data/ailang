@@ -1,0 +1,24 @@
+{"version":"1.0","event":"module_start","timestamp_ns":958,"module":{"name":"examples/runnable/effectful_list_t3_foldlE_acc","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":46750,"depth":1,"function":{"name":"std/list.foldlE","args":["\u003cfunction\u003e","","[1, 2, 3]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50125,"depth":2,"function":{"name":"f","args":["","1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":55500,"depth":3,"function":{"name":"std/io.println","args":["  acc="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":64291,"depth":3,"function":{"name":"std/io.println","result":"()","duration_ns":8667}}
+{"version":"1.0","event":"function_exit","timestamp_ns":65958,"depth":2,"function":{"name":"f","result":"1 ","duration_ns":15792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":68375,"depth":2,"function":{"name":"foldlE","args":["\u003cfunction\u003e","1 ","[2, 3]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70041,"depth":3,"function":{"name":"f","args":["1 ","2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":71041,"depth":4,"function":{"name":"std/io.println","args":["  acc=1 "]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":76750,"depth":4,"function":{"name":"std/io.println","result":"()","duration_ns":5708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77750,"depth":3,"function":{"name":"f","result":"1 2 ","duration_ns":7708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":78541,"depth":3,"function":{"name":"foldlE","args":["\u003cfunction\u003e","1 2 ","[3]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":79750,"depth":4,"function":{"name":"f","args":["1 2 ","3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":80833,"depth":5,"function":{"name":"std/io.println","args":["  acc=1 2 "]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":84625,"depth":5,"function":{"name":"std/io.println","result":"()","duration_ns":3792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":86875,"depth":4,"function":{"name":"f","result":"1 2 3 ","duration_ns":7167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":87333,"depth":4,"function":{"name":"foldlE","args":["\u003cfunction\u003e","1 2 3 ","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":87750,"depth":4,"function":{"name":"foldlE","result":"1 2 3 ","duration_ns":375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":87833,"depth":3,"function":{"name":"foldlE","result":"1 2 3 ","duration_ns":9333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":87958,"depth":2,"function":{"name":"foldlE","result":"1 2 3 ","duration_ns":19583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":88166,"depth":1,"function":{"name":"std/list.foldlE","result":"1 2 3 ","duration_ns":41667}}
+{"version":"1.0","event":"function_enter","timestamp_ns":88916,"depth":1,"function":{"name":"std/io.println","args":["T3 foldlE: [1 2 3 ]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":93125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4167}}
+{"version":"1.0","event":"module_end","timestamp_ns":93333,"module":{"name":"examples/runnable/effectful_list_t3_foldlE_acc"}}

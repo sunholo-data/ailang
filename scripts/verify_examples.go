@@ -31,6 +31,11 @@ func main() {
 			format = "markdown"
 		case "--all":
 			allExamples = true
+		case "--trace":
+			useTrace = true
+		case "--update-baselines":
+			useTrace = true
+			updateBaselines = true
 		case "--threshold":
 			if i+1 < len(os.Args) {
 				fmt.Sscanf(os.Args[i+1], "%f", &threshold)
@@ -42,6 +47,11 @@ func main() {
 	// Set global flag for findAllExamples
 	useAllExamples = allExamples
 
+	if updateBaselines {
+		runUpdateBaselines()
+		return
+	}
+
 	switch format {
 	case "json":
 		verifyExamplesJSON(threshold)
@@ -52,7 +62,13 @@ func main() {
 	}
 }
 
-var useAllExamples = false
+var (
+	useAllExamples  = false
+	useTrace        = false
+	updateBaselines = false
+)
+
+const tracesDir = "examples/traces"
 
 func runExample(filename string) reporttypes.ExampleResult {
 	start := time.Now()
@@ -159,6 +175,11 @@ done:
 	if entrypoint != "main" {
 		args = append(args, "--entry", entrypoint)
 	}
+	// When tracing, add --emit-trace jsonl and --quiet
+	// Status output goes to stderr, trace JSONL goes to stdout
+	if useTrace {
+		args = append(args, "--emit-trace", "jsonl", "--quiet")
+	}
 	args = append(args, filename)
 
 	cmd := exec.Command("go", args...)
@@ -187,7 +208,275 @@ done:
 		}
 	}
 
+	// Trace verification (only for passing examples)
+	if useTrace && result.Status == "passed" {
+		traceVerify(&result, filename, stdout.String())
+	}
+
 	return result
+}
+
+// extractJSONL filters raw output to only JSONL lines (starting with '{').
+// Program output (print/println) is interleaved with trace events on stdout.
+func extractJSONL(raw string) string {
+	var jsonLines []string
+	for _, line := range strings.Split(raw, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "{") {
+			jsonLines = append(jsonLines, line)
+		}
+	}
+	return strings.Join(jsonLines, "\n")
+}
+
+// traceVerify captures trace data and compares against baseline if one exists.
+func traceVerify(result *reporttypes.ExampleResult, filename, traceOutput string) {
+	// Extract only JSONL lines (program print output is interleaved)
+	jsonlOnly := extractJSONL(traceOutput)
+
+	// Count trace events
+	lines := strings.Split(strings.TrimSpace(jsonlOnly), "\n")
+	eventCount := 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, "{") {
+			eventCount++
+		}
+	}
+	result.TraceEvents = eventCount
+
+	if eventCount == 0 {
+		result.TraceStatus = "error"
+		return
+	}
+
+	// Score the trace using ailang export-training --score --json
+	score := scoreTrace(jsonlOnly)
+	result.TraceScore = score
+
+	// Check for baseline
+	baselinePath := traceBaselinePath(filename)
+	if _, err := os.Stat(baselinePath); os.IsNotExist(err) {
+		result.TraceStatus = "new"
+		return
+	}
+
+	// Compare: read baseline and compare event types/function names (ignore timestamps)
+	baselineData, err := os.ReadFile(baselinePath)
+	if err != nil {
+		result.TraceStatus = "error"
+		return
+	}
+
+	if tracesMatch(string(baselineData), jsonlOnly) {
+		result.TraceStatus = "match"
+	} else {
+		result.TraceStatus = "mismatch"
+	}
+}
+
+// tracesMatch compares two traces ignoring timestamps and durations.
+// Returns true if the event sequence (types, function names, args) matches.
+func tracesMatch(baseline, current string) bool {
+	baselineEvents := parseTraceEvents(baseline)
+	currentEvents := parseTraceEvents(current)
+
+	if len(baselineEvents) != len(currentEvents) {
+		return false
+	}
+
+	for i := range baselineEvents {
+		if baselineEvents[i] != currentEvents[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// parseTraceEvents extracts a normalized sequence of event signatures for comparison.
+// Each signature includes event type + key fields (ignoring timestamps/durations).
+func parseTraceEvents(traceData string) []string {
+	var signatures []string
+	for _, line := range strings.Split(strings.TrimSpace(traceData), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "{") {
+			continue
+		}
+		var evt map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &evt); err != nil {
+			continue
+		}
+
+		eventType, _ := evt["event"].(string)
+		sig := eventType
+
+		// Add function name for function events.
+		// Args are excluded because Go map iteration order makes record/dict
+		// string representations non-deterministic between runs.
+		if fn, ok := evt["function"].(map[string]interface{}); ok {
+			if name, ok := fn["name"].(string); ok {
+				sig += ":" + name
+			}
+		}
+
+		// Add module name for module events
+		if mod, ok := evt["module"].(map[string]interface{}); ok {
+			if name, ok := mod["name"].(string); ok {
+				sig += ":" + name
+			}
+		}
+
+		// Add effect info for effect events
+		if eff, ok := evt["effect"].(map[string]interface{}); ok {
+			if name, ok := eff["effect_name"].(string); ok {
+				sig += ":" + name
+			}
+			if op, ok := eff["op_name"].(string); ok {
+				sig += "." + op
+			}
+		}
+
+		signatures = append(signatures, sig)
+	}
+	return signatures
+}
+
+// scoreTrace runs the scoring algorithm on trace data.
+// Returns the quality score (0.0-1.0).
+func scoreTrace(traceData string) float64 {
+	// Write trace to temp file and score it
+	tmpFile, err := os.CreateTemp("", "trace-score-*.jsonl")
+	if err != nil {
+		return 0
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(traceData); err != nil {
+		tmpFile.Close()
+		return 0
+	}
+	tmpFile.Close()
+
+	// Run ailang export-training --score --json <file>
+	cmd := exec.Command("go", "run", "./cmd/ailang", "export-training", "--score", "--json", tmpFile.Name())
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return 0
+	}
+
+	// Parse JSON output to extract score
+	var scores []struct {
+		Score struct {
+			Total float64 `json:"total"`
+		} `json:"score"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &scores); err != nil {
+		return 0
+	}
+	if len(scores) > 0 {
+		return scores[0].Score.Total
+	}
+	return 0
+}
+
+// traceBaselinePath returns the path to the baseline trace for a given example.
+func traceBaselinePath(examplePath string) string {
+	// examples/runnable/hello.ail -> examples/traces/hello.jsonl
+	base := filepath.Base(examplePath)
+	name := strings.TrimSuffix(base, ".ail")
+	return filepath.Join(tracesDir, name+".jsonl")
+}
+
+// runUpdateBaselines generates fresh baseline traces for all passing examples.
+func runUpdateBaselines() {
+	files, err := findAllExamples()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding examples: %v\n", err)
+		os.Exit(1)
+	}
+
+	sort.Strings(files)
+
+	// Ensure traces directory exists
+	if err := os.MkdirAll(tracesDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating traces directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	updated := 0
+	skippedCount := 0
+	failedCount := 0
+
+	fmt.Println("Updating trace baselines")
+	fmt.Println("========================")
+
+	for _, file := range files {
+		displayName := strings.TrimPrefix(file, "examples/")
+		fmt.Printf("  %s... ", displayName)
+
+		result := runExample(file)
+
+		if result.Status != "passed" {
+			fmt.Printf("SKIP (%s)\n", result.Status)
+			if result.Status == "failed" {
+				failedCount++
+			} else {
+				skippedCount++
+			}
+			continue
+		}
+
+		if result.TraceEvents == 0 {
+			fmt.Printf("SKIP (no trace events)\n")
+			skippedCount++
+			continue
+		}
+
+		// Write filtered JSONL to baseline file (strip program print output)
+		baselinePath := traceBaselinePath(file)
+		jsonlData := extractJSONL(result.Output)
+		if err := os.WriteFile(baselinePath, []byte(jsonlData+"\n"), 0644); err != nil {
+			fmt.Printf("ERROR: %v\n", err)
+			failedCount++
+			continue
+		}
+
+		fmt.Printf("OK (%d events, score %.2f)\n", result.TraceEvents, result.TraceScore)
+		updated++
+	}
+
+	fmt.Printf("\nUpdated %d baselines (%d skipped, %d failed)\n", updated, skippedCount, failedCount)
+}
+
+// computeTraceSummary aggregates trace results across all examples.
+func computeTraceSummary(results []reporttypes.ExampleResult) *reporttypes.TraceSummary {
+	summary := &reporttypes.TraceSummary{}
+	totalScore := 0.0
+
+	for _, r := range results {
+		if r.TraceStatus == "" {
+			continue
+		}
+		summary.Traced++
+		totalScore += r.TraceScore
+
+		switch r.TraceStatus {
+		case "match":
+			summary.Matches++
+		case "mismatch":
+			summary.Mismatches++
+		case "new":
+			summary.NewTraces++
+		case "error":
+			summary.Errors++
+		}
+	}
+
+	if summary.Traced > 0 {
+		summary.AvgScore = totalScore / float64(summary.Traced)
+	}
+	return summary
 }
 
 // findAllExamples finds all .ail files in examples/ directory
@@ -247,6 +536,7 @@ func verifyExamplesPlain(threshold float64) {
 	passed := 0
 	failed := 0
 	skipped := 0
+	var allResults []reporttypes.ExampleResult
 
 	fmt.Println("Verifying AILANG Examples")
 	fmt.Println("=========================")
@@ -257,10 +547,15 @@ func verifyExamplesPlain(threshold float64) {
 		fmt.Printf("Testing %s... ", displayName)
 
 		result := runExample(file)
+		allResults = append(allResults, result)
 
 		switch result.Status {
 		case "passed":
-			fmt.Printf("✓ PASS (%.2fs)\n", result.Duration.Seconds())
+			suffix := ""
+			if useTrace && result.TraceStatus != "" {
+				suffix = fmt.Sprintf(" [trace:%s]", result.TraceStatus)
+			}
+			fmt.Printf("✓ PASS (%.2fs)%s\n", result.Duration.Seconds(), suffix)
 			passed++
 		case "failed":
 			fmt.Printf("✗ FAIL (%.2fs)\n", result.Duration.Seconds())
@@ -285,6 +580,17 @@ func verifyExamplesPlain(threshold float64) {
 	fmt.Printf("  Passed: %d\n", passed)
 	fmt.Printf("  Failed: %d\n", failed)
 	fmt.Printf("  Skipped: %d\n", skipped)
+
+	if useTrace {
+		summary := computeTraceSummary(allResults)
+		fmt.Printf("\nTrace Determinism:\n")
+		fmt.Printf("  Traced: %d\n", summary.Traced)
+		fmt.Printf("  Matches: %d\n", summary.Matches)
+		fmt.Printf("  Mismatches: %d\n", summary.Mismatches)
+		fmt.Printf("  New (no baseline): %d\n", summary.NewTraces)
+		fmt.Printf("  Errors: %d\n", summary.Errors)
+		fmt.Printf("  Avg Score: %.2f\n", summary.AvgScore)
+	}
 
 	// One-line summary (useful for CI)
 	fmt.Printf("\nExamples: %d/%d passed (%.1f%%)\n", passed, total, passRate)
@@ -334,6 +640,10 @@ func verifyExamplesJSON(threshold float64) {
 
 	report.TotalExamples = len(report.Results)
 
+	if useTrace {
+		report.TraceSummary = computeTraceSummary(report.Results)
+	}
+
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(report); err != nil {
@@ -367,11 +677,13 @@ func verifyExamplesMarkdown() {
 	sort.Strings(files)
 
 	var passed, failed, skipped []string
+	var allResults []reporttypes.ExampleResult
 
 	for _, file := range files {
 		// Use relative path from examples/ for better clarity
 		displayName := strings.TrimPrefix(file, "examples/")
 		result := runExample(file)
+		allResults = append(allResults, result)
 
 		switch result.Status {
 		case "passed":
@@ -412,6 +724,17 @@ func verifyExamplesMarkdown() {
 		}
 	} else {
 		fmt.Println("*None*")
+	}
+
+	if useTrace {
+		summary := computeTraceSummary(allResults)
+		fmt.Println()
+		fmt.Println("### Trace Determinism")
+		fmt.Printf("- Traced: %d\n", summary.Traced)
+		fmt.Printf("- Matches: %d\n", summary.Matches)
+		fmt.Printf("- Mismatches: %d\n", summary.Mismatches)
+		fmt.Printf("- New (no baseline): %d\n", summary.NewTraces)
+		fmt.Printf("- Avg Score: %.2f\n", summary.AvgScore)
 	}
 
 	fmt.Println()

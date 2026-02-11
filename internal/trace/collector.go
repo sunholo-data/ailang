@@ -194,6 +194,15 @@ func (c *Collector) RecordError(msg, location string) {
 	})
 }
 
+// BaseTime returns the collector's creation time.
+// Used by EmitOTELSpans to reconstruct absolute timestamps.
+func (c *Collector) BaseTime() time.Time {
+	if c == nil {
+		return time.Time{}
+	}
+	return c.startTime
+}
+
 // nowNS returns nanoseconds since collector creation.
 func (c *Collector) nowNS() int64 {
 	return time.Since(c.startTime).Nanoseconds()

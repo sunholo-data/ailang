@@ -1,0 +1,11 @@
+{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/cli_args_demo","caps":["IO","Env"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":40833,"depth":1,"function":{"name":"std/env.getArgs","args":["()"]}}
+{"version":"1.0","event":"effect","timestamp_ns":46708,"depth":1,"effect":{"effect_name":"Env","op_name":"getArgs","args":["()"],"result":"[]"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":47125,"depth":1,"function":{"name":"std/env.getArgs","result":"[]","duration_ns":6375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":47750,"depth":1,"function":{"name":"std/list.length","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":50416,"depth":1,"function":{"name":"std/list.length","result":"0","duration_ns":2666}}
+{"version":"1.0","event":"function_enter","timestamp_ns":51333,"depth":1,"function":{"name":"std/io.println","args":["Usage: ailang run --caps IO,Env examples/runnable/cli_args_demo.ail \u003cname\u003e [\u003cname\u003e ...]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":60166,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8834}}
+{"version":"1.0","event":"function_enter","timestamp_ns":60666,"depth":1,"function":{"name":"std/io.println","args":["No arguments provided!"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":64500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3833}}
+{"version":"1.0","event":"module_end","timestamp_ns":64833,"module":{"name":"examples/runnable/cli_args_demo"}}

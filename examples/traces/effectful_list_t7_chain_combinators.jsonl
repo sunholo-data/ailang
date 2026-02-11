@@ -1,0 +1,92 @@
+{"version":"1.0","event":"module_start","timestamp_ns":917,"module":{"name":"examples/runnable/effectful_list_t7_chain_combinators","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":38792,"depth":1,"function":{"name":"std/list.mapE","args":["\u003cfunction\u003e","[1, 2, 3, 4, 5]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":41958,"depth":2,"function":{"name":"f","args":["1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":43583,"depth":3,"function":{"name":"std/io.println","args":["  double 1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":51292,"depth":3,"function":{"name":"std/io.println","result":"()","duration_ns":7583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":56208,"depth":2,"function":{"name":"f","result":"2","duration_ns":14250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":57917,"depth":2,"function":{"name":"mapE","args":["\u003cfunction\u003e","[2, 3, 4, 5]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":59083,"depth":3,"function":{"name":"f","args":["2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":60250,"depth":4,"function":{"name":"std/io.println","args":["  double 2"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":65000,"depth":4,"function":{"name":"std/io.println","result":"()","duration_ns":4708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":67917,"depth":3,"function":{"name":"f","result":"4","duration_ns":8792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":69375,"depth":3,"function":{"name":"mapE","args":["\u003cfunction\u003e","[3, 4, 5]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70500,"depth":4,"function":{"name":"f","args":["3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":71417,"depth":5,"function":{"name":"std/io.println","args":["  double 3"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77250,"depth":5,"function":{"name":"std/io.println","result":"()","duration_ns":5833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":80042,"depth":4,"function":{"name":"f","result":"6","duration_ns":9542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":81292,"depth":4,"function":{"name":"mapE","args":["\u003cfunction\u003e","[4, 5]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":82667,"depth":5,"function":{"name":"f","args":["4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":83625,"depth":6,"function":{"name":"std/io.println","args":["  double 4"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":89333,"depth":6,"function":{"name":"std/io.println","result":"()","duration_ns":5750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":92000,"depth":5,"function":{"name":"f","result":"8","duration_ns":9333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":92917,"depth":5,"function":{"name":"mapE","args":["\u003cfunction\u003e","[5]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":94125,"depth":6,"function":{"name":"f","args":["5"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":95042,"depth":7,"function":{"name":"std/io.println","args":["  double 5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":99958,"depth":7,"function":{"name":"std/io.println","result":"()","duration_ns":4917}}
+{"version":"1.0","event":"function_exit","timestamp_ns":102042,"depth":6,"function":{"name":"f","result":"10","duration_ns":7875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":102708,"depth":6,"function":{"name":"mapE","args":["\u003cfunction\u003e","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":103417,"depth":6,"function":{"name":"mapE","result":"[]","duration_ns":708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":104292,"depth":5,"function":{"name":"mapE","result":"[10]","duration_ns":11333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":104958,"depth":4,"function":{"name":"mapE","result":"[8, 10]","duration_ns":23708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":105667,"depth":3,"function":{"name":"mapE","result":"[6, 8, 10]","duration_ns":36250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":106500,"depth":2,"function":{"name":"mapE","result":"[4, 6, 8, 10]","duration_ns":48583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":107458,"depth":1,"function":{"name":"std/list.mapE","result":"[2, 4, 6, 8, 10]","duration_ns":68834}}
+{"version":"1.0","event":"function_enter","timestamp_ns":109000,"depth":1,"function":{"name":"std/io.println","args":["T7 doubled: [2, 4, 6, 8, 10]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":113875,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4833}}
+{"version":"1.0","event":"function_enter","timestamp_ns":115000,"depth":1,"function":{"name":"std/list.filterE","args":["\u003cfunction\u003e","[2, 4, 6, 8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":116125,"depth":2,"function":{"name":"p","args":["2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":116875,"depth":3,"function":{"name":"std/io.println","args":["  filter 2"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":121000,"depth":3,"function":{"name":"std/io.println","result":"()","duration_ns":4125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":123375,"depth":2,"function":{"name":"p","result":"false","duration_ns":7208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":124458,"depth":2,"function":{"name":"filterE","args":["\u003cfunction\u003e","[4, 6, 8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":125333,"depth":3,"function":{"name":"p","args":["4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":126875,"depth":4,"function":{"name":"std/io.println","args":["  filter 4"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":131083,"depth":4,"function":{"name":"std/io.println","result":"()","duration_ns":4209}}
+{"version":"1.0","event":"function_exit","timestamp_ns":133000,"depth":3,"function":{"name":"p","result":"false","duration_ns":7625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":133667,"depth":3,"function":{"name":"filterE","args":["\u003cfunction\u003e","[6, 8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":134792,"depth":4,"function":{"name":"p","args":["6"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":135625,"depth":5,"function":{"name":"std/io.println","args":["  filter 6"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":139792,"depth":5,"function":{"name":"std/io.println","result":"()","duration_ns":4167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":141583,"depth":4,"function":{"name":"p","result":"true","duration_ns":6791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":142500,"depth":4,"function":{"name":"filterE","args":["\u003cfunction\u003e","[8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":143375,"depth":5,"function":{"name":"p","args":["8"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":144125,"depth":6,"function":{"name":"std/io.println","args":["  filter 8"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":148375,"depth":6,"function":{"name":"std/io.println","result":"()","duration_ns":4292}}
+{"version":"1.0","event":"function_exit","timestamp_ns":150167,"depth":5,"function":{"name":"p","result":"true","duration_ns":6750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":150917,"depth":5,"function":{"name":"filterE","args":["\u003cfunction\u003e","[10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":151667,"depth":6,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":152500,"depth":7,"function":{"name":"std/io.println","args":["  filter 10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":156500,"depth":7,"function":{"name":"std/io.println","result":"()","duration_ns":4042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":158958,"depth":6,"function":{"name":"p","result":"true","duration_ns":7250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":159542,"depth":6,"function":{"name":"filterE","args":["\u003cfunction\u003e","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":159958,"depth":6,"function":{"name":"filterE","result":"[]","duration_ns":417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":160458,"depth":5,"function":{"name":"filterE","result":"[10]","duration_ns":9541}}
+{"version":"1.0","event":"function_exit","timestamp_ns":161083,"depth":4,"function":{"name":"filterE","result":"[8, 10]","duration_ns":18584}}
+{"version":"1.0","event":"function_exit","timestamp_ns":161750,"depth":3,"function":{"name":"filterE","result":"[6, 8, 10]","duration_ns":28083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":162125,"depth":2,"function":{"name":"filterE","result":"[6, 8, 10]","duration_ns":37666}}
+{"version":"1.0","event":"function_exit","timestamp_ns":162542,"depth":1,"function":{"name":"std/list.filterE","result":"[6, 8, 10]","duration_ns":47542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":164667,"depth":1,"function":{"name":"std/io.println","args":["T7 filtered: [6, 8, 10]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":168958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":170000,"depth":1,"function":{"name":"std/list.foldlE","args":["\u003cfunction\u003e","0","[6, 8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":171500,"depth":2,"function":{"name":"f","args":["0","6"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":173167,"depth":3,"function":{"name":"std/io.println","args":["  fold 0+6"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":177125,"depth":3,"function":{"name":"std/io.println","result":"()","duration_ns":3958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":179333,"depth":2,"function":{"name":"f","result":"6","duration_ns":7792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":180083,"depth":2,"function":{"name":"foldlE","args":["\u003cfunction\u003e","6","[8, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":181583,"depth":3,"function":{"name":"f","args":["6","8"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":183042,"depth":4,"function":{"name":"std/io.println","args":["  fold 6+8"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":186917,"depth":4,"function":{"name":"std/io.println","result":"()","duration_ns":3917}}
+{"version":"1.0","event":"function_exit","timestamp_ns":189083,"depth":3,"function":{"name":"f","result":"14","duration_ns":7500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":189833,"depth":3,"function":{"name":"foldlE","args":["\u003cfunction\u003e","14","[10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":191000,"depth":4,"function":{"name":"f","args":["14","10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":192333,"depth":5,"function":{"name":"std/io.println","args":["  fold 14+10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":196292,"depth":5,"function":{"name":"std/io.println","result":"()","duration_ns":3958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198417,"depth":4,"function":{"name":"f","result":"24","duration_ns":7417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":199042,"depth":4,"function":{"name":"foldlE","args":["\u003cfunction\u003e","24","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":199500,"depth":4,"function":{"name":"foldlE","result":"24","duration_ns":416}}
+{"version":"1.0","event":"function_exit","timestamp_ns":199625,"depth":3,"function":{"name":"foldlE","result":"24","duration_ns":9792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":199792,"depth":2,"function":{"name":"foldlE","result":"24","duration_ns":19709}}
+{"version":"1.0","event":"function_exit","timestamp_ns":199958,"depth":1,"function":{"name":"std/list.foldlE","result":"24","duration_ns":29959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":200750,"depth":1,"function":{"name":"std/io.println","args":["T7 total: 24"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":204583,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":3750}}
+{"version":"1.0","event":"module_end","timestamp_ns":204833,"module":{"name":"examples/runnable/effectful_list_t7_chain_combinators"}}

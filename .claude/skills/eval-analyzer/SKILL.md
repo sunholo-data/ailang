@@ -89,10 +89,15 @@ grep -i "floatToInt" std/*.ail
 | Agent Behavior | Gap Type | Fix |
 |----------------|----------|-----|
 | "Let me check what X is available" then fails | Missing stdlib wrapper | Add wrapper to std/ |
-| Uses function that exists but wrong name | Undocumented | Document in prompt |
-| Tries Python syntax in AILANG | Prompt gap | Add AILANG examples |
-| 10+ turns on same type error | Type confusion | Add type examples to prompt |
+| Uses function that exists but wrong name | Undocumented | Document in `ailang prompt` |
+| Tries Python syntax in AILANG | Prompt gap | Add AILANG examples to `ailang prompt` |
+| 10+ turns on same type error | Type confusion | Add type examples to `ailang prompt` |
 | `undefined variable: floatToInt` | Missing wrapper | Add `floatToInt = _float_to_int` |
+| Doesn't know about debugging tools | Toolchain gap | Update `ailang devtools-prompt` |
+
+**Two prompt types to check when diagnosing gaps:**
+- `ailang prompt` — language syntax (how to write .ail files)
+- `ailang devtools-prompt` — toolchain (how to debug, trace, test, monitor)
 
 ### Example Gap Report
 

@@ -1,0 +1,24 @@
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/effectful_list_t1_mapE_basic","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":43125,"depth":1,"function":{"name":"std/list.mapE","args":["\u003cfunction\u003e","[10, 20, 30]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":46417,"depth":2,"function":{"name":"f","args":["10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":47917,"depth":3,"function":{"name":"std/io.println","args":["  map 10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59833,"depth":3,"function":{"name":"std/io.println","result":"()","duration_ns":11708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":65583,"depth":2,"function":{"name":"f","result":"20","duration_ns":19125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":67500,"depth":2,"function":{"name":"mapE","args":["\u003cfunction\u003e","[20, 30]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":68833,"depth":3,"function":{"name":"f","args":["20"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70125,"depth":4,"function":{"name":"std/io.println","args":["  map 20"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":75458,"depth":4,"function":{"name":"std/io.println","result":"()","duration_ns":5334}}
+{"version":"1.0","event":"function_exit","timestamp_ns":78792,"depth":3,"function":{"name":"f","result":"40","duration_ns":9958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":79833,"depth":3,"function":{"name":"mapE","args":["\u003cfunction\u003e","[30]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":81083,"depth":4,"function":{"name":"f","args":["30"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":83958,"depth":5,"function":{"name":"std/io.println","args":["  map 30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":92792,"depth":5,"function":{"name":"std/io.println","result":"()","duration_ns":8792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":94958,"depth":4,"function":{"name":"f","result":"60","duration_ns":13916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":97250,"depth":4,"function":{"name":"mapE","args":["\u003cfunction\u003e","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":97708,"depth":4,"function":{"name":"mapE","result":"[]","duration_ns":459}}
+{"version":"1.0","event":"function_exit","timestamp_ns":98750,"depth":3,"function":{"name":"mapE","result":"[60]","duration_ns":18916}}
+{"version":"1.0","event":"function_exit","timestamp_ns":99417,"depth":2,"function":{"name":"mapE","result":"[40, 60]","duration_ns":31959}}
+{"version":"1.0","event":"function_exit","timestamp_ns":100292,"depth":1,"function":{"name":"std/list.mapE","result":"[20, 40, 60]","duration_ns":57292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":101625,"depth":1,"function":{"name":"std/io.println","args":["T1 mapE: [20, 40, 60]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":106125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4458}}
+{"version":"1.0","event":"module_end","timestamp_ns":106500,"module":{"name":"examples/runnable/effectful_list_t1_mapE_basic"}}

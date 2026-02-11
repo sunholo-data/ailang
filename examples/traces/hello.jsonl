@@ -1,0 +1,4 @@
+{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/hello","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":16208,"depth":1,"function":{"name":"std/io.print","args":["Hello, AILANG!"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":21291,"depth":1,"function":{"name":"std/io.print","result":"()","duration_ns":4958}}
+{"version":"1.0","event":"module_end","timestamp_ns":21458,"module":{"name":"examples/runnable/hello"}}

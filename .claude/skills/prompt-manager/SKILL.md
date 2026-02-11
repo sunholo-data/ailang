@@ -24,21 +24,32 @@ Invoke when user mentions:
 
 ## CLI Integration (v0.4.4+)
 
-**NEW**: Prompts are now accessible via `ailang prompt` command (single source of truth).
+**Two complementary prompts** — both accessible via CLI (single source of truth):
 
-### Display Prompts
+| Command | Purpose | Registry |
+|---------|---------|----------|
+| `ailang prompt` | Language **syntax** (how to write .ail files) | `prompts/versions.json` |
+| `ailang devtools-prompt` | **Toolchain** (how to debug, test, trace, monitor) | `prompts/devtools/versions.json` |
+
+### Display Syntax Prompts
 ```bash
-# Get current/active prompt
-ailang prompt
+ailang prompt                        # Current/active teaching prompt
+ailang prompt --version v0.7.3       # Specific version
+ailang prompt --list                 # List all versions
+ailang prompt --version v0.7.3 --info  # Show metadata
+```
 
-# Get specific version
-ailang prompt --version v0.3.24
+### Display Dev Tools Prompts (v0.8.0+)
+```bash
+ailang devtools-prompt               # Current dev tools reference
+ailang devtools-prompt --list        # List all versions
+ailang devtools-prompt --info        # Show metadata
+ailang devtools-prompt > devtools.md # Save for AI context injection
+```
 
-# List all available versions
-ailang prompt --list
-
-# Show metadata
-ailang prompt --version v0.4.2 --info
+### Combine Both for Full AI Context
+```bash
+cat <(ailang prompt) <(ailang devtools-prompt) > full_context.md
 ```
 
 ### For Development
@@ -54,13 +65,17 @@ ailang prompt | grep -A 20 "Quick Reference"
 ```
 
 **Implementation**:
-- Loader: `internal/prompt/loader.go` (reads from `prompts/versions.json`)
-- CLI: `cmd/ailang/prompt.go`
-- Eval harness uses `internal/prompt` package (single source of truth)
+- Syntax loader: `internal/prompt/loader.go` (reads from `prompts/versions.json`)
+- Devtools loader: `internal/devtoolsprompt/loader.go` (reads from `prompts/devtools/versions.json`)
+- CLI: `cmd/ailang/prompt.go` and `cmd/ailang/devtools_prompt.go`
+- Both share the same embedded FS (`//go:embed all:prompts` in main.go)
+- Eval harness uses `internal/prompt` package for syntax prompts
 
 ### Workflow: Editing Existing Prompts
 
-**IMPORTANT**: When you edit a prompt file (e.g., `prompts/v0.4.2.md`), you MUST update its hash in `prompts/versions.json` for downstream users!
+**IMPORTANT**: When you edit a prompt file, you MUST update its hash in the appropriate `versions.json`:
+- **Syntax prompts** (`prompts/v0.x.x.md`): Update `prompts/versions.json`
+- **Devtools prompts** (`prompts/devtools/v0.x.x.md`): Update `prompts/devtools/versions.json`
 
 ```bash
 # 1. Edit the prompt file
@@ -288,6 +303,8 @@ Analyze size → Identify high-ROI sections → Apply techniques → Validate su
 - **post-release:** Run baselines after optimization
 - **ailang builtins list:** Reference instead of duplicating
 - **docs/guides/:** Link to instead of explaining
+- **devtools-prompt:** Shares same embedded FS; update `prompts/devtools/versions.json` when adding new toolchain features
+- **release-manager:** Verify both prompt versions are consistent with release
 
 ## ⚠️ CRITICAL: Benchmark YAML Field Usage (v0.4.8 Discovery)
 

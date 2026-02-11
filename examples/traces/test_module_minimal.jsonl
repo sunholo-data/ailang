@@ -1,0 +1,2 @@
+{"version":"1.0","event":"module_start","timestamp_ns":833,"module":{"name":"examples/runnable/test_module_minimal"}}
+{"version":"1.0","event":"module_end","timestamp_ns":13083,"module":{"name":"examples/runnable/test_module_minimal"}}
