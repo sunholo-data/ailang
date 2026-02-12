@@ -1,120 +1,120 @@
-{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/list_helpers","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":51000,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":62250,"depth":1,"function":{"name":"std/list.nth","result":"Some(10)","duration_ns":11500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":67791,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":78875,"depth":2,"function":{"name":"nth","args":["[20, 30, 40, 50]","1"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":85333,"depth":3,"function":{"name":"nth","args":["[30, 40, 50]","0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":89083,"depth":3,"function":{"name":"nth","result":"Some(30)","duration_ns":3750}}
-{"version":"1.0","event":"function_exit","timestamp_ns":89375,"depth":2,"function":{"name":"nth","result":"Some(30)","duration_ns":10500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":89750,"depth":1,"function":{"name":"std/list.nth","result":"Some(30)","duration_ns":22000}}
-{"version":"1.0","event":"function_enter","timestamp_ns":94333,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","10"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":100750,"depth":2,"function":{"name":"nth","args":["[20, 30, 40, 50]","9"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":106375,"depth":3,"function":{"name":"nth","args":["[30, 40, 50]","8"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":112250,"depth":4,"function":{"name":"nth","args":["[40, 50]","7"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":117666,"depth":5,"function":{"name":"nth","args":["[50]","6"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":123666,"depth":6,"function":{"name":"nth","args":["[]","5"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":126958,"depth":6,"function":{"name":"nth","result":"None","duration_ns":3291}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127041,"depth":5,"function":{"name":"nth","result":"None","duration_ns":9375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127250,"depth":4,"function":{"name":"nth","result":"None","duration_ns":15000}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127375,"depth":3,"function":{"name":"nth","result":"None","duration_ns":21042}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127583,"depth":2,"function":{"name":"nth","result":"None","duration_ns":26791}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127750,"depth":1,"function":{"name":"std/list.nth","result":"None","duration_ns":33375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":133375,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","-1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":135958,"depth":1,"function":{"name":"std/list.nth","result":"None","duration_ns":2583}}
-{"version":"1.0","event":"function_enter","timestamp_ns":142166,"depth":1,"function":{"name":"std/list.last","args":["[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":143833,"depth":2,"function":{"name":"last","args":["[20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":145000,"depth":3,"function":{"name":"last","args":["[30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":145958,"depth":4,"function":{"name":"last","args":["[40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":151583,"depth":5,"function":{"name":"last","args":["[50]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":152791,"depth":5,"function":{"name":"last","result":"Some(50)","duration_ns":1209}}
-{"version":"1.0","event":"function_exit","timestamp_ns":153041,"depth":4,"function":{"name":"last","result":"Some(50)","duration_ns":7042}}
-{"version":"1.0","event":"function_exit","timestamp_ns":153250,"depth":3,"function":{"name":"last","result":"Some(50)","duration_ns":8208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":153458,"depth":2,"function":{"name":"last","result":"Some(50)","duration_ns":9667}}
-{"version":"1.0","event":"function_exit","timestamp_ns":153708,"depth":1,"function":{"name":"std/list.last","result":"Some(50)","duration_ns":11541}}
-{"version":"1.0","event":"function_enter","timestamp_ns":157625,"depth":1,"function":{"name":"std/list.last","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":158416,"depth":1,"function":{"name":"std/list.last","result":"None","duration_ns":792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":164500,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":165750,"depth":2,"function":{"name":"p","args":["10"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":167708,"depth":2,"function":{"name":"p","result":"true","duration_ns":1958}}
-{"version":"1.0","event":"function_exit","timestamp_ns":168041,"depth":1,"function":{"name":"std/list.any","result":"true","duration_ns":3542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":171875,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":172875,"depth":2,"function":{"name":"p","args":["10"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":175000,"depth":2,"function":{"name":"p","result":"false","duration_ns":2125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":175833,"depth":2,"function":{"name":"any","args":["\u003cfunction\u003e","[20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":176750,"depth":3,"function":{"name":"p","args":["20"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":182666,"depth":3,"function":{"name":"p","result":"false","duration_ns":5917}}
-{"version":"1.0","event":"function_enter","timestamp_ns":183291,"depth":3,"function":{"name":"any","args":["\u003cfunction\u003e","[30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":184166,"depth":4,"function":{"name":"p","args":["30"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":186458,"depth":4,"function":{"name":"p","result":"false","duration_ns":2292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":187000,"depth":4,"function":{"name":"any","args":["\u003cfunction\u003e","[40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":187833,"depth":5,"function":{"name":"p","args":["40"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":190125,"depth":5,"function":{"name":"p","result":"false","duration_ns":2250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":190583,"depth":5,"function":{"name":"any","args":["\u003cfunction\u003e","[50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":191500,"depth":6,"function":{"name":"p","args":["50"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":193291,"depth":6,"function":{"name":"p","result":"false","duration_ns":1792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":193625,"depth":6,"function":{"name":"any","args":["\u003cfunction\u003e","[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194041,"depth":6,"function":{"name":"any","result":"false","duration_ns":416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194375,"depth":5,"function":{"name":"any","result":"false","duration_ns":3792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194500,"depth":4,"function":{"name":"any","result":"false","duration_ns":7500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194583,"depth":3,"function":{"name":"any","result":"false","duration_ns":11250}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194708,"depth":2,"function":{"name":"any","result":"false","duration_ns":18833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":194875,"depth":1,"function":{"name":"std/list.any","result":"false","duration_ns":22958}}
-{"version":"1.0","event":"function_enter","timestamp_ns":198958,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":200125,"depth":2,"function":{"name":"p","args":["10"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":203000,"depth":2,"function":{"name":"p","result":"false","duration_ns":2833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":203958,"depth":2,"function":{"name":"any","args":["\u003cfunction\u003e","[20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":205000,"depth":3,"function":{"name":"p","args":["20"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":207333,"depth":3,"function":{"name":"p","result":"false","duration_ns":2291}}
-{"version":"1.0","event":"function_enter","timestamp_ns":208166,"depth":3,"function":{"name":"any","args":["\u003cfunction\u003e","[30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":209125,"depth":4,"function":{"name":"p","args":["30"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":211333,"depth":4,"function":{"name":"p","result":"false","duration_ns":2166}}
-{"version":"1.0","event":"function_enter","timestamp_ns":212000,"depth":4,"function":{"name":"any","args":["\u003cfunction\u003e","[40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":213125,"depth":5,"function":{"name":"p","args":["40"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":215750,"depth":5,"function":{"name":"p","result":"false","duration_ns":2625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":216333,"depth":5,"function":{"name":"any","args":["\u003cfunction\u003e","[50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":217833,"depth":6,"function":{"name":"p","args":["50"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":220250,"depth":6,"function":{"name":"p","result":"true","duration_ns":2375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":220500,"depth":5,"function":{"name":"any","result":"true","duration_ns":4167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":220625,"depth":4,"function":{"name":"any","result":"true","duration_ns":8625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":220791,"depth":3,"function":{"name":"any","result":"true","duration_ns":12625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":220916,"depth":2,"function":{"name":"any","result":"true","duration_ns":17000}}
-{"version":"1.0","event":"function_exit","timestamp_ns":221083,"depth":1,"function":{"name":"std/list.any","result":"true","duration_ns":22125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":228916,"depth":1,"function":{"name":"std/list.findIndex","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":234500,"depth":2,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]","0"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":235791,"depth":3,"function":{"name":"p","args":["10"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":238166,"depth":3,"function":{"name":"p","result":"false","duration_ns":2375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":242416,"depth":3,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[20, 30, 40, 50]","1"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":244041,"depth":4,"function":{"name":"p","args":["20"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":246291,"depth":4,"function":{"name":"p","result":"false","duration_ns":2250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":249500,"depth":4,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[30, 40, 50]","2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":250500,"depth":5,"function":{"name":"p","args":["30"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":252333,"depth":5,"function":{"name":"p","result":"true","duration_ns":1833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":253375,"depth":4,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":3875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":253625,"depth":3,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":11208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":253875,"depth":2,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":19333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":256166,"depth":1,"function":{"name":"std/list.findIndex","result":"Some(2)","duration_ns":27250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":260375,"depth":1,"function":{"name":"std/list.findIndex","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":264708,"depth":2,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]","0"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":266416,"depth":3,"function":{"name":"p","args":["10"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":269208,"depth":3,"function":{"name":"p","result":"false","duration_ns":2791}}
-{"version":"1.0","event":"function_enter","timestamp_ns":273291,"depth":3,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[20, 30, 40, 50]","1"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":274375,"depth":4,"function":{"name":"p","args":["20"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":276750,"depth":4,"function":{"name":"p","result":"false","duration_ns":2375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":280583,"depth":4,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[30, 40, 50]","2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":281916,"depth":5,"function":{"name":"p","args":["30"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":284166,"depth":5,"function":{"name":"p","result":"false","duration_ns":2209}}
-{"version":"1.0","event":"function_enter","timestamp_ns":287250,"depth":5,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[40, 50]","3"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":288583,"depth":6,"function":{"name":"p","args":["40"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":290791,"depth":6,"function":{"name":"p","result":"false","duration_ns":2167}}
-{"version":"1.0","event":"function_enter","timestamp_ns":293875,"depth":6,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[50]","4"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":294875,"depth":7,"function":{"name":"p","args":["50"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":297166,"depth":7,"function":{"name":"p","result":"false","duration_ns":2250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":300208,"depth":7,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[]","5"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":301208,"depth":7,"function":{"name":"findIndexHelper","result":"None","duration_ns":1000}}
-{"version":"1.0","event":"function_exit","timestamp_ns":301416,"depth":6,"function":{"name":"findIndexHelper","result":"None","duration_ns":7542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":301583,"depth":5,"function":{"name":"findIndexHelper","result":"None","duration_ns":14375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":301791,"depth":4,"function":{"name":"findIndexHelper","result":"None","duration_ns":21167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":302333,"depth":3,"function":{"name":"findIndexHelper","result":"None","duration_ns":29041}}
-{"version":"1.0","event":"function_exit","timestamp_ns":302500,"depth":2,"function":{"name":"findIndexHelper","result":"None","duration_ns":37792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":302625,"depth":1,"function":{"name":"std/list.findIndex","result":"None","duration_ns":42250}}
-{"version":"1.0","event":"module_end","timestamp_ns":305833,"module":{"name":"examples/runnable/list_helpers"}}
+{"version":"1.0","event":"module_start","timestamp_ns":917,"module":{"name":"examples/runnable/list_helpers","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":46167,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":56583,"depth":1,"function":{"name":"std/list.nth","result":"Some(10)","duration_ns":11625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":62833,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":72375,"depth":2,"function":{"name":"nth","args":["[20, 30, 40, 50]","1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":80500,"depth":3,"function":{"name":"nth","args":["[30, 40, 50]","0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":84917,"depth":3,"function":{"name":"nth","result":"Some(30)","duration_ns":4375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":85250,"depth":2,"function":{"name":"nth","result":"Some(30)","duration_ns":12833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":85542,"depth":1,"function":{"name":"std/list.nth","result":"Some(30)","duration_ns":22708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":90625,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":99042,"depth":2,"function":{"name":"nth","args":["[20, 30, 40, 50]","9"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":106333,"depth":3,"function":{"name":"nth","args":["[30, 40, 50]","8"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":112417,"depth":4,"function":{"name":"nth","args":["[40, 50]","7"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":119583,"depth":5,"function":{"name":"nth","args":["[50]","6"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":127083,"depth":6,"function":{"name":"nth","args":["[]","5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":131208,"depth":6,"function":{"name":"nth","result":"None","duration_ns":4125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":131375,"depth":5,"function":{"name":"nth","result":"None","duration_ns":11791}}
+{"version":"1.0","event":"function_exit","timestamp_ns":131542,"depth":4,"function":{"name":"nth","result":"None","duration_ns":19167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":131792,"depth":3,"function":{"name":"nth","result":"None","duration_ns":25417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":132000,"depth":2,"function":{"name":"nth","result":"None","duration_ns":32958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":132208,"depth":1,"function":{"name":"std/list.nth","result":"None","duration_ns":41584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":139042,"depth":1,"function":{"name":"std/list.nth","args":["[10, 20, 30, 40, 50]","-1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":142542,"depth":1,"function":{"name":"std/list.nth","result":"None","duration_ns":3416}}
+{"version":"1.0","event":"function_enter","timestamp_ns":150042,"depth":1,"function":{"name":"std/list.last","args":["[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":151917,"depth":2,"function":{"name":"last","args":["[20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":153625,"depth":3,"function":{"name":"last","args":["[30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":155083,"depth":4,"function":{"name":"last","args":["[40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":156167,"depth":5,"function":{"name":"last","args":["[50]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":157833,"depth":5,"function":{"name":"last","result":"Some(50)","duration_ns":1625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":158125,"depth":4,"function":{"name":"last","result":"Some(50)","duration_ns":3041}}
+{"version":"1.0","event":"function_exit","timestamp_ns":158375,"depth":3,"function":{"name":"last","result":"Some(50)","duration_ns":4708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":158667,"depth":2,"function":{"name":"last","result":"Some(50)","duration_ns":6750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":158917,"depth":1,"function":{"name":"std/list.last","result":"Some(50)","duration_ns":8791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":163250,"depth":1,"function":{"name":"std/list.last","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":164292,"depth":1,"function":{"name":"std/list.last","result":"None","duration_ns":917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":171833,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":173542,"depth":2,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":175292,"depth":2,"function":{"name":"p","result":"true","duration_ns":1708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":175500,"depth":1,"function":{"name":"std/list.any","result":"true","duration_ns":3666}}
+{"version":"1.0","event":"function_enter","timestamp_ns":179417,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":180625,"depth":2,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":182625,"depth":2,"function":{"name":"p","result":"false","duration_ns":2000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":183542,"depth":2,"function":{"name":"any","args":["\u003cfunction\u003e","[20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":184583,"depth":3,"function":{"name":"p","args":["20"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":186500,"depth":3,"function":{"name":"p","result":"false","duration_ns":1958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":187167,"depth":3,"function":{"name":"any","args":["\u003cfunction\u003e","[30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":188667,"depth":4,"function":{"name":"p","args":["30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":190292,"depth":4,"function":{"name":"p","result":"false","duration_ns":1667}}
+{"version":"1.0","event":"function_enter","timestamp_ns":191042,"depth":4,"function":{"name":"any","args":["\u003cfunction\u003e","[40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":191958,"depth":5,"function":{"name":"p","args":["40"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":194125,"depth":5,"function":{"name":"p","result":"false","duration_ns":2167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":194750,"depth":5,"function":{"name":"any","args":["\u003cfunction\u003e","[50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":195792,"depth":6,"function":{"name":"p","args":["50"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":197500,"depth":6,"function":{"name":"p","result":"false","duration_ns":1708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":197958,"depth":6,"function":{"name":"any","args":["\u003cfunction\u003e","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198375,"depth":6,"function":{"name":"any","result":"false","duration_ns":416}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198542,"depth":5,"function":{"name":"any","result":"false","duration_ns":3750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198667,"depth":4,"function":{"name":"any","result":"false","duration_ns":7583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198833,"depth":3,"function":{"name":"any","result":"false","duration_ns":11667}}
+{"version":"1.0","event":"function_exit","timestamp_ns":198958,"depth":2,"function":{"name":"any","result":"false","duration_ns":15417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":199125,"depth":1,"function":{"name":"std/list.any","result":"false","duration_ns":19708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":202917,"depth":1,"function":{"name":"std/list.any","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":204625,"depth":2,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":206875,"depth":2,"function":{"name":"p","result":"false","duration_ns":2292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":207958,"depth":2,"function":{"name":"any","args":["\u003cfunction\u003e","[20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":209292,"depth":3,"function":{"name":"p","args":["20"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":211667,"depth":3,"function":{"name":"p","result":"false","duration_ns":2375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":212458,"depth":3,"function":{"name":"any","args":["\u003cfunction\u003e","[30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":213792,"depth":4,"function":{"name":"p","args":["30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":216167,"depth":4,"function":{"name":"p","result":"false","duration_ns":2375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":216833,"depth":4,"function":{"name":"any","args":["\u003cfunction\u003e","[40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":218250,"depth":5,"function":{"name":"p","args":["40"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":220458,"depth":5,"function":{"name":"p","result":"false","duration_ns":2167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":221000,"depth":5,"function":{"name":"any","args":["\u003cfunction\u003e","[50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":222333,"depth":6,"function":{"name":"p","args":["50"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":224667,"depth":6,"function":{"name":"p","result":"true","duration_ns":2291}}
+{"version":"1.0","event":"function_exit","timestamp_ns":225000,"depth":5,"function":{"name":"any","result":"true","duration_ns":3958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":225125,"depth":4,"function":{"name":"any","result":"true","duration_ns":8291}}
+{"version":"1.0","event":"function_exit","timestamp_ns":225292,"depth":3,"function":{"name":"any","result":"true","duration_ns":12792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":225458,"depth":2,"function":{"name":"any","result":"true","duration_ns":17500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":225625,"depth":1,"function":{"name":"std/list.any","result":"true","duration_ns":22708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":233667,"depth":1,"function":{"name":"std/list.findIndex","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":238958,"depth":2,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]","0"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":240333,"depth":3,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":242125,"depth":3,"function":{"name":"p","result":"false","duration_ns":1791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":246292,"depth":3,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[20, 30, 40, 50]","1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":247625,"depth":4,"function":{"name":"p","args":["20"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":249667,"depth":4,"function":{"name":"p","result":"false","duration_ns":2042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":252750,"depth":4,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[30, 40, 50]","2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":253750,"depth":5,"function":{"name":"p","args":["30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":255875,"depth":5,"function":{"name":"p","result":"true","duration_ns":2083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":256875,"depth":4,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":4083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":257167,"depth":3,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":10875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":257417,"depth":2,"function":{"name":"findIndexHelper","result":"Some(2)","duration_ns":18458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":257583,"depth":1,"function":{"name":"std/list.findIndex","result":"Some(2)","duration_ns":23958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":261583,"depth":1,"function":{"name":"std/list.findIndex","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":266167,"depth":2,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[10, 20, 30, 40, 50]","0"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":267708,"depth":3,"function":{"name":"p","args":["10"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":270167,"depth":3,"function":{"name":"p","result":"false","duration_ns":2458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":273792,"depth":3,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[20, 30, 40, 50]","1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":275125,"depth":4,"function":{"name":"p","args":["20"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":277250,"depth":4,"function":{"name":"p","result":"false","duration_ns":2125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":280375,"depth":4,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[30, 40, 50]","2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":281458,"depth":5,"function":{"name":"p","args":["30"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":283708,"depth":5,"function":{"name":"p","result":"false","duration_ns":2209}}
+{"version":"1.0","event":"function_enter","timestamp_ns":287042,"depth":5,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[40, 50]","3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":288042,"depth":6,"function":{"name":"p","args":["40"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":290167,"depth":6,"function":{"name":"p","result":"false","duration_ns":2125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":293250,"depth":6,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[50]","4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":294417,"depth":7,"function":{"name":"p","args":["50"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":296625,"depth":7,"function":{"name":"p","result":"false","duration_ns":2208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":299708,"depth":7,"function":{"name":"findIndexHelper","args":["\u003cfunction\u003e","[]","5"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301042,"depth":7,"function":{"name":"findIndexHelper","result":"None","duration_ns":1375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301208,"depth":6,"function":{"name":"findIndexHelper","result":"None","duration_ns":7959}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301375,"depth":5,"function":{"name":"findIndexHelper","result":"None","duration_ns":14333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301542,"depth":4,"function":{"name":"findIndexHelper","result":"None","duration_ns":21167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301708,"depth":3,"function":{"name":"findIndexHelper","result":"None","duration_ns":27917}}
+{"version":"1.0","event":"function_exit","timestamp_ns":301875,"depth":2,"function":{"name":"findIndexHelper","result":"None","duration_ns":35708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":302000,"depth":1,"function":{"name":"std/list.findIndex","result":"None","duration_ns":40416}}
+{"version":"1.0","event":"module_end","timestamp_ns":304917,"module":{"name":"examples/runnable/list_helpers","duration_ns":303792}}

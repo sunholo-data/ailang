@@ -1,28 +1,31 @@
-{"version":"1.0","event":"module_start","timestamp_ns":791,"module":{"name":"examples/runnable/json_parsing","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":71583,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\": \"AILANG\", \"version\": 0.6}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":93208,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]))","duration_ns":21792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":95916,"depth":1,"function":{"name":"std/io.println","args":["Parsed JSON successfully!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":108583,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":12625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":110666,"depth":1,"function":{"name":"std/json.getString","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","name"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":119041,"depth":2,"function":{"name":"get","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","name"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":127291,"depth":3,"function":{"name":"findInList","args":["[{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]","name"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":132208,"depth":3,"function":{"name":"findInList","result":"Some(JString(AILANG))","duration_ns":4916}}
-{"version":"1.0","event":"function_exit","timestamp_ns":132500,"depth":2,"function":{"name":"get","result":"Some(JString(AILANG))","duration_ns":13417}}
-{"version":"1.0","event":"function_enter","timestamp_ns":133458,"depth":2,"function":{"name":"asString","args":["JString(AILANG)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":140583,"depth":2,"function":{"name":"asString","result":"Some(AILANG)","duration_ns":7083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":140750,"depth":1,"function":{"name":"std/json.getString","result":"Some(AILANG)","duration_ns":30042}}
-{"version":"1.0","event":"function_enter","timestamp_ns":142416,"depth":1,"function":{"name":"std/io.println","args":["Name: AILANG"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":151083,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8667}}
-{"version":"1.0","event":"function_enter","timestamp_ns":153166,"depth":1,"function":{"name":"std/json.getNumber","args":["JObject([{value: JString(AILANG), key: name}, {key: version, value: JNumber(0.6)}])","version"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":161250,"depth":2,"function":{"name":"get","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","version"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":169208,"depth":3,"function":{"name":"findInList","args":["[{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]","version"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":172166,"depth":4,"function":{"name":"findInList","args":["[{key: version, value: JNumber(0.6)}]","version"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":175250,"depth":4,"function":{"name":"findInList","result":"Some(JNumber(0.6))","duration_ns":3083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":175625,"depth":3,"function":{"name":"findInList","result":"Some(JNumber(0.6))","duration_ns":6417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":176000,"depth":2,"function":{"name":"get","result":"Some(JNumber(0.6))","duration_ns":14708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":177250,"depth":2,"function":{"name":"asNumber","args":["JNumber(0.6)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":185416,"depth":2,"function":{"name":"asNumber","result":"Some(0.6)","duration_ns":8167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":185750,"depth":1,"function":{"name":"std/json.getNumber","result":"Some(0.6)","duration_ns":32542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":187625,"depth":1,"function":{"name":"std/io.println","args":["Version: 0.6"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":195416,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":7792}}
-{"version":"1.0","event":"module_end","timestamp_ns":195875,"module":{"name":"examples/runnable/json_parsing"}}
+{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/json_parsing","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":66333,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\": \"AILANG\", \"version\": 0.6}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":86167,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]))","duration_ns":20834}}
+{"version":"1.0","event":"function_enter","timestamp_ns":87833,"depth":1,"function":{"name":"std/io.println","args":["Parsed JSON successfully!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":101958,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Parsed JSON successfully!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":102167,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":14333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":104833,"depth":1,"function":{"name":"std/json.getString","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","name"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":114875,"depth":2,"function":{"name":"get","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","name"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":127292,"depth":3,"function":{"name":"findInList","args":["[{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]","name"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":132958,"depth":3,"function":{"name":"findInList","result":"Some(JString(AILANG))","duration_ns":5625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":133292,"depth":2,"function":{"name":"get","result":"Some(JString(AILANG))","duration_ns":18375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":134458,"depth":2,"function":{"name":"asString","args":["JString(AILANG)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":145458,"depth":2,"function":{"name":"asString","result":"Some(AILANG)","duration_ns":10959}}
+{"version":"1.0","event":"function_exit","timestamp_ns":145833,"depth":1,"function":{"name":"std/json.getString","result":"Some(AILANG)","duration_ns":41000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":147542,"depth":1,"function":{"name":"std/io.println","args":["Name: AILANG"]}}
+{"version":"1.0","event":"effect","timestamp_ns":159292,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Name: AILANG"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":159458,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":11875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":162125,"depth":1,"function":{"name":"std/json.getNumber","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","version"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":172333,"depth":2,"function":{"name":"get","args":["JObject([{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}])","version"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":182667,"depth":3,"function":{"name":"findInList","args":["[{key: name, value: JString(AILANG)}, {key: version, value: JNumber(0.6)}]","version"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":186208,"depth":4,"function":{"name":"findInList","args":["[{key: version, value: JNumber(0.6)}]","version"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":189625,"depth":4,"function":{"name":"findInList","result":"Some(JNumber(0.6))","duration_ns":3416}}
+{"version":"1.0","event":"function_exit","timestamp_ns":190208,"depth":3,"function":{"name":"findInList","result":"Some(JNumber(0.6))","duration_ns":7542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":190750,"depth":2,"function":{"name":"get","result":"Some(JNumber(0.6))","duration_ns":18416}}
+{"version":"1.0","event":"function_enter","timestamp_ns":196500,"depth":2,"function":{"name":"asNumber","args":["JNumber(0.6)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":206542,"depth":2,"function":{"name":"asNumber","result":"Some(0.6)","duration_ns":10042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":207042,"depth":1,"function":{"name":"std/json.getNumber","result":"Some(0.6)","duration_ns":44917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":209375,"depth":1,"function":{"name":"std/io.println","args":["Version: 0.6"]}}
+{"version":"1.0","event":"effect","timestamp_ns":218417,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Version: 0.6"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":218500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":9125}}
+{"version":"1.0","event":"module_end","timestamp_ns":218833,"module":{"name":"examples/runnable/json_parsing","duration_ns":217917}}

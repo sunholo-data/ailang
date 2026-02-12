@@ -24,11 +24,9 @@ func registerIO() {
 	// See internal/pipeline/prelude.go for prelude injection
 	// Libraries must use explicit 'import std/io (_io_println)'
 
-	// _io_print
+	// _io_print — routes through effects.Call() for trace recording
 	impl1 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		s := args[0].(*eval.StringValue)
-		fmt.Fprint(ctx.GetIOWriter(), s.Value)
-		return &eval.UnitValue{}, nil
+		return effects.Call(ctx, "IO", "print", args)
 	}
 	type1 := func() types.Type {
 		T := types.NewBuilder()
@@ -57,11 +55,9 @@ func registerIO() {
 		panic(fmt.Sprintf("failed to register _io_print: %v", err))
 	}
 
-	// _io_println
+	// _io_println — routes through effects.Call() for trace recording
 	impl2 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		s := args[0].(*eval.StringValue)
-		fmt.Fprintln(ctx.GetIOWriter(), s.Value)
-		return &eval.UnitValue{}, nil
+		return effects.Call(ctx, "IO", "println", args)
 	}
 	type2 := func() types.Type {
 		T := types.NewBuilder()
@@ -90,7 +86,7 @@ func registerIO() {
 		panic(fmt.Sprintf("failed to register _io_println: %v", err))
 	}
 
-	// _io_readLine (stub for v0.3.10)
+	// _io_readLine — routes through effects.Call() for trace recording
 	// FIXED (v0.4.2): Changed from 0-arg to unit-arg to fix S-CALL0 compatibility
 	// Zero-arg builtins now take unit as their parameter: () -> T means (()) -> T
 	impl3 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
@@ -101,8 +97,8 @@ func registerIO() {
 		if _, ok := args[0].(*eval.UnitValue); !ok {
 			panic("internal invariant violation: _io_readLine expected unit argument")
 		}
-		// Stub: return empty string
-		return &eval.StringValue{Value: ""}, nil
+		// Route through effects.Call() — pass empty args since effects ioReadLine takes 0 args
+		return effects.Call(ctx, "IO", "readLine", nil)
 	}
 	type3 := func() types.Type {
 		T := types.NewBuilder()

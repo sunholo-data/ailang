@@ -1,17 +1,20 @@
-{"version":"1.0","event":"module_start","timestamp_ns":916,"module":{"name":"examples/runnable/effects_fs_io","caps":["IO","FS"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":86041,"depth":1,"function":{"name":"std/fs.writeFile","args":["/tmp/ailang_test.txt","Hello from AILANG!"]}}
-{"version":"1.0","event":"effect","timestamp_ns":1307416,"depth":1,"effect":{"effect_name":"FS","op_name":"writeFile","args":["/tmp/ailang_test.txt","Hello from AILANG!"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1308625,"depth":1,"function":{"name":"std/fs.writeFile","result":"()","duration_ns":1222666}}
-{"version":"1.0","event":"function_enter","timestamp_ns":1310875,"depth":1,"function":{"name":"std/io.println","args":["Wrote: Hello from AILANG!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1323083,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":12209}}
-{"version":"1.0","event":"function_enter","timestamp_ns":1323708,"depth":1,"function":{"name":"std/fs.fileExists","args":["/tmp/ailang_test.txt"]}}
-{"version":"1.0","event":"effect","timestamp_ns":1331375,"depth":1,"effect":{"effect_name":"FS","op_name":"exists","args":["/tmp/ailang_test.txt"],"result":"true"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1331583,"depth":1,"function":{"name":"std/fs.fileExists","result":"true","duration_ns":7833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":1333333,"depth":1,"function":{"name":"std/io.println","args":["File exists: true"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1335333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":1336083,"depth":1,"function":{"name":"std/fs.readFile","args":["/tmp/ailang_test.txt"]}}
-{"version":"1.0","event":"effect","timestamp_ns":1362250,"depth":1,"effect":{"effect_name":"FS","op_name":"readFile","args":["/tmp/ailang_test.txt"],"result":"Hello from AILANG!"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1362458,"depth":1,"function":{"name":"std/fs.readFile","result":"Hello from AILANG!","duration_ns":26334}}
-{"version":"1.0","event":"function_enter","timestamp_ns":1363375,"depth":1,"function":{"name":"std/io.println","args":["Read back: Hello from AILANG!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":1365625,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2250}}
-{"version":"1.0","event":"module_end","timestamp_ns":1366041,"module":{"name":"examples/runnable/effects_fs_io"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1084,"module":{"name":"examples/runnable/effects_fs_io","caps":["IO","FS"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":17375,"depth":1,"function":{"name":"std/fs.writeFile","args":["/tmp/ailang_test.txt","Hello from AILANG!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":678167,"depth":1,"effect":{"effect_name":"FS","op_name":"writeFile","args":["/tmp/ailang_test.txt","Hello from AILANG!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":678834,"depth":1,"function":{"name":"std/fs.writeFile","result":"()","duration_ns":662250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":681209,"depth":1,"function":{"name":"std/io.println","args":["Wrote: Hello from AILANG!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":687042,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Wrote: Hello from AILANG!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":687209,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":687917,"depth":1,"function":{"name":"std/fs.fileExists","args":["/tmp/ailang_test.txt"]}}
+{"version":"1.0","event":"effect","timestamp_ns":697750,"depth":1,"effect":{"effect_name":"FS","op_name":"exists","args":["/tmp/ailang_test.txt"],"result":"true"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":697959,"depth":1,"function":{"name":"std/fs.fileExists","result":"true","duration_ns":10000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":699625,"depth":1,"function":{"name":"std/io.println","args":["File exists: true"]}}
+{"version":"1.0","event":"effect","timestamp_ns":701834,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["File exists: true"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":701959,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2291}}
+{"version":"1.0","event":"function_enter","timestamp_ns":702625,"depth":1,"function":{"name":"std/fs.readFile","args":["/tmp/ailang_test.txt"]}}
+{"version":"1.0","event":"effect","timestamp_ns":720750,"depth":1,"effect":{"effect_name":"FS","op_name":"readFile","args":["/tmp/ailang_test.txt"],"result":"Hello from AILANG!"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":720959,"depth":1,"function":{"name":"std/fs.readFile","result":"Hello from AILANG!","duration_ns":18333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":722042,"depth":1,"function":{"name":"std/io.println","args":["Read back: Hello from AILANG!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":724584,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Read back: Hello from AILANG!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":724709,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2625}}
+{"version":"1.0","event":"module_end","timestamp_ns":725292,"module":{"name":"examples/runnable/effects_fs_io","duration_ns":723666}}

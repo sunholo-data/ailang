@@ -1,11 +1,13 @@
-{"version":"1.0","event":"module_start","timestamp_ns":917,"module":{"name":"examples/runnable/structured_ai_schema","caps":["IO","AI"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":78333,"depth":1,"function":{"name":"std/ai.callJson","args":["Return a person with name Alice and age 30","{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}"]}}
-{"version":"1.0","event":"effect","timestamp_ns":90958,"depth":1,"effect":{"effect_name":"AI","op_name":"callJson","args":["Return a person with name Alice and age 30","{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":91792,"depth":1,"function":{"name":"std/ai.callJson","result":"{\"kind\":\"Wait\"}","duration_ns":13542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":93292,"depth":1,"function":{"name":"std/io.println","args":["Schema-enforced JSON: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":107042,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":13708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":107667,"depth":1,"function":{"name":"std/json.decode","args":["{\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127500,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: kind, value: JString(Wait)}]))","duration_ns":19791}}
-{"version":"1.0","event":"function_enter","timestamp_ns":130208,"depth":1,"function":{"name":"std/io.println","args":["Valid JSON received from provider"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":147500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":17291}}
-{"version":"1.0","event":"module_end","timestamp_ns":147750,"module":{"name":"examples/runnable/structured_ai_schema"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1042,"module":{"name":"examples/runnable/structured_ai_schema","caps":["IO","AI"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":78500,"depth":1,"function":{"name":"std/ai.callJson","args":["Return a person with name Alice and age 30","{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":93875,"depth":1,"effect":{"effect_name":"AI","op_name":"callJson","args":["Return a person with name Alice and age 30","{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"integer\"}}}"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":94292,"depth":1,"function":{"name":"std/ai.callJson","result":"{\"kind\":\"Wait\"}","duration_ns":16958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":95750,"depth":1,"function":{"name":"std/io.println","args":["Schema-enforced JSON: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":111875,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Schema-enforced JSON: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":112000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":16291}}
+{"version":"1.0","event":"function_enter","timestamp_ns":112709,"depth":1,"function":{"name":"std/json.decode","args":["{\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":133500,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: kind, value: JString(Wait)}]))","duration_ns":20750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":135500,"depth":1,"function":{"name":"std/io.println","args":["Valid JSON received from provider"]}}
+{"version":"1.0","event":"effect","timestamp_ns":151917,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Valid JSON received from provider"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":152000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":16541}}
+{"version":"1.0","event":"module_end","timestamp_ns":152209,"module":{"name":"examples/runnable/structured_ai_schema","duration_ns":150958}}

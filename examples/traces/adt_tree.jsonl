@@ -1,22 +1,22 @@
-{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/adt_tree","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":27708,"depth":1,"function":{"name":"sumTree","args":["Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)))"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":32333,"depth":2,"function":{"name":"sumTree","args":["Leaf(1)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":33416,"depth":2,"function":{"name":"sumTree","result":"1","duration_ns":1000}}
-{"version":"1.0","event":"function_enter","timestamp_ns":37750,"depth":2,"function":{"name":"sumTree","args":["Node(Leaf(3), 4, Leaf(5))"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":38958,"depth":3,"function":{"name":"sumTree","args":["Leaf(3)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":39541,"depth":3,"function":{"name":"sumTree","result":"3","duration_ns":625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":42125,"depth":3,"function":{"name":"sumTree","args":["Leaf(5)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":42750,"depth":3,"function":{"name":"sumTree","result":"5","duration_ns":625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":44958,"depth":2,"function":{"name":"sumTree","result":"12","duration_ns":7208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":48750,"depth":1,"function":{"name":"sumTree","result":"15","duration_ns":21208}}
-{"version":"1.0","event":"function_enter","timestamp_ns":57041,"depth":1,"function":{"name":"countNodes","args":["Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)))"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":58583,"depth":2,"function":{"name":"countNodes","args":["Leaf(1)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":59000,"depth":2,"function":{"name":"countNodes","result":"1","duration_ns":417}}
-{"version":"1.0","event":"function_enter","timestamp_ns":61750,"depth":2,"function":{"name":"countNodes","args":["Node(Leaf(3), 4, Leaf(5))"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":62708,"depth":3,"function":{"name":"countNodes","args":["Leaf(3)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":63208,"depth":3,"function":{"name":"countNodes","result":"1","duration_ns":500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":65666,"depth":3,"function":{"name":"countNodes","args":["Leaf(5)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":66166,"depth":3,"function":{"name":"countNodes","result":"1","duration_ns":459}}
-{"version":"1.0","event":"function_exit","timestamp_ns":68208,"depth":2,"function":{"name":"countNodes","result":"3","duration_ns":6500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":70666,"depth":1,"function":{"name":"countNodes","result":"5","duration_ns":13625}}
-{"version":"1.0","event":"module_end","timestamp_ns":73541,"module":{"name":"examples/runnable/adt_tree"}}
+{"version":"1.0","event":"module_start","timestamp_ns":833,"module":{"name":"examples/runnable/adt_tree","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":35541,"depth":1,"function":{"name":"sumTree","args":["Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)))"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":40583,"depth":2,"function":{"name":"sumTree","args":["Leaf(1)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":42083,"depth":2,"function":{"name":"sumTree","result":"1","duration_ns":1250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50583,"depth":2,"function":{"name":"sumTree","args":["Node(Leaf(3), 4, Leaf(5))"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":51791,"depth":3,"function":{"name":"sumTree","args":["Leaf(3)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":52625,"depth":3,"function":{"name":"sumTree","result":"3","duration_ns":792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":55541,"depth":3,"function":{"name":"sumTree","args":["Leaf(5)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":56125,"depth":3,"function":{"name":"sumTree","result":"5","duration_ns":542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":58166,"depth":2,"function":{"name":"sumTree","result":"12","duration_ns":7542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":62000,"depth":1,"function":{"name":"sumTree","result":"15","duration_ns":39750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":73708,"depth":1,"function":{"name":"countNodes","args":["Node(Leaf(1), 2, Node(Leaf(3), 4, Leaf(5)))"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":75458,"depth":2,"function":{"name":"countNodes","args":["Leaf(1)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":76041,"depth":2,"function":{"name":"countNodes","result":"1","duration_ns":542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":79083,"depth":2,"function":{"name":"countNodes","args":["Node(Leaf(3), 4, Leaf(5))"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":80125,"depth":3,"function":{"name":"countNodes","args":["Leaf(3)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":80875,"depth":3,"function":{"name":"countNodes","result":"1","duration_ns":750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":83083,"depth":3,"function":{"name":"countNodes","args":["Leaf(5)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":83500,"depth":3,"function":{"name":"countNodes","result":"1","duration_ns":375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":85708,"depth":2,"function":{"name":"countNodes","result":"3","duration_ns":6625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":88125,"depth":1,"function":{"name":"countNodes","result":"5","duration_ns":14417}}
+{"version":"1.0","event":"module_end","timestamp_ns":90666,"module":{"name":"examples/runnable/adt_tree","duration_ns":89500}}

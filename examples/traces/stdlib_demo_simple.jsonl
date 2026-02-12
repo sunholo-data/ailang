@@ -1,2 +1,3 @@
-{"version":"1.0","event":"module_start","timestamp_ns":2708,"module":{"name":"examples/runnable/stdlib_demo_simple","caps":["IO"]}}
-{"version":"1.0","event":"module_end","timestamp_ns":18708,"module":{"name":"examples/runnable/stdlib_demo_simple"}}
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/stdlib_demo_simple","caps":["IO"]}}
+{"version":"1.0","event":"effect","timestamp_ns":16917,"effect":{"effect_name":"IO","op_name":"println","args":["Hello from AILANG stdlib!"],"result":"()"}}
+{"version":"1.0","event":"module_end","timestamp_ns":17000,"module":{"name":"examples/runnable/stdlib_demo_simple","duration_ns":16041}}

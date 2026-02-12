@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -156,14 +157,19 @@ type RecordValue struct {
 
 func (r *RecordValue) Type() string { return "record" }
 func (r *RecordValue) String() string {
+	// Sort keys for deterministic output (Go map iteration is non-deterministic)
+	keys := make([]string, 0, len(r.Fields))
+	for k := range r.Fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	result := "{"
-	first := true
-	for k, v := range r.Fields {
-		if !first {
+	for i, k := range keys {
+		if i > 0 {
 			result += ", "
 		}
-		result += fmt.Sprintf("%s: %s", k, v.String())
-		first = false
+		result += fmt.Sprintf("%s: %s", k, r.Fields[k].String())
 	}
 	result += "}"
 	return result

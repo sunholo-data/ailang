@@ -1,2 +1,2 @@
-{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/values_basic","caps":["IO"]}}
-{"version":"1.0","event":"module_end","timestamp_ns":20417,"module":{"name":"examples/runnable/values_basic"}}
+{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/values_basic","caps":["IO"]}}
+{"version":"1.0","event":"module_end","timestamp_ns":16583,"module":{"name":"examples/runnable/values_basic","duration_ns":15750}}

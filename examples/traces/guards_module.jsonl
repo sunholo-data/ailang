@@ -1,10 +1,10 @@
-{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/guards_module","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":11167,"depth":1,"function":{"name":"testBasicGuard","args":["()"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":16417,"depth":1,"function":{"name":"testBasicGuard","result":"positive","duration_ns":5334}}
-{"version":"1.0","event":"function_enter","timestamp_ns":22792,"depth":1,"function":{"name":"testEqualityGuard","args":["()"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":24042,"depth":1,"function":{"name":"testEqualityGuard","result":"the answer","duration_ns":1250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":25667,"depth":1,"function":{"name":"testMultipleGuards","args":["()"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":31542,"depth":1,"function":{"name":"testMultipleGuards","result":"negative","duration_ns":5875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":33167,"depth":1,"function":{"name":"testTupleGuard","args":["()"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":36833,"depth":1,"function":{"name":"testTupleGuard","result":"y bigger","duration_ns":3625}}
-{"version":"1.0","event":"module_end","timestamp_ns":38583,"module":{"name":"examples/runnable/guards_module"}}
+{"version":"1.0","event":"module_start","timestamp_ns":834,"module":{"name":"examples/runnable/guards_module","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":10875,"depth":1,"function":{"name":"testBasicGuard","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":16042,"depth":1,"function":{"name":"testBasicGuard","result":"positive","duration_ns":5959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":25084,"depth":1,"function":{"name":"testEqualityGuard","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":26625,"depth":1,"function":{"name":"testEqualityGuard","result":"the answer","duration_ns":1542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":28667,"depth":1,"function":{"name":"testMultipleGuards","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":35792,"depth":1,"function":{"name":"testMultipleGuards","result":"negative","duration_ns":7083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":37959,"depth":1,"function":{"name":"testTupleGuard","args":["()"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":42917,"depth":1,"function":{"name":"testTupleGuard","result":"y bigger","duration_ns":4916}}
+{"version":"1.0","event":"module_end","timestamp_ns":44542,"module":{"name":"examples/runnable/guards_module","duration_ns":43583}}

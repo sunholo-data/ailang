@@ -1,10 +1,12 @@
-{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/micro_record_person","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":16583,"depth":1,"function":{"name":"describe","args":["{name: Alice, age: 30}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":17958,"depth":1,"function":{"name":"describe","result":"Alice","duration_ns":1208}}
-{"version":"1.0","event":"function_enter","timestamp_ns":18792,"depth":1,"function":{"name":"std/io.println","args":["Alice"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":24000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5208}}
-{"version":"1.0","event":"function_enter","timestamp_ns":25125,"depth":1,"function":{"name":"describe","args":["{name: Bob, age: 25}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":25583,"depth":1,"function":{"name":"describe","result":"Bob","duration_ns":500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":27792,"depth":1,"function":{"name":"std/io.println","args":["Bob"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":28917,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1125}}
-{"version":"1.0","event":"module_end","timestamp_ns":29083,"module":{"name":"examples/runnable/micro_record_person"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1167,"module":{"name":"examples/runnable/micro_record_person","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":18792,"depth":1,"function":{"name":"describe","args":["{age: 30, name: Alice}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20042,"depth":1,"function":{"name":"describe","result":"Alice","duration_ns":2167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":20917,"depth":1,"function":{"name":"std/io.println","args":["Alice"]}}
+{"version":"1.0","event":"effect","timestamp_ns":27625,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Alice"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":27792,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":29292,"depth":1,"function":{"name":"describe","args":["{age: 25, name: Bob}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":30084,"depth":1,"function":{"name":"describe","result":"Bob","duration_ns":792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":30459,"depth":1,"function":{"name":"std/io.println","args":["Bob"]}}
+{"version":"1.0","event":"effect","timestamp_ns":31750,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Bob"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":31834,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1333}}
+{"version":"1.0","event":"module_end","timestamp_ns":32167,"module":{"name":"examples/runnable/micro_record_person","duration_ns":30792}}

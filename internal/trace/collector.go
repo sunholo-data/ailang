@@ -123,17 +123,23 @@ func (c *Collector) RecordEffect(effectName, opName string, args []string, resul
 	if !c.Enabled() {
 		return
 	}
+	evt := EffectEvent{
+		EffectName: effectName,
+		OpName:     opName,
+		Args:       args,
+		Result:     result,
+	}
+	// Flag known non-deterministic operations for replay tolerance
+	if IsNonDeterministic(effectName, opName) {
+		f := false
+		evt.Deterministic = &f
+	}
 	c.events = append(c.events, TraceEvent{
 		Version:     traceVersion,
 		Event:       EventEffect,
 		TimestampNS: c.nowNS(),
 		Depth:       c.depth,
-		Effect: &EffectEvent{
-			EffectName: effectName,
-			OpName:     opName,
-			Args:       args,
-			Result:     result,
-		},
+		Effect:      &evt,
 	})
 }
 

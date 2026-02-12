@@ -1,16 +1,19 @@
-{"version":"1.0","event":"module_start","timestamp_ns":916,"module":{"name":"examples/runnable/structured_ai_basic","caps":["IO","AI"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":169291,"depth":1,"function":{"name":"std/ai.call","args":["Return JSON"]}}
-{"version":"1.0","event":"effect","timestamp_ns":234583,"depth":1,"effect":{"effect_name":"AI","op_name":"call","args":["Return JSON"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":235416,"depth":1,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":67583}}
-{"version":"1.0","event":"function_enter","timestamp_ns":237458,"depth":1,"function":{"name":"std/io.println","args":["Raw AI response: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":265541,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":27959}}
-{"version":"1.0","event":"function_enter","timestamp_ns":266750,"depth":1,"function":{"name":"std/ai.callJsonSimple","args":["Return a JSON object"]}}
-{"version":"1.0","event":"effect","timestamp_ns":287041,"depth":1,"effect":{"effect_name":"AI","op_name":"callJsonSimple","args":["Return a JSON object"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":287291,"depth":1,"function":{"name":"std/ai.callJsonSimple","result":"{\"kind\":\"Wait\"}","duration_ns":20500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":288291,"depth":1,"function":{"name":"std/io.println","args":["JSON string: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":310041,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":21709}}
-{"version":"1.0","event":"function_enter","timestamp_ns":310708,"depth":1,"function":{"name":"std/json.decode","args":["{\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":340833,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: kind, value: JString(Wait)}]))","duration_ns":30084}}
-{"version":"1.0","event":"function_enter","timestamp_ns":343958,"depth":1,"function":{"name":"std/io.println","args":["Parsed valid JSON!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":365958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":21959}}
-{"version":"1.0","event":"module_end","timestamp_ns":366250,"module":{"name":"examples/runnable/structured_ai_basic"}}
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/structured_ai_basic","caps":["IO","AI"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":71209,"depth":1,"function":{"name":"std/ai.call","args":["Return JSON"]}}
+{"version":"1.0","event":"effect","timestamp_ns":148667,"depth":1,"effect":{"effect_name":"AI","op_name":"call","args":["Return JSON"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":149167,"depth":1,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":79000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":363709,"depth":1,"function":{"name":"std/io.println","args":["Raw AI response: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":414667,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Raw AI response: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":415209,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":51958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":417125,"depth":1,"function":{"name":"std/ai.callJsonSimple","args":["Return a JSON object"]}}
+{"version":"1.0","event":"effect","timestamp_ns":449875,"depth":1,"effect":{"effect_name":"AI","op_name":"callJsonSimple","args":["Return a JSON object"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":450042,"depth":1,"function":{"name":"std/ai.callJsonSimple","result":"{\"kind\":\"Wait\"}","duration_ns":32958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":451875,"depth":1,"function":{"name":"std/io.println","args":["JSON string: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":475250,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["JSON string: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":475375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":23500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":476209,"depth":1,"function":{"name":"std/json.decode","args":["{\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":506125,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: kind, value: JString(Wait)}]))","duration_ns":29917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":509917,"depth":1,"function":{"name":"std/io.println","args":["Parsed valid JSON!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":529417,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Parsed valid JSON!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":529542,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":19625}}
+{"version":"1.0","event":"module_end","timestamp_ns":530292,"module":{"name":"examples/runnable/structured_ai_basic","duration_ns":529167}}

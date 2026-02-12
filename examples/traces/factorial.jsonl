@@ -1,46 +1,52 @@
-{"version":"1.0","event":"module_start","timestamp_ns":625,"module":{"name":"examples/runnable/factorial","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":18333,"depth":1,"function":{"name":"std/io.println","args":["Factorial with inline tests"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":23791,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":24375,"depth":1,"function":{"name":"std/io.println","args":["Use `ailang test examples/factorial.ail` to run tests"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":25666,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":26000,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":27333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1291}}
-{"version":"1.0","event":"function_enter","timestamp_ns":28291,"depth":1,"function":{"name":"factorial","args":["0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":34000,"depth":1,"function":{"name":"factorial","result":"1","duration_ns":5708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":36208,"depth":1,"function":{"name":"std/io.println","args":["factorial(0) = 1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":37750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":38458,"depth":1,"function":{"name":"factorial","args":["5"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":43791,"depth":2,"function":{"name":"factorial","args":["4"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":49708,"depth":3,"function":{"name":"factorial","args":["3"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":55333,"depth":4,"function":{"name":"factorial","args":["2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":60541,"depth":5,"function":{"name":"factorial","args":["1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":63333,"depth":5,"function":{"name":"factorial","result":"1","duration_ns":2791}}
-{"version":"1.0","event":"function_exit","timestamp_ns":66125,"depth":4,"function":{"name":"factorial","result":"2","duration_ns":10792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":68541,"depth":3,"function":{"name":"factorial","result":"6","duration_ns":18792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":71208,"depth":2,"function":{"name":"factorial","result":"24","duration_ns":27416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":73750,"depth":1,"function":{"name":"factorial","result":"120","duration_ns":35292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":75333,"depth":1,"function":{"name":"std/io.println","args":["factorial(5) = 120"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":77041,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1709}}
-{"version":"1.0","event":"function_enter","timestamp_ns":77708,"depth":1,"function":{"name":"factorial","args":["10"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":83041,"depth":2,"function":{"name":"factorial","args":["9"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":87833,"depth":3,"function":{"name":"factorial","args":["8"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":93083,"depth":4,"function":{"name":"factorial","args":["7"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":98125,"depth":5,"function":{"name":"factorial","args":["6"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":103083,"depth":6,"function":{"name":"factorial","args":["5"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":108083,"depth":7,"function":{"name":"factorial","args":["4"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":113041,"depth":8,"function":{"name":"factorial","args":["3"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":118333,"depth":9,"function":{"name":"factorial","args":["2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":124916,"depth":10,"function":{"name":"factorial","args":["1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":128166,"depth":10,"function":{"name":"factorial","result":"1","duration_ns":3083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":130541,"depth":9,"function":{"name":"factorial","result":"2","duration_ns":12583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":133000,"depth":8,"function":{"name":"factorial","result":"6","duration_ns":19875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":135375,"depth":7,"function":{"name":"factorial","result":"24","duration_ns":27250}}
-{"version":"1.0","event":"function_exit","timestamp_ns":138333,"depth":6,"function":{"name":"factorial","result":"120","duration_ns":35250}}
-{"version":"1.0","event":"function_exit","timestamp_ns":141500,"depth":5,"function":{"name":"factorial","result":"720","duration_ns":43333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":144500,"depth":4,"function":{"name":"factorial","result":"5040","duration_ns":51417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":147291,"depth":3,"function":{"name":"factorial","result":"40320","duration_ns":59417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":149375,"depth":2,"function":{"name":"factorial","result":"362880","duration_ns":66333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":151125,"depth":1,"function":{"name":"factorial","result":"3628800","duration_ns":73417}}
-{"version":"1.0","event":"function_enter","timestamp_ns":152000,"depth":1,"function":{"name":"std/io.println","args":["factorial(10) = 3628800"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":153250,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1208}}
-{"version":"1.0","event":"module_end","timestamp_ns":153750,"module":{"name":"examples/runnable/factorial"}}
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/factorial","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":17417,"depth":1,"function":{"name":"std/io.println","args":["Factorial with inline tests"]}}
+{"version":"1.0","event":"effect","timestamp_ns":25583,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Factorial with inline tests"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":26125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":9875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":26792,"depth":1,"function":{"name":"std/io.println","args":["Use `ailang test examples/factorial.ail` to run tests"]}}
+{"version":"1.0","event":"effect","timestamp_ns":28500,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Use `ailang test examples/factorial.ail` to run tests"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":28625,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":28917,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"effect","timestamp_ns":30750,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":[""],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":30833,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":31875,"depth":1,"function":{"name":"factorial","args":["0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":36083,"depth":1,"function":{"name":"factorial","result":"1","duration_ns":4167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":37792,"depth":1,"function":{"name":"std/io.println","args":["factorial(0) = 1"]}}
+{"version":"1.0","event":"effect","timestamp_ns":39083,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["factorial(0) = 1"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":39208,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":39833,"depth":1,"function":{"name":"factorial","args":["5"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":45292,"depth":2,"function":{"name":"factorial","args":["4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50917,"depth":3,"function":{"name":"factorial","args":["3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":55375,"depth":4,"function":{"name":"factorial","args":["2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":59208,"depth":5,"function":{"name":"factorial","args":["1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":61167,"depth":5,"function":{"name":"factorial","result":"1","duration_ns":1917}}
+{"version":"1.0","event":"function_exit","timestamp_ns":63208,"depth":4,"function":{"name":"factorial","result":"2","duration_ns":7792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":65333,"depth":3,"function":{"name":"factorial","result":"6","duration_ns":14375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":67667,"depth":2,"function":{"name":"factorial","result":"24","duration_ns":22333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":69833,"depth":1,"function":{"name":"factorial","result":"120","duration_ns":29959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70750,"depth":1,"function":{"name":"std/io.println","args":["factorial(5) = 120"]}}
+{"version":"1.0","event":"effect","timestamp_ns":75208,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["factorial(5) = 120"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":75333,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":75958,"depth":1,"function":{"name":"factorial","args":["10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":81000,"depth":2,"function":{"name":"factorial","args":["9"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":85583,"depth":3,"function":{"name":"factorial","args":["8"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":89625,"depth":4,"function":{"name":"factorial","args":["7"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":94250,"depth":5,"function":{"name":"factorial","args":["6"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":97875,"depth":6,"function":{"name":"factorial","args":["5"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":103583,"depth":7,"function":{"name":"factorial","args":["4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":108625,"depth":8,"function":{"name":"factorial","args":["3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":112750,"depth":9,"function":{"name":"factorial","args":["2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":116375,"depth":10,"function":{"name":"factorial","args":["1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":118458,"depth":10,"function":{"name":"factorial","result":"1","duration_ns":1875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":120375,"depth":9,"function":{"name":"factorial","result":"2","duration_ns":8000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":122250,"depth":8,"function":{"name":"factorial","result":"6","duration_ns":13625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":124250,"depth":7,"function":{"name":"factorial","result":"24","duration_ns":20625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":126375,"depth":6,"function":{"name":"factorial","result":"120","duration_ns":28458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":128750,"depth":5,"function":{"name":"factorial","result":"720","duration_ns":34542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":130792,"depth":4,"function":{"name":"factorial","result":"5040","duration_ns":41125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":132667,"depth":3,"function":{"name":"factorial","result":"40320","duration_ns":47042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":134542,"depth":2,"function":{"name":"factorial","result":"362880","duration_ns":53500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":136417,"depth":1,"function":{"name":"factorial","result":"3628800","duration_ns":60417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":137333,"depth":1,"function":{"name":"std/io.println","args":["factorial(10) = 3628800"]}}
+{"version":"1.0","event":"effect","timestamp_ns":139625,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["factorial(10) = 3628800"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":139792,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2417}}
+{"version":"1.0","event":"module_end","timestamp_ns":140167,"module":{"name":"examples/runnable/factorial","duration_ns":138708}}

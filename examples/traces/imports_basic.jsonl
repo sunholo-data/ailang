@@ -1,4 +1,5 @@
 {"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/imports_basic","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":14042,"depth":1,"function":{"name":"std/io.println","args":["Import test passed"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":20292,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6167}}
-{"version":"1.0","event":"module_end","timestamp_ns":20625,"module":{"name":"examples/runnable/imports_basic"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":13625,"depth":1,"function":{"name":"std/io.println","args":["Import test passed"]}}
+{"version":"1.0","event":"effect","timestamp_ns":19250,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Import test passed"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":19958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":7000}}
+{"version":"1.0","event":"module_end","timestamp_ns":20250,"module":{"name":"examples/runnable/imports_basic","duration_ns":19333}}

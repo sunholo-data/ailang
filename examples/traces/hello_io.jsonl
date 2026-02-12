@@ -1,4 +1,5 @@
-{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/demos/hello_io","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":13167,"depth":1,"function":{"name":"std/io.println","args":["Hello from AILANG Minimal Runner!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":18250,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5250}}
-{"version":"1.0","event":"module_end","timestamp_ns":18542,"module":{"name":"examples/runnable/demos/hello_io"}}
+{"version":"1.0","event":"module_start","timestamp_ns":834,"module":{"name":"examples/runnable/demos/hello_io","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":16875,"depth":1,"function":{"name":"std/io.println","args":["Hello from AILANG Minimal Runner!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":24750,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Hello from AILANG Minimal Runner!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":25667,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":9625}}
+{"version":"1.0","event":"module_end","timestamp_ns":26250,"module":{"name":"examples/runnable/demos/hello_io","duration_ns":25250}}

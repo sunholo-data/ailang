@@ -1,2 +1,2 @@
-{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/nested_match_minimal"}}
-{"version":"1.0","event":"module_end","timestamp_ns":18750,"module":{"name":"examples/runnable/nested_match_minimal"}}
+{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/nested_match_minimal"}}
+{"version":"1.0","event":"module_end","timestamp_ns":20333,"module":{"name":"examples/runnable/nested_match_minimal","duration_ns":19250}}

@@ -1,46 +1,46 @@
-{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/polymorphic_adt","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":24583,"depth":1,"function":{"name":"parseIntResult","args":["42"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":109083,"depth":2,"function":{"name":"std/string.stringToInt","args":["42"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":122500,"depth":2,"function":{"name":"std/string.stringToInt","result":"Some(42)","duration_ns":13291}}
-{"version":"1.0","event":"function_exit","timestamp_ns":128833,"depth":1,"function":{"name":"parseIntResult","result":"Ok(42)","duration_ns":104292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":129416,"depth":1,"function":{"name":"parseIntResult","args":["not a number"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":136833,"depth":2,"function":{"name":"std/string.stringToInt","args":["not a number"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":143625,"depth":2,"function":{"name":"std/string.stringToInt","result":"None","duration_ns":6792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":146250,"depth":1,"function":{"name":"parseIntResult","result":"Err(Invalid integer: not a number)","duration_ns":16792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":149250,"depth":1,"function":{"name":"showResult","args":["Ok(42)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":155875,"depth":2,"function":{"name":"std/string.intToStr","args":["42"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":161750,"depth":2,"function":{"name":"std/string.intToStr","result":"42","duration_ns":5833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":163125,"depth":1,"function":{"name":"showResult","result":"Ok(42)","duration_ns":13875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":164083,"depth":1,"function":{"name":"showResult","args":["Err(Invalid integer: not a number)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":172750,"depth":1,"function":{"name":"showResult","result":"Err(Invalid integer: not a number)","duration_ns":8667}}
-{"version":"1.0","event":"function_enter","timestamp_ns":176458,"depth":1,"function":{"name":"mapResult","args":["\u003cfunction\u003e","Ok(42)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":184458,"depth":2,"function":{"name":"f","args":["42"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":191958,"depth":2,"function":{"name":"f","result":"84","duration_ns":7500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":193541,"depth":1,"function":{"name":"mapResult","result":"Ok(84)","duration_ns":17084}}
-{"version":"1.0","event":"function_enter","timestamp_ns":194333,"depth":1,"function":{"name":"showResult","args":["Ok(84)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":200833,"depth":2,"function":{"name":"std/string.intToStr","args":["84"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":206166,"depth":2,"function":{"name":"std/string.intToStr","result":"84","duration_ns":5334}}
-{"version":"1.0","event":"function_exit","timestamp_ns":207125,"depth":1,"function":{"name":"showResult","result":"Ok(84)","duration_ns":12792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":209916,"depth":1,"function":{"name":"bindResult","args":["\u003cfunction\u003e","Ok(42)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":216541,"depth":2,"function":{"name":"f","args":["42"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":226333,"depth":2,"function":{"name":"f","result":"Ok(420)","duration_ns":9750}}
-{"version":"1.0","event":"function_exit","timestamp_ns":228625,"depth":1,"function":{"name":"bindResult","result":"Ok(420)","duration_ns":18625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":229416,"depth":1,"function":{"name":"showResult","args":["Ok(420)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":237166,"depth":2,"function":{"name":"std/string.intToStr","args":["420"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":242750,"depth":2,"function":{"name":"std/string.intToStr","result":"420","duration_ns":5583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":243708,"depth":1,"function":{"name":"showResult","result":"Ok(420)","duration_ns":14333}}
-{"version":"1.0","event":"function_enter","timestamp_ns":253041,"depth":1,"function":{"name":"getOrElseResult","args":["Err(Invalid integer: not a number)","-1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":261166,"depth":1,"function":{"name":"getOrElseResult","result":"-1","duration_ns":8084}}
-{"version":"1.0","event":"function_enter","timestamp_ns":261916,"depth":1,"function":{"name":"std/string.intToStr","args":["-1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":267833,"depth":1,"function":{"name":"std/string.intToStr","result":"-1","duration_ns":5875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":271875,"depth":1,"function":{"name":"optionToResult","args":["Some(100)","missing"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":279333,"depth":1,"function":{"name":"optionToResult","result":"Ok(100)","duration_ns":7375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":280166,"depth":1,"function":{"name":"showResult","args":["Ok(100)"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":286208,"depth":2,"function":{"name":"std/string.intToStr","args":["100"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":298541,"depth":2,"function":{"name":"std/string.intToStr","result":"100","duration_ns":12334}}
-{"version":"1.0","event":"function_exit","timestamp_ns":303000,"depth":1,"function":{"name":"showResult","result":"Ok(100)","duration_ns":22792}}
-{"version":"1.0","event":"function_enter","timestamp_ns":307375,"depth":1,"function":{"name":"partitionEither","args":["Left(42)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":313375,"depth":1,"function":{"name":"partitionEither","result":"left","duration_ns":6000}}
-{"version":"1.0","event":"function_enter","timestamp_ns":315125,"depth":1,"function":{"name":"partitionEither","args":["Right(hello)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":320500,"depth":1,"function":{"name":"partitionEither","result":"right","duration_ns":5375}}
-{"version":"1.0","event":"module_end","timestamp_ns":335833,"module":{"name":"examples/runnable/polymorphic_adt"}}
+{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/polymorphic_adt","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":27000,"depth":1,"function":{"name":"parseIntResult","args":["42"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":31833,"depth":2,"function":{"name":"std/string.stringToInt","args":["42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":36666,"depth":2,"function":{"name":"std/string.stringToInt","result":"Some(42)","duration_ns":4750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":39416,"depth":1,"function":{"name":"parseIntResult","result":"Ok(42)","duration_ns":13292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":39833,"depth":1,"function":{"name":"parseIntResult","args":["not a number"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":42708,"depth":2,"function":{"name":"std/string.stringToInt","args":["not a number"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45375,"depth":2,"function":{"name":"std/string.stringToInt","result":"None","duration_ns":2625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":47041,"depth":1,"function":{"name":"parseIntResult","result":"Err(Invalid integer: not a number)","duration_ns":7167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":47750,"depth":1,"function":{"name":"showResult","args":["Ok(42)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":52500,"depth":2,"function":{"name":"std/string.intToStr","args":["42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":55208,"depth":2,"function":{"name":"std/string.intToStr","result":"42","duration_ns":2708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":56250,"depth":1,"function":{"name":"showResult","result":"Ok(42)","duration_ns":8542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":57083,"depth":1,"function":{"name":"showResult","args":["Err(Invalid integer: not a number)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":150583,"depth":1,"function":{"name":"showResult","result":"Err(Invalid integer: not a number)","duration_ns":93459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":153250,"depth":1,"function":{"name":"mapResult","args":["\u003cfunction\u003e","Ok(42)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":160916,"depth":2,"function":{"name":"f","args":["42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":168541,"depth":2,"function":{"name":"f","result":"84","duration_ns":7625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":170250,"depth":1,"function":{"name":"mapResult","result":"Ok(84)","duration_ns":17000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":171083,"depth":1,"function":{"name":"showResult","args":["Ok(84)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":178625,"depth":2,"function":{"name":"std/string.intToStr","args":["84"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":185625,"depth":2,"function":{"name":"std/string.intToStr","result":"84","duration_ns":6958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":186625,"depth":1,"function":{"name":"showResult","result":"Ok(84)","duration_ns":15542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":187875,"depth":1,"function":{"name":"bindResult","args":["\u003cfunction\u003e","Ok(42)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":200208,"depth":2,"function":{"name":"f","args":["42"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":227333,"depth":2,"function":{"name":"f","result":"Ok(420)","duration_ns":27084}}
+{"version":"1.0","event":"function_exit","timestamp_ns":227625,"depth":1,"function":{"name":"bindResult","result":"Ok(420)","duration_ns":39708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":228333,"depth":1,"function":{"name":"showResult","args":["Ok(420)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":235208,"depth":2,"function":{"name":"std/string.intToStr","args":["420"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":242958,"depth":2,"function":{"name":"std/string.intToStr","result":"420","duration_ns":7750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":243875,"depth":1,"function":{"name":"showResult","result":"Ok(420)","duration_ns":15542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":250458,"depth":1,"function":{"name":"getOrElseResult","args":["Err(Invalid integer: not a number)","-1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":257916,"depth":1,"function":{"name":"getOrElseResult","result":"-1","duration_ns":7458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":259916,"depth":1,"function":{"name":"std/string.intToStr","args":["-1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":266791,"depth":1,"function":{"name":"std/string.intToStr","result":"-1","duration_ns":6916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":268916,"depth":1,"function":{"name":"optionToResult","args":["Some(100)","missing"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":276333,"depth":1,"function":{"name":"optionToResult","result":"Ok(100)","duration_ns":7416}}
+{"version":"1.0","event":"function_enter","timestamp_ns":277041,"depth":1,"function":{"name":"showResult","args":["Ok(100)"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":284125,"depth":2,"function":{"name":"std/string.intToStr","args":["100"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":289375,"depth":2,"function":{"name":"std/string.intToStr","result":"100","duration_ns":5208}}
+{"version":"1.0","event":"function_exit","timestamp_ns":290250,"depth":1,"function":{"name":"showResult","result":"Ok(100)","duration_ns":13209}}
+{"version":"1.0","event":"function_enter","timestamp_ns":293083,"depth":1,"function":{"name":"partitionEither","args":["Left(42)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":299958,"depth":1,"function":{"name":"partitionEither","result":"left","duration_ns":6916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":301500,"depth":1,"function":{"name":"partitionEither","args":["Right(hello)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":308791,"depth":1,"function":{"name":"partitionEither","result":"right","duration_ns":7250}}
+{"version":"1.0","event":"module_end","timestamp_ns":323500,"module":{"name":"examples/runnable/polymorphic_adt","duration_ns":322583}}

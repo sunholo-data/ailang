@@ -1,1 +1,1 @@
-{comparison_works: {floats: {max: 3.14, min: 2.71}, ints: {max: 42, min: 17}, strings: {max: world, min: hello}}, arithmetic_broken: See comments for Phase 2 status}
+{arithmetic_broken: See comments for Phase 2 status, comparison_works: {floats: {max: 3.14, min: 2.71}, ints: {max: 42, min: 17}, strings: {max: world, min: hello}}}

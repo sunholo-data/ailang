@@ -666,6 +666,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 
 		// Execute module entrypoint
+		moduleStartTime := time.Now()
 		execParams := moduleExecParams{
 			filename:          filename,
 			iface:             result.Interface,
@@ -678,9 +679,10 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 		execErr := executeModuleEntrypoint(rt, execParams)
 
-		// M-TRACE-EXPORT: Record module end
+		// M-TRACE-EXPORT: Record module end with duration
 		if effCtx.Trace != nil && effCtx.Trace.Enabled() {
-			effCtx.Trace.RecordModuleEnd(moduleName, 0)
+			durationNS := time.Since(moduleStartTime).Nanoseconds()
+			effCtx.Trace.RecordModuleEnd(moduleName, durationNS)
 		}
 
 		if execErr != nil {

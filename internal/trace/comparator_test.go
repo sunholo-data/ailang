@@ -235,3 +235,66 @@ func TestCompareTraces_MultipleMismatches(t *testing.T) {
 		t.Errorf("expected at least 2 mismatches, got %d", len(result.Mismatches))
 	}
 }
+
+func TestCompareTraces_NonDeterministicEffectSkipped(t *testing.T) {
+	nondet := false
+	baseline := []TraceEvent{
+		{Version: "1.0", Event: EventEffect, Depth: 1,
+			Effect: &EffectEvent{
+				EffectName:    "Clock",
+				OpName:        "now",
+				Result:        "1000",
+				Deterministic: &nondet, // flagged non-deterministic
+			}},
+	}
+	replay := []TraceEvent{
+		{Version: "1.0", Event: EventEffect, Depth: 1,
+			Effect: &EffectEvent{
+				EffectName:    "Clock",
+				OpName:        "now",
+				Result:        "9999", // different result — should be tolerated
+				Deterministic: &nondet,
+			}},
+	}
+
+	result := CompareTraces(baseline, replay)
+	if !result.Match {
+		t.Fatalf("expected match (non-deterministic effect result should be skipped), got %d mismatches: %v", len(result.Mismatches), result.Mismatches)
+	}
+}
+
+func TestCompareTraces_DeterministicEffectNotSkipped(t *testing.T) {
+	baseline := []TraceEvent{
+		{Version: "1.0", Event: EventEffect, Depth: 1,
+			Effect: &EffectEvent{EffectName: "IO", OpName: "println", Result: "()"}},
+	}
+	replay := []TraceEvent{
+		{Version: "1.0", Event: EventEffect, Depth: 1,
+			Effect: &EffectEvent{EffectName: "IO", OpName: "println", Result: "error"}},
+	}
+
+	result := CompareTraces(baseline, replay)
+	if result.Match {
+		t.Fatal("expected mismatch for deterministic effect with different result")
+	}
+}
+
+func TestIsNonDeterministic(t *testing.T) {
+	cases := []struct {
+		effect, op string
+		want       bool
+	}{
+		{"Clock", "now", true},
+		{"Clock", "sleep", true},
+		{"IO", "readLine", true},
+		{"Net", "httpGet", true},
+		{"IO", "println", false},
+		{"FS", "readFile", false},
+	}
+	for _, tc := range cases {
+		got := IsNonDeterministic(tc.effect, tc.op)
+		if got != tc.want {
+			t.Errorf("IsNonDeterministic(%q, %q) = %v, want %v", tc.effect, tc.op, got, tc.want)
+		}
+	}
+}

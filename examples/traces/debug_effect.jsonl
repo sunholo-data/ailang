@@ -1,73 +1,73 @@
-{"version":"1.0","event":"module_start","timestamp_ns":1083,"module":{"name":"examples/runnable/debug_effect","caps":["IO","Debug"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":25250,"depth":1,"function":{"name":"std/debug.log","args":["Starting game tick"]}}
-{"version":"1.0","event":"effect","timestamp_ns":30458,"depth":1,"effect":{"effect_name":"Debug","op_name":"log","args":["Starting game tick","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":31125,"depth":1,"function":{"name":"std/debug.log","result":"()","duration_ns":5750}}
-{"version":"1.0","event":"function_enter","timestamp_ns":37250,"depth":1,"function":{"name":"std/debug.check","args":["true","hero must be alive"]}}
-{"version":"1.0","event":"effect","timestamp_ns":39542,"depth":1,"effect":{"effect_name":"Debug","op_name":"check","args":["true","hero must be alive","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":39750,"depth":1,"function":{"name":"std/debug.check","result":"()","duration_ns":2459}}
-{"version":"1.0","event":"function_enter","timestamp_ns":42125,"depth":1,"function":{"name":"damage","args":["{health: 100, id: 1, name: Hero}","25"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":46917,"depth":2,"function":{"name":"std/debug.log","args":["Damaging entity 1 by 25"]}}
-{"version":"1.0","event":"effect","timestamp_ns":48292,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 1 by 25","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":48458,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":52833,"depth":2,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":54042,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":54167,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":1292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":61542,"depth":2,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":62750,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":62875,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":1291}}
-{"version":"1.0","event":"function_exit","timestamp_ns":65125,"depth":1,"function":{"name":"damage","result":"{id: 1, name: Hero, health: 75}","duration_ns":22959}}
-{"version":"1.0","event":"function_enter","timestamp_ns":66625,"depth":1,"function":{"name":"heal","args":["{id: 1, name: Hero, health: 75}","10"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":69500,"depth":2,"function":{"name":"std/debug.log","args":["Healing entity 1 by 10"]}}
-{"version":"1.0","event":"effect","timestamp_ns":70542,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Healing entity 1 by 10","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":70708,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1209}}
-{"version":"1.0","event":"function_enter","timestamp_ns":73625,"depth":2,"function":{"name":"std/debug.check","args":["true","heal amount must be non-negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":76333,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","heal amount must be non-negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":76417,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":2792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":82208,"depth":1,"function":{"name":"heal","result":"{health: 85, id: 1, name: Hero}","duration_ns":15625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":89375,"depth":1,"function":{"name":"process_entities","args":["[{health: 100, id: 1, name: Hero}, {id: 2, name: Goblin, health: 30}]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":90167,"depth":2,"function":{"name":"std/debug.log","args":["Processing entities"]}}
-{"version":"1.0","event":"effect","timestamp_ns":91417,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":91542,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":94125,"depth":2,"function":{"name":"std/debug.log","args":["Processing: Hero"]}}
-{"version":"1.0","event":"effect","timestamp_ns":95375,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing: Hero","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":95458,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":96958,"depth":2,"function":{"name":"damage","args":["{health: 100, id: 1, name: Hero}","10"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":101458,"depth":3,"function":{"name":"std/debug.log","args":["Damaging entity 1 by 10"]}}
-{"version":"1.0","event":"effect","timestamp_ns":102375,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 1 by 10","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":102500,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":1041}}
-{"version":"1.0","event":"function_enter","timestamp_ns":105542,"depth":3,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":106583,"depth":3,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":106667,"depth":3,"function":{"name":"std/debug.check","result":"()","duration_ns":1125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":110833,"depth":3,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":111583,"depth":3,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":111708,"depth":3,"function":{"name":"std/debug.check","result":"()","duration_ns":834}}
-{"version":"1.0","event":"function_exit","timestamp_ns":113250,"depth":2,"function":{"name":"damage","result":"{health: 90, id: 1, name: Hero}","duration_ns":16250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":116167,"depth":2,"function":{"name":"process_entities","args":["[{health: 30, id: 2, name: Goblin}]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":116667,"depth":3,"function":{"name":"std/debug.log","args":["Processing entities"]}}
-{"version":"1.0","event":"effect","timestamp_ns":117333,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":117500,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":118917,"depth":3,"function":{"name":"std/debug.log","args":["Processing: Goblin"]}}
-{"version":"1.0","event":"effect","timestamp_ns":119542,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing: Goblin","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":119625,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":121167,"depth":3,"function":{"name":"damage","args":["{id: 2, name: Goblin, health: 30}","10"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":123292,"depth":4,"function":{"name":"std/debug.log","args":["Damaging entity 2 by 10"]}}
-{"version":"1.0","event":"effect","timestamp_ns":124250,"depth":4,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 2 by 10","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":124333,"depth":4,"function":{"name":"std/debug.log","result":"()","duration_ns":1084}}
-{"version":"1.0","event":"function_enter","timestamp_ns":126333,"depth":4,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":127167,"depth":4,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":127250,"depth":4,"function":{"name":"std/debug.check","result":"()","duration_ns":875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":131333,"depth":4,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
-{"version":"1.0","event":"effect","timestamp_ns":132125,"depth":4,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":132208,"depth":4,"function":{"name":"std/debug.check","result":"()","duration_ns":834}}
-{"version":"1.0","event":"function_exit","timestamp_ns":133875,"depth":3,"function":{"name":"damage","result":"{name: Goblin, health: 20, id: 2}","duration_ns":12708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":134333,"depth":3,"function":{"name":"process_entities","args":["[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":134667,"depth":4,"function":{"name":"std/debug.log","args":["Processing entities"]}}
-{"version":"1.0","event":"effect","timestamp_ns":135500,"depth":4,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":135542,"depth":4,"function":{"name":"std/debug.log","result":"()","duration_ns":875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":136042,"depth":3,"function":{"name":"process_entities","result":"[]","duration_ns":1667}}
-{"version":"1.0","event":"function_exit","timestamp_ns":137750,"depth":2,"function":{"name":"process_entities","result":"[{name: Goblin, health: 20, id: 2}]","duration_ns":21542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":139417,"depth":1,"function":{"name":"process_entities","result":"[{id: 1, name: Hero, health: 90}, {name: Goblin, health: 20, id: 2}]","duration_ns":50042}}
-{"version":"1.0","event":"function_enter","timestamp_ns":139875,"depth":1,"function":{"name":"std/debug.log","args":["Game tick complete"]}}
-{"version":"1.0","event":"effect","timestamp_ns":140792,"depth":1,"effect":{"effect_name":"Debug","op_name":"log","args":["Game tick complete","unknown"],"result":"()"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":140875,"depth":1,"function":{"name":"std/debug.log","result":"()","duration_ns":1000}}
-{"version":"1.0","event":"module_end","timestamp_ns":143583,"module":{"name":"examples/runnable/debug_effect"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1000,"module":{"name":"examples/runnable/debug_effect","caps":["IO","Debug"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":25792,"depth":1,"function":{"name":"std/debug.log","args":["Starting game tick"]}}
+{"version":"1.0","event":"effect","timestamp_ns":30625,"depth":1,"effect":{"effect_name":"Debug","op_name":"log","args":["Starting game tick","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":31000,"depth":1,"function":{"name":"std/debug.log","result":"()","duration_ns":6208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":36250,"depth":1,"function":{"name":"std/debug.check","args":["true","hero must be alive"]}}
+{"version":"1.0","event":"effect","timestamp_ns":38000,"depth":1,"effect":{"effect_name":"Debug","op_name":"check","args":["true","hero must be alive","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":38167,"depth":1,"function":{"name":"std/debug.check","result":"()","duration_ns":1875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":40792,"depth":1,"function":{"name":"damage","args":["{health: 100, id: 1, name: Hero}","25"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":44667,"depth":2,"function":{"name":"std/debug.log","args":["Damaging entity 1 by 25"]}}
+{"version":"1.0","event":"effect","timestamp_ns":45917,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 1 by 25","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":46042,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50708,"depth":2,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":52042,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":52167,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":1417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":57750,"depth":2,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":59375,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59458,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":1709}}
+{"version":"1.0","event":"function_exit","timestamp_ns":62042,"depth":1,"function":{"name":"damage","result":"{health: 75, id: 1, name: Hero}","duration_ns":21250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":63667,"depth":1,"function":{"name":"heal","args":["{health: 75, id: 1, name: Hero}","10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":66833,"depth":2,"function":{"name":"std/debug.log","args":["Healing entity 1 by 10"]}}
+{"version":"1.0","event":"effect","timestamp_ns":68042,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Healing entity 1 by 10","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":68167,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":1291}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70875,"depth":2,"function":{"name":"std/debug.check","args":["true","heal amount must be non-negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":72542,"depth":2,"effect":{"effect_name":"Debug","op_name":"check","args":["true","heal amount must be non-negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":72625,"depth":2,"function":{"name":"std/debug.check","result":"()","duration_ns":1708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":80250,"depth":1,"function":{"name":"heal","result":"{health: 85, id: 1, name: Hero}","duration_ns":16542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":127917,"depth":1,"function":{"name":"process_entities","args":["[{health: 100, id: 1, name: Hero}, {health: 30, id: 2, name: Goblin}]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":129500,"depth":2,"function":{"name":"std/debug.log","args":["Processing entities"]}}
+{"version":"1.0","event":"effect","timestamp_ns":132042,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":132333,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":2750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":137625,"depth":2,"function":{"name":"std/debug.log","args":["Processing: Hero"]}}
+{"version":"1.0","event":"effect","timestamp_ns":142583,"depth":2,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing: Hero","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":142708,"depth":2,"function":{"name":"std/debug.log","result":"()","duration_ns":5084}}
+{"version":"1.0","event":"function_enter","timestamp_ns":145333,"depth":2,"function":{"name":"damage","args":["{health: 100, id: 1, name: Hero}","10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":197167,"depth":3,"function":{"name":"std/debug.log","args":["Damaging entity 1 by 10"]}}
+{"version":"1.0","event":"effect","timestamp_ns":200917,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 1 by 10","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":201417,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":4208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":208833,"depth":3,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":211458,"depth":3,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":211583,"depth":3,"function":{"name":"std/debug.check","result":"()","duration_ns":2750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":222083,"depth":3,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":223667,"depth":3,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":223792,"depth":3,"function":{"name":"std/debug.check","result":"()","duration_ns":1708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":229042,"depth":2,"function":{"name":"damage","result":"{health: 90, id: 1, name: Hero}","duration_ns":83667}}
+{"version":"1.0","event":"function_enter","timestamp_ns":231458,"depth":2,"function":{"name":"process_entities","args":["[{health: 30, id: 2, name: Goblin}]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":232250,"depth":3,"function":{"name":"std/debug.log","args":["Processing entities"]}}
+{"version":"1.0","event":"effect","timestamp_ns":235750,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":235875,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":3625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":241625,"depth":3,"function":{"name":"std/debug.log","args":["Processing: Goblin"]}}
+{"version":"1.0","event":"effect","timestamp_ns":243083,"depth":3,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing: Goblin","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":243208,"depth":3,"function":{"name":"std/debug.log","result":"()","duration_ns":1584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":247000,"depth":3,"function":{"name":"damage","args":["{health: 30, id: 2, name: Goblin}","10"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":250083,"depth":4,"function":{"name":"std/debug.log","args":["Damaging entity 2 by 10"]}}
+{"version":"1.0","event":"effect","timestamp_ns":256292,"depth":4,"effect":{"effect_name":"Debug","op_name":"log","args":["Damaging entity 2 by 10","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":256417,"depth":4,"function":{"name":"std/debug.log","result":"()","duration_ns":6333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":259292,"depth":4,"function":{"name":"std/debug.check","args":["true","damage amount must be non-negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":262333,"depth":4,"effect":{"effect_name":"Debug","op_name":"check","args":["true","damage amount must be non-negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":262417,"depth":4,"function":{"name":"std/debug.check","result":"()","duration_ns":3083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":269833,"depth":4,"function":{"name":"std/debug.check","args":["true","health should not go negative"]}}
+{"version":"1.0","event":"effect","timestamp_ns":272875,"depth":4,"effect":{"effect_name":"Debug","op_name":"check","args":["true","health should not go negative","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":272958,"depth":4,"function":{"name":"std/debug.check","result":"()","duration_ns":3084}}
+{"version":"1.0","event":"function_exit","timestamp_ns":275000,"depth":3,"function":{"name":"damage","result":"{health: 20, id: 2, name: Goblin}","duration_ns":27958}}
+{"version":"1.0","event":"function_enter","timestamp_ns":276458,"depth":3,"function":{"name":"process_entities","args":["[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":277083,"depth":4,"function":{"name":"std/debug.log","args":["Processing entities"]}}
+{"version":"1.0","event":"effect","timestamp_ns":279833,"depth":4,"effect":{"effect_name":"Debug","op_name":"log","args":["Processing entities","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":279917,"depth":4,"function":{"name":"std/debug.log","result":"()","duration_ns":2834}}
+{"version":"1.0","event":"function_exit","timestamp_ns":280708,"depth":3,"function":{"name":"process_entities","result":"[]","duration_ns":4291}}
+{"version":"1.0","event":"function_exit","timestamp_ns":282667,"depth":2,"function":{"name":"process_entities","result":"[{health: 20, id: 2, name: Goblin}]","duration_ns":51250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":286917,"depth":1,"function":{"name":"process_entities","result":"[{health: 90, id: 1, name: Hero}, {health: 20, id: 2, name: Goblin}]","duration_ns":159000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":287583,"depth":1,"function":{"name":"std/debug.log","args":["Game tick complete"]}}
+{"version":"1.0","event":"effect","timestamp_ns":289000,"depth":1,"effect":{"effect_name":"Debug","op_name":"log","args":["Game tick complete","unknown"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":289083,"depth":1,"function":{"name":"std/debug.log","result":"()","duration_ns":1500}}
+{"version":"1.0","event":"module_end","timestamp_ns":294000,"module":{"name":"examples/runnable/debug_effect","duration_ns":292750}}

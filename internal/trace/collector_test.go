@@ -146,6 +146,33 @@ func TestRecordEffect(t *testing.T) {
 	}
 }
 
+func TestRecordEffect_NonDeterministicFlag(t *testing.T) {
+	c := NewCollector()
+
+	// Deterministic effect (IO.println) should have nil Deterministic
+	c.RecordEffect("IO", "println", []string{"\"hello\""}, "()")
+	// Non-deterministic effect (Clock.now) should have Deterministic=false
+	c.RecordEffect("Clock", "now", nil, "1234567890")
+
+	events := c.Events()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+
+	// IO.println: Deterministic should be nil (not flagged)
+	if events[0].Effect.Deterministic != nil {
+		t.Errorf("IO.println should have nil Deterministic, got %v", *events[0].Effect.Deterministic)
+	}
+
+	// Clock.now: Deterministic should be false
+	if events[1].Effect.Deterministic == nil {
+		t.Fatal("Clock.now should have non-nil Deterministic flag")
+	}
+	if *events[1].Effect.Deterministic != false {
+		t.Errorf("Clock.now Deterministic should be false, got %v", *events[1].Effect.Deterministic)
+	}
+}
+
 func TestRecordContractCheck(t *testing.T) {
 	c := NewCollector()
 	c.RecordContractCheck("requires", true, "x > 0", "main.ail:5:3", "factorial")

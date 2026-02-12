@@ -1,44 +1,44 @@
-{"version":"1.0","event":"module_start","timestamp_ns":791,"module":{"name":"examples/runnable/no_loops_recursion"}}
-{"version":"1.0","event":"function_enter","timestamp_ns":14708,"depth":1,"function":{"name":"sum","args":["[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":18000,"depth":2,"function":{"name":"sum","args":["[2, 3, 4, 5, 6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":19583,"depth":3,"function":{"name":"sum","args":["[3, 4, 5, 6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":22583,"depth":4,"function":{"name":"sum","args":["[4, 5, 6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":23833,"depth":5,"function":{"name":"sum","args":["[5, 6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":25041,"depth":6,"function":{"name":"sum","args":["[6, 7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":26041,"depth":7,"function":{"name":"sum","args":["[7, 8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":27041,"depth":8,"function":{"name":"sum","args":["[8, 9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":28166,"depth":9,"function":{"name":"sum","args":["[9, 10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":30875,"depth":10,"function":{"name":"sum","args":["[10]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":31541,"depth":11,"function":{"name":"sum","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":32375,"depth":11,"function":{"name":"sum","result":"0","duration_ns":625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":35958,"depth":10,"function":{"name":"sum","result":"10","duration_ns":5042}}
-{"version":"1.0","event":"function_exit","timestamp_ns":37791,"depth":9,"function":{"name":"sum","result":"19","duration_ns":9875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":39541,"depth":8,"function":{"name":"sum","result":"27","duration_ns":12459}}
-{"version":"1.0","event":"function_exit","timestamp_ns":41416,"depth":7,"function":{"name":"sum","result":"34","duration_ns":15375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":43125,"depth":6,"function":{"name":"sum","result":"40","duration_ns":18083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":44916,"depth":5,"function":{"name":"sum","result":"45","duration_ns":21084}}
-{"version":"1.0","event":"function_exit","timestamp_ns":46666,"depth":4,"function":{"name":"sum","result":"49","duration_ns":24042}}
-{"version":"1.0","event":"function_exit","timestamp_ns":48333,"depth":3,"function":{"name":"sum","result":"52","duration_ns":28750}}
-{"version":"1.0","event":"function_exit","timestamp_ns":50041,"depth":2,"function":{"name":"sum","result":"54","duration_ns":32084}}
-{"version":"1.0","event":"function_exit","timestamp_ns":53333,"depth":1,"function":{"name":"sum","result":"55","duration_ns":38875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":53750,"depth":1,"function":{"name":"range","args":["5"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":56541,"depth":2,"function":{"name":"range","args":["4"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":58666,"depth":3,"function":{"name":"range","args":["3"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":60833,"depth":4,"function":{"name":"range","args":["2"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":62791,"depth":5,"function":{"name":"range","args":["1"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":64750,"depth":6,"function":{"name":"range","args":["0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":65166,"depth":6,"function":{"name":"range","result":"[]","duration_ns":375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":68166,"depth":5,"function":{"name":"range","result":"[0]","duration_ns":5416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":70500,"depth":4,"function":{"name":"range","result":"[0, 1]","duration_ns":9667}}
-{"version":"1.0","event":"function_exit","timestamp_ns":74750,"depth":3,"function":{"name":"range","result":"[0, 1, 2]","duration_ns":16083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":77541,"depth":2,"function":{"name":"range","result":"[0, 1, 2, 3]","duration_ns":20959}}
-{"version":"1.0","event":"function_exit","timestamp_ns":80125,"depth":1,"function":{"name":"range","result":"[0, 1, 2, 3, 4]","duration_ns":26333}}
-{"version":"1.0","event":"function_enter","timestamp_ns":81541,"depth":1,"function":{"name":"findFirst","args":["[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]","\u003cfunction\u003e"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":82791,"depth":2,"function":{"name":"pred","args":["1"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":84666,"depth":2,"function":{"name":"pred","result":"false","duration_ns":1875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":85958,"depth":2,"function":{"name":"findFirst","args":["[2, 3, 4, 5, 6, 7, 8, 9, 10]","\u003cfunction\u003e"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":86708,"depth":3,"function":{"name":"pred","args":["2"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":87791,"depth":3,"function":{"name":"pred","result":"true","duration_ns":1083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":90083,"depth":2,"function":{"name":"findFirst","result":"[2]","duration_ns":4125}}
-{"version":"1.0","event":"function_exit","timestamp_ns":90291,"depth":1,"function":{"name":"findFirst","result":"[2]","duration_ns":8792}}
-{"version":"1.0","event":"module_end","timestamp_ns":96125,"module":{"name":"examples/runnable/no_loops_recursion"}}
+{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/no_loops_recursion"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":22917,"depth":1,"function":{"name":"sum","args":["[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":27000,"depth":2,"function":{"name":"sum","args":["[2, 3, 4, 5, 6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":29042,"depth":3,"function":{"name":"sum","args":["[3, 4, 5, 6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":30417,"depth":4,"function":{"name":"sum","args":["[4, 5, 6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":33125,"depth":5,"function":{"name":"sum","args":["[5, 6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":34417,"depth":6,"function":{"name":"sum","args":["[6, 7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":35708,"depth":7,"function":{"name":"sum","args":["[7, 8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":36875,"depth":8,"function":{"name":"sum","args":["[8, 9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":38083,"depth":9,"function":{"name":"sum","args":["[9, 10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":39417,"depth":10,"function":{"name":"sum","args":["[10]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":40167,"depth":11,"function":{"name":"sum","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":40833,"depth":11,"function":{"name":"sum","result":"0","duration_ns":458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":44125,"depth":10,"function":{"name":"sum","result":"10","duration_ns":4708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45958,"depth":9,"function":{"name":"sum","result":"19","duration_ns":8166}}
+{"version":"1.0","event":"function_exit","timestamp_ns":47750,"depth":8,"function":{"name":"sum","result":"27","duration_ns":10833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":50875,"depth":7,"function":{"name":"sum","result":"34","duration_ns":15208}}
+{"version":"1.0","event":"function_exit","timestamp_ns":52875,"depth":6,"function":{"name":"sum","result":"40","duration_ns":18416}}
+{"version":"1.0","event":"function_exit","timestamp_ns":54667,"depth":5,"function":{"name":"sum","result":"45","duration_ns":21584}}
+{"version":"1.0","event":"function_exit","timestamp_ns":56417,"depth":4,"function":{"name":"sum","result":"49","duration_ns":25958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":58125,"depth":3,"function":{"name":"sum","result":"52","duration_ns":29083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59833,"depth":2,"function":{"name":"sum","result":"54","duration_ns":32875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":61625,"depth":1,"function":{"name":"sum","result":"55","duration_ns":39917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":62375,"depth":1,"function":{"name":"range","args":["5"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":64875,"depth":2,"function":{"name":"range","args":["4"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":66917,"depth":3,"function":{"name":"range","args":["3"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":69042,"depth":4,"function":{"name":"range","args":["2"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":71000,"depth":5,"function":{"name":"range","args":["1"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":74292,"depth":6,"function":{"name":"range","args":["0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":74750,"depth":6,"function":{"name":"range","result":"[]","duration_ns":417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77708,"depth":5,"function":{"name":"range","result":"[0]","duration_ns":6708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":80167,"depth":4,"function":{"name":"range","result":"[0, 1]","duration_ns":11167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":82958,"depth":3,"function":{"name":"range","result":"[0, 1, 2]","duration_ns":16000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":85500,"depth":2,"function":{"name":"range","result":"[0, 1, 2, 3]","duration_ns":20583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":87958,"depth":1,"function":{"name":"range","result":"[0, 1, 2, 3, 4]","duration_ns":25625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":89500,"depth":1,"function":{"name":"findFirst","args":["[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]","\u003cfunction\u003e"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":90458,"depth":2,"function":{"name":"pred","args":["1"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":92250,"depth":2,"function":{"name":"pred","result":"false","duration_ns":1791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":93542,"depth":2,"function":{"name":"findFirst","args":["[2, 3, 4, 5, 6, 7, 8, 9, 10]","\u003cfunction\u003e"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":94417,"depth":3,"function":{"name":"pred","args":["2"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":95417,"depth":3,"function":{"name":"pred","result":"true","duration_ns":1000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":95792,"depth":2,"function":{"name":"findFirst","result":"[2]","duration_ns":2250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":96000,"depth":1,"function":{"name":"findFirst","result":"[2]","duration_ns":6500}}
+{"version":"1.0","event":"module_end","timestamp_ns":102542,"module":{"name":"examples/runnable/no_loops_recursion","duration_ns":101458}}

@@ -1,4 +1,5 @@
-{"version":"1.0","event":"module_start","timestamp_ns":875,"module":{"name":"examples/runnable/hello","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":16208,"depth":1,"function":{"name":"std/io.print","args":["Hello, AILANG!"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":21291,"depth":1,"function":{"name":"std/io.print","result":"()","duration_ns":4958}}
-{"version":"1.0","event":"module_end","timestamp_ns":21458,"module":{"name":"examples/runnable/hello"}}
+{"version":"1.0","event":"module_start","timestamp_ns":666,"module":{"name":"examples/runnable/hello","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":13250,"depth":1,"function":{"name":"std/io.print","args":["Hello, AILANG!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":19708,"depth":1,"effect":{"effect_name":"IO","op_name":"print","args":["Hello, AILANG!"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20291,"depth":1,"function":{"name":"std/io.print","result":"()","duration_ns":7750}}
+{"version":"1.0","event":"module_end","timestamp_ns":20541,"module":{"name":"examples/runnable/hello","duration_ns":19625}}

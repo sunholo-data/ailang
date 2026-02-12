@@ -1,6 +1,7 @@
-{"version":"1.0","event":"module_start","timestamp_ns":666,"module":{"name":"examples/runnable/stdlib_demo","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":56250,"depth":1,"function":{"name":"std/string.toUpper","args":["hello"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":63583,"depth":1,"function":{"name":"std/string.toUpper","result":"HELLO","duration_ns":10750}}
-{"version":"1.0","event":"function_enter","timestamp_ns":64666,"depth":1,"function":{"name":"std/io.println","args":["Result: HELLO"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":73208,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8541}}
-{"version":"1.0","event":"module_end","timestamp_ns":73416,"module":{"name":"examples/runnable/stdlib_demo"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1000,"module":{"name":"examples/runnable/stdlib_demo","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":52333,"depth":1,"function":{"name":"std/string.toUpper","args":["hello"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":58792,"depth":1,"function":{"name":"std/string.toUpper","result":"HELLO","duration_ns":7542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":60042,"depth":1,"function":{"name":"std/io.println","args":["Result: HELLO"]}}
+{"version":"1.0","event":"effect","timestamp_ns":72833,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Result: HELLO"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":73000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":12958}}
+{"version":"1.0","event":"module_end","timestamp_ns":73292,"module":{"name":"examples/runnable/stdlib_demo","duration_ns":72125}}

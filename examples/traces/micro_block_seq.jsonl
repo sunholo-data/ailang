@@ -1,6 +1,8 @@
 {"version":"1.0","event":"module_start","timestamp_ns":625,"module":{"name":"examples/runnable/micro_block_seq","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":12375,"depth":1,"function":{"name":"std/io.println","args":["first"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":17208,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":4625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":17833,"depth":1,"function":{"name":"std/io.println","args":["second"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":19250,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1458}}
-{"version":"1.0","event":"module_end","timestamp_ns":20875,"module":{"name":"examples/runnable/micro_block_seq"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":12791,"depth":1,"function":{"name":"std/io.println","args":["first"]}}
+{"version":"1.0","event":"effect","timestamp_ns":20041,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["first"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":21041,"depth":1,"function":{"name":"std/io.println","args":["second"]}}
+{"version":"1.0","event":"effect","timestamp_ns":22250,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["second"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":22375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1291}}
+{"version":"1.0","event":"module_end","timestamp_ns":24208,"module":{"name":"examples/runnable/micro_block_seq","duration_ns":23375}}

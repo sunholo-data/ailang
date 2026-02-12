@@ -142,11 +142,16 @@ func compareEffectEvent(index int, b, r TraceEvent) []Mismatch {
 	if be.OpName != re.OpName {
 		mm = append(mm, Mismatch{Index: index, Field: "effect.op_name", Expected: be.OpName, Actual: re.OpName, Context: ctx})
 	}
-	if !sliceEqual(be.Args, re.Args) {
-		mm = append(mm, Mismatch{Index: index, Field: "effect.args", Expected: fmt.Sprintf("%v", be.Args), Actual: fmt.Sprintf("%v", re.Args), Context: ctx})
-	}
-	if be.Result != re.Result {
-		mm = append(mm, Mismatch{Index: index, Field: "effect.result", Expected: be.Result, Actual: re.Result, Context: ctx})
+
+	// Skip args/result comparison for non-deterministic effects (Clock.now, Net.*, IO.readLine)
+	nondet := be.Deterministic != nil && !*be.Deterministic
+	if !nondet {
+		if !sliceEqual(be.Args, re.Args) {
+			mm = append(mm, Mismatch{Index: index, Field: "effect.args", Expected: fmt.Sprintf("%v", be.Args), Actual: fmt.Sprintf("%v", re.Args), Context: ctx})
+		}
+		if be.Result != re.Result {
+			mm = append(mm, Mismatch{Index: index, Field: "effect.result", Expected: be.Result, Actual: re.Result, Context: ctx})
+		}
 	}
 	return mm
 }

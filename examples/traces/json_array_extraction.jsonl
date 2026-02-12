@@ -1,248 +1,248 @@
-{"version":"1.0","event":"module_start","timestamp_ns":625,"module":{"name":"examples/runnable/json_array_extraction","caps":["IO"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":101958,"depth":1,"function":{"name":"std/json.filterStrings","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":108708,"depth":2,"function":{"name":"filterStrings","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":111042,"depth":3,"function":{"name":"filterStrings","args":["[JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":113542,"depth":4,"function":{"name":"filterStrings","args":["[JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":114792,"depth":5,"function":{"name":"filterStrings","args":["[JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":117208,"depth":6,"function":{"name":"filterStrings","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":118167,"depth":6,"function":{"name":"filterStrings","result":"[]","duration_ns":833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":119458,"depth":5,"function":{"name":"filterStrings","result":"[cherry]","duration_ns":4667}}
-{"version":"1.0","event":"function_exit","timestamp_ns":119625,"depth":4,"function":{"name":"filterStrings","result":"[cherry]","duration_ns":6083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":120375,"depth":3,"function":{"name":"filterStrings","result":"[banana, cherry]","duration_ns":9333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":120667,"depth":2,"function":{"name":"filterStrings","result":"[banana, cherry]","duration_ns":11958}}
-{"version":"1.0","event":"function_exit","timestamp_ns":121500,"depth":1,"function":{"name":"std/json.filterStrings","result":"[apple, banana, cherry]","duration_ns":19791}}
-{"version":"1.0","event":"function_enter","timestamp_ns":122417,"depth":1,"function":{"name":"std/string.join","args":[", ","[apple, banana, cherry]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":128708,"depth":2,"function":{"name":"join","args":[", ","[banana, cherry]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":130542,"depth":3,"function":{"name":"join","args":[", ","[cherry]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":131667,"depth":3,"function":{"name":"join","result":"cherry","duration_ns":1125}}
-{"version":"1.0","event":"function_exit","timestamp_ns":132208,"depth":2,"function":{"name":"join","result":"banana, cherry","duration_ns":3500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":132708,"depth":1,"function":{"name":"std/string.join","result":"apple, banana, cherry","duration_ns":10250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":138542,"depth":1,"function":{"name":"std/json.filterNumbers","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":141667,"depth":2,"function":{"name":"filterNumbers","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":144250,"depth":3,"function":{"name":"filterNumbers","args":["[JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":145833,"depth":4,"function":{"name":"filterNumbers","args":["[JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":147875,"depth":5,"function":{"name":"filterNumbers","args":["[JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":149167,"depth":6,"function":{"name":"filterNumbers","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":149667,"depth":6,"function":{"name":"filterNumbers","result":"[]","duration_ns":500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":149833,"depth":5,"function":{"name":"filterNumbers","result":"[]","duration_ns":1959}}
-{"version":"1.0","event":"function_exit","timestamp_ns":149958,"depth":4,"function":{"name":"filterNumbers","result":"[]","duration_ns":4125}}
-{"version":"1.0","event":"function_exit","timestamp_ns":150125,"depth":3,"function":{"name":"filterNumbers","result":"[]","duration_ns":5833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":150875,"depth":2,"function":{"name":"filterNumbers","result":"[42.0]","duration_ns":9250}}
-{"version":"1.0","event":"function_exit","timestamp_ns":151250,"depth":1,"function":{"name":"std/json.filterNumbers","result":"[42.0]","duration_ns":12708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":151958,"depth":1,"function":{"name":"showFloats","args":["[42.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":166375,"depth":2,"function":{"name":"showFloatsHelper","args":["[42.0]","true"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":168333,"depth":3,"function":{"name":"std/string.floatToStr","args":["42.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":183583,"depth":3,"function":{"name":"std/string.floatToStr","result":"42","duration_ns":15250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":184750,"depth":3,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":185250,"depth":3,"function":{"name":"showFloatsHelper","duration_ns":500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":185750,"depth":2,"function":{"name":"showFloatsHelper","result":"42","duration_ns":19333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":185875,"depth":1,"function":{"name":"showFloats","result":"42","duration_ns":33916}}
-{"version":"1.0","event":"function_enter","timestamp_ns":194250,"depth":1,"function":{"name":"std/json.allStrings","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":208875,"depth":2,"function":{"name":"allStringsHelper","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]","[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":213083,"depth":3,"function":{"name":"allStringsHelper","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]","[apple]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":216250,"depth":3,"function":{"name":"allStringsHelper","result":"None","duration_ns":3166}}
-{"version":"1.0","event":"function_exit","timestamp_ns":216458,"depth":2,"function":{"name":"allStringsHelper","result":"None","duration_ns":7542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":216583,"depth":1,"function":{"name":"std/json.allStrings","result":"None","duration_ns":22334}}
-{"version":"1.0","event":"function_enter","timestamp_ns":227208,"depth":1,"function":{"name":"std/json.allStrings","args":["[JString(red), JString(green), JString(blue)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":263000,"depth":2,"function":{"name":"allStringsHelper","args":["[JString(red), JString(green), JString(blue)]","[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":266375,"depth":3,"function":{"name":"allStringsHelper","args":["[JString(green), JString(blue)]","[red]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":268958,"depth":4,"function":{"name":"allStringsHelper","args":["[JString(blue)]","[green, red]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":272125,"depth":5,"function":{"name":"allStringsHelper","args":["[]","[blue, green, red]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":273167,"depth":6,"function":{"name":"reverseStrings","args":["[blue, green, red]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":286042,"depth":7,"function":{"name":"reverseStringsHelper","args":["[blue, green, red]","[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":290542,"depth":8,"function":{"name":"reverseStringsHelper","args":["[green, red]","[blue]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":293458,"depth":9,"function":{"name":"reverseStringsHelper","args":["[red]","[green, blue]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":295333,"depth":10,"function":{"name":"reverseStringsHelper","args":["[]","[red, green, blue]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":296250,"depth":10,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":296625,"depth":9,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":3583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":296917,"depth":8,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":6333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":297208,"depth":7,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":11125}}
-{"version":"1.0","event":"function_exit","timestamp_ns":297500,"depth":6,"function":{"name":"reverseStrings","result":"[red, green, blue]","duration_ns":24333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":298667,"depth":5,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":26584}}
-{"version":"1.0","event":"function_exit","timestamp_ns":299000,"depth":4,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":30083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":299333,"depth":3,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":32959}}
-{"version":"1.0","event":"function_exit","timestamp_ns":299625,"depth":2,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":36583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":299917,"depth":1,"function":{"name":"std/json.allStrings","result":"Some([red, green, blue])","duration_ns":72750}}
-{"version":"1.0","event":"function_enter","timestamp_ns":301125,"depth":1,"function":{"name":"std/string.join","args":[", ","[red, green, blue]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":302917,"depth":2,"function":{"name":"join","args":[", ","[green, blue]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":304208,"depth":3,"function":{"name":"join","args":[", ","[blue]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":305000,"depth":3,"function":{"name":"join","result":"blue","duration_ns":791}}
-{"version":"1.0","event":"function_exit","timestamp_ns":305333,"depth":2,"function":{"name":"join","result":"green, blue","duration_ns":2417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":305667,"depth":1,"function":{"name":"std/string.join","result":"red, green, blue","duration_ns":4500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":312667,"depth":1,"function":{"name":"std/json.allNumbers","args":["[JNumber(1.0), JNumber(2.0), JNumber(3.0)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":327458,"depth":2,"function":{"name":"allNumbersHelper","args":["[JNumber(1.0), JNumber(2.0), JNumber(3.0)]","[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":331042,"depth":3,"function":{"name":"allNumbersHelper","args":["[JNumber(2.0), JNumber(3.0)]","[1.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":333250,"depth":4,"function":{"name":"allNumbersHelper","args":["[JNumber(3.0)]","[2.0, 1.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":335792,"depth":5,"function":{"name":"allNumbersHelper","args":["[]","[3.0, 2.0, 1.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":336667,"depth":6,"function":{"name":"reverseFloats","args":["[3.0, 2.0, 1.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":347167,"depth":7,"function":{"name":"reverseFloatsHelper","args":["[3.0, 2.0, 1.0]","[]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":350667,"depth":8,"function":{"name":"reverseFloatsHelper","args":["[2.0, 1.0]","[3.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":352417,"depth":9,"function":{"name":"reverseFloatsHelper","args":["[1.0]","[2.0, 3.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":354375,"depth":10,"function":{"name":"reverseFloatsHelper","args":["[]","[1.0, 2.0, 3.0]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":355167,"depth":10,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":355667,"depth":9,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":3208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":356458,"depth":8,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":5792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":357000,"depth":7,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":9833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":357542,"depth":6,"function":{"name":"reverseFloats","result":"[1.0, 2.0, 3.0]","duration_ns":20833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":359000,"depth":5,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":23208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":359667,"depth":4,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":26417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":360333,"depth":3,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":29292}}
-{"version":"1.0","event":"function_exit","timestamp_ns":360917,"depth":2,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":33458}}
-{"version":"1.0","event":"function_exit","timestamp_ns":361500,"depth":1,"function":{"name":"std/json.allNumbers","result":"Some([1.0, 2.0, 3.0])","duration_ns":48833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":363208,"depth":1,"function":{"name":"showFloats","args":["[1.0, 2.0, 3.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":376792,"depth":2,"function":{"name":"showFloatsHelper","args":["[1.0, 2.0, 3.0]","true"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":377958,"depth":3,"function":{"name":"std/string.floatToStr","args":["1.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":387417,"depth":3,"function":{"name":"std/string.floatToStr","result":"1","duration_ns":9417}}
-{"version":"1.0","event":"function_enter","timestamp_ns":388417,"depth":3,"function":{"name":"showFloatsHelper","args":["[2.0, 3.0]","false"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":389500,"depth":4,"function":{"name":"std/string.floatToStr","args":["2.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":398958,"depth":4,"function":{"name":"std/string.floatToStr","result":"2","duration_ns":9459}}
-{"version":"1.0","event":"function_enter","timestamp_ns":399792,"depth":4,"function":{"name":"showFloatsHelper","args":["[3.0]","false"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":401417,"depth":5,"function":{"name":"std/string.floatToStr","args":["3.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":410708,"depth":5,"function":{"name":"std/string.floatToStr","result":"3","duration_ns":9291}}
-{"version":"1.0","event":"function_enter","timestamp_ns":411458,"depth":5,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":412042,"depth":5,"function":{"name":"showFloatsHelper","duration_ns":583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":412458,"depth":4,"function":{"name":"showFloatsHelper","result":", 3","duration_ns":12625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":412833,"depth":3,"function":{"name":"showFloatsHelper","result":", 2, 3","duration_ns":24417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":413250,"depth":2,"function":{"name":"showFloatsHelper","result":"1, 2, 3","duration_ns":36458}}
-{"version":"1.0","event":"function_exit","timestamp_ns":413417,"depth":1,"function":{"name":"showFloats","result":"1, 2, 3","duration_ns":50250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":419792,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\": \"Project\", \"tags\": [\"ai\", \"lang\", \"functional\"]}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":443042,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]))","duration_ns":23292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":445750,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":456958,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":467917,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":482583,"depth":4,"function":{"name":"findInList","args":["[{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":486167,"depth":5,"function":{"name":"findInList","args":["[{value: JArray([JString(ai), JString(lang), JString(functional)]), key: tags}]","tags"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":489583,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":3375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":490167,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":7625}}
-{"version":"1.0","event":"function_exit","timestamp_ns":490792,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":22833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":491958,"depth":3,"function":{"name":"asArray","args":["JArray([JString(ai), JString(lang), JString(functional)])"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":502583,"depth":3,"function":{"name":"asArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":10666}}
-{"version":"1.0","event":"function_exit","timestamp_ns":503042,"depth":2,"function":{"name":"getArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":46083}}
-{"version":"1.0","event":"function_enter","timestamp_ns":504500,"depth":2,"function":{"name":"filterStrings","args":["[JString(ai), JString(lang), JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":506542,"depth":3,"function":{"name":"filterStrings","args":["[JString(lang), JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":508208,"depth":4,"function":{"name":"filterStrings","args":["[JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":510042,"depth":5,"function":{"name":"filterStrings","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":510500,"depth":5,"function":{"name":"filterStrings","result":"[]","duration_ns":458}}
-{"version":"1.0","event":"function_exit","timestamp_ns":511042,"depth":4,"function":{"name":"filterStrings","result":"[functional]","duration_ns":2875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":511583,"depth":3,"function":{"name":"filterStrings","result":"[lang, functional]","duration_ns":5041}}
-{"version":"1.0","event":"function_exit","timestamp_ns":512250,"depth":2,"function":{"name":"filterStrings","result":"[ai, lang, functional]","duration_ns":7708}}
-{"version":"1.0","event":"function_exit","timestamp_ns":512500,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[ai, lang, functional]","duration_ns":66750}}
-{"version":"1.0","event":"function_enter","timestamp_ns":513125,"depth":1,"function":{"name":"std/string.join","args":[", ","[ai, lang, functional]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":515000,"depth":2,"function":{"name":"join","args":[", ","[lang, functional]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":516542,"depth":3,"function":{"name":"join","args":[", ","[functional]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":517250,"depth":3,"function":{"name":"join","result":"functional","duration_ns":708}}
-{"version":"1.0","event":"function_exit","timestamp_ns":517583,"depth":2,"function":{"name":"join","result":"lang, functional","duration_ns":2542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":518250,"depth":1,"function":{"name":"std/string.join","result":"ai, lang, functional","duration_ns":5125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":523083,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{value: JString(Project), key: name}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":538708,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":550750,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":562542,"depth":4,"function":{"name":"findInList","args":["[{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","categories"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":565042,"depth":5,"function":{"name":"findInList","args":["[{key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","categories"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":566333,"depth":6,"function":{"name":"findInList","args":["[]","categories"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":567708,"depth":6,"function":{"name":"findInList","result":"None","duration_ns":1375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":567833,"depth":5,"function":{"name":"findInList","result":"None","duration_ns":2792}}
-{"version":"1.0","event":"function_exit","timestamp_ns":568000,"depth":4,"function":{"name":"findInList","result":"None","duration_ns":5458}}
-{"version":"1.0","event":"function_exit","timestamp_ns":568125,"depth":3,"function":{"name":"get","result":"None","duration_ns":17375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":569250,"depth":2,"function":{"name":"getArray","result":"None","duration_ns":30541}}
-{"version":"1.0","event":"function_exit","timestamp_ns":569708,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[]","duration_ns":46625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":570167,"depth":1,"function":{"name":"std/string.join","args":[", ","[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":570708,"depth":1,"function":{"name":"std/string.join","duration_ns":542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":575917,"depth":1,"function":{"name":"std/json.getStringArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":590875,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":604958,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":623042,"depth":4,"function":{"name":"findInList","args":["[{value: JString(Project), key: name}, {value: JArray([JString(ai), JString(lang), JString(functional)]), key: tags}]","tags"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":626208,"depth":5,"function":{"name":"findInList","args":["[{key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":629708,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":3500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":630583,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":7542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":631375,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":26458}}
-{"version":"1.0","event":"function_enter","timestamp_ns":632792,"depth":3,"function":{"name":"asArray","args":["JArray([JString(ai), JString(lang), JString(functional)])"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":650958,"depth":3,"function":{"name":"asArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":18167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":651750,"depth":2,"function":{"name":"getArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":60875}}
-{"version":"1.0","event":"function_enter","timestamp_ns":652708,"depth":2,"function":{"name":"filterStrings","args":["[JString(ai), JString(lang), JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":654583,"depth":3,"function":{"name":"filterStrings","args":["[JString(lang), JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":655958,"depth":4,"function":{"name":"filterStrings","args":["[JString(functional)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":657417,"depth":5,"function":{"name":"filterStrings","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":657833,"depth":5,"function":{"name":"filterStrings","result":"[]","duration_ns":375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":658333,"depth":4,"function":{"name":"filterStrings","result":"[functional]","duration_ns":2416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":658750,"depth":3,"function":{"name":"filterStrings","result":"[lang, functional]","duration_ns":4167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":659292,"depth":2,"function":{"name":"filterStrings","result":"[ai, lang, functional]","duration_ns":6583}}
-{"version":"1.0","event":"function_exit","timestamp_ns":660583,"depth":1,"function":{"name":"std/json.getStringArray","result":"Some([ai, lang, functional])","duration_ns":84667}}
-{"version":"1.0","event":"function_enter","timestamp_ns":661417,"depth":1,"function":{"name":"std/string.join","args":[", ","[ai, lang, functional]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":662792,"depth":2,"function":{"name":"join","args":[", ","[lang, functional]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":664167,"depth":3,"function":{"name":"join","args":[", ","[functional]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":665000,"depth":3,"function":{"name":"join","result":"functional","duration_ns":833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":665333,"depth":2,"function":{"name":"join","result":"lang, functional","duration_ns":2542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":665708,"depth":1,"function":{"name":"std/string.join","result":"ai, lang, functional","duration_ns":4333}}
-{"version":"1.0","event":"function_enter","timestamp_ns":671833,"depth":1,"function":{"name":"std/json.decode","args":["{\"allowedHosts\": [\"example.com\", \"api.example.com\"], \"ports\": [80, 443, 8080]}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":692958,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]))","duration_ns":21083}}
-{"version":"1.0","event":"function_enter","timestamp_ns":696083,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":707042,"depth":2,"function":{"name":"getArray","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":718625,"depth":3,"function":{"name":"get","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":730333,"depth":4,"function":{"name":"findInList","args":["[{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]","allowedHosts"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":732917,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(example.com), JString(api.example.com)]))","duration_ns":2542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":733333,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(example.com), JString(api.example.com)]))","duration_ns":14667}}
-{"version":"1.0","event":"function_enter","timestamp_ns":734458,"depth":3,"function":{"name":"asArray","args":["JArray([JString(example.com), JString(api.example.com)])"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":744000,"depth":3,"function":{"name":"asArray","result":"Some([JString(example.com), JString(api.example.com)])","duration_ns":9541}}
-{"version":"1.0","event":"function_exit","timestamp_ns":744375,"depth":2,"function":{"name":"getArray","result":"Some([JString(example.com), JString(api.example.com)])","duration_ns":37333}}
-{"version":"1.0","event":"function_enter","timestamp_ns":745458,"depth":2,"function":{"name":"filterStrings","args":["[JString(example.com), JString(api.example.com)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":746833,"depth":3,"function":{"name":"filterStrings","args":["[JString(api.example.com)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":748292,"depth":4,"function":{"name":"filterStrings","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":748750,"depth":4,"function":{"name":"filterStrings","result":"[]","duration_ns":416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":749167,"depth":3,"function":{"name":"filterStrings","result":"[api.example.com]","duration_ns":2333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":749542,"depth":2,"function":{"name":"filterStrings","result":"[example.com, api.example.com]","duration_ns":4083}}
-{"version":"1.0","event":"function_exit","timestamp_ns":749750,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[example.com, api.example.com]","duration_ns":53625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":750792,"depth":1,"function":{"name":"std/list.length","args":["[example.com, api.example.com]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":752125,"depth":2,"function":{"name":"length","args":["[api.example.com]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":753000,"depth":3,"function":{"name":"length","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":753500,"depth":3,"function":{"name":"length","result":"0","duration_ns":542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":757333,"depth":2,"function":{"name":"length","result":"1","duration_ns":5167}}
-{"version":"1.0","event":"function_exit","timestamp_ns":759292,"depth":1,"function":{"name":"std/list.length","result":"2","duration_ns":8500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":761125,"depth":1,"function":{"name":"std/string.join","args":[", ","[example.com, api.example.com]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":762792,"depth":2,"function":{"name":"join","args":[", ","[api.example.com]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":763333,"depth":2,"function":{"name":"join","result":"api.example.com","duration_ns":542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":763708,"depth":1,"function":{"name":"std/string.join","result":"example.com, api.example.com","duration_ns":2584}}
-{"version":"1.0","event":"function_enter","timestamp_ns":769708,"depth":1,"function":{"name":"std/json.getNumberArrayOrEmpty","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":784333,"depth":2,"function":{"name":"getArray","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":796167,"depth":3,"function":{"name":"get","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":807333,"depth":4,"function":{"name":"findInList","args":["[{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]","ports"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":810000,"depth":5,"function":{"name":"findInList","args":["[{value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]), key: ports}]","ports"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":813500,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":3459}}
-{"version":"1.0","event":"function_exit","timestamp_ns":814542,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":7208}}
-{"version":"1.0","event":"function_exit","timestamp_ns":815417,"depth":3,"function":{"name":"get","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":19292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":816917,"depth":3,"function":{"name":"asArray","args":["JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":828333,"depth":3,"function":{"name":"asArray","result":"Some([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])","duration_ns":11417}}
-{"version":"1.0","event":"function_exit","timestamp_ns":829167,"depth":2,"function":{"name":"getArray","result":"Some([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])","duration_ns":44833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":830833,"depth":2,"function":{"name":"filterNumbers","args":["[JNumber(80.0), JNumber(443.0), JNumber(8080.0)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":832625,"depth":3,"function":{"name":"filterNumbers","args":["[JNumber(443.0), JNumber(8080.0)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":834417,"depth":4,"function":{"name":"filterNumbers","args":["[JNumber(8080.0)]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":835958,"depth":5,"function":{"name":"filterNumbers","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":836250,"depth":5,"function":{"name":"filterNumbers","result":"[]","duration_ns":291}}
-{"version":"1.0","event":"function_exit","timestamp_ns":836958,"depth":4,"function":{"name":"filterNumbers","result":"[8080.0]","duration_ns":2500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":837625,"depth":3,"function":{"name":"filterNumbers","result":"[443.0, 8080.0]","duration_ns":5042}}
-{"version":"1.0","event":"function_exit","timestamp_ns":838583,"depth":2,"function":{"name":"filterNumbers","result":"[80.0, 443.0, 8080.0]","duration_ns":7709}}
-{"version":"1.0","event":"function_exit","timestamp_ns":839292,"depth":1,"function":{"name":"std/json.getNumberArrayOrEmpty","result":"[80.0, 443.0, 8080.0]","duration_ns":69542}}
-{"version":"1.0","event":"function_enter","timestamp_ns":840250,"depth":1,"function":{"name":"std/list.length","args":["[80.0, 443.0, 8080.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":841625,"depth":2,"function":{"name":"length","args":["[443.0, 8080.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":842792,"depth":3,"function":{"name":"length","args":["[8080.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":843917,"depth":4,"function":{"name":"length","args":["[]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":844375,"depth":4,"function":{"name":"length","result":"0","duration_ns":416}}
-{"version":"1.0","event":"function_exit","timestamp_ns":846667,"depth":3,"function":{"name":"length","result":"1","duration_ns":3833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":848625,"depth":2,"function":{"name":"length","result":"2","duration_ns":7000}}
-{"version":"1.0","event":"function_exit","timestamp_ns":850417,"depth":1,"function":{"name":"std/list.length","result":"3","duration_ns":10125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":852542,"depth":1,"function":{"name":"showFloats","args":["[80.0, 443.0, 8080.0]"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":862125,"depth":2,"function":{"name":"showFloatsHelper","args":["[80.0, 443.0, 8080.0]","true"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":863583,"depth":3,"function":{"name":"std/string.floatToStr","args":["80.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":872875,"depth":3,"function":{"name":"std/string.floatToStr","result":"80","duration_ns":9250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":873875,"depth":3,"function":{"name":"showFloatsHelper","args":["[443.0, 8080.0]","false"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":878625,"depth":4,"function":{"name":"std/string.floatToStr","args":["443.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":886750,"depth":4,"function":{"name":"std/string.floatToStr","result":"443","duration_ns":8125}}
-{"version":"1.0","event":"function_enter","timestamp_ns":887583,"depth":4,"function":{"name":"showFloatsHelper","args":["[8080.0]","false"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":889375,"depth":5,"function":{"name":"std/string.floatToStr","args":["8080.0"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":898083,"depth":5,"function":{"name":"std/string.floatToStr","result":"8080","duration_ns":8750}}
-{"version":"1.0","event":"function_enter","timestamp_ns":898708,"depth":5,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":899125,"depth":5,"function":{"name":"showFloatsHelper","duration_ns":458}}
-{"version":"1.0","event":"function_exit","timestamp_ns":899417,"depth":4,"function":{"name":"showFloatsHelper","result":", 8080","duration_ns":11833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":899750,"depth":3,"function":{"name":"showFloatsHelper","result":", 443, 8080","duration_ns":25875}}
-{"version":"1.0","event":"function_exit","timestamp_ns":900083,"depth":2,"function":{"name":"showFloatsHelper","result":"80, 443, 8080","duration_ns":37959}}
-{"version":"1.0","event":"function_exit","timestamp_ns":900167,"depth":1,"function":{"name":"showFloats","result":"80, 443, 8080","duration_ns":47625}}
-{"version":"1.0","event":"module_end","timestamp_ns":903417,"module":{"name":"examples/runnable/json_array_extraction"}}
+{"version":"1.0","event":"module_start","timestamp_ns":1000,"module":{"name":"examples/runnable/json_array_extraction","caps":["IO"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":98542,"depth":1,"function":{"name":"std/json.filterStrings","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":103917,"depth":2,"function":{"name":"filterStrings","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":106292,"depth":3,"function":{"name":"filterStrings","args":["[JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":108625,"depth":4,"function":{"name":"filterStrings","args":["[JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":110417,"depth":5,"function":{"name":"filterStrings","args":["[JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":112292,"depth":6,"function":{"name":"filterStrings","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":113167,"depth":6,"function":{"name":"filterStrings","result":"[]","duration_ns":709}}
+{"version":"1.0","event":"function_exit","timestamp_ns":114417,"depth":5,"function":{"name":"filterStrings","result":"[cherry]","duration_ns":3958}}
+{"version":"1.0","event":"function_exit","timestamp_ns":114584,"depth":4,"function":{"name":"filterStrings","result":"[cherry]","duration_ns":6000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":115375,"depth":3,"function":{"name":"filterStrings","result":"[banana, cherry]","duration_ns":9084}}
+{"version":"1.0","event":"function_exit","timestamp_ns":115709,"depth":2,"function":{"name":"filterStrings","result":"[banana, cherry]","duration_ns":11750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":116750,"depth":1,"function":{"name":"std/json.filterStrings","result":"[apple, banana, cherry]","duration_ns":19667}}
+{"version":"1.0","event":"function_enter","timestamp_ns":117625,"depth":1,"function":{"name":"std/string.join","args":[", ","[apple, banana, cherry]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":120250,"depth":2,"function":{"name":"join","args":[", ","[banana, cherry]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":122250,"depth":3,"function":{"name":"join","args":[", ","[cherry]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":123334,"depth":3,"function":{"name":"join","result":"cherry","duration_ns":1083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":123917,"depth":2,"function":{"name":"join","result":"banana, cherry","duration_ns":3667}}
+{"version":"1.0","event":"function_exit","timestamp_ns":124459,"depth":1,"function":{"name":"std/string.join","result":"apple, banana, cherry","duration_ns":6833}}
+{"version":"1.0","event":"function_enter","timestamp_ns":129209,"depth":1,"function":{"name":"std/json.filterNumbers","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":132000,"depth":2,"function":{"name":"filterNumbers","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":134917,"depth":3,"function":{"name":"filterNumbers","args":["[JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":136792,"depth":4,"function":{"name":"filterNumbers","args":["[JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":138459,"depth":5,"function":{"name":"filterNumbers","args":["[JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":139834,"depth":6,"function":{"name":"filterNumbers","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":140542,"depth":6,"function":{"name":"filterNumbers","result":"[]","duration_ns":708}}
+{"version":"1.0","event":"function_exit","timestamp_ns":140750,"depth":5,"function":{"name":"filterNumbers","result":"[]","duration_ns":2292}}
+{"version":"1.0","event":"function_exit","timestamp_ns":140959,"depth":4,"function":{"name":"filterNumbers","result":"[]","duration_ns":4167}}
+{"version":"1.0","event":"function_exit","timestamp_ns":141250,"depth":3,"function":{"name":"filterNumbers","result":"[]","duration_ns":6334}}
+{"version":"1.0","event":"function_exit","timestamp_ns":142292,"depth":2,"function":{"name":"filterNumbers","result":"[42.0]","duration_ns":10291}}
+{"version":"1.0","event":"function_exit","timestamp_ns":142750,"depth":1,"function":{"name":"std/json.filterNumbers","result":"[42.0]","duration_ns":13500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":143542,"depth":1,"function":{"name":"showFloats","args":["[42.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":158042,"depth":2,"function":{"name":"showFloatsHelper","args":["[42.0]","true"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":159834,"depth":3,"function":{"name":"std/string.floatToStr","args":["42.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":173584,"depth":3,"function":{"name":"std/string.floatToStr","result":"42","duration_ns":13750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":174917,"depth":3,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":175375,"depth":3,"function":{"name":"showFloatsHelper","duration_ns":459}}
+{"version":"1.0","event":"function_exit","timestamp_ns":175917,"depth":2,"function":{"name":"showFloatsHelper","result":"42","duration_ns":17875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":176042,"depth":1,"function":{"name":"showFloats","result":"42","duration_ns":32500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":184334,"depth":1,"function":{"name":"std/json.allStrings","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":198584,"depth":2,"function":{"name":"allStringsHelper","args":["[JString(apple), JNumber(42.0), JString(banana), JBool(true), JString(cherry)]","[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":202709,"depth":3,"function":{"name":"allStringsHelper","args":["[JNumber(42.0), JString(banana), JBool(true), JString(cherry)]","[apple]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":205584,"depth":3,"function":{"name":"allStringsHelper","result":"None","duration_ns":2875}}
+{"version":"1.0","event":"function_exit","timestamp_ns":205834,"depth":2,"function":{"name":"allStringsHelper","result":"None","duration_ns":7250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":205959,"depth":1,"function":{"name":"std/json.allStrings","result":"None","duration_ns":21625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":213167,"depth":1,"function":{"name":"std/json.allStrings","args":["[JString(red), JString(green), JString(blue)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":227417,"depth":2,"function":{"name":"allStringsHelper","args":["[JString(red), JString(green), JString(blue)]","[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":230584,"depth":3,"function":{"name":"allStringsHelper","args":["[JString(green), JString(blue)]","[red]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":232625,"depth":4,"function":{"name":"allStringsHelper","args":["[JString(blue)]","[green, red]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":234709,"depth":5,"function":{"name":"allStringsHelper","args":["[]","[blue, green, red]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":235459,"depth":6,"function":{"name":"reverseStrings","args":["[blue, green, red]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":245500,"depth":7,"function":{"name":"reverseStringsHelper","args":["[blue, green, red]","[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":247584,"depth":8,"function":{"name":"reverseStringsHelper","args":["[green, red]","[blue]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":249417,"depth":9,"function":{"name":"reverseStringsHelper","args":["[red]","[green, blue]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":251000,"depth":10,"function":{"name":"reverseStringsHelper","args":["[]","[red, green, blue]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":251625,"depth":10,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":251875,"depth":9,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":2667}}
+{"version":"1.0","event":"function_exit","timestamp_ns":252125,"depth":8,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":4541}}
+{"version":"1.0","event":"function_exit","timestamp_ns":252375,"depth":7,"function":{"name":"reverseStringsHelper","result":"[red, green, blue]","duration_ns":6916}}
+{"version":"1.0","event":"function_exit","timestamp_ns":252625,"depth":6,"function":{"name":"reverseStrings","result":"[red, green, blue]","duration_ns":17125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":253792,"depth":5,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":19041}}
+{"version":"1.0","event":"function_exit","timestamp_ns":254209,"depth":4,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":21584}}
+{"version":"1.0","event":"function_exit","timestamp_ns":254542,"depth":3,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":24000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":254917,"depth":2,"function":{"name":"allStringsHelper","result":"Some([red, green, blue])","duration_ns":27500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":255209,"depth":1,"function":{"name":"std/json.allStrings","result":"Some([red, green, blue])","duration_ns":42042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":256167,"depth":1,"function":{"name":"std/string.join","args":[", ","[red, green, blue]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":257834,"depth":2,"function":{"name":"join","args":[", ","[green, blue]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":259084,"depth":3,"function":{"name":"join","args":[", ","[blue]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":260000,"depth":3,"function":{"name":"join","result":"blue","duration_ns":916}}
+{"version":"1.0","event":"function_exit","timestamp_ns":260375,"depth":2,"function":{"name":"join","result":"green, blue","duration_ns":2542}}
+{"version":"1.0","event":"function_exit","timestamp_ns":260750,"depth":1,"function":{"name":"std/string.join","result":"red, green, blue","duration_ns":4542}}
+{"version":"1.0","event":"function_enter","timestamp_ns":267667,"depth":1,"function":{"name":"std/json.allNumbers","args":["[JNumber(1.0), JNumber(2.0), JNumber(3.0)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":281125,"depth":2,"function":{"name":"allNumbersHelper","args":["[JNumber(1.0), JNumber(2.0), JNumber(3.0)]","[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":284125,"depth":3,"function":{"name":"allNumbersHelper","args":["[JNumber(2.0), JNumber(3.0)]","[1.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":287250,"depth":4,"function":{"name":"allNumbersHelper","args":["[JNumber(3.0)]","[2.0, 1.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":289500,"depth":5,"function":{"name":"allNumbersHelper","args":["[]","[3.0, 2.0, 1.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":290542,"depth":6,"function":{"name":"reverseFloats","args":["[3.0, 2.0, 1.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":301167,"depth":7,"function":{"name":"reverseFloatsHelper","args":["[3.0, 2.0, 1.0]","[]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":303250,"depth":8,"function":{"name":"reverseFloatsHelper","args":["[2.0, 1.0]","[3.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":305042,"depth":9,"function":{"name":"reverseFloatsHelper","args":["[1.0]","[2.0, 3.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":306917,"depth":10,"function":{"name":"reverseFloatsHelper","args":["[]","[1.0, 2.0, 3.0]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":307709,"depth":10,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":308209,"depth":9,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":3125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":308709,"depth":8,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":5500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":309250,"depth":7,"function":{"name":"reverseFloatsHelper","result":"[1.0, 2.0, 3.0]","duration_ns":8125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":309792,"depth":6,"function":{"name":"reverseFloats","result":"[1.0, 2.0, 3.0]","duration_ns":19250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":311250,"depth":5,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":21750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":311875,"depth":4,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":24625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":312500,"depth":3,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":28334}}
+{"version":"1.0","event":"function_exit","timestamp_ns":313125,"depth":2,"function":{"name":"allNumbersHelper","result":"Some([1.0, 2.0, 3.0])","duration_ns":32000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":313709,"depth":1,"function":{"name":"std/json.allNumbers","result":"Some([1.0, 2.0, 3.0])","duration_ns":46084}}
+{"version":"1.0","event":"function_enter","timestamp_ns":315000,"depth":1,"function":{"name":"showFloats","args":["[1.0, 2.0, 3.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":324917,"depth":2,"function":{"name":"showFloatsHelper","args":["[1.0, 2.0, 3.0]","true"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":326375,"depth":3,"function":{"name":"std/string.floatToStr","args":["1.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":335292,"depth":3,"function":{"name":"std/string.floatToStr","result":"1","duration_ns":8916}}
+{"version":"1.0","event":"function_enter","timestamp_ns":336375,"depth":3,"function":{"name":"showFloatsHelper","args":["[2.0, 3.0]","false"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":337584,"depth":4,"function":{"name":"std/string.floatToStr","args":["2.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":346417,"depth":4,"function":{"name":"std/string.floatToStr","result":"2","duration_ns":8833}}
+{"version":"1.0","event":"function_enter","timestamp_ns":347250,"depth":4,"function":{"name":"showFloatsHelper","args":["[3.0]","false"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":348459,"depth":5,"function":{"name":"std/string.floatToStr","args":["3.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":357667,"depth":5,"function":{"name":"std/string.floatToStr","result":"3","duration_ns":9208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":358417,"depth":5,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":358750,"depth":5,"function":{"name":"showFloatsHelper","duration_ns":333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":359084,"depth":4,"function":{"name":"showFloatsHelper","result":", 3","duration_ns":11792}}
+{"version":"1.0","event":"function_exit","timestamp_ns":359625,"depth":3,"function":{"name":"showFloatsHelper","result":", 2, 3","duration_ns":23250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":359959,"depth":2,"function":{"name":"showFloatsHelper","result":"1, 2, 3","duration_ns":35042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":360042,"depth":1,"function":{"name":"showFloats","result":"1, 2, 3","duration_ns":45041}}
+{"version":"1.0","event":"function_enter","timestamp_ns":366334,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\": \"Project\", \"tags\": [\"ai\", \"lang\", \"functional\"]}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":389959,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]))","duration_ns":23625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":392750,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":403792,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":414667,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":426042,"depth":4,"function":{"name":"findInList","args":["[{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":429459,"depth":5,"function":{"name":"findInList","args":["[{key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":432584,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":3083}}
+{"version":"1.0","event":"function_exit","timestamp_ns":433125,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":7084}}
+{"version":"1.0","event":"function_exit","timestamp_ns":433667,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":19042}}
+{"version":"1.0","event":"function_enter","timestamp_ns":435000,"depth":3,"function":{"name":"asArray","args":["JArray([JString(ai), JString(lang), JString(functional)])"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":444750,"depth":3,"function":{"name":"asArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":9750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":445209,"depth":2,"function":{"name":"getArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":41417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":446209,"depth":2,"function":{"name":"filterStrings","args":["[JString(ai), JString(lang), JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":448042,"depth":3,"function":{"name":"filterStrings","args":["[JString(lang), JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":449334,"depth":4,"function":{"name":"filterStrings","args":["[JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":450625,"depth":5,"function":{"name":"filterStrings","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":450959,"depth":5,"function":{"name":"filterStrings","result":"[]","duration_ns":333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":451459,"depth":4,"function":{"name":"filterStrings","result":"[functional]","duration_ns":2125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":451959,"depth":3,"function":{"name":"filterStrings","result":"[lang, functional]","duration_ns":3917}}
+{"version":"1.0","event":"function_exit","timestamp_ns":452500,"depth":2,"function":{"name":"filterStrings","result":"[ai, lang, functional]","duration_ns":6333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":452834,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[ai, lang, functional]","duration_ns":60083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":453709,"depth":1,"function":{"name":"std/string.join","args":[", ","[ai, lang, functional]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":455459,"depth":2,"function":{"name":"join","args":[", ","[lang, functional]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":457000,"depth":3,"function":{"name":"join","args":[", ","[functional]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":457709,"depth":3,"function":{"name":"join","result":"functional","duration_ns":750}}
+{"version":"1.0","event":"function_exit","timestamp_ns":458084,"depth":2,"function":{"name":"join","result":"lang, functional","duration_ns":2625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":458625,"depth":1,"function":{"name":"std/string.join","result":"ai, lang, functional","duration_ns":4917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":463917,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":478625,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":489042,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","categories"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":499625,"depth":4,"function":{"name":"findInList","args":["[{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","categories"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":501917,"depth":5,"function":{"name":"findInList","args":["[{key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","categories"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":503542,"depth":6,"function":{"name":"findInList","args":["[]","categories"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":504750,"depth":6,"function":{"name":"findInList","result":"None","duration_ns":1208}}
+{"version":"1.0","event":"function_exit","timestamp_ns":504875,"depth":5,"function":{"name":"findInList","result":"None","duration_ns":2959}}
+{"version":"1.0","event":"function_exit","timestamp_ns":505000,"depth":4,"function":{"name":"findInList","result":"None","duration_ns":5416}}
+{"version":"1.0","event":"function_exit","timestamp_ns":505084,"depth":3,"function":{"name":"get","result":"None","duration_ns":16084}}
+{"version":"1.0","event":"function_exit","timestamp_ns":506084,"depth":2,"function":{"name":"getArray","result":"None","duration_ns":27458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":506500,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[]","duration_ns":42584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":506917,"depth":1,"function":{"name":"std/string.join","args":[", ","[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":507417,"depth":1,"function":{"name":"std/string.join","duration_ns":500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":513875,"depth":1,"function":{"name":"std/json.getStringArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":527709,"depth":2,"function":{"name":"getArray","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":542042,"depth":3,"function":{"name":"get","args":["JObject([{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}])","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":555334,"depth":4,"function":{"name":"findInList","args":["[{key: name, value: JString(Project)}, {key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":558625,"depth":5,"function":{"name":"findInList","args":["[{key: tags, value: JArray([JString(ai), JString(lang), JString(functional)])}]","tags"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":561917,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":3250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":562750,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":7375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":563459,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(ai), JString(lang), JString(functional)]))","duration_ns":21459}}
+{"version":"1.0","event":"function_enter","timestamp_ns":564750,"depth":3,"function":{"name":"asArray","args":["JArray([JString(ai), JString(lang), JString(functional)])"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":577917,"depth":3,"function":{"name":"asArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":13166}}
+{"version":"1.0","event":"function_exit","timestamp_ns":578584,"depth":2,"function":{"name":"getArray","result":"Some([JString(ai), JString(lang), JString(functional)])","duration_ns":50875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":580584,"depth":2,"function":{"name":"filterStrings","args":["[JString(ai), JString(lang), JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":583000,"depth":3,"function":{"name":"filterStrings","args":["[JString(lang), JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":584500,"depth":4,"function":{"name":"filterStrings","args":["[JString(functional)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":586375,"depth":5,"function":{"name":"filterStrings","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":586750,"depth":5,"function":{"name":"filterStrings","result":"[]","duration_ns":334}}
+{"version":"1.0","event":"function_exit","timestamp_ns":587167,"depth":4,"function":{"name":"filterStrings","result":"[functional]","duration_ns":2666}}
+{"version":"1.0","event":"function_exit","timestamp_ns":587584,"depth":3,"function":{"name":"filterStrings","result":"[lang, functional]","duration_ns":4625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":588209,"depth":2,"function":{"name":"filterStrings","result":"[ai, lang, functional]","duration_ns":7625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":589125,"depth":1,"function":{"name":"std/json.getStringArray","result":"Some([ai, lang, functional])","duration_ns":75250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":590375,"depth":1,"function":{"name":"std/string.join","args":[", ","[ai, lang, functional]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":591584,"depth":2,"function":{"name":"join","args":[", ","[lang, functional]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":592792,"depth":3,"function":{"name":"join","args":[", ","[functional]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":593584,"depth":3,"function":{"name":"join","result":"functional","duration_ns":834}}
+{"version":"1.0","event":"function_exit","timestamp_ns":593875,"depth":2,"function":{"name":"join","result":"lang, functional","duration_ns":2333}}
+{"version":"1.0","event":"function_exit","timestamp_ns":594167,"depth":1,"function":{"name":"std/string.join","result":"ai, lang, functional","duration_ns":3792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":601209,"depth":1,"function":{"name":"std/json.decode","args":["{\"allowedHosts\": [\"example.com\", \"api.example.com\"], \"ports\": [80, 443, 8080]}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":623375,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]))","duration_ns":22167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":626459,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":637417,"depth":2,"function":{"name":"getArray","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":648292,"depth":3,"function":{"name":"get","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","allowedHosts"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":659917,"depth":4,"function":{"name":"findInList","args":["[{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]","allowedHosts"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":662542,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JString(example.com), JString(api.example.com)]))","duration_ns":2583}}
+{"version":"1.0","event":"function_exit","timestamp_ns":662959,"depth":3,"function":{"name":"get","result":"Some(JArray([JString(example.com), JString(api.example.com)]))","duration_ns":14625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":663959,"depth":3,"function":{"name":"asArray","args":["JArray([JString(example.com), JString(api.example.com)])"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":673167,"depth":3,"function":{"name":"asArray","result":"Some([JString(example.com), JString(api.example.com)])","duration_ns":9250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":673625,"depth":2,"function":{"name":"getArray","result":"Some([JString(example.com), JString(api.example.com)])","duration_ns":36250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":674625,"depth":2,"function":{"name":"filterStrings","args":["[JString(example.com), JString(api.example.com)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":676084,"depth":3,"function":{"name":"filterStrings","args":["[JString(api.example.com)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":677542,"depth":4,"function":{"name":"filterStrings","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":677917,"depth":4,"function":{"name":"filterStrings","result":"[]","duration_ns":417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":678375,"depth":3,"function":{"name":"filterStrings","result":"[api.example.com]","duration_ns":2250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":678750,"depth":2,"function":{"name":"filterStrings","result":"[example.com, api.example.com]","duration_ns":4125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":679125,"depth":1,"function":{"name":"std/json.getStringArrayOrEmpty","result":"[example.com, api.example.com]","duration_ns":52500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":679584,"depth":1,"function":{"name":"std/list.length","args":["[example.com, api.example.com]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":680417,"depth":2,"function":{"name":"length","args":["[api.example.com]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":681125,"depth":3,"function":{"name":"length","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":681792,"depth":3,"function":{"name":"length","result":"0","duration_ns":625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":685042,"depth":2,"function":{"name":"length","result":"1","duration_ns":4625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":686959,"depth":1,"function":{"name":"std/list.length","result":"2","duration_ns":7333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":688834,"depth":1,"function":{"name":"std/string.join","args":[", ","[example.com, api.example.com]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":690709,"depth":2,"function":{"name":"join","args":[", ","[api.example.com]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":691334,"depth":2,"function":{"name":"join","result":"api.example.com","duration_ns":667}}
+{"version":"1.0","event":"function_exit","timestamp_ns":691834,"depth":1,"function":{"name":"std/string.join","result":"example.com, api.example.com","duration_ns":3000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":698250,"depth":1,"function":{"name":"std/json.getNumberArrayOrEmpty","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":713959,"depth":2,"function":{"name":"getArray","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":724834,"depth":3,"function":{"name":"get","args":["JObject([{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}])","ports"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":736084,"depth":4,"function":{"name":"findInList","args":["[{key: allowedHosts, value: JArray([JString(example.com), JString(api.example.com)])}, {key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]","ports"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":739542,"depth":5,"function":{"name":"findInList","args":["[{key: ports, value: JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])}]","ports"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":742625,"depth":5,"function":{"name":"findInList","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":3042}}
+{"version":"1.0","event":"function_exit","timestamp_ns":743542,"depth":4,"function":{"name":"findInList","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":7458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":744459,"depth":3,"function":{"name":"get","result":"Some(JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)]))","duration_ns":19625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":746375,"depth":3,"function":{"name":"asArray","args":["JArray([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":757584,"depth":3,"function":{"name":"asArray","result":"Some([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])","duration_ns":11250}}
+{"version":"1.0","event":"function_exit","timestamp_ns":758584,"depth":2,"function":{"name":"getArray","result":"Some([JNumber(80.0), JNumber(443.0), JNumber(8080.0)])","duration_ns":44458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":760417,"depth":2,"function":{"name":"filterNumbers","args":["[JNumber(80.0), JNumber(443.0), JNumber(8080.0)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":762917,"depth":3,"function":{"name":"filterNumbers","args":["[JNumber(443.0), JNumber(8080.0)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":764709,"depth":4,"function":{"name":"filterNumbers","args":["[JNumber(8080.0)]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":766292,"depth":5,"function":{"name":"filterNumbers","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":766667,"depth":5,"function":{"name":"filterNumbers","result":"[]","duration_ns":417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":767375,"depth":4,"function":{"name":"filterNumbers","result":"[8080.0]","duration_ns":2625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":768084,"depth":3,"function":{"name":"filterNumbers","result":"[443.0, 8080.0]","duration_ns":5125}}
+{"version":"1.0","event":"function_exit","timestamp_ns":768959,"depth":2,"function":{"name":"filterNumbers","result":"[80.0, 443.0, 8080.0]","duration_ns":8500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":769750,"depth":1,"function":{"name":"std/json.getNumberArrayOrEmpty","result":"[80.0, 443.0, 8080.0]","duration_ns":71500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":770625,"depth":1,"function":{"name":"std/list.length","args":["[80.0, 443.0, 8080.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":771875,"depth":2,"function":{"name":"length","args":["[443.0, 8080.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":772750,"depth":3,"function":{"name":"length","args":["[8080.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":773417,"depth":4,"function":{"name":"length","args":["[]"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":773792,"depth":4,"function":{"name":"length","result":"0","duration_ns":375}}
+{"version":"1.0","event":"function_exit","timestamp_ns":776625,"depth":3,"function":{"name":"length","result":"1","duration_ns":3834}}
+{"version":"1.0","event":"function_exit","timestamp_ns":778417,"depth":2,"function":{"name":"length","result":"2","duration_ns":6500}}
+{"version":"1.0","event":"function_exit","timestamp_ns":780292,"depth":1,"function":{"name":"std/list.length","result":"3","duration_ns":9625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":783042,"depth":1,"function":{"name":"showFloats","args":["[80.0, 443.0, 8080.0]"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":792542,"depth":2,"function":{"name":"showFloatsHelper","args":["[80.0, 443.0, 8080.0]","true"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":793875,"depth":3,"function":{"name":"std/string.floatToStr","args":["80.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":802625,"depth":3,"function":{"name":"std/string.floatToStr","result":"80","duration_ns":8791}}
+{"version":"1.0","event":"function_enter","timestamp_ns":803667,"depth":3,"function":{"name":"showFloatsHelper","args":["[443.0, 8080.0]","false"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":805000,"depth":4,"function":{"name":"std/string.floatToStr","args":["443.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":813834,"depth":4,"function":{"name":"std/string.floatToStr","result":"443","duration_ns":8792}}
+{"version":"1.0","event":"function_enter","timestamp_ns":814959,"depth":4,"function":{"name":"showFloatsHelper","args":["[8080.0]","false"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":815917,"depth":5,"function":{"name":"std/string.floatToStr","args":["8080.0"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":825792,"depth":5,"function":{"name":"std/string.floatToStr","result":"8080","duration_ns":9833}}
+{"version":"1.0","event":"function_enter","timestamp_ns":826417,"depth":5,"function":{"name":"showFloatsHelper","args":["[]","false"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":826834,"depth":5,"function":{"name":"showFloatsHelper","duration_ns":417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":827125,"depth":4,"function":{"name":"showFloatsHelper","result":", 8080","duration_ns":12208}}
+{"version":"1.0","event":"function_exit","timestamp_ns":827459,"depth":3,"function":{"name":"showFloatsHelper","result":", 443, 8080","duration_ns":23834}}
+{"version":"1.0","event":"function_exit","timestamp_ns":827834,"depth":2,"function":{"name":"showFloatsHelper","result":"80, 443, 8080","duration_ns":35292}}
+{"version":"1.0","event":"function_exit","timestamp_ns":827917,"depth":1,"function":{"name":"showFloats","result":"80, 443, 8080","duration_ns":44875}}
+{"version":"1.0","event":"module_end","timestamp_ns":831584,"module":{"name":"examples/runnable/json_array_extraction","duration_ns":830292}}

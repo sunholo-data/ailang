@@ -308,12 +308,19 @@ func parseTraceEvents(traceData string) []string {
 		eventType, _ := evt["event"].(string)
 		sig := eventType
 
-		// Add function name for function events.
-		// Args are excluded because Go map iteration order makes record/dict
-		// string representations non-deterministic between runs.
+		// Add function name, args, and result for function events.
+		// Record field ordering is now deterministic (sorted by key in Value.String()).
 		if fn, ok := evt["function"].(map[string]interface{}); ok {
 			if name, ok := fn["name"].(string); ok {
 				sig += ":" + name
+			}
+			if args, ok := fn["args"].([]interface{}); ok {
+				for _, a := range args {
+					sig += ":" + fmt.Sprint(a)
+				}
+			}
+			if result, ok := fn["result"].(string); ok {
+				sig += "=" + result
 			}
 		}
 

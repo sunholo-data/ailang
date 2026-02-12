@@ -1,2 +1,2 @@
-{"version":"1.0","event":"module_start","timestamp_ns":708,"module":{"name":"examples/runnable/match_in_block"}}
-{"version":"1.0","event":"module_end","timestamp_ns":20167,"module":{"name":"examples/runnable/match_in_block"}}
+{"version":"1.0","event":"module_start","timestamp_ns":833,"module":{"name":"examples/runnable/match_in_block"}}
+{"version":"1.0","event":"module_end","timestamp_ns":20333,"module":{"name":"examples/runnable/match_in_block","duration_ns":19333}}

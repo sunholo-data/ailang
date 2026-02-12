@@ -1,2 +1,3 @@
-{"version":"1.0","event":"module_start","timestamp_ns":667,"module":{"name":"examples/runnable/test_io_builtins","caps":["IO"]}}
-{"version":"1.0","event":"module_end","timestamp_ns":12958,"module":{"name":"examples/runnable/test_io_builtins"}}
+{"version":"1.0","event":"module_start","timestamp_ns":917,"module":{"name":"examples/runnable/test_io_builtins","caps":["IO"]}}
+{"version":"1.0","event":"effect","timestamp_ns":16042,"effect":{"effect_name":"IO","op_name":"println","args":["Hello from AILANG with builtins!"],"result":"()"}}
+{"version":"1.0","event":"module_end","timestamp_ns":16125,"module":{"name":"examples/runnable/test_io_builtins","duration_ns":15083}}

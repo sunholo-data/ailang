@@ -1,44 +1,44 @@
-{"version":"1.0","event":"module_start","timestamp_ns":916,"module":{"name":"examples/runnable/effect_budgets","caps":["IO","Rand"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":16125,"depth":1,"function":{"name":"std/io.println","args":["=== Effect Budget Demo ==="]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":21708,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":5375}}
-{"version":"1.0","event":"function_enter","timestamp_ns":22250,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":23916,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1667}}
-{"version":"1.0","event":"function_enter","timestamp_ns":24291,"depth":1,"function":{"name":"std/io.println","args":["1. Calling limitedPrints() [IO @limit=3]:"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":26125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1708}}
-{"version":"1.0","event":"function_enter","timestamp_ns":26666,"depth":1,"function":{"name":"limitedPrints","args":["()"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":29500,"depth":2,"function":{"name":"std/io.println","args":["  print 1 (of 3 allowed)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":31291,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":31666,"depth":2,"function":{"name":"std/io.println","args":["  print 2 (of 3 allowed)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":33208,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1541}}
-{"version":"1.0","event":"function_enter","timestamp_ns":33541,"depth":2,"function":{"name":"std/io.println","args":["  print 3 (of 3 allowed)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":35041,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1500}}
-{"version":"1.0","event":"function_exit","timestamp_ns":35291,"depth":1,"function":{"name":"limitedPrints","result":"()","duration_ns":8625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":36750,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":38958,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2166}}
-{"version":"1.0","event":"function_enter","timestamp_ns":39291,"depth":1,"function":{"name":"std/io.println","args":["2. Calling mixedEffects() [IO @limit=2, Clock]:"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":40833,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1541}}
-{"version":"1.0","event":"function_enter","timestamp_ns":41375,"depth":1,"function":{"name":"mixedEffects","args":["()"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":44125,"depth":2,"function":{"name":"std/io.println","args":["  IO operation 1 (of 2 allowed)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":47458,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":3291}}
-{"version":"1.0","event":"function_enter","timestamp_ns":47875,"depth":2,"function":{"name":"std/io.println","args":["  IO operation 2 (of 2 allowed)"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":49250,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1375}}
-{"version":"1.0","event":"function_exit","timestamp_ns":51333,"depth":1,"function":{"name":"mixedEffects","result":"()","duration_ns":9833}}
-{"version":"1.0","event":"function_enter","timestamp_ns":52041,"depth":1,"function":{"name":"showBudgetSyntax","args":["()"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":52958,"depth":2,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":55958,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":2959}}
-{"version":"1.0","event":"function_enter","timestamp_ns":56375,"depth":2,"function":{"name":"std/io.println","args":["Budget syntax examples:"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":57666,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":58000,"depth":2,"function":{"name":"std/io.println","args":["  ! {IO @limit=5}           - Allow 5 IO operations"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":59500,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":59833,"depth":2,"function":{"name":"std/io.println","args":["  ! {IO @limit=N, Clock}    - Limited IO, unlimited Clock"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":61916,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":2042}}
-{"version":"1.0","event":"function_enter","timestamp_ns":62250,"depth":2,"function":{"name":"std/io.println","args":["  ! {Rand @limit=10, AI @limit=1}  - Multiple budgeted effects"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":63791,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1542}}
-{"version":"1.0","event":"function_exit","timestamp_ns":64000,"depth":1,"function":{"name":"showBudgetSyntax","result":"()","duration_ns":11917}}
-{"version":"1.0","event":"function_enter","timestamp_ns":64375,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":65541,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1167}}
-{"version":"1.0","event":"function_enter","timestamp_ns":65958,"depth":1,"function":{"name":"std/io.println","args":["Note: Budget enforcement is validated at the type level."]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":68291,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2334}}
-{"version":"1.0","event":"function_enter","timestamp_ns":68666,"depth":1,"function":{"name":"std/io.println","args":["Runtime enforcement is demonstrated in budget_test.go"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":70166,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1500}}
-{"version":"1.0","event":"module_end","timestamp_ns":70583,"module":{"name":"examples/runnable/effect_budgets"}}
+{"version":"1.0","event":"module_start","timestamp_ns":625,"module":{"name":"examples/runnable/effect_budgets","caps":["IO","Rand"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14584,"depth":1,"function":{"name":"std/io.println","args":["=== Effect Budget Demo ==="]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":20125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":6375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":20625,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":22167,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1541}}
+{"version":"1.0","event":"function_enter","timestamp_ns":22459,"depth":1,"function":{"name":"std/io.println","args":["1. Calling limitedPrints() [IO @limit=3]:"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":23875,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1416}}
+{"version":"1.0","event":"function_enter","timestamp_ns":24375,"depth":1,"function":{"name":"limitedPrints","args":["()"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":26959,"depth":2,"function":{"name":"std/io.println","args":["  print 1 (of 3 allowed)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":28375,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":28750,"depth":2,"function":{"name":"std/io.println","args":["  print 2 (of 3 allowed)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":30209,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1458}}
+{"version":"1.0","event":"function_enter","timestamp_ns":30584,"depth":2,"function":{"name":"std/io.println","args":["  print 3 (of 3 allowed)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":34250,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":3625}}
+{"version":"1.0","event":"function_exit","timestamp_ns":34542,"depth":1,"function":{"name":"limitedPrints","result":"()","duration_ns":10208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":35917,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":38042,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":38334,"depth":1,"function":{"name":"std/io.println","args":["2. Calling mixedEffects() [IO @limit=2, Clock]:"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":39542,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1208}}
+{"version":"1.0","event":"function_enter","timestamp_ns":39959,"depth":1,"function":{"name":"mixedEffects","args":["()"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":41375,"depth":2,"function":{"name":"std/io.println","args":["  IO operation 1 (of 2 allowed)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":43459,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":2083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":43792,"depth":2,"function":{"name":"std/io.println","args":["  IO operation 2 (of 2 allowed)"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45167,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1417}}
+{"version":"1.0","event":"function_exit","timestamp_ns":45334,"depth":1,"function":{"name":"mixedEffects","result":"()","duration_ns":5375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":45834,"depth":1,"function":{"name":"showBudgetSyntax","args":["()"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":46500,"depth":2,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":48334,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1875}}
+{"version":"1.0","event":"function_enter","timestamp_ns":48792,"depth":2,"function":{"name":"std/io.println","args":["Budget syntax examples:"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":49917,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1083}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50292,"depth":2,"function":{"name":"std/io.println","args":["  ! {IO @limit=5}           - Allow 5 IO operations"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":51875,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1584}}
+{"version":"1.0","event":"function_enter","timestamp_ns":52250,"depth":2,"function":{"name":"std/io.println","args":["  ! {IO @limit=N, Clock}    - Limited IO, unlimited Clock"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":53375,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1084}}
+{"version":"1.0","event":"function_enter","timestamp_ns":53750,"depth":2,"function":{"name":"std/io.println","args":["  ! {Rand @limit=10, AI @limit=1}  - Multiple budgeted effects"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":55209,"depth":2,"function":{"name":"std/io.println","result":"()","duration_ns":1458}}
+{"version":"1.0","event":"function_exit","timestamp_ns":55500,"depth":1,"function":{"name":"showBudgetSyntax","result":"()","duration_ns":9625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":56000,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":57334,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":57625,"depth":1,"function":{"name":"std/io.println","args":["Note: Budget enforcement is validated at the type level."]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":58709,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1125}}
+{"version":"1.0","event":"function_enter","timestamp_ns":58959,"depth":1,"function":{"name":"std/io.println","args":["Runtime enforcement is demonstrated in budget_test.go"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":60375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1375}}
+{"version":"1.0","event":"module_end","timestamp_ns":60792,"module":{"name":"examples/runnable/effect_budgets"}}

@@ -1,49 +1,62 @@
-{"version":"1.0","event":"module_start","timestamp_ns":1000,"module":{"name":"examples/runnable/game_npc_dialogue","caps":["IO","AI"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":22209,"depth":1,"function":{"name":"std/io.println","args":["=== NPC Dialogue Generation Demo ==="]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":29500,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":7334}}
-{"version":"1.0","event":"function_enter","timestamp_ns":30000,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":31750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1666}}
-{"version":"1.0","event":"function_enter","timestamp_ns":32125,"depth":1,"function":{"name":"std/io.println","args":["[At the Forge]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":33375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":33667,"depth":1,"function":{"name":"std/io.println","args":["Player: Can you forge me an enchanted sword?"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":34917,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":35834,"depth":1,"function":{"name":"ask_npc","args":["Grimnar","blacksmith","gruff but kind, speaks tersely","forging an enchanted sword"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":37584,"depth":2,"function":{"name":"make_prompt","args":["Grimnar","blacksmith","gruff but kind, speaks tersely","forging an enchanted sword"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":43209,"depth":2,"function":{"name":"make_prompt","result":"You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword","duration_ns":5625}}
-{"version":"1.0","event":"function_enter","timestamp_ns":43667,"depth":2,"function":{"name":"std/ai.call","args":["You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword"]}}
-{"version":"1.0","event":"effect","timestamp_ns":46750,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":47000,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":3333}}
-{"version":"1.0","event":"function_exit","timestamp_ns":47125,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":11292}}
-{"version":"1.0","event":"function_enter","timestamp_ns":49875,"depth":1,"function":{"name":"std/io.println","args":["Grimnar: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":52167,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2291}}
-{"version":"1.0","event":"function_enter","timestamp_ns":52500,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":53750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1209}}
-{"version":"1.0","event":"function_enter","timestamp_ns":54209,"depth":1,"function":{"name":"std/io.println","args":["[At the Tavern]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":55834,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1583}}
-{"version":"1.0","event":"function_enter","timestamp_ns":56250,"depth":1,"function":{"name":"std/io.println","args":["Player: What do you know about the dragon?"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":57667,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1416}}
-{"version":"1.0","event":"function_enter","timestamp_ns":58292,"depth":1,"function":{"name":"ask_npc","args":["Mira","innkeeper","cheerful and gossipy, knows secrets","rumors about the dragon"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":59459,"depth":2,"function":{"name":"make_prompt","args":["Mira","innkeeper","cheerful and gossipy, knows secrets","rumors about the dragon"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":63459,"depth":2,"function":{"name":"make_prompt","result":"You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon","duration_ns":4042}}
-{"version":"1.0","event":"function_enter","timestamp_ns":63834,"depth":2,"function":{"name":"std/ai.call","args":["You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon"]}}
-{"version":"1.0","event":"effect","timestamp_ns":64625,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":64709,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":833}}
-{"version":"1.0","event":"function_exit","timestamp_ns":64792,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":6500}}
-{"version":"1.0","event":"function_enter","timestamp_ns":65542,"depth":1,"function":{"name":"std/io.println","args":["Mira: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":67334,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1834}}
-{"version":"1.0","event":"function_enter","timestamp_ns":67792,"depth":1,"function":{"name":"std/io.println","args":[""]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":69042,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":69334,"depth":1,"function":{"name":"std/io.println","args":["[At the Town Gates]"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":71792,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2458}}
-{"version":"1.0","event":"function_enter","timestamp_ns":72125,"depth":1,"function":{"name":"std/io.println","args":["Player: I need to enter the restricted district."]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":73667,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1459}}
-{"version":"1.0","event":"function_enter","timestamp_ns":74209,"depth":1,"function":{"name":"ask_npc","args":["Captain Aldric","guard captain","stern and formal","denying entry to restricted area"]}}
-{"version":"1.0","event":"function_enter","timestamp_ns":75334,"depth":2,"function":{"name":"make_prompt","args":["Captain Aldric","guard captain","stern and formal","denying entry to restricted area"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":78625,"depth":2,"function":{"name":"make_prompt","result":"You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area","duration_ns":3250}}
-{"version":"1.0","event":"function_enter","timestamp_ns":78875,"depth":2,"function":{"name":"std/ai.call","args":["You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area"]}}
-{"version":"1.0","event":"effect","timestamp_ns":81000,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area"],"result":"{\"kind\":\"Wait\"}"}}
-{"version":"1.0","event":"function_exit","timestamp_ns":81084,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":2209}}
-{"version":"1.0","event":"function_exit","timestamp_ns":81167,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":7000}}
-{"version":"1.0","event":"function_enter","timestamp_ns":81750,"depth":1,"function":{"name":"std/io.println","args":["Captain Aldric: {\"kind\":\"Wait\"}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":83709,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1917}}
-{"version":"1.0","event":"module_end","timestamp_ns":84042,"module":{"name":"examples/runnable/game_npc_dialogue"}}
+{"version":"1.0","event":"module_start","timestamp_ns":792,"module":{"name":"examples/runnable/game_npc_dialogue","caps":["IO","AI"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":14875,"depth":1,"function":{"name":"std/io.println","args":["=== NPC Dialogue Generation Demo ==="]}}
+{"version":"1.0","event":"effect","timestamp_ns":22125,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["=== NPC Dialogue Generation Demo ==="],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":22709,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":8666}}
+{"version":"1.0","event":"function_enter","timestamp_ns":23375,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"effect","timestamp_ns":25542,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":[""],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":25667,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2291}}
+{"version":"1.0","event":"function_enter","timestamp_ns":26042,"depth":1,"function":{"name":"std/io.println","args":["[At the Forge]"]}}
+{"version":"1.0","event":"effect","timestamp_ns":27917,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["[At the Forge]"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":28000,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":28750,"depth":1,"function":{"name":"std/io.println","args":["Player: Can you forge me an enchanted sword?"]}}
+{"version":"1.0","event":"effect","timestamp_ns":30625,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Player: Can you forge me an enchanted sword?"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":30709,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1917}}
+{"version":"1.0","event":"function_enter","timestamp_ns":31667,"depth":1,"function":{"name":"ask_npc","args":["Grimnar","blacksmith","gruff but kind, speaks tersely","forging an enchanted sword"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":34167,"depth":2,"function":{"name":"make_prompt","args":["Grimnar","blacksmith","gruff but kind, speaks tersely","forging an enchanted sword"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":41167,"depth":2,"function":{"name":"make_prompt","result":"You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword","duration_ns":7000}}
+{"version":"1.0","event":"function_enter","timestamp_ns":41709,"depth":2,"function":{"name":"std/ai.call","args":["You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword"]}}
+{"version":"1.0","event":"effect","timestamp_ns":43459,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Grimnar, a blacksmith in a fantasy RPG. Personality: gruff but kind, speaks tersely. Generate ONE short line of dialogue (1-2 sentences) about: forging an enchanted sword"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":43542,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":1833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":43625,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":11959}}
+{"version":"1.0","event":"function_enter","timestamp_ns":44375,"depth":1,"function":{"name":"std/io.println","args":["Grimnar: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":46542,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Grimnar: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":46625,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":47000,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"effect","timestamp_ns":48250,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":[""],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":48334,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1333}}
+{"version":"1.0","event":"function_enter","timestamp_ns":48834,"depth":1,"function":{"name":"std/io.println","args":["[At the Tavern]"]}}
+{"version":"1.0","event":"effect","timestamp_ns":50250,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["[At the Tavern]"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":50375,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1500}}
+{"version":"1.0","event":"function_enter","timestamp_ns":50667,"depth":1,"function":{"name":"std/io.println","args":["Player: What do you know about the dragon?"]}}
+{"version":"1.0","event":"effect","timestamp_ns":52334,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Player: What do you know about the dragon?"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":52417,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1708}}
+{"version":"1.0","event":"function_enter","timestamp_ns":53000,"depth":1,"function":{"name":"ask_npc","args":["Mira","innkeeper","cheerful and gossipy, knows secrets","rumors about the dragon"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":54292,"depth":2,"function":{"name":"make_prompt","args":["Mira","innkeeper","cheerful and gossipy, knows secrets","rumors about the dragon"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":57917,"depth":2,"function":{"name":"make_prompt","result":"You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon","duration_ns":3583}}
+{"version":"1.0","event":"function_enter","timestamp_ns":58334,"depth":2,"function":{"name":"std/ai.call","args":["You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon"]}}
+{"version":"1.0","event":"effect","timestamp_ns":59125,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Mira, a innkeeper in a fantasy RPG. Personality: cheerful and gossipy, knows secrets. Generate ONE short line of dialogue (1-2 sentences) about: rumors about the dragon"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59209,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":833}}
+{"version":"1.0","event":"function_exit","timestamp_ns":59375,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":6375}}
+{"version":"1.0","event":"function_enter","timestamp_ns":59917,"depth":1,"function":{"name":"std/io.println","args":["Mira: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":62000,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Mira: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":62125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2167}}
+{"version":"1.0","event":"function_enter","timestamp_ns":62500,"depth":1,"function":{"name":"std/io.println","args":[""]}}
+{"version":"1.0","event":"effect","timestamp_ns":64084,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":[""],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":64125,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1625}}
+{"version":"1.0","event":"function_enter","timestamp_ns":64459,"depth":1,"function":{"name":"std/io.println","args":["[At the Town Gates]"]}}
+{"version":"1.0","event":"effect","timestamp_ns":66625,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["[At the Town Gates]"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":66750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2292}}
+{"version":"1.0","event":"function_enter","timestamp_ns":67042,"depth":1,"function":{"name":"std/io.println","args":["Player: I need to enter the restricted district."]}}
+{"version":"1.0","event":"effect","timestamp_ns":68709,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Player: I need to enter the restricted district."],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":68750,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":1750}}
+{"version":"1.0","event":"function_enter","timestamp_ns":69375,"depth":1,"function":{"name":"ask_npc","args":["Captain Aldric","guard captain","stern and formal","denying entry to restricted area"]}}
+{"version":"1.0","event":"function_enter","timestamp_ns":70709,"depth":2,"function":{"name":"make_prompt","args":["Captain Aldric","guard captain","stern and formal","denying entry to restricted area"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":76125,"depth":2,"function":{"name":"make_prompt","result":"You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area","duration_ns":5417}}
+{"version":"1.0","event":"function_enter","timestamp_ns":76584,"depth":2,"function":{"name":"std/ai.call","args":["You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area"]}}
+{"version":"1.0","event":"effect","timestamp_ns":77500,"depth":2,"effect":{"effect_name":"AI","op_name":"call","args":["You are Captain Aldric, a guard captain in a fantasy RPG. Personality: stern and formal. Generate ONE short line of dialogue (1-2 sentences) about: denying entry to restricted area"],"result":"{\"kind\":\"Wait\"}"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77542,"depth":2,"function":{"name":"std/ai.call","result":"{\"kind\":\"Wait\"}","duration_ns":1000}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77625,"depth":1,"function":{"name":"ask_npc","result":"{\"kind\":\"Wait\"}","duration_ns":8250}}
+{"version":"1.0","event":"function_enter","timestamp_ns":79250,"depth":1,"function":{"name":"std/io.println","args":["Captain Aldric: {\"kind\":\"Wait\"}"]}}
+{"version":"1.0","event":"effect","timestamp_ns":81375,"depth":1,"effect":{"effect_name":"IO","op_name":"println","args":["Captain Aldric: {\"kind\":\"Wait\"}"],"result":"()"}}
+{"version":"1.0","event":"function_exit","timestamp_ns":81542,"depth":1,"function":{"name":"std/io.println","result":"()","duration_ns":2250}}
+{"version":"1.0","event":"module_end","timestamp_ns":81917,"module":{"name":"examples/runnable/game_npc_dialogue","duration_ns":80916}}

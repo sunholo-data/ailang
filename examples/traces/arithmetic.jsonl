@@ -1,2 +1,2 @@
-{"version":"1.0","event":"module_start","timestamp_ns":959,"module":{"name":"examples/runnable/arithmetic","caps":["IO"]}}
-{"version":"1.0","event":"module_end","timestamp_ns":42625,"module":{"name":"examples/runnable/arithmetic"}}
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/arithmetic","caps":["IO"]}}
+{"version":"1.0","event":"module_end","timestamp_ns":48458,"module":{"name":"examples/runnable/arithmetic","duration_ns":47459}}

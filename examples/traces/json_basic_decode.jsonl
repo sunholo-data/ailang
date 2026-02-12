@@ -1,6 +1,6 @@
-{"version":"1.0","event":"module_start","timestamp_ns":958,"module":{"name":"examples/runnable/json_basic_decode"}}
-{"version":"1.0","event":"function_enter","timestamp_ns":63208,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\":\"Alice\",\"age\":30}"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":83125,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(Alice)}, {value: JNumber(30.0), key: age}]))","duration_ns":20000}}
-{"version":"1.0","event":"function_enter","timestamp_ns":87167,"depth":1,"function":{"name":"findKey","args":["[{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}]","name"]}}
-{"version":"1.0","event":"function_exit","timestamp_ns":89833,"depth":1,"function":{"name":"findKey","result":"JString(Alice)","duration_ns":2667}}
-{"version":"1.0","event":"module_end","timestamp_ns":95875,"module":{"name":"examples/runnable/json_basic_decode"}}
+{"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/json_basic_decode"}}
+{"version":"1.0","event":"function_enter","timestamp_ns":58791,"depth":1,"function":{"name":"std/json.decode","args":["{\"name\":\"Alice\",\"age\":30}"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":77791,"depth":1,"function":{"name":"std/json.decode","result":"Ok(JObject([{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}]))","duration_ns":20291}}
+{"version":"1.0","event":"function_enter","timestamp_ns":80833,"depth":1,"function":{"name":"findKey","args":["[{key: name, value: JString(Alice)}, {key: age, value: JNumber(30.0)}]","name"]}}
+{"version":"1.0","event":"function_exit","timestamp_ns":83541,"depth":1,"function":{"name":"findKey","result":"JString(Alice)","duration_ns":2667}}
+{"version":"1.0","event":"module_end","timestamp_ns":88833,"module":{"name":"examples/runnable/json_basic_decode","duration_ns":87875}}
