@@ -3,6 +3,20 @@
 ## [Unreleased]
 
 ### Added
+- **M-SMT-BACKEND: SMT-based contract verification with Z3** (`internal/smt/`, `cmd/ailang/verify.go`, ~2,023 LOC impl + ~1,894 LOC tests)
+  - New `ailang verify` command: statically proves `requires`/`ensures` contracts using Z3
+  - Fragment checker (`encodable.go`): rejects recursive, higher-order, and unencodable functions with clear hints
+  - Expression encoder (`codegen.go`): Core AST → SMT-LIB translation for if/match/let/operators/ADTs
+  - Type mapping (`types.go`): AILANG int→Int, float→Real, bool→Bool, enum ADTs→datatypes
+  - Z3 solver integration (`solver.go`): auto-discovers Z3, runs with timeout, parses models
+  - DictApp handling: type class method calls (ge, lt, add, eq) mapped to SMT-LIB operators
+  - Constructor prefix stripping: Core `make_Type_Ctor` names → SMT-LIB `Ctor` names
+  - CLI flags: `--verbose` (show SMT-LIB), `--json` (machine output), `--strict`, `--timeout`
+  - Return sort inference from Surface AST type annotations and ADT constructor analysis
+  - Counterexample display: shows variable assignments that violate postconditions
+  - Pure function fixup: treats `! {}` (empty effects) as pure for verification
+  - Example: `ailang verify examples/runnable/contracts/park.ail` proves admissionFee result >= 0
+
 - **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
   - New `internal/trace/` package: schema, collector, JSONL serializer
   - Event types: `function_enter`, `function_exit`, `effect`, `contract_check`, `budget_delta`, `module_start/end`, `error`

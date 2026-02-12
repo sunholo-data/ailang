@@ -280,6 +280,9 @@ func main() {
 	case "exec":
 		runExec()
 
+	case "verify":
+		verifyCommand()
+
 	case "examples":
 		examplesCommand(flag.Args()[1:])
 
