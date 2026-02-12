@@ -49,8 +49,8 @@ func verifyCommand() {
 	// Check Z3 availability upfront
 	if !smt.Z3Available() {
 		fmt.Fprintf(os.Stderr, "%s Z3 solver not found\n", red("Error:"))
-		fmt.Fprintf(os.Stderr, "Install with: brew install z3 (macOS) or apt install z3 (Linux)\n")
-		fmt.Fprintf(os.Stderr, "Or set AILANG_Z3_PATH to point to your Z3 binary.\n")
+		fmt.Fprintf(os.Stderr, "Install with: brew install z3 (macOS), apt install z3 (Linux), or choco install z3 / scoop install z3 (Windows)\n")
+		fmt.Fprintf(os.Stderr, "Or download from https://github.com/Z3Prover/z3/releases and set AILANG_Z3_PATH.\n")
 		os.Exit(1)
 	}
 
@@ -335,6 +335,16 @@ func astTypeToSMTSort(t ast.Type) string {
 		default:
 			return ty.Name // ADT type name
 		}
+	case *ast.RecordType:
+		rec := convertASTTypeToType(ty)
+		if rec == nil {
+			return "Int" // Fallback
+		}
+		trec, ok := rec.(*types.TRecord)
+		if !ok {
+			return "Int"
+		}
+		return smt.MapRecordSortName(trec)
 	default:
 		return "Int" // Fallback for complex types
 	}
@@ -414,6 +424,16 @@ func convertASTTypeToType(t ast.Type) types.Type {
 	switch ty := t.(type) {
 	case *ast.SimpleType:
 		return &types.TCon{Name: ty.Name}
+	case *ast.RecordType:
+		fields := make(map[string]types.Type, len(ty.Fields))
+		for _, f := range ty.Fields {
+			ft := convertASTTypeToType(f.Type)
+			if ft == nil {
+				return nil
+			}
+			fields[f.Name] = ft
+		}
+		return &types.TRecord{Fields: fields}
 	default:
 		return nil
 	}

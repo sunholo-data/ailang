@@ -387,7 +387,8 @@ func patternDepth(pat core.CorePattern) int {
 }
 
 // hasUnencodableTypes checks if the body uses types that can't be encoded in SMT-LIB.
-// Specifically: String operations, List operations, Record construction.
+// Specifically: String operations, List operations.
+// Records are now supported (M-SMT-RECORDS).
 // Note: we check structural usage, not type annotations.
 func hasUnencodableTypes(body core.CoreExpr) bool {
 	if body == nil {
@@ -404,11 +405,25 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	case *core.Lit:
 		return e.Kind == core.StringLit
 	case *core.Record:
-		return true
+		// Records with encodable field values are allowed
+		for _, v := range e.Fields {
+			if walkForUnencodableTypes(v) {
+				return true
+			}
+		}
+		return false
 	case *core.RecordAccess:
-		return true
+		return walkForUnencodableTypes(e.Record)
 	case *core.RecordUpdate:
-		return true
+		if walkForUnencodableTypes(e.Base) {
+			return true
+		}
+		for _, v := range e.Updates {
+			if walkForUnencodableTypes(v) {
+				return true
+			}
+		}
+		return false
 	case *core.List:
 		return true
 	case *core.Array:

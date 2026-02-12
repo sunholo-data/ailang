@@ -1,0 +1,30 @@
+-- examples/runnable/contracts/record_verify.ail
+-- Record contract verification demonstration
+-- Shows Z3 proving properties about record field access in contracts
+-- Demonstrates: record params, field access in requires/ensures
+
+module examples/runnable/contracts/record_verify
+
+-- Extract the X coordinate (proving non-negativity preserved)
+export func getX(p: {x: int, y: int}) -> int ! {}
+requires { p.x >= 0 }
+ensures { result >= 0 }
+{
+  p.x
+}
+
+-- Manhattan distance from origin (always non-negative when both coords are)
+-- Uses comma-separated predicates for multiple preconditions
+export func manhattan(p: {x: int, y: int}) -> int ! {}
+requires { p.x >= 0, p.y >= 0 }
+ensures { result >= 0 }
+{
+  p.x + p.y
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let p = {x: 3, y: 4};
+  manhattan(p) + getX(p)
+}

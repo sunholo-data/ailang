@@ -23,6 +23,16 @@
     - Both same-module (`Var`) and cross-module (`VarGlobal`) references resolved
     - Example: `netIncome(gross, bracket) { gross - calculateTax(gross, bracket) }` fully verified
     - New example: `cross_function.ail` demonstrates 3-level call chain verification
+  - **Record type verification** (`types.go`, `codegen.go`, `encodable.go`, ~200 LOC impl + ~200 LOC tests)
+    - Records mapped to SMT-LIB `declare-datatype` with single constructor and named field accessors
+    - Record construction: `{x: 5, y: 10}` → `(mk_Record_x_y 5 10)`
+    - Field access: `p.x` → `(x p)` using SMT-LIB auto-generated accessors
+    - Functional update: `{p with x: 20}` → `(mk_Record_x_y 20 (y p))`
+    - Fragment checker updated: records with encodable field types now accepted
+    - Fields sorted alphabetically for deterministic SMT-LIB output
+    - Named records use TypeName; anonymous records get hash-based names
+    - CLI wiring: `convertASTTypeToType` handles `RecordType` → `TRecord`
+    - New example: `record_verify.ail` demonstrates record field access in contracts
 
 - **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
   - New `internal/trace/` package: schema, collector, JSONL serializer

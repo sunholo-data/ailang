@@ -868,3 +868,175 @@ func TestEncodeFunction_WithReturnSort(t *testing.T) {
 		t.Errorf("expected Int sort inferred, got: %s", result2.SMTLib)
 	}
 }
+
+// --- Record expression encoding tests ---
+
+func TestEncodeRecordAccess(t *testing.T) {
+	// RecordAccess{Record: Var("p"), Field: "x"} → (x p)
+	// RecordAccess doesn't need type info — field name IS the accessor
+	setupRecordTestContext()
+	defer teardownRecordTestContext()
+
+	ra := &core.RecordAccess{
+		Record: &core.Var{Name: "p"},
+		Field:  "x",
+	}
+	got, err := EncodeExpr(ra)
+	if err != nil {
+		t.Fatalf("encodeRecordAccess unexpected error: %v", err)
+	}
+	if got != "(x p)" {
+		t.Errorf("encodeRecordAccess = %q, want %q", got, "(x p)")
+	}
+}
+
+func TestEncodeRecordAccess_NestedExpr(t *testing.T) {
+	// RecordAccess on a let-bound variable
+	setupRecordTestContext()
+	defer teardownRecordTestContext()
+
+	ra := &core.RecordAccess{
+		Record: &core.Var{Name: "myRecord"},
+		Field:  "amount",
+	}
+	got, err := EncodeExpr(ra)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(amount myRecord)" {
+		t.Errorf("got %q, want %q", got, "(amount myRecord)")
+	}
+}
+
+func TestEncodeRecord_Construction(t *testing.T) {
+	// Record{x: 5, y: 10} → (mk_Point 5 10)
+	setupRecordTestContext()
+	defer teardownRecordTestContext()
+
+	rec := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"x": &core.Lit{Kind: core.IntLit, Value: int64(5)},
+			"y": &core.Lit{Kind: core.IntLit, Value: int64(10)},
+		},
+	}
+	got, err := EncodeExpr(rec)
+	if err != nil {
+		t.Fatalf("encodeRecord unexpected error: %v", err)
+	}
+	if got != "(mk_Point 5 10)" {
+		t.Errorf("encodeRecord = %q, want %q", got, "(mk_Point 5 10)")
+	}
+}
+
+func TestEncodeRecordUpdate(t *testing.T) {
+	// RecordUpdate{Base: p, Updates: {x: 20}} → (mk_Point 20 (y p))
+	setupRecordTestContext()
+	defer teardownRecordTestContext()
+
+	ru := &core.RecordUpdate{
+		Base: &core.Var{Name: "p"},
+		Updates: map[string]core.CoreExpr{
+			"x": &core.Lit{Kind: core.IntLit, Value: int64(20)},
+		},
+	}
+	got, err := EncodeExpr(ru)
+	if err != nil {
+		t.Fatalf("encodeRecordUpdate unexpected error: %v", err)
+	}
+	if got != "(mk_Point 20 (y p))" {
+		t.Errorf("encodeRecordUpdate = %q, want %q", got, "(mk_Point 20 (y p))")
+	}
+}
+
+func TestEncodeRecordUpdate_MultipleFields(t *testing.T) {
+	// Update both fields
+	setupRecordTestContext()
+	defer teardownRecordTestContext()
+
+	ru := &core.RecordUpdate{
+		Base: &core.Var{Name: "p"},
+		Updates: map[string]core.CoreExpr{
+			"x": &core.Lit{Kind: core.IntLit, Value: int64(100)},
+			"y": &core.Lit{Kind: core.IntLit, Value: int64(200)},
+		},
+	}
+	got, err := EncodeExpr(ru)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(mk_Point 100 200)" {
+		t.Errorf("got %q, want %q", got, "(mk_Point 100 200)")
+	}
+}
+
+func TestEncodeFunction_WithRecordParam(t *testing.T) {
+	// Full EncodeFunction with a record parameter
+	params := []FunctionParam{
+		{Name: "p", Type: &types.TRecord{
+			Fields:   map[string]types.Type{"x": &types.TCon{Name: "int"}, "y": &types.TCon{Name: "int"}},
+			TypeName: "Point",
+		}},
+	}
+	body := &core.RecordAccess{
+		Record: &core.Var{Name: "p"},
+		Field:  "x",
+	}
+	meta := &core.DeclMeta{
+		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: &core.App{
+				Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "ge_Int"}},
+				Args: []core.CoreExpr{
+					&core.Var{Name: "result"},
+					&core.Lit{Kind: core.IntLit, Value: int64(0)},
+				},
+			}, Message: "(result >= 0)"},
+		},
+	}
+
+	result, err := EncodeFunction("getX", params, body, "Int", meta, nil)
+	if err != nil {
+		t.Fatalf("EncodeFunction with record param: unexpected error: %v", err)
+	}
+
+	// Should contain record type declaration
+	if !strings.Contains(result.SMTLib, "declare-datatype Point") {
+		t.Errorf("expected Point declaration in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Should contain mk_Point constructor
+	if !strings.Contains(result.SMTLib, "mk_Point") {
+		t.Errorf("expected mk_Point constructor in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Should contain field accessors in declaration
+	if !strings.Contains(result.SMTLib, "(x Int)") {
+		t.Errorf("expected (x Int) accessor in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Should declare p as Point
+	if !strings.Contains(result.SMTLib, "declare-const p Point") {
+		t.Errorf("expected (declare-const p Point) in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Body should be (x p)
+	if !strings.Contains(result.SMTLib, "(x p)") {
+		t.Errorf("expected (x p) in body, SMT-LIB:\n%s", result.SMTLib)
+	}
+}
+
+// setupRecordTestContext initializes the package-level record context
+// with a Point record type {x: Int, y: Int}.
+func setupRecordTestContext() {
+	activeRecordTypes = map[string]*RecordTypeInfo{
+		"Point": {
+			SortName:   "Point",
+			CtorName:   "mk_Point",
+			FieldNames: []string{"x", "y"},
+			FieldSorts: map[string]string{"x": "Int", "y": "Int"},
+		},
+	}
+	activeFieldSetToSort = map[string]string{
+		"x,y": "Point",
+	}
+}
+
+func teardownRecordTestContext() {
+	activeRecordTypes = nil
+	activeFieldSetToSort = nil
+}

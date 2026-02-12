@@ -13,6 +13,7 @@ import TemperatureExample from '!!raw-loader!@site/../examples/runnable/contract
 import InsuranceExample from '!!raw-loader!@site/../examples/runnable/contracts/insurance.ail';
 import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/scoring.ail';
 import CrossFunctionExample from '!!raw-loader!@site/../examples/runnable/contracts/cross_function.ail';
+import RecordVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/record_verify.ail';
 
 # Contracts & Verification
 
@@ -143,7 +144,7 @@ ailang verify --strict examples/runnable/contracts/basic.ail
 ailang verify --timeout 10s examples/runnable/contracts/park.ail
 ```
 
-**Prerequisites**: Install Z3 via `brew install z3` (macOS), `apt install z3` (Linux), or set `AILANG_Z3_PATH`.
+**Prerequisites**: Install Z3 via `brew install z3` (macOS), `apt install z3` (Linux), `choco install z3` or `scoop install z3` (Windows), or download from [Z3 releases](https://github.com/Z3Prover/z3/releases) and set `AILANG_Z3_PATH`.
 
 ### How It Works
 
@@ -277,6 +278,34 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 - Recursive call chains are rejected (would require induction)
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 
+### Record Verification
+
+Records can be verified by Z3. Record parameters are mapped to SMT-LIB `declare-datatype` declarations with named field accessors, enabling contracts that reference record fields:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/record_verify.ail">
+  {RecordVerifyExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/record_verify.ail
+
+  ✓ VERIFIED getX            4ms
+  ✓ VERIFIED manhattan       6ms
+
+  2 functions: 2 verified
+```
+
+**How it works:**
+1. Record types in parameters (e.g., `{x: int, y: int}`) generate `(declare-datatype Record_x_y ((mk_Record_x_y (x Int) (y Int))))`
+2. Field access (`p.x`) uses SMT-LIB auto-generated accessor functions: `(x p)`
+3. Record construction (`{x: 5, y: 10}`) becomes `(mk_Record_x_y 5 10)` with fields in alphabetical order
+4. Functional update (`{p with x: 20}`) reconstructs with the constructor: `(mk_Record_x_y 20 (y p))`
+
+**Limitations:**
+- Record fields must use encodable types (int, bool, enum ADTs — not strings or lists)
+- Record return types are not yet supported in function signatures (parser limitation)
+- Named record type declarations can be used via type aliases
+
 ### Verification Output States
 
 | Status | Symbol | Meaning |
@@ -297,6 +326,7 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 - Logical: `&&`, `||`, `!`
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums and ADTs
+- Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`)
 - Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
 - Must be pure: `! {}` (no effects)
 
@@ -308,8 +338,6 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 | Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
 | Strings | Encoding not yet implemented | Yes — Z3 has full string theory |
 | Lists | Encoding not yet implemented | Yes — Z3 has sequence theory |
-| Records | Encoding not yet implemented | Yes — via SMT-LIB datatypes |
-| ~~Cross-function calls~~ | ~~Each function verified in isolation~~ | **Supported** — via `define-fun` inlining |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
@@ -350,13 +378,13 @@ AILANG is unique in combining compile-time verification with an effect system an
 - ✅ SMT-LIB encoding for int/bool/enum ADTs
 - ✅ Z3 solver integration with model extraction
 - ✅ Counterexample display for violated contracts
+- ✅ Cross-function verification via `define-fun` inlining (transitive call chains)
+- ✅ Record verification via `declare-datatype` (field access, construction, update)
 
 **Future** — Expanding the decidable fragment:
 - String verification (Z3 string theory)
 - List verification (Z3 sequence theory)
-- Record verification (SMT-LIB datatypes)
 - Bounded recursion (loop unrolling)
-- Cross-function verification (inlining)
 :::
 
 ## See Also

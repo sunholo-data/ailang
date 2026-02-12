@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/types"
@@ -47,7 +48,7 @@ func MapType(t types.Type) (string, error) {
 	case *types.TList:
 		return "", fmt.Errorf("list types cannot be encoded in SMT-LIB")
 	case *types.TRecord:
-		return "", fmt.Errorf("record types cannot be encoded in SMT-LIB")
+		return MapRecordSortName(ty), nil
 	case *types.TApp:
 		// TApp with a TCon constructor may be a parameterized ADT
 		if con, ok := ty.Constructor.(*types.TCon); ok {
@@ -152,6 +153,84 @@ func CheckSat() string {
 // GetModel returns the get-model command.
 func GetModel() string {
 	return "(get-model)"
+}
+
+// MapRecordSortName returns the SMT-LIB sort name for a record type.
+// Named records use their TypeName directly; anonymous records get a
+// deterministic name based on their fields (sorted alphabetically).
+func MapRecordSortName(rec *types.TRecord) string {
+	if rec.TypeName != "" {
+		return rec.TypeName
+	}
+	// Anonymous record: build name from sorted field names
+	names := sortedFieldNames(rec.Fields)
+	return "Record_" + strings.Join(names, "_")
+}
+
+// RecordConstructorName returns the SMT-LIB constructor name for a record.
+//
+//	(mk_Point ...) for record type Point
+func RecordConstructorName(sortName string) string {
+	return "mk_" + sortName
+}
+
+// DeclareRecordDatatype generates an SMT-LIB declare-datatype for a record type.
+// Records are modeled as single-constructor datatypes with named field accessors:
+//
+//	(declare-datatype Point ((mk_Point (x Int) (y Int))))
+//
+// Field order is alphabetical for deterministic output.
+func DeclareRecordDatatype(sortName string, fields map[string]string) string {
+	fieldNames := make([]string, 0, len(fields))
+	for name := range fields {
+		fieldNames = append(fieldNames, name)
+	}
+	sort.Strings(fieldNames)
+
+	var adtFields []ADTField
+	for _, name := range fieldNames {
+		adtFields = append(adtFields, ADTField{Name: name, Sort: fields[name]})
+	}
+
+	ctor := ADTVariant{
+		Name:   RecordConstructorName(sortName),
+		Fields: adtFields,
+	}
+	return DeclareDatatype(sortName, []ADTVariant{ctor})
+}
+
+// MapRecordFields maps all fields of a record type to their SMT-LIB sorts.
+// Returns the mapping and an error if any field type is not encodable.
+func MapRecordFields(rec *types.TRecord) (map[string]string, error) {
+	result := make(map[string]string, len(rec.Fields))
+	for name, fieldType := range rec.Fields {
+		sort, err := MapType(fieldType)
+		if err != nil {
+			return nil, fmt.Errorf("record field %q: %w", name, err)
+		}
+		result[name] = sort
+	}
+	return result, nil
+}
+
+// sortedFieldNames returns field names from a type map sorted alphabetically.
+func sortedFieldNames(fields map[string]types.Type) []string {
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// SortedFieldNamesStr returns field names from a string map sorted alphabetically.
+func SortedFieldNamesStr(fields map[string]string) []string {
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // BuiltinToSMTOp maps lowered AILANG builtin names to SMT-LIB operators.

@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -18,6 +19,22 @@ type FunctionParam struct {
 // resolved as define-fun during the current EncodeFunction call.
 // This is a package-level variable set during encoding (sequential per function).
 var activeResolvedCallees map[string]bool
+
+// RecordTypeInfo describes a record type for SMT encoding.
+type RecordTypeInfo struct {
+	SortName   string            // SMT-LIB sort name (e.g., "Point")
+	CtorName   string            // Constructor name (e.g., "mk_Point")
+	FieldNames []string          // Sorted field names
+	FieldSorts map[string]string // Field name → SMT-LIB sort
+}
+
+// activeRecordTypes maps record sort names to their type info.
+// Populated during EncodeFunction, used by encodeRecord/encodeRecordUpdate.
+var activeRecordTypes map[string]*RecordTypeInfo
+
+// activeFieldSetToSort maps a canonical field-set key to sort name,
+// enabling record construction lookup by field names.
+var activeFieldSetToSort map[string]string
 
 // EncodeResult holds the generated SMT-LIB program for a function.
 type EncodeResult struct {
@@ -85,6 +102,13 @@ func EncodeFunction(
 	// Set active resolved callees for encodeApp to use
 	activeResolvedCallees = ctx.ResolvedCallees
 	defer func() { activeResolvedCallees = nil }()
+
+	// Collect and declare record types from function parameters and return type
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	collectAndDeclareRecordTypes(params, returnSort, ctx, result)
 
 	// Step 1: Declare ADT types
 	for typeName, variants := range adtTypes {
@@ -248,10 +272,13 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return "", fmt.Errorf("tuple expressions cannot be encoded in SMT-LIB")
 
 	case *core.Record:
-		return "", fmt.Errorf("record expressions cannot be encoded in SMT-LIB")
+		return encodeRecord(e)
 
 	case *core.RecordAccess:
-		return "", fmt.Errorf("record access cannot be encoded in SMT-LIB")
+		return encodeRecordAccess(e)
+
+	case *core.RecordUpdate:
+		return encodeRecordUpdate(e)
 
 	case *core.List:
 		return "", fmt.Errorf("list expressions cannot be encoded in SMT-LIB")
@@ -629,6 +656,207 @@ func inferResultSortInner(body core.CoreExpr, ctx *SMTContext, ctorToType map[st
 				return typeName
 			}
 		}
+	case *core.Record:
+		// Record construction returns the record sort
+		if info := lookupRecordByFields(b.Fields); info != nil {
+			return info.SortName
+		}
+	case *core.RecordAccess:
+		// Field access on a record — need to look at the record's type
+		// and the field's sort
+		return "Int" // conservative fallback
 	}
 	return "Int"
+}
+
+// --- Record encoding ---
+
+// collectAndDeclareRecordTypes collects record types from function parameters
+// and populates activeRecordTypes/activeFieldSetToSort for use during encoding.
+func collectAndDeclareRecordTypes(params []FunctionParam, returnSort string, ctx *SMTContext, result *EncodeResult) {
+	for _, p := range params {
+		collectRecordType(p.Type, ctx, result)
+	}
+}
+
+// collectRecordType recursively extracts record types from an AILANG type
+// and emits declare-datatype declarations.
+func collectRecordType(t types.Type, ctx *SMTContext, result *EncodeResult) {
+	if t == nil {
+		return
+	}
+	rec, ok := t.(*types.TRecord)
+	if !ok {
+		return
+	}
+
+	sortName := MapRecordSortName(rec)
+	if ctx.DeclaredTypes[sortName] {
+		return // already declared
+	}
+
+	// Map all field types (may recursively discover nested record types)
+	fieldSorts, err := MapRecordFields(rec)
+	if err != nil {
+		return // skip records with unencodable field types
+	}
+
+	// Recursively collect nested record types first
+	for _, fieldType := range rec.Fields {
+		collectRecordType(fieldType, ctx, result)
+	}
+
+	// Build record type info
+	fieldNames := SortedFieldNamesStr(fieldSorts)
+	info := &RecordTypeInfo{
+		SortName:   sortName,
+		CtorName:   RecordConstructorName(sortName),
+		FieldNames: fieldNames,
+		FieldSorts: fieldSorts,
+	}
+	activeRecordTypes[sortName] = info
+
+	// Build field-set key for lookup during encoding
+	key := strings.Join(fieldNames, ",")
+	activeFieldSetToSort[key] = sortName
+
+	// Emit declaration
+	decl := DeclareRecordDatatype(sortName, fieldSorts)
+	result.Declarations = append(result.Declarations, decl)
+	ctx.DeclaredTypes[sortName] = true
+}
+
+// encodeRecord encodes a record construction expression.
+// Record{Fields: {x: 5, y: 10}} → (mk_Point 5 10)
+func encodeRecord(rec *core.Record) (string, error) {
+	info := lookupRecordByFields(rec.Fields)
+	if info == nil {
+		return "", fmt.Errorf("record construction: unknown record type with fields %v (not declared in function signature)", fieldNamesFromExprMap(rec.Fields))
+	}
+
+	// Encode field values in sorted order
+	var args []string
+	for _, fieldName := range info.FieldNames {
+		fieldExpr, ok := rec.Fields[fieldName]
+		if !ok {
+			return "", fmt.Errorf("record construction: missing field %q", fieldName)
+		}
+		encoded, err := EncodeExpr(fieldExpr)
+		if err != nil {
+			return "", fmt.Errorf("record field %q: %w", fieldName, err)
+		}
+		args = append(args, encoded)
+	}
+
+	return fmt.Sprintf("(%s %s)", info.CtorName, strings.Join(args, " ")), nil
+}
+
+// encodeRecordAccess encodes a record field access.
+// RecordAccess{Record: p, Field: "x"} → (x p)
+func encodeRecordAccess(ra *core.RecordAccess) (string, error) {
+	record, err := EncodeExpr(ra.Record)
+	if err != nil {
+		return "", fmt.Errorf("record access: %w", err)
+	}
+	return fmt.Sprintf("(%s %s)", ra.Field, record), nil
+}
+
+// encodeRecordUpdate encodes a functional record update.
+// RecordUpdate{Base: p, Updates: {x: 20}} → (mk_Point 20 (y p))
+func encodeRecordUpdate(ru *core.RecordUpdate) (string, error) {
+	info := lookupRecordByFields(ru.Updates)
+	if info == nil {
+		// Try to find by looking at base expression type (if it's a known variable)
+		info = lookupRecordForUpdate(ru)
+	}
+	if info == nil {
+		return "", fmt.Errorf("record update: unknown record type")
+	}
+
+	base, err := EncodeExpr(ru.Base)
+	if err != nil {
+		return "", fmt.Errorf("record update base: %w", err)
+	}
+
+	// Build constructor args: updated fields use new values, others use accessor on base
+	var args []string
+	for _, fieldName := range info.FieldNames {
+		if updateExpr, ok := ru.Updates[fieldName]; ok {
+			encoded, err := EncodeExpr(updateExpr)
+			if err != nil {
+				return "", fmt.Errorf("record update field %q: %w", fieldName, err)
+			}
+			args = append(args, encoded)
+		} else {
+			// Use accessor on base: (fieldName base)
+			args = append(args, fmt.Sprintf("(%s %s)", fieldName, base))
+		}
+	}
+
+	return fmt.Sprintf("(%s %s)", info.CtorName, strings.Join(args, " ")), nil
+}
+
+// lookupRecordByFields finds a record type info that contains ALL the given field names.
+// For construction, the fields must match exactly; for updates, they must be a subset.
+func lookupRecordByFields(fields interface{}) *RecordTypeInfo {
+	if activeRecordTypes == nil {
+		return nil
+	}
+
+	var names []string
+	switch f := fields.(type) {
+	case map[string]core.CoreExpr:
+		for name := range f {
+			names = append(names, name)
+		}
+	case map[string]string:
+		for name := range f {
+			names = append(names, name)
+		}
+	default:
+		return nil
+	}
+	sort.Strings(names)
+	key := strings.Join(names, ",")
+
+	if sortName, ok := activeFieldSetToSort[key]; ok {
+		return activeRecordTypes[sortName]
+	}
+	return nil
+}
+
+// lookupRecordForUpdate finds the record type for an update expression.
+// Tries all known record types and checks if the update fields are a subset.
+func lookupRecordForUpdate(ru *core.RecordUpdate) *RecordTypeInfo {
+	if activeRecordTypes == nil {
+		return nil
+	}
+	updateFields := make(map[string]bool, len(ru.Updates))
+	for name := range ru.Updates {
+		updateFields[name] = true
+	}
+	for _, info := range activeRecordTypes {
+		// Check if all update fields exist in this record type
+		allPresent := true
+		for name := range updateFields {
+			if _, ok := info.FieldSorts[name]; !ok {
+				allPresent = false
+				break
+			}
+		}
+		if allPresent {
+			return info
+		}
+	}
+	return nil
+}
+
+// fieldNamesFromExprMap extracts sorted field names from a map of expressions.
+func fieldNamesFromExprMap(fields map[string]core.CoreExpr) []string {
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

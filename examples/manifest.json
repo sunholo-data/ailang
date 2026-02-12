@@ -1211,6 +1211,18 @@
       "description": "Cross-function verification — Z3 inlines callee definitions to verify 3-level call chains"
     },
     {
+      "path": "runnable/contracts/record_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "field-access"
+      ],
+      "description": "Record contract verification — Z3 proves properties about record field access in requires/ensures"
+    },
+    {
       "path": "hello_world.ail",
       "status": "working",
       "tags": [

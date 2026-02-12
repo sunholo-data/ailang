@@ -83,9 +83,12 @@ func TestMapType_Record(t *testing.T) {
 	rec := &types.TRecord{
 		Fields: map[string]types.Type{"x": &types.TCon{Name: "int"}},
 	}
-	_, err := MapType(rec)
-	if err == nil {
-		t.Error("MapType(TRecord) expected error")
+	got, err := MapType(rec)
+	if err != nil {
+		t.Fatalf("MapType(TRecord) unexpected error: %v", err)
+	}
+	if got != "Record_x" {
+		t.Errorf("MapType(TRecord{x:int}) = %q, want %q", got, "Record_x")
 	}
 }
 
@@ -255,5 +258,143 @@ func TestMapType_TApp_WithTVar(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "parameterized type") {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// --- Record type tests ---
+
+func TestMapType_Record_Named(t *testing.T) {
+	rec := &types.TRecord{
+		Fields:   map[string]types.Type{"x": &types.TCon{Name: "int"}, "y": &types.TCon{Name: "int"}},
+		TypeName: "Point",
+	}
+	got, err := MapType(rec)
+	if err != nil {
+		t.Fatalf("MapType(named record) unexpected error: %v", err)
+	}
+	if got != "Point" {
+		t.Errorf("MapType(named record) = %q, want %q", got, "Point")
+	}
+}
+
+func TestMapType_Record_Anonymous(t *testing.T) {
+	rec := &types.TRecord{
+		Fields: map[string]types.Type{"x": &types.TCon{Name: "int"}, "y": &types.TCon{Name: "float"}},
+	}
+	got, err := MapType(rec)
+	if err != nil {
+		t.Fatalf("MapType(anonymous record) unexpected error: %v", err)
+	}
+	// Anonymous records get deterministic name from sorted fields
+	if got != "Record_x_y" {
+		t.Errorf("MapType(anonymous record) = %q, want %q", got, "Record_x_y")
+	}
+}
+
+func TestMapRecordSortName_Named(t *testing.T) {
+	rec := &types.TRecord{
+		Fields:   map[string]types.Type{"name": &types.TCon{Name: "string"}},
+		TypeName: "Person",
+	}
+	if got := MapRecordSortName(rec); got != "Person" {
+		t.Errorf("MapRecordSortName(Person) = %q, want %q", got, "Person")
+	}
+}
+
+func TestMapRecordSortName_Anonymous_DeterministicOrder(t *testing.T) {
+	// Fields added in different order should produce the same name
+	rec1 := &types.TRecord{
+		Fields: map[string]types.Type{"b": &types.TCon{Name: "int"}, "a": &types.TCon{Name: "int"}},
+	}
+	rec2 := &types.TRecord{
+		Fields: map[string]types.Type{"a": &types.TCon{Name: "int"}, "b": &types.TCon{Name: "int"}},
+	}
+	if MapRecordSortName(rec1) != MapRecordSortName(rec2) {
+		t.Errorf("expected same sort name regardless of field insertion order: %q vs %q",
+			MapRecordSortName(rec1), MapRecordSortName(rec2))
+	}
+}
+
+func TestMapRecordFields(t *testing.T) {
+	rec := &types.TRecord{
+		Fields: map[string]types.Type{
+			"x":      &types.TCon{Name: "int"},
+			"y":      &types.TCon{Name: "float"},
+			"active": &types.TCon{Name: "bool"},
+		},
+	}
+	fields, err := MapRecordFields(rec)
+	if err != nil {
+		t.Fatalf("MapRecordFields unexpected error: %v", err)
+	}
+	expected := map[string]string{"x": "Int", "y": "Real", "active": "Bool"}
+	for k, v := range expected {
+		if fields[k] != v {
+			t.Errorf("field %q: got %q, want %q", k, fields[k], v)
+		}
+	}
+}
+
+func TestMapRecordFields_UnsupportedFieldType(t *testing.T) {
+	rec := &types.TRecord{
+		Fields: map[string]types.Type{
+			"x":    &types.TCon{Name: "int"},
+			"name": &types.TCon{Name: "string"}, // string not yet supported
+		},
+	}
+	_, err := MapRecordFields(rec)
+	if err == nil {
+		t.Fatal("expected error for record with string field")
+	}
+	if !strings.Contains(err.Error(), "name") {
+		t.Errorf("error should mention field name: %v", err)
+	}
+}
+
+func TestDeclareRecordDatatype_Simple(t *testing.T) {
+	got := DeclareRecordDatatype("Point", map[string]string{"x": "Int", "y": "Int"})
+	want := "(declare-datatype Point ((mk_Point (x Int) (y Int))))"
+	if got != want {
+		t.Errorf("DeclareRecordDatatype:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
+func TestDeclareRecordDatatype_AlphabeticalOrder(t *testing.T) {
+	got := DeclareRecordDatatype("Config", map[string]string{
+		"z_flag":  "Bool",
+		"a_count": "Int",
+		"m_value": "Real",
+	})
+	// Fields should be sorted: a_count, m_value, z_flag
+	want := "(declare-datatype Config ((mk_Config (a_count Int) (m_value Real) (z_flag Bool))))"
+	if got != want {
+		t.Errorf("DeclareRecordDatatype alphabetical:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
+func TestDeclareRecordDatatype_WithADTField(t *testing.T) {
+	got := DeclareRecordDatatype("Order", map[string]string{
+		"amount": "Int",
+		"status": "OrderStatus",
+	})
+	want := "(declare-datatype Order ((mk_Order (amount Int) (status OrderStatus))))"
+	if got != want {
+		t.Errorf("DeclareRecordDatatype with ADT field:\n  got:  %s\n  want: %s", got, want)
+	}
+}
+
+func TestRecordConstructorName(t *testing.T) {
+	tests := []struct {
+		sort string
+		want string
+	}{
+		{"Point", "mk_Point"},
+		{"Record_x_y", "mk_Record_x_y"},
+		{"Config", "mk_Config"},
+	}
+	for _, tt := range tests {
+		if got := RecordConstructorName(tt.sort); got != tt.want {
+			t.Errorf("RecordConstructorName(%q) = %q, want %q", tt.sort, got, tt.want)
+		}
 	}
 }

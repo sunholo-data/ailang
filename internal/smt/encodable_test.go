@@ -210,7 +210,8 @@ func TestIsSMTEncodable_UnencodableTypes_List(t *testing.T) {
 	}
 }
 
-func TestIsSMTEncodable_UnencodableTypes_Record(t *testing.T) {
+func TestIsSMTEncodable_Record_WithIntFields(t *testing.T) {
+	// Records with encodable field types (int, bool, etc.) are now allowed
 	meta := &core.DeclMeta{
 		Name:   "recFn",
 		IsPure: true,
@@ -224,9 +225,30 @@ func TestIsSMTEncodable_UnencodableTypes_Record(t *testing.T) {
 		},
 	}
 
+	ok, _ := IsSMTEncodable("recFn", meta, body)
+	if !ok {
+		t.Fatal("expected encodable — records with int fields should be accepted")
+	}
+}
+
+func TestIsSMTEncodable_Record_WithStringField_Rejected(t *testing.T) {
+	// Records with string fields are still rejected (strings not yet supported)
+	meta := &core.DeclMeta{
+		Name:   "recFn",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.RequiresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+	body := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"name": &core.Lit{Kind: core.StringLit, Value: "hello"},
+		},
+	}
+
 	ok, reasons := IsSMTEncodable("recFn", meta, body)
 	if ok {
-		t.Fatal("expected not encodable (record)")
+		t.Fatal("expected not encodable — record with string field")
 	}
 	found := false
 	for _, r := range reasons {
@@ -236,6 +258,46 @@ func TestIsSMTEncodable_UnencodableTypes_Record(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected RejectUnencodable in reasons")
+	}
+}
+
+func TestIsSMTEncodable_RecordAccess(t *testing.T) {
+	meta := &core.DeclMeta{
+		Name:   "accessFn",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+	body := &core.RecordAccess{
+		Record: &core.Var{Name: "p"},
+		Field:  "x",
+	}
+
+	ok, _ := IsSMTEncodable("accessFn", meta, body)
+	if !ok {
+		t.Fatal("expected encodable — record access on variable should be accepted")
+	}
+}
+
+func TestIsSMTEncodable_RecordUpdate(t *testing.T) {
+	meta := &core.DeclMeta{
+		Name:   "updateFn",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+	body := &core.RecordUpdate{
+		Base: &core.Var{Name: "p"},
+		Updates: map[string]core.CoreExpr{
+			"x": &core.Lit{Kind: core.IntLit, Value: int64(42)},
+		},
+	}
+
+	ok, _ := IsSMTEncodable("updateFn", meta, body)
+	if !ok {
+		t.Fatal("expected encodable — record update with int should be accepted")
 	}
 }
 
