@@ -443,14 +443,26 @@
       "created": "2026-02-09",
       "tags": [
         "production",
-        "latest",
         "effectful-combinators",
         "structured-ai-output"
       ],
       "notes": "Structured AI output: callJson (schema-enforced), callJsonSimple (no schema) for validated JSON responses from AI providers. All 4 providers wired (Gemini, OpenAI, Anthropic, Ollama). Effectful list combinators: mapE, filterE, foldlE, flatMapE, forEachE for effect-polymorphic HOFs. Pure flatMap added. Effect row variable syntax enabled."
+    },
+    "v0.7.4": {
+      "file": "prompts/v0.7.4.md",
+      "hash": "dd17b612b94e96e4ac1d8ee69f70a5ddd2a38c819fb17665b52b14ed31e7e511",
+      "description": "Add ailang verify (Z3 SMT contract verification) with counterexample output",
+      "created": "2026-02-11",
+      "tags": [
+        "production",
+        "latest",
+        "smt-verification",
+        "contracts"
+      ],
+      "notes": "Static contract verification: ailang verify command uses Z3 to mathematically prove requires/ensures contracts hold for ALL inputs. Covers decidable fragment (int/bool/enum ADTs, arithmetic, comparison, if/let/match). Shows counterexamples when violations found. Flags: --verbose (SMT-LIB), --json (machine-readable), --strict (fail on skipped). Replaced old --experimental-binop-shim requirement."
     }
   },
-  "active": "v0.7.3",
+  "active": "v0.7.4",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

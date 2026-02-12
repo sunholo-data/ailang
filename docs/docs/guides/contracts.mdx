@@ -1,16 +1,21 @@
 ---
 sidebar_position: 8
 title: Contracts & Verification
-description: Design-by-contract programming with requires/ensures clauses
+description: Design-by-contract programming with requires/ensures clauses and Z3 static verification
 ---
 
 import CodeBlock from '@theme/CodeBlock';
 import BasicContracts from '!!raw-loader!@site/../examples/runnable/contracts/basic.ail';
 import ParkExample from '!!raw-loader!@site/../examples/runnable/contracts/park.ail';
+import FinanceExample from '!!raw-loader!@site/../examples/runnable/contracts/finance.ail';
+import AccessControlExample from '!!raw-loader!@site/../examples/runnable/contracts/access_control.ail';
+import TemperatureExample from '!!raw-loader!@site/../examples/runnable/contracts/temperature.ail';
+import InsuranceExample from '!!raw-loader!@site/../examples/runnable/contracts/insurance.ail';
+import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/scoring.ail';
 
 # Contracts & Verification
 
-AILANG supports **design-by-contract** programming through `requires` and `ensures` clauses. Contracts make function invariants explicit and machine-checkable.
+AILANG supports **design-by-contract** programming through `requires` and `ensures` clauses. Contracts make function invariants explicit and machine-checkable — both at runtime and at compile time via Z3 SMT solving.
 
 :::info Research Foundation
 This feature implements techniques from the **ARC (Automated Reasoning Checks)** system developed by AWS:
@@ -42,21 +47,6 @@ ensures { result >= 0 }          -- Postcondition: checked before return
 | `ensures { ... }` | Postcondition - what will be true when returning | Before return |
 | `result` | Special identifier for the return value | Only in `ensures` |
 
-### Multiple Predicates
-
-Separate multiple predicates with commas:
-
-```ailang
-export func clamp(value: int, min: int, max: int) -> int ! {}
-requires { min <= max }
-ensures { result >= min, result <= max }
-{
-  if value < min then min
-  else if value > max then max
-  else value
-}
-```
-
 ## Basic Example
 
 This example demonstrates core contract patterns:
@@ -85,15 +75,6 @@ ailang run --caps IO --entry main examples/runnable/contracts/park.ail
 # Output: 35 (= 5 + 10 + 0 + 20)
 ```
 
-### What This Demonstrates
-
-The park example shows:
-
-1. **Domain modeling with ADTs**: Types like `Season`, `AgeClass`, and `AdmissionDecision` capture the policy vocabulary
-2. **Business rules as contracts**: "Seniors pay $5 in low season" becomes `ensures { result >= 0 }`
-3. **Function composition**: `canEnterPark` builds on `admissionFee` with contracts propagating
-4. **Testable specifications**: The `main` function exercises the policy with known test cases
-
 ## Why Contracts Matter for AI
 
 Contracts are particularly valuable for AI code generation:
@@ -120,43 +101,7 @@ AILANG implements this pattern natively: contracts are first-class syntax, not c
 Enable runtime contract verification with the `--verify-contracts` flag:
 
 ```bash
-# Compile with contract checks enabled
-ailang compile --verify-contracts examples/runnable/contracts/basic.ail -o output/
-
-# Run with contracts (coming in v0.6.2)
 ailang run --verify-contracts --caps IO --entry main examples/runnable/contracts/basic.ail
-```
-
-### What Gets Generated
-
-**With `--verify-contracts`**: Both documentation comments and panic checks:
-
-```go
-func absolute_impl(x interface{}) interface{} {
-    // Requires: (x >= 0)
-    if !(GeInt(x, int64(0))).(bool) {
-        panic("contract violation: requires: (x >= 0) at basic.ail:13:12")
-    }
-    return x
-}
-
-func Absolute(x int64) int64 {
-    _result := absolute_impl(x).(int64)
-    // Ensures: (result >= 0)
-    if !(_result >= int64(0)) {
-        panic("contract violation: ensures: (result >= 0) at basic.ail:14:11")
-    }
-    return _result
-}
-```
-
-**Without `--verify-contracts`**: Documentation comments only (no runtime overhead):
-
-```go
-func absolute_impl(x interface{}) interface{} {
-    // Requires: (x >= 0)
-    return x
-}
 ```
 
 ### Contract Violation Messages
@@ -172,18 +117,213 @@ The message includes:
 - Original predicate expression
 - Source location (file:line:column)
 
+## Static Verification with Z3
+
+:::tip Compile-Time Proofs
+`ailang verify` uses the Z3 SMT solver to **mathematically prove** that your contracts hold for **all possible inputs**. No tests needed — Z3 checks every case.
+:::
+
+### Quick Start
+
+```bash
+# Verify all contracts in a file
+ailang verify examples/runnable/contracts/finance.ail
+
+# Show generated SMT-LIB for debugging
+ailang verify --verbose examples/runnable/contracts/basic.ail
+
+# Machine-readable JSON output (for CI/CD)
+ailang verify --json examples/runnable/contracts/basic.ail
+
+# Strict mode: fail if any function can't be verified
+ailang verify --strict examples/runnable/contracts/basic.ail
+
+# Custom timeout per function (default: 5s)
+ailang verify --timeout 10s examples/runnable/contracts/park.ail
+```
+
+**Prerequisites**: Install Z3 via `brew install z3` (macOS), `apt install z3` (Linux), or set `AILANG_Z3_PATH`.
+
+### How It Works
+
+1. **Fragment check**: Each function with contracts is checked for SMT-encodability
+2. **Encoding**: Pure functions in the decidable fragment are translated to SMT-LIB
+3. **Negation**: The postcondition is negated — if Z3 finds a satisfying assignment, that's a counterexample
+4. **Result**: `VERIFIED` (proven correct), `VIOLATION` (counterexample found), or `SKIPPED` (outside fragment)
+
+### Example: Financial Calculations
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/finance.ail">
+  {FinanceExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/finance.ail
+
+→ Verifying contracts in finance.ail
+  Solver: Z3 version 4.15.4
+
+  ✓ VERIFIED calculateTax    6ms
+  ✓ VERIFIED netIncome        6ms
+  ✗ VIOLATION brokenDiscount
+    Counterexample:
+      price: Int = 0
+      discount: Int = 1
+
+  3 functions: 2 verified, 1 violations
+```
+
+Z3 found that `brokenDiscount(0, 1)` returns `-1`, violating `ensures { result >= 0 }`. This bug would only surface at runtime with the right inputs — `ailang verify` catches it at compile time.
+
+### Example: Access Control
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/access_control.ail">
+  {AccessControlExample}
+</CodeBlock>
+
+### Example: Temperature Conversion
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/temperature.ail">
+  {TemperatureExample}
+</CodeBlock>
+
+## Complex Verification Examples
+
+These examples demonstrate where `ailang verify` truly shines: programs with so many code paths that manual inspection is impractical.
+
+### Example: Insurance Pricing (768 paths)
+
+Five enum types combine to create 768 distinct execution paths. A human reviewer would need to trace every combination to verify bounds — Z3 does it in milliseconds:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/insurance.ail">
+  {InsuranceExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/insurance.ail
+
+  ✓ VERIFIED calculatePremium    30ms
+  ✓ VERIFIED basePremium          5ms
+  ✓ VERIFIED riskMultiplier       5ms
+  ✓ VERIFIED coverageSurcharge    7ms
+  ✗ VIOLATION applyDiscount
+    Counterexample:
+      discountPercent: Int = 101
+      age: AgeBand = YOUTH
+      tier: RiskTier = LOW
+
+  5 functions: 4 verified, 1 violations
+```
+
+Z3 found that `discountPercent=101` causes a negative result — a bug that's invisible when testing with "reasonable" discount values like 10% or 20%.
+
+### Example: Multi-Factor Scoring (256 paths)
+
+A scoring system where department weights can push scores above 100 for specific enum combinations. The developer's mental model assumed scores stay in bounds, but Z3 proves otherwise:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/scoring.ail">
+  {ScoringExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/scoring.ail
+
+  ✓ VERIFIED skillScore          4ms
+  ✓ VERIFIED perfModifier        4ms
+  ✓ VERIFIED deptWeight          5ms
+  ✓ VERIFIED tenureBonus         4ms
+  ✓ VERIFIED compositeScore      6ms
+  ✗ VIOLATION normalizedScore
+    Counterexample:
+      dept: Department = ENGINEERING
+      level: SkillLevel = EXPERT
+      tenure: Tenure = JUNIOR
+      perf: Performance = POOR
+
+  6 functions: 5 verified, 1 violations
+```
+
+The counterexample shows: EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. This specific combination would likely never appear in unit tests.
+
+### Verification Output States
+
+| Status | Symbol | Meaning |
+|--------|--------|---------|
+| Verified | `✓` | Z3 proved the contract holds for ALL valid inputs |
+| Violation | `✗` | Z3 found concrete inputs that break the postcondition |
+| Skipped | `⚠` | Function is outside the decidable fragment (with reason) |
+| Error | `!` | Encoding or solver error |
+
+### The Decidable Fragment
+
+`ailang verify` can verify functions that stay within a decidable subset of the language:
+
+**Currently supported:**
+- `int`, `bool`, and enum/ADT parameters and return types
+- Arithmetic: `+`, `-`, `*`, `/`
+- Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
+- Logical: `&&`, `||`, `!`
+- Control flow: `if`/`else`, `let` bindings
+- Pattern matching: `match` on enums and ADTs
+- Must be pure: `! {}` (no effects)
+
+**Currently skipped (with hints):**
+
+| Feature | Reason | Expandable? |
+|---------|--------|-------------|
+| Recursive functions | Requires induction proofs | Partially — bounded unrolling planned |
+| Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
+| Strings | Encoding not yet implemented | Yes — Z3 has full string theory |
+| Lists | Encoding not yet implemented | Yes — Z3 has sequence theory |
+| Records | Encoding not yet implemented | Yes — via SMT-LIB datatypes |
+| Cross-function calls | Each function verified in isolation | Yes — via inlining or `define-fun` |
+| Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
+
+Functions outside the fragment are skipped with clear messages explaining why and what to change:
+
+```
+  ⚠ SKIPPED recursiveFunc
+    Reason: Function "recursiveFunc" is recursive
+    Hint: SMT verification requires non-recursive functions
+```
+
+## Comparison with Other Languages
+
+| Language | Runtime Checks | Compile-Time Proofs | Counterexamples | AI-Friendly |
+|----------|---------------|--------------------|-----------------| ------------|
+| **AILANG** | `--verify-contracts` | `ailang verify` (Z3) | Yes | Deterministic traces + effects |
+| **Dafny** | N/A (verified only) | Built-in (Z3) | Yes | No effect system |
+| **F*** | N/A | Type-level proofs | Manual | No |
+| **SPARK Ada** | Optional | GNATprove (CVC5) | Partial | Industrial, not AI-focused |
+| **Python** | Assertions only | No | No | No |
+| **Go** | Assertions only | No | No | No |
+| **Rust** | `debug_assert!` | No (type safety only) | No | No |
+| **TypeScript** | Runtime type checks | No | No | No |
+
+AILANG is unique in combining compile-time verification with an effect system and deterministic execution traces — making it ideal for AI code generation workflows where you want to **prove** the generated code is correct.
+
 ## Current Status
 
 :::note Implementation Status
-**Phase 0 + 0.5 Complete (v0.6.2)**:
+**Phase 0 + 0.5 (v0.6.2)** — Runtime contract checking:
 - ✅ Contract syntax (`requires`/`ensures`) parses correctly
 - ✅ Contracts stored in Core AST (`core.DeclMeta.Contracts`)
 - ✅ Runtime checks with `--verify-contracts` flag
-- ✅ Precondition (`requires`) checks at function entry
-- ✅ Postcondition (`ensures`) checks before return
 - ✅ `result` identifier maps to return value in ensures
 
-**Future (Phase 1)**: SMT-based verification for provably correct code via `ailang verify` command.
+**Phase 1 (v0.7.4)** — Static verification with Z3:
+- ✅ `ailang verify` command with `--verbose`, `--json`, `--strict` flags
+- ✅ Fragment checker with 6 rejection categories and hints
+- ✅ SMT-LIB encoding for int/bool/enum ADTs
+- ✅ Z3 solver integration with model extraction
+- ✅ Counterexample display for violated contracts
+
+**Future** — Expanding the decidable fragment:
+- String verification (Z3 string theory)
+- List verification (Z3 sequence theory)
+- Record verification (SMT-LIB datatypes)
+- Bounded recursion (loop unrolling)
+- Cross-function verification (inlining)
 :::
 
 ## See Also

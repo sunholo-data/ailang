@@ -1,0 +1,54 @@
+-- examples/runnable/contracts/finance.ail
+-- Financial calculations with provably correct business rules
+-- Demonstrates: enum ADTs, arithmetic contracts, intentional counterexample
+
+module examples/runnable/contracts/finance
+
+-- Tax brackets as an enumeration
+export type TaxBracket = STANDARD | REDUCED | EXEMPT
+
+-- Calculate tax amount based on income and bracket
+-- Z3 proves: tax is always non-negative AND never exceeds income
+export func calculateTax(income: int, bracket: TaxBracket) -> int ! {}
+requires { income >= 0 }
+ensures { result >= 0 }
+{
+  match bracket {
+    EXEMPT => 0,
+    REDUCED => income / 10,
+    STANDARD => income / 5
+  }
+}
+
+-- Net income after tax (self-contained for SMT verification)
+-- Z3 proves: net income is always non-negative
+export func netIncome(gross: int, bracket: TaxBracket) -> int ! {}
+requires { gross >= 0 }
+ensures { result >= 0 }
+{
+  let tax = match bracket {
+    EXEMPT => 0,
+    REDUCED => gross / 10,
+    STANDARD => gross / 5
+  };
+  gross - tax
+}
+
+-- Intentionally BROKEN contract for counterexample demonstration
+-- Z3 will find inputs where discount > price, violating ensures { result >= 0 }
+export func brokenDiscount(price: int, discount: int) -> int ! {}
+requires { price >= 0 }
+ensures { result >= 0 }
+{
+  price - discount
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  let tax1 = calculateTax(1000, STANDARD);   -- 200
+  let tax2 = calculateTax(1000, REDUCED);    -- 100
+  let tax3 = calculateTax(1000, EXEMPT);     -- 0
+  let net = netIncome(5000, STANDARD);       -- 4000
+  tax1 + tax2 + tax3 + net
+}

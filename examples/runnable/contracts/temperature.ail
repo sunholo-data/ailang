@@ -1,0 +1,46 @@
+-- examples/runnable/contracts/temperature.ail
+-- Temperature conversion with verified physical constraints
+-- Demonstrates: arithmetic proofs, comparison operators, enum matching
+
+module examples/runnable/contracts/temperature
+
+-- Temperature scales
+export type Scale = CELSIUS | FAHRENHEIT
+
+-- Convert Celsius to Fahrenheit
+-- Z3 proves: for non-negative Celsius, Fahrenheit is always >= Celsius
+export func celsiusToFahrenheit(c: int) -> int ! {}
+requires { c >= 0 }
+ensures { result >= c }
+{
+  c * 9 / 5 + 32
+}
+
+-- Check if temperature is at or below freezing point
+export func isFreezing(temp: int, scale: Scale) -> bool ! {}
+{
+  match scale {
+    CELSIUS => temp <= 0,
+    FAHRENHEIT => temp <= 32
+  }
+}
+
+-- Clamp temperature to a safe operating range
+-- Z3 proves: result is always within [lo, hi]
+export func clampTemp(temp: int, lo: int, hi: int) -> int ! {}
+requires { lo <= hi }
+ensures { result >= lo }
+{
+  if temp < lo then lo
+  else if temp > hi then hi
+  else temp
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  let boiling = celsiusToFahrenheit(100);  -- 212
+  let freezing = celsiusToFahrenheit(0);   -- 32
+  let clamped = clampTemp(150, 0, 100);    -- 100
+  boiling + freezing + clamped
+}

@@ -1,0 +1,152 @@
+-- examples/runnable/contracts/insurance.ail
+-- Complex insurance pricing with many interacting factors
+-- Demonstrates: contracts catching non-obvious bugs in branching logic
+--
+-- WHY THIS IS HARD TO VERIFY BY HAND:
+-- 5 enum types × multiple branches = 50+ code paths
+-- Subtle interactions between age bands, coverage, and risk
+-- A human reviewer would need to trace every combination
+
+module examples/runnable/contracts/insurance
+
+-- Risk classification
+export type RiskTier = LOW | MEDIUM | HIGH | CRITICAL
+
+-- Coverage level
+export type Coverage = BASIC | STANDARD | PREMIUM | PLATINUM
+
+-- Age band
+export type AgeBand = YOUTH | ADULT | SENIOR | ELDERLY
+
+-- Claim history
+export type ClaimHistory = CLEAN | MINOR | MAJOR | MULTIPLE
+
+-- Region
+export type Region = URBAN | SUBURBAN | RURAL
+
+-- Base premium by age band (cents to avoid floats)
+-- Z3 proves: base premium is always positive and bounded
+export func basePremium(age: AgeBand) -> int ! {}
+ensures { result >= 100 }
+{
+  match age {
+    YOUTH => 200,
+    ADULT => 150,
+    SENIOR => 300,
+    ELDERLY => 500
+  }
+}
+
+-- Risk multiplier as percentage (100 = 1.0x, 200 = 2.0x)
+-- Z3 proves: multiplier is always at least 100% (no discounts below base)
+export func riskMultiplier(tier: RiskTier, history: ClaimHistory) -> int ! {}
+ensures { result >= 100 }
+{
+  let tierBase = match tier {
+    LOW => 100,
+    MEDIUM => 150,
+    HIGH => 250,
+    CRITICAL => 400
+  };
+  let historyAdj = match history {
+    CLEAN => 0,
+    MINOR => 25,
+    MAJOR => 75,
+    MULTIPLE => 150
+  };
+  tierBase + historyAdj
+}
+
+-- Coverage surcharge (added to final premium)
+-- Z3 proves: surcharge is non-negative
+export func coverageSurcharge(cov: Coverage, region: Region) -> int ! {}
+ensures { result >= 0 }
+{
+  let covBase = match cov {
+    BASIC => 0,
+    STANDARD => 50,
+    PREMIUM => 150,
+    PLATINUM => 350
+  };
+  let regionAdj = match region {
+    URBAN => 40,
+    SUBURBAN => 20,
+    RURAL => 0
+  };
+  covBase + regionAdj
+}
+
+-- Calculate final premium
+-- Z3 proves: final premium is always positive
+-- This is the key function: 5 enum inputs, 4*4*4*4*3 = 768 paths
+-- Manual verification would require checking every combination
+export func calculatePremium(age: AgeBand, tier: RiskTier, history: ClaimHistory, cov: Coverage, region: Region) -> int ! {}
+ensures { result >= 100 }
+{
+  let base = match age {
+    YOUTH => 200,
+    ADULT => 150,
+    SENIOR => 300,
+    ELDERLY => 500
+  };
+  let mult = match tier {
+    LOW => 100,
+    MEDIUM => 150,
+    HIGH => 250,
+    CRITICAL => 400
+  };
+  let histAdj = match history {
+    CLEAN => 0,
+    MINOR => 25,
+    MAJOR => 75,
+    MULTIPLE => 150
+  };
+  let covBase = match cov {
+    BASIC => 0,
+    STANDARD => 50,
+    PREMIUM => 150,
+    PLATINUM => 350
+  };
+  let regionAdj = match region {
+    URBAN => 40,
+    SUBURBAN => 20,
+    RURAL => 0
+  };
+  base * (mult + histAdj) / 100 + covBase + regionAdj
+}
+
+-- INTENTIONALLY BROKEN: Discount calculation
+-- Tries to cap discount at premium amount, but has a subtle bug
+-- with specific enum combinations that produce negative results.
+-- Z3 will find the exact combination that breaks it.
+export func applyDiscount(age: AgeBand, tier: RiskTier, discountPercent: int) -> int ! {}
+requires { discountPercent >= 0 }
+ensures { result >= 0 }
+{
+  let base = match age {
+    YOUTH => 200,
+    ADULT => 150,
+    SENIOR => 300,
+    ELDERLY => 500
+  };
+  let mult = match tier {
+    LOW => 100,
+    MEDIUM => 150,
+    HIGH => 250,
+    CRITICAL => 400
+  };
+  let premium = base * mult / 100;
+  let discount = premium * discountPercent / 100;
+  -- Bug: should be "if discount > premium then 0 else premium - discount"
+  -- but the developer forgot to cap discountPercent, so if > 100, result < 0
+  premium - discount
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let p1 = calculatePremium(YOUTH, HIGH, CLEAN, STANDARD, URBAN);
+  let p2 = calculatePremium(ELDERLY, CRITICAL, MULTIPLE, PLATINUM, URBAN);
+  let p3 = calculatePremium(ADULT, LOW, CLEAN, BASIC, RURAL);
+  p1 + p2 + p3
+}

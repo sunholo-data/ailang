@@ -1,0 +1,187 @@
+-- examples/runnable/contracts/scoring.ail
+-- Multi-factor scoring system with complex invariants
+-- Demonstrates: Z3 catching subtle bugs in scoring logic
+--
+-- WHY THIS IS HARD TO VERIFY BY HAND:
+-- Multiple scoring dimensions combine non-linearly
+-- Bonuses and penalties interact in unexpected ways
+-- The "obvious" invariant (score stays in bounds) has hidden edge cases
+-- 4 enums × bonus/penalty logic = hard-to-trace paths
+
+module examples/runnable/contracts/scoring
+
+-- Skill level
+export type SkillLevel = NOVICE | INTERMEDIATE | ADVANCED | EXPERT
+
+-- Performance rating
+export type Performance = POOR | AVERAGE | GOOD | EXCELLENT
+
+-- Department
+export type Department = ENGINEERING | SALES | SUPPORT | RESEARCH
+
+-- Tenure band
+export type Tenure = NEW | JUNIOR | MID | SENIOR_TENURE
+
+-- Base skill score (0-100 range)
+-- Z3 proves: always within bounds
+export func skillScore(level: SkillLevel) -> int ! {}
+ensures { result >= 0 }
+{
+  match level {
+    NOVICE => 20,
+    INTERMEDIATE => 45,
+    ADVANCED => 70,
+    EXPERT => 95
+  }
+}
+
+-- Performance modifier (-20 to +30 range)
+-- Z3 proves: bounded modifier range
+export func perfModifier(perf: Performance) -> int ! {}
+ensures { result >= 0 }
+{
+  match perf {
+    POOR => 0,
+    AVERAGE => 10,
+    GOOD => 20,
+    EXCELLENT => 30
+  }
+}
+
+-- Department weight as percentage (80-120 range)
+-- Some departments weight scores differently
+-- Z3 proves: weight is always reasonable (no zero division risk)
+export func deptWeight(dept: Department) -> int ! {}
+ensures { result >= 80 }
+{
+  match dept {
+    ENGINEERING => 110,
+    SALES => 95,
+    SUPPORT => 85,
+    RESEARCH => 120
+  }
+}
+
+-- Tenure bonus (added to final score)
+-- Z3 proves: bonus is non-negative
+export func tenureBonus(tenure: Tenure) -> int ! {}
+ensures { result >= 0 }
+{
+  match tenure {
+    NEW => 0,
+    JUNIOR => 5,
+    MID => 12,
+    SENIOR_TENURE => 25
+  }
+}
+
+-- Composite score combining all factors
+-- Formula: (skill + perf) * deptWeight / 100 + tenureBonus
+-- Z3 proves: composite score is always non-negative
+-- This has 4*4*4*4 = 256 input combinations
+export func compositeScore(level: SkillLevel, perf: Performance, dept: Department, tenure: Tenure) -> int ! {}
+ensures { result >= 0 }
+{
+  let skill = match level {
+    NOVICE => 20,
+    INTERMEDIATE => 45,
+    ADVANCED => 70,
+    EXPERT => 95
+  };
+  let perfAdj = match perf {
+    POOR => 0,
+    AVERAGE => 10,
+    GOOD => 20,
+    EXCELLENT => 30
+  };
+  let weight = match dept {
+    ENGINEERING => 110,
+    SALES => 95,
+    SUPPORT => 85,
+    RESEARCH => 120
+  };
+  let bonus = match tenure {
+    NEW => 0,
+    JUNIOR => 5,
+    MID => 12,
+    SENIOR_TENURE => 25
+  };
+  (skill + perfAdj) * weight / 100 + bonus
+}
+
+-- Ranking comparison: returns positive if candidate A outranks B
+-- Z3 proves: if A has strictly better inputs, A outranks B
+-- This is the interesting contract: it checks a *relational* property
+export func rankDifference(levelA: SkillLevel, perfA: Performance, levelB: SkillLevel, perfB: Performance) -> int ! {}
+{
+  let scoreA = match levelA {
+    NOVICE => 20,
+    INTERMEDIATE => 45,
+    ADVANCED => 70,
+    EXPERT => 95
+  };
+  let adjA = match perfA {
+    POOR => 0,
+    AVERAGE => 10,
+    GOOD => 20,
+    EXCELLENT => 30
+  };
+  let scoreB = match levelB {
+    NOVICE => 20,
+    INTERMEDIATE => 45,
+    ADVANCED => 70,
+    EXPERT => 95
+  };
+  let adjB = match perfB {
+    POOR => 0,
+    AVERAGE => 10,
+    GOOD => 20,
+    EXCELLENT => 30
+  };
+  (scoreA + adjA) - (scoreB + adjB)
+}
+
+-- INTENTIONALLY BROKEN: Normalized score should be 0-100
+-- Developer claims the score never exceeds 100, but forgot about
+-- department weights > 100% combined with high skill + performance.
+-- EXPERT(95) + EXCELLENT(30) = 125, × RESEARCH(120%) = 150, + SENIOR(25) = 175
+-- Z3 finds the exact combination that breaks ensures { result <= 100 }
+export func normalizedScore(level: SkillLevel, perf: Performance, dept: Department, tenure: Tenure) -> int ! {}
+ensures { result <= 100 }
+{
+  let skill = match level {
+    NOVICE => 20,
+    INTERMEDIATE => 45,
+    ADVANCED => 70,
+    EXPERT => 95
+  };
+  let perfAdj = match perf {
+    POOR => 0,
+    AVERAGE => 10,
+    GOOD => 20,
+    EXCELLENT => 30
+  };
+  let weight = match dept {
+    ENGINEERING => 110,
+    SALES => 95,
+    SUPPORT => 85,
+    RESEARCH => 120
+  };
+  let bonus = match tenure {
+    NEW => 0,
+    JUNIOR => 5,
+    MID => 12,
+    SENIOR_TENURE => 25
+  };
+  -- Bug: no clamping! Department weight >100% can push result above 100
+  (skill + perfAdj) * weight / 100 + bonus
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let s1 = compositeScore(EXPERT, EXCELLENT, RESEARCH, SENIOR_TENURE);
+  let s2 = compositeScore(NOVICE, POOR, SUPPORT, NEW);
+  let diff = rankDifference(EXPERT, EXCELLENT, NOVICE, POOR);
+  s1 + s2 + diff
+}

@@ -1140,6 +1140,63 @@
       ]
     },
     {
+      "path": "runnable/contracts/finance.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "counterexample"
+      ],
+      "description": "Financial calculations with provably correct tax rules and intentional counterexample demo"
+    },
+    {
+      "path": "runnable/contracts/access_control.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "security"
+      ],
+      "description": "Role-based access control with Z3-verified security properties"
+    },
+    {
+      "path": "runnable/contracts/temperature.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "physics"
+      ],
+      "description": "Temperature conversion with verified physical constraints"
+    },
+    {
+      "path": "runnable/contracts/insurance.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "complex",
+        "business-rules"
+      ],
+      "description": "Complex insurance pricing with 768 code paths — Z3 catches subtle discount overflow"
+    },
+    {
+      "path": "runnable/contracts/scoring.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "complex",
+        "scoring"
+      ],
+      "description": "Multi-factor scoring system — Z3 finds score exceeds 100 in specific enum combination"
+    },
+    {
       "path": "hello_world.ail",
       "status": "working",
       "tags": [
@@ -1239,11 +1296,11 @@
     }
   ],
   "statistics": {
-    "total": 126,
-    "working": 119,
+    "total": 131,
+    "working": 124,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.945
+    "coverage": 0.946
   },
   "milestones": {
     "completed": [

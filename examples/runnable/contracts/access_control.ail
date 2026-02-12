@@ -1,0 +1,53 @@
+-- examples/runnable/contracts/access_control.ail
+-- Role-based access control with verified security properties
+-- Demonstrates: enum ADTs, bounded integer contracts, policy verification
+
+module examples/runnable/contracts/access_control
+
+-- Role hierarchy
+export type Role = ADMIN | EDITOR | VIEWER
+
+-- Access decision
+export type Permission = GRANTED | DENIED
+
+-- Map role to numeric access level (0-100)
+-- Z3 proves: level is always within bounds
+export func accessLevel(role: Role) -> int ! {}
+ensures { result >= 0 }
+{
+  match role {
+    ADMIN => 100,
+    EDITOR => 50,
+    VIEWER => 10
+  }
+}
+
+-- Check if a role has sufficient access
+export func canAccess(role: Role, requiredLevel: int) -> Permission ! {}
+requires { requiredLevel >= 0 }
+{
+  if accessLevel(role) >= requiredLevel then GRANTED else DENIED
+}
+
+-- Calculate effective permission level after applying a penalty
+-- Z3 proves: effective level never goes negative
+export func effectiveLevel(role: Role, penalty: int) -> int ! {}
+requires { penalty >= 0 }
+ensures { result >= 0 }
+{
+  let base = match role {
+    ADMIN => 100,
+    EDITOR => 50,
+    VIEWER => 10
+  };
+  if base >= penalty then base - penalty else 0
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  let adminLevel = accessLevel(ADMIN);        -- 100
+  let viewerLevel = accessLevel(VIEWER);      -- 10
+  let effective = effectiveLevel(EDITOR, 20); -- 30
+  adminLevel + viewerLevel + effective
+}
