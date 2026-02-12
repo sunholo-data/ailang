@@ -56,6 +56,9 @@ _io_readLine : () -> string ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
+_list_head : list[a] -> a
+_list_length : list[a] -> int
+_list_nth : (list[a], int) -> a
 _math_E : () -> float
 _math_PI : () -> float
 _math_abs_Float : float -> float

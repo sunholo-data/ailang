@@ -1,0 +1,54 @@
+-- examples/runnable/contracts/list_verify.ail
+-- List contract verification demonstration
+-- Shows Z3 proving properties about list operations in contracts
+-- Demonstrates: list params, length, head, nth, cons in contracts
+
+module examples/runnable/contracts/list_verify
+
+-- Length of a list is always non-negative
+export func listLength(xs: [int]) -> int ! {}
+ensures { result >= 0 }
+{
+  _list_length(xs)
+}
+
+-- Prepending an element increases length by 1
+export func prependLength(x: int, xs: [int]) -> int ! {}
+ensures { result == _list_length(xs) + 1 }
+{
+  _list_length(x :: xs)
+}
+
+-- Head of a non-empty list is retrievable at index 0
+export func headIsNth0(xs: [int]) -> bool ! {}
+requires { _list_length(xs) > 0 }
+ensures { result == true }
+{
+  _list_head(xs) == _list_nth(xs, 0)
+}
+
+-- A singleton list always has length 1
+export func singletonLength(x: int) -> int ! {}
+ensures { result == 1 }
+{
+  _list_length([x])
+}
+
+-- Intentionally BROKEN: claims all list elements are positive
+-- Z3 will find counterexample: a list with non-positive head
+export func brokenAllPositive(xs: [int]) -> bool ! {}
+requires { _list_length(xs) > 0 }
+ensures { result == true }
+{
+  _list_head(xs) > 0
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let xs = [10, 20, 30];
+  let len = listLength(xs);
+  let plen = prependLength(5, xs);
+  let eq = headIsNth0(xs);
+  if eq then len + plen else 0
+}

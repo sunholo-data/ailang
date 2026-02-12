@@ -1218,9 +1218,11 @@
         "smt-verification",
         "ailang-verify",
         "records",
-        "field-access"
+        "field-access",
+        "cross-function-calls",
+        "record-construction"
       ],
-      "description": "Record contract verification — Z3 proves properties about record field access in requires/ensures"
+      "description": "Record contract verification — Z3 proves properties about record field access, construction, cross-function calls with records, and counterexample generation"
     },
     {
       "path": "runnable/contracts/string_verify.ail",
@@ -1233,6 +1235,51 @@
         "z3-string-theory"
       ],
       "description": "String contract verification — Z3 proves properties about string concatenation, equality, and prefix operations"
+    },
+    {
+      "path": "runnable/contracts/list_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "lists",
+        "z3-sequence-theory"
+      ],
+      "description": "List contract verification — Z3 proves properties about list length, head, nth, cons using sequence theory"
+    },
+    {
+      "path": "runnable/contracts/showcase.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "strings",
+        "lists",
+        "enums",
+        "cross-function-calls",
+        "showcase"
+      ],
+      "description": "Comprehensive verification showcase — combines enums, records, strings, lists, and cross-function calls in one file"
+    },
+    {
+      "path": "runnable/contracts/invoice.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "strings",
+        "lists",
+        "enums",
+        "cross-function-calls",
+        "business-logic",
+        "billing"
+      ],
+      "description": "Provably correct invoice processing — Z3 verifies billing invariants across 5 tiers x 5 tax regions x promo codes x line items. Catches volume pricing bug."
     },
     {
       "path": "hello_world.ail",

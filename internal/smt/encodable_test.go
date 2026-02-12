@@ -174,7 +174,7 @@ func TestIsSMTEncodable_StringLiteral_NowEncodable(t *testing.T) {
 	}
 }
 
-func TestIsSMTEncodable_UnencodableTypes_List(t *testing.T) {
+func TestIsSMTEncodable_ListLiteral_NowEncodable(t *testing.T) {
 	meta := &core.DeclMeta{
 		Name:   "listFn",
 		IsPure: true,
@@ -187,17 +187,28 @@ func TestIsSMTEncodable_UnencodableTypes_List(t *testing.T) {
 	}
 
 	ok, reasons := IsSMTEncodable("listFn", meta, body)
+	if !ok {
+		t.Fatalf("list literals should now be encodable (M-SMT-LISTS), but got reasons: %v", reasons)
+	}
+}
+
+func TestIsSMTEncodable_UnsupportedListBuiltin(t *testing.T) {
+	// Higher-order list builtins (map_List, filter_List) are still unencodable
+	meta := &core.DeclMeta{
+		Name:   "mapFn",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.RequiresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "map_List"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+
+	ok, _ := IsSMTEncodable("mapFn", meta, body)
 	if ok {
-		t.Fatal("expected not encodable (list)")
-	}
-	found := false
-	for _, r := range reasons {
-		if r.Code == RejectUnencodable {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected RejectUnencodable in reasons")
+		t.Fatal("expected not encodable (higher-order list builtin map_List)")
 	}
 }
 
@@ -471,7 +482,13 @@ func TestIsStringOrListBuiltin(t *testing.T) {
 		{"_str_lower", true},       // unsupported
 		{"_str_split", true},       // unsupported (returns list)
 		{"_str_chars", true},       // unsupported (returns list)
-		{"concat_List", true},      // list always unsupported
+		{"concat_List", false},     // now supported (M-SMT-LISTS)
+		{"_list_length", false},    // now supported (M-SMT-LISTS)
+		{"_list_head", false},      // now supported (M-SMT-LISTS)
+		{"_list_nth", false},       // now supported (M-SMT-LISTS)
+		{"map_List", true},         // higher-order, unsupported
+		{"filter_List", true},      // higher-order, unsupported
+		{"foldl_List", true},       // higher-order, unsupported
 		{"add_Int", false},
 		{"ge_Int", false},
 		{"and_Bool", false},

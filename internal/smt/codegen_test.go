@@ -1235,3 +1235,120 @@ func TestEncodeIntrinsic_OpConcat(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "(str.++ a b)")
 	}
 }
+
+// --- List encoding tests ---
+
+func TestEncodeExpr_EmptyList(t *testing.T) {
+	expr := &core.List{Elements: []core.CoreExpr{}}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(as seq.empty (Seq Int))" {
+		t.Errorf("got %q, want %q", got, "(as seq.empty (Seq Int))")
+	}
+}
+
+func TestEncodeExpr_SingleElementList(t *testing.T) {
+	expr := &core.List{Elements: []core.CoreExpr{
+		&core.Lit{Kind: core.IntLit, Value: int64(42)},
+	}}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.unit 42)" {
+		t.Errorf("got %q, want %q", got, "(seq.unit 42)")
+	}
+}
+
+func TestEncodeExpr_MultiElementList(t *testing.T) {
+	expr := &core.List{Elements: []core.CoreExpr{
+		&core.Lit{Kind: core.IntLit, Value: int64(1)},
+		&core.Lit{Kind: core.IntLit, Value: int64(2)},
+		&core.Lit{Kind: core.IntLit, Value: int64(3)},
+	}}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(seq.++ (seq.unit 1) (seq.unit 2) (seq.unit 3))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeExpr_ListConcat(t *testing.T) {
+	// concat_List(xs, ys) → (seq.++ xs ys)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "concat_List"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "ys"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.++ xs ys)" {
+		t.Errorf("got %q, want %q", got, "(seq.++ xs ys)")
+	}
+}
+
+func TestEncodeExpr_ListCons(t *testing.T) {
+	// :: (cons) from std/list module → (seq.++ (seq.unit x) xs)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "::"}},
+		Args: []core.CoreExpr{&core.Var{Name: "x"}, &core.Var{Name: "xs"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.++ (seq.unit x) xs)" {
+		t.Errorf("got %q, want %q", got, "(seq.++ (seq.unit x) xs)")
+	}
+}
+
+func TestEncodeExpr_ListLength(t *testing.T) {
+	// _list_length(xs) → (seq.len xs)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_length"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.len xs)" {
+		t.Errorf("got %q, want %q", got, "(seq.len xs)")
+	}
+}
+
+func TestEncodeExpr_ListHead(t *testing.T) {
+	// _list_head(xs) → (seq.nth xs 0)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_head"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.nth xs 0)" {
+		t.Errorf("got %q, want %q", got, "(seq.nth xs 0)")
+	}
+}
+
+func TestEncodeExpr_ListNth(t *testing.T) {
+	// _list_nth(xs, i) → (seq.nth xs i)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_nth"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "i"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.nth xs i)" {
+		t.Errorf("got %q, want %q", got, "(seq.nth xs i)")
+	}
+}

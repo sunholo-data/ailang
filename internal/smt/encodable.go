@@ -426,7 +426,13 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 		}
 		return false
 	case *core.List:
-		return true
+		// List literals are now encodable (M-SMT-LISTS)
+		for _, elem := range e.Elements {
+			if walkForUnencodableTypes(elem) {
+				return true
+			}
+		}
+		return false
 	case *core.Array:
 		return true
 	case *core.VarGlobal:
@@ -487,18 +493,26 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 
 // isStringOrListBuiltin checks if a builtin name involves unsupported string or list operations.
 // String builtins that have SMT-LIB mappings are now SUPPORTED (M-SMT-STRINGS).
+// List builtins that have SMT-LIB mappings are now SUPPORTED (M-SMT-LISTS).
 func isStringOrListBuiltin(name string) bool {
-	// List builtins are always unencodable
-	if len(name) > 5 && name[len(name)-5:] == "_List" {
-		return true
-	}
-
-	// Check if this string builtin has an SMT mapping (supported)
+	// Check if this builtin has any SMT mapping (supported)
 	if _, ok := BuiltinToSMTOp[name]; ok {
 		return false // supported standard builtin
 	}
 	if _, ok := StringBuiltinSpecial[name]; ok {
 		return false // supported special string builtin
+	}
+	if _, ok := ListBuiltinSpecial[name]; ok {
+		return false // supported list builtin
+	}
+
+	// List builtins without SMT mappings are unencodable
+	// (higher-order: map_List, filter_List, foldl_List, etc.)
+	if len(name) > 5 && name[len(name)-5:] == "_List" {
+		return true
+	}
+	if len(name) > 6 && name[:6] == "_list_" {
+		return true
 	}
 
 	// String builtins without SMT mappings are unencodable

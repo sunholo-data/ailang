@@ -281,7 +281,7 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return encodeRecordUpdate(e)
 
 	case *core.List:
-		return "", fmt.Errorf("list expressions cannot be encoded in SMT-LIB")
+		return encodeList(e)
 
 	default:
 		return "", fmt.Errorf("unsupported Core expression type %T", expr)
@@ -365,6 +365,10 @@ func encodeApp(app *core.App) (string, error) {
 		if spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeStringBuiltin(spec, app.Args)
 		}
+		// List builtins with special encoding
+		if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
+			return encodeListBuiltin(spec, app.Args)
+		}
 	}
 
 	// Check for curried builtin: App(App(VarGlobal($builtin.XXX), [arg1]), [arg2])
@@ -383,12 +387,23 @@ func encodeApp(app *core.App) (string, error) {
 			if spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {
 				return encodeStringBuiltin(spec, allArgs)
 			}
+			// List builtins with special encoding (curried)
+			if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
+				return encodeListBuiltin(spec, allArgs)
+			}
+		}
+	}
+
+	// Check for std/list builtins (:: and concat_List registered under std/list module)
+	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "std/list" {
+		if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
+			return encodeListBuiltin(spec, app.Args)
 		}
 	}
 
 	// Cross-function call: App(VarGlobal(module.funcName), args)
 	// where funcName has been resolved as a define-fun callee
-	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" {
+	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" && vg.Ref.Module != "std/list" {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
 			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
 		}
@@ -759,6 +774,14 @@ func inferResultSortInner(body core.CoreExpr, ctx *SMTContext, ctorToType map[st
 		// Field access on a record — need to look at the record's type
 		// and the field's sort
 		return "Int" // conservative fallback
+	case *core.List:
+		// List expressions return a Seq sort
+		// Try to determine element sort from first element
+		if len(b.Elements) > 0 {
+			elemSort := inferResultSortInner(b.Elements[0], ctx, ctorToType)
+			return fmt.Sprintf("(Seq %s)", elemSort)
+		}
+		return "(Seq Int)" // default
 	}
 	return "Int"
 }
@@ -953,4 +976,90 @@ func fieldNamesFromExprMap(fields map[string]core.CoreExpr) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// --- List encoding ---
+
+// encodeList encodes a list literal to SMT-LIB using Z3 sequence theory.
+// [1, 2, 3] → (seq.++ (seq.unit 1) (seq.++ (seq.unit 2) (seq.unit 3)))
+// [] → (as seq.empty (Seq Int))  (needs type from context)
+func encodeList(list *core.List) (string, error) {
+	if len(list.Elements) == 0 {
+		// Empty list — need an element sort for the typed empty sequence.
+		// Default to Int; the SMT solver will unify sorts as needed.
+		return "(as seq.empty (Seq Int))", nil
+	}
+
+	// Single element: (seq.unit elem)
+	if len(list.Elements) == 1 {
+		elem, err := EncodeExpr(list.Elements[0])
+		if err != nil {
+			return "", fmt.Errorf("list element 0: %w", err)
+		}
+		return fmt.Sprintf("(seq.unit %s)", elem), nil
+	}
+
+	// Multiple elements: chain of (seq.++ (seq.unit e1) (seq.++ (seq.unit e2) ...))
+	// Build right-to-left
+	encoded := make([]string, len(list.Elements))
+	for i, elem := range list.Elements {
+		e, err := EncodeExpr(elem)
+		if err != nil {
+			return "", fmt.Errorf("list element %d: %w", i, err)
+		}
+		encoded[i] = fmt.Sprintf("(seq.unit %s)", e)
+	}
+
+	// Z3's seq.++ is variadic, so we can pass all at once
+	return fmt.Sprintf("(seq.++ %s)", strings.Join(encoded, " ")), nil
+}
+
+// encodeListBuiltin encodes a list builtin with special handling.
+func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, error) {
+	if spec.ConsMode {
+		// :: (cons): (seq.++ (seq.unit head) tail)
+		if len(args) != 2 {
+			return "", fmt.Errorf("cons (::) expects 2 args, got %d", len(args))
+		}
+		head, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		tail, err := EncodeExpr(args[1])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(seq.++ (seq.unit %s) %s)", head, tail), nil
+	}
+
+	if spec.Unary {
+		if len(args) != 1 {
+			return "", fmt.Errorf("list builtin %q expects 1 arg, got %d", spec.Op, len(args))
+		}
+		arg, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		if spec.AppendZero {
+			// _list_head: (seq.nth xs 0)
+			return fmt.Sprintf("(%s %s 0)", spec.Op, arg), nil
+		}
+		return fmt.Sprintf("(%s %s)", spec.Op, arg), nil
+	}
+
+	// Binary: concat_List(xs, ys) → (seq.++ xs ys), _list_nth(xs, i) → (seq.nth xs i)
+	if len(args) < 2 {
+		return "", fmt.Errorf("list builtin %q expects at least 2 args, got %d", spec.Op, len(args))
+	}
+
+	left, err := EncodeExpr(args[0])
+	if err != nil {
+		return "", err
+	}
+	right, err := EncodeExpr(args[1])
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("(%s %s %s)", spec.Op, left, right), nil
 }

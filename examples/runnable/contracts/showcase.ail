@@ -1,0 +1,116 @@
+-- examples/runnable/contracts/showcase.ail
+-- Comprehensive verification showcase combining ALL decidable fragment features
+-- Demonstrates in ONE file:
+--   ✓ Enum ADTs            ✓ Record parameters       ✓ String operations
+--   ✓ List operations      ✓ Cross-function calls     ✓ Counterexample demo
+--
+-- Run:    ailang verify examples/runnable/contracts/showcase.ail
+-- Expect: 7 verified, 1 violation (brokenPrefixCheck)
+
+module examples/runnable/contracts/showcase
+
+-- ============================================================================
+-- Types
+-- ============================================================================
+
+export type Priority = RUSH | NORMAL | LOW
+
+-- ============================================================================
+-- 1. ENUMS — Priority-based surcharge
+-- ============================================================================
+
+-- Surcharge is always non-negative
+export func surcharge(p: Priority) -> int ! {}
+ensures { result >= 0 }
+{
+  match p {
+    RUSH => 500,
+    NORMAL => 100,
+    LOW => 0
+  }
+}
+
+-- ============================================================================
+-- 2. CROSS-FUNCTION — Line total calls surcharge
+-- ============================================================================
+
+-- Z3 inlines surcharge via define-fun, proves total >= 0
+export func lineTotal(unitPrice: int, qty: int, p: Priority) -> int ! {}
+requires { unitPrice >= 0, qty >= 0 }
+ensures { result >= 0 }
+{
+  unitPrice * qty + surcharge(p)
+}
+
+-- ============================================================================
+-- 3. RECORDS — Order summary with field-level contracts
+-- ============================================================================
+
+-- Z3 proves: value is non-negative when discount doesn't exceed subtotal
+export func orderValue(order: {subtotal: int, tax: int, discount: int}) -> int ! {}
+requires { order.subtotal >= 0, order.tax >= 0, order.discount >= 0, order.discount <= order.subtotal }
+ensures { result >= 0 }
+{
+  order.subtotal - order.discount + order.tax
+}
+
+-- ============================================================================
+-- 4. STRINGS — Code format validation
+-- ============================================================================
+
+-- Non-empty strings have positive length (tautology Z3 proves instantly)
+export func hasContent(s: string) -> bool ! {}
+ensures { result == (_str_len(s) > 0) }
+{
+  _str_len(s) > 0
+}
+
+-- Prefixed string is always longer than the prefix itself
+export func prefixedLength(prefix: string, body: string) -> int ! {}
+ensures { result >= _str_len(prefix) }
+{
+  _str_len(prefix ++ body)
+}
+
+-- ============================================================================
+-- 5. LISTS — Collection property verification
+-- ============================================================================
+
+-- List length is always non-negative
+export func itemCount(items: [int]) -> int ! {}
+ensures { result >= 0 }
+{
+  _list_length(items)
+}
+
+-- Prepending preserves the original elements (head of new list is the added item)
+export func prependAndCheck(x: int, xs: [int]) -> bool ! {}
+ensures { result == true }
+{
+  _list_head(x :: xs) == x
+}
+
+-- ============================================================================
+-- 6. BROKEN CONTRACT — Z3 finds counterexample
+-- ============================================================================
+
+-- Claims every string starts with "ORD-" — obviously false!
+-- Z3 finds a counterexample string that doesn't start with "ORD-"
+export func brokenPrefixCheck(code: string) -> bool ! {}
+ensures { result == true }
+{
+  _str_startsWith(code, "ORD-")
+}
+
+-- ============================================================================
+-- Entry point
+-- ============================================================================
+
+export func main() -> int ! {}
+{
+  let total = lineTotal(1000, 3, RUSH);
+  let value = orderValue({subtotal: 5000, tax: 500, discount: 200});
+  let count = itemCount([10, 20, 30]);
+  let prefLen = prefixedLength("ORD-", "12345");
+  total + value + count + prefLen
+}

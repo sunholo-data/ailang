@@ -72,10 +72,37 @@ func TestMapType_Function(t *testing.T) {
 }
 
 func TestMapType_List(t *testing.T) {
+	// TList{int} → (Seq Int)
 	lst := &types.TList{Element: &types.TCon{Name: "int"}}
-	_, err := MapType(lst)
-	if err == nil {
-		t.Error("MapType(TList) expected error")
+	got, err := MapType(lst)
+	if err != nil {
+		t.Fatalf("MapType(TList{int}) unexpected error: %v", err)
+	}
+	if got != "(Seq Int)" {
+		t.Errorf("MapType(TList{int}) = %q, want %q", got, "(Seq Int)")
+	}
+
+	// TApp(list, string) → (Seq String)
+	app := &types.TApp{
+		Constructor: &types.TCon{Name: "list"},
+		Args:        []types.Type{&types.TCon{Name: "string"}},
+	}
+	got, err = MapType(app)
+	if err != nil {
+		t.Fatalf("MapType(TApp(list, string)) unexpected error: %v", err)
+	}
+	if got != "(Seq String)" {
+		t.Errorf("MapType(TApp(list, string)) = %q, want %q", got, "(Seq String)")
+	}
+
+	// Nested: TList{TList{int}} → (Seq (Seq Int))
+	nested := &types.TList{Element: &types.TList{Element: &types.TCon{Name: "int"}}}
+	got, err = MapType(nested)
+	if err != nil {
+		t.Fatalf("MapType(nested list) unexpected error: %v", err)
+	}
+	if got != "(Seq (Seq Int))" {
+		t.Errorf("MapType(nested list) = %q, want %q", got, "(Seq (Seq Int))")
 	}
 }
 

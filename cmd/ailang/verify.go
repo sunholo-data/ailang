@@ -337,6 +337,16 @@ func astTypeToSMTSort(t ast.Type) string {
 		default:
 			return ty.Name // ADT type name
 		}
+	case *ast.ListType:
+		elemSort := astTypeToSMTSort(ty.Element)
+		return fmt.Sprintf("(Seq %s)", elemSort)
+	case *ast.TypeApp:
+		// TypeApp{Constructor: "list", Args: [int]} → (Seq Int)
+		if ty.Constructor == "list" && len(ty.Args) == 1 {
+			elemSort := astTypeToSMTSort(ty.Args[0])
+			return fmt.Sprintf("(Seq %s)", elemSort)
+		}
+		return ty.Constructor // ADT type name
 	case *ast.RecordType:
 		rec := convertASTTypeToType(ty)
 		if rec == nil {
@@ -426,6 +436,37 @@ func convertASTTypeToType(t ast.Type) types.Type {
 	switch ty := t.(type) {
 	case *ast.SimpleType:
 		return &types.TCon{Name: ty.Name}
+	case *ast.ListType:
+		elem := convertASTTypeToType(ty.Element)
+		if elem == nil {
+			return nil
+		}
+		return &types.TList{Element: elem}
+	case *ast.TypeApp:
+		// TypeApp{Constructor: "list", Args: [int]} → TList{Element: int}
+		if ty.Constructor == "list" && len(ty.Args) == 1 {
+			elem := convertASTTypeToType(ty.Args[0])
+			if elem == nil {
+				return nil
+			}
+			return &types.TList{Element: elem}
+		}
+		// Other TypeApps (e.g., Option[int]) → TApp
+		if len(ty.Args) > 0 {
+			args := make([]types.Type, len(ty.Args))
+			for i, a := range ty.Args {
+				at := convertASTTypeToType(a)
+				if at == nil {
+					return nil
+				}
+				args[i] = at
+			}
+			return &types.TApp{
+				Constructor: &types.TCon{Name: ty.Constructor},
+				Args:        args,
+			}
+		}
+		return &types.TCon{Name: ty.Constructor}
 	case *ast.RecordType:
 		fields := make(map[string]types.Type, len(ty.Fields))
 		for _, f := range ty.Fields {

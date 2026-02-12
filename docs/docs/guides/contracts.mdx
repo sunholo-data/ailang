@@ -15,6 +15,8 @@ import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/sc
 import CrossFunctionExample from '!!raw-loader!@site/../examples/runnable/contracts/cross_function.ail';
 import RecordVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/record_verify.ail';
 import StringVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/string_verify.ail';
+import ListVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/list_verify.ail';
+import InvoiceExample from '!!raw-loader!@site/../examples/runnable/contracts/invoice.ail';
 
 # Contracts & Verification
 
@@ -154,7 +156,54 @@ ailang verify --timeout 10s examples/runnable/contracts/park.ail
 3. **Negation**: The postcondition is negated — if Z3 finds a satisfying assignment, that's a counterexample
 4. **Result**: `VERIFIED` (proven correct), `VIOLATION` (counterexample found), or `SKIPPED` (outside fragment)
 
-### Example: Financial Calculations
+### Real-World Example: Provably Correct Billing
+
+This is where `ailang verify` becomes genuinely valuable. Invoice processing is business-critical code where a bug means wrong charges, angry customers, and potential lawsuits. Traditional testing checks a handful of cases. Z3 proves correctness for **every possible input**.
+
+This single file combines every verification feature — enums, records, strings, lists, and cross-function calls — to model a realistic billing system:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/invoice.ail">
+  {InvoiceExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/invoice.ail
+
+→ Verifying contracts in invoice.ail
+  Solver: Z3 version 4.15.4
+
+  ✓ VERIFIED taxRate               5ms
+  ✓ VERIFIED calculateTax          7ms     # calls taxRate
+  ✓ VERIFIED tierDiscountRate      6ms
+  ✓ VERIFIED applyTierDiscount     8ms     # calls tierDiscountRate
+  ✓ VERIFIED isValidPromo          5ms     # string: startsWith + length
+  ✓ VERIFIED promoRebate           8ms     # string-conditional discount
+  ✓ VERIFIED itemCount             5ms     # list: length
+  ✓ VERIFIED addItem               5ms     # list: cons + length
+  ✓ VERIFIED netFromSummary        7ms     # record: field access
+  ✓ VERIFIED invoiceTotal        210ms     # 4-deep cross-function chain
+  ✗ VIOLATION brokenVolumePrice
+    Counterexample:
+      unitPrice: Int = 0
+      qty: Int = 1
+
+  11 functions: 10 verified, 1 violations
+```
+
+**What Z3 proved:**
+- `invoiceTotal` is non-negative for ANY subtotal × 5 tiers × 5 regions × any promo string — an infinite input space, verified in 210ms
+- Tax calculations never produce negative amounts
+- Tier discounts never exceed the original amount
+- Promo rebates are correctly bounded
+- Record field invariants (discount ≤ subtotal) guarantee non-negative net
+- Adding a line item increases the count by exactly 1
+
+**What Z3 caught:** The developer assumed a $0.50/unit volume discount is always covered by the unit price. Z3 found: if `unitPrice=0` and `qty=1`, the discount exceeds the line total, producing a **negative charge** — effectively paying customers to buy items. This would only surface in production when a free-tier item gets ordered.
+
+### More Examples
+
+<details>
+<summary>Financial Calculations (simple cross-function + counterexample)</summary>
 
 <CodeBlock language="typescript" title="examples/runnable/contracts/finance.ail">
   {FinanceExample}
@@ -163,40 +212,38 @@ ailang verify --timeout 10s examples/runnable/contracts/park.ail
 ```bash
 $ ailang verify examples/runnable/contracts/finance.ail
 
-→ Verifying contracts in finance.ail
-  Solver: Z3 version 4.15.4
-
   ✓ VERIFIED calculateTax    6ms
-  ✓ VERIFIED netIncome        6ms
+  ✓ VERIFIED netIncome       6ms     # calls calculateTax
   ✗ VIOLATION brokenDiscount
-    Counterexample:
-      price: Int = 0
-      discount: Int = 1
+    Counterexample: price=0, discount=1
 
   3 functions: 2 verified, 1 violations
 ```
 
-Z3 found that `brokenDiscount(0, 1)` returns `-1`, violating `ensures { result >= 0 }`. This bug would only surface at runtime with the right inputs — `ailang verify` catches it at compile time.
+</details>
 
-### Example: Access Control
+<details>
+<summary>Access Control (enum-based security policy)</summary>
 
 <CodeBlock language="typescript" title="examples/runnable/contracts/access_control.ail">
   {AccessControlExample}
 </CodeBlock>
 
-### Example: Temperature Conversion
+</details>
+
+<details>
+<summary>Temperature Conversion (physical constraints)</summary>
 
 <CodeBlock language="typescript" title="examples/runnable/contracts/temperature.ail">
   {TemperatureExample}
 </CodeBlock>
 
-## Complex Verification Examples
+</details>
 
-These examples demonstrate where `ailang verify` truly shines: programs with so many code paths that manual inspection is impractical.
+<details>
+<summary>Insurance Pricing — 768 code paths</summary>
 
-### Example: Insurance Pricing (768 paths)
-
-Five enum types combine to create 768 distinct execution paths. A human reviewer would need to trace every combination to verify bounds — Z3 does it in milliseconds:
+Five enum types combine to create 768 distinct execution paths. A human reviewer would need to trace every combination — Z3 does it in milliseconds:
 
 <CodeBlock language="typescript" title="examples/runnable/contracts/insurance.ail">
   {InsuranceExample}
@@ -210,19 +257,19 @@ $ ailang verify examples/runnable/contracts/insurance.ail
   ✓ VERIFIED riskMultiplier       5ms
   ✓ VERIFIED coverageSurcharge    7ms
   ✗ VIOLATION applyDiscount
-    Counterexample:
-      discountPercent: Int = 101
-      age: AgeBand = YOUTH
-      tier: RiskTier = LOW
+    Counterexample: discountPercent=101, age=YOUTH, tier=LOW
 
   5 functions: 4 verified, 1 violations
 ```
 
-Z3 found that `discountPercent=101` causes a negative result — a bug that's invisible when testing with "reasonable" discount values like 10% or 20%.
+Z3 found that `discountPercent=101` causes a negative result — invisible when testing with "reasonable" values like 10% or 20%.
 
-### Example: Multi-Factor Scoring (256 paths)
+</details>
 
-A scoring system where department weights can push scores above 100 for specific enum combinations. The developer's mental model assumed scores stay in bounds, but Z3 proves otherwise:
+<details>
+<summary>Multi-Factor Scoring — 256 code paths</summary>
+
+Department weights can push scores above 100 for specific enum combinations. Z3 finds the exact combination:
 
 <CodeBlock language="typescript" title="examples/runnable/contracts/scoring.ail">
   {ScoringExample}
@@ -231,22 +278,16 @@ A scoring system where department weights can push scores above 100 for specific
 ```bash
 $ ailang verify examples/runnable/contracts/scoring.ail
 
-  ✓ VERIFIED skillScore          4ms
-  ✓ VERIFIED perfModifier        4ms
-  ✓ VERIFIED deptWeight          5ms
-  ✓ VERIFIED tenureBonus         4ms
   ✓ VERIFIED compositeScore      6ms
   ✗ VIOLATION normalizedScore
-    Counterexample:
-      dept: Department = ENGINEERING
-      level: SkillLevel = EXPERT
-      tenure: Tenure = JUNIOR
-      perf: Performance = POOR
+    Counterexample: dept=ENGINEERING, level=EXPERT, tenure=JUNIOR, perf=POOR
 
   6 functions: 5 verified, 1 violations
 ```
 
-The counterexample shows: EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. This specific combination would likely never appear in unit tests.
+EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. This combination would never appear in unit tests.
+
+</details>
 
 ### Cross-Function Verification
 
@@ -290,10 +331,15 @@ Records can be verified by Z3. Record parameters are mapped to SMT-LIB `declare-
 ```bash
 $ ailang verify examples/runnable/contracts/record_verify.ail
 
-  ✓ VERIFIED getX            4ms
-  ✓ VERIFIED manhattan       6ms
+  ✓ VERIFIED getX            5ms
+  ✓ VERIFIED manhattan       5ms
+  ✓ VERIFIED moveRight      29ms     # record construction in return
+  ✓ VERIFIED isNearOrigin    5ms     # cross-function with records
+  ✗ VIOLATION brokenDistance
+    Counterexample:
+      p: Record_x_y = (mk_Record_x_y 0 100)
 
-  2 functions: 2 verified
+  5 functions: 4 verified, 1 violations
 ```
 
 **How it works:**
@@ -345,7 +391,44 @@ Z3 proved that `safeConcat` always produces a result at least as long as `a`, an
 | `_str_startsWith(s, p)` | `str.prefixof` | Prefix check |
 | `_str_endsWith(s, x)` | `str.suffixof` | Suffix check |
 
-**Not yet encodable:** `_str_trim`, `_str_upper`, `_str_lower` (no Z3 equivalent), `_str_split`, `_str_chars` (return lists — requires Phase D).
+**Not yet encodable:** `_str_trim`, `_str_upper`, `_str_lower` (no Z3 equivalent), `_str_split`, `_str_chars` (return lists).
+
+### List Verification
+
+List parameters, literals, length, head, nth, and cons can all be verified by Z3 using its built-in sequence theory:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/list_verify.ail">
+  {ListVerifyExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/list_verify.ail
+
+  ✓ VERIFIED listLength          34ms
+  ✓ VERIFIED prependLength        5ms
+  ✓ VERIFIED headIsNth0           5ms
+  ✓ VERIFIED singletonLength      5ms
+  ✗ VIOLATION brokenAllPositive
+    Counterexample:
+      xs: (Seq Int) = ...
+
+  5 functions: 4 verified, 1 violations
+```
+
+Z3 proved that `listLength` always returns a non-negative result, that `prependLength` increases length by 1, that head equals nth at index 0, and that a singleton list has length 1. For `brokenAllPositive`, Z3 found a list whose head is non-positive.
+
+**Supported list operations:**
+
+| AILANG | Z3 SMT-LIB | Purpose |
+|--------|-----------|---------|
+| `_list_length(xs)` | `seq.len` | List length |
+| `_list_head(xs)` | `seq.nth xs 0` | First element |
+| `_list_nth(xs, i)` | `seq.nth` | Element at index |
+| `x :: xs` | `seq.++ (seq.unit x) xs` | Cons (prepend) |
+| `xs ++ ys` | `seq.++` | List concatenation |
+| `[1, 2, 3]` | `(seq.++ (seq.unit 1) ...)` | List literal |
+
+**Not yet encodable:** Higher-order list operations (`map`, `filter`, `foldl`) — these require function arguments which are outside the decidable fragment.
 
 ### Verification Output States
 
@@ -361,11 +444,12 @@ Z3 proved that `safeConcat` always produces a result at least as long as `a`, an
 `ailang verify` can verify functions that stay within a decidable subset of the language:
 
 **Currently supported:**
-- `int`, `bool`, `string`, and enum/ADT parameters and return types
+- `int`, `bool`, `string`, list, and enum/ADT parameters and return types
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
 - String operations: `++` (concat), `_str_len`, `_str_find`, `_str_slice`, `_str_startsWith`, `_str_endsWith`, string comparisons
+- List operations: `_list_length`, `_list_head`, `_list_nth`, `::` (cons), `++` (concat), list literals
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums and ADTs
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`)
@@ -378,7 +462,7 @@ Z3 proved that `safeConcat` always produces a result at least as long as `a`, an
 |---------|--------|-------------|
 | Recursive functions | Requires induction proofs | Partially — bounded unrolling planned |
 | Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
-| Lists | Encoding not yet implemented | Yes — Z3 has sequence theory |
+| Higher-order list ops | `map`, `filter`, `foldl` take function args | Yes — via monomorphization/inlining |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
@@ -522,9 +606,9 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 - ✅ Cross-function verification via `define-fun` inlining (transitive call chains)
 - ✅ Record verification via `declare-datatype` (field access, construction, update)
 - ✅ String verification via Z3 string theory (concat, length, comparison, prefix/suffix, substring)
+- ✅ List verification via Z3 sequence theory (length, head, nth, cons, literals)
 
 **Future** — Expanding the decidable fragment:
-- List verification (Z3 sequence theory)
 - Bounded recursion (loop unrolling)
 :::
 

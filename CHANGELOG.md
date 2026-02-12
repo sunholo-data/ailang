@@ -44,6 +44,18 @@
     - Fragment checker updated: `StringLit`, `OpConcat`, and supported string builtins now accepted
     - Unsupported string builtins still properly rejected: `_str_trim`, `_str_upper`, `_str_lower`, `_str_split`, `_str_chars`
     - New example: `string_verify.ail` demonstrates string concatenation, equality, and prefix verification
+  - **List verification** (`types.go`, `codegen.go`, `encodable.go`, ~250 LOC impl + ~150 LOC tests)
+    - List type `[T]` now mapped to SMT-LIB `(Seq T)` sort via Z3 sequence theory
+    - Both `TList` and `TApp("list", T)` forms handled in `MapType`
+    - List literals encoded: `[1, 2, 3]` → `(seq.++ (seq.unit 1) (seq.unit 2) (seq.unit 3))`
+    - Empty lists: `[]` → `(as seq.empty (Seq Int))`
+    - 5 list builtins via `ListBuiltinSpecial` map with declarative `ListBuiltinSpec`:
+      `concat_List` (seq.++), `::` (cons mode), `_list_length` (seq.len), `_list_head` (seq.nth 0), `_list_nth` (seq.nth)
+    - 3 new Go builtins: `_list_length`, `_list_head`, `_list_nth` for O(1) list operations
+    - Fragment checker updated: list literals and supported builtins now accepted
+    - CLI `convertASTTypeToType` handles `TypeApp{list, T}` → `TList{T}` for function parameters
+    - stdlib updated: `length`, `nth`, `last` now use O(1) builtins instead of O(n) recursion
+    - New example: `list_verify.ail` demonstrates list length, cons, head, nth verification
 
 - **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
   - New `internal/trace/` package: schema, collector, JSONL serializer

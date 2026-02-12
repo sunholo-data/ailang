@@ -9,10 +9,7 @@ module std/list
 import std/option (Option, Some, None)
 
 export pure func length[a](xs: [a]) -> int {
-  match xs {
-    [] => 0,
-    [_, ...rest] => 1 + length(rest)
-  }
+  _list_length(xs)
 }
 
 export pure func head[a](xs: [a]) -> Option[a] {
@@ -129,21 +126,19 @@ export pure func drop[a](n: int, xs: [a]) -> [a] {
 -- ============================================================================
 
 -- nth: Get element at index (0-based). Returns None for negative or out-of-bounds.
+-- Uses O(1) builtin for direct index access instead of O(n) recursive traversal.
 export pure func nth[a](xs: [a], idx: int) -> Option[a] {
   if idx < 0 then None
-  else match xs {
-    [] => None,
-    [x, ...rest] => if idx == 0 then Some(x) else nth(rest, idx - 1)
-  }
+  else if idx >= _list_length(xs) then None
+  else Some(_list_nth(xs, idx))
 }
 
 -- last: Get last element of list
+-- Uses O(1) builtin for direct index access instead of O(n) recursive traversal.
 export pure func last[a](xs: [a]) -> Option[a] {
-  match xs {
-    [] => None,
-    [x] => Some(x),
-    [_, ...rest] => last(rest)
-  }
+  let len = _list_length(xs);
+  if len == 0 then None
+  else Some(_list_nth(xs, len - 1))
 }
 
 -- ============================================================================

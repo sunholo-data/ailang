@@ -46,12 +46,23 @@ func MapType(t types.Type) (string, error) {
 	case *types.TFunc:
 		return "", fmt.Errorf("function types cannot be encoded in SMT-LIB")
 	case *types.TList:
-		return "", fmt.Errorf("list types cannot be encoded in SMT-LIB")
+		elemSort, err := MapType(ty.Element)
+		if err != nil {
+			return "", fmt.Errorf("list element type: %w", err)
+		}
+		return fmt.Sprintf("(Seq %s)", elemSort), nil
 	case *types.TRecord:
 		return MapRecordSortName(ty), nil
 	case *types.TApp:
-		// TApp with a TCon constructor may be a parameterized ADT
+		// TApp with a TCon constructor may be a parameterized ADT or list
 		if con, ok := ty.Constructor.(*types.TCon); ok {
+			if con.Name == "list" && len(ty.Args) == 1 {
+				elemSort, err := MapType(ty.Args[0])
+				if err != nil {
+					return "", fmt.Errorf("list element type: %w", err)
+				}
+				return fmt.Sprintf("(Seq %s)", elemSort), nil
+			}
 			return con.Name, nil
 		}
 		return "", fmt.Errorf("parameterized type %v cannot be encoded in SMT-LIB", ty)
@@ -309,4 +320,26 @@ type StringBuiltinSpec struct {
 	Unary      bool   // Single argument
 	AppendZero bool   // Append literal 0 as extra argument
 	SubstrMode bool   // Convert (s, start, end) → (str.substr s start (- end start))
+}
+
+// ListBuiltinSpecial maps AILANG list builtins that need non-standard encoding.
+var ListBuiltinSpecial = map[string]ListBuiltinSpec{
+	// concat_List(xs, ys) → (seq.++ xs ys)
+	"concat_List": {Op: "seq.++"},
+	// :: (cons) → (seq.++ (seq.unit elem) list) — cons mode
+	"::": {Op: "seq.++", ConsMode: true},
+	// _list_length(xs) → (seq.len xs) — unary
+	"_list_length": {Op: "seq.len", Unary: true},
+	// _list_head(xs) → (seq.nth xs 0) — unary + append 0
+	"_list_head": {Op: "seq.nth", Unary: true, AppendZero: true},
+	// _list_nth(xs, i) → (seq.nth xs i) — binary
+	"_list_nth": {Op: "seq.nth"},
+}
+
+// ListBuiltinSpec describes how to encode a list builtin in SMT-LIB.
+type ListBuiltinSpec struct {
+	Op         string // SMT-LIB operator name
+	Unary      bool   // Single argument
+	AppendZero bool   // Append literal 0 as extra argument
+	ConsMode   bool   // First arg wrapped in (seq.unit ...)
 }

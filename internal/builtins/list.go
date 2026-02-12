@@ -14,6 +14,9 @@ import (
 func init() {
 	registerListCons()
 	registerListConcat()
+	registerListLength()
+	registerListHead()
+	registerListNth()
 }
 
 // ============================================================================
@@ -170,4 +173,144 @@ func listConcatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 	result = append(result, list2.Elements...)
 
 	return &eval.ListValue{Elements: result}, nil
+}
+
+// ============================================================================
+// SMT-Verifiable List Builtins (M-SMT-LISTS)
+// ============================================================================
+// These builtins mirror std/list functions but are implemented in Go,
+// making them usable in contracts and encodable to Z3 seq.* operations.
+
+// registerListLength registers the _list_length builtin
+func registerListLength() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_length",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListLengthType,
+		Impl:    listLengthImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Get the length of a list",
+			Params:      []ParamDoc{{Name: "xs", Description: "The list"}},
+			Returns:     "Number of elements in the list",
+			Since:       "v0.7.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"list", "length", "smt"},
+			Category:    "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_length: %v", err))
+	}
+}
+
+func makeListLengthType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA).Returns(&types.TCon{Name: "int"}).Build()
+}
+
+func listLengthImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_length: expected List, got %T", args[0])
+	}
+	return &eval.IntValue{Value: len(list.Elements)}, nil
+}
+
+// registerListHead registers the _list_head builtin
+func registerListHead() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_head",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListHeadType,
+		Impl:    listHeadImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Get the first element of a list",
+			Params:      []ParamDoc{{Name: "xs", Description: "The list (must be non-empty)"}},
+			Returns:     "First element",
+			Since:       "v0.7.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"list", "head", "smt"},
+			Category:    "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_head: %v", err))
+	}
+}
+
+func makeListHeadType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA).Returns(a).Build()
+}
+
+func listHeadImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_head: expected List, got %T", args[0])
+	}
+	if len(list.Elements) == 0 {
+		return nil, fmt.Errorf("_list_head: empty list")
+	}
+	return list.Elements[0], nil
+}
+
+// registerListNth registers the _list_nth builtin
+func registerListNth() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_nth",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListNthType,
+		Impl:    listNthImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Get the element at a given index",
+			Params: []ParamDoc{
+				{Name: "xs", Description: "The list"},
+				{Name: "idx", Description: "Zero-based index"},
+			},
+			Returns:   "Element at the given index",
+			Since:     "v0.7.4",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "nth", "index", "smt"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_nth: %v", err))
+	}
+}
+
+func makeListNthType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA, &types.TCon{Name: "int"}).Returns(a).Build()
+}
+
+func listNthImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_nth: expected List, got %T", args[0])
+	}
+	idxVal, ok := args[1].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_nth: expected Int for index, got %T", args[1])
+	}
+	idx := idxVal.Value
+	if idx < 0 || idx >= len(list.Elements) {
+		return nil, fmt.Errorf("_list_nth: index %d out of bounds for list of length %d", idx, len(list.Elements))
+	}
+	return list.Elements[idx], nil
 }

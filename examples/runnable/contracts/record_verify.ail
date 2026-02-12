@@ -1,9 +1,17 @@
 -- examples/runnable/contracts/record_verify.ail
 -- Record contract verification demonstration
--- Shows Z3 proving properties about record field access in contracts
--- Demonstrates: record params, field access in requires/ensures
+-- Shows Z3 proving properties about record field access, construction, and update
+-- Demonstrates: record params, field access in requires/ensures, record construction,
+--               cross-function with records, broken contract with counterexample
+--
+-- Run:    ailang verify examples/runnable/contracts/record_verify.ail
+-- Expect: 4 verified, 1 violation (brokenDistance)
 
 module examples/runnable/contracts/record_verify
+
+-- ============================================================================
+-- Basic field access contracts
+-- ============================================================================
 
 -- Extract the X coordinate (proving non-negativity preserved)
 export func getX(p: {x: int, y: int}) -> int ! {}
@@ -14,7 +22,6 @@ ensures { result >= 0 }
 }
 
 -- Manhattan distance from origin (always non-negative when both coords are)
--- Uses comma-separated predicates for multiple preconditions
 export func manhattan(p: {x: int, y: int}) -> int ! {}
 requires { p.x >= 0, p.y >= 0 }
 ensures { result >= 0 }
@@ -22,9 +29,50 @@ ensures { result >= 0 }
   p.x + p.y
 }
 
+-- ============================================================================
+-- Record construction in return
+-- ============================================================================
+
+-- Move a point right: new x is always greater than original
+export func moveRight(p: {x: int, y: int}, dx: int) -> {x: int, y: int} ! {}
+requires { dx > 0, p.x >= 0 }
+ensures { result.x > p.x }
+{
+  { x: p.x + dx, y: p.y }
+}
+
+-- ============================================================================
+-- Cross-function with records
+-- ============================================================================
+
+-- Check if a first-quadrant point is near the origin
+-- CALLS manhattan (cross-function with records!)
+-- Z3 inlines manhattan and proves: when true, manhattan <= radius
+export func isNearOrigin(p: {x: int, y: int}, radius: int) -> bool ! {}
+requires { p.x >= 0, p.y >= 0, radius >= 0 }
+ensures { result == (manhattan(p) <= radius) }
+{
+  manhattan(p) <= radius
+}
+
+-- ============================================================================
+-- BROKEN: Claims distance is always less than 100
+-- Z3 finds large coordinates (e.g., x=50, y=50) that violate this
+-- ============================================================================
+
+export func brokenDistance(p: {x: int, y: int}) -> bool ! {}
+requires { p.x >= 0, p.y >= 0 }
+ensures { result == true }
+{
+  p.x + p.y < 100
+}
+
 -- Entry point
 export func main() -> int ! {}
 {
   let p = {x: 3, y: 4};
-  manhattan(p) + getX(p)
+  let moved = moveRight(p, 10);
+  let m = manhattan(p);
+  let near = isNearOrigin(p, 10);
+  if near then m + moved.x else m
 }
