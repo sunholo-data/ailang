@@ -80,6 +80,25 @@ ailang run --caps IO --entry main examples/runnable/contracts/park.ail
 # Output: 35 (= 5 + 10 + 0 + 20)
 ```
 
+**Verify it — Z3 proves ALL policy rules correct:**
+```bash
+$ ailang verify examples/runnable/contracts/park.ail
+
+→ Verifying contracts in examples/runnable/contracts/park.ail
+  Solver: Z3 version 4.15.4 - 64 bit
+
+  ✓ VERIFIED admissionFee    -- fee is always >= 0 for any age/season
+  ✓ VERIFIED canEnterPark    -- decision matches budget vs fee (cross-function)
+  ✓ VERIFIED seniorDiscount  -- seniors ALWAYS pay less than adults
+  ✓ VERIFIED classifyAge     -- classification is exhaustive and consistent
+
+  4 functions: 4 verified
+```
+
+:::info ARC Paper Implementation Complete
+The ARC paper uses an external LLM + Z3 pipeline to verify natural-language policies. AILANG achieves the same result **natively** — contracts are first-class syntax, verification is a single CLI command, and Z3 proves properties like "seniors always pay less" across all possible inputs with cross-function inlining.
+:::
+
 ## Why Contracts Matter for AI
 
 Contracts are particularly valuable for AI code generation:

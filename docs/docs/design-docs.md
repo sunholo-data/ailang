@@ -8,8 +8,32 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.8.0
+
+- [M-TRACE-EXPORT Phase 2-4: OTEL Integration, Replay, and Training Export](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export-phase2-otel-replay.md)
+- [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export.md)
+- [Sprint Plan: M-TRACE-EXPORT Phase 3 — Trace Replay](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-replay-phase3-sprint-plan.md)
+
+## v0.7.3
+
+- [AILANG Demo: Invoice Processor with WebAssembly](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/ailang-demo-invoice-processor.md)
+- [Sprint Plan: M-EFFECTFUL-LIST-COMBINATORS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-effectful-list-combinators-sprint-plan.md)
+- [M-EFFECTFUL-LIST-COMBINATORS: Effectful map/filter/fold for std/list](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-effectful-list-combinators.md)
+- [Sprint Plan: M-STDLIB-XML — XML Parsing Standard Library](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-stdlib-xml-sprint-plan.md)
+- [M-STDLIB-XML: XML Parsing Standard Library](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-stdlib-xml.md)
+- [Sprint Plan: M-STDLIB-ZIP — ZIP Archive Standard Library](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-stdlib-zip-sprint-plan.md)
+- [M-STDLIB-ZIP: ZIP Archive Standard Library](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-stdlib-zip.md)
+- [Sprint Plan: M-STRUCTURED-AI-OUTPUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-structured-ai-output-sprint-plan.md)
+- [M-STRUCTURED-AI-OUTPUT: Structured output in std/ai](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_3/m-structured-ai-output.md)
+
+## v0.7.2
+
+- [M-CHAINS-SOURCE-OF-TRUTH: Make `ailang chains` the Canonical Data CLI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_2/m-chains-source-of-truth.md)
+- [M-WASM-STDLIB: Embed Standard Library in WASM Binary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_2/m-wasm-stdlib.md)
+
 ## v0.7.1
 
+- [E2E Test: Coordinator Handoff Chains - Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/e2e-handoff-test-sprint.md)
 - [Hello World Feature](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/hello-world-feature.md)
 - [M-CHAT-HISTORY: Claude Code Conversation History Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-chat-history-integration.md)
 - [M-CHAT-HISTORY Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-chat-history-sprint-plan.md)
@@ -25,8 +49,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-TRACE-BRIDGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-trace-bridge-sprint-plan.md)
 - [M-TRACE-BRIDGE: Bridge OTEL Spans to TraceRegistry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-trace-instrumentation.md)
 - [M-VERIFY-CONTRACTS: Runtime Contract Enforcement (Language-Wide)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-verify-contracts.md)
+- [M-WASM-REPL: Browser Module Loading for WASM REPL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-wasm-repl-module-loading.md)
+- [M-WASM-REPL Sprint Plan: Browser Module Loading](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-wasm-repl-sprint-plan.md)
 - [Sprint Plan: M-WORKSPACE-ACCESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-workspace-access-control-sprint-plan.md)
 - [M-WORKSPACE-ACCESS: Multi-Workspace Access Control with Public/Private Visibility](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/m-workspace-access-control.md)
+- [Sprint Plan: Test Chain Environment Propagation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/test-chain-env-propagation-sprint-plan.md)
+- [Test Chain Environment Propagation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/test-chain-env-propagation.md)
 - [Sprint Plan: M-TRACE-TEST - Trace Testing Framework](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/trace-test-sprint-plan.md)
 - [Trace Test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_1/trace-test.md)
 
@@ -68,6 +96,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-DB-CLEANUP: Database Schema Cleanup and Consolidation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-db-cleanup.md)
 - [Sprint Plan: M-DEPRECATE-AILANG-AGENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-deprecate-ailang-agent-sprint-plan.md)
 - [M-DEPRECATE-AILANG-AGENT: Deprecate Standalone Agent Binary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-deprecate-ailang-agent.md)
+- [Sprint Plan: M-DX24 - Developer Experience Improvements from BigQuery Connector Feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-dx24-sprint-plan-implementation.md)
+- [M-DX24 Sprint Plan: Developer Experience Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-dx24-sprint-plan.md)
 - [M-EMBED: Generic AILANG Embedding API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-embed-go-ailang-bridge.md)
 - [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md)
 - [M-EXECUTOR-TEST: Comprehensive Test Coverage for Multi-Executor System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-executor-test-coverage.md)
@@ -510,4 +540,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 377 design documents across 41 versions.*
+*Generated at build time. 398 design documents across 44 versions.*

@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.7.0) - auto-synced from source
+description: The active AILANG teaching prompt (v0.7.4) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.7.0.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.7.4.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.7.0.md -->
-<!-- Active Version: v0.7.0 -->
+<!-- Source: prompts/v0.7.4.md -->
+<!-- Active Version: v0.7.4 -->
 
-# AILANG v0.7.0 - AI Teaching Prompt
+# AILANG v0.7.3 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -49,17 +49,17 @@ print("A"); print("B")      -- Output: AB
 
 **Use `println` for most output.** Use `print` ONLY when building output on one line.
 
-## CLI Exploration
+## CLI Exploration (USE THIS!)
+
+**Before writing helper functions, check if the stdlib already has what you need:**
 
 ```bash
-ailang --help                   # all ailang abilities
-ailang docs --list              # List stdlib modules
-ailang docs std/io              # Show module exports
-ailang builtins list            # All 72 builtins
-ailang builtins show _ai_call   # Detailed documentation
+ailang docs --list              # List all stdlib modules
+ailang docs std/string          # Show ALL exports with signatures
+ailang docs std/list            # Show list operations
+ailang builtins list            # All registered builtins
 ailang check file.ail           # Type-check without running
 ailang examples search "recursion"  # Find working code examples
-ailang examples show fold_reduce    # View example with expected output
 ```
 
 ## Quick Reference Examples
@@ -152,7 +152,7 @@ export func main() -> () ! {IO} {
 **AI effect (call LLM):**
 ```ailang
 module benchmark/solution
-import std/ai (call)
+import std/ai (call, callJson, callJsonSimple)
 export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 ```
 
@@ -172,7 +172,7 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
 | `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
-| `!condition` | `not condition` - AILANG uses `not` for boolean negation |
+| `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
 | `concat(a, b)` | `a ++ b` - use `++` for string/list concatenation |
 
 ## Let Bindings: Block Style vs Expression Style
@@ -424,10 +424,10 @@ export func main() -> () ! {IO} { println("hi") }
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile` | `std/fs` |
+| `FS` | `readFile`, `writeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getEnv`, `getEnvOr` | `std/env` |
-| `AI` | `call` | `std/ai` |
+| `AI` | `call`, `callJson`, `callJsonSimple` | `std/ai` |
 | `Debug` | `log`, `check` | `std/debug` |
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
@@ -446,21 +446,28 @@ import std/fs (readFile, writeFile)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
 import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty)
-import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex)
-import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join)
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex, flatMap, mapE, filterE, foldlE, flatMapE, forEachE)
+import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
 import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
-import std/ai (call)
+import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
+import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
+import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
 ```
 
-**List functions** (std/list):
+**List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
 - `map(f, xs)` - Apply function to each element
 - `filter(p, xs)` - Keep elements matching predicate
 - `foldl(f, acc, xs)` - Left fold (use `func(acc: T, x: U) -> T { ... }` for f)
+- `foldr(f, acc, xs)` - Right fold
 - `length(xs)` - List length
+- `head(xs) -> Option[a]` - First element (None if empty)
+- `tail(xs)` - All elements except first
+- `reverse(xs)` - Reverse a list
 - `concat(xs, ys)` - Concatenate two lists
+- `zip(xs, ys)` - Pair elements from two lists
 - `sortBy(cmp, xs)` - Sort with comparator
 - `take(n, xs)` - Take first n elements
 - `drop(n, xs)` - Drop first n elements
@@ -468,18 +475,51 @@ import std/result (Result, Ok, Err)
 - `last(xs) -> Option[a]` - Get last element, None if empty
 - `any(p, xs) -> bool` - Check if any element satisfies predicate
 - `findIndex(p, xs) -> Option[int]` - Find index of first matching element
+- `flatMap(f, xs)` - Apply f to each element, flatten results (pure)
 
-**String functions** (std/string):
+**Effectful list combinators** (v0.7.3) — use these instead of hand-rolling recursive traversals:
+- `mapE(f, xs)` - Effectful map: apply effectful function to each element
+- `filterE(p, xs)` - Effectful filter: keep elements matching effectful predicate
+- `foldlE(f, acc, xs)` - Effectful left fold
+- `flatMapE(f, xs)` - Effectful flatMap: apply f, flatten results
+- `forEachE(f, xs)` - Effectful forEach: apply f for side-effects, discard results
+
+All effectful combinators are **effect-polymorphic** — they work with any effect (`IO`, `FS`, `AI`, etc.) and guarantee **left-to-right evaluation order**.
+
+**Prefer `map`/`filter`/`foldl` over manual recursion:**
+```ailang
+import std/list (map, filter, foldl, mapE, filterE, foldlE)
+
+-- Pure: use map/filter/foldl
+let doubled = map(\x. x * 2, [1, 2, 3])  -- [2, 4, 6]
+let evens = filter(\x. x % 2 == 0, [1, 2, 3, 4])  -- [2, 4]
+let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])  -- 6
+
+-- Effectful: use mapE/filterE/foldlE (replaces hand-rolled recursion!)
+let results = mapE(\x. { println("processing " ++ show(x)); x * 2 }, [1, 2, 3]);
+let checked = filterE(\x. { println("checking " ++ show(x)); x > 2 }, [1, 2, 3, 4]);
+let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
+```
+
+**Note on foldlE:** The callback must use `func(acc: T, x: U) -> T ! {Effect} { ... }` syntax (not curried `\acc. \x.`).
+
+**String functions** (std/string) — run `ailang docs std/string` for full list:
+- `length(s) -> int` - String length
 - `contains(hay, needle) -> bool` - Check if string contains substring
+- `startsWith(s, prefix) -> bool` - Check if string starts with prefix
+- `endsWith(s, suffix) -> bool` - Check if string ends with suffix
 - `find(hay, needle) -> int` - Index of substring, or -1 if not found
 - `substring(s, start, end) -> string` - Extract substring
 - `split(s, delim) -> [string]` - Split string by delimiter
 - `chars(s) -> [string]` - Convert string to list of single-character strings (Unicode-aware)
+- `trim(s) -> string` - Trim whitespace
+- `toUpper(s) -> string` / `toLower(s) -> string` - Case conversion
 - `stringToInt(s) -> Option[int]` - Parse integer
 - `stringToFloat(s) -> Option[float]` - Parse float
 - `intToStr(n) -> string` - Convert int to string
 - `floatToStr(f) -> string` - Convert float to string
 - `join(delim, xs) -> string` - Join list of strings with delimiter
+- `repeat(s, n) -> string` - Repeat string n times
 
 **Math functions** (std/math):
 - `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
@@ -659,19 +699,7 @@ export func main() -> () ! {IO} {
 | String/List | `++` (concatenation) |
 | List | `::` (cons/prepend) |
 
-## Boolean Operations (IMPORTANT)
-
-**⚠️ AILANG uses `not`, NOT `!` for boolean negation!**
-
-```ailang
--- WRONG: Python/C-style negation
-if !isEmpty(list) then ...      -- ERROR: unknown unary operator: !
-if !done then ...               -- ERROR
-
--- CORRECT: AILANG-style negation
-if not isEmpty(list) then ...   -- Works!
-if not done then ...            -- Works!
-```
+## Boolean Operations
 
 **Boolean operators:**
 ```ailang
@@ -681,8 +709,9 @@ if x > 0 && y > 0 then "both positive" else "no"
 -- OR: ||
 if x == 0 || y == 0 then "has zero" else "no"
 
--- NOT: not (NOT `!`)
+-- NOT: both `not` and `!` work
 if not isEmpty(list) then process(list) else []
+if !done then retry() else finish()
 ```
 
 ## String and List Concatenation
@@ -1114,20 +1143,180 @@ match httpRequest("POST", url, headers, body) {
 
 ## AI Effect
 
-Call external LLMs with a string->string interface:
+Call external LLMs with string->string or structured JSON interfaces:
 
 ```ailang
-import std/ai (call)
+import std/ai (call, callJson, callJsonSimple)
+import std/json (decode)
+import std/result (Result, Ok, Err)
 
+-- Unstructured: string -> string
 func ask_ai(question: string) -> string ! {AI} = call(question)
+
+-- Structured JSON (no schema): provider returns valid JSON
+func ask_json(prompt: string) -> string ! {AI} = callJsonSimple(prompt)
+
+-- Structured JSON (schema-enforced): provider validates against schema
+func ask_person(prompt: string) -> string ! {AI} =
+  callJson(prompt, "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}")
+```
+
+**Parse JSON responses** with `std/json.decode`:
+```ailang
+let raw = callJsonSimple("Return a JSON array");
+match decode(raw) {
+  Ok(json) => println("Valid JSON!")
+  Err(msg) => println("Parse error: " ++ msg)
+}
 ```
 
 **Run with providers:**
 ```bash
 ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail  # Anthropic
 ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail         # OpenAI
-ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google (uses ADC)
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google
+ailang run --caps IO,AI --ai ollama:llama3 --entry main file.ail     # Ollama (local)
 ailang run --caps IO,AI --ai-stub --entry main file.ail              # Testing stub
+```
+
+**Authentication setup (required before using `--ai`):**
+
+| Provider | Env Variable | How to get it |
+|----------|-------------|---------------|
+| Anthropic (`claude-*`) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/ |
+| OpenAI (`gpt-*`) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Ollama (`ollama:*`) | None needed | Local server at http://localhost:11434 |
+
+**Google Gemini (`gemini-*`) has two auth options:**
+
+Option 1 — API Key (AI Studio, simplest for getting started):
+```bash
+export GOOGLE_API_KEY=AIza...
+# Get one at: https://aistudio.google.com/apikey
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+Option 2 — Application Default Credentials (Vertex AI, for GCP projects):
+```bash
+# One-time setup:
+gcloud auth application-default login
+
+# IMPORTANT: GOOGLE_API_KEY must be UNSET for Vertex AI to be used.
+# AILANG checks GOOGLE_API_KEY first — if set, it always uses AI Studio.
+unset GOOGLE_API_KEY
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+**Gemini auth selection logic:**
+```
+GOOGLE_API_KEY is set (non-empty)  →  AI Studio (API key auth)
+GOOGLE_API_KEY is unset or empty   →  Vertex AI (ADC via gcloud)
+```
+
+**Common gotcha:** If `GOOGLE_API_KEY` is in your shell profile for other tools,
+AILANG will always use AI Studio even if you want Vertex AI. Fix:
+```bash
+# Unset just for this command:
+GOOGLE_API_KEY= ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+**Quick test that auth works:**
+```bash
+# Test with stub (no auth needed):
+ailang run --caps IO,AI --ai-stub --entry main file.ail
+
+# Then swap --ai-stub for --ai <model> once env vars are set.
+```
+
+## ZIP Archives (std/zip)
+
+Read ZIP archives (including .docx, .xlsx, .pptx files). Requires `FS` effect:
+
+```ailang
+module benchmark/solution
+import std/result (Result, Ok, Err)
+
+-- List entries in a ZIP archive
+func listEntries(path: string) -> Result[List[string], string] ! {FS} =
+  _zip_listEntries(path)
+
+-- Read text content (UTF-8) from a ZIP entry
+func readText(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _zip_readEntry(path, entry)
+
+-- Read binary content as base64
+func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _zip_readEntryBytes(path, entry)
+
+export func main() -> () ! {IO, FS} {
+  match _zip_listEntries("document.docx") {
+    Ok(entries) => println("Found " ++ show(length(entries)) ++ " entries"),
+    Err(msg) => println("Error: " ++ msg)
+  }
+}
+```
+
+Run: `ailang run --entry main --caps IO,FS file.ail`
+
+## XML Parsing (std/xml)
+
+Parse and query XML documents. **Pure functions** (no effect needed):
+
+```ailang
+module benchmark/solution
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+
+export func main() -> () ! {IO} {
+  let xml = "<root><item id=\"1\">Hello</item><item id=\"2\">World</item></root>";
+  match _xml_parse(xml) {
+    Ok(doc) => {
+      -- Find all <item> elements
+      let items = _xml_findAll(doc, "item");
+      -- Get text content
+      let text = _xml_getText(doc);
+      -- Find first match
+      match _xml_findFirst(doc, "item") {
+        Some(item) => {
+          println("Tag: " ++ _xml_getTag(item));
+          println("Text: " ++ _xml_getText(item));
+          match _xml_getAttr(item, "id") {
+            Some(id) => println("ID: " ++ id),
+            None => ()
+          }
+        },
+        None => println("No items found")
+      }
+    },
+    Err(msg) => println("Parse error: " ++ msg)
+  }
+}
+```
+
+**XML builtins (all pure):**
+| Function | Type | Description |
+|----------|------|-------------|
+| `_xml_parse` | `string -> Result[XmlNode, string]` | Parse XML string |
+| `_xml_findAll` | `(XmlNode, string) -> [XmlNode]` | Find all elements by tag |
+| `_xml_findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first element by tag |
+| `_xml_getText` | `XmlNode -> string` | Extract text content |
+| `_xml_getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value |
+| `_xml_getChildren` | `XmlNode -> [XmlNode]` | Get child nodes |
+| `_xml_getTag` | `XmlNode -> string` | Get tag name (empty for non-Element) |
+
+**Combine ZIP + XML to parse .docx files:**
+```ailang
+-- Read XML from inside a .docx (which is a ZIP archive)
+match _zip_readEntry("report.docx", "word/document.xml") {
+  Ok(xml) => match _xml_parse(xml) {
+    Ok(doc) => {
+      let paragraphs = _xml_findAll(doc, "w:p");
+      println("Found " ++ show(length(paragraphs)) ++ " paragraphs")
+    },
+    Err(e) => println("XML error: " ++ e)
+  },
+  Err(e) => println("ZIP error: " ++ e)
+}
 ```
 
 ## Arrays (O(1) indexed access)
@@ -1199,6 +1388,87 @@ pure func double(x: int) -> int tests [(0, 0), (3, 6), (5, 10)] { x * 2 }
 ```
 
 Run: `ailang test file.ail`
+
+## Contracts (requires/ensures)
+
+Add preconditions and postconditions to functions:
+
+```ailang
+module myapp/math
+
+-- Precondition: divisor must not be zero
+-- Postcondition: result is non-negative
+export func safeDivide(dividend: int, divisor: int) -> int ! {}
+requires { divisor != 0 }
+ensures { result >= 0 }
+{
+  if dividend < 0 then (0 - dividend) / divisor
+  else dividend / divisor
+}
+
+-- Enum ADT + contract
+export type TaxBracket = STANDARD | REDUCED | EXEMPT
+
+export func calculateTax(income: int, bracket: TaxBracket) -> int ! {}
+requires { income >= 0 }
+ensures { result >= 0 }
+{
+  match bracket {
+    EXEMPT => 0,
+    REDUCED => income / 10,
+    STANDARD => income / 5
+  }
+}
+```
+
+**Runtime contract checking** (panics on violation):
+```bash
+ailang run --verify-contracts --caps IO --entry main file.ail
+```
+
+**Static verification with Z3** (proves contracts correct at compile time):
+```bash
+ailang verify file.ail              # Prove contracts for all functions
+ailang verify --verbose file.ail    # Show generated SMT-LIB
+ailang verify --json file.ail       # Machine-readable output
+ailang verify --strict file.ail     # Exit 1 if any function can't be verified
+```
+
+`ailang verify` translates functions to SMT-LIB and uses Z3 to mathematically prove
+that postconditions hold for ALL possible inputs satisfying preconditions. When
+verification fails, Z3 provides concrete counterexamples:
+
+```
+  VERIFIED calculateTax    6ms
+  VIOLATION brokenDiscount
+    Counterexample:
+      price: Int = 0
+      discount: Int = 1
+```
+
+**What can be verified** (decidable fragment):
+- Functions with `int`, `bool`, or enum ADT parameters and returns
+- Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`)
+- `if`/`else`, `let` bindings, `match` on enums/ADTs
+- Non-recursive, non-higher-order functions
+- Must be pure: `! {}` (no effects)
+
+**What gets skipped** (with clear reason and hint):
+- Recursive functions, higher-order functions
+- String, list, or record operations
+- Functions with effects
+
+**Contract modes:**
+- Default (no flag): contracts parsed but not checked
+- `--verify-contracts`: runtime panics on first violation
+- `ailang verify`: compile-time mathematical proof via Z3
+
+**Rules:**
+- `requires { expr }` — precondition, checked at function entry
+- `ensures { expr }` — postcondition, `result` refers to return value
+- Contract expressions must evaluate to `bool`
+- Contracts go BETWEEN the effect annotation and the function body
+- Install Z3: `brew install z3` (macOS) or `apt install z3` (Linux)
 
 ## Multi-Module Projects
 

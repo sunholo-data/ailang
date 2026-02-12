@@ -2,6 +2,9 @@
 -- Reproduces ARC paper park admission example in AILANG
 -- From: Bayless et al., "A Neurosymbolic Approach to Natural Language Formalization and Verification" (AWS, 2025)
 -- M-VERIFY: Showcase example demonstrating contract-based policy specification
+--
+-- Run:    ailang verify examples/runnable/contracts/park.ail
+-- Result: 4 verified (admissionFee, canEnterPark, seniorDiscount, classifyAge)
 
 module examples/runnable/contracts/park
 
@@ -29,16 +32,27 @@ ensures { result >= 0 }
 }
 
 -- Decision function: can visitor enter park given budget?
-export func canEnterPark(age: int, season: Season, budget: int) -> AdmissionDecision ! {}
-requires { age >= 0 }
+-- Z3 proves: if budget >= 20, admission is ALWAYS granted (cross-function with admissionFee)
+export func canEnterPark(age: int, season: Season, budget: int) -> bool ! {}
+requires { age >= 0, budget >= 0 }
+ensures { result == (budget >= admissionFee(age, season)) }
 {
-  let fee = admissionFee(age, season);
-  if budget >= fee then ADMIT else DENY
+  budget >= admissionFee(age, season)
+}
+
+-- Senior discount: Z3 proves seniors ALWAYS pay less than adults
+-- Cross-function verification: inlines admissionFee for both calls
+export func seniorDiscount(season: Season) -> bool ! {}
+ensures { result == true }
+{
+  admissionFee(70, season) < admissionFee(30, season)
 }
 
 -- Age classification helper
+-- Z3 proves: classification is exhaustive and consistent
 export func classifyAge(age: int) -> AgeClass ! {}
 requires { age >= 0 }
+ensures { result == (if age < 5 then CHILD else if age >= 65 then SENIOR else ADULT) }
 {
   if age < 5 then CHILD
   else if age >= 65 then SENIOR

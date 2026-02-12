@@ -329,6 +329,31 @@ parallel {
 }  -- Waits for all spawned tasks
 ```
 
+## Type Inference
+
+AILANG uses **Hindley-Milner type inference** — you rarely need to write type annotations. The compiler infers the most general type for every expression.
+
+```typescript
+-- Types are inferred automatically
+let x = 42                       -- x: int
+let greeting = "hello"           -- greeting: string
+let double = \x. x + x          -- double: int -> int (via Num constraint)
+let identity = \x. x            -- identity: a -> a (polymorphic)
+
+-- Type annotations are optional but allowed
+export func add(x: int, y: int) -> int ! {}
+{ x + y }
+
+-- The compiler catches type errors at compile time
+-- let bad = 1 + "hello"  -- ERROR: Cannot unify int with string
+```
+
+**Key features:**
+- Automatic type inference for `let` bindings, lambdas, and function bodies
+- Polymorphic functions (e.g., `\x. x` works for any type)
+- Row polymorphism for extensible records and effects
+- Type annotations required only for exported function signatures
+
 ## Type Classes
 
 ```typescript
