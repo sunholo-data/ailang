@@ -3,8 +3,8 @@
   "versions": {
     "v0.8.0": {
       "file": "prompts/devtools/v0.8.0.md",
-      "hash": "e22bb96586c19c4454221b09e9bfcc46bb3274d5220d1de092a04c4abe548dc8",
-      "description": "Comprehensive dev tools reference covering 16 sections: run/test (all flags), debug, replay, training export, chains, coordinator (15 subcommands), messaging (full), eval (6 commands), stdlib, telemetry/observatory (11 subcommands), dashboard/server, web/API, exec, compilation/advanced, AI provider config, WebAssembly",
+      "hash": "69ba3311bd2ecf87e71afa42b153f94c9a7efc7e24ef2730955913fdd567d59e",
+      "description": "Comprehensive dev tools reference covering 17 sections: run/test (all flags), debug, replay, training export, AI self-improvement with traces, chains, coordinator (15 subcommands), messaging (full), eval (6 commands), stdlib, telemetry/observatory (11 subcommands), dashboard/server, web/API, exec, compilation/advanced, AI provider config, WebAssembly",
       "created": "2026-02-11",
       "tags": [
         "production",

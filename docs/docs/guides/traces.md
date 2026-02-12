@@ -76,11 +76,14 @@ Running a simple "Hello, AILANG!" program produces:
 ```json
 {"version":"1.0","event":"module_start","timestamp_ns":750,"module":{"name":"examples/runnable/hello","caps":["IO"]}}
 {"version":"1.0","event":"function_enter","timestamp_ns":24375,"depth":1,"function":{"name":"std/io.print","args":["Hello, AILANG!"]}}
+{"version":"1.0","event":"effect","timestamp_ns":30000,"depth":1,"effect":{"effect_name":"IO","op_name":"print","args":["Hello, AILANG!"],"result":"()"}}
 {"version":"1.0","event":"function_exit","timestamp_ns":39167,"depth":1,"function":{"name":"std/io.print","result":"()","duration_ns":15000}}
-{"version":"1.0","event":"module_end","timestamp_ns":39375,"module":{"name":"examples/runnable/hello"}}
+{"version":"1.0","event":"module_end","timestamp_ns":39375,"module":{"name":"examples/runnable/hello","duration_ns":38625}}
 ```
 
-You can see: the module started with `IO` capability, called `std/io.print` with the greeting, the function returned `()` in 15μs, and the module ended cleanly.
+You can see: the module started with `IO` capability, called `std/io.print` with the greeting, the IO effect was invoked (`effect` event), the function returned `()` in 15μs, and the module ended with total duration recorded.
+
+Non-deterministic effects (like `Net.httpGet`, `Clock.now`, `IO.readLine`) are automatically flagged with `"deterministic": false` in their `effect` event. The replay comparator skips argument/result comparison for these events, allowing traces with network calls or time-dependent operations to replay successfully.
 
 ## Replaying Traces (Determinism Verification)
 
@@ -282,7 +285,5 @@ For agent-level tracing, see the [Telemetry & Tracing](telemetry.md) and [Coordi
 
 ## Known Limitations
 
-- **Effect events**: Most IO operations (print, readLine) appear as `function_enter`/`function_exit` rather than separate `effect` events, because builtins bypass the generic `effects.Call()` path
 - **Non-module files**: Traces currently require module files (`module` declaration + `--entry main`). Single-expression files are not yet supported
 - **Step-through mode**: No interactive step-through replay yet (planned for future)
-- **Duration on module_end**: The `module_end` event doesn't yet include total execution duration
