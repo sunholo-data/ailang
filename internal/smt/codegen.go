@@ -14,6 +14,11 @@ type FunctionParam struct {
 	Type types.Type
 }
 
+// activeResolvedCallees holds the set of callee function names that have been
+// resolved as define-fun during the current EncodeFunction call.
+// This is a package-level variable set during encoding (sequential per function).
+var activeResolvedCallees map[string]bool
+
 // EncodeResult holds the generated SMT-LIB program for a function.
 type EncodeResult struct {
 	// SMTLib is the complete SMT-LIB program text.
@@ -24,6 +29,16 @@ type EncodeResult struct {
 	Assertions []string
 	// BodyExpr is the encoded function body expression.
 	BodyExpr string
+}
+
+// EncodeFunctionOpts holds optional parameters for cross-function call resolution.
+type EncodeFunctionOpts struct {
+	// Program is the full Core program (needed for resolving cross-function calls).
+	Program *core.Program
+	// SurfaceParams maps function names to their parameter info.
+	SurfaceParams map[string][]FunctionParam
+	// SurfaceReturnSorts maps function names to their return sort strings.
+	SurfaceReturnSorts map[string]string
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.
@@ -45,9 +60,31 @@ func EncodeFunction(
 	returnSort string,
 	meta *core.DeclMeta,
 	adtTypes map[string][]ADTVariant,
+	opts ...EncodeFunctionOpts,
 ) (*EncodeResult, error) {
 	ctx := NewSMTContext()
 	result := &EncodeResult{}
+
+	// Resolve cross-function call dependencies
+	var calleeDefs []CalleeDef
+	if len(opts) > 0 && opts[0].Program != nil {
+		var err error
+		calleeDefs, err = ResolveCallees(
+			funcName, body, opts[0].Program,
+			opts[0].SurfaceParams, opts[0].SurfaceReturnSorts, adtTypes,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("resolving cross-function calls: %w", err)
+		}
+		// Register resolved callees so encodeApp can recognize them
+		for _, def := range calleeDefs {
+			ctx.ResolvedCallees[def.Name] = true
+		}
+	}
+
+	// Set active resolved callees for encodeApp to use
+	activeResolvedCallees = ctx.ResolvedCallees
+	defer func() { activeResolvedCallees = nil }()
 
 	// Step 1: Declare ADT types
 	for typeName, variants := range adtTypes {
@@ -56,6 +93,11 @@ func EncodeFunction(
 			result.Declarations = append(result.Declarations, decl)
 			ctx.DeclaredTypes[typeName] = true
 		}
+	}
+
+	// Step 1.5: Add callee define-fun declarations (for cross-function calls)
+	for _, def := range calleeDefs {
+		result.Declarations = append(result.Declarations, def.SMTLib)
 	}
 
 	// Step 2: Declare symbolic variables for function parameters
@@ -283,14 +325,23 @@ func encodeApp(app *core.App) (string, error) {
 		}
 	}
 
-	// ADT constructor application: App(VarGlobal(module.Ctor), args)
+	// Cross-function call: App(VarGlobal(module.funcName), args)
+	// where funcName has been resolved as a define-fun callee
 	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" {
+		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
+			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
+		}
+		// ADT constructor application
 		name := stripConstructorPrefix(vg.Ref.Name)
 		return encodeConstructorApp(name, app.Args)
 	}
 
-	// Plain variable application (could be a local constructor reference)
+	// Plain variable application — check if it's a resolved callee (same-module function call)
 	if v, ok := app.Func.(*core.Var); ok {
+		if activeResolvedCallees != nil && activeResolvedCallees[v.Name] {
+			return encodeUserFunctionCall(v.Name, app.Args)
+		}
+		// Otherwise treat as constructor reference
 		name := stripConstructorPrefix(v.Name)
 		if len(app.Args) == 0 {
 			return name, nil
@@ -324,6 +375,23 @@ func encodeBuiltinOp(smtOp string, args []core.CoreExpr) (string, error) {
 		return fmt.Sprintf("(%s %s %s)", smtOp, left, right), nil
 	}
 	return "", fmt.Errorf("builtin %q with unexpected arity %d", smtOp, len(args))
+}
+
+// encodeUserFunctionCall encodes a call to a user-defined function
+// that has been resolved as a define-fun in the SMT-LIB context.
+func encodeUserFunctionCall(funcName string, args []core.CoreExpr) (string, error) {
+	if len(args) == 0 {
+		return fmt.Sprintf("(%s)", funcName), nil
+	}
+	encodedArgs := make([]string, len(args))
+	for i, arg := range args {
+		encoded, err := EncodeExpr(arg)
+		if err != nil {
+			return "", fmt.Errorf("function call %s arg %d: %w", funcName, i, err)
+		}
+		encodedArgs[i] = encoded
+	}
+	return fmt.Sprintf("(%s %s)", funcName, strings.Join(encodedArgs, " ")), nil
 }
 
 // encodeConstructorApp encodes an ADT constructor application.

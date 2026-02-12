@@ -12,6 +12,7 @@ import AccessControlExample from '!!raw-loader!@site/../examples/runnable/contra
 import TemperatureExample from '!!raw-loader!@site/../examples/runnable/contracts/temperature.ail';
 import InsuranceExample from '!!raw-loader!@site/../examples/runnable/contracts/insurance.ail';
 import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/scoring.ail';
+import CrossFunctionExample from '!!raw-loader!@site/../examples/runnable/contracts/cross_function.ail';
 
 # Contracts & Verification
 
@@ -245,6 +246,37 @@ $ ailang verify examples/runnable/contracts/scoring.ail
 
 The counterexample shows: EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. This specific combination would likely never appear in unit tests.
 
+### Cross-Function Verification
+
+Functions that call other user-defined functions are verified by **inlining the callee as a `define-fun`** in the SMT-LIB context. Z3 then reasons about the caller with full knowledge of what the callee computes:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/cross_function.ail">
+  {CrossFunctionExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/cross_function.ail
+
+  ✓ VERIFIED baseCost              5ms
+  ✓ VERIFIED priorityMultiplier    4ms
+  ✓ VERIFIED shippingCost          4ms    # calls baseCost + priorityMultiplier
+  ✓ VERIFIED discountedCost       32ms    # calls shippingCost (transitive 3-level chain)
+
+  4 functions: 4 verified
+```
+
+**How it works:**
+1. The callee resolver walks the function body for user-defined function calls
+2. Callees are topologically sorted (if A calls B, B's `define-fun` appears first)
+3. Each callee is emitted as `(define-fun name ((params)) RetSort body)` in the SMT-LIB output
+4. The caller can then use the callee name as a regular function in its body
+5. Circular calls are detected and rejected with a clear error
+
+**Limitations:**
+- Callees must also be in the decidable fragment (pure, non-recursive, encodable types)
+- Recursive call chains are rejected (would require induction)
+- Very deep call chains may slow down Z3 (each inlined definition increases formula size)
+
 ### Verification Output States
 
 | Status | Symbol | Meaning |
@@ -265,6 +297,7 @@ The counterexample shows: EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104,
 - Logical: `&&`, `||`, `!`
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums and ADTs
+- Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
 - Must be pure: `! {}` (no effects)
 
 **Currently skipped (with hints):**
@@ -276,7 +309,7 @@ The counterexample shows: EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104,
 | Strings | Encoding not yet implemented | Yes — Z3 has full string theory |
 | Lists | Encoding not yet implemented | Yes — Z3 has sequence theory |
 | Records | Encoding not yet implemented | Yes — via SMT-LIB datatypes |
-| Cross-function calls | Each function verified in isolation | Yes — via inlining or `define-fun` |
+| ~~Cross-function calls~~ | ~~Each function verified in isolation~~ | **Supported** — via `define-fun` inlining |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:

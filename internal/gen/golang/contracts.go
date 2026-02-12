@@ -541,9 +541,60 @@ func intrinsicOpToString(op core.IntrinsicOp) string {
 }
 
 // generateEnsuresApp generates a function application within an ensures predicate.
-// Handles runtime helpers and substitutes 'result' in arguments.
+// M-CONTRACTS-OPLOWERING: After op lowering, contract predicates like `result >= 0`
+// become App{Func: VarGlobal("$builtin", "ge_Int"), Args: [Var("result"), Lit(0)]}.
+// We recognize these lowered builtin calls and generate typed Go operators with
+// proper 'result' → resultVar substitution.
 func (g *Generator) generateEnsuresApp(app *core.App, resultVar string, retType string) error {
-	// For now, generate as a normal expression but with result substitution
-	// The ensures predicates typically use simple comparisons which are handled by BinOp
+	// Check if this is a lowered builtin comparison/arithmetic call
+	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
+		if goOp := builtinNameToGoOp(vg.Ref.Name); goOp != "" && len(app.Args) == 2 {
+			// Binary builtin: generate as typed Go operator with result substitution
+			g.write("(")
+			if err := g.generateEnsuresPredicate(app.Args[0], resultVar, retType); err != nil {
+				return err
+			}
+			g.writef(" %s ", goOp)
+			if err := g.generateEnsuresPredicate(app.Args[1], resultVar, retType); err != nil {
+				return err
+			}
+			g.write(")")
+			return nil
+		}
+	}
+	// Fallback: generate as normal expression (no result substitution possible)
 	return g.generateExpr(app)
+}
+
+// builtinNameToGoOp maps lowered builtin function names back to Go operators.
+// Returns empty string if the builtin doesn't map to a simple Go operator.
+func builtinNameToGoOp(name string) string {
+	switch name {
+	// Comparison operators
+	case "ge_Int", "ge_Float", "ge_String":
+		return ">="
+	case "gt_Int", "gt_Float", "gt_String":
+		return ">"
+	case "le_Int", "le_Float", "le_String":
+		return "<="
+	case "lt_Int", "lt_Float", "lt_String":
+		return "<"
+	case "eq_Int", "eq_Float", "eq_String", "eq_Bool":
+		return "=="
+	case "ne_Int", "ne_Float", "ne_String", "ne_Bool":
+		return "!="
+	// Arithmetic operators
+	case "add_Int", "add_Float":
+		return "+"
+	case "sub_Int", "sub_Float":
+		return "-"
+	case "mul_Int", "mul_Float":
+		return "*"
+	case "div_Int", "div_Float":
+		return "/"
+	case "mod_Int":
+		return "%"
+	default:
+		return ""
+	}
 }

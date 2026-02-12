@@ -15,13 +15,17 @@ type SMTContext struct {
 	Variables map[string]string
 	// DeclaredTypes tracks which ADT types have been declared.
 	DeclaredTypes map[string]bool
+	// ResolvedCallees tracks function names that have been resolved
+	// as define-fun declarations for cross-function call support.
+	ResolvedCallees map[string]bool
 }
 
 // NewSMTContext creates a new SMT encoding context.
 func NewSMTContext() *SMTContext {
 	return &SMTContext{
-		Variables:     make(map[string]string),
-		DeclaredTypes: make(map[string]bool),
+		Variables:       make(map[string]string),
+		DeclaredTypes:   make(map[string]bool),
+		ResolvedCallees: make(map[string]bool),
 	}
 }
 

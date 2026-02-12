@@ -1146,9 +1146,10 @@
         "contracts",
         "smt-verification",
         "ailang-verify",
-        "counterexample"
+        "counterexample",
+        "cross-function-calls"
       ],
-      "description": "Financial calculations with provably correct tax rules and intentional counterexample demo"
+      "description": "Financial calculations with cross-function calls, provably correct tax rules, and counterexample demo"
     },
     {
       "path": "runnable/contracts/access_control.ail",
@@ -1157,9 +1158,10 @@
         "contracts",
         "smt-verification",
         "ailang-verify",
-        "security"
+        "security",
+        "cross-function-calls"
       ],
-      "description": "Role-based access control with Z3-verified security properties"
+      "description": "Role-based access control with cross-function calls and Z3-verified security properties"
     },
     {
       "path": "runnable/contracts/temperature.ail",
@@ -1195,6 +1197,18 @@
         "scoring"
       ],
       "description": "Multi-factor scoring system — Z3 finds score exceeds 100 in specific enum combination"
+    },
+    {
+      "path": "runnable/contracts/cross_function.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "cross-function-calls",
+        "transitive"
+      ],
+      "description": "Cross-function verification — Z3 inlines callee definitions to verify 3-level call chains"
     },
     {
       "path": "hello_world.ail",

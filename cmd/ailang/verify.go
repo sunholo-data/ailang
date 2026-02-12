@@ -119,6 +119,29 @@ func verifyCommand() {
 		}
 	}
 
+	// Build surface params and return sorts for all functions (for cross-function call resolution)
+	allSurfaceParams := make(map[string][]smt.FunctionParam)
+	allSurfaceReturnSorts := make(map[string]string)
+	for funcName, fd := range surfaceFuncs {
+		var params []smt.FunctionParam
+		for _, p := range fd.Params {
+			paramType := convertASTTypeToType(p.Type)
+			if paramType != nil {
+				params = append(params, smt.FunctionParam{Name: p.Name, Type: paramType})
+			}
+		}
+		allSurfaceParams[funcName] = params
+		if fd.ReturnType != nil {
+			allSurfaceReturnSorts[funcName] = astTypeToSMTSort(fd.ReturnType)
+		}
+	}
+
+	encOpts := smt.EncodeFunctionOpts{
+		Program:            coreProg,
+		SurfaceParams:      allSurfaceParams,
+		SurfaceReturnSorts: allSurfaceReturnSorts,
+	}
+
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
 		if len(meta.Contracts) == 0 {
@@ -181,8 +204,8 @@ func verifyCommand() {
 			returnSort = astTypeToSMTSort(fd.ReturnType)
 		}
 
-		// Encode function to SMT-LIB
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes)
+		// Encode function to SMT-LIB (with cross-function call support)
+		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, encOpts)
 		if err != nil {
 			results = append(results, verifyResult{
 				Function: funcName,

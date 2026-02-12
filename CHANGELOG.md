@@ -16,6 +16,13 @@
   - Counterexample display: shows variable assignments that violate postconditions
   - Pure function fixup: treats `! {}` (empty effects) as pure for verification
   - Example: `ailang verify examples/runnable/contracts/park.ail` proves admissionFee result >= 0
+  - **Cross-function call verification** (`callee_resolver.go`, ~320 LOC impl + ~290 LOC tests)
+    - Functions calling other user-defined functions now verified via `(define-fun)` inlining
+    - Topological ordering: callees emitted before callers (handles transitive chains)
+    - Cycle detection: circular function calls produce clear error messages
+    - Both same-module (`Var`) and cross-module (`VarGlobal`) references resolved
+    - Example: `netIncome(gross, bracket) { gross - calculateTax(gross, bracket) }` fully verified
+    - New example: `cross_function.ail` demonstrates 3-level call chain verification
 
 - **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
   - New `internal/trace/` package: schema, collector, JSONL serializer

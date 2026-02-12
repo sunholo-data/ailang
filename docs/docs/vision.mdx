@@ -41,7 +41,7 @@ AILANG's design rests on five pillars that together form a coherent system for t
 | Pillar | What It Means | Status |
 |--------|---------------|--------|
 | **1. Symbolic/Concrete Separation** | Programs represent symbolic intent; concrete values arise at execution within constraints | Core AST, elaboration, deterministic eval |
-| **2. Effects as Relations** | Effects are `(Intent × EffContext) ⇒ {Outcome | Constraints}`, not opaque functions | Capabilities, budgets (`@limit=N`), policies |
+| **2. Effects as Relations** | Effects are `(Intent × EffContext) ⇒ Outcome \| Constraints`, not opaque functions | Capabilities, budgets (`@limit=N`), policies |
 | **3. Contracts as Specs** | `requires`/`ensures` are symbolic predicates for AI-facing specifications | Runtime enforcement, panic/warn modes |
 | **4. Traces as Artifacts** | Execution produces structured, replayable, auditable traces | Agent traces (`ailang chains`) + program traces (`--emit-trace`) |
 | **5. Explicit Authority** | All authority must be declared, bounded, and enforced — no ambient capabilities | Deny-by-default `--caps`, budget limits, structured failures |

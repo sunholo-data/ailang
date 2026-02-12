@@ -1,0 +1,443 @@
+package smt
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/sunholo/ailang/internal/core"
+)
+
+// CalleeInfo describes a resolved callee function for SMT encoding.
+type CalleeInfo struct {
+	Name       string
+	Params     []FunctionParam
+	Body       core.CoreExpr
+	ReturnSort string
+	ADTTypes   map[string][]ADTVariant
+}
+
+// CalleeDef holds a ready-to-emit SMT-LIB define-fun for a callee.
+type CalleeDef struct {
+	Name    string
+	SMTLib  string // The (define-fun ...) declaration
+	ADTDecl string // Any ADT declarations needed (may be empty)
+}
+
+// ResolveCallees finds all user-defined function calls in the body,
+// resolves their Core bodies from the program, and returns ordered
+// define-fun declarations for SMT-LIB emission.
+//
+// The returned definitions are topologically ordered: if A calls B,
+// B's definition appears before A's. Circular calls are detected
+// and produce an error.
+func ResolveCallees(
+	funcName string,
+	body core.CoreExpr,
+	prog *core.Program,
+	surfaceParams map[string][]FunctionParam,
+	surfaceReturnSorts map[string]string,
+	adtTypes map[string][]ADTVariant,
+) ([]CalleeDef, error) {
+	if prog == nil {
+		return nil, nil
+	}
+
+	// Find all user-defined function calls in the body
+	callees := collectCalleeCalls(body, funcName, prog)
+	if len(callees) == 0 {
+		return nil, nil
+	}
+
+	// Build topological order with cycle detection
+	order, err := topoSort(callees, funcName, prog)
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode each callee as a define-fun
+	var defs []CalleeDef
+	for _, calleeName := range order {
+		calleeBody := findFuncBody(prog, calleeName)
+		if calleeBody == nil {
+			continue
+		}
+
+		// Unwrap lambda to get inner body
+		_, innerBody := unwrapLambda(calleeBody)
+
+		// Check if callee is SMT-encodable
+		meta := prog.Meta[calleeName]
+		if meta == nil {
+			continue
+		}
+		encodable, _ := IsSMTEncodableForCallee(calleeName, meta, calleeBody)
+		if !encodable {
+			continue
+		}
+
+		// Get params and return sort
+		params := surfaceParams[calleeName]
+		returnSort := surfaceReturnSorts[calleeName]
+		if returnSort == "" {
+			returnSort = "Int"
+		}
+
+		// Encode the callee body
+		bodyExpr, err := EncodeExpr(innerBody)
+		if err != nil {
+			// Skip callees we can't encode rather than failing the whole verification
+			continue
+		}
+
+		// Build define-fun
+		smtDef := buildDefineFun(calleeName, params, returnSort, bodyExpr)
+		defs = append(defs, CalleeDef{
+			Name:   calleeName,
+			SMTLib: smtDef,
+		})
+	}
+
+	return defs, nil
+}
+
+// buildDefineFun generates an SMT-LIB define-fun declaration.
+//
+//	(define-fun name ((p1 Sort1) (p2 Sort2)) RetSort body)
+func buildDefineFun(name string, params []FunctionParam, returnSort string, bodyExpr string) string {
+	var paramParts []string
+	for _, p := range params {
+		sort, err := MapType(p.Type)
+		if err != nil {
+			sort = "Int" // fallback
+		}
+		paramParts = append(paramParts, fmt.Sprintf("(%s %s)", p.Name, sort))
+	}
+	return fmt.Sprintf("(define-fun %s (%s) %s %s)",
+		name, strings.Join(paramParts, " "), returnSort, bodyExpr)
+}
+
+// collectCalleeCalls walks the body and collects names of user-defined
+// functions that are called (VarGlobal references where module != "$builtin").
+func collectCalleeCalls(body core.CoreExpr, selfName string, prog *core.Program) []string {
+	seen := make(map[string]bool)
+	collectCalleeCallsInner(body, selfName, prog, seen)
+	var result []string
+	for name := range seen {
+		result = append(result, name)
+	}
+	return result
+}
+
+func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, seen map[string]bool) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *core.App:
+		// Check if function is a user-defined call via VarGlobal (cross-module)
+		if vg, ok := e.Func.(*core.VarGlobal); ok {
+			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
+				// Check if this is actually a function in the program (not an ADT constructor)
+				if findFuncBody(prog, vg.Ref.Name) != nil {
+					if !seen[vg.Ref.Name] {
+						seen[vg.Ref.Name] = true
+						// Recursively check the callee's body for transitive calls
+						calleeBody := findFuncBody(prog, vg.Ref.Name)
+						if calleeBody != nil {
+							_, innerBody := unwrapLambda(calleeBody)
+							collectCalleeCallsInner(innerBody, selfName, prog, seen)
+						}
+					}
+				}
+			}
+		}
+		// Check if function is a user-defined call via plain Var (same-module)
+		if v, ok := e.Func.(*core.Var); ok {
+			if v.Name != selfName {
+				if findFuncBody(prog, v.Name) != nil {
+					if !seen[v.Name] {
+						seen[v.Name] = true
+						calleeBody := findFuncBody(prog, v.Name)
+						if calleeBody != nil {
+							_, innerBody := unwrapLambda(calleeBody)
+							collectCalleeCallsInner(innerBody, selfName, prog, seen)
+						}
+					}
+				}
+			}
+		}
+		// Also check for curried calls: App(App(VarGlobal(...), args1), args2)
+		if innerApp, ok := e.Func.(*core.App); ok {
+			collectCalleeCallsInner(innerApp, selfName, prog, seen)
+		}
+		// Walk arguments
+		for _, arg := range e.Args {
+			collectCalleeCallsInner(arg, selfName, prog, seen)
+		}
+		collectCalleeCallsInner(e.Func, selfName, prog, seen)
+	case *core.If:
+		collectCalleeCallsInner(e.Cond, selfName, prog, seen)
+		collectCalleeCallsInner(e.Then, selfName, prog, seen)
+		collectCalleeCallsInner(e.Else, selfName, prog, seen)
+	case *core.Let:
+		collectCalleeCallsInner(e.Value, selfName, prog, seen)
+		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			collectCalleeCallsInner(b.Value, selfName, prog, seen)
+		}
+		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+	case *core.Match:
+		collectCalleeCallsInner(e.Scrutinee, selfName, prog, seen)
+		for _, arm := range e.Arms {
+			collectCalleeCallsInner(arm.Body, selfName, prog, seen)
+		}
+	case *core.BinOp:
+		collectCalleeCallsInner(e.Left, selfName, prog, seen)
+		collectCalleeCallsInner(e.Right, selfName, prog, seen)
+	case *core.UnOp:
+		collectCalleeCallsInner(e.Operand, selfName, prog, seen)
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			collectCalleeCallsInner(arg, selfName, prog, seen)
+		}
+	case *core.DictApp:
+		collectCalleeCallsInner(e.Dict, selfName, prog, seen)
+		for _, arg := range e.Args {
+			collectCalleeCallsInner(arg, selfName, prog, seen)
+		}
+	case *core.DictAbs:
+		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+	case *core.Lambda:
+		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+	}
+}
+
+// topoSort returns a topological ordering of callee functions.
+// If A calls B, B appears before A in the result.
+// Returns error if circular dependencies are detected.
+func topoSort(callees []string, rootFunc string, prog *core.Program) ([]string, error) {
+	// Build adjacency: for each callee, find what it calls
+	adj := make(map[string][]string)
+	for _, name := range callees {
+		body := findFuncBody(prog, name)
+		if body == nil {
+			continue
+		}
+		_, innerBody := unwrapLambda(body)
+		deps := collectDirectCalls(innerBody, name, prog)
+		adj[name] = deps
+	}
+
+	// DFS-based topological sort with cycle detection
+	var order []string
+	state := make(map[string]int) // 0=unvisited, 1=visiting, 2=visited
+	var cycle []string
+
+	var visit func(string) error
+	visit = func(name string) error {
+		if state[name] == 2 {
+			return nil
+		}
+		if state[name] == 1 {
+			cycle = append(cycle, name)
+			return fmt.Errorf("circular function call detected: %s", strings.Join(cycle, " → "))
+		}
+		state[name] = 1
+		cycle = append(cycle, name)
+		for _, dep := range adj[name] {
+			if err := visit(dep); err != nil {
+				return err
+			}
+		}
+		state[name] = 2
+		cycle = cycle[:len(cycle)-1]
+		order = append(order, name)
+		return nil
+	}
+
+	for _, name := range callees {
+		if state[name] == 0 {
+			if err := visit(name); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return order, nil
+}
+
+// collectDirectCalls collects only the direct (non-transitive) callee references
+// in a function body. Used for building the dependency graph.
+func collectDirectCalls(body core.CoreExpr, selfName string, prog *core.Program) []string {
+	seen := make(map[string]bool)
+	collectDirectCallsInner(body, selfName, prog, seen)
+	var result []string
+	for name := range seen {
+		result = append(result, name)
+	}
+	return result
+}
+
+func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Program, seen map[string]bool) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *core.App:
+		if vg, ok := e.Func.(*core.VarGlobal); ok {
+			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
+				if findFuncBody(prog, vg.Ref.Name) != nil {
+					seen[vg.Ref.Name] = true
+				}
+			}
+		}
+		// Also check plain Var (same-module function references)
+		if v, ok := e.Func.(*core.Var); ok {
+			if v.Name != selfName {
+				if findFuncBody(prog, v.Name) != nil {
+					seen[v.Name] = true
+				}
+			}
+		}
+		for _, arg := range e.Args {
+			collectDirectCallsInner(arg, selfName, prog, seen)
+		}
+		collectDirectCallsInner(e.Func, selfName, prog, seen)
+	case *core.If:
+		collectDirectCallsInner(e.Cond, selfName, prog, seen)
+		collectDirectCallsInner(e.Then, selfName, prog, seen)
+		collectDirectCallsInner(e.Else, selfName, prog, seen)
+	case *core.Let:
+		collectDirectCallsInner(e.Value, selfName, prog, seen)
+		collectDirectCallsInner(e.Body, selfName, prog, seen)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			collectDirectCallsInner(b.Value, selfName, prog, seen)
+		}
+		collectDirectCallsInner(e.Body, selfName, prog, seen)
+	case *core.Match:
+		collectDirectCallsInner(e.Scrutinee, selfName, prog, seen)
+		for _, arm := range e.Arms {
+			collectDirectCallsInner(arm.Body, selfName, prog, seen)
+		}
+	case *core.BinOp:
+		collectDirectCallsInner(e.Left, selfName, prog, seen)
+		collectDirectCallsInner(e.Right, selfName, prog, seen)
+	case *core.UnOp:
+		collectDirectCallsInner(e.Operand, selfName, prog, seen)
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			collectDirectCallsInner(arg, selfName, prog, seen)
+		}
+	case *core.DictApp:
+		collectDirectCallsInner(e.Dict, selfName, prog, seen)
+		for _, arg := range e.Args {
+			collectDirectCallsInner(arg, selfName, prog, seen)
+		}
+	case *core.DictAbs:
+		collectDirectCallsInner(e.Body, selfName, prog, seen)
+	case *core.Lambda:
+		collectDirectCallsInner(e.Body, selfName, prog, seen)
+	}
+}
+
+// findFuncBody finds a function's body expression in the Core program.
+func findFuncBody(prog *core.Program, funcName string) core.CoreExpr {
+	for _, decl := range prog.Decls {
+		switch d := decl.(type) {
+		case *core.LetRec:
+			for _, binding := range d.Bindings {
+				if binding.Name == funcName {
+					return binding.Value
+				}
+			}
+		case *core.Let:
+			if d.Name == funcName {
+				return d.Value
+			}
+		}
+	}
+	return nil
+}
+
+// unwrapLambda peels Lambda nodes from a Core expression,
+// returning param names and the inner body.
+func unwrapLambda(body core.CoreExpr) ([]string, core.CoreExpr) {
+	var params []string
+	inner := body
+	for {
+		lam, ok := inner.(*core.Lambda)
+		if !ok {
+			break
+		}
+		params = append(params, lam.Params...)
+		inner = lam.Body
+	}
+	return params, inner
+}
+
+// IsSMTEncodableForCallee checks if a function can be used as a callee
+// in cross-function verification. Similar to IsSMTEncodable but doesn't
+// require contracts (callees don't need their own contracts to be inlined).
+func IsSMTEncodableForCallee(funcName string, meta *core.DeclMeta, body core.CoreExpr) (bool, []SMTRejectionReason) {
+	var reasons []SMTRejectionReason
+
+	// Must be pure
+	if !isPure(meta) {
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectNotPure,
+			Message: fmt.Sprintf("Callee %q has effects", funcName),
+		})
+	}
+
+	// Must be non-recursive
+	if isRecursive(body, funcName) {
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectRecursive,
+			Message: fmt.Sprintf("Callee %q is recursive", funcName),
+		})
+	}
+
+	// No higher-order functions
+	if hasHigherOrder(body) {
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectHigherOrder,
+			Message: fmt.Sprintf("Callee %q uses higher-order functions", funcName),
+		})
+	}
+
+	// Encodable types only
+	if hasUnencodableTypes(body) {
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectUnencodable,
+			Message: fmt.Sprintf("Callee %q uses unencodable types", funcName),
+		})
+	}
+
+	return len(reasons) == 0, reasons
+}
+
+// IsUserDefinedCall checks whether an App expression represents a call to
+// a user-defined function (not a builtin or ADT constructor).
+// Handles both VarGlobal (cross-module) and plain Var (same-module) references.
+func IsUserDefinedCall(app *core.App, prog *core.Program) (string, bool) {
+	// Check VarGlobal (cross-module references)
+	if vg, ok := app.Func.(*core.VarGlobal); ok {
+		if vg.Ref.Module == "$builtin" {
+			return "", false
+		}
+		name := vg.Ref.Name
+		if findFuncBody(prog, name) != nil {
+			return name, true
+		}
+		return "", false
+	}
+	// Check plain Var (same-module references)
+	if v, ok := app.Func.(*core.Var); ok {
+		if findFuncBody(prog, v.Name) != nil {
+			return v.Name, true
+		}
+	}
+	return "", false
+}

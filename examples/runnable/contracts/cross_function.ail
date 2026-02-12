@@ -1,0 +1,59 @@
+-- examples/runnable/contracts/cross_function.ail
+-- Cross-function contract verification demonstration
+-- Shows Z3 inlining callee definitions via (define-fun) to verify callers
+-- Demonstrates: transitive calls, callee chain, compositional verification
+
+module examples/runnable/contracts/cross_function
+
+-- Delivery pricing with layered business rules
+export type Region = DOMESTIC | INTERNATIONAL
+export type Priority = EXPRESS | STANDARD | ECONOMY
+
+-- Base shipping cost depends on region
+export func baseCost(region: Region) -> int ! {}
+ensures { result >= 0 }
+{
+  match region {
+    DOMESTIC => 5,
+    INTERNATIONAL => 15
+  }
+}
+
+-- Priority multiplier (1x, 2x, or 3x)
+export func priorityMultiplier(priority: Priority) -> int ! {}
+ensures { result >= 1 }
+{
+  match priority {
+    ECONOMY => 1,
+    STANDARD => 2,
+    EXPRESS => 3
+  }
+}
+
+-- Total shipping cost — CALLS baseCost AND priorityMultiplier
+-- Z3 inlines both callees and proves result >= 0
+export func shippingCost(region: Region, priority: Priority) -> int ! {}
+ensures { result >= 0 }
+{
+  baseCost(region) * priorityMultiplier(priority)
+}
+
+-- Apply a discount (clamped to never go below zero)
+-- CALLS shippingCost (transitive: shippingCost -> baseCost, priorityMultiplier)
+-- Z3 verifies the full 3-function call chain
+export func discountedCost(region: Region, priority: Priority, discount: int) -> int ! {}
+requires { discount >= 0 }
+ensures { result >= 0 }
+{
+  let total = shippingCost(region, priority);
+  if total >= discount then total - discount else 0
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  let domestic = shippingCost(DOMESTIC, STANDARD);       -- 10
+  let intl = shippingCost(INTERNATIONAL, EXPRESS);       -- 45
+  let discounted = discountedCost(DOMESTIC, ECONOMY, 3); -- 2
+  domestic + intl + discounted
+}

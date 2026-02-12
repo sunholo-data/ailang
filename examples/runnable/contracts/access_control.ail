@@ -1,6 +1,6 @@
 -- examples/runnable/contracts/access_control.ail
 -- Role-based access control with verified security properties
--- Demonstrates: enum ADTs, bounded integer contracts, policy verification
+-- Demonstrates: enum ADTs, bounded integer contracts, cross-function calls
 
 module examples/runnable/contracts/access_control
 
@@ -22,7 +22,7 @@ ensures { result >= 0 }
   }
 }
 
--- Check if a role has sufficient access
+-- Check if a role has sufficient access — CALLS accessLevel (cross-function!)
 export func canAccess(role: Role, requiredLevel: int) -> Permission ! {}
 requires { requiredLevel >= 0 }
 {
@@ -30,16 +30,12 @@ requires { requiredLevel >= 0 }
 }
 
 -- Calculate effective permission level after applying a penalty
--- Z3 proves: effective level never goes negative
+-- CALLS accessLevel — Z3 inlines it and proves result >= 0
 export func effectiveLevel(role: Role, penalty: int) -> int ! {}
 requires { penalty >= 0 }
 ensures { result >= 0 }
 {
-  let base = match role {
-    ADMIN => 100,
-    EDITOR => 50,
-    VIEWER => 10
-  };
+  let base = accessLevel(role);
   if base >= penalty then base - penalty else 0
 }
 

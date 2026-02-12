@@ -1,6 +1,6 @@
 -- examples/runnable/contracts/finance.ail
 -- Financial calculations with provably correct business rules
--- Demonstrates: enum ADTs, arithmetic contracts, intentional counterexample
+-- Demonstrates: enum ADTs, arithmetic contracts, cross-function calls, counterexample
 
 module examples/runnable/contracts/finance
 
@@ -20,18 +20,13 @@ ensures { result >= 0 }
   }
 }
 
--- Net income after tax (self-contained for SMT verification)
--- Z3 proves: net income is always non-negative
+-- Net income after tax — CALLS calculateTax (cross-function verification!)
+-- Z3 inlines calculateTax as (define-fun) and proves netIncome >= 0
 export func netIncome(gross: int, bracket: TaxBracket) -> int ! {}
 requires { gross >= 0 }
 ensures { result >= 0 }
 {
-  let tax = match bracket {
-    EXEMPT => 0,
-    REDUCED => gross / 10,
-    STANDARD => gross / 5
-  };
-  gross - tax
+  gross - calculateTax(gross, bracket)
 }
 
 -- Intentionally BROKEN contract for counterexample demonstration
