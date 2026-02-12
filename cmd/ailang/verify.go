@@ -332,6 +332,8 @@ func astTypeToSMTSort(t ast.Type) string {
 			return "Real"
 		case "bool":
 			return "Bool"
+		case "string":
+			return "String"
 		default:
 			return ty.Name // ADT type name
 		}

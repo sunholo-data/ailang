@@ -14,6 +14,7 @@ import InsuranceExample from '!!raw-loader!@site/../examples/runnable/contracts/
 import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/scoring.ail';
 import CrossFunctionExample from '!!raw-loader!@site/../examples/runnable/contracts/cross_function.ail';
 import RecordVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/record_verify.ail';
+import StringVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/string_verify.ail';
 
 # Contracts & Verification
 
@@ -302,9 +303,49 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 4. Functional update (`{p with x: 20}`) reconstructs with the constructor: `(mk_Record_x_y 20 (y p))`
 
 **Limitations:**
-- Record fields must use encodable types (int, bool, enum ADTs — not strings or lists)
+- Record fields must use encodable types (int, bool, string, enum ADTs — not lists)
 - Record return types are not yet supported in function signatures (parser limitation)
 - Named record type declarations can be used via type aliases
+
+### String Verification
+
+String parameters, literals, concatenation, length, comparison, and substring operations can all be verified by Z3 using its built-in string theory:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/string_verify.ail">
+  {StringVerifyExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/string_verify.ail
+
+  ✓ VERIFIED safeConcat          20ms
+  ✓ VERIFIED isEqual              5ms
+  ✗ VIOLATION brokenPrefixCheck
+    Counterexample:
+      prefix: String = "A"
+      s: String = "B"
+
+  3 functions: 2 verified, 1 violations
+```
+
+Z3 proved that `safeConcat` always produces a result at least as long as `a`, and that `isEqual` correctly returns the equality check. For `brokenPrefixCheck`, Z3 found that `s="B"` doesn't start with `prefix="A"`, so the result is `false` — violating `ensures { result == true }`.
+
+**Supported string operations:**
+
+| AILANG | Z3 SMT-LIB | Purpose |
+|--------|-----------|---------|
+| `a ++ b` | `str.++` | Concatenation |
+| `eq_String(a, b)` | `=` | Equality |
+| `ne_String(a, b)` | `distinct` | Inequality |
+| `lt_String(a, b)` | `str.<` | Lexicographic less-than |
+| `le_String(a, b)` | `str.<=` | Less-than-or-equal |
+| `_str_len(s)` | `str.len` | String length |
+| `_str_find(s, t)` | `str.indexof` | Find substring |
+| `_str_slice(s, i, j)` | `str.substr` | Substring extraction |
+| `_str_startsWith(s, p)` | `str.prefixof` | Prefix check |
+| `_str_endsWith(s, x)` | `str.suffixof` | Suffix check |
+
+**Not yet encodable:** `_str_trim`, `_str_upper`, `_str_lower` (no Z3 equivalent), `_str_split`, `_str_chars` (return lists — requires Phase D).
 
 ### Verification Output States
 
@@ -320,10 +361,11 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 `ailang verify` can verify functions that stay within a decidable subset of the language:
 
 **Currently supported:**
-- `int`, `bool`, and enum/ADT parameters and return types
+- `int`, `bool`, `string`, and enum/ADT parameters and return types
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
+- String operations: `++` (concat), `_str_len`, `_str_find`, `_str_slice`, `_str_startsWith`, `_str_endsWith`, string comparisons
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums and ADTs
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`)
@@ -336,7 +378,6 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 |---------|--------|-------------|
 | Recursive functions | Requires induction proofs | Partially — bounded unrolling planned |
 | Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
-| Strings | Encoding not yet implemented | Yes — Z3 has full string theory |
 | Lists | Encoding not yet implemented | Yes — Z3 has sequence theory |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
 
@@ -363,6 +404,106 @@ Functions outside the fragment are skipped with clear messages explaining why an
 
 AILANG is unique in combining compile-time verification with an effect system and deterministic execution traces — making it ideal for AI code generation workflows where you want to **prove** the generated code is correct.
 
+## Why AILANG Makes Verification Easier
+
+Adding SMT verification to a mainstream language like Go or Python is extremely hard. AILANG's design eliminates most of the complexity at the language level, so the verification tooling can be simple and reliable.
+
+### Purity is tracked, not inferred
+
+In AILANG, every function declares its effects: `! {}` means pure, `! {IO}` means it does I/O. The SMT encoder checks one flag to know if a function is verifiable:
+
+```ailang
+-- Pure: SMT can verify this
+export func tax(income: int) -> int ! {}
+requires { income >= 0 }
+ensures { result >= 0 }
+{ income * 20 / 100 }
+
+-- Effectful: SMT skips this (with clear message)
+export func logAndTax(income: int) -> int ! {IO}
+requires { income >= 0 }
+ensures { result >= 0 }
+{ println(income); income * 20 / 100 }
+```
+
+In Go or Python, determining whether a function is pure requires **whole-program analysis** — tracing through every call to check for global writes, I/O, or mutation. This analysis is unsolvable in general for those languages. In AILANG, it's a single field lookup.
+
+### Expressions map directly to SMT-LIB
+
+AILANG has no statements — everything is an expression that returns a value. This maps almost 1:1 to SMT-LIB, which is also expression-based:
+
+| AILANG | SMT-LIB |
+|--------|---------|
+| `let x = 3` | `(let ((x 3)) ...)` |
+| `if a { b } else { c }` | `(ite a b c)` |
+| `match status { A => 1, B => 2 }` | `(match status ((A 1) (B 2)))` |
+
+In Go, `if` is a statement, assignment mutates variables, and `switch` can fall through. In Python, `if`/`elif` chains and assignments would need to be transformed into nested expressions before encoding. AILANG's expression-based design eliminates this entire translation layer.
+
+### A-Normal Form is already done
+
+AILANG compiles surface syntax into a Core intermediate representation that's already in let-normal form. By the time the SMT encoder sees the code, complex subexpressions are broken into named bindings:
+
+```
+-- Surface AILANG
+manhattan(p) + getX(p)
+
+-- Core (what SMT encoder receives)
+let _t1 = manhattan(p) in
+let _t2 = getX(p) in
+add_Int(_t1, _t2)
+```
+
+Each `let` becomes an SMT `let`. In Go or Python, building this transformation (called A-normalization or SSA conversion) from scratch is an entire compiler pass.
+
+### No mutation means no aliasing problem
+
+AILANG variables are immutable bindings. There are no pointers, no references, no reassignment. This means:
+
+- No need to model memory or heap state in SMT
+- No aliasing analysis (does `x` point to the same thing as `y`?)
+- No need to track "which version of variable `x` at which point in time?"
+
+In Go, you'd need to handle pointers, slices, and maps — all mutable, all aliasable. In Python, everything is mutable by default. Modeling mutable state in SMT requires encoding a memory model, which is what makes tools like CBMC and Klee so complex.
+
+### ADTs map directly to SMT datatypes
+
+AILANG's algebraic data types:
+
+```ailang
+type FlightStatus = DEPARTED | CANCELLED | DELAYED
+```
+
+become SMT datatypes with zero transformation:
+
+```
+(declare-datatype FlightStatus ((DEPARTED) (CANCELLED) (DELAYED)))
+```
+
+And exhaustive pattern matching (enforced by the compiler) means every case is covered — the SMT encoding never needs to handle "what if no branch matches?"
+
+In Go, you'd use interfaces with type switches (not exhaustive) or integer constants (no compiler-enforced coverage). In Python, there are no native ADTs — you'd need to encode class hierarchies or string unions.
+
+### No loops to reason about
+
+AILANG has no `for` or `while` loops. The verifiable fragment simply rejects recursive functions, and the remaining non-recursive functions are exactly the decidable fragment that SMT solvers handle well.
+
+In Go or Python, verifying loops requires discovering **loop invariants** — statements that remain true before and after each iteration. Finding loop invariants automatically is one of the hardest problems in program verification, and is what makes tools like Dafny and SPARK so difficult to use. AILANG avoids this problem entirely.
+
+### Contracts are first-class, not bolted on
+
+`requires` and `ensures` are part of AILANG's grammar. The parser, elaborator, type checker, and code generator all know about contracts at every stage. In Go, contracts would be comments or magic annotations requiring a separate extraction tool. In Python, they'd be decorators needing their own parser. Both approaches create a gap between the contract specification and the compiler's understanding of the code.
+
+### Complete type information everywhere
+
+AILANG's [CoreTypeInfo invariant](/docs/reference/language-syntax) guarantees that every AST node has a known type after compilation. The SMT encoder can look up the type of any subexpression to determine its SMT sort. In Python, you'd need to run a separate type inference engine (mypy-level complexity) that often returns `Any` for dynamic code. Go has types, but its simpler type system can't express the same generic contracts.
+
+### The net effect
+
+The "verifiable fragment" (pure, non-recursive, no higher-order functions, quantifier-free logic) describes a **large and natural subset** of AILANG programs — business rules, validation logic, pricing functions, game mechanics. In Go or Python, the equivalent restriction would eliminate virtually all idiomatic code because most code depends on loops, mutation, and side effects.
+
+AILANG pays the "make it SMT-friendly" cost **once** in the language design, rather than on every function you want to verify.
+
 ## Current Status
 
 :::note Implementation Status
@@ -380,9 +521,9 @@ AILANG is unique in combining compile-time verification with an effect system an
 - ✅ Counterexample display for violated contracts
 - ✅ Cross-function verification via `define-fun` inlining (transitive call chains)
 - ✅ Record verification via `declare-datatype` (field access, construction, update)
+- ✅ String verification via Z3 string theory (concat, length, comparison, prefix/suffix, substring)
 
 **Future** — Expanding the decidable fragment:
-- String verification (Z3 string theory)
 - List verification (Z3 sequence theory)
 - Bounded recursion (loop unrolling)
 :::

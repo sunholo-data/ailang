@@ -17,7 +17,7 @@ func TestMapType_Primitives(t *testing.T) {
 		{"int", &types.TCon{Name: "int"}, "Int", false},
 		{"float", &types.TCon{Name: "float"}, "Real", false},
 		{"bool", &types.TCon{Name: "bool"}, "Bool", false},
-		{"string", &types.TCon{Name: "string"}, "", true},
+		{"string", &types.TCon{Name: "string"}, "String", false},
 		{"unit", &types.TCon{Name: "unit"}, "", true},
 	}
 	for _, tt := range tests {
@@ -335,18 +335,37 @@ func TestMapRecordFields(t *testing.T) {
 	}
 }
 
-func TestMapRecordFields_UnsupportedFieldType(t *testing.T) {
+func TestMapRecordFields_StringFieldSupported(t *testing.T) {
 	rec := &types.TRecord{
 		Fields: map[string]types.Type{
 			"x":    &types.TCon{Name: "int"},
-			"name": &types.TCon{Name: "string"}, // string not yet supported
+			"name": &types.TCon{Name: "string"},
+		},
+	}
+	result, err := MapRecordFields(rec)
+	if err != nil {
+		t.Fatalf("unexpected error for record with string field: %v", err)
+	}
+	if result["name"] != "String" {
+		t.Errorf("expected String sort for 'name' field, got %q", result["name"])
+	}
+	if result["x"] != "Int" {
+		t.Errorf("expected Int sort for 'x' field, got %q", result["x"])
+	}
+}
+
+func TestMapRecordFields_UnsupportedFieldType(t *testing.T) {
+	rec := &types.TRecord{
+		Fields: map[string]types.Type{
+			"x":  &types.TCon{Name: "int"},
+			"fn": &types.TFunc{}, // function type not supported
 		},
 	}
 	_, err := MapRecordFields(rec)
 	if err == nil {
-		t.Fatal("expected error for record with string field")
+		t.Fatal("expected error for record with function field")
 	}
-	if !strings.Contains(err.Error(), "name") {
+	if !strings.Contains(err.Error(), "fn") {
 		t.Errorf("error should mention field name: %v", err)
 	}
 }

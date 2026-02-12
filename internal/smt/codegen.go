@@ -321,10 +321,34 @@ func encodeLit(lit *core.Lit) (string, error) {
 	case core.UnitLit:
 		return "", fmt.Errorf("unit literals cannot be encoded in SMT-LIB")
 	case core.StringLit:
-		return "", fmt.Errorf("string literals cannot be encoded in SMT-LIB")
+		v, ok := lit.Value.(string)
+		if !ok {
+			return "", fmt.Errorf("StringLit with non-string value: %T", lit.Value)
+		}
+		// SMT-LIB string literals are enclosed in double quotes with escaping
+		return encodeStringLiteral(v), nil
 	default:
 		return "", fmt.Errorf("unknown literal kind: %d", lit.Kind)
 	}
+}
+
+// encodeStringLiteral converts a Go string to an SMT-LIB string literal.
+// SMT-LIB strings use "" for quotes and standard escapes.
+func encodeStringLiteral(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, ch := range s {
+		switch ch {
+		case '"':
+			b.WriteString(`""`) // SMT-LIB escapes " as ""
+		case '\\':
+			b.WriteString(`\\`)
+		default:
+			b.WriteRune(ch)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // encodeApp handles function application.
@@ -332,22 +356,32 @@ func encodeLit(lit *core.Lit) (string, error) {
 func encodeApp(app *core.App) (string, error) {
 	// Check for builtin operator pattern: App(VarGlobal($builtin.XXX), args)
 	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
+		// Standard builtins (direct op mapping)
 		smtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]
 		if isBuiltin {
 			return encodeBuiltinOp(smtOp, app.Args)
+		}
+		// String builtins with special encoding
+		if spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {
+			return encodeStringBuiltin(spec, app.Args)
 		}
 	}
 
 	// Check for curried builtin: App(App(VarGlobal($builtin.XXX), [arg1]), [arg2])
 	if innerApp, ok := app.Func.(*core.App); ok {
 		if vg, ok := innerApp.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
+			// Combine args: inner args + outer args
+			allArgs := make([]core.CoreExpr, 0, len(innerApp.Args)+len(app.Args))
+			allArgs = append(allArgs, innerApp.Args...)
+			allArgs = append(allArgs, app.Args...)
+
 			smtOp, isBuiltin := BuiltinToSMTOp[vg.Ref.Name]
 			if isBuiltin {
-				// Combine args: inner args + outer args
-				allArgs := make([]core.CoreExpr, 0, len(innerApp.Args)+len(app.Args))
-				allArgs = append(allArgs, innerApp.Args...)
-				allArgs = append(allArgs, app.Args...)
 				return encodeBuiltinOp(smtOp, allArgs)
+			}
+			// String builtins with special encoding (curried)
+			if spec, ok := StringBuiltinSpecial[vg.Ref.Name]; ok {
+				return encodeStringBuiltin(spec, allArgs)
 			}
 		}
 	}
@@ -402,6 +436,63 @@ func encodeBuiltinOp(smtOp string, args []core.CoreExpr) (string, error) {
 		return fmt.Sprintf("(%s %s %s)", smtOp, left, right), nil
 	}
 	return "", fmt.Errorf("builtin %q with unexpected arity %d", smtOp, len(args))
+}
+
+// encodeStringBuiltin encodes a string builtin with special handling.
+func encodeStringBuiltin(spec StringBuiltinSpec, args []core.CoreExpr) (string, error) {
+	if spec.Unary {
+		if len(args) != 1 {
+			return "", fmt.Errorf("string builtin %q expects 1 arg, got %d", spec.Op, len(args))
+		}
+		arg, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(%s %s)", spec.Op, arg), nil
+	}
+
+	// SubstrMode: _str_slice(s, start, end) → (str.substr s start (- end start))
+	if spec.SubstrMode {
+		if len(args) != 3 {
+			return "", fmt.Errorf("string builtin %q expects 3 args, got %d", spec.Op, len(args))
+		}
+		s, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		start, err := EncodeExpr(args[1])
+		if err != nil {
+			return "", err
+		}
+		end, err := EncodeExpr(args[2])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(%s %s %s (- %s %s))", spec.Op, s, start, end, start), nil
+	}
+
+	if len(args) < 2 {
+		return "", fmt.Errorf("string builtin %q expects at least 2 args, got %d", spec.Op, len(args))
+	}
+
+	left, err := EncodeExpr(args[0])
+	if err != nil {
+		return "", err
+	}
+	right, err := EncodeExpr(args[1])
+	if err != nil {
+		return "", err
+	}
+
+	if spec.FlipArgs {
+		left, right = right, left
+	}
+
+	if spec.AppendZero {
+		return fmt.Sprintf("(%s %s %s 0)", spec.Op, left, right), nil
+	}
+
+	return fmt.Sprintf("(%s %s %s)", spec.Op, left, right), nil
 }
 
 // encodeUserFunctionCall encodes a call to a user-defined function
@@ -515,7 +606,8 @@ func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 		core.OpEq: "=", core.OpNe: "distinct",
 		core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpAnd: "and", core.OpOr: "or", core.OpNot: "not",
-		core.OpNeg: "-",
+		core.OpNeg:    "-",
+		core.OpConcat: "str.++",
 	}
 	smtOp, ok := opMap[intr.Op]
 	if !ok {
@@ -629,6 +721,8 @@ func inferResultSortInner(body core.CoreExpr, ctx *SMTContext, ctorToType map[st
 			return "Real"
 		case core.BoolLit:
 			return "Bool"
+		case core.StringLit:
+			return "String"
 		}
 	case *core.Var:
 		if sort, ok := ctx.Variables[b.Name]; ok {

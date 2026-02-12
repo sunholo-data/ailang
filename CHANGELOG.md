@@ -33,6 +33,17 @@
     - Named records use TypeName; anonymous records get hash-based names
     - CLI wiring: `convertASTTypeToType` handles `RecordType` → `TRecord`
     - New example: `record_verify.ail` demonstrates record field access in contracts
+  - **String verification** (`types.go`, `codegen.go`, `encodable.go`, ~250 LOC impl + ~200 LOC tests)
+    - String type now mapped to SMT-LIB `String` sort (was rejected)
+    - String literals encoded with proper SMT-LIB escaping (`""` for quotes)
+    - 4 standard builtins in `BuiltinToSMTOp`: `eq_String`, `ne_String`, `lt_String`, `le_String`
+    - 8 special builtins via `StringBuiltinSpecial` map with declarative `StringBuiltinSpec`:
+      `gt_String`/`ge_String` (flipped args), `concat_String` (str.++), `_str_len` (unary),
+      `_str_find` (appended zero), `_str_slice` (substr mode), `_str_startsWith`/`_str_endsWith` (flipped)
+    - `OpConcat` intrinsic (`++` operator) mapped to `str.++`
+    - Fragment checker updated: `StringLit`, `OpConcat`, and supported string builtins now accepted
+    - Unsupported string builtins still properly rejected: `_str_trim`, `_str_upper`, `_str_lower`, `_str_split`, `_str_chars`
+    - New example: `string_verify.ail` demonstrates string concatenation, equality, and prefix verification
 
 - **M-TRACE-EXPORT Phase 1: Program-level execution traces** (`internal/trace/`, `--emit-trace jsonl`, ~500 LOC)
   - New `internal/trace/` package: schema, collector, JSONL serializer

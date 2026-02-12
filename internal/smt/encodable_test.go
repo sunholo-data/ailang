@@ -158,7 +158,7 @@ func TestIsSMTEncodable_DeepPatterns(t *testing.T) {
 	}
 }
 
-func TestIsSMTEncodable_UnencodableTypes_String(t *testing.T) {
+func TestIsSMTEncodable_StringLiteral_NowEncodable(t *testing.T) {
 	meta := &core.DeclMeta{
 		Name:   "greet",
 		IsPure: true,
@@ -169,17 +169,8 @@ func TestIsSMTEncodable_UnencodableTypes_String(t *testing.T) {
 	body := &core.Lit{Kind: core.StringLit, Value: "hello"}
 
 	ok, reasons := IsSMTEncodable("greet", meta, body)
-	if ok {
-		t.Fatal("expected not encodable (string literal)")
-	}
-	found := false
-	for _, r := range reasons {
-		if r.Code == RejectUnencodable {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected RejectUnencodable in reasons")
+	if !ok {
+		t.Fatalf("string literals should now be encodable (M-SMT-STRINGS), but got reasons: %v", reasons)
 	}
 }
 
@@ -231,8 +222,8 @@ func TestIsSMTEncodable_Record_WithIntFields(t *testing.T) {
 	}
 }
 
-func TestIsSMTEncodable_Record_WithStringField_Rejected(t *testing.T) {
-	// Records with string fields are still rejected (strings not yet supported)
+func TestIsSMTEncodable_Record_WithStringField_NowSupported(t *testing.T) {
+	// Records with string fields are now encodable (M-SMT-STRINGS)
 	meta := &core.DeclMeta{
 		Name:   "recFn",
 		IsPure: true,
@@ -247,17 +238,8 @@ func TestIsSMTEncodable_Record_WithStringField_Rejected(t *testing.T) {
 	}
 
 	ok, reasons := IsSMTEncodable("recFn", meta, body)
-	if ok {
-		t.Fatal("expected not encodable — record with string field")
-	}
-	found := false
-	for _, r := range reasons {
-		if r.Code == RejectUnencodable {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected RejectUnencodable in reasons")
+	if !ok {
+		t.Fatalf("record with string field should now be encodable, but got reasons: %v", reasons)
 	}
 }
 
@@ -478,10 +460,18 @@ func TestIsStringOrListBuiltin(t *testing.T) {
 		name string
 		want bool
 	}{
-		{"concat_String", true},
-		{"eq_String", true},
-		{"lt_String", true},
-		{"concat_List", true},
+		{"concat_String", false},   // now supported (M-SMT-STRINGS)
+		{"eq_String", false},       // now supported
+		{"lt_String", false},       // now supported
+		{"_str_len", false},        // now supported
+		{"_str_find", false},       // now supported
+		{"_str_startsWith", false}, // now supported
+		{"_str_trim", true},        // unsupported (no Z3 equivalent)
+		{"_str_upper", true},       // unsupported
+		{"_str_lower", true},       // unsupported
+		{"_str_split", true},       // unsupported (returns list)
+		{"_str_chars", true},       // unsupported (returns list)
+		{"concat_List", true},      // list always unsupported
 		{"add_Int", false},
 		{"ge_Int", false},
 		{"and_Bool", false},

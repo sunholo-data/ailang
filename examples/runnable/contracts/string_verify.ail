@@ -1,0 +1,35 @@
+-- examples/runnable/contracts/string_verify.ail
+-- String contract verification demonstration
+-- Shows Z3 proving properties about string operations in contracts
+-- Demonstrates: string params, length, equality, concatenation in contracts
+
+module examples/runnable/contracts/string_verify
+
+-- Concatenation always produces a longer-or-equal result
+export func safeConcat(a: string, b: string) -> string ! {}
+requires { _str_len(a) >= 0, _str_len(b) >= 0 }
+ensures { _str_len(result) >= _str_len(a) }
+{
+  a ++ b
+}
+
+-- String equality is reflexive (trivially provable)
+export func isEqual(s: string, t: string) -> bool ! {}
+ensures { result == eq_String(s, t) }
+{
+  eq_String(s, t)
+}
+
+-- Intentionally BROKEN: claims prefix is always shorter, but equal strings violate this
+export func brokenPrefixCheck(s: string, prefix: string) -> bool ! {}
+ensures { result == true }
+{
+  _str_startsWith(s, prefix)
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let greeting = safeConcat("hello", " world");
+  if isEqual(greeting, greeting) then 1 else 0
+}

@@ -88,12 +88,12 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 		})
 	}
 
-	// Check 6: Encodable types only (no string/list/record in logic)
+	// Check 6: Encodable types only (no list or unsupported string builtins)
 	if hasUnencodableTypes(body) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectUnencodable,
-			Message: fmt.Sprintf("Function %q uses types not encodable in SMT (string, list, record)", funcName),
-			Hint:    "Use int, float, bool, or enum ADTs",
+			Message: fmt.Sprintf("Function %q uses types not encodable in SMT (list, unsupported string operations)", funcName),
+			Hint:    "Use int, float, bool, string, records, or enum ADTs. Avoid list operations and _str_trim/_str_upper/_str_lower.",
 		})
 	}
 
@@ -387,8 +387,8 @@ func patternDepth(pat core.CorePattern) int {
 }
 
 // hasUnencodableTypes checks if the body uses types that can't be encoded in SMT-LIB.
-// Specifically: String operations, List operations.
-// Records are now supported (M-SMT-RECORDS).
+// Specifically: List operations and unsupported string builtins.
+// Records are supported (M-SMT-RECORDS). Strings are supported (M-SMT-STRINGS).
 // Note: we check structural usage, not type annotations.
 func hasUnencodableTypes(body core.CoreExpr) bool {
 	if body == nil {
@@ -403,7 +403,8 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	}
 	switch e := expr.(type) {
 	case *core.Lit:
-		return e.Kind == core.StringLit
+		// String literals are now encodable (M-SMT-STRINGS)
+		return false
 	case *core.Record:
 		// Records with encodable field values are allowed
 		for _, v := range e.Fields {
@@ -470,9 +471,7 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	case *core.UnOp:
 		return walkForUnencodableTypes(e.Operand)
 	case *core.Intrinsic:
-		if e.Op == core.OpConcat {
-			return true
-		}
+		// OpConcat is now encodable as str.++ (M-SMT-STRINGS)
 		for _, arg := range e.Args {
 			if walkForUnencodableTypes(arg) {
 				return true
@@ -486,14 +485,30 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	}
 }
 
-// isStringOrListBuiltin checks if a builtin name involves strings or lists.
+// isStringOrListBuiltin checks if a builtin name involves unsupported string or list operations.
+// String builtins that have SMT-LIB mappings are now SUPPORTED (M-SMT-STRINGS).
 func isStringOrListBuiltin(name string) bool {
-	// String builtins: concat_String, eq_String, lt_String, etc.
-	// List builtins: concat_List
-	for _, suffix := range []string{"_String", "_List"} {
-		if len(name) > len(suffix) && name[len(name)-len(suffix):] == suffix {
-			return true
-		}
+	// List builtins are always unencodable
+	if len(name) > 5 && name[len(name)-5:] == "_List" {
+		return true
 	}
+
+	// Check if this string builtin has an SMT mapping (supported)
+	if _, ok := BuiltinToSMTOp[name]; ok {
+		return false // supported standard builtin
+	}
+	if _, ok := StringBuiltinSpecial[name]; ok {
+		return false // supported special string builtin
+	}
+
+	// String builtins without SMT mappings are unencodable
+	// (_str_trim, _str_upper, _str_lower, _str_split, _str_chars, etc.)
+	if len(name) > 7 && name[len(name)-7:] == "_String" {
+		return true
+	}
+	if len(name) > 5 && name[:5] == "_str_" {
+		return true
+	}
+
 	return false
 }

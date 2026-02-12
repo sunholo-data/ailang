@@ -63,11 +63,26 @@ func TestEncodeExpr_BoolLit(t *testing.T) {
 	}
 }
 
-func TestEncodeExpr_StringLit_Error(t *testing.T) {
-	expr := &core.Lit{Kind: core.StringLit, Value: "hello"}
-	_, err := EncodeExpr(expr)
-	if err == nil {
-		t.Error("expected error for string literal")
+func TestEncodeExpr_StringLit(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"hello", `"hello"`},
+		{"", `""`},
+		{`say "hi"`, `"say ""hi"""`}, // SMT-LIB escapes " as ""
+		{`back\slash`, `"back\\slash"`},
+	}
+	for _, tt := range tests {
+		expr := &core.Lit{Kind: core.StringLit, Value: tt.input}
+		got, err := EncodeExpr(expr)
+		if err != nil {
+			t.Errorf("unexpected error for string %q: %v", tt.input, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("encodeLit(%q) = %q, want %q", tt.input, got, tt.want)
+		}
 	}
 }
 
@@ -495,7 +510,7 @@ func TestEncodeFunction_NoEnsures(t *testing.T) {
 	}
 }
 
-func TestEncodeFunction_UnencodableParam(t *testing.T) {
+func TestEncodeFunction_StringParam(t *testing.T) {
 	params := []FunctionParam{
 		{Name: "s", Type: &types.TCon{Name: "string"}},
 	}
@@ -504,13 +519,38 @@ func TestEncodeFunction_UnencodableParam(t *testing.T) {
 		Name:   "f",
 		IsPure: true,
 		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+
+	result, err := EncodeFunction("f", params, body, "String", meta, nil)
+	if err != nil {
+		t.Fatalf("unexpected error for string parameter: %v", err)
+	}
+	if !strings.Contains(result.SMTLib, "(declare-const s String)") {
+		t.Error("expected string parameter declaration")
+	}
+	if !strings.Contains(result.SMTLib, "(define-const result String s)") {
+		t.Error("expected result as String sort")
+	}
+}
+
+func TestEncodeFunction_UnencodableParam(t *testing.T) {
+	params := []FunctionParam{
+		{Name: "f", Type: &types.TFunc{}},
+	}
+	body := &core.Var{Name: "f"}
+	meta := &core.DeclMeta{
+		Name:   "g",
+		IsPure: true,
+		Contracts: []*core.Contract{
 			{Kind: core.RequiresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
 		},
 	}
 
-	_, err := EncodeFunction("f", params, body, "", meta, nil)
+	_, err := EncodeFunction("g", params, body, "", meta, nil)
 	if err == nil {
-		t.Error("expected error for string parameter")
+		t.Error("expected error for function-type parameter")
 	}
 }
 
@@ -1039,4 +1079,159 @@ func setupRecordTestContext() {
 func teardownRecordTestContext() {
 	activeRecordTypes = nil
 	activeFieldSetToSort = nil
+}
+
+// --- String builtin encoding tests ---
+
+func TestEncodeStringBuiltin_ConcatString(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "concat_String"}},
+		Args: []core.CoreExpr{
+			&core.Var{Name: "a"},
+			&core.Var{Name: "b"},
+		},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.++ a b)" {
+		t.Errorf("got %q, want %q", got, "(str.++ a b)")
+	}
+}
+
+func TestEncodeStringBuiltin_EqString(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "eq_String"}},
+		Args: []core.CoreExpr{&core.Var{Name: "a"}, &core.Var{Name: "b"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(= a b)" {
+		t.Errorf("got %q, want %q", got, "(= a b)")
+	}
+}
+
+func TestEncodeStringBuiltin_LtString(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "lt_String"}},
+		Args: []core.CoreExpr{&core.Var{Name: "a"}, &core.Var{Name: "b"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.< a b)" {
+		t.Errorf("got %q, want %q", got, "(str.< a b)")
+	}
+}
+
+func TestEncodeStringBuiltin_GtString_FlippedArgs(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "gt_String"}},
+		Args: []core.CoreExpr{&core.Var{Name: "a"}, &core.Var{Name: "b"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// gt(a,b) → (str.< b a) with flipped args
+	if got != "(str.< b a)" {
+		t.Errorf("got %q, want %q", got, "(str.< b a)")
+	}
+}
+
+func TestEncodeStringBuiltin_StrLen(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_str_len"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.len s)" {
+		t.Errorf("got %q, want %q", got, "(str.len s)")
+	}
+}
+
+func TestEncodeStringBuiltin_StrFind_AppendsZero(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_str_find"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "t"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// _str_find(s,t) → (str.indexof s t 0)
+	if got != "(str.indexof s t 0)" {
+		t.Errorf("got %q, want %q", got, "(str.indexof s t 0)")
+	}
+}
+
+func TestEncodeStringBuiltin_StrSlice_SubstrMode(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_str_slice"}},
+		Args: []core.CoreExpr{
+			&core.Var{Name: "s"},
+			&core.Var{Name: "start"},
+			&core.Var{Name: "end"},
+		},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// _str_slice(s, start, end) → (str.substr s start (- end start))
+	want := "(str.substr s start (- end start))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeStringBuiltin_StartsWith_FlippedArgs(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_str_startsWith"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "prefix"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// _str_startsWith(s, prefix) → (str.prefixof prefix s)
+	if got != "(str.prefixof prefix s)" {
+		t.Errorf("got %q, want %q", got, "(str.prefixof prefix s)")
+	}
+}
+
+func TestEncodeStringBuiltin_EndsWith_FlippedArgs(t *testing.T) {
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_str_endsWith"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "suffix"}},
+	}
+	got, err := EncodeExpr(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// _str_endsWith(s, suffix) → (str.suffixof suffix s)
+	if got != "(str.suffixof suffix s)" {
+		t.Errorf("got %q, want %q", got, "(str.suffixof suffix s)")
+	}
+}
+
+func TestEncodeIntrinsic_OpConcat(t *testing.T) {
+	intr := &core.Intrinsic{
+		Op:   core.OpConcat,
+		Args: []core.CoreExpr{&core.Var{Name: "a"}, &core.Var{Name: "b"}},
+	}
+	got, err := EncodeExpr(intr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.++ a b)" {
+		t.Errorf("got %q, want %q", got, "(str.++ a b)")
+	}
 }

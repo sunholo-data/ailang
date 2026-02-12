@@ -70,7 +70,7 @@ func mapTCon(name string) (string, error) {
 	case "bool":
 		return "Bool", nil
 	case "string":
-		return "", fmt.Errorf("string type cannot be encoded in SMT-LIB")
+		return "String", nil
 	case "unit":
 		return "", fmt.Errorf("unit type cannot be encoded in SMT-LIB")
 	default:
@@ -273,4 +273,40 @@ var BuiltinToSMTOp = map[string]string{
 	// Unary
 	"neg_Int":   "-",
 	"neg_Float": "-",
+
+	// String comparison (standard binary ops)
+	"eq_String": "=",
+	"ne_String": "distinct",
+	"lt_String": "str.<",
+	"le_String": "str.<=",
+}
+
+// StringBuiltinSpecial maps AILANG string builtins that need non-standard encoding.
+// These require special handling (operand flipping, extra args, etc.).
+var StringBuiltinSpecial = map[string]StringBuiltinSpec{
+	// gt_String(a,b) → (str.< b a) — flipped operands
+	"gt_String": {Op: "str.<", FlipArgs: true},
+	// ge_String(a,b) → (str.<= b a) — flipped operands
+	"ge_String": {Op: "str.<=", FlipArgs: true},
+	// concat_String(a,b) → (str.++ a b)
+	"concat_String": {Op: "str.++"},
+	// _str_len(s) → (str.len s) — unary
+	"_str_len": {Op: "str.len", Unary: true},
+	// _str_find(s,t) → (str.indexof s t 0) — append 0 as third arg
+	"_str_find": {Op: "str.indexof", AppendZero: true},
+	// _str_startsWith(s,p) → (str.prefixof p s) — flipped operands
+	"_str_startsWith": {Op: "str.prefixof", FlipArgs: true},
+	// _str_endsWith(s,x) → (str.suffixof x s) — flipped operands
+	"_str_endsWith": {Op: "str.suffixof", FlipArgs: true},
+	// _str_slice(s,start,end) → (str.substr s start (- end start)) — ternary with length calc
+	"_str_slice": {Op: "str.substr", SubstrMode: true},
+}
+
+// StringBuiltinSpec describes how to encode a string builtin in SMT-LIB.
+type StringBuiltinSpec struct {
+	Op         string // SMT-LIB operator name
+	FlipArgs   bool   // Swap arg order (e.g., gt → lt with flipped args)
+	Unary      bool   // Single argument
+	AppendZero bool   // Append literal 0 as extra argument
+	SubstrMode bool   // Convert (s, start, end) → (str.substr s start (- end start))
 }

@@ -1223,6 +1223,18 @@
       "description": "Record contract verification — Z3 proves properties about record field access in requires/ensures"
     },
     {
+      "path": "runnable/contracts/string_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "strings",
+        "z3-string-theory"
+      ],
+      "description": "String contract verification — Z3 proves properties about string concatenation, equality, and prefix operations"
+    },
+    {
       "path": "hello_world.ail",
       "status": "working",
       "tags": [
