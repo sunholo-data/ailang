@@ -1,6 +1,6 @@
 # AI Developer Experience Learnings
 
-**Date**: 2026-02-13 (v0.8.0)
+**Date**: 2026-02-13 (v0.8.0, updated for v0.8.1-dev)
 **Method**: Simulated being an AI agent using AILANG devtools end-to-end.
 **Module**: `discount_calculator.ail` — contracts, ADTs, effects, cross-function calls.
 
@@ -46,79 +46,52 @@ No manual annotation needed. Very AI-friendly.
 
 ## Friction Points (Ordered by Severity)
 
-### CRITICAL: `ailang check` has NO `--json` flag
+### ~~CRITICAL~~ FIXED (v0.8.1): `ailang check --json`
 
-**Problem**: Type errors and parse errors are human-formatted strings. An AI must regex-parse
-lines like:
-```
-PAR_UNEXPECTED_TOKEN at file.ail:14:1: expected next token to be {, got ensures instead
-```
+**Problem**: Type errors and parse errors were human-formatted strings requiring regex parsing.
 
-**Impact**: This is the FIRST command an AI runs. If it can't parse errors, the whole
-write→check→fix loop is fragile. Currently an AI must:
-1. Parse `Error:` prefix
-2. Extract error code (e.g., `PAR_UNEXPECTED_TOKEN`)
-3. Extract file:line:col from free text
-4. Parse the suggestion line
-
-**Suggestion**: Add `ailang check --json` that outputs:
+**Fix**: Added `ailang check --json` flag. Output format:
 ```json
 {
-  "success": false,
+  "file": "file.ail",
+  "passed": false,
+  "error_count": 1,
   "errors": [
     {
       "code": "PAR_UNEXPECTED_TOKEN",
+      "message": "expected next token to be {, got ensures instead",
       "file": "file.ail",
       "line": 14,
       "column": 1,
-      "message": "expected next token to be {, got ensures instead",
       "suggestion": "Add or correct the { token"
     }
   ]
 }
 ```
 
-**Priority**: P0 — this blocks the most common AI workflow.
+Also added `--quiet` flag that suppresses progress lines — useful for scripts that
+only check exit code.
 
-### HIGH: Multiple `ensures` clauses silently fail as parse error
+### ~~HIGH~~ FIXED (v0.8.1): Multiple `ensures` clauses now produce clear error
 
-**Problem**: Writing two `ensures` blocks (natural for an AI) produces a confusing
-parse error about "expected {, got ensures". There's no hint that only ONE ensures
-block is allowed.
+**Problem**: Writing two `ensures` blocks produced a confusing "expected {, got ensures" error.
 
-**What an AI writes** (naturally):
-```ailang
-ensures { result >= 0 }
-ensures { result <= 50 }
+**Fix**: Parser now detects duplicate `ensures`/`requires` blocks and emits a specific
+`PAR_DUPLICATE_ENSURES` / `PAR_DUPLICATE_REQUIRES` error with suggestion:
+```
+PAR_DUPLICATE_ENSURES: only one ensures block per function; combine with commas: ensures { cond1, cond2 }
+Suggestion: Merge conditions into a single ensures block separated by commas
 ```
 
-**What it should write**:
-```ailang
-ensures { result >= 0 }
-```
+The parser also error-recovers by merging the duplicate blocks, so the AST remains valid
+for downstream tooling.
 
-**Suggestion**: Either:
-- (a) Support multiple ensures clauses (combine with AND)
-- (b) Emit a specific error: "Only one ensures clause per function. Combine with: `ensures { result >= 0 && result <= 50 }`"
+### ~~HIGH~~ FIXED (v0.8.1): `verify --relax-modules`
 
-**Priority**: P1 — AIs will hit this constantly since multi-constraint contracts are natural.
+**Problem**: `ailang verify` rejected the `--relax-modules` flag that `check` accepted.
 
-### HIGH: `verify` doesn't accept `--relax-modules`
-
-**Problem**: When an AI generates code in /tmp (common for sandboxed execution),
-`ailang check --relax-modules` works but `ailang verify` rejects the flag entirely:
-```
-flag provided but not defined: -relax-modules
-```
-
-The verify command auto-relaxes for temp dirs (with a WARNING), but the flag mismatch
-is confusing. An AI that learned `--relax-modules` from `check` will try it on `verify`
-and get an error.
-
-**Suggestion**: Either accept (and ignore) `--relax-modules` on all subcommands,
-or add it to `verify` for consistency.
-
-**Priority**: P1 — flag inconsistency across subcommands is a common AI trap.
+**Fix**: Added `--relax-modules` flag to `verify` for consistency. Also respects
+`AILANG_RELAX_MODULES` environment variable.
 
 ### MEDIUM: Warning noise in stdout/stderr
 
@@ -130,13 +103,6 @@ JSON parsing. The JSON itself is clean, but preceding text isn't.
 
 **Suggestion**: Suppress warnings when `--json` is used, or ensure warnings go to stderr
 only (verify currently mixes them).
-
-### MEDIUM: `ailang check` has no `--quiet` / `--silent` flag
-
-**Problem**: The `→ Type checking...` and `→ Effect checking...` progress lines are useful
-for humans but noise for AI parsing. There's no way to suppress them.
-
-**Suggestion**: Add `--quiet` flag that only outputs errors (or nothing on success).
 
 ### MEDIUM: Budget report escapes `<global>` as `\u003cglobal\u003e`
 
@@ -187,11 +153,11 @@ should count as high-quality for training data (arguably better than runtime che
 
 ## Suggestions for v0.8.1
 
-### Tier 1 (High Impact, Low Effort)
-1. **`ailang check --json`** — Structured error output for AI parsing
-2. **Better error for multiple ensures** — Specific parser error with fix suggestion
-3. **`--relax-modules` on verify** — Flag consistency across subcommands
-4. **`--quiet` on check/run** — Suppress progress lines
+### Tier 1 (High Impact, Low Effort) — ALL DONE
+1. ~~**`ailang check --json`**~~ — DONE: Structured error output for AI parsing
+2. ~~**Better error for multiple ensures**~~ — DONE: `PAR_DUPLICATE_ENSURES` with merge recovery
+3. ~~**`--relax-modules` on verify**~~ — DONE: Flag consistency across subcommands
+4. ~~**`--quiet` on check**~~ — DONE: Suppress progress lines
 
 ### Tier 2 (High Impact, Medium Effort)
 5. **`ailang ai-check --json`** — Unified check+verify in one JSON output
@@ -209,14 +175,22 @@ should count as high-quality for training data (arguably better than runtime che
 
 ```bash
 # 1. AI gets syntax + tools reference (small enough for context)
-ailang prompt --compact > /tmp/syntax.md      # ~5KB
-ailang devtools-prompt --compact > /tmp/tools.md  # ~3KB
+ailang prompt --compact > /tmp/syntax.md      # ~5KB  (NOT YET: --compact)
+ailang devtools-prompt --compact > /tmp/tools.md  # ~3KB  (NOT YET: --compact)
 
 # 2. AI writes code
 # ... generates discount_calculator.ail ...
 
-# 3. AI validates in one shot
-ailang ai-check --json discount_calculator.ail
+# 3a. AI type-checks (WORKS NOW with v0.8.1)
+ailang check --json discount_calculator.ail
+# Returns: {"file": "...", "passed": true, "error_count": 0, "errors": []}
+
+# 3b. AI verifies contracts (WORKS NOW)
+ailang verify --json discount_calculator.ail
+# Returns: {"verified": 3, "counterexample": 0, ...}
+
+# 3c. (FUTURE) Unified check+verify in one shot
+# ailang ai-check --json discount_calculator.ail
 # Returns: {"type_check": {"ok": true}, "contracts": {"verified": 3}}
 
 # 4. AI collects execution trace
@@ -234,8 +208,8 @@ ailang replay --json trace.jsonl
 # Returns: {"match": true}
 ```
 
-Currently steps 1 and 3 don't exist — the AI must manually chain multiple commands
-and parse heterogeneous output formats.
+**v0.8.1 update**: Steps 3a and 3b now produce clean JSON. The remaining gap is
+a unified `ai-check` command (step 3c) and compact prompts (step 1).
 
 ---
 
@@ -247,7 +221,10 @@ and parse heterogeneous output formats.
 | `ailang prompt` | 1,596 | 49,201 | No |
 | `ailang devtools-prompt` | 743 | 27,024 | No |
 | `ailang check` (success) | 4 | ~150 | No |
+| `ailang check --json` (success) | 6 | ~100 | Yes |
 | `ailang check` (error) | 8-15 | ~500 | No |
+| `ailang check --json` (error) | 15 | ~400 | Yes |
+| `ailang check --quiet` (success) | 0 | 0 | No (exit 0) |
 | `ailang verify --json` | 20 | ~600 | Yes |
 | `ailang run --emit-trace jsonl` | 28 | ~4,000 | Yes (JSONL) |
 | `ailang replay --json` | 3 | ~60 | Yes |
@@ -257,10 +234,13 @@ and parse heterogeneous output formats.
 ### Error Format Comparison
 | Tool | Error Format | Parseable? |
 |------|-------------|------------|
+| `check --json` (parse error) | Clean JSON with code/message/file/line/col | Trivial |
+| `check --json` (type error) | Clean JSON with code/message | Trivial |
 | `check` (parse error) | Free text with PAR_ codes | Regex required |
 | `check` (type error) | Free text with position | Regex required |
 | `verify --json` (violation) | Clean JSON with model | Trivial |
 | `verify --json` (skip) | Clean JSON with reason | Trivial |
 | `replay --json` (mismatch) | Clean JSON with diffs | Trivial |
 
-The gap is clear: **`check` is the only critical tool without JSON output.**
+**v0.8.1 update**: All critical tools now have JSON output. The remaining gap is
+warning noise (stdlib version mismatch) that precedes JSON on some commands.

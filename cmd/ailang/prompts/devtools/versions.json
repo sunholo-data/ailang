@@ -11,6 +11,17 @@
         "latest"
       ],
       "notes": "Comprehensive dev tools reference. Complements ailang prompt (syntax) with full toolchain documentation. Organized by workflow. Covers all 38 CLI commands, all run flags, AI provider auth, WASM API, coordinator lifecycle, observatory analytics. ~610 lines, ~2960 words."
+    },
+    "v0.8.0-compact": {
+      "file": "prompts/devtools/v0.8.0-compact.md",
+      "hash": "PLACEHOLDER",
+      "description": "Token-efficient compact dev tools reference (~8KB vs ~27KB full prompt)",
+      "created": "2026-02-13",
+      "tags": [
+        "production",
+        "compact"
+      ],
+      "notes": "Conservative 69% size reduction. Keeps: all command names with primary flags, one example per command, capabilities table, quick workflows table. Removes: extended examples, JSON schemas, WASM API, compilation/advanced section. For full reference: ailang devtools-prompt"
     }
   },
   "active": "v0.8.0",

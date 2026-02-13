@@ -143,6 +143,8 @@ func main() {
 		relaxModulesCheck := checkFS.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 		timeoutCheck := checkFS.String("timeout", "", "Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
 		debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
+		jsonCheck := checkFS.Bool("json", false, "Output errors in JSON format (for AI/machine consumption)")
+		quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 
 		_ = checkFS.Parse(flag.Args()[1:])
 
@@ -155,11 +157,13 @@ func main() {
 			fmt.Println("  --relax-modules    Relax MOD010 validation (allow module path mismatches)")
 			fmt.Println("  --timeout <dur>    Compilation timeout (e.g., 30s, 2m). Dumps stack on timeout.")
 			fmt.Println("  --debug-compile    Show compilation phase timing breakdown")
+			fmt.Println("  --json             Output errors in JSON format")
+			fmt.Println("  --quiet            Suppress progress lines, only output errors")
 			fmt.Println()
 			fmt.Println("If a directory is given, all .ail files are checked recursively.")
 			os.Exit(1)
 		}
-		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck)
+		checkFile(checkFS.Arg(0), *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, *jsonCheck, *quietCheck)
 
 	case "iface":
 		if flag.NArg() < 2 {
@@ -282,6 +286,9 @@ func main() {
 
 	case "verify":
 		verifyCommand()
+
+	case "ai-check":
+		aiCheckCommand()
 
 	case "examples":
 		examplesCommand(flag.Args()[1:])

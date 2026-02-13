@@ -192,8 +192,9 @@ func (r *StdlibResolver) ResolveStdlib(moduleName string) (string, error) {
 					return "", err
 				}
 				// M-DX21: Non-strict: log warning only once per process
-				// Also check AILANG_NO_VERSION_WARNINGS to suppress entirely
-				if !stdlibVersionWarningShown && os.Getenv("AILANG_NO_VERSION_WARNINGS") == "" {
+				// AILANG_NO_VERSION_WARNINGS: suppress entirely
+				// AILANG_QUIET_WARNINGS: suppress in JSON/quiet mode (set by CLI)
+				if !stdlibVersionWarningShown && os.Getenv("AILANG_NO_VERSION_WARNINGS") == "" && os.Getenv("AILANG_QUIET_WARNINGS") == "" {
 					fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 					stdlibVersionWarningShown = true
 				}

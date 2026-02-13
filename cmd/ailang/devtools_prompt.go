@@ -15,6 +15,7 @@ func runDevtoolsPrompt() {
 	versionFlag := fs.String("version", "", "Prompt version to display (e.g., v0.8.0, or 'latest')")
 	listFlag := fs.Bool("list", false, "List all available devtools prompt versions")
 	infoFlag := fs.Bool("info", false, "Show metadata for specified version")
+	compactFlag := fs.Bool("compact", false, "Use token-efficient compact version (~8KB vs ~27KB)")
 	helpFlag := fs.Bool("help", false, "Show help for devtools-prompt command")
 
 	_ = fs.Parse(flag.Args()[1:])
@@ -44,6 +45,20 @@ func runDevtoolsPrompt() {
 		version = "latest"
 	}
 
+	// --compact appends "-compact" to the resolved version
+	if *compactFlag {
+		if version == "latest" {
+			activeVer, err := devtoolsprompt.GetActiveVersion()
+			if err == nil && activeVer != "" {
+				version = activeVer + "-compact"
+			} else {
+				version = version + "-compact"
+			}
+		} else {
+			version = version + "-compact"
+		}
+	}
+
 	content, err := devtoolsprompt.LoadPrompt(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -66,6 +81,7 @@ how to debug, test, trace, replay, monitor agents, and use the eval harness.
 OPTIONS:
   --version VERSION    Display specific version (e.g., v0.8.0)
                       Default: latest/active version
+  --compact           Use token-efficient compact version (~8KB vs ~27KB)
   --list              List all available devtools prompt versions
   --info              Show metadata for specified version (requires --version)
   --help              Show this help message
@@ -73,6 +89,9 @@ OPTIONS:
 EXAMPLES:
   # Display current dev tools reference
   ailang devtools-prompt
+
+  # Display compact version (for small context windows)
+  ailang devtools-prompt --compact
 
   # List all available versions
   ailang devtools-prompt --list

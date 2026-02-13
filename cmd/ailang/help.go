@@ -81,6 +81,7 @@ func printHelp() {
 	fmt.Printf("  %s                   Run tests\n", cyan("test [path]"))
 	fmt.Printf("  %s           Watch file for changes and auto-reload\n", cyan("watch <file>"))
 	fmt.Printf("  %s           Type-check a file without running\n", cyan("check <file>"))
+	fmt.Printf("  %s      Unified check+verify JSON output (for AI)\n", cyan("ai-check <file>"))
 	fmt.Printf("  %s        Output normalized JSON interface for a module\n", cyan("iface <module>"))
 	fmt.Printf("  %s  Export traces as AI training data\n", cyan("export-training <traces>"))
 	fmt.Printf("  %s  Replay and verify against recorded trace\n", cyan("replay <trace.jsonl>"))

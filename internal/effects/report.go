@@ -1,6 +1,7 @@
 package effects
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -230,7 +231,16 @@ func FormatReportJSON(br *BudgetReport) ([]byte, error) {
 		report.Functions[funcName] = funcBudget
 	}
 
-	return json.MarshalIndent(report, "", "  ")
+	// Use Encoder with SetEscapeHTML(false) to avoid HTML escaping
+	// of function names like <global> → \u003cglobal\u003e
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(report); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // FormatReportForError formats a budget report summary for inclusion in error messages

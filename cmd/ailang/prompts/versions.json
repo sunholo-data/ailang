@@ -460,6 +460,17 @@
         "contracts"
       ],
       "notes": "Static contract verification: ailang verify command uses Z3 to mathematically prove requires/ensures contracts hold for ALL inputs. Covers decidable fragment (int/bool/enum ADTs, arithmetic, comparison, if/let/match). Shows counterexamples when violations found. Flags: --verbose (SMT-LIB), --json (machine-readable), --strict (fail on skipped). Replaced old --experimental-binop-shim requirement."
+    },
+    "v0.7.4-compact": {
+      "file": "prompts/v0.7.4-compact.md",
+      "hash": "PLACEHOLDER",
+      "description": "Token-efficient compact syntax reference (~15KB vs ~49KB full prompt)",
+      "created": "2026-02-13",
+      "tags": [
+        "production",
+        "compact"
+      ],
+      "notes": "Conservative 71% size reduction. Keeps: type system table, effect syntax, module syntax, contract syntax, critical gotchas. Removes: extended examples, design rationale, historical notes. For full reference: ailang prompt"
     }
   },
   "active": "v0.7.4",

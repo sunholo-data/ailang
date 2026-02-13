@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	ailerrors "github.com/sunholo/ailang/internal/errors"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
@@ -21,7 +23,60 @@ import (
 // checkTracer is the OpenTelemetry tracer for check command instrumentation.
 var checkTracer = otel.Tracer("ailang.check")
 
-func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+// checkJSONOutput represents the JSON output format for ailang check --json
+type checkJSONOutput struct {
+	File       string           `json:"file"`
+	Passed     bool             `json:"passed"`
+	ErrorCount int              `json:"error_count"`
+	Errors     []checkJSONError `json:"errors"`
+}
+
+// checkJSONError represents a single error in JSON check output
+type checkJSONError struct {
+	Code       string `json:"code"`
+	Message    string `json:"message"`
+	File       string `json:"file,omitempty"`
+	Line       int    `json:"line,omitempty"`
+	Column     int    `json:"column,omitempty"`
+	Suggestion string `json:"suggestion,omitempty"`
+}
+
+// outputCheckJSON writes a checkJSONOutput to stdout
+func outputCheckJSON(out checkJSONOutput) {
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to marshal JSON: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(data))
+}
+
+// errorToCheckJSONError converts an error to a structured JSON error entry
+func errorToCheckJSONError(err error, filename string) checkJSONError {
+	if rep, ok := ailerrors.AsReport(err); ok {
+		entry := checkJSONError{
+			Code:    rep.Code,
+			Message: rep.Message,
+		}
+		if rep.Span != nil {
+			entry.File = rep.Span.Start.File
+			entry.Line = rep.Span.Start.Line
+			entry.Column = rep.Span.Start.Column
+		}
+		if rep.Fix != nil {
+			entry.Suggestion = rep.Fix.Suggestion
+		}
+		return entry
+	}
+	// Fallback for non-Report errors
+	return checkJSONError{
+		Code:    "ERROR",
+		Message: err.Error(),
+		File:    filename,
+	}
+}
+
+func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool, jsonFlag bool, quietFlag bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-check")
@@ -92,7 +147,7 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 
 	if info.IsDir() {
 		span.SetAttributes(attribute.Bool("is_directory", true))
-		checkDirectoryWithContext(ctx, filename, strictSyntax, relaxModules, timeout, debugCompile)
+		checkDirectoryWithContext(ctx, filename, strictSyntax, relaxModules, timeout, debugCompile, jsonFlag, quietFlag)
 		return
 	}
 
@@ -119,11 +174,16 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 		}
 	}
 
-	// Type check
-	fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
+	// Suppress warnings in JSON/quiet mode so they don't pollute output
+	if jsonFlag || quietFlag {
+		os.Setenv("AILANG_QUIET_WARNINGS", "1")
+	}
 
-	// Effect check
-	fmt.Printf("%s Effect checking...\n", cyan("→"))
+	// Type check / Effect check progress lines (suppressed in json/quiet mode)
+	if !jsonFlag && !quietFlag {
+		fmt.Printf("%s Type checking %s...\n", cyan("→"), filename)
+		fmt.Printf("%s Effect checking...\n", cyan("→"))
+	}
 
 	// Check AILANG_RELAX_MODULES environment variable
 	relaxModulesEffective := relaxModules
@@ -149,14 +209,14 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 
 	// Run with timeout if specified
 	if timeoutDuration > 0 {
-		runCheckWithTimeoutAndContext(ctx, cfg, src, timeoutDuration, filename)
+		runCheckWithTimeoutAndContext(ctx, cfg, src, timeoutDuration, filename, jsonFlag, quietFlag)
 	} else {
-		runCheckWithContext(ctx, cfg, src)
+		runCheckWithContext(ctx, cfg, src, filename, jsonFlag, quietFlag)
 	}
 }
 
 // runCheckWithContext executes the pipeline without timeout, with telemetry context
-func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source) {
+func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source, filename string, jsonFlag bool, quietFlag bool) {
 	// Start result span
 	_, resultSpan := checkTracer.Start(ctx, "check.result")
 	defer resultSpan.End()
@@ -169,7 +229,16 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 		)
 		resultSpan.RecordError(err)
 		resultSpan.SetStatus(codes.Error, err.Error())
-		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		if jsonFlag {
+			outputCheckJSON(checkJSONOutput{
+				File:       filename,
+				Passed:     false,
+				ErrorCount: 1,
+				Errors:     []checkJSONError{errorToCheckJSONError(err, filename)},
+			})
+		} else {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		}
 		os.Exit(1)
 	}
 
@@ -180,8 +249,21 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 			attribute.Int("errors.count", len(result.Errors)),
 		)
 		resultSpan.SetStatus(codes.Error, "check failed")
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+		if jsonFlag {
+			jsonErrors := make([]checkJSONError, len(result.Errors))
+			for i, e := range result.Errors {
+				jsonErrors[i] = errorToCheckJSONError(e, filename)
+			}
+			outputCheckJSON(checkJSONOutput{
+				File:       filename,
+				Passed:     false,
+				ErrorCount: len(result.Errors),
+				Errors:     jsonErrors,
+			})
+		} else {
+			for _, e := range result.Errors {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+			}
 		}
 		os.Exit(1)
 	}
@@ -196,11 +278,20 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 		attribute.Int("errors.count", 0),
 	)
 	resultSpan.SetStatus(codes.Ok, "check passed")
-	fmt.Printf("\n%s No errors found!\n", green("✓"))
+	if jsonFlag {
+		outputCheckJSON(checkJSONOutput{
+			File:       filename,
+			Passed:     true,
+			ErrorCount: 0,
+			Errors:     []checkJSONError{},
+		})
+	} else if !quietFlag {
+		fmt.Printf("\n%s No errors found!\n", green("✓"))
+	}
 }
 
 // runCheckWithTimeoutAndContext executes the pipeline with a watchdog timer and telemetry
-func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source, timeout time.Duration, filename string) {
+func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src pipeline.Source, timeout time.Duration, filename string, jsonFlag bool, quietFlag bool) {
 	// Start result span
 	_, resultSpan := checkTracer.Start(ctx, "check.result",
 		trace.WithAttributes(
@@ -230,7 +321,16 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 			)
 			resultSpan.RecordError(r.err)
 			resultSpan.SetStatus(codes.Error, r.err.Error())
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), r.err)
+			if jsonFlag {
+				outputCheckJSON(checkJSONOutput{
+					File:       filename,
+					Passed:     false,
+					ErrorCount: 1,
+					Errors:     []checkJSONError{errorToCheckJSONError(r.err, filename)},
+				})
+			} else {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), r.err)
+			}
 			os.Exit(1)
 		}
 		if len(r.result.Errors) > 0 {
@@ -239,8 +339,21 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 				attribute.Int("errors.count", len(r.result.Errors)),
 			)
 			resultSpan.SetStatus(codes.Error, "check failed")
-			for _, e := range r.result.Errors {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+			if jsonFlag {
+				jsonErrors := make([]checkJSONError, len(r.result.Errors))
+				for i, e := range r.result.Errors {
+					jsonErrors[i] = errorToCheckJSONError(e, filename)
+				}
+				outputCheckJSON(checkJSONOutput{
+					File:       filename,
+					Passed:     false,
+					ErrorCount: len(r.result.Errors),
+					Errors:     jsonErrors,
+				})
+			} else {
+				for _, e := range r.result.Errors {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+				}
 			}
 			os.Exit(1)
 		}
@@ -253,7 +366,16 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 			attribute.Int("errors.count", 0),
 		)
 		resultSpan.SetStatus(codes.Ok, "check passed")
-		fmt.Printf("\n%s No errors found!\n", green("✓"))
+		if jsonFlag {
+			outputCheckJSON(checkJSONOutput{
+				File:       filename,
+				Passed:     true,
+				ErrorCount: 0,
+				Errors:     []checkJSONError{},
+			})
+		} else if !quietFlag {
+			fmt.Printf("\n%s No errors found!\n", green("✓"))
+		}
 
 	case <-time.After(timeout):
 		resultSpan.SetAttributes(
@@ -261,16 +383,29 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 			attribute.Bool("timed_out", true),
 		)
 		resultSpan.SetStatus(codes.Error, "timeout")
-		fmt.Fprintf(os.Stderr, "\n%s Compilation timed out after %s\n", red("TIMEOUT"), timeout)
-		fmt.Fprintf(os.Stderr, "File: %s\n\n", filename)
+		if jsonFlag {
+			outputCheckJSON(checkJSONOutput{
+				File:       filename,
+				Passed:     false,
+				ErrorCount: 1,
+				Errors: []checkJSONError{{
+					Code:    "TIMEOUT",
+					Message: fmt.Sprintf("compilation timed out after %s", timeout),
+					File:    filename,
+				}},
+			})
+		} else {
+			fmt.Fprintf(os.Stderr, "\n%s Compilation timed out after %s\n", red("TIMEOUT"), timeout)
+			fmt.Fprintf(os.Stderr, "File: %s\n\n", filename)
 
-		// Dump goroutine stacks for debugging
-		buf := make([]byte, 1<<20) // 1MB buffer
-		n := runtime.Stack(buf, true)
-		fmt.Fprintf(os.Stderr, "Stack dump (all goroutines):\n%s\n", buf[:n])
+			// Dump goroutine stacks for debugging
+			buf := make([]byte, 1<<20) // 1MB buffer
+			n := runtime.Stack(buf, true)
+			fmt.Fprintf(os.Stderr, "Stack dump (all goroutines):\n%s\n", buf[:n])
 
-		fmt.Fprintf(os.Stderr, "\n%s This may indicate cyclic types. Try: ailang debug cycles %s\n",
-			yellow("Hint:"), filename)
+			fmt.Fprintf(os.Stderr, "\n%s This may indicate cyclic types. Try: ailang debug cycles %s\n",
+				yellow("Hint:"), filename)
+		}
 		os.Exit(124) // Standard timeout exit code
 	}
 }
@@ -418,7 +553,7 @@ func outputInterface(modulePath string) {
 // exportTraining is defined in export_training.go
 
 // checkDirectoryWithContext recursively checks all .ail files with telemetry
-func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool) {
+func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax bool, relaxModules bool, timeout string, debugCompile bool, jsonFlag bool, quietFlag bool) {
 	var files []string
 
 	// Walk directory to find all .ail files
@@ -439,14 +574,18 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 
 	// Handle empty directory
 	if len(files) == 0 {
-		fmt.Printf("%s No .ail files found in %s\n", yellow("⚠"), dir)
+		if !jsonFlag && !quietFlag {
+			fmt.Printf("%s No .ail files found in %s\n", yellow("⚠"), dir)
+		}
 		return
 	}
 
 	// Sort files for deterministic ordering
 	sort.Strings(files)
 
-	fmt.Printf("%s Checking %d .ail files in %s...\n\n", cyan("→"), len(files), dir)
+	if !jsonFlag && !quietFlag {
+		fmt.Printf("%s Checking %d .ail files in %s...\n\n", cyan("→"), len(files), dir)
+	}
 
 	// Track results
 	var passed, failed int
@@ -528,24 +667,59 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 				errors = append(errors, fmt.Sprintf("%s: %v", file, e))
 			}
 			failed++
-			fmt.Printf("  %s %s\n", red("✗"), file)
+			if !jsonFlag && !quietFlag {
+				fmt.Printf("  %s %s\n", red("✗"), file)
+			}
 		} else {
 			passed++
-			fmt.Printf("  %s %s\n", green("✓"), file)
+			if !jsonFlag && !quietFlag {
+				fmt.Printf("  %s %s\n", green("✓"), file)
+			}
 		}
 	}
 
 	// Print summary
-	fmt.Println()
-	if failed == 0 {
-		fmt.Printf("%s %d files checked, all passed!\n", green("✓"), passed)
-	} else {
-		fmt.Printf("%s %d files checked: %d passed, %d failed\n", red("✗"), passed+failed, passed, failed)
-		fmt.Println()
-		fmt.Println("Errors:")
+	if jsonFlag {
+		// JSON output for directory check
+		jsonErrors := make([]checkJSONError, 0, len(errors))
 		for _, e := range errors {
-			fmt.Printf("  • %s\n", e)
+			jsonErrors = append(jsonErrors, checkJSONError{
+				Code:    "ERROR",
+				Message: e,
+			})
 		}
-		os.Exit(1)
+		outputCheckJSON(checkJSONOutput{
+			File:       dir,
+			Passed:     failed == 0,
+			ErrorCount: len(errors),
+			Errors:     jsonErrors,
+		})
+		if failed > 0 {
+			os.Exit(1)
+		}
+	} else {
+		if !quietFlag {
+			fmt.Println()
+		}
+		if failed == 0 {
+			if !quietFlag {
+				fmt.Printf("%s %d files checked, all passed!\n", green("✓"), passed)
+			}
+		} else {
+			if !quietFlag {
+				fmt.Printf("%s %d files checked: %d passed, %d failed\n", red("✗"), passed+failed, passed, failed)
+				fmt.Println()
+				fmt.Println("Errors:")
+				for _, e := range errors {
+					fmt.Printf("  • %s\n", e)
+				}
+			} else {
+				// Even in quiet mode, print errors to stderr
+				for _, e := range errors {
+					fmt.Fprintf(os.Stderr, "%s\n", e)
+				}
+			}
+			os.Exit(1)
+		}
 	}
 }

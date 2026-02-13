@@ -16,6 +16,7 @@ func runPrompt() {
 	versionFlag := promptFS.String("version", "", "Prompt version to display (e.g., v0.3.24, v0.4.2, or 'latest')")
 	listFlag := promptFS.Bool("list", false, "List all available prompt versions")
 	infoFlag := promptFS.Bool("info", false, "Show metadata for specified version")
+	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact version (~15KB vs ~49KB)")
 	helpFlag := promptFS.Bool("help", false, "Show help for prompt command")
 
 	_ = promptFS.Parse(flag.Args()[1:])
@@ -47,6 +48,21 @@ func runPrompt() {
 		version = "latest"
 	}
 
+	// --compact appends "-compact" to the resolved version
+	if *compactFlag {
+		if version == "latest" {
+			// Resolve latest to actual version first, then append -compact
+			activeVer, err := prompt.GetActiveVersion()
+			if err == nil && activeVer != "" {
+				version = activeVer + "-compact"
+			} else {
+				version = version + "-compact"
+			}
+		} else {
+			version = version + "-compact"
+		}
+	}
+
 	content, err := prompt.LoadPrompt(version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -66,6 +82,7 @@ Display AILANG teaching prompt for AI code generation.
 OPTIONS:
   --version VERSION    Display specific version (e.g., v0.3.24, v0.4.2)
                       Default: latest/active version
+  --compact           Use token-efficient compact version (~15KB vs ~49KB)
   --list              List all available prompt versions
   --info              Show metadata for specified version (requires --version)
   --help              Show this help message
@@ -73,6 +90,9 @@ OPTIONS:
 EXAMPLES:
   # Display current/latest prompt
   ailang prompt
+
+  # Display compact version (for small context windows)
+  ailang prompt --compact
 
   # Display specific version
   ailang prompt --version v0.3.24
