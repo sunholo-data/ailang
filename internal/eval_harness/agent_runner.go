@@ -22,6 +22,8 @@ type AgentBenchmarkConfig struct {
 	AllowedTools      []string // Tools agent can use
 	ClaudePath        string   // Path to claude CLI
 	ClaudeModel       string   // Claude model to use (haiku, sonnet, opus, or full name)
+	Verify            bool     // Enable contract verification (M-CONTRACT-EVAL)
+	DevtoolsPrompt    string   // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
 }
 
 // DefaultAgentConfig returns sensible defaults
@@ -66,6 +68,14 @@ type AgentBenchmarkResult struct {
 	StdoutOk  bool   `json:"stdout_ok"`  // Did output match expected?
 	Stdout    string `json:"stdout,omitempty"`
 	Stderr    string `json:"stderr,omitempty"`
+
+	// Contract verification results (M-CONTRACT-EVAL)
+	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
+	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions
+	VerifyCounterex int    `json:"verify_counterexample"` // Count of counterexamples
+	VerifySkipped   int    `json:"verify_skipped"`        // Count of skipped functions
+	VerifyErrors    int    `json:"verify_errors"`         // Count of Z3 errors
+	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
 }
 
 // TokenUsage captures detailed token metrics
@@ -217,10 +227,17 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	// Use transcript from result directly (already formatted)
 	sessionLog := result.Transcript
 
+	// M-CONTRACT-EVAL: Post-hoc contract verification for agent mode
+	var verifyResult *AICheckResult
+	var verifyRawJSON string
+	if config.Verify && spec.ContractSpec != "" && language == "ailang" && validation.CompileOk {
+		verifyResult, verifyRawJSON, _ = RunAICheck("", solutionPath, 5*time.Second)
+	}
+
 	// Overall success is when all validations pass
 	success := validation.CompileOk && validation.RuntimeOk && validation.StdoutOk
 
-	return &AgentBenchmarkResult{
+	agentResult := &AgentBenchmarkResult{
 		BenchmarkID: spec.ID,
 		Executor:    "claude", // Legacy runner always uses Claude Code
 		Success:     success,
@@ -243,7 +260,19 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 		StdoutOk:  validation.StdoutOk,
 		Stdout:    validation.Stdout,
 		Stderr:    validation.Stderr,
-	}, nil
+	}
+
+	// M-CONTRACT-EVAL: Populate verify fields if verification was run
+	if verifyResult != nil {
+		agentResult.VerifyVerified = verifyResult.Verify.Verified
+		agentResult.VerifyCounterex = verifyResult.Verify.Counterexample
+		agentResult.VerifySkipped = verifyResult.Verify.Skipped
+		agentResult.VerifyErrors = verifyResult.Verify.Errors
+		agentResult.VerifyOk = verifyResult.Verify.Available && verifyResult.Verify.Counterexample == 0 && verifyResult.Verify.Errors == 0
+		agentResult.VerifyJSON = verifyRawJSON
+	}
+
+	return agentResult, nil
 }
 
 // checkClaudeCLI verifies Claude CLI is installed and has correct version

@@ -19,6 +19,8 @@ Expected output:
 - Read {{SOLUTION_PATH}} file first so you know the template to write to
 - If your solution is impossible due to AILANG language limitations - stop and report
 
+{{CONTRACT_SPEC}}
+
 ## Verification Steps (REQUIRED!)
 
 **You MUST verify your solution before finishing:**

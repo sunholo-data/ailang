@@ -43,8 +43,8 @@ func runEval() {
 		os.Exit(1)
 	}
 
-	// Load benchmark spec
-	specPath := filepath.Join("benchmarks", *benchmarkID+".yml")
+	// Load benchmark spec (uses evalBenchmarkDir set by --benchmark-dir flag)
+	specPath := filepath.Join(evalBenchmarkDir, *benchmarkID+".yml")
 	spec, err := eval_harness.LoadSpec(specPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to load benchmark: %v\n", red("Error"), err)
@@ -144,6 +144,7 @@ func runEval() {
 		if *promptVersion != "" {
 			repairRunner.SetPromptVersion(*promptVersion)
 		}
+		repairRunner.SetVerify(evalVerifyFlag, evalVerifyTimeout)
 		metrics, err := repairRunner.Run(ctx, prompt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: benchmark execution failed: %v\n", red("✗"), err)

@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/eval_harness"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -110,6 +111,12 @@ func runEvalSuite() {
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
 	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
 
+	// Contract verification flags (M-CONTRACT-EVAL)
+	benchmarkDir := fs.String("benchmark-dir", "", "Directory containing benchmark YAML files (default: benchmarks/ in CWD)")
+	verify := fs.Bool("verify", false, "Enable contract verification (run ailang ai-check on solutions)")
+	verifyTimeout := fs.Duration("verify-timeout", 5*time.Second, "Per-function Z3 timeout for contract verification")
+	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
+
 	// Message-based coordination flags (M-UNIFIED-AI-CONTROL-PLANE)
 	queueMode := fs.Bool("queue", false, "Run benchmarks via message queue (coordinator processes, crash recovery)")
 	queueInbox := fs.String("queue-inbox", "eval-runner", "Inbox for queue mode benchmark jobs")
@@ -119,6 +126,14 @@ func runEvalSuite() {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Set package-level eval config from flags (M-CONTRACT-EVAL)
+	if *benchmarkDir != "" {
+		evalBenchmarkDir = *benchmarkDir
+	}
+	evalVerifyFlag = *verify
+	evalVerifyTimeout = *verifyTimeout
+	evalDevtoolsPromptFlag = *devtoolsPrompt
 
 	// Initialize models configuration
 	if err := eval_harness.InitModelsConfig(); err != nil {
@@ -378,6 +393,16 @@ func runEvalSuite() {
 		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
 		fmt.Println()
 
+		// M-CONTRACT-EVAL: Load devtools prompt if flag is active
+		var devtoolsContent string
+		if evalDevtoolsPromptFlag {
+			var dtErr error
+			devtoolsContent, dtErr = devtoolsprompt.LoadPrompt("v0.8.0-compact")
+			if dtErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Failed to load devtools prompt: %v\n", yellow("⚠️"), dtErr)
+			}
+		}
+
 		agentConfig = &eval_harness.AgentBenchmarkConfig{
 			MaxConcurrent:     *agentMaxConcurrent,
 			RequestsPerSecond: *agentRequestsPerSecond,
@@ -386,6 +411,8 @@ func runEvalSuite() {
 			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
 			ClaudePath:        "claude",           // Use PATH
 			ClaudeModel:       agentModelOverride, // Empty unless override specified
+			Verify:            evalVerifyFlag,     // M-CONTRACT-EVAL: enable contract verification
+			DevtoolsPrompt:    devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
 		}
 	}
 

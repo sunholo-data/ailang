@@ -15,9 +15,10 @@ type BenchmarkSpec struct {
 	Languages    []string          `yaml:"languages"`
 	Entrypoint   string            `yaml:"entrypoint"`
 	Caps         []string          `yaml:"caps"`
-	Prompt       string            `yaml:"prompt"`       // Inline prompt text (language-agnostic)
-	PromptFiles  map[string]string `yaml:"prompt_files"` // Language-specific prompt files: {ailang: "prompts/v0.3.0.md"}
-	TaskPrompt   string            `yaml:"task_prompt"`  // Task-specific prompt appended after base prompt
+	Prompt       string            `yaml:"prompt"`        // Inline prompt text (language-agnostic)
+	PromptFiles  map[string]string `yaml:"prompt_files"`  // Language-specific prompt files: {ailang: "prompts/v0.3.0.md"}
+	TaskPrompt   string            `yaml:"task_prompt"`   // Task-specific prompt appended after base prompt
+	ContractSpec string            `yaml:"contract_spec"` // Optional: AILANG contract specification for Z3 verification
 	ExpectedOut  string            `yaml:"expected_stdout"`
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
@@ -140,6 +141,20 @@ func getDefaultPrompt(lang string) string {
 	default:
 		return "Write clean, idiomatic code in the specified language."
 	}
+}
+
+// FormatContractSpec returns a formatted contract specification block for prompt injection.
+// When verify is true and the spec has a ContractSpec, returns a formatted block.
+// Otherwise returns empty string (backward compatible).
+func (s *BenchmarkSpec) FormatContractSpec(verify bool) string {
+	if !verify || s.ContractSpec == "" {
+		return ""
+	}
+	return fmt.Sprintf(`FORMAL SPECIFICATION (your solution MUST satisfy these contracts):
+`+"```ailang"+`
+%s
+`+"```"+`
+Run `+"`ailang ai-check solution.ail`"+` to verify your solution against these contracts.`, s.ContractSpec)
 }
 
 // replaceAll is a simple string replacement function

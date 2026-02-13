@@ -474,6 +474,10 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
 
+	// Replace {{CONTRACT_SPEC}} placeholder with formatted contract spec (M-CONTRACT-EVAL)
+	contractSpecBlock := spec.FormatContractSpec(config.Verify)
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CONTRACT_SPEC}}", contractSpecBlock)
+
 	// Replace <LANG> placeholder with actual language name (used in 31/35 benchmarks)
 	// e.g., "Write a program in <LANG>" → "Write a program in Python"
 	languageName := language
@@ -483,6 +487,11 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 		languageName = "AILANG"
 	}
 	taskPrompt = strings.ReplaceAll(taskPrompt, "<LANG>", languageName)
+
+	// M-CONTRACT-EVAL: Append devtools prompt to system prompt if provided
+	if config.DevtoolsPrompt != "" {
+		systemPrompt = systemPrompt + "\n\n" + config.DevtoolsPrompt
+	}
 
 	return systemPrompt, taskPrompt, versionUsed, nil
 }

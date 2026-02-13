@@ -30,6 +30,9 @@ const (
 
 	// Runtime errors - Module system
 	MOD_001 ErrCode = "MOD_001" // Undefined module/entry
+
+	// Contract verification errors (M-CONTRACT-EVAL)
+	VERIFY_COUNTEREXAMPLE ErrCode = "VERIFY_COUNTEREXAMPLE" // Z3 found counterexample
 )
 
 // RepairHint provides actionable guidance for fixing an error
@@ -191,4 +194,13 @@ How to fix: %s
 Please produce a corrected %s program that fixes this specific error
 for the benchmark "%s". Keep it minimal, single file, no extra commentary.`,
 		stderr, failedCode, code, hint.Title, hint.Why, hint.How, lang, benchmarkID)
+}
+
+// FormatZ3RepairHint creates a RepairHint from Z3 verification output (M-CONTRACT-EVAL)
+func FormatZ3RepairHint(verifyStderr string) *RepairHint {
+	return &RepairHint{
+		Title: "Contract verification failed — Z3 found counterexample",
+		Why:   "Your function does not satisfy its ensures clause for all inputs.",
+		How:   "Read the counterexample values below and fix the logic error.\n\nZ3 output:\n" + verifyStderr,
+	}
 }

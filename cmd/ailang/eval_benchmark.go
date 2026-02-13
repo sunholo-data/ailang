@@ -31,8 +31,8 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 	)
 	defer benchSpan.End()
 
-	// Load benchmark spec
-	specPath := filepath.Join("benchmarks", benchmarkID+".yml")
+	// Load benchmark spec (uses evalBenchmarkDir set by --benchmark-dir flag)
+	specPath := filepath.Join(evalBenchmarkDir, benchmarkID+".yml")
 	spec, err := eval_harness.LoadSpec(specPath)
 	if err != nil {
 		benchSpan.RecordError(err)
@@ -302,6 +302,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 	if actualPromptVersion != "" {
 		repairRunner.SetPromptVersion(actualPromptVersion)
 	}
+	repairRunner.SetVerify(evalVerifyFlag, evalVerifyTimeout)
 
 	// Save result to JSON (moved up to handle API errors)
 	logger := eval_harness.NewMetricsLogger(outputDir)

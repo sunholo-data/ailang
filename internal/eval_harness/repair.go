@@ -13,17 +13,28 @@ type RepairRunner struct {
 	spec          *BenchmarkSpec
 	timeout       time.Duration
 	selfRepair    bool
-	promptVersion string // Optional prompt version ID for A/B testing
+	promptVersion string        // Optional prompt version ID for A/B testing
+	verify        bool          // M-CONTRACT-EVAL: run Z3 verification
+	verifyTimeout time.Duration // M-CONTRACT-EVAL: per-function Z3 timeout
 }
 
 // NewRepairRunner creates a new repair runner
 func NewRepairRunner(agent *AIAgent, runner LanguageRunner, spec *BenchmarkSpec, timeout time.Duration, selfRepair bool) *RepairRunner {
 	return &RepairRunner{
-		agent:      agent,
-		runner:     runner,
-		spec:       spec,
-		timeout:    timeout,
-		selfRepair: selfRepair,
+		agent:         agent,
+		runner:        runner,
+		spec:          spec,
+		timeout:       timeout,
+		selfRepair:    selfRepair,
+		verifyTimeout: 5 * time.Second, // default
+	}
+}
+
+// SetVerify enables contract verification (M-CONTRACT-EVAL)
+func (r *RepairRunner) SetVerify(verify bool, timeout time.Duration) {
+	r.verify = verify
+	if timeout > 0 {
+		r.verifyTimeout = timeout
 	}
 }
 
@@ -53,9 +64,32 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		return metrics, nil
 	}
 
-	// Attempt self-repair
-	// Check both generated code and stderr for error patterns
-	errCode, hint := CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr)
+	// Determine error category and repair hint
+	var errCode ErrCode
+	var hint *RepairHint
+	var repairStderr string
+
+	// M-CONTRACT-EVAL: If verify is active, code compiles, and spec has contracts,
+	// try Z3 verification as an additional error signal
+	if r.verify && r.spec.ContractSpec != "" && firstResult.CompileOk && firstResult.RunResult.WorkspaceDir != "" {
+		verifyResult, rawJSON, verifyErr := RunAICheck("", firstResult.RunResult.WorkspaceDir+"/benchmark/solution.ail", r.verifyTimeout)
+		if verifyErr == nil && verifyResult != nil {
+			PopulateVerifyMetrics(metrics, verifyResult, rawJSON)
+			if verifyResult.Verify.Counterexample > 0 {
+				// Z3 found counterexample — use it as the repair error
+				errCode = VERIFY_COUNTEREXAMPLE
+				hint = FormatZ3RepairHint(rawJSON)
+				repairStderr = rawJSON
+			}
+		}
+	}
+
+	// If no Z3 error found (or verify not active), fall back to standard error categorization
+	if hint == nil {
+		errCode, hint = CategorizeErrorWithCode(firstResult.Code, firstResult.RunResult.Stderr)
+		repairStderr = firstResult.RunResult.Stderr
+	}
+
 	if hint == nil {
 		// Unknown error, can't repair
 		return metrics, nil
@@ -72,7 +106,7 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		r.spec.ID,
 		r.runner.Language(),
 		firstResult.Code,
-		firstResult.RunResult.Stderr,
+		repairStderr,
 	)
 
 	// Second attempt with repair guidance

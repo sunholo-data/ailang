@@ -5,12 +5,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
-// discoverBenchmarks finds all .yml files in benchmarks/ directory
+// evalBenchmarkDir is the directory containing benchmark YAML files.
+// Set by --benchmark-dir flag; defaults to "benchmarks" (CWD-relative).
+var evalBenchmarkDir = "benchmarks"
+
+// evalVerifyFlag enables contract verification during eval.
+var evalVerifyFlag bool
+
+// evalVerifyTimeout is the per-function Z3 timeout for contract verification.
+var evalVerifyTimeout = 5 * time.Second
+
+// evalDevtoolsPromptFlag appends the devtools prompt to agent system prompts.
+var evalDevtoolsPromptFlag bool
+
+// discoverBenchmarks finds all .yml files in the benchmark directory
 func discoverBenchmarks() []string {
-	benchmarksDir := "benchmarks"
-	entries, err := os.ReadDir(benchmarksDir)
+	entries, err := os.ReadDir(evalBenchmarkDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Could not read benchmarks directory: %v\n", err)
 		return nil
