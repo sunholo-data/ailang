@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.8.0] - 2026-02-13
+
 ### Added
 - **M-SMT-BOUNDED-RECURSION: Bounded recursion for SMT verification** (`internal/smt/unroll.go`, `codegen.go`, `cmd/ailang/verify.go`, ~230 LOC impl + ~500 LOC tests)
   - Recursive functions now verified via Dafny-style bounded unrolling (previously rejected)
