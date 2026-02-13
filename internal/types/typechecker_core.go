@@ -70,6 +70,7 @@ type CoreTypeChecker struct {
 	instantiations      []Instantiation                   // Track polymorphic instantiations for debugging
 	trackInstantiations bool                              // Whether to track instantiations
 	varCounter          int                               // Counter for generating fresh variable names
+	inferFreshCounter   int                               // M-TVAR-COLLISION-FIX: Persistent counter for InferenceContext freshCounter (prevents TVar name collisions across InferWithConstraints calls)
 	effectAnnots        map[uint64][]string               // Effect annotations from elaboration (NodeID → effects)
 	effectAnnotsFull    map[uint64][]ast.EffectAnnotation // M-CAPABILITY-BUDGETS: Full effect annotations with budgets
 	returnTypeAnnots    map[uint64]Type                   // Return type annotations from elaboration (Lambda NodeID → return type)
@@ -319,7 +320,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		env:                  env,
 		unifier:              unifier,
 		constraints:          []TypeConstraint{},
-		freshCounter:         0,
+		freshCounter:         tc.inferFreshCounter, // M-TVAR-COLLISION-FIX: Use persistent counter to avoid TVar name collisions across declarations
 		path:                 []string{},
 		qualifiedConstraints: []ClassConstraint{},
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
@@ -362,6 +363,10 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = defaultedType
 		unsolved = defaultedConstraints
 	}
+
+	// M-TVAR-COLLISION-FIX: Save freshCounter back so next InferWithConstraints call
+	// starts from a unique counter, preventing TVar name collisions across declarations.
+	tc.inferFreshCounter = ctx.freshCounter
 
 	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// This ensures CoreTI has concrete types (Int, Float, etc.) instead of type variables.
@@ -436,7 +441,8 @@ func (tc *CoreTypeChecker) CheckCoreProgram(prog *core.Program) (*typedast.Typed
 func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, error) {
 	ctx := NewInferenceContext()
 	ctx.env = env
-	ctx.SetDebugSink(tc.DebugSink) // M-DX11: Wire provenance tracking
+	ctx.freshCounter = tc.inferFreshCounter // M-TVAR-COLLISION-FIX: Use persistent counter
+	ctx.SetDebugSink(tc.DebugSink)          // M-DX11: Wire provenance tracking
 
 	// Infer type and effects
 	typedNode, newEnv, err := tc.inferCore(ctx, expr)
@@ -496,6 +502,9 @@ func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	} else if tc.debugMode {
 		fmt.Println("[debug] No defaulting applied")
 	}
+
+	// M-TVAR-COLLISION-FIX: Save freshCounter back for CheckCoreExpr path
+	tc.inferFreshCounter = ctx.freshCounter
 
 	// M-DX4 FIX V2: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// Must be AFTER composition so we have the complete substitution with chains resolved
