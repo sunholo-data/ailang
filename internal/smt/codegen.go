@@ -159,9 +159,7 @@ func EncodeFunction(
 		if err != nil {
 			return nil, fmt.Errorf("unrolling recursive function: %w", err)
 		}
-		for _, decl := range unrollResult.Declarations {
-			result.Declarations = append(result.Declarations, decl)
-		}
+		result.Declarations = append(result.Declarations, unrollResult.Declarations...)
 		unrollTopName = unrollResult.TopLevelName
 	}
 
