@@ -351,7 +351,9 @@ func extractADTTypes(file *ast.File) map[string][]smt.ADTVariant {
 				sortName := astTypeToSMTSort(field.Type)
 				fieldName := field.Name
 				if fieldName == "" {
-					fieldName = fmt.Sprintf("field_%d", len(variant.Fields))
+					// Prefix with constructor name to ensure uniqueness across
+					// all constructors in the datatype (Z3 requirement).
+					fieldName = fmt.Sprintf("%s_%d", ctor.Name, len(variant.Fields))
 				}
 				variant.Fields = append(variant.Fields, smt.ADTField{
 					Name: fieldName,
