@@ -26,10 +26,31 @@ func (p *Parser) parseContractBlocks() (requires, ensures []*ast.Property) {
 		requires = p.parseContractBlock(ast.RequiresKind)
 	}
 
+	// Check for duplicate requires — AIs commonly write two separate blocks
+	// instead of comma-separating within one: requires { a } requires { b }
+	if p.peekTokenIs(lexer.REQUIRES) {
+		p.report("PAR_DUPLICATE_REQUIRES",
+			"only one requires block per function; combine with commas: requires { cond1, cond2 }",
+			"Merge conditions into a single requires block separated by commas")
+		p.nextToken() // consume duplicate 'requires'
+		extra := p.parseContractBlock(ast.RequiresKind)
+		requires = append(requires, extra...)
+	}
+
 	// Parse ensures block if present
 	if p.peekTokenIs(lexer.ENSURES) {
 		p.nextToken() // consume 'ensures'
 		ensures = p.parseContractBlock(ast.EnsuresKind)
+	}
+
+	// Check for duplicate ensures — same recovery: merge and warn
+	if p.peekTokenIs(lexer.ENSURES) {
+		p.report("PAR_DUPLICATE_ENSURES",
+			"only one ensures block per function; combine with commas: ensures { cond1, cond2 }",
+			"Merge conditions into a single ensures block separated by commas")
+		p.nextToken() // consume duplicate 'ensures'
+		extra := p.parseContractBlock(ast.EnsuresKind)
+		ensures = append(ensures, extra...)
 	}
 
 	return requires, ensures

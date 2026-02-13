@@ -24,6 +24,7 @@ func verifyCommand() {
 	strictFlag := fs.Bool("strict", false, "Exit with error if any function cannot be verified")
 	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
+	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -36,9 +37,10 @@ func verifyCommand() {
 		fmt.Println()
 		fmt.Println("Options:")
 		fmt.Println("  --verbose    Show generated SMT-LIB for each function")
-		fmt.Println("  --json       Output results in JSON format")
-		fmt.Println("  --strict     Exit with error if any function cannot be verified")
-		fmt.Println("  --timeout    Per-function Z3 timeout (default: 5s)")
+		fmt.Println("  --json            Output results in JSON format")
+		fmt.Println("  --strict          Exit with error if any function cannot be verified")
+		fmt.Println("  --timeout         Per-function Z3 timeout (default: 5s)")
+		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
 		fmt.Println("Returns exit code 0 if all verifiable contracts are proven.")
@@ -62,8 +64,23 @@ func verifyCommand() {
 		os.Exit(1)
 	}
 
+	// Suppress warnings in JSON mode so they don't pollute output
+	if *jsonFlag {
+		os.Setenv("AILANG_QUIET_WARNINGS", "1")
+	}
+
+	// Check AILANG_RELAX_MODULES environment variable
+	relaxModulesEffective := *relaxModulesFlag
+	if envVal := os.Getenv("AILANG_RELAX_MODULES"); envVal != "" {
+		switch strings.ToLower(envVal) {
+		case "1", "true", "yes":
+			relaxModulesEffective = true
+		}
+	}
+
 	cfg := pipeline.Config{
-		DryLink: true, // Don't evaluate, just compile
+		DryLink:      true, // Don't evaluate, just compile
+		RelaxModules: relaxModulesEffective,
 	}
 	src := pipeline.Source{
 		Code:     string(content),
@@ -432,6 +449,10 @@ func unwrapLambdaParams(
 	if fd, ok := surfaceFuncs[funcName]; ok && len(fd.Params) > 0 {
 		params := make([]smt.FunctionParam, 0, len(fd.Params))
 		for _, p := range fd.Params {
+			// Skip unit params from zero-arg function desugaring (func f() → func f(_: ()))
+			if isUnitParam(p) {
+				continue
+			}
 			paramType := convertASTTypeToType(p.Type)
 			if paramType != nil {
 				params = append(params, smt.FunctionParam{
@@ -440,20 +461,33 @@ func unwrapLambdaParams(
 				})
 			}
 		}
-		if len(params) > 0 {
-			return params, innerBody
-		}
+		return params, innerBody
 	}
 
-	// Fallback: use Core param names with Int default
-	params := make([]smt.FunctionParam, len(coreParamNames))
-	for i, name := range coreParamNames {
-		params[i] = smt.FunctionParam{
+	// Fallback: use Core param names with Int default (skip unit/dummy params)
+	params := make([]smt.FunctionParam, 0, len(coreParamNames))
+	for _, name := range coreParamNames {
+		if name == "_" {
+			continue
+		}
+		params = append(params, smt.FunctionParam{
 			Name: name,
 			Type: &types.TCon{Name: "int"},
-		}
+		})
 	}
 	return params, innerBody
+}
+
+// isUnitParam returns true if the param is a unit parameter from zero-arg desugaring.
+// The parser desugars `func f()` to `func f(_: ())`, producing a param named "_" with unit type.
+func isUnitParam(p *ast.Param) bool {
+	if p.Name != "_" {
+		return false
+	}
+	if st, ok := p.Type.(*ast.SimpleType); ok {
+		return st.Name == "()"
+	}
+	return false
 }
 
 // convertASTTypeToType converts an AST type annotation to a types.Type.

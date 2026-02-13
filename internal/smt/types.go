@@ -82,7 +82,7 @@ func mapTCon(name string) (string, error) {
 		return "Bool", nil
 	case "string":
 		return "String", nil
-	case "unit":
+	case "unit", "()":
 		return "", fmt.Errorf("unit type cannot be encoded in SMT-LIB")
 	default:
 		// Assume it's an ADT name — return as-is for declare-datatype
