@@ -1,9 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,6 +57,8 @@ func examplesCommand(args []string) {
 		examplesShowCommand(subargs)
 	case "tags":
 		examplesTagsCommand(subargs)
+	case "download":
+		examplesDownloadCommand(subargs)
 	case "help", "--help", "-h":
 		printExamplesHelp()
 	default:
@@ -461,6 +466,184 @@ func examplesTagsCommand(args []string) {
 	fmt.Println("Use: ailang examples list --tags <tag>")
 }
 
+// examplesDownloadCommand downloads examples from GitHub releases
+func examplesDownloadCommand(args []string) {
+	dlFlags := flag.NewFlagSet("examples download", flag.ExitOnError)
+	versionFlag := dlFlags.String("version", "", "Version to download (default: current binary version)")
+
+	if err := dlFlags.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	version := *versionFlag
+	if version == "" {
+		version = Version
+		if version == "" || version == "dev" {
+			fmt.Fprintln(os.Stderr, "Error: cannot determine version (dev build)")
+			fmt.Fprintln(os.Stderr, "Use --version to specify: ailang examples download --version v0.7.3")
+			os.Exit(1)
+		}
+	}
+
+	// Ensure version has v prefix
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+
+	destDir, err := defaultExamplesDownloadDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	url := fmt.Sprintf("https://github.com/sunholo-data/ailang/releases/download/%s/examples.zip", version)
+	fmt.Printf("Downloading examples %s...\n", version)
+	fmt.Printf("  URL: %s\n", url)
+
+	// Download to temp file
+	resp, err := http.Get(url) //nolint:gosec // URL is constructed from version string, not user input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error downloading: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		fmt.Fprintf(os.Stderr, "Error: examples.zip not found for %s\n", version)
+		fmt.Fprintln(os.Stderr, "This version may not have examples bundled yet.")
+		fmt.Fprintln(os.Stderr, "Check available releases: https://github.com/sunholo-data/ailang/releases")
+		os.Exit(1)
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "Error: HTTP %d from GitHub\n", resp.StatusCode)
+		os.Exit(1)
+	}
+
+	tmpFile, err := os.CreateTemp("", "ailang-examples-*.zip")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating temp file: %v\n", err)
+		os.Exit(1)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	n, err := io.Copy(tmpFile, resp.Body)
+	tmpFile.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error downloading: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  Downloaded %.1f KB\n", float64(n)/1024)
+
+	// Remove old examples if present
+	if _, err := os.Stat(destDir); err == nil {
+		os.RemoveAll(destDir)
+	}
+
+	// Extract zip
+	fmt.Printf("  Extracting to %s\n", destDir)
+	if err := extractZip(tmpPath, destDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error extracting: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Verify manifest exists
+	if _, err := os.Stat(filepath.Join(destDir, "manifest.json")); os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, "Warning: manifest.json not found in downloaded examples")
+	}
+
+	fmt.Println("Done! Examples are now available via 'ailang examples list'")
+}
+
+// defaultExamplesDownloadDir returns ~/.ailang/examples/
+func defaultExamplesDownloadDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(homeDir, ".ailang", "examples"), nil
+}
+
+// extractZip extracts a zip file, stripping a single top-level directory if present.
+// e.g. if zip contains examples/manifest.json, it extracts manifest.json to destDir.
+func extractZip(zipPath, destDir string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("opening zip: %w", err)
+	}
+	defer r.Close()
+
+	// Detect common prefix (e.g. "examples/") to strip
+	prefix := detectZipPrefix(r.File)
+
+	for _, f := range r.File {
+		name := f.Name
+		if prefix != "" {
+			name = strings.TrimPrefix(name, prefix)
+			if name == "" {
+				continue // skip the prefix directory itself
+			}
+		}
+
+		targetPath := filepath.Join(destDir, filepath.FromSlash(name))
+
+		// Ensure we don't write outside destDir (zip slip protection)
+		if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) && targetPath != filepath.Clean(destDir) {
+			continue
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(targetPath, 0755)
+			continue
+		}
+
+		// Create parent directories
+		os.MkdirAll(filepath.Dir(targetPath), 0755)
+
+		outFile, err := os.Create(targetPath)
+		if err != nil {
+			return fmt.Errorf("creating %s: %w", name, err)
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			outFile.Close()
+			return fmt.Errorf("reading %s from zip: %w", name, err)
+		}
+
+		_, err = io.Copy(outFile, rc)
+		rc.Close()
+		outFile.Close()
+		if err != nil {
+			return fmt.Errorf("extracting %s: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+// detectZipPrefix finds a common top-level directory in the zip (e.g. "examples/").
+func detectZipPrefix(files []*zip.File) string {
+	if len(files) == 0 {
+		return ""
+	}
+	// Check if all entries share a common first path component
+	var prefix string
+	for _, f := range files {
+		parts := strings.SplitN(f.Name, "/", 2)
+		if len(parts) < 2 {
+			return "" // file at root level, no common prefix
+		}
+		if prefix == "" {
+			prefix = parts[0] + "/"
+		} else if parts[0]+"/" != prefix {
+			return "" // different prefixes
+		}
+	}
+	return prefix
+}
+
 // Helper functions
 
 func loadExamplesManifest() (*ExampleManifest, error) {
@@ -484,20 +667,46 @@ func loadExamplesManifest() (*ExampleManifest, error) {
 }
 
 func findExamplesDir() (string, error) {
-	candidates := []string{
-		"examples",
-		"../examples",
-		"../../examples",
+	// 1. Check AILANG_EXAMPLES environment variable
+	if envExamples := os.Getenv("AILANG_EXAMPLES"); envExamples != "" {
+		if info, err := os.Stat(envExamples); err == nil && info.IsDir() {
+			absPath, _ := filepath.Abs(envExamples)
+			return absPath, nil
+		}
 	}
 
-	for _, path := range candidates {
+	// 2. Check relative to executable (works for local builds)
+	if exe, err := os.Executable(); err == nil {
+		resolved, _ := filepath.EvalSymlinks(exe)
+		if resolved != "" {
+			exe = resolved
+		}
+		exeDir := filepath.Dir(exe)
+		for _, rel := range []string{"../examples", "examples"} {
+			candidate := filepath.Join(exeDir, rel)
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				absPath, _ := filepath.Abs(candidate)
+				return absPath, nil
+			}
+		}
+	}
+
+	// 3. Check ~/.ailang/examples/ (populated by `ailang examples download`)
+	if dlDir, err := defaultExamplesDownloadDir(); err == nil {
+		if info, err := os.Stat(dlDir); err == nil && info.IsDir() {
+			return dlDir, nil
+		}
+	}
+
+	// 4. CWD-relative paths (works when inside the ailang repo)
+	for _, path := range []string{"examples", "../examples", "../../examples"} {
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
 			absPath, _ := filepath.Abs(path)
 			return absPath, nil
 		}
 	}
 
-	return "", fmt.Errorf("examples directory not found")
+	return "", fmt.Errorf("examples not found\n\n  To fix, either:\n    1. ailang examples download\n    2. Run from the ailang source directory\n    3. Set AILANG_EXAMPLES=/path/to/ailang/examples")
 }
 
 func hasAnyTag(exampleTags, filterTags []string) bool {
@@ -547,9 +756,13 @@ func printExamplesHelp() {
 	fmt.Println("  search         Search examples by content or description")
 	fmt.Println("  show           Display a specific example with metadata")
 	fmt.Println("  tags           List all available tags")
+	fmt.Println("  download       Download examples from GitHub releases")
 	fmt.Println("  help           Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
+	fmt.Println("  ailang examples download                # Download examples for current version")
+	fmt.Println("  ailang examples download --version v0.7.3")
+	fmt.Println()
 	fmt.Println("  ailang examples list                    # List all working examples")
 	fmt.Println("  ailang examples list --tags recursion   # Filter by tag")
 	fmt.Println("  ailang examples list --status all       # Include broken examples")

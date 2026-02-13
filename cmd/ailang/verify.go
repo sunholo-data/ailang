@@ -23,6 +23,7 @@ func verifyCommand() {
 	jsonFlag := fs.Bool("json", false, "Output results in JSON format")
 	strictFlag := fs.Bool("strict", false, "Exit with error if any function cannot be verified")
 	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout")
+	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -181,18 +182,31 @@ func verifyCommand() {
 		// Check if function is in the decidable SMT fragment
 		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
 		if !encodable {
-			reasons := make([]string, len(rejections))
-			for i, r := range rejections {
-				reasons[i] = r.Message
+			// If bounded recursion is enabled, filter out RejectRecursive
+			if *recursiveDepthFlag > 0 {
+				var filtered []smt.SMTRejectionReason
+				for _, r := range rejections {
+					if r.Code != smt.RejectRecursive {
+						filtered = append(filtered, r)
+					}
+				}
+				rejections = filtered
+				encodable = len(rejections) == 0
 			}
-			results = append(results, verifyResult{
-				Function:   funcName,
-				Status:     "skipped",
-				Reason:     strings.Join(reasons, "; "),
-				Rejections: rejections,
-			})
-			skipped++
-			continue
+			if !encodable {
+				reasons := make([]string, len(rejections))
+				for i, r := range rejections {
+					reasons[i] = r.Message
+				}
+				results = append(results, verifyResult{
+					Function:   funcName,
+					Status:     "skipped",
+					Reason:     strings.Join(reasons, "; "),
+					Rejections: rejections,
+				})
+				skipped++
+				continue
+			}
 		}
 
 		// Unwrap Lambda nodes to separate params from body
@@ -200,12 +214,21 @@ func verifyCommand() {
 
 		// Determine return sort from Surface AST
 		returnSort := ""
+		var returnType types.Type
 		if fd, ok := surfaceFuncs[funcName]; ok && fd.ReturnType != nil {
 			returnSort = astTypeToSMTSort(fd.ReturnType)
+			returnType = convertASTTypeToType(fd.ReturnType)
 		}
 
+		// Build per-function encode options (return type, body, contracts for record discovery)
+		funcEncOpts := encOpts
+		funcEncOpts.ReturnType = returnType
+		funcEncOpts.Body = innerBody
+		funcEncOpts.Contracts = meta.Contracts
+		funcEncOpts.RecursiveDepth = *recursiveDepthFlag
+
 		// Encode function to SMT-LIB (with cross-function call support)
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, encOpts)
+		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
 		if err != nil {
 			results = append(results, verifyResult{
 				Function: funcName,
@@ -231,6 +254,10 @@ func verifyCommand() {
 		vr := verifyResult{
 			Function: funcName,
 			Duration: solveResult.Duration,
+		}
+		// Mark bounded recursion depth if the function is recursive
+		if *recursiveDepthFlag > 0 && smt.IsRecursiveFunc(innerBody, funcName) {
+			vr.BoundedDepth = *recursiveDepthFlag
 		}
 		if *verboseFlag {
 			vr.SMTLib = encResult.SMTLib
@@ -275,13 +302,14 @@ func verifyCommand() {
 
 // verifyResult holds the result of verifying a single function.
 type verifyResult struct {
-	Function   string                   `json:"function"`
-	Status     string                   `json:"status"` // verified, counterexample, skipped, error, unknown
-	Reason     string                   `json:"reason,omitempty"`
-	Model      []smt.ModelBinding       `json:"model,omitempty"`
-	Rejections []smt.SMTRejectionReason `json:"rejections,omitempty"`
-	Duration   time.Duration            `json:"duration,omitempty"`
-	SMTLib     string                   `json:"smtlib,omitempty"`
+	Function     string                   `json:"function"`
+	Status       string                   `json:"status"` // verified, counterexample, skipped, error, unknown
+	Reason       string                   `json:"reason,omitempty"`
+	Model        []smt.ModelBinding       `json:"model,omitempty"`
+	Rejections   []smt.SMTRejectionReason `json:"rejections,omitempty"`
+	Duration     time.Duration            `json:"duration,omitempty"`
+	SMTLib       string                   `json:"smtlib,omitempty"`
+	BoundedDepth int                      `json:"bounded_depth,omitempty"`
 }
 
 // extractADTTypes extracts ADT type definitions from the Surface AST
@@ -492,10 +520,16 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 	}
 	fmt.Println()
 
+	hasBounded := false
 	for _, r := range results {
 		switch r.Status {
 		case "verified":
-			fmt.Printf("  %s %s  %s\n", green("✓ VERIFIED"), bold(r.Function), dim(r.Duration.String()))
+			if r.BoundedDepth > 0 {
+				fmt.Printf("  %s %s  %s\n", green(fmt.Sprintf("✓ VERIFIED (bounded: depth %d)", r.BoundedDepth)), bold(r.Function), dim(r.Duration.String()))
+				hasBounded = true
+			} else {
+				fmt.Printf("  %s %s  %s\n", green("✓ VERIFIED"), bold(r.Function), dim(r.Duration.String()))
+			}
 		case "counterexample":
 			fmt.Printf("  %s %s\n", red("✗ VIOLATION"), bold(r.Function))
 			if len(r.Model) > 0 {
@@ -553,7 +587,13 @@ func printVerifyHuman(results []verifyResult, filename string, verified, counter
 	if len(parts) == 0 {
 		parts = append(parts, "no functions with contracts")
 	}
-	fmt.Printf("%s%s\n\n", summary, strings.Join(parts, ", "))
+	fmt.Printf("%s%s\n", summary, strings.Join(parts, ", "))
+
+	if hasBounded {
+		fmt.Printf("\n  %s \"bounded: depth N\" means the property was verified assuming at most N\n", dim("Note:"))
+		fmt.Printf("  %s levels of recursion. This is sound but not a full inductive proof.\n", dim("      "))
+	}
+	fmt.Println()
 }
 
 // printVerifyJSON outputs verification results as JSON.

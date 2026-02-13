@@ -466,40 +466,114 @@ func TestPatternDepth(t *testing.T) {
 	}
 }
 
-func TestIsStringOrListBuiltin(t *testing.T) {
+func TestIsUnencodableBuiltin(t *testing.T) {
 	tests := []struct {
 		name string
 		want bool
 	}{
-		{"concat_String", false},   // now supported (M-SMT-STRINGS)
-		{"eq_String", false},       // now supported
-		{"lt_String", false},       // now supported
-		{"_str_len", false},        // now supported
-		{"_str_find", false},       // now supported
-		{"_str_startsWith", false}, // now supported
-		{"_str_trim", true},        // unsupported (no Z3 equivalent)
-		{"_str_upper", true},       // unsupported
-		{"_str_lower", true},       // unsupported
-		{"_str_split", true},       // unsupported (returns list)
-		{"_str_chars", true},       // unsupported (returns list)
-		{"concat_List", false},     // now supported (M-SMT-LISTS)
-		{"_list_length", false},    // now supported (M-SMT-LISTS)
-		{"_list_head", false},      // now supported (M-SMT-LISTS)
-		{"_list_nth", false},       // now supported (M-SMT-LISTS)
-		{"map_List", true},         // higher-order, unsupported
-		{"filter_List", true},      // higher-order, unsupported
-		{"foldl_List", true},       // higher-order, unsupported
+		// Standard arithmetic/comparison — encodable
 		{"add_Int", false},
 		{"ge_Int", false},
 		{"and_Bool", false},
+		// String builtins with SMT mapping — encodable
+		{"concat_String", false},
+		{"eq_String", false},
+		{"lt_String", false},
+		{"_str_len", false},
+		{"_str_find", false},
+		{"_str_startsWith", false},
+		// String builtins WITHOUT SMT mapping — unencodable
+		{"_str_trim", true},
+		{"_str_upper", true},
+		{"_str_lower", true},
+		{"_str_split", true},
+		{"_str_chars", true},
+		// List builtins with SMT mapping — encodable
+		{"concat_List", false},
+		{"_list_length", false},
+		{"_list_head", false},
+		{"_list_nth", false},
+		// List builtins WITHOUT SMT mapping — unencodable
+		{"map_List", true},
+		{"filter_List", true},
+		{"foldl_List", true},
+		// Numeric conversion builtins — encodable (E1+E2)
+		{"intToFloat", false},
+		{"floatToInt", false},
+		{"_int_to_float", false},
+		{"_float_to_int", false},
+		// Other pure builtins WITHOUT SMT mapping — unencodable (B1 fix)
+		{"_json_encode", true},
+		{"_json_decode", true},
+		{"_simhash", true},
+		{"_hamming_distance", true},
+		{"_str_compare", true},
+		{"_bytes_from_string", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isStringOrListBuiltin(tt.name)
+			got := isUnencodableBuiltin(tt.name)
 			if got != tt.want {
-				t.Errorf("isStringOrListBuiltin(%q) = %v, want %v", tt.name, got, tt.want)
+				t.Errorf("isUnencodableBuiltin(%q) = %v, want %v", tt.name, got, tt.want)
 			}
 		})
+	}
+}
+
+// --- Stdlib SMT transparency: fragment checker tests ---
+
+func TestHasUnencodableTypes_StdlibStringMapped(t *testing.T) {
+	// std/string.length(s) should be encodable (in StdlibStringToSMT)
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "length"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}},
+	}
+	if hasUnencodableTypes(body) {
+		t.Error("std/string.length should be encodable (has SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibStringContains(t *testing.T) {
+	// std/string.contains(s, x) should be encodable
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "contains"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Lit{Kind: core.StringLit, Value: "x"}},
+	}
+	if hasUnencodableTypes(body) {
+		t.Error("std/string.contains should be encodable (has SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibListLength(t *testing.T) {
+	// std/list.length(xs) should be encodable
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "length"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	if hasUnencodableTypes(body) {
+		t.Error("std/list.length should be encodable (has SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibStringUnmapped(t *testing.T) {
+	// std/string.join(sep, parts) is NOT in mapping → unencodable
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "join"}},
+		Args: []core.CoreExpr{&core.Var{Name: "sep"}, &core.Var{Name: "parts"}},
+	}
+	if !hasUnencodableTypes(body) {
+		t.Error("std/string.join should be unencodable (not in SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibListUnmapped(t *testing.T) {
+	// std/list.map(f, xs) is NOT in mapping → unencodable
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "map"}},
+		Args: []core.CoreExpr{&core.Var{Name: "f"}, &core.Var{Name: "xs"}},
+	}
+	if !hasUnencodableTypes(body) {
+		t.Error("std/list.map should be unencodable (not in SMT mapping)")
 	}
 }
 

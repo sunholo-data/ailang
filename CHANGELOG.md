@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- **M-SMT-BOUNDED-RECURSION: Bounded recursion for SMT verification** (`internal/smt/unroll.go`, `codegen.go`, `cmd/ailang/verify.go`, ~230 LOC impl + ~500 LOC tests)
+  - Recursive functions now verified via Dafny-style bounded unrolling (previously rejected)
+  - `UnrollRecursiveFunction`: generates N+1 `define-fun` chain (level 0 uninterpreted, levels 1-N with self-calls replaced)
+  - `ReplaceSelfCalls`: immutable AST rewriter handling all 16+ Core node types with Lambda/Let/LetRec shadowing
+  - `--verify-recursive-depth N` flag (default 2, max 10, 0 to disable)
+  - Sound by construction: uninterpreted base ensures no false positives
+  - Output labeled `✓ VERIFIED (bounded: depth N)` with explanatory note
+  - Example: `recursive_verify.ail` with factorial, sumTo, fibonacci
+  - Fragment checker unchanged — rejection filtering in CLI layer (policy separation)
+
 - **M-SMT-BACKEND: SMT-based contract verification with Z3** (`internal/smt/`, `cmd/ailang/verify.go`, ~2,023 LOC impl + ~1,894 LOC tests)
   - New `ailang verify` command: statically proves `requires`/`ensures` contracts using Z3
   - Fragment checker (`encodable.go`): rejects recursive, higher-order, and unencodable functions with clear hints
@@ -33,6 +43,13 @@
     - Named records use TypeName; anonymous records get hash-based names
     - CLI wiring: `convertASTTypeToType` handles `RecordType` → `TRecord`
     - New example: `record_verify.ail` demonstrates record field access in contracts
+  - **Record type discovery** (`codegen.go`, ~130 LOC impl + ~120 LOC tests)
+    - Record types now discovered from return type annotations, function body expressions, and ensures clauses
+    - Previously only function parameter types were walked for record discovery
+    - `collectRecordTypesFromBody`: comprehensive Core AST walker for record literals in all positions (Let, LetRec, If, Match, App, Lambda, BinOp, etc.)
+    - `inferRecordTypeFromLiteral`: builds `TRecord` from Core `Record` nodes by inferring field types from literal expressions
+    - `EncodeFunctionOpts` extended with `ReturnType`, `Body`, `Contracts` fields for discovery pipeline
+    - New example: `record_discovery_verify.ail` demonstrates return-only, body-only, and cross-record verification
   - **String verification** (`types.go`, `codegen.go`, `encodable.go`, ~250 LOC impl + ~200 LOC tests)
     - String type now mapped to SMT-LIB `String` sort (was rejected)
     - String literals encoded with proper SMT-LIB escaping (`""` for quotes)

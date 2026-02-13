@@ -450,7 +450,7 @@
     },
     "v0.7.4": {
       "file": "prompts/v0.7.4.md",
-      "hash": "dd17b612b94e96e4ac1d8ee69f70a5ddd2a38c819fb17665b52b14ed31e7e511",
+      "hash": "118c5bf6d0f864b666e1ad3693584583ed3eeda4ee4d7cac441aab0b3aa9d726",
       "description": "Add ailang verify (Z3 SMT contract verification) with counterexample output",
       "created": "2026-02-11",
       "tags": [

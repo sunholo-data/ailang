@@ -56,6 +56,16 @@ type EncodeFunctionOpts struct {
 	SurfaceParams map[string][]FunctionParam
 	// SurfaceReturnSorts maps function names to their return sort strings.
 	SurfaceReturnSorts map[string]string
+	// ReturnType is the function's return type (used to discover record types in return position).
+	ReturnType types.Type
+	// Body is the function body expression (used to discover record types constructed in the body).
+	Body core.CoreExpr
+	// Contracts are the function's contracts (used to discover record types in ensures clauses).
+	Contracts []*core.Contract
+	// RecursiveDepth enables bounded recursion unrolling at the given depth (1-10).
+	// When > 0 and the function is self-recursive, generates a define-fun chain
+	// instead of rejecting. 0 means no unrolling (default behavior).
+	RecursiveDepth int
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.
@@ -108,7 +118,15 @@ func EncodeFunction(
 	activeFieldSetToSort = make(map[string]string)
 	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
 
-	collectAndDeclareRecordTypes(params, returnSort, ctx, result)
+	var returnType types.Type
+	var coreBody core.CoreExpr
+	var contracts []*core.Contract
+	if len(opts) > 0 {
+		returnType = opts[0].ReturnType
+		coreBody = opts[0].Body
+		contracts = opts[0].Contracts
+	}
+	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
 
 	// Step 1: Declare ADT types
 	for typeName, variants := range adtTypes {
@@ -122,6 +140,29 @@ func EncodeFunction(
 	// Step 1.5: Add callee define-fun declarations (for cross-function calls)
 	for _, def := range calleeDefs {
 		result.Declarations = append(result.Declarations, def.SMTLib)
+	}
+
+	// Step 1.6: Bounded recursion unrolling (if enabled)
+	var unrollTopName string
+	recursiveDepth := 0
+	if len(opts) > 0 {
+		recursiveDepth = opts[0].RecursiveDepth
+	}
+	if recursiveDepth > 0 && isRecursive(body, funcName) {
+		unrollResult, err := UnrollRecursiveFunction(UnrollConfig{
+			FuncName:   funcName,
+			Params:     params,
+			Body:       body,
+			ReturnSort: returnSort,
+			Depth:      recursiveDepth,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unrolling recursive function: %w", err)
+		}
+		for _, decl := range unrollResult.Declarations {
+			result.Declarations = append(result.Declarations, decl)
+		}
+		unrollTopName = unrollResult.TopLevelName
 	}
 
 	// Step 2: Declare symbolic variables for function parameters
@@ -151,9 +192,20 @@ func EncodeFunction(
 	}
 
 	// Step 4: Encode function body and bind to "result"
-	bodyExpr, err := EncodeExpr(body)
-	if err != nil {
-		return nil, fmt.Errorf("cannot encode function body: %w", err)
+	var bodyExpr string
+	if unrollTopName != "" {
+		// Bounded recursion: use the top-level unrolled function
+		var paramNames []string
+		for _, p := range params {
+			paramNames = append(paramNames, p.Name)
+		}
+		bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
+	} else {
+		var err error
+		bodyExpr, err = EncodeExpr(body)
+		if err != nil {
+			return nil, fmt.Errorf("cannot encode function body: %w", err)
+		}
 	}
 	result.BodyExpr = bodyExpr
 
@@ -369,6 +421,22 @@ func encodeApp(app *core.App) (string, error) {
 		if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
 			return encodeListBuiltin(spec, app.Args)
 		}
+		// Numeric conversion builtins (intToFloat → to_real, floatToInt → to_int)
+		if spec, ok := NumericBuiltinSpecial[vg.Ref.Name]; ok {
+			return encodeNumericBuiltin(spec, app.Args)
+		}
+	}
+
+	// Check for stdlib function with SMT mapping (std/string, std/list wrappers)
+	if vg, ok := app.Func.(*core.VarGlobal); ok {
+		if builtinName, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); mapped {
+			if spec, ok := StringBuiltinSpecial[builtinName]; ok {
+				return encodeStringBuiltin(spec, app.Args)
+			}
+			if spec, ok := ListBuiltinSpecial[builtinName]; ok {
+				return encodeListBuiltin(spec, app.Args)
+			}
+		}
 	}
 
 	// Check for curried builtin: App(App(VarGlobal($builtin.XXX), [arg1]), [arg2])
@@ -391,6 +459,24 @@ func encodeApp(app *core.App) (string, error) {
 			if spec, ok := ListBuiltinSpecial[vg.Ref.Name]; ok {
 				return encodeListBuiltin(spec, allArgs)
 			}
+			// Numeric conversion builtins (curried)
+			if spec, ok := NumericBuiltinSpecial[vg.Ref.Name]; ok {
+				return encodeNumericBuiltin(spec, allArgs)
+			}
+		}
+		// Curried stdlib call: App(App(VarGlobal(std/string.XXX), [arg1]), [arg2])
+		if vg, ok := innerApp.Func.(*core.VarGlobal); ok {
+			if builtinName, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); mapped {
+				allArgs := make([]core.CoreExpr, 0, len(innerApp.Args)+len(app.Args))
+				allArgs = append(allArgs, innerApp.Args...)
+				allArgs = append(allArgs, app.Args...)
+				if spec, ok := StringBuiltinSpecial[builtinName]; ok {
+					return encodeStringBuiltin(spec, allArgs)
+				}
+				if spec, ok := ListBuiltinSpecial[builtinName]; ok {
+					return encodeListBuiltin(spec, allArgs)
+				}
+			}
 		}
 	}
 
@@ -403,7 +489,7 @@ func encodeApp(app *core.App) (string, error) {
 
 	// Cross-function call: App(VarGlobal(module.funcName), args)
 	// where funcName has been resolved as a define-fun callee
-	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" && vg.Ref.Module != "std/list" {
+	if vg, ok := app.Func.(*core.VarGlobal); ok && vg.Ref.Module != "$builtin" && vg.Ref.Module != "std/list" && vg.Ref.Module != "std/string" {
 		if activeResolvedCallees != nil && activeResolvedCallees[vg.Ref.Name] {
 			return encodeUserFunctionCall(vg.Ref.Name, app.Args)
 		}
@@ -788,11 +874,27 @@ func inferResultSortInner(body core.CoreExpr, ctx *SMTContext, ctorToType map[st
 
 // --- Record encoding ---
 
-// collectAndDeclareRecordTypes collects record types from function parameters
-// and populates activeRecordTypes/activeFieldSetToSort for use during encoding.
-func collectAndDeclareRecordTypes(params []FunctionParam, returnSort string, ctx *SMTContext, result *EncodeResult) {
+// collectAndDeclareRecordTypes collects record types from function parameters,
+// return type, body expressions, and ensures clauses.
+// It populates activeRecordTypes/activeFieldSetToSort for use during encoding.
+func collectAndDeclareRecordTypes(params []FunctionParam, returnSort string, returnType types.Type, body core.CoreExpr, contracts []*core.Contract, ctx *SMTContext, result *EncodeResult) {
+	// Source 1: Function parameter types
 	for _, p := range params {
 		collectRecordType(p.Type, ctx, result)
+	}
+	// Source 2: Return type annotation
+	if returnType != nil {
+		collectRecordType(returnType, ctx, result)
+	}
+	// Source 3: Function body expressions (record literals)
+	if body != nil {
+		collectRecordTypesFromBody(body, ctx, result)
+	}
+	// Source 4: Ensures clause expressions
+	for _, c := range contracts {
+		if c.Kind == core.EnsuresKind && c.Expr != nil {
+			collectRecordTypesFromBody(c.Expr, ctx, result)
+		}
 	}
 }
 
@@ -841,6 +943,135 @@ func collectRecordType(t types.Type, ctx *SMTContext, result *EncodeResult) {
 	decl := DeclareRecordDatatype(sortName, fieldSorts)
 	result.Declarations = append(result.Declarations, decl)
 	ctx.DeclaredTypes[sortName] = true
+}
+
+// collectRecordTypesFromBody walks a Core AST expression to discover record
+// types from core.Record literal nodes. This supplements parameter-based
+// discovery by finding records constructed in function bodies and contract clauses.
+func collectRecordTypesFromBody(expr core.CoreExpr, ctx *SMTContext, result *EncodeResult) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *core.Record:
+		// Found a record literal — try to build a TRecord from field expressions
+		if rec := inferRecordTypeFromLiteral(e); rec != nil {
+			collectRecordType(rec, ctx, result)
+		}
+		// Also walk field value expressions for nested records
+		for _, v := range e.Fields {
+			collectRecordTypesFromBody(v, ctx, result)
+		}
+	case *core.Let:
+		collectRecordTypesFromBody(e.Value, ctx, result)
+		collectRecordTypesFromBody(e.Body, ctx, result)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			collectRecordTypesFromBody(b.Value, ctx, result)
+		}
+		collectRecordTypesFromBody(e.Body, ctx, result)
+	case *core.If:
+		collectRecordTypesFromBody(e.Cond, ctx, result)
+		collectRecordTypesFromBody(e.Then, ctx, result)
+		collectRecordTypesFromBody(e.Else, ctx, result)
+	case *core.Match:
+		collectRecordTypesFromBody(e.Scrutinee, ctx, result)
+		for _, arm := range e.Arms {
+			collectRecordTypesFromBody(arm.Body, ctx, result)
+			if arm.Guard != nil {
+				collectRecordTypesFromBody(arm.Guard, ctx, result)
+			}
+		}
+	case *core.App:
+		collectRecordTypesFromBody(e.Func, ctx, result)
+		for _, arg := range e.Args {
+			collectRecordTypesFromBody(arg, ctx, result)
+		}
+	case *core.Lambda:
+		collectRecordTypesFromBody(e.Body, ctx, result)
+	case *core.BinOp:
+		collectRecordTypesFromBody(e.Left, ctx, result)
+		collectRecordTypesFromBody(e.Right, ctx, result)
+	case *core.UnOp:
+		collectRecordTypesFromBody(e.Operand, ctx, result)
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			collectRecordTypesFromBody(arg, ctx, result)
+		}
+	case *core.RecordAccess:
+		collectRecordTypesFromBody(e.Record, ctx, result)
+	case *core.RecordUpdate:
+		collectRecordTypesFromBody(e.Base, ctx, result)
+		for _, v := range e.Updates {
+			collectRecordTypesFromBody(v, ctx, result)
+		}
+	case *core.List:
+		for _, elem := range e.Elements {
+			collectRecordTypesFromBody(elem, ctx, result)
+		}
+	case *core.Tuple:
+		for _, elem := range e.Elements {
+			collectRecordTypesFromBody(elem, ctx, result)
+		}
+	case *core.DictApp:
+		collectRecordTypesFromBody(e.Dict, ctx, result)
+		for _, arg := range e.Args {
+			collectRecordTypesFromBody(arg, ctx, result)
+		}
+	case *core.DictAbs:
+		collectRecordTypesFromBody(e.Body, ctx, result)
+	}
+	// Lit, Var, VarGlobal, DictRef — no sub-expressions to walk
+}
+
+// inferRecordTypeFromLiteral tries to build a types.TRecord from a core.Record
+// literal by inferring field types from the field value expressions.
+// Returns nil if any field type cannot be inferred.
+func inferRecordTypeFromLiteral(rec *core.Record) *types.TRecord {
+	fields := make(map[string]types.Type, len(rec.Fields))
+	for name, expr := range rec.Fields {
+		t := inferTypeFromExpr(expr)
+		if t == nil {
+			return nil // can't infer — skip this record
+		}
+		fields[name] = t
+	}
+	return &types.TRecord{Fields: fields}
+}
+
+// inferTypeFromExpr infers a types.Type from a Core expression.
+// Handles literals, variables with known sorts, and simple expressions.
+func inferTypeFromExpr(expr core.CoreExpr) types.Type {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *core.Lit:
+		switch e.Value.(type) {
+		case int, int64:
+			return &types.TCon{Name: "int"}
+		case float64:
+			return &types.TCon{Name: "float"}
+		case bool:
+			return &types.TCon{Name: "bool"}
+		case string:
+			return &types.TCon{Name: "string"}
+		}
+	case *core.Var:
+		// Check if this variable has a known sort from activeRecordTypes context
+		// Variables used in record fields typically have types from function params
+		return nil // conservative — let other discovery paths handle
+	case *core.BinOp:
+		// Arithmetic/comparison ops — infer from operands
+		return inferTypeFromExpr(e.Left)
+	case *core.App:
+		// For builtin calls, we can sometimes infer return type
+		return nil // conservative
+	case *core.RecordAccess:
+		// Field access — type depends on the field, hard to infer without context
+		return nil
+	}
+	return nil
 }
 
 // encodeRecord encodes a record construction expression.
@@ -1062,4 +1293,16 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 	}
 
 	return fmt.Sprintf("(%s %s %s)", spec.Op, left, right), nil
+}
+
+// encodeNumericBuiltin encodes numeric conversion builtins (intToFloat → to_real, floatToInt → to_int).
+func encodeNumericBuiltin(spec NumericBuiltinSpec, args []core.CoreExpr) (string, error) {
+	if len(args) != 1 {
+		return "", fmt.Errorf("numeric builtin %q expects 1 arg, got %d", spec.Op, len(args))
+	}
+	arg, err := EncodeExpr(args[0])
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("(%s %s)", spec.Op, arg), nil
 }

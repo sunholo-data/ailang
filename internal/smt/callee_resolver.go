@@ -137,15 +137,18 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		// Check if function is a user-defined call via VarGlobal (cross-module)
 		if vg, ok := e.Func.(*core.VarGlobal); ok {
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
-				// Check if this is actually a function in the program (not an ADT constructor)
-				if findFuncBody(prog, vg.Ref.Name) != nil {
-					if !seen[vg.Ref.Name] {
-						seen[vg.Ref.Name] = true
-						// Recursively check the callee's body for transitive calls
-						calleeBody := findFuncBody(prog, vg.Ref.Name)
-						if calleeBody != nil {
-							_, innerBody := unwrapLambda(calleeBody)
-							collectCalleeCallsInner(innerBody, selfName, prog, seen)
+				// Skip stdlib functions with known SMT mappings (handled as builtins by encoder)
+				if _, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); !mapped {
+					// Check if this is actually a function in the program (not an ADT constructor)
+					if findFuncBody(prog, vg.Ref.Name) != nil {
+						if !seen[vg.Ref.Name] {
+							seen[vg.Ref.Name] = true
+							// Recursively check the callee's body for transitive calls
+							calleeBody := findFuncBody(prog, vg.Ref.Name)
+							if calleeBody != nil {
+								_, innerBody := unwrapLambda(calleeBody)
+								collectCalleeCallsInner(innerBody, selfName, prog, seen)
+							}
 						}
 					}
 				}
@@ -287,8 +290,11 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 	case *core.App:
 		if vg, ok := e.Func.(*core.VarGlobal); ok {
 			if vg.Ref.Module != "$builtin" && vg.Ref.Name != selfName {
-				if findFuncBody(prog, vg.Ref.Name) != nil {
-					seen[vg.Ref.Name] = true
+				// Skip stdlib functions with known SMT mappings
+				if _, mapped := ResolveStdlibToBuiltin(vg.Ref.Module, vg.Ref.Name); !mapped {
+					if findFuncBody(prog, vg.Ref.Name) != nil {
+						seen[vg.Ref.Name] = true
+					}
 				}
 			}
 		}

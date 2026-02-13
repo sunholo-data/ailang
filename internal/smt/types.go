@@ -311,6 +311,8 @@ var StringBuiltinSpecial = map[string]StringBuiltinSpec{
 	"_str_endsWith": {Op: "str.suffixof", FlipArgs: true},
 	// _str_slice(s,start,end) → (str.substr s start (- end start)) — ternary with length calc
 	"_str_slice": {Op: "str.substr", SubstrMode: true},
+	// _str_contains(s,sub) → (str.contains s sub)
+	"_str_contains": {Op: "str.contains"},
 }
 
 // StringBuiltinSpec describes how to encode a string builtin in SMT-LIB.
@@ -342,4 +344,52 @@ type ListBuiltinSpec struct {
 	Unary      bool   // Single argument
 	AppendZero bool   // Append literal 0 as extra argument
 	ConsMode   bool   // First arg wrapped in (seq.unit ...)
+}
+
+// NumericBuiltinSpecial maps AILANG numeric conversion builtins to SMT-LIB operators.
+// intToFloat → Z3 to_real (exact conversion, no semantic gap).
+// floatToInt → Z3 to_int (rounds toward -inf; Go truncates toward zero — document gap).
+var NumericBuiltinSpecial = map[string]NumericBuiltinSpec{
+	"intToFloat":    {Op: "to_real", Unary: true},
+	"_int_to_float": {Op: "to_real", Unary: true},
+	"floatToInt":    {Op: "to_int", Unary: true},
+	"_float_to_int": {Op: "to_int", Unary: true},
+}
+
+// NumericBuiltinSpec describes how to encode a numeric conversion builtin in SMT-LIB.
+type NumericBuiltinSpec struct {
+	Op    string // SMT-LIB operator name (to_real, to_int)
+	Unary bool   // Always true for conversions
+}
+
+// StdlibStringToSMT maps std/string function names to their builtin equivalents.
+// Only trivial wrappers (1:1 forwarding) with Z3 SMT-LIB equivalents are listed.
+var StdlibStringToSMT = map[string]string{
+	"length":     "_str_len",
+	"substring":  "_str_slice",
+	"find":       "_str_find",
+	"startsWith": "_str_startsWith",
+	"endsWith":   "_str_endsWith",
+	"contains":   "_str_contains",
+}
+
+// StdlibListToSMT maps std/list function names to their builtin equivalents.
+var StdlibListToSMT = map[string]string{
+	"length": "_list_length",
+}
+
+// ResolveStdlibToBuiltin checks if a module/function pair refers to a stdlib
+// function with a known SMT mapping, and returns the equivalent builtin name.
+func ResolveStdlibToBuiltin(module, name string) (string, bool) {
+	switch module {
+	case "std/string":
+		if builtinName, ok := StdlibStringToSMT[name]; ok {
+			return builtinName, true
+		}
+	case "std/list":
+		if builtinName, ok := StdlibListToSMT[name]; ok {
+			return builtinName, true
+		}
+	}
+	return "", false
 }

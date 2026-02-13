@@ -122,6 +122,11 @@ func isRecursive(body core.CoreExpr, funcName string) bool {
 	return containsRef(body, funcName)
 }
 
+// IsRecursiveFunc is the exported version of isRecursive for use by CLI code.
+func IsRecursiveFunc(body core.CoreExpr, funcName string) bool {
+	return isRecursive(body, funcName)
+}
+
 // containsRef walks the Core AST looking for references to the given name.
 func containsRef(expr core.CoreExpr, name string) bool {
 	if expr == nil {
@@ -438,7 +443,16 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	case *core.VarGlobal:
 		// Check for string/list builtins
 		if e.Ref.Module == "$builtin" {
-			return isStringOrListBuiltin(e.Ref.Name)
+			return isUnencodableBuiltin(e.Ref.Name)
+		}
+		// Stdlib functions with SMT mappings are encodable
+		if _, ok := ResolveStdlibToBuiltin(e.Ref.Module, e.Ref.Name); ok {
+			return false
+		}
+		// Stdlib functions WITHOUT SMT mappings are unencodable
+		// (higher-order, recursive, or no Z3 equivalent)
+		if e.Ref.Module == "std/string" || e.Ref.Module == "std/list" {
+			return true
 		}
 		return false
 	case *core.App:
@@ -491,38 +505,23 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	}
 }
 
-// isStringOrListBuiltin checks if a builtin name involves unsupported string or list operations.
-// String builtins that have SMT-LIB mappings are now SUPPORTED (M-SMT-STRINGS).
-// List builtins that have SMT-LIB mappings are now SUPPORTED (M-SMT-LISTS).
-func isStringOrListBuiltin(name string) bool {
-	// Check if this builtin has any SMT mapping (supported)
+// isUnencodableBuiltin checks if a $builtin name has no SMT-LIB mapping.
+// Uses an allowlist approach: any builtin NOT in the SMT encoding maps
+// is considered unencodable. This prevents unmapped builtins from passing
+// the fragment check and crashing at codegen with "unsupported application".
+func isUnencodableBuiltin(name string) bool {
 	if _, ok := BuiltinToSMTOp[name]; ok {
-		return false // supported standard builtin
+		return false // standard arithmetic/comparison/boolean — encodable
 	}
 	if _, ok := StringBuiltinSpecial[name]; ok {
-		return false // supported special string builtin
+		return false // string builtins with SMT mapping — encodable
 	}
 	if _, ok := ListBuiltinSpecial[name]; ok {
-		return false // supported list builtin
+		return false // list builtins with SMT mapping — encodable
 	}
-
-	// List builtins without SMT mappings are unencodable
-	// (higher-order: map_List, filter_List, foldl_List, etc.)
-	if len(name) > 5 && name[len(name)-5:] == "_List" {
-		return true
+	if _, ok := NumericBuiltinSpecial[name]; ok {
+		return false // numeric conversion builtins — encodable
 	}
-	if len(name) > 6 && name[:6] == "_list_" {
-		return true
-	}
-
-	// String builtins without SMT mappings are unencodable
-	// (_str_trim, _str_upper, _str_lower, _str_split, _str_chars, etc.)
-	if len(name) > 7 && name[len(name)-7:] == "_String" {
-		return true
-	}
-	if len(name) > 5 && name[:5] == "_str_" {
-		return true
-	}
-
-	return false
+	// Everything else from $builtin module is NOT encodable
+	return true
 }

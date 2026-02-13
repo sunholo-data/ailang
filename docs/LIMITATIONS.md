@@ -143,7 +143,8 @@ func factorial(n: int) -> int =
 We may explore:
 - Explicit type annotations for recursive lambdas (requires programmer-provided types)
 - Iso-recursive types (requires manual fold/unfold, less ergonomic)
-- Restricted fixed-point operators with bounded recursion
+
+**Note**: Named recursive functions are now supported by `ailang verify` via bounded unrolling (`--verify-recursive-depth N`, v0.8.0). This limitation only affects recursive *lambdas* — named `func` recursion works for both execution and SMT verification.
 
 For now, use named functions for recursion. This aligns with AILANG's goal of semantic clarity for AI code synthesis.
 

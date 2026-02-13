@@ -2,12 +2,15 @@
 -- Comprehensive verification showcase combining ALL decidable fragment features
 -- Demonstrates in ONE file:
 --   ✓ Enum ADTs            ✓ Record parameters       ✓ String operations
---   ✓ List operations      ✓ Cross-function calls     ✓ Counterexample demo
+--   ✓ List operations      ✓ Cross-function calls     ✓ Stdlib transparency
+--   ✓ Counterexample demo
 --
 -- Run:    ailang verify examples/runnable/contracts/showcase.ail
--- Expect: 7 verified, 1 violation (brokenPrefixCheck)
+-- Expect: 8 verified, 1 violation (brokenPrefixCheck)
 
 module examples/runnable/contracts/showcase
+
+import std/string (length as strLength, startsWith as strStartsWith)
 
 -- ============================================================================
 -- Types
@@ -91,7 +94,19 @@ ensures { result == true }
 }
 
 -- ============================================================================
--- 6. BROKEN CONTRACT — Z3 finds counterexample
+-- 6. STDLIB TRANSPARENCY — Use std/string instead of builtins
+-- ============================================================================
+
+-- Same verification as hasContent, but using stdlib imports
+-- Z3 resolves std/string.length → str.len transparently
+export func validateOrderCode(code: string) -> bool ! {}
+ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) }
+{
+  strStartsWith(code, "ORD-") && strLength(code) >= 8
+}
+
+-- ============================================================================
+-- 7. BROKEN CONTRACT — Z3 finds counterexample
 -- ============================================================================
 
 -- Claims every string starts with "ORD-" — obviously false!

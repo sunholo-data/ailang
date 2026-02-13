@@ -14,9 +14,11 @@ import InsuranceExample from '!!raw-loader!@site/../examples/runnable/contracts/
 import ScoringExample from '!!raw-loader!@site/../examples/runnable/contracts/scoring.ail';
 import CrossFunctionExample from '!!raw-loader!@site/../examples/runnable/contracts/cross_function.ail';
 import RecordVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/record_verify.ail';
+import RecordDiscoveryExample from '!!raw-loader!@site/../examples/runnable/contracts/record_discovery_verify.ail';
 import StringVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/string_verify.ail';
 import ListVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/list_verify.ail';
 import InvoiceExample from '!!raw-loader!@site/../examples/runnable/contracts/invoice.ail';
+import RecursiveVerifyExample from '!!raw-loader!@site/../examples/runnable/contracts/recursive_verify.ail';
 
 # Contracts & Verification
 
@@ -335,8 +337,8 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 5. Circular calls are detected and rejected with a clear error
 
 **Limitations:**
-- Callees must also be in the decidable fragment (pure, non-recursive, encodable types)
-- Recursive call chains are rejected (would require induction)
+- Callees must also be in the decidable fragment (pure, encodable types)
+- Recursive callees are supported via bounded unrolling when `--verify-recursive-depth N` is used (see [Bounded Recursion](#bounded-recursion-verification) above)
 - Very deep call chains may slow down Z3 (each inlined definition increases formula size)
 
 ### Record Verification
@@ -369,8 +371,35 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 
 **Limitations:**
 - Record fields must use encodable types (int, bool, string, enum ADTs — not lists)
-- Record return types are not yet supported in function signatures (parser limitation)
 - Named record type declarations can be used via type aliases
+
+#### Record Type Discovery
+
+Record types are automatically discovered from **all positions** — not just function parameters. This means you can use record types in return annotations, construct records in function bodies, and reference record fields in ensures clauses:
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/record_discovery_verify.ail">
+  {RecordDiscoveryExample}
+</CodeBlock>
+
+```bash
+$ ailang verify examples/runnable/contracts/record_discovery_verify.ail
+
+  ✓ VERIFIED makePoint       5ms     # return-only record type
+  ✓ VERIFIED transform       5ms     # different param/return records
+  ✓ VERIFIED swapXY          5ms     # record construction in body
+
+  3 functions: 3 verified
+```
+
+**Discovery sources:**
+1. **Function parameters** — record types in parameter annotations (e.g., `p: {x: int, y: int}`)
+2. **Return type annotations** — record types in `->` return position (e.g., `-> {x: int, y: int}`)
+3. **Function body expressions** — record literals constructed anywhere in the body (let bindings, if branches, match arms)
+4. **Ensures clauses** — record references in postcondition expressions
+
+:::tip
+If parameter names match record field names (e.g., `makePoint(x: int, y: int) -> {x: int, y: int}`), Z3 may report an ambiguity error. Rename the parameters to avoid the collision: `makePoint(px: int, py: int) -> {x: int, y: int}`.
+:::
 
 ### String Verification
 
@@ -449,6 +478,68 @@ Z3 proved that `listLength` always returns a non-negative result, that `prependL
 
 **Not yet encodable:** Higher-order list operations (`map`, `filter`, `foldl`) — these require function arguments which are outside the decidable fragment.
 
+### Bounded Recursion Verification
+
+Recursive functions were previously outside the decidable fragment. With **bounded unrolling**, `ailang verify` can now verify recursive functions by generating a chain of `define-fun` declarations at a configurable depth (Dafny-style approach):
+
+<CodeBlock language="typescript" title="examples/runnable/contracts/recursive_verify.ail">
+  {RecursiveVerifyExample}
+</CodeBlock>
+
+```bash
+$ ailang verify --verify-recursive-depth 5 examples/runnable/contracts/recursive_verify.ail
+
+→ Verifying contracts in recursive_verify.ail
+  Solver: Z3 version 4.15.4
+
+  ✓ VERIFIED (bounded: depth 5) factorial   43ms
+  ✓ VERIFIED (bounded: depth 5) sumTo        6ms
+  ✓ VERIFIED (bounded: depth 5) fib          7ms
+
+  3 functions: 3 verified
+
+  Note: "bounded: depth N" means the property was verified assuming at most N
+        levels of recursion. This is sound but not a full inductive proof.
+```
+
+**How it works:**
+
+For a recursive function `f(n)` at depth N, the verifier generates N+1 declarations:
+
+```smt2
+(declare-fun f_0 (Int) Int)           ; Level 0: uninterpreted (conservative)
+(define-fun f_1 ((n Int)) Int B[f_0]) ; Level 1: self-calls → f_0
+(define-fun f_2 ((n Int)) Int B[f_1]) ; Level 2: self-calls → f_1
+```
+
+Level 0 is an **uninterpreted function** — Z3 only proves properties that hold regardless of what `f_0` returns. This makes bounded verification **sound by construction**: if Z3 says VERIFIED, the property genuinely holds for inputs up to the given recursion depth.
+
+**CLI flag:**
+
+```bash
+# Default: depth 2 (verifies recursive functions automatically)
+ailang verify file.ail
+
+# Custom depth (higher = more coverage but slower)
+ailang verify --verify-recursive-depth 5 file.ail
+
+# Disable bounded recursion (skip recursive functions)
+ailang verify --verify-recursive-depth 0 file.ail
+```
+
+**Tradeoffs:**
+
+| Depth | Coverage | Speed | Use Case |
+|-------|----------|-------|----------|
+| 0 | None (skipped) | Instant | Disable recursive verification |
+| 2 | Shallow (default) | Fast | Quick CI checks |
+| 5 | Moderate | Moderate | Thorough verification |
+| 10 | Deep (max) | Slow | Maximum confidence |
+
+:::note Bounded vs Full Proofs
+Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
+:::
+
 ### Verification Output States
 
 | Status | Symbol | Meaning |
@@ -479,7 +570,7 @@ Z3 proved that `listLength` always returns a non-negative result, that `prependL
 
 | Feature | Reason | Expandable? |
 |---------|--------|-------------|
-| Recursive functions | Requires induction proofs | Partially — bounded unrolling planned |
+| Recursive functions | Full induction not yet supported | ✅ Bounded unrolling (depth 1-10, default 2) |
 | Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
 | Higher-order list ops | `map`, `filter`, `foldl` take function args | Yes — via monomorphization/inlining |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
@@ -487,9 +578,9 @@ Z3 proved that `listLength` always returns a non-negative result, that `prependL
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
 
 ```
-  ⚠ SKIPPED recursiveFunc
-    Reason: Function "recursiveFunc" is recursive
-    Hint: SMT verification requires non-recursive functions
+  ⚠ SKIPPED effectfulFunc
+    Reason: Function "effectfulFunc" has effects
+    Hint: Remove effect annotations or use ! {} for pure
 ```
 
 ## Comparison with Other Languages
@@ -589,9 +680,9 @@ In Go, you'd use interfaces with type switches (not exhaustive) or integer const
 
 ### No loops to reason about
 
-AILANG has no `for` or `while` loops. The verifiable fragment simply rejects recursive functions, and the remaining non-recursive functions are exactly the decidable fragment that SMT solvers handle well.
+AILANG has no `for` or `while` loops. Non-recursive functions fall directly into the decidable fragment that SMT solvers handle well. Recursive functions are supported via **bounded unrolling** (`--verify-recursive-depth N`), which verifies contracts for inputs up to the unrolling depth — no loop invariants required.
 
-In Go or Python, verifying loops requires discovering **loop invariants** — statements that remain true before and after each iteration. Finding loop invariants automatically is one of the hardest problems in program verification, and is what makes tools like Dafny and SPARK so difficult to use. AILANG avoids this problem entirely.
+In Go or Python, verifying loops requires discovering **loop invariants** — statements that remain true before and after each iteration. Finding loop invariants automatically is one of the hardest problems in program verification, and is what makes tools like Dafny and SPARK so difficult to use. AILANG sidesteps this: non-recursive functions need no invariants, and recursive functions use bounded unrolling (sound by construction via an uninterpreted base case).
 
 ### Contracts are first-class, not bolted on
 
@@ -603,7 +694,7 @@ AILANG's [CoreTypeInfo invariant](/docs/reference/language-syntax) guarantees th
 
 ### The net effect
 
-The "verifiable fragment" (pure, non-recursive, no higher-order functions, quantifier-free logic) describes a **large and natural subset** of AILANG programs — business rules, validation logic, pricing functions, game mechanics. In Go or Python, the equivalent restriction would eliminate virtually all idiomatic code because most code depends on loops, mutation, and side effects.
+The "verifiable fragment" (pure, no higher-order functions, quantifier-free logic, with bounded recursion support) describes a **large and natural subset** of AILANG programs — business rules, validation logic, pricing functions, game mechanics, recursive algorithms. In Go or Python, the equivalent restriction would eliminate virtually all idiomatic code because most code depends on loops, mutation, and side effects.
 
 AILANG pays the "make it SMT-friendly" cost **once** in the language design, rather than on every function you want to verify.
 
@@ -624,11 +715,15 @@ AILANG pays the "make it SMT-friendly" cost **once** in the language design, rat
 - ✅ Counterexample display for violated contracts
 - ✅ Cross-function verification via `define-fun` inlining (transitive call chains)
 - ✅ Record verification via `declare-datatype` (field access, construction, update)
+- ✅ Record type discovery from return annotations, body expressions, and ensures clauses
 - ✅ String verification via Z3 string theory (concat, length, comparison, prefix/suffix, substring)
 - ✅ List verification via Z3 sequence theory (length, head, nth, cons, literals)
 
-**Future** — Expanding the decidable fragment:
-- Bounded recursion (loop unrolling)
+**Phase 2 (v0.8.0)** — Expanding the decidable fragment:
+- ✅ Bounded recursion via Dafny-style unrolling (`--verify-recursive-depth`, default 2)
+
+**Future** — Further expansion:
+- Full induction proofs for recursive functions
 :::
 
 ## See Also

@@ -120,6 +120,28 @@ jobs:
         name: bootstrap-content
         path: bin/bootstrap-content.tar.gz
 
+  build-examples:
+    name: Build Examples Bundle
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Create examples.zip
+      run: |
+        cd examples
+        zip -r ../examples.zip . -i '*.ail' '*.json' -x 'sim_stub/*'
+        cd ..
+        echo "Contents:"
+        unzip -l examples.zip | tail -5
+        ls -lh examples.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: examples
+        path: examples.zip
+
   build-release:
     name: Build Release ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -202,7 +224,7 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [build-release, build-wasm, build-bootstrap-content]
+    needs: [build-release, build-wasm, build-bootstrap-content, build-examples]
     runs-on: ubuntu-latest
     
     steps:
@@ -241,6 +263,13 @@ jobs:
         echo '# Linux' >> changelog.md
         echo 'curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/linux.x64.ailang.tar.gz | tar -xz' >> changelog.md
         echo 'sudo mv ailang /usr/local/bin/' >> changelog.md
+        echo '```' >> changelog.md
+        echo '' >> changelog.md
+        echo '### Examples' >> changelog.md
+        echo '' >> changelog.md
+        echo 'Download code examples to use with `ailang examples`:' >> changelog.md
+        echo '```bash' >> changelog.md
+        echo 'ailang examples download' >> changelog.md
         echo '```' >> changelog.md
         echo '' >> changelog.md
         echo '### WebAssembly' >> changelog.md

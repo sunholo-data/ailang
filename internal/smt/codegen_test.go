@@ -1352,3 +1352,468 @@ func TestEncodeExpr_ListNth(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "(seq.nth xs i)")
 	}
 }
+
+// --- Stdlib SMT transparency tests ---
+
+func TestEncodeStdlib_StringLength(t *testing.T) {
+	// std/string.length(s) → (str.len s)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "length"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.len s)" {
+		t.Errorf("got %q, want %q", got, "(str.len s)")
+	}
+}
+
+func TestEncodeStdlib_StringStartsWith(t *testing.T) {
+	// std/string.startsWith(s, prefix) → (str.prefixof prefix s) (FlipArgs)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "startsWith"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "prefix"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.prefixof prefix s)" {
+		t.Errorf("got %q, want %q", got, "(str.prefixof prefix s)")
+	}
+}
+
+func TestEncodeStdlib_StringEndsWith(t *testing.T) {
+	// std/string.endsWith(s, suffix) → (str.suffixof suffix s) (FlipArgs)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "endsWith"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "suffix"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.suffixof suffix s)" {
+		t.Errorf("got %q, want %q", got, "(str.suffixof suffix s)")
+	}
+}
+
+func TestEncodeStdlib_StringContains(t *testing.T) {
+	// std/string.contains(s, sub) → (str.contains s sub)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "contains"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "sub"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.contains s sub)" {
+		t.Errorf("got %q, want %q", got, "(str.contains s sub)")
+	}
+}
+
+func TestEncodeStdlib_StringFind(t *testing.T) {
+	// std/string.find(s, t) → (str.indexof s t 0) (AppendZero)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "find"}},
+		Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "t"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(str.indexof s t 0)" {
+		t.Errorf("got %q, want %q", got, "(str.indexof s t 0)")
+	}
+}
+
+func TestEncodeStdlib_StringSubstring(t *testing.T) {
+	// std/string.substring(s, start, end) → (str.substr s start (- end start))
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "substring"}},
+		Args: []core.CoreExpr{
+			&core.Var{Name: "s"},
+			&core.Var{Name: "start"},
+			&core.Var{Name: "end"},
+		},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(str.substr s start (- end start))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeStdlib_ListLength(t *testing.T) {
+	// std/list.length(xs) → (seq.len xs)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "length"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(seq.len xs)" {
+		t.Errorf("got %q, want %q", got, "(seq.len xs)")
+	}
+}
+
+func TestEncodeStdlib_CurriedStringSubstring(t *testing.T) {
+	// Curried: App(App(VarGlobal(std/string.substring), [s, start]), [end])
+	expr := &core.App{
+		Func: &core.App{
+			Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/string", Name: "substring"}},
+			Args: []core.CoreExpr{&core.Var{Name: "s"}, &core.Var{Name: "start"}},
+		},
+		Args: []core.CoreExpr{&core.Var{Name: "end"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(str.substr s start (- end start))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// --- Numeric conversion builtin tests (E1+E2) ---
+
+func TestEncodeApp_IntToFloat(t *testing.T) {
+	// intToFloat(x) → (to_real x)
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "intToFloat"}},
+		Args: []core.CoreExpr{&core.Var{Name: "x"}},
+	}
+	got, err := encodeApp(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(to_real x)" {
+		t.Errorf("got %q, want %q", got, "(to_real x)")
+	}
+}
+
+func TestEncodeApp_FloatToInt(t *testing.T) {
+	// floatToInt(x) → (to_int x)
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "floatToInt"}},
+		Args: []core.CoreExpr{&core.Var{Name: "x"}},
+	}
+	got, err := encodeApp(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(to_int x)" {
+		t.Errorf("got %q, want %q", got, "(to_int x)")
+	}
+}
+
+func TestEncodeApp_IntToFloat_Underscore(t *testing.T) {
+	// _int_to_float(x) → (to_real x)
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_int_to_float"}},
+		Args: []core.CoreExpr{&core.Var{Name: "n"}},
+	}
+	got, err := encodeApp(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(to_real n)" {
+		t.Errorf("got %q, want %q", got, "(to_real n)")
+	}
+}
+
+func TestEncodeApp_IntToFloat_WithLiteral(t *testing.T) {
+	// intToFloat(42) → (to_real 42)
+	app := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "intToFloat"}},
+		Args: []core.CoreExpr{&core.Lit{Kind: core.IntLit, Value: int64(42)}},
+	}
+	got, err := encodeApp(app)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "(to_real 42)" {
+		t.Errorf("got %q, want %q", got, "(to_real 42)")
+	}
+}
+
+// --- Record type discovery tests (M-SMT-RECORD-DISCOVERY) ---
+
+func TestCollectAndDeclareRecordTypes_ReturnType(t *testing.T) {
+	// Record type appears in return type annotation only, not in params
+	ctx := NewSMTContext()
+	result := &EncodeResult{}
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	params := []FunctionParam{
+		{Name: "x", Type: &types.TCon{Name: "int"}},
+		{Name: "y", Type: &types.TCon{Name: "int"}},
+	}
+	returnType := &types.TRecord{
+		Fields:   map[string]types.Type{"x": &types.TCon{Name: "int"}, "y": &types.TCon{Name: "int"}},
+		TypeName: "Point",
+	}
+
+	collectAndDeclareRecordTypes(params, "Point", returnType, nil, nil, ctx, result)
+
+	// The Point record should be discovered and declared
+	if _, ok := activeRecordTypes["Point"]; !ok {
+		t.Error("expected Point record type to be discovered from return type")
+	}
+	if !ctx.DeclaredTypes["Point"] {
+		t.Error("expected Point to be declared in ctx.DeclaredTypes")
+	}
+	if len(result.Declarations) != 1 {
+		t.Errorf("expected 1 declaration, got %d", len(result.Declarations))
+	}
+	if !strings.Contains(result.Declarations[0], "Point") {
+		t.Errorf("expected Point in declaration, got %q", result.Declarations[0])
+	}
+}
+
+func TestCollectAndDeclareRecordTypes_BodyRecord(t *testing.T) {
+	// Record appears only in function body (let binding), not in params or return type
+	ctx := NewSMTContext()
+	result := &EncodeResult{}
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	params := []FunctionParam{
+		{Name: "a", Type: &types.TCon{Name: "int"}},
+		{Name: "b", Type: &types.TCon{Name: "int"}},
+	}
+	body := &core.Let{
+		Name: "delta",
+		Value: &core.Record{
+			Fields: map[string]core.CoreExpr{
+				"dx": &core.Lit{Kind: core.IntLit, Value: int64(0)},
+				"dy": &core.Lit{Kind: core.IntLit, Value: int64(0)},
+			},
+		},
+		Body: &core.Var{Name: "delta"},
+	}
+
+	collectAndDeclareRecordTypes(params, "Int", nil, body, nil, ctx, result)
+
+	// The anonymous record with dx,dy should be discovered
+	if len(activeRecordTypes) != 1 {
+		t.Errorf("expected 1 record type discovered from body, got %d", len(activeRecordTypes))
+	}
+	// Check the field-set lookup works
+	if _, ok := activeFieldSetToSort["dx,dy"]; !ok {
+		t.Error("expected dx,dy field-set in activeFieldSetToSort")
+	}
+}
+
+func TestCollectAndDeclareRecordTypes_EnsuresClause(t *testing.T) {
+	// Record appears in an ensures clause expression
+	ctx := NewSMTContext()
+	result := &EncodeResult{}
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	params := []FunctionParam{
+		{Name: "x", Type: &types.TCon{Name: "int"}},
+	}
+	ensuresBody := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"a": &core.Lit{Kind: core.IntLit, Value: int64(1)},
+			"b": &core.Lit{Kind: core.IntLit, Value: int64(2)},
+		},
+	}
+	contracts := []*core.Contract{
+		{Kind: core.EnsuresKind, Expr: ensuresBody},
+	}
+
+	collectAndDeclareRecordTypes(params, "Int", nil, nil, contracts, ctx, result)
+
+	if len(activeRecordTypes) != 1 {
+		t.Errorf("expected 1 record type from ensures clause, got %d", len(activeRecordTypes))
+	}
+	if _, ok := activeFieldSetToSort["a,b"]; !ok {
+		t.Error("expected a,b field-set in activeFieldSetToSort")
+	}
+}
+
+func TestCollectRecordTypesFromBody_NestedInIf(t *testing.T) {
+	// Record in an if-then branch
+	ctx := NewSMTContext()
+	result := &EncodeResult{}
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	body := &core.If{
+		Cond: &core.Lit{Kind: core.BoolLit, Value: true},
+		Then: &core.Record{
+			Fields: map[string]core.CoreExpr{
+				"x": &core.Lit{Kind: core.IntLit, Value: int64(1)},
+				"y": &core.Lit{Kind: core.IntLit, Value: int64(2)},
+			},
+		},
+		Else: &core.Record{
+			Fields: map[string]core.CoreExpr{
+				"x": &core.Lit{Kind: core.IntLit, Value: int64(3)},
+				"y": &core.Lit{Kind: core.IntLit, Value: int64(4)},
+			},
+		},
+	}
+
+	collectRecordTypesFromBody(body, ctx, result)
+
+	// Both branches have the same record shape — should discover once
+	if len(activeRecordTypes) != 1 {
+		t.Errorf("expected 1 record type (both branches same shape), got %d", len(activeRecordTypes))
+	}
+}
+
+func TestCollectRecordTypesFromBody_NestedInMatch(t *testing.T) {
+	// Record in a match arm
+	ctx := NewSMTContext()
+	result := &EncodeResult{}
+	activeRecordTypes = make(map[string]*RecordTypeInfo)
+	activeFieldSetToSort = make(map[string]string)
+	defer func() { activeRecordTypes = nil; activeFieldSetToSort = nil }()
+
+	body := &core.Match{
+		Scrutinee: &core.Var{Name: "x"},
+		Arms: []core.MatchArm{
+			{
+				Pattern: &core.ConstructorPattern{Name: "A"},
+				Body: &core.Record{
+					Fields: map[string]core.CoreExpr{
+						"name":  &core.Lit{Kind: core.StringLit, Value: "test"},
+						"count": &core.Lit{Kind: core.IntLit, Value: int64(0)},
+					},
+				},
+			},
+		},
+	}
+
+	collectRecordTypesFromBody(body, ctx, result)
+
+	if len(activeRecordTypes) != 1 {
+		t.Errorf("expected 1 record type from match arm, got %d", len(activeRecordTypes))
+	}
+	if _, ok := activeFieldSetToSort["count,name"]; !ok {
+		t.Error("expected count,name field-set")
+	}
+}
+
+func TestInferRecordTypeFromLiteral_IntFields(t *testing.T) {
+	rec := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"x": &core.Lit{Kind: core.IntLit, Value: int64(5)},
+			"y": &core.Lit{Kind: core.IntLit, Value: int64(10)},
+		},
+	}
+	result := inferRecordTypeFromLiteral(rec)
+	if result == nil {
+		t.Fatal("expected TRecord, got nil")
+	}
+	if len(result.Fields) != 2 {
+		t.Errorf("expected 2 fields, got %d", len(result.Fields))
+	}
+	for name, typ := range result.Fields {
+		tcon, ok := typ.(*types.TCon)
+		if !ok {
+			t.Errorf("field %q: expected TCon, got %T", name, typ)
+			continue
+		}
+		if tcon.Name != "int" {
+			t.Errorf("field %q: expected int, got %s", name, tcon.Name)
+		}
+	}
+}
+
+func TestInferRecordTypeFromLiteral_UninferableField(t *testing.T) {
+	// A field with a variable (not a literal) can't be inferred
+	rec := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"x": &core.Var{Name: "unknown"},
+		},
+	}
+	result := inferRecordTypeFromLiteral(rec)
+	if result != nil {
+		t.Error("expected nil for uninferrable field type, got non-nil")
+	}
+}
+
+func TestEncodeFunction_ReturnOnlyRecord(t *testing.T) {
+	// Function returns a record type not present in any parameter
+	// fn makePoint(x: int, y: int) -> {x: int, y: int}
+	params := []FunctionParam{
+		{Name: "x", Type: &types.TCon{Name: "int"}},
+		{Name: "y", Type: &types.TCon{Name: "int"}},
+	}
+	body := &core.Record{
+		Fields: map[string]core.CoreExpr{
+			"x": &core.Var{Name: "x"},
+			"y": &core.Var{Name: "y"},
+		},
+	}
+	meta := &core.DeclMeta{
+		Name:   "makePoint",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{
+				Kind: core.RequiresKind,
+				Expr: &core.Lit{Kind: core.BoolLit, Value: true},
+			},
+			{
+				Kind: core.EnsuresKind,
+				Expr: &core.App{
+					Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "eq_Int"}},
+					Args: []core.CoreExpr{
+						&core.RecordAccess{Record: &core.Var{Name: "result"}, Field: "x"},
+						&core.Var{Name: "x"},
+					},
+				},
+			},
+		},
+	}
+
+	returnType := &types.TRecord{
+		Fields: map[string]types.Type{
+			"x": &types.TCon{Name: "int"},
+			"y": &types.TCon{Name: "int"},
+		},
+	}
+
+	opts := EncodeFunctionOpts{
+		ReturnType: returnType,
+		Body:       body,
+		Contracts:  meta.Contracts,
+	}
+
+	result, err := EncodeFunction("makePoint", params, body, "Rec_x_y", meta, nil, opts)
+	if err != nil {
+		t.Fatalf("EncodeFunction with return-only record: unexpected error: %v", err)
+	}
+
+	// Should contain record type declaration (discovered from return type)
+	if !strings.Contains(result.SMTLib, "declare-datatype") {
+		t.Errorf("expected record datatype declaration in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Should contain mk_ constructor
+	if !strings.Contains(result.SMTLib, "mk_") {
+		t.Errorf("expected mk_ constructor in SMT-LIB:\n%s", result.SMTLib)
+	}
+	// Should NOT contain "unknown record type" error
+	if strings.Contains(result.SMTLib, "unknown record type") {
+		t.Errorf("unexpected 'unknown record type' in SMT-LIB:\n%s", result.SMTLib)
+	}
+}

@@ -48,7 +48,8 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 |---------|--------|-------|
 | **Contracts** | Complete | `requires`/`ensures` clauses |
 | **Policy Mode** | Complete | Redundant verification |
-| **SMT Backend** | Planned | Z3 integration |
+| **SMT Backend** | Complete | Z3 integration, cross-function inlining |
+| **Bounded Recursion** | Complete | `--verify-recursive-depth N` (Dafny-style unrolling) |
 
 ---
 

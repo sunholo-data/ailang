@@ -1,0 +1,46 @@
+-- examples/runnable/contracts/recursive_verify.ail
+-- Bounded recursion verification demonstration
+-- Shows Z3 verifying recursive functions via Dafny-style unrolling
+-- Demonstrates: factorial, sumTo, fibonacci with bounded depth
+--
+-- Bounded verification proves contracts for inputs up to the recursion depth.
+-- Use --verify-recursive-depth N where N > max recursion depth of your inputs.
+
+module examples/runnable/contracts/recursive_verify
+
+-- Factorial: n! is always >= 1 for small non-negative n
+-- With --verify-recursive-depth 5, Z3 proves this for n in [0..4]
+export func factorial(n: int) -> int ! {}
+requires { n >= 0, n <= 4 }
+ensures { result >= 1 }
+{
+  if n <= 0 then 1 else n * factorial(n - 1)
+}
+
+-- Sum from 1 to n: always non-negative
+-- Base case returns 0 (>= 0), recursive case adds n (>= 1)
+export func sumTo(n: int) -> int ! {}
+requires { n >= 0, n <= 4 }
+ensures { result >= 0 }
+{
+  if n <= 0 then 0 else n + sumTo(n - 1)
+}
+
+-- Fibonacci: always non-negative for small non-negative input
+export func fib(n: int) -> int ! {}
+requires { n >= 0, n <= 4 }
+ensures { result >= 0 }
+{
+  if n <= 0 then 0
+  else if n <= 1 then 1
+  else fib(n - 1) + fib(n - 2)
+}
+
+-- Entry point for testing
+export func main() -> int ! {}
+{
+  let f4 = factorial(4);    -- 24
+  let s4 = sumTo(4);        -- 10
+  let fib4 = fib(4);        -- 3
+  f4 + s4 + fib4            -- 37
+}

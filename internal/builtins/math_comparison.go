@@ -99,8 +99,14 @@ func registerCmpWithMeta(name string, fn func(int, int) bool, description string
 // registerCmpFloatWithMeta registers a Float comparison with metadata
 func registerCmpFloatWithMeta(name string, fn func(float64, float64) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.FloatValue)
-		b := args[1].(*eval.FloatValue)
+		a, ok := args[0].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected FloatValue for arg 0, got %T", name, args[0])
+		}
+		b, ok := args[1].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected FloatValue for arg 1, got %T", name, args[1])
+		}
 		return &eval.BoolValue{Value: fn(a.Value, b.Value)}, nil
 	}
 	typeFunc := func() types.Type {
