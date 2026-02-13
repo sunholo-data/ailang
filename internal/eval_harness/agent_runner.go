@@ -15,15 +15,16 @@ import (
 
 // AgentBenchmarkConfig configures agent-based evaluation
 type AgentBenchmarkConfig struct {
-	MaxConcurrent     int      // Max parallel Claude sessions
-	RequestsPerSecond int      // API rate limit
-	TimeoutSeconds    int      // Timeout per benchmark
-	WorkspaceDir      string   // Base workspace directory
-	AllowedTools      []string // Tools agent can use
-	ClaudePath        string   // Path to claude CLI
-	ClaudeModel       string   // Claude model to use (haiku, sonnet, opus, or full name)
-	Verify            bool     // Enable contract verification (M-CONTRACT-EVAL)
-	DevtoolsPrompt    string   // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
+	MaxConcurrent     int           // Max parallel Claude sessions
+	RequestsPerSecond int           // API rate limit
+	TimeoutSeconds    int           // Timeout per benchmark
+	WorkspaceDir      string        // Base workspace directory
+	AllowedTools      []string      // Tools agent can use
+	ClaudePath        string        // Path to claude CLI
+	ClaudeModel       string        // Claude model to use (haiku, sonnet, opus, or full name)
+	Verify            bool          // Enable contract verification (M-CONTRACT-EVAL)
+	DevtoolsPrompt    string        // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
+	Condition         EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
 }
 
 // DefaultAgentConfig returns sensible defaults

@@ -75,12 +75,16 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 			currentProgress := completed
 			mu.Unlock()
 
-			fmt.Printf("[%d/%d] Running %s with %s (%s)...\n",
+			condLabel := ""
+			if j.Condition != "" {
+				condLabel = fmt.Sprintf(" [%s]", j.Condition)
+			}
+			fmt.Printf("[%d/%d] Running %s with %s (%s)%s...\n",
 				currentProgress, totalJobs,
-				cyan(j.Benchmark), green(j.Model), j.Language)
+				cyan(j.Benchmark), green(j.Model), j.Language, condLabel)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,

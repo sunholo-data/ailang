@@ -17,7 +17,8 @@ import (
 )
 
 // runSingleBenchmark executes a single benchmark configuration
-func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) (bool, error) {
+// condition is the experimental condition name ("baseline", "contract", "z3_guided", "full", or "" for legacy)
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) (bool, error) {
 	// Start span for this benchmark
 	// Include benchmark ID in span name for easy identification in trace viewers
 	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
@@ -48,6 +49,9 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		return false, err
 	}
 
+	// Resolve experimental condition (controls prompt content and verification)
+	cond := eval_harness.ResolveCondition(condition, evalVerifyFlag, evalDevtoolsPromptFlag)
+
 	// Agent mode: Use Claude Code headless evaluation
 	if agentConfig != nil {
 		// Create unique workspace for this benchmark session
@@ -56,6 +60,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 		workspaceID := fmt.Sprintf("%s_%s_%s_%d", benchmarkID, model, timestamp, os.Getpid())
 		sessionConfig := *agentConfig // Copy base config
 		sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
+		sessionConfig.Condition = cond // Set experimental condition for prompt assembly
 
 		// Use per-benchmark timeout from YAML if specified, otherwise use default from flag
 		if spec.Timeout > 0 {
@@ -115,6 +120,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 				Timestamp:      time.Now(),
 				Caps:           spec.Caps,
 				EvalMode:       eval_harness.EvalModeAgent,
+				Condition:      condition,
 			}
 			_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
@@ -149,6 +155,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 			RepairOk:       false, // Agent mode doesn't use standard repair loop
 			Caps:           spec.Caps,
 			Code:           result.SolutionCode,
+			Condition:      condition, // Experimental condition for this run
 			// Store agent KPI metrics (turns, transcript) for comparison with standard mode
 			AgentTurns:      result.NumTurns,
 			AgentTranscript: result.SessionLog,
@@ -302,7 +309,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 	if actualPromptVersion != "" {
 		repairRunner.SetPromptVersion(actualPromptVersion)
 	}
-	repairRunner.SetVerify(evalVerifyFlag, evalVerifyTimeout)
+	repairRunner.SetVerify(cond.EnableVerify, evalVerifyTimeout)
 
 	// Save result to JSON (moved up to handle API errors)
 	logger := eval_harness.NewMetricsLogger(outputDir)
@@ -328,10 +335,15 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang string, se
 			Caps:           spec.Caps,
 			EvalMode:       eval_harness.EvalModeStandard,
 			PromptVersion:  actualPromptVersion,
+			Condition:      condition,
 		}
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
 		return false, fmt.Errorf("benchmark execution failed: %w", err)
 	}
+
+	// Tag metrics with experimental condition
+	metrics.Condition = condition
+
 	if err := logger.Log(metrics); err != nil {
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "failed to save result")

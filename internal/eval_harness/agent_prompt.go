@@ -474,9 +474,22 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
 
-	// Replace {{CONTRACT_SPEC}} placeholder with formatted contract spec (M-CONTRACT-EVAL)
-	contractSpecBlock := spec.FormatContractSpec(config.Verify)
+	// Resolve condition: use explicit condition if set, otherwise fall back to legacy Verify flag
+	cond := config.Condition
+	if cond.Name == "" {
+		cond = ResolveCondition("", config.Verify, config.DevtoolsPrompt != "")
+	}
+
+	// Replace {{CONTRACT_SPEC}} placeholder based on condition (M-CONTRACT-EVAL)
+	contractSpecBlock := spec.FormatContractSpec(cond.IncludeContract)
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CONTRACT_SPEC}}", contractSpecBlock)
+
+	// Replace {{Z3_HINTS}} placeholder based on condition
+	var z3HintsBlock string
+	if cond.IncludeZ3Hints {
+		z3HintsBlock = spec.FormatZ3Hints()
+	}
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{Z3_HINTS}}", z3HintsBlock)
 
 	// Replace <LANG> placeholder with actual language name (used in 31/35 benchmarks)
 	// e.g., "Write a program in <LANG>" → "Write a program in Python"
@@ -488,8 +501,8 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	}
 	taskPrompt = strings.ReplaceAll(taskPrompt, "<LANG>", languageName)
 
-	// M-CONTRACT-EVAL: Append devtools prompt to system prompt if provided
-	if config.DevtoolsPrompt != "" {
+	// Append devtools prompt to system prompt based on condition
+	if cond.IncludeDevtools && config.DevtoolsPrompt != "" {
 		systemPrompt = systemPrompt + "\n\n" + config.DevtoolsPrompt
 	}
 

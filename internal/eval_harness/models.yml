@@ -456,7 +456,7 @@ local_models:
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI
 # - agent_cli: "openai" = Supports OpenAI Codex CLI (not yet implemented)
-# - agent_cli: "gemini" = Supports Gemini CLI (not yet implemented)
+# - agent_cli: "gemini" = Supports Gemini CLI
 # - agent_cli: null = No agent eval support
 #
 # When adding agent CLI support for new providers:

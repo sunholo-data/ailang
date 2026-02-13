@@ -61,6 +61,9 @@ type RunMetrics struct {
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
 	AgentTranscript string `json:"agent_transcript,omitempty"` // Full Claude conversation transcript (agent mode only)
 	EvalMode        string `json:"eval_mode,omitempty"`        // Evaluation mode: "standard" or "agent"
+
+	// Experimental condition (M-CONTRACT-EVAL conditions dimension)
+	Condition string `json:"condition,omitempty"` // Experimental condition: "baseline", "contract", "z3_guided", "full"
 }
 
 // EvalMode constants
@@ -117,6 +120,11 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 	default:
 		// Legacy: no eval_mode field, use root directory
 		targetDir = l.outputDir
+	}
+
+	// Nest by condition if set (e.g., eval_results/agent/z3_guided/)
+	if m.Condition != "" {
+		targetDir = filepath.Join(targetDir, m.Condition)
 	}
 
 	// Ensure output directory exists

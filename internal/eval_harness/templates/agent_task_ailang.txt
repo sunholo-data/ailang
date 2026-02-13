@@ -21,6 +21,8 @@ Expected output:
 
 {{CONTRACT_SPEC}}
 
+{{Z3_HINTS}}
+
 ## Verification Steps (REQUIRED!)
 
 **You MUST verify your solution before finishing:**

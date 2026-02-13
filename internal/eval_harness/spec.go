@@ -19,6 +19,7 @@ type BenchmarkSpec struct {
 	PromptFiles  map[string]string `yaml:"prompt_files"`  // Language-specific prompt files: {ailang: "prompts/v0.3.0.md"}
 	TaskPrompt   string            `yaml:"task_prompt"`   // Task-specific prompt appended after base prompt
 	ContractSpec string            `yaml:"contract_spec"` // Optional: AILANG contract specification for Z3 verification
+	Z3Hints      string            `yaml:"z3_hints"`      // Optional: Pre-computed Z3 counterexample descriptions for known traps
 	ExpectedOut  string            `yaml:"expected_stdout"`
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
@@ -155,6 +156,72 @@ func (s *BenchmarkSpec) FormatContractSpec(verify bool) string {
 %s
 `+"```"+`
 Run `+"`ailang ai-check solution.ail`"+` to verify your solution against these contracts.`, s.ContractSpec)
+}
+
+// FormatZ3Hints returns a formatted Z3 hints block for prompt injection.
+// Only returns content when the spec has Z3Hints defined.
+func (s *BenchmarkSpec) FormatZ3Hints() string {
+	if s.Z3Hints == "" {
+		return ""
+	}
+	return fmt.Sprintf(`KNOWN EDGE CASES (from formal verification analysis):
+
+%s
+
+These describe traps that a naive implementation would fall into.
+Design your solution to handle these cases correctly from the start.`, s.Z3Hints)
+}
+
+// EvalCondition represents a named experimental condition that controls
+// what information is included in the LLM prompt. Conditions are treated
+// like languages — each creates a separate evaluation job.
+type EvalCondition struct {
+	Name            string // "baseline", "contract", "z3_guided", "full", or "" for legacy
+	IncludeContract bool   // Include contract_spec in prompt
+	IncludeZ3Hints  bool   // Include z3_hints in prompt
+	IncludeDevtools bool   // Append devtools prompt to system prompt
+	EnableVerify    bool   // Enable Z3 verification (standard mode repair + post-hoc check)
+}
+
+// ValidConditionNames lists all recognized condition names
+var ValidConditionNames = []string{"baseline", "contract", "z3_guided", "full"}
+
+// ResolveCondition returns the settings for a named condition.
+// If name is empty, returns legacy behavior using the explicit --verify/--devtools-prompt flags.
+func ResolveCondition(name string, legacyVerify, legacyDevtools bool) EvalCondition {
+	switch name {
+	case "baseline":
+		return EvalCondition{Name: "baseline"}
+	case "contract":
+		return EvalCondition{
+			Name:            "contract",
+			IncludeContract: true,
+			EnableVerify:    true,
+		}
+	case "z3_guided":
+		return EvalCondition{
+			Name:            "z3_guided",
+			IncludeContract: true,
+			IncludeZ3Hints:  true,
+			EnableVerify:    true,
+		}
+	case "full":
+		return EvalCondition{
+			Name:            "full",
+			IncludeContract: true,
+			IncludeZ3Hints:  true,
+			IncludeDevtools: true,
+			EnableVerify:    true,
+		}
+	default:
+		// Legacy mode: use explicit flag values
+		return EvalCondition{
+			Name:            "",
+			IncludeContract: legacyVerify,
+			EnableVerify:    legacyVerify,
+			IncludeDevtools: legacyDevtools,
+		}
+	}
 }
 
 // replaceAll is a simple string replacement function

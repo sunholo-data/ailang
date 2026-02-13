@@ -38,6 +38,7 @@ type Job struct {
 	Model     string
 	Benchmark string
 	Language  string
+	Condition string // Experimental condition: "baseline", "contract", "z3_guided", "full", or "" for legacy
 }
 
 func runEvalSuite() {
@@ -105,7 +106,7 @@ func runEvalSuite() {
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 
 	// Agent mode flags
-	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code headless mode)")
+	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
 	agentModel := fs.String("agent-model", "", "Override agent CLI model (default: use first model from -models flag). Advanced use only.")
 	agentMaxConcurrent := fs.Int("agent-parallel", 10, "Max concurrent agent sessions (agent mode only)")
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
@@ -116,6 +117,7 @@ func runEvalSuite() {
 	verify := fs.Bool("verify", false, "Enable contract verification (run ailang ai-check on solutions)")
 	verifyTimeout := fs.Duration("verify-timeout", 5*time.Second, "Per-function Z3 timeout for contract verification")
 	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
+	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
 
 	// Message-based coordination flags (M-UNIFIED-AI-CONTROL-PLANE)
 	queueMode := fs.Bool("queue", false, "Run benchmarks via message queue (coordinator processes, crash recovery)")
@@ -134,6 +136,26 @@ func runEvalSuite() {
 	evalVerifyFlag = *verify
 	evalVerifyTimeout = *verifyTimeout
 	evalDevtoolsPromptFlag = *devtoolsPrompt
+
+	// Parse --conditions flag into a list
+	var conditionList []string
+	if *conditions != "" {
+		validConditions := map[string]bool{}
+		for _, c := range eval_harness.ValidConditionNames {
+			validConditions[c] = true
+		}
+		for _, c := range strings.Split(*conditions, ",") {
+			c = strings.TrimSpace(c)
+			if !validConditions[c] {
+				fmt.Fprintf(os.Stderr, "Error: unknown condition %q (valid: %v)\n", c, eval_harness.ValidConditionNames)
+				os.Exit(1)
+			}
+			conditionList = append(conditionList, c)
+		}
+	} else {
+		// Legacy mode: single job with empty condition (uses --verify/--devtools-prompt flags)
+		conditionList = []string{""}
+	}
 
 	// Initialize models configuration
 	if err := eval_harness.InitModelsConfig(); err != nil {
@@ -220,24 +242,24 @@ func runEvalSuite() {
 			}
 			fmt.Fprintf(os.Stderr, "%s Agent mode: Skipping %d unsupported model(s): %v\n",
 				yellow("⚠️"), len(skipped), skipped)
-			fmt.Fprintf(os.Stderr, "   These models require CLI integration (not yet implemented)\n")
-			fmt.Fprintf(os.Stderr, "   Only Claude models support agent eval currently\n")
+			fmt.Fprintf(os.Stderr, "   These models have no agent_cli configured in models.yml\n")
 			fmt.Println()
 		}
 
 		if len(modelList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No models support agent evaluation\n")
-			fmt.Fprintf(os.Stderr, "Agent mode currently only supports Claude models (claude-sonnet-4-5, claude-haiku-4-5)\n")
+			fmt.Fprintf(os.Stderr, "Agent mode requires models with agent_cli configured in models.yml\n")
+			fmt.Fprintf(os.Stderr, "Supported: Claude (claude-haiku-4-5, claude-sonnet-4-5) and Gemini (gemini-2-5-flash, gemini-3-flash, etc.)\n")
 			fmt.Fprintf(os.Stderr, "\n")
 			fmt.Fprintf(os.Stderr, "Example:\n")
-			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --models claude-haiku-4-5 --benchmarks fizzbuzz\n")
+			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash --benchmarks fizzbuzz\n")
 			fmt.Fprintf(os.Stderr, "\n")
 			os.Exit(1)
 		}
 	}
 
-	// Calculate total runs
-	totalRuns := len(modelList) * len(benchmarkList) * len(langList)
+	// Calculate total runs (conditions are a dimension like languages)
+	totalRuns := len(modelList) * len(benchmarkList) * len(langList) * len(conditionList)
 
 	// Set suite span attributes now that we know the configuration
 	suiteSpan.SetAttributes(
@@ -260,6 +282,9 @@ func runEvalSuite() {
 	fmt.Printf("Models:     %v\n", modelList)
 	fmt.Printf("Benchmarks: %v\n", benchmarkList)
 	fmt.Printf("Languages:  %v\n", langList)
+	if conditionList[0] != "" {
+		fmt.Printf("Conditions: %v\n", conditionList)
+	}
 	fmt.Printf("Seed:       %d\n", *seed)
 	fmt.Printf("Parallel:   %d concurrent\n", *maxConcurrent)
 	fmt.Printf("Total runs: %d\n", totalRuns)
@@ -313,48 +338,55 @@ func runEvalSuite() {
 	// instead of 10 calls to the same provider.
 	var jobs []Job
 	skippedCount := 0
-	for _, lang := range langList {
-		// For each benchmark, create jobs for all models (round-robin)
-		for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
-			for _, model := range modelList {
-				benchmark := benchmarkList[benchIdx]
-				job := Job{
-					Model:     model,
-					Benchmark: benchmark,
-					Language:  lang,
-				}
-
-				// Check if result already exists (if resuming)
-				if *skipExisting {
-					// Result filename format: benchmarkID_lang_model_timestamp.json
-					// Check in appropriate subdirectory based on eval mode
-					var patterns []string
-					if *agent {
-						// Agent mode: check agent/ subdirectory
-						patterns = append(patterns, filepath.Join(*outputDir, "agent", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
-					} else {
-						// Standard mode: check standard/ subdirectory
-						patterns = append(patterns, filepath.Join(*outputDir, "standard", fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+	for _, condition := range conditionList {
+		for _, lang := range langList {
+			// For each benchmark, create jobs for all models (round-robin)
+			for benchIdx := 0; benchIdx < len(benchmarkList); benchIdx++ {
+				for _, model := range modelList {
+					benchmark := benchmarkList[benchIdx]
+					job := Job{
+						Model:     model,
+						Benchmark: benchmark,
+						Language:  lang,
+						Condition: condition,
 					}
-					// Also check root directory for legacy results
-					patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
 
-					foundExisting := false
-					for _, pattern := range patterns {
-						matches, _ := filepath.Glob(pattern)
-						if len(matches) > 0 {
-							foundExisting = true
-							break
+					// Check if result already exists (if resuming)
+					if *skipExisting {
+						// Result filename format: benchmarkID_lang_model_timestamp.json
+						// Check in appropriate subdirectory based on eval mode and condition
+						var patterns []string
+						modeDir := "standard"
+						if *agent {
+							modeDir = "agent"
+						}
+						if condition != "" {
+							// With conditions: check mode/condition/ subdirectory
+							patterns = append(patterns, filepath.Join(*outputDir, modeDir, condition, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+						} else {
+							// Legacy: check mode/ subdirectory
+							patterns = append(patterns, filepath.Join(*outputDir, modeDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+						}
+						// Also check root directory for legacy results
+						patterns = append(patterns, filepath.Join(*outputDir, fmt.Sprintf("%s_%s_%s_*.json", benchmark, lang, model)))
+
+						foundExisting := false
+						for _, pattern := range patterns {
+							matches, _ := filepath.Glob(pattern)
+							if len(matches) > 0 {
+								foundExisting = true
+								break
+							}
+						}
+
+						if foundExisting {
+							skippedCount++
+							continue // Skip this job
 						}
 					}
 
-					if foundExisting {
-						skippedCount++
-						continue // Skip this job
-					}
+					jobs = append(jobs, job)
 				}
-
-				jobs = append(jobs, job)
 			}
 		}
 	}
@@ -381,7 +413,7 @@ func runEvalSuite() {
 		agentModelOverride := *agentModel
 
 		fmt.Println()
-		fmt.Printf("%s Agent mode ENABLED (Claude Code)\n", cyan("🤖"))
+		fmt.Printf("%s Agent mode ENABLED\n", cyan("🤖"))
 		fmt.Printf("  - Models: %v\n", modelList)
 		if agentModelOverride != "" {
 			fmt.Printf("  - Agent CLI model: %s (override)\n", agentModelOverride)
@@ -393,9 +425,18 @@ func runEvalSuite() {
 		fmt.Printf("  - Timeout: %d seconds\n", *agentTimeout)
 		fmt.Println()
 
-		// M-CONTRACT-EVAL: Load devtools prompt if flag is active
+		// M-CONTRACT-EVAL: Load devtools prompt if flag is active or "full" condition is requested
 		var devtoolsContent string
-		if evalDevtoolsPromptFlag {
+		needDevtools := evalDevtoolsPromptFlag
+		if !needDevtools {
+			for _, c := range conditionList {
+				if c == "full" {
+					needDevtools = true
+					break
+				}
+			}
+		}
+		if needDevtools {
 			var dtErr error
 			devtoolsContent, dtErr = devtoolsprompt.LoadPrompt("v0.8.0-compact")
 			if dtErr != nil {
