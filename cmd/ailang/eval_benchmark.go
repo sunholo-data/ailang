@@ -69,33 +69,37 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 		// Look up executor and model for multi-executor support
 		// This enables switching between Claude Code, Gemini CLI, etc. based on model config
+		// NO FALLBACK to legacy Claude-only runner -- fail fast if executor can't be determined
 		executorName := ""
-		modelName := ""
-		if sessionConfig.ClaudeModel == "" {
+		modelName := sessionConfig.ClaudeModel // May already be set from --agent-model override
+
+		if modelName == "" {
+			// Look up executor and model from models.yml
 			var err error
 			executorName, modelName, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
 			if err != nil {
-				// Fall back to getting agent model name (backwards compatibility)
-				modelName, err = eval_harness.GlobalModelsConfig.GetAgentModelName(model)
-				if err != nil {
-					return false, fmt.Errorf("could not determine agent model for %s: %w", model, err)
-				}
+				return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
+					"Ensure model has agent_cli and agent_model_name configured in models.yml", model, err)
 			}
 			sessionConfig.ClaudeModel = modelName
+		} else {
+			// Model name overridden via --agent-model; still need executor name for routing
+			var err error
+			executorName, _, err = eval_harness.GlobalModelsConfig.GetExecutorForModel(model)
+			if err != nil {
+				return false, fmt.Errorf("could not determine executor for model %q in agent mode: %w\n"+
+					"Ensure model has agent_cli configured in models.yml", model, err)
+			}
 		}
 
-		// Use multi-executor runner if executor is specified, otherwise fall back to legacy runner
-		var result *eval_harness.AgentBenchmarkResult
-		if executorName != "" {
-			multiConfig := eval_harness.MultiExecutorConfig{
-				AgentBenchmarkConfig: sessionConfig,
-				ExecutorName:         executorName,
-				ModelName:            modelName,
-			}
-			result, err = eval_harness.RunAgentBenchmarkWithExecutor(spec, multiConfig, lang)
-		} else {
-			result, err = eval_harness.RunAgentBenchmark(spec, sessionConfig, lang)
+		// Always use multi-executor runner -- legacy RunAgentBenchmark() hardcodes Claude
+		// and must NOT be used for non-Claude models
+		multiConfig := eval_harness.MultiExecutorConfig{
+			AgentBenchmarkConfig: sessionConfig,
+			ExecutorName:         executorName,
+			ModelName:            modelName,
 		}
+		result, err := eval_harness.RunAgentBenchmarkWithExecutor(spec, multiConfig, lang)
 
 		// Save result to JSON (even on API error for observability)
 		logger := eval_harness.NewMetricsLogger(outputDir)

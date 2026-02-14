@@ -117,7 +117,7 @@ func runEvalSuite() {
 	verify := fs.Bool("verify", false, "Enable contract verification (run ailang ai-check on solutions)")
 	verifyTimeout := fs.Duration("verify-timeout", 5*time.Second, "Per-function Z3 timeout for contract verification")
 	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
-	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
+	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full,tool_aware). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
 
 	// Message-based coordination flags (M-UNIFIED-AI-CONTROL-PLANE)
 	queueMode := fs.Bool("queue", false, "Run benchmarks via message queue (coordinator processes, crash recovery)")
@@ -159,8 +159,15 @@ func runEvalSuite() {
 
 	// Initialize models configuration
 	if err := eval_harness.InitModelsConfig(); err != nil {
+		if *agent {
+			// Agent mode REQUIRES models.yml for executor routing -- fail fast
+			fmt.Fprintf(os.Stderr, "Error: Could not load models.yml: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Agent mode requires models.yml for executor routing (agent_cli, agent_model_name).\n")
+			fmt.Fprintf(os.Stderr, "Ensure models.yml exists at internal/eval_harness/models.yml or is embedded in the binary.\n")
+			os.Exit(1)
+		}
 		fmt.Fprintf(os.Stderr, "Warning: Could not load models.yml: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Continuing with fallback model lists\n")
+		fmt.Fprintf(os.Stderr, "Continuing with hardcoded fallback model lists (may be stale).\n")
 	}
 
 	// Determine model list

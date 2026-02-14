@@ -141,6 +141,16 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		return nil, fmt.Errorf("execution failed: %w", err)
 	}
 
+	// Check for executor-level failure (crash, timeout, non-zero exit).
+	// Executors return (Result{Success:false}, nil) on these failures --
+	// the error is in Result.Error, NOT the Go error return value.
+	// We check this BEFORE agentic validation to provide clear "executor crashed"
+	// errors instead of misleading "non-agentic result" messages.
+	if !result.Success && result.Error != "" {
+		return nil, fmt.Errorf("executor %q failed for model %q: %s",
+			executorName, modelName, result.Error)
+	}
+
 	// Validate agent behavior - NO SILENT FALLBACKS
 	// Agent mode must produce multi-turn agentic behavior, not 0-shot text generation
 	if result.NumTurns <= 1 && result.ToolCallCount == 0 {

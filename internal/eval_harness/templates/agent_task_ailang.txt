@@ -23,6 +23,8 @@ Expected output:
 
 {{Z3_HINTS}}
 
+{{TOOL_GUIDANCE}}
+
 ## Verification Steps (REQUIRED!)
 
 **You MUST verify your solution before finishing:**

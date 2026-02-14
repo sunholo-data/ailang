@@ -491,6 +491,13 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	}
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{Z3_HINTS}}", z3HintsBlock)
 
+	// Replace {{TOOL_GUIDANCE}} placeholder based on condition
+	var toolGuidanceBlock string
+	if cond.IncludeToolGuidance {
+		toolGuidanceBlock = getToolAwareGuidance()
+	}
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TOOL_GUIDANCE}}", toolGuidanceBlock)
+
 	// Replace <LANG> placeholder with actual language name (used in 31/35 benchmarks)
 	// e.g., "Write a program in <LANG>" → "Write a program in Python"
 	languageName := language
@@ -507,4 +514,46 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	}
 
 	return systemPrompt, taskPrompt, versionUsed, nil
+}
+
+// getToolAwareGuidance returns general guidance about using AILANG contracts
+// and Z3 verification as a debugging tool. This does NOT include any
+// benchmark-specific contract specs — the LLM must write its own contracts.
+func getToolAwareGuidance() string {
+	return `## Debugging with Contracts (recommended)
+
+AILANG has built-in formal verification. You can write contracts on pure functions
+and use Z3 to automatically find bugs — this is often faster than manual debugging.
+
+**How it works:**
+
+1. Add ` + "`requires`" + ` (preconditions) and ` + "`ensures`" + ` (postconditions) to your pure functions:
+` + "```" + `
+export pure func safeSub(a: int, b: int) -> int
+  requires { a >= 0, b >= 0 }
+  ensures { result >= 0 }
+= if a >= b then a - b else 0
+` + "```" + `
+
+2. Run ` + "`ailang ai-check solution.ail`" + ` to verify. Z3 will either:
+   - **VERIFIED**: Your function satisfies the contract for ALL valid inputs
+   - **COUNTEREXAMPLE**: A specific input that violates your contract (e.g., "a=2, b=100 → result=-98")
+
+3. Use counterexamples to fix your logic, then re-check.
+
+**What to write contracts for:**
+- Range bounds: ` + "`ensures { result >= 0 }`" + `, ` + "`ensures { result <= maxValue }`" + `
+- Consistency: ` + "`ensures { result == true }`" + ` for functions that prove invariants
+- Relationships: ` + "`ensures { result <= inputParam }`" + ` when output shouldn't exceed input
+
+**What Z3 can verify:**
+- Pure functions with integer arithmetic, comparisons, boolean logic
+- Non-recursive functions work best (recursive functions may be skipped)
+
+**Suggested workflow:**
+1. Write your solution
+2. Add ` + "`ensures`" + ` contracts expressing what you believe should hold
+3. Run ` + "`ailang ai-check solution.ail`" + ` — if Z3 finds a counterexample, fix the bug
+4. Run ` + "`ailang run`" + ` to check expected output
+5. Iterate until both ai-check and output are correct`
 }

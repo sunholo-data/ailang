@@ -232,22 +232,22 @@ func FindModelsConfig(startDir string) (string, error) {
 	return "", fmt.Errorf("models.yml not found")
 }
 
-// ResolveModelName resolves a user-provided model name to its API name
-// Supports both friendly names (e.g., "claude-sonnet-4-5") and direct API names
+// ResolveModelName resolves a user-provided model name to its API name.
+// Supports both friendly names (e.g., "claude-sonnet-4-5") and direct API names.
+// Returns error if model is not found in configuration -- NO SILENT FALLBACKS.
 func ResolveModelName(name string) (apiName, provider string, err error) {
 	if GlobalModelsConfig == nil {
 		// Try to initialize
 		if err := InitModelsConfig(); err != nil {
-			// Fallback: return name as-is and guess provider
-			return name, guessProvider(name), nil
+			return "", "", fmt.Errorf("models.yml not loaded and could not be initialized: %w", err)
 		}
 	}
 
-	// Try to get model from config
+	// Look up model from config -- fail if not found
 	model, err := GlobalModelsConfig.GetModel(name)
 	if err != nil {
-		// Not in config, use as-is
-		return name, guessProvider(name), nil
+		return "", "", fmt.Errorf("model %q not found in models.yml: %w\n"+
+			"Available models: %v", name, err, GlobalModelsConfig.ListModels())
 	}
 
 	return model.APIName, model.Provider, nil

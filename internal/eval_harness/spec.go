@@ -176,15 +176,16 @@ Design your solution to handle these cases correctly from the start.`, s.Z3Hints
 // what information is included in the LLM prompt. Conditions are treated
 // like languages — each creates a separate evaluation job.
 type EvalCondition struct {
-	Name            string // "baseline", "contract", "z3_guided", "full", or "" for legacy
-	IncludeContract bool   // Include contract_spec in prompt
-	IncludeZ3Hints  bool   // Include z3_hints in prompt
-	IncludeDevtools bool   // Append devtools prompt to system prompt
-	EnableVerify    bool   // Enable Z3 verification (standard mode repair + post-hoc check)
+	Name               string // "baseline", "contract", "z3_guided", "full", "tool_aware", or "" for legacy
+	IncludeContract    bool   // Include contract_spec in prompt
+	IncludeZ3Hints     bool   // Include z3_hints in prompt
+	IncludeDevtools    bool   // Append devtools prompt to system prompt
+	IncludeToolGuidance bool  // Include general contract-writing + ai-check guidance (no spec given)
+	EnableVerify       bool   // Enable Z3 verification (standard mode repair + post-hoc check)
 }
 
 // ValidConditionNames lists all recognized condition names
-var ValidConditionNames = []string{"baseline", "contract", "z3_guided", "full"}
+var ValidConditionNames = []string{"baseline", "contract", "z3_guided", "full", "tool_aware"}
 
 // ResolveCondition returns the settings for a named condition.
 // If name is empty, returns legacy behavior using the explicit --verify/--devtools-prompt flags.
@@ -212,6 +213,12 @@ func ResolveCondition(name string, legacyVerify, legacyDevtools bool) EvalCondit
 			IncludeZ3Hints:  true,
 			IncludeDevtools: true,
 			EnableVerify:    true,
+		}
+	case "tool_aware":
+		return EvalCondition{
+			Name:               "tool_aware",
+			IncludeToolGuidance: true,
+			EnableVerify:       true,
 		}
 	default:
 		// Legacy mode: use explicit flag values
