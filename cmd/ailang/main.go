@@ -197,6 +197,9 @@ func main() {
 	case "eval-suite":
 		runEvalSuite()
 
+	case "eval-chains":
+		evalChainsCommand()
+
 	case "doctor":
 		runDoctor()
 

@@ -40,6 +40,14 @@ The original `export_docusaurus.go` (980 lines) was split into 4 focused files:
   - `formatBenchmarkName()` - Convert snake_case to Title Case
   - `formatModelName()` - Shorten model names for tables
 
+### Chain-Based Loading (v0.8.0+)
+
+- **loader_chains.go** (174 lines) - Load results from observatory.db chains
+  - `LoadResultsFromChain(chainID)` - Load all benchmark results from a chain
+  - `LoadResultsFromLatestEvalChain()` - Find and load most recent eval_suite chain
+  - `LoadBaselineFromChain(chainID)` - Create Baseline for comparisons
+  - `stageToResult()` - Convert chain stage + eval assessment to BenchmarkResult
+
 ### Data Types
 
 - **types.go** (343 lines) - All data structure definitions
@@ -60,11 +68,18 @@ The original `export_docusaurus.go` (980 lines) was split into 4 focused files:
 
 ## Usage
 
-### Generate Performance Matrix
+### Generate Performance Matrix (file-based)
 
 ```go
 results := LoadResults("eval_results/baselines/v0.4.0")
 matrix := GenerateMatrix(results, "v0.4.0")
+```
+
+### Generate Performance Matrix (chain-based - v0.8.0+)
+
+```go
+results, err := LoadResultsFromChain("e9c7501d-...")
+matrix := GenerateMatrix(results, "v0.8.0")
 ```
 
 ### Export Dashboard JSON
@@ -89,6 +104,14 @@ newResults := LoadResults("eval_results/baselines/v0.4.1")
 report := Compare(baseline, newResults)
 ```
 
+### Compare Chain-Based Baselines (v0.8.0+)
+
+```go
+baseline, _ := LoadBaselineFromChain("chain-id-1")
+newResults, _ := LoadResultsFromChain("chain-id-2")
+report := Compare(baseline, newResults)
+```
+
 ## Design Principles
 
 1. **History Preservation** - Dashboard JSON maintains full version history
@@ -98,6 +121,12 @@ report := Compare(baseline, newResults)
 5. **AI-Friendly** - Files kept under 800 lines for AI maintainability
 
 ## Recent Changes
+
+**v0.8.0 (February 2026)** - Chain-based result loading
+- Added `loader_chains.go` for loading results from observatory.db chains
+- Agent eval results now stored as chains (one stage per benchmark)
+- `LoadResultsFromChain()` returns same `[]*BenchmarkResult` type as `LoadResults()`
+- Entire downstream pipeline (matrix, export, comparison) works unchanged
 
 **v0.4.0 (November 2025)** - File split for AI-maintainability
 - Split `export_docusaurus.go` (980 lines) into 4 files (145, 616, 208, 32 lines)

@@ -15,6 +15,7 @@ import (
 	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/eval_harness"
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -39,6 +40,13 @@ type Job struct {
 	Benchmark string
 	Language  string
 	Condition string // Experimental condition: "baseline", "contract", "z3_guided", "full", or "" for legacy
+}
+
+// EvalChainContext holds observatory chain state for agent eval runs.
+// When non-nil, benchmark results are stored as chain stages in observatory.db.
+type EvalChainContext struct {
+	Store   *observatory.Store
+	ChainID string
 }
 
 func runEvalSuite() {
@@ -282,6 +290,38 @@ func runEvalSuite() {
 	// Create Task in Observatory for this eval run
 	// This enables eval suites to appear in the task hierarchy
 	createEvalTask(taskID, assignmentID, modelList, benchmarkList, langList, totalRuns, *agent)
+
+	// M-EVAL-CHAINS: Create execution chain for agent eval runs
+	// Each benchmark × model × language × condition becomes a chain stage
+	var evalChain *EvalChainContext
+	if *agent {
+		obsStore, err := observatory.OpenDefaultStore()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s Warning: Could not open observatory database: %v\n", yellow("⚠️"), err)
+			fmt.Fprintf(os.Stderr, "   Agent eval results will be stored as JSON files only\n")
+		} else {
+			evalMode := "agent"
+			condRef := ""
+			if len(conditionList) == 1 && conditionList[0] != "" {
+				condRef = "/" + conditionList[0]
+			}
+			cwd, _ := os.Getwd()
+			chain, err := obsStore.CreateChain(ctx, &observatory.ChainCreateRequest{
+				SourceType:    observatory.ChainSourceEvalSuite,
+				SourceRef:     fmt.Sprintf("%s/%s%s", taskID, evalMode, condRef),
+				WorkspacePath: cwd,
+			})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s Warning: Could not create eval chain: %v\n", yellow("⚠️"), err)
+			} else {
+				evalChain = &EvalChainContext{
+					Store:   obsStore,
+					ChainID: chain.ID,
+				}
+				fmt.Printf("  Chain ID: %s\n", chain.ID[:8])
+			}
+		}
+	}
 
 	fmt.Printf("%s AILANG Benchmark Suite\n", cyan("🚀"))
 	fmt.Println("==========================")
@@ -540,7 +580,7 @@ func runEvalSuite() {
 
 	// Run benchmarks with concurrency control (direct mode)
 	startTime := time.Now()
-	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID)
+	results := runBenchmarksParallel(ctx, jobs, *seed, *outputDir, *timeout, *maxConcurrent, finalSelfRepair, *promptVersion, agentConfig, taskID, evalChain)
 	duration := time.Since(startTime)
 
 	// Summary
@@ -616,4 +656,33 @@ func runEvalSuite() {
 
 	// Update task status to completed
 	completeEvalTask(taskID, failCount == 0)
+
+	// M-EVAL-CHAINS: Finalize chain status and roll up metrics from stages
+	if evalChain != nil {
+		// Use "partial" status if mixed results, "completed" if all pass, "failed" if all fail
+		status := observatory.ChainStatusCompleted
+		if failCount > 0 && successCount > 0 {
+			status = observatory.ChainStatusCompleted // Mixed — still "completed" (assessment has details)
+		} else if failCount > 0 {
+			status = observatory.ChainStatusFailed
+		}
+		if err := evalChain.Store.UpdateChainStatus(ctx, evalChain.ChainID, status); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update eval chain status: %v\n", err)
+		}
+
+		// Roll up cost/tokens/turns from stages to chain
+		stages, stageErr := evalChain.Store.GetChainStages(ctx, evalChain.ChainID, observatory.ChainReadOptions{})
+		if stageErr == nil {
+			var totalCost float64
+			var totalTokens, totalTurns int
+			for _, st := range stages {
+				totalCost += st.Cost
+				totalTokens += st.TokensIn + st.TokensOut
+				totalTurns += st.Turns
+			}
+			_ = evalChain.Store.UpdateChainMetrics(ctx, evalChain.ChainID, totalCost, totalTokens, totalTurns)
+		}
+
+		fmt.Printf("  Chain: ailang chains view %s\n", evalChain.ChainID[:8])
+	}
 }

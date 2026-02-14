@@ -227,9 +227,47 @@ python3 tools/validate_eval_results.py eval_results/baselines/v0.4.2
 
 **When to use:** After running eval baselines, especially if results look suspicious.
 
-## Agent Analysis Scripts (NEW!)
+## Agent Eval Analysis (v0.8.0+ - Chain-Based)
 
-**For agent-based evaluation results** (Python vs AILANG comparisons with Claude Code):
+Agent eval results are stored as chains in `observatory.db`. Use `ailang eval-chains` for analysis:
+
+### Chain-Based Analysis (Recommended)
+
+```bash
+# List recent agent eval chains
+ailang eval-chains list
+
+# View per-benchmark assessment (compile/runtime/stdout)
+ailang eval-chains view <chain-id>
+
+# Pass rate breakdown by model, language, benchmark
+ailang eval-chains stats <chain-id>
+
+# Show only failures with error details
+ailang eval-chains failures <chain-id>
+
+# Full chain with session/tool data
+ailang chains view <chain-id> --spans
+
+# Generate report from chain (same format as file-based)
+ailang eval-report --from-chain <chain-id> v0.8.0 --format=json
+
+# Compare two agent eval runs
+ailang eval-compare --chain <id1> --chain <id2>
+```
+
+### Chat/Tool Data (Per-Executor)
+
+Agent eval captures full tool/chat data per executor:
+
+| Executor | Query | Data |
+|----------|-------|------|
+| **Claude** | `ailang chains view <id> --spans` | Full conversation via JSONL import (tool inputs, thinking, tool results) |
+| **Gemini** | `ailang chains view <id> --spans` | Streaming tool capture (tool names, inputs, outputs) |
+
+### Legacy File-Based Agent Analysis
+
+For older agent eval results stored as JSON files (pre-v0.8.0):
 
 ### 1. Agent KPIs - Minimize Tokens & Turns
 
@@ -239,50 +277,21 @@ Shows efficiency metrics for agent runs - **key for optimizing language and prom
 .claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
 ```
 
-**Output:**
-- Average turns, tokens, cost by language (Python vs AILANG)
-- Most expensive benchmarks (by turns) - candidates for optimization
-- Most efficient benchmarks - learn from these
-- Success rates and performance comparison
-
 **Goal**: Minimize agent turns and tokens → indicates clearer prompts and simpler language.
 
 ### 2. Agent Transcripts - View AILANG Conversations
 
-View full agent conversation logs to understand what happened.
-
 ```bash
-# View all transcripts
 .claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
-
-# View only failures
 .claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
-
-# View specific benchmark
 .claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
 ```
 
-**Output:**
-- Turn-by-turn conversation showing agent's thought process
-- Metrics: turns, tokens, duration
-- Success/failure status with error category
-- First 100 lines of transcript (with hint to view full)
-
-**Use for**: Understanding why AILANG solutions fail or take many turns.
-
 ### 3. Python vs AILANG Comparison
-
-Use the existing `tools/compare_agents.sh` script for side-by-side comparison:
 
 ```bash
 ./tools/compare_agents.sh eval_results/WITH_ALL_FIXES
 ```
-
-**Output:**
-- Side-by-side metrics table
-- Solution code comparison
-- Transcripts for failed solutions (automatic)
-- Winner indicators for each metric
 
 ## Standard Eval Workflow (Non-Agent)
 

@@ -29,21 +29,7 @@ Expected output:
 
 **You MUST verify your solution before finishing:**
 
-1. **Run your solution:**
-   ```
-   ailang run --entry main --caps {{CAPS}} benchmark/solution.ail
-   ```
-
-2. **Compare output carefully:**
-   - Check that every line matches expected output
-   - No extra spaces or formatting differences
-
-3. **If output doesn't match:**
-   - Fix your code
-   - Re-run to verify
-   - Repeat until output matches exactly
-
-4. **Only finish once verified!**
+{{VERIFICATION_STEPS}}
 
 ## Available Tools
 
@@ -51,6 +37,7 @@ You have access to the `ailang` command:
 - **Run code:** `ailang run --entry main --caps {{CAPS}} solution.ail`
 - **Type check:** `ailang check solution.ail`
 - **Run tests:** `ailang test solution.ail`
+{{EXTRA_TOOLS}}
 
 ## Common Pitfalls
 

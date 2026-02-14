@@ -498,6 +498,15 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	}
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TOOL_GUIDANCE}}", toolGuidanceBlock)
 
+	// Replace {{VERIFICATION_STEPS}} and {{EXTRA_TOOLS}} based on condition
+	if cond.IncludeToolGuidance {
+		taskPrompt = strings.ReplaceAll(taskPrompt, "{{VERIFICATION_STEPS}}", getToolAwareVerificationSteps(strings.Join(spec.Caps, ",")))
+		taskPrompt = strings.ReplaceAll(taskPrompt, "{{EXTRA_TOOLS}}", "- **Verify contracts:** `ailang ai-check solution.ail` (Z3 finds counterexamples in your pure functions)")
+	} else {
+		taskPrompt = strings.ReplaceAll(taskPrompt, "{{VERIFICATION_STEPS}}", getDefaultVerificationSteps(strings.Join(spec.Caps, ",")))
+		taskPrompt = strings.ReplaceAll(taskPrompt, "{{EXTRA_TOOLS}}", "")
+	}
+
 	// Replace <LANG> placeholder with actual language name (used in 31/35 benchmarks)
 	// e.g., "Write a program in <LANG>" → "Write a program in Python"
 	languageName := language
@@ -548,12 +557,61 @@ export pure func safeSub(a: int, b: int) -> int
 
 **What Z3 can verify:**
 - Pure functions with integer arithmetic, comparisons, boolean logic
-- Non-recursive functions work best (recursive functions may be skipped)
+- Works with recursive functions, pattern matching, and if-then-else
 
 **Suggested workflow:**
-1. Write your solution
-2. Add ` + "`ensures`" + ` contracts expressing what you believe should hold
-3. Run ` + "`ailang ai-check solution.ail`" + ` — if Z3 finds a counterexample, fix the bug
-4. Run ` + "`ailang run`" + ` to check expected output
-5. Iterate until both ai-check and output are correct`
+1. Write your solution with ` + "`ensures`" + ` contracts on pure functions
+2. Run ` + "`ailang ai-check solution.ail`" + ` — if Z3 finds a counterexample, fix the bug
+3. Run ` + "`ailang run`" + ` to check expected output
+4. Iterate until both ai-check and output are correct`
+}
+
+// getDefaultVerificationSteps returns the standard verification steps (no ai-check)
+func getDefaultVerificationSteps(caps string) string {
+	return `1. **Run your solution:**
+   ` + "```" + `
+   ailang run --entry main --caps ` + caps + ` benchmark/solution.ail
+   ` + "```" + `
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**`
+}
+
+// getToolAwareVerificationSteps returns verification steps that integrate ai-check
+// into the required workflow, not as an optional sidebar
+func getToolAwareVerificationSteps(caps string) string {
+	return `1. **Write your solution with contracts:**
+   - Add ` + "`ensures { ... }`" + ` postconditions to your pure functions
+   - Express what you believe MUST hold (e.g., ` + "`result >= 0`" + `, ` + "`result <= input`" + `)
+
+2. **Verify contracts with Z3 BEFORE running:**
+   ` + "```" + `
+   ailang ai-check benchmark/solution.ail
+   ` + "```" + `
+   - If Z3 reports COUNTEREXAMPLE: fix your logic using the counterexample inputs
+   - If Z3 reports VERIFIED: your function is correct for ALL inputs
+   - Re-run ai-check after every fix
+
+3. **Run your solution:**
+   ` + "```" + `
+   ailang run --entry main --caps ` + caps + ` benchmark/solution.ail
+   ` + "```" + `
+
+4. **Compare output carefully:**
+   - Check that every line matches expected output
+
+5. **If output doesn't match:**
+   - Add or tighten ` + "`ensures`" + ` contracts to narrow down the bug
+   - Run ` + "`ailang ai-check`" + ` again — Z3 counterexamples pinpoint the exact input that breaks
+   - Fix, re-check, re-run — repeat until correct
+
+6. **Only finish once BOTH ai-check passes AND output matches!**`
 }

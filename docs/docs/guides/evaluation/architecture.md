@@ -30,11 +30,14 @@ ailang eval-analyze -results eval_results/baselines/v0.3.0 -dry-run
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `ailang eval-suite` | Run full benchmark suite | `ailang eval-suite --full` |
+| `ailang eval-suite --agent` | Run agent-based eval (agentic coding) | `ailang eval-suite --agent --models claude-haiku-4-5` |
 | `ailang eval-compare` | Compare two eval runs | `ailang eval-compare baseline current` |
+| `ailang eval-compare --chain` | Compare two chain-based runs | `ailang eval-compare --chain ID1 --chain ID2` |
 | `ailang eval-analyze` | Analyze failures, generate design docs | `ailang eval-analyze -results dir -dry-run` |
 | `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
-| `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0 --format=html` |
+| `ailang eval-report` | Generate reports (file or chain) | `ailang eval-report --from-chain ID v0.8.0` |
+| `ailang eval-chains` | List/view/analyze eval chains | `ailang eval-chains stats ID` |
 
 ## Architecture Overview
 
@@ -64,17 +67,18 @@ Location: `internal/eval_analysis/` + `internal/eval_harness/` + `cmd/ailang/`
 - `--parallel N`: Concurrent API calls (default: 5)
 - `--self-repair`: Enable self-repair on errors
 - `--output DIR`: Output directory (default: eval_results)
+- `--agent`: Run in agent mode (agentic coding via Claude/Gemini CLI)
 
 **Examples:**
 ```bash
-# Quick dev check (cheap/fast)
+# Quick dev check (cheap/fast) - standard 0-shot mode
 ailang eval-suite
 
 # Full validation (expensive)
 ailang eval-suite --full
 
-# Single model + self-repair
-ailang eval-suite --models gpt5 --self-repair
+# Agent mode (agentic coding - uses Claude Code / Gemini CLI)
+ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash
 
 # Custom subset
 ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
@@ -83,12 +87,48 @@ ailang eval-suite --models gpt5 --benchmarks fizzbuzz,json_parse
 **Model Cost Comparison:**
 - Dev models (default): ~$0.0003-0.002 per benchmark
 - Full models (--full): ~$0.003-0.015 per benchmark
+- Agent mode: ~$0.01-0.05 per benchmark (uses CLI tools for multi-turn coding)
 - **5-10x cheaper for day-to-day development**
+
+### eval-chains: Chain-Based Result Analysis (v0.8.0+)
+
+Agent eval results are stored as chains in `observatory.db` — one chain per suite, one stage per benchmark. Use `ailang eval-chains` to query results:
+
+```bash
+# List recent eval chains
+ailang eval-chains list
+
+# View chain with per-benchmark assessment
+ailang eval-chains view <chain-id>
+
+# Show only failing stages
+ailang eval-chains failures <chain-id>
+
+# Pass rate breakdown by model/language/benchmark
+ailang eval-chains stats <chain-id>
+```
+
+Results can also be loaded into the existing report/compare pipeline:
+
+```bash
+# Generate report from chain
+ailang eval-report --from-chain <chain-id> v0.8.0 --format=json
+
+# Compare two chains
+ailang eval-compare --chain <id1> --chain <id2>
+
+# Use most recent eval chain
+ailang eval-report --from-latest-chain v0.8.0
+```
 
 ### eval-compare: Diff Two Runs
 
 ```bash
+# File-based comparison
 ailang eval-compare baseline/ current/
+
+# Chain-based comparison (v0.8.0+)
+ailang eval-compare --chain <id1> --chain <id2>
 ```
 
 Shows:
@@ -189,29 +229,71 @@ ailang eval-report results/ v0.3.0 --format=html
 - **Use for**: Targeted testing, specific model evaluation
 - **Command**: `ailang eval-suite --models X,Y,Z`
 
+## Data Storage Architecture (v0.8.0+)
+
+### Standard Evals (0-shot + self-repair)
+- **Storage**: JSON files on disk (`eval_results/baselines/VERSION/*.json`)
+- **Best for**: API-based evaluation, cheap/fast, file-based comparisons
+- **Access**: `ailang eval-report results/ VERSION`, `ailang eval-compare dir1 dir2`
+
+### Agent Evals (agentic coding via CLI)
+- **Storage**: `observatory.db` chains — one chain per suite, one stage per benchmark
+- **Best for**: Multi-turn agent evaluation, rich tool/chat data, structured querying
+- **Access**: `ailang eval-chains`, `ailang eval-report --from-chain ID`
+
+### Chain Structure
+```
+execution_chains (source_type = "eval_suite")
+├── source_ref: "eval-<timestamp>/agent"
+├── status: completed
+├── total_cost, total_tokens
+│
+├── chain_stage 1: fizzbuzz / claude-haiku / ailang
+│   ├── eval_assessment: { compile_ok, runtime_ok, stdout_ok, ... }
+│   ├── cost, tokens, turns, tool_calls
+│   └── chat_messages (Claude) or session_tools (Gemini)
+│
+├── chain_stage 2: fizzbuzz / gemini-flash / python
+│   └── ...
+└── ... (one stage per benchmark × model × language)
+```
+
+### Chat/Tool Data Capture (Executor-Aware)
+
+| Executor | Data Source | Table | Quality |
+|----------|------------|-------|---------|
+| **Claude** | Post-execution JSONL disk import | `chat_messages` | Full tool inputs/outputs, thinking |
+| **Gemini** | Real-time streaming | `session_tools` | Full tool inputs/outputs |
+
 ## File Organization
 
 ```
 .claude/
-  agents/
-    eval-orchestrator.md          # Smart workflow router
-    eval-fix-implementer.md       # Automated fix implementation
-  EVAL_ARCHITECTURE.md            # This file
+  skills/
+    eval-analyzer/                # Eval analysis skill
+    post-release/                 # Post-release baseline workflow
+    eval-gap-finder/              # Language gap analysis
 
 internal/
   eval_analysis/                  # Native Go implementation (~2,000 LOC)
     types.go, loader.go, comparison.go, matrix.go, formatter.go,
+    loader_chains.go              # Chain-based result loading (v0.8.0+)
     export.go, *_test.go (90%+ coverage)
   eval_harness/                   # Benchmark execution
     models.yml                    # Model configurations
+    agent_runner_multi.go         # Multi-executor agent runner
+  claudehistory/                  # Claude Code JSONL reader/importer
+    reader.go, importer.go        # Used for post-execution chat import
+  observatory/                    # Chain storage
+    store_chains.go               # Chain/stage CRUD + eval assessment
 
 cmd/ailang/
   eval_suite.go                   # eval-suite command
-  eval_tools.go                   # Other eval commands
+  eval_benchmark.go               # Per-benchmark execution + chain stage management
+  eval_tools.go                   # eval-report, eval-compare, eval-chains commands
+  eval_parallel.go                # Parallel benchmark runner
+  observatory_writer.go           # Streaming tool capture (Gemini)
   main.go                         # Command routing
-
-tools/
-  eval_baseline.sh                # Baseline creation helper
 
 Makefile                          # Convenience targets
 ```
@@ -248,6 +330,6 @@ Makefile                          # Convenience targets
 
 ---
 
-**Version**: 2.1
-**Updated**: 2025-10-15
+**Version**: 3.0
+**Updated**: 2026-02-14
 **Status**: Production Ready

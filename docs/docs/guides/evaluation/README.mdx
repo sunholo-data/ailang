@@ -103,6 +103,8 @@ export GOOGLE_API_KEY="..."
 
 ## <Icon name="code" inline /> Commands Overview
 
+### Standard Eval (0-shot API)
+
 | Command | Purpose | Example |
 |---------|---------|---------|
 | `ailang eval-suite` | Run benchmarks | `ailang eval-suite --full` |
@@ -111,6 +113,18 @@ export GOOGLE_API_KEY="..."
 | `ailang eval-matrix` | Generate performance matrix | `ailang eval-matrix results/ v0.3.0` |
 | `ailang eval-summary` | Export to JSONL | `ailang eval-summary results/` |
 | `ailang eval-report` | Generate reports | `ailang eval-report results/ v0.3.0` |
+
+### Agent Eval (agentic coding via CLI - v0.8.0+)
+
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `ailang eval-suite --agent` | Run agent benchmarks | `ailang eval-suite --agent --models claude-haiku-4-5` |
+| `ailang eval-chains list` | List eval chains | `ailang eval-chains list` |
+| `ailang eval-chains view` | View chain results | `ailang eval-chains view <id>` |
+| `ailang eval-chains stats` | Pass rate breakdown | `ailang eval-chains stats <id>` |
+| `ailang eval-chains failures` | Show failures only | `ailang eval-chains failures <id>` |
+| `ailang eval-report --from-chain` | Report from chain | `ailang eval-report --from-chain <id> v0.8.0` |
+| `ailang eval-compare --chain` | Compare two chains | `ailang eval-compare --chain <id1> --chain <id2>` |
 
 See [architecture.md](architecture.md) for detailed command reference.
 
@@ -147,9 +161,15 @@ Current benchmark suite (20 benchmarks):
 
 After running benchmarks:
 
+### Standard Eval (file-based)
 - **JSON**: `eval_results/baselines/VERSION/*.json` - Full details per run
 - **Matrix**: `eval_results/baselines/VERSION/matrix.json` - Aggregated stats
 - **Dashboard**: `docs/docs/benchmarks/performance.md` - Live leaderboard
+
+### Agent Eval (chain-based - v0.8.0+)
+- **Database**: `~/.ailang/state/observatory.db` - Chains with per-benchmark stages
+- **Query**: `ailang eval-chains view <chain-id>` - View results
+- **Export**: `ailang eval-report --from-chain <id> VERSION` - Generate reports from chains
 
 ## Key Metrics
 
@@ -163,31 +183,62 @@ The framework tracks:
 
 ## Typical Workflow
 
-### 1. Create Baseline
+### Standard Eval Workflow (0-shot API)
+
+#### 1. Create Baseline
 ```bash
 make eval-baseline              # Quick baseline (dev models)
 # OR
 make eval-baseline FULL=true    # Full baseline (all models)
 ```
 
-### 2. Make Changes
+#### 2. Make Changes
 ```bash
 # Edit code, update prompts, etc.
 ```
 
-### 3. Analyze Results
+#### 3. Analyze Results
 ```bash
 ailang eval-analyze -results eval_results/current -dry-run  # Check failures
 ```
 
-### 4. Compare Results
+#### 4. Compare Results
 ```bash
 ailang eval-compare baselines/v0.3.6 current
 ```
 
-### 5. Update Dashboard
+#### 5. Update Dashboard
 ```bash
 ailang eval-report eval_results/baselines/VERSION VERSION --format=json
+```
+
+### Agent Eval Workflow (v0.8.0+ - agentic coding)
+
+#### 1. Run Agent Eval
+```bash
+ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash
+```
+
+#### 2. Find Chain ID
+```bash
+ailang eval-chains list        # Shows most recent chains
+```
+
+#### 3. Analyze Results
+```bash
+ailang eval-chains stats <id>       # Pass rates by model/language/benchmark
+ailang eval-chains failures <id>    # View failures with error details
+ailang chains view <id> --spans     # Full chain with session data
+```
+
+#### 4. Compare Runs
+```bash
+ailang eval-compare --chain <id1> --chain <id2>
+```
+
+#### 5. Generate Report
+```bash
+ailang eval-report --from-chain <id> v0.8.0 --format=json
 ```
 
 ## Natural Language Interface
@@ -240,8 +291,9 @@ See [architecture.md](architecture.md) for complete details.
 
 ---
 
-**Version**: 2.0
-**Last Updated**: October 15, 2025
+**Version**: 3.0
+**Last Updated**: February 14, 2026
 **Framework Status**: <CheckIcon inline size={14} /> Production Ready
+**Eval Modes**: Standard (0-shot API) + Agent (agentic coding CLI)
 **Models Tested**: 5/5 working (3 production + 2 dev)
 **Test Coverage**: 90%+ for eval analysis tools

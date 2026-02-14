@@ -566,6 +566,36 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 9
 	}
 
+	// Migration v10: Add eval_assessment column to chain_stages (M-EVAL-CHAINS)
+	// Stores structured eval assessment data as JSON for agent benchmark evaluations
+	if currentVersion < 10 {
+		var evalAssessmentExists int
+		err := db.QueryRow(`
+			SELECT COUNT(*) FROM pragma_table_info('chain_stages') WHERE name = 'eval_assessment'
+		`).Scan(&evalAssessmentExists)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to check eval_assessment column: %w", err)
+		}
+		if evalAssessmentExists == 0 {
+			_, err = db.Exec("ALTER TABLE chain_stages ADD COLUMN eval_assessment TEXT")
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to add eval_assessment column: %w", err)
+			}
+		}
+
+		// Index for eval-specific queries (chains with eval data)
+		_, err = db.Exec("CREATE INDEX IF NOT EXISTS idx_chain_stages_eval ON chain_stages(chain_id) WHERE eval_assessment IS NOT NULL")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create eval_assessment index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (10)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 10: %w", err)
+		}
+		currentVersion = 10
+	}
+
 	return currentVersion, nil
 }
 

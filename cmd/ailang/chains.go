@@ -266,6 +266,11 @@ func chainsViewCommand() {
 				fmt.Printf("     Handoff: -> %s\n", stage.HandoffTo)
 			}
 
+			// M-EVAL-CHAINS: Show eval assessment when present
+			if stage.EvalAssessment != nil {
+				printEvalAssessment(stage.EvalAssessment)
+			}
+
 			// Show session details and tool usage when --spans is set
 			if *includeSpans && stage.SessionID != "" {
 				printStageSessionDetails(backend, ctx, stage)
@@ -447,6 +452,36 @@ func parseSinceFlag(s string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("expected format: 24h, 7d, or 2006-01-02")
+}
+
+// printEvalAssessment displays eval assessment data for a chain stage
+func printEvalAssessment(a *observatory.EvalAssessment) {
+	fmt.Printf("     Benchmark: %s / %s / %s\n", a.BenchmarkID, a.Model, a.Language)
+	if a.Condition != "" {
+		fmt.Printf("     Condition: %s\n", a.Condition)
+	}
+
+	// Assessment results with pass/fail indicators
+	compileIcon := green("✓")
+	if !a.CompileOk {
+		compileIcon = red("✗")
+	}
+	runtimeIcon := green("✓")
+	if !a.RuntimeOk {
+		runtimeIcon = red("✗")
+	}
+	stdoutIcon := green("✓")
+	if !a.StdoutOk {
+		stdoutIcon = red("✗")
+	}
+	fmt.Printf("     Assessment: compile=%s  runtime=%s  stdout=%s\n", compileIcon, runtimeIcon, stdoutIcon)
+
+	if a.ErrorCategory != "" {
+		fmt.Printf("     Error: %s\n", yellow(a.ErrorCategory))
+	}
+	if a.VerifyOk || a.VerifyVerified > 0 {
+		fmt.Printf("     Verify: verified=%d counterex=%d\n", a.VerifyVerified, a.VerifyCounterex)
+	}
 }
 
 func formatDurationHuman(d time.Duration) string {

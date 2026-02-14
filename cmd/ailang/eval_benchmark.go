@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo/ailang/internal/claudehistory"
 	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -18,7 +20,7 @@ import (
 
 // runSingleBenchmark executes a single benchmark configuration
 // condition is the experimental condition name ("baseline", "contract", "z3_guided", "full", or "" for legacy)
-func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) (bool, error) {
+func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition string, seed int64, outputDir string, timeout time.Duration, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) (bool, error) {
 	// Start span for this benchmark
 	// Include benchmark ID in span name for easy identification in trace viewers
 	ctx, benchSpan := evalTracer.Start(ctx, fmt.Sprintf("eval.benchmark: %s", benchmarkID),
@@ -54,6 +56,19 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 
 	// Agent mode: Use Claude Code headless evaluation
 	if agentConfig != nil {
+		// M-EVAL-CHAINS: Create chain stage for this benchmark
+		var stageID string
+		if evalChain != nil {
+			stage, err := evalChain.Store.CreateStage(ctx, &observatory.StageCreateRequest{
+				ChainID: evalChain.ChainID,
+				AgentID: "eval-agent",
+			})
+			if err == nil {
+				stageID = stage.ID
+				_ = evalChain.Store.UpdateStageStatus(ctx, stageID, observatory.StageStatusRunning)
+			}
+		}
+
 		// Create unique workspace for this benchmark session
 		// Format: /tmp/ailang_eval/<benchmarkID>_<model>_<timestamp>_<pid>
 		timestamp := time.Now().Format("20060102_150405")
@@ -99,6 +114,17 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			ExecutorName:         executorName,
 			ModelName:            modelName,
 		}
+
+		// M-EVAL-CHAINS: Structured tool/chat capture (executor-aware)
+		// Claude: skip streaming capture (gives {} inputs due to input_json_delta protocol)
+		//   → post-execution JSONL import provides complete data (see below)
+		// Gemini/other: streaming capture works (full tool data in initial events)
+		if evalChain != nil && stageID != "" && executorName != "claude" {
+			multiConfig.ExtraHandler = NewObservatoryWriter(
+				evalChain.Store, evalChain.ChainID, stageID, sessionConfig.WorkspaceDir,
+			)
+		}
+
 		result, err := eval_harness.RunAgentBenchmarkWithExecutor(spec, multiConfig, lang)
 
 		// Save result to JSON (even on API error for observability)
@@ -127,6 +153,23 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 				Condition:      condition,
 			}
 			_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
+
+			// M-EVAL-CHAINS: Record failure in chain stage
+			if evalChain != nil && stageID != "" {
+				assessment := &observatory.EvalAssessment{
+					BenchmarkID:   spec.ID,
+					Model:         model,
+					Language:      lang,
+					Condition:     condition,
+					EvalMode:      "agent",
+					Executor:      executorName,
+					ErrorCategory: string(eval_harness.ErrorCategoryAPI),
+					Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
+				}
+				_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
+				_ = evalChain.Store.UpdateStageError(ctx, stageID, err.Error())
+			}
+
 			return false, fmt.Errorf("agent benchmark failed: %w", err)
 		}
 
@@ -182,6 +225,65 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			benchSpan.RecordError(err)
 			benchSpan.SetStatus(codes.Error, "failed to save result")
 			return false, fmt.Errorf("failed to save result: %w", err)
+		}
+
+		// M-EVAL-CHAINS: Store assessment in chain stage
+		if evalChain != nil && stageID != "" {
+			assessment := &observatory.EvalAssessment{
+				BenchmarkID:    spec.ID,
+				Model:          model,
+				Language:       lang,
+				Condition:      condition,
+				EvalMode:       "agent",
+				Executor:       result.Executor,
+				Seed:           seed,
+				CompileOk:      result.CompileOk,
+				RuntimeOk:      result.RuntimeOk,
+				StdoutOk:       result.StdoutOk,
+				ErrorCategory:  string(eval_harness.CategorizeError(result.CompileOk, result.RuntimeOk, result.StdoutOk)),
+				FirstAttemptOk: result.Success,
+				PromptVersion:  result.PromptVersion,
+				CodeHash:       telemetry.ShortHash(result.SolutionCode, 8),
+				Code:           telemetry.Truncate(result.SolutionCode, 2000),
+				Stdout:         telemetry.Truncate(result.Stdout, 500),
+				ExpectedStdout: telemetry.Truncate(spec.ExpectedOut, 500),
+				Stderr:         telemetry.Truncate(result.Stderr, 500),
+			}
+			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
+
+			tokensIn := result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens
+			_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, result.Cost, tokensIn, result.Usage.OutputTokens, result.NumTurns, result.ToolCallCount, int64(result.DurationMS))
+
+			stageStatus := observatory.StageStatusCompleted
+			if !result.Success {
+				stageStatus = observatory.StageStatusFailed
+			}
+			_ = evalChain.Store.UpdateStageStatus(ctx, stageID, stageStatus)
+
+			// Link session to stage — prefer ObservatoryWriter session (has tool data)
+			// over executor-reported session (just an ID with no local data)
+			if multiConfig.ExtraHandler == nil && result.SessionID != "" {
+				_ = evalChain.Store.UpdateStageSession(ctx, stageID, result.SessionID)
+			}
+
+			// Claude: import chat history from disk (complete tool inputs/outputs)
+			// Claude Code saves JSONL to ~/.claude/projects/ with full tool_use blocks.
+			// The claudehistory.Importer reads these files and populates chat_messages.
+			if executorName == "claude" && result.SessionID != "" {
+				corr := &observatory.SessionCorrelation{
+					ChainID: evalChain.ChainID,
+					StageID: stageID,
+				}
+				_ = evalChain.Store.UpsertSessionWithCorrelation(ctx, result.SessionID,
+					sessionConfig.WorkspaceDir, "", "eval-agent", corr)
+
+				chatImporter := claudehistory.NewImporter(evalChain.Store.DB())
+				if n, importErr := chatImporter.SyncSession(ctx, result.SessionID); importErr != nil {
+					fmt.Fprintf(os.Stderr, "[eval] chat import for %s: %v\n", result.SessionID, importErr)
+				} else if os.Getenv("DEBUG_AGENT") != "" {
+					fmt.Fprintf(os.Stderr, "[eval] imported %d chat messages for session %s\n", n, result.SessionID)
+				}
+			}
 		}
 
 		// Record success attributes on span

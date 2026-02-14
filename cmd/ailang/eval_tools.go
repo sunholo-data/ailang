@@ -11,41 +11,81 @@ import (
 )
 
 // runEvalCompare compares two evaluation runs
-// Usage: ailang eval-compare <baseline_dir> <new_dir>
+// Usage: ailang eval-compare <baseline_dir|--chain CHAIN_ID> <new_dir|--chain CHAIN_ID>
 func runEvalCompare() {
 	if flag.NArg() < 3 {
 		fmt.Fprintf(os.Stderr, "%s: missing arguments\n", red("Error"))
 		fmt.Println("Usage: ailang eval-compare <baseline_dir> <new_dir>")
+		fmt.Println("       ailang eval-compare --chain <id1> --chain <id2>")
 		fmt.Println("")
 		fmt.Println("Compare two evaluation runs and show what changed.")
 		fmt.Println("")
+		fmt.Println("Options:")
+		fmt.Println("  --chain ID   Use chain as data source (specify twice for comparison)")
+		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-compare eval_results/baselines/v0.3.0 eval_results/after_fix")
+		fmt.Println("  ailang eval-compare --chain e9c7501d --chain a1b2c3d4")
 		os.Exit(1)
 	}
 
-	baselineDir := flag.Arg(1)
-	newDir := flag.Arg(2)
-
-	// Load baseline results
-	fmt.Fprintf(os.Stderr, "Loading baseline from %s...\n", baselineDir)
-	baseline, err := eval_analysis.LoadResults(baselineDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to load baseline: %v\n", red("Error"), err)
-		os.Exit(1)
+	// Check for --chain mode
+	var chainIDs []string
+	for i := 1; i < flag.NArg(); i++ {
+		if flag.Arg(i) == "--chain" && i+1 < flag.NArg() {
+			chainIDs = append(chainIDs, flag.Arg(i+1))
+		}
 	}
 
-	// Load new results
-	fmt.Fprintf(os.Stderr, "Loading new results from %s...\n", newDir)
-	newResults, err := eval_analysis.LoadResults(newDir)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to load new results: %v\n", red("Error"), err)
+	var baseline, newResults []*eval_analysis.BenchmarkResult
+	var baselineLabel, newLabel string
+	var err error
+
+	if len(chainIDs) == 2 {
+		// M-EVAL-CHAINS: Load from chains
+		fmt.Fprintf(os.Stderr, "Loading baseline from chain %s...\n", chainIDs[0])
+		baseline, err = eval_analysis.LoadResultsFromChain(chainIDs[0])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load baseline chain: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		baselineLabel = "chain:" + chainIDs[0][:8]
+
+		fmt.Fprintf(os.Stderr, "Loading new results from chain %s...\n", chainIDs[1])
+		newResults, err = eval_analysis.LoadResultsFromChain(chainIDs[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load new chain: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		newLabel = "chain:" + chainIDs[1][:8]
+	} else if len(chainIDs) == 1 {
+		fmt.Fprintf(os.Stderr, "%s: --chain requires exactly two chain IDs for comparison\n", red("Error"))
 		os.Exit(1)
+	} else {
+		// Standard filesystem mode
+		baselineDir := flag.Arg(1)
+		newDir := flag.Arg(2)
+
+		fmt.Fprintf(os.Stderr, "Loading baseline from %s...\n", baselineDir)
+		baseline, err = eval_analysis.LoadResults(baselineDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load baseline: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		baselineLabel = filepath.Base(baselineDir)
+
+		fmt.Fprintf(os.Stderr, "Loading new results from %s...\n", newDir)
+		newResults, err = eval_analysis.LoadResults(newDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load new results: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		newLabel = filepath.Base(newDir)
 	}
 
 	// Compare
 	fmt.Fprintf(os.Stderr, "Comparing results...\n\n")
-	report, err := eval_analysis.Compare(baseline, newResults, filepath.Base(baselineDir), filepath.Base(newDir))
+	report, err := eval_analysis.Compare(baseline, newResults, baselineLabel, newLabel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: failed to compare: %v\n", red("Error"), err)
 		os.Exit(1)
@@ -195,23 +235,24 @@ func runEvalSummary() {
 }
 
 // runEvalReport generates a comprehensive evaluation report
-// Usage: ailang eval-report <results_dir|--multi-model> <version> [--format=markdown|html|csv]
+// Usage: ailang eval-report <results_dir|--multi-model|--from-chain> <version> [--format=markdown|html|csv]
 func runEvalReport() {
 	if flag.NArg() < 3 {
 		fmt.Fprintf(os.Stderr, "%s: missing arguments\n", red("Error"))
-		fmt.Println("Usage: ailang eval-report <results_dir|--multi-model> <version> [--format=markdown|html|docusaurus|json|csv]")
+		fmt.Println("Usage: ailang eval-report <results_dir|--multi-model|--from-chain CHAIN_ID|--from-latest-chain> <version> [--format=markdown|html|docusaurus|json|csv]")
 		fmt.Println("")
 		fmt.Println("Generate comprehensive evaluation report.")
 		fmt.Println("")
 		fmt.Println("Options:")
-		fmt.Println("  --multi-model    Aggregate latest results per model from all baselines")
+		fmt.Println("  --multi-model         Aggregate latest results per model from all baselines")
+		fmt.Println("  --from-chain ID       Load results from a specific eval chain")
+		fmt.Println("  --from-latest-chain   Load results from the most recent eval chain")
 		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-report eval_results/baselines/v0.3.0 v0.3.0")
 		fmt.Println("  ailang eval-report --multi-model v0.3.5 --format=docusaurus")
-		fmt.Println("  ailang eval-report results/ v0.3.1 --format=html > report.html")
-		fmt.Println("  ailang eval-report results/ v0.3.1 --format=docusaurus > docs/docs/benchmarks/performance.md")
-		fmt.Println("  ailang eval-report results/ v0.3.1 --format=json > docs/static/benchmarks/latest.json")
+		fmt.Println("  ailang eval-report --from-chain e9c7501d v0.8.1 --format=json")
+		fmt.Println("  ailang eval-report --from-latest-chain v0.8.1 --format=json")
 		os.Exit(1)
 	}
 
@@ -219,17 +260,29 @@ func runEvalReport() {
 	version := flag.Arg(2)
 	format := "markdown" // default
 	multiModel := false
+	fromChain := ""
+	fromLatestChain := false
 
-	// Check if using multi-model mode
+	// Check if using special modes
 	if resultsDir == "--multi-model" {
 		multiModel = true
+	} else if resultsDir == "--from-latest-chain" {
+		fromLatestChain = true
+	} else if resultsDir == "--from-chain" {
+		// --from-chain <id> <version> shifts args
+		if flag.NArg() < 4 {
+			fmt.Fprintf(os.Stderr, "%s: --from-chain requires chain ID and version\n", red("Error"))
+			os.Exit(1)
+		}
+		fromChain = flag.Arg(2)
+		version = flag.Arg(3)
 	}
 
-	// Check for format flag
-	if flag.NArg() >= 4 {
-		formatArg := flag.Arg(3)
-		if strings.HasPrefix(formatArg, "--format=") {
-			format = strings.TrimPrefix(formatArg, "--format=")
+	// Check for format flag in remaining args
+	for i := 1; i < flag.NArg(); i++ {
+		arg := flag.Arg(i)
+		if strings.HasPrefix(arg, "--format=") {
+			format = strings.TrimPrefix(arg, "--format=")
 		}
 	}
 
@@ -238,7 +291,25 @@ func runEvalReport() {
 	var modelBaselines map[string]string
 	var err error
 
-	if multiModel {
+	if fromChain != "" {
+		// M-EVAL-CHAINS: Load from specific chain
+		fmt.Fprintf(os.Stderr, "Loading results from chain %s...\n", fromChain)
+		results, err = eval_analysis.LoadResultsFromChain(fromChain)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load results from chain: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	} else if fromLatestChain {
+		// M-EVAL-CHAINS: Load from latest eval chain
+		fmt.Fprintf(os.Stderr, "Loading results from latest eval chain...\n")
+		var chainID string
+		results, chainID, err = eval_analysis.LoadResultsFromLatestEvalChain()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: failed to load results from latest chain: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "  Chain: %s\n", chainID[:8])
+	} else if multiModel {
 		fmt.Fprintf(os.Stderr, "Aggregating latest results per model from all baselines...\n")
 		results, modelBaselines, err = eval_analysis.LoadLatestResultsPerModel()
 		if err != nil {
@@ -262,10 +333,15 @@ func runEvalReport() {
 	}
 
 	// Filter to only standard results for matrix/history (agent results tracked separately)
+	// Exception: when loading from chain, include all results (chains are agent-only)
 	standardResults := make([]*eval_analysis.BenchmarkResult, 0, len(results))
-	for _, r := range results {
-		if r.EvalMode != "agent" {
-			standardResults = append(standardResults, r)
+	if fromChain != "" || fromLatestChain {
+		standardResults = results // Chain mode: all results included
+	} else {
+		for _, r := range results {
+			if r.EvalMode != "agent" {
+				standardResults = append(standardResults, r)
+			}
 		}
 	}
 

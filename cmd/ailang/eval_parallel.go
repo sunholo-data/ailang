@@ -26,7 +26,7 @@ type EvalBenchmarkJob struct {
 }
 
 // runBenchmarksParallel executes benchmarks with concurrency control
-func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string) []SuiteResult {
+func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDir string, timeout time.Duration, maxConcurrent int, selfRepair bool, promptVersion string, agentConfig *eval_harness.AgentBenchmarkConfig, taskID string, evalChain *EvalChainContext) []SuiteResult {
 
 	if maxConcurrent <= 0 {
 		maxConcurrent = 1 // Sequential
@@ -84,7 +84,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 				cyan(j.Benchmark), green(j.Model), j.Language, condLabel)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID)
+			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,

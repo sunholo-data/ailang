@@ -80,6 +80,10 @@ Expected time: ~15-20 minutes
     - Expected: ~55-70% success rate with haiku, higher with sonnet/opus
   - Uses haiku+sonnet (--full) or haiku only (default)
   - Tests both AILANG and Python implementations
+  - **v0.8.0+**: Agent results stored as chains in `observatory.db` (not just JSON files)
+    - One chain per suite, one stage per benchmark
+    - Full tool/chat data captured per executor
+    - Query with `ailang eval-chains view <chain-id>`
 - Saves combined results to eval_results/baselines/X.X.X/
 - Accepts version with or without 'v' prefix
 
@@ -364,6 +368,25 @@ For CHANGELOG template format, see [`resources/version_notes.md`](resources/vers
 
 ### 5a. Analyze Agent Evaluation Results
 
+**v0.8.0+ (chain-based - recommended):**
+```bash
+# Find the chain ID from the latest eval run
+ailang eval-chains list
+
+# View per-benchmark pass/fail with cost and turns
+ailang eval-chains view <chain-id>
+
+# Pass rate breakdown
+ailang eval-chains stats <chain-id>
+
+# Show failures with error details
+ailang eval-chains failures <chain-id>
+
+# Generate chain-based report
+ailang eval-report --from-chain <chain-id> X.X.X --format=json
+```
+
+**Legacy (file-based):**
 ```bash
 # Get KPIs (turns, tokens, cost by language)
 .claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/X.X.X

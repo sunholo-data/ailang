@@ -29,6 +29,11 @@ type MultiExecutorConfig struct {
 
 	// ModelName is the model to use (e.g., "claude-sonnet-4-5", "gemini-3-flash")
 	ModelName string
+
+	// ExtraHandler is an additional event handler composed with the debug handler.
+	// Used for ObservatoryWriter to capture structured tool calls during streaming.
+	// When nil, only the debug handler is used (no behavior change).
+	ExtraHandler executor.EventHandler
 }
 
 // RunAgentBenchmarkWithExecutor runs a benchmark using the specified executor
@@ -135,10 +140,24 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Model:        modelName,
 	}
 
+	// Build event handler: debug handler + optional extra handler (observatory writer)
+	var handler executor.EventHandler = &debugEventHandler{}
+	if config.ExtraHandler != nil {
+		handler = &compositeEventHandler{
+			primary:   &debugEventHandler{},
+			secondary: config.ExtraHandler,
+		}
+	}
+
 	// Execute with streaming
-	result, err := exec.ExecuteStreaming(ctx, task, &debugEventHandler{})
+	result, err := exec.ExecuteStreaming(ctx, task, handler)
 	if err != nil {
 		return nil, fmt.Errorf("execution failed: %w", err)
+	}
+
+	// Link observatory session to chain stage if handler supports it
+	if linker, ok := config.ExtraHandler.(interface{ LinkToStage() }); ok {
+		linker.LinkToStage()
 	}
 
 	// Check for executor-level failure (crash, timeout, non-zero exit).
@@ -306,4 +325,40 @@ func (h *debugEventHandler) OnTurnEnd(turnNum int) {
 
 func (h *debugEventHandler) OnError(err error) {
 	fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+}
+
+// compositeEventHandler wraps two EventHandlers, calling both for each event.
+type compositeEventHandler struct {
+	primary   executor.EventHandler
+	secondary executor.EventHandler
+}
+
+func (c *compositeEventHandler) OnTurnStart(turnNum int) {
+	c.primary.OnTurnStart(turnNum)
+	c.secondary.OnTurnStart(turnNum)
+}
+
+func (c *compositeEventHandler) OnText(text string) {
+	c.primary.OnText(text)
+	c.secondary.OnText(text)
+}
+
+func (c *compositeEventHandler) OnToolUse(toolName string, input string) {
+	c.primary.OnToolUse(toolName, input)
+	c.secondary.OnToolUse(toolName, input)
+}
+
+func (c *compositeEventHandler) OnToolResult(toolName string, output string) {
+	c.primary.OnToolResult(toolName, output)
+	c.secondary.OnToolResult(toolName, output)
+}
+
+func (c *compositeEventHandler) OnTurnEnd(turnNum int) {
+	c.primary.OnTurnEnd(turnNum)
+	c.secondary.OnTurnEnd(turnNum)
+}
+
+func (c *compositeEventHandler) OnError(err error) {
+	c.primary.OnError(err)
+	c.secondary.OnError(err)
 }

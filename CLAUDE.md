@@ -1265,23 +1265,40 @@ ailang builtins check-migration     # Check for orphaned builtins
 - See [M-DX1-FINAL-SUMMARY.md](M-DX1-FINAL-SUMMARY.md) for detailed summary
 - See `design_docs/planned/easier-ailang-dev.md` for design rationale
 
-### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v2.0)
+### M-EVAL-LOOP: AI Evaluation & Self-Improvement (✅ COMPLETE - v3.0)
 
 **When user asks about evaluations, benchmarks, or testing AI code generation:**
 
 → **Use the `eval-analyzer` skill or `ailang eval-*` commands**
 
+**Two eval modes:**
+- **Standard** (0-shot API): Fast, cheap, file-based results
+- **Agent** (agentic CLI coding): Multi-turn, tool-using, chain-based results (v0.8.0+)
+
 Common workflows:
-- Running benchmarks: `ailang eval-suite --models MODEL1,MODEL2`
-- Comparing results: `ailang eval-compare baseline1 baseline2`
-- Generating reports: `ailang eval-report results/ VERSION --format=json`
+```bash
+# Standard eval (0-shot API)
+ailang eval-suite --models MODEL1,MODEL2
+ailang eval-compare baseline1 baseline2
+ailang eval-report results/ VERSION --format=json
+
+# Agent eval (agentic coding via Claude/Gemini CLI)
+ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash
+ailang eval-chains list                           # List recent eval chains
+ailang eval-chains view <chain-id>                # Per-benchmark assessment
+ailang eval-chains stats <chain-id>               # Pass rate by model/language
+ailang eval-chains failures <chain-id>            # Failures with error details
+ailang eval-report --from-chain <chain-id> v0.8.0 # Report from chain
+ailang eval-compare --chain <id1> --chain <id2>   # Compare two chains
+```
+
 - Analyzing failures: Use `eval-analyzer` skill
 
 **Documentation** (for detailed reference):
 - [Architecture Overview](docs/docs/guides/evaluation/architecture.md) - Commands & workflows
 - [Evaluation README](docs/docs/guides/evaluation/README.md) - Quick start guide
 
-**⚠️ CRITICAL: Running Multiple Models**
+**⚠️ CRITICAL: Running Multiple Models (Standard Eval)**
 
 **The `ailang eval-suite` command OVERWRITES the output directory by default!**
 
@@ -1297,16 +1314,11 @@ ailang eval-suite --models gpt5,claude-sonnet-4-5,gemini-2-5-pro
 ailang eval-suite --models gpt5 --output eval_results/gpt5_only
 ailang eval-suite --models claude-sonnet-4-5 --output eval_results/claude_only
 
-# ✅ NEW (v0.3.14+) - Resume interrupted runs without losing progress
+# ✅ Resume interrupted runs without losing progress
 ailang eval-suite --full --skip-existing  # Skips benchmarks with existing results
 ```
 
-**Resuming interrupted eval runs (v0.3.14+):**
-- Use `--skip-existing` flag to skip benchmarks that already have result files
-- Useful when eval baseline times out or is interrupted
-- Checks for existing result files (pattern: `benchmarkID_lang_model_*.json`)
-- Example: If 219/264 runs completed before timeout, `--skip-existing` runs only the missing 45
-- Added in v0.3.14 to handle long-running baselines on slower machines
+**Note:** Agent eval (`--agent`) stores results in `observatory.db` chains, not files — no overwrite risk.
 
 **Default model sets:**
 - `ailang eval-suite` → Reads from `dev_models` in models.yml (currently: gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
@@ -1314,15 +1326,12 @@ ailang eval-suite --full --skip-existing  # Skips benchmarks with existing resul
 
 **Quick reference - Common eval commands:**
 ```bash
-# Update benchmark dashboard (PRESERVES HISTORY!)
+# Standard eval - update benchmark dashboard (PRESERVES HISTORY!)
 ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=json
-# ✅ Automatically writes to docs/static/benchmarks/latest.json
-# ✅ Preserves all historical versions
-# ✅ Validates before writing
-# ✅ Atomic writes (no corruption)
 
-# Generate markdown dashboard (DEPRECATED - use JSON dashboard instead)
-# ailang eval-report eval_results/baselines/v0.3.9 v0.3.9 --format=markdown > docs/BENCHMARK_COMPARISON.md
+# Agent eval - report from chain
+ailang eval-report --from-chain <chain-id> v0.8.0 --format=json
+ailang eval-report --from-latest-chain v0.8.0
 
 # Run baseline (REQUIRES explicit version!)
 make eval-baseline EVAL_VERSION=v0.3.10              # Uses dev models (3 cheap models)
@@ -1330,6 +1339,7 @@ make eval-baseline EVAL_VERSION=v0.3.10 FULL=true    # Uses ALL 6 models (extend
 
 # Compare two baselines
 ailang eval-compare eval_results/baselines/v0.3.8 eval_results/baselines/v0.3.9
+ailang eval-compare --chain <id1> --chain <id2>      # Chain-based comparison
 
 # Generate performance matrix
 ailang eval-matrix eval_results/baselines/v0.3.9 v0.3.9

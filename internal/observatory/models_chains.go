@@ -21,6 +21,7 @@ const (
 	ChainSourceGitHubIssue ChainSourceType = "github_issue"
 	ChainSourceMessage     ChainSourceType = "message"
 	ChainSourceManual      ChainSourceType = "manual"
+	ChainSourceEvalSuite   ChainSourceType = "eval_suite"
 )
 
 // ExecutionChain represents a complete execution flow from source to completion.
@@ -118,11 +119,69 @@ type ChainStage struct {
 	ErrorMessage string `json:"error_message,omitempty"`
 	ErrorCount   int    `json:"error_count"`
 
+	// Eval assessment (M-EVAL-CHAINS: populated for eval_suite chains)
+	EvalAssessment *EvalAssessment `json:"eval_assessment,omitempty"`
+
 	// Session data (populated on read with full=true)
 	Session *Session `json:"session,omitempty"`
 
 	// Spans (populated on read with include_spans=true)
 	Spans []*Span `json:"spans,omitempty"`
+}
+
+// EvalAssessment stores structured evaluation results for agent benchmark stages.
+// Stored as JSON in chain_stages.eval_assessment column (M-EVAL-CHAINS).
+type EvalAssessment struct {
+	// Identity
+	BenchmarkID string `json:"benchmark_id"`
+	Model       string `json:"model"`
+	Language    string `json:"language"`
+	Condition   string `json:"condition,omitempty"`
+	EvalMode    string `json:"eval_mode"`          // "agent" or "standard"
+	Executor    string `json:"executor,omitempty"` // "claude", "gemini"
+	Seed        int64  `json:"seed"`
+
+	// Assessment results
+	CompileOk     bool   `json:"compile_ok"`
+	RuntimeOk     bool   `json:"runtime_ok"`
+	StdoutOk      bool   `json:"stdout_ok"`
+	ErrorCategory string `json:"error_category"`
+
+	// Self-repair
+	FirstAttemptOk bool   `json:"first_attempt_ok"`
+	RepairUsed     bool   `json:"repair_used"`
+	RepairOk       bool   `json:"repair_ok"`
+	ErrCode        string `json:"err_code,omitempty"`
+
+	// Contract verification
+	VerifyOk        bool `json:"verify_ok"`
+	VerifyVerified  int  `json:"verify_verified"`
+	VerifyCounterex int  `json:"verify_counterexample"`
+	VerifySkipped   int  `json:"verify_skipped"`
+	VerifyErrors    int  `json:"verify_errors"`
+
+	// Reproducibility
+	PromptVersion string `json:"prompt_version,omitempty"`
+	CodeHash      string `json:"code_hash,omitempty"`
+
+	// Output (truncated for storage efficiency)
+	Code           string `json:"code,omitempty"`
+	Stdout         string `json:"stdout,omitempty"`
+	ExpectedStdout string `json:"expected_stdout,omitempty"`
+	Stderr         string `json:"stderr,omitempty"`
+}
+
+// EvalQueryOptions specifies filters for querying eval assessment stages.
+type EvalQueryOptions struct {
+	ChainID     string // Filter by chain
+	Model       string // Filter by model
+	Language    string // Filter by language
+	BenchmarkID string // Filter by benchmark
+	Condition   string // Filter by experimental condition
+	EvalMode    string // "standard" or "agent"
+	SuccessOnly bool   // Only passing benchmarks (stdout_ok = true)
+	FailureOnly bool   // Only failing benchmarks (stdout_ok = false)
+	Limit       int
 }
 
 // ChainListOptions specifies filters for listing chains.

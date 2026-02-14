@@ -3,7 +3,10 @@ package observatory
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Store provides CRUD operations for the observatory platform.
@@ -19,6 +22,29 @@ func NewStore(db *sql.DB) *Store {
 // DB returns the underlying database connection.
 func (s *Store) DB() *sql.DB {
 	return s.db
+}
+
+// OpenDefaultStore opens the observatory database at the default path,
+// runs migrations, and returns a ready-to-use Store.
+// This is the recommended way to access observatory.db from CLI tools.
+func OpenDefaultStore() (*Store, error) {
+	return OpenStore(DefaultDatabasePath())
+}
+
+// OpenStore opens the observatory database at the given path,
+// runs migrations, and returns a ready-to-use Store.
+func OpenStore(dbPath string) (*Store, error) {
+	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open observatory database: %w", err)
+	}
+
+	if _, err := MigrateWithVersion(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to run observatory migrations: %w", err)
+	}
+
+	return NewStore(db), nil
 }
 
 // ===== Workspace Operations =====
