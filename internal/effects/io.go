@@ -1,10 +1,8 @@
 package effects
 
 import (
-	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -97,12 +95,13 @@ func ioReadLine(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("readLine: expected 0 arguments, got %d", len(args))
 	}
 
-	reader := bufio.NewReader(os.Stdin)
+	reader := ctx.GetIOReader()
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		if err == io.EOF {
-			// Return empty string on EOF
-			return &eval.StringValue{Value: ""}, nil
+			// Return whatever was read before EOF (may be partial last line)
+			line = strings.TrimSuffix(line, "\r")
+			return &eval.StringValue{Value: line}, nil
 		}
 		return nil, fmt.Errorf("readLine: %w", err)
 	}

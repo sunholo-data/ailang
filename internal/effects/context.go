@@ -1,6 +1,7 @@
 package effects
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"strconv"
@@ -35,6 +36,8 @@ type EffContext struct {
 	Args           []string              // CLI arguments passed to the program (excluding program name)
 	Trace          *trace.Collector      // Semantic trace collector (--emit-trace flag, M-TRACE-EXPORT)
 	IOWriter       io.Writer             // Override for IO effect output (nil = os.Stdout)
+	IOReader       io.Reader             // Override for IO effect input (nil = os.Stdin)
+	stdinReader    *bufio.Reader         // Persistent buffered reader for readLine (lazily initialized)
 
 	// M-DX25: Scoped budget charging
 	DeclaredBudgets map[string]int // Callee's declared @limit values (for charging caller on return)
@@ -303,10 +306,12 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		EnvSnapshot:     ctx.EnvSnapshot,
 		EnvAllowlist:    ctx.EnvAllowlist,
 		Args:            ctx.Args,
-		Trace:           ctx.Trace,    // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
-		IOWriter:        ctx.IOWriter, // Preserve IO writer across budget scopes
-		DeclaredBudgets: nil,          // Reset for new scope (will be set by WithBudgetLimits)
-		CallerContext:   nil,          // Reset for new scope (will be set by WithBudgetLimits)
+		Trace:           ctx.Trace,       // Preserve trace collector across budget scopes (M-TRACE-EXPORT)
+		IOWriter:        ctx.IOWriter,    // Preserve IO writer across budget scopes
+		IOReader:        ctx.IOReader,    // Preserve IO reader across budget scopes
+		stdinReader:     ctx.stdinReader, // Share persistent buffered reader across scopes
+		DeclaredBudgets: nil,             // Reset for new scope (will be set by WithBudgetLimits)
+		CallerContext:   nil,             // Reset for new scope (will be set by WithBudgetLimits)
 	}
 }
 
@@ -549,6 +554,21 @@ func (ctx *EffContext) GetIOWriter() io.Writer {
 		return ctx.IOWriter
 	}
 	return os.Stdout
+}
+
+// GetIOReader returns a persistent buffered reader for IO effect input.
+// Returns a bufio.Reader wrapping IOReader (or os.Stdin if not overridden).
+// The reader is lazily initialized and reused across calls, so buffered data
+// is preserved between readLine() invocations.
+func (ctx *EffContext) GetIOReader() *bufio.Reader {
+	if ctx.stdinReader == nil {
+		src := ctx.IOReader
+		if src == nil {
+			src = os.Stdin
+		}
+		ctx.stdinReader = bufio.NewReader(src)
+	}
+	return ctx.stdinReader
 }
 
 func (ctx *EffContext) HasTraceCollector() bool {

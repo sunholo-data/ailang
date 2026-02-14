@@ -24,6 +24,11 @@ type BenchmarkSpec struct {
 	Difficulty   string            `yaml:"difficulty"`
 	ExpectedGain string            `yaml:"expected_gain"`
 	Timeout      int               `yaml:"timeout"` // Agent timeout in seconds (default: 60)
+
+	// Test infrastructure: stdin, CLI args, and input files
+	Stdin      string            `yaml:"stdin,omitempty"`       // Stdin data to pipe to the program
+	CliArgs    []string          `yaml:"cli_args,omitempty"`    // CLI arguments to pass after the script
+	InputFiles map[string]string `yaml:"input_files,omitempty"` // Files to create in workspace: {filename: content}
 }
 
 // LoadSpec loads a benchmark spec from a YAML file
@@ -176,12 +181,12 @@ Design your solution to handle these cases correctly from the start.`, s.Z3Hints
 // what information is included in the LLM prompt. Conditions are treated
 // like languages — each creates a separate evaluation job.
 type EvalCondition struct {
-	Name               string // "baseline", "contract", "z3_guided", "full", "tool_aware", or "" for legacy
-	IncludeContract    bool   // Include contract_spec in prompt
-	IncludeZ3Hints     bool   // Include z3_hints in prompt
-	IncludeDevtools    bool   // Append devtools prompt to system prompt
-	IncludeToolGuidance bool  // Include general contract-writing + ai-check guidance (no spec given)
-	EnableVerify       bool   // Enable Z3 verification (standard mode repair + post-hoc check)
+	Name                string // "baseline", "contract", "z3_guided", "full", "tool_aware", or "" for legacy
+	IncludeContract     bool   // Include contract_spec in prompt
+	IncludeZ3Hints      bool   // Include z3_hints in prompt
+	IncludeDevtools     bool   // Append devtools prompt to system prompt
+	IncludeToolGuidance bool   // Include general contract-writing + ai-check guidance (no spec given)
+	EnableVerify        bool   // Enable Z3 verification (standard mode repair + post-hoc check)
 }
 
 // ValidConditionNames lists all recognized condition names
@@ -216,9 +221,9 @@ func ResolveCondition(name string, legacyVerify, legacyDevtools bool) EvalCondit
 		}
 	case "tool_aware":
 		return EvalCondition{
-			Name:               "tool_aware",
+			Name:                "tool_aware",
 			IncludeToolGuidance: true,
-			EnableVerify:       true,
+			EnableVerify:        true,
 		}
 	default:
 		// Legacy mode: use explicit flag values

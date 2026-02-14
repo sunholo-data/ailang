@@ -15,3 +15,12 @@ prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   15
+input_files:
+  numbers.txt: |
+    1
+    2
+    3
+    4
+    5
+cli_args:
+  - "numbers.txt"

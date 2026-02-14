@@ -380,9 +380,14 @@ func runCommand() {
 
 	// Extract program arguments (everything after the filename)
 	// e.g., "ailang run program.ail arg1 arg2" → programArgs = ["arg1", "arg2"]
+	// e.g., "ailang run program.ail -- arg1 arg2" → programArgs = ["arg1", "arg2"] (-- stripped)
 	programArgs := []string{}
 	if fs.NArg() > 1 {
 		programArgs = fs.Args()[1:] // Skip filename, take remaining args
+		// Strip leading "--" separator if present (user convention for separating flags from program args)
+		if len(programArgs) > 0 && programArgs[0] == "--" {
+			programArgs = programArgs[1:]
+		}
 	}
 
 	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag)

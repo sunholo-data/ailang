@@ -100,11 +100,18 @@ type LanguageRunner interface {
 }
 
 // PythonRunner executes Python code
-type PythonRunner struct{}
+type PythonRunner struct {
+	spec *BenchmarkSpec // Optional spec for stdin/input_files/cli_args
+}
 
 // NewPythonRunner creates a new Python runner
 func NewPythonRunner() *PythonRunner {
 	return &PythonRunner{}
+}
+
+// NewPythonRunnerWithSpec creates a new Python runner with benchmark spec for test infrastructure
+func NewPythonRunnerWithSpec(spec *BenchmarkSpec) *PythonRunner {
+	return &PythonRunner{spec: spec}
 }
 
 // Language returns "python"
@@ -114,23 +121,47 @@ func (r *PythonRunner) Language() string {
 
 // Run executes Python code
 func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
-	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "eval_*.py")
+	// Create temporary directory for workspace
+	tmpDir, err := os.MkdirTemp("", "eval_py_*")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer os.RemoveAll(tmpDir)
 
-	// Write code to file
-	if _, err := tmpFile.WriteString(code); err != nil {
-		tmpFile.Close()
+	// Create input files in workspace (if spec provides them)
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(tmpDir, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
+	// Write code to file in workspace
+	tmpFile := filepath.Join(tmpDir, "solution.py")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
 		return nil, fmt.Errorf("failed to write code: %w", err)
 	}
-	tmpFile.Close()
+
+	// Build command args: python3 solution.py [cli_args...]
+	cmdArgs := []string{tmpFile}
+	if r.spec != nil {
+		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
+	}
 
 	// Execute with timeout
 	start := time.Now()
-	cmd := exec.Command("python3", tmpFile.Name())
+	cmd := exec.Command("python3", cmdArgs...)
+	cmd.Dir = tmpDir // Run from workspace for relative file paths
+
+	// Pipe stdin if spec provides it
+	if r.spec != nil && r.spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(r.spec.Stdin)
+	}
 
 	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
 	SetProcessGroup(cmd)
@@ -199,6 +230,7 @@ type AILANGRunner struct {
 	caps       []string
 	taskID     string          // Task ID for telemetry hierarchy (propagated via AILANG_PARENT_TASK_ID)
 	ctx        context.Context // Context for trace propagation (TRACEPARENT)
+	spec       *BenchmarkSpec  // Optional spec for stdin/input_files/cli_args
 }
 
 // NewAILANGRunner creates a new AILANG runner
@@ -214,7 +246,7 @@ func NewAILANGRunner(ailangPath string, caps []string) *AILANGRunner {
 
 // NewAILANGRunnerWithTask creates a new AILANG runner with task ID and context for telemetry hierarchy.
 // The taskID is propagated via AILANG_PARENT_TASK_ID, and trace context via TRACEPARENT.
-func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []string, taskID string) *AILANGRunner {
+func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []string, taskID string, spec *BenchmarkSpec) *AILANGRunner {
 	if ailangPath == "" {
 		ailangPath = "ailang" // Use PATH
 	}
@@ -223,6 +255,7 @@ func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []stri
 		caps:       caps,
 		taskID:     taskID,
 		ctx:        ctx,
+		spec:       spec,
 	}
 }
 
@@ -266,6 +299,19 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		return nil, fmt.Errorf("failed to write code: %w", err)
 	}
 
+	// Create input files in workspace (if spec provides them)
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(workspace, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
 	// Use --stdlib-path flag instead of symlinking (more reliable, especially on Windows)
 	stdlibPath := filepath.Join(cwd, "std")
 
@@ -283,10 +329,21 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	// Add relative path to solution file from workspace
 	args = append(args, "benchmark/solution.ail")
 
+	// Add CLI args after -- separator (if spec provides them)
+	if r.spec != nil && len(r.spec.CliArgs) > 0 {
+		args = append(args, "--")
+		args = append(args, r.spec.CliArgs...)
+	}
+
 	// Execute with timeout from workspace directory (for module path resolution and stdlib access)
 	start := time.Now()
 	cmd := exec.Command(r.ailangPath, args...)
 	cmd.Dir = workspace // Run from isolated workspace
+
+	// Pipe stdin if spec provides it
+	if r.spec != nil && r.spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(r.spec.Stdin)
+	}
 
 	// Propagate telemetry context to child process
 	// This enables proper trace hierarchy in the dashboard
@@ -410,12 +467,10 @@ func GetRunnerWithTask(lang string, spec *BenchmarkSpec, taskID string) (Languag
 func GetRunnerWithContext(ctx context.Context, lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
 	switch lang {
 	case "python":
-		return NewPythonRunner(), nil
+		return NewPythonRunnerWithSpec(spec), nil
 	case "ailang":
-		if ctx != nil || taskID != "" {
-			return NewAILANGRunnerWithTask(ctx, "", spec.Caps, taskID), nil
-		}
-		return NewAILANGRunner("", spec.Caps), nil
+		runner := NewAILANGRunnerWithTask(ctx, "", spec.Caps, taskID, spec)
+		return runner, nil
 	default:
 		return nil, fmt.Errorf("unsupported language: %s", lang)
 	}

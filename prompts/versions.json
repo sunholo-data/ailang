@@ -471,9 +471,20 @@
         "compact"
       ],
       "notes": "Conservative 71% size reduction. Keeps: type system table, effect syntax, module syntax, contract syntax, critical gotchas. Removes: extended examples, design rationale, historical notes. For full reference: ailang prompt"
+    },
+    "v0.8.0": {
+      "file": "prompts/v0.8.0.md",
+      "hash": "dac1772ff31e245094f4d635bfe1b8268ba3676ae48e3bb1df92a08e0b602ad3",
+      "description": "Add getArgs/stdin docs, fix CLI args benchmark gap",
+      "created": "2026-02-14",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add getArgs/stdin docs, fix CLI args benchmark gap"
     }
   },
-  "active": "v0.7.4",
+  "active": "v0.8.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
