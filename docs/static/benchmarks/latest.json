@@ -3660,36 +3660,6 @@
       }
     },
     {
-      "version": "v0.8.1-test",
-      "timestamp": "2026-02-14T14:10:17+01:00",
-      "successRate": 0,
-      "totalRuns": 2,
-      "successCount": 0,
-      "languages": "ailang",
-      "languageStats": {
-        "ailang": {
-          "success_rate": 1,
-          "total_runs": 2
-        }
-      },
-      "modelStats": {
-        "claude-haiku-4-5": {
-          "ailang": {
-            "avgTokens": 1128,
-            "successRate": 1,
-            "totalRuns": 1
-          }
-        },
-        "gemini-2-5-flash": {
-          "ailang": {
-            "avgTokens": 351,
-            "successRate": 1,
-            "totalRuns": 1
-          }
-        }
-      }
-    },
-    {
       "version": "v0.7.0",
       "timestamp": "2026-02-06T17:25:25+01:00",
       "successRate": 0.8058035714285714,
