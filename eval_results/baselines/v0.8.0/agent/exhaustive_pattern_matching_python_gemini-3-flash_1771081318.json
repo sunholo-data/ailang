@@ -1,0 +1,33 @@
+{
+  "id": "exhaustive_pattern_matching",
+  "lang": "python",
+  "model": "gemini-3-flash",
+  "executor": "gemini",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: executor \"gemini\" failed for model \"gemini-3-flash-preview\": exit status 1\nstderr: YOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nServer 'chrome-devtools' supports tool updates. Listening for changes...\nLoading extension: ailang\nServer 'ailang-tools' supports tool updates. Listening for changes...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Retrying after 2451.579175ms...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 0s.. Retrying after 503.817121ms...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 1s.. Retrying after 1721.257025ms...\nAttempt 2 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Retrying after 2769.124265ms...\nAttempt 3 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Max attempts reached\nError when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2026-02-14T15-01-58-212Z.json\n",
+  "expected_stdout": "Waiting to start\nCurrently working\nAll done\n",
+  "timestamp": "2026-02-14T16:01:58.257065+01:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "caps": [
+    "IO"
+  ],
+  "verify_ok": false,
+  "verify_verified": 0,
+  "verify_counterexample": 0,
+  "verify_skipped": 0,
+  "verify_errors": 0,
+  "eval_mode": "agent"
+}

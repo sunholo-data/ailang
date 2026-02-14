@@ -10,8 +10,24 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.8.0
 
+- [M-CONTRACTS-OPLOWERING: Apply OpLowering to Contract Expressions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-contracts-oplowering.md)
+- [M-GEMINI-TRACE: Gemini CLI Trace Investigation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-gemini-trace-investigation.md)
+- [M-SEM-KERNEL: AILANG as a Symbolic Reasoning Kernel](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-sem-kernel-vision.md)
+- [Sprint Plan: M-SMT-BACKEND-MVP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-backend-mvp-sprint-execution.md)
+- [M-SMT-BACKEND-MVP: SMT Verification Backend (Phase 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-backend-mvp-sprint-plan.md)
+- [M-SMT-BOUNDED-RECURSION: Bounded Unrolling for Recursive Function Verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-bounded-recursion.md)
+- [Sprint Plan: M-SMT-FRAGMENT-EXPANSION Phase A — Cross-Function Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-fragment-expansion-sprint-plan.md)
+- [M-SMT-FRAGMENT-EXPANSION: Expanding the SMT Decidable Fragment](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-fragment-expansion.md)
+- [Sprint Plan: M-SMT-LISTS — List Verification (Phase D)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-lists-sprint-plan.md)
+- [Sprint Plan: M-SMT-RECORD-DISCOVERY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-record-discovery-sprint-plan.md)
+- [M-SMT-RECORD-DISCOVERY: SMT Record Type Discovery from Bodies and Return Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-record-discovery.md)
+- [Sprint Plan: M-SMT-RECORDS — Record Verification via SMT-LIB Datatypes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-records-sprint-plan.md)
+- [Sprint Plan: M-SMT-STRINGS — String Verification (Phase B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-smt-strings-sprint-plan.md)
+- [M-TELEMETRY-HOOKS: Worktree Session Enrichment - Handoff Document](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-telemetry-hooks-handoff.md)
 - [M-TRACE-EXPORT Phase 2-4: OTEL Integration, Replay, and Training Export](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export-phase2-otel-replay.md)
+- [M-TRACE-EXPORT Phase 5: Instrumentation Gaps & Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export-phase5-gaps.md)
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export.md)
+- [Sprint Plan: M-TRACE-EXPORT Phase 2 — OTEL Span Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-otel-phase2-sprint-plan.md)
 - [Sprint Plan: M-TRACE-EXPORT Phase 3 — Trace Replay](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-replay-phase3-sprint-plan.md)
 
 ## v0.7.3
@@ -540,4 +556,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 398 design documents across 44 versions.*
+*Generated at build time. 414 design documents across 44 versions.*

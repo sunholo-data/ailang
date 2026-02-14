@@ -1,0 +1,33 @@
+{
+  "id": "fizzbuzz",
+  "lang": "ailang",
+  "model": "gemini-3-flash",
+  "executor": "gemini",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: executor \"gemini\" failed for model \"gemini-3-flash-preview\": exit status 1\nstderr: YOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nServer 'chrome-devtools' supports tool updates. Listening for changes...\nLoading extension: ailang\nServer 'ailang-tools' supports tool updates. Listening for changes...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 0s.. Retrying after 840.5395450000001ms...\nAttempt 2 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Retrying after 2809.779924ms...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 0s.. Retrying after 98.8816ms...\nAttempt 1 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Retrying after 2300.018713ms...\nAttempt 2 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Retrying after 2771.544859ms...\nAttempt 3 failed: You have exhausted your capacity on this model. Your quota will reset after 2s.. Max attempts reached\nError when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2026-02-14T14-59-28-178Z.json\n",
+  "expected_stdout": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz\n31\n32\nFizz\n34\nBuzz\nFizz\n37\n38\nFizz\nBuzz\n41\nFizz\n43\n44\nFizzBuzz\n46\n47\nFizz\n49\nBuzz\nFizz\n52\n53\nFizz\nBuzz\n56\nFizz\n58\n59\nFizzBuzz\n61\n62\nFizz\n64\nBuzz\nFizz\n67\n68\nFizz\nBuzz\n71\nFizz\n73\n74\nFizzBuzz\n76\n77\nFizz\n79\nBuzz\nFizz\n82\n83\nFizz\nBuzz\n86\nFizz\n88\n89\nFizzBuzz\n91\n92\nFizz\n94\nBuzz\nFizz\n97\n98\nFizz\nBuzz\n",
+  "timestamp": "2026-02-14T15:59:28.211305+01:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "caps": [
+    "IO"
+  ],
+  "verify_ok": false,
+  "verify_verified": 0,
+  "verify_counterexample": 0,
+  "verify_skipped": 0,
+  "verify_errors": 0,
+  "eval_mode": "agent"
+}
