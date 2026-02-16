@@ -629,4 +629,64 @@ func TestExtractConnID(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for wrong constructor name")
 	}
+
+	// Ok-wrapped StreamConn (the withStream/withSSE bug fix)
+	id, err = extractConnID(&eval.TaggedValue{
+		CtorName: "Ok",
+		Fields: []eval.Value{
+			&eval.TaggedValue{
+				CtorName: "StreamConn",
+				Fields:   []eval.Value{&eval.IntValue{Value: 7}},
+			},
+		},
+	})
+	if err != nil {
+		t.Errorf("extractConnID(Ok(StreamConn(7))): unexpected error: %v", err)
+	}
+	if id != 7 {
+		t.Errorf("extractConnID(Ok(StreamConn(7))) = %d, want 7", id)
+	}
+
+	// Err gives descriptive error
+	_, err = extractConnID(&eval.TaggedValue{
+		CtorName: "Err",
+		Fields: []eval.Value{
+			&eval.TaggedValue{
+				CtorName: "ConnectionFailed",
+				Fields:   []eval.Value{&eval.StringValue{Value: "timeout"}},
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for Err(...)")
+	}
+	if !strings.Contains(err.Error(), "stream connection failed") {
+		t.Errorf("error should contain 'stream connection failed', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "ConnectionFailed") {
+		t.Errorf("error should contain 'ConnectionFailed', got: %v", err)
+	}
+
+	// Ok with wrong inner type
+	_, err = extractConnID(&eval.TaggedValue{
+		CtorName: "Ok",
+		Fields:   []eval.Value{&eval.StringValue{Value: "not a StreamConn"}},
+	})
+	if err == nil {
+		t.Error("expected error for Ok(string)")
+	}
+
+	// Ok with wrong constructor
+	_, err = extractConnID(&eval.TaggedValue{
+		CtorName: "Ok",
+		Fields: []eval.Value{
+			&eval.TaggedValue{
+				CtorName: "SomeOtherADT",
+				Fields:   []eval.Value{&eval.IntValue{Value: 42}},
+			},
+		},
+	})
+	if err == nil {
+		t.Error("expected error for Ok(SomeOtherADT)")
+	}
 }

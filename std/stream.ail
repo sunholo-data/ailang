@@ -8,11 +8,32 @@
 --
 -- Requires: --caps Stream
 --
--- The Stream effect operations work with ADT values at the runtime level.
--- Pattern match on constructor names: Ok, Err, Text, Bin, Message, Opened,
--- Closed, Error, Ping, Binary, SSEData, Connecting, Open, Closing,
--- ConnectionFailed, Timeout, BudgetExhausted, ProtocolError, MessageTooLarge,
--- StreamConn.
+-- Phase 1 type signatures use string for all ADT values. At runtime,
+-- functions return/accept tagged ADT values. All downstream functions
+-- (onEvent, runEventLoop, disconnect, transmit, status) accept both
+-- Ok(StreamConn(id)) and bare StreamConn(id) — auto-unwrapping is handled
+-- by the Go runtime.
+--
+-- Result types:
+--   connect/sseConnect return: Ok(StreamConn(id)) | Err(StreamError)
+--   StreamError variants: ConnectionFailed(msg) | Timeout(msg)
+--     | BudgetExhausted(msg) | ProtocolError(msg) | MessageTooLarge(msg)
+--
+-- Event types (received by handler):
+--   Message(string)          -- text message
+--   Binary(bytes)            -- binary data
+--   Opened({protocol, subprotocol})  -- connection opened
+--   Closed(int, string)      -- close code + reason
+--   Error(StreamError)       -- error with variant
+--   Ping(bytes)              -- WebSocket ping
+--   SSEData(string, string)  -- SSE event type + data
+--
+-- Config record format (Phase 1: pass as JSON string or record):
+--   { headers: [{name: string, value: string}], subprotocols: [string] }
+--
+-- Message format for transmit:
+--   Text("hello")    -- send text message
+--   Bin(bytes)       -- send binary data (WebSocket only)
 
 module std/stream
 
@@ -29,8 +50,8 @@ export func connect(url: string, config: string) -> string ! {Stream} {
 }
 
 -- Send a text or binary message on a connection
--- conn: connection value from connect
--- msg: message value (Text or Bin)
+-- conn: connection value from connect (Ok(StreamConn(id)) or StreamConn(id))
+-- msg: plain string (auto-wrapped as Text) or Text("hello")/Bin(bytes) ADT
 export func transmit(conn: string, msg: string) -> string ! {Stream} {
   _stream_send(conn, msg)
 }
@@ -64,7 +85,9 @@ export func status(conn: string) -> string ! {Stream} {
 -- Convenience Helpers
 -- ============================================================================
 
--- Create an empty config (no headers, no subprotocols)
+-- Create a default empty config (no custom headers, no subprotocols).
+-- Phase 1: returns the string "{}"; the Go runtime treats this as empty config.
+-- For custom headers, pass a record: {headers: [{name: "Authorization", value: "Bearer TOKEN"}]}
 export func defaultConfig(u: unit) -> string {
   "{}"
 }
@@ -72,8 +95,9 @@ export func defaultConfig(u: unit) -> string {
 -- High-level lifecycle helper: connect, register handler, run event loop, disconnect.
 -- Manages the full WebSocket lifecycle in one call.
 -- url: WebSocket URL
--- handler: event handler function (string -> bool)
--- Returns the connect result (Ok or Err)
+-- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
+-- Returns the connect result: Ok(StreamConn(id)) or Err(StreamError)
+-- The Ok-wrapped result is passed directly to downstream functions (auto-unwrapped).
 export func withStream(url: string, handler: (string) -> bool) -> string ! {Stream} {
   let config = defaultConfig(());
   let result = connect(url, config);
@@ -99,8 +123,9 @@ export func sseConnect(url: string, config: string) -> string ! {Stream} {
 
 -- High-level SSE lifecycle: connect, register handler, run event loop, disconnect.
 -- url: SSE endpoint URL
--- handler: event handler function (string -> bool)
--- Returns the connect result (Ok or Err)
+-- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
+-- Returns the connect result: Ok(StreamConn(id)) or Err(StreamError)
+-- Events are delivered as SSEData(eventType, data) to the handler.
 export func withSSE(url: string, handler: (string) -> bool) -> string ! {Stream} {
   let config = defaultConfig(());
   let result = sseConnect(url, config);

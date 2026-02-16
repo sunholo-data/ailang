@@ -423,3 +423,63 @@ func TestStreamIntegration_BudgetEnforcement(t *testing.T) {
 	// Cleanup
 	StreamClose(ctx, []eval.Value{tag.Fields[0]})
 }
+
+// TestStreamIntegration_RawResultPassthrough verifies that passing the raw
+// Ok(StreamConn(id)) result from connect directly to onEvent/runEventLoop/close
+// works. This is the exact code path used by withStream/withSSE in std/stream.ail.
+func TestStreamIntegration_RawResultPassthrough(t *testing.T) {
+	server := newTestWSServer(t)
+	defer server.Close()
+
+	ctx := NewEffContext(nil)
+	ctx.Grant(NewCapability("Stream"))
+	ctx.Stream = NewStreamContext()
+	ctx.Stream.AllowHTTP = true
+	ctx.Stream.AllowLocalhost = true
+	ctx.Stream.IdleTimeout = 2 * time.Second
+	ctx.Stream.MaxDuration = 5 * time.Second
+
+	var eventCount int32
+	ctx.FnCaller = func(fn eval.Value, arg eval.Value) (eval.Value, error) {
+		atomic.AddInt32(&eventCount, 1)
+		return &eval.BoolValue{Value: false}, nil // stop on first event
+	}
+
+	url := wsURL(server.URL)
+
+	// Connect — get raw Ok(StreamConn(id)) result
+	rawResult, err := StreamConnect(ctx, []eval.Value{
+		&eval.StringValue{Value: url},
+		&eval.RecordValue{Fields: map[string]eval.Value{}},
+	})
+	if err != nil {
+		t.Fatalf("connect error: %v", err)
+	}
+	tag, ok := rawResult.(*eval.TaggedValue)
+	if !ok || tag.CtorName != "Ok" {
+		t.Fatalf("expected Ok(...), got %v", rawResult)
+	}
+
+	// Pass raw Ok(StreamConn(id)) directly to onEvent — this is what std/stream.ail does
+	handler := &eval.StringValue{Value: "handler-placeholder"}
+	_, err = StreamOnEvent(ctx, []eval.Value{rawResult, handler})
+	if err != nil {
+		t.Fatalf("onEvent with raw Ok(StreamConn) should work: %v", err)
+	}
+
+	// Pass raw result to runEventLoop — should dispatch the Opened event and stop
+	_, err = StreamRunEventLoop(ctx, []eval.Value{rawResult})
+	if err != nil {
+		t.Fatalf("runEventLoop with raw Ok(StreamConn) should work: %v", err)
+	}
+
+	if atomic.LoadInt32(&eventCount) == 0 {
+		t.Error("expected at least one event to be dispatched")
+	}
+
+	// Pass raw result to close — should succeed
+	_, err = StreamClose(ctx, []eval.Value{rawResult})
+	if err != nil {
+		t.Fatalf("close with raw Ok(StreamConn) should work: %v", err)
+	}
+}

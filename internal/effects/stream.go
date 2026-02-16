@@ -319,10 +319,17 @@ func StreamSend(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		return makeStreamErr("BudgetExhausted", err.Error()), nil
 	}
 
-	// Extract message variant
-	adt, ok := args[1].(*eval.TaggedValue)
-	if !ok {
-		return nil, fmt.Errorf("_stream_send: expected StreamMessage ADT, got %T", args[1])
+	// Extract message variant — auto-wrap plain strings as Text(string)
+	var adt *eval.TaggedValue
+	if sv, ok := args[1].(*eval.StringValue); ok {
+		adt = &eval.TaggedValue{
+			CtorName: "Text",
+			Fields:   []eval.Value{sv},
+		}
+	} else if tagged, ok := args[1].(*eval.TaggedValue); ok {
+		adt = tagged
+	} else {
+		return nil, fmt.Errorf("_stream_send: expected string or StreamMessage ADT (Text/Bin), got %T", args[1])
 	}
 
 	conn.mu.Lock()
@@ -544,11 +551,50 @@ func StreamGetStatus(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // --- Helper functions ---
 
 // extractConnID extracts the integer ID from a StreamConn(int) ADT value.
+// Handles both direct StreamConn(int) and Result-wrapped Ok(StreamConn(int)).
+// Returns a descriptive error if Err(...) is passed.
 func extractConnID(v eval.Value) (int, error) {
 	adt, ok := v.(*eval.TaggedValue)
-	if !ok || adt.CtorName != "StreamConn" || len(adt.Fields) < 1 {
-		return 0, fmt.Errorf("expected StreamConn(int), got %v", v)
+	if !ok {
+		return 0, fmt.Errorf("expected StreamConn(int) or Ok(StreamConn(int)), got %T", v)
 	}
+
+	// Layer 1: Direct StreamConn(int)
+	if adt.CtorName == "StreamConn" && len(adt.Fields) >= 1 {
+		return extractIntFromStreamConn(adt)
+	}
+
+	// Layer 2: Ok(StreamConn(int)) — auto-unwrap Result
+	if adt.CtorName == "Ok" && len(adt.Fields) >= 1 {
+		inner, ok := adt.Fields[0].(*eval.TaggedValue)
+		if !ok {
+			return 0, fmt.Errorf("expected Ok(StreamConn(int)), got Ok(%T)", adt.Fields[0])
+		}
+		if inner.CtorName == "StreamConn" && len(inner.Fields) >= 1 {
+			return extractIntFromStreamConn(inner)
+		}
+		return 0, fmt.Errorf("expected Ok(StreamConn(int)), got Ok(%s(...))", inner.CtorName)
+	}
+
+	// Layer 3: Err(...) — provide a descriptive error
+	if adt.CtorName == "Err" && len(adt.Fields) >= 1 {
+		if errAdt, ok := adt.Fields[0].(*eval.TaggedValue); ok {
+			errMsg := errAdt.CtorName
+			if len(errAdt.Fields) > 0 {
+				if sv, ok := errAdt.Fields[0].(*eval.StringValue); ok {
+					errMsg = fmt.Sprintf("%s(%s)", errAdt.CtorName, sv.Value)
+				}
+			}
+			return 0, fmt.Errorf("stream connection failed: %s", errMsg)
+		}
+		return 0, fmt.Errorf("stream connection failed: Err(%v)", adt.Fields[0])
+	}
+
+	return 0, fmt.Errorf("expected StreamConn(int) or Ok(StreamConn(int)), got %s", adt.CtorName)
+}
+
+// extractIntFromStreamConn extracts the int ID from a StreamConn(int) TaggedValue.
+func extractIntFromStreamConn(adt *eval.TaggedValue) (int, error) {
 	intVal, ok := adt.Fields[0].(*eval.IntValue)
 	if !ok {
 		return 0, fmt.Errorf("expected StreamConn(int), got StreamConn(%T)", adt.Fields[0])

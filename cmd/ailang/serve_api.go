@@ -20,7 +20,7 @@ func serveAPICommand(args []string) error {
 	frontendFlag := fs.String("frontend", "", "Path to React/Vite project (proxies non-/api/ requests to Vite dev server)")
 	staticFlag := fs.String("static", "", "Path to built frontend files (serve as static files)")
 	watchFlag := fs.Bool("watch", false, "Watch .ail files for changes and hot-reload")
-	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)")
+	capsFlag := fs.String("caps", "", "Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env,Stream)")
 	aiModelFlag := fs.String("ai", "", "AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-5)")
 	aiStubFlag := fs.Bool("ai-stub", false, "Use stub AI handler (for testing)")
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
@@ -70,21 +70,27 @@ func serveAPICommand(args []string) error {
 	}
 
 	// Set up effect context if capabilities, AI, or contract flags are provided
-	var effCtx interface{}
+	var effCtx *effects.EffContext
 	if *capsFlag != "" || *aiModelFlag != "" || *aiStubFlag || *verifyContractsFlag {
-		ctx := effects.NewEffContext(nil)
-		grantCapabilities(ctx, *capsFlag)
-		if err := setupAIHandler(ctx, *aiStubFlag, *aiModelFlag); err != nil {
+		effCtx = effects.NewEffContext(nil)
+		grantCapabilities(effCtx, *capsFlag)
+		if err := setupAIHandler(effCtx, *aiStubFlag, *aiModelFlag); err != nil {
 			return fmt.Errorf("AI handler setup failed: %w", err)
 		}
 
 		// Enable contract verification if requested
 		if *verifyContractsFlag {
-			ctx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+			effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
 			log.Println("Contract verification enabled (panic mode)")
 		}
 
-		effCtx = ctx
+		// Initialize Stream context if Stream capability is granted
+		if effCtx.HasCap("Stream") {
+			effCtx.Stream = effects.NewStreamContext()
+			effCtx.Stream.AllowHTTP = true      // serve-api typically proxies to known APIs
+			effCtx.Stream.AllowLocalhost = true // local development
+			log.Println("Stream capability enabled (SSE/WebSocket client)")
+		}
 	}
 
 	cfg := apiserver.Config{
@@ -102,6 +108,12 @@ func serveAPICommand(args []string) error {
 	log.Println("Loading AILANG modules...")
 	if err := srv.LoadModules(paths); err != nil {
 		return fmt.Errorf("failed to load modules: %w", err)
+	}
+
+	// Wire FnCaller for stream event handler dispatch (must happen after modules loaded)
+	if effCtx != nil && effCtx.Stream != nil {
+		effCtx.FnCaller = srv.GetEngine().GetCallValue()
+		log.Println("Stream FnCaller wired for event handler dispatch")
 	}
 
 	return srv.Start()

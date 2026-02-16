@@ -372,6 +372,13 @@ func (e *Engine) SetEffContext(ctx interface{}) {
 	e.runtime.GetEvaluator().SetEffContext(ctx)
 }
 
+// GetCallValue returns the evaluator's CallValue function, which can be used
+// to invoke AILANG function values from Go code (e.g., for stream event handlers).
+// Returns a function with signature: func(fn eval.Value, arg eval.Value) (eval.Value, error)
+func (e *Engine) GetCallValue() func(eval.Value, eval.Value) (eval.Value, error) {
+	return e.runtime.GetEvaluator().CallValue
+}
+
 // HasExport checks if a module exports a value with the given name.
 func (e *Engine) HasExport(modulePath, name string) bool {
 	e.mu.RLock()

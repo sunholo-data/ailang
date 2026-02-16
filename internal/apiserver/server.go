@@ -390,6 +390,12 @@ func (s *Server) GetModules() map[string]*ModuleInfo {
 	return result
 }
 
+// GetEngine returns the underlying embed.Engine for advanced wiring
+// (e.g., connecting FnCaller for stream event handlers).
+func (s *Server) GetEngine() *embed.Engine {
+	return s.engine
+}
+
 // Close shuts down the server and releases resources.
 func (s *Server) Close() error {
 	if s.watcher != nil {
