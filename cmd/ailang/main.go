@@ -350,6 +350,11 @@ func runCommand() {
 	debugTypesFlag := fs.Bool("debug-types", false, "Show type inference debug output (substitutions, constraints, CoreTI)")
 	debugTypesNodeFlag := fs.Uint64("node", 0, "Filter --debug-types output to specific node ID")
 
+	// Stream capability flags (M-STREAM-BIDI)
+	streamAllowHTTPFlag := fs.Bool("stream-allow-http", false, "Allow insecure ws:// connections (default: wss:// only)")
+	streamAllowDomainsFlag := fs.String("stream-allow-domains", "", "Domain allowlist for Stream connections (comma-separated)")
+	streamAllowLocalhostFlag := fs.Bool("stream-allow-localhost", false, "Allow localhost WebSocket connections")
+
 	// Budget bypass flag (M-CAPABILITY-BUDGETS)
 	noBudgetsFlag := fs.Bool("no-budgets", false, "Bypass effect budget enforcement (allow unlimited effect operations)")
 
@@ -390,10 +395,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
@@ -613,9 +618,9 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 
 		// Set up effect handlers if requested
-		setupSharedMemHandler(effCtx)   // SharedMem for semantic caching (M-DX15)
-		setupSharedIndexHandler(effCtx) // SharedIndex for semantic retrieval (M-DX16)
-		setupStreamHandler(effCtx)      // Stream for WebSocket connections (M-STREAM-BIDI)
+		setupSharedMemHandler(effCtx)                                                         // SharedMem for semantic caching (M-DX15)
+		setupSharedIndexHandler(effCtx)                                                       // SharedIndex for semantic retrieval (M-DX16)
+		setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
 		if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)

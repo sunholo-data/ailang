@@ -5,18 +5,33 @@
 -- Usage:
 --   ailang run --caps Stream,IO --entry main examples/runnable/stream_websocket.ail
 --
--- Connects to a WebSocket echo server, sends a message, prints the result.
+-- Shows both the low-level API (connect/transmit/disconnect) and the
+-- high-level withStream helper.
 
 module examples/runnable/stream_websocket
 
-import std/stream (connect, transmit, disconnect, defaultConfig)
+import std/stream (connect, transmit, onEvent, runEventLoop, disconnect, defaultConfig, withStream)
 
+-- Event handler: return false to stop after first event
+export func handler(event: string) -> bool {
+  false
+}
+
+-- Low-level API: explicit connect/send/disconnect
 export func main() -> unit ! {Stream, IO} {
   let config = defaultConfig(());
   let result = connect("wss://echo.websocket.events", config);
-  _io_println("connect completed");
+  _io_println("connected");
   let sent = transmit(result, "Hello from AILANG!");
-  _io_println("transmit completed");
+  _io_println("message sent");
+  onEvent(result, handler);
+  runEventLoop(result);
   disconnect(result);
+  _io_println("done")
+}
+
+-- High-level API: withStream manages the full lifecycle
+export func mainSimple() -> unit ! {Stream, IO} {
+  let result = withStream("wss://echo.websocket.events", handler);
   _io_println("done")
 }

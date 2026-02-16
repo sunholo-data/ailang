@@ -130,9 +130,19 @@ func setupSharedMemHandler(effCtx *effects.EffContext) {
 
 // setupStreamHandler initializes the Stream effect context if the capability is granted.
 // Stream provides bidirectional WebSocket connections (M-STREAM-BIDI).
-func setupStreamHandler(effCtx *effects.EffContext) {
+func setupStreamHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool) {
 	if effCtx.HasCap("Stream") {
 		effCtx.Stream = effects.NewStreamContext()
+		effCtx.Stream.AllowHTTP = allowHTTP
+		effCtx.Stream.AllowLocalhost = allowLocalhost
+		if allowDomains != "" {
+			for _, d := range strings.Split(allowDomains, ",") {
+				d = strings.TrimSpace(d)
+				if d != "" {
+					effCtx.Stream.AllowedDomains = append(effCtx.Stream.AllowedDomains, d)
+				}
+			}
+		}
 	}
 }
 

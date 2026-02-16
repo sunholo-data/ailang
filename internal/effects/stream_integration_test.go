@@ -367,3 +367,59 @@ func TestStreamIntegration_ServerClose(t *testing.T) {
 
 	StreamClose(ctx, []eval.Value{connVal})
 }
+
+// TestStreamIntegration_BudgetEnforcement tests that Stream budgets are enforced.
+func TestStreamIntegration_BudgetEnforcement(t *testing.T) {
+	server := newTestWSServer(t)
+	defer server.Close()
+
+	ctx := NewEffContext(nil)
+	ctx.Grant(NewCapability("Stream"))
+	ctx.Stream = NewStreamContext()
+	ctx.Stream.AllowHTTP = true
+	ctx.Stream.AllowLocalhost = true
+
+	// Set budget: only 1 Stream operation allowed
+	limit := 1
+	ctx.Budget = NewBudgetContext(map[string]*int{"Stream": &limit})
+
+	url := wsURL(server.URL)
+	config := &eval.RecordValue{Fields: map[string]eval.Value{}}
+
+	// First connect should succeed (consumes 1 budget unit)
+	result, err := StreamConnect(ctx, []eval.Value{
+		&eval.StringValue{Value: url},
+		config,
+	})
+	if err != nil {
+		t.Fatalf("first connect error: %v", err)
+	}
+	tag := result.(*eval.TaggedValue)
+	if tag.CtorName != "Ok" {
+		t.Fatalf("first connect failed: %v", result)
+	}
+
+	// Second connect should return BudgetExhausted error (budget = 1, used = 1)
+	result2, err := StreamConnect(ctx, []eval.Value{
+		&eval.StringValue{Value: url},
+		config,
+	})
+	if err != nil {
+		t.Fatalf("second connect error: %v", err)
+	}
+	tag2 := result2.(*eval.TaggedValue)
+	if tag2.CtorName != "Err" {
+		t.Fatalf("expected Err for budget-exceeded connect, got %s", tag2.CtorName)
+	}
+	// Check inner error is BudgetExhausted
+	if len(tag2.Fields) > 0 {
+		if inner, ok := tag2.Fields[0].(*eval.TaggedValue); ok {
+			if inner.CtorName != "BudgetExhausted" {
+				t.Errorf("expected BudgetExhausted error, got %s", inner.CtorName)
+			}
+		}
+	}
+
+	// Cleanup
+	StreamClose(ctx, []eval.Value{tag.Fields[0]})
+}

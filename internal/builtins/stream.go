@@ -12,6 +12,7 @@ import (
 
 func init() {
 	registerStreamConnect()
+	registerStreamSSEConnect()
 	registerStreamSend()
 	registerStreamOnEvent()
 	registerStreamRunEventLoop()
@@ -66,6 +67,54 @@ func makeStreamConnectType() types.Type {
 	return T.Func(
 		T.String(), // url
 		T.String(), // config (JSON string for Phase 1)
+	).Returns(
+		T.String(), // Result ADT as tagged value (runtime-typed)
+	).Effects("Stream")
+}
+
+// registerStreamSSEConnect registers the _stream_sse_connect builtin
+func registerStreamSSEConnect() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_sse_connect",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamSSEConnectType,
+		Impl:    effects.StreamSSEConnect,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Open an SSE (Server-Sent Events) connection to a URL",
+			LongDesc: `Establishes a read-only SSE connection via HTTP GET with Accept: text/event-stream.
+Used for consuming AI API streaming responses (Anthropic, OpenAI, Gemini).
+Returns a Result containing either a StreamConn handle or a StreamError.
+The connection shares onEvent/runEventLoop/disconnect with WebSocket connections.
+
+Custom headers (e.g. Authorization: Bearer) are supported via the config record.
+SSE connections are read-only — calling transmit() returns Err(ProtocolError).`,
+			Params: []ParamDoc{
+				{Name: "url", Description: "SSE endpoint URL (https:// or http:// if AllowHTTP)"},
+				{Name: "config", Description: "Configuration record with optional headers list"},
+			},
+			Returns:   "Result[StreamConn, StreamError]",
+			Since:     "v0.8.1",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "sse", "connect", "network", "ai"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_sse_connect: %v", err))
+	}
+}
+
+// makeStreamSSEConnectType builds the type signature for _stream_sse_connect
+// Type: (string, string) -> string ! {Stream}
+func makeStreamSSEConnectType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.String(), // url
+		T.String(), // config
 	).Returns(
 		T.String(), // Result ADT as tagged value (runtime-typed)
 	).Effects("Stream")
@@ -144,13 +193,13 @@ func registerStreamOnEvent() {
 }
 
 // makeStreamOnEventType builds the type signature for _stream_onEvent
-// Phase 1: handler typed as 'a (type variable) to avoid TFunc/TFunc2 mismatch.
-// The runtime extracts and calls the handler function regardless of static type.
+// Type: (string, (string -> bool)) -> unit ! {Stream}
 func makeStreamOnEventType() types.Type {
 	T := types.NewBuilder()
+	handlerType := T.Func(T.String()).Returns(T.Bool()).Build()
 	return T.Func(
-		T.String(), // conn
-		T.String(), // handler (Phase 1: string-typed; runtime handles function dispatch)
+		T.String(),  // conn
+		handlerType, // handler: (string -> bool)
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")

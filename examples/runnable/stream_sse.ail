@@ -1,0 +1,38 @@
+-- examples/runnable/stream_sse.ail
+-- Demonstrates SSE (Server-Sent Events) consumption with std/stream
+-- Requires: --caps Stream,IO
+--
+-- Usage:
+--   ailang run --caps Stream,IO --entry main examples/runnable/stream_sse.ail
+--
+-- SSE is a read-only HTTP streaming protocol used by AI APIs (Anthropic,
+-- OpenAI, Gemini) for token-by-token response streaming.
+--
+-- Events are delivered as SSEData(eventType, data) where eventType carries
+-- the SSE event: field (e.g. "content_block_delta", "message_stop").
+
+module examples/runnable/stream_sse
+
+import std/stream (sseConnect, onEvent, runEventLoop, disconnect, defaultConfig, withSSE)
+
+-- Event handler: print each SSE data event, return false to stop after first
+export func handler(event: string) -> bool {
+  false
+}
+
+-- Low-level API: explicit connect/listen/disconnect
+export func main() -> unit ! {Stream, IO} {
+  let config = defaultConfig(());
+  let result = sseConnect("https://echo.websocket.events/sse", config);
+  _io_println("connected to SSE");
+  onEvent(result, handler);
+  runEventLoop(result);
+  disconnect(result);
+  _io_println("done")
+}
+
+-- High-level API: withSSE manages the full lifecycle
+export func mainSimple() -> unit ! {Stream, IO} {
+  let result = withSSE("https://echo.websocket.events/sse", handler);
+  _io_println("done")
+}

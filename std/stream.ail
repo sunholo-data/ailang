@@ -1,16 +1,18 @@
 -- std/stream.ail
--- Bidirectional WebSocket streaming primitives (M-STREAM-BIDI)
--- Provides typed WebSocket connections with event-driven dispatch.
+-- Streaming primitives: WebSocket (bidirectional) and SSE (read-only)
+-- Provides typed connections with event-driven dispatch.
 --
 -- Usage:
 --   import std/stream (connect, transmit, onEvent, runEventLoop, disconnect)
+--   import std/stream (sseConnect, withSSE)
 --
 -- Requires: --caps Stream
 --
 -- The Stream effect operations work with ADT values at the runtime level.
 -- Pattern match on constructor names: Ok, Err, Text, Bin, Message, Opened,
--- Closed, Error, Ping, Binary, Connecting, Open, Closing, ConnectionFailed,
--- Timeout, BudgetExhausted, ProtocolError, MessageTooLarge, StreamConn.
+-- Closed, Error, Ping, Binary, SSEData, Connecting, Open, Closing,
+-- ConnectionFailed, Timeout, BudgetExhausted, ProtocolError, MessageTooLarge,
+-- StreamConn.
 
 module std/stream
 
@@ -36,7 +38,7 @@ export func transmit(conn: string, msg: string) -> string ! {Stream} {
 -- Register an event handler callback
 -- conn: connection value from connect
 -- handler: function receiving events, returning bool (true=continue, false=stop)
-export func onEvent(conn: string, handler: string) -> unit ! {Stream} {
+export func onEvent(conn: string, handler: (string) -> bool) -> unit ! {Stream} {
   _stream_onEvent(conn, handler)
 }
 
@@ -59,10 +61,51 @@ export func status(conn: string) -> string ! {Stream} {
 }
 
 -- ============================================================================
--- Convenience: Default config
+-- Convenience Helpers
 -- ============================================================================
 
 -- Create an empty config (no headers, no subprotocols)
 export func defaultConfig(u: unit) -> string {
   "{}"
+}
+
+-- High-level lifecycle helper: connect, register handler, run event loop, disconnect.
+-- Manages the full WebSocket lifecycle in one call.
+-- url: WebSocket URL
+-- handler: event handler function (string -> bool)
+-- Returns the connect result (Ok or Err)
+export func withStream(url: string, handler: (string) -> bool) -> string ! {Stream} {
+  let config = defaultConfig(());
+  let result = connect(url, config);
+  onEvent(result, handler);
+  runEventLoop(result);
+  disconnect(result);
+  result
+}
+
+-- ============================================================================
+-- SSE (Server-Sent Events)
+-- ============================================================================
+
+-- Open an SSE connection (read-only HTTP streaming)
+-- Used for consuming AI API responses (Anthropic, OpenAI, Gemini)
+-- url: HTTPS endpoint URL
+-- config: record with optional headers (e.g. Authorization: Bearer)
+-- Returns Ok(StreamConn(id)) or Err(StreamError)
+-- Events are delivered as SSEData(eventType, data) to the handler
+export func sseConnect(url: string, config: string) -> string ! {Stream} {
+  _stream_sse_connect(url, config)
+}
+
+-- High-level SSE lifecycle: connect, register handler, run event loop, disconnect.
+-- url: SSE endpoint URL
+-- handler: event handler function (string -> bool)
+-- Returns the connect result (Ok or Err)
+export func withSSE(url: string, handler: (string) -> bool) -> string ! {Stream} {
+  let config = defaultConfig(());
+  let result = sseConnect(url, config);
+  onEvent(result, handler);
+  runEventLoop(result);
+  disconnect(result);
+  result
 }

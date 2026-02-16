@@ -40,6 +40,21 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 		// Unify return type
 		return u.Unify(t1.Return, t2Func.Return, sub)
 	}
+	if t2Old, ok := t2.(*TFunc); ok {
+		// Cross-unify TFunc2 ↔ TFunc: unify params and return, elide effect rows
+		// (symmetric with unifyTFunc's TFunc2 case)
+		if len(t1.Params) != len(t2Old.Params) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2Old.Params))
+		}
+		for i := range t1.Params {
+			var err error
+			sub, err = u.Unify(t1.Params[i], t2Old.Params[i], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
+			}
+		}
+		return u.Unify(t1.Return, t2Old.Return, sub)
+	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)

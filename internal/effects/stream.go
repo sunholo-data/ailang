@@ -2,6 +2,7 @@ package effects
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -34,10 +35,13 @@ func (s StreamStatus) String() string {
 	}
 }
 
-// StreamConnection holds per-connection state for a WebSocket connection.
+// StreamConnection holds per-connection state for a WebSocket or SSE connection.
 type StreamConnection struct {
 	mu           sync.Mutex
-	conn         *websocket.Conn
+	conn         *websocket.Conn // WebSocket only
+	httpResp     *http.Response  // SSE only: HTTP response for body close
+	protocol     string          // "WebSocket" or "SSE"
+	lastEventID  string          // SSE only: last received id: field
 	status       StreamStatus
 	handler      eval.Value // AILANG handler function (StreamEvent -> bool ! {e})
 	eventBuffer  chan streamEvent
@@ -53,12 +57,14 @@ type StreamConnection struct {
 
 // streamEvent is an internal representation of a stream event before conversion to AILANG ADT.
 type streamEvent struct {
-	kind    string // "message", "binary", "opened", "closed", "error", "ping"
-	text    string
-	data    []byte
-	code    int
-	reason  string
-	errType string // "ConnectionFailed", "Timeout", "BudgetExhausted", "ProtocolError", etc.
+	kind         string // "message", "binary", "opened", "closed", "error", "ping", "sse_data"
+	text         string
+	data         []byte
+	code         int
+	reason       string
+	errType      string // "ConnectionFailed", "Timeout", "BudgetExhausted", "ProtocolError", etc.
+	sseEventType string // SSE event: field (e.g. "content_block_delta", "message_stop")
+	sseID        string // SSE id: field
 }
 
 // Close gracefully shuts down the connection.
@@ -71,14 +77,22 @@ func (sc *StreamConnection) Close() {
 	sc.status = StreamStatusClosing
 	sc.mu.Unlock()
 
-	// Send close message with a deadline
-	if sc.conn != nil {
-		_ = sc.conn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-			time.Now().Add(3*time.Second),
-		)
-		_ = sc.conn.Close()
+	// Protocol-specific close
+	if sc.protocol == "SSE" {
+		// SSE: close the HTTP response body
+		if sc.httpResp != nil && sc.httpResp.Body != nil {
+			_ = sc.httpResp.Body.Close()
+		}
+	} else {
+		// WebSocket: send close frame with deadline
+		if sc.conn != nil {
+			_ = sc.conn.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+				time.Now().Add(3*time.Second),
+			)
+			_ = sc.conn.Close()
+		}
 	}
 
 	// Signal read goroutine to stop
@@ -125,6 +139,11 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	if ctx.Stream == nil {
 		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
+	}
+
+	// Budget check: Stream.connect consumes one budget unit (after capability check)
+	if err := ctx.RequireCapWithBudget("Stream", "stream.connect"); err != nil {
+		return makeStreamErr("BudgetExhausted", err.Error()), nil
 	}
 
 	// Validate URL against security policy
@@ -184,6 +203,7 @@ func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	// Create connection
 	conn := &StreamConnection{
 		conn:        wsConn,
+		protocol:    "WebSocket",
 		status:      StreamStatusOpen,
 		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
 		done:        make(chan struct{}),
@@ -287,6 +307,16 @@ func StreamSend(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	if conn.Status() != StreamStatusOpen {
 		return makeStreamErr("ConnectionFailed", "connection not open"), nil
+	}
+
+	// SSE connections are read-only — no silent fallback
+	if conn.protocol == "SSE" {
+		return makeStreamErr("ProtocolError", "SSE connections are read-only; use WebSocket for bidirectional messaging"), nil
+	}
+
+	// Budget check: Stream.send consumes one budget unit (after connection validation)
+	if err := ctx.RequireCapWithBudget("Stream", "stream.send"); err != nil {
+		return makeStreamErr("BudgetExhausted", err.Error()), nil
 	}
 
 	// Extract message variant
@@ -610,6 +640,16 @@ func eventToADT(evt streamEvent) eval.Value {
 		return &eval.TaggedValue{
 			CtorName: "Ping",
 			Fields:   []eval.Value{&eval.BytesValue{Value: evt.data}},
+		}
+	case "sse_data":
+		// SSE data event: SSEData(eventType, data)
+		// eventType carries the SSE event: field (e.g. "content_block_delta")
+		return &eval.TaggedValue{
+			CtorName: "SSEData",
+			Fields: []eval.Value{
+				&eval.StringValue{Value: evt.sseEventType},
+				&eval.StringValue{Value: evt.text},
+			},
 		}
 	default:
 		return &eval.TaggedValue{
