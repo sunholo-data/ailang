@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+- **M-STREAM-BIDI: Bidirectional WebSocket streaming primitives** (`internal/effects/stream.go`, `internal/effects/stream_context.go`, `internal/builtins/stream.go`, `std/stream.ail`, ~1,242 LOC impl + ~1,001 LOC tests)
+  - New `Stream` effect with `--caps Stream` capability grant
+  - `StreamContext` security model: connection limits (default 4), message size limits (1MB), TLS enforcement (wss:// only), domain allowlists, private IP blocking (RFC1918)
+  - `StreamConnection` with bounded event buffer (cap 1000), backpressure on full, serialized dispatch
+  - WebSocket backend via `gorilla/websocket`: connect, send (text/binary), receive, close
+  - Callback-based event dispatch: `onEvent` registers handler, `runEventLoop` blocks and dispatches
+  - Handler panic recovery: panics caught, delivered as `Error(ProtocolError(...))` events
+  - Idle timeout + max duration ceiling with configurable timeouts
+  - `FnCaller` callback on `EffContext` enables effects to invoke AILANG handler functions
+  - 6 builtins registered: `_stream_connect`, `_stream_send`, `_stream_onEvent`, `_stream_runEventLoop`, `_stream_close`, `_stream_status`
+  - `std/stream.ail` module: `connect`, `transmit`, `onEvent`, `runEventLoop`, `disconnect`, `status`, `defaultConfig`
+  - Note: `transmit` (not `send`) because `send` is a reserved keyword for future CSP channels
+  - `Stream` added to parser known effects list
+  - ADT return values: `Ok(StreamConn(id))`, `Err(ConnectionFailed(...))`, `Message(text)`, `Opened(info)`, etc.
+  - Example: `examples/runnable/stream_websocket.ail` — WebSocket echo client
+  - 4 integration tests with real WebSocket echo server (connect, multi-message, connection limit, server close)
+  - Total: 167 registered builtins (was 161)
+
 ## [v0.8.0] - 2026-02-13
 
 ### Added

@@ -615,6 +615,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		// Set up effect handlers if requested
 		setupSharedMemHandler(effCtx)   // SharedMem for semantic caching (M-DX15)
 		setupSharedIndexHandler(effCtx) // SharedIndex for semantic retrieval (M-DX16)
+		setupStreamHandler(effCtx)      // Stream for WebSocket connections (M-STREAM-BIDI)
 		if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
@@ -659,6 +660,12 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		}
 
 		rt.GetEvaluator().SetEffContext(effCtx)
+
+		// M-STREAM-BIDI: Wire function caller for stream event handlers
+		if effCtx.Stream != nil {
+			evaluator := rt.GetEvaluator()
+			effCtx.FnCaller = evaluator.CallValue
+		}
 
 		// M-VERIFY-CONTRACTS: Enable binop shim for contract evaluation if needed
 		if binopShim {

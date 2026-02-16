@@ -1,0 +1,68 @@
+-- std/stream.ail
+-- Bidirectional WebSocket streaming primitives (M-STREAM-BIDI)
+-- Provides typed WebSocket connections with event-driven dispatch.
+--
+-- Usage:
+--   import std/stream (connect, transmit, onEvent, runEventLoop, disconnect)
+--
+-- Requires: --caps Stream
+--
+-- The Stream effect operations work with ADT values at the runtime level.
+-- Pattern match on constructor names: Ok, Err, Text, Bin, Message, Opened,
+-- Closed, Error, Ping, Binary, Connecting, Open, Closing, ConnectionFailed,
+-- Timeout, BudgetExhausted, ProtocolError, MessageTooLarge, StreamConn.
+
+module std/stream
+
+-- ============================================================================
+-- Stream Effect Wrappers
+-- ============================================================================
+
+-- Open a WebSocket connection
+-- url: WebSocket URL (wss:// or ws:// with AllowHTTP)
+-- config: record with headers and subprotocols lists
+-- Returns Ok(StreamConn(id)) or Err(StreamError)
+export func connect(url: string, config: string) -> string ! {Stream} {
+  _stream_connect(url, config)
+}
+
+-- Send a text or binary message on a connection
+-- conn: connection value from connect
+-- msg: message value (Text or Bin)
+export func transmit(conn: string, msg: string) -> string ! {Stream} {
+  _stream_send(conn, msg)
+}
+
+-- Register an event handler callback
+-- conn: connection value from connect
+-- handler: function receiving events, returning bool (true=continue, false=stop)
+export func onEvent(conn: string, handler: string -> bool) -> unit ! {Stream} {
+  _stream_onEvent(conn, handler)
+}
+
+-- Run the event loop (blocks until handler returns false or timeout)
+-- conn: connection value from connect
+export func runEventLoop(conn: string) -> unit ! {Stream} {
+  _stream_runEventLoop(conn)
+}
+
+-- Close a connection gracefully (idempotent)
+-- conn: connection value from connect
+export func disconnect(conn: string) -> unit ! {Stream} {
+  _stream_close(conn)
+}
+
+-- Get connection status
+-- Returns Connecting, Open, Closing, or Closed
+export func status(conn: string) -> string ! {Stream} {
+  _stream_status(conn)
+}
+
+-- ============================================================================
+-- Convenience: Default config
+-- ============================================================================
+
+-- Create an empty config (no headers, no subprotocols)
+export func defaultConfig(u: unit) -> string {
+  "{}"
+}

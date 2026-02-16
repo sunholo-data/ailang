@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/trace"
 )
 
@@ -28,6 +29,7 @@ type EffContext struct {
 	SharedMem      *SharedMemContext     // SharedMem effect state (v0.5.11 M-DX15)
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
+	Stream         *StreamContext        // Stream effect state (M-STREAM-BIDI)
 	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
 	BudgetReport   *BudgetReport         // Budget usage report (--budget-report flag, M-DX25)
 	DisableBudgets bool                  // Bypass budget enforcement (--no-budgets flag)
@@ -42,6 +44,10 @@ type EffContext struct {
 	// M-DX25: Scoped budget charging
 	DeclaredBudgets map[string]int // Callee's declared @limit values (for charging caller on return)
 	CallerContext   *EffContext    // Reference to caller's context (for charging on scope exit)
+
+	// M-STREAM-BIDI: Function caller for stream event handlers
+	// Set by the evaluator; allows effects to call AILANG functions without import cycles.
+	FnCaller func(fn eval.Value, arg eval.Value) (eval.Value, error)
 }
 
 // EffEnv provides deterministic effect execution configuration
@@ -300,6 +306,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		SharedMem:       ctx.SharedMem,
 		SharedIndex:     ctx.SharedIndex,
 		Contracts:       ctx.Contracts,
+		Stream:          ctx.Stream,
 		Budget:          budget,
 		BudgetReport:    ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
 		DisableBudgets:  ctx.DisableBudgets, // Preserve --no-budgets flag
@@ -312,6 +319,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		stdinReader:     ctx.stdinReader, // Share persistent buffered reader across scopes
 		DeclaredBudgets: nil,             // Reset for new scope (will be set by WithBudgetLimits)
 		CallerContext:   nil,             // Reset for new scope (will be set by WithBudgetLimits)
+		FnCaller:        ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
 	}
 }
 

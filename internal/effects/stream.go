@@ -1,0 +1,654 @@
+package effects
+
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/sunholo/ailang/internal/eval"
+)
+
+// StreamStatus represents the connection state
+type StreamStatus int
+
+const (
+	StreamStatusConnecting StreamStatus = iota
+	StreamStatusOpen
+	StreamStatusClosing
+	StreamStatusClosed
+)
+
+func (s StreamStatus) String() string {
+	switch s {
+	case StreamStatusConnecting:
+		return "Connecting"
+	case StreamStatusOpen:
+		return "Open"
+	case StreamStatusClosing:
+		return "Closing"
+	case StreamStatusClosed:
+		return "Closed"
+	default:
+		return "Unknown"
+	}
+}
+
+// StreamConnection holds per-connection state for a WebSocket connection.
+type StreamConnection struct {
+	mu           sync.Mutex
+	conn         *websocket.Conn
+	status       StreamStatus
+	handler      eval.Value // AILANG handler function (StreamEvent -> bool ! {e})
+	eventBuffer  chan streamEvent
+	done         chan struct{} // Signals read goroutine to stop
+	idleTimeout  time.Duration
+	maxDuration  time.Duration
+	subprotocol  string
+	messagesSent int
+	messagesRecv int
+	bytesSent    int64
+	bytesRecv    int64
+}
+
+// streamEvent is an internal representation of a stream event before conversion to AILANG ADT.
+type streamEvent struct {
+	kind    string // "message", "binary", "opened", "closed", "error", "ping"
+	text    string
+	data    []byte
+	code    int
+	reason  string
+	errType string // "ConnectionFailed", "Timeout", "BudgetExhausted", "ProtocolError", etc.
+}
+
+// Close gracefully shuts down the connection.
+func (sc *StreamConnection) Close() {
+	sc.mu.Lock()
+	if sc.status == StreamStatusClosed || sc.status == StreamStatusClosing {
+		sc.mu.Unlock()
+		return
+	}
+	sc.status = StreamStatusClosing
+	sc.mu.Unlock()
+
+	// Send close message with a deadline
+	if sc.conn != nil {
+		_ = sc.conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			time.Now().Add(3*time.Second),
+		)
+		_ = sc.conn.Close()
+	}
+
+	// Signal read goroutine to stop
+	select {
+	case <-sc.done:
+	default:
+		close(sc.done)
+	}
+
+	sc.mu.Lock()
+	sc.status = StreamStatusClosed
+	sc.mu.Unlock()
+}
+
+// Status returns the current connection status.
+func (sc *StreamConnection) Status() StreamStatus {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	return sc.status
+}
+
+func init() {
+	RegisterOp("Stream", "connect", StreamConnect)
+	RegisterOp("Stream", "send", StreamSend)
+	RegisterOp("Stream", "onEvent", StreamOnEvent)
+	RegisterOp("Stream", "runEventLoop", StreamRunEventLoop)
+	RegisterOp("Stream", "close", StreamClose)
+	RegisterOp("Stream", "status", StreamGetStatus)
+}
+
+// StreamConnect establishes a WebSocket connection.
+//
+// Args: [url: string, config: record{protocol, headers, subprotocols}]
+// Returns: Result[StreamConn(int), StreamError]
+func StreamConnect(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("_stream_connect: expected 2 arguments, got %d", len(args))
+	}
+
+	urlVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_stream_connect: expected String for url, got %T", args[0])
+	}
+
+	if ctx.Stream == nil {
+		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
+	}
+
+	// Validate URL against security policy
+	if err := ctx.Stream.ValidateURL(urlVal.Value); err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
+	// Parse config record for headers and subprotocols
+	headers := make(map[string][]string)
+	var subprotocols []string
+
+	if configRec, ok := args[1].(*eval.RecordValue); ok {
+		if hdrs, ok := configRec.Fields["headers"]; ok {
+			if hdrList, ok := hdrs.(*eval.ListValue); ok {
+				for _, hdr := range hdrList.Elements {
+					if hdrRec, ok := hdr.(*eval.RecordValue); ok {
+						nameVal, _ := hdrRec.Fields["name"].(*eval.StringValue)
+						valVal, _ := hdrRec.Fields["value"].(*eval.StringValue)
+						if nameVal != nil && valVal != nil {
+							headers[nameVal.Value] = append(headers[nameVal.Value], valVal.Value)
+						}
+					}
+				}
+			}
+		}
+		if subs, ok := configRec.Fields["subprotocols"]; ok {
+			if subList, ok := subs.(*eval.ListValue); ok {
+				for _, s := range subList.Elements {
+					if sv, ok := s.(*eval.StringValue); ok {
+						subprotocols = append(subprotocols, sv.Value)
+					}
+				}
+			}
+		}
+	}
+
+	// Dial WebSocket
+	dialer := websocket.Dialer{
+		HandshakeTimeout: ctx.Stream.ConnectTimeout,
+		Subprotocols:     subprotocols,
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+	}
+
+	wsConn, resp, err := dialer.Dial(urlVal.Value, headers)
+	if err != nil {
+		msg := fmt.Sprintf("WebSocket dial failed: %s", err.Error())
+		if resp != nil {
+			msg = fmt.Sprintf("WebSocket dial failed (HTTP %d): %s", resp.StatusCode, err.Error())
+		}
+		return makeStreamErr("ConnectionFailed", msg), nil
+	}
+
+	// Set read limit
+	wsConn.SetReadLimit(ctx.Stream.MaxFrameSize)
+
+	// Create connection
+	conn := &StreamConnection{
+		conn:        wsConn,
+		status:      StreamStatusOpen,
+		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
+		done:        make(chan struct{}),
+		idleTimeout: ctx.Stream.IdleTimeout,
+		maxDuration: ctx.Stream.MaxDuration,
+		subprotocol: wsConn.Subprotocol(),
+	}
+
+	// Register connection
+	id, err := ctx.Stream.AcquireConnection(conn)
+	if err != nil {
+		wsConn.Close()
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
+	// Start read goroutine
+	go conn.readLoop()
+
+	// Deliver Opened event
+	conn.eventBuffer <- streamEvent{
+		kind: "opened",
+		text: conn.subprotocol,
+	}
+
+	// Return Ok(StreamConn(id))
+	return makeStreamOk(makeStreamConn(id)), nil
+}
+
+// readLoop runs in a goroutine, reading WebSocket frames into the event buffer.
+func (sc *StreamConnection) readLoop() {
+	defer func() {
+		// Deliver closed event if we exit normally
+		sc.mu.Lock()
+		status := sc.status
+		sc.mu.Unlock()
+		if status != StreamStatusClosed && status != StreamStatusClosing {
+			sc.eventBuffer <- streamEvent{kind: "closed", code: 1006, reason: "connection lost"}
+		}
+	}()
+
+	for {
+		select {
+		case <-sc.done:
+			return
+		default:
+		}
+
+		msgType, data, err := sc.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				closeCode := websocket.CloseNormalClosure
+				closeReason := ""
+				if ce, ok := err.(*websocket.CloseError); ok {
+					closeCode = ce.Code
+					closeReason = ce.Text
+				}
+				sc.eventBuffer <- streamEvent{kind: "closed", code: closeCode, reason: closeReason}
+				return
+			}
+			sc.eventBuffer <- streamEvent{kind: "error", errType: "ProtocolError", text: err.Error()}
+			return
+		}
+
+		switch msgType {
+		case websocket.TextMessage:
+			sc.mu.Lock()
+			sc.messagesRecv++
+			sc.bytesRecv += int64(len(data))
+			sc.mu.Unlock()
+			sc.eventBuffer <- streamEvent{kind: "message", text: string(data)}
+		case websocket.BinaryMessage:
+			sc.mu.Lock()
+			sc.messagesRecv++
+			sc.bytesRecv += int64(len(data))
+			sc.mu.Unlock()
+			sc.eventBuffer <- streamEvent{kind: "binary", data: data}
+		case websocket.PingMessage:
+			sc.eventBuffer <- streamEvent{kind: "ping", data: data}
+		}
+	}
+}
+
+// streamSend sends a message on a connection.
+//
+// Args: [conn: StreamConn(int), msg: StreamMessage(Text(string)|Bin(bytes))]
+// Returns: Result[unit, StreamError]
+func StreamSend(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("_stream_send: expected 2 arguments, got %d", len(args))
+	}
+
+	connID, err := extractConnID(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := ctx.Stream.GetConnection(connID)
+	if !ok {
+		return makeStreamErr("ConnectionFailed", "connection not found"), nil
+	}
+
+	if conn.Status() != StreamStatusOpen {
+		return makeStreamErr("ConnectionFailed", "connection not open"), nil
+	}
+
+	// Extract message variant
+	adt, ok := args[1].(*eval.TaggedValue)
+	if !ok {
+		return nil, fmt.Errorf("_stream_send: expected StreamMessage ADT, got %T", args[1])
+	}
+
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+
+	switch adt.CtorName {
+	case "Text":
+		if len(adt.Fields) < 1 {
+			return nil, fmt.Errorf("_stream_send: Text requires 1 field")
+		}
+		sv, ok := adt.Fields[0].(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("_stream_send: Text field must be string")
+		}
+		data := []byte(sv.Value)
+		if int64(len(data)) > ctx.Stream.MaxMessageSize {
+			return makeStreamErr("MessageTooLarge",
+				fmt.Sprintf("message size %d exceeds limit %d", len(data), ctx.Stream.MaxMessageSize)), nil
+		}
+		if err := conn.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			return makeStreamErr("ProtocolError", err.Error()), nil
+		}
+		conn.messagesSent++
+		conn.bytesSent += int64(len(data))
+
+	case "Bin":
+		if len(adt.Fields) < 1 {
+			return nil, fmt.Errorf("_stream_send: Bin requires 1 field")
+		}
+		bv, ok := adt.Fields[0].(*eval.BytesValue)
+		if !ok {
+			return nil, fmt.Errorf("_stream_send: Bin field must be bytes")
+		}
+		if int64(len(bv.Value)) > ctx.Stream.MaxMessageSize {
+			return makeStreamErr("MessageTooLarge",
+				fmt.Sprintf("message size %d exceeds limit %d", len(bv.Value), ctx.Stream.MaxMessageSize)), nil
+		}
+		if err := conn.conn.WriteMessage(websocket.BinaryMessage, bv.Value); err != nil {
+			return makeStreamErr("ProtocolError", err.Error()), nil
+		}
+		conn.messagesSent++
+		conn.bytesSent += int64(len(bv.Value))
+
+	default:
+		return nil, fmt.Errorf("_stream_send: unknown StreamMessage variant: %s", adt.CtorName)
+	}
+
+	return makeStreamOkUnit(), nil
+}
+
+// streamOnEvent registers an event handler.
+//
+// Args: [conn: StreamConn(int), handler: StreamEvent -> bool]
+// Returns: unit
+func StreamOnEvent(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("_stream_onEvent: expected 2 arguments, got %d", len(args))
+	}
+
+	connID, err := extractConnID(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := ctx.Stream.GetConnection(connID)
+	if !ok {
+		return nil, fmt.Errorf("_stream_onEvent: connection %d not found", connID)
+	}
+
+	conn.mu.Lock()
+	conn.handler = args[1]
+	conn.mu.Unlock()
+
+	return &eval.UnitValue{}, nil
+}
+
+// streamRunEventLoop blocks, dispatching events to the registered handler.
+//
+// Args: [conn: StreamConn(int)]
+// Returns: unit
+func StreamRunEventLoop(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("_stream_runEventLoop: expected 1 argument, got %d", len(args))
+	}
+
+	connID, err := extractConnID(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := ctx.Stream.GetConnection(connID)
+	if !ok {
+		return nil, fmt.Errorf("_stream_runEventLoop: connection %d not found", connID)
+	}
+
+	conn.mu.Lock()
+	handler := conn.handler
+	conn.mu.Unlock()
+
+	if handler == nil {
+		return nil, fmt.Errorf("_stream_runEventLoop: no handler registered (call onEvent first)")
+	}
+
+	if ctx.FnCaller == nil {
+		return nil, fmt.Errorf("_stream_runEventLoop: FnCaller not set on EffContext (evaluator not wired)")
+	}
+
+	// Set up idle timer
+	idleTimer := time.NewTimer(conn.idleTimeout)
+	defer idleTimer.Stop()
+
+	// Set up max duration timer
+	maxTimer := time.NewTimer(conn.maxDuration)
+	defer maxTimer.Stop()
+
+	fnCaller := ctx.FnCaller
+
+	for {
+		select {
+		case evt, ok := <-conn.eventBuffer:
+			if !ok {
+				return &eval.UnitValue{}, nil
+			}
+
+			// Reset idle timer on any activity
+			if !idleTimer.Stop() {
+				select {
+				case <-idleTimer.C:
+				default:
+				}
+			}
+			idleTimer.Reset(conn.idleTimeout)
+
+			// Convert to AILANG ADT value
+			adtVal := eventToADT(evt)
+
+			// Call handler with panic recovery
+			shouldContinue, err := callHandlerSafe(fnCaller, handler, adtVal)
+			if err != nil {
+				// Handler error — deliver as Error event and stop
+				errEvt := eventToADT(streamEvent{
+					kind:    "error",
+					errType: "ProtocolError",
+					text:    fmt.Sprintf("handler error: %s", err.Error()),
+				})
+				_, _ = callHandlerSafe(fnCaller, handler, errEvt)
+				return &eval.UnitValue{}, nil
+			}
+
+			if !shouldContinue {
+				return &eval.UnitValue{}, nil
+			}
+
+		case <-idleTimer.C:
+			// Idle timeout — deliver as Error event
+			errEvt := eventToADT(streamEvent{
+				kind:    "error",
+				errType: "Timeout",
+				text:    fmt.Sprintf("idle timeout after %s", conn.idleTimeout),
+			})
+			_, _ = callHandlerSafe(fnCaller, handler, errEvt)
+			return &eval.UnitValue{}, nil
+
+		case <-maxTimer.C:
+			// Max duration — deliver as Error event
+			errEvt := eventToADT(streamEvent{
+				kind:    "error",
+				errType: "Timeout",
+				text:    fmt.Sprintf("max duration %s exceeded", conn.maxDuration),
+			})
+			_, _ = callHandlerSafe(fnCaller, handler, errEvt)
+			return &eval.UnitValue{}, nil
+		}
+	}
+}
+
+// streamClose closes a connection.
+func StreamClose(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("_stream_close: expected 1 argument, got %d", len(args))
+	}
+
+	connID, err := extractConnID(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := ctx.Stream.GetConnection(connID)
+	if !ok {
+		return &eval.UnitValue{}, nil // Already closed
+	}
+
+	conn.Close()
+	ctx.Stream.ReleaseConnection(connID)
+
+	return &eval.UnitValue{}, nil
+}
+
+// StreamGetStatus returns connection status as a StreamStatus ADT value.
+func StreamGetStatus(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("_stream_status: expected 1 argument, got %d", len(args))
+	}
+
+	connID, err := extractConnID(args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	conn, ok := ctx.Stream.GetConnection(connID)
+	if !ok {
+		return &eval.TaggedValue{CtorName: "Closed"}, nil
+	}
+
+	status := conn.Status()
+	return &eval.TaggedValue{CtorName: status.String()}, nil
+}
+
+// --- Helper functions ---
+
+// extractConnID extracts the integer ID from a StreamConn(int) ADT value.
+func extractConnID(v eval.Value) (int, error) {
+	adt, ok := v.(*eval.TaggedValue)
+	if !ok || adt.CtorName != "StreamConn" || len(adt.Fields) < 1 {
+		return 0, fmt.Errorf("expected StreamConn(int), got %v", v)
+	}
+	intVal, ok := adt.Fields[0].(*eval.IntValue)
+	if !ok {
+		return 0, fmt.Errorf("expected StreamConn(int), got StreamConn(%T)", adt.Fields[0])
+	}
+	return int(intVal.Value), nil
+}
+
+// makeStreamConn creates a StreamConn(id) ADT value.
+func makeStreamConn(id int) eval.Value {
+	return &eval.TaggedValue{
+		CtorName: "StreamConn",
+		Fields:   []eval.Value{&eval.IntValue{Value: id}},
+	}
+}
+
+// makeStreamErr creates an Err(StreamError) Result value.
+func makeStreamErr(variant, msg string) eval.Value {
+	return &eval.TaggedValue{
+		CtorName: "Err",
+		Fields: []eval.Value{
+			&eval.TaggedValue{
+				CtorName: variant,
+				Fields:   []eval.Value{&eval.StringValue{Value: msg}},
+			},
+		},
+	}
+}
+
+// makeStreamOk creates an Ok(value) Result value.
+func makeStreamOk(val eval.Value) eval.Value {
+	return &eval.TaggedValue{
+		CtorName: "Ok",
+		Fields:   []eval.Value{val},
+	}
+}
+
+// makeStreamOkUnit creates an Ok(()) Result value.
+func makeStreamOkUnit() eval.Value {
+	return &eval.TaggedValue{
+		CtorName: "Ok",
+		Fields:   []eval.Value{&eval.UnitValue{}},
+	}
+}
+
+// eventToADT converts an internal streamEvent to an AILANG StreamEvent ADT value.
+func eventToADT(evt streamEvent) eval.Value {
+	switch evt.kind {
+	case "message":
+		return &eval.TaggedValue{
+			CtorName: "Message",
+			Fields:   []eval.Value{&eval.StringValue{Value: evt.text}},
+		}
+	case "binary":
+		return &eval.TaggedValue{
+			CtorName: "Binary",
+			Fields:   []eval.Value{&eval.BytesValue{Value: evt.data}},
+		}
+	case "opened":
+		return &eval.TaggedValue{
+			CtorName: "Opened",
+			Fields: []eval.Value{
+				&eval.RecordValue{
+					Fields: map[string]eval.Value{
+						"protocol":    &eval.TaggedValue{CtorName: "WebSocket"},
+						"subprotocol": &eval.StringValue{Value: evt.text},
+					},
+				},
+			},
+		}
+	case "closed":
+		return &eval.TaggedValue{
+			CtorName: "Closed",
+			Fields: []eval.Value{
+				&eval.IntValue{Value: evt.code},
+				&eval.StringValue{Value: evt.reason},
+			},
+		}
+	case "error":
+		return &eval.TaggedValue{
+			CtorName: "Error",
+			Fields: []eval.Value{
+				&eval.TaggedValue{
+					CtorName: evt.errType,
+					Fields:   []eval.Value{&eval.StringValue{Value: evt.text}},
+				},
+			},
+		}
+	case "ping":
+		return &eval.TaggedValue{
+			CtorName: "Ping",
+			Fields:   []eval.Value{&eval.BytesValue{Value: evt.data}},
+		}
+	default:
+		return &eval.TaggedValue{
+			CtorName: "Error",
+			Fields: []eval.Value{
+				&eval.TaggedValue{
+					CtorName: "ProtocolError",
+					Fields:   []eval.Value{&eval.StringValue{Value: "unknown event: " + evt.kind}},
+				},
+			},
+		}
+	}
+}
+
+// callHandlerSafe calls an AILANG handler with panic recovery.
+// Uses the FnCaller callback set on EffContext to invoke the handler function.
+// Returns (shouldContinue, error).
+func callHandlerSafe(fnCaller func(eval.Value, eval.Value) (eval.Value, error), handler eval.Value, event eval.Value) (bool, error) {
+	var result eval.Value
+	var callErr error
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				callErr = fmt.Errorf("handler panic: %v", r)
+			}
+		}()
+		result, callErr = fnCaller(handler, event)
+	}()
+
+	if callErr != nil {
+		return false, callErr
+	}
+
+	// Check if handler returned true (continue) or false (stop)
+	if bv, ok := result.(*eval.BoolValue); ok {
+		return bv.Value, nil
+	}
+
+	// If not a bool, treat as continue
+	return true, nil
+}

@@ -29,6 +29,7 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		"AI":          true, // General-purpose AI oracle (v0.5.1+)
 		"SharedMem":   true, // Shared memory cache (v0.5.11+, M-DX15)
 		"SharedIndex": true, // Similarity index for semantic retrieval (v0.5.11+, M-DX16)
+		"Stream":      true, // Bidirectional WebSocket streaming (v0.8.1+, M-STREAM-BIDI)
 	}
 
 	// We're at the BANG token

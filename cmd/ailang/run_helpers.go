@@ -128,6 +128,14 @@ func setupSharedMemHandler(effCtx *effects.EffContext) {
 	}
 }
 
+// setupStreamHandler initializes the Stream effect context if the capability is granted.
+// Stream provides bidirectional WebSocket connections (M-STREAM-BIDI).
+func setupStreamHandler(effCtx *effects.EffContext) {
+	if effCtx.HasCap("Stream") {
+		effCtx.Stream = effects.NewStreamContext()
+	}
+}
+
 // setupSharedIndexHandler initializes the SharedIndex effect context if the capability is granted.
 // SharedIndex provides similarity-based semantic retrieval (M-DX16).
 func setupSharedIndexHandler(effCtx *effects.EffContext) {

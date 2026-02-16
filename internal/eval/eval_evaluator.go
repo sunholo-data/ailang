@@ -237,6 +237,20 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 	return result, err
 }
 
+// CallValue calls a function value with a single argument.
+// Unlike CallFunction, this accepts eval.Value to support both FunctionValue and BuiltinFunction.
+// Used by M-STREAM-BIDI for invoking event handlers from Go code.
+func (e *CoreEvaluator) CallValue(fn Value, arg Value) (Value, error) {
+	switch f := fn.(type) {
+	case *FunctionValue:
+		return e.CallFunction(f, []Value{arg})
+	case *BuiltinFunction:
+		return f.Fn([]Value{arg})
+	default:
+		return nil, fmt.Errorf("cannot call non-function value: %T", fn)
+	}
+}
+
 // EvalLetRecBindings evaluates a LetRec and returns its bindings without evaluating the body
 //
 // This uses the same 3-phase RefCell algorithm as evalCoreLetRec to ensure proper

@@ -48,11 +48,12 @@ type EffOp func(ctx *EffContext, args []eval.Value) (eval.Value, error)
 // pre-created, making it safe for concurrent reads and allowing
 // RegisterOp to work in init() functions.
 var Registry = map[string]map[string]EffOp{
-	"IO":    {},
-	"FS":    {},
-	"Clock": {},
-	"Net":   {},
-	"Debug": {},
+	"IO":     {},
+	"FS":     {},
+	"Clock":  {},
+	"Net":    {},
+	"Debug":  {},
+	"Stream": {},
 }
 
 // Call invokes an effect operation
