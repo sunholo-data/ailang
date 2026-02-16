@@ -36,7 +36,7 @@ export func transmit(conn: string, msg: string) -> string ! {Stream} {
 -- Register an event handler callback
 -- conn: connection value from connect
 -- handler: function receiving events, returning bool (true=continue, false=stop)
-export func onEvent(conn: string, handler: string -> bool) -> unit ! {Stream} {
+export func onEvent(conn: string, handler: string) -> unit ! {Stream} {
   _stream_onEvent(conn, handler)
 }
 

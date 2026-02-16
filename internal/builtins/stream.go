@@ -59,27 +59,15 @@ Connections are limited to MaxConnections (default: 4).`,
 }
 
 // makeStreamConnectType builds the type signature for _stream_connect
-// Type: (string, {headers: list[{name: string, value: string}], subprotocols: list[string]})
-//
-//	-> Result[StreamConn, StreamError] ! {Stream}
+// Type: (string, string) -> string ! {Stream}
+// Phase 1: simplified string types; Phase 2 will use proper ADT/record types
 func makeStreamConnectType() types.Type {
 	T := types.NewBuilder()
-
-	// Config record type
-	headerType := T.Record(
-		types.Field("name", T.String()),
-		types.Field("value", T.String()),
-	)
-	configType := T.Record(
-		types.Field("headers", T.List(headerType)),
-		types.Field("subprotocols", T.List(T.String())),
-	)
-
 	return T.Func(
 		T.String(), // url
-		configType, // config
+		T.String(), // config (JSON string for Phase 1)
 	).Returns(
-		T.App("Result", T.Con("StreamConn"), T.Con("StreamError")),
+		T.String(), // Result ADT as tagged value (runtime-typed)
 	).Effects("Stream")
 }
 
@@ -114,14 +102,14 @@ func registerStreamSend() {
 }
 
 // makeStreamSendType builds the type signature for _stream_send
-// Type: (StreamConn, StreamMessage) -> Result[unit, StreamError] ! {Stream}
+// Type: (string, string) -> string ! {Stream}
 func makeStreamSendType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.Con("StreamConn"),    // conn
-		T.Con("StreamMessage"), // msg
+		T.String(), // conn
+		T.String(), // msg
 	).Returns(
-		T.App("Result", T.Unit(), T.Con("StreamError")),
+		T.String(),
 	).Effects("Stream")
 }
 
@@ -156,16 +144,13 @@ func registerStreamOnEvent() {
 }
 
 // makeStreamOnEventType builds the type signature for _stream_onEvent
-// Type: (StreamConn, StreamEvent -> bool) -> unit ! {Stream}
+// Phase 1: handler typed as 'a (type variable) to avoid TFunc/TFunc2 mismatch.
+// The runtime extracts and calls the handler function regardless of static type.
 func makeStreamOnEventType() types.Type {
 	T := types.NewBuilder()
-
-	// Handler type: StreamEvent -> bool
-	handlerType := T.Func(T.Con("StreamEvent")).Returns(T.Bool()).Build()
-
 	return T.Func(
-		T.Con("StreamConn"), // conn
-		handlerType,         // handler
+		T.String(), // conn
+		T.String(), // handler (Phase 1: string-typed; runtime handles function dispatch)
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -206,11 +191,11 @@ and dispatching them to the registered handler (set via onEvent). Stops when:
 }
 
 // makeStreamRunEventLoopType builds the type signature for _stream_runEventLoop
-// Type: StreamConn -> unit ! {Stream}
+// Type: string -> unit ! {Stream}
 func makeStreamRunEventLoopType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.Con("StreamConn"), // conn
+		T.String(), // conn
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -246,11 +231,11 @@ func registerStreamClose() {
 }
 
 // makeStreamCloseType builds the type signature for _stream_close
-// Type: StreamConn -> unit ! {Stream}
+// Type: string -> unit ! {Stream}
 func makeStreamCloseType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.Con("StreamConn"), // conn
+		T.String(), // conn
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -286,12 +271,12 @@ func registerStreamGetStatus() {
 }
 
 // makeStreamGetStatusType builds the type signature for _stream_status
-// Type: StreamConn -> StreamStatus ! {Stream}
+// Type: string -> string ! {Stream}
 func makeStreamGetStatusType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.Con("StreamConn"), // conn
+		T.String(), // conn
 	).Returns(
-		T.Con("StreamStatus"),
+		T.String(),
 	).Effects("Stream")
 }

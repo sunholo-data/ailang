@@ -109,12 +109,12 @@ _str_split : (string, string) -> list[string]
 _str_startsWith : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
-_stream_close : StreamConn -> () ! {Stream}
-_stream_connect : (string, {headers: list[{name: string, value: string}], subprotocols: list[string]}) -> Result[StreamConn, StreamError] ! {Stream}
-_stream_onEvent : (StreamConn, StreamEvent -> bool) -> () ! {Stream}
-_stream_runEventLoop : StreamConn -> () ! {Stream}
-_stream_send : (StreamConn, StreamMessage) -> Result[(), StreamError] ! {Stream}
-_stream_status : StreamConn -> StreamStatus ! {Stream}
+_stream_close : string -> () ! {Stream}
+_stream_connect : (string, string) -> string ! {Stream}
+_stream_onEvent : (string, string) -> () ! {Stream}
+_stream_runEventLoop : string -> () ! {Stream}
+_stream_send : (string, string) -> string ! {Stream}
+_stream_status : string -> string ! {Stream}
 _stringToFloat : string -> Option[float]
 _stringToInt : string -> Option[int]
 _string_floatToStr : float -> string

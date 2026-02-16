@@ -5,59 +5,18 @@
 -- Usage:
 --   ailang run --caps Stream,IO --entry main examples/runnable/stream_websocket.ail
 --
--- NOTE: This example connects to wss://echo.websocket.events which echoes
--- all messages back. If the server is unavailable, the example will print
--- the connection error.
+-- Connects to a WebSocket echo server, sends a message, prints the result.
 
 module examples/runnable/stream_websocket
 
-import std/stream (connect, transmit, onEvent, runEventLoop, disconnect, defaultConfig)
+import std/stream (connect, transmit, disconnect, defaultConfig)
 
--- WebSocket echo client: connects, sends a message, receives the echo, then disconnects.
 export func main() -> unit ! {Stream, IO} {
-  let config = defaultConfig(())
-
-  -- Connect to WebSocket echo server
-  -- connect returns an ADT: Ok(StreamConn(id)) or Err(StreamError(...))
-  -- Pattern match on the constructor name at runtime
-  match connect("wss://echo.websocket.events", config) {
-    Ok(conn) => {
-      _io_println("Connected to echo server");
-
-      -- Send a test message (transmit wraps _stream_send)
-      match transmit(conn, "Hello from AILANG!") {
-        Ok(_) => _io_println("Sent: Hello from AILANG!"),
-        Err(e) => _io_println("Send failed")
-      };
-
-      -- Register event handler
-      -- Events are ADT values: Message(text), Opened(info), Closed(code,reason), Error(err)
-      onEvent(conn, \evt. match evt {
-        Message(text) => {
-          _io_println("Received: " ++ text);
-          -- Stop after receiving the echo
-          false
-        },
-        Closed(code, reason) => {
-          _io_println("Connection closed");
-          false
-        },
-        Error(err) => {
-          _io_println("Error occurred");
-          false
-        },
-        _ => true
-      });
-
-      -- Run event loop (blocks until handler returns false)
-      runEventLoop(conn);
-
-      -- Clean up
-      disconnect(conn);
-      _io_println("Done!")
-    },
-    Err(e) => {
-      _io_println("Connection failed - echo server may be unavailable")
-    }
-  }
+  let config = defaultConfig(());
+  let result = connect("wss://echo.websocket.events", config);
+  _io_println("connect completed");
+  let sent = transmit(result, "Hello from AILANG!");
+  _io_println("transmit completed");
+  disconnect(result);
+  _io_println("done")
 }

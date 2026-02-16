@@ -162,6 +162,7 @@ func IsKnownEffect(name string) bool {
 		"AI":          true, // v0.5.1: General-purpose AI oracle
 		"SharedMem":   true, // v0.5.11: Shared memory cache effect (M-DX15)
 		"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
+		"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
 	}
 	return knownEffects[name]
 }
