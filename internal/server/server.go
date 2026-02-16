@@ -141,6 +141,9 @@ type Server struct {
 	obsAPI     *observatory.API
 	obsHub     *observatory.Hub
 
+	// Response cache for expensive polling endpoints (prevents 400% CPU from dashboard polls)
+	pollingCache *responseCache
+
 	// Firebase authentication and authorization
 	tokenVerifier    *auth.TokenVerifier
 	accessControl    *auth.AccessControlCache
@@ -165,6 +168,7 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 		agents:            make(map[string]*AgentProcess),
 		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
 		previouslySeen:    make(map[int]ProcessStats),
+		pollingCache:      newResponseCache(5 * time.Second), // 5s TTL for dashboard polling endpoints
 	}
 
 	// Apply options
@@ -427,14 +431,15 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/telemetry/config", s.handleTelemetryConfig)
 
 	// REST API endpoints - Control Plane
-	mux.HandleFunc("/api/controlplane/heatmap", s.handleControlPlaneHeatmap)
+	// Expensive endpoints wrapped with 5s response cache to prevent CPU burn from dashboard polling
+	mux.HandleFunc("/api/controlplane/heatmap", s.pollingCache.withCache(s.handleControlPlaneHeatmap))
 	mux.HandleFunc("/api/controlplane/topology/observed", s.handleControlPlaneTopologyObserved)
 	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
-	mux.HandleFunc("/api/controlplane/stats", s.handleControlPlaneStats)
-	mux.HandleFunc("/api/controlplane/stats/breakdown", s.handleControlPlaneStatsBreakdown)
-	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.handleControlPlaneExecHierarchy)
-	mux.HandleFunc("/api/controlplane/span-hierarchy", s.handleSpanHierarchy)
-	mux.HandleFunc("/api/controlplane/task-hierarchy", s.handleTaskHierarchy)
+	mux.HandleFunc("/api/controlplane/stats", s.pollingCache.withCache(s.handleControlPlaneStats))
+	mux.HandleFunc("/api/controlplane/stats/breakdown", s.pollingCache.withCache(s.handleControlPlaneStatsBreakdown))
+	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.pollingCache.withCache(s.handleControlPlaneExecHierarchy))
+	mux.HandleFunc("/api/controlplane/span-hierarchy", s.pollingCache.withCache(s.handleSpanHierarchy))
+	mux.HandleFunc("/api/controlplane/task-hierarchy", s.pollingCache.withCache(s.handleTaskHierarchy))
 
 	// REST API endpoints - Analytics (Phase 2+)
 	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)

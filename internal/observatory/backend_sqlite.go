@@ -196,6 +196,10 @@ func (b *SQLiteBackend) ListSpans(ctx context.Context, opts SpanListOptions) ([]
 	return b.store.ListSpans(opts)
 }
 
+func (b *SQLiteBackend) ListSpansByTaskIDs(ctx context.Context, taskIDs []string, limitPerTask int) (map[string][]*Span, error) {
+	return b.store.ListSpansByTaskIDs(taskIDs, limitPerTask)
+}
+
 func (b *SQLiteBackend) UpdateSpan(ctx context.Context, span *Span) error {
 	return b.store.UpdateSpan(span)
 }

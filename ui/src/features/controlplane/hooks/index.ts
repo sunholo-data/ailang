@@ -9,3 +9,4 @@ export * from './useSessionsData';
 export * from './useOutliersAnalysis';
 export * from './useTaskHierarchy';
 export * from './useExecHierarchyState';
+export * from './useChainData';

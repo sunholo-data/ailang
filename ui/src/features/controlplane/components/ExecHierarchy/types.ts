@@ -204,6 +204,9 @@ export interface ExecHierarchyProps {
   // Span highlighting for outliers (click from EventDetail outliers list)
   highlightedSpanId?: string | null;
   onClearHighlight?: () => void;
+  // Chain data (M-CHAIN-DASHBOARD) - structured chain+stages for chain-aware views
+  // When present, views render stages as top-level groups; when null, falls back to raw spans
+  chainData?: ChainData | null;
 }
 
 // ============================================================================
@@ -344,4 +347,77 @@ export interface TaskGraphEdge {
   type: 'handoff' | 'session';
   animated?: boolean;
   style?: React.CSSProperties;
+}
+
+// ============================================================================
+// Chain Data Types (M-CHAIN-DASHBOARD: mirrors observatory.ExecutionChain)
+// Used by useChainData hook to fetch chain context for selected events
+// ============================================================================
+
+// Execution chain - top-level workflow from trigger to completion
+export interface ChainData {
+  id: string;
+  source_type: string;       // 'github_issue' | 'message' | 'manual' | 'eval_suite'
+  source_ref?: string;
+  github_repo?: string;
+  github_issue_number?: number;
+  status: 'active' | 'pending_approval' | 'completed' | 'failed';
+  current_stage: number;
+  workspace_id?: string;
+  workspace_path?: string;
+  created_at: string;
+  updated_at?: string;
+  completed_at?: string;
+  total_cost: number;
+  total_tokens: number;
+  total_turns: number;
+  stages_completed: number;
+  stages?: ChainStageData[];
+}
+
+// Single agent execution within a chain
+export interface ChainStageData {
+  id: string;
+  chain_id: string;
+  stage_number: number;
+  agent_id: string;
+  provider?: string;
+  message_id?: string;
+  task_id?: string;
+  session_id?: string;
+  status: string;             // 'pending' | 'running' | 'awaiting_approval' | 'completed' | 'failed'
+  approval_status?: string;   // 'pending' | 'approved' | 'rejected'
+  approval_type?: string;     // 'merge' | 'handoff' | 'merge_handoff'
+  handoff_to?: string;
+  iteration: number;
+  human_feedback?: string;
+  started_at?: string;
+  completed_at?: string;
+  cost: number;
+  tokens_in: number;
+  tokens_out: number;
+  turns: number;
+  tool_calls: number;
+  duration_ms: number;
+  error_message?: string;
+  error_count?: number;
+  eval_assessment?: EvalAssessmentData;
+  spans?: Span[];             // Populated when include_spans=true
+}
+
+// Evaluation results for agent benchmark stages
+export interface EvalAssessmentData {
+  benchmark_id: string;
+  model: string;
+  language: string;
+  condition?: string;
+  eval_mode: string;
+  executor?: string;
+  compile_ok: boolean;
+  runtime_ok: boolean;
+  stdout_ok: boolean;
+  error_category: string;
+  first_attempt_ok?: boolean;
+  repair_used?: boolean;
+  repair_ok?: boolean;
 }

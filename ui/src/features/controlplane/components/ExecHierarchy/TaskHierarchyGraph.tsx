@@ -21,9 +21,9 @@ import ReactFlow, {
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
-import type { TaskHierarchyNode, TaskHierarchyEdge, TaskHierarchyResult, TaskSpanNode, Span, HierarchyNode } from './types';
+import type { TaskHierarchyNode, TaskHierarchyEdge, TaskHierarchyResult, TaskSpanNode, Span, HierarchyNode, ChainData } from './types';
 import { useTaskHierarchy } from '../../hooks/useTaskHierarchy';
-import { buildGraphFromSpans, buildGraphFromTurnGrouped, type HierarchySpan } from '../../utils/buildGraphFromSpans';
+import { buildGraphFromSpans, buildGraphFromTurnGrouped, buildGraphFromChain, type HierarchySpan } from '../../utils/buildGraphFromSpans';
 import styles from './ExecHierarchy.module.css';
 import {
   getTaskNodeColor,
@@ -473,6 +473,9 @@ export interface TaskHierarchyGraphProps {
   // NEW: Spans prop - when provided, renders from spans (same data source as Tree/Timeline/Chat)
   // This is the FIX for filtering - uses already-loaded spans instead of separate API calls
   spans?: Span[];
+  // Chain data (M-CHAIN-DASHBOARD) - when provided, renders chain->stage graph
+  // Priority: chainData > spans > useTaskHierarchy fallback
+  chainData?: ChainData | null;
   // Use API turn grouping (via group_by=turns) instead of client-side grouping
   // This provides consistent results between CLI and dashboard
   useTurnGrouping?: boolean;
@@ -877,7 +880,7 @@ const StatsBar: React.FC<{ stats: TaskHierarchyResult['stats'] }> = ({ stats }) 
 
 // Wrapper that provides ReactFlowProvider and fetches data
 export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => {
-  const { spans, useTurnGrouping, taskIdForTurnGrouping } = props;
+  const { spans, chainData, useTurnGrouping, taskIdForTurnGrouping } = props;
 
   // Fetch with API turn grouping when enabled and we have a task ID
   const { data: turnGroupedData, loading: turnGroupedLoading } = useTaskHierarchy({
@@ -887,9 +890,25 @@ export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => 
     refreshInterval: 0, // Don't auto-refresh for single task view
   });
 
-  // When spans are provided, build graph from them directly (same data source as Tree/Timeline/Chat)
-  // This is the FIX: no separate API calls to coordinator.db that have ID mismatches
+  // Build graph data with priority: chainData > API turn grouping > spans
   const graphFromSpans = useMemo(() => {
+    // Priority 0: Chain data - renders stages with handoff edges and approval badges
+    // This is the chain-aware rendering path (M-CHAIN-DASHBOARD)
+    if (chainData?.stages && chainData.stages.length > 0) {
+      const graphData = buildGraphFromChain(chainData, props.selectedNodeId);
+      const result: TaskHierarchyResult = {
+        tasks: [],
+        edges: [],
+        stats: {
+          total_tasks: chainData.stages.length,
+          total_spans: graphData.stats.totalSpans,
+          pending_approvals: chainData.stages.filter(s => s.approval_status === 'pending').length,
+          total_cost: graphData.stats.totalCost,
+        },
+      };
+      return { graphData, result };
+    }
+
     // Priority 1: Use API turn-grouped data if available (from useTaskHierarchy with group_by=turns)
     if (useTurnGrouping && turnGroupedData?.tasks?.length) {
       const task = turnGroupedData.tasks[0];
@@ -929,13 +948,14 @@ export const TaskHierarchyGraph: React.FC<TaskHierarchyGraphProps> = (props) => 
     };
 
     return { graphData, result };
-  }, [spans, props.selectedNodeId, props.hiddenSpanTypes, useTurnGrouping, turnGroupedData]);
+  }, [spans, chainData, props.selectedNodeId, props.hiddenSpanTypes, useTurnGrouping, turnGroupedData]);
 
-  // NO FALLBACK to useTaskHierarchy - if no spans, show empty state
+  // NO FALLBACK to useTaskHierarchy - if no spans/chain, show empty state
   // This prevents the overwhelming "show everything" behavior
+  const hasChain = chainData?.stages && chainData.stages.length > 0;
   const hasSpans = spans && spans.length > 0;
   const hasApiTurnGrouped = useTurnGrouping && turnGroupedData?.tasks?.length && turnGroupedData.tasks[0].turn_grouped;
-  const hasData = hasSpans || hasApiTurnGrouped;
+  const hasData = hasChain || hasSpans || hasApiTurnGrouped;
 
   return (
     <div className={`${styles.graphContainer} ${props.isExpanded ? styles.graphContainerExpanded : ''}`}>

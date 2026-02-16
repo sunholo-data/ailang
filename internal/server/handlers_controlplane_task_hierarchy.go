@@ -278,26 +278,31 @@ func (s *Server) handleTaskHierarchy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch spans from observatory.db for each task
+	// Fetch spans from observatory.db for all tasks in a single batch query
 	if s.obsBackend != nil {
-		for _, node := range result.Tasks {
-			spans, err := s.obsBackend.ListSpans(ctx, observatory.SpanListOptions{
-				TaskID: node.ID,
-				Limit:  500, // Limit spans per task
-			})
-			if err != nil {
-				log.Printf("Failed to fetch spans for task %s: %v", node.ID, err)
-				continue
+		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
+			// Collect all task IDs
+			taskIDs := make([]string, len(result.Tasks))
+			for i, node := range result.Tasks {
+				taskIDs[i] = node.ID
 			}
-			if len(spans) > 0 {
-				// Build span hierarchy from flat list
-				node.Spans = buildSpanHierarchyForTask(spans)
-				result.Stats.TotalSpans += len(spans)
 
-				// Apply turn grouping if requested
-				if groupBy == "turns" {
-					spanNodes := buildSpanNodeTreeFromFlat(spans)
-					node.TurnGrouped = observatory.GroupSpansByTurn(spanNodes)
+			// Single batch query instead of N queries
+			spansByTask, err := sqliteBackend.ListSpansByTaskIDs(ctx, taskIDs, 500)
+			if err != nil {
+				log.Printf("Failed to batch fetch spans: %v", err)
+			} else {
+				for _, node := range result.Tasks {
+					spans := spansByTask[node.ID]
+					if len(spans) > 0 {
+						node.Spans = buildSpanHierarchyForTask(spans)
+						result.Stats.TotalSpans += len(spans)
+
+						if groupBy == "turns" {
+							spanNodes := buildSpanNodeTreeFromFlat(spans)
+							node.TurnGrouped = observatory.GroupSpansByTurn(spanNodes)
+						}
+					}
 				}
 			}
 		}

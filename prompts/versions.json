@@ -478,13 +478,23 @@
       "description": "Add getArgs/stdin docs, fix CLI args benchmark gap",
       "created": "2026-02-14",
       "tags": [
+        "production"
+      ],
+      "notes": "Add getArgs/stdin docs, fix CLI args benchmark gap"
+    },
+    "v0.8.1": {
+      "file": "prompts/v0.8.1.md",
+      "hash": "b3fa804060e1dd8cabf76c99f195742fec77cb3f4cb3f3c083c46d0471ce8420",
+      "description": "Contracts section rewritten: agent-first framing, stdlib imports, moved before Testing",
+      "created": "2026-02-16",
+      "tags": [
         "production",
         "latest"
       ],
-      "notes": "Add getArgs/stdin docs, fix CLI args benchmark gap"
+      "notes": "Contracts section rewritten with agent-centric framing (specify-implement-verify workflow). Updated all examples to use stdlib imports (std/string, std/list) instead of raw builtins. Moved contracts before Testing to reflect importance. Documents stdlib transparency in Z3 verification."
     }
   },
-  "active": "v0.8.0",
+  "active": "v0.8.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

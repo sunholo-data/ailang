@@ -168,22 +168,21 @@ func enrichExecHierarchy(ctx context.Context, store *observatory.Store, hierarch
 		return
 	}
 
-	// Build lookup map by tool name + approximate timestamp
+	// Pre-index tools by name for O(n+m) instead of O(n*m) matching
 	const tolerance = 10 * time.Second
+	toolsByName := make(map[string][]observatory.SessionTool, len(tools)/4)
+	for _, tool := range tools {
+		toolsByName[tool.ToolName] = append(toolsByName[tool.ToolName], tool)
+	}
 
-	// Enrich each tool node
+	// Enrich each tool node using pre-indexed lookup
 	for _, node := range toolNodes {
 		if node.ToolName == "" || node.DisplayName != "" {
 			continue
 		}
 
-		// Find matching tool by name and timestamp
-		for _, tool := range tools {
-			if tool.ToolName != node.ToolName {
-				continue
-			}
-
-			// Check timestamp match
+		candidates := toolsByName[node.ToolName]
+		for _, tool := range candidates {
 			toolStart := tool.StartTime
 			nodeStart := *node.StartTime
 			diff := toolStart.Sub(nodeStart)
@@ -194,7 +193,6 @@ func enrichExecHierarchy(ctx context.Context, store *observatory.Store, hierarch
 				continue
 			}
 
-			// Generate display name from tool metadata
 			displayName := generateToolDisplayName(tool.ToolName, tool.ToolInput)
 			if displayName != "" {
 				node.DisplayName = displayName

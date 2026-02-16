@@ -426,20 +426,22 @@ Z3 proved that `safeConcat` always produces a result at least as long as `a`, an
 
 **Supported string operations:**
 
-| AILANG | Z3 SMT-LIB | Purpose |
+Use `import std/string` to access these functions. The verifier resolves stdlib calls to Z3 natively.
+
+| AILANG (stdlib) | Z3 SMT-LIB | Purpose |
 |--------|-----------|---------|
 | `a ++ b` | `str.++` | Concatenation |
-| `eq_String(a, b)` | `=` | Equality |
-| `ne_String(a, b)` | `distinct` | Inequality |
-| `lt_String(a, b)` | `str.<` | Lexicographic less-than |
-| `le_String(a, b)` | `str.<=` | Less-than-or-equal |
-| `_str_len(s)` | `str.len` | String length |
-| `_str_find(s, t)` | `str.indexof` | Find substring |
-| `_str_slice(s, i, j)` | `str.substr` | Substring extraction |
-| `_str_startsWith(s, p)` | `str.prefixof` | Prefix check |
-| `_str_endsWith(s, x)` | `str.suffixof` | Suffix check |
+| `a == b` | `=` | Equality |
+| `a != b` | `distinct` | Inequality |
+| `a < b` | `str.<` | Lexicographic less-than |
+| `a <= b` | `str.<=` | Less-than-or-equal |
+| `length(s)` | `str.len` | String length (`std/string`) |
+| `find(s, t)` | `str.indexof` | Find substring (`std/string`) |
+| `substring(s, i, j)` | `str.substr` | Substring extraction (`std/string`) |
+| `startsWith(s, p)` | `str.prefixof` | Prefix check (`std/string`) |
+| `endsWith(s, x)` | `str.suffixof` | Suffix check (`std/string`) |
 
-**Not yet encodable:** `_str_trim`, `_str_upper`, `_str_lower` (no Z3 equivalent), `_str_split`, `_str_chars` (return lists).
+**Not yet encodable:** `trim`, `toUpper`, `toLower` (no Z3 equivalent), `split`, `chars` (return lists).
 
 ### List Verification
 
@@ -452,7 +454,7 @@ List parameters, literals, length, head, nth, and cons can all be verified by Z3
 ```bash
 $ ailang verify examples/runnable/contracts/list_verify.ail
 
-  ✓ VERIFIED listLength          34ms
+  ✓ VERIFIED safeListLength      34ms
   ✓ VERIFIED prependLength        5ms
   ✓ VERIFIED headIsNth0           5ms
   ✓ VERIFIED singletonLength      5ms
@@ -463,15 +465,17 @@ $ ailang verify examples/runnable/contracts/list_verify.ail
   5 functions: 4 verified, 1 violations
 ```
 
-Z3 proved that `listLength` always returns a non-negative result, that `prependLength` increases length by 1, that head equals nth at index 0, and that a singleton list has length 1. For `brokenAllPositive`, Z3 found a list whose head is non-positive.
+Z3 proved that `safeListLength` always returns a non-negative result, that `prependLength` increases length by 1, that head equals nth at index 0, and that a singleton list has length 1. For `brokenAllPositive`, Z3 found a list whose head is non-positive.
 
 **Supported list operations:**
 
+Use `import std/list (length)` for list length. The raw builtins `_list_head` and `_list_nth` are used directly in contracts because the stdlib versions (`std/list.head`, `std/list.nth`) return `Option`, which has different semantics.
+
 | AILANG | Z3 SMT-LIB | Purpose |
 |--------|-----------|---------|
-| `_list_length(xs)` | `seq.len` | List length |
-| `_list_head(xs)` | `seq.nth xs 0` | First element |
-| `_list_nth(xs, i)` | `seq.nth` | Element at index |
+| `length(xs)` | `seq.len` | List length (`std/list`) |
+| `_list_head(xs)` | `seq.nth xs 0` | First element (builtin) |
+| `_list_nth(xs, i)` | `seq.nth` | Element at index (builtin) |
 | `x :: xs` | `seq.++ (seq.unit x) xs` | Cons (prepend) |
 | `xs ++ ys` | `seq.++` | List concatenation |
 | `[1, 2, 3]` | `(seq.++ (seq.unit 1) ...)` | List literal |
@@ -558,8 +562,8 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 - Arithmetic: `+`, `-`, `*`, `/`
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
-- String operations: `++` (concat), `_str_len`, `_str_find`, `_str_slice`, `_str_startsWith`, `_str_endsWith`, string comparisons
-- List operations: `_list_length`, `_list_head`, `_list_nth`, `::` (cons), `++` (concat), list literals
+- String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
+- List operations: `length` from `std/list`, `_list_head`, `_list_nth`, `::` (cons), `++` (concat), list literals
 - Control flow: `if`/`else`, `let` bindings
 - Pattern matching: `match` on enums and ADTs
 - Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`)

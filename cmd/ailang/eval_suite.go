@@ -291,16 +291,19 @@ func runEvalSuite() {
 	// This enables eval suites to appear in the task hierarchy
 	createEvalTask(taskID, assignmentID, modelList, benchmarkList, langList, totalRuns, *agent)
 
-	// M-EVAL-CHAINS: Create execution chain for agent eval runs
+	// M-EVAL-CHAINS: Create execution chain for ALL eval runs (standard + agent)
 	// Each benchmark × model × language × condition becomes a chain stage
 	var evalChain *EvalChainContext
-	if *agent {
+	{
 		obsStore, err := observatory.OpenDefaultStore()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s Warning: Could not open observatory database: %v\n", yellow("⚠️"), err)
-			fmt.Fprintf(os.Stderr, "   Agent eval results will be stored as JSON files only\n")
+			fmt.Fprintf(os.Stderr, "   Eval results will be stored as JSON files only\n")
 		} else {
-			evalMode := "agent"
+			evalMode := "standard"
+			if *agent {
+				evalMode = "agent"
+			}
 			condRef := ""
 			if len(conditionList) == 1 && conditionList[0] != "" {
 				condRef = "/" + conditionList[0]

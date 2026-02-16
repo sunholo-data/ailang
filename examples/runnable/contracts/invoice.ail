@@ -24,6 +24,9 @@
 
 module examples/runnable/contracts/invoice
 
+import std/string (length as strLength, startsWith)
+import std/list (length as listLength)
+
 -- ============================================================================
 -- Domain types
 -- ============================================================================
@@ -92,9 +95,9 @@ ensures { result >= 0 }
 -- Validate promo code format: must start with "PROMO-" and be ≥ 8 chars
 -- Z3 proves this is equivalent to the conjunction (tautology check)
 export func isValidPromo(code: string) -> bool ! {}
-ensures { result == (_str_startsWith(code, "PROMO-") && _str_len(code) >= 8) }
+ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) }
 {
-  _str_startsWith(code, "PROMO-") && _str_len(code) >= 8
+  startsWith(code, "PROMO-") && strLength(code) >= 8
 }
 
 -- Promo rebate: 10% off, but only if code is valid
@@ -103,7 +106,7 @@ export func promoRebate(code: string, amount: int) -> int ! {}
 requires { amount >= 0 }
 ensures { result >= 0 }
 {
-  if _str_startsWith(code, "PROMO-") && _str_len(code) >= 8
+  if startsWith(code, "PROMO-") && strLength(code) >= 8
   then amount / 10
   else 0
 }
@@ -116,15 +119,15 @@ ensures { result >= 0 }
 export func itemCount(items: [int]) -> int ! {}
 ensures { result >= 0 }
 {
-  _list_length(items)
+  listLength(items)
 }
 
 -- Adding a line item always increases count by exactly 1
 -- Z3 proves using sequence theory: len(x :: xs) = len(xs) + 1
 export func addItem(price: int, items: [int]) -> int ! {}
-ensures { result == _list_length(items) + 1 }
+ensures { result == listLength(items) + 1 }
 {
-  _list_length(price :: items)
+  listLength(price :: items)
 }
 
 -- ============================================================================

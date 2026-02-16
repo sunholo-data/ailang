@@ -596,6 +596,22 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 10
 	}
 
+	// Migration v11: Add composite index on session_tools for timestamp range queries
+	// The enrichExecHierarchy function queries session_tools by (start_time, end_time) range
+	// which was causing full table scans and 400% CPU burn on ailang serve.
+	if currentVersion < 11 {
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_session_tools_time_range ON session_tools(start_time ASC, end_time ASC)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create session_tools time range index: %w", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (11)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 11: %w", err)
+		}
+		currentVersion = 11
+	}
+
 	return currentVersion, nil
 }
 

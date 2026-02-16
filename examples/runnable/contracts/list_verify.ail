@@ -5,23 +5,28 @@
 
 module examples/runnable/contracts/list_verify
 
+import std/list (length as listLength)
+
 -- Length of a list is always non-negative
-export func listLength(xs: [int]) -> int ! {}
+export func safeListLength(xs: [int]) -> int ! {}
 ensures { result >= 0 }
 {
-  _list_length(xs)
+  listLength(xs)
 }
 
 -- Prepending an element increases length by 1
 export func prependLength(x: int, xs: [int]) -> int ! {}
-ensures { result == _list_length(xs) + 1 }
+ensures { result == listLength(xs) + 1 }
 {
-  _list_length(x :: xs)
+  listLength(x :: xs)
 }
 
 -- Head of a non-empty list is retrievable at index 0
+-- Note: _list_head and _list_nth are used directly because
+-- the stdlib versions (std/list.head, std/list.nth) return Option,
+-- which has different semantics for contract verification.
 export func headIsNth0(xs: [int]) -> bool ! {}
-requires { _list_length(xs) > 0 }
+requires { listLength(xs) > 0 }
 ensures { result == true }
 {
   _list_head(xs) == _list_nth(xs, 0)
@@ -31,13 +36,13 @@ ensures { result == true }
 export func singletonLength(x: int) -> int ! {}
 ensures { result == 1 }
 {
-  _list_length([x])
+  listLength([x])
 }
 
 -- Intentionally BROKEN: claims all list elements are positive
 -- Z3 will find counterexample: a list with non-positive head
 export func brokenAllPositive(xs: [int]) -> bool ! {}
-requires { _list_length(xs) > 0 }
+requires { listLength(xs) > 0 }
 ensures { result == true }
 {
   _list_head(xs) > 0
@@ -47,7 +52,7 @@ ensures { result == true }
 export func main() -> int ! {}
 {
   let xs = [10, 20, 30];
-  let len = listLength(xs);
+  let len = safeListLength(xs);
   let plen = prependLength(5, xs);
   let eq = headIsNth0(xs);
   if eq then len + plen else 0

@@ -71,7 +71,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	// v8=session correlation columns (M-DETERMINISTIC-CHAT-LINKING),
 	// v9=chat_messages correlation columns (M-DETERMINISTIC-CHAT-LINKING Phase 5),
 	// v10=eval_assessment column on chain_stages (M-EVAL-CHAINS)
-	expectedVersion := 10
+	// v11=session_tools time range index (CPU burn fix)
+	expectedVersion := 11
 	if version != expectedVersion {
 		t.Errorf("expected version %d, got %d", expectedVersion, version)
 	}
@@ -81,8 +82,8 @@ func TestMigrateWithVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second MigrateWithVersion failed: %v", err)
 	}
-	if version != 10 {
-		t.Errorf("expected version 10 on second call, got %d", version)
+	if version != 11 {
+		t.Errorf("expected version 11 on second call, got %d", version)
 	}
 }
 

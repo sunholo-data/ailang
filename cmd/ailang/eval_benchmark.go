@@ -320,6 +320,19 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		return result.Success, nil
 	}
 
+	// Standard mode: Create chain stage for this benchmark
+	var stageID string
+	if evalChain != nil {
+		stage, err := evalChain.Store.CreateStage(ctx, &observatory.StageCreateRequest{
+			ChainID: evalChain.ChainID,
+			AgentID: "eval-standard",
+		})
+		if err == nil {
+			stageID = stage.ID
+			_ = evalChain.Store.UpdateStageStatus(ctx, stageID, observatory.StageStatusRunning)
+		}
+	}
+
 	// Standard mode: Create AI agent
 	agent, err := eval_harness.NewAIAgent(model, seed)
 	if err != nil {
@@ -444,6 +457,22 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			Condition:      condition,
 		}
 		_ = logger.Log(apiErrorMetrics) // Best effort - don't fail on logging error
+
+		// M-EVAL-CHAINS: Record failure in chain stage (standard mode)
+		if evalChain != nil && stageID != "" {
+			assessment := &observatory.EvalAssessment{
+				BenchmarkID:   spec.ID,
+				Model:         model,
+				Language:      lang,
+				Condition:     condition,
+				EvalMode:      "standard",
+				ErrorCategory: string(eval_harness.ErrorCategoryAPI),
+				Stderr:        telemetry.Truncate(fmt.Sprintf("API Error: %v", err), 500),
+			}
+			_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
+			_ = evalChain.Store.UpdateStageError(ctx, stageID, err.Error())
+		}
+
 		return false, fmt.Errorf("benchmark execution failed: %w", err)
 	}
 
@@ -454,6 +483,40 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 		benchSpan.RecordError(err)
 		benchSpan.SetStatus(codes.Error, "failed to save result")
 		return false, fmt.Errorf("failed to save result: %w", err)
+	}
+
+	// M-EVAL-CHAINS: Store assessment in chain stage (standard mode)
+	if evalChain != nil && stageID != "" {
+		assessment := &observatory.EvalAssessment{
+			BenchmarkID:    spec.ID,
+			Model:          model,
+			Language:       lang,
+			Condition:      condition,
+			EvalMode:       "standard",
+			Seed:           seed,
+			CompileOk:      metrics.CompileOk,
+			RuntimeOk:      metrics.RuntimeOk,
+			StdoutOk:       metrics.StdoutOk,
+			ErrorCategory:  string(metrics.ErrorCategory),
+			FirstAttemptOk: metrics.StdoutOk,
+			RepairUsed:     metrics.RepairUsed,
+			RepairOk:       metrics.RepairOk,
+			PromptVersion:  actualPromptVersion,
+			CodeHash:       telemetry.ShortHash(metrics.Code, 8),
+			Code:           telemetry.Truncate(metrics.Code, 2000),
+			Stdout:         telemetry.Truncate(metrics.Stdout, 500),
+			ExpectedStdout: telemetry.Truncate(spec.ExpectedOut, 500),
+			Stderr:         telemetry.Truncate(metrics.Stderr, 500),
+		}
+		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
+		_ = evalChain.Store.UpdateStageMetrics(ctx, stageID, metrics.CostUSD,
+			metrics.InputTokens, metrics.OutputTokens, 0, 0, metrics.DurationMs)
+
+		stageStatus := observatory.StageStatusCompleted
+		if !metrics.StdoutOk {
+			stageStatus = observatory.StageStatusFailed
+		}
+		_ = evalChain.Store.UpdateStageStatus(ctx, stageID, stageStatus)
 	}
 
 	// Record benchmark metrics on span

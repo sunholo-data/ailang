@@ -11,6 +11,7 @@
 module examples/runnable/contracts/showcase
 
 import std/string (length as strLength, startsWith as strStartsWith)
+import std/list (length as listLength)
 
 -- ============================================================================
 -- Types
@@ -63,16 +64,16 @@ ensures { result >= 0 }
 
 -- Non-empty strings have positive length (tautology Z3 proves instantly)
 export func hasContent(s: string) -> bool ! {}
-ensures { result == (_str_len(s) > 0) }
+ensures { result == (strLength(s) > 0) }
 {
-  _str_len(s) > 0
+  strLength(s) > 0
 }
 
 -- Prefixed string is always longer than the prefix itself
 export func prefixedLength(prefix: string, body: string) -> int ! {}
-ensures { result >= _str_len(prefix) }
+ensures { result >= strLength(prefix) }
 {
-  _str_len(prefix ++ body)
+  strLength(prefix ++ body)
 }
 
 -- ============================================================================
@@ -83,7 +84,7 @@ ensures { result >= _str_len(prefix) }
 export func itemCount(items: [int]) -> int ! {}
 ensures { result >= 0 }
 {
-  _list_length(items)
+  listLength(items)
 }
 
 -- Prepending preserves the original elements (head of new list is the added item)
@@ -94,11 +95,11 @@ ensures { result == true }
 }
 
 -- ============================================================================
--- 6. STDLIB TRANSPARENCY — Use std/string instead of builtins
+-- 6. STDLIB TRANSPARENCY — Stdlib imports resolve to Z3 natively
 -- ============================================================================
 
--- Same verification as hasContent, but using stdlib imports
--- Z3 resolves std/string.length → str.len transparently
+-- All examples above use stdlib imports (strLength, strStartsWith, listLength).
+-- Z3 resolves these transparently: std/string.length → str.len, etc.
 export func validateOrderCode(code: string) -> bool ! {}
 ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) }
 {
@@ -114,7 +115,7 @@ ensures { result == (strStartsWith(code, "ORD-") && strLength(code) >= 8) }
 export func brokenPrefixCheck(code: string) -> bool ! {}
 ensures { result == true }
 {
-  _str_startsWith(code, "ORD-")
+  strStartsWith(code, "ORD-")
 }
 
 -- ============================================================================

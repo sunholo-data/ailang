@@ -905,4 +905,168 @@ export function buildGraphFromTurnGrouped(
   };
 }
 
+/**
+ * buildGraphFromChain - Transform chain data into ReactFlow graph for stage visualization.
+ *
+ * Creates a STAGE-BASED hierarchy:
+ *   Chain Source (GitHub Issue / Message)
+ *   ├── Stage 1: design-doc-creator [completed ✓]
+ *   │   └── (expandable: spans)
+ *   ├── Stage 2: sprint-planner [approved ✓] → handoff
+ *   │   └── (expandable: spans)
+ *   └── Stage 3: sprint-executor [pending ⏳]
+ *       └── (expandable: spans)
+ *
+ * Stages are connected sequentially with handoff edges.
+ */
+export function buildGraphFromChain(
+  chain: {
+    id: string;
+    source_type: string;
+    source_ref?: string;
+    status: string;
+    total_cost: number;
+    total_tokens: number;
+    total_turns: number;
+    stages?: Array<{
+      id: string;
+      stage_number: number;
+      agent_id: string;
+      provider?: string;
+      task_id?: string;
+      session_id?: string;
+      status: string;
+      approval_status?: string;
+      approval_type?: string;
+      handoff_to?: string;
+      iteration: number;
+      human_feedback?: string;
+      cost: number;
+      tokens_in: number;
+      tokens_out: number;
+      turns: number;
+      tool_calls: number;
+      duration_ms: number;
+      error_message?: string;
+      spans?: any[];
+    }>;
+  },
+  selectedNodeId?: string | null
+): GraphData {
+  const emptyResult: GraphData = {
+    nodes: [],
+    edges: [],
+    stats: { totalSpans: 0, totalCost: 0, totalTokens: 0, totalDurationMs: 0, totalTurns: 0 },
+    rootNodeIds: [],
+    expandableNodeIds: [],
+  };
+
+  if (!chain.stages || chain.stages.length === 0) {
+    return emptyResult;
+  }
+
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  const rootNodeIds: string[] = [];
+  const expandableNodeIds: string[] = [];
+  const stats = { totalSpans: 0, totalCost: 0, totalTokens: 0, totalDurationMs: 0, totalTurns: 0 };
+
+  // Sort stages by stage_number
+  const sortedStages = [...chain.stages].sort((a, b) => a.stage_number - b.stage_number);
+
+  for (let i = 0; i < sortedStages.length; i++) {
+    const stage = sortedStages[i];
+    const stageNodeId = `stage-${stage.id}`;
+
+    // Accumulate stats
+    stats.totalCost += stage.cost || 0;
+    stats.totalTokens += (stage.tokens_in || 0) + (stage.tokens_out || 0);
+    stats.totalDurationMs += stage.duration_ms || 0;
+    stats.totalTurns += stage.turns || 0;
+    stats.totalSpans += stage.spans?.length || 0;
+
+    // Create stage node as a 'task' type (reuses TaskNodeComponent which has
+    // agent_id, approval badges, cost/token metrics, iteration display)
+    const stageTitle = stage.agent_id + (stage.iteration > 1 ? ` (iter ${stage.iteration})` : '');
+    nodes.push({
+      id: stageNodeId,
+      type: 'task',
+      position: { x: 0, y: 0 }, // dagre will calculate
+      data: {
+        id: stage.id,
+        title: stageTitle,
+        agent_id: stage.agent_id,
+        status: stage.status,
+        approval_status: stage.approval_status || '',
+        approval_type: stage.approval_type || '',
+        iteration: stage.iteration,
+        cost: stage.cost,
+        tokens_in: stage.tokens_in,
+        tokens_out: stage.tokens_out,
+        turns: stage.turns,
+        duration_ms: stage.duration_ms,
+        provider: stage.provider,
+        created_at: '',
+        // Display handoff target
+        isHandoffTarget: i > 0,
+        // Stage spans for expand/collapse
+        spans: stage.spans,
+        // Feedback
+        human_feedback: stage.human_feedback,
+        error_message: stage.error_message,
+      },
+      selected: selectedNodeId === stage.id || selectedNodeId === stage.task_id,
+    });
+
+    rootNodeIds.push(stageNodeId);
+
+    if (stage.spans && stage.spans.length > 0) {
+      expandableNodeIds.push(stageNodeId);
+    }
+
+    // Create handoff edge to next stage
+    if (i < sortedStages.length - 1) {
+      const nextStage = sortedStages[i + 1];
+      const nextNodeId = `stage-${nextStage.id}`;
+
+      // Style based on approval
+      const isApproved = stage.approval_status === 'approved';
+      const isPending = stage.approval_status === 'pending';
+      const isRejected = stage.approval_status === 'rejected';
+
+      edges.push({
+        id: `e-${stageNodeId}-${nextNodeId}`,
+        source: stageNodeId,
+        target: nextNodeId,
+        type: 'smoothstep',
+        animated: isPending,
+        style: {
+          stroke: isApproved ? '#10b981' : isRejected ? '#ef4444' : isPending ? '#f59e0b' : '#64748b',
+          strokeWidth: 2,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: isApproved ? '#10b981' : isRejected ? '#ef4444' : isPending ? '#f59e0b' : '#64748b',
+        },
+        label: stage.handoff_to ? `→ ${stage.handoff_to}` : (stage.approval_type || ''),
+        labelStyle: {
+          fill: '#94a3b8',
+          fontSize: 10,
+        },
+      });
+    }
+  }
+
+  // Apply dagre layout
+  const layoutedNodes = applyDagreLayout(nodes, edges);
+
+  return {
+    nodes: layoutedNodes,
+    edges,
+    stats,
+    rootNodeIds,
+    expandableNodeIds,
+  };
+}
+
 export default buildGraphFromSpans;

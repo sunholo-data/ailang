@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -274,6 +275,106 @@ func (s *Store) ListSpans(opts SpanListOptions) ([]*Span, error) {
 		spans = append(spans, span)
 	}
 	return spans, rows.Err()
+}
+
+// ListSpansByTaskIDs fetches spans for multiple task IDs in a single query.
+// Returns a map of task_id -> []*Span. Much more efficient than calling
+// ListSpans once per task (single query vs N queries).
+func (s *Store) ListSpansByTaskIDs(taskIDs []string, limitPerTask int) (map[string][]*Span, error) {
+	if len(taskIDs) == 0 {
+		return nil, nil
+	}
+
+	// Build IN clause with placeholders
+	placeholders := make([]string, len(taskIDs))
+	args := make([]interface{}, len(taskIDs))
+	for i, id := range taskIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, trace_id, parent_span_id, task_id, agent_assignment_id,
+		       COALESCE(chain_id, ''), COALESCE(stage_id, ''),
+		       name, kind, status, status_message, start_time, end_time,
+		       duration_ms, tokens_in, tokens_out,
+		       COALESCE(cache_read_tokens, 0), COALESCE(cache_creation_tokens, 0),
+		       cost_usd, model, provider,
+		       attributes, resource_attributes, created_at
+		FROM spans
+		WHERE task_id IN (%s)
+		ORDER BY task_id, start_time ASC
+	`, strings.Join(placeholders, ","))
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string][]*Span)
+	for rows.Next() {
+		span := &Span{}
+		var parentSpanID, taskID, agentAssignmentID, chainID, stageID, statusMessage, model sql.NullString
+		var provider sql.NullString
+		var endTime sql.NullTime
+		var cacheReadTokens, cacheCreationTokens sql.NullInt64
+		var attributesJSON, resourceAttributesJSON string
+
+		if err := rows.Scan(&span.ID, &span.TraceID, &parentSpanID, &taskID, &agentAssignmentID,
+			&chainID, &stageID,
+			&span.Name, &span.Kind, &span.Status, &statusMessage, &span.StartTime, &endTime,
+			&span.DurationMs, &span.TokensIn, &span.TokensOut,
+			&cacheReadTokens, &cacheCreationTokens,
+			&span.CostUSD, &model, &provider,
+			&attributesJSON, &resourceAttributesJSON, &span.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		if parentSpanID.Valid {
+			span.ParentSpanID = parentSpanID.String
+		}
+		if cacheReadTokens.Valid {
+			span.CacheReadTokens = cacheReadTokens.Int64
+		}
+		if cacheCreationTokens.Valid {
+			span.CacheCreationTokens = cacheCreationTokens.Int64
+		}
+		if taskID.Valid {
+			span.TaskID = taskID.String
+		}
+		if agentAssignmentID.Valid {
+			span.AgentAssignmentID = agentAssignmentID.String
+		}
+		if chainID.Valid {
+			span.ChainID = chainID.String
+		}
+		if stageID.Valid {
+			span.StageID = stageID.String
+		}
+		if statusMessage.Valid {
+			span.StatusMessage = statusMessage.String
+		}
+		if endTime.Valid {
+			span.EndTime = &endTime.Time
+		}
+		if model.Valid {
+			span.Model = model.String
+		}
+		if provider.Valid {
+			span.Provider = Provider(provider.String)
+		}
+
+		span.ParseAttributes(attributesJSON)
+		span.ParseResourceAttributes(resourceAttributesJSON)
+
+		tid := span.TaskID
+		if limitPerTask > 0 && len(result[tid]) >= limitPerTask {
+			continue // Skip if we already have enough spans for this task
+		}
+		result[tid] = append(result[tid], span)
+	}
+	return result, rows.Err()
 }
 
 // UpdateSpan updates an existing span.

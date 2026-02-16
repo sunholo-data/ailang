@@ -11,9 +11,8 @@
  * - State management available via hooks/useExecHierarchyState.ts
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, CoordinatorViewMode, FilterCriteria, ExecHierarchyNode } from './types';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, CoordinatorViewMode, FilterCriteria, ExecHierarchyNode, ChainData, ChainStageData } from './types';
 import { ExecHierarchyTree } from './ExecHierarchyTree';
-import { ExecHierarchyGraph } from './ExecHierarchyGraph';
 import { TaskHierarchyGraph } from './TaskHierarchyGraph';
 import { ChatHistory } from './ChatHistory';
 import { EvolutionTree } from './EvolutionTree';
@@ -100,6 +99,55 @@ function spanToHierarchyNode(span: Span, siblingIndex?: number, depth: number = 
 // Transform spans to hierarchy nodes
 function transformSpansToNodes(spans: Span[]): HierarchyNode[] {
   return spans.map((span, idx) => spanToHierarchyNode(span, idx));
+}
+
+// Transform chain stages to hierarchy nodes (M-CHAIN-DASHBOARD)
+// Each stage becomes a top-level exec node with its spans as children
+function chainToHierarchyNodes(chain: ChainData): HierarchyNode[] {
+  if (!chain.stages || chain.stages.length === 0) return [];
+
+  return chain.stages.map((stage: ChainStageData) => {
+    // Transform stage spans to child hierarchy nodes
+    const children = stage.spans
+      ? stage.spans.map((span, idx) => spanToHierarchyNode(span, idx))
+      : [];
+
+    // Map stage status to node status
+    const statusMap: Record<string, 'idle' | 'busy' | 'error' | 'completed' | 'pending' | 'unknown'> = {
+      'pending': 'pending',
+      'running': 'busy',
+      'awaiting_approval': 'pending',
+      'completed': 'completed',
+      'failed': 'error',
+    };
+
+    const node: HierarchyNode = {
+      id: stage.id,
+      type: 'exec',
+      label: `${stage.agent_id}${stage.iteration > 1 ? ` (iter ${stage.iteration})` : ''}`,
+      status: statusMap[stage.status] || 'unknown',
+      durationMs: stage.duration_ms,
+      startTime: stage.started_at,
+      cost: stage.cost,
+      tokensIn: stage.tokens_in,
+      tokensOut: stage.tokens_out,
+      provider: stage.provider,
+      semanticType: 'coordinator',
+      taskId: stage.task_id,
+      agentId: stage.agent_id,
+      approvalStatus: (stage.approval_status as 'pending' | 'approved' | 'rejected') || 'none',
+      children,
+      isCollapsible: children.length > 0,
+      childCount: children.length > 0 ? countAllDescendants(children) : 0,
+    };
+
+    return node;
+  });
+}
+
+// Count all descendants in a list of nodes
+function countAllDescendants(nodes: HierarchyNode[]): number {
+  return nodes.reduce((sum, node) => sum + 1 + (node.children ? countAllDescendants(node.children) : 0), 0);
 }
 
 // Extract nested coordinator tasks for breakout view
@@ -298,6 +346,7 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   highlightedSpanId,
   onClearHighlight,
   theme,
+  chainData,
 }) => {
   // Default to graph view (ReactFlow)
   const [viewMode, setViewMode] = useState<ViewMode>('graph');
@@ -356,10 +405,14 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
 
   // Transform spans to hierarchy nodes (same data as TraceWaterfall)
+  // When chain data is available, use stages as top-level groups
   const rawNodes = useMemo(() => {
+    if (chainData?.stages && chainData.stages.length > 0) {
+      return chainToHierarchyNodes(chainData);
+    }
     if (!spans || spans.length === 0) return [];
     return transformSpansToNodes(spans);
-  }, [spans]);
+  }, [spans, chainData]);
 
   // Extract unique span types from all spans (for filter dropdown)
   // Uses collectUniqueSpanTypes from utils/idService.ts
@@ -833,10 +886,12 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         {viewMode === 'graph' && (
           <TaskHierarchyGraph
             selectedNodeId={selectedNodeId}
+            // Chain data for chain-aware rendering (M-CHAIN-DASHBOARD)
+            chainData={chainData}
             // FIX: Pass spans directly - same data source as Tree/Timeline/Chat views
             // This ensures filtering works correctly when events are selected
             spans={spans}
-            // Keep legacy filter props for fallback when no spans loaded
+            // Keep legacy filter props for fallback when no spans/chain loaded
             filterTaskId={selectedNodeId?.startsWith('task-') ? selectedNodeId : undefined}
             spanTaskIds={spanTaskIds.length > 0 ? spanTaskIds : undefined}
             filterTraceId={selectedNodeId && !selectedNodeId.startsWith('task-') && spanTaskIds.length === 0 ? selectedNodeId : undefined}

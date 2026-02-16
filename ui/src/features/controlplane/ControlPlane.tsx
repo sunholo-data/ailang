@@ -14,6 +14,7 @@ import {
   useTraceData,
   useBreakdownData,
   useOutliersAnalysis,
+  useChainData,
 } from './hooks';
 import {
   ControlPlaneFilters,
@@ -250,6 +251,8 @@ export const ControlPlane: React.FC = () => {
   const [approvalDropdownOpen, setApprovalDropdownOpen] = useState(false);
   // Track selected event for trace correlation
   const [selectedEventTraceId, setSelectedEventTraceId] = useState<string | null>(null);
+  // Track selected event's message ID for chain lookup
+  const [selectedEventMessageId, setSelectedEventMessageId] = useState<string | null>(null);
   // Track highlighted span ID (for outlier click-to-highlight)
   const [highlightedSpanId, setHighlightedSpanId] = useState<string | null>(null);
   // Detail panel state - must be defined before memos that use it
@@ -257,6 +260,15 @@ export const ControlPlane: React.FC = () => {
 
   const { spans: traceSpans, spansLoading, fetchSpansForTrace } = useTraceData({
     limit: 100  // Don't auto-fetch, we'll call fetchSpansForTrace manually with auto mode
+  });
+
+  // Chain data lookup - attempts to find chain context for the selected event.
+  // When no real chain exists, synthesizes a virtual chain from traceSpans.
+  // "Everything is a chain" — hasChain is true whenever spans exist.
+  const { chain: chainData, loading: chainLoading, hasChain, allStageSpans } = useChainData({
+    taskId: selectedEventTraceId,
+    messageId: selectedEventMessageId,
+    fallbackSpans: traceSpans,
   });
 
   // Fetch outliers analysis for selected task (used in EventDetail)
@@ -302,7 +314,8 @@ export const ControlPlane: React.FC = () => {
 
   // Direct references - no memo needed for pass-through
   const events = liveEvents;
-  const spans = traceSpans;
+  // Prefer chain stage spans (real or synthesized); fall back to raw trace spans
+  const spans = allStageSpans.length > 0 ? allStageSpans : traceSpans;
 
   // Interactive state
   const [topologyExpanded, setTopologyExpanded] = useState(false);
@@ -406,6 +419,7 @@ export const ControlPlane: React.FC = () => {
     }
 
     setSelectedEventTraceId(lookupId);
+    setSelectedEventMessageId(event.id); // For chain lookup by message_id
     // Use 'auto' mode to try trace_id, then task_id, then task-prefixed
     fetchSpansForTrace(lookupId, 'auto');
 
@@ -453,6 +467,7 @@ export const ControlPlane: React.FC = () => {
   const closeDetailPanel = useCallback(() => {
     setDetailPanel({ type: null, id: null });
     setSelectedEventTraceId(null);
+    setSelectedEventMessageId(null);
     // Clear topology highlighting
     setHighlightedPath(new Set());
     setSelectedTopologyNode(null);
@@ -683,7 +698,8 @@ export const ControlPlane: React.FC = () => {
               highlightedSpanId={highlightedSpanId}
               onClearHighlight={() => setHighlightedSpanId(null)}
               spans={spans}
-              loading={spansLoading}
+              loading={spansLoading || chainLoading}
+              chainData={chainData}
               filterCriteria={{
                 dateRange: selectedDateRange,
                 eventTypes: selectedEventTypes.length > 0 ? selectedEventTypes : undefined,
