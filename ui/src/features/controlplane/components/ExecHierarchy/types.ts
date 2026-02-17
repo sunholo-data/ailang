@@ -8,7 +8,7 @@ import type React from 'react';
 export type HierarchyNodeType = 'message' | 'exec' | 'turn' | 'tool_use' | 'approval';
 
 // View mode toggle
-export type ViewMode = 'tree' | 'graph' | 'timeline' | 'chat' | 'evolution';
+export type ViewMode = 'chains' | 'timeline' | 'chat' | 'evolution';
 
 // Coordinator task view mode
 export type CoordinatorViewMode = 'nested' | 'breakout';

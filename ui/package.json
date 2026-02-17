@@ -14,15 +14,12 @@
   },
   "dependencies": {
     "@types/d3-hierarchy": "^3.1.7",
-    "@types/dagre": "^0.7.53",
     "d3-hierarchy": "^3.1.2",
-    "dagre": "^0.8.5",
     "firebase": "^12.8.0",
     "highlight.js": "^11.11.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
-    "reactflow": "^11.11.4",
     "recharts": "^3.6.0"
   },
   "devDependencies": {

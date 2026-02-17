@@ -11,9 +11,8 @@
  * - State management available via hooks/useExecHierarchyState.ts
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, CoordinatorViewMode, FilterCriteria, ExecHierarchyNode, ChainData, ChainStageData } from './types';
-import { ExecHierarchyTree } from './ExecHierarchyTree';
-import { TaskHierarchyGraph } from './TaskHierarchyGraph';
+import type { HierarchyNode, ViewMode, ExecHierarchyProps, Span, FilterCriteria, ExecHierarchyNode, ChainData, ChainStageData } from './types';
+import { ChainExplorer } from '../ChainExplorer/ChainExplorer';
 import { ChatHistory } from './ChatHistory';
 import { EvolutionTree } from './EvolutionTree';
 import { CliCommandHint } from '../CliCommandHint';
@@ -38,7 +37,6 @@ import {
 import {
   extractCoordinatorContext,
   collectSpanTypes as collectUniqueSpanTypes,
-  collectTaskIds as collectSpanTaskIds,
 } from '../../utils/idService';
 
 // Popover max dimensions - compact design
@@ -148,72 +146,6 @@ function chainToHierarchyNodes(chain: ChainData): HierarchyNode[] {
 // Count all descendants in a list of nodes
 function countAllDescendants(nodes: HierarchyNode[]): number {
   return nodes.reduce((sum, node) => sum + 1 + (node.children ? countAllDescendants(node.children) : 0), 0);
-}
-
-// Extract nested coordinator tasks for breakout view
-// Returns all coordinator tasks as separate root nodes with parent links preserved
-function breakoutCoordinatorTasks(nodes: HierarchyNode[]): HierarchyNode[] {
-  const result: HierarchyNode[] = [];
-  const coordinatorNodes: HierarchyNode[] = [];
-
-  // Collect all coordinator nodes and their children
-  const collectCoordinatorNodes = (nodeList: HierarchyNode[], parentTaskId?: string) => {
-    for (const node of nodeList) {
-      // Check if this is a coordinator task (semanticType or span name)
-      const isCoordinator = node.semanticType === 'coordinator' ||
-        node._span?.name === 'coordinator.task.execute';
-
-      if (isCoordinator) {
-        // Create a copy with parent reference preserved
-        const coordNode: HierarchyNode = {
-          ...node,
-          parentTaskId: parentTaskId || node.parentTaskId,
-        };
-
-        // Recursively collect nested coordinators, then remove them from children
-        if (node.children && node.children.length > 0) {
-          const nonCoordChildren: HierarchyNode[] = [];
-          for (const child of node.children) {
-            const childIsCoord = child.semanticType === 'coordinator' ||
-              child._span?.name === 'coordinator.task.execute';
-            if (childIsCoord) {
-              // This child is a coordinator - collect it separately
-              collectCoordinatorNodes([child], coordNode.taskId || coordNode.id);
-            } else {
-              nonCoordChildren.push(child);
-            }
-          }
-          coordNode.children = nonCoordChildren;
-          coordNode.childCount = nonCoordChildren.length > 0 ?
-            countDescendants(coordNode) + nonCoordChildren.length : 0;
-        }
-
-        coordinatorNodes.push(coordNode);
-      } else {
-        // Not a coordinator - keep in place but check children for nested coordinators
-        const nodeCopy = { ...node };
-        if (node.children && node.children.length > 0) {
-          const nonCoordChildren: HierarchyNode[] = [];
-          for (const child of node.children) {
-            const childIsCoord = child.semanticType === 'coordinator' ||
-              child._span?.name === 'coordinator.task.execute';
-            if (childIsCoord) {
-              collectCoordinatorNodes([child], parentTaskId);
-            } else {
-              nonCoordChildren.push(child);
-            }
-          }
-          nodeCopy.children = nonCoordChildren;
-        }
-        result.push(nodeCopy);
-      }
-    }
-  };
-
-  collectCoordinatorNodes(nodes);
-
-  // Combine: non-coordinator roots + all coordinator nodes as separate roots
-  return [...result, ...coordinatorNodes];
 }
 
 // Count total descendants recursively
@@ -348,11 +280,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
   theme,
   chainData,
 }) => {
-  // Default to graph view (ReactFlow)
-  const [viewMode, setViewMode] = useState<ViewMode>('graph');
-
-  // Coordinator view mode: nested (default) or breakout
-  const [coordViewMode, setCoordViewMode] = useState<CoordinatorViewMode>('nested');
+  // Default to chains view
+  const [viewMode, setViewMode] = useState<ViewMode>('chains');
 
   // Span type filtering (Milestone 14) - generic filter for any span type
   // Use props if provided (lifted state), otherwise use internal state
@@ -426,13 +355,6 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     return uniqueSpanTypes.filter(type => hiddenSpanTypes.has(type)).length;
   }, [uniqueSpanTypes, hiddenSpanTypes]);
 
-  // Extract unique task_ids from spans (for filtering TaskHierarchyGraph)
-  // Uses collectSpanTaskIds from utils/idService.ts
-  const spanTaskIds = useMemo(() => {
-    if (!spans) return [];
-    return collectSpanTaskIds(spans);
-  }, [spans]);
-
   // Show All / Hide All handlers for span type filter
   const handleShowAllSpanTypes = useCallback(() => {
     uniqueSpanTypes.forEach(type => {
@@ -446,13 +368,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
     });
   }, [uniqueSpanTypes, hiddenSpanTypes, toggleSpanType]);
 
-  // Apply coordinator view mode transformation
-  const transformedNodes = useMemo(() => {
-    if (coordViewMode === 'breakout') {
-      return breakoutCoordinatorTasks(rawNodes);
-    }
-    return rawNodes;
-  }, [rawNodes, coordViewMode]);
+  // Direct node pass-through (coordinator breakout mode removed)
+  const transformedNodes = rawNodes;
 
   // Apply span type filtering (Milestone 14): hide spans by type, promote their children
   // When a span type is in hiddenSpanTypes, it's removed and its children are promoted to parent
@@ -804,11 +721,9 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         totalNodeCount={totalNodeCount}
         topLevelNodeCount={nodes.length}
         viewMode={viewMode}
-        coordViewMode={coordViewMode}
         reverseOrder={reverseOrder}
         isExpanded={isExpanded}
         onViewModeChange={setViewMode}
-        onCoordViewModeChange={setCoordViewMode}
         onToggleReverseOrder={() => setReverseOrder(!reverseOrder)}
         onToggleExpand={onToggleExpand}
         uniqueSpanTypes={uniqueSpanTypes}
@@ -871,42 +786,19 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         className={`${styles.viewport} ${isExpanded ? styles.viewportExpanded : ''}`}
         onClick={handleContainerClick}
       >
-        {viewMode === 'tree' && (
-          <ExecHierarchyTree
-            nodes={limitedNodes}
-            selectedNodeId={selectedNodeId}
-            onNodeClick={handleNodeClick}
-            loading={loading}
-            error={null}
-            expandedNodeIds={expandedNodes}
-            onToggleExpand={handleToggleExpand}
-            highlightedSpanId={highlightedSpanId}
-          />
-        )}
-        {viewMode === 'graph' && (
-          <TaskHierarchyGraph
-            selectedNodeId={selectedNodeId}
-            // Chain data for chain-aware rendering (M-CHAIN-DASHBOARD)
-            chainData={chainData}
-            // FIX: Pass spans directly - same data source as Tree/Timeline/Chat views
-            // This ensures filtering works correctly when events are selected
-            spans={spans}
-            // Keep legacy filter props for fallback when no spans/chain loaded
-            filterTaskId={selectedNodeId?.startsWith('task-') ? selectedNodeId : undefined}
-            spanTaskIds={spanTaskIds.length > 0 ? spanTaskIds : undefined}
-            filterTraceId={selectedNodeId && !selectedNodeId.startsWith('task-') && spanTaskIds.length === 0 ? selectedNodeId : undefined}
-            // Use handleNodeClick for popover (same as Tree view)
-            onNodeClick={handleNodeClick}
+        {viewMode === 'chains' && (
+          <ChainExplorer
             isExpanded={isExpanded}
-            recenterTrigger={expandChangeCounter}
-            workspace={filters?.workspace}
-            provider={filters?.provider}
-            // Span type filtering - same as other views
+            spans={spans}
+            loading={loading}
+            chainData={chainData}
+            filterCriteria={filterCriteria}
             hiddenSpanTypes={hiddenSpanTypes}
-            // Chat context - open popover with inline chat content
-            onChatContextClick={() => {
-              // Graph nodes don't pass node ref; popover shows chat_context from selected node
-            }}
+            onToggleSpanType={toggleSpanType}
+            filters={filters}
+            theme={theme}
+            onNodeClick={handleNodeClick}
+            selectedNodeId={selectedNodeId}
           />
         )}
         {viewMode === 'timeline' && (

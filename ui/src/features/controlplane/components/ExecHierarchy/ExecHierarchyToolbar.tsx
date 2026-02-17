@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import type { ViewMode, CoordinatorViewMode } from './types';
+import type { ViewMode } from './types';
 import styles from './ExecHierarchy.module.css';
 
 // ============================================================================
@@ -21,13 +21,11 @@ export interface ExecHierarchyToolbarProps {
 
   // View state
   viewMode: ViewMode;
-  coordViewMode: CoordinatorViewMode;
   reverseOrder: boolean;
   isExpanded: boolean;
 
   // View callbacks
   onViewModeChange: (mode: ViewMode) => void;
-  onCoordViewModeChange: (mode: CoordinatorViewMode) => void;
   onToggleReverseOrder: () => void;
   onToggleExpand: () => void;
 
@@ -59,11 +57,9 @@ export const ExecHierarchyToolbar: React.FC<ExecHierarchyToolbarProps> = ({
   totalNodeCount,
   topLevelNodeCount,
   viewMode,
-  coordViewMode,
   reverseOrder,
   isExpanded,
   onViewModeChange,
-  onCoordViewModeChange,
   onToggleReverseOrder,
   onToggleExpand,
   uniqueSpanTypes,
@@ -150,26 +146,6 @@ export const ExecHierarchyToolbar: React.FC<ExecHierarchyToolbarProps> = ({
           </div>
         )}
 
-        {/* Coordinator View Mode Toggle */}
-        {!isEmpty && (
-          <div className={styles.viewToggle}>
-            <button
-              className={`${styles.viewToggleBtn} ${coordViewMode === 'nested' ? styles.viewToggleBtnActive : ''}`}
-              onClick={() => onCoordViewModeChange('nested')}
-              title="Nested View (child tasks under parents)"
-            >
-              ⊏
-            </button>
-            <button
-              className={`${styles.viewToggleBtn} ${coordViewMode === 'breakout' ? styles.viewToggleBtnActive : ''}`}
-              onClick={() => onCoordViewModeChange('breakout')}
-              title="Breakout View (each task as separate root)"
-            >
-              ⊔
-            </button>
-          </div>
-        )}
-
         {/* Collapse/Expand Controls */}
         {!isEmpty && (
           <div className={styles.collapseControls}>
@@ -207,18 +183,11 @@ export const ExecHierarchyToolbar: React.FC<ExecHierarchyToolbarProps> = ({
         {/* View Toggle */}
         <div className={styles.viewToggle}>
           <button
-            className={`${styles.viewToggleBtn} ${viewMode === 'tree' ? styles.viewToggleBtnActive : ''}`}
-            onClick={() => onViewModeChange('tree')}
-            title="Tree View"
+            className={`${styles.viewToggleBtn} ${viewMode === 'chains' ? styles.viewToggleBtnActive : ''}`}
+            onClick={() => onViewModeChange('chains')}
+            title="Chain Explorer"
           >
-            ≡
-          </button>
-          <button
-            className={`${styles.viewToggleBtn} ${viewMode === 'graph' ? styles.viewToggleBtnActive : ''}`}
-            onClick={() => onViewModeChange('graph')}
-            title="Graph View"
-          >
-            ⬡
+            ⛓
           </button>
           <button
             className={`${styles.viewToggleBtn} ${viewMode === 'timeline' ? styles.viewToggleBtnActive : ''}`}

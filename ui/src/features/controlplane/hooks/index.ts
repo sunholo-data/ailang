@@ -7,6 +7,6 @@ export * from './useControlPlaneStats';
 export * from './useBreakdownData';
 export * from './useSessionsData';
 export * from './useOutliersAnalysis';
-export * from './useTaskHierarchy';
 export * from './useExecHierarchyState';
 export * from './useChainData';
+export * from './useChainList';
