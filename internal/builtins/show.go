@@ -159,6 +159,9 @@ func showValue(v eval.Value, depth int) string {
 		}
 		return val.CtorName + "(" + strings.Join(argStrs, ", ") + ")"
 
+	case *eval.UnitValue:
+		return "()"
+
 	case *eval.FunctionValue:
 		return "<function>"
 

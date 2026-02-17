@@ -47,7 +47,7 @@ Connections are limited to MaxConnections (default: 4).`,
 				{Name: "url", Description: "WebSocket URL (wss:// or ws:// if AllowHTTP)"},
 				{Name: "config", Description: "Configuration record with optional headers and subprotocols"},
 			},
-			Returns:   "Result[StreamConn, StreamError]",
+			Returns:   "Result[StreamConn, StreamErrorKind]",
 			Since:     "v0.8.1",
 			Stability: StabilityExperimental,
 			Tags:      []string{"stream", "websocket", "connect", "network"},
@@ -60,15 +60,14 @@ Connections are limited to MaxConnections (default: 4).`,
 }
 
 // makeStreamConnectType builds the type signature for _stream_connect
-// Type: (string, string) -> string ! {Stream}
-// Phase 1: simplified string types; Phase 2 will use proper ADT/record types
+// Type: (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 func makeStreamConnectType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
 		T.String(), // url
-		T.String(), // config (JSON string for Phase 1)
+		T.String(), // config (JSON string)
 	).Returns(
-		T.String(), // Result ADT as tagged value (runtime-typed)
+		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")
 }
 
@@ -96,7 +95,7 @@ SSE connections are read-only — calling transmit() returns Err(ProtocolError).
 				{Name: "url", Description: "SSE endpoint URL (https:// or http:// if AllowHTTP)"},
 				{Name: "config", Description: "Configuration record with optional headers list"},
 			},
-			Returns:   "Result[StreamConn, StreamError]",
+			Returns:   "Result[StreamConn, StreamErrorKind]",
 			Since:     "v0.8.1",
 			Stability: StabilityExperimental,
 			Tags:      []string{"stream", "sse", "connect", "network", "ai"},
@@ -109,14 +108,14 @@ SSE connections are read-only — calling transmit() returns Err(ProtocolError).
 }
 
 // makeStreamSSEConnectType builds the type signature for _stream_sse_connect
-// Type: (string, string) -> string ! {Stream}
+// Type: (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 func makeStreamSSEConnectType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
 		T.String(), // url
 		T.String(), // config
 	).Returns(
-		T.String(), // Result ADT as tagged value (runtime-typed)
+		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")
 }
 
@@ -138,7 +137,7 @@ func registerStreamSend() {
 				{Name: "conn", Description: "StreamConn handle from connect"},
 				{Name: "msg", Description: "StreamMessage: Text(string) or Bin(bytes)"},
 			},
-			Returns:   "Result[unit, StreamError]",
+			Returns:   "Result[unit, StreamErrorKind]",
 			Since:     "v0.8.1",
 			Stability: StabilityExperimental,
 			Tags:      []string{"stream", "websocket", "send", "message"},
@@ -151,14 +150,14 @@ func registerStreamSend() {
 }
 
 // makeStreamSendType builds the type signature for _stream_send
-// Type: (string, string) -> string ! {Stream}
+// Type: (StreamConn, string) -> Result[unit, StreamErrorKind] ! {Stream}
 func makeStreamSendType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // conn
-		T.String(), // msg
+		T.Con("StreamConn"), // conn
+		T.String(),          // msg (auto-wrapped as Text in Go runtime)
 	).Returns(
-		T.String(),
+		T.App("Result", T.Unit(), T.Con("StreamErrorKind")),
 	).Effects("Stream")
 }
 
@@ -193,13 +192,13 @@ func registerStreamOnEvent() {
 }
 
 // makeStreamOnEventType builds the type signature for _stream_onEvent
-// Type: (string, (string -> bool)) -> unit ! {Stream}
+// Type: (StreamConn, (StreamEvent -> bool)) -> unit ! {Stream}
 func makeStreamOnEventType() types.Type {
 	T := types.NewBuilder()
-	handlerType := T.Func(T.String()).Returns(T.Bool()).Build()
+	handlerType := T.Func(T.Con("StreamEvent")).Returns(T.Bool()).Build()
 	return T.Func(
-		T.String(),  // conn
-		handlerType, // handler: (string -> bool)
+		T.Con("StreamConn"), // conn
+		handlerType,         // handler: (StreamEvent -> bool)
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -240,11 +239,11 @@ and dispatching them to the registered handler (set via onEvent). Stops when:
 }
 
 // makeStreamRunEventLoopType builds the type signature for _stream_runEventLoop
-// Type: string -> unit ! {Stream}
+// Type: StreamConn -> unit ! {Stream}
 func makeStreamRunEventLoopType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // conn
+		T.Con("StreamConn"), // conn
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -280,11 +279,11 @@ func registerStreamClose() {
 }
 
 // makeStreamCloseType builds the type signature for _stream_close
-// Type: string -> unit ! {Stream}
+// Type: StreamConn -> unit ! {Stream}
 func makeStreamCloseType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // conn
+		T.Con("StreamConn"), // conn
 	).Returns(
 		T.Unit(),
 	).Effects("Stream")
@@ -303,11 +302,11 @@ func registerStreamGetStatus() {
 
 		Metadata: &BuiltinMetadata{
 			Description: "Get the current status of a WebSocket connection",
-			LongDesc:    "Returns the connection status as a StreamStatus ADT: Connecting, Open, Closing, or Closed.",
+			LongDesc:    "Returns the connection status as a StreamStatus ADT: Connecting, Open, Closing, or StreamClosed.",
 			Params: []ParamDoc{
 				{Name: "conn", Description: "StreamConn handle to check"},
 			},
-			Returns:   "StreamStatus: Connecting | Open | Closing | Closed",
+			Returns:   "StreamStatus: Connecting | Open | Closing | StreamClosed",
 			Since:     "v0.8.1",
 			Stability: StabilityExperimental,
 			Tags:      []string{"stream", "websocket", "status"},
@@ -320,12 +319,12 @@ func registerStreamGetStatus() {
 }
 
 // makeStreamGetStatusType builds the type signature for _stream_status
-// Type: string -> string ! {Stream}
+// Type: StreamConn -> StreamStatus ! {Stream}
 func makeStreamGetStatusType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // conn
+		T.Con("StreamConn"), // conn
 	).Returns(
-		T.String(),
+		T.Con("StreamStatus"),
 	).Effects("Stream")
 }

@@ -569,6 +569,68 @@ func TestEllipsisSugarMarked(t *testing.T) {
 }
 
 // TestDerivingEqErrors tests error handling for invalid deriving syntax
+// TestExportFlagPreservedAfterSingleConstructorADT is a regression test for
+// the parser cursor bug where a single-constructor ADT (e.g., Wrap(int)) consumed
+// RPAREN, over-advancing the cursor and causing the next declaration's `export`
+// keyword to be skipped. See design_docs/planned/v0_8_1/m-parser-export-multiline-adt.md
+func TestExportFlagPreservedAfterSingleConstructorADT(t *testing.T) {
+	input := `module test
+
+export type Wrapper = Wrap(int)
+
+export type MyEvent =
+  | Foo(string)
+  | Bar(int)
+
+export type Status = Active | Inactive
+
+export func hello(x: string) -> string { x }
+`
+	p := New(lexer.New(input, "test://unit"))
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			t.Errorf("parse error: %v", e)
+		}
+		t.Fatalf("unexpected parse errors")
+	}
+
+	// Collect type declarations
+	typeDecls := map[string]bool{} // name -> exported
+	for _, decl := range file.Decls {
+		if td, ok := decl.(*ast.TypeDecl); ok {
+			typeDecls[td.Name] = td.Exported
+		}
+	}
+
+	// ALL three types must be exported
+	for _, name := range []string{"Wrapper", "MyEvent", "Status"} {
+		exported, found := typeDecls[name]
+		if !found {
+			t.Errorf("type %s not found in parsed declarations", name)
+			continue
+		}
+		if !exported {
+			t.Errorf("type %s: Exported=%v, want true", name, exported)
+		}
+	}
+
+	// The function must also be exported
+	foundFunc := false
+	for _, decl := range file.Decls {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Name == "hello" {
+			foundFunc = true
+			if !fd.IsExport {
+				t.Errorf("func hello: IsExport=%v, want true", fd.IsExport)
+			}
+		}
+	}
+	if !foundFunc {
+		t.Error("func hello not found in parsed declarations")
+	}
+}
+
 func TestDerivingEqErrors(t *testing.T) {
 	tests := []struct {
 		name  string

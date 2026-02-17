@@ -29,7 +29,7 @@ func (s StreamStatus) String() string {
 	case StreamStatusClosing:
 		return "Closing"
 	case StreamStatusClosed:
-		return "Closed"
+		return "StreamClosed"
 	default:
 		return "Unknown"
 	}
@@ -541,7 +541,7 @@ func StreamGetStatus(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 	conn, ok := ctx.Stream.GetConnection(connID)
 	if !ok {
-		return &eval.TaggedValue{CtorName: "Closed"}, nil
+		return &eval.TaggedValue{CtorName: "StreamClosed"}, nil
 	}
 
 	status := conn.Status()
@@ -650,19 +650,12 @@ func eventToADT(evt streamEvent) eval.Value {
 	case "binary":
 		return &eval.TaggedValue{
 			CtorName: "Binary",
-			Fields:   []eval.Value{&eval.BytesValue{Value: evt.data}},
+			Fields:   []eval.Value{&eval.StringValue{Value: string(evt.data)}},
 		}
 	case "opened":
 		return &eval.TaggedValue{
 			CtorName: "Opened",
-			Fields: []eval.Value{
-				&eval.RecordValue{
-					Fields: map[string]eval.Value{
-						"protocol":    &eval.TaggedValue{CtorName: "WebSocket"},
-						"subprotocol": &eval.StringValue{Value: evt.text},
-					},
-				},
-			},
+			Fields:   []eval.Value{&eval.StringValue{Value: evt.text}},
 		}
 	case "closed":
 		return &eval.TaggedValue{
@@ -674,7 +667,7 @@ func eventToADT(evt streamEvent) eval.Value {
 		}
 	case "error":
 		return &eval.TaggedValue{
-			CtorName: "Error",
+			CtorName: "StreamError",
 			Fields: []eval.Value{
 				&eval.TaggedValue{
 					CtorName: evt.errType,
@@ -685,7 +678,7 @@ func eventToADT(evt streamEvent) eval.Value {
 	case "ping":
 		return &eval.TaggedValue{
 			CtorName: "Ping",
-			Fields:   []eval.Value{&eval.BytesValue{Value: evt.data}},
+			Fields:   []eval.Value{&eval.StringValue{Value: string(evt.data)}},
 		}
 	case "sse_data":
 		// SSE data event: SSEData(eventType, data)
@@ -699,7 +692,7 @@ func eventToADT(evt streamEvent) eval.Value {
 		}
 	default:
 		return &eval.TaggedValue{
-			CtorName: "Error",
+			CtorName: "StreamError",
 			Fields: []eval.Value{
 				&eval.TaggedValue{
 					CtorName: "ProtocolError",

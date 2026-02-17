@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ### Added
+- **M-STREAM-PHASE2-DX: Typed ADT exports for std/stream** (`std/stream.ail`, `internal/builtins/stream.go`, `internal/effects/stream.go`, `internal/parser/parser_type.go`, ~280 LOC)
+  - 5 ADT types exported from `std/stream`: `StreamConn`, `StreamEvent`, `StreamErrorKind`, `StreamMessage`, `StreamStatus`
+  - All 7 builtin type signatures updated to use `T.Con()`/`T.App()` instead of `T.String()`
+  - `eventToADT` constructors renamed: `Error` → `StreamError`, `Closed` → `StreamClosed` to match type declarations
+  - SSE support: `_stream_sse_connect` builtin + `sseConnect`/`withSSE` wrappers in std/stream.ail
+  - Examples: `stream_websocket.ail` and `stream_sse.ail` use typed imports and pattern matching
+  - **Parser bug fix:** Single-constructor ADTs with fields (e.g., `export type Wrap = Wrap(int)`) no longer cause the next `export` keyword to be skipped — cursor convention violation in `parseTypeDeclBody` fixed
+  - Regression test added: `TestExportFlagPreservedAfterSingleConstructorADT`
+  - Design doc: `design_docs/planned/v0_8_1/m-parser-export-multiline-adt.md`
+
 - **M-STREAM-BIDI: Bidirectional WebSocket streaming primitives** (`internal/effects/stream.go`, `internal/effects/stream_context.go`, `internal/builtins/stream.go`, `std/stream.ail`, ~1,242 LOC impl + ~1,001 LOC tests)
   - New `Stream` effect with `--caps Stream` capability grant
   - `StreamContext` security model: connection limits (default 4), message size limits (1MB), TLS enforcement (wss:// only), domain allowlists, private IP blocking (RFC1918)

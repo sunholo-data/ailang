@@ -260,9 +260,7 @@ func parseSSEField(line string) (string, string) {
 	field := line[:idx]
 	value := line[idx+1:]
 	// Per spec: strip single leading space from value
-	if strings.HasPrefix(value, " ") {
-		value = value[1:]
-	}
+	value = strings.TrimPrefix(value, " ")
 	return field, value
 }
 

@@ -5,37 +5,44 @@
 -- Usage:
 --   import std/stream (connect, transmit, onEvent, runEventLoop, disconnect)
 --   import std/stream (sseConnect, withSSE)
+--   import std/stream (StreamEvent, Message, Closed, StreamError)
 --
 -- Requires: --caps Stream
---
--- Phase 1 type signatures use string for all ADT values. At runtime,
--- functions return/accept tagged ADT values. All downstream functions
--- (onEvent, runEventLoop, disconnect, transmit, status) accept both
--- Ok(StreamConn(id)) and bare StreamConn(id) — auto-unwrapping is handled
--- by the Go runtime.
---
--- Result types:
---   connect/sseConnect return: Ok(StreamConn(id)) | Err(StreamError)
---   StreamError variants: ConnectionFailed(msg) | Timeout(msg)
---     | BudgetExhausted(msg) | ProtocolError(msg) | MessageTooLarge(msg)
---
--- Event types (received by handler):
---   Message(string)          -- text message
---   Binary(bytes)            -- binary data
---   Opened({protocol, subprotocol})  -- connection opened
---   Closed(int, string)      -- close code + reason
---   Error(StreamError)       -- error with variant
---   Ping(bytes)              -- WebSocket ping
---   SSEData(string, string)  -- SSE event type + data
---
--- Config record format (Phase 1: pass as JSON string or record):
---   { headers: [{name: string, value: string}], subprotocols: [string] }
---
--- Message format for transmit:
---   Text("hello")    -- send text message
---   Bin(bytes)       -- send binary data (WebSocket only)
 
 module std/stream
+
+import std/result (Result, Ok, Err)
+
+-- ============================================================================
+-- Stream Types
+-- ============================================================================
+
+-- Connection handle (opaque, holds integer ID)
+export type StreamConn = StreamConn(int)
+
+-- Stream event union — received by event handlers
+export type StreamEvent =
+  | Message(string)
+  | Binary(string)
+  | Opened(string)
+  | Closed(int, string)
+  | StreamError(StreamErrorKind)
+  | Ping(string)
+  | SSEData(string, string)
+
+-- Stream error variants
+export type StreamErrorKind =
+  | ConnectionFailed(string)
+  | Timeout(string)
+  | BudgetExhausted(string)
+  | ProtocolError(string)
+  | MessageTooLarge(string)
+
+-- Message type for transmit
+export type StreamMessage = Text(string) | Bin(string)
+
+-- Connection status
+export type StreamStatus = Connecting | Open | Closing | StreamClosed
 
 -- ============================================================================
 -- Stream Effect Wrappers
@@ -43,41 +50,41 @@ module std/stream
 
 -- Open a WebSocket connection
 -- url: WebSocket URL (wss:// or ws:// with AllowHTTP)
--- config: record with headers and subprotocols lists
--- Returns Ok(StreamConn(id)) or Err(StreamError)
-export func connect(url: string, config: string) -> string ! {Stream} {
+-- config: configuration string (JSON string)
+-- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
+export func connect(url: string, config: string) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_connect(url, config)
 }
 
 -- Send a text or binary message on a connection
--- conn: connection value from connect (Ok(StreamConn(id)) or StreamConn(id))
--- msg: plain string (auto-wrapped as Text) or Text("hello")/Bin(bytes) ADT
-export func transmit(conn: string, msg: string) -> string ! {Stream} {
+-- conn: StreamConn handle (unwrap from connect result first)
+-- msg: plain string (auto-wrapped as Text in Go runtime)
+export func transmit(conn: StreamConn, msg: string) -> Result[unit, StreamErrorKind] ! {Stream} {
   _stream_send(conn, msg)
 }
 
 -- Register an event handler callback
--- conn: connection value from connect
--- handler: function receiving events, returning bool (true=continue, false=stop)
-export func onEvent(conn: string, handler: (string) -> bool) -> unit ! {Stream} {
+-- conn: StreamConn handle (unwrap from connect result first)
+-- handler: function receiving StreamEvent, returning bool (true=continue, false=stop)
+export func onEvent(conn: StreamConn, handler: (StreamEvent) -> bool) -> unit ! {Stream} {
   _stream_onEvent(conn, handler)
 }
 
 -- Run the event loop (blocks until handler returns false or timeout)
--- conn: connection value from connect
-export func runEventLoop(conn: string) -> unit ! {Stream} {
+-- conn: StreamConn handle (unwrap from connect result first)
+export func runEventLoop(conn: StreamConn) -> unit ! {Stream} {
   _stream_runEventLoop(conn)
 }
 
 -- Close a connection gracefully (idempotent)
--- conn: connection value from connect
-export func disconnect(conn: string) -> unit ! {Stream} {
+-- conn: StreamConn handle (unwrap from connect result first)
+export func disconnect(conn: StreamConn) -> unit ! {Stream} {
   _stream_close(conn)
 }
 
 -- Get connection status
--- Returns Connecting, Open, Closing, or Closed
-export func status(conn: string) -> string ! {Stream} {
+-- Returns Connecting, Open, Closing, or StreamClosed
+export func status(conn: StreamConn) -> StreamStatus ! {Stream} {
   _stream_status(conn)
 }
 
@@ -86,7 +93,7 @@ export func status(conn: string) -> string ! {Stream} {
 -- ============================================================================
 
 -- Create a default empty config (no custom headers, no subprotocols).
--- Phase 1: returns the string "{}"; the Go runtime treats this as empty config.
+-- Returns the string "{}"; the Go runtime treats this as empty config.
 -- For custom headers, pass a record: {headers: [{name: "Authorization", value: "Bearer TOKEN"}]}
 export func defaultConfig(u: unit) -> string {
   "{}"
@@ -96,15 +103,19 @@ export func defaultConfig(u: unit) -> string {
 -- Manages the full WebSocket lifecycle in one call.
 -- url: WebSocket URL
 -- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
--- Returns the connect result: Ok(StreamConn(id)) or Err(StreamError)
--- The Ok-wrapped result is passed directly to downstream functions (auto-unwrapped).
-export func withStream(url: string, handler: (string) -> bool) -> string ! {Stream} {
+-- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
+export func withStream(url: string, handler: (StreamEvent) -> bool) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   let config = defaultConfig(());
   let result = connect(url, config);
-  onEvent(result, handler);
-  runEventLoop(result);
-  disconnect(result);
-  result
+  match result {
+    Ok(conn) => {
+      onEvent(conn, handler);
+      runEventLoop(conn);
+      disconnect(conn);
+      Ok(conn)
+    },
+    Err(e) => Err(e)
+  }
 }
 
 -- ============================================================================
@@ -114,23 +125,28 @@ export func withStream(url: string, handler: (string) -> bool) -> string ! {Stre
 -- Open an SSE connection (read-only HTTP streaming)
 -- Used for consuming AI API responses (Anthropic, OpenAI, Gemini)
 -- url: HTTPS endpoint URL
--- config: record with optional headers (e.g. Authorization: Bearer)
--- Returns Ok(StreamConn(id)) or Err(StreamError)
+-- config: configuration string with optional headers
+-- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
 -- Events are delivered as SSEData(eventType, data) to the handler
-export func sseConnect(url: string, config: string) -> string ! {Stream} {
+export func sseConnect(url: string, config: string) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_sse_connect(url, config)
 }
 
 -- High-level SSE lifecycle: connect, register handler, run event loop, disconnect.
 -- url: SSE endpoint URL
 -- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
--- Returns the connect result: Ok(StreamConn(id)) or Err(StreamError)
+-- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
 -- Events are delivered as SSEData(eventType, data) to the handler.
-export func withSSE(url: string, handler: (string) -> bool) -> string ! {Stream} {
+export func withSSE(url: string, handler: (StreamEvent) -> bool) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   let config = defaultConfig(());
   let result = sseConnect(url, config);
-  onEvent(result, handler);
-  runEventLoop(result);
-  disconnect(result);
-  result
+  match result {
+    Ok(conn) => {
+      onEvent(conn, handler);
+      runEventLoop(conn);
+      disconnect(conn);
+      Ok(conn)
+    },
+    Err(e) => Err(e)
+  }
 }

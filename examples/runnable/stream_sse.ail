@@ -13,22 +13,33 @@
 
 module examples/runnable/stream_sse
 
-import std/stream (sseConnect, onEvent, runEventLoop, disconnect, defaultConfig, withSSE)
+import std/stream (sseConnect, onEvent, runEventLoop, disconnect, defaultConfig, withSSE, StreamConn, StreamEvent, SSEData, Closed, StreamError, StreamErrorKind)
+import std/result (Result, Ok, Err)
 
--- Event handler: print each SSE data event, return false to stop after first
-export func handler(event: string) -> bool {
-  false
+-- Event handler: pattern match on SSE events
+export func handler(event: StreamEvent) -> bool {
+  match event {
+    SSEData(eventType, data) => false,
+    Closed(code, reason) => false,
+    StreamError(err) => false,
+    _ => true
+  }
 }
 
--- Low-level API: explicit connect/listen/disconnect
+-- Low-level API: explicit connect/listen/disconnect with Result unwrapping
 export func main() -> unit ! {Stream, IO} {
   let config = defaultConfig(());
   let result = sseConnect("https://echo.websocket.events/sse", config);
-  _io_println("connected to SSE");
-  onEvent(result, handler);
-  runEventLoop(result);
-  disconnect(result);
-  _io_println("done")
+  match result {
+    Ok(conn) => {
+      _io_println("connected to SSE");
+      onEvent(conn, handler);
+      runEventLoop(conn);
+      disconnect(conn);
+      _io_println("done")
+    },
+    Err(e) => _io_println("connection failed")
+  }
 }
 
 -- High-level API: withSSE manages the full lifecycle

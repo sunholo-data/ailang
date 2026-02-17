@@ -364,7 +364,7 @@ func TestStreamEventLoop_IdleTimeout(t *testing.T) {
 	handler := &eval.StringValue{Value: "handler"}
 	StreamOnEvent(ctx, []eval.Value{connVal, handler})
 
-	// Should timeout and deliver Error(Timeout(...))
+	// Should timeout and deliver StreamError(Timeout(...))
 	done := make(chan struct{})
 	go func() {
 		StreamRunEventLoop(ctx, []eval.Value{connVal})
@@ -373,8 +373,8 @@ func TestStreamEventLoop_IdleTimeout(t *testing.T) {
 
 	select {
 	case <-done:
-		if lastEvent != "Error" {
-			t.Errorf("last event should be Error (timeout), got %s", lastEvent)
+		if lastEvent != "StreamError" {
+			t.Errorf("last event should be StreamError (timeout), got %s", lastEvent)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("event loop didn't stop after idle timeout")
@@ -462,8 +462,8 @@ func TestStreamClose_GracefulShutdown(t *testing.T) {
 	// Status should be Closed
 	statusResult, _ := StreamGetStatus(ctx, []eval.Value{connVal})
 	if tagged, ok := statusResult.(*eval.TaggedValue); ok {
-		if tagged.CtorName != "Closed" {
-			t.Errorf("status after close = %s, want Closed", tagged.CtorName)
+		if tagged.CtorName != "StreamClosed" {
+			t.Errorf("status after close = %s, want StreamClosed", tagged.CtorName)
 		}
 	}
 }
@@ -507,9 +507,9 @@ func TestEventToADT(t *testing.T) {
 		{"binary", streamEvent{kind: "binary", data: []byte{1, 2, 3}}, "Binary"},
 		{"opened", streamEvent{kind: "opened", text: "graphql-ws"}, "Opened"},
 		{"closed", streamEvent{kind: "closed", code: 1000, reason: "done"}, "Closed"},
-		{"error", streamEvent{kind: "error", errType: "Timeout", text: "timed out"}, "Error"},
+		{"error", streamEvent{kind: "error", errType: "Timeout", text: "timed out"}, "StreamError"},
 		{"ping", streamEvent{kind: "ping", data: []byte{1}}, "Ping"},
-		{"unknown", streamEvent{kind: "unknown"}, "Error"},
+		{"unknown", streamEvent{kind: "unknown"}, "StreamError"},
 	}
 
 	for _, tt := range tests {

@@ -141,8 +141,8 @@ func TestStreamIntegration_FullEchoFlow(t *testing.T) {
 	// Verify closed
 	statusResult, _ := StreamGetStatus(ctx, []eval.Value{connVal})
 	if tagged, ok := statusResult.(*eval.TaggedValue); ok {
-		if tagged.CtorName != "Closed" {
-			t.Errorf("status after close = %s, want Closed", tagged.CtorName)
+		if tagged.CtorName != "StreamClosed" {
+			t.Errorf("status after close = %s, want StreamClosed", tagged.CtorName)
 		}
 	}
 }
@@ -322,7 +322,7 @@ func TestStreamIntegration_ServerClose(t *testing.T) {
 	ctx.FnCaller = func(fn eval.Value, arg eval.Value) (eval.Value, error) {
 		if tagged, ok := arg.(*eval.TaggedValue); ok {
 			lastEvent = tagged.CtorName
-			if tagged.CtorName == "Closed" || tagged.CtorName == "Error" {
+			if tagged.CtorName == "Closed" || tagged.CtorName == "StreamError" {
 				return &eval.BoolValue{Value: false}, nil
 			}
 		}
@@ -358,8 +358,8 @@ func TestStreamIntegration_ServerClose(t *testing.T) {
 	select {
 	case <-done:
 		// Event loop should have exited due to server close
-		if lastEvent != "Closed" && lastEvent != "Error" {
-			t.Errorf("last event = %s, want Closed or Error", lastEvent)
+		if lastEvent != "Closed" && lastEvent != "StreamError" {
+			t.Errorf("last event = %s, want Closed or StreamError", lastEvent)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("event loop didn't exit after server close")

@@ -729,15 +729,15 @@ func TestStreamSSEConnect_IdleTimeout(t *testing.T) {
 		t.Errorf("idle timeout should fire quickly, took %v", elapsed)
 	}
 
-	// Should see Error event with Timeout
+	// Should see StreamError event with Timeout
 	foundTimeout := false
 	for _, evt := range events {
-		if evt == "Error" {
+		if evt == "StreamError" {
 			foundTimeout = true
 		}
 	}
 	if !foundTimeout {
-		t.Errorf("expected Error(Timeout) event, got events: %v", events)
+		t.Errorf("expected StreamError(Timeout) event, got events: %v", events)
 	}
 
 	StreamClose(ctx, []eval.Value{connVal})

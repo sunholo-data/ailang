@@ -386,15 +386,19 @@ func (p *Parser) parseTypeDeclBody() ast.TypeDef {
 			}
 			if !p.curTokenIs(lexer.RPAREN) {
 				p.reportExpected(lexer.RPAREN, "Add ')' to close constructor fields")
-			} else {
-				p.nextToken() // consume RPAREN
 			}
+			// Leave cursor AT RPAREN, matching parseVariant() convention.
+			// If more variants follow (PIPE), advance to PIPE for the variant loop below.
+			// If single constructor, stay at RPAREN — the main loop (parser_file.go:81)
+			// calls nextToken() to advance between declarations.
 			firstVariant = &ast.Constructor{
 				Name:   name,
 				Fields: fields,
 				Pos:    p.curPos(),
 			}
-			// Lexer skips whitespace, so we're already at next real token (PIPE or other)
+			if p.peekTokenIs(lexer.PIPE) {
+				p.nextToken() // advance from RPAREN to PIPE for multi-variant parsing
+			}
 		} else {
 			// No fields - check if this is a simple type alias or sum type
 			// If we saw a leading PIPE, it's definitely a sum type

@@ -248,10 +248,10 @@ func TestStreamContext_CloseAll(t *testing.T) {
 	sc.CloseAll()
 
 	if conn1.Status() != StreamStatusClosed {
-		t.Errorf("conn1 status = %v, want Closed", conn1.Status())
+		t.Errorf("conn1 status = %v, want StreamClosed", conn1.Status())
 	}
 	if conn2.Status() != StreamStatusClosed {
-		t.Errorf("conn2 status = %v, want Closed", conn2.Status())
+		t.Errorf("conn2 status = %v, want StreamClosed", conn2.Status())
 	}
 }
 
