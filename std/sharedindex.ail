@@ -1,0 +1,62 @@
+-- std/sharedindex - Similarity-based semantic index
+--
+-- Provides namespace-partitioned indexing for similarity search using
+-- SimHash (fast, approximate) and neural embeddings (accurate, slower).
+--
+-- Requires: SharedIndex capability (--caps SharedIndex)
+--
+-- Usage:
+--   import std/sharedindex (upsert, delete, findSimhash, entryCount, namespaces)
+--   upsert("beliefs", "b1", simhash("hello"), 1, timestamp)
+--   let results = findSimhash("beliefs", simhash("hello"), 5, 0, true)
+
+module std/sharedindex
+
+-- Insert or update an entry in the shared index
+-- Overwrites if key already exists in namespace
+-- @requires SharedIndex capability
+export func upsert(namespace: string, key: string, simhash: int, version: int, timestamp: int) -> unit ! {SharedIndex} {
+  _sharedindex_upsert(namespace, key, simhash, version, timestamp)
+}
+
+-- Delete an entry from the shared index
+-- No-op if key doesn't exist
+-- @requires SharedIndex capability
+export func delete(namespace: string, key: string) -> unit ! {SharedIndex} {
+  _sharedindex_delete(namespace, key)
+}
+
+-- Find entries similar to a query SimHash
+-- Returns list of {key, score, version, timestamp} sorted by similarity
+-- top_k: max results, max_scan: max entries to scan (0 = unlimited)
+-- deterministic: true for consistent ordering, false for best-effort
+-- @requires SharedIndex capability
+export func findSimhash(namespace: string, querySimhash: int, topK: int, maxScan: int, deterministic: bool) -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} {
+  _sharedindex_find_simhash(namespace, querySimhash, topK, maxScan, deterministic)
+}
+
+-- Get the number of entries in a namespace
+-- @requires SharedIndex capability
+export func entryCount(namespace: string) -> int ! {SharedIndex} {
+  _sharedindex_entry_count(namespace)
+}
+
+-- Get all namespace names in the index
+-- @requires SharedIndex capability
+export func namespaces(u: unit) -> list[string] ! {SharedIndex} {
+  _sharedindex_namespaces(u)
+}
+
+-- Insert or update an entry with a neural embedding
+-- Like upsert but also stores an embedding vector for cosine similarity search
+-- @requires SharedIndex capability
+export func upsertWithEmbedding(namespace: string, key: string, simhash: int, embedding: list[float], version: int, timestamp: int) -> unit ! {SharedIndex} {
+  _sharedindex_upsert_emb(namespace, key, simhash, embedding, version, timestamp)
+}
+
+-- Find entries similar to a query embedding using cosine similarity
+-- Returns list of {key, score, version, timestamp} sorted by similarity
+-- @requires SharedIndex capability
+export func findByEmbedding(namespace: string, queryEmbedding: list[float], topK: int, maxScan: int, deterministic: bool) -> list[{key: string, score: float, version: int, timestamp: int}] ! {SharedIndex} {
+  _sharedindex_find_by_embedding(namespace, queryEmbedding, topK, maxScan, deterministic)
+}

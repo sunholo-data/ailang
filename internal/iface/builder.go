@@ -99,6 +99,10 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		}
 		return &types.TRecord{Fields: labels, Row: nil}
 
+	case *ast.TypeVar:
+		// Type variables in constructor fields (e.g., 'a' in Ok(a), 'e' in Err(e))
+		return &types.TVar2{Name: typ.Name, Kind: types.Star}
+
 	default:
 		// Unknown type, return type variable
 		return &types.TVar2{Name: "unknown", Kind: types.Star}

@@ -349,9 +349,17 @@ func evalChainsStatsCommand() {
 	}
 
 	if *jsonOutput {
+		// Convert to JSON-friendly structure grouped by dimension
+		out := map[string]map[string]map[string]int{}
+		for k, s := range stats {
+			if out[k.dim] == nil {
+				out[k.dim] = map[string]map[string]int{}
+			}
+			out[k.dim][k.val] = map[string]int{"pass": s.pass, "total": s.total}
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(stats)
+		enc.Encode(out)
 		return
 	}
 

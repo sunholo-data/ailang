@@ -1,0 +1,28 @@
+-- std/simhash - Locality-sensitive hashing
+--
+-- SimHash produces fingerprints where similar documents have similar hashes.
+-- Useful for near-duplicate detection without expensive embedding models.
+-- All functions are pure (no effects required).
+--
+-- Typical Hamming distance thresholds:
+--   0-3:  Very similar (likely near-duplicates)
+--   4-10: Somewhat similar
+--   10+:  Different documents
+--
+-- Usage:
+--   import std/simhash (simhash, hammingDistance)
+--   let h1 = simhash("hello world")
+--   let h2 = simhash("hello world!")
+--   let dist = hammingDistance(h1, h2)
+
+module std/simhash
+
+-- Compute a 64-bit locality-sensitive hash of a string
+-- Similar text produces hashes with low Hamming distance
+-- Example: simhash("hello world") returns a 64-bit integer
+export pure func simhash(text: string) -> int { _simhash(text) }
+
+-- Compute the Hamming distance between two SimHash values
+-- Returns number of differing bits (0-64). Lower = more similar.
+-- Example: hammingDistance(h1, h2) where h1 and h2 are simhash results
+export pure func hammingDistance(a: int, b: int) -> int { _hamming_distance(a, b) }

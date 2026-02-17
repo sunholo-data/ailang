@@ -1,11 +1,33 @@
 # M-STREAM-SERVE-API: Streaming Proxy for serve-api
 
-**Status**: PLANNED
-**Target**: v0.9.0
-**Priority**: Medium
+**Status**: REJECTED
+**Target**: ~~v0.9.0~~
+**Priority**: ~~Medium~~
 **Depends on**: M-STREAM-BIDI (implemented), SSE support (implemented)
+**Rejected**: 2026-02-16
 
-## Problem
+## Rejection Rationale
+
+**Streaming proxy is a Go-level concern, not a language-level concern.**
+
+The aggregate-then-return pattern (consume stream → compute → return JSON) is the right fit for AILANG's deterministic computation model. A streaming proxy adds significant runtime complexity for a use case better served by existing tools:
+
+1. **Double-hop latency**: client → serve-api → upstream → serve-api → client adds a middleman for what is often just passthrough. A 30-line Go `net/http` handler or nginx/Cloudflare proxy does this with zero overhead.
+
+2. **AILANG's evaluator isn't built for throughput**: Each event would go through `CallValue` dispatch. The evaluator is optimized for correctness and determinism, not I/O proxying.
+
+3. **Significant runtime complexity for marginal value**: Per-request EffContext cloning, `yield` effect, `CallWithContext` on the evaluator, goroutine-per-request streaming — ~620 LOC of plumbing to route bytes through an evaluator that doesn't need to see them.
+
+4. **The aggregate-then-return pattern already works**: AILANG functions can consume SSE/WebSocket streams internally, do computation (transform, filter, accumulate), and return structured results. This is deterministic, testable, and plays to AILANG's strengths.
+
+5. **Transform-in-stream is the only compelling use case**, and it's niche enough to not justify the complexity. If it emerges as a real need, revisit then.
+
+**What DOES work (v0.8.1):**
+- `serve-api --caps Stream` wires StreamContext + FnCaller
+- AILANG functions consume streams internally and return aggregated JSON
+- No proxy needed — the function IS the computation
+
+## Original Problem Statement
 
 `ailang serve-api` exposes AILANG module exports as REST endpoints with synchronous JSON responses. AILANG functions can now consume SSE and WebSocket streams internally (via the Stream effect), but when called through serve-api, the entire stream must be consumed before a single JSON response is returned. This "aggregate-then-return" pattern works but prevents real-time streaming to HTTP clients.
 

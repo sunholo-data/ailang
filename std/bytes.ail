@@ -1,0 +1,36 @@
+-- std/bytes - Byte slice operations
+--
+-- UTF-8 encoding/decoding and base64 operations for binary data.
+-- All functions are pure (no effects required).
+--
+-- Usage:
+--   import std/bytes (fromString, toString, toBase64, fromBase64, length)
+--   let b = fromString("hello")
+--   let encoded = toBase64(b)
+
+module std/bytes
+
+import std/option (Option, Some, None)
+
+-- Convert a UTF-8 string to bytes
+-- Example: fromString("hello") returns 5 bytes
+export pure func fromString(s: string) -> bytes { _bytes_from_string(s) }
+
+-- Convert bytes to a UTF-8 string
+-- Invalid UTF-8 sequences are replaced with U+FFFD
+export pure func toString(b: bytes) -> string { _bytes_to_string(b) }
+
+-- Encode bytes as a base64 string (RFC 4648)
+-- Example: toBase64(fromString("hello")) returns "aGVsbG8="
+export pure func toBase64(b: bytes) -> string { _bytes_to_base64(b) }
+
+-- Decode a base64 string to bytes
+-- Returns None if input is not valid base64
+-- Example: fromBase64("aGVsbG8=") returns Some(bytes)
+export pure func fromBase64(s: string) -> Option[bytes] { _bytes_from_base64(s) }
+
+-- Get the length of a byte slice (O(1))
+-- Returns raw byte count, not UTF-8 character count
+-- Example: length(fromString("hello")) returns 5
+-- Example: length(fromString("\u{1F389}")) returns 4 (UTF-8 encoding is 4 bytes)
+export pure func length(b: bytes) -> int { _bytes_length(b) }

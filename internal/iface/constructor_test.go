@@ -3,6 +3,7 @@ package iface
 import (
 	"testing"
 
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/types"
 )
 
@@ -165,5 +166,94 @@ func TestDigestDifferentConstructors(t *testing.T) {
 	// Digests should differ
 	if digest1 == digest2 {
 		t.Errorf("Digests are identical but should differ:\n%s", digest1)
+	}
+}
+
+// TestAstTypeToInternalType_TypeVar is a regression test for the bug where
+// ast.TypeVar (type parameters in constructor fields like 'a' in Ok(a))
+// fell through to the default case and became TVar2{Name: "unknown"}.
+// This caused imported constructor schemes to have wrong field types,
+// breaking match arm unification for Result[unit, string] and similar.
+func TestAstTypeToInternalType_TypeVar(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    ast.Type
+		wantName string
+		wantKind string // "TVar2" or "TCon" etc
+	}{
+		{
+			name:     "TypeVar 'a' becomes TVar2 named 'a'",
+			input:    &ast.TypeVar{Name: "a"},
+			wantName: "a",
+			wantKind: "TVar2",
+		},
+		{
+			name:     "TypeVar 'e' becomes TVar2 named 'e'",
+			input:    &ast.TypeVar{Name: "e"},
+			wantName: "e",
+			wantKind: "TVar2",
+		},
+		{
+			name:     "SimpleType lowercase 'a' becomes TVar2",
+			input:    &ast.SimpleType{Name: "a"},
+			wantName: "a",
+			wantKind: "TVar2",
+		},
+		{
+			name:     "SimpleType 'int' becomes TInt",
+			input:    &ast.SimpleType{Name: "int"},
+			wantName: "int",
+			wantKind: "TInt",
+		},
+		{
+			name:     "SimpleType uppercase 'Result' becomes TCon",
+			input:    &ast.SimpleType{Name: "Result"},
+			wantName: "Result",
+			wantKind: "TCon",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := astTypeToInternalType(tt.input)
+			switch tt.wantKind {
+			case "TVar2":
+				tv, ok := result.(*types.TVar2)
+				if !ok {
+					t.Fatalf("expected *types.TVar2, got %T (%s)", result, result)
+				}
+				if tv.Name != tt.wantName {
+					t.Errorf("TVar2.Name = %q, want %q", tv.Name, tt.wantName)
+				}
+			case "TCon":
+				tc, ok := result.(*types.TCon)
+				if !ok {
+					t.Fatalf("expected *types.TCon, got %T (%s)", result, result)
+				}
+				if tc.Name != tt.wantName {
+					t.Errorf("TCon.Name = %q, want %q", tc.Name, tt.wantName)
+				}
+			case "TInt":
+				if result != types.TInt {
+					t.Errorf("expected TInt, got %T (%s)", result, result)
+				}
+			}
+		})
+	}
+}
+
+// TestAstTypeToInternalType_TypeVarNotUnknown is a targeted regression test:
+// Before the fix, ast.TypeVar fell through to default and became "unknown".
+func TestAstTypeToInternalType_TypeVarNotUnknown(t *testing.T) {
+	result := astTypeToInternalType(&ast.TypeVar{Name: "a"})
+	tv, ok := result.(*types.TVar2)
+	if !ok {
+		t.Fatalf("ast.TypeVar{Name:\"a\"} produced %T, want *types.TVar2", result)
+	}
+	if tv.Name == "unknown" {
+		t.Fatal("ast.TypeVar{Name:\"a\"} produced TVar2{Name:\"unknown\"} — the TypeVar case is missing from astTypeToInternalType")
+	}
+	if tv.Name != "a" {
+		t.Errorf("TVar2.Name = %q, want \"a\"", tv.Name)
 	}
 }
