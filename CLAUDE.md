@@ -1758,6 +1758,50 @@ In commit `eae08b6`, working import functions were deleted because linter said t
 4. Test imports: `make test-imports`
 5. Document in commit message what was broken and how it was fixed
 
+### ast.Type Switch Exhaustiveness - ALL 8 Variants Must Be Handled!
+
+**⚠️ CRITICAL LESSON (Feb 2026): Silent `default` cases in ast.Type switches corrupt ALL imported polymorphic types!**
+
+**The Constructor Type Variable Bug (Feb 2026):**
+
+Three separate functions convert `ast.Type` to `types.Type`:
+1. `iface/builder.go:astTypeToInternalType()` — builds interface constructor schemes from imported ADTs
+2. `types/typechecker.go:astTypeToType()` — converts type annotations during type checking
+3. `elaborate/file.go:astTypeToInternalType()` — converts types during elaboration
+
+**Two of these had silent fallbacks** that returned `TVar2{Name: "unknown"}` for unrecognized variants:
+```go
+// ❌ WRONG - Silently corrupts ALL imported ADT schemes
+default:
+    return &types.TVar2{Name: "unknown"}
+```
+
+**Impact:** Constructor field type variables (`a` in `Ok(a)`) are `*ast.TypeVar`, NOT `*ast.SimpleType`. The missing case caused `Ok`/`Err` constructors to get `unknown` type parameters instead of proper `a`/`e` variables. This broke ALL cross-module ADT pattern matching (Result, Option, etc.) with 6 different bug symptoms.
+
+**The 8 ast.Type variants (ALL must be handled):**
+
+| Variant | Example | Common conversion |
+|---------|---------|-------------------|
+| `*ast.SimpleType` | `int`, `string`, `Result` | `TCon` or `TVar2` (lowercase = type var) |
+| `*ast.TypeVar` | `a`, `e` (type parameters) | `TVar2` |
+| `*ast.FuncType` | `(int) -> string` | `TFunc` |
+| `*ast.ListType` | `[int]` | `TList` |
+| `*ast.ArrayType` | `Array[int]` | `TApp(Array, [int])` |
+| `*ast.TupleType` | `(int, string)` | `TTuple` |
+| `*ast.TypeApp` | `Result[a, e]` | `TApp` |
+| `*ast.RecordType` | `{name: string}` | `TRecord` |
+
+**Rules:**
+1. **When adding a new `ast.Type` variant**, grep for ALL type switches: `grep -rn "case \*ast\." internal/`
+2. **`default:` in ast.Type switches MUST `panic()`**, never return fake data
+3. **Audit pattern**: Run `grep -rn "astTypeToInternalType\|astTypeToType" internal/` to find all converters
+
+**Files:**
+- `internal/iface/builder.go` — Fixed: added TypeVar, TypeApp cases + panic default
+- `internal/types/typechecker.go` — Fixed: added TypeVar, RecordType, TypeApp cases + panic default
+- `internal/elaborate/file.go` — Already correct (had all 8 variants)
+- `internal/iface/constructor_test.go` — Regression tests for all variant conversions
+
 ### Lexer/Parser Architecture - NEWLINE Tokens Don't Exist!
 
 **⚠️ CRITICAL LESSON: The lexer NEVER generates NEWLINE tokens - it skips them as whitespace!**

@@ -211,6 +211,12 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 			wantName: "Result",
 			wantKind: "TCon",
 		},
+		{
+			name:     "TypeApp 'Option[int]' becomes TApp",
+			input:    &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "int"}}},
+			wantName: "Option",
+			wantKind: "TApp",
+		},
 	}
 
 	for _, tt := range tests {
@@ -236,6 +242,18 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 			case "TInt":
 				if result != types.TInt {
 					t.Errorf("expected TInt, got %T (%s)", result, result)
+				}
+			case "TApp":
+				ta, ok := result.(*types.TApp)
+				if !ok {
+					t.Fatalf("expected *types.TApp, got %T (%s)", result, result)
+				}
+				con, ok := ta.Constructor.(*types.TCon)
+				if !ok {
+					t.Fatalf("expected TApp.Constructor to be *types.TCon, got %T", ta.Constructor)
+				}
+				if con.Name != tt.wantName {
+					t.Errorf("TApp.Constructor.Name = %q, want %q", con.Name, tt.wantName)
 				}
 			}
 		})

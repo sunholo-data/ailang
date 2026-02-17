@@ -261,9 +261,31 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		}
 		return &TTuple{Elements: elements}
 
+	case *ast.TypeVar:
+		// Type variables in type annotations (e.g., 'a' in [a] -> [b])
+		return &TVar2{Name: typ.Name, Kind: Star}
+
+	case *ast.RecordType:
+		labels := make(map[string]Type)
+		for _, f := range typ.Fields {
+			labels[f.Name] = tc.astTypeToType(f.Type)
+		}
+		return &TRecord{Fields: labels, Row: nil}
+
+	case *ast.TypeApp:
+		// Type applications (e.g., Option[int], Result[a, e])
+		args := make([]Type, len(typ.Args))
+		for i, a := range typ.Args {
+			args[i] = tc.astTypeToType(a)
+		}
+		return &TApp{
+			Constructor: &TCon{Name: typ.Constructor},
+			Args:        args,
+		}
+
 	default:
-		// Unknown type, return type variable
-		return &TVar2{Name: "unknown", Kind: Star}
+		// No silent fallback — fail loudly per CLAUDE.md Section 2
+		panic(fmt.Sprintf("astTypeToType: unhandled ast.Type variant: %T", t))
 	}
 }
 

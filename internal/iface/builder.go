@@ -103,9 +103,20 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		// Type variables in constructor fields (e.g., 'a' in Ok(a), 'e' in Err(e))
 		return &types.TVar2{Name: typ.Name, Kind: types.Star}
 
+	case *ast.TypeApp:
+		// Type applications (e.g., Option[int], Result[a, e])
+		args := make([]types.Type, len(typ.Args))
+		for i, a := range typ.Args {
+			args[i] = astTypeToInternalType(a)
+		}
+		return &types.TApp{
+			Constructor: &types.TCon{Name: typ.Constructor},
+			Args:        args,
+		}
+
 	default:
-		// Unknown type, return type variable
-		return &types.TVar2{Name: "unknown", Kind: types.Star}
+		// No silent fallback — fail loudly per CLAUDE.md Section 2
+		panic(fmt.Sprintf("astTypeToInternalType: unhandled ast.Type variant: %T", t))
 	}
 }
 
