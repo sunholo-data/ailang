@@ -62,13 +62,27 @@ Connections are limited to MaxConnections (default: 4).`,
 	}
 }
 
+// streamConfigType builds the record type for stream config parameter:
+// {headers: [{name: string, value: string}]}
+// This matches what the Go runtime expects in stream.go and stream_sse.go.
+func streamConfigType() types.Type {
+	T := types.NewBuilder()
+	headerEntry := T.Record(
+		types.Field("name", T.String()),
+		types.Field("value", T.String()),
+	)
+	return T.Record(
+		types.Field("headers", T.List(headerEntry)),
+	)
+}
+
 // makeStreamConnectType builds the type signature for _stream_connect
-// Type: (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+// Type: (string, {headers: [{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 func makeStreamConnectType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // url
-		T.String(), // config (JSON string)
+		T.String(),         // url
+		streamConfigType(), // config record with headers
 	).Returns(
 		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")
@@ -111,12 +125,12 @@ SSE connections are read-only — calling transmit() returns Err(ProtocolError).
 }
 
 // makeStreamSSEConnectType builds the type signature for _stream_sse_connect
-// Type: (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+// Type: (string, {headers: [{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 func makeStreamSSEConnectType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // url
-		T.String(), // config
+		T.String(),         // url
+		streamConfigType(), // config record with headers
 	).Returns(
 		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")
@@ -436,13 +450,13 @@ Content-Type defaults to application/json.`,
 }
 
 // makeStreamSSEPostType builds the type signature for _stream_sse_post
-// Type: (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+// Type: (string, string, {headers: [{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 func makeStreamSSEPostType() types.Type {
 	T := types.NewBuilder()
 	return T.Func(
-		T.String(), // url
-		T.String(), // body
-		T.String(), // config
+		T.String(),         // url
+		T.String(),         // body
+		streamConfigType(), // config record with headers
 	).Returns(
 		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")

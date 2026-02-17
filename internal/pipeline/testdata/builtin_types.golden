@@ -111,12 +111,12 @@ _str_startsWith : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
 _stream_close : StreamConn -> () ! {Stream}
-_stream_connect : (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+_stream_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_onEvent : (StreamConn, StreamEvent -> bool) -> () ! {Stream}
 _stream_runEventLoop : StreamConn -> () ! {Stream}
 _stream_send : (StreamConn, string) -> Result[(), StreamErrorKind] ! {Stream}
-_stream_sse_connect : (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
-_stream_sse_post : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+_stream_sse_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+_stream_sse_post : (string, string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_status : StreamConn -> StreamStatus ! {Stream}
 _stream_transmit_binary : (StreamConn, bytes) -> Result[(), StreamErrorKind] ! {Stream}
 _stringToFloat : string -> Option[float]
