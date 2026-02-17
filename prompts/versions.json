@@ -492,9 +492,21 @@
         "latest"
       ],
       "notes": "Contracts section rewritten with agent-centric framing (specify-implement-verify workflow). Updated all examples to use stdlib imports (std/string, std/list) instead of raw builtins. Moved contracts before Testing to reflect importance. Documents stdlib transparency in Z3 verification."
+    },
+    "v0.8.2": {
+      "file": "prompts/v0.8.2.md",
+      "hash": "71b6ef659bf5787f98b1705f3d68047745207025f2959425be3429ef6cf19df6",
+      "description": "Streaming DX: zipWith, bytes.slice, transmitBinary, ssePost, newtype field access, show recommendation",
+      "created": "2026-02-17",
+      "tags": [
+        "production",
+        "latest",
+        "streaming-dx"
+      ],
+      "notes": "M-STREAM-DX sprint: (1) Added zipWith to std/list docs, (2) Added std/bytes section (fromString, toString, toBase64, fromBase64, slice), (3) Added std/stream section (connect, transmit, transmitBinary, ssePost, withSSE, SSEData events), (4) Added newtype record field access docs (single-constructor ADT auto-unwrap), (5) Added show recommendation over intToStr/floatToStr for simple cases."
     }
   },
-  "active": "v0.8.1",
+  "active": "v0.8.2",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

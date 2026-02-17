@@ -594,6 +594,24 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 			// Register constructor with actual field types and type param names
 			e.RegisterConstructorWithFields(typeName, ctor.Name, len(ctor.Fields), false, typeParamCount, decl.TypeParams, fieldTypes)
 		}
+
+		// M-STREAM-DX/M4: Register type alias for single-constructor ADTs wrapping a record
+		// This enables `t.name` field access on newtype-pattern ADTs like `type Item = Item({name: string})`
+		// The unifier's expandAlias will expand TCon("Item") → TRecord{name: string} during unification,
+		// allowing TRecordOpen (from field access) to unify with the expanded record type.
+		// Only applies when: exactly 1 constructor, exactly 1 field, field is a record type.
+		if len(def.Constructors) == 1 && len(decl.TypeParams) == 0 {
+			ctor := def.Constructors[0]
+			if len(ctor.Fields) == 1 && ctor.Fields[0].Type != nil {
+				if _, isRecord := ctor.Fields[0].Type.(*ast.RecordType); isRecord {
+					recordType := e.astTypeToInternalType(ctor.Fields[0].Type)
+					if recordType != nil {
+						e.RegisterTypeAlias(typeName, recordType)
+					}
+				}
+			}
+		}
+
 		// Type declarations don't produce code, return nil
 		return nil, nil
 

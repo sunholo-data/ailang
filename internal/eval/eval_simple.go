@@ -255,7 +255,15 @@ func (e *SimpleEvaluator) evalExpr(expr ast.Expr) (Value, error) {
 
 		recordVal, ok := record.(*RecordValue)
 		if !ok {
-			return nil, fmt.Errorf("cannot access field %s on non-record value: %T", ex.Field, record)
+			// M-STREAM-DX/M4: Auto-unwrap single-field TaggedValue (newtype pattern)
+			if tagged, isTagged := record.(*TaggedValue); isTagged && len(tagged.Fields) == 1 {
+				if innerRecord, isRecord := tagged.Fields[0].(*RecordValue); isRecord {
+					recordVal = innerRecord
+				}
+			}
+			if recordVal == nil {
+				return nil, fmt.Errorf("cannot access field %s on non-record value: %T", ex.Field, record)
+			}
 		}
 
 		value, exists := recordVal.Fields[ex.Field]

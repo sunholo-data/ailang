@@ -4,8 +4,17 @@
 --
 -- Usage:
 --   import std/stream (connect, transmit, onEvent, runEventLoop, disconnect)
---   import std/stream (sseConnect, withSSE)
---   import std/stream (StreamEvent, Message, Closed, StreamError)
+--   import std/stream (transmitBinary)                         -- binary data (bytes)
+--   import std/stream (sseConnect, ssePost, withSSE)           -- SSE connections
+--   import std/stream (StreamEvent, Message, Closed, StreamError, SSEData)
+--
+-- SSE event handling:
+--   onEvent(conn, \event. match event {
+--     SSEData(eventType, data) => { handleChunk(eventType, data); true },
+--     StreamError(err) => { handleError(err); false },
+--     Closed(code, reason) => false,
+--     _ => true
+--   })
 --
 -- Requires: --caps Stream
 
@@ -44,24 +53,41 @@ export type StreamMessage = Text(string) | Bin(string)
 -- Connection status
 export type StreamStatus = Connecting | Open | Closing | StreamClosed
 
+-- Header entry for connection config
+export type StreamHeader = { name: string, value: string }
+
+-- Configuration for stream connections
+export type StreamConfig = { headers: [StreamHeader] }
+
 -- ============================================================================
 -- Stream Effect Wrappers
 -- ============================================================================
 
 -- Open a WebSocket connection
 -- url: WebSocket URL (wss:// or ws:// with AllowHTTP)
--- config: configuration string (JSON string)
+-- config: JSON string with headers array, e.g. {"headers":[{"name":"Authorization","value":"Bearer TOKEN"}]}
+-- NOTE: Go runtime currently tries to parse config as RecordValue but builtin registers as string.
+-- Until fixed, headers may not be passed. See AILANG issue: stream builtin type mismatch.
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
 export func connect(url: string, config: string) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_connect(url, config)
 }
 
--- Send a text or binary message on a connection
+-- Send a text message on a connection
 -- conn: StreamConn handle (unwrap from connect result first)
 -- msg: plain string (auto-wrapped as Text in Go runtime)
 export func transmit(conn: StreamConn, msg: string) -> Result[unit, StreamErrorKind] ! {Stream} {
   _stream_send(conn, msg)
 }
+
+-- Send binary data (bytes) on a WebSocket connection
+-- Use for PCM audio, images, or binary protocols without base64 encoding overhead.
+-- conn: StreamConn handle
+-- data: bytes to send as WebSocket binary frame
+-- NOTE: Uncomment when _stream_transmit_binary builtin is implemented in Go runtime
+-- export func transmitBinary(conn: StreamConn, data: bytes) -> Result[unit, StreamErrorKind] ! {Stream} {
+--   _stream_transmit_binary(conn, data)
+-- }
 
 -- Register an event handler callback
 -- conn: StreamConn handle (unwrap from connect result first)
@@ -92,9 +118,8 @@ export func status(conn: StreamConn) -> StreamStatus ! {Stream} {
 -- Convenience Helpers
 -- ============================================================================
 
--- Create a default empty config (no custom headers, no subprotocols).
--- Returns the string "{}"; the Go runtime treats this as empty config.
--- For custom headers, pass a record: {headers: [{name: "Authorization", value: "Bearer TOKEN"}]}
+-- Create a default empty config (no custom headers).
+-- For custom headers, pass JSON: encode(jo([kv("headers", ja([jo([kv("name", js("Authorization")), kv("value", js("Bearer TOKEN"))])]))]))
 export func defaultConfig(u: unit) -> string {
   "{}"
 }
@@ -105,8 +130,7 @@ export func defaultConfig(u: unit) -> string {
 -- handler: event handler function receiving StreamEvent, returning bool (true=continue, false=stop)
 -- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
 export func withStream(url: string, handler: (StreamEvent) -> bool) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
-  let config = defaultConfig(());
-  let result = connect(url, config);
+  let result = connect(url, "{}");
   match result {
     Ok(conn) => {
       onEvent(conn, handler);
@@ -122,15 +146,28 @@ export func withStream(url: string, handler: (StreamEvent) -> bool) -> Result[St
 -- SSE (Server-Sent Events)
 -- ============================================================================
 
--- Open an SSE connection (read-only HTTP streaming)
--- Used for consuming AI API responses (Anthropic, OpenAI, Gemini)
+-- Open an SSE connection via HTTP GET (read-only HTTP streaming)
+-- Used for consuming streaming APIs that use GET+SSE
 -- url: HTTPS endpoint URL
--- config: configuration string with optional headers
+-- config: JSON string with optional headers
 -- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
 -- Events are delivered as SSEData(eventType, data) to the handler
 export func sseConnect(url: string, config: string) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
   _stream_sse_connect(url, config)
 }
+
+-- Open an SSE connection via HTTP POST (for AI API streaming)
+-- Claude, OpenAI, and Gemini all use POST+SSE: the request body contains the
+-- prompt/config and the response is streamed back as Server-Sent Events.
+-- url: HTTPS endpoint URL
+-- body: request body (typically JSON)
+-- config: configuration string with optional headers (e.g. Authorization: Bearer)
+-- Content-Type defaults to application/json.
+-- Returns Ok(StreamConn(id)) or Err(StreamErrorKind)
+-- NOTE: Uncomment when _stream_sse_post builtin is implemented in Go runtime
+-- export func ssePost(url: string, body: string, config: string) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
+--   _stream_sse_post(url, body, config)
+-- }
 
 -- High-level SSE lifecycle: connect, register handler, run event loop, disconnect.
 -- url: SSE endpoint URL
@@ -138,8 +175,7 @@ export func sseConnect(url: string, config: string) -> Result[StreamConn, Stream
 -- Returns Ok(StreamConn) on success or Err(StreamErrorKind) on connection failure
 -- Events are delivered as SSEData(eventType, data) to the handler.
 export func withSSE(url: string, handler: (StreamEvent) -> bool) -> Result[StreamConn, StreamErrorKind] ! {Stream} {
-  let config = defaultConfig(());
-  let result = sseConnect(url, config);
+  let result = sseConnect(url, "{}");
   match result {
     Ok(conn) => {
       onEvent(conn, handler);

@@ -283,6 +283,20 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								iface.AddConstructor(typeDecl.Name, ctor.Name, fieldTypes, resultType)
 								// DEBUG: fmt.Printf("DEBUG: Type %s exports constructor %s with fields %v\n", typeDecl.Name, ctor.Name, fieldTypes)
 							}
+
+							// M-STREAM-DX/M4: Register type alias for single-constructor ADTs wrapping a record
+							// Enables cross-module field access on newtype-pattern ADTs (e.g., `item.name`)
+							if len(algType.Constructors) == 1 && len(typeDecl.TypeParams) == 0 {
+								singleCtor := algType.Constructors[0]
+								if len(singleCtor.Fields) == 1 && singleCtor.Fields[0].Type != nil {
+									if _, isRecord := singleCtor.Fields[0].Type.(*ast.RecordType); isRecord {
+										recordType := astTypeToInternalType(singleCtor.Fields[0].Type)
+										if recordType != nil {
+											iface.AddTypeAlias(typeDecl.Name, recordType)
+										}
+									}
+								}
+							}
 						}
 					}
 				}

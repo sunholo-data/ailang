@@ -34,3 +34,9 @@ export pure func fromBase64(s: string) -> Option[bytes] { _bytes_from_base64(s) 
 -- Example: length(fromString("hello")) returns 5
 -- Example: length(fromString("\u{1F389}")) returns 4 (UTF-8 encoding is 4 bytes)
 export pure func length(b: bytes) -> int { _bytes_length(b) }
+
+-- Extract a sub-slice of bytes
+-- Returns None if start < 0 or start + len > length(b)
+-- Example: slice(fromString("hello"), 1, 3) returns Some(bytes for "ell")
+-- Example: slice(fromString("hello"), 5, 1) returns None
+export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] { _bytes_slice(b, start, len) }

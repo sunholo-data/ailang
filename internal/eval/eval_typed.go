@@ -447,7 +447,15 @@ func (e *TypedEvaluator) evalRecordAccess(acc *typedast.TypedRecordAccess) (Valu
 	// Access field
 	recVal, ok := recordVal.(*RecordValue)
 	if !ok {
-		return nil, fmt.Errorf("cannot access field of non-record: %T at %s", recordVal, acc.Span)
+		// M-STREAM-DX/M4: Auto-unwrap single-field TaggedValue (newtype pattern)
+		if tagged, isTagged := recordVal.(*TaggedValue); isTagged && len(tagged.Fields) == 1 {
+			if innerRecord, isRecord := tagged.Fields[0].(*RecordValue); isRecord {
+				recVal = innerRecord
+			}
+		}
+		if recVal == nil {
+			return nil, fmt.Errorf("cannot access field of non-record: %T at %s", recordVal, acc.Span)
+		}
 	}
 
 	val, ok := recVal.Fields[acc.Field]

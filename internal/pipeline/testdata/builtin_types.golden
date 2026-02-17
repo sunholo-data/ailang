@@ -19,6 +19,7 @@ _array_unsafe_get : (Array[a], int) -> a
 _bytes_from_base64 : string -> Option[bytes]
 _bytes_from_string : string -> bytes
 _bytes_length : bytes -> int
+_bytes_slice : (bytes, int, int) -> Option[bytes]
 _bytes_to_base64 : bytes -> string
 _bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
@@ -115,7 +116,9 @@ _stream_onEvent : (StreamConn, StreamEvent -> bool) -> () ! {Stream}
 _stream_runEventLoop : StreamConn -> () ! {Stream}
 _stream_send : (StreamConn, string) -> Result[(), StreamErrorKind] ! {Stream}
 _stream_sse_connect : (string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+_stream_sse_post : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_status : StreamConn -> StreamStatus ! {Stream}
+_stream_transmit_binary : (StreamConn, bytes) -> Result[(), StreamErrorKind] ! {Stream}
 _stringToFloat : string -> Option[float]
 _stringToInt : string -> Option[int]
 _string_floatToStr : float -> string

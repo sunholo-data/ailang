@@ -336,7 +336,16 @@ func (e *CoreEvaluator) evalCoreRecordAccess(access *core.RecordAccess) (Value, 
 
 	record, ok := recordVal.(*RecordValue)
 	if !ok {
-		return nil, fmt.Errorf("cannot access field of non-record value: %T", recordVal)
+		// M-STREAM-DX/M4: Auto-unwrap single-field TaggedValue (newtype pattern)
+		// For `type Item = Item({name: string})`, Item({name: "x"}).name should work
+		if tagged, isTagged := recordVal.(*TaggedValue); isTagged && len(tagged.Fields) == 1 {
+			if innerRecord, isRecord := tagged.Fields[0].(*RecordValue); isRecord {
+				record = innerRecord
+			}
+		}
+		if record == nil {
+			return nil, fmt.Errorf("cannot access field of non-record value: %T", recordVal)
+		}
 	}
 
 	val, ok := record.Fields[access.Field]

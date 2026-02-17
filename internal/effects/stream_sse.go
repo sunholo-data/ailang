@@ -264,6 +264,132 @@ func parseSSEField(line string) (string, string) {
 	return field, value
 }
 
+// StreamSSEPost opens an SSE connection via HTTP POST.
+//
+// This is the standard pattern for AI API streaming: Claude, OpenAI, and Gemini
+// all use POST+SSE where the request body contains the prompt/config and the
+// response is streamed back as Server-Sent Events.
+//
+// Args: [url: string, body: string, config: record{headers}]
+// Returns: Result[StreamConn(int), StreamError]
+func StreamSSEPost(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("_stream_sse_post: expected 3 arguments, got %d", len(args))
+	}
+
+	urlVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_stream_sse_post: expected String for url, got %T", args[0])
+	}
+
+	bodyVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_stream_sse_post: expected String for body, got %T", args[1])
+	}
+
+	if ctx.Stream == nil {
+		return nil, fmt.Errorf("E_STREAM_NO_CONTEXT: Stream effect not configured (missing --caps Stream)")
+	}
+
+	// Budget check
+	if err := ctx.RequireCapWithBudget("Stream", "stream.sse_post"); err != nil {
+		return makeStreamErr("BudgetExhausted", err.Error()), nil
+	}
+
+	// Validate URL
+	if err := ctx.Stream.ValidateURL(urlVal.Value); err != nil {
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
+	// Parse config for custom headers
+	headers := make(http.Header)
+	headers.Set("Accept", "text/event-stream")
+	headers.Set("Cache-Control", "no-cache")
+	headers.Set("Content-Type", "application/json") // Default for AI APIs
+
+	if configRec, ok := args[2].(*eval.RecordValue); ok {
+		if hdrs, ok := configRec.Fields["headers"]; ok {
+			if hdrList, ok := hdrs.(*eval.ListValue); ok {
+				for _, hdr := range hdrList.Elements {
+					if hdrRec, ok := hdr.(*eval.RecordValue); ok {
+						nameVal, _ := hdrRec.Fields["name"].(*eval.StringValue)
+						valVal, _ := hdrRec.Fields["value"].(*eval.StringValue)
+						if nameVal != nil && valVal != nil {
+							headers.Set(nameVal.Value, valVal.Value)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// HTTP POST with body
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: ctx.Stream.ConnectTimeout,
+		}).DialContext,
+		TLSHandshakeTimeout:   ctx.Stream.ConnectTimeout,
+		ResponseHeaderTimeout: ctx.Stream.ConnectTimeout,
+	}
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), "POST", urlVal.Value, strings.NewReader(bodyVal.Value))
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE POST request creation failed: %s", err.Error())), nil
+	}
+	req.Header = headers
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return makeStreamErr("ConnectionFailed", fmt.Sprintf("SSE POST connection failed: %s", err.Error())), nil
+	}
+
+	// Verify content type
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "text/event-stream") {
+		resp.Body.Close()
+		return makeStreamErr("ConnectionFailed",
+			fmt.Sprintf("SSE POST expected Content-Type text/event-stream, got %q (HTTP %d)", ct, resp.StatusCode)), nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return makeStreamErr("ConnectionFailed",
+			fmt.Sprintf("SSE POST HTTP error: %d %s", resp.StatusCode, resp.Status)), nil
+	}
+
+	// Create connection — reuses shared SSE infrastructure
+	conn := &StreamConnection{
+		protocol:    "SSE",
+		httpResp:    resp,
+		status:      StreamStatusOpen,
+		eventBuffer: make(chan streamEvent, ctx.Stream.EventBufferSize),
+		done:        make(chan struct{}),
+		idleTimeout: ctx.Stream.IdleTimeout,
+		maxDuration: ctx.Stream.MaxDuration,
+	}
+
+	id, err := ctx.Stream.AcquireConnection(conn)
+	if err != nil {
+		resp.Body.Close()
+		return makeStreamErr("ConnectionFailed", err.Error()), nil
+	}
+
+	// Start SSE read goroutine (reuses sseReadLoop from GET-SSE)
+	go conn.sseReadLoop()
+
+	// Deliver Opened event
+	conn.eventBuffer <- streamEvent{
+		kind: "opened",
+		text: "SSE-POST",
+	}
+
+	return makeStreamOk(makeStreamConn(id)), nil
+}
+
 func init() {
 	RegisterOp("Stream", "sse_connect", StreamSSEConnect)
+	RegisterOp("Stream", "sse_post", StreamSSEPost)
 }

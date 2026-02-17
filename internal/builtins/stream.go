@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/types"
 )
 
@@ -13,7 +14,9 @@ import (
 func init() {
 	registerStreamConnect()
 	registerStreamSSEConnect()
+	registerStreamSSEPost()
 	registerStreamSend()
+	registerStreamTransmitBinary()
 	registerStreamOnEvent()
 	registerStreamRunEventLoop()
 	registerStreamClose()
@@ -326,5 +329,121 @@ func makeStreamGetStatusType() types.Type {
 		T.Con("StreamConn"), // conn
 	).Returns(
 		T.Con("StreamStatus"),
+	).Effects("Stream")
+}
+
+// registerStreamTransmitBinary registers the _stream_transmit_binary builtin
+func registerStreamTransmitBinary() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_transmit_binary",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamTransmitBinaryType,
+		Impl:    streamTransmitBinaryImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Send binary data (bytes) on a WebSocket connection",
+			LongDesc: `Sends raw binary data as a WebSocket binary frame. Wraps the bytes
+in a Bin() StreamMessage ADT and delegates to the existing StreamSend handler.
+Use this for PCM audio, images, or other binary data without base64 encoding overhead.`,
+			Params: []ParamDoc{
+				{Name: "conn", Description: "StreamConn handle from connect"},
+				{Name: "data", Description: "Binary data to send"},
+			},
+			Returns:   "Result[unit, StreamErrorKind]",
+			Since:     "v0.8.1",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "websocket", "binary", "send", "pcm"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_transmit_binary: %v", err))
+	}
+}
+
+// makeStreamTransmitBinaryType builds the type signature for _stream_transmit_binary
+// Type: (StreamConn, bytes) -> Result[unit, StreamErrorKind] ! {Stream}
+func makeStreamTransmitBinaryType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.Con("StreamConn"), // conn
+		T.Bytes(),           // data
+	).Returns(
+		T.App("Result", T.Unit(), T.Con("StreamErrorKind")),
+	).Effects("Stream")
+}
+
+// streamTransmitBinaryImpl wraps bytes in Bin() ADT and delegates to StreamSend
+func streamTransmitBinaryImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("_stream_transmit_binary: expected 2 arguments, got %d", len(args))
+	}
+
+	bytesVal, ok := args[1].(*eval.BytesValue)
+	if !ok {
+		return nil, fmt.Errorf("_stream_transmit_binary: expected Bytes for data, got %T", args[1])
+	}
+
+	// Wrap bytes in Bin() ADT — StreamSend already handles this variant
+	binADT := &eval.TaggedValue{
+		CtorName: "Bin",
+		Fields:   []eval.Value{bytesVal},
+	}
+
+	// Delegate to existing StreamSend which handles Bin(bytes) at line 358
+	return effects.StreamSend(ctx, []eval.Value{args[0], binADT})
+}
+
+// registerStreamSSEPost registers the _stream_sse_post builtin
+func registerStreamSSEPost() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_sse_post",
+		NumArgs: 3,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamSSEPostType,
+		Impl:    effects.StreamSSEPost,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Open an SSE connection via HTTP POST (for AI API streaming)",
+			LongDesc: `Sends an HTTP POST request with a JSON body and reads the response as an
+SSE stream. This is the standard pattern for AI API streaming: Claude, OpenAI,
+and Gemini all use POST+SSE where the request body contains the prompt/config
+and the response is streamed back as Server-Sent Events.
+
+The connection shares onEvent/runEventLoop/disconnect with WebSocket and GET-SSE connections.
+Custom headers (e.g. Authorization: Bearer) are supported via the config parameter.
+Content-Type defaults to application/json.`,
+			Params: []ParamDoc{
+				{Name: "url", Description: "SSE endpoint URL (https://)"},
+				{Name: "body", Description: "Request body (typically JSON)"},
+				{Name: "config", Description: "Configuration record with optional headers list"},
+			},
+			Returns:   "Result[StreamConn, StreamErrorKind]",
+			Since:     "v0.8.1",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "sse", "post", "ai", "anthropic", "openai"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_sse_post: %v", err))
+	}
+}
+
+// makeStreamSSEPostType builds the type signature for _stream_sse_post
+// Type: (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {Stream}
+func makeStreamSSEPostType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.String(), // url
+		T.String(), // body
+		T.String(), // config
+	).Returns(
+		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
 	).Effects("Stream")
 }

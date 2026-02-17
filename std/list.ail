@@ -168,6 +168,17 @@ pure func findIndexHelper[a](p: (a) -> bool, xs: [a], idx: int) -> Option[int] {
 }
 
 -- ============================================================================
+-- Zip Combinators (v0.8.1) - Combine lists element-wise
+-- ============================================================================
+
+-- zipWith: Combine two lists element-wise with a function
+-- zipWith(\a b. a + b, [1,2,3], [10,20,30]) => [11, 22, 33]
+-- Stops at the shorter list (same as zip).
+export pure func zipWith[a, b, c](f: (a, b) -> c, xs: [a], ys: [b]) -> [c] {
+  map(\pair. match pair { (x, y) => f(x, y) }, zip(xs, ys))
+}
+
+-- ============================================================================
 -- Pure flatMap (v0.7.3) - Map then flatten
 -- ============================================================================
 

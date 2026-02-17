@@ -19,6 +19,7 @@ func init() {
 	registerBytesToBase64()
 	registerBytesFromBase64()
 	registerBytesLength()
+	registerBytesSlice()
 }
 
 // ============================================================================
@@ -296,4 +297,90 @@ func bytesLengthImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 	}
 
 	return &eval.IntValue{Value: len(bytesVal.Value)}, nil
+}
+
+// registerBytesSlice registers the _bytes_slice builtin
+func registerBytesSlice() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_slice",
+		NumArgs: 3,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeBytesSliceType,
+		Impl:    bytesSliceImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Extract a sub-slice of bytes",
+			LongDesc:    "Returns a sub-slice starting at the given offset with the given length. Returns None if the range is out of bounds (start < 0, length < 0, or start + length > total). This is a pure operation — no mutation.",
+			Params: []ParamDoc{
+				{Name: "b", Description: "The source byte slice"},
+				{Name: "start", Description: "Starting byte offset (0-based)"},
+				{Name: "len", Description: "Number of bytes to extract"},
+			},
+			Returns: "Option[bytes]: Some(sub-slice) if in bounds, None otherwise",
+			Examples: []Example{
+				{Code: `_bytes_slice(bytes_from_string("hello"), 1, 3)`, Description: "Returns Some(bytes for \"ell\")"},
+				{Code: `_bytes_slice(bytes_from_string("hello"), 5, 1)`, Description: "Returns None (out of bounds)"},
+				{Code: `_bytes_slice(bytes_from_string(""), 0, 0)`, Description: "Returns Some(empty bytes)"},
+			},
+			SeeAlso:   []string{"_bytes_length", "_bytes_from_string"},
+			Since:     "v0.8.1",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "slice", "substring", "chunk"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_slice: %v", err))
+	}
+}
+
+// makeBytesSliceType builds the type signature for _bytes_slice
+// Type: (bytes, int, int) -> Option[bytes]
+func makeBytesSliceType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.Bytes(), T.Int(), T.Int()).Returns(
+		T.App("Option", T.Bytes()),
+	).Build()
+}
+
+// bytesSliceImpl is the implementation for _bytes_slice
+func bytesSliceImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	bytesVal, ok := args[0].(*eval.BytesValue)
+	if !ok {
+		return nil, fmt.Errorf("_bytes_slice: expected Bytes, got %T", args[0])
+	}
+	startVal, ok := args[1].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_bytes_slice: expected Int for start, got %T", args[1])
+	}
+	lenVal, ok := args[2].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_bytes_slice: expected Int for len, got %T", args[2])
+	}
+
+	start := startVal.Value
+	length := lenVal.Value
+	total := len(bytesVal.Value)
+
+	// Bounds check — return None for invalid ranges
+	if start < 0 || length < 0 || start+length > total {
+		return &eval.TaggedValue{
+			ModulePath: "std/option",
+			TypeName:   "Option",
+			CtorName:   "None",
+			Fields:     []eval.Value{},
+		}, nil
+	}
+
+	result := make([]byte, length)
+	copy(result, bytesVal.Value[start:start+length])
+
+	return &eval.TaggedValue{
+		ModulePath: "std/option",
+		TypeName:   "Option",
+		CtorName:   "Some",
+		Fields:     []eval.Value{&eval.BytesValue{Value: result}},
+	}, nil
 }
