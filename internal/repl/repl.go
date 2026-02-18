@@ -95,6 +95,11 @@ func NewWithVersion(version, buildTime string) *REPL {
 	// Create effect context (grant IO by default for REPL convenience)
 	effContext := effects.NewEffContext([]string{}) // REPL has no CLI arguments
 	effContext.Grant(effects.NewCapability("IO"))   // Allow println, readLine, etc. in REPL
+
+	// OTEL: Wire Go context and span wrapper for effect tracing
+	effContext.GoCtx = context.Background()
+	effContext.SpanWrapper = telemetry.NewEffectSpanWrapper()
+
 	evaluator.SetEffContext(effContext)
 
 	// Enable experimental binop shim for REPL (handles float equality until OpLowering is complete)

@@ -612,6 +612,10 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		effCtx := effects.NewEffContext(programArgs)
 		grantCapabilities(effCtx, caps)
 
+		// OTEL: Wire Go context and span wrapper for effect tracing
+		effCtx.GoCtx = ctx
+		effCtx.SpanWrapper = telemetry.NewEffectSpanWrapper()
+
 		// M-CAPABILITY-BUDGETS: Allow bypassing budget enforcement via --no-budgets flag
 		if noBudgets {
 			effCtx.DisableBudgets = true

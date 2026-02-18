@@ -97,8 +97,16 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 		return nil, fmt.Errorf("unknown operation %s in effect %s", opName, effectName)
 	}
 
-	// Step 4: Execute operation
-	result, err := op(ctx, args)
+	// Step 4: Execute operation (with optional OTEL span wrapping)
+	var result eval.Value
+	var err error
+	if ctx.SpanWrapper != nil && ctx.GoCtx != nil {
+		result, err = ctx.SpanWrapper(ctx.GoCtx, effectName, opName, args, func() (eval.Value, error) {
+			return op(ctx, args)
+		})
+	} else {
+		result, err = op(ctx, args)
+	}
 
 	// Step 5: Record trace event (M-TRACE-EXPORT)
 	if err == nil && ctx.Trace != nil && ctx.Trace.Enabled() {

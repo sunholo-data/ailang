@@ -2,6 +2,7 @@ package effects
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"strconv"
@@ -49,7 +50,24 @@ type EffContext struct {
 	// M-STREAM-BIDI: Function caller for stream event handlers
 	// Set by the evaluator; allows effects to call AILANG functions without import cycles.
 	FnCaller func(fn eval.Value, arg eval.Value) (eval.Value, error)
+
+	// OTEL effect tracing: callback injection to avoid effects→telemetry import cycle.
+	// GoCtx carries the Go context with OTEL trace propagation.
+	// SpanWrapper wraps each effect operation with an OTEL span (nil = no tracing).
+	GoCtx       context.Context
+	SpanWrapper SpanWrapperFunc
 }
+
+// SpanWrapperFunc wraps an effect operation with an OTEL span.
+// Called by Call() if non-nil. The wrapper starts a span, calls fn(),
+// sets span attributes/status, and ends the span.
+// Defined here (in effects) so telemetry can implement it without import cycles.
+type SpanWrapperFunc func(
+	goCtx context.Context,
+	effectName, opName string,
+	args []eval.Value,
+	fn func() (eval.Value, error),
+) (eval.Value, error)
 
 // EffEnv provides deterministic effect execution configuration
 //
@@ -322,6 +340,8 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		DeclaredBudgets: nil,             // Reset for new scope (will be set by WithBudgetLimits)
 		CallerContext:   nil,             // Reset for new scope (will be set by WithBudgetLimits)
 		FnCaller:        ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		GoCtx:           ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
+		SpanWrapper:     ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
 	}
 }
 
