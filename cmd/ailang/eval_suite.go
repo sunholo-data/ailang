@@ -565,7 +565,7 @@ func runEvalSuite() {
 	}
 
 	// Open messaging store for dashboard event visibility (non-blocking on failure)
-	var evalStore *messaging.Store
+	var evalStore messaging.MessageStore
 	if store, err := openStore(); err == nil {
 		evalStore = store
 		defer evalStore.Close()

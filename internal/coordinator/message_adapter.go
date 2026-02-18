@@ -4,14 +4,14 @@ import (
 	"github.com/sunholo/ailang/internal/messaging"
 )
 
-// InboxMessageAdapter adapts messaging.Store (inbox_messages table) to the coordinator's MessageStore interface
+// InboxMessageAdapter adapts messaging.MessageStore (inbox_messages table) to the coordinator's MessageStore interface
 type InboxMessageAdapter struct {
-	store *messaging.Store
+	store messaging.MessageStore
 	inbox string // Target inbox (e.g., "user", "coordinator")
 }
 
 // NewInboxMessageAdapter creates a new adapter that watches a specific inbox
-func NewInboxMessageAdapter(store *messaging.Store, inbox string) *InboxMessageAdapter {
+func NewInboxMessageAdapter(store messaging.MessageStore, inbox string) *InboxMessageAdapter {
 	if inbox == "" {
 		inbox = "user"
 	}
@@ -71,7 +71,7 @@ func (a *InboxMessageAdapter) MarkAsRead(id string) error {
 var _ MessageStore = (*InboxMessageAdapter)(nil)
 
 // OpenDefaultInboxAdapter opens the default collaboration database and creates an adapter
-func OpenDefaultInboxAdapter(targetInbox string) (*InboxMessageAdapter, *messaging.Store, error) {
+func OpenDefaultInboxAdapter(targetInbox string) (*InboxMessageAdapter, messaging.MessageStore, error) {
 	dbPath := messaging.GetDefaultDatabasePath()
 	store, err := messaging.OpenStore(dbPath)
 	if err != nil {

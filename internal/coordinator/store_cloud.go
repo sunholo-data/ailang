@@ -186,6 +186,11 @@ func (s *CloudStore) CreateApprovalRequest(ctx context.Context, req *ApprovalReq
 	return fmt.Errorf("cloud store not yet implemented")
 }
 
+// GetApprovalRequest retrieves an approval request by its ID
+func (s *CloudStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
+	return nil, fmt.Errorf("cloud store not yet implemented")
+}
+
 // GetApprovalRequestByTask retrieves approval request by task ID
 func (s *CloudStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
 	return nil, fmt.Errorf("cloud store not yet implemented")
@@ -198,6 +203,11 @@ func (s *CloudStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, task
 
 // ListPendingApprovals returns all pending approval requests
 func (s *CloudStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, fmt.Errorf("cloud store not yet implemented")
+}
+
+// ListResolvedApprovals returns resolved approval requests
+func (s *CloudStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) {
 	return nil, fmt.Errorf("cloud store not yet implemented")
 }
 

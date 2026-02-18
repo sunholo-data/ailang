@@ -36,11 +36,11 @@ type ApprovalParams struct {
 	RetriggerOnReject bool // If true, send feedback to agent for re-attempt (feedback loop)
 
 	// Dependencies (injected by caller)
-	Store         Store               // Required: coordinator store for task/approval operations
-	MsgStore      *messaging.Store    // Optional: messaging store for sending feedback to agents
-	GitHubPoster  *GitHubPoster       // Optional: for posting feedback to GitHub issues
-	AgentRegistry *AgentRegistry      // Optional: for looking up per-agent merge branch
-	ObsBackend    observatory.Backend // Optional: for updating chain/stage status (M-CHAINS-SIMPLIFY)
+	Store         Store                  // Required: coordinator store for task/approval operations
+	MsgStore      messaging.MessageStore // Optional: messaging store for sending feedback to agents
+	GitHubPoster  *GitHubPoster          // Optional: for posting feedback to GitHub issues
+	AgentRegistry *AgentRegistry         // Optional: for looking up per-agent merge branch
+	ObsBackend    observatory.Backend    // Optional: for updating chain/stage status (M-CHAINS-SIMPLIFY)
 }
 
 // ApprovalResult contains the result of processing an approval or rejection.

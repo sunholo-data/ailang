@@ -18,8 +18,8 @@ type TaskChain struct {
 	poster   *GitHubPoster
 	store    Store
 	watcher  *ApprovalWatcher
-	registry *AgentRegistry   // For config-driven workflows (M-GENERIC-PIPELINE)
-	msgStore *messaging.Store // For handoff messages (M-GENERIC-PIPELINE)
+	registry *AgentRegistry         // For config-driven workflows (M-GENERIC-PIPELINE)
+	msgStore messaging.MessageStore // For handoff messages (M-GENERIC-PIPELINE)
 }
 
 // NewTaskChain creates a new task chain manager.
@@ -47,7 +47,7 @@ func (tc *TaskChain) SetAgentRegistry(registry *AgentRegistry) {
 }
 
 // SetMessageStore sets the message store for handoff messages.
-func (tc *TaskChain) SetMessageStore(msgStore *messaging.Store) {
+func (tc *TaskChain) SetMessageStore(msgStore messaging.MessageStore) {
 	tc.msgStore = msgStore
 }
 

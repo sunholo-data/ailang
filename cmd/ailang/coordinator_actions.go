@@ -74,7 +74,7 @@ func coordinatorApprove(args []string) error {
 	// If observatory fails to open, continue without it - chain status won't be updated
 
 	// Open messaging store for handoff messages (M-CHAINS-SIMPLIFY)
-	var msgStore *messaging.Store
+	var msgStore messaging.MessageStore
 	if ms, err := messaging.OpenStore(messaging.GetDefaultDatabasePath()); err == nil {
 		msgStore = ms
 		defer msgStore.Close()
@@ -195,7 +195,7 @@ func coordinatorReject(args []string) error {
 	}
 
 	// Open messaging store for feedback loop
-	var msgStore *messaging.Store
+	var msgStore messaging.MessageStore
 	if !noRetrigger {
 		msgStore, err = messaging.OpenStore(messaging.GetDefaultDatabasePath())
 		if err != nil {

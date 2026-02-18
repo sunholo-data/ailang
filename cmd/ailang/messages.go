@@ -101,7 +101,7 @@ func messagesCommand() {
 }
 
 // openStore opens the unified collaboration database
-func openStore() (*messaging.Store, error) {
+func openStore() (messaging.MessageStore, error) {
 	dbPath := messaging.GetDefaultDatabasePath()
 	return messaging.OpenStore(dbPath)
 }

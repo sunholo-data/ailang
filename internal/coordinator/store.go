@@ -210,9 +210,11 @@ type Store interface {
 
 	// Approval requests
 	CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error
-	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)
+	GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error)                    // Get by approval ID
+	GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error)          // Get pending by task ID
 	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) // Get approval regardless of status (for handoff triggering)
 	ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error)
+	ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) // List resolved (approved/rejected) approvals
 	ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error
 	ResolveApprovalRequestByTask(ctx context.Context, taskID, status, resolvedBy string) error
 	MarkApprovalHandoffsTriggered(ctx context.Context, taskID string) error                        // Mark that handoffs were sent

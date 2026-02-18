@@ -609,6 +609,9 @@ func (m *mockStore) UpdateTaskMetrics(ctx context.Context, id string, peakCPU, p
 func (m *mockStore) CreateApprovalRequest(ctx context.Context, req *ApprovalRequestRecord) error {
 	return nil
 }
+func (m *mockStore) GetApprovalRequest(ctx context.Context, id string) (*ApprovalRequestRecord, error) {
+	return nil, nil
+}
 func (m *mockStore) GetApprovalRequestByTask(ctx context.Context, taskID string) (*ApprovalRequestRecord, error) {
 	return nil, nil
 }
@@ -616,6 +619,9 @@ func (m *mockStore) GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskI
 	return nil, nil
 }
 func (m *mockStore) ListPendingApprovals(ctx context.Context) ([]*ApprovalRequestRecord, error) {
+	return nil, nil
+}
+func (m *mockStore) ListResolvedApprovals(ctx context.Context, limit int) ([]*ApprovalRequestRecord, error) {
 	return nil, nil
 }
 func (m *mockStore) ResolveApprovalRequest(ctx context.Context, id, status, resolvedBy string) error {

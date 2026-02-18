@@ -103,7 +103,7 @@ type AgentProcess struct {
 
 // Server represents the HTTP server for the collaboration hub
 type Server struct {
-	store    *messaging.Store
+	store    messaging.MessageStore
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
@@ -150,18 +150,10 @@ type Server struct {
 	workspaceService *auth.WorkspaceService
 }
 
-// NewServer creates a new HTTP server
+// NewServer creates a new HTTP server.
+// If a messaging store was set via WithMessagingStore, dbPath is only used for display.
 func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, error) {
-	store, err := messaging.OpenStore(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open store: %w", err)
-	}
-
-	wsServer := websocket.NewServer(store)
-
 	s := &Server{
-		store:             store,
-		wsServer:          wsServer,
 		httpAddr:          httpAddr,
 		dbPath:            dbPath,
 		version:           "dev", // Default version
@@ -171,10 +163,21 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 		pollingCache:      newResponseCache(5 * time.Second), // 5s TTL for dashboard polling endpoints
 	}
 
-	// Apply options
+	// Apply options (may set s.store and s.obsBackend via WithBackends)
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	// If no messaging store was injected, open one from dbPath (local SQLite)
+	if s.store == nil {
+		store, err := messaging.OpenStore(dbPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open store: %w", err)
+		}
+		s.store = store
+	}
+
+	s.wsServer = websocket.NewServer(s.store)
 
 	return s, nil
 }
@@ -186,6 +189,24 @@ type ServerOption func(*Server)
 func WithVersion(version string) ServerOption {
 	return func(s *Server) {
 		s.version = version
+	}
+}
+
+// WithMessagingStore sets a pre-created messaging store, skipping local SQLite open.
+// Use this when running with cloud backends (AILANG_STORAGE=gcp).
+func WithMessagingStore(store messaging.MessageStore) ServerOption {
+	return func(s *Server) {
+		s.store = store
+	}
+}
+
+// WithObservatoryBackend sets a pre-created observatory backend.
+// Use this instead of WithObservatoryDB when running with cloud backends.
+func WithObservatoryBackend(backend observatory.Backend) ServerOption {
+	return func(s *Server) {
+		s.obsBackend = backend
+		s.obsAPI = observatory.NewAPI(backend)
+		s.obsHub = observatory.NewHub()
 	}
 }
 

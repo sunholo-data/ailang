@@ -42,7 +42,7 @@ var upgrader = websocket.Upgrader{
 
 // Server manages WebSocket connections and message broadcasting
 type Server struct {
-	store       *messaging.Store
+	store       messaging.MessageStore
 	connections map[string]*Connection // connectionID -> Connection
 	mu          sync.RWMutex
 	broadcast   chan *BroadcastMessage
@@ -80,7 +80,7 @@ type BroadcastMessage struct {
 }
 
 // NewServer creates a new WebSocket server
-func NewServer(store *messaging.Store) *Server {
+func NewServer(store messaging.MessageStore) *Server {
 	return &Server{
 		store:       store,
 		connections: make(map[string]*Connection),

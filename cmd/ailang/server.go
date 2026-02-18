@@ -14,6 +14,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/server"
+	"github.com/sunholo/ailang/internal/storage"
 	"github.com/sunholo/ailang/internal/telemetry"
 )
 
@@ -132,13 +133,9 @@ func serverCommand(args []string) error {
 		}
 	}
 
-	// Observatory database path (for telemetry, traces, metrics)
-	obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
-
-	// Build server options
+	// Build server options based on storage mode
 	serverOpts := []server.ServerOption{
 		server.WithVersion(Version),
-		server.WithObservatoryDB(obsDbPath),
 	}
 
 	// Add Firebase auth if configured
@@ -147,31 +144,63 @@ func serverCommand(args []string) error {
 		serverOpts = append(serverOpts, server.WithFirebaseAuth(firebaseProject))
 	}
 
-	// Create and start server with version info and observatory
+	storageMode := storage.GetMode()
+	var backends *storage.Backends
+
+	if storageMode != storage.ModeLocal {
+		// Cloud or hybrid mode: use storage.NewBackends for all stores
+		backends, err = storage.NewBackends(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create %s backends: %w", storageMode, err)
+		}
+		defer backends.Close()
+
+		serverOpts = append(serverOpts,
+			server.WithMessagingStore(backends.Messaging),
+			server.WithObservatoryBackend(backends.Observatory),
+		)
+		log.Printf("Storage mode: %s", storageMode)
+	} else {
+		// Local mode: use SQLite paths (existing behavior)
+		obsDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "observatory.db")
+		serverOpts = append(serverOpts, server.WithObservatoryDB(obsDbPath))
+		log.Printf("Storage mode: local")
+		log.Printf("Observatory DB: %s", obsDbPath)
+	}
+
+	// Create and start server
 	srv, err := server.NewServer(dbPath, httpAddr, serverOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 	defer srv.Close()
 
-	// Connect to coordinator store for task events (read-only access for historical replay)
-	coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
-	coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
-	if err != nil {
-		log.Printf("Warning: Could not connect to coordinator store: %v", err)
-		log.Printf("Task event history will not be available")
+	// Connect coordinator store for task events
+	if backends != nil && backends.Coordinator != nil {
+		// Cloud mode: coordinator store already created
+		srv.SetTaskEventStore(backends.Coordinator)
+		srv.SetApprovalStore(backends.Coordinator)
+		srv.SetCoordinatorStore(&coordStoreAdapter{store: backends.Coordinator})
+		srv.SetCoordinatorStoreRaw(backends.Coordinator)
 	} else {
-		srv.SetTaskEventStore(coordStore)
-		srv.SetApprovalStore(coordStore)
-		srv.SetCoordinatorStore(&coordStoreAdapter{store: coordStore})
-		srv.SetCoordinatorStoreRaw(coordStore) // Full store for Control Plane queries
-		defer coordStore.Close()
+		// Local mode: open SQLite coordinator store
+		coordDbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "coordinator.db")
+		coordStore, err := coordinator.NewSQLiteStore(coordDbPath)
+		if err != nil {
+			log.Printf("Warning: Could not connect to coordinator store: %v", err)
+			log.Printf("Task event history will not be available")
+		} else {
+			srv.SetTaskEventStore(coordStore)
+			srv.SetApprovalStore(coordStore)
+			srv.SetCoordinatorStore(&coordStoreAdapter{store: coordStore})
+			srv.SetCoordinatorStoreRaw(coordStore)
+			defer coordStore.Close()
+		}
+		log.Printf("Coordinator DB: %s", coordDbPath)
 	}
 
 	log.Printf("AILANG Observatory & Collaboration Hub (v%s)", Version)
 	log.Printf("Collaboration DB: %s", dbPath)
-	log.Printf("Observatory DB: %s", obsDbPath)
-	log.Printf("Coordinator DB: %s", coordDbPath)
 	log.Printf("")
 
 	// Auto-open browser after a short delay (server needs to start first)
@@ -230,9 +259,9 @@ func openBrowser(url string) error {
 	return cmd.Start()
 }
 
-// coordStoreAdapter adapts coordinator.SQLiteStore to server.CoordinatorStore
+// coordStoreAdapter adapts coordinator.Store to server.CoordinatorStore
 type coordStoreAdapter struct {
-	store *coordinator.SQLiteStore
+	store coordinator.Store
 }
 
 // GetCoordinatorStats implements server.CoordinatorStore

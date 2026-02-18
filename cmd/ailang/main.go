@@ -283,6 +283,12 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "storage":
+		if err := storageCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "workspaces":
 		if err := workspacesCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

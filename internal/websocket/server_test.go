@@ -13,7 +13,7 @@ import (
 	"github.com/sunholo/ailang/internal/messaging"
 )
 
-func setupTestServer(t *testing.T) (*Server, *messaging.Store) {
+func setupTestServer(t *testing.T) (*Server, messaging.MessageStore) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	store, err := messaging.OpenStore(dbPath)
 	if err != nil {

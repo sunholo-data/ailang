@@ -238,32 +238,14 @@ func (d *Daemon) registerAgent() error {
 		return nil // No store available
 	}
 
-	db := d.msgStore.DB()
-	if db == nil {
-		return nil
-	}
-
-	now := time.Now().Unix()
-
-	// Register/update agent
-	_, err := db.Exec(`
-		INSERT INTO agents (id, label, status, created_at, updated_at, last_active_at, config_json)
-		VALUES ('coordinator', 'Coordinator Daemon', 'running', ?, ?, ?, '{}')
-		ON CONFLICT(id) DO UPDATE SET status='running', updated_at=?, last_active_at=?
-	`, now, now, now, now, now)
-
-	if err != nil {
+	// Use the MessageStore interface methods instead of raw DB access
+	if err := d.msgStore.RegisterAgent("coordinator", "Coordinator Daemon", "running"); err != nil {
 		return err
 	}
 
 	// Create instance history entry
-	d.instanceID = fmt.Sprintf("coord_%d", now)
-	_, err = db.Exec(`
-		INSERT INTO instance_history (id, agent_id, instance_id, started_at)
-		VALUES (?, 'coordinator', ?, ?)
-	`, d.instanceID, d.instanceID, now)
-
-	if err != nil {
+	d.instanceID = fmt.Sprintf("coord_%d", time.Now().Unix())
+	if err := d.msgStore.RecordAgentInstance("coordinator", d.instanceID); err != nil {
 		d.logger.Printf("Warning: Failed to record instance history: %v", err)
 	}
 
@@ -277,25 +259,12 @@ func (d *Daemon) unregisterAgent() error {
 		return nil
 	}
 
-	db := d.msgStore.DB()
-	if db == nil {
-		return nil
-	}
-
-	now := time.Now().Unix()
-
-	// Update agent status
-	_, err := db.Exec(`
-		UPDATE agents SET status='idle', updated_at=? WHERE id='coordinator'
-	`, now)
+	// Use the MessageStore interface methods instead of raw DB access
+	err := d.msgStore.UpdateAgentStatus("coordinator", "idle")
 
 	// Complete instance history entry
 	if d.instanceID != "" {
-		_, histErr := db.Exec(`
-			UPDATE instance_history SET ended_at=?, exit_code=0
-			WHERE id=?
-		`, now, d.instanceID)
-		if histErr != nil {
+		if histErr := d.msgStore.RecordInstanceEnd(d.instanceID, 0, 0, 0, 0); histErr != nil {
 			d.logger.Printf("Warning: Failed to update instance history: %v", histErr)
 		}
 	}

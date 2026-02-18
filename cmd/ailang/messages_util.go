@@ -191,7 +191,7 @@ func waitForEnter(reader *bufio.Reader) {
 
 // resolveMessageID resolves a short ID prefix to a full message ID.
 // Returns error if no match or multiple matches (ambiguous prefix).
-func resolveMessageID(store *messaging.Store, prefix string) (string, error) {
+func resolveMessageID(store messaging.MessageStore, prefix string) (string, error) {
 	// If prefix looks like a full UUID, use it directly
 	if len(prefix) >= 36 {
 		return prefix, nil

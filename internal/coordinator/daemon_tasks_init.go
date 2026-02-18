@@ -55,19 +55,24 @@ func (d *Daemon) initTaskProcessing() error {
 	d.inboxAdapters = make(map[string]*InboxMessageAdapter)
 	d.worktreeManagers = make(map[string]*WorktreeManager)
 
-	// Open shared message store
-	adapter, store, err := OpenDefaultInboxAdapter("coordinator")
-	if err != nil {
-		return fmt.Errorf("failed to open inbox adapter: %w", err)
+	// Open shared message store (skip if already set via SetStores)
+	if d.msgStore == nil {
+		adapter, store, err := OpenDefaultInboxAdapter("coordinator")
+		if err != nil {
+			return fmt.Errorf("failed to open inbox adapter: %w", err)
+		}
+		d.msgAdapter = adapter // Keep for backwards compatibility
+		d.msgStore = store
+	} else {
+		// Wrap pre-set store in adapter for backwards compatibility
+		d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
 	}
-	d.msgAdapter = adapter // Keep for backwards compatibility
-	d.msgStore = store
 
 	// Create adapters and worktree managers for each agent
 	for _, agent := range coordConfig.Agents {
 		// Create inbox adapter
 		inboxAdapter := &InboxMessageAdapter{
-			store: store,
+			store: d.msgStore,
 			inbox: agent.Inbox,
 		}
 		d.inboxAdapters[agent.Inbox] = inboxAdapter
@@ -92,13 +97,15 @@ func (d *Daemon) initTaskProcessing() error {
 	// Initialize analyzer
 	d.analyzer = NewTaskAnalyzer(0.8)
 
-	// Initialize task store
-	dbPath := filepath.Join(d.config.StateDir, "coordinator.db")
-	taskStore, err := NewSQLiteStore(dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open task store: %w", err)
+	// Initialize task store (skip if already set via SetStores)
+	if d.taskStore == nil {
+		dbPath := filepath.Join(d.config.StateDir, "coordinator.db")
+		taskStore, err := NewSQLiteStore(dbPath)
+		if err != nil {
+			return fmt.Errorf("failed to open task store: %w", err)
+		}
+		d.taskStore = taskStore
 	}
-	d.taskStore = taskStore
 
 	// Legacy worktree manager (for coordinator agent fallback)
 	d.worktreeMgr = d.worktreeManagers["coordinator"]
@@ -162,16 +169,20 @@ func (d *Daemon) initTaskProcessing() error {
 	}
 
 	// Initialize Observatory sync for trace linking (M-TASK-HIERARCHY)
-	// Uses the same state directory for the observatory database
-	obsDBPath := filepath.Join(d.config.StateDir, "observatory.db")
-	obsBackend, err := observatory.NewSQLiteBackendFromPath(obsDBPath)
-	if err != nil {
-		d.logger.Printf("Warning: Failed to initialize Observatory backend: %v", err)
-		d.logger.Println("Observatory trace linking disabled")
-	} else {
-		d.obsBackend = obsBackend // Store backend for chain operations (M-CHAINS-SIMPLIFY)
-		d.observatorySync = NewObservatorySync(obsBackend, d.logger)
-		d.logger.Printf("Observatory sync initialized (db: %s)", obsDBPath)
+	if d.obsBackend == nil {
+		// Open local SQLite observatory (skip if already set via SetStores)
+		obsDBPath := filepath.Join(d.config.StateDir, "observatory.db")
+		obsBackend, err := observatory.NewSQLiteBackendFromPath(obsDBPath)
+		if err != nil {
+			d.logger.Printf("Warning: Failed to initialize Observatory backend: %v", err)
+			d.logger.Println("Observatory trace linking disabled")
+		} else {
+			d.obsBackend = obsBackend
+			d.logger.Printf("Observatory sync initialized (db: %s)", obsDBPath)
+		}
+	}
+	if d.obsBackend != nil && d.observatorySync == nil {
+		d.observatorySync = NewObservatorySync(d.obsBackend, d.logger)
 	}
 
 	// Recover stale tasks from previous daemon runs

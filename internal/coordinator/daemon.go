@@ -68,7 +68,7 @@ type Daemon struct {
 	tasksRun  int
 
 	// Task processing components
-	msgStore         *messaging.Store
+	msgStore         messaging.MessageStore
 	msgAdapter       *InboxMessageAdapter            // Legacy: single adapter (for backwards compat)
 	inboxAdapters    map[string]*InboxMessageAdapter // Key: inbox name
 	worktreeManagers map[string]*WorktreeManager     // Key: agent ID
@@ -103,6 +103,15 @@ type Daemon struct {
 
 	// Observatory backend for chain operations (M-CHAINS-SIMPLIFY)
 	obsBackend observatory.Backend
+}
+
+// SetStores pre-sets the task store, messaging store, and observatory backend.
+// When set, initTaskProcessing() will use these instead of opening local SQLite databases.
+// Call this after NewDaemon() but before Start() to use cloud backends.
+func (d *Daemon) SetStores(taskStore Store, msgStore messaging.MessageStore, obsBackend observatory.Backend) {
+	d.taskStore = taskStore
+	d.msgStore = msgStore
+	d.obsBackend = obsBackend
 }
 
 // NewDaemon creates a new daemon instance

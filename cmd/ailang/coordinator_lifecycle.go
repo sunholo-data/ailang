@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/storage"
 	"github.com/sunholo/ailang/internal/telemetry"
 )
 
@@ -84,6 +85,17 @@ func coordinatorStart(args []string) error {
 		fmt.Println(yellow("⚠"), "Coordinator is already running")
 		fmt.Printf("  PID: %d\n", status.PID)
 		return nil
+	}
+
+	// Pre-set cloud backends if configured (AILANG_STORAGE=gcp|hybrid)
+	storageMode := storage.GetMode()
+	if storageMode != storage.ModeLocal {
+		backends, err := storage.NewBackends(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create %s backends: %w", storageMode, err)
+		}
+		daemon.SetStores(backends.Coordinator, backends.Messaging, backends.Observatory)
+		fmt.Printf("  Storage: %s\n", storageMode)
 	}
 
 	// Start daemon
