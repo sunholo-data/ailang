@@ -120,4 +120,36 @@ func registerIO() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _io_readLine: %v", err))
 	}
+
+	// _io_writeBytes — write raw bytes to stdout
+	impl4 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "IO", "writeBytes", args)
+	}
+	type4 := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.Bytes()).Returns(T.Unit()).Effects("IO")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_writeBytes", NumArgs: 1, IsPure: false, Effect: "IO", Type: type4, Impl: impl4,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Write raw bytes to stdout",
+			LongDesc:    "Writes binary data directly to stdout. Enables piping to external tools: `ailang run ... | afplay -f LEI16 -r 24000 -c 1 -`.",
+			Params: []ParamDoc{
+				{Name: "data", Description: "Bytes to write to stdout"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_io_writeBytes(pcmData)`, Description: "Writes raw PCM audio to stdout"},
+			},
+			SeeAlso:   []string{"_io_print", "_io_println"},
+			Since:     "v0.8.2",
+			Stability: StabilityStable,
+			Tags:      []string{"io", "write", "bytes", "binary", "stdout", "pipe"},
+			Category:  "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_writeBytes: %v", err))
+	}
 }

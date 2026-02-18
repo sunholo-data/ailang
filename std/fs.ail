@@ -31,6 +31,30 @@ export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_r
 -- @permissions 0644 (owner: rw, group: r, others: r)
 export func writeFile(path: string, content: string) -> () ! {FS} = _fs_writeFile(path, content)
 
+-- Binary file writing
+-- Writes raw bytes to file (truncates if exists)
+-- Use for PCM audio, images, WAV files, or other binary data
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func writeFileBytes(path: string, data: bytes) -> () ! {FS} = _fs_writeFileBytes(path, data)
+
+-- File append (string)
+-- Appends string content to file (creates if not exists)
+-- O(1) per call — does not read existing contents
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func appendFile(path: string, content: string) -> () ! {FS} = _fs_appendFile(path, content)
+
+-- Binary file append
+-- Appends raw bytes to file (creates if not exists)
+-- O(1) per call — ideal for streaming binary data to disk (e.g., PCM audio frames)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0644 (owner: rw, group: r, others: r)
+export func appendFileBytes(path: string, data: bytes) -> () ! {FS} = _fs_appendFileBytes(path, data)
+
 -- File existence check
 -- Returns true if file or directory exists
 -- @requires FS capability

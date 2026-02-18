@@ -40,3 +40,17 @@ export pure func length(b: bytes) -> int { _bytes_length(b) }
 -- Example: slice(fromString("hello"), 1, 3) returns Some(bytes for "ell")
 -- Example: slice(fromString("hello"), 5, 1) returns None
 export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] { _bytes_slice(b, start, len) }
+
+-- Concatenate two byte slices
+-- Example: concat(fromString("hello"), fromString(" world")) returns bytes for "hello world"
+export pure func concat(a: bytes, b: bytes) -> bytes { _bytes_concat(a, b) }
+
+-- Concatenate a list of byte slices
+-- Single allocation for efficiency
+-- Example: concatList([header, body, footer])
+export pure func concatList(xs: [bytes]) -> bytes { _bytes_concat_list(xs) }
+
+-- Construct bytes from a list of integers (0-255 each)
+-- Useful for building binary headers (WAV, PNG)
+-- Example: fromInts([0x52, 0x49, 0x46, 0x46]) returns bytes for "RIFF"
+export pure func fromInts(xs: [int]) -> bytes { _bytes_from_ints(xs) }

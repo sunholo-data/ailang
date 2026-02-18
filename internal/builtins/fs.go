@@ -16,7 +16,7 @@ func init() {
 }
 
 // ============================================================================
-// FS Effect Builtins (_fs_readFile, _fs_readFileBytes, _fs_writeFile, _fs_exists)
+// FS Effect Builtins (_fs_readFile, _fs_readFileBytes, _fs_writeFile, _fs_writeFileBytes, _fs_exists)
 // ============================================================================
 
 func registerFS() {
@@ -119,6 +119,39 @@ func registerFS() {
 		panic(fmt.Sprintf("failed to register _fs_writeFile: %v", err))
 	}
 
+	// _fs_writeFileBytes
+	impl2b := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "writeFileBytes", args)
+	}
+	type2b := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.Bytes()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_writeFileBytes", NumArgs: 2, IsPure: false, Effect: "FS", Type: type2b, Impl: impl2b,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Write raw bytes to a file (truncates if exists)",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to file to write"},
+				{Name: "data", Description: "Bytes to write"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_writeFileBytes("output.bin", _bytes_from_string("hello"))`, Description: "Writes bytes to output.bin"},
+			},
+			LongDesc:  "Writes raw byte data to disk. Use for binary files (PCM audio, images, WAV). Respects AILANG_FS_SANDBOX. File permissions: 0644.",
+			SeeAlso:   []string{"_fs_readFileBytes", "_fs_writeFile", "_bytes_from_string"},
+			Since:     "v0.8.2",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "write", "binary", "bytes"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_writeFileBytes: %v", err))
+	}
+
 	// _fs_exists
 	impl3 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		return effects.Call(ctx, "FS", "exists", args)
@@ -150,5 +183,71 @@ func registerFS() {
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_exists: %v", err))
+	}
+
+	// _fs_appendFile
+	impl4 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "appendFile", args)
+	}
+	type4 := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.String()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_appendFile", NumArgs: 2, IsPure: false, Effect: "FS", Type: type4, Impl: impl4,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Append string content to a file (creates if not exists)",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to file to append to"},
+				{Name: "content", Description: "String content to append"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_appendFile("log.txt", "new line\n")`, Description: "Appends a line to log.txt"},
+			},
+			LongDesc:  "Appends to file without reading entire contents. O(1) per call. Respects AILANG_FS_SANDBOX. File permissions: 0644.",
+			SeeAlso:   []string{"_fs_writeFile", "_fs_appendFileBytes"},
+			Since:     "v0.8.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "append", "io"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_appendFile: %v", err))
+	}
+
+	// _fs_appendFileBytes
+	impl4b := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "appendFileBytes", args)
+	}
+	type4b := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String(), T.Bytes()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_appendFileBytes", NumArgs: 2, IsPure: false, Effect: "FS", Type: type4b, Impl: impl4b,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Append raw bytes to a file (creates if not exists)",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to file to append to"},
+				{Name: "data", Description: "Bytes to append"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_appendFileBytes("output.pcm", pcmFrame)`, Description: "Appends PCM audio frame to file"},
+			},
+			LongDesc:  "Appends raw bytes without reading entire file. O(1) per call — ideal for streaming binary data to disk (e.g., PCM audio frames). Respects AILANG_FS_SANDBOX. File permissions: 0644.",
+			SeeAlso:   []string{"_fs_writeFileBytes", "_fs_appendFile"},
+			Since:     "v0.8.0",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "append", "binary", "bytes", "streaming"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_appendFileBytes: %v", err))
 	}
 }

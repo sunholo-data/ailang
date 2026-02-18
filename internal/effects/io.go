@@ -13,6 +13,7 @@ func init() {
 	RegisterOp("IO", "print", ioPrint)
 	RegisterOp("IO", "println", ioPrintln)
 	RegisterOp("IO", "readLine", ioReadLine)
+	RegisterOp("IO", "writeBytes", ioWriteBytes)
 }
 
 // ioPrint implements IO.print(s: String) -> ()
@@ -112,4 +113,38 @@ func ioReadLine(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	line = strings.TrimSuffix(line, "\r")
 
 	return &eval.StringValue{Value: line}, nil
+}
+
+// ioWriteBytes implements IO.writeBytes(data: Bytes) -> ()
+//
+// Writes raw bytes to stdout. Unlike print/println which take strings,
+// writeBytes writes binary data directly — enabling piping to external
+// tools (e.g., `ailang run ... | afplay -f LEI16 -r 24000 -c 1 -`).
+//
+// Parameters:
+//   - ctx: Effect context
+//   - args: [BytesValue] - the bytes to write
+//
+// Returns:
+//   - UnitValue on success
+//   - Error if wrong number/type of arguments or write fails
+//
+// Example AILANG code:
+//
+//	writeBytes(pcmData)  -- writes raw PCM audio to stdout
+func ioWriteBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("writeBytes: expected 1 argument, got %d", len(args))
+	}
+
+	bytesVal, ok := args[0].(*eval.BytesValue)
+	if !ok {
+		return nil, fmt.Errorf("writeBytes: expected Bytes, got %T", args[0])
+	}
+
+	if _, err := ctx.GetIOWriter().Write(bytesVal.Value); err != nil {
+		return nil, fmt.Errorf("writeBytes: %w", err)
+	}
+
+	return &eval.UnitValue{}, nil
 }

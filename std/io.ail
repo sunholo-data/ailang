@@ -15,3 +15,8 @@ export func println(s: string) -> () ! {IO} = _io_println(s)
 
 -- readLine: Read line from stdin
 export func readLine() -> string ! {IO} = _io_readLine()
+
+-- writeBytes: Write raw bytes to stdout
+-- Enables piping binary data to external tools
+-- Example: ailang run ... | afplay -f LEI16 -r 24000 -c 1 -
+export func writeBytes(data: bytes) -> () ! {IO} = _io_writeBytes(data)

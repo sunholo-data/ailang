@@ -126,6 +126,11 @@ func ailangValueToJS(v eval.Value) interface{} {
 		return val.Value
 	case *eval.BoolValue:
 		return val.Value
+	case *eval.BytesValue:
+		// Convert to Uint8Array for JS interop (binary data stays binary)
+		arr := js.Global().Get("Uint8Array").New(len(val.Value))
+		js.CopyBytesToJS(arr, val.Value)
+		return arr
 	case *eval.UnitValue:
 		return nil
 	default:
@@ -150,6 +155,13 @@ func jsToAILANGValue(v js.Value) eval.Value {
 	case js.TypeNull, js.TypeUndefined:
 		return &eval.UnitValue{}
 	default:
+		// Check for Uint8Array (binary data from JS)
+		if v.InstanceOf(js.Global().Get("Uint8Array")) {
+			length := v.Get("length").Int()
+			buf := make([]byte, length)
+			js.CopyBytesToGo(buf, v)
+			return &eval.BytesValue{Value: buf}
+		}
 		// Object/array fallback: convert to string
 		return &eval.StringValue{Value: v.String()}
 	}

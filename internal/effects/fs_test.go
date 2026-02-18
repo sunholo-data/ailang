@@ -227,6 +227,163 @@ func TestFSWriteFile_WrongArgType(t *testing.T) {
 	}
 }
 
+func TestFSWriteFileBytes_Success(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	tmpfile := filepath.Join(os.TempDir(), "ailang-test-write-bytes.bin")
+	defer os.Remove(tmpfile)
+
+	testData := []byte{0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x00, 0xFF, 0xFE} // "Hello" + null + binary
+	args := []eval.Value{
+		&eval.StringValue{Value: tmpfile},
+		&eval.BytesValue{Value: testData},
+	}
+
+	result, err := Call(ctx, "FS", "writeFileBytes", args)
+
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if result.Type() != "unit" {
+		t.Errorf("expected unit type, got %s", result.Type())
+	}
+
+	// Verify file was written with exact bytes
+	content, err := os.ReadFile(tmpfile)
+	if err != nil {
+		t.Fatalf("failed to read written file: %v", err)
+	}
+
+	if len(content) != len(testData) {
+		t.Fatalf("expected %d bytes, got %d", len(testData), len(content))
+	}
+
+	for i, b := range content {
+		if b != testData[i] {
+			t.Errorf("byte %d: expected 0x%02x, got 0x%02x", i, testData[i], b)
+		}
+	}
+}
+
+func TestFSWriteFileBytes_WrongArgType(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	// String instead of bytes for data arg
+	args := []eval.Value{
+		&eval.StringValue{Value: "/tmp/test.bin"},
+		&eval.StringValue{Value: "not bytes"},
+	}
+	_, err := Call(ctx, "FS", "writeFileBytes", args)
+	if err == nil {
+		t.Fatal("expected error for wrong data type")
+	}
+	if !strings.Contains(err.Error(), "expected Bytes") {
+		t.Errorf("expected 'expected Bytes' in error, got: %v", err)
+	}
+}
+
+func TestFSAppendFile_Success(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	tmpfile := filepath.Join(os.TempDir(), "ailang-test-append.txt")
+	defer os.Remove(tmpfile)
+
+	// First append creates file
+	args := []eval.Value{
+		&eval.StringValue{Value: tmpfile},
+		&eval.StringValue{Value: "line1\n"},
+	}
+	result, err := Call(ctx, "FS", "appendFile", args)
+	if err != nil {
+		t.Fatalf("first append: expected no error, got: %v", err)
+	}
+	if result.Type() != "unit" {
+		t.Errorf("expected unit type, got %s", result.Type())
+	}
+
+	// Second append adds to file
+	args[1] = &eval.StringValue{Value: "line2\n"}
+	_, err = Call(ctx, "FS", "appendFile", args)
+	if err != nil {
+		t.Fatalf("second append: expected no error, got: %v", err)
+	}
+
+	// Verify both lines present
+	content, err := os.ReadFile(tmpfile)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	expected := "line1\nline2\n"
+	if string(content) != expected {
+		t.Errorf("expected %q, got %q", expected, string(content))
+	}
+}
+
+func TestFSAppendFileBytes_Success(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	tmpfile := filepath.Join(os.TempDir(), "ailang-test-append-bytes.bin")
+	defer os.Remove(tmpfile)
+
+	frame1 := []byte{0x01, 0x02, 0x03, 0x04}
+	frame2 := []byte{0x05, 0x06, 0x07, 0x08}
+
+	// Append first frame
+	args := []eval.Value{
+		&eval.StringValue{Value: tmpfile},
+		&eval.BytesValue{Value: frame1},
+	}
+	_, err := Call(ctx, "FS", "appendFileBytes", args)
+	if err != nil {
+		t.Fatalf("first append: expected no error, got: %v", err)
+	}
+
+	// Append second frame
+	args[1] = &eval.BytesValue{Value: frame2}
+	_, err = Call(ctx, "FS", "appendFileBytes", args)
+	if err != nil {
+		t.Fatalf("second append: expected no error, got: %v", err)
+	}
+
+	// Verify concatenated bytes
+	content, err := os.ReadFile(tmpfile)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	expected := append(frame1, frame2...)
+	if len(content) != len(expected) {
+		t.Fatalf("expected %d bytes, got %d", len(expected), len(content))
+	}
+	for i, b := range content {
+		if b != expected[i] {
+			t.Errorf("byte %d: expected 0x%02x, got 0x%02x", i, expected[i], b)
+		}
+	}
+}
+
+func TestFSAppendFileBytes_WrongArgType(t *testing.T) {
+	ctx := NewEffContext([]string{})
+	ctx.Grant(NewCapability("FS"))
+
+	// String instead of bytes for data arg
+	args := []eval.Value{
+		&eval.StringValue{Value: "/tmp/test.bin"},
+		&eval.StringValue{Value: "not bytes"},
+	}
+	_, err := Call(ctx, "FS", "appendFileBytes", args)
+	if err == nil {
+		t.Fatal("expected error for wrong data type")
+	}
+	if !strings.Contains(err.Error(), "expected Bytes") {
+		t.Errorf("expected 'expected Bytes' in error, got: %v", err)
+	}
+}
+
 func TestFSExists_Success(t *testing.T) {
 	ctx := NewEffContext([]string{})
 	ctx.Grant(NewCapability("FS"))

@@ -20,6 +20,9 @@ func init() {
 	registerBytesFromBase64()
 	registerBytesLength()
 	registerBytesSlice()
+	registerBytesConcat()
+	registerBytesConcatList()
+	registerBytesFromInts()
 }
 
 // ============================================================================
@@ -383,4 +386,166 @@ func bytesSliceImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 		CtorName:   "Some",
 		Fields:     []eval.Value{&eval.BytesValue{Value: result}},
 	}, nil
+}
+
+// ============================================================================
+// Bytes Concatenation & Construction
+// ============================================================================
+
+// registerBytesConcat registers the _bytes_concat builtin
+func registerBytesConcat() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_concat",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Bytes(), T.Bytes()).Returns(T.Bytes()).Build()
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			a, ok := args[0].(*eval.BytesValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_concat: expected Bytes for first argument, got %T", args[0])
+			}
+			b, ok := args[1].(*eval.BytesValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_concat: expected Bytes for second argument, got %T", args[1])
+			}
+			result := make([]byte, len(a.Value)+len(b.Value))
+			copy(result, a.Value)
+			copy(result[len(a.Value):], b.Value)
+			return &eval.BytesValue{Value: result}, nil
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Concatenate two byte slices",
+			LongDesc:    "Returns a new byte slice containing a followed by b. Pure operation — inputs are not modified.",
+			Params: []ParamDoc{
+				{Name: "a", Description: "First byte slice"},
+				{Name: "b", Description: "Second byte slice"},
+			},
+			Returns: "Concatenated bytes",
+			Examples: []Example{
+				{Code: `_bytes_concat(fromString("hello"), fromString(" world"))`, Description: "Returns bytes for \"hello world\""},
+			},
+			SeeAlso:   []string{"_bytes_concat_list", "_bytes_from_string"},
+			Since:     "v0.8.2",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "concat", "combine"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_concat: %v", err))
+	}
+}
+
+// registerBytesConcatList registers the _bytes_concat_list builtin
+func registerBytesConcatList() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_concat_list",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.List(T.Bytes())).Returns(T.Bytes()).Build()
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			listVal, ok := args[0].(*eval.ListValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_concat_list: expected List, got %T", args[0])
+			}
+			// Calculate total length first for single allocation
+			total := 0
+			for _, elem := range listVal.Elements {
+				bv, ok := elem.(*eval.BytesValue)
+				if !ok {
+					return nil, fmt.Errorf("_bytes_concat_list: expected Bytes element, got %T", elem)
+				}
+				total += len(bv.Value)
+			}
+			result := make([]byte, 0, total)
+			for _, elem := range listVal.Elements {
+				result = append(result, elem.(*eval.BytesValue).Value...)
+			}
+			return &eval.BytesValue{Value: result}, nil
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Concatenate a list of byte slices",
+			LongDesc:    "Concatenates all byte slices in the list into a single byte slice. Single allocation for efficiency.",
+			Params: []ParamDoc{
+				{Name: "xs", Description: "List of byte slices to concatenate"},
+			},
+			Returns: "Concatenated bytes",
+			Examples: []Example{
+				{Code: `_bytes_concat_list([header, body, footer])`, Description: "Combines header + body + footer into one byte slice"},
+			},
+			SeeAlso:   []string{"_bytes_concat", "_bytes_from_string"},
+			Since:     "v0.8.2",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "concat", "list", "combine"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_concat_list: %v", err))
+	}
+}
+
+// registerBytesFromInts registers the _bytes_from_ints builtin
+func registerBytesFromInts() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_from_ints",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.List(T.Int())).Returns(T.Bytes()).Build()
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			listVal, ok := args[0].(*eval.ListValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_from_ints: expected List, got %T", args[0])
+			}
+			result := make([]byte, len(listVal.Elements))
+			for i, elem := range listVal.Elements {
+				iv, ok := elem.(*eval.IntValue)
+				if !ok {
+					return nil, fmt.Errorf("_bytes_from_ints: expected Int element at index %d, got %T", i, elem)
+				}
+				if iv.Value < 0 || iv.Value > 255 {
+					return nil, fmt.Errorf("_bytes_from_ints: value %d at index %d out of byte range (0-255)", iv.Value, i)
+				}
+				result[i] = byte(iv.Value)
+			}
+			return &eval.BytesValue{Value: result}, nil
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Construct bytes from a list of integers (0-255)",
+			LongDesc:    "Creates a byte slice from integer values. Each integer must be in range 0-255. Useful for building binary headers (WAV, PNG) where specific byte values are needed at exact positions.",
+			Params: []ParamDoc{
+				{Name: "xs", Description: "List of integers (each 0-255)"},
+			},
+			Returns: "Byte slice with one byte per integer",
+			Examples: []Example{
+				{Code: `_bytes_from_ints([0x52, 0x49, 0x46, 0x46])`, Description: "Returns bytes for \"RIFF\" (WAV header magic)"},
+			},
+			SeeAlso:   []string{"_bytes_from_string", "_bytes_concat"},
+			Since:     "v0.8.2",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "construct", "binary", "header"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_from_ints: %v", err))
+	}
 }
