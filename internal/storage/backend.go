@@ -134,11 +134,11 @@ func NewSQLiteBackends() (*Backends, error) {
 }
 
 // NewGCPBackends creates all three backends using GCP services (Firestore).
-// Requires GOOGLE_CLOUD_PROJECT to be set.
+// Requires AILANG_CLOUD_PROJECT to be set.
 func NewGCPBackends(ctx context.Context) (*Backends, error) {
-	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	project := os.Getenv("AILANG_CLOUD_PROJECT")
 	if project == "" {
-		return nil, fmt.Errorf("GOOGLE_CLOUD_PROJECT must be set for AILANG_STORAGE=gcp")
+		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for AILANG_STORAGE=gcp")
 	}
 
 	// Firestore client (shared by coordinator and messaging)
@@ -166,9 +166,9 @@ func NewGCPBackends(ctx context.Context) (*Backends, error) {
 // NewHybridBackends creates a hybrid setup: SQLite for coordinator/messaging,
 // BigQuery for observatory (analytics scale).
 func NewHybridBackends(ctx context.Context) (*Backends, error) {
-	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	project := os.Getenv("AILANG_CLOUD_PROJECT")
 	if project == "" {
-		return nil, fmt.Errorf("GOOGLE_CLOUD_PROJECT must be set for AILANG_STORAGE=hybrid")
+		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for AILANG_STORAGE=hybrid")
 	}
 
 	dir := stateDir()

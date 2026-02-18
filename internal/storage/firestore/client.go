@@ -18,11 +18,11 @@ type Client struct {
 }
 
 // NewClient creates a new Firestore client using Application Default Credentials.
-// Requires GOOGLE_CLOUD_PROJECT to be set.
+// Requires AILANG_CLOUD_PROJECT to be set.
 func NewClient(ctx context.Context) (*Client, error) {
-	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
 	if projectID == "" {
-		return nil, fmt.Errorf("GOOGLE_CLOUD_PROJECT must be set for Firestore backend")
+		return nil, fmt.Errorf("AILANG_CLOUD_PROJECT must be set for Firestore backend")
 	}
 
 	client, err := firestore.NewClient(ctx, projectID)

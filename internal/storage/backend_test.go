@@ -94,22 +94,22 @@ func TestNewBackendsUnknownMode(t *testing.T) {
 }
 
 func TestNewGCPBackendsRequiresProject(t *testing.T) {
-	os.Unsetenv("GOOGLE_CLOUD_PROJECT")
+	os.Unsetenv("AILANG_CLOUD_PROJECT")
 
 	ctx := context.Background()
 	_, err := NewGCPBackends(ctx)
 	if err == nil {
-		t.Error("Expected error when GOOGLE_CLOUD_PROJECT is not set")
+		t.Error("Expected error when AILANG_CLOUD_PROJECT is not set")
 	}
 }
 
 func TestNewHybridBackendsRequiresProject(t *testing.T) {
-	os.Unsetenv("GOOGLE_CLOUD_PROJECT")
+	os.Unsetenv("AILANG_CLOUD_PROJECT")
 
 	ctx := context.Background()
 	_, err := NewHybridBackends(ctx)
 	if err == nil {
-		t.Error("Expected error when GOOGLE_CLOUD_PROJECT is not set")
+		t.Error("Expected error when AILANG_CLOUD_PROJECT is not set")
 	}
 }
 

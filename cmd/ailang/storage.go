@@ -199,11 +199,11 @@ func storageStatus() error {
 		fmt.Println("  Using local SQLite databases in ~/.ailang/state/")
 	case storage.ModeGCP:
 		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", os.Getenv("GOOGLE_CLOUD_PROJECT"))
+		fmt.Printf("  GCP Project: %s\n", os.Getenv("AILANG_CLOUD_PROJECT"))
 		fmt.Println("  All databases stored in Firestore")
 	case storage.ModeHybrid:
 		fmt.Println()
-		fmt.Printf("  GCP Project: %s\n", os.Getenv("GOOGLE_CLOUD_PROJECT"))
+		fmt.Printf("  GCP Project: %s\n", os.Getenv("AILANG_CLOUD_PROJECT"))
 		fmt.Println("  Coordinator/Messaging: local SQLite")
 		fmt.Println("  Observatory: GCP Firestore")
 	}
@@ -233,7 +233,7 @@ func printStorageMigrateHelp() {
 	fmt.Println("")
 	fmt.Println("Migrate data from local SQLite to GCP Firestore")
 	fmt.Println("")
-	fmt.Println("Requires GOOGLE_CLOUD_PROJECT to be set.")
+	fmt.Println("Requires AILANG_CLOUD_PROJECT to be set.")
 	fmt.Println("")
 	fmt.Println("Options:")
 	fmt.Println("  --dry-run              Show what would be migrated without writing")
