@@ -66,14 +66,19 @@ const (
 
 // Canonical AILANG effects
 var canonicalEffects = map[string]bool{
-	"IO":    true,
-	"FS":    true,
-	"Net":   true,
-	"Clock": true,
-	"Rand":  true,
-	"DB":    true,
-	"Trace": true,
-	"Async": true,
+	"IO":      true,
+	"FS":      true,
+	"Net":     true,
+	"Clock":   true,
+	"Rand":    true,
+	"DB":      true,
+	"Trace":   true,
+	"Async":   true,
+	"Env":     true,
+	"Debug":   true,
+	"AI":      true,
+	"Stream":  true,
+	"Process": true,
 }
 
 // ValidatePlan validates a complete plan and returns all errors and warnings

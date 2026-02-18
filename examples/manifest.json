@@ -1378,11 +1378,21 @@
       "status": "working",
       "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list", "std/string"],
       "description": "Type inference regression T8: effectful combinators on string lists"
+    },
+    {
+      "path": "runnable/process_demo.ail",
+      "status": "working",
+      "tags": ["effects", "process", "exec", "std/process", "security"],
+      "description": "External command execution with Process effect: exec, error handling, completion semantics",
+      "expected": {
+        "stdout": "=== Echo test ===\nstdout: hello from AILANG\n\n=== Non-zero exit ===\nexitCode: 1\n=== NotFound test ===\nnot found: nonexistent_cmd_xyz\n=== Stderr test ===\nstderr: stderr_msg\n\nDone!\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 131,
-    "working": 124,
+    "total": 132,
+    "working": 125,
     "aspirational": 4,
     "broken": 3,
     "coverage": 0.946

@@ -1,0 +1,68 @@
+-- std/process - External command execution
+--
+-- Execute external commands with capability-based security.
+-- Respects AILANG_FS_SANDBOX for working directory.
+--
+-- Requires: Process capability (--caps Process)
+--
+-- Security features:
+--   - No shell expansion (os/exec.Command directly)
+--   - Path-pinned command allowlist (--process-allowlist)
+--   - Configurable timeout (--process-timeout, default: 30s)
+--   - Output size limits (--process-max-output, default: 10MB)
+--
+-- Completion semantics:
+--   - Ok for ALL completed processes (even non-zero exit)
+--   - Err only for infrastructure/spawn failures
+
+module std/process
+
+import std/result (Result, Ok, Err)
+import std/bytes (toString)
+
+-- Process error types
+export type ProcessError =
+  | NotAllowed(string)          -- Command not in allowlist
+  | NotFound(string)            -- Command not found in PATH
+  | PermissionDenied(string)    -- OS permission denied
+  | Timeout(int)                -- Execution timeout (duration_ms)
+  | OutputLimitExceeded(int)    -- stdout+stderr exceeded limit (bytes)
+  | SpawnFailed(string)         -- Other spawn/exec failure
+  | AbnormalExit(int, string)   -- Signal kill (signal_num, signal_name)
+
+-- Process output record
+-- All completed processes return this (even non-zero exit code)
+export type ProcessOutput = {
+  stdout: bytes,
+  stderr: bytes,
+  exitCode: int,
+  truncated: bool,
+  resolvedPath: string
+}
+
+-- Execute a command and return raw bytes output
+--
+-- Returns Ok(ProcessOutput) for completed processes (any exit code).
+-- Returns Err(ProcessError) only for infrastructure failures.
+--
+-- Args:
+--   cmd: Command name (resolved via PATH or allowlist)
+--   args: List of string arguments
+--
+-- Example:
+--   match exec("echo", ["hello", "world"]) {
+--     Ok(out) => println(toString(out.stdout)),
+--     Err(NotFound(cmd)) => println("not found: " ++ cmd),
+--     Err(Timeout(ms)) => println("timed out"),
+--     Err(_) => println("error")
+--   }
+export func exec(
+  cmd: string,
+  args: [string]
+) -> Result[ProcessOutput, ProcessError] ! {Process} {
+  _process_exec(cmd, args)
+}
+
+-- TODO: execText convenience wrapper (requires constructor call resolution fix)
+-- execText(cmd, args) decodes stdout/stderr as UTF-8 strings
+-- For now, use exec() and convert with std/bytes.toString manually

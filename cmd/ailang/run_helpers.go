@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
@@ -144,6 +145,38 @@ func setupStreamHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains
 			}
 		}
 	}
+}
+
+// setupProcessHandler initializes the Process effect context if the capability is granted.
+// Process provides external command execution (M-PROCESS).
+func setupProcessHandler(effCtx *effects.EffContext, timeout string, allowlist string, maxOutput int64) error {
+	if !effCtx.HasCap("Process") {
+		return nil
+	}
+
+	pc := effects.NewProcessContext()
+
+	// Parse timeout duration
+	if timeout != "" {
+		d, err := time.ParseDuration(timeout)
+		if err != nil {
+			return fmt.Errorf("invalid --process-timeout %q: %w", timeout, err)
+		}
+		pc.Timeout = d
+	}
+
+	// Set max output
+	if maxOutput > 0 {
+		pc.MaxOutput = maxOutput
+	}
+
+	// Resolve allowlist (path-pinned at startup)
+	if err := pc.ResolveAllowlist(allowlist); err != nil {
+		return fmt.Errorf("invalid --process-allowlist: %w", err)
+	}
+
+	effCtx.Process = pc
+	return nil
 }
 
 // setupSharedIndexHandler initializes the SharedIndex effect context if the capability is granted.

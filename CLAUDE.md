@@ -708,7 +708,7 @@ ailang/
 │   ├── typedast/       # Typed AST ✅ COMPLETE
 │   ├── channels/       # CSP implementation ❌ TODO (v0.4.0+)
 │   └── session/        # Session types ❌ TODO (v0.4.0+)
-├── stdlib/             # Standard library ✅ COMPLETE (26 modules: std/ai, std/array, std/bytes, std/clock, std/datetime, std/debug, std/embedding, std/env, std/fs, std/game, std/io, std/json, std/list, std/math, std/net, std/option, std/rand, std/result, std/sem, std/sharedindex, std/sharedmem, std/simhash, std/stream, std/string, std/xml, std/zip)
+├── stdlib/             # Standard library ✅ COMPLETE (27 modules: std/ai, std/array, std/bytes, std/clock, std/datetime, std/debug, std/embedding, std/env, std/fs, std/game, std/io, std/json, std/list, std/math, std/net, std/option, std/process, std/rand, std/result, std/sem, std/sharedindex, std/sharedmem, std/simhash, std/stream, std/string, std/xml, std/zip)
 ├── tools/              # Development tools ✅ (eval, benchmarking, verification)
 ├── benchmarks/         # AI code generation benchmarks ✅
 ├── examples/           # Example .ail programs (66 files, 48 passing)

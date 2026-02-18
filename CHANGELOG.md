@@ -3,6 +3,22 @@
 ## [Unreleased]
 
 ### Added
+- **M-PROCESS: External command execution** (`internal/effects/process.go`, `internal/builtins/process.go`, `std/process.ail`, ~450 LOC impl + ~200 LOC tests)
+  - New `Process` effect with `--caps Process` capability grant
+  - `ProcessContext` security model: path-pinned allowlist, configurable timeout (default 30s), output size limits (default 10MB)
+  - **Completion semantics**: `Ok(ProcessOutput)` for ALL completed processes (even non-zero exit), `Err(ProcessError)` only for infrastructure failures
+  - `ProcessOutput` record: `stdout: bytes`, `stderr: bytes`, `exitCode: int`, `truncated: bool`, `resolvedPath: string`
+  - `ProcessError` ADT: `NotAllowed`, `NotFound`, `PermissionDenied`, `Timeout`, `OutputLimitExceeded`, `SpawnFailed`, `AbnormalExit`
+  - No shell expansion: uses `os/exec.Command` directly (command injection safe)
+  - Path-pinned allowlist: `--process-allowlist echo,git` resolves absolute paths at startup via `exec.LookPath`
+  - CLI flags: `--process-timeout`, `--process-allowlist`, `--process-max-output`
+  - `limitedWriter` utility: caps stdout/stderr capture at `maxOutput` bytes, sets `truncated` flag
+  - 1 builtin registered: `_process_exec` (179 total builtins)
+  - `std/process.ail` module: `exec(cmd, args)` wrapper + `ProcessError`/`ProcessOutput` type exports
+  - Example: `examples/runnable/process_demo.ail` — echo, non-zero exit, NotFound, stderr capture
+  - 12 tests: echo success, non-zero exit, NotFound, missing capability, allowlist (allowed/blocked), timeout, stderr, resolvedPath, ResolveAllowlist, absolute paths, limitedWriter
+  - `Process` added to parser known effects, type checker known effects, and effect ops registry
+
 - **M-STREAM-PHASE2-DX: Typed ADT exports for std/stream** (`std/stream.ail`, `internal/builtins/stream.go`, `internal/effects/stream.go`, `internal/parser/parser_type.go`, ~280 LOC)
   - 5 ADT types exported from `std/stream`: `StreamConn`, `StreamEvent`, `StreamErrorKind`, `StreamMessage`, `StreamStatus`
   - All 7 builtin type signatures updated to use `T.Con()`/`T.App()` instead of `T.String()`

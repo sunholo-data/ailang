@@ -163,6 +163,7 @@ func IsKnownEffect(name string) bool {
 		"SharedMem":   true, // v0.5.11: Shared memory cache effect (M-DX15)
 		"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
 		"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
+		"Process":     true, // v0.8.0: External command execution (M-PROCESS)
 	}
 	return knownEffects[name]
 }

@@ -16,7 +16,10 @@ _array_make : (int, a) -> Array[a]
 _array_set : (Array[a], int, a) -> Array[a]
 _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
+_bytes_concat : (bytes, bytes) -> bytes
+_bytes_concat_list : list[bytes] -> bytes
 _bytes_from_base64 : string -> Option[bytes]
+_bytes_from_ints : list[int] -> bytes
 _bytes_from_string : string -> bytes
 _bytes_length : bytes -> int
 _bytes_slice : (bytes, int, int) -> Option[bytes]
@@ -42,10 +45,13 @@ _env_getArgs : () -> list[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
 _float_to_int : float -> int
+_fs_appendFile : (string, string) -> () ! {FS}
+_fs_appendFileBytes : (string, bytes) -> () ! {FS}
 _fs_exists : string -> bool ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
+_fs_writeFileBytes : (string, bytes) -> () ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
@@ -54,6 +60,7 @@ _int_to_float : int -> float
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
+_io_writeBytes : bytes -> () ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
@@ -81,6 +88,7 @@ _math_sqrt : float -> float
 _math_tan : float -> float
 _net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _ollama_embed : (string, string) -> list[float] ! {IO}
+_process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}

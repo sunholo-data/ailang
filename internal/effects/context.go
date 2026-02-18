@@ -30,6 +30,7 @@ type EffContext struct {
 	SharedIndex    *SharedIndexContext   // SharedIndex effect state (v0.5.11 M-DX16)
 	Contracts      *ContractContext      // Contract effect state (M-VERIFY)
 	Stream         *StreamContext        // Stream effect state (M-STREAM-BIDI)
+	Process        *ProcessContext       // Process effect state (M-PROCESS)
 	Budget         *BudgetContext        // Budget tracking for effect limits (v0.7.0 M-CAPABILITY-BUDGETS)
 	BudgetReport   *BudgetReport         // Budget usage report (--budget-report flag, M-DX25)
 	DisableBudgets bool                  // Bypass budget enforcement (--no-budgets flag)
@@ -307,6 +308,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		SharedIndex:     ctx.SharedIndex,
 		Contracts:       ctx.Contracts,
 		Stream:          ctx.Stream,
+		Process:         ctx.Process,
 		Budget:          budget,
 		BudgetReport:    ctx.BudgetReport,   // Preserve report across budget scopes (M-DX25)
 		DisableBudgets:  ctx.DisableBudgets, // Preserve --no-budgets flag
