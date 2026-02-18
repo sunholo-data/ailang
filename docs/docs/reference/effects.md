@@ -173,6 +173,57 @@ func getConfig() -> string ! {Env} {
 |----------|------|-------------|
 | `getEnv` | `string -> Option[string] ! {Env}` | Get environment variable |
 
+### Process Effect
+
+Execute external commands with capability-based security.
+
+```typescript
+import std/process (exec)
+import std/bytes (toString)
+
+func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
+  match exec(cmd, args) {
+    Ok(out) => {
+      println("stdout: " ++ toString(out.stdout));
+      println("exit code: " ++ show(out.exitCode))
+    },
+    Err(NotFound(cmd))  => println("not found: " ++ cmd),
+    Err(NotAllowed(cmd)) => println("blocked: " ++ cmd),
+    Err(Timeout(ms))    => println("timed out after " ++ show(ms) ++ "ms"),
+    Err(_)              => println("other error")
+  }
+}
+```
+
+**Builtins:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `exec` | `(string, [string]) -> Result[ProcessOutput, ProcessError] ! {Process}` | Execute command with arguments |
+
+**Completion Semantics (important):**
+- **`Ok`** = process completed (even with non-zero exit code) — check `out.exitCode`
+- **`Err`** = infrastructure failure (command not found, timeout, blocked by allowlist)
+
+**ProcessOutput** fields: `stdout: bytes`, `stderr: bytes`, `exitCode: int`, `truncated: bool`, `resolvedPath: string`
+
+**ProcessError** variants: `NotFound`, `NotAllowed`, `PermissionDenied`, `Timeout`, `OutputLimitExceeded`, `SpawnFailed`, `AbnormalExit`
+
+**Security Features:**
+- No shell expansion — arguments passed literally (no `sh -c`)
+- Command allowlist with path pinning (resolved at startup, prevents TOCTOU)
+- Mandatory timeout (default: 30s)
+- Output size limits (default: 10MB)
+
+**CLI Flags:**
+
+```bash
+ailang run --caps Process --entry main module.ail
+ailang run --caps IO,Process --process-timeout 10s --entry main module.ail
+ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main module.ail
+ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
+```
+
 ## Effect Syntax
 
 ### Declaring Effects

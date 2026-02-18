@@ -27,7 +27,7 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 | **Type System** | Complete | Hindley-Milner, row polymorphism, type classes |
 | **Evaluator** | Complete | Tree-walking interpreter with modules |
 | **REPL** | Complete | History, completion, type checking |
-| **Effects** | Complete | IO, FS, Net, Clock, Rand, DB, AI |
+| **Effects** | Complete | IO, FS, Net, Clock, Rand, DB, AI, Process |
 | **Modules** | Complete | Imports, exports, cross-module calls |
 | **Go Codegen** | Complete | Full compilation to Go |
 

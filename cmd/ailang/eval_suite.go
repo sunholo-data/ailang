@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sunholo/ailang/internal/agentprompt"
 	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/eval_harness"
 	"github.com/sunholo/ailang/internal/messaging"
@@ -494,16 +495,32 @@ func runEvalSuite() {
 			}
 		}
 
+		// Load agent coding prompt if "agent_prompt" condition is requested
+		var agentPromptContent string
+		for _, c := range conditionList {
+			if c == "agent_prompt" {
+				var apErr error
+				agentPromptContent, apErr = agentprompt.LoadPrompt("latest")
+				if apErr != nil {
+					fmt.Fprintf(os.Stderr, "%s Failed to load agent prompt: %v\n", yellow("⚠️"), apErr)
+				} else {
+					fmt.Printf("  - Agent prompt loaded (%d bytes)\n", len(agentPromptContent))
+				}
+				break
+			}
+		}
+
 		agentConfig = &eval_harness.AgentBenchmarkConfig{
-			MaxConcurrent:     *agentMaxConcurrent,
-			RequestsPerSecond: *agentRequestsPerSecond,
-			TimeoutSeconds:    *agentTimeout,
-			WorkspaceDir:      filepath.Join(os.TempDir(), "ailang_eval"),
-			AllowedTools:      []string{"Bash", "Read", "Write", "Edit", "Grep"},
-			ClaudePath:        "claude",           // Use PATH
-			ClaudeModel:       agentModelOverride, // Empty unless override specified
-			Verify:            evalVerifyFlag,     // M-CONTRACT-EVAL: enable contract verification
-			DevtoolsPrompt:    devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
+			MaxConcurrent:      *agentMaxConcurrent,
+			RequestsPerSecond:  *agentRequestsPerSecond,
+			TimeoutSeconds:     *agentTimeout,
+			WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),
+			AllowedTools:       []string{"Bash", "Read", "Write", "Edit", "Grep"},
+			ClaudePath:         "claude",           // Use PATH
+			ClaudeModel:        agentModelOverride, // Empty unless override specified
+			Verify:             evalVerifyFlag,     // M-CONTRACT-EVAL: enable contract verification
+			DevtoolsPrompt:     devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
+			AgentPromptContent: agentPromptContent, // Agent coding prompt for "agent_prompt" condition
 		}
 	}
 

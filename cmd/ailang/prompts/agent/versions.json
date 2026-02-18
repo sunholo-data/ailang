@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "versions": {
+    "v0.8.2": {
+      "file": "prompts/agent/v0.8.2.md",
+      "hash": "eb8828529acc1effd0b522f090c29ca36d0c7fb3401e7a70ad65f867855c4180",
+      "description": "Minimal agent coding guide: iterative workflow (Write/Check/Run/Fix), module structure, effects table (IO/FS/Net/Clock/AI/Env/Process/Stream/Debug), core syntax, types, debugging (std/debug + compiler flags), process execution, common patterns (JSON/File IO/HTTP), common mistakes",
+      "created": "2026-02-18",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "First agent coding prompt. ~180 lines, ~900 words. Designed for iterative agentic coders who need minimal syntax + workflow guidance. Points to ailang prompt for full reference and ailang devtools-prompt for toolchain."
+    }
+  },
+  "active": "v0.8.2",
+  "notes": [
+    "Hash is SHA256 of the prompt file contents",
+    "Use 'active' field to specify default agent prompt version",
+    "Agent prompts are minimal guides for iterative agentic coding",
+    "For full language syntax: see prompts/versions.json (ailang prompt)",
+    "For toolchain reference: see prompts/devtools/versions.json (ailang devtools-prompt)"
+  ]
+}

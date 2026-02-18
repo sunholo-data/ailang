@@ -495,7 +495,7 @@
     },
     "v0.8.2": {
       "file": "prompts/v0.8.2.md",
-      "hash": "71b6ef659bf5787f98b1705f3d68047745207025f2959425be3429ef6cf19df6",
+      "hash": "982739c8320a79f49764efc52af781de7a6195122dc79809095aa07ee0531cbb",
       "description": "Streaming DX: zipWith, bytes.slice, transmitBinary, ssePost, newtype field access, show recommendation",
       "created": "2026-02-17",
       "tags": [

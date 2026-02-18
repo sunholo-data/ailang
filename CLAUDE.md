@@ -333,6 +333,22 @@ git push origin v0.4.4     # FAILS with auth error
 - ❌ Manually extracting/formatting data when automated tools exist
 - ❌ Guessing which tools to use for benchmarks/evals - use `eval-analyzer` skill or `ailang eval-*` commands
 
+**The `ailang` CLI exists to make YOUR life easier.** Commands like `ailang chains`, `ailang messages`, `ailang eval-*`, and `ailang dashboard` are designed so you can analyze past sessions, audit agent work, and understand system state without resorting to raw SQLite queries or ad-hoc scripts.
+
+**If the CLI output is insufficient for what you need:**
+- ✅ **Propose a CLI improvement** — suggest a new flag, subcommand, or output format
+- ✅ **File a message** — `ailang messages send user "ailang chains needs X" --title "CLI: chains improvement"`
+- ✅ **Create a design doc** — for larger gaps, propose the enhancement properly
+- ❌ **Don't silently work around it** — writing one-off sqlite3 queries or bash pipelines means the next session will hit the same gap
+- ❌ **Don't accept poor ergonomics** — if you're doing 5 commands to get info that should be 1, say so
+
+**Examples of good proposals:**
+- "ailang chains view needs a `--failures-only` flag to skip successful stages"
+- "ailang chains stats should break down by model, not just agent"
+- "ailang eval-chains failures should include the actual compiler error, not just 'failed'"
+
+**The goal:** Every analysis task you commonly perform should be a single CLI command with clear output.
+
 ### 2. NO SILENT FALLBACKS - FAIL LOUDLY
 
 **CRITICAL LESSON**: Silent fallbacks hide bugs and produce wrong data that users trust.
@@ -1584,21 +1600,25 @@ module examples/hello
 
 ### Writing AILANG Code
 
-**When writing AILANG code during development:**
-Refer to the **AI Teaching Prompt** for comprehensive syntax guidance:
+**Three prompt types** for different audiences:
 
-**Get the teaching prompt:**
+| Command | Purpose | Size |
+|---------|---------|------|
+| `ailang prompt` | Full language syntax reference (0-shot generation) | ~1600 lines |
+| `ailang devtools-prompt` | Toolchain/CLI reference (debugging, testing, tracing) | ~600 lines |
+| `ailang agent-prompt` | Minimal agent coding guide (iterative write/check/run/fix) | ~180 lines |
+
+**Get prompts:**
 ```bash
-ailang prompt                           # Display current/active prompt
-ailang prompt --version v0.3.24         # Display specific version
-ailang prompt --list                    # List all available versions
-ailang prompt > syntax.md               # Save to file
+ailang prompt                           # Full syntax reference
+ailang devtools-prompt                  # Toolchain reference
+ailang agent-prompt                     # Minimal agent coding guide
+ailang prompt --list                    # List all versions (works for all three)
 ```
 
-- Prompts are version-locked and tracked in `prompts/versions.json`
+- All prompts are version-locked and tracked in `prompts/*/versions.json`
 - Validated through multi-model testing (Claude, GPT, Gemini)
-- Covers syntax, limitations, common pitfalls, and working examples
-- Each prompt version corresponds to a specific AILANG version
+- Share the same embedded FS (`//go:embed all:prompts`)
 
 **Quick reference:**
 ```bash
@@ -1627,7 +1647,9 @@ ailang repl                                        # Start REPL
 - **Match in blocks:** Known parser bug (nested delimiter tracking) - extract to helper function
 
 **For detailed syntax, limitations, and examples:**
-- Use `ailang prompt` to get the latest teaching prompt
+- Use `ailang prompt` for full syntax reference
+- Use `ailang devtools-prompt` for toolchain/CLI reference
+- Use `ailang agent-prompt` for minimal iterative coding guide
 - See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) - Known limitations and workarounds
 - See [examples/](examples/) - 66 example files (48 working)
 

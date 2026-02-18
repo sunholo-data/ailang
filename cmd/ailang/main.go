@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/sunholo/ailang/internal/agentprompt"
 	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
@@ -53,6 +54,7 @@ func main() {
 	// This allows `ailang prompt` and `ailang devtools-prompt` to work from anywhere
 	prompt.SetEmbeddedFS(embeddedPrompts)
 	devtoolsprompt.SetEmbeddedFS(embeddedPrompts)
+	agentprompt.SetEmbeddedFS(embeddedPrompts)
 
 	var (
 		versionFlag             = flag.Bool("version", false, "Print version information")
@@ -220,6 +222,9 @@ func main() {
 
 	case "devtools-prompt":
 		runDevtoolsPrompt()
+
+	case "agent-prompt":
+		runAgentPrompt()
 
 	case "server", "serve": // "serve" kept as alias for backward compatibility
 		if err := serverCommand(flag.Args()[1:]); err != nil {

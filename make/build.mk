@@ -88,6 +88,10 @@ bootstrap-content: build ## Generate content bundle for bootstrap plugin sync
 	@DEVTOOLS=$$(python3 -c "import json; d=json.load(open('prompts/devtools/versions.json')); print(d['active'])"); \
 		cp "prompts/devtools/$${DEVTOOLS}.md" $(BUILD_DIR)/bootstrap-content/devtools-prompt.md; \
 		echo "  $(ARROW) Devtools prompt: $${DEVTOOLS}"
+	@# 1c. Active agent prompt (minimal agent coding guide)
+	@AGENT=$$(python3 -c "import json; d=json.load(open('prompts/agent/versions.json')); print(d['active'])"); \
+		cp "prompts/agent/$${AGENT}.md" $(BUILD_DIR)/bootstrap-content/agent-prompt.md; \
+		echo "  $(ARROW) Agent prompt: $${AGENT}"
 	@# 2. Examples manifest
 	@cp examples/manifest.json $(BUILD_DIR)/bootstrap-content/manifest.json
 	@echo "  $(ARROW) Examples manifest"

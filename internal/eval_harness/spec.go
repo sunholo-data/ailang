@@ -181,16 +181,17 @@ Design your solution to handle these cases correctly from the start.`, s.Z3Hints
 // what information is included in the LLM prompt. Conditions are treated
 // like languages — each creates a separate evaluation job.
 type EvalCondition struct {
-	Name                string // "baseline", "contract", "z3_guided", "full", "tool_aware", or "" for legacy
+	Name                string // "baseline", "contract", "z3_guided", "full", "tool_aware", "agent_prompt", or "" for legacy
 	IncludeContract     bool   // Include contract_spec in prompt
 	IncludeZ3Hints      bool   // Include z3_hints in prompt
 	IncludeDevtools     bool   // Append devtools prompt to system prompt
 	IncludeToolGuidance bool   // Include general contract-writing + ai-check guidance (no spec given)
 	EnableVerify        bool   // Enable Z3 verification (standard mode repair + post-hoc check)
+	UseAgentPrompt      bool   // Use compact agent coding prompt instead of full teaching prompt
 }
 
 // ValidConditionNames lists all recognized condition names
-var ValidConditionNames = []string{"baseline", "contract", "z3_guided", "full", "tool_aware"}
+var ValidConditionNames = []string{"baseline", "contract", "z3_guided", "full", "tool_aware", "agent_prompt"}
 
 // ResolveCondition returns the settings for a named condition.
 // If name is empty, returns legacy behavior using the explicit --verify/--devtools-prompt flags.
@@ -224,6 +225,12 @@ func ResolveCondition(name string, legacyVerify, legacyDevtools bool) EvalCondit
 			Name:                "tool_aware",
 			IncludeToolGuidance: true,
 			EnableVerify:        true,
+		}
+	case "agent_prompt":
+		// Uses compact agent coding prompt (~180 lines) instead of full teaching prompt (~1600 lines)
+		return EvalCondition{
+			Name:           "agent_prompt",
+			UseAgentPrompt: true,
 		}
 	default:
 		// Legacy mode: use explicit flag values

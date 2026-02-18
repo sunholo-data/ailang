@@ -456,9 +456,20 @@ Good luck!`
 // Returns: (systemPrompt, taskPrompt, promptVersionUsed, error)
 func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, language string, promptVersion string, solutionPath string) (string, string, string, error) {
 	// Load system prompt (language knowledge)
-	systemPrompt, versionUsed, err := LoadSystemPromptForLanguage(language, promptVersion)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to load system prompt: %w", err)
+	// If UseAgentPrompt condition is active and we have agent prompt content, use that instead
+	var systemPrompt string
+	var versionUsed string
+	var err error
+
+	cond := config.Condition
+	if cond.UseAgentPrompt && config.AgentPromptContent != "" && language == "ailang" {
+		systemPrompt = config.AgentPromptContent
+		versionUsed = "agent-prompt"
+	} else {
+		systemPrompt, versionUsed, err = LoadSystemPromptForLanguage(language, promptVersion)
+		if err != nil {
+			return "", "", "", fmt.Errorf("failed to load system prompt: %w", err)
+		}
 	}
 
 	// Load task prompt template
@@ -475,7 +486,7 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
 
 	// Resolve condition: use explicit condition if set, otherwise fall back to legacy Verify flag
-	cond := config.Condition
+	// cond was already set to config.Condition at function start
 	if cond.Name == "" {
 		cond = ResolveCondition("", config.Verify, config.DevtoolsPrompt != "")
 	}

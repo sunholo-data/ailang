@@ -32,6 +32,7 @@ func chainsCommand() {
 		fmt.Println("  diagnose  Quick health report for a specific chain")
 		fmt.Println("  diff      Show git diff across all stages in a chain")
 		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
+		fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
 		fmt.Println("  health    System-wide data capture validation")
 		fmt.Println()
 		fmt.Println("Examples:")
@@ -45,6 +46,8 @@ func chainsCommand() {
 		fmt.Println("  ailang chains diff <chain-id>        # Git diff across all stages")
 		fmt.Println("  ailang chains diff <chain-id> --stat # Diffstat summary")
 		fmt.Println("  ailang chains find --github repo#42  # Find chain by GitHub issue")
+		fmt.Println("  ailang chains chat <id> --stage 3    # View stage conversation")
+		fmt.Println("  ailang chains chat <id> --compact    # One-line turn summaries")
 		fmt.Println("  ailang chains health                # System-wide validation")
 		fmt.Println()
 		fmt.Println("Run 'ailang chains' in a terminal for interactive mode.")
@@ -71,6 +74,8 @@ func chainsCommand() {
 		chainsDiffCommand()
 	case "find":
 		chainsFindCommand()
+	case "chat":
+		chainsChatCommand()
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)

@@ -24,12 +24,22 @@ Invoke when user mentions:
 
 ## CLI Integration (v0.4.4+)
 
-**Two complementary prompts** — both accessible via CLI (single source of truth):
+**Three complementary prompts** — each accessible via CLI (single source of truth):
 
-| Command | Purpose | Registry |
-|---------|---------|----------|
-| `ailang prompt` | Language **syntax** (how to write .ail files) | `prompts/versions.json` |
-| `ailang devtools-prompt` | **Toolchain** (how to debug, test, trace, monitor) | `prompts/devtools/versions.json` |
+| Command | Purpose | Audience | Registry | Size |
+|---------|---------|----------|----------|------|
+| `ailang prompt` | Language **syntax** (how to write .ail files) | 0-shot code generation | `prompts/versions.json` | ~1600 lines |
+| `ailang devtools-prompt` | **Toolchain** (how to debug, test, trace, monitor) | Developers & agents using CLI tools | `prompts/devtools/versions.json` | ~600 lines |
+| `ailang agent-prompt` | **Agent coding guide** (minimal syntax + iterative workflow) | Iterative agentic coders (Claude Code, Gemini CLI) | `prompts/agent/versions.json` | ~180 lines |
+
+### When to Use Which Prompt
+
+| Scenario | Prompt | Why |
+|----------|--------|-----|
+| AI generating AILANG from scratch (eval, benchmark) | `ailang prompt` | Needs complete syntax reference |
+| AI debugging/testing/tracing AILANG code | `ailang devtools-prompt` | Needs toolchain commands |
+| AI iteratively writing/fixing AILANG code | `ailang agent-prompt` | Needs minimal syntax + workflow |
+| Full AI context (all capabilities) | All three combined | Maximum coverage |
 
 ### Display Syntax Prompts
 ```bash
@@ -44,12 +54,26 @@ ailang prompt --version v0.7.3 --info  # Show metadata
 ailang devtools-prompt               # Current dev tools reference
 ailang devtools-prompt --list        # List all versions
 ailang devtools-prompt --info        # Show metadata
-ailang devtools-prompt > devtools.md # Save for AI context injection
+ailang devtools-prompt --compact     # Token-efficient compact version
 ```
 
-### Combine Both for Full AI Context
+### Display Agent Coding Prompts (v0.8.2+)
 ```bash
-cat <(ailang prompt) <(ailang devtools-prompt) > full_context.md
+ailang agent-prompt                  # Current agent coding guide
+ailang agent-prompt --list           # List all versions
+ailang agent-prompt --info           # Show metadata
+```
+
+### Combine for Full AI Context
+```bash
+# All three for maximum context
+cat <(ailang agent-prompt) <(ailang prompt) <(ailang devtools-prompt) > full_context.md
+
+# Agent + syntax (most common for agentic coding)
+cat <(ailang agent-prompt) <(ailang prompt) > agent_syntax.md
+
+# Agent only (minimal, for small context windows)
+ailang agent-prompt > minimal_context.md
 ```
 
 ### For Development
@@ -67,8 +91,9 @@ ailang prompt | grep -A 20 "Quick Reference"
 **Implementation**:
 - Syntax loader: `internal/prompt/loader.go` (reads from `prompts/versions.json`)
 - Devtools loader: `internal/devtoolsprompt/loader.go` (reads from `prompts/devtools/versions.json`)
-- CLI: `cmd/ailang/prompt.go` and `cmd/ailang/devtools_prompt.go`
-- Both share the same embedded FS (`//go:embed all:prompts` in main.go)
+- Agent loader: `internal/agentprompt/loader.go` (reads from `prompts/agent/versions.json`)
+- CLI: `cmd/ailang/prompt.go`, `cmd/ailang/devtools_prompt.go`, `cmd/ailang/agent_prompt.go`
+- All three share the same embedded FS (`//go:embed all:prompts` in main.go)
 - Eval harness uses `internal/prompt` package for syntax prompts
 
 ### Workflow: Editing Existing Prompts
@@ -76,6 +101,7 @@ ailang prompt | grep -A 20 "Quick Reference"
 **IMPORTANT**: When you edit a prompt file, you MUST update its hash in the appropriate `versions.json`:
 - **Syntax prompts** (`prompts/v0.x.x.md`): Update `prompts/versions.json`
 - **Devtools prompts** (`prompts/devtools/v0.x.x.md`): Update `prompts/devtools/versions.json`
+- **Agent prompts** (`prompts/agent/v0.x.x.md`): Update `prompts/agent/versions.json`
 
 ```bash
 # 1. Edit the prompt file
@@ -304,7 +330,8 @@ Analyze size → Identify high-ROI sections → Apply techniques → Validate su
 - **ailang builtins list:** Reference instead of duplicating
 - **docs/guides/:** Link to instead of explaining
 - **devtools-prompt:** Shares same embedded FS; update `prompts/devtools/versions.json` when adding new toolchain features
-- **release-manager:** Verify both prompt versions are consistent with release
+- **agent-prompt:** Shares same embedded FS; update `prompts/agent/versions.json` when adding new capabilities/effects
+- **release-manager:** Verify all three prompt versions are consistent with release
 
 ## ⚠️ CRITICAL: Benchmark YAML Field Usage (v0.4.8 Discovery)
 
