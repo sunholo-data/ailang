@@ -82,7 +82,7 @@ func SeedDatabase(ctx context.Context, backend Backend, cfg SeedConfig) (*SeedRe
 	agentIDs := []string{"design-doc-creator", "sprint-planner", "sprint-executor", "code-reviewer", "bug-fixer"}
 	providers := []Provider{ProviderClaude, ProviderGemini, ProviderClaude}
 	models := map[Provider][]string{
-		ProviderClaude: {"claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4"},
+		ProviderClaude: {"claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"},
 		ProviderGemini: {"gemini-2-5-pro", "gemini-2-5-flash"},
 		ProviderOllama: {"llama3", "codellama"},
 	}
@@ -379,8 +379,10 @@ func calculateSeedCost(model string, tokensIn, tokensOut int64) float64 {
 	// Simplified cost calculation for seed data
 	// Real costs would come from models.yml
 	rates := map[string]struct{ in, out float64 }{
+		"claude-sonnet-4-6": {3.0, 15.0},
 		"claude-sonnet-4-5": {3.0, 15.0},
 		"claude-haiku-4-5":  {0.25, 1.25},
+		"claude-opus-4-6":   {5.0, 25.0},
 		"claude-opus-4":     {15.0, 75.0},
 		"gemini-2-5-pro":    {1.25, 5.0},
 		"gemini-2-5-flash":  {0.075, 0.3},

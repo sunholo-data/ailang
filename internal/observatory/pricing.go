@@ -99,6 +99,7 @@ func CalculateCostFromTokens(model string, tokensIn, tokensOut int64) float64 {
 // normalizeModelName normalizes model names to match models.yml keys.
 // Examples:
 //   - "claude-sonnet-4-5-20250929" -> "claude-sonnet-4-5"
+//   - "claude-sonnet-4-6" -> "claude-sonnet-4-6"
 //   - "gpt-5" -> "gpt5"
 //   - "gemini-2.5-pro" -> "gemini-2-5-pro"
 func normalizeModelName(model string) string {
@@ -126,9 +127,11 @@ func normalizeModelName(model string) string {
 		"gpt-5.2-chat-latest": "gpt5-2-instant",
 
 		// Claude - also handle versioned names
+		"claude-sonnet-4-6":          "claude-sonnet-4-6",
 		"claude-sonnet-4-5":          "claude-sonnet-4-5",
 		"claude-haiku-4-5":           "claude-haiku-4-5",
 		"claude-opus-4-5":            "claude-opus-4-5",
+		"claude-opus-4-6":            "claude-opus-4-6",
 		"claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
 		"claude-haiku-4-5-20251001":  "claude-haiku-4-5",
 		"claude-opus-4-5-20251101":   "claude-opus-4-5",

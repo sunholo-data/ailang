@@ -101,7 +101,7 @@ func runEvalSuite() {
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
-	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-1-codex-max, claude-opus-4-5, claude-sonnet-4-5, gemini-3-pro, gemini-2-5-pro)")
+	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
@@ -189,7 +189,7 @@ func runEvalSuite() {
 			modelList = eval_harness.GlobalModelsConfig.ExtendedSuite
 		} else {
 			// Fallback if models.yml not loaded
-			modelList = []string{"gpt5-1-codex-max", "claude-opus-4-5", "claude-sonnet-4-5", "gemini-3-pro", "gemini-2-5-pro"}
+			modelList = []string{"gpt5-2-codex", "claude-opus-4-6", "claude-sonnet-4-6", "gemini-3-pro", "gemini-2-5-pro"}
 		}
 	} else {
 		// Default: use dev models from models.yml
@@ -264,7 +264,7 @@ func runEvalSuite() {
 		if len(modelList) == 0 {
 			fmt.Fprintf(os.Stderr, "Error: No models support agent evaluation\n")
 			fmt.Fprintf(os.Stderr, "Agent mode requires models with agent_cli configured in models.yml\n")
-			fmt.Fprintf(os.Stderr, "Supported: Claude (claude-haiku-4-5, claude-sonnet-4-5) and Gemini (gemini-2-5-flash, gemini-3-flash, etc.)\n")
+			fmt.Fprintf(os.Stderr, "Supported: Claude (claude-haiku-4-5, claude-sonnet-4-6) and Gemini (gemini-2-5-flash, gemini-3-flash, etc.)\n")
 			fmt.Fprintf(os.Stderr, "\n")
 			fmt.Fprintf(os.Stderr, "Example:\n")
 			fmt.Fprintf(os.Stderr, "  ailang eval-suite --agent --models claude-haiku-4-5,gemini-2-5-flash --benchmarks fizzbuzz\n")

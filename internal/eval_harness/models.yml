@@ -172,11 +172,11 @@ models:
       Available in GitHub Copilot Pro/Pro+/Business/Enterprise.
       Eval support: ✅ Fully supported via Responses API.
 
-  # Anthropic Claude Sonnet 4.5 (released September 2025)
-  claude-sonnet-4-5:
-    api_name: "claude-sonnet-4-5-20250929"
+  # Anthropic Claude Sonnet 4.6 (released February 2026)
+  claude-sonnet-4-6:
+    api_name: "claude-sonnet-4-6"
     provider: "anthropic"
-    description: "Claude Sonnet 4.5 - best for coding"
+    description: "Claude Sonnet 4.6 - best combination of speed and intelligence"
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "sonnet"  # Pass to --agent-model flag
@@ -185,9 +185,28 @@ models:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
       output_per_1k: 0.015 # $15 per million = $0.015 per 1K
     notes: |
-      Anthropic's most intelligent model, optimized for coding.
-      Can run autonomously for 30 hours.
-      1M token context window.
+      Anthropic's best combination of speed and intelligence (Feb 17, 2026).
+      200K context window (1M available in beta).
+      64K max output tokens. Supports adaptive thinking mode.
+      Same pricing as Sonnet 4.5 ($3/$15 per 1M).
+      API name uses no date suffix: "claude-sonnet-4-6".
+      Replaces claude-sonnet-4-5 for evals.
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
+
+  # Anthropic Claude Sonnet 4.5 (released September 2025)
+  claude-sonnet-4-5:
+    api_name: "claude-sonnet-4-5-20250929"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.5 - superseded by Sonnet 4.6"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "sonnet"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
+    pricing:
+      input_per_1k: 0.003  # $3 per million = $0.003 per 1K
+      output_per_1k: 0.015 # $15 per million = $0.015 per 1K
+    notes: |
+      Superseded by Claude Sonnet 4.6 (Feb 2026).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
   # Anthropic Claude Haiku 4.5 (released October 2025)
@@ -391,7 +410,7 @@ models:
       Requires: ollama pull llama3.2:3b
 
 # Default model for benchmarks
-default: "claude-sonnet-4-5"
+default: "claude-sonnet-4-6"
 
 # =============================================================================
 # MODEL SUITES
@@ -411,7 +430,7 @@ default: "claude-sonnet-4-5"
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
   - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
-  - "claude-sonnet-4-5" # Anthropic flagship
+  - "claude-sonnet-4-6" # Anthropic flagship (Feb 2026)
   - "gemini-2-5-pro"   # Google flagship
 
 # Extended suite - flagship + best alternatives (6 models)
@@ -420,7 +439,7 @@ benchmark_suite:
 extended_suite:
   - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
   - "claude-opus-4-6"  # Anthropic most capable (Feb 2026)
-  - "claude-sonnet-4-5" # Anthropic best for coding
+  - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-pro"     # Google latest (Nov 2025)
   - "gemini-2-5-pro"   # Google previous flagship
 
@@ -451,6 +470,7 @@ local_models:
 # - gpt5-2-instant    # Fast variant of GPT-5.2
 # - codex-mini-latest # Cheap coding model (use for simple tasks)
 # - claude-opus-4-5   # Superseded by claude-opus-4-6 (Feb 2026)
+# - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
 
 # Agent CLI support for agent-based evaluation

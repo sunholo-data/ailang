@@ -18,7 +18,7 @@ func runEvalAnalyze() {
 	fs := flag.NewFlagSet("eval-analyze", flag.ExitOnError)
 	resultsDir := fs.String("results", "eval_results", "Directory containing eval result JSON files")
 	outputDir := fs.String("output", "design_docs/planned", "Output directory for design documents")
-	model := fs.String("model", "gpt5", "LLM model to use for design generation (gpt5, claude-sonnet-4-5)")
+	model := fs.String("model", "gpt5", "LLM model to use for design generation (gpt5, claude-sonnet-4-6)")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic generation")
 	minFrequency := fs.Int("min-frequency", 2, "Minimum failure frequency to generate design doc")
 	categories := fs.String("categories", "", "Comma-separated list of categories to analyze (empty = all)")

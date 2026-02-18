@@ -18,6 +18,8 @@ func formatBenchmarkName(id string) string {
 func formatModelName(name string) string {
 	// Shorten long model names for table display
 	switch {
+	case strings.Contains(name, "claude-sonnet-4-6"):
+		return "Claude Sonnet 4.6"
 	case strings.Contains(name, "claude-sonnet-4-5"):
 		return "Claude Sonnet 4.5"
 	case strings.Contains(name, "gpt-4o-mini"):

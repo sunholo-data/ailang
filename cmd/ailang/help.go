@@ -238,7 +238,7 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println("Evaluation & Benchmarking:")
 	fmt.Printf("  %s            # Run AI benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
-	fmt.Printf("  %s  # Run full suite with multiple models\n", cyan("ailang eval-suite --models gpt5,claude-sonnet-4-5"))
+	fmt.Printf("  %s  # Run full suite with multiple models\n", cyan("ailang eval-suite --models gpt5,claude-sonnet-4-6"))
 	fmt.Printf("  %s                  # Resume interrupted baseline\n", cyan("ailang eval-suite --full --skip-existing"))
 	fmt.Println()
 	fmt.Println("Agent Coordination:")

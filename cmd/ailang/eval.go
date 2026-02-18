@@ -17,7 +17,7 @@ func runEval() {
 	fs := flag.NewFlagSet("eval", flag.ExitOnError)
 	benchmarkID := fs.String("benchmark", "", "Benchmark ID to run")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
-	model := fs.String("model", "claude-sonnet-4-5", "LLM model to use (gpt5, claude-sonnet-4-5, gemini-2-5-pro)")
+	model := fs.String("model", "claude-sonnet-4-6", "LLM model to use (gpt5, claude-sonnet-4-6, gemini-2-5-pro)")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for code execution")
@@ -237,7 +237,7 @@ func printAvailableModels() {
 		fmt.Println("  gpt-5          - GPT-5 full model (default)")
 		fmt.Println("  gpt-5-mini     - GPT-5 mini (faster, cheaper)")
 		fmt.Println("\nAnthropic:")
-		fmt.Println("  claude-sonnet-4-5  - Claude Sonnet 4.5 (best for coding)")
+		fmt.Println("  claude-sonnet-4-6  - Claude Sonnet 4.6 (best for coding)")
 		fmt.Println("\nGoogle:")
 		fmt.Println("  gemini-2-5-pro  - Gemini 2.5 Pro with thinking")
 		return
@@ -304,6 +304,6 @@ func printAvailableModels() {
 	fmt.Println()
 
 	fmt.Println("Usage:")
-	fmt.Printf("  %s\n", cyan("ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5"))
+	fmt.Printf("  %s\n", cyan("ailang eval --benchmark fizzbuzz --model claude-sonnet-4-6"))
 	fmt.Printf("  %s\n", cyan("ailang eval --benchmark fizzbuzz --model gpt5"))
 }
