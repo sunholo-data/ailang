@@ -96,6 +96,79 @@ func TestCompareOutput(t *testing.T) {
 	}
 }
 
+// TestAILANGRunnerValidation tests that the validation re-run works correctly
+// for agent mode. This was a bug (Feb 2026): the validation runner created its
+// workspace outside /tmp/, so module path auto-relaxation didn't apply, causing
+// false negatives. Fix: add --relax-modules to runner args.
+func TestAILANGRunnerValidation(t *testing.T) {
+	// Test with a simple solution that doesn't need stdlib imports
+	// (stdlib path depends on being run from project root)
+	code := `module benchmark/solution
+
+type Option[a] = Some(a) | None
+
+export func main() -> () ! {IO} {
+  let x: Option[int] = Some(42);
+  match x {
+    Some(v) => println("Got: " ++ show(v)),
+    None => println("Nothing")
+  };
+  let y: Option[int] = None;
+  match y {
+    Some(v) => println("Got: " ++ show(v)),
+    None => println("Empty")
+  }
+}
+`
+	spec := &BenchmarkSpec{
+		ID:          "adt_validation_test",
+		Caps:        []string{"IO"},
+		ExpectedOut: "Got: 42\nEmpty\n",
+	}
+
+	result := runAILANGSolution(code, spec)
+
+	if !result.CompileOk {
+		t.Errorf("Expected CompileOk=true, got false. Stderr: %s", result.Stderr)
+	}
+	if !result.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true, got false. Stderr: %s", result.Stderr)
+	}
+	if !result.StdoutOk {
+		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q, Expected: %q", result.Stdout, spec.ExpectedOut)
+	}
+}
+
+// TestAILANGRunnerValidation_MismatchedModule tests that the validation runner
+// handles module path mismatches gracefully (agent may write different module names).
+func TestAILANGRunnerValidation_MismatchedModule(t *testing.T) {
+	// Agent might write "module solution" instead of "module benchmark/solution"
+	code := `module solution
+
+export func main() -> () ! {IO} {
+  println("hello")
+}
+`
+	spec := &BenchmarkSpec{
+		ID:          "test_module_mismatch",
+		Caps:        []string{"IO"},
+		ExpectedOut: "hello\n",
+	}
+
+	result := runAILANGSolution(code, spec)
+
+	// With --relax-modules, this should still compile and run
+	if !result.CompileOk {
+		t.Errorf("Expected CompileOk=true with --relax-modules, got false. Stderr: %s", result.Stderr)
+	}
+	if !result.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true with --relax-modules, got false. Stderr: %s", result.Stderr)
+	}
+	if !result.StdoutOk {
+		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q", result.Stdout)
+	}
+}
+
 func TestGetRunner(t *testing.T) {
 	spec := &BenchmarkSpec{
 		ID:     "test",

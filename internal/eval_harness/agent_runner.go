@@ -2,6 +2,7 @@ package eval_harness
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -471,15 +472,15 @@ func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspa
 		}
 	}
 
-	// Run AILANG solution
-	runner := NewAILANGRunner("", spec.Caps)
+	// Run AILANG solution — pass spec for input_files/cli_args/stdin support
+	runner := NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
 	runResult, err := runner.Run(string(solutionContent), 10*time.Second)
 	if err != nil {
 		return ValidationResult{
 			CompileOk: false, // Compilation failed
 			RuntimeOk: false,
 			StdoutOk:  false,
-			Stderr:    err.Error(),
+			Stderr:    fmt.Sprintf("validation runner error: %v", err),
 		}
 	}
 

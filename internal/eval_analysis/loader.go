@@ -10,7 +10,7 @@ import (
 
 // LoadResults loads all benchmark results from a directory
 // Returns results sorted by timestamp (newest first)
-// Supports both flat structure and subdirectories (standard/, agent/)
+// Recursively searches all subdirectories for .json files
 func LoadResults(dir string) ([]*BenchmarkResult, error) {
 	// Check if directory exists
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
@@ -19,19 +19,18 @@ func LoadResults(dir string) ([]*BenchmarkResult, error) {
 
 	var allMatches []string
 
-	// Search patterns: root directory + subdirectories
-	patterns := []string{
-		filepath.Join(dir, "*.json"),             // Legacy: root directory
-		filepath.Join(dir, "standard", "*.json"), // Standard eval results
-		filepath.Join(dir, "agent", "*.json"),    // Agent eval results
-	}
-
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
+	// Walk directory tree to find all .json files
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("failed to glob %s: %w", pattern, err)
+			return nil // Skip inaccessible dirs
 		}
-		allMatches = append(allMatches, matches...)
+		if !d.IsDir() && filepath.Ext(path) == ".json" {
+			allMatches = append(allMatches, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk directory %s: %w", dir, err)
 	}
 
 	if len(allMatches) == 0 {

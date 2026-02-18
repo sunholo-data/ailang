@@ -42,6 +42,7 @@ type BenchmarkResult struct {
 
 	// Agent evaluation metrics (M-EVAL-AGENT)
 	EvalMode        string `json:"eval_mode,omitempty"`        // "standard" or "agent"
+	Condition       string `json:"condition,omitempty"`        // Experimental condition: "baseline", "agent_prompt", etc.
 	AgentTurns      int    `json:"agent_turns,omitempty"`      // Number of conversation turns
 	AgentTranscript string `json:"agent_transcript,omitempty"` // Full session log
 
@@ -201,6 +202,7 @@ type SummaryEntry struct {
 	Stderr         string  `json:"stderr,omitempty"`
 	// Agent evaluation fields (M-EVAL-AGENT)
 	EvalMode   string `json:"eval_mode,omitempty"`   // "standard" or "agent"
+	Condition  string `json:"condition,omitempty"`   // Experimental condition: "baseline", "agent_prompt", etc.
 	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
 }
 
@@ -279,6 +281,7 @@ func (r *BenchmarkResult) ToSummaryEntry() *SummaryEntry {
 		Timestamp:      r.Timestamp.Format(time.RFC3339),
 		Stderr:         r.Stderr,
 		EvalMode:       r.EvalMode,
+		Condition:      r.Condition,
 		AgentTurns:     r.AgentTurns,
 	}
 }

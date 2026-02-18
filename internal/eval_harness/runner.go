@@ -318,6 +318,12 @@ func (r *AILANGRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	// Build command with flags BEFORE filename (required by ailang CLI)
 	args := []string{"run", "--entry", "main", "--quiet"}
 
+	// Relax module path validation for eval workspaces.
+	// Agent workspaces in /tmp/ get auto-relaxation, but .eval_workspace/ does not.
+	// Without this, validation re-runs fail with MOD010 when agents write
+	// module declarations that don't exactly match the workspace path.
+	args = append(args, "--relax-modules")
+
 	// Add stdlib path (ensures stdlib can be found from isolated workspace)
 	args = append(args, "--stdlib-path", stdlibPath)
 

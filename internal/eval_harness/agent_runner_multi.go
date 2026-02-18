@@ -269,14 +269,16 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 
 // runAILANGSolution executes and validates an AILANG solution
 func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResult {
-	runner := NewAILANGRunner("", spec.Caps)
+	// Pass spec to runner so input_files, cli_args, and stdin are available
+	// in the validation workspace (not just in the agent workspace).
+	runner := NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
 	runResult, err := runner.Run(solutionCode, 10*time.Second)
 	if err != nil {
 		return ValidationResult{
 			CompileOk: false,
 			RuntimeOk: false,
 			StdoutOk:  false,
-			Stderr:    err.Error(),
+			Stderr:    fmt.Sprintf("validation runner error: %v", err),
 		}
 	}
 

@@ -3,14 +3,14 @@
   "versions": {
     "v0.8.2": {
       "file": "prompts/agent/v0.8.2.md",
-      "hash": "eb8828529acc1effd0b522f090c29ca36d0c7fb3401e7a70ad65f867855c4180",
-      "description": "Minimal agent coding guide: iterative workflow (Write/Check/Run/Fix), module structure, effects table (IO/FS/Net/Clock/AI/Env/Process/Stream/Debug), core syntax, types, debugging (std/debug + compiler flags), process execution, common patterns (JSON/File IO/HTTP), common mistakes",
+      "hash": "42e2aa481d9b433eb943ab2fa9d6c5b38359900ae6b17464b79a043bba4a40eb",
+      "description": "Minimal agent coding guide: iterative workflow (Write/Check/Run/Fix), module structure, effects table, prelude functions, core syntax, types, debugging, process execution, common patterns (JSON field access/File IO/HTTP), embedded stdlib quick reference (list/string/option/result/math/json/bytes/fs/net/process), discovery fallback, common mistakes",
       "created": "2026-02-18",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "First agent coding prompt. ~180 lines, ~900 words. Designed for iterative agentic coders who need minimal syntax + workflow guidance. Points to ailang prompt for full reference and ailang devtools-prompt for toolchain."
+      "notes": "Agent coding prompt with embedded stdlib reference. ~310 lines. Data shows 0/63 agents use runtime discovery (cat std/*.ail, ailang docs), so key stdlib functions are embedded directly. Discovery instructions kept as fallback for edge cases."
     }
   },
   "active": "v0.8.2",
