@@ -32,7 +32,7 @@ CONFIGURATION:
   ailang run --ai <model> --caps AI --entry main module.ail
 
   Supported models (configured via models.yml or guessed from name):
-  - Anthropic: claude-sonnet-4-5, claude-haiku-4-5, etc.
+  - Anthropic: claude-sonnet-4-6, claude-haiku-4-5, etc.
   - OpenAI:    gpt-5, gpt-5-mini, etc.
   - Google:    gemini-2-5-pro, gemini-2-5-flash, etc.
 
