@@ -14,6 +14,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import type { ChainData, Span, HierarchyNode, FilterCriteria, ControlPlaneFilters } from '../ExecHierarchy/types';
 import { ChainList } from './ChainList';
 import { ChainDetail } from './ChainDetail';
+import { CliCommandHint } from '../CliCommandHint';
+import { truncateId } from '../../../../utils/formatters';
 import styles from './ChainExplorer.module.css';
 
 // ============================================================================
@@ -51,6 +53,21 @@ function convertApiSpan(raw: any): Span {
     chat_context: raw.chat_context,
     children: raw.children?.map(convertApiSpan) || [],
   };
+}
+
+// Build the equivalent `ailang chains` CLI command for the current state
+function buildChainsCliCommand(
+  mode: 'event' | 'browse',
+  chainId: string | null | undefined,
+): string {
+  if (chainId) {
+    // Show view command with short ID (matches CLI default display)
+    return `ailang chains view ${truncateId(chainId, 12)}`;
+  }
+  if (mode === 'browse') {
+    return 'ailang chains list';
+  }
+  return 'ailang chains list';
 }
 
 // ============================================================================
@@ -123,6 +140,11 @@ export const ChainExplorer: React.FC<ChainExplorerProps> = ({
   // The chain to display
   const activeChain = mode === 'event' ? eventChainData : fetchedBrowseChain;
 
+  // Current chain ID for CLI hint
+  const currentChainId = mode === 'event'
+    ? eventChainData?.id
+    : browseSelectedChainId;
+
   const handleBrowseAll = useCallback(() => {
     setMode('browse');
   }, []);
@@ -173,7 +195,6 @@ export const ChainExplorer: React.FC<ChainExplorerProps> = ({
                 Select a chain from the list to view details
               </div>
             )}
-            {/* Back to event button in detail panel header */}
             {eventChainData && !fetchedBrowseChain && !browseFetchLoading && (
               <div className={styles.selectChainPrompt}>
                 <button className={styles.browseAllButton} onClick={handleBackToEvent}>
@@ -183,6 +204,10 @@ export const ChainExplorer: React.FC<ChainExplorerProps> = ({
             )}
           </div>
         </div>
+        <CliCommandHint
+          command={buildChainsCliCommand('browse', browseSelectedChainId)}
+          compact
+        />
       </div>
     );
   }
@@ -197,6 +222,10 @@ export const ChainExplorer: React.FC<ChainExplorerProps> = ({
           hiddenSpanTypes={hiddenSpanTypes}
           theme={theme}
         />
+        <CliCommandHint
+          command={buildChainsCliCommand('event', currentChainId)}
+          compact
+        />
       </div>
     );
   }
@@ -210,6 +239,7 @@ export const ChainExplorer: React.FC<ChainExplorerProps> = ({
           Browse All Chains
         </button>
       </div>
+      <CliCommandHint command="ailang chains list" compact />
     </div>
   );
 };

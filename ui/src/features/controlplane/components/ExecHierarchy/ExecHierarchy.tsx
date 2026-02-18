@@ -839,8 +839,8 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
           />
         )}
 
-        {/* Load more buttons when nodes are limited */}
-        {hasMoreNodes && (
+        {/* Load more buttons - not shown in chains view (ChainExplorer manages its own data) */}
+        {viewMode !== 'chains' && hasMoreNodes && (
           <div className={styles.loadMoreContainer}>
             <span className={styles.loadMoreInfo}>
               Showing {displayLimit} of {totalNodeCount} nodes
@@ -866,12 +866,14 @@ export const ExecHierarchy: React.FC<ExecHierarchyProps> = ({
         />
       )}
 
-      {/* CLI command hint */}
-      <CliCommandHint
-        commandType="hierarchy"
-        filters={filters}
-        compact
-      />
+      {/* CLI command hint - not shown in chains view (ChainExplorer provides its own) */}
+      {viewMode !== 'chains' && (
+        <CliCommandHint
+          commandType="hierarchy"
+          filters={filters}
+          compact
+        />
+      )}
     </div>
   );
 };

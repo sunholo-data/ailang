@@ -878,3 +878,76 @@
 .emptyExplorer p {
   margin: 0;
 }
+
+/* ============================================================================
+   Turns Section (per-turn breakdown in Summary tab)
+   ============================================================================ */
+
+.turnsSection {
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  padding-top: 12px;
+}
+
+.turnsSectionTitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #e6edf3);
+  margin-bottom: 8px;
+}
+
+.turnsList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.turnRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface, #1a2332);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.03));
+}
+
+.turnRow:hover {
+  border-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.turnNumber {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary, #6e7681);
+  min-width: 52px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.turnTools {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.turnToolPill {
+  font-size: 10px;
+  color: var(--text-secondary, #8b949e);
+  background: var(--bg-elevated, #141d2b);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  white-space: nowrap;
+}
+
+.turnCost {
+  font-size: 10px;
+  color: var(--text-tertiary, #6e7681);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
+}

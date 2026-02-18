@@ -51,3 +51,12 @@ export interface FileTouchEntry {
   operations: string[];
   lastTouched: number;
 }
+
+/** Per-turn breakdown for the Summary tab (mirrors `ailang chains tree --detailed`) */
+export interface TurnBreakdown {
+  turnNumber: number;
+  spanId: string;
+  durationMs: number;
+  cost: number;
+  tools: { name: string; detail?: string }[];
+}
