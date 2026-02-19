@@ -36,7 +36,9 @@ func registerStreamConnect() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamConnectType,
-		Impl:    effects.StreamConnect,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "connect", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Open a WebSocket connection to a URL",
@@ -97,7 +99,9 @@ func registerStreamSSEConnect() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamSSEConnectType,
-		Impl:    effects.StreamSSEConnect,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "sse_connect", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Open an SSE (Server-Sent Events) connection to a URL",
@@ -145,7 +149,9 @@ func registerStreamSend() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamSendType,
-		Impl:    effects.StreamSend,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "send", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Send a message on a WebSocket connection",
@@ -187,7 +193,9 @@ func registerStreamOnEvent() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamOnEventType,
-		Impl:    effects.StreamOnEvent,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "onEvent", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Register an event handler for a WebSocket connection",
@@ -230,7 +238,9 @@ func registerStreamRunEventLoop() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamRunEventLoopType,
-		Impl:    effects.StreamRunEventLoop,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "runEventLoop", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Run the event loop, dispatching events to the registered handler",
@@ -275,7 +285,9 @@ func registerStreamClose() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamCloseType,
-		Impl:    effects.StreamClose,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "close", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Close a WebSocket connection gracefully",
@@ -315,7 +327,9 @@ func registerStreamGetStatus() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamGetStatusType,
-		Impl:    effects.StreamGetStatus,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "status", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Get the current status of a WebSocket connection",
@@ -355,7 +369,9 @@ func registerStreamTransmitBinary() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamTransmitBinaryType,
-		Impl:    streamTransmitBinaryImpl,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return streamTransmitBinaryViaRegistry(ctx, args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Send binary data (bytes) on a WebSocket connection",
@@ -390,8 +406,9 @@ func makeStreamTransmitBinaryType() types.Type {
 	).Effects("Stream")
 }
 
-// streamTransmitBinaryImpl wraps bytes in Bin() ADT and delegates to StreamSend
-func streamTransmitBinaryImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+// streamTransmitBinaryViaRegistry wraps bytes in Bin() ADT and delegates to Stream.send
+// via the effect registry, so WASM JS handlers are used when registered.
+func streamTransmitBinaryViaRegistry(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("_stream_transmit_binary: expected 2 arguments, got %d", len(args))
 	}
@@ -407,8 +424,8 @@ func streamTransmitBinaryImpl(ctx *effects.EffContext, args []eval.Value) (eval.
 		Fields:   []eval.Value{bytesVal},
 	}
 
-	// Delegate to existing StreamSend which handles Bin(bytes) at line 358
-	return effects.StreamSend(ctx, []eval.Value{args[0], binADT})
+	// Delegate through registry so WASM JS handlers are used when registered
+	return effects.Call(ctx, "Stream", "send", []eval.Value{args[0], binADT})
 }
 
 // registerStreamSSEPost registers the _stream_sse_post builtin
@@ -420,7 +437,9 @@ func registerStreamSSEPost() {
 		IsPure:  false,
 		Effect:  "Stream",
 		Type:    makeStreamSSEPostType,
-		Impl:    effects.StreamSSEPost,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "sse_post", args)
+		},
 
 		Metadata: &BuiltinMetadata{
 			Description: "Open an SSE connection via HTTP POST (for AI API streaming)",

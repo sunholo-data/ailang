@@ -133,6 +133,23 @@ func ailangValueToJS(v eval.Value) interface{} {
 		return arr
 	case *eval.UnitValue:
 		return nil
+	case *eval.FunctionValue:
+		// Wrap AILANG closure as callable JS function (M-WASM-STREAM-BRIDGE)
+		// This enables patterns like onEvent(conn, handler) where AILANG passes
+		// a closure to be invoked by JS on each WebSocket message.
+		closure := val
+		return js.FuncOf(func(this js.Value, jsArgs []js.Value) interface{} {
+			ailangArgs := make([]eval.Value, len(jsArgs))
+			for i, jsArg := range jsArgs {
+				ailangArgs[i] = jsToAILANGValue(jsArg)
+			}
+			result, err := replInstance.repl.ApplyClosure(closure, ailangArgs)
+			if err != nil {
+				js.Global().Get("console").Call("error", "AILANG closure error: "+err.Error())
+				return nil
+			}
+			return ailangValueToJS(result)
+		})
 	default:
 		// Fallback: string representation
 		return formatValue(v)

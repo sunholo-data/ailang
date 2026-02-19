@@ -7,6 +7,7 @@ class AilangREPL {
   constructor() {
     this.ready = false;
     this.onReadyCallbacks = [];
+    this._pendingHandlers = {};  // Accumulator for 3-arg setEffectHandler calls
   }
 
   /**
@@ -217,19 +218,37 @@ class AilangREPL {
   // ── Effect Handlers (v0.7.2+) ──────────────────────────────────
 
   /**
-   * Register a JS function as an effect handler (v0.7.2+)
-   * @param {string} capability - Effect capability (e.g., 'IO', 'Net', 'FS')
-   * @param {string} operation - Operation name (e.g., 'print', 'httpGet')
-   * @param {Function} handler - JS callback: (arg) => result
+   * Register JS function(s) as effect handler(s) (v0.7.2+)
+   *
+   * Supports two calling conventions:
+   *   2-arg: setEffectHandler('Stream', { connect: fn, send: fn, ... })
+   *   3-arg: setEffectHandler('Stream', 'connect', fn)
+   *
+   * The 3-arg form accumulates handlers per capability and registers them
+   * as a single object on each call, so multiple 3-arg calls build up the
+   * full handler set. Auto-grants the capability.
+   *
+   * @param {string} capability - Effect capability (e.g., 'IO', 'Net', 'Stream')
+   * @param {string|Object} operationOrHandlers - Operation name (3-arg) or handlers object (2-arg)
+   * @param {Function} [handler] - JS callback for 3-arg form
    * @returns {{success: boolean, error?: string}}
    */
-  setEffectHandler(capability, operation, handler) {
+  setEffectHandler(capability, operationOrHandlers, handler) {
     if (!this.ready) {
       return { success: false, error: 'REPL not initialized' };
     }
 
     try {
-      return window.ailangSetEffectHandler(capability, operation, handler);
+      if (typeof operationOrHandlers === 'object' && operationOrHandlers !== null) {
+        // 2-arg form: setEffectHandler('Stream', { connect: fn, send: fn })
+        return window.ailangSetEffectHandler(capability, operationOrHandlers);
+      }
+      // 3-arg form: setEffectHandler('Stream', 'connect', fn)
+      if (!this._pendingHandlers[capability]) {
+        this._pendingHandlers[capability] = {};
+      }
+      this._pendingHandlers[capability][operationOrHandlers] = handler;
+      return window.ailangSetEffectHandler(capability, this._pendingHandlers[capability]);
     } catch (err) {
       return { success: false, error: err.message };
     }

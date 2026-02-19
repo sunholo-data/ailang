@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- **M-WASM-STREAM-BRIDGE: WASM stream builtins use effect handler registry** (`internal/builtins/stream.go`, `cmd/wasm/effects.go`, `web/ailang-repl.js`, `internal/repl/apply_closure.go`, ~255 LOC)
+  - All 9 stream builtins now dispatch through `effects.Call()` instead of direct function references, allowing WASM JS handlers registered via `ailangSetEffectHandler("Stream", {...})` to override native Go implementations
+  - `ailang-repl.js` `setEffectHandler` supports both 2-arg (`capability, {op: fn}`) and 3-arg (`capability, op, fn`) calling conventions with internal accumulator — no more panic on 3-arg calls
+  - `ailangValueToJS` wraps `*eval.FunctionValue` closures as callable `js.FuncOf` functions, enabling the `onEvent(conn, handler)` pattern where AILANG callbacks are invoked by JS on each WebSocket message
+  - New `REPL.ApplyClosure()` method for curried function application from WASM bridge (4 tests)
+  - WASM binary builds successfully (`GOOS=js GOARCH=wasm`)
+  - Design doc: `design_docs/planned/v0_8_2/m-wasm-stream-bridge.md`
+
 - **M-SEMANTIC-ENVELOPE: Multi-aspect semantic embeddings for agent messaging** (`internal/messaging/envelope.go`, `envelope_builder.go`, `embedder_openai.go`, `embedder_gemini.go`, `cmd/ailang/messages_triage.go`, ~1,450 LOC)
   - Messages carry a **semantic envelope** — 5 named embedding vector slots: `intent`, `code`, `context`, `skill`, `resolution`
   - `intent` auto-computed from title + payload on send (if embedder configured)
