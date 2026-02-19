@@ -35,6 +35,7 @@ type InboxMessage struct {
 	ParentTaskID       string     `json:"parent_task_id,omitempty"`       // Parent task for hierarchy (v1.5.0, M-UNIFIED-AI-CONTROL-PLANE)
 	ChainID            string     `json:"chain_id,omitempty"`             // Execution chain ID for unified hierarchy (M-CHAINS-SIMPLIFY)
 	Iteration          int        `json:"iteration,omitempty"`            // Iteration number for feedback loops (M-TASK-HIERARCHY)
+	Envelope           *Envelope  `json:"envelope,omitempty"`             // Multi-aspect semantic embeddings (v1.8.0, M-SEMANTIC-ENVELOPE)
 	Status             string     `json:"status"`
 	CreatedAt          time.Time  `json:"created_at"`
 	ReadAt             *time.Time `json:"read_at,omitempty"`
@@ -168,10 +169,17 @@ func (s *Store) InsertInboxMessageWithContext(ctx context.Context, msg *InboxMes
 		chainID = &msg.ChainID
 	}
 
+	// Serialize envelope (v1.8.0, M-SEMANTIC-ENVELOPE)
+	var envelopeJSON *string
+	if msg.Envelope != nil && !msg.Envelope.IsEmpty() {
+		s := msg.Envelope.ToJSON()
+		envelopeJSON = &s
+	}
+
 	_, err := s.db.Exec(`
-		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, status, created_at, read_at, expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, parentTaskID, chainID, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
+		INSERT INTO inbox_messages (id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, envelope, status, created_at, read_at, expires_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, msg.ID, msg.MessageID, msg.CorrelationID, msg.FromAgent, msg.ToInbox, msg.MessageType, msg.Title, msg.Payload, category, msg.GitHubIssue, githubRepo, simhash, dupOf, parentTaskID, chainID, envelopeJSON, msg.Status, msg.CreatedAt.Format(time.RFC3339), readAt, expiresAt)
 
 	if err != nil {
 		span.RecordError(err)
@@ -198,7 +206,7 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	)
 	defer span.End()
 
-	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
+	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, envelope, status, created_at, read_at, expires_at FROM inbox_messages WHERE 1=1`
 	args := []interface{}{}
 
 	if opts.Inbox != "" {
@@ -263,12 +271,12 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	var messages []InboxMessage
 	for rows.Next() {
 		var msg InboxMessage
-		var correlationID, payload, category, githubRepo, dupOf, parentTaskID, chainID sql.NullString
+		var correlationID, payload, category, githubRepo, dupOf, parentTaskID, chainID, envelopeJSON sql.NullString
 		var githubIssue, simhash sql.NullInt64
 		var readAt, expiresAt sql.NullString
 		var createdAt string
 
-		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &parentTaskID, &chainID, &msg.Status, &createdAt, &readAt, &expiresAt)
+		err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &parentTaskID, &chainID, &envelopeJSON, &msg.Status, &createdAt, &readAt, &expiresAt)
 		if err != nil {
 			return nil, err
 		}
@@ -280,6 +288,9 @@ func (s *Store) ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 		msg.DupOf = dupOf.String
 		msg.ParentTaskID = parentTaskID.String
 		msg.ChainID = chainID.String
+		if envelopeJSON.Valid && envelopeJSON.String != "" && envelopeJSON.String != "{}" {
+			msg.Envelope = EnvelopeFromJSON(envelopeJSON.String)
+		}
 		if githubIssue.Valid {
 			issueNum := int(githubIssue.Int64)
 			msg.GitHubIssue = &issueNum
@@ -329,18 +340,18 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	defer span.End()
 
 	row := s.db.QueryRow(`
-		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, status, created_at, read_at, expires_at
+		SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload, category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, envelope, status, created_at, read_at, expires_at
 		FROM inbox_messages
 		WHERE id = ? OR message_id = ?
 	`, id, id)
 
 	var msg InboxMessage
-	var correlationID, payload, category, githubRepo, dupOf, parentTaskID sql.NullString
+	var correlationID, payload, category, githubRepo, dupOf, parentTaskID, chainID, envelopeJSON sql.NullString
 	var githubIssue, simhash sql.NullInt64
 	var readAt, expiresAt sql.NullString
 	var createdAt string
 
-	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &parentTaskID, &msg.Status, &createdAt, &readAt, &expiresAt)
+	err := row.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox, &msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo, &simhash, &dupOf, &parentTaskID, &chainID, &envelopeJSON, &msg.Status, &createdAt, &readAt, &expiresAt)
 	if err == sql.ErrNoRows {
 		span.SetStatus(codes.Ok, "message not found")
 		return nil, nil
@@ -357,6 +368,10 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	msg.GitHubRepo = githubRepo.String
 	msg.DupOf = dupOf.String
 	msg.ParentTaskID = parentTaskID.String
+	msg.ChainID = chainID.String
+	if envelopeJSON.Valid && envelopeJSON.String != "" && envelopeJSON.String != "{}" {
+		msg.Envelope = EnvelopeFromJSON(envelopeJSON.String)
+	}
 	if githubIssue.Valid {
 		issueNum := int(githubIssue.Int64)
 		msg.GitHubIssue = &issueNum

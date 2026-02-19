@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -398,6 +400,12 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			}
 		}
 
+		// M-SEMANTIC-ENVELOPE: Compute resolution envelope from git diff
+		// Best-effort — failures don't affect task completion
+		if worktreePath != "" && task.MessageID != "" && d.msgStore != nil {
+			d.enrichResolutionEnvelope(taskCtx, task, worktreePath)
+		}
+
 		// Update task with worktree and agent info (needed for git diff artifact discovery)
 		task.WorktreePath = worktreePath
 		task.AgentID = targetAgent
@@ -543,4 +551,64 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	d.postTaskResult(task, result, nil)
 
 	return nil
+}
+
+// enrichResolutionEnvelope computes a resolution embedding from the git diff
+// and updates the original message's envelope. Best-effort: failures are logged
+// but don't affect task completion.
+func (d *Daemon) enrichResolutionEnvelope(ctx context.Context, task *TaskRecord, worktreePath string) {
+	// Get git diff (HEAD~1..HEAD)
+	diffCmd := exec.Command("git", "diff", "HEAD~1..HEAD", "--stat")
+	diffCmd.Dir = worktreePath
+	diffOutput, err := diffCmd.Output()
+	if err != nil {
+		d.logger.Printf("[envelope] No git diff available for task %s: %v", task.ID, err)
+		return
+	}
+
+	// Get commit message
+	logCmd := exec.Command("git", "log", "-1", "--pretty=%B")
+	logCmd.Dir = worktreePath
+	commitMsg, err := logCmd.Output()
+	if err != nil {
+		d.logger.Printf("[envelope] No commit message available for task %s: %v", task.ID, err)
+		return
+	}
+
+	commitMsgStr := strings.TrimSpace(string(commitMsg))
+	diffStr := strings.TrimSpace(string(diffOutput))
+	if commitMsgStr == "" && diffStr == "" {
+		return
+	}
+
+	// Create embedder from config
+	cfg := messaging.LoadEmbedConfigFromEnv()
+	embedder, err := messaging.NewEmbedderFromConfig(cfg)
+	if err != nil || embedder == nil {
+		d.logger.Printf("[envelope] No embedder available for resolution: %v", err)
+		return
+	}
+
+	// Build resolution envelope
+	env, err := messaging.NewEnvelopeBuilder(embedder).
+		WithResolution(commitMsgStr, diffStr).
+		Build(&messaging.InboxMessage{Title: task.Title, Payload: commitMsgStr})
+	if err != nil {
+		d.logger.Printf("[envelope] Failed to build resolution envelope for task %s: %v", task.ID, err)
+		return
+	}
+
+	// Extract just the resolution slot to update
+	resOnly := messaging.NewEnvelope()
+	if resVec := env.Get(messaging.SlotResolution); resVec != nil {
+		resOnly.Slots[messaging.SlotResolution] = resVec
+	}
+
+	// Update the original message's envelope (non-overwrite to preserve existing slots)
+	if err := d.msgStore.UpdateMessageEnvelope(task.MessageID, resOnly, false); err != nil {
+		d.logger.Printf("[envelope] Failed to update message envelope for task %s: %v", task.ID, err)
+		return
+	}
+
+	d.logger.Printf("[envelope] Resolution envelope added to message %s for task %s", task.MessageID, task.ID)
 }

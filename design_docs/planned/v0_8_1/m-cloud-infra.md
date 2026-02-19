@@ -323,9 +323,9 @@ for _, nextAgentID := range agent.TriggerOnComplete {
 
 | Job | Responsibility | Trigger | Resources |
 |-----|----------------|---------|-----------|
-| `ailang-agent-claude` | Claude Code CLI execution | Eventarc (Pub/Sub) | 2 vCPU, 4GB, 30min timeout |
-| `ailang-agent-gemini` | Gemini CLI execution | Eventarc (Pub/Sub) | 2 vCPU, 4GB, 30min timeout |
-| `ailang-agent-script` | Deterministic script execution | Eventarc (Pub/Sub) | 1 vCPU, 2GB, 2hr timeout |
+| `ailang-agent-claude` | Claude Code CLI execution | Eventarc (Pub/Sub) | 2 vCPU, 4GB, 3hr timeout |
+| `ailang-agent-gemini` | Gemini CLI execution | Eventarc (Pub/Sub) | 2 vCPU, 4GB, 3hr timeout |
+| `ailang-agent-script` | Deterministic script execution | Eventarc (Pub/Sub) | 1 vCPU, 2GB, 3hr timeout |
 
 #### 3. Storage Services
 
@@ -344,6 +344,47 @@ for _, nextAgentID := range agent.TriggerOnComplete {
 | `ailang-tasks` | Task dispatch to jobs | Cloud Run Jobs (Eventarc) |
 | `ailang-events` | Real-time event streaming | Dashboard WebSocket |
 | `ailang-approvals` | Approval workflow events | Dashboard + CLI |
+
+**Pub/Sub Subscription Retry & Dead Letter Policy:**
+
+All subscriptions use exponential backoff with dead letter topics to prevent message loss:
+
+```hcl
+# Example: ailang-tasks subscription (Terraform)
+resource "google_pubsub_subscription" "tasks_coordinator" {
+  name  = "ailang-tasks-coordinator"
+  topic = google_pubsub_topic.tasks.name
+
+  # Exponential backoff: 10s min, 600s max
+  retry_policy {
+    minimum_backoff = "10s"
+    maximum_backoff = "600s"
+  }
+
+  # Dead letter after 5 failed attempts
+  dead_letter_policy {
+    dead_letter_topic     = google_pubsub_topic.dead_letter.id
+    max_delivery_attempts = 5
+  }
+
+  # Ack deadline: 600s (10 min) — agent jobs can take hours,
+  # but ack should happen once the job is *dispatched*, not completed.
+  ack_deadline_seconds = 600
+
+  # Retain unacked messages for 24 hours
+  message_retention_duration = "86400s"
+}
+```
+
+**Idempotency requirement (at-least-once delivery):**
+
+Pub/Sub provides at-least-once delivery — duplicate messages are expected. All event handlers
+MUST be idempotent:
+
+- `execute-job`: Check Firestore task status before executing (skip if `running` or `completed`)
+- Use Firestore transactions for status transitions (`pending` → `running`) to prevent races
+- Store Pub/Sub message ID in task record for deduplication
+- Completion handler: Use `task_id` as idempotency key — re-completing an already-completed task is a no-op
 
 ### Data Flow: Task Execution
 
@@ -595,12 +636,11 @@ See: [Cloud Run source deployment docs](https://cloud.google.com/run/docs/deploy
 See: [Google Cloud buildpacks for Go](https://cloud.google.com/docs/buildpacks/go)
 
 **M5: Source Deploy Configuration** (~50 LOC)
-- [ ] `Procfile` for dashboard: `web: ailang serve --port ${PORT}`
-- [ ] `Procfile.coordinator` for coordinator variant
 - [ ] `.gcloudignore` to exclude `ui/node_modules/`, `.git/`, test fixtures
 - [ ] Pre-build UI assets: `cd ui && npm run build` before deploy (go:embed picks them up)
 - [ ] `GOOGLE_BUILDABLE=./cmd/ailang` build env var to target the correct Go package
 - [ ] Validate `go:embed` works with buildpacks (embedded UI, stdlib, prompts)
+- [ ] Use `--command`/`--args` flags on `gcloud run deploy` (NOT Procfile — avoids conflicts)
 
 **M6: Deploy Scripts** (~100 LOC)
 - [ ] `scripts/cloud-deploy-dashboard.sh` - Source deploy with env vars
@@ -674,7 +714,6 @@ See: [Google Cloud buildpacks for Go](https://cloud.google.com/docs/buildpacks/g
 | `internal/storage/firestore/coordinator.go` | ~400 | Firestore coordinator store |
 | `internal/storage/firestore/messaging.go` | ~300 | Firestore messaging store |
 | `internal/storage/bigquery/observatory.go` | ~250 | BigQuery observatory |
-| `Procfile` | ~1 | Cloud Run entrypoint for dashboard |
 | `.gcloudignore` | ~15 | Exclude files from source upload |
 | `scripts/cloud-deploy-dashboard.sh` | ~30 | Dashboard source deploy script |
 | `scripts/cloud-deploy-coordinator.sh` | ~30 | Coordinator source deploy script |
@@ -816,23 +855,31 @@ Patterns for git operations:
 
 | Service | Usage | Monthly Cost |
 |---------|-------|-------------|
-| Cloud Run (Dashboard) | 1 instance, 24/7 | ~$25 |
-| Cloud Run (Coordinator) | 1 instance, 24/7 | ~$25 |
-| Cloud Run Jobs | 100 jobs/day, 10min avg | ~$15 |
+| Cloud Run (Dashboard) | 1 instance, 24/7, request-based billing | ~$25 |
+| Cloud Run (Coordinator) | 1 instance, 24/7, instance-based billing (`--no-cpu-throttling`) | ~$35 |
+| Cloud Run Jobs | 100 jobs/day, 30min avg (3hr max), 2 vCPU | ~$45 |
 | Firestore | 100K reads, 50K writes/day | ~$10 |
 | BigQuery | 50GB storage, 1TB queries | ~$15 |
 | Pub/Sub | 1M messages/month | ~$5 |
 | Cloud Storage | 10GB artifacts | ~$1 |
 | Secret Manager | 5 secrets, 10K access | ~$1 |
-| Networking | Internal only | ~$5 |
-| **Total** | | **~$105/month** |
+| Networking | Internal only (no LB — IAP direct on Cloud Run) | ~$2 |
+| **Total** | | **~$140/month** |
+
+**Note:** AI provider costs are NOT included above. With Claude Code Max subscription(s):
+- 1x Max 20x: +$200/mo (covers most workloads)
+- 2x Max 20x: +$400/mo (for parallel high-volume agents)
+- Total with 1x Max: **~$340/month** all-in
+- See the Agent Executor Authentication Options section for full comparison.
 
 ### Cost Optimization Tips
 
-1. Use `min_instance_count: 0` for non-critical services (saves ~$50/mo)
+1. Use `min_instance_count: 0` for the dashboard if 24/7 uptime isn't needed (saves ~$25/mo)
 2. BigQuery slots reservation for predictable query costs
 3. Firestore cache to reduce read operations
-4. Cloud Run CPU allocation: "always" for coordinator (faster cold starts)
+4. Coordinator MUST use instance-based billing (`--no-cpu-throttling`) — it polls GitHub/Pub/Sub in background
+5. Cloud Run Jobs only charge while running — 3hr timeout doesn't cost more if jobs finish early
+6. Direct IAP on Cloud Run eliminates load balancer costs (~$18/mo saved vs LB approach)
 
 ---
 
@@ -842,9 +889,9 @@ Patterns for git operations:
 
 | Service Account | Roles |
 |-----------------|-------|
-| `ailang-dashboard` | `roles/datastore.user`, `roles/secretmanager.secretAccessor` |
-| `ailang-coordinator` | `roles/datastore.user`, `roles/pubsub.editor`, `roles/secretmanager.secretAccessor` |
-| `ailang-agent-executor` | `roles/secretmanager.secretAccessor`, `roles/pubsub.publisher` |
+| `ailang-dashboard` | `roles/datastore.user`, `roles/bigquery.dataViewer`, `roles/pubsub.subscriber`, `roles/secretmanager.secretAccessor` |
+| `ailang-coordinator` | `roles/datastore.user`, `roles/bigquery.dataEditor`, `roles/pubsub.editor`, `roles/run.invoker`, `roles/eventarc.eventReceiver`, `roles/secretmanager.secretAccessor` |
+| `ailang-agent-executor` | `roles/datastore.user`, `roles/pubsub.publisher`, `roles/storage.objectCreator`, `roles/secretmanager.secretAccessor` |
 
 ### Network Security
 
@@ -914,11 +961,6 @@ gcloud run deploy ailang-dashboard \
   --args "serve,--port,8080"
 ```
 
-Alternatively, use a `Procfile` (buildpacks convention):
-```
-web: ailang serve --port ${PORT}
-```
-
 #### Coordinator Daemon
 
 ```bash
@@ -930,6 +972,7 @@ gcloud run deploy ailang-coordinator \
   --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest \
   --service-account ailang-coordinator@${PROJECT_ID}.iam.gserviceaccount.com \
   --no-allow-unauthenticated \
+  --no-cpu-throttling \
   --min-instances 1 \
   --max-instances 3 \
   --memory 1Gi \
@@ -942,8 +985,13 @@ gcloud run deploy ailang-coordinator \
 #### `.gcloudignore`
 
 ```
+# VCS
 .git/
+
+# Frontend build dependencies (dist/ is kept — go:embed'd into binary)
 ui/node_modules/
+
+# Development/test files not needed at runtime
 examples/
 tests/
 benchmarks/
@@ -951,6 +999,12 @@ design_docs/
 docs/
 *.test
 *_test.go
+
+# NOTE: Do NOT ignore these — they are go:embed'd into the binary:
+# - stdlib/       (AILANG standard library)
+# - prompts/      (AI teaching prompts)
+# - ui/dist/      (React dashboard build output)
+# - internal/     (Go source — buildpacks compile from source)
 ```
 
 #### Agent Executor (`infra/docker/Dockerfile.agent-executor`)
@@ -1035,6 +1089,238 @@ ENV HOME=/home/agent
 # Receives AILANG_TASK_ID from Eventarc and executes the full task lifecycle
 ENTRYPOINT ["/usr/local/bin/ailang", "coordinator", "execute-job"]
 ```
+
+#### Agent Executor: Claude Code Authentication Options
+
+The agent executor runs `claude -p --output-format stream-json` inside Cloud Run Jobs.
+There are **two authentication models** for Claude Code in headless/cloud mode.
+
+**Cost reality check:** A typical agent coding session uses 100K-500K tokens. At API rates,
+100 tasks/day with Sonnet costs ~$3,000-15,000/month. A Max 20x subscription at $200/month
+is **10-50x cheaper**. Max is the clear winner for cost — the only challenge is auth.
+
+##### Option A: Claude Code Max Subscription (PREFERRED — $200/month flat)
+
+| Aspect | Max 5x ($100/mo) | Max 20x ($200/mo) |
+|--------|-------------------|-------------------|
+| Usage | 5x Pro throughput | 20x Pro throughput |
+| Rate limit | ~225 msgs/5hr rolling window | ~900 msgs/5hr rolling window |
+| Weekly cap | Rolling 7-day reset | Rolling 7-day reset |
+| Models | Sonnet + Opus | Sonnet + Opus |
+| Overflow | Extra usage billed at API rates | Extra usage billed at API rates |
+
+**Limits are throughput-based** (5-hour rolling windows + weekly caps), NOT hard session
+counts. Usage is shared across claude.ai + Claude Code. See
+[Max plan docs](https://support.claude.com/en/articles/11049741-what-is-the-max-plan).
+
+**The auth challenge: No official M2M auth (yet)**
+
+Claude Code Max uses OAuth (interactive browser login). There is no API key equivalent
+for Max subscriptions. See [anthropics/claude-code#1454](https://github.com/anthropics/claude-code/issues/1454).
+
+**Workaround: OAuth credential injection via Secret Manager**
+
+```bash
+# Step 1: Log in locally (one-time, interactive)
+claude login
+
+# Step 2: Store OAuth credentials in Secret Manager
+gcloud secrets create claude-oauth-credentials \
+  --data-file=$HOME/.claude/.credentials.json
+
+# Step 3: Mount as a file volume in Cloud Run Job
+gcloud run jobs update ailang-agent-executor \
+  --set-secrets=/home/agent/.claude/.credentials.json=claude-oauth-credentials:latest
+
+# Step 4: Claude Code picks up credentials from $HOME/.claude/.credentials.json
+# The executor runs as USER agent with HOME=/home/agent
+```
+
+**Mitigations for known issues:**
+
+| Issue | Mitigation |
+|-------|------------|
+| **Token expiry** | Enable "extra usage" on the Max plan — auto-falls back to API rates when OAuth token expires, so agents never hard-fail. Refresh token periodically via Cloud Scheduler. |
+| **Concurrent instances** | Coordinator already serializes per agent ID — only one job per agent runs at a time. Different agents (design-doc-creator, sprint-executor) can run in parallel safely since each Cloud Run Job instance has its own filesystem. |
+| **Token refresh** | Schedule a Cloud Scheduler job (e.g., weekly) that triggers a lightweight Cloud Run service to re-authenticate and update the Secret Manager version. Or manually refresh when rate-limited. |
+
+**Multiple Max subscriptions for higher throughput:**
+
+For workloads exceeding a single Max plan's throughput, use separate subscriptions per
+agent role. Each subscription's OAuth credentials are stored as a separate secret:
+
+```yaml
+# Secret Manager secrets (one per Max subscription):
+#   claude-oauth-design     → design-doc-creator agent
+#   claude-oauth-executor   → sprint-executor agent
+#   claude-oauth-shared     → sprint-planner + other low-volume agents
+```
+
+| Agent | Subscription | Monthly Cost |
+|-------|-------------|-------------|
+| `design-doc-creator` | Max account A | $200/mo |
+| `sprint-executor` | Max account B | $200/mo |
+| `sprint-planner` | Shared with A | (included) |
+| **Total** | | **$400/mo** |
+
+This gives 2x the throughput and full isolation between agent roles.
+
+##### Per-User / Per-Workspace Credential Management
+
+In multi-tenant deployments, different users or teams bring their own credentials
+(Max subscriptions or API keys). The system must isolate credentials so that:
+- User A's Max subscription is not consumed by User B's tasks
+- Teams can independently manage their own billing
+- Revoking one user's access doesn't affect others
+
+**Credential storage in Secret Manager (per-user):**
+
+```bash
+# Naming convention: claude-creds-{workspace_id} or claude-creds-{user_email_hash}
+gcloud secrets create claude-creds-ws-acme-team \
+  --data-file=/tmp/acme-credentials.json
+
+gcloud secrets create claude-creds-ws-research-team \
+  --data-file=/tmp/research-credentials.json
+
+# Grant the agent executor service account access to ALL credential secrets
+gcloud secrets add-iam-policy-binding claude-creds-ws-acme-team \
+  --member="serviceAccount:ailang-agent-executor@${PROJECT}.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+**Firestore schema for credential mapping:**
+
+```
+/workspaces/{workspace_id}/
+  credential_type: "max" | "api_key"
+  secret_name: "claude-creds-ws-acme-team"    # Secret Manager reference
+  provider: "claude" | "gemini"
+  max_plan: "5x" | "20x"                       # For Max subscriptions
+  registered_by: "user@example.com"
+  registered_at: timestamp
+  last_refreshed: timestamp                     # OAuth token refresh tracking
+  status: "active" | "expired" | "revoked"
+```
+
+**How `execute-job` selects credentials:**
+
+```go
+// In the Cloud Run Job entrypoint (execute-job command):
+func selectCredentials(ctx context.Context, task *coordinator.Task) (string, error) {
+    // 1. Look up workspace from task metadata
+    workspaceID := task.Metadata["workspace_id"]
+
+    // 2. Fetch credential config from Firestore
+    credDoc, err := firestoreClient.Collection("workspaces").
+        Doc(workspaceID).Get(ctx)
+    if err != nil {
+        return "", fmt.Errorf("no credentials for workspace %s: %w", workspaceID, err)
+    }
+
+    // 3. Fetch the actual secret from Secret Manager
+    secretName := credDoc.Data()["secret_name"].(string)
+    secret, err := secretClient.AccessSecretVersion(ctx,
+        &secretmanagerpb.AccessSecretVersionRequest{
+            Name: fmt.Sprintf("projects/%s/secrets/%s/versions/latest", projectID, secretName),
+        })
+    if err != nil {
+        return "", fmt.Errorf("failed to access secret %s: %w", secretName, err)
+    }
+
+    // 4. Write credentials to expected location based on type
+    credType := credDoc.Data()["credential_type"].(string)
+    switch credType {
+    case "max":
+        // Write OAuth credentials file
+        os.MkdirAll("/home/agent/.claude", 0700)
+        os.WriteFile("/home/agent/.claude/.credentials.json", secret.Payload.Data, 0600)
+    case "api_key":
+        // Set environment variable
+        os.Setenv("ANTHROPIC_API_KEY", string(secret.Payload.Data))
+    }
+    return credType, nil
+}
+```
+
+**Dashboard UI: Credential registration flow:**
+
+Users register their credentials through the Collaboration Hub:
+
+1. **Max subscription**: User authenticates via `claude login` locally, uploads
+   `.credentials.json` through the dashboard. Backend stores in Secret Manager
+   and records the mapping in Firestore.
+
+2. **API key**: User enters their Anthropic API key in the dashboard settings.
+   Backend stores in Secret Manager (never in Firestore directly).
+
+3. **Status monitoring**: Dashboard shows credential health per workspace —
+   active, expired (needs refresh), or revoked.
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Settings > Workspace Credentials                     │
+├──────────────────────────────────────────────────────┤
+│                                                       │
+│  Workspace: acme-team                                │
+│  ┌──────────────────────────────────────────────┐    │
+│  │ Provider: Claude                              │    │
+│  │ Auth Type: Max 20x (OAuth)                    │    │
+│  │ Status: ● Active                              │    │
+│  │ Last Refreshed: 2026-02-18 14:30 UTC          │    │
+│  │ [Refresh Credentials] [Revoke]                │    │
+│  └──────────────────────────────────────────────┘    │
+│                                                       │
+│  [+ Add Credential]                                  │
+│                                                       │
+└──────────────────────────────────────────────────────┘
+```
+
+**Security considerations:**
+
+| Concern | Mitigation |
+|---------|------------|
+| **Credential isolation** | Each workspace's secret has a unique Secret Manager entry; no cross-workspace access possible |
+| **Least privilege** | Agent executor SA can only read secrets, not create or modify them |
+| **Rotation** | Dashboard shows expiry warnings; Cloud Scheduler can auto-refresh per workspace |
+| **Revocation** | Setting `status: "revoked"` in Firestore immediately blocks task execution for that workspace |
+| **Audit trail** | All credential access logged via Cloud Audit Logs on Secret Manager |
+
+##### Option B: API Key (Simple auth, expensive at scale)
+
+```bash
+# Set ANTHROPIC_API_KEY — Claude Code uses pay-per-token API
+export ANTHROPIC_API_KEY="sk-ant-..."
+claude -p "Fix the bug" --output-format stream-json
+```
+
+| Aspect | Detail |
+|--------|--------|
+| Auth | `ANTHROPIC_API_KEY` env var (injected via Secret Manager) |
+| Billing | Pay-per-token (see cost comparison below) |
+| Concurrency | Unlimited parallel Cloud Run Jobs |
+| Reliability | Official, production-supported |
+| Drawback | **Extremely expensive at scale** |
+
+**Cost comparison (100 tasks/day, ~200K tokens avg per agent session):**
+
+| Method | Monthly Cost | Notes |
+|--------|-------------|-------|
+| **Max 20x** | **$200 flat** | ~900 msgs/5hr window, overflow at API rates |
+| **Max 5x** | **$100 flat** | ~225 msgs/5hr window, good for <50 tasks/day |
+| **2x Max 20x** | **$400 flat** | For parallel high-volume agents |
+| API Key (Haiku) | ~$150/mo | Cheapest API, but Haiku may be too weak for coding |
+| API Key (Sonnet) | ~$6,000/mo | 100 tasks × 200K tokens × $0.003/1K × 30 days |
+| API Key (Opus) | ~$30,000/mo | 100 tasks × 200K tokens × $0.015/1K × 30 days |
+
+##### Recommended approach
+
+| Phase | Auth | Why |
+|-------|------|-----|
+| **Phase 1** | Max 20x + OAuth injection + "extra usage" fallback | Cost-effective, works today |
+| **Phase 1 scale-up** | Multiple Max subscriptions (1 per high-volume agent) | Scales throughput linearly |
+| **Fallback** | API Key (`ANTHROPIC_API_KEY`) | If Max auth breaks, instant switch |
+| **Future** | Max M2M auth ([#1454](https://github.com/anthropics/claude-code/issues/1454)) | Eliminates OAuth workaround |
 
 **How the execution flow works:**
 
@@ -1150,7 +1436,7 @@ func coordinatorExecuteJob(args []string) error {
 
     // 8. Configure execution options
     opts := &coordinator.ExecuteOptions{
-        Timeout:   30 * time.Minute,
+        Timeout:   3 * time.Hour,
         Workspace: workspace,
     }
     if agentConfig != nil && agentConfig.Invoke != nil {
@@ -1323,6 +1609,7 @@ steps:
       - --region=${_REGION}
       - --set-build-env-vars=GOOGLE_BUILDABLE=./cmd/ailang
       - --no-allow-unauthenticated
+      - --no-cpu-throttling
       - --service-account=ailang-coordinator@${PROJECT_ID}.iam.gserviceaccount.com
       - --set-env-vars=AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${PROJECT_ID},COORDINATOR_MODE=cloud
       - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest
@@ -1372,7 +1659,7 @@ steps:
       - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest
       - --memory=4Gi
       - --cpu=2
-      - --task-timeout=1800
+      - --task-timeout=10800
       - --max-retries=1
     waitFor: [push-agent-executor]
 
@@ -1488,6 +1775,10 @@ type PubSubBroker struct {
     projectID string
     topics    map[string]*pubsub.Topic
     subs      map[string]*pubsub.Subscription
+    // pendingAcks tracks ack/nack callbacks for messages awaiting processing.
+    // Key is message ID, value is the Pub/Sub ack function.
+    pendingAcks map[string]func()
+    pendingMu   sync.Mutex
 }
 
 func NewPubSubBroker(ctx context.Context) (*PubSubBroker, error) {
@@ -1502,10 +1793,11 @@ func NewPubSubBroker(ctx context.Context) (*PubSubBroker, error) {
     }
 
     return &PubSubBroker{
-        client:    client,
-        projectID: projectID,
-        topics:    make(map[string]*pubsub.Topic),
-        subs:      make(map[string]*pubsub.Subscription),
+        client:      client,
+        projectID:   projectID,
+        topics:      make(map[string]*pubsub.Topic),
+        subs:        make(map[string]*pubsub.Subscription),
+        pendingAcks: make(map[string]func()),
     }, nil
 }
 
@@ -1568,12 +1860,20 @@ func (b *PubSubBroker) Subscribe(ctx context.Context, inbox string) (<-chan *Inb
                 return
             }
 
-            // Store Pub/Sub message ID for ack/nack
+            // Store Pub/Sub message ID for later ack/nack
             msg.pubsubMsgID = m.ID
-            msg.pubsubAckID = m.AckID
+
+            // IMPORTANT: Store the ack callback so the coordinator can ack
+            // after successful processing. Do NOT ack here — if the coordinator
+            // crashes before processing, the message must be redelivered.
+            b.pendingMu.Lock()
+            b.pendingAcks[m.ID] = m.Ack
+            b.pendingMu.Unlock()
 
             select {
             case msgChan <- &msg:
+                // Message sent to coordinator for processing.
+                // Ack will be called by coordinator via broker.Ack().
             case <-ctx.Done():
                 m.Nack()
                 return
@@ -1581,7 +1881,7 @@ func (b *PubSubBroker) Subscribe(ctx context.Context, inbox string) (<-chan *Inb
         })
 
         if err != nil && err != context.Canceled {
-            // Log error
+            log.Printf("PubSub Subscribe error for %s: %v", inbox, err)
         }
     }()
 
@@ -1589,13 +1889,31 @@ func (b *PubSubBroker) Subscribe(ctx context.Context, inbox string) (<-chan *Inb
 }
 
 func (b *PubSubBroker) Ack(ctx context.Context, inbox string, msgID string) error {
-    // Note: In Pub/Sub, acks happen automatically when Receive callback returns
-    // This is for explicit ack scenarios
+    b.pendingMu.Lock()
+    ackFn, ok := b.pendingAcks[msgID]
+    if ok {
+        delete(b.pendingAcks, msgID)
+    }
+    b.pendingMu.Unlock()
+
+    if !ok {
+        return fmt.Errorf("no pending ack for message %s", msgID)
+    }
+    ackFn()
     return nil
 }
 
 func (b *PubSubBroker) Nack(ctx context.Context, inbox string, msgID string) error {
-    // Nacks are handled in the Receive callback
+    b.pendingMu.Lock()
+    _, ok := b.pendingAcks[msgID]
+    if ok {
+        delete(b.pendingAcks, msgID)
+    }
+    b.pendingMu.Unlock()
+
+    // Nack is implicit — if we don't ack before the ack deadline expires,
+    // Pub/Sub will redeliver the message automatically.
+    // For explicit nack, we simply remove from pending and let deadline expire.
     return nil
 }
 
@@ -1711,6 +2029,13 @@ resource "google_project_iam_member" "coordinator_run_invoker" {
   member  = "serviceAccount:${google_service_account.coordinator.email}"
 }
 
+# Eventarc event receiver (required for Pub/Sub → Cloud Run Job triggers)
+resource "google_project_iam_member" "coordinator_eventarc" {
+  project = var.project_id
+  role    = "roles/eventarc.eventReceiver"
+  member  = "serviceAccount:${google_service_account.coordinator.email}"
+}
+
 # Secret Manager access
 resource "google_secret_manager_secret_iam_member" "coordinator_anthropic" {
   secret_id = google_secret_manager_secret.anthropic_key.secret_id
@@ -1733,6 +2058,13 @@ resource "google_secret_manager_secret_iam_member" "coordinator_google_api" {
 # ═══════════════════════════════════════════════════════════════════════════
 # IAM BINDINGS - AGENT EXECUTOR
 # ═══════════════════════════════════════════════════════════════════════════
+
+# Firestore access (read task details, update task status)
+resource "google_project_iam_member" "agent_firestore" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.agent_executor.email}"
+}
 
 # Pub/Sub publisher only (report completions)
 resource "google_project_iam_member" "agent_pubsub" {
@@ -1799,11 +2131,50 @@ resource "google_project_iam_member" "build_sa_user" {
 
 Using **Identity-Aware Proxy (IAP)** for Google Cloud identity-based access control.
 
+**Approach: Direct IAP on Cloud Run (GA Feb 2026)**
+
+As of Feb 2026, Cloud Run supports [IAP directly on the service](https://cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run)
+without needing a load balancer. This protects the `run.app` URL directly, eliminates LB costs
+(~$18/mo), and dramatically simplifies the Terraform.
+
+**Known limitations of direct IAP on Cloud Run:**
+- The project must be within a Google Cloud organization
+- Identities must be from within the same organization
+- Some integrations (e.g., Pub/Sub push) might not authenticate correctly if IAP is enabled
+- **IMPORTANT**: Do NOT enable IAP on the coordinator service — it subscribes to Pub/Sub
+
+#### Enable IAP via gcloud
+
+```bash
+# Enable IAP on the dashboard service (not the coordinator!)
+gcloud beta run services update ailang-dashboard \
+  --region us-central1 \
+  --iap
+
+# Grant access to specific users/groups
+gcloud beta iap web add-iam-policy-binding \
+  --member=user:mark@sunholo.com \
+  --role=roles/iap.httpsResourceAccessor \
+  --region=us-central1 \
+  --resource-type=cloud-run \
+  --service=ailang-dashboard
+
+# Grant access to a group
+gcloud beta iap web add-iam-policy-binding \
+  --member=group:ailang-team@sunholo.com \
+  --role=roles/iap.httpsResourceAccessor \
+  --region=us-central1 \
+  --resource-type=cloud-run \
+  --service=ailang-dashboard
+```
+
 #### IAP Configuration (`infra/terraform/iap.tf`)
 
 ```hcl
 # ═══════════════════════════════════════════════════════════════════════════
 # IDENTITY-AWARE PROXY (IAP) FOR DASHBOARD
+# Direct IAP on Cloud Run — no load balancer needed (GA Feb 2026)
+# See: https://cloud.google.com/run/docs/securing/identity-aware-proxy-cloud-run
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Enable IAP API
@@ -1812,103 +2183,15 @@ resource "google_project_service" "iap" {
   disable_on_destroy = false
 }
 
-# OAuth consent screen (required for IAP)
-resource "google_iap_brand" "ailang" {
-  support_email     = var.support_email
-  application_title = "AILANG Control Plane"
-  project           = var.project_id
-}
+# IAP is enabled directly on the Cloud Run service via the
+# google_cloud_run_v2_service resource's iap block (or gcloud CLI).
+# No load balancer, NEG, backend service, or forwarding rule needed.
 
-# OAuth client for IAP
-resource "google_iap_client" "dashboard" {
-  display_name = "AILANG Dashboard"
-  brand        = google_iap_brand.ailang.name
-}
-
-# IAP settings for Cloud Run
-resource "google_iap_web_backend_service_iam_binding" "dashboard" {
-  project             = var.project_id
-  web_backend_service = google_compute_backend_service.dashboard.name
-  role                = "roles/iap.httpsResourceAccessor"
-  members             = var.dashboard_users  # List of users/groups
-}
-
-# ═══════════════════════════════════════════════════════════════════════════
-# LOAD BALANCER FOR IAP (Required for Cloud Run + IAP)
-# ═══════════════════════════════════════════════════════════════════════════
-
-# External IP
-resource "google_compute_global_address" "dashboard" {
-  name = "ailang-dashboard-ip"
-}
-
-# SSL certificate (managed)
-resource "google_compute_managed_ssl_certificate" "dashboard" {
-  name = "ailang-dashboard-cert"
-  managed {
-    domains = [var.dashboard_domain]  # e.g., "ailang.sunholo.com"
-  }
-}
-
-# Network Endpoint Group for Cloud Run
-resource "google_compute_region_network_endpoint_group" "dashboard" {
-  name                  = "ailang-dashboard-neg"
-  region                = var.region
-  network_endpoint_type = "SERVERLESS"
-
-  cloud_run {
-    service = google_cloud_run_v2_service.dashboard.name
-  }
-}
-
-# Backend service
-resource "google_compute_backend_service" "dashboard" {
-  name                  = "ailang-dashboard-backend"
-  protocol              = "HTTPS"
-  port_name             = "http"
-  timeout_sec           = 30
-  enable_cdn            = false
-
-  iap {
-    oauth2_client_id     = google_iap_client.dashboard.client_id
-    oauth2_client_secret = google_iap_client.dashboard.secret
-  }
-
-  backend {
-    group = google_compute_region_network_endpoint_group.dashboard.id
-  }
-}
-
-# URL map
-resource "google_compute_url_map" "dashboard" {
-  name            = "ailang-dashboard-urlmap"
-  default_service = google_compute_backend_service.dashboard.id
-}
-
-# HTTPS proxy
-resource "google_compute_target_https_proxy" "dashboard" {
-  name             = "ailang-dashboard-proxy"
-  url_map          = google_compute_url_map.dashboard.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.dashboard.id]
-}
-
-# Forwarding rule
-resource "google_compute_global_forwarding_rule" "dashboard" {
-  name                  = "ailang-dashboard-forwarding"
-  target                = google_compute_target_https_proxy.dashboard.id
-  port_range            = "443"
-  ip_address            = google_compute_global_address.dashboard.address
-  load_balancing_scheme = "EXTERNAL_MANAGED"
-}
-
-# DNS record (if using Cloud DNS)
-resource "google_dns_record_set" "dashboard" {
-  count        = var.create_dns_record ? 1 : 0
-  name         = "${var.dashboard_domain}."
-  managed_zone = var.dns_zone_name
-  type         = "A"
-  ttl          = 300
-  rrdatas      = [google_compute_global_address.dashboard.address]
+# Grant dashboard access to users/groups
+resource "google_iap_web_iam_binding" "dashboard_access" {
+  project = var.project_id
+  role    = "roles/iap.httpsResourceAccessor"
+  members = var.dashboard_users
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1921,30 +2204,20 @@ variable "support_email" {
   default     = "support@sunholo.com"
 }
 
-variable "dashboard_domain" {
-  description = "Domain for dashboard (e.g., ailang.sunholo.com)"
-  type        = string
-}
-
 variable "dashboard_users" {
   description = "List of users/groups allowed to access dashboard"
   type        = list(string)
   default     = []
   # Example: ["user:mark@sunholo.com", "group:ailang-team@sunholo.com"]
 }
-
-variable "create_dns_record" {
-  description = "Whether to create a DNS record for the dashboard"
-  type        = bool
-  default     = false
-}
-
-variable "dns_zone_name" {
-  description = "Cloud DNS zone name for dashboard domain"
-  type        = string
-  default     = ""
-}
 ```
+
+**Optional: Load balancer for custom domain**
+
+If you need a custom domain (e.g., `ailang.sunholo.com`) instead of the default `run.app` URL,
+you can add a load balancer later. IAP will protect both the `run.app` URL and the LB endpoint.
+See [Enabling IAP for Cloud Run via LB](https://cloud.google.com/iap/docs/enabling-cloud-run)
+for the full load balancer setup.
 
 #### Server-Side IAP Validation (`internal/server/middleware_iap.go`)
 
@@ -2069,10 +2342,12 @@ func RequireRole(role string) func(http.Handler) http.Handler {
 
 ## Open Questions
 
-1. **Auth**: Should we add Google Cloud IAM auth to dashboard before cloud deploy?
+1. ~~**Auth**: Should we add Google Cloud IAM auth to dashboard before cloud deploy?~~ **RESOLVED**: Using IAP directly on Cloud Run (GA Feb 2026). No load balancer needed.
 2. **Multi-region**: Is single-region (us-central1) sufficient for initial deployment?
 3. **Monitoring**: Should we integrate Cloud Monitoring/Alerting from day 1?
 4. **CI/CD**: Should we add Cloud Build triggers for automated deployment?
+5. **Claude Code Max M2M auth**: When [#1454](https://github.com/anthropics/claude-code/issues/1454) ships, the OAuth credential injection workaround can be replaced with proper M2M auth. Monitor this issue.
+6. **Agent SDK alternative**: Should cloud agents use the [Anthropic Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) (Python/TypeScript) instead of Claude Code CLI? This would remove the Node.js dependency from the Dockerfile but requires rewriting the executor.
 
 ---
 

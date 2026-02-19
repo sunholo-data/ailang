@@ -16,20 +16,21 @@ import (
 
 // SearchOptions configures semantic search parameters
 type SearchOptions struct {
-	Query     string   // Natural language query
-	Threshold float64  // Minimum similarity (0.0-1.0), default 0.70
-	Limit     int      // Max results, default 20
-	MaxScan   int      // Max messages to scan, default 1000
-	Inbox     string   // Filter by inbox (optional)
-	UseNeural bool     // Use embedding search via Ollama
-	Embedder  Embedder // Optional embedder instance (created if nil and UseNeural=true)
+	Query         string   // Natural language query
+	Threshold     float64  // Minimum similarity (0.0-1.0), default 0.70
+	Limit         int      // Max results, default 20
+	MaxScan       int      // Max messages to scan, default 1000
+	Inbox         string   // Filter by inbox (optional)
+	UseNeural     bool     // Use embedding search via Ollama
+	Embedder      Embedder // Optional embedder instance (created if nil and UseNeural=true)
+	EnvelopeSpace string   // Search within a specific envelope slot (e.g., "code", "intent")
 }
 
 // SearchHit represents a search result with similarity score
 type SearchHit struct {
 	Message   InboxMessage `json:"message"`
 	Score     float64      `json:"score"`      // Similarity score (0.0-1.0)
-	ScoreKind string       `json:"score_kind"` // "simhash" or "embedding"
+	ScoreKind string       `json:"score_kind"` // "simhash", "embedding", or "envelope:<slot>"
 }
 
 // SemanticSearch finds messages similar to the query using SimHash or embeddings
@@ -57,6 +58,20 @@ func (s *Store) SemanticSearch(opts SearchOptions) ([]SearchHit, error) {
 	}
 	if opts.MaxScan <= 0 {
 		opts.MaxScan = 1000
+	}
+
+	// Route to envelope search if a specific space is requested
+	if opts.EnvelopeSpace != "" {
+		results, err := s.SearchByEnvelope(opts)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "envelope search failed")
+			return nil, err
+		}
+		span.SetAttributes(attribute.Int("search.result_count", len(results)))
+		span.SetAttributes(attribute.String("search.envelope_space", opts.EnvelopeSpace))
+		span.SetStatus(codes.Ok, "envelope search completed")
+		return results, nil
 	}
 
 	// Use neural search if requested
@@ -620,5 +635,194 @@ func (s *Store) UpdateMessageEmbedding(msgID string, embedding []float32, model 
 		WHERE id = ? OR message_id = ?
 	`, embJSON, model, now, msgID, msgID)
 
+	return err
+}
+
+// SearchByEnvelope finds messages by comparing the query embedding against a specific
+// envelope slot across all messages. Returns results sorted by similarity score.
+//
+// This enables multi-space search: the same query can return different results
+// depending on which envelope slot is searched.
+func (s *Store) SearchByEnvelope(opts SearchOptions) ([]SearchHit, error) {
+	if opts.EnvelopeSpace == "" {
+		return nil, fmt.Errorf("EnvelopeSpace is required for envelope search")
+	}
+	if err := ValidateSlot(opts.EnvelopeSpace); err != nil {
+		return nil, err
+	}
+
+	// Apply defaults
+	if opts.Threshold <= 0 {
+		opts.Threshold = 0.70
+	}
+	if opts.Limit <= 0 {
+		opts.Limit = 20
+	}
+	if opts.MaxScan <= 0 {
+		opts.MaxScan = 1000
+	}
+
+	// Get or create embedder
+	embedder := opts.Embedder
+	if embedder == nil {
+		cfg := LoadEmbedConfigFromEnv()
+		var err error
+		embedder, err = NewEmbedderFromConfig(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create embedder: %w", err)
+		}
+		if embedder == nil {
+			return nil, fmt.Errorf("no embedder available (provider is 'none')")
+		}
+	}
+
+	// Embed the query
+	queryVec, err := embedder.Embed(opts.Query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to embed query: %w", err)
+	}
+
+	// Fetch messages with envelopes
+	query := `SELECT id, message_id, correlation_id, from_agent, to_inbox, message_type, title, payload,
+		category, github_issue_number, github_repo, simhash, dup_of, parent_task_id, chain_id, envelope,
+		status, created_at, read_at, expires_at
+		FROM inbox_messages
+		WHERE status != ? AND envelope IS NOT NULL AND envelope != '{}'`
+	args := []interface{}{InboxStatusDeleted}
+
+	if opts.Inbox != "" {
+		query += " AND to_inbox = ?"
+		args = append(args, opts.Inbox)
+	}
+
+	query += " ORDER BY created_at DESC LIMIT ?"
+	args = append(args, opts.MaxScan)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var hits []SearchHit
+	for rows.Next() {
+		msg, err := scanInboxMessageFull(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		if msg.Envelope == nil {
+			continue
+		}
+
+		slotVec := msg.Envelope.GetVector(opts.EnvelopeSpace)
+		if slotVec == nil {
+			continue
+		}
+
+		score := CosineSimilarity(queryVec, slotVec)
+		if score >= opts.Threshold {
+			hits = append(hits, SearchHit{
+				Message:   msg,
+				Score:     score,
+				ScoreKind: "envelope:" + opts.EnvelopeSpace,
+			})
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Sort by score descending, then by message_id ascending for determinism
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].Score != hits[j].Score {
+			return hits[i].Score > hits[j].Score
+		}
+		return hits[i].Message.MessageID < hits[j].Message.MessageID
+	})
+
+	if len(hits) > opts.Limit {
+		hits = hits[:opts.Limit]
+	}
+
+	return hits, nil
+}
+
+// scanInboxMessageFull scans a row with all columns including envelope.
+func scanInboxMessageFull(rows *sql.Rows) (InboxMessage, error) {
+	var msg InboxMessage
+	var correlationID, payload, category, githubRepo, dupOf, parentTaskID, chainID, envelopeJSON sql.NullString
+	var githubIssue, simhash sql.NullInt64
+	var readAt, expiresAt sql.NullString
+	var createdAt string
+
+	err := rows.Scan(&msg.ID, &msg.MessageID, &correlationID, &msg.FromAgent, &msg.ToInbox,
+		&msg.MessageType, &msg.Title, &payload, &category, &githubIssue, &githubRepo,
+		&simhash, &dupOf, &parentTaskID, &chainID, &envelopeJSON,
+		&msg.Status, &createdAt, &readAt, &expiresAt)
+	if err != nil {
+		return msg, err
+	}
+
+	msg.CorrelationID = correlationID.String
+	msg.Payload = payload.String
+	msg.Category = category.String
+	msg.GitHubRepo = githubRepo.String
+	msg.DupOf = dupOf.String
+	msg.ParentTaskID = parentTaskID.String
+	msg.ChainID = chainID.String
+	if envelopeJSON.Valid && envelopeJSON.String != "" && envelopeJSON.String != "{}" {
+		msg.Envelope = EnvelopeFromJSON(envelopeJSON.String)
+	}
+	if githubIssue.Valid {
+		issueNum := int(githubIssue.Int64)
+		msg.GitHubIssue = &issueNum
+	}
+	if simhash.Valid {
+		hash := simhash.Int64
+		msg.Simhash = &hash
+	}
+
+	if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
+		msg.CreatedAt = t
+	}
+	if readAt.Valid {
+		if t, err := time.Parse(time.RFC3339, readAt.String); err == nil {
+			msg.ReadAt = &t
+		}
+	}
+	if expiresAt.Valid {
+		if t, err := time.Parse(time.RFC3339, expiresAt.String); err == nil {
+			msg.ExpiresAt = &t
+		}
+	}
+
+	return msg, nil
+}
+
+// UpdateMessageEnvelope merges new envelope slots into a message's existing envelope.
+// Existing slots are preserved unless overwrite is true.
+func (s *Store) UpdateMessageEnvelope(msgID string, env *Envelope, overwrite bool) error {
+	if env == nil || env.IsEmpty() {
+		return nil
+	}
+
+	// Read existing envelope
+	var existingJSON sql.NullString
+	err := s.db.QueryRow(`SELECT envelope FROM inbox_messages WHERE id = ? OR message_id = ?`, msgID, msgID).Scan(&existingJSON)
+	if err != nil {
+		return fmt.Errorf("failed to read existing envelope: %w", err)
+	}
+
+	existing := EnvelopeFromJSON(existingJSON.String)
+	if overwrite {
+		existing.MergeOverwrite(env)
+	} else {
+		existing.Merge(env)
+	}
+
+	_, err = s.db.Exec(`UPDATE inbox_messages SET envelope = ? WHERE id = ? OR message_id = ?`,
+		existing.ToJSON(), msgID, msgID)
 	return err
 }

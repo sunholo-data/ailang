@@ -24,6 +24,10 @@ func runMessagesSend(args []string) {
 	// Task hierarchy flags (M-UNIFIED-AI-CONTROL-PLANE)
 	parentTaskID := fs.String("parent-task", "", "Parent task ID for hierarchical execution")
 
+	// Envelope flags (M-SEMANTIC-ENVELOPE)
+	envelopeCode := fs.String("envelope-code", "", "File paths for code envelope slot (comma-separated)")
+	envelopeContext := fs.String("envelope-context", "", "Context description for context envelope slot")
+
 	// GitHub sync flags
 	github := fs.Bool("github", false, "Also create a GitHub issue")
 	msgType := fs.String("type", "", "Message category (any string; bug/feature imply --github)")
@@ -32,7 +36,7 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "github", "type", "repo", "github-user"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "github", "type", "repo", "github-user"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -113,6 +117,40 @@ func runMessagesSend(args []string) {
 	}
 
 	fmt.Printf("%s Message sent to '%s' (ID: %s)\n", green("✓"), inbox, msg.MessageID)
+
+	// Compute envelope if envelope flags provided (M-SEMANTIC-ENVELOPE)
+	if *envelopeCode != "" || *envelopeContext != "" {
+		cfg := messaging.LoadEmbedConfigFromEnv()
+		embedder, embErr := messaging.NewEmbedderFromConfig(cfg)
+		if embErr != nil || embedder == nil {
+			fmt.Fprintf(os.Stderr, "%s Envelope skipped: no embedder configured\n", yellow("!"))
+		} else {
+			builder := messaging.NewEnvelopeBuilder(embedder)
+			if *envelopeCode != "" {
+				files := strings.Split(*envelopeCode, ",")
+				builder = builder.WithCodeContext(files, nil)
+			}
+			if *envelopeContext != "" {
+				builder = builder.WithSessionContext(nil, nil, []string{*envelopeContext})
+			}
+			env, buildErr := builder.Build(msg)
+			if buildErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Envelope computation failed: %v\n", yellow("!"), buildErr)
+			} else if !env.IsEmpty() {
+				if updateErr := store.UpdateMessageEnvelope(msg.MessageID, env, false); updateErr != nil {
+					fmt.Fprintf(os.Stderr, "%s Envelope save failed: %v\n", yellow("!"), updateErr)
+				} else {
+					slotCount := 0
+					for _, v := range env.Slots {
+						if v != nil && len(v.Vector) > 0 {
+							slotCount++
+						}
+					}
+					fmt.Printf("%s Envelope computed (%d slots)\n", green("✓"), slotCount)
+				}
+			}
+		}
+	}
 
 	// Optionally sync to GitHub
 	if syncToGitHub {

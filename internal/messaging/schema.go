@@ -498,6 +498,13 @@ func MigrateDB(db *sql.DB) error {
 		if err := migrateV160ToV170(db); err != nil {
 			return fmt.Errorf("migration to v1.7.0 failed: %w", err)
 		}
+		currentVersion = "1.7.0"
+	}
+
+	if currentVersion == "1.7.0" {
+		if err := migrateV170ToV180(db); err != nil {
+			return fmt.Errorf("migration to v1.8.0 failed: %w", err)
+		}
 	}
 
 	return nil
@@ -851,6 +858,31 @@ func migrateV160ToV170(db *sql.DB) error {
 
 	// Update schema version
 	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.7.0"); err != nil {
+		return fmt.Errorf("failed to update schema version: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// migrateV170ToV180 adds envelope column for multi-aspect semantic embeddings (M-SEMANTIC-ENVELOPE)
+func migrateV170ToV180(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if envelope column exists
+	var colName string
+	err = tx.QueryRow("SELECT name FROM pragma_table_info('inbox_messages') WHERE name='envelope'").Scan(&colName)
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec("ALTER TABLE inbox_messages ADD COLUMN envelope TEXT DEFAULT '{}'"); err != nil {
+			return fmt.Errorf("failed to add envelope column: %w", err)
+		}
+	}
+
+	// Update schema version
+	if _, err := tx.Exec("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", "1.8.0"); err != nil {
 		return fmt.Errorf("failed to update schema version: %w", err)
 	}
 

@@ -27,6 +27,18 @@ ailang messages ack --all
 # Send a message
 ailang messages send user "Your message" --title "Title" --from "agent-name"
 
+# Send with semantic envelope (v0.8.1+)
+ailang messages send executor "Fix bug" --title "Bug" \
+  --envelope-code internal/parser/parser.go \
+  --envelope-context "reviewing ast type switches"
+
+# Search by envelope space (v0.8.1+)
+ailang messages search --space code "internal/types"
+ailang messages search --space intent "fix crash"
+
+# Triage unread messages by similarity (v0.8.1+)
+ailang messages triage --cluster-by code
+
 # Send bug/feature to GitHub (for cross-instance visibility)
 ailang messages send user "Bug report" --type bug --github
 ```
@@ -103,6 +115,12 @@ ailang messages unack MSG_ID            # Move back to unread
 ```bash
 # Basic send (local only - for coordination)
 ailang messages send INBOX "message" --title "Title" --from "agent"
+
+# With semantic envelope (v0.8.1+ - attaches embeddings for multi-space search)
+ailang messages send INBOX "Fix bug" --title "Bug" \
+  --envelope-code internal/parser/parser.go          # embeds code context
+ailang messages send INBOX "Fix bug" --title "Bug" \
+  --envelope-context "reviewing ast type switches"   # embeds session context
 
 # With GitHub sync (for bugs/features - cross-instance visibility)
 ailang messages send INBOX "message" --type bug --github
@@ -325,6 +343,12 @@ See [`resources/troubleshooting.md`](resources/troubleshooting.md) for common is
 | `ailang messages ack --all` | Mark all as read |
 | `ailang messages unack MSG_ID` | Mark as unread |
 | `ailang messages send INBOX "msg"` | Send message |
+| `ailang messages send ... --envelope-code FILE` | Send with code envelope (v0.8.1+) |
+| `ailang messages send ... --envelope-context "desc"` | Send with context envelope (v0.8.1+) |
+| `ailang messages search "query"` | Semantic search |
+| `ailang messages search --space SLOT "query"` | Search specific envelope space (v0.8.1+) |
+| `ailang messages triage` | Cluster unread messages by similarity (v0.8.1+) |
+| `ailang messages dedupe` | Find duplicate messages |
 | `ailang messages reply MSG_ID "text"` | Reply to GitHub issue thread |
 | `ailang messages import-github` | Import from GitHub |
 | `ailang messages watch` | Watch for new messages |

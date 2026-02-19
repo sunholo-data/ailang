@@ -79,6 +79,7 @@ Messages in the system contain:
 | `dup_of` | Message ID this is a duplicate of (set by dedupe) |
 | `embedding` | JSON-encoded float32 vector (neural search) |
 | `embedding_model` | Model used to generate embedding (e.g., "ollama:nomic-embed-text") |
+| `envelope` | JSON object with named embedding vectors (v0.8.1+, see [Semantic Envelope](#semantic-envelope)) |
 
 ## Architecture
 
@@ -174,6 +175,12 @@ ailang messages send INBOX "message content" --title "Title" --from "agent"
 ailang messages send INBOX "message" --type bug --github
 ailang messages send INBOX "message" --type feature --github
 ailang messages send INBOX "message" --github --repo owner/repo
+
+# With semantic envelope (v0.8.1+)
+ailang messages send INBOX "Fix parser bug" --title "Bug" \
+  --envelope-code internal/parser/parser.go
+ailang messages send INBOX "Fix bug" --title "Bug" \
+  --envelope-context "reviewing ast type switches"
 ```
 
 ### Reply to GitHub Issues
@@ -340,6 +347,11 @@ ailang messages list --collapsed
 
 # Show only duplicates of a specific message
 ailang messages list --duplicates-of MSG_ID
+
+# Search by envelope space (v0.8.1+)
+ailang messages search --space code "internal/types"
+ailang messages search --space intent "fix crash"
+ailang messages search --space resolution "parser"
 ```
 
 ### Search Flags
@@ -352,6 +364,7 @@ ailang messages list --duplicates-of MSG_ID
 | `--inbox` | (all) | Filter by inbox |
 | `--neural` | false | Use neural embeddings (requires Ollama) |
 | `--simhash` | true | Force SimHash mode (default, fast) |
+| `--space` | (none) | Search a specific envelope space (v0.8.1+) |
 | `--json` | false | Output as JSON |
 
 ### How SimHash Works
@@ -433,7 +446,7 @@ Create or update `~/.ailang/config.yaml`:
 
 ```yaml
 embeddings:
-  # Provider: "ollama" (local) or "none" (SimHash only)
+  # Provider: "ollama" (local), "openai", "gemini", or "none" (SimHash only)
   provider: ollama
 
   ollama:
@@ -445,6 +458,18 @@ embeddings:
 
     # Request timeout
     timeout: 30s
+
+  # OpenAI embeddings (v0.8.1+)
+  openai:
+    # api_key: sk-...  # Or set OPENAI_API_KEY env var
+    model: text-embedding-3-small   # text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+    # dimension: 1536              # 0 = model default
+
+  # Gemini embeddings (v0.8.1+)
+  gemini:
+    # api_key: ...  # Or set GOOGLE_API_KEY env var
+    model: text-embedding-004       # text-embedding-004, embedding-001
+    # dimension: 768               # 0 = model default
 
   search:
     # Default search mode: "simhash" (fast) or "neural" (semantic)
@@ -460,14 +485,18 @@ embeddings:
 Override config with environment variables:
 
 ```bash
-# Provider
+# Provider (ollama, openai, gemini, none)
 export AILANG_EMBED_PROVIDER=ollama
 
-# Model
+# Ollama settings
 export AILANG_OLLAMA_MODEL=nomic-embed-text
-
-# Endpoint
 export AILANG_OLLAMA_ENDPOINT=http://localhost:11434
+
+# OpenAI settings (v0.8.1+)
+export OPENAI_API_KEY=sk-...
+
+# Gemini settings (v0.8.1+)
+export GOOGLE_API_KEY=...
 ```
 
 ### Using Neural Search
@@ -518,6 +547,125 @@ ollama list
 # Pull a model
 ollama pull nomic-embed-text
 ```
+
+## Semantic Envelope (v0.8.1+)
+
+Messages can carry a **semantic envelope** — a set of named embedding vectors, each capturing a different aspect of the message's meaning. Unlike the single text-derived embedding used for search, the envelope provides multiple "channels" of semantic information designed for machine-to-machine communication.
+
+### The 5 Envelope Slots
+
+| Slot | Source | When Computed | Use Case |
+|------|--------|---------------|----------|
+| `intent` | Title + first 200 chars of payload | **Auto** (if embedder configured) | "What is being asked?" — triage, dedup |
+| `code` | File paths + code snippets | **Explicit** (`--envelope-code`) | "What code is affected?" — cluster by subsystem |
+| `context` | Session context description | **Explicit** (`--envelope-context`) | "What was the sender working on?" |
+| `skill` | Compiler phases, file patterns | **Explicit** (builder API) | "What expertise is needed?" |
+| `resolution` | Git diff + commit message | **Auto** (on task completion) | "How was this resolved?" — knowledge base |
+
+### Sending with Envelope
+
+```bash
+# Attach code context (embeds the file content)
+ailang messages send executor "Fix parser bug" --title "Bug: Parser" \
+  --envelope-code internal/parser/parser.go
+
+# Attach multiple files
+ailang messages send executor "Fix type system" \
+  --envelope-code internal/types/unify.go,internal/types/subst.go
+
+# Attach session context
+ailang messages send executor "Fix crash" \
+  --envelope-context "reviewing ast.Type switches, found missing TypeVar case"
+
+# Both
+ailang messages send executor "Fix bug" \
+  --envelope-code internal/iface/builder.go \
+  --envelope-context "constructor type variables are TypeVar not SimpleType"
+```
+
+### Multi-Space Search
+
+Search different envelope slots to get different results:
+
+```bash
+# Search by what code is affected
+ailang messages search --space code "internal/types/unify.go"
+
+# Search by what action is needed
+ailang messages search --space intent "fix crash"
+
+# Find past resolutions for similar problems
+ailang messages search --space resolution "parser"
+```
+
+The same query returns different results depending on which slot is searched.
+
+### Resolution Feedback Loop
+
+When the coordinator completes a task:
+1. Git diff and commit message are extracted from the worktree
+2. A resolution embedding is computed
+3. The original message's envelope is updated with the `resolution` slot
+
+This builds a searchable knowledge base over time — new problems can be matched against past solutions.
+
+### Triage
+
+Cluster unread messages by envelope similarity:
+
+```bash
+# Cluster by intent (default)
+ailang messages triage
+
+# Cluster by code region
+ailang messages triage --cluster-by code
+
+# Filter to specific inbox
+ailang messages triage --inbox user
+
+# Show top 5 clusters
+ailang messages triage --top 5
+
+# JSON output
+ailang messages triage --json
+```
+
+**Example output:**
+```
+Triage Report — 18 messages, 5 clusters (by code)
+
+Cluster 1: Type system bugs (8 msgs)
+  a1b2c3d4 Fix unification crash    eval-suite
+  e5f6g7h8 Type variable missing    demos
+
+Cluster 2: CLI commands (5 msgs)
+  i9j0k1l2 Add --verbose flag       user
+  m3n4o5p6 Fix help text            cli
+
+Cluster 3: Eval harness (3 msgs)
+  q7r8s9t0 Benchmark timeout        eval-suite
+  ...
+```
+
+### Triage Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--inbox` | (all) | Filter by inbox |
+| `--cluster-by` | intent | Envelope slot to cluster on |
+| `--top` | 10 | Show top-N clusters |
+| `--threshold` | 0.75 | Minimum similarity for clustering |
+| `--json` | false | Output as JSON |
+
+### Embedding Providers
+
+The envelope uses the same embedding provider configured for neural search. Three providers are supported:
+
+| Provider | Config | Models | Cost |
+|----------|--------|--------|------|
+| Ollama | `provider: ollama` | nomic-embed-text, embeddinggemma | Free (local) |
+| OpenAI | `provider: openai` | text-embedding-3-small, text-embedding-3-large | Per token |
+| Gemini | `provider: gemini` | text-embedding-004 | Per token |
 
 ## Aliases
 

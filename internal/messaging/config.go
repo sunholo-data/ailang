@@ -37,7 +37,7 @@ func (c *GitHubConfig) IsAutoImportEnabled() bool {
 
 // EmbeddingsYAMLConfig holds YAML configuration for embeddings
 type EmbeddingsYAMLConfig struct {
-	// Provider: "ollama" or "none"
+	// Provider: "ollama", "openai", "gemini", or "none"
 	Provider string `yaml:"provider"`
 
 	// Ollama-specific settings
@@ -48,6 +48,22 @@ type EmbeddingsYAMLConfig struct {
 		Timeout   string `yaml:"timeout"` // e.g., "30s"
 		BatchSize int    `yaml:"batch_size"`
 	} `yaml:"ollama"`
+
+	// OpenAI-specific settings (M-SEMANTIC-ENVELOPE)
+	OpenAI struct {
+		APIKey    string `yaml:"api_key"`   // Falls back to OPENAI_API_KEY env
+		Model     string `yaml:"model"`     // e.g. "text-embedding-3-small"
+		Dimension int    `yaml:"dimension"` // 0 = model default
+		Timeout   string `yaml:"timeout"`
+	} `yaml:"openai"`
+
+	// Gemini-specific settings (M-SEMANTIC-ENVELOPE)
+	Gemini struct {
+		APIKey    string `yaml:"api_key"`   // Falls back to GOOGLE_API_KEY env
+		Model     string `yaml:"model"`     // e.g. "text-embedding-004"
+		Dimension int    `yaml:"dimension"` // 0 = model default
+		Timeout   string `yaml:"timeout"`
+	} `yaml:"gemini"`
 
 	// Search behavior
 	Search struct {

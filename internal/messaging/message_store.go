@@ -87,6 +87,7 @@ type MessageStore interface {
 	ApplyDuplicates(groups []DuplicateGroup, runID string) error
 	ClearDuplicateMarker(msgID string) error
 	UpdateMessageEmbedding(msgID string, embedding []float32, model string) error
+	UpdateMessageEnvelope(msgID string, env *Envelope, overwrite bool) error
 
 	// === Metrics & Analytics ===
 

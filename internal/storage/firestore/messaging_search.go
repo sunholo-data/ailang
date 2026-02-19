@@ -2,6 +2,7 @@ package firestore
 
 import (
 	"context"
+	"fmt"
 	"math/bits"
 	"sort"
 	"time"
@@ -227,6 +228,37 @@ func (s *MessagingStore) UpdateMessageEmbedding(msgID string, embedding []float3
 		{Path: "embedding_updated_at", Value: timeNowMillis()},
 	})
 	return err
+}
+
+func (s *MessagingStore) UpdateMessageEnvelope(msgID string, env *messaging.Envelope, overwrite bool) error {
+	if env == nil {
+		return nil
+	}
+
+	doc := s.client.Doc(collInbox, msgID)
+
+	if !overwrite {
+		// Merge: read existing envelope first
+		snap, err := doc.Get(context.Background())
+		if err != nil {
+			return fmt.Errorf("get message for envelope merge: %w", err)
+		}
+		existingJSON, _ := snap.DataAt("envelope")
+		if str, ok := existingJSON.(string); ok && str != "" && str != "{}" {
+			existing := messaging.EnvelopeFromJSON(str)
+			if existing != nil {
+				existing.Merge(env)
+				env = existing
+			}
+		}
+	}
+
+	envJSON := env.ToJSON()
+
+	_, updateErr := doc.Update(context.Background(), []firestore.Update{
+		{Path: "envelope", Value: envJSON},
+	})
+	return updateErr
 }
 
 // --- SimHash helpers ---

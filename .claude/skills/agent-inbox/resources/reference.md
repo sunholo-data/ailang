@@ -10,7 +10,10 @@ Complete reference for the AILANG messaging system CLI commands.
 | `ailang messages read` | `msg read` | Read full message |
 | `ailang messages ack` | `msg ack` | Mark as read |
 | `ailang messages unack` | `msg unack` | Mark as unread |
-| `ailang messages send` | `msg send` | Send message |
+| `ailang messages send` | `msg send` | Send message (with optional envelope) |
+| `ailang messages search` | `msg search` | Semantic search (with optional envelope space) |
+| `ailang messages triage` | `msg triage` | Cluster unread messages by envelope similarity |
+| `ailang messages dedupe` | `msg dedupe` | Find and mark duplicate messages |
 | `ailang messages reply` | `msg reply` | Reply to GitHub issue |
 | `ailang messages watch` | `msg watch` | Watch for new |
 | `ailang messages cleanup` | `msg cleanup` | Remove old messages |
@@ -100,6 +103,8 @@ ailang messages send INBOX "MESSAGE" [flags]
 | `--title TEXT` | Message title | truncated message |
 | `--from AGENT` | Sender name | "cli" |
 | `--correlation ID` | Correlation ID | none |
+| `--envelope-code FILES` | Comma-separated file paths for code envelope slot (v0.8.1+) | none |
+| `--envelope-context DESC` | Context description for context envelope slot (v0.8.1+) | none |
 | `--github` | Create GitHub issue | false |
 | `--type TYPE` | Category (any string; bug/feature imply --github) | none |
 | `--repo OWNER/REPO` | GitHub repo | config default |
@@ -108,6 +113,17 @@ ailang messages send INBOX "MESSAGE" [flags]
 ```bash
 # Basic local message
 ailang messages send user "Task complete" --title "Done" --from "agent"
+
+# With semantic envelope (v0.8.1+)
+ailang messages send executor "Fix parser bug" --title "Bug" \
+  --envelope-code internal/parser/parser.go
+ailang messages send executor "Fix type system" \
+  --envelope-code internal/types/unify.go,internal/types/subst.go
+ailang messages send executor "Fix crash" --title "Bug" \
+  --envelope-context "reviewing ast.Type switches, found missing TypeVar case"
+ailang messages send executor "Fix bug" \
+  --envelope-code internal/iface/builder.go \
+  --envelope-context "constructor type variables are TypeVar not SimpleType"
 
 # Bug report (--type bug implies --github)
 ailang messages send user "Parser crashes on nested records" \
@@ -119,13 +135,66 @@ ailang messages send user "Need async support" \
 
 # Custom type (local only, no GitHub sync)
 ailang messages send user "Research findings" --type research --from "agent"
-ailang messages send user "Documentation draft" --type docs
 
 # Custom type WITH GitHub sync (explicit --github)
 ailang messages send user "Docs update" --type docs --github
+```
 
-# Override repo
-ailang messages send user "Bug" --type bug --repo owner/other-repo
+## Search Messages
+
+```bash
+ailang messages search "QUERY" [flags]
+```
+
+**Flags:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--inbox NAME` | Filter by inbox | all |
+| `--threshold N` | Minimum similarity (0.0-1.0) | 0.70 |
+| `--limit N` | Maximum results | 20 |
+| `--max-scan N` | Maximum messages to scan | 1000 |
+| `--neural` | Use neural embeddings (requires Ollama) | false |
+| `--simhash` | Force SimHash mode | true |
+| `--space SLOT` | Search a specific envelope space (v0.8.1+) | none |
+| `--json` | JSON output | false |
+
+**Envelope spaces:** `intent`, `code`, `context`, `skill`, `resolution`
+
+**Examples:**
+```bash
+# Basic semantic search
+ailang messages search "parser error"
+ailang messages search "type inference" --neural
+
+# Search by envelope space (v0.8.1+)
+ailang messages search --space code "internal/types"
+ailang messages search --space intent "fix crash"
+ailang messages search --space resolution "parser"
+```
+
+## Triage Messages (v0.8.1+)
+
+```bash
+ailang messages triage [flags]
+```
+
+Clusters unread messages by envelope similarity.
+
+**Flags:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--inbox NAME` | Filter by inbox | all |
+| `--cluster-by SLOT` | Envelope slot to cluster on | intent |
+| `--top N` | Show top-N clusters | 10 |
+| `--threshold N` | Minimum similarity for clustering | 0.75 |
+| `--json` | JSON output | false |
+
+**Examples:**
+```bash
+ailang messages triage                        # Cluster by intent
+ailang messages triage --cluster-by code      # Cluster by code region
+ailang messages triage --inbox user --top 5   # Top 5 clusters in user inbox
+ailang messages triage --json                 # JSON output
 ```
 
 ## Reply to GitHub Issue
@@ -228,11 +297,35 @@ CREATE TABLE inbox_messages (
     github_issue_number INTEGER,  -- Linked GitHub issue
     github_repo TEXT,             -- owner/repo
     status TEXT NOT NULL,         -- unread, read, archived, deleted
+    envelope TEXT DEFAULT '{}',   -- JSON: named embedding vectors (v0.8.1+)
     created_at TEXT NOT NULL,
     read_at TEXT,
     expires_at TEXT
 );
 ```
+
+### Envelope Schema (v0.8.1+)
+
+The `envelope` column stores a JSON object with named embedding slots:
+
+```json
+{
+  "slots": {
+    "intent": {
+      "vector": [0.123, 0.456, ...],
+      "model": "ollama:nomic-embed-text",
+      "dimension": 768
+    },
+    "code": {
+      "vector": [0.789, 0.012, ...],
+      "model": "ollama:nomic-embed-text",
+      "dimension": 768
+    }
+  }
+}
+```
+
+**Slots:** `intent`, `code`, `context`, `skill`, `resolution`
 
 ## GitHub Configuration
 

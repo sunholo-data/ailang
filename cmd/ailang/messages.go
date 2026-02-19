@@ -91,6 +91,8 @@ func messagesCommand() {
 		runMessagesImportGitHub(args)
 	case "reply":
 		runMessagesReply(args)
+	case "triage":
+		runMessagesTriage(args)
 	case "--help", "-h", "help":
 		printMessagesHelp()
 	default:

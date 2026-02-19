@@ -21,6 +21,7 @@ func runMessagesSearch(args []string) {
 	maxScan := fs.Int("max-scan", 1000, "Maximum messages to scan")
 	neural := fs.Bool("neural", false, "Use neural embeddings via Ollama (requires Ollama running)")
 	simhash := fs.Bool("simhash", false, "Force SimHash mode (default)")
+	space := fs.String("space", "", "Search a specific envelope space (intent, code, context, skill, resolution)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 
 	if err := fs.Parse(args); err != nil {
@@ -55,18 +56,24 @@ func runMessagesSearch(args []string) {
 	// Determine search mode
 	useNeural := *neural && !*simhash
 	scoreKind := "simhash"
-	if useNeural {
+	if *space != "" {
+		// Envelope space search implies neural
+		useNeural = true
+		scoreKind = "envelope:" + *space
+		fmt.Printf("Using envelope search (space: %s)\n", cyan(*space))
+	} else if useNeural {
 		scoreKind = "embedding"
 		fmt.Printf("Using neural search via %s\n", cyan("Ollama"))
 	}
 
 	opts := messaging.SearchOptions{
-		Query:     query,
-		Threshold: *threshold,
-		Limit:     *limit,
-		MaxScan:   *maxScan,
-		Inbox:     resolvedInbox,
-		UseNeural: useNeural,
+		Query:         query,
+		Threshold:     *threshold,
+		Limit:         *limit,
+		MaxScan:       *maxScan,
+		Inbox:         resolvedInbox,
+		UseNeural:     useNeural,
+		EnvelopeSpace: *space,
 	}
 
 	hits, err := store.SemanticSearch(opts)

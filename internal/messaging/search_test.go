@@ -471,6 +471,282 @@ func TestListWithCollapsed_HidesDuplicates(t *testing.T) {
 	}
 }
 
+func TestSearchByEnvelope_DifferentSpaces(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	// Insert messages with envelopes containing different slot vectors
+	// Message 1: parser bug (code=parser, intent=fix)
+	msg1 := &InboxMessage{
+		FromAgent: "test",
+		ToInbox:   "test_inbox",
+		Title:     "Fix parser crash",
+		Payload:   "Parser crashes on nested records",
+		Envelope: func() *Envelope {
+			e := NewEnvelope()
+			e.Set(SlotCode, []float32{1.0, 0.0, 0.0, 0.0}, "mock:test")
+			e.Set(SlotIntent, []float32{0.0, 1.0, 0.0, 0.0}, "mock:test")
+			return e
+		}(),
+	}
+
+	// Message 2: parser feature (code=parser, intent=feature)
+	msg2 := &InboxMessage{
+		FromAgent: "test",
+		ToInbox:   "test_inbox",
+		Title:     "Add parser record support",
+		Payload:   "Need to parse record expressions",
+		Envelope: func() *Envelope {
+			e := NewEnvelope()
+			e.Set(SlotCode, []float32{0.9, 0.1, 0.0, 0.0}, "mock:test")
+			e.Set(SlotIntent, []float32{0.0, 0.0, 1.0, 0.0}, "mock:test")
+			return e
+		}(),
+	}
+
+	// Message 3: types bug (code=types, intent=fix)
+	msg3 := &InboxMessage{
+		FromAgent: "test",
+		ToInbox:   "test_inbox",
+		Title:     "Fix type unification",
+		Payload:   "Unifier crashes on recursive types",
+		Envelope: func() *Envelope {
+			e := NewEnvelope()
+			e.Set(SlotCode, []float32{0.0, 0.0, 1.0, 0.0}, "mock:test")
+			e.Set(SlotIntent, []float32{0.0, 0.8, 0.2, 0.0}, "mock:test")
+			return e
+		}(),
+	}
+
+	for _, msg := range []*InboxMessage{msg1, msg2, msg3} {
+		if err := store.InsertInboxMessage(msg); err != nil {
+			t.Fatalf("failed to insert message: %v", err)
+		}
+	}
+
+	// Create a mock embedder that returns specific vectors based on query
+	mockEmb := &deterministicMockEmbedder{
+		dim: 4,
+		responses: map[string][]float32{
+			"parser code":    {1.0, 0.0, 0.0, 0.0}, // Should match msg1 and msg2 on code
+			"fix bug intent": {0.0, 1.0, 0.0, 0.0}, // Should match msg1 and msg3 on intent
+		},
+	}
+
+	// Search code space for "parser code" — should find msg1 and msg2
+	codeHits, err := store.SearchByEnvelope(SearchOptions{
+		Query:         "parser code",
+		EnvelopeSpace: SlotCode,
+		Threshold:     0.5,
+		Limit:         10,
+		Embedder:      mockEmb,
+	})
+	if err != nil {
+		t.Fatalf("SearchByEnvelope code failed: %v", err)
+	}
+
+	if len(codeHits) < 1 {
+		t.Error("expected at least 1 code-space hit for parser query")
+	}
+	for _, hit := range codeHits {
+		if hit.ScoreKind != "envelope:code" {
+			t.Errorf("expected score_kind 'envelope:code', got %q", hit.ScoreKind)
+		}
+	}
+
+	// Search intent space for "fix bug intent" — should find msg1 and msg3
+	intentHits, err := store.SearchByEnvelope(SearchOptions{
+		Query:         "fix bug intent",
+		EnvelopeSpace: SlotIntent,
+		Threshold:     0.5,
+		Limit:         10,
+		Embedder:      mockEmb,
+	})
+	if err != nil {
+		t.Fatalf("SearchByEnvelope intent failed: %v", err)
+	}
+
+	if len(intentHits) < 1 {
+		t.Error("expected at least 1 intent-space hit for fix query")
+	}
+	for _, hit := range intentHits {
+		if hit.ScoreKind != "envelope:intent" {
+			t.Errorf("expected score_kind 'envelope:intent', got %q", hit.ScoreKind)
+		}
+	}
+
+	// Verify different spaces return different result sets
+	// Code space should NOT match msg3 (types code), intent space should NOT match msg2 (feature intent)
+	codeIDs := make(map[string]bool)
+	for _, h := range codeHits {
+		codeIDs[h.Message.ID] = true
+	}
+	intentIDs := make(map[string]bool)
+	for _, h := range intentHits {
+		intentIDs[h.Message.ID] = true
+	}
+
+	// At least one ID should differ between the two result sets
+	if len(codeHits) > 0 && len(intentHits) > 0 {
+		allSame := true
+		for id := range codeIDs {
+			if !intentIDs[id] {
+				allSame = false
+				break
+			}
+		}
+		for id := range intentIDs {
+			if !codeIDs[id] {
+				allSame = false
+				break
+			}
+		}
+		if allSame && len(codeIDs) == len(intentIDs) {
+			t.Error("code and intent searches should return different result sets")
+		}
+	}
+}
+
+func TestSearchByEnvelope_InvalidSlot(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.SearchByEnvelope(SearchOptions{
+		Query:         "test",
+		EnvelopeSpace: "bogus",
+		Embedder:      &mockEmbedder{dim: 4},
+	})
+	if err == nil {
+		t.Error("SearchByEnvelope with invalid slot should error")
+	}
+}
+
+func TestSearchByEnvelope_EmptySpace(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.SearchByEnvelope(SearchOptions{
+		Query:    "test",
+		Embedder: &mockEmbedder{dim: 4},
+	})
+	if err == nil {
+		t.Error("SearchByEnvelope without EnvelopeSpace should error")
+	}
+}
+
+// deterministicMockEmbedder returns pre-configured vectors for known queries
+type deterministicMockEmbedder struct {
+	dim       int
+	responses map[string][]float32
+}
+
+func (m *deterministicMockEmbedder) Embed(text string) ([]float32, error) {
+	if vec, ok := m.responses[text]; ok {
+		return vec, nil
+	}
+	// Default: return zero vector
+	return make([]float32, m.dim), nil
+}
+
+func (m *deterministicMockEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
+	results := make([][]float32, len(texts))
+	for i, t := range texts {
+		v, _ := m.Embed(t)
+		results[i] = v
+	}
+	return results, nil
+}
+
+func (m *deterministicMockEmbedder) Dimension() int    { return m.dim }
+func (m *deterministicMockEmbedder) ModelName() string { return "mock:deterministic" }
+
+func TestUpdateMessageEnvelope(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test.db")
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	// Insert message without envelope
+	msg := &InboxMessage{
+		FromAgent: "test",
+		ToInbox:   "inbox",
+		Title:     "Test message",
+	}
+	if err := store.InsertInboxMessage(msg); err != nil {
+		t.Fatalf("insert failed: %v", err)
+	}
+
+	// Add intent slot
+	env1 := NewEnvelope()
+	env1.Set(SlotIntent, []float32{1.0, 2.0}, "model-a")
+	if err := store.UpdateMessageEnvelope(msg.ID, env1, false); err != nil {
+		t.Fatalf("update envelope failed: %v", err)
+	}
+
+	// Read back
+	got, err := store.GetInboxMessage(msg.ID)
+	if err != nil {
+		t.Fatalf("get message failed: %v", err)
+	}
+	if got.Envelope == nil {
+		t.Fatal("envelope should be populated after update")
+	}
+	if got.Envelope.Get(SlotIntent) == nil {
+		t.Error("intent slot should be set")
+	}
+
+	// Add resolution slot (non-overwrite — should preserve intent)
+	env2 := NewEnvelope()
+	env2.Set(SlotResolution, []float32{3.0, 4.0}, "model-b")
+	env2.Set(SlotIntent, []float32{9.0, 9.0}, "model-b") // Should NOT overwrite
+	if err := store.UpdateMessageEnvelope(msg.ID, env2, false); err != nil {
+		t.Fatalf("update envelope 2 failed: %v", err)
+	}
+
+	got2, _ := store.GetInboxMessage(msg.ID)
+	if got2.Envelope.Get(SlotResolution) == nil {
+		t.Error("resolution slot should be added")
+	}
+	if got2.Envelope.Get(SlotIntent).Vector[0] != 1.0 {
+		t.Error("intent should not be overwritten in non-overwrite mode")
+	}
+
+	// Overwrite mode
+	env3 := NewEnvelope()
+	env3.Set(SlotIntent, []float32{5.0, 6.0}, "model-c")
+	if err := store.UpdateMessageEnvelope(msg.ID, env3, true); err != nil {
+		t.Fatalf("overwrite envelope failed: %v", err)
+	}
+
+	got3, _ := store.GetInboxMessage(msg.ID)
+	if got3.Envelope.Get(SlotIntent).Vector[0] != 5.0 {
+		t.Error("intent should be overwritten in overwrite mode")
+	}
+	// Resolution should still be there (only intent was in env3)
+	if got3.Envelope.Get(SlotResolution) == nil {
+		t.Error("resolution should still exist after overwrite of intent only")
+	}
+}
+
 // Helper to create store (uses NewStore from store.go)
 func init() {
 	// Ensure temp directory exists for tests

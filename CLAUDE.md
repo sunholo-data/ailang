@@ -60,6 +60,18 @@ ailang messages search "bugs" --neural                        # Use Ollama embed
 ailang messages list --similar-to MSG_ID                      # Find similar messages
 ailang messages list --collapsed                              # Hide duplicates
 
+# ENVELOPE SEARCH (v0.8.1+ M-SEMANTIC-ENVELOPE)
+ailang messages search --space code "internal/types"          # Search by code context
+ailang messages search --space intent "fix crash"             # Search by intent
+ailang messages search --space resolution "parser"            # Search past resolutions
+
+# SEMANTIC ENVELOPE (v0.8.1+)
+ailang messages send INBOX "msg" --envelope-code FILE         # Attach code context embedding
+ailang messages send INBOX "msg" --envelope-context "desc"    # Attach session context embedding
+ailang messages triage                                        # Cluster unread by intent
+ailang messages triage --cluster-by code                      # Cluster by code region
+ailang messages triage --cluster-by code --inbox user         # Filter + cluster
+
 # DEDUPLICATION (v0.5.11+)
 ailang messages dedupe                                        # Report duplicate groups
 ailang messages dedupe --threshold 0.90                       # Custom similarity threshold
@@ -194,10 +206,15 @@ ailang docs search --json "query"
 **Configuration:** Uses same Ollama config as messages in `~/.ailang/config.yaml`:
 ```yaml
 embeddings:
+  # Provider: "ollama" (local), "openai", "gemini", or "none"
   provider: ollama
   ollama:
     model: embeddinggemma  # or nomic-embed-text
     endpoint: http://localhost:11434
+  # openai:               # v0.8.1+ (uses OPENAI_API_KEY env var)
+  #   model: text-embedding-3-small
+  # gemini:               # v0.8.1+ (uses GOOGLE_API_KEY env var)
+  #   model: text-embedding-004
 ```
 
 ---

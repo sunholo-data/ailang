@@ -21,8 +21,26 @@ type Embedder interface {
 
 // EmbedConfig configures the embedding provider
 type EmbedConfig struct {
-	Provider string       `yaml:"provider"` // "ollama" or "none"
-	Ollama   OllamaConfig `yaml:"ollama"`
+	Provider string            `yaml:"provider"` // "ollama", "openai", "gemini", or "none"
+	Ollama   OllamaConfig      `yaml:"ollama"`
+	OpenAI   OpenAIEmbedConfig `yaml:"openai"`
+	Gemini   GeminiEmbedConfig `yaml:"gemini"`
+}
+
+// OpenAIEmbedConfig configures the OpenAI embedding provider
+type OpenAIEmbedConfig struct {
+	APIKey    string        `yaml:"api_key"`   // Defaults to OPENAI_API_KEY env
+	Model     string        `yaml:"model"`     // e.g. "text-embedding-3-small"
+	Dimension int           `yaml:"dimension"` // Output dimension (0 = model default)
+	Timeout   time.Duration `yaml:"timeout"`
+}
+
+// GeminiEmbedConfig configures the Gemini embedding provider
+type GeminiEmbedConfig struct {
+	APIKey    string        `yaml:"api_key"`   // Defaults to GOOGLE_API_KEY env
+	Model     string        `yaml:"model"`     // e.g. "text-embedding-004"
+	Dimension int           `yaml:"dimension"` // Output dimension (0 = model default)
+	Timeout   time.Duration `yaml:"timeout"`
 }
 
 // OllamaConfig configures the Ollama embedding provider
@@ -76,6 +94,38 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 		if yamlCfg.Ollama.BatchSize > 0 {
 			cfg.Ollama.BatchSize = yamlCfg.Ollama.BatchSize
 		}
+
+		// OpenAI config from YAML
+		if yamlCfg.OpenAI.APIKey != "" {
+			cfg.OpenAI.APIKey = yamlCfg.OpenAI.APIKey
+		}
+		if yamlCfg.OpenAI.Model != "" {
+			cfg.OpenAI.Model = yamlCfg.OpenAI.Model
+		}
+		if yamlCfg.OpenAI.Dimension > 0 {
+			cfg.OpenAI.Dimension = yamlCfg.OpenAI.Dimension
+		}
+		if yamlCfg.OpenAI.Timeout != "" {
+			if parsed, err := time.ParseDuration(yamlCfg.OpenAI.Timeout); err == nil {
+				cfg.OpenAI.Timeout = parsed
+			}
+		}
+
+		// Gemini config from YAML
+		if yamlCfg.Gemini.APIKey != "" {
+			cfg.Gemini.APIKey = yamlCfg.Gemini.APIKey
+		}
+		if yamlCfg.Gemini.Model != "" {
+			cfg.Gemini.Model = yamlCfg.Gemini.Model
+		}
+		if yamlCfg.Gemini.Dimension > 0 {
+			cfg.Gemini.Dimension = yamlCfg.Gemini.Dimension
+		}
+		if yamlCfg.Gemini.Timeout != "" {
+			if parsed, err := time.ParseDuration(yamlCfg.Gemini.Timeout); err == nil {
+				cfg.Gemini.Timeout = parsed
+			}
+		}
 	}
 
 	// Environment variables override config file
@@ -89,7 +139,52 @@ func LoadEmbedConfigFromEnv() EmbedConfig {
 		cfg.Ollama.Endpoint = endpoint
 	}
 
+	// OpenAI env var defaults
+	if cfg.OpenAI.APIKey == "" {
+		cfg.OpenAI.APIKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if cfg.OpenAI.Model == "" {
+		cfg.OpenAI.Model = "text-embedding-3-small"
+	}
+	if cfg.OpenAI.Timeout == 0 {
+		cfg.OpenAI.Timeout = 30 * time.Second
+	}
+
+	// Gemini env var defaults
+	if cfg.Gemini.APIKey == "" {
+		cfg.Gemini.APIKey = os.Getenv("GOOGLE_API_KEY")
+	}
+	if cfg.Gemini.Model == "" {
+		cfg.Gemini.Model = "text-embedding-004"
+	}
+	if cfg.Gemini.Timeout == 0 {
+		cfg.Gemini.Timeout = 30 * time.Second
+	}
+
 	return cfg
+}
+
+// NewEmbedderFromConfig creates the appropriate Embedder based on config.
+// Returns (nil, nil) if provider is "none" — callers should check for nil.
+func NewEmbedderFromConfig(cfg EmbedConfig) (Embedder, error) {
+	switch cfg.Provider {
+	case "ollama":
+		return NewOllamaEmbedder(cfg.Ollama)
+	case "openai":
+		if cfg.OpenAI.APIKey == "" {
+			return nil, fmt.Errorf("openai embedder requires OPENAI_API_KEY or openai.api_key config")
+		}
+		return NewOpenAIEmbedder(cfg.OpenAI)
+	case "gemini":
+		if cfg.Gemini.APIKey == "" {
+			return nil, fmt.Errorf("gemini embedder requires GOOGLE_API_KEY or gemini.api_key config")
+		}
+		return NewGeminiEmbedder(cfg.Gemini)
+	case "none", "":
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unknown embedding provider %q: valid providers are ollama, openai, gemini, none", cfg.Provider)
+	}
 }
 
 // OllamaEmbedder implements Embedder using local Ollama
