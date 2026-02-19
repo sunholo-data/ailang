@@ -389,9 +389,69 @@ let main = \config.
 - `cmd/wasm/effects.go` — WASM effects bridge
 - `web/ailang-repl.js` — JS wrapper API
 
+## Phase 2: ADT Wrapping for JS Handler Returns
+
+**Status**: Planned
+**Estimated**: Half day (~165 LOC)
+**Depends on**: Phase 1 (completed)
+
+### Problem
+
+Phase 1 routes stream builtins through `effects.Call()` so JS handlers are invoked. But JS handler return values go through `jsToAILANGValue` which only produces primitives (`IntValue`, `StringValue`, etc.). AILANG code pattern-matches on ADT types like `Ok(StreamConn(id))` — so matches fail at runtime.
+
+This is a **generic problem** affecting all effects whose native Go handlers return `TaggedValue` ADTs:
+- Stream: `Ok(StreamConn(id))`, `Err(ProtocolError(msg))`, `Message(text)`, etc.
+- FS: `Ok(content)`, `Err(msg)` from readFile/writeFile
+- Net: `Ok(response)`, `Err(msg)` from httpGet/httpPost
+- Process: `Ok(ProcessOutput)`, `Err(ProcessError)` from exec
+
+### Solution: ADT Convention in JS ↔ AILANG Conversion
+
+JS objects with `{_ctor: "Name", _fields: [...]}` are recursively converted to `eval.TaggedValue`. A global `ailangADT(ctor, ...fields)` helper makes construction ergonomic.
+
+**JS handler example:**
+```javascript
+repl.setEffectHandler('Stream', {
+    connect: (url) => ailangADT("Ok", ailangADT("StreamConn", 1)),
+    send: (conn, msg) => ailangADT("Ok", null),
+    close: (conn) => ailangADT("Ok", null),
+});
+```
+
+### Changes
+
+**`cmd/wasm/effects.go`** (~100 LOC):
+
+`jsToAILANGValue` — 3 new cases in `default` branch:
+1. Object with `_ctor` string → recursive `TaggedValue{CtorName, Fields}`
+2. `Array` instance → `eval.ListValue{Elements}`
+3. Plain object → `eval.RecordValue{Fields}`
+
+`ailangValueToJS` — 3 new cases before `default`:
+1. `*eval.TaggedValue` → JS `{_ctor, _fields}` (recursive)
+2. `*eval.ListValue` → JS `Array`
+3. `*eval.RecordValue` → JS plain object
+
+**`cmd/wasm/main.go`** (~20 LOC):
+
+Register `ailangADT` global JS function for ergonomic ADT construction.
+
+**`web/ailang-repl.js`** (~15 LOC):
+
+Static convenience methods: `AilangREPL.adt(ctor, ...fields)`, `streamOk(val)`, `streamErr(kind, msg)`, `streamConn(id)`.
+
+### Success Criteria
+
+- [ ] JS handler returning `ailangADT("Ok", ailangADT("StreamConn", 1))` → AILANG pattern `match ... { Ok(StreamConn(id)) => ... }` succeeds
+- [ ] `ailangValueToJS` converts `TaggedValue` to `{_ctor, _fields}` JS object (round-trip)
+- [ ] `jsToAILANGValue` handles nested ADTs, arrays, plain objects
+- [ ] `ailangADT` global function available in WASM
+- [ ] WASM binary builds, all tests pass, lint clean
+
+---
+
 ## Future Work
 
-- Bidirectional ADT marshalling (JS ↔ AILANG ADTs like `StreamEvent`)
 - `js.FuncOf` lifecycle management (release tracking, weak references)
 - SSE streaming in WASM browsers
 - Typed JS interop layer (generate TS declarations from AILANG types)

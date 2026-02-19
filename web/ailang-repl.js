@@ -319,6 +319,31 @@ class AilangREPL {
 
     return window.ailangCallAsync(moduleName, funcName, ...args);
   }
+
+  // ── ADT Constructors (v0.8.2+ Phase 2) ──────────────────────────
+
+  /**
+   * Build an ADT value for returning from JS effect handlers.
+   * Uses the {_ctor, _fields} convention recognized by jsToAILANGValue.
+   * @param {string} ctor - Constructor name (e.g., "Ok", "Err", "StreamConn")
+   * @param {...*} fields - Constructor fields (primitives, nested adt() calls, or null)
+   * @returns {{_ctor: string, _fields: Array}}
+   * @example
+   *   AilangREPL.adt("Ok", AilangREPL.adt("StreamConn", 1))
+   *   // → {_ctor: "Ok", _fields: [{_ctor: "StreamConn", _fields: [1]}]}
+   */
+  static adt(ctor, ...fields) {
+    return { _ctor: ctor, _fields: fields };
+  }
+
+  /** Convenience: Ok(value) ADT */
+  static streamOk(val) { return AilangREPL.adt("Ok", val ?? null); }
+
+  /** Convenience: Err(StreamErrorKind(msg)) ADT */
+  static streamErr(kind, msg) { return AilangREPL.adt("Err", AilangREPL.adt(kind, msg)); }
+
+  /** Convenience: StreamConn(id) ADT */
+  static streamConn(id) { return AilangREPL.adt("StreamConn", id); }
 }
 
 // Make available globally (priority for browser usage)

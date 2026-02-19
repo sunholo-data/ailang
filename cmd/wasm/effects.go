@@ -150,6 +150,29 @@ func ailangValueToJS(v eval.Value) interface{} {
 			}
 			return ailangValueToJS(result)
 		})
+	case *eval.TaggedValue:
+		// Convert ADT to JS object with _ctor/_fields convention (M-WASM-STREAM-BRIDGE Phase 2)
+		// This enables round-trip: AILANG ADT → JS object → pattern match in JS or back to AILANG.
+		obj := js.Global().Get("Object").New()
+		obj.Set("_ctor", val.CtorName)
+		fieldsArr := js.Global().Get("Array").New(len(val.Fields))
+		for i, f := range val.Fields {
+			fieldsArr.SetIndex(i, ailangValueToJS(f))
+		}
+		obj.Set("_fields", fieldsArr)
+		return obj
+	case *eval.ListValue:
+		arr := js.Global().Get("Array").New(len(val.Elements))
+		for i, elem := range val.Elements {
+			arr.SetIndex(i, ailangValueToJS(elem))
+		}
+		return arr
+	case *eval.RecordValue:
+		obj := js.Global().Get("Object").New()
+		for k, v := range val.Fields {
+			obj.Set(k, ailangValueToJS(v))
+		}
+		return obj
 	default:
 		// Fallback: string representation
 		return formatValue(v)
@@ -179,7 +202,43 @@ func jsToAILANGValue(v js.Value) eval.Value {
 			js.CopyBytesToGo(buf, v)
 			return &eval.BytesValue{Value: buf}
 		}
-		// Object/array fallback: convert to string
+		// Check for ADT convention: {_ctor: "Name", _fields: [...]}
+		// This enables JS effect handlers to return properly-typed ADT values
+		// that AILANG code can pattern-match on (e.g., Ok(StreamConn(1))).
+		ctorVal := v.Get("_ctor")
+		if ctorVal.Type() == js.TypeString {
+			ctor := ctorVal.String()
+			var fields []eval.Value
+			fieldsVal := v.Get("_fields")
+			if fieldsVal.Type() != js.TypeUndefined && fieldsVal.Type() != js.TypeNull {
+				for i := 0; i < fieldsVal.Length(); i++ {
+					fields = append(fields, jsToAILANGValue(fieldsVal.Index(i)))
+				}
+			}
+			return &eval.TaggedValue{
+				CtorName: ctor,
+				Fields:   fields,
+			}
+		}
+		// Check for Array → ListValue
+		if v.InstanceOf(js.Global().Get("Array")) {
+			elements := make([]eval.Value, v.Length())
+			for i := 0; i < v.Length(); i++ {
+				elements[i] = jsToAILANGValue(v.Index(i))
+			}
+			return &eval.ListValue{Elements: elements}
+		}
+		// Plain object → RecordValue
+		if v.Type() == js.TypeObject {
+			keys := js.Global().Get("Object").Call("keys", v)
+			fields := make(map[string]eval.Value, keys.Length())
+			for i := 0; i < keys.Length(); i++ {
+				key := keys.Index(i).String()
+				fields[key] = jsToAILANGValue(v.Get(key))
+			}
+			return &eval.RecordValue{Fields: fields}
+		}
+		// Fallback: string representation
 		return &eval.StringValue{Value: v.String()}
 	}
 }

@@ -9,6 +9,17 @@
   - `ailangValueToJS` wraps `*eval.FunctionValue` closures as callable `js.FuncOf` functions, enabling the `onEvent(conn, handler)` pattern where AILANG callbacks are invoked by JS on each WebSocket message
   - New `REPL.ApplyClosure()` method for curried function application from WASM bridge (4 tests)
   - WASM binary builds successfully (`GOOS=js GOARCH=wasm`)
+  - **Phase 2: ADT wrapping for JS handler returns** (~165 LOC)
+    - `jsToAILANGValue` now converts JS objects with `{_ctor, _fields}` convention to `eval.TaggedValue` — enables JS effect handlers to return ADT values that AILANG can pattern-match on (e.g., `Ok(StreamConn(1))`)
+    - `jsToAILANGValue` also converts JS `Array` → `eval.ListValue` and plain objects → `eval.RecordValue`
+    - `ailangValueToJS` converts `TaggedValue` → `{_ctor, _fields}`, `ListValue` → `Array`, `RecordValue` → plain object (full round-trip)
+    - New `ailangADT(ctor, ...fields)` global JS helper for ergonomic ADT construction in effect handlers
+    - Static `AilangREPL.adt()`, `streamOk()`, `streamErr()`, `streamConn()` convenience methods in `ailang-repl.js`
+  - **Phase 3: Closure environment resolution fix** (`internal/repl/apply_closure.go`, ~40 LOC)
+    - `ApplyClosure` now creates a `RegistryResolver`-backed evaluator when the REPL has a `ModuleRegistry`, so closures containing `core.VarGlobal` references (imported functions) resolve correctly
+    - Previously, closures invoked from JS via `js.FuncOf` would fail with "undefined variable" for any cross-module import — only same-module sibling bindings worked
+    - New `makeRegistryEvaluator()` helper mirrors the pattern from `InvokeExport` (builtins + registry + effect context + dictionaries)
+    - 2 new tests: sibling binding resolution + imported function resolution via ApplyClosure
   - Design doc: `design_docs/planned/v0_8_2/m-wasm-stream-bridge.md`
 
 - **M-SEMANTIC-ENVELOPE: Multi-aspect semantic embeddings for agent messaging** (`internal/messaging/envelope.go`, `envelope_builder.go`, `embedder_openai.go`, `embedder_gemini.go`, `cmd/ailang/messages_triage.go`, ~1,450 LOC)

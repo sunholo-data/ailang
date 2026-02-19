@@ -518,6 +518,24 @@ func main() {
 	js.Global().Set("ailangEvalAsync", js.FuncOf(evalAsync))
 	js.Global().Set("ailangCallAsync", js.FuncOf(callAsync))
 
+	// Register ADT constructor helper (M-WASM-STREAM-BRIDGE Phase 2)
+	// ailangADT("Ok", ailangADT("StreamConn", 42)) → {_ctor: "Ok", _fields: [{_ctor: "StreamConn", _fields: [42]}]}
+	js.Global().Set("ailangADT", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		if len(args) < 1 {
+			return nil
+		}
+		ctor := args[0].String()
+		fields := make([]interface{}, len(args)-1)
+		for i := 1; i < len(args); i++ {
+			fields[i-1] = args[i]
+		}
+		obj := map[string]interface{}{
+			"_ctor":   ctor,
+			"_fields": fields,
+		}
+		return obj
+	}))
+
 	// Signal ready (safely check if console exists)
 	if console := js.Global().Get("console"); !console.IsUndefined() {
 		if logFunc := console.Get("log"); !logFunc.IsUndefined() {
