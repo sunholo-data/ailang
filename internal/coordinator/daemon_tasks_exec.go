@@ -260,6 +260,11 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		d.logger.Printf("Task %s using agent-configured model: %s", task.ID, agentConfig.Model)
 	}
 
+	// Pass per-agent effort level (Claude Code 2.1.47+)
+	if agentConfig != nil && agentConfig.Effort != "" {
+		opts.Effort = agentConfig.Effort
+	}
+
 	// Pass InvokeConfig for script execution (v0.6.4+)
 	// This allows the TaskExecutor to route to ScriptProvider
 	if agentConfig != nil && agentConfig.Invoke != nil {

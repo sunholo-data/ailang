@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -245,14 +247,24 @@ func FindNVMBinary(binaryName string) string {
 		return ""
 	}
 
-	// Collect version directories, sort newest first
+	// Collect version directories, sort newest first using proper semver comparison
 	var versions []string
 	for _, entry := range entries {
 		if entry.IsDir() && strings.HasPrefix(entry.Name(), "v") {
 			versions = append(versions, entry.Name())
 		}
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(versions)))
+	sort.Slice(versions, func(i, j int) bool {
+		mi, ni, pi := parseSemver(versions[i])
+		mj, nj, pj := parseSemver(versions[j])
+		if mi != mj {
+			return mi > mj
+		}
+		if ni != nj {
+			return ni > nj
+		}
+		return pi > pj
+	})
 
 	// Return the first version that has the binary
 	for _, ver := range versions {
@@ -273,6 +285,70 @@ func FindNVMNodeBinDir(binaryName string) string {
 		return ""
 	}
 	return filepath.Dir(path)
+}
+
+// FindNativeBinary looks for a native (non-Node.js) binary installed by the
+// VSCode Claude Code extension. Returns the absolute path, or empty string.
+// The native binary is a Mach-O/ELF executable that does not require Node,
+// making it the preferred option when available.
+func FindNativeBinary(binaryName string) string {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+
+	// Map Go arch names to VSCode extension arch names
+	arch := runtime.GOARCH
+	if arch == "amd64" {
+		arch = "x64"
+	}
+	platform := runtime.GOOS + "-" + arch
+
+	// Pattern: ~/.vscode/extensions/anthropic.claude-code-*-<platform>/resources/native-binary/claude
+	pattern := filepath.Join(homeDir, ".vscode", "extensions",
+		fmt.Sprintf("anthropic.%s-code-*-%s", binaryName, platform),
+		"resources", "native-binary", binaryName)
+
+	matches, err := filepath.Glob(pattern)
+	if err != nil || len(matches) == 0 {
+		return ""
+	}
+
+	// If multiple versions installed, pick the last (highest version by dir name sort)
+	sort.Strings(matches)
+	newest := matches[len(matches)-1]
+
+	// Verify it exists and is a file
+	info, err := os.Stat(newest)
+	if err != nil || info.IsDir() {
+		return ""
+	}
+	return newest
+}
+
+// RemoveEnvVar removes all entries for the given environment variable key.
+func RemoveEnvVar(env []string, key string) []string {
+	prefix := key + "="
+	result := make([]string, 0, len(env))
+	for _, v := range env {
+		if !strings.HasPrefix(v, prefix) {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// parseSemver extracts major, minor, patch from a version string like "v25.5.0".
+func parseSemver(v string) (int, int, int) {
+	v = strings.TrimPrefix(v, "v")
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) < 3 {
+		return 0, 0, 0
+	}
+	major, _ := strconv.Atoi(parts[0])
+	minor, _ := strconv.Atoi(parts[1])
+	patch, _ := strconv.Atoi(parts[2])
+	return major, minor, patch
 }
 
 // GetClaudeSettingsPath returns the path to the AILANG-specific Claude settings file.

@@ -69,6 +69,9 @@ type ExecuteOptions struct {
 	// AgentConfig for system prompt construction (v0.8.0+)
 	// Used by providers to build the meta-prompt with agent-specific instructions.
 	AgentConfig *AgentConfig
+
+	// Effort level for Claude Code (low/medium/high). Empty = Claude's default.
+	Effort string
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.

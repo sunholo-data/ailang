@@ -126,6 +126,14 @@ func (f *ExecutorFactory) ListAvailable() []string {
 	return names
 }
 
+// UpdateConfig applies a mutation to the factory's config.
+// Must be called before GetExecutor() for the executor to use the updated config.
+func (f *ExecutorFactory) UpdateConfig(fn func(*Config)) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fn(f.config)
+}
+
 // Close closes all created executors
 func (f *ExecutorFactory) Close() error {
 	f.mu.Lock()

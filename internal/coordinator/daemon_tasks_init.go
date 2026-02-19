@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/sunholo/ailang/internal/executor"
 	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/websocket"
 )
@@ -118,14 +119,22 @@ func (d *Daemon) initTaskProcessing() error {
 		d.worktreeMgr = worktreeMgr
 	}
 
+	// Apply coordinator config overrides to executor factory before creating executors
+	if coordConfig.ClaudePath != "" {
+		executor.GlobalFactory().UpdateConfig(func(cfg *executor.Config) {
+			cfg.ClaudePath = coordConfig.ClaudePath
+		})
+		d.logger.Printf("Claude binary path overridden from config: %s", coordConfig.ClaudePath)
+	}
+
 	// Initialize task executor with available providers
-	executor, err := DefaultTaskExecutor()
+	taskExecutor, err := DefaultTaskExecutor()
 	if err != nil {
 		d.logger.Printf("Warning: Failed to create task executor: %v", err)
 		d.logger.Println("Task execution disabled - will queue tasks but not execute them")
 	} else {
-		d.executor = executor
-		d.logger.Printf("Task executor initialized with providers: %v", executor.ListProviders())
+		d.executor = taskExecutor
+		d.logger.Printf("Task executor initialized with providers: %v", taskExecutor.ListProviders())
 	}
 
 	// Initialize approval checkpoint for human-in-the-loop workflow

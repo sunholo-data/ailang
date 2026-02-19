@@ -83,6 +83,7 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		Timeout:         opts.Timeout,
 		IdleTimeout:     opts.IdleTimeout,
 		Model:           opts.Model,
+		Effort:          opts.Effort,
 		Metadata:        make(map[string]string),
 		Iteration:       task.Task.Iteration, // M-TRANSCRIPT: feedback loop iteration
 		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume session if iteration > 1

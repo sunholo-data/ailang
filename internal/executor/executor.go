@@ -46,6 +46,9 @@ type Task struct {
 	Model        string            // Model to use (provider-specific)
 	Metadata     map[string]string // Provider-specific options
 
+	// Effort level (Claude Code 2.1.47+: "low", "medium", "high")
+	Effort string
+
 	// Session continuity (M-TRANSCRIPT)
 	Iteration       int    // Iteration number (1 = first run, 2+ = re-run with feedback)
 	ResumeSessionID string // Previous session ID to resume (for Iteration > 1)

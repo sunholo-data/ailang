@@ -350,6 +350,29 @@ models:
       Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
+  # Google Gemini 3.1 Pro (released February 19, 2026)
+  gemini-3-1-pro:
+    api_name: "gemini-3.1-pro-preview"
+    provider: "google"
+    description: "Gemini 3.1 Pro - 2x reasoning over 3 Pro, beats Opus 4.6"
+    env_var: "GOOGLE_API_KEY"
+    agent_cli: "gemini"  # Supports Gemini CLI for agent evals
+    agent_model_name: "gemini-3.1-pro-preview"  # Pass to -m flag
+    max_output_tokens: 65536   # 65K max output
+    pricing:
+      input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
+      output_per_1k: 0.012     # $12.00 per 1M = $0.012 per 1K (≤200k context)
+    notes: |
+      Google's most advanced reasoning model (released Feb 19, 2026).
+      ARC-AGI-2 score 77.1% - more than 2x Gemini 3 Pro's reasoning.
+      Beats Claude Opus 4.6 and GPT-5.2 on 13/16 benchmarks.
+      1M token context window, 65K max output tokens.
+      Same pricing as Gemini 3 Pro: $2.00/$12.00 per 1M (≤200k), $4.00/$18.00 per 1M (>200k).
+      Context caching: $0.20 per 1M (≤200k).
+      Available on Google AI Studio, Vertex AI, Gemini CLI, and Android Studio.
+      Also available: gemini-3.1-pro-preview-customtools (better at custom tool prioritization).
+      Agent eval support: ✅ Fully supported via Gemini CLI.
+
   # =============================================================================
   # LOCAL MODELS (via Ollama)
   # =============================================================================
@@ -429,19 +452,20 @@ default: "claude-sonnet-4-6"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
-  - "claude-sonnet-4-6" # Anthropic flagship (Feb 2026)
-  - "gemini-2-5-pro"   # Google flagship
+  - "gpt5-2-codex"      # OpenAI agentic coding (Jan 2026)
+  - "claude-sonnet-4-6"  # Anthropic flagship (Feb 2026)
+  - "gemini-3-1-pro"    # Google flagship (Feb 2026)
 
 # Extended suite - flagship + best alternatives (6 models)
 # Use for: Release baselines, comprehensive comparisons
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
-  - "claude-opus-4-6"  # Anthropic most capable (Feb 2026)
+  - "gpt5-2-codex"      # OpenAI agentic coding (Jan 2026)
+  - "claude-opus-4-6"   # Anthropic most capable (Feb 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
-  - "gemini-3-pro"     # Google latest (Nov 2025)
-  - "gemini-2-5-pro"   # Google previous flagship
+  - "gemini-3-1-pro"    # Google latest (Feb 2026)
+  - "gemini-3-pro"      # Google previous flagship (Nov 2025)
+  - "gemini-2-5-pro"    # Google previous generation
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
@@ -472,6 +496,7 @@ local_models:
 # - claude-opus-4-5   # Superseded by claude-opus-4-6 (Feb 2026)
 # - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
+# - gemini-2-5-pro    # Superseded by gemini-3-1-pro in benchmark_suite (Feb 2026)
 
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI

@@ -115,6 +115,10 @@ type AgentConfig struct {
 	// Kill if no streaming events for this long. Default: 3m.
 	// Distinguishes "agent is stuck" from "agent is working but slow".
 	IdleTimeout string `yaml:"idle_timeout" json:"idle_timeout,omitempty"`
+
+	// Per-agent effort level (Claude Code 2.1.47+: "low", "medium", "high")
+	// Controls how much effort Claude puts into the task. Default: unset (Claude's default).
+	Effort string `yaml:"effort" json:"effort,omitempty"`
 }
 
 // AgentRegistry manages the set of configured agents.

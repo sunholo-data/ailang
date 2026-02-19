@@ -13,7 +13,8 @@ import (
 type CoordinatorConfig struct {
 	Agents          []*AgentConfig    `yaml:"agents" json:"agents"`
 	DefaultProvider string            `yaml:"default_provider" json:"default_provider"`
-	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"` // Target branch for approvals (default: "dev")
+	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
+	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"`         // Target branch for approvals (default: "dev")
 	GitHubSync      *GitHubSyncConfig `yaml:"github_sync" json:"github_sync"`
 }
 

@@ -38,14 +38,21 @@ func New(cfg *executor.Config) (*ClaudeExecutor, error) {
 		claudePath = "claude"
 	}
 
-	// Resolve NVM installation if "claude" is not in PATH
-	// NVM paths aren't in daemon PATH, so scan installed versions (newest first)
-	// IMPORTANT: When using NVM-resolved claude, we must also set PATH to include
-	// the NVM node bin directory. The claude binary is a Node.js script (#!/usr/bin/env node)
-	// and needs the matching Node version to be first in PATH.
+	// Binary resolution cascade:
+	// 1. Explicit config path (non-empty, not "claude") — use as-is
+	// 2. VSCode native binary (Mach-O/ELF, no Node.js dependency)
+	// 3. System PATH lookup
+	// 4. NVM scan (newest version first, with proper semver sort)
+	//
+	// The native binary is preferred over NVM because it eliminates the
+	// Node.js dependency and the PATH injection hack for #!/usr/bin/env node.
 	var nvmBinDir string
 	if claudePath == "claude" {
-		if _, err := exec.LookPath("claude"); err != nil {
+		if nativePath := executor.FindNativeBinary("claude"); nativePath != "" {
+			// Native binary found — no Node needed, no nvmBinDir
+			claudePath = nativePath
+		} else if _, err := exec.LookPath("claude"); err != nil {
+			// Not in PATH — fall back to NVM scan
 			if nvmPath := executor.FindNVMBinary("claude"); nvmPath != "" {
 				claudePath = nvmPath
 				nvmBinDir = executor.FindNVMNodeBinDir("claude")
@@ -153,6 +160,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		args = append(args, "--add-dir", task.Workspace)
 	}
 
+	// Effort level (Claude Code 2.1.47+: low/medium/high)
+	if task.Effort != "" {
+		args = append(args, "--effort", task.Effort)
+	}
+
 	// Use task-specific tools if specified, otherwise fall back to executor config
 	tools := e.allowedTools
 	if len(task.AllowedTools) > 0 {
@@ -179,6 +191,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// is found by the claude shebang (#!/usr/bin/env node).
 	// Without this, `env node` resolves to the system/default Node which
 	// may be incompatible with the installed Claude Code version.
+	// Note: Not needed when using the native binary (nvmBinDir is empty).
 	if e.nvmBinDir != "" {
 		for i, v := range cmd.Env {
 			if strings.HasPrefix(v, "PATH=") {
@@ -187,6 +200,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			}
 		}
 	}
+
+	// Remove CLAUDECODE env var to prevent "Cannot be launched inside another
+	// Claude Code session" error when the coordinator runs inside Claude Code.
+	cmd.Env = executor.RemoveEnvVar(cmd.Env, "CLAUDECODE")
 
 	// Create pipes
 	stdout, err := cmd.StdoutPipe()
