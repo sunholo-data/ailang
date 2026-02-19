@@ -58,6 +58,12 @@ type EnvironmentOptions struct {
 func BuildEnvironment(opts EnvironmentOptions) []string {
 	env := os.Environ()
 
+	// Strip CLAUDECODE env var to prevent "Cannot be launched inside another
+	// Claude Code session" errors. This applies to ALL executors — even Gemini
+	// may shell out to Claude Code, and future executors shouldn't need to know
+	// about this workaround.
+	env = RemoveEnvVar(env, "CLAUDECODE")
+
 	// Set up AILANG stdlib path
 	cwd, _ := os.Getwd()
 	stdlibPath := filepath.Join(cwd, "std")

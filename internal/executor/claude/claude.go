@@ -201,9 +201,8 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 	}
 
-	// Remove CLAUDECODE env var to prevent "Cannot be launched inside another
-	// Claude Code session" error when the coordinator runs inside Claude Code.
-	cmd.Env = executor.RemoveEnvVar(cmd.Env, "CLAUDECODE")
+	// NOTE: CLAUDECODE env var is stripped centrally in BuildEnvironment()
+	// so it applies to ALL executors (Claude, Gemini, future ones).
 
 	// Create pipes
 	stdout, err := cmd.StdoutPipe()
