@@ -700,7 +700,13 @@ See: [Google Cloud buildpacks for Go](https://cloud.google.com/docs/buildpacks/g
 | `internal/server/server.go` | Use backend selector |
 | `internal/observatory/backend.go` | Add BigQuery backend |
 | `cmd/ailang/main.go` | Add cloud subcommands |
-| `Makefile` | Add docker/cloud targets |
+| `Makefile` | Add cloud-deploy targets |
+
+### New Files (Planned)
+
+| File | LOC | Purpose |
+|------|-----|---------|
+| `internal/executor/codex/codex.go` | ~250 | Codex CLI executor (mirrors claude/gemini pattern) |
 
 ---
 
@@ -751,7 +757,8 @@ Providers wrap executors with coordinator-specific logic:
 ```go
 // ClaudeCodeProvider - Uses internal/executor/claude
 // GeminiCLIProvider - Uses internal/executor/gemini
-// ScriptProvider - Direct shell execution
+// CodexProvider     - Uses internal/executor/codex (planned)
+// ScriptProvider    - Direct shell execution
 
 // provider.go interface
 type Provider interface {
@@ -948,17 +955,31 @@ docs/
 
 #### Agent Executor (`infra/docker/Dockerfile.agent-executor`)
 
-**Note:** The agent executor still needs a Dockerfile because it requires Claude CLI,
-Gemini CLI, and Node.js — dependencies that buildpacks can't auto-detect from `go.mod`.
+**Note:** The agent executor still needs a Dockerfile because it requires CLI coding
+agents (Claude Code, Gemini CLI, Codex CLI) that buildpacks can't auto-detect from `go.mod`.
+
+**Official references:**
+- Claude Code: [Official devcontainer Dockerfile](https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile) (base: `node:20`, install via npm)
+- Gemini CLI: [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) (npm package, no official Docker image)
+- Codex CLI: [openai/codex-universal](https://github.com/openai/codex-universal) (sandbox base image at `ghcr.io/openai/codex-universal:latest`, CLI is a separate Rust binary)
+
+| Agent CLI | Install Method | Binary |
+|-----------|---------------|--------|
+| Claude Code | `npm install -g @anthropic-ai/claude-code` | `claude` |
+| Gemini CLI | `npm install -g @google/gemini-cli` | `gemini` |
+| Codex CLI | `npm install -g @openai/codex` | `codex` |
+
+Since all three are npm packages, we use `node:20` as the base (matching
+Anthropic's [official devcontainer](https://code.claude.com/docs/en/devcontainer)).
 
 ```dockerfile
-# Agent executor with Claude CLI, Gemini CLI, and ailang binary
-# This container runs in Cloud Run Jobs, triggered by Eventarc from Pub/Sub
+# Agent executor with Claude Code, Gemini CLI, Codex CLI, and ailang binary
+# Runs as Cloud Run Job, triggered by Eventarc from Pub/Sub
 #
 # The entrypoint is `ailang coordinator execute-job` which:
 # 1. Fetches task from Firestore
 # 2. Clones repo and creates branch
-# 3. Executes via internal/executor (ClaudeCodeProvider or GeminiCLIProvider)
+# 3. Executes via internal/executor (ClaudeCodeProvider, GeminiCLIProvider, or CodexProvider)
 # 4. Commits/pushes changes
 # 5. Reports completion via Pub/Sub
 
@@ -976,33 +997,21 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags="-w -s -X main.Version=${VERSION:-dev}" \
     -o /ailang ./cmd/ailang
 
-# Stage 2: Runtime with CLIs
-FROM ubuntu:22.04
+# Stage 2: Runtime — node:20 base (matches Anthropic's official devcontainer)
+# All three CLI agents are npm packages, so node:20 is the natural base.
+FROM node:20
 
-# Prevent interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install base dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
     jq \
     openssh-client \
-    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 20 (for Claude Code CLI and Gemini CLI)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Claude Code CLI (npm package)
-# The claude binary is the headless CLI for programmatic use
+# Install CLI coding agents (all npm packages)
 RUN npm install -g @anthropic-ai/claude-code@latest
-
-# Install Gemini CLI (Google's AI coding assistant)
-RUN npm install -g @google/generative-ai-cli@latest || echo "Gemini CLI optional"
+RUN npm install -g @google/gemini-cli@latest
+RUN npm install -g @openai/codex@latest
 
 # Copy ailang binary from builder
 COPY --from=builder /ailang /usr/local/bin/ailang
@@ -1021,11 +1030,6 @@ USER agent
 ENV AILANG_STORAGE=gcp
 ENV AILANG_STDLIB_PATH=/opt/ailang/std
 ENV HOME=/home/agent
-ENV PATH="/usr/local/bin:${PATH}"
-
-# Health check (verifies claude CLI is available)
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD claude --version || exit 1
 
 # Entrypoint: ailang coordinator execute-job
 # Receives AILANG_TASK_ID from Eventarc and executes the full task lifecycle
@@ -1055,17 +1059,14 @@ ENTRYPOINT ["/usr/local/bin/ailang", "coordinator", "execute-job"]
 │     ▼                                                                        │
 │  6. Execute task via TaskExecutor.Execute()                                  │
 │     │                                                                        │
-│     └──► ClaudeCodeProvider.Execute()                                        │
-│          │                                                                   │
-│          └──► internal/executor/claude/claude.go                             │
-│               │                                                              │
-│               └──► exec.Command("claude",                                    │
-│                       "-p", directive,                                       │
-│                       "--output-format", "stream-json",                      │
-│                       "--permission-mode", "bypassPermissions",              │
-│                       "--model", model,                                      │
-│                       "--session-id", sessionID,                             │
-│                       "--add-dir", workspace)                                │
+│     ├──► ClaudeCodeProvider  → internal/executor/claude/claude.go            │
+│     │    └──► exec.Command("claude", "-p", directive, ...)                   │
+│     │                                                                        │
+│     ├──► GeminiCLIProvider   → internal/executor/gemini/gemini.go            │
+│     │    └──► exec.Command("gemini", "--output-format", "json", ...)         │
+│     │                                                                        │
+│     └──► CodexProvider       → internal/executor/codex/codex.go (planned)    │
+│          └──► exec.Command("codex", ...)                                     │
 │     │                                                                        │
 │     ▼                                                                        │
 │  7. Auto-commit changes: git add -A && git commit                           │
@@ -1081,7 +1082,7 @@ ENTRYPOINT ["/usr/local/bin/ailang", "coordinator", "execute-job"]
 
 #### Cloud Execution via `ailang coordinator execute-job` (NEW COMMAND)
 
-**IMPORTANT: The existing AILANG implementation uses the `internal/executor/` package directly from Go code, NOT a shell script. The coordinator daemon orchestrates task execution via providers (`ClaudeCodeProvider`, `GeminiCLIProvider`, `ScriptProvider`).**
+**IMPORTANT: The existing AILANG implementation uses the `internal/executor/` package directly from Go code, NOT a shell script. The coordinator daemon orchestrates task execution via providers (`ClaudeCodeProvider`, `GeminiCLIProvider`, `CodexProvider` (planned), `ScriptProvider`).**
 
 For Cloud Run Jobs, we add a new CLI command that wraps the existing executor infrastructure:
 
@@ -1156,9 +1157,9 @@ func coordinatorExecuteJob(args []string) error {
         opts.InvokeConfig = agentConfig.Invoke
     }
 
-    // 9. Execute task (uses ClaudeCodeProvider or GeminiCLIProvider)
-    // The provider runs: `claude -p <directive> --output-format stream-json ...`
-    // See internal/executor/claude/claude.go for the actual CLI invocation
+    // 9. Execute task (uses ClaudeCodeProvider, GeminiCLIProvider, or CodexProvider)
+    // The provider runs the configured CLI agent (claude, gemini, or codex)
+    // See internal/executor/{claude,gemini,codex}/ for CLI invocations
     result, err := executor.Execute(ctx, analyzed, opts)
     if err != nil {
         return reportCompletion(ctx, task.ID, nil, err)
