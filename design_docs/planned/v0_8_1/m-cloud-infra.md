@@ -585,19 +585,27 @@ CLUSTER BY trace_id, task_id;
 - [ ] Query translation for filters
 - [ ] Aggregation queries
 
-### Phase 2: Docker Containers (Week 1-2)
+### Phase 2: Cloud Run Source Deploy (Week 1-2)
 
-**M5: Dockerfiles** (~200 LOC)
-- [ ] `infra/docker/Dockerfile.coordinator` - Go binary + git
-- [ ] `infra/docker/Dockerfile.dashboard` - Go binary + embedded React UI
-- [ ] `infra/docker/Dockerfile.agent-executor` - Go + Claude CLI + Gemini CLI + git
-- [ ] Multi-stage builds for minimal image size
+**Simplified approach**: Use `gcloud run deploy --source .` instead of Dockerfiles.
+Cloud Run's buildpacks auto-detect Go via `go.mod`, build the binary, and deploy —
+no Dockerfile maintenance required.
 
-**M6: Docker Compose** (~100 LOC)
-- [ ] `infra/docker/docker-compose.yml` with emulators
-- [ ] Firestore emulator container
-- [ ] Pub/Sub emulator container
-- [ ] Local development workflow
+See: [Cloud Run source deployment docs](https://cloud.google.com/run/docs/deploying-source-code)
+See: [Google Cloud buildpacks for Go](https://cloud.google.com/docs/buildpacks/go)
+
+**M5: Source Deploy Configuration** (~50 LOC)
+- [ ] `Procfile` for dashboard: `web: ailang serve --port ${PORT}`
+- [ ] `Procfile.coordinator` for coordinator variant
+- [ ] `.gcloudignore` to exclude `ui/node_modules/`, `.git/`, test fixtures
+- [ ] Pre-build UI assets: `cd ui && npm run build` before deploy (go:embed picks them up)
+- [ ] `GOOGLE_BUILDABLE=./cmd/ailang` build env var to target the correct Go package
+- [ ] Validate `go:embed` works with buildpacks (embedded UI, stdlib, prompts)
+
+**M6: Deploy Scripts** (~100 LOC)
+- [ ] `scripts/cloud-deploy-dashboard.sh` - Source deploy with env vars
+- [ ] `scripts/cloud-deploy-coordinator.sh` - Source deploy with env vars
+- [ ] `Makefile` targets: `make cloud-deploy-dashboard`, `make cloud-deploy-coordinator`
 
 **M7: Cloud Execution Command** (~200 LOC)
 - [ ] `cmd/ailang/coordinator_cloud.go` - New `execute-job` subcommand
@@ -606,6 +614,7 @@ CLUSTER BY trace_id, task_id;
 - [ ] Execute via existing TaskExecutor → Provider → Executor chain
 - [ ] Commit/push changes (reuse existing git helpers)
 - [ ] Report completion via Pub/Sub
+- [ ] Agent executor still needs Dockerfile (requires Claude CLI + Gemini CLI + Node.js)
 
 ### Phase 3: Terraform Infrastructure (Week 2-3)
 
@@ -665,10 +674,11 @@ CLUSTER BY trace_id, task_id;
 | `internal/storage/firestore/coordinator.go` | ~400 | Firestore coordinator store |
 | `internal/storage/firestore/messaging.go` | ~300 | Firestore messaging store |
 | `internal/storage/bigquery/observatory.go` | ~250 | BigQuery observatory |
-| `infra/docker/Dockerfile.coordinator` | ~40 | Coordinator container |
-| `infra/docker/Dockerfile.dashboard` | ~50 | Dashboard container |
-| `infra/docker/Dockerfile.agent-executor` | ~60 | Agent job container |
-| `infra/docker/docker-compose.yml` | ~100 | Local dev stack |
+| `Procfile` | ~1 | Cloud Run entrypoint for dashboard |
+| `.gcloudignore` | ~15 | Exclude files from source upload |
+| `scripts/cloud-deploy-dashboard.sh` | ~30 | Dashboard source deploy script |
+| `scripts/cloud-deploy-coordinator.sh` | ~30 | Coordinator source deploy script |
+| `infra/docker/Dockerfile.agent-executor` | ~60 | Agent job container (needs CLIs) |
 | `cmd/ailang/coordinator_cloud.go` | ~200 | Cloud Run Job execution command |
 | `infra/terraform/main.tf` | ~150 | Terraform provider |
 | `infra/terraform/firestore.tf` | ~80 | Firestore config |
@@ -731,7 +741,7 @@ All environment variable setup is centralized:
 // - TRACEPARENT (W3C trace context)
 // - AILANG_TASK_ID, AILANG_SESSION_ID
 // - OTEL_RESOURCE_ATTRIBUTES
-// - GOOGLE_CLOUD_PROJECT
+// - AILANG_CLOUD_PROJECT
 ```
 
 ### Coordinator Providers (`internal/coordinator/provider_*.go`)
@@ -854,96 +864,92 @@ Patterns for git operations:
 
 ## Deployment Artifacts
 
-### Dockerfiles
+### Cloud Run Source Deploy (Dashboard + Coordinator)
 
-#### Dashboard Server (`infra/docker/Dockerfile.dashboard`)
+**No Dockerfiles needed** for the dashboard and coordinator. Cloud Run builds from source
+using [Google Cloud buildpacks](https://cloud.google.com/docs/buildpacks/go), which
+auto-detect Go via `go.mod` and build the binary.
 
-```dockerfile
-# Multi-stage build for minimal image size
-# Stage 1: Build React UI
-FROM node:20-alpine AS ui-builder
+**How it works:**
+1. `gcloud run deploy --source .` uploads source to Cloud Storage
+2. Cloud Build triggers with Google Cloud buildpacks
+3. Buildpacks detect `go.mod`, run `go build`, produce container image
+4. Image stored in Artifact Registry (`cloud-run-source-deploy` repo)
+5. Cloud Run deploys the new revision
 
-WORKDIR /ui
-COPY ui/package*.json ./
-RUN npm ci --production=false
-COPY ui/ .
-RUN npm run build
+**Key build env var:** `GOOGLE_BUILDABLE=./cmd/ailang` — tells buildpacks which
+Go package to build (required for multi-package repos like AILANG).
 
-# Stage 2: Build Go binary
-FROM golang:1.22-alpine AS go-builder
+**Important:** `go:embed` works with buildpacks — embedded assets (UI, stdlib, prompts)
+are compiled into the binary at build time. Do NOT set `GOOGLE_CLEAR_SOURCE=true`.
 
-RUN apk add --no-cache git ca-certificates tzdata
+#### Dashboard Server
 
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
+```bash
+# Pre-build React UI (go:embed picks up dist/ at build time)
+cd ui && npm ci && npm run build && cd ..
 
-COPY . .
-# Copy built UI into embed location
-COPY --from=ui-builder /ui/dist /app/internal/server/dist
-
-# Build with embedded UI
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s -X main.Version=${VERSION:-dev}" \
-    -o /ailang ./cmd/ailang
-
-# Stage 3: Runtime image
-FROM gcr.io/distroless/static-debian12:nonroot
-
-COPY --from=go-builder /ailang /usr/local/bin/ailang
-COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=go-builder /usr/share/zoneinfo /usr/share/zoneinfo
-
-USER nonroot:nonroot
-
-ENV AILANG_STORAGE=gcp
-ENV PORT=8080
-
-EXPOSE 8080
-
-ENTRYPOINT ["/usr/local/bin/ailang"]
-CMD ["serve", "--port", "8080"]
+# Deploy from source
+gcloud run deploy ailang-dashboard \
+  --source . \
+  --region us-central1 \
+  --set-build-env-vars GOOGLE_BUILDABLE=./cmd/ailang \
+  --set-env-vars AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${AILANG_CLOUD_PROJECT} \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest \
+  --service-account ailang-dashboard@${PROJECT_ID}.iam.gserviceaccount.com \
+  --allow-unauthenticated=false \
+  --min-instances 1 \
+  --max-instances 10 \
+  --memory 512Mi \
+  --cpu 1 \
+  --port 8080 \
+  --command ailang \
+  --args "serve,--port,8080"
 ```
 
-#### Coordinator Daemon (`infra/docker/Dockerfile.coordinator`)
+Alternatively, use a `Procfile` (buildpacks convention):
+```
+web: ailang serve --port ${PORT}
+```
 
-```dockerfile
-# Multi-stage build
-FROM golang:1.22-alpine AS builder
+#### Coordinator Daemon
 
-RUN apk add --no-cache git ca-certificates tzdata
+```bash
+gcloud run deploy ailang-coordinator \
+  --source . \
+  --region us-central1 \
+  --set-build-env-vars GOOGLE_BUILDABLE=./cmd/ailang \
+  --set-env-vars AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${AILANG_CLOUD_PROJECT},COORDINATOR_MODE=cloud \
+  --set-secrets ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest \
+  --service-account ailang-coordinator@${PROJECT_ID}.iam.gserviceaccount.com \
+  --no-allow-unauthenticated \
+  --min-instances 1 \
+  --max-instances 3 \
+  --memory 1Gi \
+  --cpu 1 \
+  --timeout 3600 \
+  --command ailang \
+  --args "coordinator,start,--foreground"
+```
 
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
+#### `.gcloudignore`
 
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s -X main.Version=${VERSION:-dev}" \
-    -o /ailang ./cmd/ailang
-
-# Runtime image with git (needed for worktree operations)
-FROM alpine:3.19
-
-RUN apk add --no-cache ca-certificates tzdata git openssh-client
-
-# Create non-root user
-RUN adduser -D -u 1000 ailang
-USER ailang
-
-COPY --from=builder /ailang /usr/local/bin/ailang
-
-# Create state directories
-RUN mkdir -p /home/ailang/.ailang/state /home/ailang/.ailang/logs
-
-ENV AILANG_STORAGE=gcp
-ENV AILANG_STATE_DIR=/home/ailang/.ailang/state
-
-ENTRYPOINT ["/usr/local/bin/ailang"]
-CMD ["coordinator", "start", "--foreground"]
+```
+.git/
+ui/node_modules/
+examples/
+tests/
+benchmarks/
+design_docs/
+docs/
+*.test
+*_test.go
 ```
 
 #### Agent Executor (`infra/docker/Dockerfile.agent-executor`)
+
+**Note:** The agent executor still needs a Dockerfile because it requires Claude CLI,
+Gemini CLI, and Node.js — dependencies that buildpacks can't auto-detect from `go.mod`.
 
 ```dockerfile
 # Agent executor with Claude CLI, Gemini CLI, and ailang binary
@@ -1191,7 +1197,7 @@ func cloneRepository(repoURL, workspace, taskID string) error {
 
 // reportCompletion publishes completion status to Pub/Sub
 func reportCompletion(ctx context.Context, taskID string, result *coordinator.ExecuteResult, execErr error) error {
-    projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+    projectID := os.Getenv("AILANG_CLOUD_PROJECT")
     client, _ := pubsub.NewClient(ctx, projectID)
     defer client.Close()
 
@@ -1248,10 +1254,14 @@ func reportCompletion(ctx context.Context, taskID string, result *coordinator.Ex
 
 ### Cloud Build CI/CD (`infra/cloudbuild.yaml`)
 
+**Simplified with source deploy**: Dashboard and coordinator use `gcloud run deploy --source .`
+which handles build+push+deploy in one step. Only the agent executor needs a Dockerfile.
+
 ```yaml
 # Cloud Build configuration for AILANG services
 # Triggers on push to main/dev branches
-# Builds and deploys all three services
+# Dashboard + coordinator: source deploy (buildpacks, no Dockerfile)
+# Agent executor: Docker build (needs Claude CLI + Node.js)
 
 substitutions:
   _REGION: us-central1
@@ -1263,35 +1273,69 @@ options:
 
 steps:
   # ═══════════════════════════════════════════════════════════════════════
-  # STEP 1: Build Dashboard Image
+  # STEP 1: Build React UI (needed for go:embed before source deploy)
   # ═══════════════════════════════════════════════════════════════════════
-  - id: build-dashboard
-    name: gcr.io/cloud-builders/docker
+  - id: build-ui
+    name: node:20-alpine
+    entrypoint: sh
     args:
-      - build
-      - --file=infra/docker/Dockerfile.dashboard
-      - --tag=${_ARTIFACT_REGISTRY}/dashboard:${SHORT_SHA}
-      - --tag=${_ARTIFACT_REGISTRY}/dashboard:latest
-      - --cache-from=${_ARTIFACT_REGISTRY}/dashboard:latest
-      - --build-arg=VERSION=${TAG_NAME:-${SHORT_SHA}}
-      - .
+      - -c
+      - cd ui && npm ci && npm run build
 
   # ═══════════════════════════════════════════════════════════════════════
-  # STEP 2: Build Coordinator Image
+  # STEP 2: Deploy Dashboard from Source (buildpacks, no Dockerfile)
   # ═══════════════════════════════════════════════════════════════════════
-  - id: build-coordinator
-    name: gcr.io/cloud-builders/docker
+  - id: deploy-dashboard
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
     args:
-      - build
-      - --file=infra/docker/Dockerfile.coordinator
-      - --tag=${_ARTIFACT_REGISTRY}/coordinator:${SHORT_SHA}
-      - --tag=${_ARTIFACT_REGISTRY}/coordinator:latest
-      - --cache-from=${_ARTIFACT_REGISTRY}/coordinator:latest
-      - --build-arg=VERSION=${TAG_NAME:-${SHORT_SHA}}
-      - .
+      - run
+      - deploy
+      - ailang-dashboard
+      - --source=.
+      - --region=${_REGION}
+      - --set-build-env-vars=GOOGLE_BUILDABLE=./cmd/ailang
+      - --allow-unauthenticated=false
+      - --service-account=ailang-dashboard@${PROJECT_ID}.iam.gserviceaccount.com
+      - --set-env-vars=AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${PROJECT_ID}
+      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest
+      - --min-instances=1
+      - --max-instances=10
+      - --memory=512Mi
+      - --cpu=1
+      - --port=8080
+      - --command=ailang
+      - --args=serve,--port,8080
+    waitFor: [build-ui]
 
   # ═══════════════════════════════════════════════════════════════════════
-  # STEP 3: Build Agent Executor Image
+  # STEP 3: Deploy Coordinator from Source (buildpacks, no Dockerfile)
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: deploy-coordinator
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ailang-coordinator
+      - --source=.
+      - --region=${_REGION}
+      - --set-build-env-vars=GOOGLE_BUILDABLE=./cmd/ailang
+      - --no-allow-unauthenticated
+      - --service-account=ailang-coordinator@${PROJECT_ID}.iam.gserviceaccount.com
+      - --set-env-vars=AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${PROJECT_ID},COORDINATOR_MODE=cloud
+      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest
+      - --min-instances=1
+      - --max-instances=3
+      - --memory=1Gi
+      - --cpu=1
+      - --timeout=3600
+      - --command=ailang
+      - --args=coordinator,start,--foreground
+    waitFor: [build-ui]
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # STEP 4: Build Agent Executor Image (Dockerfile — needs CLIs)
   # ═══════════════════════════════════════════════════════════════════════
   - id: build-agent-executor
     name: gcr.io/cloud-builders/docker
@@ -1305,78 +1349,13 @@ steps:
       - .
 
   # ═══════════════════════════════════════════════════════════════════════
-  # STEP 4: Push Images to Artifact Registry (in parallel)
+  # STEP 5: Push Agent Executor + Deploy as Cloud Run Job
   # ═══════════════════════════════════════════════════════════════════════
-  - id: push-dashboard
-    name: gcr.io/cloud-builders/docker
-    args: [push, --all-tags, '${_ARTIFACT_REGISTRY}/dashboard']
-    waitFor: [build-dashboard]
-
-  - id: push-coordinator
-    name: gcr.io/cloud-builders/docker
-    args: [push, --all-tags, '${_ARTIFACT_REGISTRY}/coordinator']
-    waitFor: [build-coordinator]
-
   - id: push-agent-executor
     name: gcr.io/cloud-builders/docker
     args: [push, --all-tags, '${_ARTIFACT_REGISTRY}/agent-executor']
     waitFor: [build-agent-executor]
 
-  # ═══════════════════════════════════════════════════════════════════════
-  # STEP 5: Deploy Dashboard to Cloud Run
-  # ═══════════════════════════════════════════════════════════════════════
-  - id: deploy-dashboard
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - ailang-dashboard
-      - --image=${_ARTIFACT_REGISTRY}/dashboard:${SHORT_SHA}
-      - --region=${_REGION}
-      - --platform=managed
-      - --allow-unauthenticated=false  # IAP handles auth
-      - --service-account=ailang-dashboard@${PROJECT_ID}.iam.gserviceaccount.com
-      - --set-env-vars=AILANG_STORAGE=gcp,GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
-      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest
-      - --min-instances=1
-      - --max-instances=10
-      - --memory=512Mi
-      - --cpu=1
-      - --port=8080
-      - --vpc-connector=ailang-vpc-connector
-      - --vpc-egress=all-traffic
-    waitFor: [push-dashboard]
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # STEP 6: Deploy Coordinator to Cloud Run
-  # ═══════════════════════════════════════════════════════════════════════
-  - id: deploy-coordinator
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - ailang-coordinator
-      - --image=${_ARTIFACT_REGISTRY}/coordinator:${SHORT_SHA}
-      - --region=${_REGION}
-      - --platform=managed
-      - --no-allow-unauthenticated
-      - --service-account=ailang-coordinator@${PROJECT_ID}.iam.gserviceaccount.com
-      - --set-env-vars=AILANG_STORAGE=gcp,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},COORDINATOR_MODE=cloud
-      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest
-      - --min-instances=1
-      - --max-instances=3
-      - --memory=1Gi
-      - --cpu=1
-      - --timeout=3600
-      - --vpc-connector=ailang-vpc-connector
-      - --vpc-egress=all-traffic
-    waitFor: [push-coordinator]
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # STEP 7: Update Cloud Run Job for Agent Executor
-  # ═══════════════════════════════════════════════════════════════════════
   - id: deploy-agent-executor
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
@@ -1388,26 +1367,24 @@ steps:
       - --image=${_ARTIFACT_REGISTRY}/agent-executor:${SHORT_SHA}
       - --region=${_REGION}
       - --service-account=ailang-agent-executor@${PROJECT_ID}.iam.gserviceaccount.com
-      - --set-env-vars=AILANG_STORAGE=gcp,GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+      - --set-env-vars=AILANG_STORAGE=gcp,AILANG_CLOUD_PROJECT=${PROJECT_ID}
       - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,GITHUB_TOKEN=github-token:latest,GOOGLE_API_KEY=google-api-key:latest
       - --memory=4Gi
       - --cpu=2
       - --task-timeout=1800
       - --max-retries=1
-      - --vpc-connector=ailang-vpc-connector
-      - --vpc-egress=all-traffic
     waitFor: [push-agent-executor]
 
 images:
-  - ${_ARTIFACT_REGISTRY}/dashboard:${SHORT_SHA}
-  - ${_ARTIFACT_REGISTRY}/dashboard:latest
-  - ${_ARTIFACT_REGISTRY}/coordinator:${SHORT_SHA}
-  - ${_ARTIFACT_REGISTRY}/coordinator:latest
   - ${_ARTIFACT_REGISTRY}/agent-executor:${SHORT_SHA}
   - ${_ARTIFACT_REGISTRY}/agent-executor:latest
 
 timeout: 1800s  # 30 minutes
 ```
+
+**Key simplification**: Dashboard and coordinator go from 7 steps (build 3 images + push 3 + deploy 3)
+to 4 steps (build UI + source deploy 2 + Docker build/push/deploy agent). Source deploy handles
+build + push + deploy in a single `gcloud run deploy --source .` command.
 
 ---
 
@@ -1513,9 +1490,9 @@ type PubSubBroker struct {
 }
 
 func NewPubSubBroker(ctx context.Context) (*PubSubBroker, error) {
-    projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
+    projectID := os.Getenv("AILANG_CLOUD_PROJECT")
     if projectID == "" {
-        return nil, fmt.Errorf("GOOGLE_CLOUD_PROJECT not set")
+        return nil, fmt.Errorf("AILANG_CLOUD_PROJECT not set")
     }
 
     client, err := pubsub.NewClient(ctx, projectID)

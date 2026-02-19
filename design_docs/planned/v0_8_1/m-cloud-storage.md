@@ -340,7 +340,7 @@ ailang serve
 
 ```bash
 # Set GCP project and storage mode
-export GOOGLE_CLOUD_PROJECT=my-ailang-project
+export AILANG_CLOUD_PROJECT=my-ailang-project
 export AILANG_STORAGE=gcp
 
 # Start server (uses Firestore + BigQuery)
@@ -352,7 +352,7 @@ ailang serve --port 8080
 ```bash
 # Keep local SQLite for coordinator, use BigQuery for analytics
 export AILANG_STORAGE=hybrid
-export GOOGLE_CLOUD_PROJECT=my-ailang-project
+export AILANG_CLOUD_PROJECT=my-ailang-project
 
 ailang serve
 # Coordinator: local SQLite (fast, no network latency)
