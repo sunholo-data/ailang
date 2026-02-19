@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -25,8 +26,9 @@ func runMessagesSend(args []string) {
 	parentTaskID := fs.String("parent-task", "", "Parent task ID for hierarchical execution")
 
 	// Envelope flags (M-SEMANTIC-ENVELOPE)
-	envelopeCode := fs.String("envelope-code", "", "File paths for code envelope slot (comma-separated)")
+	envelopeCode := fs.String("envelope-code", "", "File paths for code envelope slot (comma-separated, or 'auto' for git-detected)")
 	envelopeContext := fs.String("envelope-context", "", "Context description for context envelope slot")
+	noEnvelope := fs.Bool("no-envelope", false, "Skip all automatic envelope computation")
 
 	// GitHub sync flags
 	github := fs.Bool("github", false, "Also create a GitHub issue")
@@ -36,7 +38,7 @@ func runMessagesSend(args []string) {
 
 	// Normalize args: move flags before positional arguments
 	// Go's flag package requires flags to come first, but users often put them at the end
-	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "github", "type", "repo", "github-user"})
+	args = normalizeArgsForFlags(args, []string{"payload", "title", "from", "correlation", "force", "parent-task", "envelope-code", "envelope-context", "no-envelope", "github", "type", "repo", "github-user"})
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -118,35 +120,44 @@ func runMessagesSend(args []string) {
 
 	fmt.Printf("%s Message sent to '%s' (ID: %s)\n", green("✓"), inbox, msg.MessageID)
 
-	// Compute envelope if envelope flags provided (M-SEMANTIC-ENVELOPE)
-	if *envelopeCode != "" || *envelopeContext != "" {
-		cfg := messaging.LoadEmbedConfigFromEnv()
-		embedder, embErr := messaging.NewEmbedderFromConfig(cfg)
-		if embErr != nil || embedder == nil {
-			fmt.Fprintf(os.Stderr, "%s Envelope skipped: no embedder configured\n", yellow("!"))
-		} else {
-			builder := messaging.NewEnvelopeBuilder(embedder)
-			if *envelopeCode != "" {
-				files := strings.Split(*envelopeCode, ",")
-				builder = builder.WithCodeContext(files, nil)
-			}
-			if *envelopeContext != "" {
-				builder = builder.WithSessionContext(nil, nil, []string{*envelopeContext})
-			}
-			env, buildErr := builder.Build(msg)
-			if buildErr != nil {
-				fmt.Fprintf(os.Stderr, "%s Envelope computation failed: %v\n", yellow("!"), buildErr)
-			} else if !env.IsEmpty() {
-				if updateErr := store.UpdateMessageEnvelope(msg.MessageID, env, false); updateErr != nil {
-					fmt.Fprintf(os.Stderr, "%s Envelope save failed: %v\n", yellow("!"), updateErr)
-				} else {
-					slotCount := 0
-					for _, v := range env.Slots {
-						if v != nil && len(v.Vector) > 0 {
-							slotCount++
+	// Compute envelope (M-SEMANTIC-ENVELOPE)
+	// Auto-detects git context unless --no-envelope is set
+	if !*noEnvelope {
+		// Resolve code files: explicit flag, "auto", or auto-detect from git
+		codeFiles := resolveEnvelopeCodeFiles(*envelopeCode)
+
+		if len(codeFiles) > 0 || *envelopeContext != "" {
+			cfg := messaging.LoadEmbedConfigFromEnv()
+			embedder, embErr := messaging.NewEmbedderFromConfig(cfg)
+			if embErr != nil || embedder == nil {
+				// Silent: no embedder configured is fine for most users
+			} else {
+				builder := messaging.NewEnvelopeBuilder(embedder)
+				if len(codeFiles) > 0 {
+					builder = builder.WithCodeContext(codeFiles, nil)
+				}
+				if *envelopeContext != "" {
+					builder = builder.WithSessionContext(nil, nil, []string{*envelopeContext})
+				}
+				env, buildErr := builder.Build(msg)
+				if buildErr != nil {
+					fmt.Fprintf(os.Stderr, "%s Envelope computation failed: %v\n", yellow("!"), buildErr)
+				} else if !env.IsEmpty() {
+					if updateErr := store.UpdateMessageEnvelope(msg.MessageID, env, false); updateErr != nil {
+						fmt.Fprintf(os.Stderr, "%s Envelope save failed: %v\n", yellow("!"), updateErr)
+					} else {
+						slotCount := 0
+						for _, v := range env.Slots {
+							if v != nil && len(v.Vector) > 0 {
+								slotCount++
+							}
 						}
+						source := "auto"
+						if *envelopeCode != "" {
+							source = "explicit"
+						}
+						fmt.Printf("%s Envelope computed (%d slots, code: %s)\n", green("✓"), slotCount, source)
 					}
-					fmt.Printf("%s Envelope computed (%d slots)\n", green("✓"), slotCount)
 				}
 			}
 		}
@@ -306,4 +317,98 @@ func normalizeArgsForFlags(args []string, flagNames []string) []string {
 
 	// Flags first, then positional arguments
 	return append(flags, positional...)
+}
+
+// resolveEnvelopeCodeFiles determines which files to use for the code envelope slot.
+// Priority: explicit --envelope-code flag > auto-detect from git.
+// Returns nil if no files found (envelope will only have intent slot).
+func resolveEnvelopeCodeFiles(flagValue string) []string {
+	if flagValue != "" && flagValue != "auto" {
+		// Explicit file list
+		return strings.Split(flagValue, ",")
+	}
+
+	// Auto-detect from git context
+	files := detectGitModifiedFiles()
+	if len(files) == 0 {
+		return nil
+	}
+
+	// Cap at 10 files to keep embedding input reasonable
+	if len(files) > 10 {
+		files = files[:10]
+	}
+
+	return files
+}
+
+// detectGitModifiedFiles returns files with uncommitted changes (staged + unstaged).
+// Falls back to files from the most recent commit if working tree is clean.
+// Only includes source files (Go, AILANG, etc.), not generated/binary files.
+func detectGitModifiedFiles() []string {
+	// Try uncommitted changes first (most relevant to current work)
+	out, err := exec.Command("git", "diff", "--name-only", "HEAD").Output()
+	if err != nil {
+		return nil
+	}
+
+	files := filterSourceFiles(strings.TrimSpace(string(out)))
+	if len(files) > 0 {
+		return files
+	}
+
+	// Working tree is clean — try staged files
+	out, err = exec.Command("git", "diff", "--staged", "--name-only").Output()
+	if err != nil {
+		return nil
+	}
+
+	files = filterSourceFiles(strings.TrimSpace(string(out)))
+	if len(files) > 0 {
+		return files
+	}
+
+	// Nothing staged — try last commit
+	out, err = exec.Command("git", "diff", "--name-only", "HEAD~1", "HEAD").Output()
+	if err != nil {
+		return nil
+	}
+
+	return filterSourceFiles(strings.TrimSpace(string(out)))
+}
+
+// filterSourceFiles keeps only source code files from a newline-separated list.
+func filterSourceFiles(output string) []string {
+	if output == "" {
+		return nil
+	}
+
+	var result []string
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Include source code files, exclude generated/binary/config
+		if isSourceFile(line) {
+			result = append(result, line)
+		}
+	}
+	return result
+}
+
+// isSourceFile returns true for files that are meaningful for code context embedding.
+func isSourceFile(path string) bool {
+	// Include common source extensions
+	sourceExts := []string{
+		".go", ".ail", ".py", ".js", ".ts", ".tsx",
+		".rs", ".java", ".c", ".cpp", ".h",
+		".sh", ".bash",
+	}
+	for _, ext := range sourceExts {
+		if strings.HasSuffix(path, ext) {
+			return true
+		}
+	}
+	return false
 }

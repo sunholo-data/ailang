@@ -215,6 +215,18 @@ fi
 # Get sprint context using the function defined earlier
 SPRINT_CONTEXT=$(get_sprint_context)
 
+# If many messages (5+), try to generate triage summary
+TRIAGE_SUMMARY=""
+if [ "$UNREAD_COUNT" -ge 5 ]; then
+    TRIAGE_OUTPUT=$(ailang messages triage --threshold 0.50 2>/dev/null || echo "")
+    if [ -n "$TRIAGE_OUTPUT" ] && echo "$TRIAGE_OUTPUT" | grep -q "Cluster"; then
+        TRIAGE_SUMMARY="
+📊 TRIAGE SUMMARY (clustered by intent):
+$TRIAGE_OUTPUT"
+        log "Triage summary generated for $UNREAD_COUNT messages"
+    fi
+fi
+
 # Build formatted context string for Claude
 # The MESSAGES_JSON comes from the CLI and has format:
 # [{"id":"msg_xxx","from_agent":"test","to_inbox":"user","title":"Title","payload":"...","status":"unread","created_at":"..."}]
@@ -230,6 +242,7 @@ $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle:
    Use 'ailang messages ack <id>' to mark as read
    Use 'ailang messages ack --all' to mark all as read
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+$TRIAGE_SUMMARY
 $SPRINT_CONTEXT
 EOF
 )

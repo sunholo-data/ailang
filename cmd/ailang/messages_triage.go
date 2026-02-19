@@ -25,7 +25,7 @@ func runMessagesTriage(args []string) {
 	inbox := fs.String("inbox", "", "Filter by inbox")
 	clusterBy := fs.String("cluster-by", "intent", "Envelope slot to cluster on (intent, code, context, skill, resolution)")
 	topN := fs.Int("top", 10, "Show top-N clusters")
-	threshold := fs.Float64("threshold", 0.75, "Minimum similarity for clustering (0.0-1.0)")
+	threshold := fs.Float64("threshold", 0.50, "Minimum similarity for clustering (0.0-1.0)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 
 	if err := fs.Parse(args); err != nil {

@@ -16,7 +16,7 @@ import (
 func runMessagesSearch(args []string) {
 	fs := flag.NewFlagSet("messages search", flag.ExitOnError)
 	inbox := fs.String("inbox", "", "Filter by inbox")
-	threshold := fs.Float64("threshold", 0.70, "Minimum similarity (0.0-1.0)")
+	threshold := fs.Float64("threshold", 0.40, "Minimum similarity (0.0-1.0)")
 	limit := fs.Int("limit", 20, "Maximum results")
 	maxScan := fs.Int("max-scan", 1000, "Maximum messages to scan")
 	neural := fs.Bool("neural", false, "Use neural embeddings via Ollama (requires Ollama running)")

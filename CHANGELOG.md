@@ -3,6 +3,24 @@
 ## [Unreleased]
 
 ### Added
+- **M-SEMANTIC-ENVELOPE: Multi-aspect semantic embeddings for agent messaging** (`internal/messaging/envelope.go`, `envelope_builder.go`, `embedder_openai.go`, `embedder_gemini.go`, `cmd/ailang/messages_triage.go`, ~1,450 LOC)
+  - Messages carry a **semantic envelope** — 5 named embedding vector slots: `intent`, `code`, `context`, `skill`, `resolution`
+  - `intent` auto-computed from title + payload on send (if embedder configured)
+  - `code` via `--envelope-code FILE` flag — embeds file content for code-region clustering
+  - `context` via `--envelope-context "description"` — embeds sender's working context
+  - `resolution` auto-populated on coordinator task completion from git diff + commit message
+  - Provider-agnostic embedder factory: `NewEmbedderFromConfig()` supports Ollama, OpenAI (`text-embedding-3-small`), and Gemini (`text-embedding-004`)
+  - Multi-space search: `ailang messages search --space code "internal/types"` — same query returns different results per envelope slot
+  - `SearchByEnvelope()` method on Store for envelope-aware retrieval
+  - `ailang messages triage` subcommand — clusters unread messages by envelope slot similarity
+    - Flags: `--cluster-by SLOT`, `--top N`, `--threshold`, `--inbox`, `--json`
+    - Greedy threshold-based clustering algorithm
+  - Resolution feedback loop in coordinator: `enrichResolutionEnvelope()` runs after successful task completion
+  - `UpdateMessageEnvelope()` on `MessageStore` interface (SQLite + Firestore implementations)
+  - Schema migration v1.8.0: `ALTER TABLE inbox_messages ADD COLUMN envelope TEXT DEFAULT '{}'`
+  - Backward compatible: messages without envelopes work identically to previous behavior
+  - Design doc: `design_docs/planned/v0_8_1/m-semantic-envelope.md`
+
 - **M-PROCESS: External command execution** (`internal/effects/process.go`, `internal/builtins/process.go`, `std/process.ail`, ~450 LOC impl + ~200 LOC tests)
   - New `Process` effect with `--caps Process` capability grant
   - `ProcessContext` security model: path-pinned allowlist, configurable timeout (default 30s), output size limits (default 10MB)
