@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+- **M-PROTOCOL-SUPPORT: Multi-protocol support for `serve-api`** (`internal/apiserver/`, ~900 LOC impl + ~500 LOC tests)
+  - **OpenAPI 3.1**: Auto-generated spec at `GET /api/_meta/openapi.json` from loaded module metadata; AILANG type signatures mapped to JSON Schema (`internal/apiserver/schema/`)
+  - **Swagger UI**: Interactive API explorer at `GET /api/_meta/docs` (CDN-loaded, zero dependencies)
+  - **ReDoc**: Clean API reference at `GET /api/_meta/redoc` (CDN-loaded, zero dependencies)
+  - **MCP (Model Context Protocol)**: Each exported function exposed as MCP tool with JSON Schema; supports stdio transport (`--mcp` flag) and streamable HTTP transport (`--mcp-http` at `/mcp/`); module metadata as MCP resource
+  - **A2A (Agent-to-Agent)**: Agent Card at `GET /.well-known/agent.json`; JSON-RPC 2.0 task endpoint at `POST /a2a/`; supports both `type:data` and `type:text` message parts
+  - Type signature → JSON Schema converter: `int`→integer, `float`→number, `string`→string, `bool`→boolean, `[T]`→array, type variables→any
+  - 19 new tests across OpenAPI, A2A, MCP, Swagger UI, and ReDoc endpoints
+  - New dependency: `github.com/modelcontextprotocol/go-sdk` v1.3.1
+
+### Fixed
+- **serve-api REST float coercion**: All API handlers (REST, MCP, A2A) now use `CallPreserveFloats` to prevent `100.0` from becoming IntValue (JSON has no int/float distinction)
+- **Bare type assertions in builtins**: Replaced 17 panic-prone bare assertions with safe ok-checked assertions across 6 files (math.go, math_arithmetic.go, math_trig.go, math_logic.go, math_conversion.go, string_convert.go)
+
 ## [v0.8.1] - 2026-02-20
 
 ### Added

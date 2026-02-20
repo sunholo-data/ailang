@@ -105,7 +105,12 @@ Running `ailang serve-api ./api/` auto-generates these endpoints:
 | POST | `/api/api/greet/welcome` | Call `welcome()` |
 | GET | `/api/_meta/modules` | List all modules and exports |
 | GET | `/api/_meta/modules/api/math` | Module detail |
+| GET | `/api/_meta/openapi.json` | OpenAPI 3.1 spec |
+| GET | `/api/_meta/docs` | Swagger UI (interactive explorer) |
+| GET | `/api/_meta/redoc` | ReDoc (API reference) |
 | GET | `/api/_health` | Health check |
+| GET | `/.well-known/agent.json` | A2A Agent Card |
+| POST | `/a2a/` | A2A JSON-RPC endpoint |
 
 ### URL Convention
 
@@ -269,6 +274,85 @@ Response:
 
 ---
 
+## Interactive API Documentation
+
+`serve-api` provides built-in interactive documentation, similar to FastAPI's `/docs` and `/redoc`:
+
+### Swagger UI
+
+Open `http://localhost:8080/api/_meta/docs` in your browser to get an interactive API explorer where you can:
+- Browse all available endpoints
+- See request/response schemas
+- Try out API calls directly from the browser
+
+### ReDoc
+
+Open `http://localhost:8080/api/_meta/redoc` for a clean, readable API reference document. ReDoc is ideal for sharing with external consumers.
+
+### OpenAPI Spec
+
+The raw OpenAPI 3.1 spec is available at `http://localhost:8080/api/_meta/openapi.json`. You can import this into any OpenAPI-compatible tool (Postman, Insomnia, etc.).
+
+The spec is auto-generated from your AILANG module exports — type signatures are mapped to JSON Schema:
+
+| AILANG Type | JSON Schema |
+|-------------|-------------|
+| `int` | `{"type": "integer"}` |
+| `float` | `{"type": "number"}` |
+| `string` | `{"type": "string"}` |
+| `bool` | `{"type": "boolean"}` |
+| `[int]` | `{"type": "array", "items": {"type": "integer"}}` |
+
+---
+
+## Protocol Support
+
+`serve-api` supports multiple AI agent protocols out of the box.
+
+### MCP (Model Context Protocol)
+
+Expose AILANG functions as MCP tools for use with Claude Desktop, Cursor, and other MCP clients.
+
+**Stdio mode** (for IDE integration):
+```bash
+ailang serve-api --mcp ./api/
+```
+
+**HTTP mode** (served alongside REST endpoints):
+```bash
+ailang serve-api --mcp-http ./api/
+# MCP endpoint at POST /mcp/
+```
+
+Each exported AILANG function becomes an MCP tool with proper JSON Schema for arguments. Module metadata is available as an MCP resource at `ailang://meta/modules`.
+
+### A2A (Agent-to-Agent Protocol)
+
+Google's A2A protocol is always enabled:
+
+- **Agent Card**: `GET /.well-known/agent.json` — lists all functions as skills
+- **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0 for function invocation
+
+Example A2A call:
+```bash
+curl -X POST http://localhost:8080/a2a/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tasks/send",
+    "params": {
+      "metadata": {"skill_id": "api.math.add"},
+      "message": {
+        "role": "user",
+        "parts": [{"type": "data", "data": {"args": [3, 4]}}]
+      }
+    }
+  }'
+```
+
+---
+
 ## CLI Reference
 
 ### `ailang serve-api`
@@ -279,17 +363,20 @@ Usage: ailang serve-api [flags] <path...>
 Serve AILANG module exports as REST API endpoints.
 
 Flags:
-  --port PORT       HTTP port (default: 8080)
-  --cors            Enable CORS for all origins (default: true)
-  --frontend PATH   Proxy to Vite dev server at PATH
-  --static PATH     Serve static files from PATH
-  --watch           Watch .ail files for changes and hot-reload
-  --caps CAPS       Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)
-  --ai MODEL        AI model for AI effect (e.g., gemini-2-5-flash)
-  --ai-stub         Use stub AI handler (for testing)
+  --port PORT          HTTP port (default: 8080)
+  --cors               Enable CORS for all origins (default: true)
+  --frontend PATH      Proxy to Vite dev server at PATH
+  --static PATH        Serve static files from PATH
+  --watch              Watch .ail files for changes and hot-reload
+  --caps CAPS          Capabilities to grant (comma-separated: IO,FS,Net,AI,Clock,Env)
+  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash)
+  --ai-stub            Use stub AI handler (for testing)
+  --verify-contracts   Enable runtime contract validation (requires/ensures)
+  --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)
+  --mcp-http           Enable MCP HTTP endpoint at /mcp/
 
 Arguments:
-  <path...>         One or more .ail files or directories
+  <path...>            One or more .ail files or directories
 ```
 
 **Important:** Flags must come before path arguments.
@@ -311,6 +398,12 @@ ailang serve-api --frontend ./ui ./api/
 
 # With built frontend (production)
 ailang serve-api --static ./ui/dist ./api/
+
+# MCP stdio server (for Claude Desktop, Cursor)
+ailang serve-api --mcp ./api/
+
+# HTTP server + MCP endpoint at /mcp/
+ailang serve-api --mcp-http --cors ./api/
 ```
 
 ### `ailang init web-app`

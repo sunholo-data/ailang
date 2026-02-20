@@ -218,6 +218,8 @@ func printServeAPIHelp() {
 	fmt.Println("Introspection endpoints:")
 	fmt.Println("  GET  /api/_meta/modules           List all loaded modules and exports")
 	fmt.Println("  GET  /api/_meta/openapi.json      OpenAPI 3.1 spec")
+	fmt.Println("  GET  /api/_meta/docs              Swagger UI (interactive API explorer)")
+	fmt.Println("  GET  /api/_meta/redoc             ReDoc (API reference documentation)")
 	fmt.Println("  GET  /api/_meta/modules/{path}    Details for a specific module")
 	fmt.Println("  GET  /api/_health                 Health check")
 	fmt.Println()
