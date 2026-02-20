@@ -244,7 +244,8 @@ taskList:
 				fmt.Println("  [a]  " + green("Approve handoff (send to next agent)"))
 			}
 			fmt.Println("  [c]  View chat history")
-			fmt.Println("  [r]  " + red("Reject"))
+			fmt.Println("  [r]  " + red("Reject (with feedback loop)"))
+			fmt.Println("  [x]  " + red("Cancel (permanent, no retry)"))
 			fmt.Println("  [q]  Back to list")
 			fmt.Println()
 			fmt.Print("Action: ")
@@ -319,6 +320,20 @@ taskList:
 					}
 				}
 				// Return to task list after rejection
+				continue taskList
+
+			case "x":
+				// Cancel permanently - no feedback loop, no retry
+				if isHandoff {
+					if err := store.ResolveApprovalRequest(ctx, selectedReq.ID, "rejected", "cli-user"); err != nil {
+						return fmt.Errorf("failed to cancel handoff: %w", err)
+					}
+					fmt.Println(green("✓"), "Handoff cancelled:", selectedReq.ID)
+				} else {
+					if err := coordinatorReject([]string{selectedReq.TaskID, "--no-retrigger", "--no-prompt"}); err != nil {
+						return fmt.Errorf("failed to cancel: %w", err)
+					}
+				}
 				continue taskList
 
 			case "q", "":

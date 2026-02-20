@@ -452,20 +452,19 @@ default: "claude-sonnet-4-6"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-2-codex"      # OpenAI agentic coding (Jan 2026)
-  - "claude-sonnet-4-6"  # Anthropic flagship (Feb 2026)
-  - "gemini-3-1-pro"    # Google flagship (Feb 2026)
+  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
+  - "claude-sonnet-4-6" # Anthropic flagship (Feb 2026)
+  - "gemini-3-pro"     # Google flagship (Nov 2025)
 
 # Extended suite - flagship + best alternatives (6 models)
 # Use for: Release baselines, comprehensive comparisons
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-2-codex"      # OpenAI agentic coding (Jan 2026)
-  - "claude-opus-4-6"   # Anthropic most capable (Feb 2026)
+  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
+  - "claude-opus-4-6"  # Anthropic most capable (Feb 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
-  - "gemini-3-1-pro"    # Google latest (Feb 2026)
-  - "gemini-3-pro"      # Google previous flagship (Nov 2025)
-  - "gemini-2-5-pro"    # Google previous generation
+  - "gemini-3-pro"     # Google flagship (Nov 2025)
+  - "gemini-2-5-pro"   # Google previous generation
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
@@ -496,7 +495,7 @@ local_models:
 # - claude-opus-4-5   # Superseded by claude-opus-4-6 (Feb 2026)
 # - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
-# - gemini-2-5-pro    # Superseded by gemini-3-1-pro in benchmark_suite (Feb 2026)
+# - gemini-3-1-pro    # Not yet available on Vertex AI/Gemini CLI (Feb 2026) - promote to suites when ready
 
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI
