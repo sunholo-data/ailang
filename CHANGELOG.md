@@ -86,8 +86,6 @@
   - 4 integration tests with real WebSocket echo server (connect, multi-message, connection limit, server close)
   - Total: 167 registered builtins (was 161)
 
-- **Codex CLI executor**: OpenAI Codex added as third CLI agent alongside Claude Code and Gemini CLI (`design_docs/planned/v0_8_1/m-coord-codex-executor.md`)
-
 - **Firestore storage backend**: Cloud-native storage option for coordinator and messaging (`cmd/ailang/storage.go`, `internal/coordinator/`, `internal/messaging/`)
   - `AILANG_CLOUD_PROJECT` env var for GCP project ID (separate from telemetry)
   - SQLite remains default for local development
