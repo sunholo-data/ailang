@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/sunholo/ailang/internal/effects"
@@ -51,8 +52,14 @@ func registerArithmetic() {
 
 // floatDivFloat: division with IEEE 754 behavior (returns Inf for div-by-zero)
 func floatDivFloat(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.FloatValue)
-	b := args[1].(*eval.FloatValue)
+	a, ok := args[0].(*eval.FloatValue)
+	if !ok {
+		return nil, fmt.Errorf("div_Float: expected FloatValue for arg 0, got %T", args[0])
+	}
+	b, ok := args[1].(*eval.FloatValue)
+	if !ok {
+		return nil, fmt.Errorf("div_Float: expected FloatValue for arg 1, got %T", args[1])
+	}
 	if b.Value == 0.0 {
 		// IEEE 754 behavior: return +/-Inf
 		if a.Value >= 0 {
@@ -65,8 +72,14 @@ func floatDivFloat(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 
 // floatModFloat: modulo with IEEE 754 behavior (returns NaN for mod-by-zero)
 func floatModFloat(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.FloatValue)
-	b := args[1].(*eval.FloatValue)
+	a, ok := args[0].(*eval.FloatValue)
+	if !ok {
+		return nil, fmt.Errorf("mod_Float: expected FloatValue for arg 0, got %T", args[0])
+	}
+	b, ok := args[1].(*eval.FloatValue)
+	if !ok {
+		return nil, fmt.Errorf("mod_Float: expected FloatValue for arg 1, got %T", args[1])
+	}
 	if b.Value == 0.0 {
 		return &eval.FloatValue{Value: math.NaN()}, nil
 	}
@@ -75,6 +88,9 @@ func floatModFloat(ctx *effects.EffContext, args []eval.Value) (eval.Value, erro
 
 // floatNegFloat: negation
 func floatNegFloat(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	a := args[0].(*eval.FloatValue)
+	a, ok := args[0].(*eval.FloatValue)
+	if !ok {
+		return nil, fmt.Errorf("neg_Float: expected FloatValue for arg 0, got %T", args[0])
+	}
 	return &eval.FloatValue{Value: -a.Value}, nil
 }

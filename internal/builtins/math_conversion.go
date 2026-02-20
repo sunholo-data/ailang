@@ -13,7 +13,10 @@ import (
 func registerConversions() {
 	// intToFloat
 	impl1 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("intToFloat: expected IntValue for arg 0, got %T", args[0])
+		}
 		return &eval.FloatValue{Value: float64(a.Value)}, nil
 	}
 	type1 := func() types.Type {
@@ -49,7 +52,10 @@ func registerConversions() {
 
 	// floatToInt
 	impl2 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.FloatValue)
+		a, ok := args[0].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("floatToInt: expected FloatValue for arg 0, got %T", args[0])
+		}
 		return &eval.IntValue{Value: int(a.Value)}, nil
 	}
 	type2 := func() types.Type {

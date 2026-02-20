@@ -196,7 +196,10 @@ func registerTrigonometry() {
 
 	// abs_Int: int -> int
 	absIntImpl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("abs_Int: expected IntValue for arg 0, got %T", args[0])
+		}
 		v := a.Value
 		if v < 0 {
 			v = -v
@@ -302,7 +305,10 @@ func registerTrigonometry() {
 // registerTrigFunc registers a unary float->float math function
 func registerTrigFunc(name string, fn func(float64) float64, desc string, params []ParamDoc, returns string, examples []Example, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.FloatValue)
+		a, ok := args[0].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected FloatValue for arg 0, got %T", name, args[0])
+		}
 		return &eval.FloatValue{Value: fn(a.Value)}, nil
 	}
 	typeFunc := func() types.Type {
@@ -335,8 +341,14 @@ func registerTrigFunc(name string, fn func(float64) float64, desc string, params
 // registerTrigFunc2 registers a binary (float,float)->float math function
 func registerTrigFunc2(name string, fn func(float64, float64) float64, desc string, params []ParamDoc, returns string, examples []Example, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.FloatValue)
-		b := args[1].(*eval.FloatValue)
+		a, ok := args[0].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected FloatValue for arg 0, got %T", name, args[0])
+		}
+		b, ok := args[1].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected FloatValue for arg 1, got %T", name, args[1])
+		}
 		return &eval.FloatValue{Value: fn(a.Value, b.Value)}, nil
 	}
 	typeFunc := func() types.Type {

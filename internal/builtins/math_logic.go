@@ -22,8 +22,14 @@ func registerLogic() {
 // registerLogicOpWithMeta registers a binary logic operation with metadata
 func registerLogicOpWithMeta(name string, fn func(bool, bool) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.BoolValue)
-		b := args[1].(*eval.BoolValue)
+		a, ok := args[0].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected BoolValue for arg 0, got %T", name, args[0])
+		}
+		b, ok := args[1].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected BoolValue for arg 1, got %T", name, args[1])
+		}
 		return &eval.BoolValue{Value: fn(a.Value, b.Value)}, nil
 	}
 	typeFunc := func() types.Type {
@@ -58,7 +64,10 @@ func registerLogicOpWithMeta(name string, fn func(bool, bool) bool, description 
 // registerLogicUnaryWithMeta registers a unary logic operation with metadata
 func registerLogicUnaryWithMeta(name string, fn func(bool) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.BoolValue)
+		a, ok := args[0].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected BoolValue for arg 0, got %T", name, args[0])
+		}
 		return &eval.BoolValue{Value: fn(a.Value)}, nil
 	}
 	typeFunc := func() types.Type {

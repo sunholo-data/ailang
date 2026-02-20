@@ -35,7 +35,10 @@ func init() {
 // Helper: wrap a simple int->int function
 func intToInt(fn func(int) int) func(*effects.EffContext, []eval.Value) (eval.Value, error) {
 	return func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("expected IntValue for arg 0, got %T", args[0])
+		}
 		return &eval.IntValue{Value: fn(a.Value)}, nil
 	}
 }
@@ -43,8 +46,14 @@ func intToInt(fn func(int) int) func(*effects.EffContext, []eval.Value) (eval.Va
 // Helper: wrap a simple (int,int)->int function
 func intIntToInt(fn func(int, int) int) func(*effects.EffContext, []eval.Value) (eval.Value, error) {
 	return func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
-		b := args[1].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("expected IntValue for arg 0, got %T", args[0])
+		}
+		b, ok := args[1].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("expected IntValue for arg 1, got %T", args[1])
+		}
 		return &eval.IntValue{Value: fn(a.Value, b.Value)}, nil
 	}
 }
@@ -52,8 +61,14 @@ func intIntToInt(fn func(int, int) int) func(*effects.EffContext, []eval.Value) 
 // Helper: wrap a (int,int)->(int,error) function
 func intIntToIntErr(fn func(int, int) (int, error)) func(*effects.EffContext, []eval.Value) (eval.Value, error) {
 	return func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
-		b := args[1].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("expected IntValue for arg 0, got %T", args[0])
+		}
+		b, ok := args[1].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("expected IntValue for arg 1, got %T", args[1])
+		}
 		result, err := fn(a.Value, b.Value)
 		if err != nil {
 			return nil, err
@@ -65,8 +80,14 @@ func intIntToIntErr(fn func(int, int) (int, error)) func(*effects.EffContext, []
 // Helper: wrap a (float,float)->float function
 func floatFloatToFloat(fn func(float64, float64) float64) func(*effects.EffContext, []eval.Value) (eval.Value, error) {
 	return func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.FloatValue)
-		b := args[1].(*eval.FloatValue)
+		a, ok := args[0].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("expected FloatValue for arg 0, got %T", args[0])
+		}
+		b, ok := args[1].(*eval.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("expected FloatValue for arg 1, got %T", args[1])
+		}
 		return &eval.FloatValue{Value: fn(a.Value, b.Value)}, nil
 	}
 }
