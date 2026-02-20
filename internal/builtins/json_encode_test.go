@@ -70,6 +70,40 @@ func TestJSONEncodeNumber(t *testing.T) {
 	}
 }
 
+// TestJSONEncodeNumberWithIntValue verifies that JNumber with IntValue
+// (as produced by WASM bridge round-trip: JS number → jsToAILANGValue → IntValue)
+// encodes correctly instead of returning "JNumber field expected FloatValue".
+func TestJSONEncodeNumberWithIntValue(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		input    int
+		expected string
+	}{
+		{"positive", 42, "42"},
+		{"negative", -17, "-17"},
+		{"zero", 0, "0"},
+		{"large", 1000000, "1000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create JNumber with IntValue (as WASM bridge produces)
+			jnum := &eval.TaggedValue{
+				ModulePath: "std/json",
+				TypeName:   "Json",
+				CtorName:   "JNumber",
+				Fields:     []eval.Value{&eval.IntValue{Value: tt.input}},
+			}
+			result, err := jsonEncodeImpl(ctx.EffContext, []eval.Value{jnum})
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, testctx.GetString(result))
+		})
+	}
+}
+
 func TestJSONEncodeString(t *testing.T) {
 	ctx := testctx.NewMockEffContext()
 

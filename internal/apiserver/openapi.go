@@ -52,7 +52,43 @@ const swaggerUIHTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <title>AILANG API - Swagger UI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <style>
+    body { margin: 0; background: #0f1419; }
+    .swagger-ui { font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif; }
+    .swagger-ui .topbar { background-color: #0f1419; border-bottom: 2px solid #e73c17; }
+    .swagger-ui .topbar .download-url-wrapper .select-label { color: #e2e8f0; }
+    .swagger-ui .info .title { font-family: Montserrat, sans-serif; color: #e2e8f0; }
+    .swagger-ui .info { margin: 30px 0; }
+    .swagger-ui .info .title small { background: #e73c17; }
+    .swagger-ui .info p, .swagger-ui .info li { color: #a0aec0; }
+    .swagger-ui .scheme-container { background: #1a2332; box-shadow: none; }
+    .swagger-ui .opblock-tag { font-family: Montserrat, sans-serif; color: #e2e8f0; border-bottom-color: #2d3748; }
+    .swagger-ui .opblock.opblock-post { border-color: #e73c17; background: rgba(231,60,23,0.05); }
+    .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #e73c17; }
+    .swagger-ui .opblock.opblock-get { border-color: #2c7a7b; background: rgba(44,122,123,0.05); }
+    .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #2c7a7b; }
+    .swagger-ui .btn.execute { background-color: #e73c17; border-color: #e73c17; }
+    .swagger-ui .btn.execute:hover { background-color: #c42f0f; }
+    .swagger-ui section.models { border-color: #2d3748; }
+    .swagger-ui .model-title { font-family: Montserrat, sans-serif; }
+    .swagger-ui pre.microlight { background: #1a2332 !important; font-family: JetBrains Mono, monospace; }
+    .swagger-ui .wrapper { background: #0f1419; }
+    .swagger-ui .opblock .opblock-summary-description { color: #a0aec0; }
+    .swagger-ui .opblock-description-wrapper p { color: #cbd5e0; }
+    .swagger-ui .response-col_status { color: #e2e8f0; }
+    .swagger-ui table thead tr td, .swagger-ui table thead tr th { color: #a0aec0; border-bottom-color: #2d3748; }
+    .swagger-ui .parameter__name { color: #e2e8f0; }
+    .swagger-ui .parameter__type { color: #2c7a7b; }
+    .swagger-ui input[type=text] { background: #1a2332; color: #e2e8f0; border-color: #2d3748; }
+    .swagger-ui textarea { background: #1a2332; color: #e2e8f0; border-color: #2d3748; font-family: JetBrains Mono, monospace; }
+    .swagger-ui .opblock-body pre { background: #1a2332; color: #e2e8f0; }
+    .swagger-ui .responses-inner h4, .swagger-ui .responses-inner h5 { color: #e2e8f0; }
+    .swagger-ui .response-col_description { color: #a0aec0; }
+  </style>
 </head>
 <body>
   <div id="swagger-ui"></div>
@@ -62,7 +98,8 @@ const swaggerUIHTML = `<!DOCTYPE html>
       url: '/api/_meta/openapi.json',
       dom_id: '#swagger-ui',
       presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
-      layout: 'StandaloneLayout'
+      layout: 'StandaloneLayout',
+      deepLinking: true
     });
   </script>
 </body>
@@ -74,10 +111,42 @@ const redocHTML = `<!DOCTYPE html>
   <meta charset="UTF-8">
   <title>AILANG API - ReDoc</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
   <style>body { margin: 0; }</style>
 </head>
 <body>
-  <redoc spec-url='/api/_meta/openapi.json'></redoc>
+  <redoc spec-url='/api/_meta/openapi.json'
+    theme='{
+      "colors": {
+        "primary": { "main": "#e73c17" },
+        "success": { "main": "#2c7a7b" },
+        "text": { "primary": "#e2e8f0", "secondary": "#a0aec0" },
+        "http": {
+          "get": "#2c7a7b",
+          "post": "#e73c17",
+          "put": "#dd6b20",
+          "delete": "#e53e3e"
+        }
+      },
+      "typography": {
+        "fontSize": "15px",
+        "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
+        "headings": { "fontFamily": "Montserrat, sans-serif", "fontWeight": "700" },
+        "code": { "fontFamily": "JetBrains Mono, monospace", "fontSize": "13px" }
+      },
+      "sidebar": {
+        "backgroundColor": "#0f1419",
+        "textColor": "#e2e8f0",
+        "activeTextColor": "#e73c17",
+        "groupItems": { "textTransform": "uppercase" }
+      },
+      "rightPanel": {
+        "backgroundColor": "#1a2332"
+      }
+    }'
+  ></redoc>
   <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
 </body>
 </html>`

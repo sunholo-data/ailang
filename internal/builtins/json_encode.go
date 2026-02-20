@@ -121,11 +121,17 @@ func encodeValue(val eval.Value, buf *strings.Builder) error {
 		if len(tagged.Fields) != 1 {
 			return fmt.Errorf("JNumber expected 1 field, got %d", len(tagged.Fields))
 		}
-		floatVal, ok := tagged.Fields[0].(*eval.FloatValue)
-		if !ok {
-			return fmt.Errorf("JNumber field expected FloatValue, got %T", tagged.Fields[0])
+		// Accept both FloatValue and IntValue — JS numbers are always float64,
+		// so round-tripping through WASM bridge (jsToAILANGValue) converts
+		// whole numbers to IntValue. Both must be handled here.
+		switch numVal := tagged.Fields[0].(type) {
+		case *eval.FloatValue:
+			buf.WriteString(formatNumber(numVal.Value))
+		case *eval.IntValue:
+			buf.WriteString(fmt.Sprintf("%d", numVal.Value))
+		default:
+			return fmt.Errorf("JNumber field expected numeric value, got %T", tagged.Fields[0])
 		}
-		buf.WriteString(formatNumber(floatVal.Value))
 		return nil
 
 	case "JString":

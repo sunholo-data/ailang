@@ -336,12 +336,12 @@ func callExport(this js.Value, args []js.Value) interface{} {
 		}
 	}
 
-	// Format the result as a string
-	resultStr := formatValue(result)
-
+	// Convert result to native JS type (bool→boolean, int→number, etc.)
+	// Also include string representation for display/logging.
 	return map[string]interface{}{
 		"success": true,
-		"result":  resultStr,
+		"result":  ailangValueToJS(result),
+		"display": formatValue(result),
 	}
 }
 
@@ -483,7 +483,8 @@ func callAsync(this js.Value, args []js.Value) interface{} {
 
 			resolve.Invoke(map[string]interface{}{
 				"success": true,
-				"result":  formatValue(result),
+				"result":  ailangValueToJS(result),
+				"display": formatValue(result),
 			})
 		}()
 		return nil
