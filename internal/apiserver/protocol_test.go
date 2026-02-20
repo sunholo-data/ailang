@@ -435,6 +435,58 @@ func TestBuildMCPInputSchema(t *testing.T) {
 	})
 }
 
+// --- Interactive Docs Tests ---
+
+func TestSwaggerUI(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	mux := srv.buildRoutes()
+	req := httptest.NewRequest("GET", "/api/_meta/docs", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Errorf("expected text/html content type, got %s", ct)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "swagger-ui") {
+		t.Error("expected swagger-ui in response body")
+	}
+	if !strings.Contains(body, "/api/_meta/openapi.json") {
+		t.Error("expected openapi.json URL in response body")
+	}
+}
+
+func TestReDoc(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	mux := srv.buildRoutes()
+	req := httptest.NewRequest("GET", "/api/_meta/redoc", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Errorf("expected text/html content type, got %s", ct)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "redoc") {
+		t.Error("expected redoc in response body")
+	}
+	if !strings.Contains(body, "/api/_meta/openapi.json") {
+		t.Error("expected openapi.json URL in response body")
+	}
+}
+
+// --- MCP Tests ---
+
 func TestMCPError(t *testing.T) {
 	result := mcpError("something went wrong")
 	if !result.IsError {

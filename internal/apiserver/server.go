@@ -304,8 +304,10 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/_meta/modules/", s.corsWrap(s.handleModuleDetail))
 	mux.HandleFunc("/api/_health", s.corsWrap(s.handleHealth))
 
-	// OpenAPI spec
+	// OpenAPI spec + interactive docs
 	mux.HandleFunc("/api/_meta/openapi.json", s.corsWrap(s.handleOpenAPISpec))
+	mux.HandleFunc("/api/_meta/docs", s.corsWrap(s.handleSwaggerUI))
+	mux.HandleFunc("/api/_meta/redoc", s.corsWrap(s.handleReDoc))
 
 	// A2A Agent Card
 	mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
@@ -393,6 +395,8 @@ func (s *Server) printStartupBanner() {
 	log.Println("  Introspection:")
 	log.Println("    GET  /api/_meta/modules")
 	log.Println("    GET  /api/_meta/openapi.json")
+	log.Println("    GET  /api/_meta/docs            (Swagger UI)")
+	log.Println("    GET  /api/_meta/redoc           (ReDoc)")
 	log.Println("    GET  /api/_health")
 	log.Println()
 	log.Println("  Protocols:")
