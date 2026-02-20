@@ -49,6 +49,10 @@ type Server struct {
 	watch      bool // whether file watching is enabled
 	watcher    *fsnotify.Watcher
 	watchPaths []string // absolute paths of loaded .ail files (for reload mapping)
+
+	// Protocol support
+	mcpEnabled bool // serve MCP at /mcp/
+	mcpOnly    bool // stdio-only MCP mode (no HTTP)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -73,6 +77,8 @@ type Config struct {
 	StaticPath   string      // optional: built frontend files
 	Watch        bool        // enable file watching for hot reload
 	EffCtx       interface{} // optional: pre-configured effect context (*effects.EffContext)
+	MCP          bool        // enable MCP endpoint at /mcp/
+	MCPOnly      bool        // run as MCP stdio server only (no HTTP)
 }
 
 // New creates a new API server.
@@ -93,6 +99,8 @@ func New(basePath string, cfg Config) *Server {
 		frontendPath: cfg.FrontendPath,
 		staticPath:   cfg.StaticPath,
 		watch:        cfg.Watch,
+		mcpEnabled:   cfg.MCP,
+		mcpOnly:      cfg.MCPOnly,
 	}
 }
 
@@ -228,8 +236,19 @@ func countFunctionArity(typeStr string) int {
 	return count
 }
 
+// StartMCP runs the server as an MCP stdio server (no HTTP). Blocks until done.
+func (s *Server) StartMCP() error {
+	mcpSrv := NewMCPServer(s)
+	return mcpSrv.RunStdio(context.Background())
+}
+
 // Start starts the HTTP server. Blocks until shutdown signal.
 func (s *Server) Start() error {
+	// If MCPOnly, run stdio MCP server instead of HTTP.
+	if s.mcpOnly {
+		return s.StartMCP()
+	}
+
 	mux := s.buildRoutes()
 
 	httpAddr := fmt.Sprintf(":%s", s.port)
@@ -284,6 +303,19 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/_meta/modules", s.corsWrap(s.handleListModules))
 	mux.HandleFunc("/api/_meta/modules/", s.corsWrap(s.handleModuleDetail))
 	mux.HandleFunc("/api/_health", s.corsWrap(s.handleHealth))
+
+	// OpenAPI spec
+	mux.HandleFunc("/api/_meta/openapi.json", s.corsWrap(s.handleOpenAPISpec))
+
+	// A2A Agent Card
+	mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
+	mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+
+	// MCP endpoint (streamable HTTP transport)
+	if s.mcpEnabled {
+		mcpSrv := NewMCPServer(s)
+		mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
+	}
 
 	// Function call endpoints - catch-all under /api/
 	mux.HandleFunc("/api/", s.corsWrap(s.handleFunctionCall))
@@ -360,7 +392,15 @@ func (s *Server) printStartupBanner() {
 	log.Println()
 	log.Println("  Introspection:")
 	log.Println("    GET  /api/_meta/modules")
+	log.Println("    GET  /api/_meta/openapi.json")
 	log.Println("    GET  /api/_health")
+	log.Println()
+	log.Println("  Protocols:")
+	log.Println("    GET  /.well-known/agent.json    (A2A Agent Card)")
+	log.Println("    POST /a2a/                      (A2A JSON-RPC)")
+	if s.mcpEnabled {
+		log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
+	}
 
 	if s.frontendPath != "" {
 		log.Println()

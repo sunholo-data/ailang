@@ -24,6 +24,8 @@ func serveAPICommand(args []string) error {
 	aiModelFlag := fs.String("ai", "", "AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	aiStubFlag := fs.Bool("ai-stub", false, "Use stub AI handler (for testing)")
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
+	mcpFlag := fs.Bool("mcp", false, "Run as MCP stdio server (for Claude Desktop, Cursor, etc.)")
+	mcpHTTPFlag := fs.Bool("mcp-http", false, "Enable MCP HTTP endpoint at /mcp/")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 
 	if err := fs.Parse(args); err != nil {
@@ -100,6 +102,8 @@ func serveAPICommand(args []string) error {
 		StaticPath:   *staticFlag,
 		Watch:        *watchFlag,
 		EffCtx:       effCtx,
+		MCP:          *mcpHTTPFlag,
+		MCPOnly:      *mcpFlag,
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -192,6 +196,8 @@ func printServeAPIHelp() {
 	fmt.Println("  --ai MODEL           AI model for AI effect (e.g., gemini-2-5-flash, claude-sonnet-4-6)")
 	fmt.Println("  --ai-stub            Use stub AI handler (for testing)")
 	fmt.Println("  --verify-contracts   Enable runtime contract validation (requires/ensures)")
+	fmt.Println("  --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)")
+	fmt.Println("  --mcp-http           Enable MCP HTTP endpoint at /mcp/")
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
@@ -201,6 +207,8 @@ func printServeAPIHelp() {
 	fmt.Println("  ailang serve-api ./api/ --static ./ui/dist")
 	fmt.Println("  ailang serve-api --watch ./api/")
 	fmt.Println("  ailang serve-api --caps IO,AI --ai gemini-2-5-flash ./api/")
+	fmt.Println("  ailang serve-api --mcp ./api/                        # MCP stdio server")
+	fmt.Println("  ailang serve-api --mcp-http ./api/                   # HTTP + MCP at /mcp/")
 	fmt.Println()
 	fmt.Println("Endpoints generated for each exported function:")
 	fmt.Println("  POST /api/{module}/{function}")
@@ -209,6 +217,12 @@ func printServeAPIHelp() {
 	fmt.Println()
 	fmt.Println("Introspection endpoints:")
 	fmt.Println("  GET  /api/_meta/modules           List all loaded modules and exports")
+	fmt.Println("  GET  /api/_meta/openapi.json      OpenAPI 3.1 spec")
 	fmt.Println("  GET  /api/_meta/modules/{path}    Details for a specific module")
 	fmt.Println("  GET  /api/_health                 Health check")
+	fmt.Println()
+	fmt.Println("Protocol endpoints:")
+	fmt.Println("  GET  /.well-known/agent.json      A2A Agent Card")
+	fmt.Println("  POST /a2a/                        A2A JSON-RPC task endpoint")
+	fmt.Println("  POST /mcp/                        MCP streamable HTTP (with --mcp-http)")
 }
