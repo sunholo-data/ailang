@@ -286,7 +286,7 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 		"info": map[string]any{
 			"title":       "AILANG API",
 			"description": "Auto-generated REST API from AILANG module exports",
-			"version":     "0.8.1",
+			"version":     "0.8.1.1",
 		},
 		"servers": []map[string]any{
 			{"url": "http://localhost:" + s.port},

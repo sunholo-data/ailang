@@ -1,12 +1,12 @@
 # AILANG Changelog
 
-## [Unreleased]
+## [v0.8.1.1] - 2026-02-20
 
 ### Added
 - **M-PROTOCOL-SUPPORT: Multi-protocol support for `serve-api`** (`internal/apiserver/`, ~900 LOC impl + ~500 LOC tests)
   - **OpenAPI 3.1**: Auto-generated spec at `GET /api/_meta/openapi.json` from loaded module metadata; AILANG type signatures mapped to JSON Schema (`internal/apiserver/schema/`)
-  - **Swagger UI**: Interactive API explorer at `GET /api/_meta/docs` (CDN-loaded, zero dependencies)
-  - **ReDoc**: Clean API reference at `GET /api/_meta/redoc` (CDN-loaded, zero dependencies)
+  - **Swagger UI**: Interactive API explorer at `GET /api/_meta/docs` — styled with AILANG website branding (dark theme, Sunholo Red, Montserrat/Inter/JetBrains Mono fonts)
+  - **ReDoc**: Clean API reference at `GET /api/_meta/redoc` — styled with AILANG website branding (dark sidebar, teal/red HTTP method colors)
   - **MCP (Model Context Protocol)**: Each exported function exposed as MCP tool with JSON Schema; supports stdio transport (`--mcp` flag) and streamable HTTP transport (`--mcp-http` at `/mcp/`); module metadata as MCP resource
   - **A2A (Agent-to-Agent)**: Agent Card at `GET /.well-known/agent.json`; JSON-RPC 2.0 task endpoint at `POST /a2a/`; supports both `type:data` and `type:text` message parts
   - Type signature → JSON Schema converter: `int`→integer, `float`→number, `string`→string, `bool`→boolean, `[T]`→array, type variables→any
@@ -14,6 +14,8 @@
   - New dependency: `github.com/modelcontextprotocol/go-sdk` v1.3.1
 
 ### Fixed
+- **WASM bridge native JS return types**: `callExport` and `callAsync` now return native JS types (bool→boolean, int→number, float→number, list→Array, record→Object) instead of string-only `formatValue`. Response includes `result` (native JS value) and `display` (string for logging). Fixes JS treating `"false"` as truthy.
+- **JNumber IntValue encoding**: `json_encode` builtin now accepts both `FloatValue` and `IntValue` inside `JNumber`, matching the old encoder. Fixes "JNumber field expected FloatValue, got *eval.IntValue" error when JS numbers round-trip through `jsToAILANGValue`.
 - **serve-api REST float coercion**: All API handlers (REST, MCP, A2A) now use `CallPreserveFloats` to prevent `100.0` from becoming IntValue (JSON has no int/float distinction)
 - **Bare type assertions in builtins**: Replaced 17 panic-prone bare assertions with safe ok-checked assertions across 6 files (math.go, math_arithmetic.go, math_trig.go, math_logic.go, math_conversion.go, string_convert.go)
 
