@@ -47,6 +47,9 @@ jobs:
     - name: Get dependencies
       run: go mod download
 
+    - name: Install ailang binary for integration tests
+      run: go install ./cmd/ailang
+
     - name: Run tests
       run: go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
 

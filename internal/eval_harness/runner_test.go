@@ -1,6 +1,7 @@
 package eval_harness
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -101,6 +102,10 @@ func TestCompareOutput(t *testing.T) {
 // workspace outside /tmp/, so module path auto-relaxation didn't apply, causing
 // false negatives. Fix: add --relax-modules to runner args.
 func TestAILANGRunnerValidation(t *testing.T) {
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not in PATH, skipping integration test")
+	}
+
 	// Test with a simple solution that doesn't need stdlib imports
 	// (stdlib path depends on being run from project root)
 	code := `module benchmark/solution
@@ -142,6 +147,10 @@ export func main() -> () ! {IO} {
 // TestAILANGRunnerValidation_MismatchedModule tests that the validation runner
 // handles module path mismatches gracefully (agent may write different module names).
 func TestAILANGRunnerValidation_MismatchedModule(t *testing.T) {
+	if _, err := exec.LookPath("ailang"); err != nil {
+		t.Skip("ailang not in PATH, skipping integration test")
+	}
+
 	// Agent might write "module solution" instead of "module benchmark/solution"
 	code := `module solution
 
