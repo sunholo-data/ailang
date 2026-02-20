@@ -120,9 +120,10 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Call AILANG function
+	// Call AILANG function (preserve floats since JSON has no int/float distinction —
+	// 100.0 must remain FloatValue, not become IntValue).
 	start := time.Now()
-	result, callErr := s.engine.Call(modulePath, funcName, args...)
+	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
 	elapsed := time.Since(start).Milliseconds()
 
 	if callErr != nil {

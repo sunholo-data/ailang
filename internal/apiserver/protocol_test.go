@@ -328,6 +328,73 @@ func TestA2AMethodNotAllowed(t *testing.T) {
 	}
 }
 
+func TestA2ATextPartArgParsing(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	mux := srv.buildRoutes()
+
+	t.Run("text part with JSON args object", func(t *testing.T) {
+		body := `{
+			"jsonrpc": "2.0",
+			"id": 30,
+			"method": "tasks/send",
+			"params": {
+				"metadata": {"skill_id": "test.api.greet.add"},
+				"message": {
+					"role": "user",
+					"parts": [{"type": "text", "text": "{\"args\": [3, 4]}"}]
+				}
+			}
+		}`
+		req := httptest.NewRequest("POST", "/a2a/", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		var resp map[string]any
+		json.NewDecoder(w.Body).Decode(&resp)
+
+		result, ok := resp["result"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected result object, got error: %v", resp["error"])
+		}
+		status := result["status"].(map[string]any)
+		if status["state"] != "completed" {
+			t.Errorf("expected state 'completed', got %v (message: %v)", status["state"], status["message"])
+		}
+	})
+
+	t.Run("text part with raw JSON array", func(t *testing.T) {
+		body := `{
+			"jsonrpc": "2.0",
+			"id": 31,
+			"method": "tasks/send",
+			"params": {
+				"metadata": {"skill_id": "test.api.greet.add"},
+				"message": {
+					"role": "user",
+					"parts": [{"type": "text", "text": "[3, 4]"}]
+				}
+			}
+		}`
+		req := httptest.NewRequest("POST", "/a2a/", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		var resp map[string]any
+		json.NewDecoder(w.Body).Decode(&resp)
+
+		result, ok := resp["result"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected result object, got error: %v", resp["error"])
+		}
+		status := result["status"].(map[string]any)
+		if status["state"] != "completed" {
+			t.Errorf("expected state 'completed', got %v (message: %v)", status["state"], status["message"])
+		}
+	})
+}
+
 // --- MCP Input Schema Tests ---
 
 func TestBuildMCPInputSchema(t *testing.T) {

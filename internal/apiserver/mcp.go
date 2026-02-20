@@ -95,8 +95,8 @@ func (ms *MCPServer) makeToolHandler(modulePath, funcName string) mcp.ToolHandle
 			}
 		}
 
-		// Call the AILANG function.
-		result, callErr := ms.server.engine.Call(modulePath, funcName, args...)
+		// Call the AILANG function (preserve floats — JSON has no int/float distinction).
+		result, callErr := ms.server.engine.CallPreserveFloats(modulePath, funcName, args...)
 		if callErr != nil {
 			return mcpError(fmt.Sprintf("function call failed: %v", callErr)), nil
 		}

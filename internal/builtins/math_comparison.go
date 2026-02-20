@@ -63,8 +63,14 @@ func registerComparisons() {
 // registerCmpWithMeta registers an Int comparison with metadata
 func registerCmpWithMeta(name string, fn func(int, int) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.IntValue)
-		b := args[1].(*eval.IntValue)
+		a, ok := args[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected IntValue for arg 0, got %T", name, args[0])
+		}
+		b, ok := args[1].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected IntValue for arg 1, got %T", name, args[1])
+		}
 		return &eval.BoolValue{Value: fn(a.Value, b.Value)}, nil
 	}
 	typeFunc := func() types.Type {
@@ -183,8 +189,14 @@ func registerCmpStringWithMeta(name string, fn func(string, string) bool, descri
 // registerCmpBoolWithMeta registers a Bool comparison with metadata
 func registerCmpBoolWithMeta(name string, fn func(bool, bool) bool, description string, tags []string) {
 	impl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-		a := args[0].(*eval.BoolValue)
-		b := args[1].(*eval.BoolValue)
+		a, ok := args[0].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected BoolValue for arg 0, got %T", name, args[0])
+		}
+		b, ok := args[1].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("%s: expected BoolValue for arg 1, got %T", name, args[1])
+		}
 		return &eval.BoolValue{Value: fn(a.Value, b.Value)}, nil
 	}
 	typeFunc := func() types.Type {

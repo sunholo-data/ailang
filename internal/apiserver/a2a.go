@@ -181,20 +181,38 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 		return
 	}
 
-	// Extract arguments from message text (try JSON array).
+	// Extract arguments from message parts.
+	// Supports: data parts with {"args": [...]}, or text parts with JSON content.
 	var args []any
 	if params.Message.Parts != nil {
 		for _, part := range params.Message.Parts {
+			if args != nil {
+				break // already found args
+			}
 			if part.Type == "data" && part.Data != nil {
 				if argsSlice, ok := part.Data["args"].([]any); ok {
 					args = argsSlice
+				}
+			} else if part.Type == "text" && part.Text != "" {
+				// Try parsing text as JSON args (e.g., {"args": [1, 2]} or [1, 2]).
+				var textArgs struct {
+					Args []any `json:"args"`
+				}
+				if err := json.Unmarshal([]byte(part.Text), &textArgs); err == nil && textArgs.Args != nil {
+					args = textArgs.Args
+				} else {
+					// Try as raw JSON array.
+					var rawArgs []any
+					if err := json.Unmarshal([]byte(part.Text), &rawArgs); err == nil {
+						args = rawArgs
+					}
 				}
 			}
 		}
 	}
 
-	// Call the function.
-	result, callErr := s.engine.Call(modulePath, funcName, args...)
+	// Call the function (preserve floats — JSON has no int/float distinction).
+	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
 
 	taskID := params.ID
 	if taskID == "" {
