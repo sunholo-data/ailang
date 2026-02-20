@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.8.1] - 2026-02-20
+
 ### Added
 - **M-WASM-STREAM-BRIDGE: WASM stream builtins use effect handler registry** (`internal/builtins/stream.go`, `cmd/wasm/effects.go`, `web/ailang-repl.js`, `internal/repl/apply_closure.go`, ~255 LOC)
   - All 9 stream builtins now dispatch through `effects.Call()` instead of direct function references, allowing WASM JS handlers registered via `ailangSetEffectHandler("Stream", {...})` to override native Go implementations
@@ -83,6 +85,33 @@
   - Example: `examples/runnable/stream_websocket.ail` — WebSocket echo client
   - 4 integration tests with real WebSocket echo server (connect, multi-message, connection limit, server close)
   - Total: 167 registered builtins (was 161)
+
+- **Codex CLI executor**: OpenAI Codex added as third CLI agent alongside Claude Code and Gemini CLI (`design_docs/planned/v0_8_1/m-coord-codex-executor.md`)
+
+- **Firestore storage backend**: Cloud-native storage option for coordinator and messaging (`cmd/ailang/storage.go`, `internal/coordinator/`, `internal/messaging/`)
+  - `AILANG_CLOUD_PROJECT` env var for GCP project ID (separate from telemetry)
+  - SQLite remains default for local development
+
+- **OTEL tracing for all effect operations**: Instruments IO, FS, Net, Clock, Stream, Process effects with OpenTelemetry spans via callback injection pattern (`internal/effects/context.go`)
+  - `GoCtx` + `SpanWrapperFunc` added to `EffContext` — avoids import cycles
+
+- **Agent coding prompt** (`ailang agent-prompt`): Minimal iterative coding guide (~240 lines) for agentic write/check/run/fix workflows
+  - Three-prompt architecture: `ailang prompt` (syntax), `ailang devtools-prompt` (toolchain), `ailang agent-prompt` (agent coding)
+  - `ailang chains chat` subcommand for viewing per-turn conversation text
+
+- **Bytes builtins**: `concat`, `concatList`, `fromInts` in std/bytes; `writeFileBytes`, `appendFile`, `appendFileBytes` in std/fs; `io.writeBytes` for binary stdout
+
+- **Chain Explorer UI improvements**: Stage detail view, improved styling, hierarchy visualization (`internal/server/`)
+
+### Changed
+- **Rename `GOOGLE_CLOUD_PROJECT` to `AILANG_CLOUD_PROJECT`** for storage backends — separates AILANG's GCP project config from Cloud Trace telemetry env var
+- **Gemini 3.1 support** and Claude NVM PATH fix for executor environment resolution
+
+### Fixed
+- **ast.Type switch exhaustiveness**: Systemic audit found 2 of 3 `ast.Type` converter functions had silent `default` cases returning `TVar2{Name:"unknown"}` — corrupted all imported polymorphic ADT constructor schemes. Added missing `TypeVar`, `TypeApp`, `RecordType` cases + panic defaults (`internal/iface/builder.go`, `internal/types/typechecker.go`)
+- **TVar collision across inference calls**: Fixed persistent `freshCounter` in `CoreTypeChecker` preventing type variable name collisions across multiple `InferWithConstraints` calls
+- **Stream config type mismatch**: Fixed string → record for stream headers configuration
+- **Eval harness false negatives**: Fixed cases where passing benchmarks were incorrectly reported as failures
 
 ## [v0.8.0] - 2026-02-13
 
