@@ -35,6 +35,10 @@ function HeroSection() {
       </div>
 
       <div className="hero-content">
+        <div className="hero-logo">
+          <img src="/img/ailang-logo.svg" alt="AILANG" width="120" height="120" />
+        </div>
+
         <div className="hero-badge">
           <Sparkles size={14} />
           <span>Version {STABLE_RELEASE} Released</span>
@@ -144,6 +148,21 @@ export func main() -> () ! {IO} =
           z-index: 1;
           max-width: 900px;
           text-align: center;
+        }
+
+        .hero-logo {
+          margin-bottom: 1.5rem;
+          animation: fadeInUp 0.5s ease-out forwards;
+          opacity: 0;
+        }
+
+        .hero-logo img {
+          filter: drop-shadow(0 0 30px rgba(231, 60, 23, 0.4));
+          transition: filter 0.3s ease;
+        }
+
+        .hero-logo img:hover {
+          filter: drop-shadow(0 0 50px rgba(231, 60, 23, 0.6));
         }
 
         .hero-badge {
@@ -705,6 +724,7 @@ function CTASection() {
     <section className="cta-section">
       <div className="cta-container">
         <div className="cta-content">
+          <img src="/img/ailang-logo.svg" alt="AILANG" width="64" height="64" className="cta-logo" />
           <h2 className="cta-title">Ready to Build with AI?</h2>
           <p className="cta-subtitle">
             Start writing AILANG today. Full documentation, examples, and an interactive playground await.
@@ -779,6 +799,18 @@ function CTASection() {
             grid-template-columns: 1fr;
             gap: 3rem;
             text-align: center;
+          }
+        }
+
+        .cta-logo {
+          margin-bottom: 1rem;
+          filter: drop-shadow(0 0 20px rgba(231, 60, 23, 0.3));
+        }
+
+        @media (max-width: 768px) {
+          .cta-logo {
+            margin: 0 auto 1rem;
+            display: block;
           }
         }
 

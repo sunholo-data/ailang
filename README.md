@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/static/img/ailang-logo.svg" alt="AILANG Logo" width="128" height="128">
+</p>
+
 # AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->

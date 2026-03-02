@@ -94,6 +94,11 @@
             "type": "command",
             "command": "~/.ailang/hooks/claude_telemetry.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session_end_speak.sh",
+            "timeout": 120
           }
         ]
       }

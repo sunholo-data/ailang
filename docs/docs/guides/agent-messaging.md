@@ -79,7 +79,7 @@ Messages in the system contain:
 | `dup_of` | Message ID this is a duplicate of (set by dedupe) |
 | `embedding` | JSON-encoded float32 vector (neural search) |
 | `embedding_model` | Model used to generate embedding (e.g., "ollama:nomic-embed-text") |
-| `envelope` | JSON object with named embedding vectors (v0.8.1+, see [Semantic Envelope](#semantic-envelope)) |
+| `envelope` | JSON object with named embedding vectors (v0.8.1+, see [Semantic Envelope](#semantic-envelope-v081)) |
 
 ## Architecture
 

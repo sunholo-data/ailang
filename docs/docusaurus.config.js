@@ -73,6 +73,14 @@ const config = {
         href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap',
       },
     },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/img/ailang-logo.svg',
+      },
+    },
   ],
 
   // Even if you don't use internationalization, you can use this field to set
@@ -151,7 +159,7 @@ const config = {
         title: 'AILANG',
         logo: {
           alt: 'AILANG Logo',
-          src: 'img/logo.png',
+          src: 'img/ailang-logo.svg',
         },
         items: [
           {
@@ -199,6 +207,13 @@ const config = {
       },
       footer: {
         style: 'dark',
+        logo: {
+          alt: 'AILANG Logo',
+          src: 'img/ailang-logo.svg',
+          href: '/',
+          width: 48,
+          height: 48,
+        },
         links: [
           {
             title: 'Docs',

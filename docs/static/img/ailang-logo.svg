@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e73c17"/>
+      <stop offset="100%" stop-color="#c08015"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer regular hexagon (flat-top, centered at 256,256, radius 232) -->
+  <polygon points="
+    488,256
+    372,457
+    140,457
+    24,256
+    140,55
+    372,55
+  " fill="url(#g1)"/>
+
+  <!-- Inner regular hexagon (radius 200) -->
+  <polygon points="
+    456,256
+    356,429
+    156,429
+    56,256
+    156,83
+    356,83
+  " fill="#0f1420"/>
+
+  <!-- Lambda character — centered in hexagon -->
+  <text
+    x="256"
+    y="252"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="290"
+    font-weight="400"
+    fill="#fff"
+    opacity="0.95"
+  >&#x03BB;</text>
+
+  <!-- Base accent bar -->
+  <rect x="195" y="398" width="122" height="12" rx="2" fill="#dd6b20" opacity="0.5"/>
+
+  <!-- Corner verification brackets -->
+  <path d="M 163 128 L 163 103 L 188 103" fill="none" stroke="#dd6b20" stroke-width="5" stroke-linecap="square" opacity="0.55"/>
+  <path d="M 349 128 L 349 103 L 324 103" fill="none" stroke="#dd6b20" stroke-width="5" stroke-linecap="square" opacity="0.55"/>
+
+</svg>
