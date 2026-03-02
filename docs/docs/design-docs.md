@@ -8,6 +8,34 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.8.1
+
+- [M-CHAIN-TRANSCRIPT: Session Transcript Viewing via ailang chains](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-chain-transcript.md)
+- [M-CLOUD-STORAGE: Cloud Database Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-cloud-storage.md)
+- [Sprint Plan: M-CONTRACT-EVAL — Contract-Guided Evaluation Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-contract-guided-eval-sprint-plan.md)
+- [M-CONTRACT-EVAL: Contract-Guided Evaluation Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-contract-guided-eval.md)
+- [M-DEV-TOOLS-AI-DOC: AI-Consumable Dev Tools Documentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-dev-tools-ai-documentation.md)
+- [M-DX-TEST-HARNESS-NIL: Inline Tests Fail with Stdlib Imports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-dx-test-harness-stdlib-nil.md)
+- [M-EVAL-CHAINS: Chains as Single Source of Truth for Agent Evals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-eval-chains-source-of-truth.md)
+- [M-EXECUTOR-IDLE-TIMEOUT: Activity-Based Idle Timeout for Executors](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-executor-idle-timeout.md)
+- [M-PARSER-EXPORT: Single-Constructor ADT Cursor Bug Drops `export` Flag](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-parser-export-multiline-adt.md)
+- [M-PERF3: Performance Quick Wins for 1.0.0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-perf3-performance-quick-wins.md)
+- [M-PROCESS: std/process Module for External Command Execution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-exec.md)
+- [Sprint Plan: M-PROCESS — std/process Module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-sprint-plan.md)
+- [M-PROCESS-SUBCMD: Subcommand Allowlists for Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-process-subcmd-allowlist.md)
+- [M-SEMANTIC-ENVELOPE: Multi-Aspect Semantic Embeddings for Agent Messaging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-semantic-envelope.md)
+- [M-STREAM-BIDI: Generic Bidirectional Streaming Primitives](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-primitives.md)
+- [Sprint Plan: M-STREAM-BIDI Phase 1 — Core WebSocket Streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-bidi-sprint-plan.md)
+- [M-STREAM-DX: Streaming Demo DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-dx-improvements.md)
+- [Sprint Plan: M-STREAM-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-dx-sprint-plan.md)
+- [Sprint Plan: M-STREAM-PHASE2-DX — Stream Typed ADTs & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-phase2-dx-sprint-plan.md)
+- [M-STREAM-PHASE2-DX: Stream Typed ADTs & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-phase2-dx.md)
+- [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-verify-smt-verification.md)
+- [Sprint Plan: M-WASM-CLOSURE-ENV](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-closure-env-sprint-plan.md)
+- [M-WASM-CLOSURE-ENV: Fix Closure Environment Resolution in WASM Bridge](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-closure-env.md)
+- [Sprint Plan: M-WASM-STREAM-BRIDGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-stream-bridge-sprint-plan.md)
+- [M-WASM-STREAM-BRIDGE: WASM Stream Effect Handler Bridge](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-stream-bridge.md)
+
 ## v0.8.0
 
 - [M-CONTRACTS-OPLOWERING: Apply OpLowering to Contract Expressions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-contracts-oplowering.md)
@@ -29,6 +57,19 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-TRACE-EXPORT: Execution Trace Export for AI Training](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-export.md)
 - [Sprint Plan: M-TRACE-EXPORT Phase 2 — OTEL Span Emission](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-otel-phase2-sprint-plan.md)
 - [Sprint Plan: M-TRACE-EXPORT Phase 3 — Trace Replay](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_0/m-trace-replay-phase3-sprint-plan.md)
+
+## v0.7.4
+
+- [M-CHAINS-SOURCE-OF-TRUTH Phase 3: Chain Metric Rollup](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-chains-source-of-truth-phase-3.md)
+- [M-CHAINS-SOURCE-OF-TRUTH Phase 3: Chain Metric Rollup - Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-chains-source-of-truth-phase3-sprint-plan.md)
+- [[Feature Name]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-chains-source-of-truth-phase3.md)
+- [Fix: Inline Tests Fail with Complex Imports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-dx25-inline-tests-import-resolution.md)
+- [Sprint Plan: Fix Inline Tests with Complex Imports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-dx25-sprint-plan.md)
+- [M-EVAL-GAP: AILANG vs Python Parity Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-eval-gap-analysis.md)
+- [M-EVAL-GAP-FIXES: Address Language Gaps from v0.7.0 Eval Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-eval-gap-fixes.md)
+- [M-PIPELINE-STANDALONE-EXPR: Standalone Expression Evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-pipeline-standalone-expr.md)
+- [Sprint Plan: M-STDLIB-GAPS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-stdlib-gaps-sprint-plan.md)
+- [Design Doc: M-STDLIB-GAPS - Standard Library Gap Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_4/m-stdlib-gaps.md)
 
 ## v0.7.3
 
@@ -556,4 +597,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 414 design documents across 44 versions.*
+*Generated at build time. 449 design documents across 46 versions.*

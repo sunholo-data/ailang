@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.7.4) - auto-synced from source
+description: The active AILANG teaching prompt (v0.8.2) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.7.4.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.8.2.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.7.4.md -->
-<!-- Active Version: v0.7.4 -->
+<!-- Source: prompts/v0.8.2.md -->
+<!-- Active Version: v0.8.2 -->
 
-# AILANG v0.7.3 - AI Teaching Prompt
+# AILANG v0.8.2 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -27,7 +27,7 @@ export func main() -> () ! {IO} {
 
 **Rules:**
 1. First line MUST be `module path/name` matching the file path
-2. Use `println(show(value))` for numbers, `println(str)` for strings
+2. Use `println(show(value))` for numbers, `println(str)` for strings. **Prefer `show` over `intToStr`/`floatToStr`** — `show` works on ALL types
 3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
 4. No loops - use recursion
 
@@ -392,6 +392,30 @@ export func main() -> () ! {IO, Net} {
   let body = httpGet("https://example.com");
   println(body)
 }
+
+-- Main with CLI arguments (getArgs returns [string], needs Env)
+-- Run: ailang run --caps IO,FS,Env --entry main program.ail -- arg1 arg2
+export func main() -> () ! {IO, FS, Env} {
+  let args = getArgs();
+  match args {
+    filename :: _ => {
+      let content = readFile(filename);
+      println(content)
+    },
+    _ => println("Usage: program <filename>")
+  }
+}
+
+-- Reading lines from stdin (readLine reads one line, returns "" at EOF)
+-- Run: printf "hello\nworld\n" | ailang run --caps IO --entry main program.ail
+func loop() -> () ! {IO} {
+  let line = readLine();
+  if line == "" then ()
+  else {
+    println("Got: " ++ line);
+    loop()
+  }
+}
 ```
 
 **Common effect combinations:**
@@ -401,7 +425,10 @@ export func main() -> () ! {IO, Net} {
 | Read files | `! {FS}` (add IO if also printing) |
 | HTTP requests | `! {Net}` (add IO if also printing) |
 | Environment vars | `! {Env}` |
+| CLI arguments | `! {Env}` (use `getArgs()` from `std/env`) |
+| Read from stdin | `! {IO}` (use `readLine()` from `std/io`) |
 | AI calls | `! {AI}` |
+| Run external commands | `! {Process}` or `! {IO, Process}` |
 | Full program | `! {IO, FS, Net}` as needed |
 
 **Effect errors and how to fix:**
@@ -426,9 +453,10 @@ export func main() -> () ! {IO} { println("hi") }
 | `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
 | `FS` | `readFile`, `writeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
-| `Env` | `getEnv`, `getEnvOr` | `std/env` |
+| `Env` | `getArgs`, `getEnv`, `getEnvOr` | `std/env` |
 | `AI` | `call`, `callJson`, `callJsonSimple` | `std/ai` |
 | `Debug` | `log`, `check` | `std/debug` |
+| `Process` | `exec` | `std/process` |
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
 
@@ -443,16 +471,19 @@ export func main() -> () ! {IO} { println("hi") }
 ```ailang
 import std/io (println, readLine)
 import std/fs (readFile, writeFile)
+import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
 import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty)
-import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex, flatMap, mapE, filterE, foldlE, flatMapE, forEachE)
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex, flatMap, zipWith, mapE, filterE, foldlE, flatMapE, forEachE)
 import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
 import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
 import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
+import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)
+import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, StreamEvent, Message, Closed, StreamError, SSEData)
 import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
 import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
 ```
@@ -476,6 +507,7 @@ import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_get
 - `any(p, xs) -> bool` - Check if any element satisfies predicate
 - `findIndex(p, xs) -> Option[int]` - Find index of first matching element
 - `flatMap(f, xs)` - Apply f to each element, flatten results (pure)
+- `zipWith(f, xs, ys)` - Combine two lists element-wise with function f
 
 **Effectful list combinators** (v0.7.3) — use these instead of hand-rolling recursive traversals:
 - `mapE(f, xs)` - Effectful map: apply effectful function to each element
@@ -516,8 +548,8 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `toUpper(s) -> string` / `toLower(s) -> string` - Case conversion
 - `stringToInt(s) -> Option[int]` - Parse integer
 - `stringToFloat(s) -> Option[float]` - Parse float
-- `intToStr(n) -> string` - Convert int to string
-- `floatToStr(f) -> string` - Convert float to string
+- `intToStr(n) -> string` - Convert int to string (prefer `show` for simple cases)
+- `floatToStr(f) -> string` - Convert float to string (prefer `show` for simple cases)
 - `join(delim, xs) -> string` - Join list of strings with delimiter
 - `repeat(s, n) -> string` - Repeat string n times
 
@@ -526,6 +558,26 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `intToFloat(x) -> float` - Convert int to float
 - `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
 - `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
+
+**Bytes functions** (std/bytes) — pure binary data operations:
+- `fromString(s) -> bytes` - UTF-8 encode string to bytes
+- `toString(b) -> string` - Decode bytes to UTF-8 string
+- `toBase64(b) -> string` - Base64 encode
+- `fromBase64(s) -> Option[bytes]` - Base64 decode (None if invalid)
+- `length(b) -> int` - Byte length
+- `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
+
+**Streaming functions** (std/stream) — requires `--caps Stream`:
+- `connect(url) -> Result[StreamConn, string]` - Open WebSocket
+- `transmit(conn, msg) -> Result[unit, string]` - Send text message
+- `transmitBinary(conn, data) -> Result[unit, string]` - Send binary bytes (no base64 overhead)
+- `onEvent(conn, handler) -> Result[unit, string]` - Register event handler
+- `runEventLoop(conn) -> Result[unit, string]` - Process events until handler returns false
+- `disconnect(conn) -> Result[unit, string]` - Close connection
+- `sseConnect(url) -> Result[StreamConn, string]` - Open SSE (read-only)
+- `ssePost(url, body, contentType) -> Result[StreamConn, string]` - POST then stream SSE response
+- `withSSE(url, handler) -> Result[unit, string]` - Connect + run + disconnect
+- Event types: `Message(string)`, `Binary(string)`, `SSEData(eventType, data)`, `Closed(code, reason)`, `StreamError(kind)`
 
 ## String Parsing (Returns Option)
 
@@ -826,6 +878,24 @@ export func main() -> () ! {IO} {
 ```
 
 **Note:** Derived equality compares by constructor and field values (structural equality).
+
+## Newtype Record Access (v0.8.2)
+
+Single-constructor ADTs wrapping a record support direct field access:
+
+```ailang
+type Item = Item({name: string, value: int})
+
+let item = Item({name: "hello", value: 42})
+let n = item.name    -- "hello" (auto-unwraps the ADT wrapper)
+
+-- Works with map too:
+import std/list (map)
+let items = [Item({name: "a", value: 1}), Item({name: "b", value: 2})]
+let names = map(\t. t.name, items)  -- ["a", "b"]
+```
+
+**Note:** This only works for single-constructor ADTs with exactly one record field. For multi-constructor ADTs, use pattern matching to access fields.
 
 ## Polymorphic ADTs with Mixed Field Types
 
@@ -1377,36 +1447,22 @@ match findIndex(\x. x > 15, xs) {
 }
 ```
 
-## Testing
+## Contracts & Verification (USE THIS — your biggest advantage!)
 
-**Inline tests on functions (recommended):**
-```ailang
--- Tests are pairs of (input, expected_output)
-pure func square(x: int) -> int tests [(0, 0), (5, 25)] { x * x }
+**Contracts let you PROVE your code is correct for ALL inputs, not just test cases.** This is the single most powerful feature for AI agents: write a function with contracts, run `ailang verify`, and Z3 mathematically proves it correct or gives you the exact counterexample to fix.
 
-pure func double(x: int) -> int tests [(0, 0), (3, 6), (5, 10)] { x * 2 }
-```
-
-Run: `ailang test file.ail`
-
-## Contracts (requires/ensures)
-
-Add preconditions and postconditions to functions:
+**Agent workflow:** Write contracts FIRST as your specification, implement the function, then verify:
+1. `requires { ... }` — what the caller must guarantee (precondition)
+2. `ensures { ... }` — what the function guarantees back (postcondition, `result` = return value)
+3. `ailang verify file.ail` — Z3 proves it or shows the exact failing input
 
 ```ailang
-module myapp/math
+module myapp/billing
 
--- Precondition: divisor must not be zero
--- Postcondition: result is non-negative
-export func safeDivide(dividend: int, divisor: int) -> int ! {}
-requires { divisor != 0 }
-ensures { result >= 0 }
-{
-  if dividend < 0 then (0 - dividend) / divisor
-  else dividend / divisor
-}
+import std/string (length as strLength, startsWith)
+import std/list (length as listLength)
 
--- Enum ADT + contract
+-- Enum ADT + contract: Z3 checks ALL tax brackets automatically
 export type TaxBracket = STANDARD | REDUCED | EXEMPT
 
 export func calculateTax(income: int, bracket: TaxBracket) -> int ! {}
@@ -1420,7 +1476,7 @@ ensures { result >= 0 }
   }
 }
 
--- Cross-function: Z3 inlines calculateTax and proves net is non-negative
+-- Cross-function verification: Z3 inlines calculateTax to prove this
 export func netIncome(gross: int, bracket: TaxBracket) -> int ! {}
 requires { gross >= 0 }
 ensures { result >= 0 }
@@ -1428,11 +1484,11 @@ ensures { result >= 0 }
   gross - calculateTax(gross, bracket)
 }
 
--- String verification: promo code format validation
+-- String verification using stdlib imports
 export func isValidPromo(code: string) -> bool ! {}
-ensures { result == (_str_startsWith(code, "PROMO-") && _str_len(code) >= 8) }
+ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) }
 {
-  _str_startsWith(code, "PROMO-") && _str_len(code) >= 8
+  startsWith(code, "PROMO-") && strLength(code) >= 8
 }
 
 -- Record verification: field-level contracts
@@ -1443,20 +1499,15 @@ ensures { result >= 0 }
   inv.subtotal - inv.discount + inv.tax
 }
 
--- List verification: adding an item increases count by 1
+-- List verification using stdlib
 export func addItem(price: int, items: [int]) -> int ! {}
-ensures { result == _list_length(items) + 1 }
+ensures { result == listLength(items) + 1 }
 {
-  _list_length(price :: items)
+  listLength(price :: items)
 }
 ```
 
-**Runtime contract checking** (panics on violation):
-```bash
-ailang run --verify-contracts --caps IO --entry main file.ail
-```
-
-**Static verification with Z3** (proves contracts correct at compile time):
+**Verify with Z3** (proves contracts correct for ALL inputs at compile time):
 ```bash
 ailang verify file.ail              # Prove contracts for all functions
 ailang verify --verbose file.ail    # Show generated SMT-LIB
@@ -1464,10 +1515,7 @@ ailang verify --json file.ail       # Machine-readable output
 ailang verify --strict file.ail     # Exit 1 if any function can't be verified
 ```
 
-`ailang verify` translates functions to SMT-LIB and uses Z3 to mathematically prove
-that postconditions hold for ALL possible inputs satisfying preconditions. When
-verification fails, Z3 provides concrete counterexamples:
-
+**Example output** — Z3 proves 5 functions and catches a bug in the 6th:
 ```
   ✓ VERIFIED calculateTax    6ms
   ✓ VERIFIED netIncome        8ms     # cross-function: inlines calculateTax
@@ -1480,33 +1528,44 @@ verification fails, Z3 provides concrete counterexamples:
       discount: Int = 1
 ```
 
+When Z3 finds a violation, it gives you the EXACT inputs that break the contract. Fix the function, re-verify — no guessing.
+
+**Runtime contract checking** (alternative to static verification):
+```bash
+ailang run --verify-contracts --caps IO --entry main file.ail
+```
+
 **What can be verified** (decidable fragment):
-- Functions with `int`, `bool`, `string`, enum ADT, record, or `[int]` list parameters and returns
+- Types: `int`, `bool`, `string`, enum ADT, record, `[int]` lists
 - Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`)
 - `if`/`else`, `let` bindings, `match` on enums/ADTs
-- String operations: `_str_len`, `_str_startsWith`, `_str_contains`, `_str_indexOf`, string concat (`++`)
-- List operations: `_list_length`, `_list_head`, `_list_tail`, cons (`::`)
-- Records: field access (`r.field`), construction (`{x: 1, y: 2}`), records in ensures (`result.x > 0`)
-- Cross-function calls: callees inlined as `define-fun` (Z3 reasons about full call chains)
-- Non-recursive, non-higher-order functions
-- Must be pure: `! {}` (no effects)
+- String ops (use `std/string`): `length`, `startsWith`, `endsWith`, `find`, `substring`, `contains`, concat (`++`)
+- List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
+- Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
+- Cross-function calls: Z3 inlines callees to reason about full call chains
+- Must be pure: `! {}` (no effects), non-recursive, non-higher-order
 
-**What gets skipped** (with clear reason and hint):
-- Recursive functions, higher-order functions
-- Functions with effects
-- Float parameters (int only for arithmetic proofs)
-
-**Contract modes:**
-- Default (no flag): contracts parsed but not checked
-- `--verify-contracts`: runtime panics on first violation
-- `ailang verify`: compile-time mathematical proof via Z3
+**What gets skipped:** Recursive functions, higher-order functions, effectful functions, float parameters.
 
 **Rules:**
-- `requires { expr }` — precondition, checked at function entry
-- `ensures { expr }` — postcondition, `result` refers to return value
-- Contract expressions must evaluate to `bool`
-- Contracts go BETWEEN the effect annotation and the function body
+- `requires { expr }` — precondition; `ensures { expr }` — postcondition
+- `result` refers to the return value (only in `ensures`)
+- Contracts go BETWEEN the effect annotation `! {}` and the function body `{ ... }`
+- Use stdlib imports in contracts (`std/string`, `std/list`) — Z3 resolves them natively
+- For list `head`/`nth` in contracts, use builtins `_list_head`/`_list_nth` (stdlib versions return `Option`)
 - Install Z3: `brew install z3` (macOS) or `apt install z3` (Linux)
+
+## Testing
+
+**Inline tests on functions (recommended):**
+```ailang
+-- Tests are pairs of (input, expected_output)
+pure func square(x: int) -> int tests [(0, 0), (5, 25)] { x * x }
+
+pure func double(x: int) -> int tests [(0, 0), (3, 6), (5, 10)] { x * 2 }
+```
+
+Run: `ailang test file.ail`
 
 ## Multi-Module Projects
 
