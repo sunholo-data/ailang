@@ -45,7 +45,7 @@ func TestGenerateErrNoAIHandler(t *testing.T) {
 	if !strings.Contains(output, "var ErrNoAIHandler = errors.New") {
 		t.Error("Missing ErrNoAIHandler error variable")
 	}
-	if !strings.Contains(output, "AI handler not configured") {
+	if !strings.Contains(output, "no AI model configured") {
 		t.Error("Missing error message in ErrNoAIHandler")
 	}
 }
