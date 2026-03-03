@@ -63,7 +63,7 @@ func (g *AIGenerator) GenerateAITypes() ([]byte, error) {
 func (g *AIGenerator) generateErrNoAIHandler() {
 	g.writeln("// ErrNoAIHandler is returned when AI.call is invoked without a configured handler.")
 	g.writeln("// This prevents silent failures - you must explicitly configure a handler.")
-	g.writeln(`var ErrNoAIHandler = errors.New("AI handler not configured (use StubAIHandler for testing)")`)
+	g.writeln(`var ErrNoAIHandler = errors.New("no AI model configured — add --ai <model> flag (e.g. --ai gemini-2-5-flash), or --ai-stub for testing")`)
 	g.writeln("")
 }
 

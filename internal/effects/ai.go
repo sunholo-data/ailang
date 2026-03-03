@@ -8,7 +8,7 @@ import (
 )
 
 // ErrNoAIHandler is returned when AI.call is invoked without a configured handler
-var ErrNoAIHandler = errors.New("AI handler not configured (use StubAIHandler for testing)")
+var ErrNoAIHandler = errors.New("no AI model configured — add --ai <model> flag (e.g. --ai gemini-2-5-flash), or --ai-stub for testing")
 
 // AIHandler interface for pluggable AI implementation
 //

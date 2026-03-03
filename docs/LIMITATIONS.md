@@ -398,6 +398,52 @@ pure func simple(x: int) -> [int] {
 
 ---
 
+### `match` Inside Block-Body Lambdas in HOF Arguments
+
+**Status**: Known parser bug (M-DX-MATCH-HOF, planned v0.8.2)
+**Since**: v0.1.0
+**Affects**: Inline lambda expressions with pattern matching in HOF calls
+
+**Problem**:
+
+Using `match ... with` inside a block-body lambda (`\x. { ... }`) that is passed
+directly as an argument to a higher-order function fails with parser errors:
+
+```ailang
+-- ❌ FAILS: PAR_UNEXPECTED_TOKEN at 'with'
+let result = flatMap(\item. {
+  let status = match item with
+    | 0 -> Err("zero")
+    | _ -> Ok;
+  [status]
+}, myList)
+```
+
+The parser's nested delimiter tracking gets confused: the block's `}` and the
+match expression's `with ... |` syntax conflict when combined in a HOF argument.
+Note that simple `let` bindings (without `match`) in block-body lambdas work fine.
+
+**Workaround**:
+
+Extract the lambda body to a named helper function:
+
+```ailang
+-- ✅ Extract to helper (always works)
+let processItem = \item.
+  match item with
+  | 0 -> Err("zero")
+  | _ -> Ok
+
+let result = flatMap(\item. [processItem(item)], myList)
+```
+
+**Technical Details**:
+- Root cause: block-body lambda parser doesn't correctly track delimiter depth
+  when `match ... with` (non-brace match form) appears inside a `{ ... }` block
+- See design doc: `design_docs/planned/v0_8_2/m-dx-match-in-hof-block-lambda.md`
+
+---
+
 ## Language Feature Gaps
 
 ### String Interpolation

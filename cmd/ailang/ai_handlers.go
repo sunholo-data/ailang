@@ -30,7 +30,13 @@ func setupAIHandler(effCtx *effects.EffContext, aiStub bool, aiModel string) err
 	}
 
 	if aiModel == "" {
-		// No AI handler configured - will fail at runtime if AI effect used
+		// No AI handler configured - warn early if AI capability was granted
+		if effCtx.HasCap("AI") {
+			fmt.Fprintf(os.Stderr, "Warning: --caps AI requires --ai <model> flag.\n"+
+				"  No AI model configured. Programs using AI.call will fail.\n"+
+				"  Fix: ailang run --caps AI --ai gemini-2-5-flash ...\n"+
+				"  Or for testing: ailang run --caps AI --ai-stub ...\n")
+		}
 		return nil
 	}
 
