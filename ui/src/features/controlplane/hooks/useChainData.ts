@@ -120,6 +120,8 @@ function synthesizeChainFromSpans(
     agent_id: agentId,
     provider: provider ? String(provider) : undefined,
     task_id: taskId || undefined,
+    // For Claude Code sessions, task_id IS the session UUID — set session_id so ChatHistory can find it
+    session_id: taskId && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(taskId) ? taskId : undefined,
     status: hasError ? 'failed' : 'completed',
     iteration: 1,
     cost: totalCost,
@@ -153,6 +155,8 @@ export function useChainData(options: UseChainDataOptions = {}): UseChainDataRes
   const [fetchTrigger, setFetchTrigger] = useState(0);
   // Track whether API found a real chain (vs synthesized)
   const apiFoundChainRef = useRef(false);
+  // Track whether we've already enriched this chain with spans (prevent re-enrichment loop)
+  const enrichedRef = useRef(false);
 
   // Track the last lookup to avoid duplicate fetches
   const lastLookupRef = useRef<string>('');
@@ -184,6 +188,7 @@ export function useChainData(options: UseChainDataOptions = {}): UseChainDataRes
       setLoading(true);
       setError(null);
       apiFoundChainRef.current = false;
+      enrichedRef.current = false;
 
       try {
         // Step 1: Find chain by task_id or message_id
@@ -192,7 +197,12 @@ export function useChainData(options: UseChainDataOptions = {}): UseChainDataRes
         if (taskId) {
           const resp = await fetch(`/api/chains/by-task/${encodeURIComponent(taskId)}`);
           if (resp.ok) {
-            chainSummary = await resp.json();
+            const data = await resp.json();
+            // Only treat as a chain if it has the expected chain shape (has `id` and `source_type`).
+            // The by-task endpoint may return a TaskSpanSummary fallback (has `task_id` but no `id`).
+            if (data && data.id && data.source_type) {
+              chainSummary = data;
+            }
           }
         }
 
@@ -200,7 +210,10 @@ export function useChainData(options: UseChainDataOptions = {}): UseChainDataRes
         if (!chainSummary && messageId) {
           const resp = await fetch(`/api/chains/by-message/${encodeURIComponent(messageId)}`);
           if (resp.ok) {
-            chainSummary = await resp.json();
+            const data = await resp.json();
+            if (data && data.id && data.source_type) {
+              chainSummary = data;
+            }
           }
         }
 
@@ -262,17 +275,58 @@ export function useChainData(options: UseChainDataOptions = {}): UseChainDataRes
     };
   }, [taskId, messageId, includeSpans, fetchTrigger]);
 
-  // Effect 2: Synthesize virtual chain from fallback spans when API found nothing
+  // Effect 2: Enrich chain with fallback spans when API chain has empty stages,
+  // or synthesize a virtual chain when no API chain exists at all.
   useEffect(() => {
-    // Don't overwrite a real API chain
-    if (apiFoundChainRef.current) return;
     // Still loading from API
     if (loading) return;
-    // Already have a chain (real or previously synthesized with same spans)
-    if (chain !== null) return;
-    // No spans to synthesize from
+    // No spans to work with
     if (!fallbackSpans || fallbackSpans.length === 0) return;
 
+    // Case A: API found a real chain but stages have no spans — enrich them
+    if (apiFoundChainRef.current && chain !== null && !enrichedRef.current) {
+      const hasEmptyStages = chain.stages?.some(s => !s.spans || s.spans.length === 0);
+      if (hasEmptyStages && chain.stages) {
+        enrichedRef.current = true;
+        // Enrich: inject fallback spans into the first empty stage, update metrics
+        const enriched = { ...chain, stages: chain.stages.map(s => ({ ...s })) };
+        const emptyStage = enriched.stages.find(s => !s.spans || s.spans.length === 0);
+        if (emptyStage) {
+          emptyStage.spans = fallbackSpans;
+          // Update stage metrics from spans if the stage has zeros
+          if (!emptyStage.cost && !emptyStage.tokens_in) {
+            let cost = 0, tokIn = 0, tokOut = 0, turns = 0, tools = 0, maxDur = 0;
+            for (const span of fallbackSpans) {
+              cost += span.cost_usd || 0;
+              tokIn += span.tokens_in || 0;
+              tokOut += span.tokens_out || 0;
+              if (span.durationMs > maxDur) maxDur = span.durationMs;
+              if (span.name.includes('turn') || span.name === 'api_request') turns++;
+              if (span.name.includes('tool')) tools++;
+            }
+            emptyStage.cost = cost;
+            emptyStage.tokens_in = tokIn;
+            emptyStage.tokens_out = tokOut;
+            emptyStage.turns = turns;
+            emptyStage.tool_calls = tools;
+            emptyStage.duration_ms = maxDur;
+            // Also set session_id from taskId if UUID format
+            if (!emptyStage.session_id && taskId && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(taskId)) {
+              emptyStage.session_id = taskId;
+            }
+          }
+          // Update chain-level metrics
+          enriched.total_cost = enriched.stages.reduce((sum, s) => sum + (s.cost || 0), 0);
+          enriched.total_tokens = enriched.stages.reduce((sum, s) => sum + (s.tokens_in || 0) + (s.tokens_out || 0), 0);
+          enriched.total_turns = enriched.stages.reduce((sum, s) => sum + (s.turns || 0), 0);
+        }
+        setChain(enriched);
+      }
+      return;
+    }
+
+    // Case B: No API chain — synthesize virtual chain from spans
+    if (chain !== null) return; // Already have a chain
     const synthetic = synthesizeChainFromSpans(fallbackSpans, taskId, messageId);
     if (synthetic) {
       setChain(synthetic);

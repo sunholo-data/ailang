@@ -414,6 +414,10 @@ func (b *SQLiteBackend) GetChainStages(ctx context.Context, chainID string, opts
 	return b.store.GetChainStages(ctx, chainID, opts)
 }
 
+func (b *SQLiteBackend) GetChainJourney(ctx context.Context, chainID string) (*JourneyResponse, error) {
+	return b.store.GetChainJourney(ctx, chainID)
+}
+
 func (b *SQLiteBackend) UpdateStageStatus(ctx context.Context, stageID string, status ChainStageStatus) error {
 	return b.store.UpdateStageStatus(ctx, stageID, status)
 }

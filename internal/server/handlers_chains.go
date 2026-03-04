@@ -714,6 +714,41 @@ func (s *Server) handleStageChat(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleChainJourney returns a pre-computed narrative journey for a chain.
+// GET /api/chains/{id}/journey
+func (s *Server) handleChainJourney(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
+	chainID := strings.TrimSuffix(path, "/journey")
+	if chainID == "" {
+		http.Error(w, "Chain ID required", http.StatusBadRequest)
+		return
+	}
+
+	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
+	if !ok {
+		http.Error(w, "Journey not supported for this backend", http.StatusNotImplemented)
+		return
+	}
+
+	journey, err := sqliteBackend.GetChainJourney(r.Context(), chainID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(journey)
+}
+
 // registerChainRoutes registers all chain-related API routes.
 func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 	// List and create chains
@@ -752,6 +787,12 @@ func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 	// Single chain operations - this catches /api/chains/{id} and /api/chains/{id}/stages/*
 	mux.HandleFunc("/api/chains/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
+
+		// Handle /api/chains/{id}/journey (M-CHAIN-JOURNEY)
+		if strings.HasSuffix(path, "/journey") {
+			s.handleChainJourney(w, r)
+			return
+		}
 
 		// Handle /api/chains/{id}/stages/{stageId}/spans (M-PERF-OBSERVATORY L2)
 		if strings.HasSuffix(path, "/spans") && strings.Contains(path, "/stages/") {

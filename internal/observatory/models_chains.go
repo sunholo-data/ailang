@@ -320,6 +320,27 @@ type SpanLitePage struct {
 	Offset int         `json:"offset"`
 }
 
+// JourneyStep describes one step in the execution journey narrative.
+type JourneyStep struct {
+	StageNumber    int     `json:"stage_number"`
+	AgentID        string  `json:"agent_id"`
+	Action         string  `json:"action"`                    // "Created design doc", "Planned sprint", etc.
+	Status         string  `json:"status"`                    // completed, failed, running, etc.
+	ApprovalStatus string  `json:"approval_status,omitempty"` // approved, rejected, pending
+	Iteration      int     `json:"iteration"`
+	Feedback       string  `json:"feedback,omitempty"`      // Truncated human feedback
+	ErrorExcerpt   string  `json:"error_excerpt,omitempty"` // First line of error
+	Cost           float64 `json:"cost"`
+	DurationMs     int64   `json:"duration_ms"`
+}
+
+// JourneyResponse is the pre-computed narrative for a chain's execution flow.
+type JourneyResponse struct {
+	ChainID string        `json:"chain_id"`
+	Steps   []JourneyStep `json:"steps"`
+	Summary string        `json:"summary"` // "Design doc approved -> Sprint planned -> Implementation in progress"
+}
+
 // ChainCreateRequest contains the data needed to create a new chain.
 type ChainCreateRequest struct {
 	SourceType        ChainSourceType `json:"source_type"`

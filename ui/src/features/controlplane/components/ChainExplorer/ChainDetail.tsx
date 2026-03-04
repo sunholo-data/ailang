@@ -3,9 +3,11 @@
  * Shows header with metrics, stage pipeline, and stage detail panel.
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import type { ChainData, ChainStageData, Span } from '../ExecHierarchy/types';
+import type { ChainData, ChainStageData } from '../ExecHierarchy/types';
 import { StagePipeline } from './StagePipeline';
 import { StageDetail } from './StageDetail';
+import { JourneySummary } from './JourneySummary';
+import { useStageSpans } from '../../hooks';
 import {
   formatCost,
   formatTokens,
@@ -70,6 +72,21 @@ export const ChainDetail: React.FC<ChainDetailProps> = ({
     [chain.stages, selectedStageId]
   );
 
+  const isVirtual = chain.id.startsWith('virtual-');
+
+  // Lazy-load spans for the selected stage (L2 tiered loading)
+  // Skip for virtual chains (their spans are already inline from synthesis)
+  const isVirtualStage = selectedStageId?.startsWith('virtual-') ?? false;
+  const { spans: lazySpans, loading: spansLoading } = useStageSpans({
+    chainId: isVirtual ? null : chain.id,
+    stageId: isVirtualStage ? null : selectedStageId,
+  });
+
+  // Use inline spans if available (virtual chains), otherwise lazy-loaded spans
+  const stageSpansForDetail = selectedStage?.spans?.length
+    ? selectedStage.spans
+    : lazySpans;
+
   // Compute chain duration
   const durationMs = chain.completed_at
     ? new Date(chain.completed_at).getTime() - new Date(chain.created_at).getTime()
@@ -83,8 +100,6 @@ export const ChainDetail: React.FC<ChainDetailProps> = ({
   const githubUrl = chain.github_repo && chain.github_issue_number
     ? `https://github.com/${chain.github_repo}/issues/${chain.github_issue_number}`
     : null;
-
-  const isVirtual = chain.id.startsWith('virtual-');
 
   return (
     <div className={styles.chainDetailContainer}>
@@ -151,6 +166,20 @@ export const ChainDetail: React.FC<ChainDetailProps> = ({
         </div>
       </div>
 
+      {/* Journey Narrative */}
+      {!isVirtual && chain.stages && chain.stages.length > 1 ? (
+        <JourneySummary chainId={chain.id} />
+      ) : chain.stages && chain.stages.length > 0 ? (
+        <div className={styles.journeyContainer}>
+          <div className={styles.journeySummaryLine}>
+            {chain.stages[0].agent_id || source.label} session
+            {chain.total_turns ? ` \u2014 ${chain.total_turns} turns` : ''}
+            {chain.stages[0].tool_calls ? `, ${chain.stages[0].tool_calls} tool calls` : ''}
+            {chain.total_cost ? `, ${formatCost(chain.total_cost)}` : ''}
+          </div>
+        </div>
+      ) : null}
+
       {/* Stage Pipeline */}
       {chain.stages && chain.stages.length > 0 && (
         <StagePipeline
@@ -164,6 +193,7 @@ export const ChainDetail: React.FC<ChainDetailProps> = ({
       {selectedStage ? (
         <StageDetail
           stage={selectedStage}
+          spans={stageSpansForDetail}
           hiddenSpanTypes={hiddenSpanTypes}
           theme={theme}
         />

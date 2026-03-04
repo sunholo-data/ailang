@@ -951,3 +951,71 @@
   min-width: 48px;
   text-align: right;
 }
+
+/* ============================================================================
+ * Journey Summary (M-CHAIN-JOURNEY)
+ * ============================================================================ */
+
+.journeySkeleton {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-tertiary, #6e7681);
+}
+
+.journeyContainer {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.journeySummaryLine {
+  font-size: 12px;
+  color: var(--text-secondary, #8b949e);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.journeySteps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.journeyStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-subtle, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  font-size: 11px;
+  color: var(--text-primary, #e6edf3);
+}
+
+.journeyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.journeyAction {
+  white-space: nowrap;
+}
+
+.journeyIteration {
+  font-size: 10px;
+  color: var(--text-tertiary, #6e7681);
+}
+
+.journeyCost {
+  font-size: 10px;
+  color: var(--text-tertiary, #6e7681);
+  font-variant-numeric: tabular-nums;
+}
+
+.journeyError {
+  color: #f85149;
+  font-weight: 600;
+  cursor: help;
+}

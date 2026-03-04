@@ -1284,6 +1284,91 @@ func (s *Store) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span,
 	return spans, nil
 }
 
+// agentActionLabel maps agent IDs to human-readable action descriptions.
+var agentActionLabel = map[string]string{
+	"design-doc-creator": "Created design doc",
+	"sprint-planner":     "Planned sprint",
+	"sprint-executor":    "Implemented changes",
+	"eval-standard":      "Ran evaluations",
+	"eval-runner":        "Ran evaluations",
+	"eval-agent":         "Ran agent evaluations",
+}
+
+// GetChainJourney computes a narrative journey for a chain from its stages.
+func (s *Store) GetChainJourney(ctx context.Context, chainID string) (*JourneyResponse, error) {
+	stages, err := s.GetChainStages(ctx, chainID, ChainReadOptions{IncludeStages: true})
+	if err != nil {
+		return nil, err
+	}
+	if len(stages) == 0 {
+		return &JourneyResponse{ChainID: chainID}, nil
+	}
+
+	resp := &JourneyResponse{
+		ChainID: chainID,
+		Steps:   make([]JourneyStep, 0, len(stages)),
+	}
+
+	var summaryParts []string
+
+	for _, stage := range stages {
+		action, ok := agentActionLabel[stage.AgentID]
+		if !ok {
+			action = stage.AgentID
+		}
+
+		step := JourneyStep{
+			StageNumber:    stage.StageNumber,
+			AgentID:        stage.AgentID,
+			Action:         action,
+			Status:         string(stage.Status),
+			ApprovalStatus: string(stage.ApprovalStatus),
+			Iteration:      stage.Iteration,
+			Cost:           stage.Cost,
+			DurationMs:     stage.DurationMs,
+		}
+
+		if stage.HumanFeedback != "" {
+			fb := stage.HumanFeedback
+			if len(fb) > 120 {
+				fb = fb[:120] + "..."
+			}
+			step.Feedback = fb
+		}
+		if stage.ErrorMessage != "" {
+			em := stage.ErrorMessage
+			if idx := strings.Index(em, "\n"); idx > 0 {
+				em = em[:idx]
+			}
+			if len(em) > 120 {
+				em = em[:120] + "..."
+			}
+			step.ErrorExcerpt = em
+		}
+
+		resp.Steps = append(resp.Steps, step)
+
+		// Build summary fragment
+		fragment := action
+		switch stage.Status {
+		case "completed":
+			if stage.ApprovalStatus == "approved" {
+				fragment += " (approved)"
+			}
+		case "failed":
+			fragment += " (failed)"
+		case "running":
+			fragment += " (in progress)"
+		case "awaiting_approval":
+			fragment += " (awaiting approval)"
+		}
+		summaryParts = append(summaryParts, fragment)
+	}
+
+	resp.Summary = strings.Join(summaryParts, " -> ")
+	return resp, nil
+}
+
 // LinkSpanToChain updates a span's chain_id and stage_id.
 // Called during OTEL ingest when AILANG_CHAIN_ID/AILANG_STAGE_ID env vars are present.
 func (s *Store) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {

@@ -481,13 +481,14 @@ export interface StageDetailProps {
 
 export const StageDetail: React.FC<StageDetailProps> = ({
   stage,
+  spans: externalSpans,
   hiddenSpanTypes,
   theme,
 }) => {
   const [activeTab, setActiveTab] = useState<StageDetailTab>('summary');
 
-  // Extract data from stage spans
-  const stageSpans = stage.spans || [];
+  // Use externally-loaded spans (from useStageSpans) when available, fall back to inline
+  const stageSpans = externalSpans ?? stage.spans ?? [];
   const tools = useMemo(() => extractToolUsage(stageSpans), [stageSpans]);
   const files = useMemo(() => extractFiles(stageSpans), [stageSpans]);
   const turns = useMemo(() => extractTurnBreakdown(stageSpans), [stageSpans]);
@@ -507,12 +508,12 @@ export const StageDetail: React.FC<StageDetailProps> = ({
     agentId: stage.agent_id,
     durationMs: stage.duration_ms,
     // Attach _span with session.id so extractClaudeSessionId finds it
-    _span: stage.session_id ? {
+    _span: (stage.session_id || (stage.task_id && /^[0-9a-f]{8}-/.test(stage.task_id))) ? {
       id: stageSpans[0]?.id || stage.id,
       name: 'stage',
       startMs: 0,
       durationMs: stage.duration_ms || 0,
-      attributes: { 'session.id': stage.session_id },
+      attributes: { 'session.id': stage.session_id || stage.task_id! },
     } : undefined,
   }), [stage, stageSpans]);
 
