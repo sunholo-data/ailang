@@ -282,7 +282,7 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		response.TotalCost = metrics.TotalCostUSD
 	}
 
-	// Get breakdowns (filtered if filter is set)
+	// Get breakdowns sequentially (SQLite serializes concurrent reads on same connection).
 	if !filter.IsEmpty() {
 		if items, err := sqliteBackend.GetFilteredBreakdownByProvider(ctx, filter, wsConfig); err == nil {
 			response.ByProvider = convertBreakdownItems(items)
@@ -293,12 +293,10 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		if items, err := sqliteBackend.GetFilteredBreakdownByModel(ctx, filter, wsConfig); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		// Workspace breakdown uses config-driven mapping to Firestore workspace IDs
 		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspaceWithMapping(ctx, filter, wsConfig, wsConfig); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}
 	} else {
-		// No filter - use original methods
 		if items, err := sqliteBackend.GetBreakdownByProvider(ctx); err == nil {
 			response.ByProvider = convertBreakdownItems(items)
 		}
@@ -308,7 +306,6 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		if items, err := sqliteBackend.GetBreakdownByModel(ctx); err == nil {
 			response.ByModel = convertBreakdownItems(items)
 		}
-		// Workspace breakdown uses config-driven mapping to Firestore workspace IDs
 		if items, err := sqliteBackend.GetFilteredBreakdownByWorkspaceWithMapping(ctx, nil, wsConfig, wsConfig); err == nil {
 			response.ByWorkspace = convertBreakdownItems(items)
 		}

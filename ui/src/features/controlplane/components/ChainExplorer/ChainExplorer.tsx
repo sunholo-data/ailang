@@ -15,7 +15,6 @@ import type { ChainData, Span, HierarchyNode, FilterCriteria, ControlPlaneFilter
 import { ChainList } from './ChainList';
 import { ChainDetail } from './ChainDetail';
 import { CliCommandHint } from '../CliCommandHint';
-import { truncateId } from '../../../../utils/formatters';
 import styles from './ChainExplorer.module.css';
 
 // ============================================================================
@@ -55,14 +54,20 @@ function convertApiSpan(raw: any): Span {
   };
 }
 
-// Build the equivalent `ailang chains` CLI command for the current state
+// Build the equivalent `ailang chains` CLI command for the current state.
+// Virtual chains (synthesized from spans) don't exist in the database,
+// so we show a trace-based command instead.
 function buildChainsCliCommand(
   mode: 'event' | 'browse',
   chainId: string | null | undefined,
 ): string {
   if (chainId) {
-    // Show view command with short ID (matches CLI default display)
-    return `ailang chains view ${truncateId(chainId, 12)}`;
+    if (chainId.startsWith('virtual-chain-')) {
+      // Virtual chain — extract the task/message ID suffix and show find command
+      const suffix = chainId.replace('virtual-chain-', '');
+      return `ailang chains find --task-id ${suffix}`;
+    }
+    return `ailang chains view ${chainId}`;
   }
   if (mode === 'browse') {
     return 'ailang chains list';

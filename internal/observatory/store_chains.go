@@ -1042,6 +1042,163 @@ func (s *Store) GetChainStats(ctx context.Context) (*ChainStats, error) {
 	return stats, nil
 }
 
+// GetChainStatusCounts returns chain counts grouped by status in a single query.
+// Replaces the pattern of fetching all chains and counting in Go (M-PERF-OBSERVATORY).
+func (s *Store) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error) {
+	counts := &ChainStatusCounts{}
+
+	var args []interface{}
+	query := `
+		SELECT
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END),
+			COALESCE(SUM(total_cost), 0),
+			COALESCE(SUM(total_tokens), 0)
+		FROM execution_chains
+	`
+	if createdAfter != nil {
+		query += ` WHERE created_at > ?`
+		args = append(args, *createdAfter)
+	}
+
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(
+		&counts.Total,
+		&counts.Completed,
+		&counts.Active,
+		&counts.Pending,
+		&counts.Failed,
+		&counts.TotalCost,
+		&counts.TotalTokens,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain status counts: %w", err)
+	}
+
+	return counts, nil
+}
+
+// GetChainStatsByAgent returns per-agent aggregated stats in a single SQL query.
+// Replaces the N+1 pattern of fetching all chains then querying stages per chain (M-PERF-OBSERVATORY).
+func (s *Store) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error) {
+	var args []interface{}
+	query := `
+		SELECT cs.agent_id,
+		       COUNT(cs.id) as stages,
+		       SUM(CASE WHEN cs.status = 'completed' THEN 1 ELSE 0 END) as completed,
+		       SUM(CASE WHEN cs.status = 'failed' THEN 1 ELSE 0 END) as failed,
+		       COALESCE(SUM(cs.cost), 0) as total_cost,
+		       COALESCE(SUM(cs.tokens_in), 0) as total_tokens_in,
+		       COALESCE(SUM(cs.tokens_out), 0) as total_tokens_out
+		FROM chain_stages cs
+		JOIN execution_chains c ON cs.chain_id = c.id
+	`
+	if createdAfter != nil {
+		query += ` WHERE c.created_at > ?`
+		args = append(args, *createdAfter)
+	}
+	query += ` GROUP BY cs.agent_id ORDER BY total_cost DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain stats by agent: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*AgentStatsResult
+	for rows.Next() {
+		r := &AgentStatsResult{}
+		if err := rows.Scan(&r.AgentID, &r.Stages, &r.Completed, &r.Failed, &r.TotalCost, &r.TokensIn, &r.TokensOut); err != nil {
+			return nil, fmt.Errorf("failed to scan agent stats row: %w", err)
+		}
+		results = append(results, r)
+	}
+
+	return results, nil
+}
+
+// GetSpanLitesByStageID returns lightweight spans for a stage without the heavy attributes columns.
+// This avoids reading the 3.9GB attributes data when only metadata is needed (M-PERF-OBSERVATORY).
+func (s *Store) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	if stageID == "" {
+		return &SpanLitePage{}, nil
+	}
+	if limit <= 0 {
+		limit = 200
+	}
+
+	// Get total count
+	var total int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM spans WHERE stage_id = ?`, stageID).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count spans for stage: %w", err)
+	}
+
+	// Fetch spans without attributes columns
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, trace_id, parent_span_id,
+		       COALESCE(chain_id, ''), COALESCE(stage_id, ''),
+		       name, kind, status, status_message,
+		       start_time, end_time, duration_ms,
+		       tokens_in, tokens_out, cost_usd,
+		       model, provider
+		FROM spans
+		WHERE stage_id = ?
+		ORDER BY start_time ASC
+		LIMIT ? OFFSET ?
+	`, stageID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query lite spans: %w", err)
+	}
+	defer rows.Close()
+
+	var spans []*SpanLite
+	for rows.Next() {
+		sl := &SpanLite{}
+		var parentSpanID, statusMessage, model, provider sql.NullString
+		var endTime sql.NullTime
+
+		err := rows.Scan(
+			&sl.ID, &sl.TraceID, &parentSpanID,
+			&sl.ChainID, &sl.StageID,
+			&sl.Name, &sl.Kind, &sl.Status, &statusMessage,
+			&sl.StartTime, &endTime, &sl.DurationMs,
+			&sl.TokensIn, &sl.TokensOut, &sl.CostUSD,
+			&model, &provider,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan lite span row: %w", err)
+		}
+
+		if parentSpanID.Valid {
+			sl.ParentSpanID = parentSpanID.String
+		}
+		if statusMessage.Valid {
+			sl.StatusMessage = statusMessage.String
+		}
+		if endTime.Valid {
+			sl.EndTime = endTime.Time
+		}
+		if model.Valid {
+			sl.Model = model.String
+		}
+		if provider.Valid {
+			sl.Provider = provider.String
+		}
+
+		spans = append(spans, sl)
+	}
+
+	return &SpanLitePage{
+		Spans:  spans,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
 // GetSpansByStageID returns spans linked to a stage via stage_id column.
 func (s *Store) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {
 	if stageID == "" {

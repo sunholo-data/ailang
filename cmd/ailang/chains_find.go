@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunholo/ailang/internal/observatory"
 )
@@ -79,6 +80,22 @@ func chainsFindCommand() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	// If no chain found, try span summary fallback (for user sessions, evals, etc.)
+	if chain == nil && *taskID != "" {
+		summary, summaryErr := backend.GetTaskSpanSummary(ctx, *taskID)
+		if summaryErr != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", summaryErr)
+			os.Exit(1)
+		}
+		if summary == nil {
+			fmt.Fprintln(os.Stderr, "No chain or spans found for this task ID.")
+			os.Exit(1)
+		}
+		printTaskSpanSummary(summary, *jsonOutput)
+		return
+	}
+
 	if chain == nil {
 		fmt.Fprintln(os.Stderr, "No chain found.")
 		os.Exit(1)
@@ -122,6 +139,49 @@ func chainsFindCommand() {
 			fmt.Println()
 		}
 	}
+}
+
+// printTaskSpanSummary displays span statistics when no chain exists.
+// This matches what the dashboard shows for "virtual chains".
+func printTaskSpanSummary(s *observatory.TaskSpanSummary, jsonOutput bool) {
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(s)
+		return
+	}
+
+	duration := s.EndTime.Sub(s.StartTime)
+	fmt.Printf("Session: %s\n", s.TaskID)
+	fmt.Printf("Type: user_session (no execution chain)\n")
+	fmt.Printf("Started: %s\n", s.StartTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Duration: %s\n", formatSessionDuration(duration))
+	fmt.Printf("Cost: $%.4f  Tokens: %d in / %d out\n", s.CostUSD, s.TokensIn, s.TokensOut)
+	fmt.Printf("Spans: %d across %d traces\n", s.SpanCount, s.TraceCount)
+
+	if len(s.TopSpanNames) > 0 {
+		fmt.Println()
+		fmt.Println("Top operations:")
+		for _, nc := range s.TopSpanNames {
+			fmt.Printf("  %-40s %d\n", nc.Name, nc.Count)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("Dashboard: http://127.0.0.1:1957  (select this event to see full detail)\n")
+}
+
+// formatSessionDuration formats a time.Duration in a human-readable way.
+func formatSessionDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%.0fs", d.Seconds())
+	}
+	if d < time.Hour {
+		return fmt.Sprintf("%.0fm %.0fs", d.Minutes(), d.Seconds()-d.Minutes()*60)
+	}
+	hours := int(d.Hours())
+	mins := int(d.Minutes()) - hours*60
+	return fmt.Sprintf("%dh %dm", hours, mins)
 }
 
 // parseGitHubRef parses "owner/repo#number" into (repo, number, error).

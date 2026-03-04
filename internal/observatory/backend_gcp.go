@@ -742,5 +742,17 @@ func (b *GCPTraceBackend) GetChainStats(ctx context.Context) (*ChainStats, error
 	return nil, nil
 }
 
+func (b *GCPTraceBackend) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error) {
+	return &ChainStatusCounts{}, nil
+}
+
+func (b *GCPTraceBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error) {
+	return nil, nil
+}
+
+func (b *GCPTraceBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	return &SpanLitePage{}, nil
+}
+
 // Ensure GCPTraceBackend implements Backend
 var _ Backend = (*GCPTraceBackend)(nil)

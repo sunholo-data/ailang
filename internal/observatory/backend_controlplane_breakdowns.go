@@ -7,7 +7,8 @@ import (
 
 // ===== Breakdown Queries =====
 
-// GetBreakdownByProvider returns cost/token breakdown by provider
+// GetBreakdownByProvider returns cost/token breakdown by provider.
+// Scoped to last 30 days for performance on large databases (M-PERF-OBSERVATORY).
 func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]BreakdownItem, error) {
 	rows, err := b.store.DB().QueryContext(ctx, `
 		SELECT
@@ -22,6 +23,7 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		WHERE provider IS NOT NULL AND provider != ''
+			AND start_time > datetime('now', '-30 days')
 		GROUP BY provider
 		ORDER BY cost_usd DESC
 	`)
@@ -45,73 +47,57 @@ func (b *SQLiteBackend) GetBreakdownByProvider(ctx context.Context) ([]Breakdown
 	return items, rows.Err()
 }
 
-// GetBreakdownBySourceType returns cost/token breakdown by source type (inferred from root span of each trace)
+// GetBreakdownBySourceType returns cost/token breakdown by source type.
+// Uses two-phase aggregation: first aggregate per trace_id, then join with trace_summaries.
+// M-PERF-OBSERVATORY: avoids 662K×213K JOIN by reducing to ~130K trace groups first.
 func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]BreakdownItem, error) {
-	// Costs are attributed to the INITIATING SOURCE (root span of each trace).
-	// This ensures that API calls made within a user session are attributed to "User Sessions",
-	// not "Direct API". The root span determines the source category for all spans in its trace.
 	rows, err := b.store.DB().QueryContext(ctx, `
-		WITH root_categories AS (
-			-- Find root span of each trace and categorize by INITIATING SOURCE
-			-- Priority: ailang.source attribute (explicit) > service.name > span name patterns
-			-- This ensures coordinator-spawned Claude Code sessions are attributed to "Coordinator Tasks"
+		WITH trace_metrics AS (
 			SELECT
 				trace_id,
-				CASE
-					-- 1. Check ailang.source FIRST (explicit source from AILANG executor)
-					-- Critical for proper cost attribution: GitHub → Coordinator → Claude Code
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
-					-- 2. Then check service.name (generic tool identity)
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'user_session'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'coordinator'
-					-- 3. Check specific span name patterns
-					WHEN name LIKE 'eval.%' THEN 'eval'
-					WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' OR name LIKE 'exec.%' THEN 'coordinator'
-					WHEN name LIKE 'messages.%' THEN 'messaging'
-					WHEN name LIKE 'ailang-%' THEN 'server'
-					WHEN name LIKE 'ailang.exec%' THEN 'coordinator'
-					WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%' THEN 'cli'
-					WHEN name LIKE 'claude_code.%' THEN 'user_session'
-					-- 4. API calls without service.name are truly direct API usage
-					WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'direct_api'
-					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
-					ELSE 'other'
-				END as source_id,
-				CASE
-					-- Same priority: ailang.source > service.name > span name
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'User Sessions'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'eval.%' THEN 'Eval Benchmarks'
-					WHEN name LIKE 'coordinator.%' OR name LIKE 'claude.execute%' OR name LIKE 'exec.%' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'messages.%' THEN 'Messaging'
-					WHEN name LIKE 'ailang-%' THEN 'Server'
-					WHEN name LIKE 'ailang.exec%' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%' THEN 'CLI Usage'
-					WHEN name LIKE 'claude_code.%' THEN 'User Sessions'
-					WHEN name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%' THEN 'Direct API'
-					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
-					ELSE 'Other'
-				END as source_label
+				COUNT(*) as span_count,
+				COALESCE(SUM(tokens_in), 0) as tokens_in,
+				COALESCE(SUM(tokens_out), 0) as tokens_out,
+				COALESCE(SUM(cost_usd), 0) as cost_usd,
+				COALESCE(SUM(duration_ms), 0) as duration_ms,
+				COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+				COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 			FROM spans
-			WHERE parent_span_id IS NULL OR parent_span_id = ''
+			WHERE start_time > datetime('now', '-30 days')
+			GROUP BY trace_id
 		)
 		SELECT
-			COALESCE(r.source_id, 'other') as id,
-			COALESCE(r.source_label, 'Other') as label,
-			COUNT(*) as span_count,
-			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
-			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
-			COALESCE(SUM(s.cost_usd), 0) as cost_usd,
-			COALESCE(SUM(s.duration_ms), 0) as duration_ms,
-			COALESCE(SUM(s.cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(s.cache_creation_tokens), 0) as cache_creation_tokens
-		FROM spans s
-		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
+			CASE
+				WHEN t.root_span_name LIKE 'eval.%' THEN 'eval'
+				WHEN t.root_span_name LIKE 'coordinator.%' OR t.root_span_name LIKE 'claude.execute%' OR t.root_span_name LIKE 'exec.%' OR t.root_span_name LIKE 'ailang.exec%' THEN 'coordinator'
+				WHEN t.root_span_name LIKE 'messages.%' THEN 'messaging'
+				WHEN t.root_span_name LIKE 'ailang-%' THEN 'server'
+				WHEN t.root_span_name LIKE 'ailang.%' OR t.root_span_name LIKE 'ailang %' OR t.root_span_name LIKE 'compile%' OR t.root_span_name LIKE 'check.%' THEN 'cli'
+				WHEN t.root_span_name LIKE 'claude_code.%' THEN 'user_session'
+				WHEN t.root_span_name LIKE 'anthropic.%' OR t.root_span_name LIKE 'gemini.%' OR t.root_span_name LIKE 'openai.%' THEN 'direct_api'
+				WHEN t.root_span_name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
+				ELSE 'other'
+			END as id,
+			CASE
+				WHEN t.root_span_name LIKE 'eval.%' THEN 'Eval Benchmarks'
+				WHEN t.root_span_name LIKE 'coordinator.%' OR t.root_span_name LIKE 'claude.execute%' OR t.root_span_name LIKE 'exec.%' OR t.root_span_name LIKE 'ailang.exec%' THEN 'Coordinator Tasks'
+				WHEN t.root_span_name LIKE 'messages.%' THEN 'Messaging'
+				WHEN t.root_span_name LIKE 'ailang-%' THEN 'Server'
+				WHEN t.root_span_name LIKE 'ailang.%' OR t.root_span_name LIKE 'ailang %' OR t.root_span_name LIKE 'compile%' OR t.root_span_name LIKE 'check.%' THEN 'CLI Usage'
+				WHEN t.root_span_name LIKE 'claude_code.%' THEN 'User Sessions'
+				WHEN t.root_span_name LIKE 'anthropic.%' OR t.root_span_name LIKE 'gemini.%' OR t.root_span_name LIKE 'openai.%' THEN 'Direct API'
+				WHEN t.root_span_name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
+				ELSE 'Other'
+			END as label,
+			SUM(tm.span_count) as span_count,
+			SUM(tm.tokens_in) as tokens_in,
+			SUM(tm.tokens_out) as tokens_out,
+			SUM(tm.cost_usd) as cost_usd,
+			SUM(tm.duration_ms) as duration_ms,
+			SUM(tm.cache_read_tokens) as cache_read_tokens,
+			SUM(tm.cache_creation_tokens) as cache_creation_tokens
+		FROM trace_metrics tm
+		INNER JOIN trace_summaries t ON tm.trace_id = t.trace_id
 		GROUP BY 1, 2
 		ORDER BY cost_usd DESC
 	`)
@@ -135,7 +121,8 @@ func (b *SQLiteBackend) GetBreakdownBySourceType(ctx context.Context) ([]Breakdo
 	return items, rows.Err()
 }
 
-// GetBreakdownByModel returns cost/token breakdown by model
+// GetBreakdownByModel returns cost/token breakdown by model.
+// Scoped to last 30 days for performance on large databases (M-PERF-OBSERVATORY).
 func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownItem, error) {
 	rows, err := b.store.DB().QueryContext(ctx, `
 		SELECT
@@ -150,6 +137,7 @@ func (b *SQLiteBackend) GetBreakdownByModel(ctx context.Context) ([]BreakdownIte
 			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans
 		WHERE model IS NOT NULL AND model != ''
+			AND start_time > datetime('now', '-30 days')
 		GROUP BY model
 		ORDER BY cost_usd DESC
 		LIMIT 20
@@ -228,15 +216,15 @@ func (b *SQLiteBackend) GetFilteredBreakdownByProvider(ctx context.Context, filt
 	return items, rows.Err()
 }
 
-// GetFilteredBreakdownBySourceType returns source type breakdown with filters applied
+// GetFilteredBreakdownBySourceType returns source type breakdown with filters applied.
+// Uses trace_summaries.root_span_name for fast categorization (M-PERF-OBSERVATORY).
 func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, filter *ControlPlaneFilter, wsConfig WorkspaceMapping) ([]BreakdownItem, error) {
 	if filter == nil || filter.IsEmpty() {
 		return b.GetBreakdownBySourceType(ctx)
 	}
 
 	// Build conditions using shared helper (includes time range)
-	// Note: For source type breakdown, we exclude source_type from filter conditions
-	// since the query groups BY source type
+	// Exclude source_type from filter since the query groups BY source type
 	tempFilter := &ControlPlaneFilter{
 		Provider:  filter.Provider,
 		Model:     filter.Model,
@@ -246,69 +234,44 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 	}
 	conditions, args := buildFilterConditions(tempFilter, wsConfig)
 
+	// Always add a 30-day floor if no date range specified
+	if filter.StartDate == "" && filter.EndDate == "" {
+		conditions = append(conditions, "s.start_time > datetime('now', '-30 days')")
+	}
+
 	whereClause := ""
 	if len(conditions) > 0 {
-		whereClause = "WHERE " + conditions[0]
+		whereClause = "AND " + conditions[0]
 		for _, c := range conditions[1:] {
 			whereClause += " AND " + c
 		}
 	}
 
-	// Costs are attributed to the INITIATING SOURCE (root span of each trace).
-	// Filters apply to the spans being aggregated, but categorization comes from root spans.
+	// Uses trace_summaries for categorization — avoids json_extract on 3.9GB resource_attributes
 	query := fmt.Sprintf(`
-		WITH root_categories AS (
-			-- Find root span of each trace and categorize by INITIATING SOURCE
-			-- Priority: ailang.source attribute (explicit) > service.name > span name patterns
-			-- This ensures coordinator-spawned Claude Code sessions are attributed to "Coordinator Tasks"
-			SELECT
-				trace_id,
-				CASE
-					-- 1. Check ailang.source FIRST (explicit source from AILANG executor)
-					-- Critical for proper cost attribution: GitHub → Coordinator → Claude Code
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'coordinator'
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'eval'
-					-- 2. Then check service.name (generic tool identity)
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'user_session'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'eval'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'coordinator'
-					-- 3. Check specific span name patterns
-					WHEN name LIKE 'eval.%%' THEN 'eval'
-					WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' OR name LIKE 'exec.%%' THEN 'coordinator'
-					WHEN name LIKE 'messages.%%' THEN 'messaging'
-					WHEN name LIKE 'ailang-%%' THEN 'server'
-					WHEN name LIKE 'ailang.exec%%' THEN 'coordinator'
-					WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' OR name LIKE 'compile%%' OR name LIKE 'check.%%' THEN 'cli'
-					WHEN name LIKE 'claude_code.%%' THEN 'user_session'
-					-- 4. API calls without service.name are truly direct API usage
-					WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'direct_api'
-					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
-					ELSE 'other'
-				END as source_id,
-				CASE
-					-- Same priority: ailang.source > service.name > span name
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' THEN 'Coordinator Tasks'
-					WHEN json_extract(resource_attributes, '$."ailang.source"') = 'eval' THEN 'Eval Benchmarks'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'claude-code' THEN 'User Sessions'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' THEN 'Eval Benchmarks'
-					WHEN json_extract(resource_attributes, '$."service.name"') = 'ailang-coordinator' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'eval.%%' THEN 'Eval Benchmarks'
-					WHEN name LIKE 'coordinator.%%' OR name LIKE 'claude.execute%%' OR name LIKE 'exec.%%' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'messages.%%' THEN 'Messaging'
-					WHEN name LIKE 'ailang-%%' THEN 'Server'
-					WHEN name LIKE 'ailang.exec%%' THEN 'Coordinator Tasks'
-					WHEN name LIKE 'ailang.%%' OR name LIKE 'ailang %%' OR name LIKE 'compile%%' OR name LIKE 'check.%%' THEN 'CLI Usage'
-					WHEN name LIKE 'claude_code.%%' THEN 'User Sessions'
-					WHEN name LIKE 'anthropic.%%' OR name LIKE 'gemini.%%' OR name LIKE 'openai.%%' THEN 'Direct API'
-					WHEN name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
-					ELSE 'Other'
-				END as source_label
-			FROM spans
-			WHERE parent_span_id IS NULL OR parent_span_id = ''
-		)
 		SELECT
-			COALESCE(r.source_id, 'other') as id,
-			COALESCE(r.source_label, 'Other') as label,
+			CASE
+				WHEN t.root_span_name LIKE 'eval.%%' THEN 'eval'
+				WHEN t.root_span_name LIKE 'coordinator.%%' OR t.root_span_name LIKE 'claude.execute%%' OR t.root_span_name LIKE 'exec.%%' OR t.root_span_name LIKE 'ailang.exec%%' THEN 'coordinator'
+				WHEN t.root_span_name LIKE 'messages.%%' THEN 'messaging'
+				WHEN t.root_span_name LIKE 'ailang-%%' THEN 'server'
+				WHEN t.root_span_name LIKE 'ailang.%%' OR t.root_span_name LIKE 'ailang %%' OR t.root_span_name LIKE 'compile%%' OR t.root_span_name LIKE 'check.%%' THEN 'cli'
+				WHEN t.root_span_name LIKE 'claude_code.%%' THEN 'user_session'
+				WHEN t.root_span_name LIKE 'anthropic.%%' OR t.root_span_name LIKE 'gemini.%%' OR t.root_span_name LIKE 'openai.%%' THEN 'direct_api'
+				WHEN t.root_span_name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'direct_api'
+				ELSE 'other'
+			END as id,
+			CASE
+				WHEN t.root_span_name LIKE 'eval.%%' THEN 'Eval Benchmarks'
+				WHEN t.root_span_name LIKE 'coordinator.%%' OR t.root_span_name LIKE 'claude.execute%%' OR t.root_span_name LIKE 'exec.%%' OR t.root_span_name LIKE 'ailang.exec%%' THEN 'Coordinator Tasks'
+				WHEN t.root_span_name LIKE 'messages.%%' THEN 'Messaging'
+				WHEN t.root_span_name LIKE 'ailang-%%' THEN 'Server'
+				WHEN t.root_span_name LIKE 'ailang.%%' OR t.root_span_name LIKE 'ailang %%' OR t.root_span_name LIKE 'compile%%' OR t.root_span_name LIKE 'check.%%' THEN 'CLI Usage'
+				WHEN t.root_span_name LIKE 'claude_code.%%' THEN 'User Sessions'
+				WHEN t.root_span_name LIKE 'anthropic.%%' OR t.root_span_name LIKE 'gemini.%%' OR t.root_span_name LIKE 'openai.%%' THEN 'Direct API'
+				WHEN t.root_span_name IN ('api_request', 'api_error', 'call_llm', 'invocation') THEN 'Direct API'
+				ELSE 'Other'
+			END as label,
 			COUNT(*) as span_count,
 			COALESCE(SUM(s.tokens_in), 0) as tokens_in,
 			COALESCE(SUM(s.tokens_out), 0) as tokens_out,
@@ -317,8 +280,8 @@ func (b *SQLiteBackend) GetFilteredBreakdownBySourceType(ctx context.Context, fi
 			COALESCE(SUM(s.cache_read_tokens), 0) as cache_read_tokens,
 			COALESCE(SUM(s.cache_creation_tokens), 0) as cache_creation_tokens
 		FROM spans s
-		LEFT JOIN root_categories r ON s.trace_id = r.trace_id
-		%s
+		INNER JOIN trace_summaries t ON s.trace_id = t.trace_id
+		WHERE 1=1 %s
 		GROUP BY 1, 2
 		ORDER BY cost_usd DESC
 	`, whereClause)

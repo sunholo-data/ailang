@@ -475,5 +475,17 @@ func (b *CompositeBackend) GetChainStats(ctx context.Context) (*ChainStats, erro
 	return b.local.GetChainStats(ctx)
 }
 
+func (b *CompositeBackend) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error) {
+	return b.local.GetChainStatusCounts(ctx, createdAfter)
+}
+
+func (b *CompositeBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error) {
+	return b.local.GetChainStatsByAgent(ctx, createdAfter)
+}
+
+func (b *CompositeBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	return b.local.GetSpanLitesByStageID(ctx, stageID, limit, offset)
+}
+
 // Ensure CompositeBackend implements Backend
 var _ Backend = (*CompositeBackend)(nil)

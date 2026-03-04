@@ -367,6 +367,21 @@ func (s *ObservatoryStore) GetSpansByStageID(ctx context.Context, stageID string
 	return s.ListSpans(ctx, obs.SpanListOptions{}) // Filter by stage_id would need custom query
 }
 
+func (s *ObservatoryStore) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*obs.ChainStatusCounts, error) {
+	// TODO: Implement with Firestore aggregation queries
+	return &obs.ChainStatusCounts{}, nil
+}
+
+func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*obs.AgentStatsResult, error) {
+	// TODO: Implement with Firestore aggregation queries
+	return nil, nil
+}
+
+func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {
+	// TODO: Implement with Firestore field mask projection
+	return &obs.SpanLitePage{}, nil
+}
+
 func (s *ObservatoryStore) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {
 	_, err := s.client.Doc(collObsSpans, spanID).Update(ctx, []firestore.Update{
 		{Path: "chain_id", Value: chainID},

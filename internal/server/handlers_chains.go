@@ -118,16 +118,8 @@ func (s *Server) handleGetChain(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Chain not found", http.StatusNotFound)
 		return
 	}
-
-	// If chain found but we also want stages, fetch them
-	if chain != nil && opts.IncludeSpans {
-		stages, err := s.obsBackend.GetChainStages(ctx, chainID, opts)
-		if err != nil {
-			log.Printf("Failed to get stages for chain %s: %v", chainID, err)
-		} else {
-			chain.Stages = stages
-		}
-	}
+	// Note: GetChain with IncludeStages=true already loads stages via GetChainStages internally.
+	// No need to call GetChainStages again — that was a double-fetch bug (M-PERF-OBSERVATORY).
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(chain); err != nil {
@@ -195,6 +187,15 @@ func (s *Server) handleGetChainByTask(w http.ResponseWriter, r *http.Request) {
 
 	chain, err := s.obsBackend.GetChainByTaskID(ctx, taskID)
 	if err != nil || chain == nil {
+		// No execution chain — fall back to span summary (user sessions, evals, etc.)
+		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
+			summary, summaryErr := sqliteBackend.GetTaskSpanSummary(ctx, taskID)
+			if summaryErr == nil && summary != nil {
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(summary)
+				return
+			}
+		}
 		http.Error(w, "Chain not found", http.StatusNotFound)
 		return
 	}
@@ -451,101 +452,45 @@ func (s *Server) handleChainsStats(w http.ResponseWriter, r *http.Request) {
 	}
 	byAgent := q.Get("by_agent") == "true"
 
-	// Fetch all chains (with high limit)
-	chains, err := s.obsBackend.ListChains(ctx, observatory.ChainListOptions{Limit: 1000})
+	// Compute time cutoff
+	var createdAfter *time.Time
+	timeWindow := "all time"
+	if hours > 0 {
+		t := time.Now().Add(-time.Duration(hours) * time.Hour)
+		createdAfter = &t
+		timeWindow = strconv.Itoa(hours) + " hours"
+	}
+
+	// Single SQL query for chain counts by status (replaces fetch-all + Go loop, M-PERF-OBSERVATORY)
+	counts, err := s.obsBackend.GetChainStatusCounts(ctx, createdAfter)
 	if err != nil {
-		log.Printf("Failed to list chains for stats: %v", err)
+		log.Printf("Failed to get chain status counts: %v", err)
 		http.Error(w, "Failed to compute stats", http.StatusInternalServerError)
 		return
 	}
 
-	// Filter by time window
-	var cutoff time.Time
-	timeWindow := "all time"
-	if hours > 0 {
-		cutoff = time.Now().Add(-time.Duration(hours) * time.Hour)
-		timeWindow = strconv.Itoa(hours) + " hours"
-	}
-
-	type agentStat struct {
-		AgentID   string  `json:"agent_id"`
-		Stages    int     `json:"stages"`
-		Completed int     `json:"completed"`
-		Failed    int     `json:"failed"`
-		Cost      float64 `json:"total_cost"`
-		TokensIn  int     `json:"total_tokens_in"`
-		TokensOut int     `json:"total_tokens_out"`
-	}
-
 	result := map[string]interface{}{
-		"time_window": timeWindow,
+		"time_window":      timeWindow,
+		"total_chains":     counts.Total,
+		"completed":        counts.Completed,
+		"active":           counts.Active,
+		"pending_approval": counts.Pending,
+		"failed":           counts.Failed,
+		"total_cost":       counts.TotalCost,
+		"total_tokens":     counts.TotalTokens,
 	}
-	var totalChains, completed, active, pending, failed int
-	var totalCost float64
-	var totalTokens int64
-	agentMap := make(map[string]*agentStat)
-
-	for _, chain := range chains {
-		if !cutoff.IsZero() && chain.CreatedAt.Before(cutoff) {
-			continue
-		}
-		totalChains++
-		totalCost += chain.TotalCost
-		totalTokens += int64(chain.TotalTokens)
-
-		switch chain.Status {
-		case observatory.ChainStatusCompleted:
-			completed++
-		case observatory.ChainStatusActive:
-			active++
-		case observatory.ChainStatusPendingApproval:
-			pending++
-		case observatory.ChainStatusFailed:
-			failed++
-		}
-
-		if byAgent {
-			stages, err := s.obsBackend.GetChainStages(ctx, chain.ID, observatory.ChainReadOptions{})
-			if err != nil {
-				continue
-			}
-			for _, stage := range stages {
-				as, ok := agentMap[stage.AgentID]
-				if !ok {
-					as = &agentStat{AgentID: stage.AgentID}
-					agentMap[stage.AgentID] = as
-				}
-				as.Stages++
-				as.Cost += stage.Cost
-				as.TokensIn += stage.TokensIn
-				as.TokensOut += stage.TokensOut
-				switch stage.Status {
-				case observatory.StageStatusCompleted:
-					as.Completed++
-				case observatory.StageStatusFailed:
-					as.Failed++
-				}
-			}
-		}
+	if counts.Total > 0 {
+		result["avg_cost_per_chain"] = counts.TotalCost / float64(counts.Total)
 	}
 
-	result["total_chains"] = totalChains
-	result["completed"] = completed
-	result["active"] = active
-	result["pending_approval"] = pending
-	result["failed"] = failed
-	result["total_cost"] = totalCost
-	result["total_tokens"] = totalTokens
-	if totalChains > 0 {
-		result["avg_cost_per_chain"] = totalCost / float64(totalChains)
-	}
-
+	// Single SQL query for per-agent stats (replaces N+1, M-PERF-OBSERVATORY)
 	if byAgent {
-		agents := make([]agentStat, 0, len(agentMap))
-		for _, as := range agentMap {
-			agents = append(agents, *as)
+		agentStats, err := s.obsBackend.GetChainStatsByAgent(ctx, createdAfter)
+		if err != nil {
+			log.Printf("Failed to get agent stats: %v", err)
+		} else {
+			result["by_agent"] = agentStats
 		}
-		result["by_agent"] = agents
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -595,6 +540,180 @@ func (s *Server) handleChainsActive(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleStageSpans returns paginated lightweight spans for a specific stage.
+// GET /api/chains/{chainId}/stages/{stageId}/spans
+// Query params:
+//   - limit: max spans (default 200)
+//   - offset: pagination offset (default 0)
+//
+// This endpoint returns SpanLite records (no attributes/resource_attributes columns),
+// which avoids reading the 3.9GB of attribute data (M-PERF-OBSERVATORY Level 2).
+func (s *Server) handleStageSpans(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse path: /api/chains/{chainId}/stages/{stageId}/spans
+	path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
+	parts := strings.Split(path, "/stages/")
+	if len(parts) != 2 {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	stageAndSuffix := strings.TrimSuffix(parts[1], "/spans")
+	stageID := stageAndSuffix
+	if stageID == "" {
+		http.Error(w, "Missing stage ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	limit := 200
+	offset := 0
+	if l := q.Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if o := q.Get("offset"); o != "" {
+		if n, err := strconv.Atoi(o); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	page, err := s.obsBackend.GetSpanLitesByStageID(ctx, stageID, limit, offset)
+	if err != nil {
+		log.Printf("Failed to get spans for stage %s: %v", stageID, err)
+		http.Error(w, "Failed to get spans", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(page); err != nil {
+		log.Printf("Failed to encode stage spans: %v", err)
+	}
+}
+
+// handleGetSpanDetail returns a single span with full attributes.
+// GET /api/spans/{spanId}
+// This is Level 3 loading — only called when user clicks a specific span (M-PERF-OBSERVATORY).
+func (s *Server) handleGetSpanDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	spanID := strings.TrimPrefix(r.URL.Path, "/api/spans/")
+	if spanID == "" {
+		http.Error(w, "Missing span ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	span, err := s.obsBackend.GetSpan(ctx, spanID)
+	if err != nil || span == nil {
+		http.Error(w, "Span not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(span); err != nil {
+		log.Printf("Failed to encode span: %v", err)
+	}
+}
+
+// handleStageChat returns chat messages for a specific stage.
+// GET /api/chains/{chainId}/stages/{stageId}/chat
+// Query params:
+//   - limit: max messages (default 50)
+//   - offset: pagination offset (default 0)
+//
+// This is Level 4 loading — only called when user clicks the "Chat" tab (M-PERF-OBSERVATORY).
+func (s *Server) handleStageChat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.obsBackend == nil {
+		http.Error(w, "Observatory backend not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse path: /api/chains/{chainId}/stages/{stageId}/chat
+	path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
+	parts := strings.Split(path, "/stages/")
+	if len(parts) != 2 {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	stageID := strings.TrimSuffix(parts[1], "/chat")
+	if stageID == "" {
+		http.Error(w, "Missing stage ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Look up the stage to get its task_id or session_id
+	stage, err := s.obsBackend.GetStage(ctx, stageID)
+	if err != nil || stage == nil {
+		http.Error(w, "Stage not found", http.StatusNotFound)
+		return
+	}
+
+	var messages []*observatory.ChatMessage
+
+	// Try task_id first, fall back to session_id
+	if stage.TaskID != "" {
+		messages, err = s.obsBackend.GetChatMessagesByTaskID(ctx, stage.TaskID)
+	} else if stage.SessionID != "" {
+		var startTime, endTime time.Time
+		if stage.StartedAt != nil {
+			startTime = *stage.StartedAt
+		}
+		if stage.CompletedAt != nil {
+			endTime = *stage.CompletedAt
+		} else {
+			endTime = time.Now()
+		}
+		messages, err = s.obsBackend.GetChatMessagesBySession(ctx, stage.SessionID, startTime, endTime)
+	}
+
+	if err != nil {
+		log.Printf("Failed to get chat for stage %s: %v", stageID, err)
+		http.Error(w, "Failed to get chat messages", http.StatusInternalServerError)
+		return
+	}
+
+	if messages == nil {
+		messages = []*observatory.ChatMessage{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"messages": messages,
+		"total":    len(messages),
+		"stage_id": stageID,
+	}); err != nil {
+		log.Printf("Failed to encode chat messages: %v", err)
+	}
+}
+
 // registerChainRoutes registers all chain-related API routes.
 func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 	// List and create chains
@@ -627,11 +746,26 @@ func (s *Server) registerChainRoutes(mux *http.ServeMux) {
 	// Lookup by GitHub issue
 	mux.HandleFunc("/api/chains/by-github/", s.handleGetChainByGitHub)
 
-	// Single chain operations - this catches /api/chains/{id} and /api/chains/{id}/stages
+	// Span detail endpoint (must be before /api/chains/ catch-all)
+	mux.HandleFunc("/api/spans/", s.handleGetSpanDetail)
+
+	// Single chain operations - this catches /api/chains/{id} and /api/chains/{id}/stages/*
 	mux.HandleFunc("/api/chains/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/chains/")
 
-		// Handle /api/chains/{id}/stages
+		// Handle /api/chains/{id}/stages/{stageId}/spans (M-PERF-OBSERVATORY L2)
+		if strings.HasSuffix(path, "/spans") && strings.Contains(path, "/stages/") {
+			s.handleStageSpans(w, r)
+			return
+		}
+
+		// Handle /api/chains/{id}/stages/{stageId}/chat (M-PERF-OBSERVATORY L4)
+		if strings.HasSuffix(path, "/chat") && strings.Contains(path, "/stages/") {
+			s.handleStageChat(w, r)
+			return
+		}
+
+		// Handle /api/chains/{id}/stages/{stageId}/status
 		if strings.Contains(path, "/stages") {
 			if strings.HasSuffix(path, "/status") {
 				s.handleUpdateStageStatus(w, r)

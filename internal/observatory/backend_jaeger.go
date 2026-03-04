@@ -385,5 +385,17 @@ func (b *JaegerBackend) GetChainStats(ctx context.Context) (*ChainStats, error) 
 	return nil, nil
 }
 
+func (b *JaegerBackend) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error) {
+	return &ChainStatusCounts{}, nil
+}
+
+func (b *JaegerBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error) {
+	return nil, nil
+}
+
+func (b *JaegerBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	return &SpanLitePage{}, nil
+}
+
 // Ensure JaegerBackend implements Backend
 var _ Backend = (*JaegerBackend)(nil)

@@ -114,6 +114,10 @@ type Backend interface {
 	UpdateChainStatus(ctx context.Context, chainID string, status ChainStatus) error
 	UpdateChainMetrics(ctx context.Context, id string, cost float64, tokens, turns int) error
 	GetChainStats(ctx context.Context) (*ChainStats, error)
+	// GetChainStatusCounts returns chain counts grouped by status (single query, M-PERF-OBSERVATORY).
+	GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error)
+	// GetChainStatsByAgent returns per-agent stats in a single SQL query (replaces N+1, M-PERF-OBSERVATORY).
+	GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error)
 
 	// Chain stage operations
 	CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error)
@@ -125,6 +129,8 @@ type Backend interface {
 	UpdateStageMetrics(ctx context.Context, stageID string, cost float64, tokensIn, tokensOut, turns, toolCalls int, durationMs int64) error
 	UpdateStageError(ctx context.Context, stageID, errorMessage string) error
 	GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error)
+	// GetSpanLitesByStageID returns lightweight spans without attributes (M-PERF-OBSERVATORY).
+	GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error)
 	LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error
 	ListPendingApprovals(ctx context.Context, limit int) ([]*PendingApprovalInfo, error)
 

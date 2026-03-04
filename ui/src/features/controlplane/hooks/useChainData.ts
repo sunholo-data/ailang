@@ -15,7 +15,7 @@ export interface UseChainDataOptions {
   taskId?: string | null;
   /** Message ID fallback for chain lookup */
   messageId?: string | null;
-  /** Whether to include spans in each stage (default true) */
+  /** Whether to include spans in each stage (default false — use useStageSpans for L2 loading) */
   includeSpans?: boolean;
   /** Spans from useTraceData — used to synthesize a virtual chain when no real chain exists */
   fallbackSpans?: Span[];
@@ -146,7 +146,7 @@ function synthesizeChainFromSpans(
 }
 
 export function useChainData(options: UseChainDataOptions = {}): UseChainDataResult {
-  const { taskId, messageId, includeSpans = true, fallbackSpans } = options;
+  const { taskId, messageId, includeSpans = false, fallbackSpans } = options;
   const [chain, setChain] = useState<ChainData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

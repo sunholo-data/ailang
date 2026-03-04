@@ -10,3 +10,4 @@ export * from './useOutliersAnalysis';
 export * from './useExecHierarchyState';
 export * from './useChainData';
 export * from './useChainList';
+export * from './useStageSpans';

@@ -53,85 +53,52 @@ func chainsStatsCommand() {
 
 	ctx := context.Background()
 
-	// Get all chains (with high limit)
-	chains, err := backend.ListChains(ctx, observatory.ChainListOptions{Limit: 1000})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to list chains: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Filter by time window
-	var cutoff time.Time
+	// Compute time cutoff
+	var createdAfter *time.Time
 	timeWindow := "all time"
 	if *hours > 0 {
-		cutoff = time.Now().Add(-time.Duration(*hours) * time.Hour)
+		t := time.Now().Add(-time.Duration(*hours) * time.Hour)
+		createdAfter = &t
 		timeWindow = fmt.Sprintf("last %d hours", *hours)
 	}
 
-	result := chainStatsResult{TimeWindow: timeWindow}
-	agentMap := make(map[string]*agentStats)
-
-	for _, chain := range chains {
-		if !cutoff.IsZero() && chain.CreatedAt.Before(cutoff) {
-			continue
-		}
-
-		result.TotalChains++
-		result.TotalCost += chain.TotalCost
-		result.TotalTokens += int64(chain.TotalTokens)
-
-		switch chain.Status {
-		case observatory.ChainStatusCompleted:
-			result.Completed++
-		case observatory.ChainStatusActive:
-			result.Active++
-		case observatory.ChainStatusPendingApproval:
-			result.Pending++
-		case observatory.ChainStatusFailed:
-			result.Failed++
-		}
-
-		// Aggregate per-agent stats if requested
-		if *byAgent {
-			stages, err := backend.GetChainStages(ctx, chain.ID, observatory.ChainReadOptions{})
-			if err != nil {
-				continue
-			}
-			for _, stage := range stages {
-				as, ok := agentMap[stage.AgentID]
-				if !ok {
-					as = &agentStats{AgentID: stage.AgentID}
-					agentMap[stage.AgentID] = as
-				}
-				as.Stages++
-				as.TotalCost += stage.Cost
-				as.TotalTokensIn += stage.TokensIn
-				as.TotalTokensOut += stage.TokensOut
-				switch stage.Status {
-				case observatory.StageStatusCompleted:
-					as.Completed++
-				case observatory.StageStatusFailed:
-					as.Failed++
-				}
-			}
-		}
+	// Single SQL query for chain counts by status (replaces fetch-all + Go loop, M-PERF-OBSERVATORY)
+	counts, err := backend.GetChainStatusCounts(ctx, createdAfter)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to get chain stats: %v\n", err)
+		os.Exit(1)
 	}
 
+	result := chainStatsResult{
+		TimeWindow:  timeWindow,
+		TotalChains: counts.Total,
+		Completed:   counts.Completed,
+		Active:      counts.Active,
+		Pending:     counts.Pending,
+		Failed:      counts.Failed,
+		TotalCost:   counts.TotalCost,
+		TotalTokens: counts.TotalTokens,
+	}
 	if result.TotalChains > 0 {
 		result.AvgCostPerChain = result.TotalCost / float64(result.TotalChains)
 	}
 
-	// Convert agent map to sorted slice
+	// Single SQL query for per-agent stats (replaces N+1, M-PERF-OBSERVATORY)
 	if *byAgent {
-		for _, as := range agentMap {
-			result.ByAgent = append(result.ByAgent, *as)
-		}
-		// Sort by cost descending
-		for i := 0; i < len(result.ByAgent); i++ {
-			for j := i + 1; j < len(result.ByAgent); j++ {
-				if result.ByAgent[j].TotalCost > result.ByAgent[i].TotalCost {
-					result.ByAgent[i], result.ByAgent[j] = result.ByAgent[j], result.ByAgent[i]
-				}
+		agentResults, err := backend.GetChainStatsByAgent(ctx, createdAfter)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to get agent stats: %v\n", err)
+		} else {
+			for _, ar := range agentResults {
+				result.ByAgent = append(result.ByAgent, agentStats{
+					AgentID:        ar.AgentID,
+					Stages:         ar.Stages,
+					Completed:      ar.Completed,
+					Failed:         ar.Failed,
+					TotalCost:      ar.TotalCost,
+					TotalTokensIn:  ar.TokensIn,
+					TotalTokensOut: ar.TokensOut,
+				})
 			}
 		}
 	}

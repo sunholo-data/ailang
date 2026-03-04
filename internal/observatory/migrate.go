@@ -35,6 +35,26 @@ func Migrate(db *sql.DB) error {
 		return fmt.Errorf("failed to execute chains schema: %w", err)
 	}
 
+	// Create trace_summaries table (v12+, M-PERF-OBSERVATORY)
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS trace_summaries (
+			trace_id TEXT PRIMARY KEY,
+			root_span_name TEXT,
+			root_span_status TEXT,
+			span_count INTEGER DEFAULT 0,
+			total_duration_ms INTEGER DEFAULT 0,
+			start_time TIMESTAMP,
+			end_time TIMESTAMP,
+			task_id TEXT,
+			service_name TEXT,
+			workspace TEXT DEFAULT '',
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create trace_summaries table: %w", err)
+	}
+
 	return nil
 }
 
@@ -612,7 +632,146 @@ func MigrateWithVersion(db *sql.DB) (int, error) {
 		currentVersion = 11
 	}
 
+	// Migration v12: Add trace_summaries table for fast trace listing (M-PERF-OBSERVATORY)
+	// Replaces correlated subqueries in ListTraces (3 subqueries per trace × 213K traces).
+	if currentVersion < 12 {
+		// Create trace_summaries table
+		_, err = db.Exec(`
+			CREATE TABLE IF NOT EXISTS trace_summaries (
+				trace_id TEXT PRIMARY KEY,
+				root_span_name TEXT,
+				root_span_status TEXT,
+				span_count INTEGER DEFAULT 0,
+				total_duration_ms INTEGER DEFAULT 0,
+				start_time TIMESTAMP,
+				end_time TIMESTAMP,
+				task_id TEXT,
+				service_name TEXT,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+		`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create trace_summaries table: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_trace_summaries_time ON trace_summaries(start_time DESC)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create trace_summaries time index: %w", err)
+		}
+
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_trace_summaries_task ON trace_summaries(task_id)`)
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to create trace_summaries task index: %w", err)
+		}
+
+		// Back-fill from existing spans (one-time aggregation)
+		_, err = db.Exec(`
+			INSERT OR REPLACE INTO trace_summaries (trace_id, root_span_name, root_span_status, span_count, total_duration_ms, start_time, task_id, service_name, updated_at)
+			SELECT
+				s.trace_id,
+				(SELECT name FROM spans s2 WHERE s2.trace_id = s.trace_id AND s2.parent_span_id IS NULL LIMIT 1),
+				(SELECT status FROM spans s3 WHERE s3.trace_id = s.trace_id AND s3.parent_span_id IS NULL LIMIT 1),
+				COUNT(*),
+				COALESCE(SUM(s.duration_ms), 0),
+				MIN(s.start_time),
+				MAX(s.task_id),
+				NULL,
+				CURRENT_TIMESTAMP
+			FROM spans s
+			GROUP BY s.trace_id
+		`)
+		if err != nil {
+			// Back-fill is best-effort; don't fail migration
+			fmt.Printf("Warning: trace_summaries back-fill failed (will populate incrementally): %v\n", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (12)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 12: %w", err)
+		}
+		currentVersion = 12
+	}
+
+	// Migration v13: Add indexes for dashboard performance (M-PERF-OBSERVATORY)
+	// Breakdown/heatmap/inbox handlers scan spans by provider, model, and cost_usd
+	// without indexes, causing 5-15 second queries on 761K spans.
+	if currentVersion < 13 {
+		indexes := []struct {
+			name string
+			sql  string
+		}{
+			{"idx_spans_provider", "CREATE INDEX IF NOT EXISTS idx_spans_provider ON spans(provider)"},
+			{"idx_spans_model", "CREATE INDEX IF NOT EXISTS idx_spans_model ON spans(model)"},
+			{"idx_spans_cost", "CREATE INDEX IF NOT EXISTS idx_spans_cost ON spans(cost_usd)"},
+			{"idx_spans_status", "CREATE INDEX IF NOT EXISTS idx_spans_status ON spans(status)"},
+			{"idx_spans_kind", "CREATE INDEX IF NOT EXISTS idx_spans_kind ON spans(kind)"},
+			// Composite index for common dashboard query pattern: time-range + parent filter
+			{"idx_spans_time_parent", "CREATE INDEX IF NOT EXISTS idx_spans_time_parent ON spans(start_time DESC, parent_span_id)"},
+		}
+
+		for _, idx := range indexes {
+			_, err = db.Exec(idx.sql)
+			if err != nil {
+				return currentVersion, fmt.Errorf("failed to create index %s: %w", idx.name, err)
+			}
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (13)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 13: %w", err)
+		}
+		currentVersion = 13
+	}
+
+	// Migration v14: Add workspace column to trace_summaries (M-PERF-OBSERVATORY)
+	// Eliminates json_extract(resource_attributes, '$."process.cwd"') at query time.
+	// Workspace breakdown was 12s+ due to parsing 130K root spans' resource_attributes.
+	if currentVersion < 14 {
+		// Add workspace column
+		_, err = db.Exec(`ALTER TABLE trace_summaries ADD COLUMN workspace TEXT DEFAULT ''`)
+		if err != nil {
+			// Column might already exist from a previous partial run
+			if !isColumnAlreadyExists(err) {
+				return currentVersion, fmt.Errorf("failed to add workspace column: %w", err)
+			}
+		}
+
+		// Back-fill workspace from root spans' resource_attributes (one-time)
+		_, err = db.Exec(`
+			UPDATE trace_summaries
+			SET workspace = COALESCE(
+				(SELECT json_extract(s.resource_attributes, '$."process.cwd"')
+				 FROM spans s
+				 WHERE s.trace_id = trace_summaries.trace_id
+				   AND (s.parent_span_id IS NULL OR s.parent_span_id = '')
+				 LIMIT 1),
+				''
+			)
+			WHERE workspace = '' OR workspace IS NULL
+		`)
+		if err != nil {
+			// Best-effort — don't fail migration
+			fmt.Printf("Warning: trace_summaries workspace back-fill failed (will populate incrementally): %v\n", err)
+		}
+
+		_, err = db.Exec("INSERT INTO schema_version (version) VALUES (14)")
+		if err != nil {
+			return currentVersion, fmt.Errorf("failed to record version 14: %w", err)
+		}
+		currentVersion = 14
+	}
+
 	return currentVersion, nil
+}
+
+// isColumnAlreadyExists checks if an ALTER TABLE error is due to the column already existing
+func isColumnAlreadyExists(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	// SQLite error: "duplicate column name: workspace"
+	return findSubstring(msg, "duplicate column") >= 0 || findSubstring(msg, "already exists") >= 0
 }
 
 // ValidateSchema checks that all expected tables exist.
@@ -634,6 +793,7 @@ func ValidateSchema(db *sql.DB) error {
 		"chat_import_status",
 		"execution_chains",
 		"chain_stages",
+		"trace_summaries",
 	}
 
 	for _, table := range expectedTables {

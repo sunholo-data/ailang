@@ -4,9 +4,12 @@ import "strings"
 
 // ===== Helper Functions =====
 
-// buildSourceTypeCondition returns SQL condition for source type filter
-// Uses resource_attributes (service.name, ailang.source) first, then falls back to span name patterns
-// Note: JSON keys with dots must be quoted in json_extract (e.g., '$."service.name"')
+// buildSourceTypeCondition returns SQL condition for source type filter.
+// Uses trace_summaries.root_span_name via subquery for performance (M-PERF-OBSERVATORY).
+// Avoids json_extract on resource_attributes (3.9GB column).
+//
+// NOTE: Queries using this condition should alias the spans table as 's' if using
+// table-qualified columns, or leave unqualified for simple queries on 'spans' table.
 //
 // Canonical source types (must match InferInboxSourceType in handlers_inbox.go):
 // - user_session: Claude Code user sessions
@@ -20,49 +23,45 @@ import "strings"
 func buildSourceTypeCondition(sourceType string) string {
 	switch sourceType {
 	case "user_session", "claude_code":
-		// Match Claude Code spans from direct user sessions, but EXCLUDE coordinator-spawned sessions
-		// This ensures coordinator tasks get proper cost attribution
-		return `(
-			(json_extract(resource_attributes, '$."service.name"') = 'claude-code' OR
-			 json_extract(resource_attributes, '$."ailang.source"') = 'user' OR
-			 name LIKE 'claude_code.%')
-			AND COALESCE(json_extract(resource_attributes, '$."ailang.source"'), 'user') != 'coordinator'
-		)`
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'claude_code.%')`
 	case "eval":
-		return `(json_extract(resource_attributes, '$."service.name"') = 'ailang-eval' OR json_extract(resource_attributes, '$."ailang.source"') = 'eval' OR name LIKE 'eval.%')`
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'eval.%')`
 	case "coordinator":
-		return `(json_extract(resource_attributes, '$."ailang.source"') = 'coordinator' OR name LIKE 'coordinator.%' OR name LIKE 'claude.execute%')`
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'coordinator.%' OR root_span_name LIKE 'claude.execute%' OR root_span_name LIKE 'exec.%' OR root_span_name LIKE 'ailang.exec%')`
 	case "github":
 		// GitHub has no spans - this condition matches nothing intentionally
 		// GitHub messages are filtered in handlers_inbox.go via InferInboxSourceType
 		return "1=0"
 	case "messaging":
-		return "(name LIKE 'messages.%')"
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'messages.%')`
 	case "cli":
-		return "(name LIKE 'ailang.%' OR name LIKE 'ailang %' OR name LIKE 'compile%' OR name LIKE 'check.%')"
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'ailang.%' OR root_span_name LIKE 'ailang %' OR root_span_name LIKE 'compile%' OR root_span_name LIKE 'check.%')`
 	case "direct_api":
-		return "(name LIKE 'anthropic.%' OR name LIKE 'gemini.%' OR name LIKE 'openai.%')"
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'anthropic.%' OR root_span_name LIKE 'gemini.%' OR root_span_name LIKE 'openai.%' OR root_span_name IN ('api_request', 'api_error', 'call_llm', 'invocation'))`
 	case "exec":
-		return "(name LIKE 'ailang.exec%')"
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'ailang.exec%')`
 	case "local":
-		return "(name LIKE 'ailang.%' OR name LIKE 'ailang %')"
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE root_span_name LIKE 'ailang.%' OR root_span_name LIKE 'ailang %')`
 	case "other":
-		// Exclude all known categories
-		return `(
-			json_extract(resource_attributes, '$."service.name"') IS NULL OR
-			json_extract(resource_attributes, '$."service.name"') NOT IN ('claude-code', 'ailang-eval')
-		) AND (
-			json_extract(resource_attributes, '$."ailang.source"') IS NULL OR
-			json_extract(resource_attributes, '$."ailang.source"') NOT IN ('user', 'coordinator', 'eval')
-		) AND name NOT LIKE 'eval.%'
-		  AND name NOT LIKE 'coordinator.%'
-		  AND name NOT LIKE 'claude.execute%'
-		  AND name NOT LIKE 'anthropic.%'
-		  AND name NOT LIKE 'gemini.%'
-		  AND name NOT LIKE 'openai.%'
-		  AND name NOT LIKE 'ailang.%'
-		  AND name NOT LIKE 'ailang %'
-		  AND name NOT LIKE 'claude_code.%'`
+		// Exclude all known categories via trace_summaries
+		return `trace_id IN (SELECT trace_id FROM trace_summaries WHERE
+			root_span_name NOT LIKE 'eval.%'
+			AND root_span_name NOT LIKE 'coordinator.%'
+			AND root_span_name NOT LIKE 'claude.execute%'
+			AND root_span_name NOT LIKE 'exec.%'
+			AND root_span_name NOT LIKE 'ailang.exec%'
+			AND root_span_name NOT LIKE 'messages.%'
+			AND root_span_name NOT LIKE 'ailang-%'
+			AND root_span_name NOT LIKE 'ailang.%'
+			AND root_span_name NOT LIKE 'ailang %'
+			AND root_span_name NOT LIKE 'compile%'
+			AND root_span_name NOT LIKE 'check.%'
+			AND root_span_name NOT LIKE 'claude_code.%'
+			AND root_span_name NOT LIKE 'anthropic.%'
+			AND root_span_name NOT LIKE 'gemini.%'
+			AND root_span_name NOT LIKE 'openai.%'
+			AND root_span_name NOT IN ('api_request', 'api_error', 'call_llm', 'invocation')
+		)`
 	default:
 		return ""
 	}

@@ -37,7 +37,7 @@ func NewSQLiteBackend(db *sql.DB) (*SQLiteBackend, error) {
 
 // NewSQLiteBackendFromPath creates a SQLite backend from a file path.
 func NewSQLiteBackendFromPath(path string) (*SQLiteBackend, error) {
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite3", path+"?_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -368,6 +368,12 @@ func (b *SQLiteBackend) GetChainByTaskID(ctx context.Context, taskID string) (*E
 	return b.store.GetChainByTaskID(ctx, taskID)
 }
 
+// GetTaskSpanSummary returns aggregated span statistics for a task_id.
+// Works for ALL task_id formats (coordinator, eval, UUID sessions).
+func (b *SQLiteBackend) GetTaskSpanSummary(ctx context.Context, taskID string) (*TaskSpanSummary, error) {
+	return b.store.GetTaskSpanSummary(ctx, taskID)
+}
+
 func (b *SQLiteBackend) ListChains(ctx context.Context, opts ChainListOptions) ([]*ChainSummary, error) {
 	return b.store.ListChains(ctx, opts)
 }
@@ -386,6 +392,14 @@ func (b *SQLiteBackend) GetChainByGitHubIssue(ctx context.Context, repo string, 
 
 func (b *SQLiteBackend) GetChainStats(ctx context.Context) (*ChainStats, error) {
 	return b.store.GetChainStats(ctx)
+}
+
+func (b *SQLiteBackend) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*ChainStatusCounts, error) {
+	return b.store.GetChainStatusCounts(ctx, createdAfter)
+}
+
+func (b *SQLiteBackend) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*AgentStatsResult, error) {
+	return b.store.GetChainStatsByAgent(ctx, createdAfter)
 }
 
 func (b *SQLiteBackend) CreateStage(ctx context.Context, req *StageCreateRequest) (*ChainStage, error) {
@@ -418,6 +432,10 @@ func (b *SQLiteBackend) UpdateStageApproval(ctx context.Context, stageID string,
 
 func (b *SQLiteBackend) UpdateStageError(ctx context.Context, stageID, errorMessage string) error {
 	return b.store.UpdateStageError(ctx, stageID, errorMessage)
+}
+
+func (b *SQLiteBackend) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*SpanLitePage, error) {
+	return b.store.GetSpanLitesByStageID(ctx, stageID, limit, offset)
 }
 
 func (b *SQLiteBackend) GetSpansByStageID(ctx context.Context, stageID string) ([]*Span, error) {

@@ -56,66 +56,69 @@ func (b *SQLiteBackend) GetFilteredBreakdownByWorkspaceWithMapping(ctx context.C
 		}
 	}
 
-	// Build workspace mapping SQL - use config if provided, else use cwd directly
+	// Build workspace mapping SQL — references t.workspace from trace_summaries
 	var workspaceIDMapping string
 	if mapping != nil {
-		workspaceIDMapping = mapping.BuildWorkspaceMappingSQL("cwd")
+		workspaceIDMapping = mapping.BuildWorkspaceMappingSQL("t.workspace")
 	} else {
 		// Fallback: use default mapping patterns (hardcoded for backwards compatibility)
 		workspaceIDMapping = `CASE
-			WHEN cwd = 'unknown' THEN 'unknown'
-			WHEN cwd LIKE '%/.eval_workspace/%' THEN 'eval_workspace'
-			WHEN cwd LIKE '%/worktrees/%' THEN 'coordinator_worktrees'
-			WHEN cwd LIKE '%/sunholo/ailang/ui' THEN 'sunholo-data/ailang'
-			WHEN cwd LIKE '%/sunholo/ailang' THEN 'sunholo-data/ailang'
-			WHEN cwd LIKE '%/stapledon%' THEN 'sunholo-data/stapledons_voyage'
-			WHEN cwd LIKE '%/twilight%' THEN 'MarkEdmondson1234/TwilightGame'
-			ELSE cwd
+			WHEN t.workspace = '' OR t.workspace IS NULL THEN 'unknown'
+			WHEN t.workspace LIKE '%/.eval_workspace/%' THEN 'eval_workspace'
+			WHEN t.workspace LIKE '%/worktrees/%' THEN 'coordinator_worktrees'
+			WHEN t.workspace LIKE '%/sunholo/ailang/ui' THEN 'sunholo-data/ailang'
+			WHEN t.workspace LIKE '%/sunholo/ailang' THEN 'sunholo-data/ailang'
+			WHEN t.workspace LIKE '%/stapledon%' THEN 'sunholo-data/stapledons_voyage'
+			WHEN t.workspace LIKE '%/twilight%' THEN 'MarkEdmondson1234/TwilightGame'
+			ELSE t.workspace
 		END`
 	}
 
-	// Use config-driven workspace mapping
+	// Build additional filter conditions as AND clauses for the main query
+	var filterClause string
+	if len(conditions) > 0 {
+		for _, c := range conditions {
+			filterClause += " AND " + c
+		}
+	}
+
+	// Uses trace_summaries.workspace (pre-extracted, no json_extract at query time).
+	// M-PERF-OBSERVATORY: Two-phase aggregation — first aggregate metrics per trace_id
+	// (reduces 662K spans → ~130K trace groups), then join the smaller result with
+	// trace_summaries for workspace mapping. This avoids a 662K×213K JOIN.
 	query := fmt.Sprintf(`
-		WITH workspace_data AS (
+		WITH trace_metrics AS (
 			SELECT
-				COALESCE(json_extract(resource_attributes, '$."process.cwd"'), 'unknown') as cwd,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens,
-				id
+				trace_id,
+				COUNT(*) as span_count,
+				COALESCE(SUM(tokens_in), 0) as tokens_in,
+				COALESCE(SUM(tokens_out), 0) as tokens_out,
+				COALESCE(SUM(cost_usd), 0) as cost_usd,
+				COALESCE(SUM(duration_ms), 0) as duration_ms,
+				COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+				COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
 			FROM spans
+			WHERE start_time > datetime('now', '-30 days')
 			%s
-		),
-		-- Map file paths to Firestore workspace IDs using config-driven patterns
-		mapped AS (
-			SELECT
-				%s as workspace_id,
-				tokens_in,
-				tokens_out,
-				cost_usd,
-				duration_ms,
-				cache_read_tokens,
-				cache_creation_tokens
-			FROM workspace_data
+			GROUP BY trace_id
 		)
 		SELECT
-			workspace_id as id,
-			workspace_id as label,
-			COUNT(*) as span_count,
+			%s as id,
+			%s as label,
+			SUM(tm.span_count) as span_count,
 			0 as task_count,
-			COALESCE(SUM(tokens_in), 0) as tokens_in,
-			COALESCE(SUM(tokens_out), 0) as tokens_out,
-			COALESCE(SUM(cost_usd), 0) as cost_usd,
-			COALESCE(SUM(duration_ms), 0) as duration_ms,
-			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
-			COALESCE(SUM(cache_creation_tokens), 0) as cache_creation_tokens
-		FROM mapped
-		GROUP BY workspace_id
+			SUM(tm.tokens_in) as tokens_in,
+			SUM(tm.tokens_out) as tokens_out,
+			SUM(tm.cost_usd) as cost_usd,
+			SUM(tm.duration_ms) as duration_ms,
+			SUM(tm.cache_read_tokens) as cache_read_tokens,
+			SUM(tm.cache_creation_tokens) as cache_creation_tokens
+		FROM trace_metrics tm
+		INNER JOIN trace_summaries t ON tm.trace_id = t.trace_id
+		GROUP BY 1, 2
 		ORDER BY cost_usd DESC
-	`, whereClause, workspaceIDMapping)
+		LIMIT 30
+	`, filterClause, workspaceIDMapping, workspaceIDMapping)
 
 	rows, err := b.store.DB().QueryContext(ctx, query, args...)
 	if err != nil {

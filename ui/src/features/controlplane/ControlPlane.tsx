@@ -48,6 +48,7 @@ import type {
 import type { EventType } from './components/MessageQueue';
 import { useObservatoryWs, useApprovals } from '../../hooks/useObservatory';
 import { useBudgetStatus } from '../../hooks/useBudgetStatus';
+import { useDocumentVisibility } from '../../hooks/useDocumentVisibility';
 import { ApprovalDetailModal, ApprovalData } from '../approvals/ApprovalDetailModal';
 import { HeaderStats } from '../../components/HeaderStats';
 import { AuthButton } from '../../components/AuthButton';
@@ -234,13 +235,17 @@ export const ControlPlane: React.FC = () => {
     return merged;
   }, [dimensionFilters, selectedDateRange, statusFilter, searchQuery, sortBy, sortOrder]);
 
+  // Pause all polling when tab is hidden (M-PERF-OBSERVATORY Phase 4.1)
+  const isVisible = useDocumentVisibility();
+
   // Fetch real data from APIs - pass merged filters to all applicable hooks
   // Use grid format for server-side date calculations (removes ~80 lines of client-side logic)
-  const { gridData, data: heatmapResponse } = useHeatmapData({ days: 90, filters, format: 'grid' });
-  const { data: topologyData } = useTopologyData({ refreshInterval: 5000 });
-  const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: 10000, filters });
-  const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: 30000, filters });
-  const { budget } = useBudgetStatus(30000, filters);
+  // Polling intervals are set to 0 (disabled) when the tab is hidden
+  const { gridData, data: heatmapResponse } = useHeatmapData({ days: 90, filters, format: 'grid', refreshInterval: isVisible ? 30000 : 0 });
+  const { data: topologyData } = useTopologyData({ refreshInterval: isVisible ? 5000 : 0 });
+  const { stats, loading: statsLoading } = useControlPlaneStats({ refreshInterval: isVisible ? 10000 : 0, filters });
+  const { breakdowns, loading: breakdownLoading } = useBreakdownData({ refreshInterval: isVisible ? 30000 : 0, filters });
+  const { budget } = useBudgetStatus(isVisible ? 30000 : 0, filters);
   const { events: liveEvents, loading: eventsLoading } = useEventQueue({ filters });
   // WebSocket connection status for header indicator
   const { isConnected, connectionState, lastEventTime } = useObservatoryWs({});

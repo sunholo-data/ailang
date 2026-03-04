@@ -39,7 +39,8 @@ func chainsCommand() {
 		fmt.Println("  ailang chains list                  # List all chains")
 		fmt.Println("  ailang chains active                # Currently running chains")
 		fmt.Println("  ailang chains view <chain-id>       # View chain details")
-		fmt.Println("  ailang chains view --spans <id>     # View with session/tool details")
+		fmt.Println("  ailang chains view --spans <id>     # View with span summaries (no attributes)")
+		fmt.Println("  ailang chains view --full <id>      # View with full span data (heavy)")
 		fmt.Println("  ailang chains tree <chain-id>       # View as tree")
 		fmt.Println("  ailang chains stats --hours 168     # Last week's cost summary")
 		fmt.Println("  ailang chains diagnose <chain-id>   # Quick issue check")
@@ -173,7 +174,8 @@ func chainsListCommand() {
 
 func chainsViewCommand() {
 	fs := flag.NewFlagSet("chains view", flag.ExitOnError)
-	includeSpans := fs.Bool("spans", false, "Include spans for each stage")
+	includeSpans := fs.Bool("spans", false, "Include span summaries for each stage (no attributes)")
+	fullSpans := fs.Bool("full", false, "Include full span data with attributes (heavy)")
 	jsonOutput := fs.Bool("json", false, "Output as JSON")
 	fs.Parse(flag.Args()[2:])
 
@@ -204,7 +206,7 @@ func chainsViewCommand() {
 
 	opts := observatory.ChainReadOptions{
 		IncludeStages: true,
-		IncludeSpans:  *includeSpans,
+		IncludeSpans:  *includeSpans || *fullSpans,
 	}
 
 	chain, err := backend.GetChain(ctx, chainID, opts)

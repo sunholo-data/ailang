@@ -142,7 +142,8 @@ type Server struct {
 	obsHub     *observatory.Hub
 
 	// Response cache for expensive polling endpoints (prevents 400% CPU from dashboard polls)
-	pollingCache *responseCache
+	pollingCache   *responseCache
+	breakdownCache *responseCache // Longer TTL for expensive breakdown queries (M-PERF-OBSERVATORY)
 
 	// Firebase authentication and authorization
 	tokenVerifier    *auth.TokenVerifier
@@ -160,7 +161,8 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 		agents:            make(map[string]*AgentProcess),
 		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
 		previouslySeen:    make(map[int]ProcessStats),
-		pollingCache:      newResponseCache(5 * time.Second), // 5s TTL for dashboard polling endpoints
+		pollingCache:      newResponseCache(5 * time.Second),  // 5s TTL for dashboard polling endpoints
+		breakdownCache:    newResponseCache(60 * time.Second), // 60s TTL for expensive breakdown queries
 	}
 
 	// Apply options (may set s.store and s.obsBackend via WithBackends)
@@ -457,7 +459,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/api/controlplane/topology/observed", s.handleControlPlaneTopologyObserved)
 	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
 	mux.HandleFunc("/api/controlplane/stats", s.pollingCache.withCache(s.handleControlPlaneStats))
-	mux.HandleFunc("/api/controlplane/stats/breakdown", s.pollingCache.withCache(s.handleControlPlaneStatsBreakdown))
+	mux.HandleFunc("/api/controlplane/stats/breakdown", s.breakdownCache.withCache(s.handleControlPlaneStatsBreakdown))
 	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.pollingCache.withCache(s.handleControlPlaneExecHierarchy))
 	mux.HandleFunc("/api/controlplane/span-hierarchy", s.pollingCache.withCache(s.handleSpanHierarchy))
 	mux.HandleFunc("/api/controlplane/task-hierarchy", s.pollingCache.withCache(s.handleTaskHierarchy))

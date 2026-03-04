@@ -266,6 +266,60 @@ type ChainStats struct {
 	AverageDurationMs  float64 `json:"average_duration_ms"`
 }
 
+// AgentStatsResult holds per-agent aggregated stats from a single SQL query.
+// Used by GetChainStatsByAgent to replace the N+1 query pattern (M-PERF-OBSERVATORY).
+type AgentStatsResult struct {
+	AgentID   string  `json:"agent_id"`
+	Stages    int     `json:"stages"`
+	Completed int     `json:"completed"`
+	Failed    int     `json:"failed"`
+	TotalCost float64 `json:"total_cost"`
+	TokensIn  int     `json:"total_tokens_in"`
+	TokensOut int     `json:"total_tokens_out"`
+}
+
+// ChainStatusCounts holds per-status chain counts from a single SQL aggregation.
+type ChainStatusCounts struct {
+	Total       int     `json:"total_chains"`
+	Completed   int     `json:"completed"`
+	Active      int     `json:"active"`
+	Pending     int     `json:"pending_approval"`
+	Failed      int     `json:"failed"`
+	TotalCost   float64 `json:"total_cost"`
+	TotalTokens int64   `json:"total_tokens"`
+}
+
+// SpanLite is a lightweight span without the heavy attributes/resource_attributes columns.
+// Used for tree rendering, timeline, and waterfall views (M-PERF-OBSERVATORY).
+// The full attributes are only loaded on-demand via GetSpan (Level 3).
+type SpanLite struct {
+	ID            string    `json:"id"`
+	TraceID       string    `json:"trace_id"`
+	ParentSpanID  string    `json:"parent_span_id,omitempty"`
+	ChainID       string    `json:"chain_id,omitempty"`
+	StageID       string    `json:"stage_id,omitempty"`
+	Name          string    `json:"name"`
+	Kind          SpanKind  `json:"kind"`
+	Status        string    `json:"status"`
+	StatusMessage string    `json:"status_message,omitempty"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time,omitempty"`
+	DurationMs    int64     `json:"duration_ms"`
+	TokensIn      int64     `json:"tokens_in,omitempty"`
+	TokensOut     int64     `json:"tokens_out,omitempty"`
+	CostUSD       float64   `json:"cost_usd,omitempty"`
+	Model         string    `json:"model,omitempty"`
+	Provider      string    `json:"provider,omitempty"`
+}
+
+// SpanLitePage is a paginated response of SpanLite records.
+type SpanLitePage struct {
+	Spans  []*SpanLite `json:"spans"`
+	Total  int         `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+}
+
 // ChainCreateRequest contains the data needed to create a new chain.
 type ChainCreateRequest struct {
 	SourceType        ChainSourceType `json:"source_type"`

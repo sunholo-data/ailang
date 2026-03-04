@@ -2,6 +2,7 @@
 package observatory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -66,7 +67,60 @@ func (s *Store) CreateSpan(span *Span) error {
 		span.DurationMs, span.TokensIn, span.TokensOut, span.CacheReadTokens, span.CacheCreationTokens,
 		span.CostUSD, span.Model, span.Provider,
 		span.AttributesJSON(), span.ResourceAttributesJSON(), span.CreatedAt)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Maintain trace_summaries incrementally (M-PERF-OBSERVATORY)
+	s.upsertTraceSummary(span)
+
+	return nil
+}
+
+// upsertTraceSummary maintains the trace_summaries materialized table incrementally.
+// Called from CreateSpan to keep summaries up to date without expensive aggregation queries.
+// Best-effort: errors are silently ignored to not block span creation.
+func (s *Store) upsertTraceSummary(span *Span) {
+	if span.TraceID == "" {
+		return
+	}
+
+	// Determine if this is a root span
+	var rootName, rootStatus interface{}
+	if span.ParentSpanID == "" {
+		rootName = span.Name
+		rootStatus = string(span.Status)
+	}
+
+	// Extract service name and workspace from resource attributes
+	var serviceName, workspace interface{}
+	if span.ResourceAttributes != nil {
+		if sn, ok := span.ResourceAttributes["service.name"]; ok {
+			if s, ok := sn.(string); ok {
+				serviceName = s
+			}
+		}
+		if cwd, ok := span.ResourceAttributes["process.cwd"]; ok {
+			if s, ok := cwd.(string); ok {
+				workspace = s
+			}
+		}
+	}
+
+	_, _ = s.db.Exec(`
+		INSERT INTO trace_summaries (trace_id, root_span_name, root_span_status, span_count, total_duration_ms, start_time, task_id, service_name, workspace, updated_at)
+		VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(trace_id) DO UPDATE SET
+			span_count = trace_summaries.span_count + 1,
+			total_duration_ms = trace_summaries.total_duration_ms + excluded.total_duration_ms,
+			root_span_name = COALESCE(excluded.root_span_name, trace_summaries.root_span_name),
+			root_span_status = COALESCE(excluded.root_span_status, trace_summaries.root_span_status),
+			start_time = MIN(trace_summaries.start_time, excluded.start_time),
+			task_id = COALESCE(excluded.task_id, trace_summaries.task_id),
+			service_name = COALESCE(excluded.service_name, trace_summaries.service_name),
+			workspace = COALESCE(excluded.workspace, trace_summaries.workspace),
+			updated_at = CURRENT_TIMESTAMP
+	`, span.TraceID, rootName, rootStatus, span.DurationMs, span.StartTime, span.TaskID, serviceName, workspace)
 }
 
 // GetSpan retrieves a span by ID.
@@ -511,7 +565,90 @@ func (s *Store) GetTrace(traceID string) (*Trace, error) {
 }
 
 // ListTraces returns trace summaries.
+// Uses the trace_summaries materialized table (M-PERF-OBSERVATORY v12 migration)
+// instead of correlated subqueries on the spans table.
 func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
+	// Try fast path: trace_summaries table (no correlated subqueries)
+	summaries, err := s.listTracesFromSummaries(opts)
+	if err == nil && len(summaries) > 0 {
+		return summaries, nil
+	}
+	// Fallback: trace_summaries table might be empty (pre-v12 migration)
+	// Use the original query with correlated subqueries
+	return s.listTracesLegacy(opts)
+}
+
+// listTracesFromSummaries reads from the pre-computed trace_summaries table.
+// O(1) per row — no correlated subqueries.
+func (s *Store) listTracesFromSummaries(opts TraceQuery) ([]*TraceSummary, error) {
+	query := `
+		SELECT trace_id, root_span_name, root_span_status, span_count,
+		       total_duration_ms, start_time, task_id, service_name
+		FROM trace_summaries
+		WHERE 1=1
+	`
+	var args []interface{}
+
+	if opts.TaskID != "" {
+		query += " AND task_id = ?"
+		args = append(args, opts.TaskID)
+	}
+	if opts.TraceID != "" {
+		query += " AND trace_id = ?"
+		args = append(args, opts.TraceID)
+	}
+	if opts.TimeRange != nil {
+		query += " AND start_time >= ? AND start_time <= ?"
+		args = append(args, opts.TimeRange.Start, opts.TimeRange.End)
+	}
+
+	query += " ORDER BY start_time DESC"
+
+	if opts.Limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", opts.Limit)
+	}
+	if opts.Offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d", opts.Offset)
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []*TraceSummary
+	for rows.Next() {
+		ts := &TraceSummary{
+			Source: TraceSourceLocal,
+		}
+		var rootSpan, rootStatus, taskID, serviceName sql.NullString
+		var startTimeStr string
+		if err := rows.Scan(&ts.TraceID, &rootSpan, &rootStatus, &ts.SpanCount,
+			&ts.DurationMs, &startTimeStr, &taskID, &serviceName); err != nil {
+			return nil, err
+		}
+		if rootSpan.Valid {
+			ts.RootSpan = rootSpan.String
+		}
+		if rootStatus.Valid {
+			ts.Status = SpanStatus(rootStatus.String)
+		}
+		if taskID.Valid {
+			ts.TaskID = taskID.String
+		}
+		if serviceName.Valid {
+			ts.ServiceName = serviceName.String
+		}
+		ts.StartTime = parseTimeString(startTimeStr)
+		summaries = append(summaries, ts)
+	}
+	return summaries, rows.Err()
+}
+
+// listTracesLegacy is the original query with correlated subqueries.
+// Kept as fallback for databases that haven't run the v12 migration yet.
+func (s *Store) listTracesLegacy(opts TraceQuery) ([]*TraceSummary, error) {
 	query := `
 		SELECT trace_id,
 		       (SELECT name FROM spans s2 WHERE s2.trace_id = s.trace_id AND s2.parent_span_id IS NULL LIMIT 1) as root_span,
@@ -557,7 +694,7 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 	var summaries []*TraceSummary
 	for rows.Next() {
 		ts := &TraceSummary{
-			Source: TraceSourceLocal, // Mark as coming from local OTLP
+			Source: TraceSourceLocal,
 		}
 		var rootSpan, status, taskID, resourceAttrs sql.NullString
 		var startTimeStr string
@@ -574,29 +711,130 @@ func (s *Store) ListTraces(opts TraceQuery) ([]*TraceSummary, error) {
 		if taskID.Valid {
 			ts.TaskID = taskID.String
 		}
-		// Extract service.name from resource_attributes JSON
 		if resourceAttrs.Valid && resourceAttrs.String != "" {
 			ts.ServiceName = extractServiceName(resourceAttrs.String)
 		}
-		// Parse start_time from string (SQLite MIN() returns string)
-		// SQLite stores as "2006-01-02 15:04:05.999999999+07:00" (space, not T)
-		if parsedTime, err := time.Parse(time.RFC3339Nano, startTimeStr); err == nil {
-			ts.StartTime = parsedTime
-		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05.999999999-07:00", startTimeStr); err == nil {
-			ts.StartTime = parsedTime
-		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05-07:00", startTimeStr); err == nil {
-			ts.StartTime = parsedTime
-		} else if parsedTime, err := time.Parse("2006-01-02T15:04:05Z", startTimeStr); err == nil {
-			ts.StartTime = parsedTime
-		} else if parsedTime, err := time.Parse("2006-01-02 15:04:05", startTimeStr); err == nil {
-			ts.StartTime = parsedTime
-		}
+		ts.StartTime = parseTimeString(startTimeStr)
 		summaries = append(summaries, ts)
 	}
 	return summaries, rows.Err()
 }
 
+// parseTimeString handles the various time formats SQLite may return.
+func parseTimeString(s string) time.Time {
+	formats := []string{
+		time.RFC3339Nano,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02 15:04:05",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 // extractServiceName extracts service.name from resource_attributes JSON.
+// TaskSpanSummary holds aggregated span statistics for a task_id.
+// Used by "ailang chains find --task-id" when no execution_chain exists
+// (e.g., Claude Code user sessions that aren't coordinator-managed).
+type TaskSpanSummary struct {
+	TaskID     string    `json:"task_id"`
+	SpanCount  int       `json:"span_count"`
+	TraceCount int       `json:"trace_count"`
+	TokensIn   int64     `json:"tokens_in"`
+	TokensOut  int64     `json:"tokens_out"`
+	CostUSD    float64   `json:"cost_usd"`
+	DurationMs int64     `json:"duration_ms"`
+	StartTime  time.Time `json:"start_time"`
+	EndTime    time.Time `json:"end_time"`
+	// Top span names by count (e.g., "api_request: 487, claude_code.tool.Read: 338")
+	TopSpanNames []SpanNameCount `json:"top_span_names"`
+}
+
+// SpanNameCount holds a span name and its count.
+type SpanNameCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+// GetTaskSpanSummary returns aggregated span statistics for a task_id.
+// Works for ALL task_id formats (coordinator, eval, UUID sessions).
+func (s *Store) GetTaskSpanSummary(ctx context.Context, taskID string) (*TaskSpanSummary, error) {
+	if taskID == "" {
+		return nil, nil
+	}
+
+	summary := &TaskSpanSummary{TaskID: taskID}
+
+	// Aggregate metrics (scan times as strings since SQLite returns text)
+	var startStr, endStr string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) as span_count,
+			COUNT(DISTINCT trace_id) as trace_count,
+			COALESCE(SUM(tokens_in), 0) as tokens_in,
+			COALESCE(SUM(tokens_out), 0) as tokens_out,
+			COALESCE(SUM(cost_usd), 0) as cost_usd,
+			COALESCE(SUM(duration_ms), 0) as duration_ms,
+			COALESCE(MIN(start_time), '') as start_time,
+			COALESCE(MAX(start_time), '') as end_time
+		FROM spans WHERE task_id = ?
+	`, taskID).Scan(
+		&summary.SpanCount, &summary.TraceCount,
+		&summary.TokensIn, &summary.TokensOut,
+		&summary.CostUSD, &summary.DurationMs,
+		&startStr, &endStr,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task span summary: %w", err)
+	}
+	// Parse time strings
+	if startStr != "" {
+		if t, err := time.Parse("2006-01-02T15:04:05.999999999Z07:00", startStr); err == nil {
+			summary.StartTime = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05.999999999Z07:00", startStr); err == nil {
+			summary.StartTime = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05Z07:00", startStr); err == nil {
+			summary.StartTime = t
+		}
+	}
+	if endStr != "" {
+		if t, err := time.Parse("2006-01-02T15:04:05.999999999Z07:00", endStr); err == nil {
+			summary.EndTime = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05.999999999Z07:00", endStr); err == nil {
+			summary.EndTime = t
+		} else if t, err := time.Parse("2006-01-02 15:04:05Z07:00", endStr); err == nil {
+			summary.EndTime = t
+		}
+	}
+	if summary.SpanCount == 0 {
+		return nil, nil
+	}
+
+	// Top span names
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT name, COUNT(*) as cnt
+		FROM spans WHERE task_id = ?
+		GROUP BY name ORDER BY cnt DESC LIMIT 10
+	`, taskID)
+	if err != nil {
+		return summary, nil // Non-fatal
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var nc SpanNameCount
+		if err := rows.Scan(&nc.Name, &nc.Count); err == nil {
+			summary.TopSpanNames = append(summary.TopSpanNames, nc)
+		}
+	}
+
+	return summary, nil
+}
+
 func extractServiceName(jsonStr string) string {
 	if jsonStr == "" || jsonStr == "{}" {
 		return ""
