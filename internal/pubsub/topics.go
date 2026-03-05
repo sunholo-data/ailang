@@ -1,0 +1,87 @@
+package pubsub
+
+// DefaultTopicPrefix is the default prefix for all AILANG Pub/Sub topics.
+const DefaultTopicPrefix = "ailang"
+
+// Topic base names. The full topic name is "{prefix}-{base}".
+const (
+	TopicMessages    = "messages"    // New message notifications (attribute-routed by inbox)
+	TopicTasks       = "tasks"       // Task dispatch to Cloud Run Jobs
+	TopicCompletions = "completions" // Task completion notifications
+	TopicEvents      = "events"      // Real-time dashboard/laptop event streaming
+	TopicDeadLetter  = "dead-letter" // Failed message sink
+)
+
+// Subscription base names. The full name is "{prefix}-{base}".
+const (
+	SubMessagesCoordinator    = "messages-coordinator"    // Cloud Run coordinator
+	SubMessagesLaptop         = "messages-laptop"         // Developer laptop (pull)
+	SubTasksExecutor          = "tasks-executor"          // Eventarc → Cloud Run Job
+	SubCompletionsCoordinator = "completions-coordinator" // Coordinator receives results
+	SubEventsDashboard        = "events-dashboard"        // Dashboard server
+	SubEventsLaptop           = "events-laptop"           // Laptop real-time updates
+)
+
+// MessageNotification is published to the messages topic.
+// Intentionally minimal — full message content lives in Firestore.
+type MessageNotification struct {
+	MessageID string `json:"message_id"`
+}
+
+// TaskDispatch is published to the tasks topic to trigger a Cloud Run Job.
+type TaskDispatch struct {
+	TaskID  string `json:"task_id"`
+	AgentID string `json:"agent_id"`
+}
+
+// TaskCompletion is published to the completions topic when a job finishes.
+type TaskCompletion struct {
+	TaskID     string `json:"task_id"`
+	AgentID    string `json:"agent_id"`
+	Status     string `json:"status"`                // "completed" or "failed"
+	BranchName string `json:"branch_name,omitempty"` // Git branch with changes
+	ErrorMsg   string `json:"error_msg,omitempty"`
+}
+
+// MessageAttributes carries routing metadata as Pub/Sub message attributes.
+// Used for subscription filtering (e.g., filter by inbox or workspace).
+type MessageAttributes struct {
+	Inbox       string // Target agent inbox (e.g., "design-doc-creator")
+	Workspace   string // Project workspace (e.g., "sunholo-data/ailang")
+	FromAgent   string // Sender agent ID (e.g., "user", "sprint-planner")
+	Category    string // Message category (e.g., "bug", "feature", "general")
+	MessageType string // Message type (e.g., "request", "notification")
+}
+
+// ToMap converts attributes to map[string]string for Pub/Sub message publishing.
+// Only non-empty values are included.
+func (a MessageAttributes) ToMap() map[string]string {
+	m := make(map[string]string, 5)
+	if a.Inbox != "" {
+		m["inbox"] = a.Inbox
+	}
+	if a.Workspace != "" {
+		m["workspace"] = a.Workspace
+	}
+	if a.FromAgent != "" {
+		m["from_agent"] = a.FromAgent
+	}
+	if a.Category != "" {
+		m["category"] = a.Category
+	}
+	if a.MessageType != "" {
+		m["message_type"] = a.MessageType
+	}
+	return m
+}
+
+// AttributesFromMap creates MessageAttributes from a Pub/Sub message attributes map.
+func AttributesFromMap(m map[string]string) MessageAttributes {
+	return MessageAttributes{
+		Inbox:       m["inbox"],
+		Workspace:   m["workspace"],
+		FromAgent:   m["from_agent"],
+		Category:    m["category"],
+		MessageType: m["message_type"],
+	}
+}
