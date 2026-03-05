@@ -246,7 +246,12 @@ func (s *Server) handleControlPlaneStatsBreakdown(w http.ResponseWriter, r *http
 		return
 	}
 
-	response := BreakdownResponse{}
+	response := BreakdownResponse{
+		ByProvider:   []BreakdownItem{},
+		BySourceType: []BreakdownItem{},
+		ByModel:      []BreakdownItem{},
+		ByWorkspace:  []BreakdownItem{},
+	}
 
 	// Get Observatory backend for direct SQL queries
 	if s.obsBackend == nil {

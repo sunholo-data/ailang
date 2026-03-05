@@ -8,6 +8,13 @@ sidebar_label: WASM Integration
 
 AILANG can run entirely in the browser using WebAssembly, enabling interactive demonstrations and online playgrounds without requiring server-side execution.
 
+:::tip See WASM in Action
+All AILANG browser demos run on WebAssembly — try them live:
+- **[DocParse](https://www.sunholo.com/ailang-demos/docparse.html)** — Parse DOCX, PPTX, XLSX, PDF entirely in-browser
+- **[Document Extractor](https://www.sunholo.com/ailang-demos/extractor.html)** — AI-powered extraction using WASM modules
+- **[All 9 Demos](https://www.sunholo.com/ailang-demos/)** — Full demo gallery
+:::
+
 ## Overview
 
 The AILANG WebAssembly build provides:

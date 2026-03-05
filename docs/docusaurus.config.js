@@ -194,6 +194,11 @@ const config = {
             position: 'left',
           },
           {
+            href: 'https://www.sunholo.com/ailang-demos/',
+            label: 'Live Demos',
+            position: 'left',
+          },
+          {
             href: 'https://ailang.sunholo.com/llms.txt',
             label: 'llms.txt',
             position: 'right',
@@ -246,6 +251,23 @@ const config = {
               {
                 label: 'Issues',
                 href: 'https://github.com/sunholo-data/ailang/issues',
+              },
+            ],
+          },
+          {
+            title: 'Try It',
+            items: [
+              {
+                label: 'Live Demos',
+                href: 'https://www.sunholo.com/ailang-demos/',
+              },
+              {
+                label: 'Playground',
+                to: '/docs/playground',
+              },
+              {
+                label: 'Examples',
+                to: '/docs/examples',
               },
             ],
           },

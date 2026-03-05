@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,7 +9,14 @@ import (
 
 	"github.com/sunholo/ailang/internal/executor"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"github.com/sunholo/ailang/internal/websocket"
+)
+
+// CoordinatorMode determines how the coordinator receives messages and broadcasts events.
+const (
+	CoordinatorModeLocal = "local" // Default: SQLite polling + HTTP broadcaster
+	CoordinatorModeCloud = "cloud" // Pub/Sub subscriptions + Pub/Sub broadcaster
 )
 
 // stageToAgentID maps task stages to agent IDs for config lookup.
@@ -228,6 +236,71 @@ func (d *Daemon) initHTTPBroadcaster() error {
 	d.SetEventBroadcaster(broadcaster.BroadcastFunc())
 	d.logger.Printf("HTTP broadcaster initialized, streaming to %s", serverURL)
 
+	return nil
+}
+
+// initEventBroadcaster initializes the event broadcaster based on COORDINATOR_MODE.
+// In cloud mode, events are published to Pub/Sub. In local mode (default),
+// events are sent to the Collaboration Hub server via HTTP.
+func (d *Daemon) initEventBroadcaster() error {
+	mode := os.Getenv("COORDINATOR_MODE")
+	if mode == "" {
+		mode = CoordinatorModeLocal
+	}
+
+	switch mode {
+	case CoordinatorModeCloud:
+		return d.initPubSubBroadcaster()
+	default:
+		return d.initHTTPBroadcaster()
+	}
+}
+
+// initPubSub initializes the Pub/Sub client, publisher, and subscriber.
+// Called when COORDINATOR_MODE=cloud.
+func (d *Daemon) initPubSub(ctx context.Context) error {
+	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
+	if projectID == "" {
+		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+	if projectID == "" {
+		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set for cloud mode")
+	}
+
+	prefix := os.Getenv("AILANG_PUBSUB_PREFIX")
+	if prefix == "" {
+		prefix = pubsub.DefaultTopicPrefix
+	}
+
+	client, err := pubsub.NewClient(ctx, projectID, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to create Pub/Sub client: %w", err)
+	}
+
+	d.pubsubClient = client
+	d.pubsubPublisher = pubsub.NewPublisher(client)
+
+	d.logger.Printf("Pub/Sub initialized (project=%s, prefix=%s)", projectID, prefix)
+	return nil
+}
+
+// initPubSubBroadcaster initializes the Pub/Sub event broadcaster.
+func (d *Daemon) initPubSubBroadcaster() error {
+	if d.pubsubPublisher == nil {
+		// Initialize Pub/Sub if not already done
+		if err := d.initPubSub(d.ctx); err != nil {
+			return err
+		}
+	}
+
+	workspace := os.Getenv("AILANG_WORKSPACE")
+	if workspace == "" {
+		workspace = "default"
+	}
+
+	broadcaster := NewPubSubBroadcaster(d.pubsubPublisher, workspace, d.logger)
+	d.SetEventBroadcaster(broadcaster.BroadcastFunc())
+	d.logger.Printf("Pub/Sub broadcaster initialized (workspace=%s)", workspace)
 	return nil
 }
 

@@ -13,30 +13,28 @@ import Icon, { CheckIcon, CrossIcon, InfoIcon, WarningIcon } from '@site/src/com
 **Seamlessly hand off work between Claude Code sessions and autonomous AILANG agents with production-grade reliability.**
 
 :::tip The Main Human-AILANG Interface
-This is the **primary way humans interact with AILANG**—through Claude Code for exploration and autonomous agents for execution.
+This is the **primary way humans interact with AILANG** — through Claude Code for exploration and the Coordinator for autonomous execution.
 :::
 
 :::success Ready to Use in AILANG Repo!
-**Already working in the AILANG repository?** The hooks are configured and ready to go!
+**Already working in the AILANG repository?** HTTP hooks and the coordinator are configured and ready to go!
 
-:::warning Pragmatic Workflow
-SessionStart hooks run successfully but output doesn't reliably appear in Claude's context. **Manual checking works well**: Ask Claude to run `ailang agent inbox --unread-only claude-code` at the start of each session.
-:::
-
-**Test commands:**
+**Quick test:**
 ```bash
+# Start server + coordinator
+make services-start
+
 # Send test message
-ailang agent send --to-user '{"message": "Test", "status": "ready"}'
+ailang messages send user "Test message" --title "Integration test" --from "claude-code"
 
-# Check inbox (FLAGS BEFORE AGENT ID!)
-ailang agent inbox --unread-only user
-ailang agent inbox --unread-only claude-code
+# Check inbox
+ailang messages list --unread
 
-# Acknowledge messages
-ailang agent ack --all
+# Acknowledge
+ailang messages ack --all
 ```
 
-See [Hooks Setup Guide](./hooks-setup.mdx) for more details.
+See [Hooks Setup Guide](./hooks-setup.mdx) for HTTP hook details.
 :::
 
 ---
@@ -45,10 +43,10 @@ See [Hooks Setup Guide](./hooks-setup.mdx) for more details.
 
 ```mermaid
 graph LR
-    A["User in Claude Code"] -->|"Stop hook"| B["Agent Protocol"]
-    B -->|"Handoff"| C["sprint-planner"]
-    C -->|"Plan created"| D["sprint-executor"]
-    D -->|"Implementation done"| E["User Inbox"]
+    A["User in Claude Code"] -->|"Send message"| B["Coordinator"]
+    B -->|"Assigns task"| C["sprint-planner"]
+    C -->|"trigger_on_complete"| D["sprint-executor"]
+    D -->|"Completion message"| E["User Inbox"]
     E -->|"SessionStart hook"| A
 
     style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
@@ -60,9 +58,9 @@ graph LR
 
 **The workflow:**
 1. **Interactive**: You explore with Claude Code, create design docs
-2. **Handoff**: Stop session → agents receive the work automatically
-3. **Autonomous**: Agents implement, test, and report back
-4. **Notification**: Next session shows completed work in your inbox
+2. **Handoff**: Send a message to an agent inbox via `ailang messages send`
+3. **Autonomous**: Coordinator assigns task, agents implement in isolated worktrees
+4. **Notification**: Next session shows completed work via SessionStart hook
 
 ---
 
@@ -72,65 +70,67 @@ graph LR
 
 <CheckIcon inline size={16} /> AILANG installed (`ailang --version`)
 <CheckIcon inline size={16} /> Claude Code or VSCode with Claude extension
-<CheckIcon inline size={16} /> Basic familiarity with hooks
+<CheckIcon inline size={16} /> Coordinator configured (`~/.ailang/config.yaml`)
 
 :::tip Already configured in AILANG repo!
-If you're working in the [AILANG repository](https://github.com/sunholo-data/ailang), the hooks are **already configured** in `.claude/hooks.json`. Skip to Step 3 to test them!
+If you're working in the [AILANG repository](https://github.com/sunholo-data/ailang), hooks are configured in `.claude/settings.json` and the coordinator config is ready. Skip to testing!
 :::
 
-### Installation (3 Steps)
+### Setup (3 Steps)
 
-**Step 1: Enable hooks in Claude Code**
+**Step 1: Configure hooks in `.claude/settings.json`**
 
-Create `.claude/hooks.json`:
+HTTP hooks are configured alongside command hooks:
 
-```json title=".claude/hooks.json"
+```json title=".claude/settings.json (excerpt)"
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/hooks/agent_handoff.sh",
-            "timeout": 30
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/hooks/session_start.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
+    "SessionStart": [{
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh"
+        },
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:1957/api/hooks/claude",
+          "timeout": 5
+        }
+      ]
+    }],
+    "PreToolUse": [{
+      "matcher": "*",
+      "hooks": [{
+        "type": "http",
+        "url": "http://127.0.0.1:1957/api/hooks/claude",
+        "timeout": 5
+      }]
+    }]
   }
 }
 ```
 
-**Step 2: Make hooks executable**
+**Step 2: Start the server and coordinator**
 
 ```bash
-chmod +x scripts/hooks/*.sh
+make services-start    # Starts ailang serve + coordinator daemon
 ```
 
 **Step 3: Test the integration**
 
 ```bash
-# Send a test message to your inbox
-ailang agent send --to-user '{"message": "Integration test", "status": "success"}'
+# Send a test message
+ailang messages send user "Integration test" --title "Test" --from "claude-code"
 
-# Check your inbox
-ailang agent inbox user
+# Check inbox
+ailang messages list --unread
+
+# Acknowledge
+ailang messages ack --all
 ```
 
 :::success It works!
-You should see the test message in your inbox. Now you're ready to use the full workflow!
+You should see the test message. Now you're ready to use the full workflow!
 :::
 
 ---
@@ -144,7 +144,7 @@ You should see the test message in your inbox. Now you're ready to use the full 
 
 ```bash
 # Send notification to user
-ailang agent send --to-user '{"message": "Task complete", "status": "success"}'
+ailang messages send user "Task complete" --title "Done" --from "agent-name"
 ```
 
 </TabItem>
@@ -152,15 +152,17 @@ ailang agent send --to-user '{"message": "Task complete", "status": "success"}'
 
 ```bash
 # Send task to sprint-planner
-ailang agent send sprint-planner '{"task": "implement_design_doc", "design_doc": "design_docs/planned/M-FIX-123.md"}'
+ailang messages send sprint-planner "Plan sprint for M-FIX-123" \
+  --title "Sprint: M-FIX-123" --from "user"
 ```
 
 </TabItem>
-<TabItem value="with-correlation" label="With Correlation ID">
+<TabItem value="bug" label="Bug Report">
 
 ```bash
-# Track related messages
-ailang agent send --correlation-id "M-FIX-123" sprint-planner '{"task": "plan"}'
+# Bug report (auto-creates GitHub issue)
+ailang messages send user "Parser crashes on empty input" \
+  --type bug --title "Bug: Parser crash" --from "user"
 ```
 
 </TabItem>
@@ -173,13 +175,13 @@ ailang agent send --correlation-id "M-FIX-123" sprint-planner '{"task": "plan"}'
 
 ```bash
 # Check your messages
-ailang agent inbox user
+ailang messages list --unread
 
-# Only unread
-ailang agent inbox user --unread-only
+# Read specific message
+ailang messages read <message-id>
 
-# Archive after viewing
-ailang agent inbox user --archive
+# Read without marking as read
+ailang messages read <message-id> --peek
 ```
 
 </TabItem>
@@ -187,35 +189,49 @@ ailang agent inbox user --archive
 
 ```bash
 # Check agent's pending messages
-ailang agent inbox sprint-planner
+ailang messages list --inbox sprint-planner
 
-# Limit results
-ailang agent inbox sprint-planner --limit 5
+# JSON output (for scripting)
+ailang messages list --inbox sprint-planner --json
 ```
 
 </TabItem>
 </Tabs>
 
+### Manage Messages
+
+```bash
+# Acknowledge (mark as read)
+ailang messages ack <id>              # Single message
+ailang messages ack --all             # All messages
+
+# Un-acknowledge (move back to unread for retry)
+ailang messages unack <id>
+
+# Forward to different inbox
+ailang messages forward --to design-doc-creator <id>
+
+# Cleanup old messages
+ailang messages cleanup --older-than 7d
+ailang messages cleanup --expired
+```
+
 ### Monitor System
 
 ```bash
-# Show agent status and metrics
-ailang agent top
+# Coordinator status
+ailang coordinator status
 
-# View dead letter queue
-ailang agent dlq --list
+# View execution chains
+ailang chains list --since 24h
+ailang chains active
 
-# Retry failed message
-ailang agent dlq --retry <message-id>
-```
+# View chain details
+ailang chains view <chain-id> --spans
+ailang chains tree <chain-id> --detailed
 
-### Debug & Utilities
-
-```bash
-# Compute file hash (for artifacts)
-ailang debug hash design_docs/planned/M-FIX-123.md
-
-# Output: sha256:a1b2c3d4e5f6...
+# Cost and token stats
+ailang chains stats --by-agent
 ```
 
 ---
@@ -233,470 +249,253 @@ Claude Code investigates and creates:
 design_docs/planned/M-FIX-FACTORIAL.md
 ```
 
-You: "Looks good!" (session stops)
+You: "Looks good! Send to sprint-planner"
 
-**2. Automatic Handoff (Stop Hook)**
+**2. Send to Coordinator Pipeline**
 
-The `agent_handoff.sh` hook automatically:
-- Detects the new design doc (modified < 5 min)
-- Stores it as a content-addressed artifact
-- Sends message to `sprint-planner` agent
-
-```bash title="What happens behind the scenes"
-# Hook detects design doc
-DOC_HASH=$(ailang debug hash design_docs/planned/M-FIX-FACTORIAL.md)
-
-# Sends message with artifact reference
-ailang agent send sprint-planner '{
-  "task": "implement_design_doc",
-  "artifacts": [{
-    "path": "design_docs/planned/M-FIX-FACTORIAL.md",
-    "hash": "sha256:abc123..."
-  }]
-}'
+```bash
+ailang messages send sprint-planner "Plan sprint for M-FIX-FACTORIAL" \
+  --title "Sprint: M-FIX-FACTORIAL" --from "user"
 ```
 
-**3. Autonomous Execution (Agents)**
+**3. Autonomous Execution (Coordinator)**
 
-- `sprint-planner` receives message → creates implementation plan
-- `sprint-executor` receives plan → implements fix
-- Agents run tests, lint code, update docs
-- Completion message sent to user inbox
+The coordinator handles the pipeline automatically:
+- `sprint-planner` receives message → creates sprint plan in worktree
+- Human approves plan → merges to dev, triggers `sprint-executor`
+- `sprint-executor` implements fix with TDD → creates approval request
+- Human reviews code → approves merge
 
 **4. User Notification (SessionStart Hook)**
 
-Next time you start Claude Code, the SessionStart hook runs automatically and:
+Next time you start Claude Code:
 
-**What you see (in terminal):**
 ```
-╔═══════════════════════════════════════════════════════════╗
-║  📬 You have 1 unread message(s) from agents              ║
-╚═══════════════════════════════════════════════════════════╝
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📬 AGENT INBOX: 1 unread message(s) from autonomous agents
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-To view messages, run:
-  ailang agent inbox user
+ID: abc12345-...
+From: sprint-executor
+Title: Implementation complete: M-FIX-FACTORIAL
+Time: 2026-03-05T14:30:00Z
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 Use 'ailang messages read <id>' to view full content
 ```
 
-**What Claude Code sees (after forwarding):**
-The hook also forwards messages to `.ailang/state/messages/claude-code/` inbox.
-
-:::info Important: Claude Can't See Messages Automatically
-Due to Claude Code's architecture, hooks output to the terminal but **cannot inject content into the AI's context**.
-
-**To make Claude aware of messages:**
-- Tell Claude: "Check for agent messages" or "Any messages from agents?"
-- Claude will then read `.ailang/state/messages/claude-code/` inbox
-- Or Claude runs the session start routine automatically (if configured in CLAUDE.md)
-:::
-
-**Check messages:**
-
-<Tabs groupId="check-methods">
-<TabItem value="user" label="View in Terminal">
+**5. Review:**
 
 ```bash
-# View your inbox (human-readable)
-ailang agent inbox user
-```
+# Read message details
+ailang messages read abc12345
 
-</TabItem>
-<TabItem value="claude" label="Show to Claude">
+# View execution chain
+ailang chains list --agent sprint-executor --since 24h
+ailang chains view <chain-id> --spans
 
-```bash
-# Make messages visible to Claude Code assistant
-ailang agent inbox user
-```
-
-</TabItem>
-</Tabs>
-
-**Example output:**
-```
-📬 User Inbox (1 message)
-================================================================================
-
-▶ Message 1/1
-  ID: msg_20251025_143256_a1b2c3d4
-  From: sprint-executor
-  Type: completion
-  Timestamp: 2025-10-25T14:32:56Z
-  Payload: {
-    "status": "success",
-    "message": "Implemented M-FIX-FACTORIAL",
-    "tests_passing": true,
-    "files_modified": 3
-  }
+# View code changes
+ailang chains diff <chain-id>
 ```
 
 ---
 
 ## <Icon name="scale" inline size={20} /> Production Features
 
-### Content-Addressed Artifacts
+### HTTP Hook Telemetry
 
-Large files (design docs, code) are stored separately and referenced by SHA256 hash:
+All Claude Code events (tool use, session lifecycle, subagent activity) are captured via HTTP hooks and stored in the observatory:
 
 ```json
 {
-  "artifacts": [
-    {
-      "path": "design_docs/planned/M-FIX-123.md",
-      "hash": "sha256:a1b2c3d4e5f6...",
-      "mime_type": "text/markdown"
-    }
-  ]
+  "type": "http",
+  "url": "http://127.0.0.1:1957/api/hooks/claude",
+  "headers": {
+    "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
+    "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}"
+  },
+  "timeout": 5
 }
 ```
 
 **Benefits:**
-- <CheckIcon inline size={14} /> Deduplication (same file stored once)
-- <CheckIcon inline size={14} /> Verification (detect corruption)
-- <CheckIcon inline size={14} /> No message bloat
+- <CheckIcon inline size={14} /> No shell script dependencies (cloud-ready)
+- <CheckIcon inline size={14} /> Full JSON payload storage
+- <CheckIcon inline size={14} /> Real-time dashboard via WebSocket
+- <CheckIcon inline size={14} /> Correlation ID tracking across chains
 
-### HMAC Message Signing
+### Hook Token Authentication
 
-All messages are cryptographically signed to prevent spoofing:
-
-```json
-{
-  "message_id": "msg_123",
-  "signature": "hmac-sha256:...",
-  "kid": "key-001",
-  "hmac_alg": "sha256"
-}
-```
-
-**Security:**
-- <CheckIcon inline size={14} /> Agent allowlist enforcement
-- <CheckIcon inline size={14} /> Key rotation support
-- <CheckIcon inline size={14} /> Tamper detection
-
-### Idempotent Delivery
-
-Messages are processed exactly once, even if systems restart:
-
-```sql
--- Each message_id is unique in SQLite
-CREATE UNIQUE INDEX idx_message_id ON processed_messages(message_id);
-```
-
-**Guarantees:**
-- <CheckIcon inline size={14} /> No duplicate work
-- <CheckIcon inline size={14} /> Safe restarts
-- <CheckIcon inline size={14} /> Crash recovery
-
-### Dead Letter Queue
-
-Failed messages are captured with full diagnostic context:
+For cloud deployments, secure the hook endpoint:
 
 ```bash
-# List failures
-ailang agent dlq --list
-
-# Example output:
-DLQ Entry 1/2
-  Message ID: msg_456
-  Failed At: 2025-10-25T14:30:00Z
-  Retry Count: 3
-  Reason: agent_not_found
-  Stack Trace: [...]
+# Set token on the server
+export AILANG_HUB_TOKEN="your-secret-token"
+ailang serve
 ```
 
-**Recovery:**
+When configured, hooks must include `Authorization: Bearer <token>`. In local mode (no token set), all requests pass through.
+
+### Coordinator Approval Workflow
+
+Every agent task goes through human review:
+
 ```bash
-# Retry after fixing the issue
-ailang agent dlq --retry msg_456
+# List pending approvals
+ailang coordinator pending
+
+# Interactive review
+# a=approve  r=reject  d=diff  c=chat  q=quit
 ```
 
----
+**Approval types:**
+| Type | On Approve |
+|------|------------|
+| `merge` | Merges code to dev branch |
+| `merge_handoff` | Merges AND triggers next agent |
 
-## <Icon name="box" inline size={20} /> User Inbox Lifecycle
+### Message Storage
 
-Messages flow through three states:
+All messages stored in SQLite (`~/.ailang/state/collaboration.db`):
 
-```mermaid
-graph LR
-    A[_unread/] -->|"ailang agent inbox user"| B[_read/]
-    B -->|"--archive flag"| C[_archive/]
-
-    style A fill:#fff3e0
-    style B fill:#e3f2fd
-    style C fill:#f1f8e9
-```
-
-**Example workflow:**
-```bash
-# New messages appear in _unread/
-ailang agent inbox user
-# → Displays messages, moves to _read/
-
-# Archive old messages
-ailang agent inbox user --read-only --archive
-# → Moves from _read/ to _archive/
-```
+- <CheckIcon inline size={14} /> Shared between CLI, dashboard, and coordinator
+- <CheckIcon inline size={14} /> Full-text and semantic search
+- <CheckIcon inline size={14} /> GitHub issue sync
+- <CheckIcon inline size={14} /> Deduplication support
 
 ---
 
 ## <Icon name="bar-chart" inline size={20} /> Observability
 
-Monitor the agent system in real-time:
+### Chain Monitoring
 
 ```bash
-ailang agent top
+# View all execution chains
+ailang chains list --since 7d
+
+# Active chains
+ailang chains active
+
+# Chain details with spans
+ailang chains view <chain-id> --spans
+
+# Cost tracking
+ailang chains stats --by-agent --hours 168
 ```
 
-**Example output:**
+### Dashboard
+
+```bash
+make services-start
+# Open http://localhost:1957
 ```
-AILANG Agent Status
-================================================================================
 
-Active Agents:
-  • sprint-planner
-    Status: active
-    Last Heartbeat: 5s ago
-    Pending Messages: 2
-    Processed (last 1h): 15
-    Errors (last 1h): 0
+**Features:**
+- Live task execution streaming
+- Approval queue with git diff viewer
+- Session monitoring via HTTP hooks
+- Cost and token tracking
 
-  • sprint-executor
-    Status: active
-    Last Heartbeat: 3s ago
-    Pending Messages: 0
-    Processed (last 1h): 12
-    Errors (last 1h): 1
+### Audit Agent Work
 
-Dead Letter Queue: 1 message
-Average Handoff Latency: 3.2s
-Messages In (last 1h): 27
-Messages Out (last 1h): 25
+```bash
+# View conversation (reasoning + tool calls)
+ailang coordinator logs <task-id> --limit 500
+
+# View git changes
+ailang chains diff <chain-id>
+
+# Quick health check
+ailang chains diagnose <chain-id>
 ```
 
 ---
 
 ## ⚙️ Hook Configuration
 
-### Stop Hook (`agent_handoff.sh`)
+### HTTP Hooks (Primary)
 
-**What it does:**
-1. Detects design docs modified in last 5 minutes
-2. Computes SHA256 hash for each doc
-3. Stores as artifact
-4. Sends message to `sprint-planner`
+HTTP hooks send Claude Code events to the AILANG server for telemetry and monitoring. They fire for all 7 event types: SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, SubagentStop, Stop.
 
-**Configuration:**
-```bash title="scripts/hooks/agent_handoff.sh"
-# Customize these variables
-DESIGN_DOCS_DIR="design_docs/planned"
-TARGET_AGENT="sprint-planner"
-TIME_WINDOW=5  # minutes
-```
+See [Hooks Setup Guide](./hooks-setup.mdx) for full configuration.
 
-### SessionStart Hook (`session_start.sh`)
+### Command Hooks (Supplementary)
 
-**What it does:**
-1. Checks user inbox for unread messages
-2. Displays count and preview
-3. Guides user to `ailang agent inbox user`
+These command hooks run alongside HTTP hooks:
 
-**Configuration:**
-```bash title="scripts/hooks/session_start.sh"
-INBOX_DIR=".ailang/state/messages/inbox/user/_unread"
-```
-
----
-
-## <Icon name="target" inline size={20} /> Success Metrics
-
-From the design document (M-CLAUDE-CODE-INTEGRATION-V2):
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| Handoff latency (median) | &lt;5s | <CheckIcon inline size={14} /> Achieved |
-| Message delivery | 100% | <CheckIcon inline size={14} /> Soak tested |
-| Artifact storage | Hash-addressed | <CheckIcon inline size={14} /> Implemented |
-| Security | HMAC signed | <CheckIcon inline size={14} /> Enabled |
-| Test coverage | &gt;90% | <CheckIcon inline size={14} /> 100% on new code |
-
----
-
-## <Icon name="play" inline size={20} /> Testing the Integration
-
-### Test 1: Send & Receive
-
-```bash
-# Send test message
-ailang agent send --to-user '{"test": "Integration check"}'
-```
-
-**Output:**
-```
-✓ Message sent successfully
-  Message ID: msg_20251025_115551_f4d475e9e816
-  To: user
-  From: cli-sender
-  Correlation ID: cycle_20251025_715
-  File: ~/.ailang/state/messages/inbox/user/_unread/msg_...json
-```
-
-```bash
-# Check inbox
-ailang agent inbox user
-```
-
-**Output:**
-```
-📬 User Inbox (1 message)
-================================================================================
-
-▶ Message 1/1
-  ID: msg_20251025_115551_f4d475e9e816
-  From: cli-sender
-  Type: request
-  Timestamp: 2025-10-25T13:55:51Z
-  Correlation: cycle_20251025_715
-  Payload: {"test":"Integration check"}
-```
-
-<CheckIcon inline size={16} /> **Success!** Message sent and received
-
-### Test 2: Hook Detection
-
-```bash
-# Create a test design doc
-mkdir -p design_docs/planned
-cat > design_docs/planned/test-doc.md << 'EOF'
-# Test Design Doc
-This is a test.
-EOF
-
-# Manually trigger the hook
-bash scripts/hooks/agent_handoff.sh
-
-# Check agent inbox
-ailang agent inbox sprint-planner
-```
-
-<CheckIcon inline size={16} /> **Expected**: Message sent to sprint-planner
-
-### Test 3: SessionStart Hook
-
-```bash
-# Trigger the SessionStart hook (simulates starting Claude Code)
-bash scripts/hooks/session_start.sh
-```
-
-**Output (when you have unread messages):**
-```
-╔═══════════════════════════════════════════════════════════╗
-║  📬 You have 1 unread message(s) from agents              ║
-╚═══════════════════════════════════════════════════════════╝
-
-To view messages, run:
-  ailang agent inbox user
-
-Preview (most recent):
-  From: cli-sender
-  Message ID: msg_20251025_115551_f4d475e9e816
-```
-
-<CheckIcon inline size={16} /> **Success!** Hook notifies you of new messages
-
-### Test 4: End-to-End Workflow
-
-**Full workflow in the AILANG repository:**
-
-1. Create design doc in Claude Code session
-2. Stop session (triggers Stop hook automatically)
-3. Check sprint-planner inbox: `ailang agent inbox sprint-planner`
-4. Start new session (triggers SessionStart hook automatically)
-5. See notification and check user inbox
+| Hook | Script | Purpose |
+|------|--------|---------
+| SessionStart | `session_start.sh` | Check inbox, set up environment |
+| SessionStart | `cloud_setup.sh` | Cloud environment setup |
+| PostToolUse | `format_go.sh` | Auto-format Go files on Edit/Write |
+| Stop | `session_end_speak.sh` | Text-to-speech session summary |
 
 ---
 
 ## <Icon name="wrench" inline size={20} /> Troubleshooting
 
-### Hook not firing
+### Messages not appearing
 
-**Check hook logs:**
 ```bash
+# Check server is running
+curl http://127.0.0.1:1957/health
+
+# Check database
+ailang messages list --unread
+
+# Send test message
+ailang messages send user "test" --title "Test" --from "debug"
+```
+
+### Coordinator not picking up tasks
+
+```bash
+# Check coordinator is running
+ailang coordinator status
+
+# Start if not running
+ailang coordinator start
+
+# Check config
+cat ~/.ailang/config.yaml
+```
+
+### Hooks not firing
+
+```bash
+# Check hook logs
 tail -f ~/.ailang/state/hooks.log
-```
 
-**Verify hook permissions:**
-```bash
-ls -la scripts/hooks/*.sh
-# Should show: -rwxr-xr-x (executable)
-```
-
-**Test hook manually:**
-```bash
-export CLAUDE_HOOK_JSON='{"sessionId": "test", "userId": "user", "event": "Stop"}'
-bash scripts/hooks/agent_handoff.sh
-```
-
-### Messages not appearing in inbox
-
-**Check message delivery:**
-```bash
-# List all pending messages for user
-ls -la .ailang/state/messages/inbox/user/_unread/
-```
-
-**Verify state directory:**
-```bash
-# Should exist with correct structure
-ls -la .ailang/state/messages/inbox/user/
-# → _unread/ _read/ _archive/
-```
-
-### Agent not processing messages
-
-**Check agent status:**
-```bash
-ailang agent top
-```
-
-**View DLQ for failures:**
-```bash
-ailang agent dlq --list
+# HTTP hooks fail silently - check server is running
+curl http://127.0.0.1:1957/health
 ```
 
 ---
 
 ## <Icon name="book" inline size={20} /> Related Documentation
 
-- **[Getting Started](./getting-started.mdx)** - Installation and first steps
-- **[Hooks Setup Guide](./hooks-setup.mdx)** - Quick setup and configuration guide
-- **[Agent Workflows](./agent-workflows.mdx)** - Workflow examples and patterns
-- **[Development Workflow](./development-workflow.md)** - Sprint planning and execution
-- **[Testing Guide](./testing.md)** - Write tests for agent-generated code
-- **[Module Execution](./module_execution.mdx)** - Run code created by agents
-- **[Evaluation Framework](/docs/guides/evaluation)** - Agents improve eval scores
-
-**Design documents** (GitHub):
-- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete design document
-- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Low-level protocol details
+- **[Getting Started](./getting-started.mdx)** — Installation and first steps
+- **[Hooks Setup Guide](./hooks-setup.mdx)** — HTTP hook configuration
+- **[Agent Workflows](./agent-workflows.mdx)** — Workflow examples and patterns
+- **[Coordinator Guide](./coordinator.md)** — Agent orchestration and task delegation
+- **[Cross-Project Messaging](./cross-project-messaging.mdx)** — Inter-project communication
+- **[Telemetry Guide](./telemetry.md)** — Distributed tracing and observability
 
 ---
 
 ## <Icon name="brain" inline size={20} /> Best Practices
 
-1. **Keep design docs focused** - One feature per doc
-2. **Use descriptive names** - `M-FIX-EVAL-FACTORIAL.md` not `fix.md`
-3. **Review agent output** - Check user inbox regularly
-4. **Monitor metrics** - Run `ailang agent top` periodically
-5. **Archive old messages** - Keep inbox manageable
-
-:::tip Pro Tip
-The agent system is **production-ready** with 100% delivery guarantees, HMAC signing, and comprehensive testing. Use it with confidence!
-:::
+1. **Keep design docs focused** — One feature per doc
+2. **Use descriptive message titles** — `Sprint: M-FIX-EVAL-FACTORIAL` not `fix`
+3. **Review agent output** — Check inbox regularly, review diffs before approving
+4. **Monitor chains** — Run `ailang chains active` to track progress
+5. **Use GitHub sync for bugs** — `--type bug` auto-creates GitHub issues
 
 ---
 
 **Next Steps:**
-- **Try it now**: Create a design doc and stop your Claude Code session
-- **Customize hooks**: Modify `scripts/hooks/*.sh` for your workflow
-- **Build agents**: Create custom agents using the Agent Protocol
+- **Try it now**: Send a message to `sprint-planner` and watch the pipeline
+- **Monitor**: Open http://localhost:1957 for the dashboard
+- **Customize**: Edit `~/.ailang/config.yaml` for your agent configuration
 
 **Questions?**
 - GitHub Issues: https://github.com/sunholo-data/ailang/issues

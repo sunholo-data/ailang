@@ -187,15 +187,12 @@ func (s *Server) handleGetChainByTask(w http.ResponseWriter, r *http.Request) {
 
 	chain, err := s.obsBackend.GetChainByTaskID(ctx, taskID)
 	if err != nil || chain == nil {
-		// No execution chain — fall back to span summary (user sessions, evals, etc.)
-		if sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend); ok {
-			summary, summaryErr := sqliteBackend.GetTaskSpanSummary(ctx, taskID)
-			if summaryErr == nil && summary != nil {
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(summary)
-				return
-			}
-		}
+		// No execution chain found — return 404.
+		// The frontend handles 404 by synthesizing a virtual chain from spans,
+		// which is the correct behavior for user sessions, evals, etc.
+		// Previously this returned a TaskSpanSummary with 200 OK, but that
+		// different shape caused the frontend to parse it as ChainData and
+		// then try to fetch /api/chains/undefined (M-AUDIT-OBSERVATORY).
 		http.Error(w, "Chain not found", http.StatusNotFound)
 		return
 	}

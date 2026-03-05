@@ -18,6 +18,10 @@ AILANG's effect system builds on foundational research:
 See [Citations & Bibliography](/docs/references) for complete references.
 :::
 
+:::tip See Effects in Action
+Browse the [Live Demos](https://www.sunholo.com/ailang-demos/) to see effects working in the browser: AI effect ([Claude Chat](https://www.sunholo.com/ailang-demos/streaming/claude_chat/), [Gemini Live](https://www.sunholo.com/ailang-demos/streaming/gemini_live/)), IO effect ([DocParse](https://www.sunholo.com/ailang-demos/docparse.html)), and contract-verified effect boundaries ([Safe Agent](https://www.sunholo.com/ailang-demos/streaming/safe_agent/)).
+:::
+
 ## Why Effects?
 
 Traditional languages hide side effects:

@@ -221,6 +221,19 @@ func (d *Daemon) cleanup() {
 		d.logger.Println("GitHub approval watcher stopped")
 	}
 
+	// Stop Pub/Sub publisher and close client (M-PUBSUB)
+	if d.pubsubPublisher != nil {
+		d.pubsubPublisher.Stop()
+		d.logger.Println("Pub/Sub publisher stopped")
+	}
+	if d.pubsubClient != nil {
+		if err := d.pubsubClient.Close(); err != nil {
+			d.logger.Printf("Failed to close Pub/Sub client: %v", err)
+		} else {
+			d.logger.Println("Pub/Sub client closed")
+		}
+	}
+
 	// Mark agent as idle in dashboard
 	if err := d.unregisterAgent(); err != nil {
 		d.logger.Printf("Failed to unregister agent: %v", err)

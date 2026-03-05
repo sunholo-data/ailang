@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -119,6 +120,23 @@ func runMessagesSend(args []string) {
 	}
 
 	fmt.Printf("%s Message sent to '%s' (ID: %s)\n", green("✓"), inbox, msg.MessageID)
+
+	// Dual-write: publish notification to Pub/Sub if enabled (M-PUBSUB)
+	// This is non-fatal — message is already safely in SQLite/Firestore.
+	cfg, _ := messaging.LoadConfig()
+	if cfg != nil && cfg.PubSub != nil && cfg.PubSub.Enabled {
+		notifier, notifyErr := messaging.NewPubSubNotifier(cfg.PubSub)
+		if notifyErr != nil {
+			fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
+		} else if notifier != nil {
+			defer notifier.Close()
+			if notifyErr := notifier.Notify(context.Background(), msg); notifyErr != nil {
+				fmt.Fprintf(os.Stderr, "%s Pub/Sub notify failed: %v\n", yellow("!"), notifyErr)
+			} else {
+				fmt.Printf("%s Pub/Sub notification published\n", green("✓"))
+			}
+		}
+	}
 
 	// Compute envelope (M-SEMANTIC-ENVELOPE)
 	// Auto-detects git context unless --no-envelope is set

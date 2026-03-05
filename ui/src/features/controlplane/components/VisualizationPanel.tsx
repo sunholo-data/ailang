@@ -238,7 +238,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           <div className={styles.filterSection}>
             <h4 className={styles.filterSectionTitle}>Provider</h4>
             <div className={styles.filterOptions}>
-              {breakdownData.by_provider.map((item) => (
+              {(breakdownData.by_provider || []).map((item) => (
                 <button
                   key={item.id}
                   className={`${styles.filterOption} ${filters.provider === item.id ? styles.filterOptionActive : ''}`}
@@ -253,7 +253,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           <div className={styles.filterSection}>
             <h4 className={styles.filterSectionTitle}>Model</h4>
             <div className={styles.filterOptions}>
-              {breakdownData.by_model.slice(0, 8).map((item) => (
+              {(breakdownData.by_model || []).slice(0, 8).map((item) => (
                 <button
                   key={item.id}
                   className={`${styles.filterOption} ${filters.model === item.id ? styles.filterOptionActive : ''}`}
@@ -268,7 +268,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           <div className={styles.filterSection}>
             <h4 className={styles.filterSectionTitle}>Source</h4>
             <div className={styles.filterOptions}>
-              {breakdownData.by_source_type.map((item) => (
+              {(breakdownData.by_source_type || []).map((item) => (
                 <button
                   key={item.id}
                   className={`${styles.filterOption} ${filters.source_type === item.id ? styles.filterOptionActive : ''}`}
@@ -283,7 +283,7 @@ export const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           <div className={styles.filterSection}>
             <h4 className={styles.filterSectionTitle}>Workspace</h4>
             <div className={styles.filterOptions}>
-              {breakdownData.by_workspace.slice(0, 6).map((item) => (
+              {(breakdownData.by_workspace || []).slice(0, 6).map((item) => (
                 <button
                   key={item.id}
                   className={`${styles.filterOption} ${filters.workspace === item.id ? styles.filterOptionActive : ''}`}

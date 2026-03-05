@@ -235,7 +235,7 @@ export const EventDetail: React.FC<EventDetailProps> = ({
               <span className={styles.eventDetailRowLabel}>Payload</span>
               <pre className={styles.eventDetailPayloadContent}>
                 {typeof payload === 'string' && payload.startsWith('{')
-                  ? JSON.stringify(JSON.parse(payload), null, 2)
+                  ? (() => { try { return JSON.stringify(JSON.parse(payload), null, 2); } catch { return payload; } })()
                   : payload}
               </pre>
             </div>

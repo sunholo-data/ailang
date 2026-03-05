@@ -33,6 +33,7 @@ func chainsCommand() {
 		fmt.Println("  diff      Show git diff across all stages in a chain")
 		fmt.Println("  find      Find chain by message ID, task ID, or GitHub issue")
 		fmt.Println("  chat      View turn-by-turn conversation for a chain stage")
+		fmt.Println("  journey   Show execution journey narrative for a chain")
 		fmt.Println("  health    System-wide data capture validation")
 		fmt.Println()
 		fmt.Println("Examples:")
@@ -77,6 +78,8 @@ func chainsCommand() {
 		chainsFindCommand()
 	case "chat":
 		chainsChatCommand()
+	case "journey":
+		chainsJourneyCommand()
 	default:
 		fmt.Printf("Unknown subcommand: %s\n", subcommand)
 		os.Exit(1)
@@ -488,6 +491,82 @@ func printEvalAssessment(a *observatory.EvalAssessment) {
 	}
 	if a.VerifyOk || a.VerifyVerified > 0 {
 		fmt.Printf("     Verify: verified=%d counterex=%d\n", a.VerifyVerified, a.VerifyCounterex)
+	}
+}
+
+func chainsJourneyCommand() {
+	fs := flag.NewFlagSet("chains journey", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	fs.Parse(flag.Args()[2:])
+
+	chainIDPrefix := fs.Arg(0)
+	if chainIDPrefix == "" {
+		fmt.Fprintln(os.Stderr, "Usage: ailang chains journey <chain-id>")
+		os.Exit(1)
+	}
+
+	dbPath := observatory.DefaultDatabasePath()
+	backend, err := observatory.NewSQLiteBackendFromPath(dbPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to connect to observatory: %v\n", err)
+		os.Exit(1)
+	}
+	defer backend.Close()
+
+	ctx := context.Background()
+	chainID, err := resolveChainID(backend, ctx, chainIDPrefix)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	journey, err := backend.GetChainJourney(ctx, chainID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(journey)
+		return
+	}
+
+	// Human-friendly output
+	fmt.Printf("Journey: %s\n\n", journey.Summary)
+	fmt.Printf("Steps:\n")
+	for _, step := range journey.Steps {
+		status := step.Status
+		switch status {
+		case "completed":
+			status = "done"
+		case "running":
+			status = "running"
+		case "awaiting_approval":
+			status = "awaiting"
+		case "failed":
+			status = "FAILED"
+		}
+
+		line := fmt.Sprintf("  %d. [%s] %s", step.StageNumber, status, step.Action)
+		if step.Iteration > 1 {
+			line += fmt.Sprintf(" (x%d)", step.Iteration)
+		}
+		if step.Cost > 0 {
+			line += fmt.Sprintf("  $%.2f", step.Cost)
+		}
+		if step.DurationMs > 0 {
+			line += fmt.Sprintf("  %s", formatDurationHuman(time.Duration(step.DurationMs)*time.Millisecond))
+		}
+		fmt.Println(line)
+
+		if step.ErrorExcerpt != "" {
+			fmt.Printf("     Error: %s\n", step.ErrorExcerpt)
+		}
+		if step.Feedback != "" {
+			fmt.Printf("     Feedback: %s\n", step.Feedback)
+		}
 	}
 }
 

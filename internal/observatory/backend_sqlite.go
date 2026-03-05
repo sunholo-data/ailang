@@ -196,6 +196,12 @@ func (b *SQLiteBackend) ListSpans(ctx context.Context, opts SpanListOptions) ([]
 	return b.store.ListSpans(opts)
 }
 
+// ListSpansLightweight returns spans without heavy attributes/resource_attributes columns.
+// Extracts only tool_name and session.id from attributes via json_extract (M-AUDIT-OBSERVATORY).
+func (b *SQLiteBackend) ListSpansLightweight(ctx context.Context, opts SpanListOptions) ([]*Span, error) {
+	return b.store.ListSpansLightweight(opts)
+}
+
 func (b *SQLiteBackend) ListSpansByTaskIDs(ctx context.Context, taskIDs []string, limitPerTask int) (map[string][]*Span, error) {
 	return b.store.ListSpansByTaskIDs(taskIDs, limitPerTask)
 }

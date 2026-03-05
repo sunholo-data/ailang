@@ -1,256 +1,197 @@
 ---
 sidebar_position: 5
 title: Hooks Setup
-description: Configure Claude Code hooks for autonomous agent integration
+description: Configure Claude Code hooks for telemetry and agent integration
 ---
-
-import { AlertCircle, CheckCircle, Play, Terminal } from 'lucide-react';
 
 # Claude Code Hooks Setup
 
-**Status**: ⚠️ **Partially Working** (October 25, 2025)
+**Status**: ✅ **Working** (v0.9.0 — HTTP hooks)
 
-The AILANG repository is configured with Claude Code hooks for agent integration. Hooks execute successfully but output doesn't reliably appear in Claude's context. **Manual workflow is recommended.**
+AILANG uses Claude Code's native HTTP hooks (`type: "http"`) for telemetry and agent integration. This eliminates shell script dependencies and enables cloud deployment.
 
 ## What's Configured
 
 ### Hooks Enabled
 
-1. **Stop Hook** (`scripts/hooks/agent_handoff.sh`)
-   - **Triggers**: When you stop a Claude Code session
-   - **Action**: Detects design docs in `design_docs/planned/` modified in last 5 minutes
-   - **Sends to**: `sprint-planner` agent with content-addressed artifacts
+AILANG configures hooks in `.claude/settings.json` for the following events:
 
-2. **SessionStart Hook** (`scripts/hooks/session_start.sh`)
-   - **Triggers**: When you start a Claude Code session
-   - **Actions**:
-     - Checks both inbox locations (user + claude-code)
-     - Outputs message summaries to stdout
-     - **Does NOT auto-mark as read** (prevents race conditions)
-   - **⚠️ Known Issue**: Output doesn't reliably appear in Claude's context
-   - **Workaround**: Ask Claude to run `ailang agent inbox --unread-only claude-code`
+| Event | Hook Type | Purpose |
+|-------|-----------|---------|
+| **SessionStart** | HTTP + command | Telemetry + inbox check (`session_start.sh`) |
+| **PreToolUse** | HTTP | Track tool execution start |
+| **PostToolUse** | HTTP + command | Telemetry + Go formatting (`format_go.sh`) |
+| **PostToolUseFailure** | HTTP | Track tool failures |
+| **SubagentStart** | HTTP | Track subagent spawning |
+| **SubagentStop** | HTTP | Track subagent completion |
+| **Stop** | HTTP + command | Telemetry + session end |
+
+### HTTP Hook Architecture
+
+```
+Claude Code event (JSON)
+    │
+    ▼
+POST http://127.0.0.1:1957/api/hooks/claude
+    │  ├── Headers: X-Ailang-Task-Id, Chain-Id, Stage-Id, Message-Id
+    │  └── Body: Full hook JSON payload
+    │
+    ▼
+AILANG Server (handlers_claude_hooks.go)
+    │  ├── Routes by hook_event_name
+    │  ├── Stores in observatory (SQLite/Firestore)
+    │  └── Broadcasts via WebSocket to dashboard
+    │
+    ▼
+Dashboard (real-time session monitoring)
+```
 
 ### Configuration File
 
-`.claude/settings.local.json` - Hooks configured here (NOT hooks.json!)
+`.claude/settings.json` — HTTP hooks configured alongside essential command hooks:
 
-```json title=".claude/settings.local.json"
+```json title=".claude/settings.json (excerpt)"
 {
   "hooks": {
-    "Stop": [{
-      "hooks": [{
-        "type": "command",
-        "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/agent_handoff.sh",
-        "timeout": 30
-      }]
-    }],
     "SessionStart": [{
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh"
+        },
+        {
+          "type": "http",
+          "url": "http://127.0.0.1:1957/api/hooks/claude",
+          "headers": {
+            "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
+            "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}"
+          },
+          "allowedEnvVars": ["AILANG_TASK_ID", "AILANG_CHAIN_ID",
+                             "AILANG_STAGE_ID", "AILANG_MESSAGE_ID"],
+          "timeout": 5
+        }
+      ]
+    }],
+    "PreToolUse": [{
+      "matcher": "*",
       "hooks": [{
-        "type": "command",
-        "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/session_start.sh",
-        "timeout": 10
+        "type": "http",
+        "url": "http://127.0.0.1:1957/api/hooks/claude",
+        "timeout": 5
       }]
     }]
   }
 }
 ```
 
-**Note**: Hooks must use `$CLAUDE_PROJECT_DIR` for absolute paths.
+## Quick Start
 
-## Quick Test
+### 1. Start the Server
 
-### Test 1: Send a Message to Yourself
-
-```bash
-ailang agent send --to-user '{"message": "Testing hooks", "status": "ready"}'
-```
-
-### Test 2: Check Your Inbox
+HTTP hooks require the AILANG server to be running:
 
 ```bash
-# Check user inbox
-ailang agent inbox --unread-only user
-
-# Check claude-code inbox (project-specific)
-ailang agent inbox --unread-only claude-code
+ailang serve                    # Start on default port 1957
+# or
+make services-start             # Start server + coordinator together
 ```
 
-**⚠️ Note**: Flags must come BEFORE agent ID!
+### 2. Verify Hooks Are Working
 
-**Expected output:**
-```
-📬 user Inbox (1 message)
-================================================================================
-
-▶ Message 1/1
-  ID: msg_...
-  From: cli-sender
-  Type: request
-  Payload: {"message":"Testing hooks","status":"ready"}
-```
-
-### Test 3: Trigger SessionStart Hook
+Start a Claude Code session and check the server logs:
 
 ```bash
-bash scripts/hooks/session_start.sh
+# In another terminal, watch the server output
+# You should see:
+# claude-hooks: SessionStart session=... workspace=...
+# claude-hooks: PreToolUse session=... tool=Read
+# claude-hooks: PostToolUse tool_use_id=... tool=Read
 ```
 
-**Expected output:**
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📬 AGENT INBOX: 1 unread message(s) from autonomous agents
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 3. Check Messages
 
-From: cli-sender
-Time: 2025-10-25T12:00:00Z
-Message: {"message":"Testing hooks","status":"ready"}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 Review the messages above and decide if any action is needed.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-**To verify hook executed:**
 ```bash
-tail -10 ~/.ailang/state/hooks.log
-# Should show: "Found 1 unread message(s) across all inbox locations"
+# Check for unread messages
+ailang messages list --unread
+
+# Read a specific message
+ailang messages read <id>
+
+# Acknowledge all messages
+ailang messages ack --all
 ```
 
-**⚠️ Known Issue**: This output doesn't reliably appear in Claude Code's context. Use the manual workflow instead.
+## Message System
 
-## Pragmatic Workflow (RECOMMENDED)
+### Checking Inbox
 
-**Since automatic context injection doesn't reliably work, use this manual workflow:**
+```bash
+# List unread messages
+ailang messages list --unread
 
-### When Starting a New Session
+# List messages for a specific inbox
+ailang messages list --inbox user
 
-1. **You ask Claude**: "Check inbox" or "Any agent messages?"
+# Read full message content
+ailang messages read <message-id>
 
-2. **Claude runs**:
-   ```bash
-   ailang agent inbox --unread-only claude-code
-   ```
+# Acknowledge messages
+ailang messages ack <message-id>    # Mark specific as read
+ailang messages ack --all           # Mark all as read
 
-3. **Claude sees messages** and tells you about them
+# Move back to unread (for retry)
+ailang messages unack <message-id>
+```
 
-4. **Claude processes tasks** (reviews sprint, implements features, etc.)
+### Sending Messages
 
-5. **Claude acknowledges when done**:
-   ```bash
-   # If all tasks completed successfully:
-   ailang agent ack --all
+```bash
+# Send to an agent inbox
+ailang messages send sprint-planner "Plan sprint for M-CACHE" \
+  --title "Sprint: M-CACHE" --from "user"
 
-   # If specific task completed:
-   ailang agent ack msg_20251025_155729_a5f3e77ee975
+# Send bug report (auto-creates GitHub issue)
+ailang messages send user "Parser crashes on empty input" \
+  --type bug --title "Bug: Parser crash"
+```
 
-   # If task failed (to retry in next session):
-   ailang agent unack msg_20251025_155729_a5f3e77ee975
-   ```
+### Message Storage
 
-## How It Works
+All messages are stored in `~/.ailang/state/collaboration.db` (SQLite), shared between the CLI and the Collaboration Hub dashboard.
 
-### Two Inbox Locations
-
-**User Inbox** (`~/.ailang/state/messages/inbox/user/`):
-- Home directory, persists across projects
-- For messages TO the user from any agent
-- Check with: `ailang agent inbox --unread-only user`
-
-**Claude-Code Inbox** (`.ailang/state/messages/claude-code/`):
-- Project directory, specific to this codebase
-- For messages TO claude-code agent
-- Check with: `ailang agent inbox --unread-only claude-code`
-- SessionStart hook queries this location
-
-### SessionStart Hook Behavior
+## SessionStart Hook Behavior
 
 When you start a Claude Code session, the SessionStart hook:
 
-1. **Checks both inboxes** for unread messages
-2. **Outputs summary** to stdout (formatted, human-readable)
-3. **Does NOT auto-mark as read** (prevents race conditions)
-4. **Logs activity** to `~/.ailang/state/hooks.log`
+1. **Runs `session_start.sh`** — checks for unread messages via `ailang messages list --unread --json`
+2. **Fires HTTP hook** — sends SessionStart event to observatory for session tracking
+3. **Outputs summary** to stdout (appears in system reminders)
+4. **Does NOT auto-mark as read** (prevents race conditions)
 
-**⚠️ Known Limitation**: Hook output doesn't reliably appear in Claude's context (Claude Code limitation).
+## Coordinator Integration
 
-### Message Lifecycle
+The AILANG coordinator handles agent-to-agent handoffs automatically:
 
-```
-1. Agent sends message
-   ↓
-2. Lands in _unread or .pending.json
-   ↓
-3. Claude checks inbox (user asks)
-   ↓
-4. Claude processes task
-   ↓
-5a. SUCCESS → ailang agent ack
-   ↓
-   Moves to _processed or _read
-
-5b. FAILURE → ailang agent unack
-   ↓
-   Moves back to _unread
-   ↓
-   Next session sees it again
+```yaml title="~/.ailang/config.yaml"
+coordinator:
+  agents:
+    - id: design-doc-creator
+      trigger_on_complete: [sprint-planner]    # Auto-handoff
+    - id: sprint-planner
+      trigger_on_complete: [sprint-executor]
+    - id: sprint-executor
+      trigger_on_complete: []                  # End of chain
 ```
 
-### Agent Handoff Workflow Example
+When a coordinator-managed agent completes work, the coordinator automatically triggers the next agent in the chain. No hook-based handoff needed.
 
-```mermaid
-graph TD
-    A["You: Create design doc<br/>in Claude Code"] --> B["Claude Code creates<br/>design_docs/planned/M-FIX-123.md"]
-    B --> C["You: Stop session"]
-    C --> D["Stop Hook fires"]
-    D --> E["Compute SHA256 hash<br/>Store artifact"]
-    E --> F["Send to sprint-planner"]
-    F --> G["Autonomous agents<br/>implement & test"]
-    G --> H["Report to user inbox"]
-    H --> I["Next session:<br/>SessionStart hook"]
-    I --> J["You: Check inbox<br/>See completion!"]
+## Cloud Deployment
 
-    style A fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style B fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style C fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style D fill:#f5f5f5,stroke:#616161,stroke-width:2px
-    style E fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style F fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style G fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style H fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    style I fill:#f5f5f5,stroke:#616161,stroke-width:2px
-    style J fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-```
+For cloud deployments, HTTP hooks work without any CLI dependencies:
 
-**Step by step:**
-1. **You**: "Analyze eval failures and create a design doc"
-2. **Claude Code**: Creates `design_docs/planned/M-FIX-123.md`
-3. **You**: "Looks good" (session stops)
-4. **Stop Hook**:
-   - Detects the new design doc
-   - Computes SHA256 hash: `ailang debug hash design_docs/planned/M-FIX-123.md`
-   - Sends to sprint-planner: `ailang agent send sprint-planner {...}`
-5. **Autonomous Agents**: Implement, test, report back to user inbox
-6. **Next Session**: SessionStart hook shows notification
-7. **You**: `ailang agent inbox user` - See completion message!
-
-## State Directory
-
-**Location**: `~/.ailang/state/` (home directory)
-
-**Structure**:
-```
-~/.ailang/state/
-├── messages/
-│   ├── inbox/
-│   │   └── user/
-│   │       ├── _unread/    # New notifications
-│   │       ├── _read/      # Viewed messages
-│   │       └── _archive/   # Old messages
-│   ├── sprint-planner/     # Agent inbox
-│   └── sprint-executor/    # Agent inbox
-├── artifacts/
-│   └── sha256/             # Content-addressed storage
-└── hooks.log               # Hook execution log
-```
+1. **Set auth token**: `AILANG_HUB_TOKEN=<secret>` on the server
+2. **Configure hook URL**: Point to your Cloud Run endpoint
+3. **No bash/jq/curl needed**: HTTP hooks are built into Claude Code
 
 ## Monitoring
 
@@ -260,92 +201,44 @@ graph TD
 tail -f ~/.ailang/state/hooks.log
 ```
 
-### Check Agent Status
+### Check Observatory
 
 ```bash
-ailang agent top
+# View recent sessions
+ailang dashboard spans --limit 10
+
+# View execution chains
+ailang chains list --since 24h
 ```
 
-### View Dead Letter Queue
+## Remaining Command Hooks
 
-```bash
-ailang agent dlq --list
-```
+These command hooks are still used (not replaced by HTTP):
+
+| Hook | Script | Purpose |
+|------|--------|---------|
+| SessionStart | `session_start.sh` | Check inbox, set up environment |
+| SessionStart | `cloud_setup.sh` | Cloud environment setup |
+| PostToolUse | `format_go.sh` | Auto-format Go files on Edit/Write |
+| Stop | `session_end_speak.sh` | Text-to-speech session summary |
 
 ## Troubleshooting
 
 ### Hooks not firing?
 
-1. **Check hook logs**:
-   ```bash
-   tail -f ~/.ailang/state/hooks.log
-   ```
-
-2. **Test manually**:
-   ```bash
-   export CLAUDE_HOOK_JSON='{"sessionId": "test", "userId": "user", "event": "Stop"}'
-   bash scripts/hooks/agent_handoff.sh
-   ```
-
-3. **Verify permissions**:
-   ```bash
-   ls -la scripts/hooks/*.sh
-   # Should show: -rwxr-xr-x (executable)
-   ```
+1. **Check server is running**: `curl http://127.0.0.1:1957/health`
+2. **Check hook logs**: `tail -f ~/.ailang/state/hooks.log`
+3. **HTTP hooks fail silently**: Claude Code won't block if the server is down
 
 ### Messages not appearing?
 
-1. **Check inbox location**:
-   ```bash
-   ls -la ~/.ailang/state/messages/inbox/user/_unread/
-   ```
-
-2. **Send test message**:
-   ```bash
-   ailang agent send --to-user '{"test": "message"}'
-   ailang agent inbox user
-   ```
-
-3. **Check state directory**:
-   ```bash
-   echo $STATE_DIR  # Should be empty (uses default)
-   # Default: ~/.ailang/state
-   ```
+1. **Check database**: `ailang messages list --unread`
+2. **Send test message**: `ailang messages send user "test" --title "Test"`
+3. **Check SQLite**: `sqlite3 ~/.ailang/state/collaboration.db "SELECT COUNT(*) FROM messages"`
 
 ## Related Documentation
 
-- **[Claude Code Integration Guide](./claude-code-integration.mdx)** - Complete integration guide (read this first!)
-- **[Agent Workflows](./agent-workflows.mdx)** - Workflow patterns and examples
-- **[Development Workflow](./development-workflow.md)** - Sprint planning and execution with hooks
-- **[Debugging Guide](./debugging.md)** - Troubleshoot hook execution issues
-- **[State System](./state-system-workflow.mdx)** - Persistent state between sessions
-
-**Design documents** (GitHub):
-- **[M-CLAUDE-CODE-INTEGRATION-V2](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_20/m-claude-code-integration-v2.md)** - Complete specification
-- **[M-AGENT-PROTOCOL](https://github.com/sunholo-data/ailang/blob/main/design_docs/planned/v0_3_19/M-AGENT-PROTOCOL.md)** - Low-level protocol details
-
-## Success Metrics
-
-From production testing (October 25, 2025):
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| Handoff latency | &lt;5s | ✅ ~3-4s measured |
-| Message delivery | 100% | ✅ Soak tested |
-| Hook reliability | No failures | ✅ Tested working |
-| Documentation | Complete | ✅ Docusaurus ready |
-
----
-
-**Status**: ✅ All hooks configured and tested. Ready for production use!
-
-**Next Steps**:
-1. Create a design doc in Claude Code
-2. Stop the session
-3. Check `ailang agent inbox sprint-planner` for the handoff message
-4. Start a new session - see the notification!
-
-**Questions?**
-- Check logs: `~/.ailang/state/hooks.log`
-- View docs: [Claude Code Integration Guide](./claude-code-integration.mdx)
-- Report issues: https://github.com/sunholo-data/ailang/issues
+- **[Claude Code Integration Guide](./claude-code-integration.mdx)** — Complete integration guide
+- **[Coordinator Guide](./coordinator.md)** — Agent orchestration and task delegation
+- **[Cross-Project Messaging](./cross-project-messaging.mdx)** — Inter-project communication
+- **[Telemetry Guide](./telemetry.md)** — Distributed tracing and observability

@@ -19,7 +19,8 @@ import {
   Activity,
   Lock,
   Copy,
-  Check
+  Check,
+  Globe
 } from 'lucide-react';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '../constants/version';
 import BenchmarkMini from '../components/BenchmarkMini';
@@ -65,6 +66,10 @@ function HeroSection() {
             <BookOpen size={18} />
             Documentation
           </Link>
+          <a href="https://www.sunholo.com/ailang-demos/" className="hero-btn hero-btn-accent" target="_blank" rel="noopener noreferrer">
+            <Globe size={18} />
+            Live Demos
+          </a>
         </div>
 
         <div className="hero-code">
@@ -254,6 +259,20 @@ export func main() -> () ! {IO} =
           background: rgba(255, 255, 255, 0.1);
           border-color: rgba(231, 60, 23, 0.5);
           color: white;
+        }
+
+        .hero-btn-accent {
+          background: rgba(44, 122, 123, 0.15);
+          border: 1px solid rgba(44, 122, 123, 0.4);
+          color: #4ecdc4;
+        }
+
+        .hero-btn-accent:hover {
+          background: rgba(44, 122, 123, 0.25);
+          border-color: rgba(44, 122, 123, 0.7);
+          transform: translateY(-3px);
+          box-shadow: 0 8px 30px rgba(44, 122, 123, 0.3);
+          color: #4ecdc4;
         }
 
         .hero-code {
@@ -718,6 +737,239 @@ function FeaturesSection() {
   );
 }
 
+// Demos Showcase Section
+const demos = [
+  {
+    title: 'AI + Contracts',
+    description: 'AI extracts structured data from documents. AILANG contracts validate every field before returning — deterministic verification of stochastic AI output.',
+    url: 'https://www.sunholo.com/ailang-demos/contracts-ai.html',
+    icon: Shield,
+    color: '#2c7a7b',
+    badges: ['WASM', 'Z3', 'AI Effect'],
+  },
+  {
+    title: 'Safe Agent',
+    description: 'Contract-verified AI tool calling. Calculator, file reader, and SQL tools wrapped in requires/ensures contracts — invalid arguments blocked before execution.',
+    url: 'https://www.sunholo.com/ailang-demos/streaming/safe_agent/',
+    icon: Lock,
+    color: '#6b46c1',
+    badges: ['Streaming', 'Contracts', 'Tools'],
+  },
+  {
+    title: 'DocParse',
+    description: 'Parse DOCX, PPTX, XLSX, and PDF entirely in-browser using WebAssembly. 10 AILANG modules, 28 contracts, zero server round-trips.',
+    url: 'https://www.sunholo.com/ailang-demos/docparse.html',
+    icon: Code2,
+    color: '#dd6b20',
+    badges: ['WASM', 'std/xml', 'std/zip'],
+  },
+  {
+    title: 'Gemini Live',
+    description: 'Bidirectional WebSocket audio streaming with 30 voice options. Real-time text-to-speech powered by AILANG effect handlers.',
+    url: 'https://www.sunholo.com/ailang-demos/streaming/gemini_live/',
+    icon: Activity,
+    color: '#e73c17',
+    badges: ['WebSocket', 'Audio', 'Streaming'],
+  },
+];
+
+function DemosShowcase() {
+  return (
+    <section className="demos-section">
+      <div className="demos-container">
+        <div className="demos-header">
+          <h2 className="demos-title">See It In Action</h2>
+          <p className="demos-subtitle">
+            Interactive browser demos — no installation required. All running on AILANG WebAssembly.
+          </p>
+        </div>
+
+        <div className="demos-grid">
+          {demos.map((demo, index) => (
+            <a
+              key={demo.title}
+              href={demo.url}
+              className="demo-card"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div
+                className="demo-icon"
+                style={{ background: `linear-gradient(135deg, ${demo.color}, ${demo.color}88)` }}
+              >
+                <demo.icon size={24} color="white" />
+              </div>
+              <h3 className="demo-card-title">{demo.title}</h3>
+              <p className="demo-card-description">{demo.description}</p>
+              <div className="demo-badges">
+                {demo.badges.map(badge => (
+                  <span key={badge} className="demo-badge">{badge}</span>
+                ))}
+              </div>
+              <span className="demo-card-link">
+                Try it <ArrowRight size={14} />
+              </span>
+            </a>
+          ))}
+        </div>
+
+        <div className="demos-footer">
+          <a href="https://www.sunholo.com/ailang-demos/" className="demos-view-all" target="_blank" rel="noopener noreferrer">
+            View All 9 Demos <ArrowRight size={16} />
+          </a>
+        </div>
+      </div>
+
+      <style>{`
+        .demos-section {
+          padding: 6rem 2rem;
+          background: linear-gradient(180deg, var(--ifm-background-color) 0%, #0f1419 100%);
+        }
+
+        .demos-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .demos-header {
+          text-align: center;
+          margin-bottom: 4rem;
+        }
+
+        .demos-title {
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 800;
+          font-size: clamp(2rem, 5vw, 3rem);
+          margin-bottom: 1rem;
+          color: white;
+        }
+
+        .demos-subtitle {
+          font-size: 1.15rem;
+          color: rgba(255, 255, 255, 0.7);
+          max-width: 600px;
+          margin: 0 auto;
+        }
+
+        .demos-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 3rem;
+        }
+
+        .demo-card {
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 16px;
+          padding: 2rem;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          transition: all 0.3s ease;
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0;
+          text-decoration: none;
+          color: inherit;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .demo-card:hover {
+          transform: translateY(-8px);
+          border-color: rgba(231, 60, 23, 0.4);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .demo-icon {
+          width: 56px;
+          height: 56px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 1.25rem;
+        }
+
+        .demo-card-title {
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 700;
+          font-size: 1.25rem;
+          margin-bottom: 0.75rem;
+          color: white;
+        }
+
+        .demo-card-description {
+          color: rgba(255, 255, 255, 0.6);
+          line-height: 1.7;
+          font-size: 0.95rem;
+          margin: 0 0 1rem 0;
+          flex-grow: 1;
+        }
+
+        .demo-badges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-bottom: 1.25rem;
+        }
+
+        .demo-badge {
+          padding: 0.2rem 0.6rem;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.5);
+          font-family: 'JetBrains Mono', monospace;
+        }
+
+        .demo-card-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: #ff5a3c;
+          transition: gap 0.2s ease;
+        }
+
+        .demo-card:hover .demo-card-link {
+          gap: 0.7rem;
+        }
+
+        .demos-footer {
+          text-align: center;
+        }
+
+        .demos-view-all {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.875rem 2rem;
+          background: rgba(231, 60, 23, 0.1);
+          border: 1px solid rgba(231, 60, 23, 0.3);
+          border-radius: 10px;
+          color: #ff5a3c;
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 600;
+          font-size: 1rem;
+          text-decoration: none;
+          transition: all 0.3s ease;
+        }
+
+        .demos-view-all:hover {
+          background: rgba(231, 60, 23, 0.2);
+          border-color: rgba(231, 60, 23, 0.5);
+          transform: translateY(-2px);
+          color: #ff5a3c;
+          gap: 0.75rem;
+        }
+      `}</style>
+    </section>
+  );
+}
+
 // CTA Section
 function CTASection() {
   return (
@@ -748,6 +1000,13 @@ function CTASection() {
               <span>Version {ACTIVE_PROMPT}</span>
             </div>
           </Link>
+          <a href="https://www.sunholo.com/ailang-demos/" className="cta-link" target="_blank" rel="noopener noreferrer">
+            <Globe size={20} />
+            <div>
+              <strong>Live Demos</strong>
+              <span>9 interactive demos</span>
+            </div>
+          </a>
           <Link to="/docs/examples" className="cta-link">
             <Code2 size={20} />
             <div>
@@ -940,6 +1199,7 @@ export default function Home() {
         <QuickStartSection />
         <FeaturesSection />
         <BenchmarkMini />
+        <DemosShowcase />
         <CTASection />
       </main>
     </Layout>

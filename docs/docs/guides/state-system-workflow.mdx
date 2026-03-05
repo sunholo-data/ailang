@@ -16,30 +16,34 @@ The state system gives Claude Code a "hard drive" - work persists across session
 
 ## Three Integrated Systems
 
-### 1. AILANG Agent Messaging
+### 1. AILANG Messaging System
 
 Built into AILANG itself (Go implementation), provides persistent message passing between agents.
 
-**Location:** `.ailang/state/messages/<agent-id>/`
+**Storage:** `~/.ailang/state/collaboration.db` (SQLite)
 
 **Commands:**
 ```bash
-# Send message to an agent
-ailang agent send <agent-id> '<json message>'
+# Send message to an agent inbox
+ailang messages send <inbox> "message" --title "Title" --from "sender"
 
 # Check inbox
-ailang agent inbox <agent-id> --unread-only
+ailang messages list --unread
+ailang messages list --inbox <agent-id>
+
+# Read full message
+ailang messages read <message-id>
 
 # Acknowledge message (mark as read)
-ailang agent ack <message-id>
+ailang messages ack <message-id>
 
 # Un-acknowledge if task failed
-ailang agent unack <message-id>
+ailang messages unack <message-id>
 ```
 
-**Two inbox locations:**
-- **User inbox:** `~/.ailang/state/messages/user/` - Home directory, persists across projects
-- **Agent inboxes:** `.ailang/state/messages/<agent-id>/` - Project-specific
+**Inbox types:**
+- **User inbox:** Messages for the human developer
+- **Agent inboxes:** Messages for specific agents (sprint-planner, sprint-executor, etc.)
 
 ### 2. JSON State Files
 
@@ -133,16 +137,11 @@ You: "Plan sprint for inline testing"
   .ailang/state/sprints/sprint_M-TESTING-INLINE.json
 
 ✓ Sends handoff message:
-  ailang agent send sprint-executor '{
-    "type": "plan_ready",
-    "sprint_id": "M-TESTING-INLINE",
-    "progress_path": ".ailang/state/sprints/sprint_M-TESTING-INLINE.json",
-    "estimated_duration": "1-2 days",
-    "milestones": [...]
-  }'
+  ailang messages send sprint-executor '{"type":"plan_ready","sprint_id":"M-TESTING-INLINE"}' \
+    --title "Sprint: M-TESTING-INLINE" --from "sprint-planner"
 
-# Message persists at:
-~/.ailang/state/messages/sprint-executor/msg_20251127_092441.pending.json
+# Message persists in:
+~/.ailang/state/collaboration.db
 
 # You close Claude Code
 # Days pass... no memory retained in Claude
@@ -156,7 +155,7 @@ You: "Start the sprint"
 
 # sprint-executor skill activates
 ✓ Checks inbox:
-  ailang agent inbox sprint-executor --unread-only
+  ailang messages list --unread --inbox sprint-executor
 
 ✓ Finds message from sprint-planner:
   "plan_ready" for M-TESTING-INLINE
@@ -252,11 +251,7 @@ your-project/
 │       │   ├── sprint_M-DX11.json
 │       │   └── sprint_M-POLY-B.json
 │       │
-│       └── messages/           # Agent messaging
-│           ├── sprint-executor/
-│           │   └── msg_*.pending.json
-│           ├── user/           # Messages to you
-│           └── claude-code/    # Messages to Claude
+│       └── collaboration.db    # Agent messaging (SQLite)
 │
 └── design_docs/
     └── planned/v0_4_2/
@@ -288,17 +283,13 @@ $ jq '.milestones[] | {id, passes, actual_loc}' \
 
 ```bash
 # See all messages waiting for sprint-executor:
-$ ailang agent inbox sprint-executor
+$ ailang messages list --inbox sprint-executor --unread
 
-Message ID: msg_20251127_092441
-From: cli-sender
-Type: plan_ready
-Sprint: M-TESTING-INLINE
-Status: unread
-Created: 2025-11-27 09:24:41
+# Read full message:
+$ ailang messages read <message-id>
 
 # Mark as read after handling:
-$ ailang agent ack msg_20251127_092441
+$ ailang messages ack <message-id>
 ```
 
 ### Use Case 3: Recovery from Interruption
@@ -484,12 +475,8 @@ You: "Update sprint checkpoint"
 ### 3. Clear Messages
 ```bash
 # When sending custom messages, include context:
-ailang agent send sprint-executor '{
-  "type": "pause_request",
-  "reason": "Need to context-switch to urgent bug",
-  "resume_at": "2025-11-28",
-  "current_state": "M2 50% complete"
-}'
+ailang messages send sprint-executor "Pause: need to context-switch to urgent bug. M2 50% complete. Resume 2025-11-28." \
+  --title "Pause request" --from "user"
 ```
 
 ### 4. Clean Up Old Sprints
@@ -518,12 +505,13 @@ chmod 644 .ailang/state/sprints/*.json
 ### Messages Not Appearing
 
 ```bash
-# Check both inbox locations
-ailang agent inbox sprint-executor  # Project inbox
-ailang agent inbox user             # User inbox
+# Check messages
+ailang messages list --unread                    # All unread
+ailang messages list --inbox sprint-executor     # Agent inbox
+ailang messages list --inbox user                # User inbox
 
-# List all messages (including read)
-ailang agent inbox sprint-executor --read-only
+# Send test message
+ailang messages send user "test" --title "Test" --from "debug"
 ```
 
 ### State Conflicts

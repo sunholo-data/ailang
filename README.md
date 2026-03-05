@@ -13,7 +13,7 @@
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
-**[Documentation](https://ailang.sunholo.com/)** | **[Examples](https://ailang.sunholo.com/docs/examples)** | **[Vision](https://ailang.sunholo.com/docs/vision)** | **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)**
+**[Documentation](https://ailang.sunholo.com/)** | **[Examples](https://ailang.sunholo.com/docs/examples)** | **[Live Demos](https://www.sunholo.com/ailang-demos/)** | **[Vision](https://ailang.sunholo.com/docs/vision)** | **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)**
 
 ---
 

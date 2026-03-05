@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"golang.org/x/term"
 )
 
@@ -226,10 +228,17 @@ func runMessagesWatch(args []string) {
 	fs := flag.NewFlagSet("messages watch", flag.ExitOnError)
 	inbox := fs.String("inbox", "", "Filter by inbox")
 	interval := fs.Duration("interval", time.Second, "Poll interval")
+	usePubSub := fs.Bool("pubsub", false, "Use Pub/Sub pull subscription instead of SQLite polling (M-PUBSUB)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
+	}
+
+	// Pub/Sub mode: pull from subscription
+	if *usePubSub {
+		runMessagesWatchPubSub(*inbox)
+		return
 	}
 
 	store, err := openStore()
@@ -273,6 +282,85 @@ func runMessagesWatch(args []string) {
 		}
 
 		time.Sleep(*interval)
+	}
+}
+
+// runMessagesWatchPubSub uses Pub/Sub pull subscription for real-time message watching.
+func runMessagesWatchPubSub(inbox string) {
+	cfg, err := messaging.LoadConfig()
+	if err != nil || cfg == nil || cfg.PubSub == nil || !cfg.PubSub.Enabled {
+		fmt.Fprintf(os.Stderr, "%s: Pub/Sub not enabled in config\n", red("Error"))
+		fmt.Fprintln(os.Stderr, "Add to ~/.ailang/config.yaml:")
+		fmt.Fprintln(os.Stderr, "  pubsub:")
+		fmt.Fprintln(os.Stderr, "    enabled: true")
+		fmt.Fprintln(os.Stderr, "    project_id: your-project-id")
+		os.Exit(1)
+	}
+
+	notifier, err := messaging.NewPubSubNotifier(cfg.PubSub)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if notifier != nil {
+		defer notifier.Close()
+	}
+
+	// Create a subscriber directly for pull mode
+	projectID := cfg.PubSub.ProjectID
+	if projectID == "" {
+		projectID = os.Getenv("AILANG_CLOUD_PROJECT")
+	}
+	if projectID == "" {
+		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+
+	prefix := cfg.PubSub.TopicPrefix
+	if prefix == "" {
+		prefix = pubsub.DefaultTopicPrefix
+	}
+
+	ctx := context.Background()
+	client, err := pubsub.NewClient(ctx, projectID, prefix)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer client.Close()
+
+	subscriber := pubsub.NewSubscriber(client)
+
+	subName := pubsub.SubMessagesLaptop
+	fmt.Printf("Watching Pub/Sub subscription '%s' for messages... (Ctrl+C to stop)\n\n",
+		client.SubscriptionName(subName))
+
+	err = subscriber.Subscribe(ctx, subName, func(ctx context.Context, data []byte, attrs map[string]string) error {
+		notification, decErr := pubsub.DecodeMessageNotification(data)
+		if decErr != nil {
+			fmt.Fprintf(os.Stderr, "%s: decode error: %v\n", yellow("!"), decErr)
+			return nil
+		}
+
+		msgAttrs := pubsub.AttributesFromMap(attrs)
+
+		// Filter by inbox if specified
+		if inbox != "" && msgAttrs.Inbox != inbox {
+			return nil
+		}
+
+		fmt.Printf("%s New message via Pub/Sub:\n", green("→"))
+		fmt.Printf("  ID:    %s\n", notification.MessageID)
+		fmt.Printf("  Inbox: %s\n", msgAttrs.Inbox)
+		fmt.Printf("  From:  %s\n", msgAttrs.FromAgent)
+		if msgAttrs.Category != "" {
+			fmt.Printf("  Type:  %s\n", msgAttrs.Category)
+		}
+		fmt.Println()
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: subscription error: %v\n", red("Error"), err)
+		os.Exit(1)
 	}
 }
 

@@ -44,6 +44,8 @@ func coordinatorCommand(args []string) error {
 		return coordinatorWatcherStatus(subargs)
 	case "sync-threads":
 		return coordinatorSyncThreads(subargs)
+	case "execute-job":
+		return coordinatorExecuteJob(subargs)
 	case "help", "--help", "-h":
 		printCoordinatorHelp()
 		return nil
@@ -71,6 +73,7 @@ func printCoordinatorHelp() {
 	fmt.Println("  retry          Reset failed tasks to pending for retry")
 	fmt.Println("  cleanup        Cancel stale running/queued tasks")
 	fmt.Println("  sync-threads   Sync thread agent from coordinator tasks")
+	fmt.Println("  execute-job    Execute a task in Cloud Run Job (M-PUBSUB)")
 	fmt.Println("  help           Show this help message")
 	fmt.Println("")
 	fmt.Println("The coordinator daemon watches for incoming messages and executes tasks")

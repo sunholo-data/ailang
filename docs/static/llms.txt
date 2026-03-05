@@ -6,6 +6,26 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 ---
 
+# Interactive Demos
+
+AILANG has 9 interactive browser-based demos at https://www.sunholo.com/ailang-demos/
+
+## Document Intelligence
+- Document Extractor: https://www.sunholo.com/ailang-demos/extractor.html — AI-powered data extraction with contract validation
+- DocParse: https://www.sunholo.com/ailang-demos/docparse.html — DOCX/PPTX/XLSX/PDF parsing via WASM
+- Z3 Verify: https://www.sunholo.com/ailang-demos/verify.html — Static contract verification with Z3 theorem prover
+- AI + Contracts: https://www.sunholo.com/ailang-demos/contracts-ai.html — AI extraction validated by formal contracts
+
+## Streaming & Voice
+- Voice DocParse: https://www.sunholo.com/ailang-demos/streaming/voice_docparse/ — Voice interaction + document parsing
+- Claude Chat: https://www.sunholo.com/ailang-demos/streaming/claude_chat/ — SSE streaming with Claude
+- Gemini Live: https://www.sunholo.com/ailang-demos/streaming/gemini_live/ — Text-to-audio WebSocket streaming
+- Safe Agent: https://www.sunholo.com/ailang-demos/streaming/safe_agent/ — Contract-verified AI tool calling
+
+## Data & Analytics
+- GA4 Ecommerce: https://www.sunholo.com/ailang-demos/ecommerce/ — AI recommendations, data pipeline, BigQuery integration
+
+---
 
 # README
 

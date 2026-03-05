@@ -55,7 +55,16 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		opts.Limit = 100
 	}
 
-	spans, err := a.backend.ListSpans(r.Context(), opts)
+	// Use lightweight query (skips 3.9GB attributes/resource_attributes columns)
+	// when SQLite backend is available. Falls back to full ListSpans for other backends.
+	var spans []*Span
+	var err error
+	sqliteBackend, isSQLite := a.backend.(*SQLiteBackend)
+	if isSQLite {
+		spans, err = sqliteBackend.ListSpansLightweight(r.Context(), opts)
+	} else {
+		spans, err = a.backend.ListSpans(r.Context(), opts)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -66,9 +75,7 @@ func (a *API) handleGetEnrichedSpans(w http.ResponseWriter, r *http.Request) {
 		spans = a.enrichSpansWithChat(r.Context(), spans)
 	}
 
-	// Try to get SQLite backend for session enrichment
-	sqliteBackend, ok := a.backend.(*SQLiteBackend)
-	if !ok {
+	if !isSQLite {
 		// No enrichment available, return spans as-is
 		writeJSON(w, http.StatusOK, map[string]any{"spans": spans, "enriched": false, "hierarchical": false})
 		return

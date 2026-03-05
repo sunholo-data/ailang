@@ -1,5 +1,38 @@
 # AILANG Changelog
 
+## [v0.9.0] - 2026-03-05
+
+### Added
+- **M-HTTP-HOOKS-CLOUD-TELEMETRY: Claude Code HTTP Hooks** (`internal/server/handlers_claude_hooks.go`, ~295 LOC impl + ~760 LOC tests)
+  - **Unified hook receiver**: `POST /api/hooks/claude` accepts all 8 Claude Code hook events (SessionStart, PreToolUse, PostToolUse, PostToolUseFailure, SubagentStart, SubagentStop, TaskCompleted, Stop) and routes to existing observatory storage
+  - **Native HTTP hooks**: Replaced `claude_telemetry.sh` (250 LOC bash/jq/curl) with Claude Code's built-in `type: "http"` hook protocol — zero shell dependencies for telemetry
+  - **Correlation ID extraction**: AILANG task/chain/stage/message IDs extracted from HTTP headers (`X-Ailang-Task-Id`, etc.) via `allowedEnvVars` in hook config
+  - **Hook auth middleware**: Bearer token authentication for cloud deployments (`AILANG_HUB_TOKEN` env var); passes through when not configured (local mode)
+  - **SubagentStart/Stop tracking**: Stored as synthetic tool calls (`Subagent:<agent_type>`) in existing session_tools table
+  - **3 settings files updated**: `.claude/settings.json` (project), `internal/executor/claude_settings.json` (embedded), `scripts/hooks/claude_settings.json` (reference)
+  - **25 tests + 2 benchmarks**: Full coverage of event routing, auth, truncation, correlation headers, edge cases
+  - **Cloud-ready**: Foundation for M-CLOUD-INFRA — hook endpoint deployable to Cloud Run without CLI dependencies
+
+- **M-PUBSUB: Cloud Pub/Sub Messaging Layer** (`internal/pubsub/`, coordinator adapters, CLI integration, ~1,200 LOC)
+  - **`internal/pubsub/` package**: Client wrapper, Publisher (4 publish methods), Subscriber (pull-based with callback), topic/subscription constants, message payload types. 15 unit tests.
+  - **Coordinator cloud mode**: `COORDINATOR_MODE=cloud` env var switches from SQLite polling + HTTP broadcasting to Pub/Sub subscriptions + Pub/Sub event broadcasting
+    - `PubSubInboxAdapter` implements `coordinator.MessageStore` (compile-time checked)
+    - `PubSubBroadcaster` replaces `HTTPBroadcaster` for streaming events via Pub/Sub
+    - `CompletionHandler` subscribes to completions topic, updates task status with idempotency
+    - Cleanup in daemon lifecycle: `pubsubClient.Close()` and `publisher.Stop()`
+  - **`ailang coordinator execute-job`**: New subcommand for Cloud Run Job execution — reads config from env vars (`AILANG_TASK_ID`, `AILANG_AGENT_ID`, etc.), runs git clone/branch/push sequence, publishes completion to Pub/Sub
+  - **CLI dual-write**: `ailang messages send` optionally publishes Pub/Sub notification after SQLite/Firestore write (non-fatal on failure)
+  - **`ailang messages watch --pubsub`**: Pull subscription mode for real-time laptop message watching
+  - **Config**: New `pubsub` section in `~/.ailang/config.yaml` (enabled, project_id, topic_prefix, laptop_subscription)
+  - **Dependencies**: `cloud.google.com/go/pubsub` v1.50.1
+  - **Design**: Single topic with attribute-based routing (inbox, workspace, from_agent, category) — no infra changes when adding agents via config
+
+### Architecture
+- 5 topics: messages, tasks, completions, events, dead-letter
+- 6 subscriptions: messages-coordinator, messages-laptop, tasks-executor, completions-coordinator, events-dashboard, events-laptop
+- Pub/Sub as notification layer on Firestore (not storage replacement)
+- Multi-project support via `workspace` attribute routing
+
 ## [v0.8.1.1] - 2026-02-20
 
 ### Added

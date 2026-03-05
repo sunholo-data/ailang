@@ -254,7 +254,7 @@ func getTaskEvolutionData(ctx context.Context, backend *observatory.SQLiteBacken
 // getRecentTasksForEvolution returns recent task IDs matching the filter
 func getRecentTasksForEvolution(ctx context.Context, db *sql.DB, filter *observatory.ControlPlaneFilter, limit int) ([]string, error) {
 	// Build filter conditions
-	conditions := []string{"task_id IS NOT NULL AND task_id != ''"}
+	conditions := []string{"task_id IS NOT NULL AND task_id != '' AND task_id != 'root'"}
 	args := []interface{}{}
 
 	if filter.Provider != "" {
@@ -910,7 +910,7 @@ func getTokenDistributionData(ctx context.Context, backend *observatory.SQLiteBa
 	}
 
 	// Build filter conditions
-	conditions := []string{"task_id IS NOT NULL AND task_id != ''"}
+	conditions := []string{"task_id IS NOT NULL AND task_id != '' AND task_id != 'root'"}
 	args := []interface{}{}
 
 	if filter.Provider != "" {

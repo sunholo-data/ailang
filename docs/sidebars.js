@@ -19,6 +19,7 @@ const sidebars = {
     'vision',
     'examples',
     'playground',
+    'demos',
     {
       type: 'category',
       label: 'Getting Started',

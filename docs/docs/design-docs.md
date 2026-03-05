@@ -30,6 +30,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-STREAM-DX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-dx-sprint-plan.md)
 - [Sprint Plan: M-STREAM-PHASE2-DX — Stream Typed ADTs & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-phase2-dx-sprint-plan.md)
 - [M-STREAM-PHASE2-DX: Stream Typed ADTs & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-stream-phase2-dx.md)
+- [M-VERIFY-FLOAT-CMP: Fix Panic on Float Comparisons in Contract Verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-verify-float-comparison-panic.md)
 - [M-VERIFY: SMT Verification & Redundant Generation (Phase 1-3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-verify-smt-verification.md)
 - [Sprint Plan: M-WASM-CLOSURE-ENV](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-closure-env-sprint-plan.md)
 - [M-WASM-CLOSURE-ENV: Fix Closure Environment Resolution in WASM Bridge](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-wasm-closure-env.md)
@@ -597,4 +598,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 449 design documents across 46 versions.*
+*Generated at build time. 450 design documents across 46 versions.*

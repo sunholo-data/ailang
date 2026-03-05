@@ -138,6 +138,12 @@ func serverCommand(args []string) error {
 		server.WithVersion(Version),
 	}
 
+	// Add hook token auth if configured (for cloud deployments)
+	if hookToken := os.Getenv("AILANG_HUB_TOKEN"); hookToken != "" {
+		serverOpts = append(serverOpts, server.WithHookToken(hookToken))
+		log.Printf("Hook token authentication enabled for /api/hooks/*")
+	}
+
 	// Add Firebase auth if configured
 	if firebaseProject != "" {
 		log.Printf("Firebase authentication enabled for project: %s", firebaseProject)

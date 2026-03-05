@@ -12,6 +12,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"github.com/sunholo/ailang/internal/telemetry"
 	traceAttribute "go.opentelemetry.io/otel/attribute"
 )
@@ -103,6 +104,10 @@ type Daemon struct {
 
 	// Observatory backend for chain operations (M-CHAINS-SIMPLIFY)
 	obsBackend observatory.Backend
+
+	// Pub/Sub cloud mode (M-PUBSUB)
+	pubsubClient    *pubsub.Client
+	pubsubPublisher *pubsub.Publisher
 }
 
 // SetStores pre-sets the task store, messaging store, and observatory backend.
@@ -190,12 +195,13 @@ func (d *Daemon) Run() error {
 		d.logger.Println("Daemon running, polling for tasks...")
 	}
 
-	// Initialize HTTP broadcaster for real-time streaming to dashboard
-	if err := d.initHTTPBroadcaster(); err != nil {
-		d.logger.Printf("Warning: HTTP broadcaster not available: %v", err)
-		d.logger.Println("Task streaming to dashboard disabled - events will be logged only")
+	// Initialize event broadcaster for real-time streaming
+	// COORDINATOR_MODE=cloud uses Pub/Sub, local (default) uses HTTP
+	if err := d.initEventBroadcaster(); err != nil {
+		d.logger.Printf("Warning: Event broadcaster not available: %v", err)
+		d.logger.Println("Task streaming disabled - events will be logged only")
 	} else {
-		d.logger.Println("HTTP broadcaster connected to Collaboration Hub")
+		d.logger.Println("Event broadcaster initialized")
 	}
 
 	// Register as an agent in the collaboration hub

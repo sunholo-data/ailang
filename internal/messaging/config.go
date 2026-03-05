@@ -74,10 +74,19 @@ type EmbeddingsYAMLConfig struct {
 	} `yaml:"search"`
 }
 
+// PubSubConfig holds Pub/Sub messaging configuration (M-PUBSUB).
+type PubSubConfig struct {
+	Enabled            bool   `yaml:"enabled"`
+	ProjectID          string `yaml:"project_id"`          // Defaults to AILANG_CLOUD_PROJECT
+	TopicPrefix        string `yaml:"topic_prefix"`        // Defaults to "ailang"
+	LaptopSubscription bool   `yaml:"laptop_subscription"` // Create pull subscription for laptop
+}
+
 // Config holds the full AILANG configuration
 type Config struct {
 	GitHub     *GitHubConfig         `yaml:"github"`
 	Embeddings *EmbeddingsYAMLConfig `yaml:"embeddings"`
+	PubSub     *PubSubConfig         `yaml:"pubsub"`
 }
 
 // GetConfigPath returns the path to the AILANG config file

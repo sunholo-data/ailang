@@ -64,6 +64,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-CLOUD-INFRA: GCP Cloud Infrastructure for AILANG Services](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-cloud-infra.md)
 - [M-COORD-THINKING: Extended Thinking Levels for Coordinator Skills](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-coord-thinking-levels.md)
 - [Dashboard Simplification - Remaining Work (v0.7.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dashboard-simplification.md)
+- [M-DX-MATCH-HOF: Fix `match` Inside Block-Body Lambdas in HOF Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx-match-in-hof-block-lambda.md)
 - [M-DX-RECORD-CONS: Record Literal + :: Cons Pattern Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx-record-cons-pattern.md)
 - [M-DX-TAPP-TRECORD: Type Inference Bug with Nested [[RecordType]]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx-tapp-trecord-unification.md)
 - [Inline Tests Documentation & Examples (M-DX23)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx23-inline-tests-documentation.md)
@@ -71,6 +72,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX27: GitHub Repository Search Fallback for `ailang docs search`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx27-docs-search-github-fallback.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-error-propagation.md)
 - [M-EXEC-HIERARCHY-REFACTOR: Executive Hierarchy Graph Visualization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-exec-hierarchy-refactor.md)
+- [M-HTTP-HOOKS-CLOUD-TELEMETRY: Claude Code HTTP Hooks for Cloud-Native Telemetry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-http-hooks-cloud-telemetry.md)
+- [M-PERF-OBSERVATORY: Tiered Loading for Chain Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-perf-observatory-tiered-loading.md)
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-string-interpolation.md)
 - [M-TASK-GRAPH-SPANS-UNIFICATION: Fix TaskHierarchyGraph Filtering](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-task-graph-spans-unification.md)
 - [M-UI-REFACTOR: Refactor UI Folder for AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-ui-refactor-ai-friendly.md)
@@ -89,4 +92,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 57 planned features across 3 upcoming versions.*
+*Generated at build time. 60 planned features across 3 upcoming versions.*

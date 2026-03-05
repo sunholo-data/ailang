@@ -149,6 +149,9 @@ type Server struct {
 	tokenVerifier    *auth.TokenVerifier
 	accessControl    *auth.AccessControlCache
 	workspaceService *auth.WorkspaceService
+
+	// Hook authentication (simple bearer token for cloud deployments)
+	hookToken string
 }
 
 // NewServer creates a new HTTP server.
@@ -209,6 +212,15 @@ func WithObservatoryBackend(backend observatory.Backend) ServerOption {
 		s.obsBackend = backend
 		s.obsAPI = observatory.NewAPI(backend)
 		s.obsHub = observatory.NewHub()
+	}
+}
+
+// WithHookToken sets a bearer token for authenticating hook requests.
+// When set, requests to /api/hooks/* must include Authorization: Bearer <token>.
+// When empty (default), no authentication is required (local mode).
+func WithHookToken(token string) ServerOption {
+	return func(s *Server) {
+		s.hookToken = token
 	}
 }
 
@@ -496,6 +508,11 @@ func (s *Server) Start() error {
 	if s.obsBackend != nil {
 		mux.HandleFunc("/api/observatory/hooks", s.handleObservatoryHooks)
 		log.Printf("Observatory hooks endpoint registered at /api/observatory/hooks")
+	}
+	// Claude Code HTTP hooks endpoint (native hook protocol, replaces command hooks)
+	if s.obsBackend != nil {
+		mux.HandleFunc("/api/hooks/claude", s.handleClaudeHooks)
+		log.Printf("Claude hooks endpoint registered at /api/hooks/claude")
 	}
 	// Execution chains API endpoints (M-CHAINS-SIMPLIFY)
 	if s.obsBackend != nil {

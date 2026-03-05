@@ -123,9 +123,7 @@ ailang messages send stapledons_voyage "Design doc created for v0.4.9" \
 - Outputs to stdout (appears in system reminders)
 - Does NOT auto-mark as read
 
-**Stop Hook** (`scripts/hooks/agent_handoff.sh`):
-- Detects design docs created in session
-- Sends handoff messages to sprint-planner
+**Stop Hook**: The `agent_handoff.sh` hook has been removed (v0.9.0). Design doc handoff is now handled by the coordinator's `trigger_on_complete` agent chain configuration.
 
 **Message Lifecycle:**
 1. Agent sends → status: `unread`
@@ -1120,8 +1118,55 @@ The coordinator streams task execution events to the Collaboration Hub dashboard
 - **Executors** (`internal/executor/`) - Claude Code CLI, Gemini CLI
 - **Store** (`internal/coordinator/store_sqlite.go`) - Neutral storage layer
 
-**Future: Cloud Storage**
-The storage layer is designed for cloud backends (Firestore, DynamoDB, etc.). Currently uses SQLite locally, but the neutral `Store` interface enables future cloud deployment without code changes.
+**Cloud Mode with Pub/Sub (v0.9.0+ M-PUBSUB)**
+
+The coordinator can run on Cloud Run with Pub/Sub as the message transport, enabling 24/7 operation without the developer's laptop.
+
+**Config** (`~/.ailang/config.yaml`):
+```yaml
+pubsub:
+  enabled: true
+  project_id: ""          # Defaults to AILANG_CLOUD_PROJECT env var
+  topic_prefix: "ailang"  # Topics: ailang-messages, ailang-tasks, etc.
+  laptop_subscription: true
+```
+
+**Environment variables:**
+| Variable | Purpose |
+|----------|---------|
+| `COORDINATOR_MODE` | `local` (default) or `cloud` — selects SQLite vs Pub/Sub adapters |
+| `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub |
+| `AILANG_WORKSPACE` | Workspace identifier for multi-project routing |
+| `AILANG_PUBSUB_PREFIX` | Topic prefix (default: `ailang`) |
+
+**Cloud Run Job execution:**
+```bash
+# In Cloud Run Job container (env set by Eventarc):
+ailang coordinator execute-job
+# Reads: AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_REPO_URL, AILANG_DIRECTIVE
+# Publishes completion to ailang-completions topic
+```
+
+**Laptop dual-write:**
+```bash
+# With pubsub.enabled: true in config:
+ailang messages send inbox "message"    # SQLite + Pub/Sub notification
+ailang messages watch --pubsub          # Pull from Pub/Sub subscription
+```
+
+**Architecture:**
+- Pub/Sub is a notification layer on top of Firestore (not storage replacement)
+- Single `ailang-messages` topic with attribute-based routing (inbox, workspace, from_agent, category)
+- 5 topics, 6 subscriptions — no infra changes when adding agents
+- Laptop uses pull subscriptions (works behind NAT, 7-day offline retention)
+
+**Key files:**
+- `internal/pubsub/` — Client, Publisher, Subscriber, topic constants
+- `internal/coordinator/pubsub_adapter.go` — PubSubInboxAdapter
+- `internal/coordinator/pubsub_broadcaster.go` — PubSubBroadcaster
+- `internal/coordinator/pubsub_completion_handler.go` — CompletionHandler
+- `cmd/ailang/coordinator_cloud.go` — execute-job subcommand
+- `internal/messaging/pubsub_notifier.go` — CLI dual-write helper
 
 **For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
 

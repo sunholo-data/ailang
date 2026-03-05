@@ -4,19 +4,33 @@ package observatory
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// chainLink caches the chain_id/stage_id mapping for a task_id.
+type chainLink struct {
+	chainID string
+	stageID string
+}
+
 // Store provides CRUD operations for the observatory platform.
 type Store struct {
 	db *sql.DB
+
+	// Write-time chain linking cache (M-AUDIT-OBSERVATORY)
+	chainLinkCache map[string]chainLink
+	chainLinkMu    sync.RWMutex
 }
 
 // NewStore creates a new Store with the given database connection.
 func NewStore(db *sql.DB) *Store {
-	return &Store{db: db}
+	return &Store{
+		db:             db,
+		chainLinkCache: make(map[string]chainLink),
+	}
 }
 
 // DB returns the underlying database connection.

@@ -96,13 +96,13 @@ export function useBreakdownData(options: UseBreakdownDataOptions = {}) {
     }));
   };
 
-  // Get formatted breakdowns
+  // Get formatted breakdowns (guard against null sub-arrays from API)
   const breakdowns = data ? {
-    byProvider: formatBreakdownItems(data.by_provider),
-    bySourceType: formatBreakdownItems(data.by_source_type),
-    byModel: formatBreakdownItems(data.by_model),
-    byWorkspace: formatBreakdownItems(data.by_workspace),
-    totalCost: formatCost(data.total_cost),
+    byProvider: formatBreakdownItems(data.by_provider || []),
+    bySourceType: formatBreakdownItems(data.by_source_type || []),
+    byModel: formatBreakdownItems(data.by_model || []),
+    byWorkspace: formatBreakdownItems(data.by_workspace || []),
+    totalCost: formatCost(data.total_cost || 0),
   } : null;
 
   return { data, breakdowns, loading, error, refetch: fetchData };

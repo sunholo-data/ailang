@@ -695,7 +695,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                         <div className={styles.contextSection}>
                           <h3>Context</h3>
                           <pre className={styles.contextJson}>
-                            {JSON.stringify(JSON.parse(approval.context_json), null, 2)}
+                            {(() => { try { return JSON.stringify(JSON.parse(approval.context_json), null, 2); } catch { return approval.context_json; } })()}
                           </pre>
                         </div>
                       );
@@ -707,7 +707,7 @@ export const ApprovalDetailModal: React.FC<ApprovalDetailModalProps> = ({
                     <div className={styles.contextSection}>
                       <h3>Context</h3>
                       <pre className={styles.contextJson}>
-                        {JSON.stringify(JSON.parse(approval.context_json), null, 2)}
+                        {(() => { try { return JSON.stringify(JSON.parse(approval.context_json), null, 2); } catch { return approval.context_json; } })()}
                       </pre>
                     </div>
                   )}
