@@ -145,6 +145,9 @@ func TestParseSemver(t *testing.T) {
 func TestFindNativeBinary(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", tmpDir)
+	}
 
 	// Map Go arch to VSCode arch
 	arch := runtime.GOARCH
@@ -180,6 +183,9 @@ func TestFindNativeBinary(t *testing.T) {
 func TestFindNativeBinary_MultipleVersions(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", tmpDir)
+	}
 
 	arch := runtime.GOARCH
 	if arch == "amd64" {
