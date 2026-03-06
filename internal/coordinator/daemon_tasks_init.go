@@ -86,6 +86,14 @@ func (d *Daemon) initTaskProcessing() error {
 
 		// Set msgAdapter non-nil so the poll loop gate in Run() is satisfied.
 		d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
+
+		// M-CLOUD-DISPATCH: Cloud dispatcher set via SetCloudDispatcher() from CLI entry point.
+		// This avoids circular import (coordinator → dispatch/cloudrun → coordinator).
+		if d.cloudDispatcher != nil {
+			d.logger.Println("Cloud Run Jobs dispatcher ready for task dispatch")
+		} else {
+			d.logger.Println("Cloud mode: no dispatcher set — tasks will be published to Pub/Sub only")
+		}
 	} else {
 		// Local mode: use per-inbox SQLite adapters (existing behavior)
 		if d.msgStore == nil {

@@ -1135,16 +1135,27 @@ pubsub:
 | Variable | Purpose |
 |----------|---------|
 | `COORDINATOR_MODE` | `local` (default) or `cloud` — selects SQLite vs Pub/Sub adapters |
-| `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub |
+| `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub and Cloud Run Jobs API |
+| `AILANG_CLOUD_REGION` | GCP region for Cloud Run Jobs (default: `europe-west1`) |
 | `AILANG_WORKSPACE` | Workspace identifier for multi-project routing |
 | `AILANG_TOPIC_PREFIX` | Topic prefix (default: `ailang`) |
 
 **Cloud Run Job execution:**
 ```bash
-# In Cloud Run Job container (env set by Eventarc):
+# In Cloud Run Job container (env set by coordinator dispatcher):
 ailang coordinator execute-job
-# Reads: AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_REPO_URL, AILANG_DIRECTIVE
+# Reads: AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_WORKSPACE, AILANG_PROVIDER,
+#         AILANG_DIRECTIVE, AILANG_REPO_URL, AILANG_BRANCH
 # Publishes completion to ailang-completions topic
+```
+
+**Cloud dispatch flow:**
+```
+Coordinator (Cloud Run Service)
+  → Pub/Sub publish (audit trail)
+  → CloudDispatcher.Dispatch() (triggers Cloud Run Job via Admin API)
+    → Cloud Run Job starts with per-execution env var overrides
+    → Job executes task → publishes completion to Pub/Sub
 ```
 
 **Laptop dual-write:**

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/dispatch/cloudrun"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"github.com/sunholo/ailang/internal/storage"
 	"github.com/sunholo/ailang/internal/telemetry"
 )
@@ -96,6 +98,27 @@ func coordinatorStart(args []string) error {
 		}
 		daemon.SetStores(backends.Coordinator, backends.Messaging, backends.Observatory)
 		fmt.Printf("  Storage: %s\n", storageMode)
+	}
+
+	// M-CLOUD-DISPATCH: Create Cloud Run Jobs dispatcher in cloud mode.
+	// Created here (not in coordinator package) to avoid circular imports.
+	if os.Getenv("COORDINATOR_MODE") == "cloud" {
+		projectID := os.Getenv("AILANG_CLOUD_PROJECT")
+		region := os.Getenv("AILANG_CLOUD_REGION")
+		if region == "" {
+			region = "europe-west1"
+		}
+		prefix := os.Getenv("AILANG_TOPIC_PREFIX")
+		if prefix == "" {
+			prefix = pubsub.DefaultTopicPrefix
+		}
+		dispatcher, dispErr := cloudrun.NewDispatcher(ctx, projectID, region, prefix)
+		if dispErr != nil {
+			fmt.Printf("  %s Cloud Run Jobs dispatcher: %v\n", yellow("⚠"), dispErr)
+		} else {
+			daemon.SetCloudDispatcher(dispatcher)
+			fmt.Printf("  %s Cloud Run Jobs dispatcher (region: %s)\n", green("✓"), region)
+		}
 	}
 
 	// Start daemon

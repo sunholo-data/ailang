@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -114,6 +115,9 @@ type Daemon struct {
 	// In pull mode, Start() runs background goroutines.
 	cloudInboxAdapter *PubSubInboxAdapter
 	completionHandler *CompletionHandler
+
+	// Cloud dispatcher for triggering remote task execution (M-CLOUD-DISPATCH)
+	cloudDispatcher CloudDispatcher
 }
 
 // SetStores pre-sets the task store, messaging store, and observatory backend.
@@ -123,6 +127,13 @@ func (d *Daemon) SetStores(taskStore Store, msgStore messaging.MessageStore, obs
 	d.taskStore = taskStore
 	d.msgStore = msgStore
 	d.obsBackend = obsBackend
+}
+
+// SetCloudDispatcher sets the cloud task dispatcher.
+// Call this after NewDaemon() but before Start() to enable Cloud Run Job dispatch.
+// The dispatcher is created in the CLI entry point to avoid circular imports.
+func (d *Daemon) SetCloudDispatcher(dispatcher CloudDispatcher) {
+	d.cloudDispatcher = dispatcher
 }
 
 // NewDaemon creates a new daemon instance
@@ -145,7 +156,13 @@ func NewDaemon(config *Config) (*Daemon, error) {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
-	logger := log.New(logFile, "[coordinator] ", log.LstdFlags|log.Lshortfile)
+	// M-CLOUD-DISPATCH: In cloud mode, log to both file and stderr.
+	// Cloud Run only ingests stdout/stderr into Cloud Logging.
+	var writer io.Writer = logFile
+	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+		writer = io.MultiWriter(logFile, os.Stderr)
+	}
+	logger := log.New(writer, "[coordinator] ", log.LstdFlags|log.Lshortfile)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

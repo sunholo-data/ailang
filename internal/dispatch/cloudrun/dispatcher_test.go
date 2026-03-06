@@ -1,0 +1,167 @@
+package cloudrun
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	run "cloud.google.com/go/run/apiv2"
+	runpb "cloud.google.com/go/run/apiv2/runpb"
+	"github.com/googleapis/gax-go/v2"
+
+	"github.com/sunholo/ailang/internal/coordinator"
+)
+
+// mockJobRunner records RunJob calls for verification.
+type mockJobRunner struct {
+	lastReq *runpb.RunJobRequest
+	err     error
+}
+
+func (m *mockJobRunner) RunJob(ctx context.Context, req *runpb.RunJobRequest, opts ...gax.CallOption) (*run.RunJobOperation, error) {
+	m.lastReq = req
+	if m.err != nil {
+		return nil, m.err
+	}
+	return nil, nil // Operation handle not needed — we only check errors
+}
+
+func TestDispatcherImplementsInterface(t *testing.T) {
+	// Compile-time check via var _ above, but verify at runtime too
+	var d interface{} = &Dispatcher{}
+	if _, ok := d.(coordinator.CloudDispatcher); !ok {
+		t.Fatal("Dispatcher does not implement coordinator.CloudDispatcher")
+	}
+}
+
+func TestDispatchJobName(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "my-project", "europe-west1", "ailang")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:  "task-abc123",
+		AgentID: "sprint-executor",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := "projects/my-project/locations/europe-west1/jobs/ailang-agent-executor"
+	if mock.lastReq.Name != expected {
+		t.Errorf("job name = %q, want %q", mock.lastReq.Name, expected)
+	}
+}
+
+func TestDispatchEnvVarOverrides(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+
+	params := coordinator.DispatchParams{
+		TaskID:    "task-12345678",
+		AgentID:   "design-doc-creator",
+		Workspace: "/workspace/ailang",
+		Provider:  "claude",
+		Directive: "Fix the parser bug",
+		RepoURL:   "https://github.com/sunholo-data/ailang",
+		Branch:    "dev",
+	}
+
+	err := d.Dispatch(context.Background(), params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify overrides structure
+	overrides := mock.lastReq.Overrides
+	if overrides == nil {
+		t.Fatal("overrides is nil")
+	}
+	if len(overrides.ContainerOverrides) != 1 {
+		t.Fatalf("expected 1 container override, got %d", len(overrides.ContainerOverrides))
+	}
+
+	envVars := overrides.ContainerOverrides[0].Env
+	if len(envVars) != 7 {
+		t.Fatalf("expected 7 env vars, got %d", len(envVars))
+	}
+
+	// Verify all 7 env vars are set correctly
+	expectedEnv := map[string]string{
+		"AILANG_TASK_ID":   "task-12345678",
+		"AILANG_AGENT_ID":  "design-doc-creator",
+		"AILANG_WORKSPACE": "/workspace/ailang",
+		"AILANG_PROVIDER":  "claude",
+		"AILANG_DIRECTIVE": "Fix the parser bug",
+		"AILANG_REPO_URL":  "https://github.com/sunholo-data/ailang",
+		"AILANG_BRANCH":    "dev",
+	}
+
+	for _, env := range envVars {
+		expected, ok := expectedEnv[env.Name]
+		if !ok {
+			t.Errorf("unexpected env var: %s", env.Name)
+			continue
+		}
+		val, ok := env.Values.(*runpb.EnvVar_Value)
+		if !ok {
+			t.Errorf("env var %s: expected *EnvVar_Value, got %T", env.Name, env.Values)
+			continue
+		}
+		if val.Value != expected {
+			t.Errorf("env var %s = %q, want %q", env.Name, val.Value, expected)
+		}
+		delete(expectedEnv, env.Name)
+	}
+
+	if len(expectedEnv) > 0 {
+		for name := range expectedEnv {
+			t.Errorf("missing env var: %s", name)
+		}
+	}
+}
+
+func TestDispatchErrorPropagation(t *testing.T) {
+	mock := &mockJobRunner{
+		err: fmt.Errorf("permission denied: caller does not have run.jobs.run"),
+	}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID: "task-fail",
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	// Should wrap the original error
+	if got := err.Error(); got != "failed to trigger Cloud Run Job projects/proj-1/locations/us-central1/jobs/test-agent-executor: permission denied: caller does not have run.jobs.run" {
+		t.Errorf("unexpected error message: %s", got)
+	}
+}
+
+func TestDispatchDifferentRegions(t *testing.T) {
+	tests := []struct {
+		region   string
+		prefix   string
+		wantName string
+	}{
+		{"europe-west1", "ailang", "projects/p/locations/europe-west1/jobs/ailang-agent-executor"},
+		{"us-central1", "prod", "projects/p/locations/us-central1/jobs/prod-agent-executor"},
+		{"asia-east1", "staging", "projects/p/locations/asia-east1/jobs/staging-agent-executor"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.region+"/"+tt.prefix, func(t *testing.T) {
+			mock := &mockJobRunner{}
+			d := newDispatcherWithClient(mock, "p", tt.region, tt.prefix)
+
+			err := d.Dispatch(context.Background(), coordinator.DispatchParams{TaskID: "task-1"})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if mock.lastReq.Name != tt.wantName {
+				t.Errorf("job name = %q, want %q", mock.lastReq.Name, tt.wantName)
+			}
+		})
+	}
+}

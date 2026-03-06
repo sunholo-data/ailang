@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -97,14 +98,34 @@ func (d *Daemon) dispatchTasksCloud() error {
 			provider = d.coordConfig.DefaultProvider
 		}
 
-		// Publish task dispatch to Pub/Sub (triggers Cloud Run Job via Eventarc)
+		// Publish task to Pub/Sub for audit trail / event streaming.
 		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
-			d.logger.Printf("Failed to dispatch task %s via Pub/Sub: %v", task.ID, err)
+			d.logger.Printf("Failed to publish task %s to Pub/Sub: %v", task.ID, err)
 			_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
 			continue
 		}
 
-		d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+		// M-CLOUD-DISPATCH: Trigger Cloud Run Job execution via dispatcher.
+		// Pub/Sub publish above is for audit trail only — the dispatcher actually starts the job.
+		if d.cloudDispatcher != nil {
+			params := DispatchParams{
+				TaskID:    task.ID,
+				AgentID:   task.AgentID,
+				Workspace: task.Workspace,
+				Provider:  provider,
+				Directive: task.Content,
+				RepoURL:   os.Getenv("AILANG_REPO_URL"), // Baked into coordinator image
+				Branch:    task.BaseBranch,              // From task record, defaults handled by job
+			}
+			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
+				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
+				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				continue
+			}
+			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+		} else {
+			d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub only (no dispatcher, agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+		}
 	}
 
 	return nil
