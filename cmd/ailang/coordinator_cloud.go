@@ -130,18 +130,16 @@ func coordinatorExecuteJob(args []string) error {
 func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider string) (string, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 
-	// Step 1: Clone the repository (if URL provided)
-	if repoURL != "" {
-		fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
-		cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
-		cloneCmd.Stdout = os.Stdout
-		cloneCmd.Stderr = os.Stderr
-		if err := cloneCmd.Run(); err != nil {
-			return "", fmt.Errorf("git clone failed: %w", err)
-		}
-	} else {
-		// No repo URL — use /workspace as working directory (mounted volume)
-		workDir = "/workspace"
+	// Step 1: Clone the repository (required in cloud mode)
+	if repoURL == "" {
+		return "", fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
+	}
+	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
+	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
+	cloneCmd.Stdout = os.Stdout
+	cloneCmd.Stderr = os.Stderr
+	if err := cloneCmd.Run(); err != nil {
+		return "", fmt.Errorf("git clone failed: %w", err)
 	}
 
 	// Step 2: Create task branch

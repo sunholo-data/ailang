@@ -18,6 +18,19 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// deriveRepoURL converts a workspace identifier into a Git repo URL.
+// In cloud mode, workspace is a GitHub org/repo (e.g., "sunholo-data/ailang").
+// Falls back to AILANG_REPO_URL env var, then returns empty string.
+func deriveRepoURL(workspace string) string {
+	// If workspace looks like a GitHub org/repo path (contains exactly one slash,
+	// no path separators like /Users/ or C:\), treat it as a GitHub repo.
+	if workspace != "" && strings.Count(workspace, "/") == 1 && !strings.HasPrefix(workspace, "/") {
+		return fmt.Sprintf("https://github.com/%s.git", workspace)
+	}
+	// Fall back to env var for backwards compatibility
+	return os.Getenv("AILANG_REPO_URL")
+}
+
 // coordinatorTracer returns the tracer for coordinator instrumentation.
 var coordinatorTracer = telemetry.Tracer("coordinator")
 
@@ -114,8 +127,8 @@ func (d *Daemon) dispatchTasksCloud() error {
 				Workspace: task.Workspace,
 				Provider:  provider,
 				Directive: task.Content,
-				RepoURL:   os.Getenv("AILANG_REPO_URL"), // Baked into coordinator image
-				Branch:    task.BaseBranch,              // From task record, defaults handled by job
+				RepoURL:   deriveRepoURL(task.Workspace),
+				Branch:    task.BaseBranch, // From task record, defaults handled by job
 			}
 			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
 				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
