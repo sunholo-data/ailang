@@ -210,6 +210,114 @@ func TestIsProcessRunning(t *testing.T) {
 	}
 }
 
+func TestNewDaemonCloudModeMultiWriter(t *testing.T) {
+	// Verify that COORDINATOR_MODE=cloud causes logs to go to stderr too
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		PollInterval: time.Second,
+		MaxWorktrees: 2,
+		LogFile:      filepath.Join(tmpDir, "logs", "coordinator.log"),
+		PIDFile:      filepath.Join(tmpDir, "state", "coordinator.pid"),
+		StateDir:     filepath.Join(tmpDir, "state"),
+	}
+
+	// Capture stderr by replacing it temporarily
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stderr = w
+
+	t.Setenv("COORDINATOR_MODE", "cloud")
+
+	daemon, err := NewDaemon(cfg)
+	if err != nil {
+		os.Stderr = origStderr
+		t.Fatalf("failed to create daemon: %v", err)
+	}
+	defer daemon.Close()
+
+	// Write a test log message
+	daemon.logger.Println("cloud-logging-test-message")
+
+	// Restore stderr and close write end to flush
+	w.Close()
+	os.Stderr = origStderr
+
+	// Read what was captured from stderr
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	stderrOutput := string(buf[:n])
+
+	if !containsSubstring(stderrOutput, "cloud-logging-test-message") {
+		t.Errorf("expected stderr to contain log message in cloud mode, got: %q", stderrOutput)
+	}
+
+	// Also verify the log file got the message
+	logContent, err := os.ReadFile(cfg.LogFile)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+	if !containsSubstring(string(logContent), "cloud-logging-test-message") {
+		t.Errorf("expected log file to contain message, got: %q", string(logContent))
+	}
+}
+
+func TestNewDaemonLocalModeNoStderr(t *testing.T) {
+	// Verify that local mode does NOT write to stderr
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		PollInterval: time.Second,
+		MaxWorktrees: 2,
+		LogFile:      filepath.Join(tmpDir, "logs", "coordinator.log"),
+		PIDFile:      filepath.Join(tmpDir, "state", "coordinator.pid"),
+		StateDir:     filepath.Join(tmpDir, "state"),
+	}
+
+	// Capture stderr
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stderr = w
+
+	// Explicitly unset COORDINATOR_MODE (local mode)
+	t.Setenv("COORDINATOR_MODE", "")
+
+	daemon, err := NewDaemon(cfg)
+	if err != nil {
+		os.Stderr = origStderr
+		t.Fatalf("failed to create daemon: %v", err)
+	}
+	defer daemon.Close()
+
+	daemon.logger.Println("local-mode-test-message")
+
+	w.Close()
+	os.Stderr = origStderr
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	r.Close()
+	stderrOutput := string(buf[:n])
+
+	if containsSubstring(stderrOutput, "local-mode-test-message") {
+		t.Error("local mode should NOT write logs to stderr")
+	}
+
+	// But log file should have it
+	logContent, err := os.ReadFile(cfg.LogFile)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+	if !containsSubstring(string(logContent), "local-mode-test-message") {
+		t.Error("local mode should write logs to file")
+	}
+}
+
 func TestDaemonIncrementTasksRun(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfg := &Config{
