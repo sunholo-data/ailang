@@ -108,6 +108,10 @@ type Daemon struct {
 	// Pub/Sub cloud mode (M-PUBSUB)
 	pubsubClient    *pubsub.Client
 	pubsubPublisher *pubsub.Publisher
+
+	// Cloud mode inbox adapter (M-CLOUD-E2E): single adapter pulling from Pub/Sub
+	// subscription, routing messages by Inbox attribute to the correct agent.
+	cloudInboxAdapter *PubSubInboxAdapter
 }
 
 // SetStores pre-sets the task store, messaging store, and observatory backend.
@@ -207,6 +211,14 @@ func (d *Daemon) Run() error {
 		d.logger.Println("Task streaming disabled - events will be logged only")
 	} else {
 		d.logger.Println("Event broadcaster initialized")
+	}
+
+	// M-CLOUD-E2E: Start completion handler in cloud mode to process task results
+	if d.cloudInboxAdapter != nil && d.pubsubClient != nil && d.taskStore != nil {
+		subscriber := pubsub.NewSubscriber(d.pubsubClient)
+		completionHandler := NewCompletionHandler(subscriber, d.taskStore, d.logger)
+		completionHandler.Start(d.ctx)
+		d.logger.Println("Cloud mode: completion handler started")
 	}
 
 	// Register as an agent in the collaboration hub

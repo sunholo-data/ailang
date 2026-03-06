@@ -60,37 +60,58 @@ func (d *Daemon) initTaskProcessing() error {
 		}
 	}
 
-	// Initialize inbox adapters for each configured agent
+	// Initialize inbox adapters and worktree managers for each configured agent.
+	// M-CLOUD-E2E: In cloud mode, use a single PubSubInboxAdapter instead of per-inbox SQLite adapters.
 	d.inboxAdapters = make(map[string]*InboxMessageAdapter)
 	d.worktreeManagers = make(map[string]*WorktreeManager)
 
-	// Open shared message store (skip if already set via SetStores)
-	if d.msgStore == nil {
-		adapter, store, err := OpenDefaultInboxAdapter("coordinator")
-		if err != nil {
-			return fmt.Errorf("failed to open inbox adapter: %w", err)
+	mode := os.Getenv("COORDINATOR_MODE")
+	if mode == CoordinatorModeCloud {
+		// Cloud mode: pull messages from Pub/Sub subscription
+		if err := d.initPubSub(d.ctx); err != nil {
+			return fmt.Errorf("cloud mode requires Pub/Sub: %w", err)
 		}
-		d.msgAdapter = adapter // Keep for backwards compatibility
-		d.msgStore = store
-	} else {
-		// Wrap pre-set store in adapter for backwards compatibility
+
+		subscriber := pubsub.NewSubscriber(d.pubsubClient)
+		subName := d.pubsubClient.SubscriptionName(pubsub.SubMessagesCoordinator)
+		d.cloudInboxAdapter = NewPubSubInboxAdapter(subscriber, subName, "coordinator", d.logger)
+		d.cloudInboxAdapter.Start(d.ctx)
+		d.logger.Printf("Cloud mode: pulling from Pub/Sub subscription %s", subName)
+
+		// Still need msgStore for thread creation and message operations.
+		// In cloud mode, this is the Firestore-backed store set via SetStores().
+		if d.msgStore == nil {
+			return fmt.Errorf("cloud mode requires pre-set message store (SetStores not called)")
+		}
+		// Set msgAdapter non-nil so the poll loop gate in Run() is satisfied.
 		d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
+	} else {
+		// Local mode: use per-inbox SQLite adapters (existing behavior)
+		if d.msgStore == nil {
+			adapter, store, err := OpenDefaultInboxAdapter("coordinator")
+			if err != nil {
+				return fmt.Errorf("failed to open inbox adapter: %w", err)
+			}
+			d.msgAdapter = adapter
+			d.msgStore = store
+		} else {
+			d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
+		}
+
+		for _, agent := range coordConfig.Agents {
+			inboxAdapter := &InboxMessageAdapter{
+				store: d.msgStore,
+				inbox: agent.Inbox,
+			}
+			d.inboxAdapters[agent.Inbox] = inboxAdapter
+			d.logger.Printf("Watching inbox %q for agent %q", agent.Inbox, agent.ID)
+		}
 	}
 
-	// Create adapters and worktree managers for each agent
+	// Create worktree managers for each agent (both modes)
 	for _, agent := range coordConfig.Agents {
-		// Create inbox adapter
-		inboxAdapter := &InboxMessageAdapter{
-			store: d.msgStore,
-			inbox: agent.Inbox,
-		}
-		d.inboxAdapters[agent.Inbox] = inboxAdapter
-		d.logger.Printf("Watching inbox %q for agent %q", agent.Inbox, agent.ID)
-
-		// Create worktree manager with agent's workspace
 		workspace := agent.Workspace
 		if workspace == "" || workspace == "." {
-			// Use current working directory
 			workspace, _ = os.Getwd()
 		}
 		worktreeBase := filepath.Join(d.config.StateDir, "worktrees", agent.ID)

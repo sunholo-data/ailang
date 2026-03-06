@@ -61,6 +61,7 @@ func (a *PubSubInboxAdapter) Start(ctx context.Context) {
 			msg := &Message{
 				ID:        notification.MessageID,
 				From:      msgAttrs.FromAgent,
+				Inbox:     msgAttrs.Inbox, // M-CLOUD-E2E: Carry target inbox for routing
 				Title:     fmt.Sprintf("Pub/Sub notification from %s", msgAttrs.FromAgent),
 				Content:   notification.MessageID, // Content lives in Firestore; this is just the ID.
 				Type:      msgAttrs.Category,

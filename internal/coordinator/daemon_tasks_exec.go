@@ -20,8 +20,16 @@ import (
 // coordinatorTracer returns the tracer for coordinator instrumentation.
 var coordinatorTracer = telemetry.Tracer("coordinator")
 
-// executeTaskQueue picks up pending tasks and executes them
+// executeTaskQueue picks up pending tasks and executes them.
+// M-CLOUD-E2E: In cloud mode, dispatches tasks via Pub/Sub to Cloud Run Jobs
+// instead of executing locally.
 func (d *Daemon) executeTaskQueue() error {
+	// Cloud mode: dispatch via Pub/Sub (Eventarc triggers Cloud Run Job)
+	if d.pubsubPublisher != nil && d.cloudInboxAdapter != nil {
+		return d.dispatchTasksCloud()
+	}
+
+	// Local mode: execute tasks directly
 	if d.executor == nil {
 		return nil // No executor available
 	}
@@ -51,6 +59,52 @@ func (d *Daemon) executeTaskQueue() error {
 			// Post failure message to thread
 			d.postTaskResult(task, nil, err)
 		}
+	}
+
+	return nil
+}
+
+// dispatchTasksCloud publishes pending tasks to the Pub/Sub tasks topic
+// so that Eventarc can trigger Cloud Run Jobs for execution.
+// M-CLOUD-E2E: Replaces local execution in cloud mode.
+func (d *Daemon) dispatchTasksCloud() error {
+	filter := &TaskFilter{
+		Status:    []TaskStatus{TaskStatusPending},
+		OrderBy:   "priority",
+		OrderDesc: true,
+		Limit:     5, // Batch dispatch up to 5 tasks
+	}
+
+	tasks, err := d.taskStore.ListTasks(d.ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to list pending tasks: %w", err)
+	}
+
+	if len(tasks) == 0 {
+		return nil
+	}
+
+	for _, task := range tasks {
+		// Mark as queued before publishing
+		if err := d.taskStore.MarkTaskQueued(d.ctx, task.ID); err != nil {
+			d.logger.Printf("Failed to mark task %s as queued: %v", task.ID, err)
+			continue
+		}
+
+		// Determine provider from coordinator config
+		provider := "claude"
+		if d.coordConfig != nil && d.coordConfig.DefaultProvider != "" {
+			provider = d.coordConfig.DefaultProvider
+		}
+
+		// Publish task dispatch to Pub/Sub (triggers Cloud Run Job via Eventarc)
+		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
+			d.logger.Printf("Failed to dispatch task %s via Pub/Sub: %v", task.ID, err)
+			_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+			continue
+		}
+
+		d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
 	}
 
 	return nil

@@ -35,6 +35,15 @@
   - **Dependencies**: `cloud.google.com/go/pubsub` v1.50.1
   - **Design**: Single topic with attribute-based routing (inbox, workspace, from_agent, category) — no infra changes when adding agents via config
 
+- **M-CLOUD-E2E: Cloud End-to-End Message Flow Wiring** (~294 LOC across 6 files)
+  - **Cloud inbox pull subscriber**: `initTaskProcessing()` now creates `PubSubInboxAdapter` when `COORDINATOR_MODE=cloud`, starts background pull subscriber on `{prefix}-messages-coordinator` subscription (`daemon_tasks_init.go`)
+  - **Cloud task dispatch**: New `dispatchTasksCloud()` method publishes pending tasks to `ailang-tasks` topic via Pub/Sub instead of local execution — triggers Cloud Run Jobs via Eventarc (`daemon_tasks_exec.go`)
+  - **Completion handler start**: `CompletionHandler` now started in `daemon.Run()` when in cloud mode — subscribes to `{prefix}-completions-coordinator` to update task status on job completion (`daemon.go`)
+  - **Cloud message routing**: `pollAndProcessTasksCloud()` routes Pub/Sub messages to correct agent by `Inbox` attribute from message metadata — single subscription serves all agents (`daemon_tasks_polling.go`)
+  - **Message.Inbox field**: Added to `coordinator.Message` struct for carrying target inbox from Pub/Sub attributes (`watcher.go`, `pubsub_adapter.go`)
+  - **Local mode unchanged**: All changes gated on `COORDINATOR_MODE=cloud` env var — no default behavior changes
+  - **Design doc**: `design_docs/planned/v0_9_0/m-cloud-e2e.md`
+
 ### Performance & Stability
 - **M-PERF-OBSERVATORY: Two-phase aggregation & tiered loading** (`internal/observatory/`, dashboard, CLI)
   - **Dashboard breakdown**: 14s → 2.4s cold, 21ms cached via two-phase aggregation (aggregate per trace_id in CTE, then JOIN trace_summaries — avoids 662K×213K span joins)

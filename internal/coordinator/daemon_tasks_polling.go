@@ -14,9 +14,15 @@ type inboxMessage struct {
 	msg     *Message // coordinator.Message type
 }
 
-// pollAndProcessTasks polls for new messages and queues them as tasks
+// pollAndProcessTasks polls for new messages and queues them as tasks.
+// M-CLOUD-E2E: In cloud mode, pulls from PubSub adapter and routes by message Inbox attribute.
 func (d *Daemon) pollAndProcessTasks() error {
-	// Collect messages from all inbox adapters
+	// Cloud mode: pull from single PubSub adapter, route by Inbox attribute
+	if d.cloudInboxAdapter != nil {
+		return d.pollAndProcessTasksCloud()
+	}
+
+	// Local mode: poll per-inbox SQLite adapters
 	var allMessages []inboxMessage
 
 	for inbox, adapter := range d.inboxAdapters {
@@ -263,6 +269,205 @@ func (d *Daemon) pollAndProcessTasks() error {
 			}
 		}
 
+		d.tasksRun++
+	}
+
+	return nil
+}
+
+// pollAndProcessTasksCloud pulls messages from the single PubSub inbox adapter
+// and routes each message to the correct agent based on the Inbox attribute.
+// M-CLOUD-E2E: This replaces per-inbox SQLite polling in cloud mode.
+func (d *Daemon) pollAndProcessTasksCloud() error {
+	messages, err := d.cloudInboxAdapter.ListUnread()
+	if err != nil {
+		return fmt.Errorf("cloud inbox adapter: %w", err)
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+
+	d.logger.Printf("Cloud mode: received %d message(s) from Pub/Sub", len(messages))
+
+	for _, msg := range messages {
+		inbox := msg.Inbox
+		if inbox == "" {
+			inbox = "coordinator" // Fallback if Inbox attribute not set
+		}
+
+		// Look up agent for this inbox
+		agent := d.agentRegistry.GetAgentForInbox(inbox)
+		agentID := ""
+		if agent != nil {
+			agentID = agent.ID
+		} else {
+			d.logger.Printf("Warning: No agent registered for inbox %q (message %s)", inbox, msg.ID)
+		}
+
+		im := inboxMessage{
+			inbox:   inbox,
+			agentID: agentID,
+			msg:     msg,
+		}
+
+		// Reuse the existing task creation logic from local mode.
+		// Build task ID
+		msgIDPrefix := msg.ID
+		if len(msgIDPrefix) > 8 {
+			msgIDPrefix = msgIDPrefix[:8]
+		}
+		taskID := fmt.Sprintf("task-%s", msgIDPrefix)
+
+		// Determine kind
+		kind := msg.Kind
+		if kind == "" {
+			if msg.Type == "question" || msg.Type == "research" {
+				kind = "question"
+			} else {
+				kind = "directive"
+			}
+		}
+
+		taskInput := &Task{
+			ID:        taskID,
+			Title:     msg.Title,
+			Content:   msg.Content,
+			Kind:      kind,
+			MessageID: msg.ID,
+			CreatedAt: msg.CreatedAt,
+		}
+
+		analyzed := d.analyzer.Analyze(taskInput)
+
+		workspace := ""
+		if agent != nil && agent.Workspace != "" {
+			workspace = agent.Workspace
+		} else {
+			workspace, _ = os.Getwd()
+			d.logger.Printf("WARNING: Agent %q has no workspace configured, using: %s", agentID, workspace)
+		}
+
+		iteration := msg.Iteration
+		if iteration == 0 {
+			iteration = 1
+		}
+
+		task := &TaskRecord{
+			ID:            taskID,
+			MessageID:     msg.ID,
+			AgentID:       agentID,
+			ParentTaskID:  msg.ParentTaskID,
+			Iteration:     iteration,
+			Title:         msg.Title,
+			Content:       msg.Content,
+			Type:          analyzed.Type,
+			Kind:          kind,
+			Priority:      CalculatePriority(analyzed),
+			Status:        TaskStatusPending,
+			Workspace:     workspace,
+			GithubIssue:   msg.GithubIssue,
+			GithubRepo:    msg.GithubRepo,
+			CreatedAt:     msg.CreatedAt,
+			Capabilities:  analyzed.Capabilities,
+			ImpactLevel:   analyzed.ImpactLevel,
+			EstimatedCost: analyzed.EstimatedCost,
+		}
+
+		// Check for duplicates
+		fingerprint := analyzed.Fingerprint
+		if fingerprint != 0 {
+			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
+				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
+				continue
+			}
+		}
+
+		// Get or create thread for dashboard visibility
+		targetAgent := agentID
+		if targetAgent == "" {
+			targetAgent = "coordinator"
+		}
+		thread, created, threadErr := d.msgStore.GetOrCreateThreadWithWorkspace(
+			msg.Title, "ailang_instance", "coordinator", targetAgent, workspace,
+		)
+		if threadErr != nil {
+			d.logger.Printf("Failed to get/create thread for task %s: %v", taskID, threadErr)
+		} else {
+			task.ThreadID = thread.ID
+			if created {
+				d.logger.Printf("Created thread %s for task %s (agent: %s)", thread.ID, taskID, targetAgent)
+			}
+		}
+
+		// Store the task
+		if err := d.taskStore.CreateTask(d.ctx, task); err != nil {
+			d.logger.Printf("Failed to create task for message %s: %v", msg.ID, err)
+			continue
+		}
+
+		if fingerprint != 0 {
+			_ = d.taskStore.SetTaskFingerprint(d.ctx, task.ID, fingerprint)
+		}
+
+		// M-CHAINS-SIMPLIFY: Create execution chain and stage
+		if d.obsBackend != nil {
+			chainID := msg.ChainID
+			var stageID string
+
+			if chainID == "" && task.ParentTaskID != "" {
+				if parentTask, err := d.taskStore.GetTask(d.ctx, task.ParentTaskID); err == nil && parentTask != nil {
+					chainID = parentTask.ChainID
+				}
+			}
+			if chainID == "" {
+				sourceType := observatory.ChainSourceMessage
+				if task.GithubIssue > 0 {
+					sourceType = observatory.ChainSourceGitHubIssue
+				}
+				chain, err := d.obsBackend.CreateChain(d.ctx, &observatory.ChainCreateRequest{
+					SourceType:        sourceType,
+					SourceRef:         msg.ID,
+					GitHubRepo:        task.GithubRepo,
+					GitHubIssueNumber: task.GithubIssue,
+				})
+				if err != nil {
+					d.logger.Printf("Warning: Failed to create chain for task %s: %v", task.ID, err)
+				} else {
+					chainID = chain.ID
+				}
+			}
+			if chainID != "" {
+				stage, err := d.obsBackend.CreateStage(d.ctx, &observatory.StageCreateRequest{
+					ChainID: chainID, AgentID: agentID, MessageID: msg.ID, TaskID: task.ID,
+				})
+				if err != nil {
+					d.logger.Printf("Warning: Failed to create stage for task %s: %v", task.ID, err)
+				} else {
+					stageID = stage.ID
+				}
+			}
+			if chainID != "" || stageID != "" {
+				task.ChainID = chainID
+				task.StageID = stageID
+				_ = d.taskStore.UpdateTaskChainInfo(d.ctx, task.ID, chainID, stageID)
+			}
+		}
+
+		// GitHub pipeline integration
+		if task.GithubIssue > 0 && d.taskChain != nil {
+			if err := d.taskChain.StartTask(d.ctx, task.ID, task.GithubIssue); err != nil {
+				d.logger.Printf("Warning: Failed to start task chain for issue #%d: %v", task.GithubIssue, err)
+			}
+			if d.approvalWatcher != nil {
+				d.approvalWatcher.WatchIssue(task.GithubIssue, task.ID)
+			}
+		}
+
+		d.logger.Printf("Created task %s (type: %s, agent: %s, inbox: %s) from cloud message %s",
+			task.ID, task.Type, agentID, im.inbox, msg.ID)
+
+		// PubSub messages are acked on receipt — MarkAsRead is a no-op
+		d.cloudInboxAdapter.MarkAsRead(msg.ID)
 		d.tasksRun++
 	}
 

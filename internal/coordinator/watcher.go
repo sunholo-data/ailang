@@ -13,6 +13,7 @@ type Message struct {
 	From         string
 	Title        string
 	Content      string
+	Inbox        string // Target inbox (set by PubSubInboxAdapter from message attributes, M-CLOUD-E2E)
 	Type         string // bug, feature, task, etc. (category)
 	Kind         string // directive, question (message type)
 	Priority     string // high, medium, low
