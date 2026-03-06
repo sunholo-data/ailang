@@ -9,6 +9,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// defaultConfigPath returns the AILANG config file path.
+// Checks AILANG_CONFIG env var first (for Cloud Run), falls back to ~/.ailang/config.yaml.
+func defaultConfigPath() string {
+	if p := os.Getenv("AILANG_CONFIG"); p != "" {
+		return p
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(homeDir, ".ailang", "config.yaml")
+}
+
 // CoordinatorConfig is the coordinator section of the global config file.
 type CoordinatorConfig struct {
 	Agents          []*AgentConfig    `yaml:"agents" json:"agents"`
@@ -144,14 +157,13 @@ func DefaultBudgetsConfig() *BudgetsConfig {
 	}
 }
 
-// LoadBudgetsConfig loads budget configuration from ~/.ailang/config.yaml
+// LoadBudgetsConfig loads budget configuration from ~/.ailang/config.yaml.
+// Respects AILANG_CONFIG env var for Cloud Run deployments.
 func LoadBudgetsConfig() (*BudgetsConfig, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	configPath := defaultConfigPath()
+	if configPath == "" {
 		return DefaultBudgetsConfig(), nil
 	}
-
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
 	return LoadBudgetsConfigFrom(configPath)
 }
 
@@ -200,12 +212,11 @@ func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
 // LoadFirebaseConfig loads Firebase configuration from ~/.ailang/config.yaml.
 // Returns nil if no Firebase config is set (Firebase auth will be disabled).
 func LoadFirebaseConfig() *FirebaseConfig {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	configPath := defaultConfigPath()
+	if configPath == "" {
 		return nil
 	}
 
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil // No config file
@@ -222,12 +233,11 @@ func LoadFirebaseConfig() *FirebaseConfig {
 // LoadWorkspacesConfig loads workspace configuration from ~/.ailang/config.yaml.
 // Returns a default configuration if no config is set.
 func LoadWorkspacesConfig() *WorkspacesConfig {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	configPath := defaultConfigPath()
+	if configPath == "" {
 		return DefaultWorkspacesConfig()
 	}
 
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return DefaultWorkspacesConfig()
@@ -489,12 +499,10 @@ func DefaultCoordinatorConfig() *CoordinatorConfig {
 // If the file doesn't exist, returns a default configuration.
 // If the file exists but has no coordinator section, returns a default configuration.
 func LoadCoordinatorConfig() (*CoordinatorConfig, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
+	configPath := defaultConfigPath()
+	if configPath == "" {
 		return DefaultCoordinatorConfig(), nil
 	}
-
-	configPath := filepath.Join(homeDir, ".ailang", "config.yaml")
 	return LoadCoordinatorConfigFrom(configPath)
 }
 

@@ -21,15 +21,27 @@ import (
 func serverCommand(args []string) error {
 	// Default values
 	port := "1957"
+	bindAddr := "localhost" // Safe default for local development
 	dbPath := filepath.Join(os.Getenv("HOME"), ".ailang", "state", "collaboration.db")
 	firebaseProject := "" // Firebase project ID for authentication
 
-	// Parse flags
+	// Check PORT env var (Cloud Run convention) — overridden by --port flag
+	if envPort := os.Getenv("PORT"); envPort != "" {
+		port = envPort
+		bindAddr = "0.0.0.0" // Cloud Run requires binding to all interfaces
+	}
+
+	// Parse flags (--port/--bind override env vars)
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--port":
 			if i+1 < len(args) {
 				port = args[i+1]
+				i++
+			}
+		case "--bind":
+			if i+1 < len(args) {
+				bindAddr = args[i+1]
 				i++
 			}
 		case "--db":
@@ -50,10 +62,15 @@ func serverCommand(args []string) error {
 			fmt.Println("Alias: 'ailang serve' also works (backward compatibility)")
 			fmt.Println("")
 			fmt.Println("Options:")
-			fmt.Println("  --port PORT              HTTP server port (default: 1957)")
+			fmt.Println("  --port PORT              HTTP server port (default: 1957, or PORT env var)")
+			fmt.Println("  --bind ADDR              Bind address (default: localhost, 0.0.0.0 when PORT env set)")
 			fmt.Println("  --db PATH                Database path (default: ~/.ailang/state/collaboration.db)")
 			fmt.Println("  --firebase-project ID    Firebase project ID for authentication (optional)")
 			fmt.Println("  --help, -h               Show this help message")
+			fmt.Println("")
+			fmt.Println("Environment variables:")
+			fmt.Println("  PORT                     Server port (Cloud Run convention, overridden by --port)")
+			fmt.Println("  AILANG_CONFIG            Config file path (overrides ~/.ailang/config.yaml)")
 			fmt.Println("")
 			fmt.Println("Authentication:")
 			fmt.Println("  To enable Firebase authentication:")
@@ -91,7 +108,7 @@ func serverCommand(args []string) error {
 	}
 
 	// Check if server is already running on this port
-	httpAddr := fmt.Sprintf("localhost:%s", port)
+	httpAddr := fmt.Sprintf("%s:%s", bindAddr, port)
 	if isPortInUse(port) {
 		// Port is in use - check if it's our server
 		healthURL := fmt.Sprintf("http://%s/health", httpAddr)

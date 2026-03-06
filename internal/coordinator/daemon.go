@@ -195,6 +195,11 @@ func (d *Daemon) Run() error {
 		d.logger.Println("Daemon running, polling for tasks...")
 	}
 
+	// Start HTTP health server if PORT env var is set (Cloud Run convention)
+	if port := os.Getenv("PORT"); port != "" {
+		go d.startHealthServer(port)
+	}
+
 	// Initialize event broadcaster for real-time streaming
 	// COORDINATOR_MODE=cloud uses Pub/Sub, local (default) uses HTTP
 	if err := d.initEventBroadcaster(); err != nil {

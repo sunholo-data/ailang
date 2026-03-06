@@ -13,6 +13,14 @@
   - **25 tests + 2 benchmarks**: Full coverage of event routing, auth, truncation, correlation headers, edge cases
   - **Cloud-ready**: Foundation for M-CLOUD-INFRA — hook endpoint deployable to Cloud Run without CLI dependencies
 
+- **M-CLOUD-HEALTH: Cloud Run HTTP Health & Status Endpoints** (~210 LOC impl + ~145 LOC tests)
+  - **Coordinator health server**: New HTTP server starts on `PORT` env var with `/health` endpoint for Cloud Run startup probes (`internal/coordinator/daemon_http.go`)
+  - **Coordinator status API**: 4 endpoints — `GET /status` (task counts, cost, uptime), `GET /chains/active` (running chains), `GET /chains/stats?hours=N` (aggregate metrics), `GET /pending` (pending approvals)
+  - **Dashboard PORT + bind**: `ailang serve` reads `PORT` env var (Cloud Run convention), binds to `0.0.0.0` when PORT set, adds `--bind` flag
+  - **AILANG_CONFIG env var**: All 4 config loaders (`LoadCoordinatorConfig`, `LoadBudgetsConfig`, `LoadFirebaseConfig`, `LoadWorkspacesConfig`) now check `AILANG_CONFIG` env var before `~/.ailang/config.yaml` — unblocks Cloud Run config mounting
+  - **Graceful degradation**: All status endpoints return empty results (not errors) when observatory/coordinator backends are nil; 3s context timeout on every handler
+  - 13 new tests (4 config + 9 HTTP handlers)
+
 - **M-PUBSUB: Cloud Pub/Sub Messaging Layer** (`internal/pubsub/`, coordinator adapters, CLI integration, ~1,200 LOC)
   - **`internal/pubsub/` package**: Client wrapper, Publisher (4 publish methods), Subscriber (pull-based with callback), topic/subscription constants, message payload types. 15 unit tests.
   - **Coordinator cloud mode**: `COORDINATOR_MODE=cloud` env var switches from SQLite polling + HTTP broadcasting to Pub/Sub subscriptions + Pub/Sub event broadcasting
