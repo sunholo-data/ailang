@@ -72,7 +72,8 @@ func (d *Daemon) initTaskProcessing() error {
 			return fmt.Errorf("cloud mode requires pre-set message store (SetStores not called)")
 		}
 
-		// Cloud mode: pull messages from Pub/Sub subscription
+		// M-CLOUD-PUSH: Initialize Pub/Sub client and create inbox adapter.
+		// Messages are delivered via push HTTP endpoint (/pubsub/push), not pull goroutine.
 		if err := d.initPubSub(d.ctx); err != nil {
 			return fmt.Errorf("cloud mode requires Pub/Sub: %w", err)
 		}
@@ -80,8 +81,8 @@ func (d *Daemon) initTaskProcessing() error {
 		subscriber := pubsub.NewSubscriber(d.pubsubClient)
 		subName := d.pubsubClient.SubscriptionName(pubsub.SubMessagesCoordinator)
 		d.cloudInboxAdapter = NewPubSubInboxAdapter(subscriber, subName, "coordinator", d.msgStore, d.logger)
-		d.cloudInboxAdapter.Start(d.ctx)
-		d.logger.Printf("Cloud mode: pulling from Pub/Sub subscription %s", subName)
+		// Note: Start() not called — push endpoint at /pubsub/push calls HandleNotification directly.
+		d.logger.Printf("Cloud mode: inbox adapter ready for push delivery (subscription: %s)", subName)
 
 		// Set msgAdapter non-nil so the poll loop gate in Run() is satisfied.
 		d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
@@ -108,20 +109,25 @@ func (d *Daemon) initTaskProcessing() error {
 		}
 	}
 
-	// Create worktree managers for each agent (both modes)
-	for _, agent := range coordConfig.Agents {
-		workspace := agent.Workspace
-		if workspace == "" || workspace == "." {
-			workspace, _ = os.Getwd()
+	// Create worktree managers — skip in cloud mode (no git on coordinator image).
+	// Agents run in separate Cloud Run Jobs that have git installed.
+	if mode != CoordinatorModeCloud {
+		for _, agent := range coordConfig.Agents {
+			workspace := agent.Workspace
+			if workspace == "" || workspace == "." {
+				workspace, _ = os.Getwd()
+			}
+			worktreeBase := filepath.Join(d.config.StateDir, "worktrees", agent.ID)
+			worktreeMgr, wmErr := NewWorktreeManager(workspace, worktreeBase, d.config.MaxWorktrees)
+			if wmErr != nil {
+				d.logger.Printf("Warning: Failed to create worktree manager for agent %q: %v", agent.ID, wmErr)
+				continue
+			}
+			d.worktreeManagers[agent.ID] = worktreeMgr
+			d.logger.Printf("Worktree manager ready for agent %q (base: %s)", agent.ID, worktreeBase)
 		}
-		worktreeBase := filepath.Join(d.config.StateDir, "worktrees", agent.ID)
-		worktreeMgr, wmErr := NewWorktreeManager(workspace, worktreeBase, d.config.MaxWorktrees)
-		if wmErr != nil {
-			d.logger.Printf("Warning: Failed to create worktree manager for agent %q: %v", agent.ID, wmErr)
-			continue
-		}
-		d.worktreeManagers[agent.ID] = worktreeMgr
-		d.logger.Printf("Worktree manager ready for agent %q (base: %s)", agent.ID, worktreeBase)
+	} else {
+		d.logger.Println("Cloud mode: skipping worktree managers (git not available on coordinator image)")
 	}
 
 	// Initialize analyzer
@@ -137,15 +143,16 @@ func (d *Daemon) initTaskProcessing() error {
 		d.taskStore = taskStore
 	}
 
-	// Legacy worktree manager (for coordinator agent fallback)
-	d.worktreeMgr = d.worktreeManagers["coordinator"]
-	if d.worktreeMgr == nil {
-		// Create default if coordinator wasn't configured
-		worktreeMgr, wmErr := NewWorktreeManager("", filepath.Join(d.config.StateDir, "worktrees", "coordinator"), d.config.MaxWorktrees)
-		if wmErr != nil {
-			return fmt.Errorf("failed to create default worktree manager: %w", wmErr)
+	// Legacy worktree manager (for coordinator agent fallback) — skip in cloud mode.
+	if mode != CoordinatorModeCloud {
+		d.worktreeMgr = d.worktreeManagers["coordinator"]
+		if d.worktreeMgr == nil {
+			worktreeMgr, wmErr := NewWorktreeManager("", filepath.Join(d.config.StateDir, "worktrees", "coordinator"), d.config.MaxWorktrees)
+			if wmErr != nil {
+				return fmt.Errorf("failed to create default worktree manager: %w", wmErr)
+			}
+			d.worktreeMgr = worktreeMgr
 		}
-		d.worktreeMgr = worktreeMgr
 	}
 
 	// Apply coordinator config overrides to executor factory before creating executors

@@ -8,8 +8,10 @@ import (
 	"github.com/sunholo/ailang/internal/pubsub"
 )
 
-// CompletionHandler subscribes to the completions topic and updates task status
+// CompletionHandler processes task completions and updates task status
 // in the coordinator's store when Cloud Run Jobs finish.
+// Completions arrive either via pull subscription (Start) or push HTTP endpoint
+// (HandleCompletion).
 type CompletionHandler struct {
 	subscriber *pubsub.Subscriber
 	taskStore  Store
@@ -25,26 +27,33 @@ func NewCompletionHandler(subscriber *pubsub.Subscriber, taskStore Store, logger
 	}
 }
 
-// Start begins listening for completions in the background.
+// HandleCompletion processes a task completion from either pull subscription
+// or push HTTP endpoint. Returns nil to ack bad data (prevent retry loops).
+func (h *CompletionHandler) HandleCompletion(data []byte, attrs map[string]string) error {
+	completion, err := pubsub.DecodeTaskCompletion(data)
+	if err != nil {
+		h.logger.Printf("CompletionHandler: failed to decode completion: %v", err)
+		return nil // Ack to avoid retry loop on bad data.
+	}
+
+	h.logger.Printf("CompletionHandler: received completion for task %s (status=%s, agent=%s)",
+		completion.TaskID, completion.Status, completion.AgentID)
+
+	if err := h.handleCompletion(context.Background(), completion); err != nil {
+		h.logger.Printf("CompletionHandler: failed to handle completion for task %s: %v",
+			completion.TaskID, err)
+		return fmt.Errorf("handle completion: %w", err)
+	}
+
+	return nil
+}
+
+// Start begins listening for completions via pull subscription in the background.
+// Not used in push mode — the HTTP handler calls HandleCompletion() directly.
 func (h *CompletionHandler) Start(ctx context.Context) {
 	go func() {
 		err := h.subscriber.Subscribe(ctx, pubsub.SubCompletionsCoordinator, func(ctx context.Context, data []byte, attrs map[string]string) error {
-			completion, err := pubsub.DecodeTaskCompletion(data)
-			if err != nil {
-				h.logger.Printf("CompletionHandler: failed to decode completion: %v", err)
-				return nil // Ack to avoid retry loop on bad data.
-			}
-
-			h.logger.Printf("CompletionHandler: received completion for task %s (status=%s, agent=%s)",
-				completion.TaskID, completion.Status, completion.AgentID)
-
-			if err := h.handleCompletion(ctx, completion); err != nil {
-				h.logger.Printf("CompletionHandler: failed to handle completion for task %s: %v",
-					completion.TaskID, err)
-				return fmt.Errorf("handle completion: %w", err)
-			}
-
-			return nil
+			return h.HandleCompletion(data, attrs)
 		})
 		if err != nil && ctx.Err() == nil {
 			h.logger.Printf("CompletionHandler: subscription error: %v", err)

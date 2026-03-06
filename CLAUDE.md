@@ -1158,13 +1158,19 @@ ailang messages watch --pubsub          # Pull from Pub/Sub subscription
 - Pub/Sub is a notification layer on top of Firestore (not storage replacement)
 - Single `ailang-messages` topic with attribute-based routing (inbox, workspace, from_agent, category)
 - 5 topics, 6 subscriptions — no infra changes when adding agents
+- **Cloud Run coordinator uses push subscriptions** — Pub/Sub POSTs to HTTP endpoints (`/pubsub/push`, `/pubsub/completions`), works with scale-to-zero, no idle goroutines
 - Laptop uses pull subscriptions (works behind NAT, 7-day offline retention)
+- **Ack semantics**: Malformed messages → HTTP 200 (ack, prevent infinite retry). Handler errors → HTTP 500 (nack, Pub/Sub retries with backoff)
+- **No auth in Go code**: Cloud Run + OIDC token handle auth at infrastructure level (Terraform)
+- **No worktree managers in cloud mode**: Coordinator image has no git — agents run in separate Cloud Run Jobs
 
 **Key files:**
 - `internal/pubsub/` — Client, Publisher, Subscriber, topic constants
-- `internal/coordinator/pubsub_adapter.go` — PubSubInboxAdapter
+- `internal/pubsub/push.go` — Push envelope decoder (reusable across push endpoints)
+- `internal/coordinator/pubsub_adapter.go` — PubSubInboxAdapter (HandleNotification for push+pull)
 - `internal/coordinator/pubsub_broadcaster.go` — PubSubBroadcaster
-- `internal/coordinator/pubsub_completion_handler.go` — CompletionHandler
+- `internal/coordinator/pubsub_completion_handler.go` — CompletionHandler (HandleCompletion for push+pull)
+- `internal/coordinator/daemon_http.go` — Push endpoints registered in cloud mode
 - `cmd/ailang/coordinator_cloud.go` — execute-job subcommand
 - `internal/messaging/pubsub_notifier.go` — CLI dual-write helper
 

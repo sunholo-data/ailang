@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/pubsub"
 )
 
 // startHealthServer starts an HTTP server on the given port with health and status endpoints.
@@ -25,12 +27,20 @@ func (d *Daemon) startHealthServer(port string) {
 	mux.HandleFunc("/chains/stats", d.handleChainsStats)
 	mux.HandleFunc("/pending", d.handlePending)
 
+	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
+	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
+	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+		mux.HandleFunc("/pubsub/push", d.handlePushMessage)
+		mux.HandleFunc("/pubsub/completions", d.handlePushCompletion)
+		d.logger.Println("Pub/Sub push endpoints registered: /pubsub/push, /pubsub/completions")
+	}
+
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 30 * time.Second, // Increased for Firestore fetch in push handlers
 	}
 
 	d.logger.Printf("Health server starting on %s", addr)
@@ -146,6 +156,68 @@ func (d *Daemon) handlePending(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, approvals)
+}
+
+// handlePushMessage receives Pub/Sub push messages from the messages topic.
+// Pub/Sub POSTs a JSON envelope containing base64-encoded data and attributes.
+// HTTP 200 = ack, 5xx = nack (Pub/Sub retries).
+func (d *Daemon) handlePushMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, attrs, msgID, err := pubsub.DecodePushEnvelope(r.Body)
+	if err != nil {
+		d.logger.Printf("Push /pubsub/push: bad envelope: %v (acking to prevent retry)", err)
+		w.WriteHeader(http.StatusOK) // Ack malformed messages to prevent infinite retry.
+		return
+	}
+
+	if d.cloudInboxAdapter == nil {
+		d.logger.Printf("Push /pubsub/push: no inbox adapter configured (msg=%s)", msgID)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if err := d.cloudInboxAdapter.HandleNotification(data, attrs); err != nil {
+		d.logger.Printf("Push /pubsub/push: handler error for %s: %v", msgID, err)
+		w.WriteHeader(http.StatusInternalServerError) // Nack → Pub/Sub retries.
+		return
+	}
+
+	d.logger.Printf("Push /pubsub/push: processed message %s", msgID)
+	w.WriteHeader(http.StatusOK)
+}
+
+// handlePushCompletion receives Pub/Sub push messages from the completions topic.
+func (d *Daemon) handlePushCompletion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	data, attrs, msgID, err := pubsub.DecodePushEnvelope(r.Body)
+	if err != nil {
+		d.logger.Printf("Push /pubsub/completions: bad envelope: %v (acking to prevent retry)", err)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if d.completionHandler == nil {
+		d.logger.Printf("Push /pubsub/completions: no completion handler configured (msg=%s)", msgID)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if err := d.completionHandler.HandleCompletion(data, attrs); err != nil {
+		d.logger.Printf("Push /pubsub/completions: handler error for %s: %v", msgID, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	d.logger.Printf("Push /pubsub/completions: processed completion %s", msgID)
+	w.WriteHeader(http.StatusOK)
 }
 
 // writeJSON writes a JSON response with the given status code.
