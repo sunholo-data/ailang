@@ -28,7 +28,7 @@ import (
 //	AILANG_REPO_URL      - Git repository URL to clone
 //	AILANG_BRANCH        - Branch to work on (default: "dev")
 //	AILANG_DIRECTIVE     - Task directive/prompt
-//	AILANG_PUBSUB_PREFIX - Topic prefix (default: "ailang")
+//	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
 	for _, arg := range args {
@@ -75,7 +75,7 @@ func coordinatorExecuteJob(args []string) error {
 	}
 	directive := os.Getenv("AILANG_DIRECTIVE")
 
-	prefix := os.Getenv("AILANG_PUBSUB_PREFIX")
+	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if prefix == "" {
 		prefix = pubsub.DefaultTopicPrefix
 	}
@@ -254,5 +254,5 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_REPO_URL         Git repo URL to clone")
 	fmt.Println("  AILANG_BRANCH           Base branch (default: dev)")
 	fmt.Println("  AILANG_DIRECTIVE        Task prompt/directive")
-	fmt.Println("  AILANG_PUBSUB_PREFIX    Topic prefix (default: ailang)")
+	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
 }

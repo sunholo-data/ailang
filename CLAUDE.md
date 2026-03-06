@@ -1137,7 +1137,7 @@ pubsub:
 | `COORDINATOR_MODE` | `local` (default) or `cloud` — selects SQLite vs Pub/Sub adapters |
 | `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub |
 | `AILANG_WORKSPACE` | Workspace identifier for multi-project routing |
-| `AILANG_PUBSUB_PREFIX` | Topic prefix (default: `ailang`) |
+| `AILANG_TOPIC_PREFIX` | Topic prefix (default: `ailang`) |
 
 **Cloud Run Job execution:**
 ```bash

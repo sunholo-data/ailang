@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/pubsub"
 )
 
@@ -15,6 +16,7 @@ import (
 // immediately without blocking.
 type PubSubInboxAdapter struct {
 	subscriber *pubsub.Subscriber
+	msgStore   messaging.MessageStore // For fetching full message content from Firestore
 	subName    string
 	inbox      string
 	logger     *log.Logger
@@ -25,12 +27,14 @@ type PubSubInboxAdapter struct {
 }
 
 // NewPubSubInboxAdapter creates an adapter that pulls from a Pub/Sub subscription.
+// msgStore is used to fetch full message content from Firestore when a notification arrives.
 // Start() must be called to begin receiving messages.
-func NewPubSubInboxAdapter(subscriber *pubsub.Subscriber, subName, inbox string, logger *log.Logger) *PubSubInboxAdapter {
+func NewPubSubInboxAdapter(subscriber *pubsub.Subscriber, subName, inbox string, msgStore messaging.MessageStore, logger *log.Logger) *PubSubInboxAdapter {
 	return &PubSubInboxAdapter{
 		subscriber: subscriber,
 		subName:    subName,
 		inbox:      inbox,
+		msgStore:   msgStore,
 		logger:     logger,
 		buffered:   make([]*Message, 0),
 	}
@@ -61,12 +65,29 @@ func (a *PubSubInboxAdapter) Start(ctx context.Context) {
 			msg := &Message{
 				ID:        notification.MessageID,
 				From:      msgAttrs.FromAgent,
-				Inbox:     msgAttrs.Inbox, // M-CLOUD-E2E: Carry target inbox for routing
+				Inbox:     msgAttrs.Inbox,
 				Title:     fmt.Sprintf("Pub/Sub notification from %s", msgAttrs.FromAgent),
-				Content:   notification.MessageID, // Content lives in Firestore; this is just the ID.
+				Content:   notification.MessageID, // Fallback: just the ID
 				Type:      msgAttrs.Category,
 				Kind:      msgAttrs.MessageType,
 				CreatedAt: time.Now(),
+			}
+
+			// M-CLOUD-E2E-FIXES: Fetch full message content from Firestore.
+			// The Pub/Sub notification is intentionally minimal (just message_id);
+			// the actual title, content, and metadata live in Firestore.
+			if a.msgStore != nil {
+				fullMsg, fetchErr := a.msgStore.GetInboxMessage(notification.MessageID)
+				if fetchErr != nil {
+					a.logger.Printf("PubSubInboxAdapter: failed to fetch message %s from store: %v (using notification-only data)",
+						notification.MessageID, fetchErr)
+				} else if fullMsg != nil {
+					msg.Title = fullMsg.Title
+					msg.Content = fullMsg.Payload
+					msg.From = fullMsg.FromAgent
+					msg.Type = fullMsg.Category
+					msg.Inbox = fullMsg.ToInbox
+				}
 			}
 
 			a.mu.Lock()
@@ -74,7 +95,7 @@ func (a *PubSubInboxAdapter) Start(ctx context.Context) {
 			a.mu.Unlock()
 
 			a.logger.Printf("PubSubInboxAdapter: buffered message %s (inbox=%s, from=%s)",
-				notification.MessageID, a.inbox, msgAttrs.FromAgent)
+				notification.MessageID, msg.Inbox, msg.From)
 			return nil
 		})
 		if err != nil && ctx.Err() == nil {

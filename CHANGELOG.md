@@ -44,6 +44,12 @@
   - **Local mode unchanged**: All changes gated on `COORDINATOR_MODE=cloud` env var — no default behavior changes
   - **Design doc**: `design_docs/planned/v0_9_0/m-cloud-e2e.md`
 
+- **M-CLOUD-E2E-FIXES: Cloud End-to-End Wiring Fixes** (~30 LOC changed, 295 LOC deleted)
+  - **Env var standardization**: Unified on `AILANG_TOPIC_PREFIX` — removed all references to `AILANG_PUBSUB_PREFIX` (was never deployed, Terraform already uses `AILANG_TOPIC_PREFIX`)
+  - **PubSubInboxAdapter Firestore fetch**: Adapter now fetches full message content from Firestore via `GetInboxMessage()` — previously Content was just the message UUID. Graceful fallback if Firestore fetch fails.
+  - **Dead code removal**: Deleted `store_cloud.go` (262 LOC stub with 30+ "not implemented" methods) and cleaned up `store.go` (removed `StoreType`, `NewStore` factory, cloud config fields). Real Firestore store is `internal/storage/firestore/coordinator.go`.
+  - **CLAUDE.md updated**: Env var table corrected to `AILANG_TOPIC_PREFIX`
+
 ### Performance & Stability
 - **M-PERF-OBSERVATORY: Two-phase aggregation & tiered loading** (`internal/observatory/`, dashboard, CLI)
   - **Dashboard breakdown**: 14s → 2.4s cold, 21ms cached via two-phase aggregation (aggregate per trace_id in CTE, then JOIN trace_summaries — avoids 662K×213K span joins)

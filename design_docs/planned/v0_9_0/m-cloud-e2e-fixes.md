@@ -1,6 +1,6 @@
 # M-CLOUD-E2E-FIXES: Cloud End-to-End Wiring Fixes
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.0
 **Priority**: P0 (High) — Cloud coordinator deploys but cannot process messages
 **Estimated**: 4 hours (~2h implementation + 1h testing + 1h cleanup)

@@ -235,32 +235,5 @@ type Store interface {
 
 // StoreConfig configures store creation
 type StoreConfig struct {
-	// For SQLite
 	DBPath string
-
-	// For cloud stores (future)
-	Endpoint  string
-	APIKey    string
-	ProjectID string
-	Region    string
-}
-
-// StoreType identifies the storage backend
-type StoreType string
-
-const (
-	StoreTypeSQLite StoreType = "sqlite"
-	StoreTypeCloud  StoreType = "cloud" // Future: could be Firestore, DynamoDB, etc.
-)
-
-// NewStore creates a store based on the type
-func NewStore(storeType StoreType, cfg *StoreConfig) (Store, error) {
-	switch storeType {
-	case StoreTypeSQLite:
-		return NewSQLiteStore(cfg.DBPath)
-	case StoreTypeCloud:
-		return NewCloudStore(cfg)
-	default:
-		return NewSQLiteStore(cfg.DBPath) // Default to SQLite
-	}
 }

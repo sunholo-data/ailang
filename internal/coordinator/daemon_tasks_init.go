@@ -67,6 +67,11 @@ func (d *Daemon) initTaskProcessing() error {
 
 	mode := os.Getenv("COORDINATOR_MODE")
 	if mode == CoordinatorModeCloud {
+		// Cloud mode requires pre-set message store (Firestore via SetStores).
+		if d.msgStore == nil {
+			return fmt.Errorf("cloud mode requires pre-set message store (SetStores not called)")
+		}
+
 		// Cloud mode: pull messages from Pub/Sub subscription
 		if err := d.initPubSub(d.ctx); err != nil {
 			return fmt.Errorf("cloud mode requires Pub/Sub: %w", err)
@@ -74,15 +79,10 @@ func (d *Daemon) initTaskProcessing() error {
 
 		subscriber := pubsub.NewSubscriber(d.pubsubClient)
 		subName := d.pubsubClient.SubscriptionName(pubsub.SubMessagesCoordinator)
-		d.cloudInboxAdapter = NewPubSubInboxAdapter(subscriber, subName, "coordinator", d.logger)
+		d.cloudInboxAdapter = NewPubSubInboxAdapter(subscriber, subName, "coordinator", d.msgStore, d.logger)
 		d.cloudInboxAdapter.Start(d.ctx)
 		d.logger.Printf("Cloud mode: pulling from Pub/Sub subscription %s", subName)
 
-		// Still need msgStore for thread creation and message operations.
-		// In cloud mode, this is the Firestore-backed store set via SetStores().
-		if d.msgStore == nil {
-			return fmt.Errorf("cloud mode requires pre-set message store (SetStores not called)")
-		}
 		// Set msgAdapter non-nil so the poll loop gate in Run() is satisfied.
 		d.msgAdapter = NewInboxMessageAdapter(d.msgStore, "coordinator")
 	} else {
@@ -288,7 +288,7 @@ func (d *Daemon) initPubSub(ctx context.Context) error {
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT must be set for cloud mode")
 	}
 
-	prefix := os.Getenv("AILANG_PUBSUB_PREFIX")
+	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if prefix == "" {
 		prefix = pubsub.DefaultTopicPrefix
 	}
