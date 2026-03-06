@@ -965,6 +965,153 @@ ailang coordinator start
 
 For complete telemetry configuration (OTLP, Jaeger, dual export), see the [Telemetry Guide](./telemetry.md).
 
+## Cloud Mode (v0.9.0+)
+
+The coordinator can run on **Google Cloud Run** for 24/7 operation without a developer's laptop. Cloud mode replaces local SQLite with Firestore, local polling with Pub/Sub push endpoints, and local task execution with Cloud Run Jobs.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Cloud Run Service: Coordinator                                    │
+│                                                                    │
+│   ┌──────────────┐    ┌──────────────┐    ┌───────────────────┐  │
+│   │ Health Server │    │ Push Handler  │    │ Cloud Dispatcher  │  │
+│   │ GET /healthz  │    │ POST /pubsub/ │    │ (CloudRunJobs)    │  │
+│   │ GET /readyz   │    │ push          │    │                   │  │
+│   └──────────────┘    │ POST /pubsub/ │    │ Dispatch(params)  │  │
+│                        │ completions   │    │   → RunJob API    │  │
+│                        └──────────────┘    └───────────────────┘  │
+│                              │                       │             │
+│                              ▼                       ▼             │
+│                        ┌──────────┐          ┌──────────────┐     │
+│                        │ Firestore│          │ Cloud Run Job│     │
+│                        │ (state)  │          │ agent-executor│    │
+│                        └──────────┘          └──────────────┘     │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `COORDINATOR_MODE` | Set to `cloud` to enable cloud mode | `local` |
+| `AILANG_CLOUD_PROJECT` | GCP project ID for Pub/Sub, Firestore, Cloud Run Jobs | (required) |
+| `AILANG_CLOUD_REGION` | GCP region for Cloud Run Jobs | `europe-west1` |
+| `AILANG_TOPIC_PREFIX` | Pub/Sub topic prefix and job name prefix | `ailang` |
+| `AILANG_WORKSPACE` | Workspace identifier for multi-project routing | `default` |
+| `AILANG_REPO_URL` | Git repo URL passed to Cloud Run Jobs | (optional) |
+| `PORT` | HTTP port for health server (Cloud Run sets this) | (Cloud Run auto-sets) |
+| `AILANG_CONFIG` | Path to coordinator config file | `~/.ailang/config.yaml` |
+
+### Cloud Logging
+
+In cloud mode, the coordinator logs to **both** the log file and stderr. Cloud Run ingests stderr into Cloud Logging, making all coordinator activity visible in the GCP Console.
+
+```go
+// Automatic in cloud mode — no configuration needed
+if os.Getenv("COORDINATOR_MODE") == "cloud" {
+    writer = io.MultiWriter(logFile, os.Stderr)
+}
+```
+
+### Push Endpoints (M-CLOUD-PUSH)
+
+Cloud Run uses Pub/Sub **push subscriptions** instead of pull goroutines. Two HTTP endpoints receive messages:
+
+| Endpoint | Pub/Sub Subscription | Purpose |
+|----------|---------------------|---------|
+| `POST /pubsub/push` | `ailang-messages-coordinator` | Incoming task messages |
+| `POST /pubsub/completions` | `ailang-completions-coordinator` | Task completion notifications |
+
+Push endpoints acknowledge messages with HTTP 200 (success) or HTTP 500 (retry). Malformed messages return HTTP 200 to prevent infinite retry loops.
+
+### Cloud Run Job Dispatch (M-CLOUD-DISPATCH)
+
+When a task is ready for execution, the coordinator dispatches it to a Cloud Run Job via the **CloudDispatcher** interface:
+
+```
+dispatchTasksCloud()
+    ├── 1. Mark task as "queued"
+    ├── 2. Publish to Pub/Sub tasks topic (audit trail)
+    └── 3. Call d.cloudDispatcher.Dispatch(ctx, params)
+            │
+            ▼
+        CloudRunJobDispatcher.Dispatch()
+            ├── Build job name: {prefix}-agent-executor
+            ├── Set 7 env var overrides per execution
+            └── client.RunJob(ctx, request)
+                    │
+                    ▼
+                Cloud Run Job starts → execute-job → completion → Pub/Sub
+```
+
+**Dispatcher interface** (allows swapping backends):
+
+```go
+// CloudDispatcher triggers remote task execution.
+type CloudDispatcher interface {
+    Dispatch(ctx context.Context, params DispatchParams) error
+}
+
+type DispatchParams struct {
+    TaskID    string  // Coordinator task ID
+    AgentID   string  // Target agent (e.g., "sprint-executor")
+    Workspace string  // Working directory
+    Provider  string  // "claude" or "gemini"
+    Directive string  // Task prompt
+    RepoURL   string  // Git repo URL
+    Branch    string  // Base branch
+}
+```
+
+**Current implementation:** `internal/dispatch/cloudrun/` — calls Cloud Run Jobs Admin API v2 with per-execution container environment variable overrides.
+
+**Future implementations:** The interface supports Kubernetes Jobs, AWS Lambda, or local process dispatchers without changing the coordinator.
+
+**Job naming:** The Cloud Run Job name follows the pattern `projects/{project}/locations/{region}/jobs/{prefix}-agent-executor`, matching the Terraform definition in `ailang-multivac/terraform/cloud_run_jobs.tf`.
+
+### Cloud Run Job Environment
+
+The Cloud Run Job receives these environment variables per execution:
+
+| Variable | Source |
+|----------|--------|
+| `AILANG_TASK_ID` | Coordinator task ID |
+| `AILANG_AGENT_ID` | Target agent (from task routing) |
+| `AILANG_WORKSPACE` | Working directory for the task |
+| `AILANG_PROVIDER` | AI provider ("claude" or "gemini") |
+| `AILANG_DIRECTIVE` | Task prompt/content |
+| `AILANG_REPO_URL` | Git repository URL |
+| `AILANG_BRANCH` | Base branch for the task |
+
+The job runs `ailang coordinator execute-job`, which reads these variables, clones the repo, and executes the task. On completion, it publishes results to the `ailang-completions` Pub/Sub topic.
+
+### Terraform Infrastructure
+
+The cloud infrastructure is defined in `ailang-multivac/terraform/`:
+
+| File | Resources |
+|------|-----------|
+| `cloud_run_coordinator.tf` | Coordinator Cloud Run service |
+| `cloud_run_jobs.tf` | Agent executor Cloud Run Job |
+| `pubsub.tf` | 5 topics, 6 subscriptions (with push config) |
+| `iam.tf` | `roles/run.developer` for coordinator SA |
+| `firestore.tf` | Firestore database for task/message state |
+
+### Local vs Cloud Mode Comparison
+
+| Feature | Local Mode | Cloud Mode |
+|---------|------------|------------|
+| Message transport | SQLite polling | Pub/Sub push endpoints |
+| Task state | SQLite (`coordinator.db`) | Firestore |
+| Message state | SQLite (`collaboration.db`) | Firestore |
+| Task execution | Local worktrees + CLI | Cloud Run Jobs |
+| Event broadcasting | HTTP to localhost | Pub/Sub events topic |
+| Logging | File only | File + stderr (Cloud Logging) |
+| Git worktrees | Per-agent worktree managers | Skipped (agents have git) |
+| Availability | Laptop must be on | 24/7 |
+
 ## Service Management
 
 ### Quick Start

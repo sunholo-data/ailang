@@ -37,11 +37,11 @@ Close the last mile for end-to-end cloud task execution: add a `CloudDispatcher`
 - Test: verify MultiWriter outputs to both destinations
 
 **Acceptance Criteria:**
-- [ ] `CloudDispatcher` interface defined with `Dispatch(ctx, DispatchParams) error`
-- [ ] `DispatchParams` struct has all 7 fields (TaskID, AgentID, Workspace, Provider, Directive, RepoURL, Branch)
-- [ ] Coordinator logs appear on stderr when `COORDINATOR_MODE=cloud`
-- [ ] All existing tests pass
-- [ ] Linting clean
+- [x] `CloudDispatcher` interface defined with `Dispatch(ctx, DispatchParams) error`
+- [x] `DispatchParams` struct has all 7 fields (TaskID, AgentID, Workspace, Provider, Directive, RepoURL, Branch)
+- [x] Coordinator logs appear on stderr when `COORDINATOR_MODE=cloud`
+- [x] All existing tests pass
+- [x] Linting clean
 
 **Risks:**
 - None — pure additions, no existing behavior changes
@@ -59,12 +59,12 @@ Close the last mile for end-to-end cloud task execution: add a `CloudDispatcher`
 - Verify request construction, env var mapping, error handling
 
 **Acceptance Criteria:**
-- [ ] `CloudRunJobDispatcher` implements `coordinator.CloudDispatcher` (compile-time check)
-- [ ] Job name constructed as `projects/{project}/locations/{region}/jobs/{prefix}-agent-executor`
-- [ ] All 7 env vars set as container overrides (AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_WORKSPACE, AILANG_PROVIDER, AILANG_DIRECTIVE, AILANG_REPO_URL, AILANG_BRANCH)
-- [ ] Error from `RunJob()` propagated correctly
-- [ ] 3+ unit tests passing
-- [ ] Linting clean
+- [x] `CloudRunJobDispatcher` implements `coordinator.CloudDispatcher` (compile-time check)
+- [x] Job name constructed as `projects/{project}/locations/{region}/jobs/{prefix}-agent-executor`
+- [x] All 7 env vars set as container overrides (AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_WORKSPACE, AILANG_PROVIDER, AILANG_DIRECTIVE, AILANG_REPO_URL, AILANG_BRANCH)
+- [x] Error from `RunJob()` propagated correctly
+- [x] 5 unit tests (8 sub-tests) passing
+- [x] Linting clean
 
 **Risks:**
 - `cloud.google.com/go/run/apiv2` may pull in heavy dependencies — Mitigation: isolated in separate package, only imported in cloud mode
@@ -84,13 +84,13 @@ Close the last mile for end-to-end cloud task execution: add a `CloudDispatcher`
 - Update CLAUDE.md env var table with `AILANG_CLOUD_REGION`
 
 **Acceptance Criteria:**
-- [ ] Dispatcher created and stored on daemon in cloud mode
-- [ ] `dispatchTasksCloud()` calls dispatcher after Pub/Sub publish
-- [ ] Failed dispatch resets task to pending (not stuck in queued)
-- [ ] `AILANG_CLOUD_REGION` documented in CLAUDE.md
-- [ ] CHANGELOG updated
-- [ ] All tests pass
-- [ ] `go build ./...` succeeds
+- [x] Dispatcher created and stored on daemon in cloud mode (via `SetCloudDispatcher()` from CLI entry point)
+- [x] `dispatchTasksCloud()` calls dispatcher after Pub/Sub publish
+- [x] Failed dispatch resets task to pending (not stuck in queued)
+- [x] `AILANG_CLOUD_REGION` documented in CLAUDE.md
+- [x] CHANGELOG updated
+- [x] All tests pass
+- [x] `go build ./...` succeeds
 
 **Risks:**
 - Circular import between coordinator and dispatch packages — Mitigation: interface in coordinator, implementation in dispatch/cloudrun

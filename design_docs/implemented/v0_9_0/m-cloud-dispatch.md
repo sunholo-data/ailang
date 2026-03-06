@@ -1,6 +1,6 @@
 # M-CLOUD-DISPATCH: Cloud Run Job Dispatch & Cloud Logging
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.9.0
 **Priority**: P0 (High) — Blocks end-to-end cloud task execution
 **Estimated**: 3 hours
@@ -179,21 +179,21 @@ dispatchTasksCloud()
 ### Implementation Plan
 
 **Phase 1: Interface + Cloud Logging** (~1 hour)
-- [ ] Define `CloudDispatcher` interface in `internal/coordinator/cloud_dispatcher.go`
-- [ ] Add `io.MultiWriter(logFile, os.Stderr)` in cloud mode in `daemon.go`
-- [ ] Add `cloudDispatcher CloudDispatcher` field to `Daemon` struct
+- [x] Define `CloudDispatcher` interface in `internal/coordinator/cloud_dispatcher.go`
+- [x] Add `io.MultiWriter(logFile, os.Stderr)` in cloud mode in `daemon.go`
+- [x] Add `cloudDispatcher CloudDispatcher` field to `Daemon` struct
 
 **Phase 2: Cloud Run Jobs Implementation** (~1.5 hours)
-- [ ] Create `internal/dispatch/cloudrun/dispatcher.go` with `CloudRunJobDispatcher`
-- [ ] Add `cloud.google.com/go/run/apiv2` dependency
-- [ ] Create `internal/dispatch/cloudrun/dispatcher_test.go` with unit tests
-- [ ] Wire into `daemon_tasks_init.go` (create dispatcher when cloud mode)
-- [ ] Update `dispatchTasksCloud()` to call dispatcher after Pub/Sub publish
+- [x] Create `internal/dispatch/cloudrun/dispatcher.go` with `CloudRunJobDispatcher`
+- [x] Add `cloud.google.com/go/run/apiv2` dependency
+- [x] Create `internal/dispatch/cloudrun/dispatcher_test.go` with unit tests
+- [x] Wire into `cmd/ailang/coordinator_lifecycle.go` via `SetCloudDispatcher()` (avoids circular import)
+- [x] Update `dispatchTasksCloud()` to call dispatcher after Pub/Sub publish
 
 **Phase 3: Documentation & Testing** (~30 min)
-- [ ] Update CHANGELOG
-- [ ] Update CLAUDE.md env var table (add `AILANG_CLOUD_REGION`)
-- [ ] Run full test suite
+- [x] Update CHANGELOG
+- [x] Update CLAUDE.md env var table (add `AILANG_CLOUD_REGION`)
+- [x] Run full test suite
 
 ### Files to Modify/Create
 
@@ -309,13 +309,13 @@ func (d *LocalDispatcher) Dispatch(ctx context.Context, params coordinator.Dispa
 
 ## Success Criteria
 
-- [ ] `dispatchTasksCloud()` triggers Cloud Run Job execution via `CloudDispatcher`
-- [ ] Cloud Run Job starts within 5s of task being dispatched
-- [ ] Coordinator logs visible in Cloud Logging (stderr) when `COORDINATOR_MODE=cloud`
-- [ ] `CloudDispatcher` interface allows swapping backends without changing coordinator
-- [ ] All existing tests pass
-- [ ] 4+ new tests for dispatcher
-- [ ] Documentation updated (CHANGELOG, CLAUDE.md)
+- [x] `dispatchTasksCloud()` triggers Cloud Run Job execution via `CloudDispatcher`
+- [x] Cloud Run Job starts within 5s of task being dispatched
+- [x] Coordinator logs visible in Cloud Logging (stderr) when `COORDINATOR_MODE=cloud`
+- [x] `CloudDispatcher` interface allows swapping backends without changing coordinator
+- [x] All existing tests pass
+- [x] 5 tests (8 sub-tests) for dispatcher
+- [x] Documentation updated (CHANGELOG, CLAUDE.md, coordinator guide)
 
 ## Testing Strategy
 
@@ -390,3 +390,11 @@ func (d *LocalDispatcher) Dispatch(ctx context.Context, params coordinator.Dispa
 
 **Document created**: 2026-03-06
 **Last updated**: 2026-03-06
+**Implemented**: 2026-03-06 (commit 54899de2)
+
+### Implementation Notes
+
+- Dispatcher wired via `SetCloudDispatcher()` from CLI entry point (`cmd/ailang/coordinator_lifecycle.go`) to avoid circular import — coordinator package never imports `dispatch/cloudrun`
+- `TaskRecord` doesn't have `RepoURL` field — uses `os.Getenv("AILANG_REPO_URL")` (baked into coordinator Cloud Run image) and `task.BaseBranch`
+- `RunJob()` returns an LRO — discarded because job completion comes via Pub/Sub completions topic
+- 5 unit tests with mock `jobRunner` interface: interface check, job name construction, 7 env var overrides, error propagation, multi-region support (3 sub-tests)
