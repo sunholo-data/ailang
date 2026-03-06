@@ -8,11 +8,11 @@ DAYS="${1:-7}"  # Default to last 7 days
 echo "Analyzing velocity for last $DAYS days..."
 echo
 
-# Extract LOC counts from recent CHANGELOG entries
-echo "=== Recent CHANGELOG Entries ==="
-if [[ -f CHANGELOG.md ]]; then
-    # Get recent entries with LOC counts
-    grep -E "(Total:|~[0-9]+ LOC)" CHANGELOG.md | head -10 || echo "No LOC metrics found"
+# Extract LOC counts from recent changelog entries
+echo "=== Recent Changelog Entries ==="
+if [[ -d changelogs ]]; then
+    # Get recent entries with LOC counts from all changelog files
+    grep -rE "(Total:|~[0-9]+ LOC)" changelogs/ | head -10 || echo "No LOC metrics found"
 fi
 echo
 

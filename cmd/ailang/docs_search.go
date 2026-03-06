@@ -111,10 +111,17 @@ func docsSearchCommand(args []string) {
 		candidates = max(200, 20*(*limitFlag))
 	}
 
+	// Find extra corpus paths (changelogs, etc.) when using auto-discovered docs path
+	var extraPaths []string
+	if *pathFlag == "" {
+		extraPaths = findExtraDocPaths(docsPath)
+	}
+
 	// Create search options
 	opts := docsearch.SearchOptions{
 		Query:            query,
 		DocsPath:         docsPath,
+		ExtraPaths:       extraPaths,
 		Subdir:           subdir,
 		Neural:           *neuralFlag,
 		NeuralCandidates: candidates,
@@ -182,6 +189,24 @@ func findDesignDocsDir() (string, error) {
 	return findDocsDir()
 }
 
+// findExtraDocPaths finds additional documentation directories to search alongside
+// the primary docs path. Currently discovers changelogs/ directory.
+func findExtraDocPaths(primaryDocsPath string) []string {
+	var extras []string
+
+	// Look for changelogs/ relative to the primary docs path's parent
+	// (design_docs/ and changelogs/ are siblings at repo root)
+	parentDir := filepath.Dir(primaryDocsPath)
+
+	changelogsDir := filepath.Join(parentDir, "changelogs")
+	if info, err := os.Stat(changelogsDir); err == nil && info.IsDir() {
+		absPath, _ := filepath.Abs(changelogsDir)
+		extras = append(extras, absPath)
+	}
+
+	return extras
+}
+
 // printResults displays search results in human-readable format
 func printResults(query string, results []docsearch.SearchResult, stats docsearch.SearchStats, neural bool) {
 	// Print header
@@ -209,6 +234,11 @@ func printResults(query string, results []docsearch.SearchResult, stats docsearc
 			parts := strings.Split(relPath, "design_docs")
 			if len(parts) > 1 {
 				relPath = "design_docs" + parts[len(parts)-1]
+			}
+		} else if strings.Contains(relPath, "changelogs") {
+			parts := strings.Split(relPath, "changelogs")
+			if len(parts) > 1 {
+				relPath = "changelogs" + parts[len(parts)-1]
 			}
 		}
 
@@ -423,6 +453,25 @@ func docsEmbedWarmupCommand(args []string) {
 		fmt.Printf("   Newly embedded: %d\n", result.NewlyEmbedded)
 		if result.Failed > 0 {
 			fmt.Printf("   Failed: %d\n", result.Failed)
+		}
+	}
+
+	// Also warm up extra paths (changelogs, etc.)
+	if *pathFlag == "" {
+		extraPaths := findExtraDocPaths(docsPath)
+		for _, extra := range extraPaths {
+			extraResult, extraErr := docsearch.WarmupCache(ctx, extra, *quietFlag)
+			if extraErr != nil {
+				if !*quietFlag {
+					fmt.Fprintf(os.Stderr, "   ⚠️  Extra path %s: %v\n", extra, extraErr)
+				}
+				continue
+			}
+			if !*quietFlag {
+				fmt.Printf("\n   Extra corpus: %s\n", filepath.Base(extra))
+				fmt.Printf("   Newly embedded: %d, Already cached: %d\n",
+					extraResult.NewlyEmbedded, extraResult.AlreadyCached)
+			}
 		}
 	}
 }

@@ -16,14 +16,15 @@ import (
 
 // SearchOptions configures a documentation search
 type SearchOptions struct {
-	Query            string // Search query text
-	DocsPath         string // Path to document corpus directory
-	Subdir           string // Filter by subdirectory pattern (e.g., "planned", "guides")
-	Neural           bool   // Use neural embeddings (requires Ollama)
-	NeuralCandidates int    // Max candidates for neural search
-	Limit            int    // Max results to return
-	JSON             bool   // Output as JSON
-	Rebuild          bool   // Force rebuild of all embeddings (ignore cache)
+	Query            string   // Search query text
+	DocsPath         string   // Path to document corpus directory
+	ExtraPaths       []string // Additional corpus directories to search (e.g., changelogs/)
+	Subdir           string   // Filter by subdirectory pattern (e.g., "planned", "guides")
+	Neural           bool     // Use neural embeddings (requires Ollama)
+	NeuralCandidates int      // Max candidates for neural search
+	Limit            int      // Max results to return
+	JSON             bool     // Output as JSON
+	Rebuild          bool     // Force rebuild of all embeddings (ignore cache)
 }
 
 // SearchResult represents a single search match
@@ -62,18 +63,28 @@ func Search(ctx context.Context, opts SearchOptions) ([]SearchResult, SearchStat
 	startTime := time.Now()
 	stats := SearchStats{}
 
-	// Discover documents
+	// Discover documents from primary path
 	docs, err := discoverDocs(opts.DocsPath, opts.Subdir)
 	if err != nil {
 		return nil, stats, fmt.Errorf("discovering docs: %w", err)
 	}
+
+	// Discover documents from extra paths (e.g., changelogs/)
+	for _, extra := range opts.ExtraPaths {
+		extraDocs, extraErr := discoverDocs(extra, opts.Subdir)
+		if extraErr != nil {
+			continue // Skip missing/broken extra paths
+		}
+		docs = append(docs, extraDocs...)
+	}
+
 	stats.TotalDocs = len(docs)
 
 	if len(docs) == 0 {
 		return nil, stats, nil
 	}
 
-	// Stage 1: SimHash shortlist
+	// Stage 1: SimHash shortlist across ALL docs
 	queryHash := simhash(opts.Query)
 	candidates := simhashShortlist(docs, queryHash, opts.NeuralCandidates)
 	stats.SimHashCandidates = len(candidates)
@@ -81,11 +92,33 @@ func Search(ctx context.Context, opts SearchOptions) ([]SearchResult, SearchStat
 	var results []SearchResult
 
 	if opts.Neural {
-		// Stage 2-3: Neural embedding search (context-bounded)
-		results, stats, err = neuralSearch(ctx, candidates, opts.Query, opts.DocsPath, opts.Limit, stats)
-		if err != nil {
-			// Fallback to SimHash-only results on neural failure
-			results = simhashResults(candidates, opts.Limit)
+		// Group candidates by corpus path, run neural per-corpus, merge results.
+		// This keeps embedding caches independent (each corpus gets its own cache file).
+		grouped := groupByCorpus(candidates, opts.DocsPath, opts.ExtraPaths)
+		var allResults []SearchResult
+		for corpus, group := range grouped {
+			corpusResults, corpusStats, corpusErr := neuralSearch(ctx, group, opts.Query, corpus, opts.Limit, stats)
+			if corpusErr != nil {
+				// Fallback to SimHash for this corpus
+				corpusResults = simhashResults(group, opts.Limit)
+			} else {
+				stats.EmbeddingsComputed += corpusStats.EmbeddingsComputed
+				stats.EmbeddingsReused += corpusStats.EmbeddingsReused
+				if stats.EmbeddingModel == "" {
+					stats.EmbeddingModel = corpusStats.EmbeddingModel
+				}
+			}
+			allResults = append(allResults, corpusResults...)
+		}
+		// Re-sort merged results by score and trim to limit
+		sort.Slice(allResults, func(i, j int) bool {
+			return allResults[i].Score > allResults[j].Score
+		})
+		if len(allResults) > opts.Limit {
+			allResults = allResults[:opts.Limit]
+		}
+		results = allResults
+		if stats.EmbeddingModel == "" {
 			stats.EmbeddingModel = "fallback-simhash"
 		}
 	} else {
@@ -288,6 +321,23 @@ func simhashResults(candidates []DocFrame, limit int) []SearchResult {
 	}
 
 	return results
+}
+
+// groupByCorpus partitions candidates by which corpus directory they belong to.
+// This allows neural search to use per-corpus embedding caches.
+func groupByCorpus(candidates []DocFrame, primary string, extras []string) map[string][]DocFrame {
+	grouped := make(map[string][]DocFrame)
+	for _, doc := range candidates {
+		corpus := primary // default to primary
+		for _, extra := range extras {
+			if strings.HasPrefix(doc.Path, extra) {
+				corpus = extra
+				break
+			}
+		}
+		grouped[corpus] = append(grouped[corpus], doc)
+	}
+	return grouped
 }
 
 // neuralSearch performs embedding-based semantic search (Stage 2-3)

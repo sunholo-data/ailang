@@ -104,7 +104,7 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
     IN_IMPLEMENTED=""
     IN_IMPLEMENTED=$(grep -rl "#$NUMBER" design_docs/implemented/ 2>/dev/null | head -1) || true
     IN_CHANGELOG=""
-    IN_CHANGELOG=$(grep -l "#$NUMBER" CHANGELOG.md 2>/dev/null) || true
+    IN_CHANGELOG=$(grep -rl "#$NUMBER" changelogs/ 2>/dev/null | head -1) || true
 
     if [[ -n "$IN_IMPLEMENTED" ]] || [[ -n "$IN_CHANGELOG" ]]; then
         echo "CLOSABLE|$NUMBER|$TITLE|$LABELS|$URL"

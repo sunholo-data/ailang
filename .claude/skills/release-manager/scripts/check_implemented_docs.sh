@@ -17,7 +17,7 @@ VERSION="${VERSION#v}"
 VERSION_DIR="v${VERSION//./_}"
 
 IMPLEMENTED_DIR="design_docs/implemented/$VERSION_DIR"
-CHANGELOG="CHANGELOG.md"
+CHANGELOG_DIR="changelogs"
 
 echo "Checking implemented design docs for v$VERSION..."
 echo ""
@@ -49,15 +49,15 @@ for doc in "$IMPLEMENTED_DIR"/*.md; do
         continue
     fi
 
-    # Check if it's referenced in CHANGELOG
-    if grep -qi "$filename" "$CHANGELOG" 2>/dev/null; then
+    # Check if it's referenced in any changelog file
+    if grep -rqi "$filename" "$CHANGELOG_DIR" 2>/dev/null; then
         FOUND+=("$filename")
     else
         MISSING+=("$filename")
     fi
 done
 
-echo "  Referenced in CHANGELOG: ${#FOUND[@]}"
+echo "  Referenced in changelogs: ${#FOUND[@]}"
 for f in "${FOUND[@]}"; do
     echo "    ✓ $f"
 done
@@ -65,18 +65,19 @@ done
 echo ""
 
 if [ ${#MISSING[@]} -gt 0 ]; then
-    echo "  ⚠ NOT in CHANGELOG: ${#MISSING[@]}"
+    echo "  ⚠ NOT in changelogs: ${#MISSING[@]}"
     for f in "${MISSING[@]}"; do
         echo "    ✗ $f"
     done
     echo ""
-    echo "  These design docs should be added to CHANGELOG.md:"
+    echo "  These design docs should be added to the active changelog in changelogs/:"
     for f in "${MISSING[@]}"; do
         echo "    - design_docs/implemented/$VERSION_DIR/$f.md"
     done
     echo ""
     echo "  Action: Add entries for these features before releasing."
+    echo "  Active changelog: ls changelogs/ | grep current"
     exit 1
 else
-    echo "  ✓ All feature design docs are referenced in CHANGELOG"
+    echo "  ✓ All feature design docs are referenced in changelogs"
 fi

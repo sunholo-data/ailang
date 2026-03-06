@@ -359,10 +359,11 @@ This outputs a formatted template with:
 - Agent eval metrics by language
 - **Automatic comparison with previous version** (no manual work!)
 
-**Update CHANGELOG.md automatically:**
+**Update changelog automatically:**
 1. Run the script to generate the template
-2. Insert the "Benchmark Results (M-EVAL)" section into CHANGELOG.md
+2. Insert the "Benchmark Results (M-EVAL)" section into the active changelog file in `changelogs/` (find with `ls changelogs/ | grep current`)
 3. Place it after the feature/fix sections and before the next version
+4. Note: Root `CHANGELOG.md` is an index file — do NOT write entries there
 
 For CHANGELOG template format, see [`resources/version_notes.md`](resources/version_notes.md).
 

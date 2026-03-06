@@ -81,8 +81,8 @@ echo "$ISSUES" | jq -c '.[]' | while read -r issue; do
         DOC="$FOUND"
     fi
 
-    # Check 2: Referenced in CHANGELOG.md
-    if ! $CLOSABLE && grep -qE "#$NUMBER\b" CHANGELOG.md 2>/dev/null; then
+    # Check 2: Referenced in changelogs/
+    if ! $CLOSABLE && grep -rqE "#$NUMBER\b" changelogs/ 2>/dev/null; then
         CLOSABLE=true
         REASON="in_changelog"
     fi

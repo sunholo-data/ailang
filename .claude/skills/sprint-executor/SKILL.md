@@ -252,7 +252,7 @@ After Phase 1 initialization, choose between sequential or parallel execution ba
 3. **Write Tests** - TDD recommended for complex logic, comprehensive coverage required
 4. **Verify Quality** - Run `milestone_checkpoint.sh <milestone-name>` (tests + lint must pass)
 5. **Update Documentation**:
-   - CHANGELOG.md (what, LOC, key decisions)
+   - Active changelog in `changelogs/` (what, LOC, key decisions) — find active file with `ls changelogs/ | grep current`
    - Example files (REQUIRED for new language features):
      - Create `examples/runnable/<feature>.ail` with comprehensive examples
      - Add entry to `examples/manifest.json` (path, status, tags, description)

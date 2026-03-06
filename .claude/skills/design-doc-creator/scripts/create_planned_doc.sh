@@ -18,14 +18,21 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Get current version from CHANGELOG.md
+# Get current version from changelogs/ or std/VERSION
 get_current_version() {
-    local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
-    if [ -f "$CHANGELOG" ]; then
-        grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" | head -1
-    else
-        echo "unknown"
+    # Try std/VERSION first (canonical source)
+    local VERSION_FILE="$PROJECT_ROOT/std/VERSION"
+    if [ -f "$VERSION_FILE" ]; then
+        cat "$VERSION_FILE" | tr -d '[:space:]'
+        return
     fi
+    # Fall back to scanning changelogs/ for latest version header
+    local CHANGELOGS_DIR="$PROJECT_ROOT/changelogs"
+    if [ -d "$CHANGELOGS_DIR" ]; then
+        grep -roE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOGS_DIR"/*.md 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1
+        return
+    fi
+    echo "unknown"
 }
 
 # Compute next patch version (e.g., v0.5.6 -> v0_5_7)
