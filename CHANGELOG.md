@@ -35,6 +35,23 @@
   - **Dependencies**: `cloud.google.com/go/pubsub` v1.50.1
   - **Design**: Single topic with attribute-based routing (inbox, workspace, from_agent, category) — no infra changes when adding agents via config
 
+### Performance & Stability
+- **M-PERF-OBSERVATORY: Two-phase aggregation & tiered loading** (`internal/observatory/`, dashboard, CLI)
+  - **Dashboard breakdown**: 14s → 2.4s cold, 21ms cached via two-phase aggregation (aggregate per trace_id in CTE, then JOIN trace_summaries — avoids 662K×213K span joins)
+  - **trace_summaries table**: Migration v12-v14, replaces json_extract on 3.9GB resource_attributes
+  - **SpanLite type**: Attribute-free span queries for tree/timeline/waterfall views
+  - **Stats N+1 fix**: Single SQL aggregation replaces per-chain queries
+  - **Virtual chains**: `ailang chains find --task-id` shows span summary for user sessions/evals without execution_chain
+  - 60s cache TTL for breakdown (vs 5s for polling)
+
+- **M-AUDIT-OBSERVATORY: Dashboard stability & data quality fixes**
+  - **ListSpansLightweight**: Skip 3.9GB attributes columns, enriched spans 4.4s → 0.2s (warm cache)
+  - **ErrorBoundary**: Prevent full dashboard crashes on malformed JSON
+  - **Breakdown API**: Initialize slices as empty (not nil) to return `[]` not `null`
+  - **Evolution chart**: Exclude `task_id='root'` CLI spans (5,743 zero-cost points)
+  - **Safe JSON.parse**: Guards in EventDetail and ApprovalDetailModal
+  - **`ailang chains journey`**: New CLI command for chain journey view
+
 ### Architecture
 - 5 topics: messages, tasks, completions, events, dead-letter
 - 6 subscriptions: messages-coordinator, messages-laptop, tasks-executor, completions-coordinator, events-dashboard, events-laptop

@@ -1,6 +1,6 @@
 # M-PUBSUB: Pub/Sub Cloud Messaging Transport
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.0
 **Priority**: P0 (High)
 **Estimated**: 3 weeks (Go code only; deployment infra in ailang-multivac)

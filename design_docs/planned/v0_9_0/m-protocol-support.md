@@ -1,6 +1,6 @@
 # M-PROTOCOL-SUPPORT: OpenAPI, MCP, and A2A for `ailang serve-api`
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.0
 **Priority**: P1 (High)
 **Estimated**: 12-15 days (~60-75 hours) across 3 phases
