@@ -88,7 +88,10 @@ _math_sqrt : float -> float
 _math_tan : float -> float
 _net_httpRequest : (string, string, list[{name: string, value: string}], string) -> Result[{body: string, headers: list[{name: string, value: string}], ok: bool, status: int}, NetError] ! {Net}
 _ollama_embed : (string, string) -> list[float] ! {IO}
+_process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
+_process_spawn_process : (string, list[string]) -> ProcessHandle ! {Process}
+_process_write_stdin : (ProcessHandle, bytes) -> Result[(), string] ! {Process}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
 _rand_int : (int, int) -> int ! {Rand}

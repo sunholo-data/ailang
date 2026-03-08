@@ -66,3 +66,44 @@ export func exec(
 -- TODO: execText convenience wrapper (requires constructor call resolution fix)
 -- execText(cmd, args) decodes stdout/stderr as UTF-8 strings
 -- For now, use exec() and convert with std/bytes.toString manually
+
+-- M-ASYNC-IO Phase 3: Managed subprocess with writable stdin
+
+-- Opaque handle for a managed subprocess with writable stdin
+export type ProcessHandle = ProcessHandle(int)
+
+-- Spawn a subprocess with writable stdin pipe
+--
+-- Stdout and stderr are discarded. Use writeProcessStdin to send data
+-- and closeProcessStdin to signal EOF.
+--
+-- Example:
+--   let handle = spawnProcess("cat", [])
+--   writeProcessStdin(handle, fromString("hello\n"))
+--   closeProcessStdin(handle)
+export func spawnProcess(
+  cmd: string,
+  args: [string]
+) -> ProcessHandle ! {Process} {
+  _process_spawn_process(cmd, args)
+}
+
+-- Write bytes to a managed process's stdin
+--
+-- Returns Ok(()) on success, Err(reason) if pipe closed or buffer full.
+-- Non-blocking: uses a 256-slot write buffer with backpressure.
+export func writeProcessStdin(
+  handle: ProcessHandle,
+  data: bytes
+) -> Result[(), string] ! {Process} {
+  _process_write_stdin(handle, data)
+}
+
+-- Close a managed process's stdin pipe (signals EOF)
+--
+-- Safe to call multiple times (idempotent).
+export func closeProcessStdin(
+  handle: ProcessHandle
+) -> () ! {Process} {
+  _process_close_stdin(handle)
+}
