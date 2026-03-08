@@ -1,0 +1,8 @@
+module tests/runtime_integration/scope_c
+
+-- Third module with SAME internal `format` name as scope_a and scope_b
+pure func format(x: int) -> int =
+  x + 300
+
+export pure func transformC(x: int) -> int =
+  format(x)

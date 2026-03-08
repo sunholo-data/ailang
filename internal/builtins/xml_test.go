@@ -705,3 +705,109 @@ func TestXmlParse_OOXMLFragment(t *testing.T) {
 	xmlAssertElement(t, childList.Elements[0], "w:p")
 	xmlAssertElement(t, childList.Elements[1], "w:p")
 }
+
+func TestXmlParse_OOXMLTable(t *testing.T) {
+	// Simulate a real DOCX table with deeply nested cell text
+	ooxml := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="5000" w:type="pct"/>
+      </w:tblPr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr>
+          <w:p>
+            <w:r>
+              <w:t>Cell A1</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="2500" w:type="pct"/></w:tcPr>
+          <w:p>
+            <w:r>
+              <w:t>Cell B1</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:r>
+              <w:t xml:space="preserve">Cell A2</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:p>
+            <w:r>
+              <w:t xml:space="preserve">Cell B2</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+
+	root := parseTestXml(t, ooxml)
+	ctx := xmlTestCtx(t)
+
+	// Find all table cells
+	cellResult, err := xmlFindAllImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "w:tc"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cells := cellResult.(*eval.ListValue)
+	if len(cells.Elements) != 4 {
+		t.Fatalf("expected 4 w:tc cells, got %d", len(cells.Elements))
+	}
+
+	// Extract text from each cell - this is what docparse's getCellText does
+	expectedTexts := []string{"Cell A1", "Cell B1", "Cell A2", "Cell B2"}
+	for i, cell := range cells.Elements {
+		text, err := xmlGetTextImpl(ctx, []eval.Value{cell})
+		if err != nil {
+			t.Fatalf("cell %d: unexpected error: %v", i, err)
+		}
+		got := text.(*eval.StringValue).Value
+		if got != expectedTexts[i] {
+			t.Errorf("cell %d: expected %q, got %q", i, expectedTexts[i], got)
+		}
+	}
+
+	// Also test findAll for w:t elements (deeply nested in table)
+	textResult, err := xmlFindAllImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "w:t"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	textElems := textResult.(*eval.ListValue)
+	if len(textElems.Elements) != 4 {
+		t.Fatalf("expected 4 w:t elements, got %d", len(textElems.Elements))
+	}
+
+	// Verify getText on individual w:t elements
+	for i, te := range textElems.Elements {
+		text, err := xmlGetTextImpl(ctx, []eval.Value{te})
+		if err != nil {
+			t.Fatalf("w:t %d: unexpected error: %v", i, err)
+		}
+		got := text.(*eval.StringValue).Value
+		if got != expectedTexts[i] {
+			t.Errorf("w:t %d: expected %q, got %q", i, expectedTexts[i], got)
+		}
+	}
+
+	// Test finding rows
+	rowResult, err := xmlFindAllImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "w:tr"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	rows := rowResult.(*eval.ListValue)
+	if len(rows.Elements) != 2 {
+		t.Fatalf("expected 2 w:tr rows, got %d", len(rows.Elements))
+	}
+}

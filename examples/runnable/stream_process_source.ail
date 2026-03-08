@@ -1,0 +1,43 @@
+-- examples/runnable/stream_process_source.ail
+-- Demonstrates asyncExecProcess: subprocess stdout as SourceBytes in selectEvents.
+-- Spawns a subprocess and reads its stdout in fixed-size chunks.
+--
+-- Usage:
+--   ailang run --caps Stream,Process,IO --entry main examples/runnable/stream_process_source.ail
+--
+-- Shows:
+--   1. Spawning a subprocess (echo) with asyncExecProcess
+--   2. Receiving SourceBytes events with chunked output
+--   3. Combining subprocess + stdin in one selectEvents loop
+
+module examples/runnable/stream_process_source
+
+import std/stream (
+  asyncExecProcess, asyncReadStdinLines, selectEvents,
+  StreamSource, StreamEvent,
+  SourceText, SourceBytes
+)
+import std/bytes (toString)
+
+-- Event handler: dispatches subprocess bytes and stdin text
+export func handler(event: StreamEvent) -> bool ! {IO} {
+  match event {
+    SourceBytes(source, data) => {
+      _io_println("[" ++ source ++ "] " ++ toString(data));
+      true
+    },
+    SourceText(source, text) => {
+      _io_println("[" ++ source ++ "] " ++ text);
+      false
+    },
+    _ => true
+  }
+}
+
+-- Main: spawn echo subprocess + stdin reader, multiplex with selectEvents
+export func main() -> unit ! {Stream, Process, IO} {
+  let proc = asyncExecProcess("echo", ["hello", "from", "subprocess"], "echo", 5, 4096);
+  let stdin = asyncReadStdinLines("stdin", 10);
+  selectEvents([proc, stdin], handler);
+  _io_println("done")
+}

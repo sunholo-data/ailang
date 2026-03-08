@@ -118,11 +118,15 @@ _str_split : (string, string) -> list[string]
 _str_startsWith : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
+_stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Stream}
+_stream_async_read_stdin_lines : (string, int) -> StreamSource ! {Stream}
 _stream_close : StreamConn -> () ! {Stream}
 _stream_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_onEvent : (StreamConn, StreamEvent -> bool) -> () ! {Stream}
 _stream_runEventLoop : StreamConn -> () ! {Stream}
+_stream_select_events : (list[StreamSource], StreamEvent -> bool) -> () ! {Stream}
 _stream_send : (StreamConn, string) -> Result[(), StreamErrorKind] ! {Stream}
+_stream_source_of_conn : (StreamConn, string, int) -> StreamSource ! {Stream}
 _stream_sse_connect : (string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_sse_post : (string, string, {headers: list[{name: string, value: string}]}) -> Result[StreamConn, StreamErrorKind] ! {Stream}
 _stream_status : StreamConn -> StreamStatus ! {Stream}

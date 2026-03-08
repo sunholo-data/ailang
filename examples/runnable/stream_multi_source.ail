@@ -1,0 +1,48 @@
+-- examples/runnable/stream_multi_source.ail
+-- Demonstrates multi-source event multiplexing with stdin and WebSocket
+-- Uses the M-ASYNC-IO selectEvents API to read from multiple sources.
+--
+-- Usage:
+--   echo "hello" | ailang run --caps Stream,IO --entry main examples/runnable/stream_multi_source.ail
+--
+-- Shows:
+--   1. Creating event sources (stdin + WebSocket connection)
+--   2. Priority-ordered dispatch via selectEvents
+--   3. SourceText events from stdin with source tagging
+
+module examples/runnable/stream_multi_source
+
+import std/stream (
+  connect, onEvent, disconnect, defaultConfig,
+  sourceOfConn, asyncReadStdinLines, selectEvents,
+  StreamConn, StreamSource, StreamEvent,
+  Message, Closed, StreamError, SourceText, SourceBytes, StreamErrorKind
+)
+import std/result (Result, Ok, Err)
+
+-- Multi-source event handler: dispatches events from any source
+export func multiHandler(event: StreamEvent) -> bool ! {IO} {
+  match event {
+    SourceText(source, text) => {
+      _io_println("stdin: " ++ text);
+      false
+    },
+    Message(msg) => {
+      _io_println("ws: " ++ msg);
+      true
+    },
+    Closed(code, reason) => {
+      _io_println("closed");
+      false
+    },
+    StreamError(err) => false,
+    _ => true
+  }
+}
+
+-- Main: read from stdin using selectEvents with a single source
+export func main() -> unit ! {Stream, IO} {
+  let stdin = asyncReadStdinLines("stdin", 10);
+  selectEvents([stdin], multiHandler);
+  _io_println("done")
+}

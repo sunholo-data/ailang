@@ -1,6 +1,6 @@
 # M-ASYNC-IO: Multi-Source Event Multiplexing for std/stream
 
-**Status**: Planned
+**Status**: IMPLEMENTED (Phase 1)
 **Target**: v0.9.0
 **Priority**: P1 (Medium) — Unlocks CLI ambient assistant mode
 **Estimated**: 1-2 weeks (Phase 1: text-mode mux ~1 week; Phase 2: bytes/pipe ~1 week if Phase 1 solid)

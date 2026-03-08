@@ -21,6 +21,14 @@ func init() {
 	registerStreamRunEventLoop()
 	registerStreamClose()
 	registerStreamGetStatus()
+
+	// M-ASYNC-IO: Multi-source event multiplexing
+	registerStreamSourceOfConn()
+	registerStreamAsyncReadStdinLines()
+	registerStreamSelectEvents()
+
+	// M-ASYNC-IO Phase 2: Subprocess stdout as StreamSource
+	registerStreamAsyncExecProcess()
 }
 
 // ============================================================================
@@ -478,5 +486,205 @@ func makeStreamSSEPostType() types.Type {
 		streamConfigType(), // config record with headers
 	).Returns(
 		T.App("Result", T.Con("StreamConn"), T.Con("StreamErrorKind")),
+	).Effects("Stream")
+}
+
+// ============================================================================
+// M-ASYNC-IO: Multi-source event multiplexing builtins
+// ============================================================================
+
+// registerStreamSourceOfConn registers the _stream_source_of_conn builtin
+func registerStreamSourceOfConn() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_source_of_conn",
+		NumArgs: 3,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamSourceOfConnType,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "sourceOfConn", args)
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Wrap a StreamConn as a named, prioritized event source",
+			LongDesc: `Converts a StreamConnection into an EventSource for use with selectEvents.
+The source reads from the connection's event buffer. Priority determines dispatch
+order when multiple sources have events ready (higher = checked first).`,
+			Params: []ParamDoc{
+				{Name: "conn", Description: "StreamConn handle from connect"},
+				{Name: "name", Description: "Human-readable source name (e.g. \"ws:echo.example.com\")"},
+				{Name: "priority", Description: "Dispatch priority (higher = checked first)"},
+			},
+			Returns:   "StreamSource",
+			Since:     "v0.9.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "async", "source", "multiplexer"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_source_of_conn: %v", err))
+	}
+}
+
+// makeStreamSourceOfConnType builds the type signature for _stream_source_of_conn
+// Type: (StreamConn, string, int) -> StreamSource ! {Stream}
+func makeStreamSourceOfConnType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.Con("StreamConn"), // conn
+		T.String(),          // name
+		T.Int(),             // priority
+	).Returns(
+		T.Con("StreamSource"),
+	).Effects("Stream")
+}
+
+// registerStreamAsyncReadStdinLines registers the _stream_async_read_stdin_lines builtin
+func registerStreamAsyncReadStdinLines() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_async_read_stdin_lines",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamAsyncReadStdinLinesType,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "asyncReadStdinLines", args)
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Create a line-buffered stdin reader as an event source",
+			LongDesc: `Spawns a goroutine that reads lines from stdin and produces SourceText events.
+The source can be used with selectEvents for concurrent stdin + WebSocket reading.
+Reads until EOF, the source is closed, or an error occurs.`,
+			Params: []ParamDoc{
+				{Name: "name", Description: "Human-readable source name (e.g. \"stdin\")"},
+				{Name: "priority", Description: "Dispatch priority (higher = checked first)"},
+			},
+			Returns:   "StreamSource",
+			Since:     "v0.9.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "async", "stdin", "source"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_async_read_stdin_lines: %v", err))
+	}
+}
+
+// makeStreamAsyncReadStdinLinesType builds the type signature for _stream_async_read_stdin_lines
+// Type: (string, int) -> StreamSource ! {Stream}
+func makeStreamAsyncReadStdinLinesType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.String(), // name
+		T.Int(),    // priority
+	).Returns(
+		T.Con("StreamSource"),
+	).Effects("Stream")
+}
+
+// registerStreamSelectEvents registers the _stream_select_events builtin
+func registerStreamSelectEvents() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_select_events",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamSelectEventsType,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "selectEvents", args)
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Run deterministic priority-ordered event loop over multiple sources",
+			LongDesc: `The primary multi-source event loop. Blocks, dispatching events from
+multiple sources to a handler. Highest-priority sources are checked first (deterministic).
+Same-priority sources use round-robin to prevent starvation. Stops when handler returns
+false, idle timeout expires, or max duration ceiling is reached.`,
+			Params: []ParamDoc{
+				{Name: "sources", Description: "List of StreamSource handles"},
+				{Name: "handler", Description: "Function: StreamEvent -> bool (true=continue, false=stop)"},
+			},
+			Returns:   "unit",
+			Since:     "v0.9.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "async", "select", "multiplexer", "event-loop"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_select_events: %v", err))
+	}
+}
+
+// makeStreamSelectEventsType builds the type signature for _stream_select_events
+// Type: ([StreamSource], (StreamEvent -> bool)) -> unit ! {Stream}
+func makeStreamSelectEventsType() types.Type {
+	T := types.NewBuilder()
+	handlerType := T.Func(T.Con("StreamEvent")).Returns(T.Bool()).Build()
+	return T.Func(
+		T.List(T.Con("StreamSource")), // sources
+		handlerType,                   // handler: (StreamEvent -> bool)
+	).Returns(
+		T.Unit(),
+	).Effects("Stream")
+}
+
+// registerStreamAsyncExecProcess registers the _stream_async_exec_process builtin
+func registerStreamAsyncExecProcess() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/stream",
+		Name:    "_stream_async_exec_process",
+		NumArgs: 5,
+		IsPure:  false,
+		Effect:  "Stream",
+		Type:    makeStreamAsyncExecProcessType,
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			return effects.Call(ctx, "Stream", "asyncExecProcess", args)
+		},
+
+		Metadata: &BuiltinMetadata{
+			Description: "Spawn a subprocess and deliver its stdout as SourceBytes events",
+			LongDesc: `Spawns a subprocess and reads its stdout in fixed-size chunks,
+delivering each chunk as a SourceBytes(name, bytes) event into selectEvents.
+The subprocess is killed when the source is closed or the selectEvents loop exits.
+Requires both Process (for spawning) and Stream (for source creation) capabilities.
+Reuses ProcessContext allowlist and security settings from std/process.`,
+			Params: []ParamDoc{
+				{Name: "cmd", Description: "Command name (resolved via allowlist/PATH)"},
+				{Name: "args", Description: "List of string arguments (no shell expansion)"},
+				{Name: "name", Description: "Source name for SourceBytes(name, data) matching"},
+				{Name: "priority", Description: "Dispatch priority (higher = checked first)"},
+				{Name: "chunkSize", Description: "Bytes per SourceBytes event (determines streaming latency)"},
+			},
+			Returns:   "StreamSource",
+			Since:     "v0.9.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"stream", "async", "process", "subprocess", "source"},
+			Category:  "stream",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _stream_async_exec_process: %v", err))
+	}
+}
+
+// makeStreamAsyncExecProcessType builds the type signature for _stream_async_exec_process
+// Type: (string, [string], string, int, int) -> StreamSource ! {Stream}
+func makeStreamAsyncExecProcessType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(
+		T.String(),         // cmd
+		T.List(T.String()), // args
+		T.String(),         // name
+		T.Int(),            // priority
+		T.Int(),            // chunkSize
+	).Returns(
+		T.Con("StreamSource"),
 	).Effects("Stream")
 }

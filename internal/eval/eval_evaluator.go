@@ -70,6 +70,12 @@ func (e *CoreEvaluator) Env() *Environment {
 	return e.env
 }
 
+// SetEnv replaces the evaluator's current environment.
+// Used by ModuleRuntime to isolate per-module scopes (M-MODULE-SCOPE).
+func (e *CoreEvaluator) SetEnv(env *Environment) {
+	e.env = env
+}
+
 // NewCoreEvaluatorWithRegistry creates a new Core evaluator with dictionary support
 func NewCoreEvaluatorWithRegistry(registry *types.DictionaryRegistry) *CoreEvaluator {
 	env := NewEnvironment()

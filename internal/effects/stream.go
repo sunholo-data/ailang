@@ -57,7 +57,7 @@ type StreamConnection struct {
 
 // streamEvent is an internal representation of a stream event before conversion to AILANG ADT.
 type streamEvent struct {
-	kind         string // "message", "binary", "opened", "closed", "error", "ping", "sse_data"
+	kind         string // "message", "binary", "opened", "closed", "error", "ping", "sse_data", "source_text", "source_bytes"
 	text         string
 	data         []byte
 	code         int
@@ -65,6 +65,7 @@ type streamEvent struct {
 	errType      string // "ConnectionFailed", "Timeout", "BudgetExhausted", "ProtocolError", etc.
 	sseEventType string // SSE event: field (e.g. "content_block_delta", "message_stop")
 	sseID        string // SSE id: field
+	sourceName   string // M-ASYNC-IO: source tag for SourceText/SourceBytes events
 }
 
 // Close gracefully shuts down the connection.
@@ -121,6 +122,12 @@ func init() {
 	RegisterOp("Stream", "runEventLoop", StreamRunEventLoop)
 	RegisterOp("Stream", "close", StreamClose)
 	RegisterOp("Stream", "status", StreamGetStatus)
+
+	// M-ASYNC-IO: Multi-source event multiplexing
+	RegisterOp("Stream", "sourceOfConn", StreamSourceOfConn)
+	RegisterOp("Stream", "asyncReadStdinLines", StreamAsyncReadStdinLines)
+	RegisterOp("Stream", "selectEvents", StreamSelectEvents)
+	RegisterOp("Stream", "asyncExecProcess", StreamAsyncExecProcess)
 }
 
 // StreamConnect establishes a WebSocket connection.
@@ -408,6 +415,10 @@ func StreamOnEvent(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 
 // streamRunEventLoop blocks, dispatching events to the registered handler.
 //
+// M-ASYNC-IO: Now delegates to selectEventsLoop with a single connSource.
+// This makes runEventLoop sugar over the general-purpose multiplexer,
+// preserving backward compatibility while sharing the same implementation.
+//
 // Args: [conn: StreamConn(int)]
 // Returns: unit
 func StreamRunEventLoop(ctx *EffContext, args []eval.Value) (eval.Value, error) {
@@ -437,73 +448,16 @@ func StreamRunEventLoop(ctx *EffContext, args []eval.Value) (eval.Value, error) 
 		return nil, fmt.Errorf("_stream_runEventLoop: FnCaller not set on EffContext (evaluator not wired)")
 	}
 
-	// Set up idle timer
-	idleTimer := time.NewTimer(conn.idleTimeout)
-	defer idleTimer.Stop()
+	// Wrap the connection as a single EventSource and delegate to selectEventsLoop
+	source := NewConnSource(conn, fmt.Sprintf("conn:%d", connID), 0)
+	sources := []EventSource{source}
 
-	// Set up max duration timer
-	maxTimer := time.NewTimer(conn.maxDuration)
-	defer maxTimer.Stop()
-
-	fnCaller := ctx.FnCaller
-
-	for {
-		select {
-		case evt, ok := <-conn.eventBuffer:
-			if !ok {
-				return &eval.UnitValue{}, nil
-			}
-
-			// Reset idle timer on any activity
-			if !idleTimer.Stop() {
-				select {
-				case <-idleTimer.C:
-				default:
-				}
-			}
-			idleTimer.Reset(conn.idleTimeout)
-
-			// Convert to AILANG ADT value
-			adtVal := eventToADT(evt)
-
-			// Call handler with panic recovery
-			shouldContinue, err := callHandlerSafe(fnCaller, handler, adtVal)
-			if err != nil {
-				// Handler error — deliver as Error event and stop
-				errEvt := eventToADT(streamEvent{
-					kind:    "error",
-					errType: "ProtocolError",
-					text:    fmt.Sprintf("handler error: %s", err.Error()),
-				})
-				_, _ = callHandlerSafe(fnCaller, handler, errEvt)
-				return &eval.UnitValue{}, nil
-			}
-
-			if !shouldContinue {
-				return &eval.UnitValue{}, nil
-			}
-
-		case <-idleTimer.C:
-			// Idle timeout — deliver as Error event
-			errEvt := eventToADT(streamEvent{
-				kind:    "error",
-				errType: "Timeout",
-				text:    fmt.Sprintf("idle timeout after %s", conn.idleTimeout),
-			})
-			_, _ = callHandlerSafe(fnCaller, handler, errEvt)
-			return &eval.UnitValue{}, nil
-
-		case <-maxTimer.C:
-			// Max duration — deliver as Error event
-			errEvt := eventToADT(streamEvent{
-				kind:    "error",
-				errType: "Timeout",
-				text:    fmt.Sprintf("max duration %s exceeded", conn.maxDuration),
-			})
-			_, _ = callHandlerSafe(fnCaller, handler, errEvt)
-			return &eval.UnitValue{}, nil
-		}
+	err = selectEventsLoop(sources, handler, ctx.FnCaller, conn.idleTimeout, conn.maxDuration)
+	if err != nil {
+		return nil, fmt.Errorf("_stream_runEventLoop: %w", err)
 	}
+
+	return &eval.UnitValue{}, nil
 }
 
 // streamClose closes a connection.
@@ -688,6 +642,24 @@ func eventToADT(evt streamEvent) eval.Value {
 			Fields: []eval.Value{
 				&eval.StringValue{Value: evt.sseEventType},
 				&eval.StringValue{Value: evt.text},
+			},
+		}
+	case "source_text":
+		// M-ASYNC-IO: SourceText(sourceName, text)
+		return &eval.TaggedValue{
+			CtorName: "SourceText",
+			Fields: []eval.Value{
+				&eval.StringValue{Value: evt.sourceName},
+				&eval.StringValue{Value: evt.text},
+			},
+		}
+	case "source_bytes":
+		// M-ASYNC-IO: SourceBytes(sourceName, bytes)
+		return &eval.TaggedValue{
+			CtorName: "SourceBytes",
+			Fields: []eval.Value{
+				&eval.StringValue{Value: evt.sourceName},
+				&eval.BytesValue{Value: evt.data},
 			},
 		}
 	default:

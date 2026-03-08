@@ -1,0 +1,8 @@
+module tests/runtime_integration/scope_b
+
+-- Internal (non-exported) function with SAME name as scope_a's
+pure func format(x: int) -> int =
+  x + 200
+
+export pure func transformB(x: int) -> int =
+  format(x)

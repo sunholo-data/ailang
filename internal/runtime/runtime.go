@@ -248,6 +248,25 @@ func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 		return nil
 	}
 
+	// M-MODULE-SCOPE: Isolate each module's internal bindings in a child environment.
+	// Without this, non-exported functions with the same name in different modules
+	// collide in the shared flat namespace (e.g., docx_parser.joinParagraphTexts
+	// gets overwritten by pptx_parser.joinParagraphTexts).
+	//
+	// How it works:
+	// 1. Create a child env for this module's bindings (both internal + exported)
+	// 2. Closures capture this child env via evalCoreLambda — they reference
+	//    their own module's internal functions correctly
+	// 3. After evaluation, promote EXPORTS to the parent env so subsequent
+	//    modules can resolve imported names via Var lookup
+	// 4. Internal (non-exported) bindings stay in the child env only
+	//
+	// Builtins remain accessible via the parent chain (child → parent).
+	parentEnv := rt.evaluator.Env()
+	moduleEnv := parentEnv.NewChildEnvironment()
+	rt.evaluator.SetEnv(moduleEnv)
+	defer rt.evaluator.SetEnv(parentEnv)
+
 	// Process declarations - recursively extract nested Let bindings
 	for _, decl := range inst.Core.Decls {
 		err := rt.extractBindings(inst, decl)
@@ -267,6 +286,11 @@ func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 
 			// Add to exports map
 			inst.Exports[exportName] = val
+
+			// M-MODULE-SCOPE: Promote exports to parent env so that importing
+			// modules can resolve them via Var lookup (the elaborator may produce
+			// Var references for imported names, not just VarGlobal).
+			parentEnv.Set(exportName, val)
 		}
 	}
 

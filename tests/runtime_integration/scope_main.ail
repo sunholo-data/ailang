@@ -1,0 +1,10 @@
+module tests/runtime_integration/scope_main
+
+import tests/runtime_integration/scope_a (transformA)
+import tests/runtime_integration/scope_b (transformB)
+
+export pure func testA(x: int) -> int =
+  transformA(x)
+
+export pure func testB(x: int) -> int =
+  transformB(x)

@@ -46,6 +46,10 @@ type StreamContext struct {
 	mu          sync.Mutex
 	connections map[int]*StreamConnection
 	nextID      int
+
+	// Event source management (M-ASYNC-IO)
+	sources      map[int]EventSource
+	nextSourceID int
 }
 
 // NewStreamContext creates a new stream context with secure defaults

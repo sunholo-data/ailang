@@ -1,5 +1,6 @@
 -- std/stream.ail
--- Streaming primitives: WebSocket (bidirectional) and SSE (read-only)
+-- Streaming primitives: WebSocket (bidirectional), SSE (read-only),
+-- and multi-source event multiplexing (M-ASYNC-IO).
 -- Provides typed connections with event-driven dispatch.
 --
 -- Usage:
@@ -7,6 +8,11 @@
 --   import std/stream (transmitBinary)                         -- binary data (bytes)
 --   import std/stream (sseConnect, ssePost, withSSE)           -- SSE connections
 --   import std/stream (StreamEvent, Message, Closed, StreamError, SSEData)
+--
+-- Multi-source (v0.9.0):
+--   import std/stream (sourceOfConn, asyncReadStdinLines, selectEvents)
+--   import std/stream (asyncExecProcess)                    -- subprocess stdout as SourceBytes
+--   import std/stream (StreamSource, SourceText, SourceBytes)
 --
 -- SSE event handling:
 --   onEvent(conn, \event. match event {
@@ -29,7 +35,11 @@ import std/result (Result, Ok, Err)
 -- Connection handle (opaque, holds integer ID)
 export type StreamConn = StreamConn(int)
 
+-- Event source handle (opaque, holds integer ID) — M-ASYNC-IO
+export type StreamSource = StreamSource(int)
+
 -- Stream event union — received by event handlers
+-- M-ASYNC-IO adds SourceText and SourceBytes for multi-source events
 export type StreamEvent =
   | Message(string)
   | Binary(string)
@@ -38,6 +48,8 @@ export type StreamEvent =
   | StreamError(StreamErrorKind)
   | Ping(string)
   | SSEData(string, string)
+  | SourceText(string, string)
+  | SourceBytes(string, bytes)
 
 -- Stream error variants
 export type StreamErrorKind =
@@ -109,6 +121,47 @@ export func disconnect(conn: StreamConn) -> unit ! {Stream} {
 -- Returns Connecting, Open, Closing, or StreamClosed
 export func status(conn: StreamConn) -> StreamStatus ! {Stream} {
   _stream_status(conn)
+}
+
+-- ============================================================================
+-- Multi-Source Event Multiplexing (M-ASYNC-IO v0.9.0)
+-- ============================================================================
+
+-- Wrap a StreamConn as a named, prioritized event source.
+-- Use with selectEvents for multi-source dispatch.
+-- priority: higher = checked first when multiple sources have events ready.
+export func sourceOfConn(conn: StreamConn, name: string, priority: int) -> StreamSource ! {Stream} {
+  _stream_source_of_conn(conn, name, priority)
+}
+
+-- Create a line-buffered stdin reader as an event source.
+-- Spawns a goroutine that reads lines and produces SourceText events.
+-- name: human-readable identifier (e.g. "stdin")
+-- priority: dispatch priority for selectEvents
+export func asyncReadStdinLines(name: string, priority: int) -> StreamSource ! {Stream} {
+  _stream_async_read_stdin_lines(name, priority)
+}
+
+-- Run the deterministic multi-source event loop.
+-- Blocks, dispatching events from multiple sources to a handler.
+-- Highest-priority sources are checked first (deterministic ordering).
+-- Same-priority sources use round-robin to prevent starvation.
+-- Stops when handler returns false, idle timeout, or max duration.
+export func selectEvents(sources: [StreamSource], handler: (StreamEvent) -> bool) -> unit ! {Stream} {
+  _stream_select_events(sources, handler)
+}
+
+-- Spawn a subprocess and deliver its stdout as SourceBytes events.
+-- Reads stdout in fixed-size chunks (chunkSize bytes per event).
+-- The subprocess is killed when the source is closed or selectEvents exits.
+-- Reuses ProcessContext allowlist and security settings from std/process.
+-- cmd: Command name (resolved via allowlist/PATH)
+-- args: List of string arguments (no shell expansion)
+-- name: Source name for SourceBytes(name, data) matching
+-- priority: Dispatch priority (higher = checked first)
+-- chunkSize: Bytes per SourceBytes event (e.g. 4096 for audio, 65536 for video)
+export func asyncExecProcess(cmd: string, args: [string], name: string, priority: int, chunkSize: int) -> StreamSource ! {Stream} {
+  _stream_async_exec_process(cmd, args, name, priority, chunkSize)
 }
 
 -- ============================================================================
