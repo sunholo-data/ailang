@@ -204,6 +204,11 @@ func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
 | Function | Type | Description |
 |----------|------|-------------|
 | `exec` | `(string, [string]) -> Result[ProcessOutput, ProcessError] ! {Process}` | Execute command with arguments |
+| `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
+| `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
+| `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Close stdin pipe (signals EOF) |
+
+**ProcessHandle:** Opaque ADT `ProcessHandle(int)` — returned by `spawnProcess`, used with `writeProcessStdin` and `closeProcessStdin`.
 
 **Completion Semantics (important):**
 - **`Ok`** = process completed (even with non-zero exit code) — check `out.exitCode`

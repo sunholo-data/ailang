@@ -268,6 +268,76 @@ export func main() -> unit ! {Stream, Process, IO} {
 
 **Requires both capabilities:** `--caps Stream,Process`
 
+### Subprocess Stdin Writing (spawnProcess)
+
+*Added in v0.9.0 (M-ASYNC-IO Phase 3)*
+
+Write data incrementally to a subprocess's stdin pipe. Complements `asyncExecProcess` (which reads stdout) — use `spawnProcess` when you need to **send data to** a subprocess rather than **read from** it.
+
+Use cases:
+- **Audio playback**: Pipe PCM bytes to `aplay` / `sox` / `ffplay`
+- **Data processing**: Feed data to `jq`, `sed`, `awk` via stdin
+- **Interprocess communication**: Write structured data to a child process
+
+```typescript
+import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
+import std/bytes (fromString)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {Process, IO} {
+  -- Spawn cat with writable stdin (stdout goes to terminal)
+  let handle = spawnProcess("cat", []);
+
+  -- Write three lines to cat's stdin
+  match writeProcessStdin(handle, fromString("hello from AILANG\n")) {
+    Ok(_) => println("wrote line 1"),
+    Err(e) => println("write error: " ++ e)
+  };
+
+  match writeProcessStdin(handle, fromString("streaming to subprocess\n")) {
+    Ok(_) => println("wrote line 2"),
+    Err(e) => println("write error: " ++ e)
+  };
+
+  -- Close stdin — cat will echo all lines and exit
+  closeProcessStdin(handle)
+}
+```
+
+```bash
+ailang run --caps Process,IO --entry main examples/runnable/process_stdin_write.ail
+```
+
+**API:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `spawnProcess` | `(string, [string]) -> ProcessHandle ! {Process}` | Spawn subprocess with writable stdin pipe |
+| `writeProcessStdin` | `(ProcessHandle, bytes) -> Result[(), string] ! {Process}` | Write bytes to subprocess stdin |
+| `closeProcessStdin` | `(ProcessHandle) -> () ! {Process}` | Close stdin pipe (signals EOF) |
+
+**ProcessHandle** is an opaque ADT: `ProcessHandle(int)`. Do not construct manually — always use `spawnProcess`.
+
+**Write semantics:**
+- Non-blocking: uses a 256-slot buffered write channel
+- Returns `Ok(())` on success, `Err(reason)` if pipe closed or buffer full
+- Subprocess receives bytes on its stdin as they are written
+
+**Lifecycle:**
+1. `spawnProcess(cmd, args)` — spawns subprocess, opens stdin pipe
+2. `writeProcessStdin(handle, data)` — write bytes (repeatable)
+3. `closeProcessStdin(handle)` — signals EOF, subprocess sees end-of-input
+4. Subprocess cleanup: SIGTERM, 5s grace period, then SIGKILL if needed
+
+**Requires:** `--caps Process` (does NOT require Stream capability)
+
+:::tip asyncExecProcess vs spawnProcess
+- **`asyncExecProcess`** = Read subprocess stdout via event loop (Stream + Process effects)
+- **`spawnProcess`** = Write to subprocess stdin via ProcessHandle (Process effect only)
+
+These are complementary — use `asyncExecProcess` to read, `spawnProcess` to write.
+:::
+
 ### chunkSize Guidelines
 
 | Use Case | Recommended chunkSize | Latency |

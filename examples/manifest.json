@@ -1409,11 +1409,21 @@
         "stdout": "[echo] hello from subprocess\ndone\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/process_stdin_write.ail",
+      "status": "working",
+      "tags": ["process", "stdin", "pipe", "subprocess", "M-ASYNC-IO"],
+      "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
+      "expected": {
+        "stdout": "hello from AILANG\nstreaming to subprocess\ndone!\nwrote line 1\nwrote line 2\nwrote line 3\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 133,
-    "working": 126,
+    "total": 134,
+    "working": 127,
     "aspirational": 4,
     "broken": 3,
     "coverage": 0.946
