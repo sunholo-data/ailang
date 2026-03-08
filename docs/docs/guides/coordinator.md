@@ -972,23 +972,23 @@ The coordinator can run on **Google Cloud Run** for 24/7 operation without a dev
 ### Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ Cloud Run Service: Coordinator                                    │
-│                                                                    │
-│   ┌──────────────┐    ┌──────────────┐    ┌───────────────────┐  │
-│   │ Health Server │    │ Push Handler  │    │ Cloud Dispatcher  │  │
-│   │ GET /healthz  │    │ POST /pubsub/ │    │ (CloudRunJobs)    │  │
-│   │ GET /readyz   │    │ push          │    │                   │  │
-│   └──────────────┘    │ POST /pubsub/ │    │ Dispatch(params)  │  │
-│                        │ completions   │    │   → RunJob API    │  │
-│                        └──────────────┘    └───────────────────┘  │
-│                              │                       │             │
-│                              ▼                       ▼             │
-│                        ┌──────────┐          ┌──────────────┐     │
-│                        │ Firestore│          │ Cloud Run Job│     │
-│                        │ (state)  │          │ agent-executor│    │
-│                        └──────────┘          └──────────────┘     │
-└──────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│ Cloud Run Service: Coordinator (min_instances=0, scale-to-zero)       │
+│                                                                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │
+│  │ Health Server│  │ Push Handler │  │ Webhook      │  │ Cloud    │ │
+│  │ GET /health  │  │ POST /pubsub/│  │ POST /github/│  │Dispatcher│ │
+│  │ GET /status  │  │ push         │  │ webhook      │  │(CloudRun │ │
+│  └──────────────┘  │ POST /pubsub/│  │ (HMAC auth)  │  │ Jobs)    │ │
+│                     │ completions  │  └──────────────┘  └──────────┘ │
+│                     └──────────────┘         │                │      │
+│                            │                 │                │      │
+│                            ▼                 ▼                ▼      │
+│                      ┌──────────┐    ┌──────────┐    ┌──────────────┐│
+│                      │ Firestore│    │ GitHub   │    │ Cloud Run Job││
+│                      │ (state)  │    │ (labels) │    │ agent-executor││
+│                      └──────────┘    └──────────┘    └──────────────┘│
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Environment Variables
@@ -1003,6 +1003,7 @@ The coordinator can run on **Google Cloud Run** for 24/7 operation without a dev
 | `AILANG_REPO_URL` | Git repo URL passed to Cloud Run Jobs | (optional) |
 | `PORT` | HTTP port for health server (Cloud Run sets this) | (Cloud Run auto-sets) |
 | `AILANG_CONFIG` | Path to coordinator config file | `~/.ailang/config.yaml` |
+| `GITHUB_WEBHOOK_SECRET` | HMAC-SHA256 secret for webhook signature validation | (optional) |
 
 ### Cloud Logging
 
@@ -1025,6 +1026,39 @@ Cloud Run uses Pub/Sub **push subscriptions** instead of pull goroutines. Two HT
 | `POST /pubsub/completions` | `ailang-completions-coordinator` | Task completion notifications |
 
 Push endpoints acknowledge messages with HTTP 200 (success) or HTTP 500 (retry). Malformed messages return HTTP 200 to prevent infinite retry loops.
+
+**Immediate dispatch**: The push handler calls `pollAndProcessTasks()` + `executeTaskQueue()` inline after processing each message — no 30s ticker delay.
+
+### GitHub Webhook Handler (M-CLOUD-WEBHOOK)
+
+In cloud mode, a GitHub webhook endpoint replaces three polling goroutines:
+
+| Replaced Goroutine | Polling Interval | Webhook Event |
+|---------------------|-----------------|---------------|
+| ApprovalWatcher | 60s | `issues/labeled` |
+| GitHub sync | 5min | `issues/opened` |
+| Label resync | 1hr | `issues/labeled` |
+
+**Endpoint:** `POST /github/webhook`
+
+**Authentication:** HMAC-SHA256 signature validation via `GITHUB_WEBHOOK_SECRET` environment variable. GitHub signs every webhook payload — the coordinator validates the signature before processing.
+
+**Supported events:**
+- `issues/labeled` — Detects approval labels (`design-approved`, `sprint-approved`, `merge-approved`, `needs-revision`, and config-driven labels). Routes through the same `handleEvent()` code path as the polling watcher.
+- `issues/opened` — Imports the issue as a message and immediately dispatches to the configured agent.
+- `ping` — Returns 200 (GitHub connectivity check).
+
+**Bot filtering:** Events from bot senders (`"type": "Bot"`) are skipped to prevent infinite loops when the coordinator adds its own labels.
+
+**Safety net:** A 5-minute catch-up ticker still runs in cloud mode for edge cases, but all primary work arrives via push endpoints and webhooks.
+
+**Setup per watched repo:**
+```bash
+gh webhook create --repo sunholo-data/ailang \
+  --events issues \
+  --url "https://<coordinator-url>/github/webhook" \
+  --secret "<webhook-secret>"
+```
 
 ### Cloud Run Job Dispatch (M-CLOUD-DISPATCH)
 
@@ -1093,10 +1127,11 @@ The cloud infrastructure is defined in `ailang-multivac/terraform/`:
 
 | File | Resources |
 |------|-----------|
-| `cloud_run_coordinator.tf` | Coordinator Cloud Run service |
+| `cloud_run.tf` | Coordinator + dashboard Cloud Run services |
 | `cloud_run_jobs.tf` | Agent executor Cloud Run Job |
 | `pubsub.tf` | 5 topics, 6 subscriptions (with push config) |
 | `iam.tf` | `roles/run.developer` for coordinator SA |
+| `secrets.tf` | API keys + `GITHUB_WEBHOOK_SECRET` |
 | `firestore.tf` | Firestore database for task/message state |
 
 ### Local vs Cloud Mode Comparison
@@ -1110,7 +1145,9 @@ The cloud infrastructure is defined in `ailang-multivac/terraform/`:
 | Event broadcasting | HTTP to localhost | Pub/Sub events topic |
 | Logging | File only | File + stderr (Cloud Logging) |
 | Git worktrees | Per-agent worktree managers | Skipped (agents have git) |
-| Availability | Laptop must be on | 24/7 |
+| GitHub approvals | Polling (60s ApprovalWatcher) | Webhook (real-time) |
+| Scaling | Always on | Scale-to-zero (min_instances=0) |
+| Availability | Laptop must be on | 24/7 (wakes on push/webhook) |
 
 ## Service Management
 

@@ -209,6 +209,113 @@ func TestHandleStatus_WithStore(t *testing.T) {
 	}
 }
 
+// M-CLOUD-ENDPOINT-AUTH: API key middleware tests
+
+func TestRequireAPIKey_NoKeyConfigured(t *testing.T) {
+	// When COORDINATOR_API_KEY is unset, requests pass through (local mode)
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "")
+
+	handler := d.requireAPIKey(d.handleHealth)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 (no key = open), got %d", rec.Code)
+	}
+}
+
+func TestRequireAPIKey_ValidToken(t *testing.T) {
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
+
+	handler := d.requireAPIKey(d.handleHealth)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req.Header.Set("Authorization", "Bearer test-secret-key")
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with valid token, got %d", rec.Code)
+	}
+}
+
+func TestRequireAPIKey_InvalidToken(t *testing.T) {
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
+
+	handler := d.requireAPIKey(d.handleHealth)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req.Header.Set("Authorization", "Bearer wrong-key")
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with invalid token, got %d", rec.Code)
+	}
+}
+
+func TestRequireAPIKey_MissingHeader(t *testing.T) {
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
+
+	handler := d.requireAPIKey(d.handleHealth)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	// No Authorization header
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with missing header, got %d", rec.Code)
+	}
+}
+
+func TestRequireAPIKey_WrongScheme(t *testing.T) {
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "test-secret-key")
+
+	handler := d.requireAPIKey(d.handleHealth)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req.Header.Set("Authorization", "Basic test-secret-key")
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with wrong scheme, got %d", rec.Code)
+	}
+}
+
+func TestStatusEndpoint_RequiresAPIKey(t *testing.T) {
+	// Verify /status is protected when key is configured
+	d := newTestDaemonT(t)
+	t.Setenv("COORDINATOR_API_KEY", "my-key")
+
+	handler := d.requireAPIKey(d.handleStatus)
+
+	// Without token → 401
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without token, got %d", rec.Code)
+	}
+
+	// With token → 200
+	req = httptest.NewRequest(http.MethodGet, "/status", nil)
+	req.Header.Set("Authorization", "Bearer my-key")
+	rec = httptest.NewRecorder()
+	handler(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with token, got %d", rec.Code)
+	}
+}
+
 func TestWriteJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 	writeJSON(rec, http.StatusOK, map[string]string{"key": "value"})

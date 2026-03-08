@@ -13,19 +13,37 @@ import (
 	"github.com/sunholo/ailang/internal/pubsub"
 )
 
+// requireAPIKey returns middleware that checks for a valid Bearer token.
+// When COORDINATOR_API_KEY is unset, all requests pass through (local mode).
+func (d *Daemon) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		key := os.Getenv("COORDINATOR_API_KEY")
+		if key == "" {
+			next(w, r) // No key configured = open (local mode)
+			return
+		}
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer "+key {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
 // startHealthServer starts an HTTP server on the given port with health and status endpoints.
 // Called from Run() when PORT env var is set (Cloud Run convention).
 func (d *Daemon) startHealthServer(port string) {
 	mux := http.NewServeMux()
 
-	// M3: Health endpoint (Cloud Run startup/liveness probe)
+	// M3: Health endpoint (Cloud Run startup/liveness probe) — always public
 	mux.HandleFunc("/health", d.handleHealth)
 
-	// M4: Status API endpoints
-	mux.HandleFunc("/status", d.handleStatus)
-	mux.HandleFunc("/chains/active", d.handleChainsActive)
-	mux.HandleFunc("/chains/stats", d.handleChainsStats)
-	mux.HandleFunc("/pending", d.handlePending)
+	// M4: Status API endpoints — protected by API key when configured
+	mux.HandleFunc("/status", d.requireAPIKey(d.handleStatus))
+	mux.HandleFunc("/chains/active", d.requireAPIKey(d.handleChainsActive))
+	mux.HandleFunc("/chains/stats", d.requireAPIKey(d.handleChainsStats))
+	mux.HandleFunc("/pending", d.requireAPIKey(d.handlePending))
 
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
@@ -33,6 +51,11 @@ func (d *Daemon) startHealthServer(port string) {
 		mux.HandleFunc("/pubsub/push", d.handlePushMessage)
 		mux.HandleFunc("/pubsub/completions", d.handlePushCompletion)
 		d.logger.Println("Pub/Sub push endpoints registered: /pubsub/push, /pubsub/completions")
+
+		// M-CLOUD-WEBHOOK: GitHub webhook endpoint replaces polling-based
+		// ApprovalWatcher and GitHub sync in cloud mode.
+		mux.HandleFunc("/github/webhook", d.handleGitHubWebhook)
+		d.logger.Println("GitHub webhook endpoint registered: /github/webhook")
 	}
 
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
@@ -187,6 +210,18 @@ func (d *Daemon) handlePushMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.logger.Printf("Push /pubsub/push: processed message %s", msgID)
+
+	// M-CLOUD-WEBHOOK: Immediately process and dispatch (no 30s ticker wait).
+	// This makes cloud mode fully push-driven — message arrives, task dispatches.
+	if d.msgAdapter != nil {
+		if err := d.pollAndProcessTasks(); err != nil {
+			d.logger.Printf("Push /pubsub/push: poll error: %v", err)
+		}
+	}
+	if err := d.executeTaskQueue(); err != nil {
+		d.logger.Printf("Push /pubsub/push: dispatch error: %v", err)
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

@@ -207,7 +207,13 @@ func (d *Daemon) Start() error {
 
 // Run is the main daemon loop
 func (d *Daemon) Run() error {
-	ticker := time.NewTicker(d.config.PollInterval)
+	// M-CLOUD-WEBHOOK: In cloud mode, use a longer poll interval (safety net only).
+	// Primary work arrives via push handlers and webhooks, not polling.
+	pollInterval := d.config.PollInterval
+	if os.Getenv("COORDINATOR_MODE") == CoordinatorModeCloud {
+		pollInterval = 5 * time.Minute
+	}
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	// Initialize task processing components
@@ -246,22 +252,38 @@ func (d *Daemon) Run() error {
 		d.logger.Printf("Warning: Failed to register agent: %v", err)
 	}
 
-	// Start GitHub sync if enabled
-	if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
-		go d.runGitHubSync()
+	// M-CLOUD-WEBHOOK: In cloud mode, GitHub webhooks replace polling goroutines.
+	// Local mode keeps polling as before.
+	mode := os.Getenv("COORDINATOR_MODE")
+	if mode != CoordinatorModeCloud {
+		// Local mode: start polling-based GitHub sync and approval watcher
+		if d.coordConfig != nil && d.coordConfig.GitHubSync != nil && d.coordConfig.GitHubSync.Enabled {
+			go d.runGitHubSync()
 
-		// Start label resync if enabled (M-MSG-ROUTING)
-		if d.coordConfig.GitHubSync.ResyncLabels {
-			go d.runLabelResync()
+			// Start label resync if enabled (M-MSG-ROUTING)
+			if d.coordConfig.GitHubSync.ResyncLabels {
+				go d.runLabelResync()
+			}
 		}
-	}
 
-	// Start GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)
-	if d.approvalWatcher != nil {
-		if err := d.approvalWatcher.Start(d.ctx); err != nil {
-			d.logger.Printf("Warning: Failed to start approval watcher: %v", err)
-		} else {
-			d.logger.Println("GitHub approval watcher started")
+		// Start GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)
+		if d.approvalWatcher != nil {
+			if err := d.approvalWatcher.Start(d.ctx); err != nil {
+				d.logger.Printf("Warning: Failed to start approval watcher: %v", err)
+			} else {
+				d.logger.Println("GitHub approval watcher started")
+			}
+		}
+	} else {
+		d.logger.Println("Cloud mode: GitHub polling disabled (using webhook delivery)")
+		// Still load watched issues map for webhook label lookup
+		if d.approvalWatcher != nil {
+			if err := d.approvalWatcher.LoadWatchedIssuesFromStore(d.ctx); err != nil {
+				d.logger.Printf("Warning: Failed to load watched issues: %v", err)
+			} else {
+				d.logger.Printf("Cloud mode: loaded %d watched issues for webhook lookup",
+					d.approvalWatcher.WatchedIssueCount())
+			}
 		}
 	}
 

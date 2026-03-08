@@ -95,8 +95,9 @@ func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
 		args = append(args, "--labels", labels)
 	}
 
-	// Use exec to run the ailang command
-	cmd := exec.CommandContext(d.ctx, "ailang", args...)
+	// Use os.Args[0] to find the current binary — "ailang" may not be in PATH
+	// on Cloud Run buildpack images.
+	cmd := exec.CommandContext(d.ctx, os.Args[0], args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {

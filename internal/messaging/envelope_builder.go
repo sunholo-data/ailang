@@ -17,7 +17,6 @@ type EnvelopeOption func(b *EnvelopeBuilder)
 //	    Build(msg)
 type EnvelopeBuilder struct {
 	embedder Embedder
-	options  []EnvelopeOption
 
 	// Slot source data (populated by With* methods)
 	codeFiles    []string
