@@ -33,7 +33,14 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-ARCH3: Task Classification Consolidation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-arch3-task-classification.md)
 - [M-ARCH4: Executor Stream Processor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-arch4-executor-stream-processor.md)
 - [M-ARCH5: Error Handling Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-arch5-error-handling-strategy.md)
+- [Sprint Plan: M-ASYNC-IO Phase 2 — asyncExecProcess](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-async-io-process-sprint-plan.md)
+- [M-ASYNC-IO Phase 2: Subprocess Stdout as StreamSource (asyncExecProcess)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-async-io-process.md)
+- [M-CLOUD-E2E-FIXES: Cloud End-to-End Wiring Fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-e2e-fixes.md)
+- [M-CLOUD-E2E: Cloud End-to-End Message Flow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-e2e.md)
+- [M-CLOUD-ENDPOINT-AUTH: Secure Coordinator Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-endpoint-auth.md)
 - [M-CLOUD-EVAL: Distributed Cloud Evaluation Workers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-eval-workers.md)
+- [Sprint Plan: M-CLOUD-HEALTH — Cloud Run HTTP Health & Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-health-sprint-plan.md)
+- [M-CLOUD-HEALTH: Cloud Run HTTP Health & Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-cloud-health.md)
 - [M-CODEGEN-IR-STRATEGY: Multi-Layer IR Architecture for Code Generation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-codegen-ir-strategy.md)
 - [M-CODEGEN-V3: Binding Hoisting for VALUE-Position Lets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-codegen-v3-binding-hoisting.md)
 - [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-contracts-assert.md)
@@ -52,6 +59,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-PROTOCOL-SUPPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-protocol-support-sprint-plan.md)
 - [M-PROTOCOL-SUPPORT: OpenAPI, MCP, and A2A for `ailang serve-api`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-protocol-support.md)
 - [M-PROVENANCE: Code Provenance Tracing & Agent Trace Export](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-provenance-tracing.md)
+- [Sprint Plan: M-PUBSUB — Pub/Sub Cloud Messaging Transport](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-pubsub-messaging-sprint-plan.md)
+- [M-PUBSUB: Pub/Sub Cloud Messaging Transport](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/m-pubsub-messaging.md)
 - [Test Chains Integration v2 - Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/test-chains-integration-v2-sprint-plan.md)
 - [Test Chains Integration v2](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/test-chains-integration-v2.md)
 
@@ -72,6 +81,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX27: GitHub Repository Search Fallback for `ailang docs search`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-dx27-docs-search-github-fallback.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-error-propagation.md)
 - [M-EXEC-HIERARCHY-REFACTOR: Executive Hierarchy Graph Visualization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-exec-hierarchy-refactor.md)
+- [Sprint Plan: M-HTTP-HOOKS-CLOUD-TELEMETRY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-http-hooks-cloud-telemetry-sprint-plan.md)
 - [M-HTTP-HOOKS-CLOUD-TELEMETRY: Claude Code HTTP Hooks for Cloud-Native Telemetry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-http-hooks-cloud-telemetry.md)
 - [M-PERF-OBSERVATORY: Tiered Loading for Chain Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-perf-observatory-tiered-loading.md)
 - [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_8_2/m-string-interpolation.md)
@@ -92,4 +102,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 60 planned features across 3 upcoming versions.*
+*Generated at build time. 70 planned features across 3 upcoming versions.*

@@ -228,6 +228,51 @@ ailang run --caps IO,Process --process-allowlist "echo,curl,git" --entry main mo
 ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ail
 ```
 
+### Stream Effect
+
+Real-time streaming I/O: WebSocket, SSE, and multi-source event multiplexing.
+
+```typescript
+import std/stream (connect, transmit, onEvent, runEventLoop, disconnect,
+                   sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents,
+                   StreamEvent, Message, Closed, StreamError, SourceText, SourceBytes)
+import std/result (Result, Ok, Err)
+
+func main() -> unit ! {Stream, IO} {
+  let stdin = asyncReadStdinLines("stdin", 10);
+  selectEvents([stdin], \event. match event {
+    SourceText(source, text) => { println("[" ++ source ++ "] " ++ text); true },
+    _ => true
+  })
+}
+```
+
+**Core Builtins:**
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `connect` | `(string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open WebSocket |
+| `transmit` | `(StreamConn, string) -> Result[unit, StreamErrorKind] ! {Stream}` | Send text message |
+| `transmitBinary` | `(StreamConn, bytes) -> Result[unit, StreamErrorKind] ! {Stream}` | Send binary data |
+| `onEvent` | `(StreamConn, (StreamEvent) -> bool) -> unit ! {Stream}` | Register event handler |
+| `runEventLoop` | `(StreamConn) -> unit ! {Stream}` | Block until handler returns false |
+| `disconnect` | `(StreamConn) -> unit ! {Stream}` | Close connection |
+| `sseConnect` | `(string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open SSE (GET) |
+| `ssePost` | `(string, string, StreamConfig) -> Result[StreamConn, StreamErrorKind] ! {Stream}` | Open SSE (POST) |
+| `sourceOfConn` | `(StreamConn, string, int) -> StreamSource ! {Stream}` | Wrap connection as event source |
+| `asyncReadStdinLines` | `(string, int) -> StreamSource ! {Stream}` | Stdin line reader source |
+| `asyncExecProcess` | `(string, [string], string, int, int) -> StreamSource ! {Stream}` | Subprocess stdout source |
+| `selectEvents` | `([StreamSource], (StreamEvent) -> bool) -> unit ! {Stream}` | Multi-source event loop |
+
+**Event types:** `Message`, `Binary`, `Opened`, `Closed`, `StreamError`, `Ping`, `SSEData`, `SourceText`, `SourceBytes`
+
+**See [Streaming & Real-Time I/O Guide](/docs/guides/streaming) for complete documentation, examples, and configuration.**
+
+```bash
+ailang run --caps Stream,IO --entry main module.ail
+ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg" --entry main module.ail
+```
+
 ## Effect Syntax
 
 ### Declaring Effects
@@ -456,6 +501,7 @@ pure func double(x: int) -> int
 ## Related Resources
 
 - [AI Effect Guide](/docs/guides/ai-effect) - Using the AI effect for LLM calls
+- [Streaming Guide](/docs/guides/streaming) - WebSocket, SSE, and multi-source multiplexing
 - [Capability Budgets](/docs/reference/capability-budgets) - Fine-grained effect limiting
 - [Module Execution](/docs/guides/module_execution) - Running modules with effects
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference

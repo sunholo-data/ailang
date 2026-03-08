@@ -38,6 +38,7 @@ const sidebars = {
         'reference/language-syntax',
         'reference/modules',
         'reference/effects',
+        'guides/streaming',
         'reference/capability-budgets',
         'guides/contracts',
         'reference/arrays',

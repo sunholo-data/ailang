@@ -8,6 +8,16 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.9.0
+
+- [Sprint Plan: M-ASYNC-IO Phase 1 — Multi-Source Event Multiplexer](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-sprint-plan.md)
+- [M-ASYNC-IO: Multi-Source Event Multiplexing for std/stream](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-stream.md)
+- [Sprint Plan: M-CLOUD-DISPATCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-dispatch-sprint-plan.md)
+- [M-CLOUD-DISPATCH: Cloud Run Job Dispatch & Cloud Logging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-dispatch.md)
+- [M-CLOUD-E2E: Cloud End-to-End Message Flow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-e2e.md)
+- [Sprint Plan: M-MODULE-SCOPE — Per-module Environment Isolation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-module-scope-sprint-plan.md)
+- [M-MODULE-SCOPE: Non-exported function name collision across modules](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-module-scope.md)
+
 ## v0.8.1
 
 - [M-CHAIN-TRANSCRIPT: Session Transcript Viewing via ailang chains](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-chain-transcript.md)
@@ -598,4 +608,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 450 design documents across 46 versions.*
+*Generated at build time. 457 design documents across 47 versions.*

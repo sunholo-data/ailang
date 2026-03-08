@@ -7,13 +7,23 @@
       "description": "Minimal agent coding guide: iterative workflow (Write/Check/Run/Fix), module structure, effects table, prelude functions, core syntax, types, debugging, process execution, common patterns (JSON field access/File IO/HTTP), embedded stdlib quick reference (list/string/option/result/math/json/bytes/fs/net/process), discovery fallback, common mistakes",
       "created": "2026-02-18",
       "tags": [
+        "production"
+      ],
+      "notes": "Agent coding prompt with embedded stdlib reference. ~310 lines. Data shows 0/63 agents use runtime discovery (cat std/*.ail, ailang docs), so key stdlib functions are embedded directly. Discovery instructions kept as fallback for edge cases."
+    },
+    "v0.9.0": {
+      "file": "prompts/agent/v0.9.0.md",
+      "hash": "11aa0f566d6f60b2012a5c3221dfde23a113f58cb62c11500c8d9c1659dbb000",
+      "description": "Fix Stream capability: correct function names (transmit, onEvent, selectEvents, asyncExecProcess)",
+      "created": "2026-03-08",
+      "tags": [
         "production",
         "latest"
       ],
-      "notes": "Agent coding prompt with embedded stdlib reference. ~310 lines. Data shows 0/63 agents use runtime discovery (cat std/*.ail, ailang docs), so key stdlib functions are embedded directly. Discovery instructions kept as fallback for edge cases."
+      "notes": "Fixed Stream capability row: changed wrong 'connect, send, receive' to correct 'connect, transmit, onEvent, selectEvents, asyncExecProcess'. All other content identical to v0.8.2."
     }
   },
-  "active": "v0.8.2",
+  "active": "v0.9.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default agent prompt version",
