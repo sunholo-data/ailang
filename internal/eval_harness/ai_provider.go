@@ -59,7 +59,10 @@ func newProviderAdapter(model string, apiKey string) (*providerAdapter, error) {
 
 // generate calls the unified provider and converts to GenerateResult.
 func (p *providerAdapter) generate(ctx context.Context, prompt string) (*GenerateResult, error) {
-	systemPrompt := "You are a programming assistant. Generate ONLY code without explanations or markdown formatting."
+	systemPrompt := "You are a code generation engine. Output ONLY a complete, runnable program that solves the given task. " +
+		"Do NOT output explanations, markdown formatting, or conversational text. " +
+		"Do NOT output placeholder or stub code — implement the full solution. " +
+		"Output raw code only, no code fences."
 
 	req := &ai.Request{
 		Model:        p.model,
