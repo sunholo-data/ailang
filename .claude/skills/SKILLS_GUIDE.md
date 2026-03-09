@@ -351,28 +351,43 @@ See [`resources/reference.md`](resources/reference.md) for comprehensive referen
 
 ## Testing Skills
 
+### Eval-Driven Testing (Recommended)
+
+The best way to test a skill is the **draft → test → grade → improve → repeat** loop. The global `skill-builder` skill provides scripts for this:
+
+```bash
+# 1. Create eval test cases (evals.json)
+# 2. Run with-skill vs baseline comparison
+~/.claude/skills/skill-builder/scripts/run_skill_eval.sh /path/to/skill evals.json
+
+# 3. Grade results using the grader agent (agents/grader.md)
+# 4. Improve skill based on failures and feedback
+# 5. Rerun with --iteration 2
+```
+
+**Trigger testing** — verify the skill activates for the right prompts:
+
+```bash
+# Create trigger eval set (should-trigger + should-not-trigger queries)
+~/.claude/skills/skill-builder/scripts/test_triggers.sh /path/to/skill eval_set.json
+```
+
+**Description optimization** — iteratively improve triggering:
+
+```bash
+~/.claude/skills/skill-builder/scripts/optimize_description.sh /path/to/skill
+```
+
+See the `skill-builder` skill for the full eval workflow and JSON schemas.
+
 ### Manual Testing
+
+For quick validation:
 
 1. **Create test scenario**: Describe task that should trigger skill
 2. **Invoke**: Ask Claude to perform the task
 3. **Verify**: Check that skill was invoked (look for skill-specific output)
 4. **Validate**: Ensure workflow worked correctly
-
-### Example Test
-
-```
-User: "Ready to release v0.3.14"
-
-Expected:
-- release-manager skill invoked
-- Pre-release checks run
-- Version updates proposed
-- Git tag created
-- CI/CD monitored
-
-Actual:
-[Verify each step occurred]
-```
 
 ### Testing Scripts Directly
 
@@ -401,7 +416,7 @@ echo $?  # Should be 0 for success
 - Link to external resources
 - Focus on workflow, not reference
 
-### 2. Write Clear Descriptions
+### 2. Write Clear, "Pushy" Descriptions
 
 **Description should answer:**
 - What does this skill do?
@@ -410,7 +425,18 @@ echo $?  # Should be 0 for success
 
 **Good description formula:**
 ```
-[Action verb] + [what it does] + "Use when" + [triggers]
+[Action verb] + [what it does] + "Use when" + [triggers] + "even if [edge cases]"
+```
+
+**Combat under-triggering:** Claude tends to not invoke skills when it could handle the task directly. Make descriptions slightly "pushy" by listing specific scenarios, including edge cases:
+
+**Before:** `"Manages database migrations."`
+
+**After:** `"Manage database migrations including schema changes, rollbacks, and seed data. Use when user mentions migrations, database schema, ALTER TABLE, asks to update the database, or wants to roll back a deployment, even if they don't explicitly say 'migration'."`
+
+**Optimize descriptions programmatically:**
+```bash
+~/.claude/skills/skill-builder/scripts/optimize_description.sh /path/to/skill
 ```
 
 ### 3. Use Scripts for Automation

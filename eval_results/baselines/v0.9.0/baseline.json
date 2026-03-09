@@ -1,0 +1,13 @@
+{
+  "version": "v0.9.0",
+  "git_describe": "v0.8.1.1-45-g271b59ec",
+  "timestamp": "2026-03-09T18:49:20Z",
+  "models": "claude-opus-4-6,claude-sonnet-4-6,gemini-3-1-pro,gemini-3-pro,gpt5-2-codex,gpt5-4",
+  "full_suite": true,
+  "languages": "python,ailang",
+  "parallel": 15,
+  "total_runs": 552,
+  "git_commit": "271b59ec9ba252f4c13a4d10aec4c41eb75ece38",
+  "git_branch": "dev",
+  "git_dirty": true
+}

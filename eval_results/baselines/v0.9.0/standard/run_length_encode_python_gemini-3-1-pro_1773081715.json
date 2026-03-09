@@ -1,0 +1,33 @@
+{
+  "id": "run_length_encode",
+  "lang": "python",
+  "model": "gemini-3-1-pro",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: first attempt failed: code generation failed: gemini error: request failed",
+  "expected_stdout": "[(3, a), (2, b), (4, c), (1, a)]\n",
+  "timestamp": "2026-03-09T19:41:55.736975+01:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "prompt_version": "python",
+  "caps": [
+    "IO"
+  ],
+  "verify_ok": false,
+  "verify_verified": 0,
+  "verify_counterexample": 0,
+  "verify_skipped": 0,
+  "verify_errors": 0,
+  "eval_mode": "standard"
+}

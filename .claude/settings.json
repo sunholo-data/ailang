@@ -46,7 +46,10 @@
       "Bash(.claude/skills/eval-gap-finder/scripts/:*)",
       "Skill(eval-gap-finder)",
       "Bash(.claude/skills/cli-doc-maintainer/scripts/:*)",
-      "Skill(cli-doc-maintainer)"
+      "Skill(cli-doc-maintainer)",
+      "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)",
+      "Read(//Users/mark/dev/sunholo/ailang/{s+=$1; c++} END {print \"\"AILANG avg turns:\"\", s/**)",
+      "Read(//Users/mark/dev/sunholo/ailang/{s+=$1; c++} END {print \"\"Python avg turns:\"\", s/**)"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/ailang-multivac/terraform",
@@ -54,7 +57,11 @@
       "/Users/mark/dev/sunholo/ailang-multivac/config",
       "/Users/mark/dev/sunholo/ailang-multivac/scripts",
       "/Users/mark/dev/sunholo/ailang-multivac/.github/workflows",
-      "/Users/mark/dev/sunholo/ailang-multivac"
+      "/Users/mark/dev/sunholo/ailang-multivac",
+      "/Users/mark/.claude/skills/skill-builder/scripts",
+      "/Users/mark/.claude/skills/skill-builder/agents",
+      "/Users/mark/.claude/skills/skill-builder/resources",
+      "/Users/mark/.claude/skills/skill-builder"
     ]
   },
   "hooks": {
