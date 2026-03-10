@@ -247,6 +247,15 @@ func (d *Daemon) Run() error {
 		d.logger.Println("Cloud mode: completion handler ready (push delivery via /pubsub/completions)")
 	}
 
+	// M-CLOUD-JOB-RELIABILITY: Start stale task detector in cloud mode.
+	// Periodically marks queued/running tasks as failed if they exceed their timeout.
+	// Catches container failures, Pub/Sub delivery failures, and missed completions.
+	if IsCloudMode() && d.taskStore != nil {
+		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger)
+		go detector.Run(d.ctx)
+		d.logger.Println("Cloud mode: stale task detector started (interval=2m)")
+	}
+
 	// Register as an agent in the collaboration hub
 	if err := d.registerAgent(); err != nil {
 		d.logger.Printf("Warning: Failed to register agent: %v", err)

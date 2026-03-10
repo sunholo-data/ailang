@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sunholo/ailang/internal/pubsub"
@@ -14,6 +15,10 @@ import (
 // coordinatorExecuteJob is the entry point for Cloud Run Jobs.
 // It reads task configuration from environment variables, executes the task
 // using an AI executor (Claude or Gemini), and publishes completion to Pub/Sub.
+//
+// RELIABILITY: This function guarantees a completion message is always published.
+// A defer guard with recover() catches panics and early exits. For failures before
+// Pub/Sub is initialized, structured logs go to stderr for Cloud Logging.
 //
 // Required environment variables:
 //
@@ -39,90 +44,116 @@ func coordinatorExecuteJob(args []string) error {
 		}
 	}
 
-	// Read required environment variables
+	// Read ALL environment variables upfront (before any early returns).
 	taskID := os.Getenv("AILANG_TASK_ID")
-	if taskID == "" {
-		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
-	}
-
 	agentID := os.Getenv("AILANG_AGENT_ID")
-	if agentID == "" {
-		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
-	}
-
 	workspace := os.Getenv("AILANG_WORKSPACE")
 	if workspace == "" {
 		workspace = "default"
 	}
-
 	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	}
-	if projectID == "" {
-		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
-	}
-
-	// Optional configuration
 	provider := os.Getenv("AILANG_PROVIDER")
 	if provider == "" {
 		provider = "claude"
 	}
-
 	repoURL := os.Getenv("AILANG_REPO_URL")
 	branch := os.Getenv("AILANG_BRANCH")
 	if branch == "" {
 		branch = "dev"
 	}
 	directive := os.Getenv("AILANG_DIRECTIVE")
-
 	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
 	if prefix == "" {
 		prefix = pubsub.DefaultTopicPrefix
 	}
 
-	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s)\n", taskID, agentID, workspace)
-
-	// Initialize Pub/Sub client for completion publishing
+	// Initialize Pub/Sub client as early as possible so the defer guard can use it.
+	// If Pub/Sub init itself fails, we fall back to stderr logging.
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, projectID, prefix)
-	if err != nil {
-		return fmt.Errorf("failed to create Pub/Sub client: %w", err)
-	}
-	defer client.Close()
+	var publisher *pubsub.Publisher
+	var completionSent atomic.Bool
 
-	publisher := pubsub.NewPublisher(client)
-	defer publisher.Stop()
+	if projectID != "" {
+		client, err := pubsub.NewClient(ctx, projectID, prefix)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "COMPLETION_FAILED|task=%s|agent=%s|error=pubsub_init: %v\n",
+				taskID, agentID, err)
+		} else {
+			defer client.Close()
+			publisher = pubsub.NewPublisher(client)
+			defer publisher.Stop()
+		}
+	}
+
+	// publishCompletion is a closure that publishes (or logs to stderr as fallback).
+	publishCompletion := func(status, errMsg, branchName string) {
+		if completionSent.Swap(true) {
+			return // Already sent — prevent double-publish.
+		}
+		completion := pubsub.TaskCompletion{
+			TaskID:     taskID,
+			AgentID:    agentID,
+			Status:     status,
+			ErrorMsg:   errMsg,
+			BranchName: branchName,
+		}
+		if publisher != nil {
+			pubCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if pubErr := publisher.PublishCompletion(pubCtx, completion, workspace); pubErr != nil {
+				fmt.Fprintf(os.Stderr, "COMPLETION_FAILED|task=%s|agent=%s|status=%s|error=publish: %v\n",
+					taskID, agentID, status, pubErr)
+			} else {
+				fmt.Printf("execute-job: completion published for task %s (status=%s)\n", taskID, status)
+			}
+		} else {
+			// No Pub/Sub available — structured stderr log for Cloud Logging.
+			fmt.Fprintf(os.Stderr, "COMPLETION_FAILED|task=%s|agent=%s|status=%s|error=%s\n",
+				taskID, agentID, status, errMsg)
+		}
+	}
+
+	// Defer guard: catches panics and any exit path that forgot to publish.
+	defer func() {
+		if r := recover(); r != nil {
+			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "")
+		} else if !completionSent.Load() {
+			// Should not happen — means we returned without publishing.
+			publishCompletion("failed", "unknown: exited without publishing completion", "")
+		}
+	}()
+
+	// Validate required env vars (after Pub/Sub init so failures are reported).
+	if taskID == "" {
+		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "")
+		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
+	}
+	if agentID == "" {
+		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "")
+		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
+	}
+	if projectID == "" {
+		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "")
+		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
+	}
+
+	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s)\n", taskID, agentID, workspace)
 
 	// Execute the task
 	branchName, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider)
 
 	// Publish completion (success or failure)
-	completion := pubsub.TaskCompletion{
-		TaskID:  taskID,
-		AgentID: agentID,
-	}
-
 	if execErr != nil {
-		completion.Status = "failed"
-		completion.ErrorMsg = execErr.Error()
+		publishCompletion("failed", execErr.Error(), branchName)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
-		completion.Status = "completed"
-		completion.BranchName = branchName
+		publishCompletion("completed", "", branchName)
 		fmt.Printf("execute-job: task %s completed (branch=%s)\n", taskID, branchName)
 	}
 
-	if pubErr := publisher.PublishCompletion(ctx, completion, workspace); pubErr != nil {
-		fmt.Printf("execute-job: WARNING failed to publish completion: %v\n", pubErr)
-		// Still return the original error if task failed
-		if execErr != nil {
-			return execErr
-		}
-		return fmt.Errorf("task completed but failed to publish completion: %w", pubErr)
-	}
-
-	fmt.Printf("execute-job: completion published for task %s\n", taskID)
 	return execErr
 }
 
