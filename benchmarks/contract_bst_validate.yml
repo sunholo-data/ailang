@@ -1,0 +1,65 @@
+id: contract_bst_validate
+description: "BST insert, search, and validation — ADT recursion with structural invariants"
+difficulty: hard
+category: data_structure
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Binary search tree using ADT: Leaf | Node(left, value, right)
+  -- BST invariant: all values in left subtree < node < all values in right subtree
+  -- Insert preserves BST property. Search is correct.
+
+  export type Tree = Leaf | Node(Tree, int, Tree)
+
+  export pure func insert(t: Tree, v: int) -> Tree
+
+  export pure func contains(t: Tree, v: int) -> bool
+
+  export pure func size(t: Tree) -> int
+    ensures { result >= 0 }
+
+  -- BST validity check: every node's value is within (lo, hi) bounds
+  export pure func isBST(t: Tree, lo: int, hi: int) -> bool
+    requires { lo <= hi }
+
+  -- Inserting a value produces a valid BST (if input was valid)
+  export pure func insertPreservesBST(v: int) -> bool
+    ensures { result == true }
+
+  -- Inserted value is findable
+  export pure func insertThenFind(v: int) -> bool
+    ensures { result == true }
+
+z3_hints: |
+  isBST must use STRICT bounds: left subtree values < node value < right subtree values.
+  Using <= instead of < allows duplicates which breaks the invariant. Insert into Leaf
+  must create Node(Leaf, v, Leaf). Insert into Node must go left if v < node, right if v > node,
+  and return unchanged if v == node (no duplicates). insertPreservesBST starts from Leaf
+  (trivially valid BST), inserts, and checks. Common bug: forgetting to narrow bounds
+  when recursing into subtrees in isBST.
+
+task_prompt: |
+  Implement a binary search tree with insert, search, and structural validation.
+
+  The BST must not allow duplicates. Implement the type and functions matching
+  the contract signatures above. The proof functions must always return true.
+  Use -999999 and 999999 as bounds for insertPreservesBST.
+
+  Print (one per line):
+    size(insert(insert(insert(Leaf, 5), 3), 7))
+    contains(insert(insert(insert(Leaf, 5), 3), 7), 3)
+    contains(insert(insert(insert(Leaf, 5), 3), 7), 4)
+    isBST(insert(insert(insert(Leaf, 5), 3), 7), -999999, 999999)
+    insertPreservesBST(42)
+    insertThenFind(42)
+
+expected_stdout: |
+  3
+  true
+  false
+  true
+  true
+  true
+

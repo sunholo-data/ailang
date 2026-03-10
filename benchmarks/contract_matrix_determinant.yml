@@ -1,0 +1,65 @@
+id: contract_matrix_determinant
+description: "Matrix determinant via cofactor expansion — recursive with structural invariants on minors"
+difficulty: hard
+category: algorithm_from_spec
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Matrices represented as flat lists, row-major order.
+  -- A 2x2 matrix [a,b,c,d] has det = a*d - b*c
+  -- A 3x3 uses cofactor expansion along first row.
+  -- Key invariants:
+  --   det of identity matrix == 1
+  --   det of matrix with duplicate row == 0
+  --   det(A) where A has a zero row == 0
+
+  export pure func det2(a: int, b: int, c: int, d: int) -> int
+
+  export pure func minor3(r0c0: int, r0c1: int, r0c2: int,
+                          r1c0: int, r1c1: int, r1c2: int,
+                          r2c0: int, r2c1: int, r2c2: int,
+                          row: int, col: int) -> int
+    requires { row >= 0, row <= 2, col >= 0, col <= 2 }
+
+  export pure func det3(r0c0: int, r0c1: int, r0c2: int,
+                        r1c0: int, r1c1: int, r1c2: int,
+                        r2c0: int, r2c1: int, r2c2: int) -> int
+
+  -- Identity matrix det == 1
+  export pure func identityDet() -> bool
+    ensures { result == true }
+
+  -- Zero row means det == 0
+  export pure func zeroRowDet(a: int, b: int, c: int,
+                               d: int, e: int, f: int) -> bool
+    ensures { result == true }
+
+z3_hints: |
+  minor3 must correctly delete the given row AND column to produce a 2x2 submatrix.
+  Off-by-one in row/column selection is the most common bug. Cofactor sign alternation
+  (+, -, +) along the first row trips up naive implementations. Z3 catches when
+  identityDet or zeroRowDet invariants fail due to incorrect minor extraction.
+
+task_prompt: |
+  Compute the determinant of 2x2 and 3x3 integer matrices.
+
+  Matrices are passed as individual int arguments in row-major order.
+  Implement functions matching the contract signatures above.
+  The proof functions must always return true.
+
+  Print (one per line):
+    det2(3, 8, 4, 6)
+    det3(6, 1, 1, 4, -2, 5, 2, 8, 7)
+    det3(1, 0, 0, 0, 1, 0, 0, 0, 1)
+    identityDet()
+    zeroRowDet(3, 5, 7, 2, 4, 6)
+
+expected_stdout: |
+  -14
+  -306
+  1
+  true
+  true
+

@@ -1,0 +1,62 @@
+id: contract_roman_numeral
+description: "Roman numeral conversion — int->roman->int roundtrip with subtractive notation and consistency proof"
+difficulty: hard
+category: multi_constraint
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Convert integers (1-3999) to/from Roman numerals.
+  -- Must handle subtractive notation: IV=4, IX=9, XL=40, XC=90, CD=400, CM=900
+  -- Roundtrip: fromRoman(toRoman(n)) == n for all valid n
+  -- toRoman is canonical: never produces "IIII" (must be "IV")
+
+  export pure func toRoman(n: int) -> string
+    requires { n >= 1, n <= 3999 }
+
+  export pure func fromRoman(s: string) -> int
+
+  -- Roundtrip: converting to roman and back gives the same number
+  export pure func roundtrip(n: int) -> bool
+    requires { n >= 1, n <= 3999 }
+    ensures { result == true }
+
+  -- Ordering: if a < b, then toRoman(a) != toRoman(b) (injectivity)
+  export pure func distinctEncoding(a: int, b: int) -> bool
+    requires { a >= 1, a <= 3999, b >= 1, b <= 3999, a != b }
+    ensures { result == true }
+
+z3_hints: |
+  toRoman must process values greedy from largest to smallest:
+  M=1000, CM=900, D=500, CD=400, C=100, XC=90, L=50, XL=40, X=10, IX=9, V=5, IV=4, I=1.
+  Missing any subtractive pair (e.g., handling 4 as "IIII" instead of "IV") breaks roundtrip
+  because fromRoman("IIII") might return 4 but toRoman(4) should produce "IV".
+  fromRoman must look ahead 2 characters for subtractive pairs. Single-character parsing
+  fails on "IX" (would read I=1 then X=10 giving 11 instead of 9).
+
+task_prompt: |
+  Implement bidirectional Roman numeral conversion (1-3999) with subtractive
+  notation (IV, IX, XL, XC, CD, CM).
+
+  Implement functions matching the contract signatures above. toRoman must produce
+  canonical form. Proof functions must always return true.
+
+  Print (one per line):
+    toRoman(1994)
+    toRoman(58)
+    toRoman(3999)
+    fromRoman("MCMXCIV")
+    fromRoman("LVIII")
+    roundtrip(2024)
+    distinctEncoding(4, 6)
+
+expected_stdout: |
+  MCMXCIV
+  LVIII
+  MMMCMXCIX
+  1994
+  58
+  true
+  true
+

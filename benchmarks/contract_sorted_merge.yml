@@ -1,0 +1,68 @@
+id: contract_sorted_merge
+description: "Sorted list merge with dedup, intersection, and set algebra proofs — list ADT recursion + multiple invariants"
+difficulty: very_hard
+category: data_structure
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Sorted integer lists (ascending, no duplicates).
+  -- Operations: insert, merge (union), intersect, difference.
+  -- All operations preserve sorted + unique invariant.
+  -- Set algebra: |A ∪ B| + |A ∩ B| == |A| + |B| (inclusion-exclusion)
+
+  export type SList = SNil | SCons(int, SList)
+
+  export pure func sInsert(x: int, xs: SList) -> SList
+
+  export pure func sMerge(xs: SList, ys: SList) -> SList
+
+  export pure func sIntersect(xs: SList, ys: SList) -> SList
+
+  export pure func sLength(xs: SList) -> int
+    ensures { result >= 0 }
+
+  export pure func isSorted(xs: SList) -> bool
+
+  export pure func toStr(xs: SList) -> string
+
+  -- Merge preserves sorted property
+  export pure func mergePreservesSorted(xs: SList, ys: SList) -> bool
+    ensures { result == true }
+
+  -- Inclusion-exclusion: |merge| + |intersect| == |xs| + |ys|
+  export pure func inclusionExclusion(xs: SList, ys: SList) -> bool
+    ensures { result == true }
+
+z3_hints: |
+  sInsert must maintain sorted order: if x < head, cons; if x == head, skip (dedup);
+  if x > head, recurse. sMerge is like merge sort's merge but with dedup on equal elements.
+  Common bug: forgetting dedup — sMerge([1,2,3], [2,3,4]) gives [1,2,2,3,3,4] instead of [1,2,3,4].
+  inclusionExclusion fails when dedup is missing because |merge| becomes too large.
+  sIntersect must only include elements present in BOTH lists.
+
+task_prompt: |
+  Implement sorted integer sets as a custom ADT with merge (union), intersection,
+  and a proof of the inclusion-exclusion principle: |A∪B| + |A∩B| == |A| + |B|.
+
+  Implement the type and functions matching the contract signatures above.
+  All operations must preserve the sorted + no-duplicates invariant.
+  Proof functions must always return true.
+
+  Print (one per line):
+    toStr(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))
+    toStr(sIntersect(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))
+    sLength(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))
+    isSorted(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))
+    mergePreservesSorted(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil))))
+    inclusionExclusion(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil))))
+
+expected_stdout: |
+  [1,2,3,4,5]
+  [3]
+  5
+  true
+  true
+  true
+

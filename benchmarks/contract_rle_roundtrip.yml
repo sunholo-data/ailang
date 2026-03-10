@@ -1,0 +1,63 @@
+id: contract_rle_roundtrip
+description: "Run-length encoding and decoding with roundtrip invariant — string manipulation + list processing"
+difficulty: hard
+category: algorithm_from_spec
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["IO"]
+
+contract_spec: |
+  -- Run-length encoding: "aaabbc" -> "3a2b1c"
+  -- Decoding reverses it: "3a2b1c" -> "aaabbc"
+  -- Roundtrip: decode(encode(s)) == s for all non-empty strings of lowercase letters
+  -- Length invariant: encoded string is never longer than 2 * length(original)
+
+  export pure func encode(s: string) -> string
+    requires { length(s) > 0 }
+
+  export pure func decode(s: string) -> string
+    requires { length(s) > 0 }
+
+  -- Roundtrip: decode(encode(s)) == s
+  export pure func roundtrip(s: string) -> bool
+    requires { length(s) > 0 }
+    ensures { result == true }
+
+  -- Single chars encode to "1c"
+  export pure func singleCharEncode(c: string) -> bool
+    requires { length(c) == 1 }
+    ensures { result == true }
+
+z3_hints: |
+  Encoding must handle runs of 1 correctly (output "1a" not just "a").
+  Decoding must parse multi-digit counts (e.g., "12a" means 12 a's).
+  The roundtrip fails if encoding omits count=1 but decoding expects counts.
+  Tricky: a string like "a1b2" could be data or encoded — the contract assumes
+  input to encode is raw data (lowercase letters only).
+
+task_prompt: |
+  Implement run-length encoding and decoding with a roundtrip proof.
+
+  Encoding replaces consecutive identical characters with count + character.
+  Example: "aaabbc" -> "3a2b1c". Always include the count, even for runs of 1.
+  Decoding reverses the process. Must handle multi-digit counts.
+
+  Implement functions matching the contract signatures above. Proof functions
+  must always return true.
+
+  Print (one per line):
+    encode("aaabbc")
+    encode("xyz")
+    decode("3a2b1c")
+    decode("1x1y1z")
+    roundtrip("hello")
+    singleCharEncode("q")
+
+expected_stdout: |
+  3a2b1c
+  1x1y1z
+  aaabbc
+  xyz
+  true
+  true
+
