@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"github.com/sunholo/ailang/internal/server"
 	"github.com/sunholo/ailang/internal/storage"
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -182,6 +183,29 @@ func serverCommand(args []string) error {
 			server.WithMessagingStore(backends.Messaging),
 			server.WithObservatoryBackend(backends.Observatory),
 		)
+
+		// Create Pub/Sub subscriber for real-time event streaming.
+		// Dashboard pulls from ailang-events-dashboard and broadcasts via WebSocket.
+		project := os.Getenv("AILANG_CLOUD_PROJECT")
+		topicPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
+		if topicPrefix == "" {
+			topicPrefix = pubsub.DefaultTopicPrefix
+		}
+		if project != "" {
+			psClient, psErr := pubsub.NewClient(ctx, project, topicPrefix)
+			if psErr != nil {
+				log.Printf("Warning: Failed to create Pub/Sub client for event streaming: %v", psErr)
+				log.Printf("Live task events will not be available via WebSocket")
+			} else {
+				psSub := pubsub.NewSubscriber(psClient)
+				subName := pubsub.SubEventsDashboard
+				serverOpts = append(serverOpts, server.WithPubSubEvents(psSub, subName))
+				defer psSub.Stop()
+				defer psClient.Close()
+				log.Printf("Pub/Sub event streaming: subscription=%s-%s", topicPrefix, subName)
+			}
+		}
+
 		log.Printf("Storage mode: %s", storageMode)
 	} else {
 		// Local mode: use SQLite paths (existing behavior)

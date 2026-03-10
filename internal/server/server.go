@@ -84,6 +84,7 @@ import (
 	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/pubsub"
 	"github.com/sunholo/ailang/internal/server/auth"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/websocket"
@@ -152,6 +153,12 @@ type Server struct {
 
 	// Hook authentication (simple bearer token for cloud deployments)
 	hookToken string
+
+	// Pub/Sub event subscriber for cloud mode (bridges events to WebSocket).
+	// pubsubEventSub is created in NewServer after wsServer is initialized.
+	pubsubEventSub     *PubSubEventSubscriber
+	pubsubSubscriber   *pubsub.Subscriber // set via option, used to create pubsubEventSub
+	pubsubEventSubName string             // subscription base name (e.g., "events-dashboard")
 }
 
 // NewServer creates a new HTTP server.
@@ -183,6 +190,17 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 	}
 
 	s.wsServer = websocket.NewServer(s.store)
+
+	// Create Pub/Sub event subscriber if configured (cloud mode).
+	// Must happen after wsServer is created since it broadcasts to WebSocket clients.
+	if s.pubsubSubscriber != nil && s.pubsubEventSubName != "" {
+		s.pubsubEventSub = NewPubSubEventSubscriber(
+			s.pubsubSubscriber,
+			s.wsServer,
+			s.pubsubEventSubName,
+			log.Default(),
+		)
+	}
 
 	return s, nil
 }
@@ -221,6 +239,16 @@ func WithObservatoryBackend(backend observatory.Backend) ServerOption {
 func WithHookToken(token string) ServerOption {
 	return func(s *Server) {
 		s.hookToken = token
+	}
+}
+
+// WithPubSubEvents enables Pub/Sub event streaming for cloud mode.
+// The subscriber and subName are stored; the actual PubSubEventSubscriber
+// is created in NewServer after the WebSocket server is initialized.
+func WithPubSubEvents(subscriber *pubsub.Subscriber, subName string) ServerOption {
+	return func(s *Server) {
+		s.pubsubSubscriber = subscriber
+		s.pubsubEventSubName = subName
 	}
 }
 
@@ -395,6 +423,13 @@ func (s *Server) requireApprover(handler http.HandlerFunc) http.Handler {
 func (s *Server) Start() error {
 	// Start WebSocket event loop in background
 	go s.wsServer.Run()
+
+	// Start Pub/Sub event subscriber if configured (cloud mode).
+	// Bridges ailang-events topic → WebSocket broadcast.
+	if s.pubsubEventSub != nil {
+		go s.pubsubEventSub.Start(context.Background())
+		log.Printf("Pub/Sub event streaming: ENABLED")
+	}
 
 	// Log auth status
 	if s.tokenVerifier != nil {
@@ -655,6 +690,9 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 // Close closes the server and releases resources
 func (s *Server) Close() error {
+	if s.pubsubEventSub != nil {
+		s.pubsubEventSub.Stop()
+	}
 	if s.obsHub != nil {
 		s.obsHub.Stop()
 	}

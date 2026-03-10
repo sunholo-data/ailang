@@ -715,6 +715,94 @@ streaming_pull = subscriber.subscribe(
 | `text` | Model reasoning / text output |
 | `tool_use` | Agent invoked a tool (file edit, bash, etc.) |
 | `tool_result` | Tool returned a result |
+| `turn_start` | Agent turn begins |
+| `turn_end` | Agent turn completes |
+| `status` | Task status change (running, completed, failed) |
+| `error` | Error during execution |
+
+### Live Build Progress via WebSocket (Dashboard)
+
+The AILANG Dashboard provides a WebSocket endpoint for real-time task streaming without GCP SDKs. Connect to the dashboard's WebSocket and receive `TaskStreamEvent` messages as tasks execute.
+
+**Dashboard URL**: `wss://your-dashboard.run.app/ws` (or `ws://localhost:1957/ws` locally)
+
+**How it works**: In cloud mode, the dashboard pulls events from the `ailang-events-dashboard` Pub/Sub subscription and broadcasts them to all connected WebSocket clients. No Pub/Sub SDK required — just a WebSocket client.
+
+```javascript
+// Browser or Node.js WebSocket client
+const ws = new WebSocket("wss://your-dashboard.run.app/ws");
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "task_stream") {
+    const data = msg.data;
+    const taskId = data.task_id;
+    const streamType = data.stream_type;  // "text", "tool_use", "status", etc.
+
+    switch (streamType) {
+      case "text":
+        process.stdout.write(data.text);
+        break;
+      case "tool_use":
+        console.log(`[${taskId}] Tool: ${data.tool_name}`);
+        break;
+      case "status":
+        console.log(`[${taskId}] Status: ${data.status}`);
+        break;
+    }
+  }
+};
+```
+
+```python
+# Python WebSocket client (pip install websockets)
+import asyncio
+import json
+import websockets
+
+async def watch_build():
+    async with websockets.connect("wss://your-dashboard.run.app/ws") as ws:
+        async for message in ws:
+            msg = json.loads(message)
+            if msg.get("type") == "task_stream":
+                data = msg["data"]
+                stream_type = data.get("stream_type")
+                task_id = data.get("task_id")
+
+                if stream_type == "text":
+                    print(data.get("text", ""), end="")
+                elif stream_type == "tool_use":
+                    print(f"[{task_id}] Tool: {data.get('tool_name')}")
+                elif stream_type == "status":
+                    print(f"[{task_id}] Status: {data.get('status')}")
+
+asyncio.run(watch_build())
+```
+
+**WebSocket message format:**
+
+```json
+{
+  "type": "task_stream",
+  "data": {
+    "task_id": "task-abc12345",
+    "stream_type": "text",
+    "turn_num": 3,
+    "text": "Let me fix the parser...",
+    "agent_id": "sprint-executor"
+  }
+}
+```
+
+**Comparison: WebSocket vs Pub/Sub for events:**
+
+| Aspect | Dashboard WebSocket | Pub/Sub Pull |
+|--------|-------------------|--------------|
+| **SDK Required** | WebSocket client (built into browsers) | Google Cloud Pub/Sub SDK |
+| **Best For** | Web dashboards, browser apps | Backend services, CI/CD |
+| **Message Delivery** | Broadcast to all clients | Load-balanced across subscribers |
+| **Persistence** | None (live stream only) | 1-hour retention in subscription |
+| **Auth** | Dashboard auth (Firebase, if configured) | GCP IAM (`roles/pubsub.subscriber`) |
 
 ## Available Inboxes
 
@@ -997,6 +1085,17 @@ curl -s "${COORDINATOR_URL}/api/messages?inbox=MY_INBOX&status=unread" \
 # All messages from a specific agent
 curl -s "${COORDINATOR_URL}/api/messages?from=design-doc-creator&limit=10" \
   -H "Authorization: Bearer ${API_KEY}"
+```
+
+### Watch live build progress (WebSocket)
+
+```javascript
+// Connect to dashboard WebSocket
+const ws = new WebSocket("wss://YOUR_DASHBOARD_URL/ws");
+ws.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === "task_stream") console.log(msg.data);
+};
 ```
 
 ### Topic naming (for direct Pub/Sub integration)
