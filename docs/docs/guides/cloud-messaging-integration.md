@@ -32,8 +32,9 @@ Agent executes task
   │
   ▼
 Your Client
-  ← pulls from events subscription (real-time progress)
-  ← pulls from messages subscription (completion notification)
+  ← GET /api/messages (poll for results — recommended)
+  ← OR Firestore onSnapshot (real-time)
+  ← OR Pub/Sub pull subscription (backend services)
 ```
 
 **Key principle**: One HTTP call to send a message. The coordinator handles Firestore storage and Pub/Sub notification atomically.
@@ -42,7 +43,9 @@ Your Client
 
 - The AILANG coordinator deployed on Cloud Run (or running locally)
 - An API key (`COORDINATOR_API_KEY`) if auth is enabled
-- For receiving results: a Pub/Sub pull subscription (see [Provisioning Client Subscriptions](#provisioning-client-subscriptions-terraform))
+- **REST API clients** (recommended): No additional dependencies — just an HTTP client
+- **Firestore clients**: Firestore SDK + `roles/datastore.user` IAM role
+- **Pub/Sub clients**: Pub/Sub SDK + a Terraform-managed subscription (see [Provisioning Client Subscriptions](#provisioning-client-subscriptions-terraform))
 
 ## Sending a Message
 
@@ -738,13 +741,17 @@ design-doc-creator → [Human Approval] → sprint-planner → [Human Approval] 
 
 To kick off the full chain, send to `design-doc-creator`:
 
-```python
-send_message(
-    inbox="design-doc-creator",
-    title="Feature: Semantic Caching",
-    content="Design and implement a semantic caching layer with TTL...",
-    category="feature",
-)
+```bash
+curl -X POST "${COORDINATOR_URL}/api/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -d '{
+    "inbox": "design-doc-creator",
+    "title": "Feature: Semantic Caching",
+    "content": "Design and implement a semantic caching layer with TTL...",
+    "from": "my-client",
+    "category": "feature"
+  }'
 ```
 
 The coordinator handles the rest — each agent completes, requests approval, and triggers the next.
@@ -826,7 +833,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 
 | Role | When Needed | Purpose |
 |------|-------------|---------|
-| `COORDINATOR_API_KEY` | REST API (Options 1) | Send and receive messages via HTTP |
+| `COORDINATOR_API_KEY` | REST API (Option 1) | Send and receive messages via HTTP |
 | `roles/datastore.user` | Firestore (Option 2) | Real-time message listener |
 | `roles/pubsub.subscriber` | Pub/Sub (Option 3) | Pull from subscriptions |
 | `roles/pubsub.publisher` | Direct Pub/Sub send | Publish to `ailang-messages` topic (advanced) |
@@ -961,13 +968,13 @@ When your client reconnects, it automatically receives all queued messages.
 
 ## Error Handling Best Practices
 
-1. **Always store in Firestore FIRST, then publish to Pub/Sub.** If Pub/Sub publish fails, the message is still safe.
+1. **Use the REST API unless you need real-time.** The coordinator handles Firestore storage and Pub/Sub notification atomically — one fewer failure mode for your client.
 
-2. **ACK messages after processing.** If your handler crashes before ACK, Pub/Sub redelivers automatically.
+2. **Handle duplicate deliveries.** Both Pub/Sub (at-least-once) and polling (if you don't track what you've processed) can deliver duplicates. Use `message_id` to deduplicate.
 
-3. **Handle duplicate deliveries.** Pub/Sub guarantees at-least-once delivery, so your handler must be idempotent. Use `message_id` to deduplicate.
+3. **For direct Firestore + Pub/Sub clients:** Always store in Firestore FIRST, then publish to Pub/Sub. If Pub/Sub publish fails, the message is still safe.
 
-4. **Don't hold messages too long.** The ack deadline is 30s (pull) or 60s (push). If processing takes longer, extend the deadline or ACK immediately and process asynchronously.
+4. **For Pub/Sub consumers:** ACK messages after processing. If your handler crashes before ACK, Pub/Sub redelivers automatically. Don't hold messages beyond the ack deadline (30s pull / 60s push).
 
 ## Quick Reference
 
