@@ -100,6 +100,8 @@ Send a single HTTP POST to the coordinator. No GCP SDKs required — any HTTP cl
 }
 ```
 
+**Deriving task_id**: The coordinator creates a task with a deterministic ID: `task_id = "task-" + message_id[:8]`. For example, message_id `29404032-74b3-...` → task_id `task-29404032`. Use this to filter WebSocket events for your task (see [Live Build Progress](#live-build-progress-via-websocket-dashboard)).
+
 **Error responses**:
 - `400` — Missing required field or invalid JSON
 - `401` — Invalid or missing API key (when auth configured)
@@ -728,81 +730,222 @@ The AILANG Dashboard provides a WebSocket endpoint for real-time task streaming 
 
 **How it works**: In cloud mode, the dashboard pulls events from the `ailang-events-dashboard` Pub/Sub subscription and broadcasts them to all connected WebSocket clients. No Pub/Sub SDK required — just a WebSocket client.
 
+#### Connecting message_id to task_id
+
+When you send a message via `POST /api/messages`, the response returns a `message_id` (UUID). The coordinator creates a task with a **deterministic** task_id derived from that UUID:
+
+```
+task_id = "task-" + message_id.substring(0, 8)
+```
+
+For example, if `POST /api/messages` returns:
+
+```json
+{ "message_id": "29404032-74b3-40c6-acc3-23d6bbe14b68", "inbox": "sprint-executor", "status": "unread" }
+```
+
+The task_id will be `task-29404032`. Your client can derive this immediately — no polling or extra API call needed.
+
+#### End-to-End Flow
+
+```
+Portal/Client                  Coordinator              Dashboard
+  │                               │                        │
+  POST /api/messages ───────────► │                        │
+  │                               │                        │
+  ◄── { message_id: "2940..." }   │                        │
+  │                               │                        │
+  │  task_id = "task-" +          │ processes message      │
+  │    message_id[:8]             │ creates task-29404032  │
+  │  = "task-29404032"            │ dispatches to agent    │
+  │                               │                        │
+  ws://dashboard/ws ──────────────────────────────────────► │
+  │  filter by task_id            │                        │
+  │                               │  agent executes...     │
+  │◄── task_stream: text ─────────────────────────────────  │
+  │◄── task_stream: tool_use ─────────────────────────────  │
+  │◄── task_stream: status=completed ─────────────────────  │
+  │                               │                        │
+  │  Task complete — agent has pushed to GitHub             │
+  │  Load preview / fetch results                          │
+```
+
+**Timing note**: There is a brief delay between the `POST /api/messages` response and the first task_stream event (the coordinator needs to process the message and dispatch the task). Show a "Queued" state in your UI until the first `status: "running"` event arrives.
+
+#### JavaScript Example (Full Flow)
+
 ```javascript
-// Browser or Node.js WebSocket client
-const ws = new WebSocket("wss://your-dashboard.run.app/ws");
+const COORDINATOR_URL = "https://your-coordinator.run.app";
+const DASHBOARD_URL = "wss://your-dashboard.run.app/ws";
+const API_KEY = "your-api-key";
 
-ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data);
-  if (msg.type === "task_stream") {
-    const data = msg.data;
-    const taskId = data.task_id;
-    const streamType = data.stream_type;  // "text", "tool_use", "status", etc.
+// 1. Send message and derive task_id
+async function submitBuild(inbox, title, content) {
+  const response = await fetch(`${COORDINATOR_URL}/api/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({ inbox, title, content, from: "portal" }),
+  });
 
-    switch (streamType) {
+  const { message_id } = await response.json();
+  const task_id = `task-${message_id.substring(0, 8)}`;
+
+  return { message_id, task_id };
+}
+
+// 2. Connect to WebSocket and filter by task_id
+function watchTask(task_id, callbacks) {
+  const ws = new WebSocket(DASHBOARD_URL);
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type !== "task_stream") return;
+    if (msg.data.task_id !== task_id) return;
+
+    const { stream_type, text, tool_name, status, agent_id } = msg.data;
+
+    switch (stream_type) {
       case "text":
-        process.stdout.write(data.text);
+        callbacks.onText?.(text);
         break;
       case "tool_use":
-        console.log(`[${taskId}] Tool: ${data.tool_name}`);
+        callbacks.onToolUse?.(tool_name, msg.data.tool_input);
+        break;
+      case "tool_result":
+        callbacks.onToolResult?.(tool_name, msg.data.tool_output);
         break;
       case "status":
-        console.log(`[${taskId}] Status: ${data.status}`);
+        callbacks.onStatus?.(status);
+        if (status === "completed" || status === "failed") {
+          ws.close();
+        }
+        break;
+      case "error":
+        callbacks.onError?.(msg.data.error_msg);
         break;
     }
-  }
-};
+  };
+
+  return ws;
+}
+
+// 3. Usage
+const { task_id } = await submitBuild(
+  "sprint-executor",
+  "Build landing page",
+  "Create a responsive landing page with hero section..."
+);
+
+watchTask(task_id, {
+  onText: (text) => appendToLog(text),
+  onToolUse: (tool) => showStep(`Running: ${tool}`),
+  onStatus: (status) => updateBuildStatus(status),
+  onError: (err) => showError(err),
+});
 ```
+
+#### Python Example (Full Flow)
 
 ```python
-# Python WebSocket client (pip install websockets)
 import asyncio
 import json
+import httpx
 import websockets
 
-async def watch_build():
-    async with websockets.connect("wss://your-dashboard.run.app/ws") as ws:
-        async for message in ws:
-            msg = json.loads(message)
-            if msg.get("type") == "task_stream":
-                data = msg["data"]
-                stream_type = data.get("stream_type")
-                task_id = data.get("task_id")
+COORDINATOR_URL = "https://your-coordinator.run.app"
+DASHBOARD_URL = "wss://your-dashboard.run.app/ws"
+API_KEY = "your-api-key"
 
-                if stream_type == "text":
-                    print(data.get("text", ""), end="")
-                elif stream_type == "tool_use":
-                    print(f"[{task_id}] Tool: {data.get('tool_name')}")
-                elif stream_type == "status":
-                    print(f"[{task_id}] Status: {data.get('status')}")
+async def submit_and_watch(inbox: str, title: str, content: str):
+    # 1. Send message
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{COORDINATOR_URL}/api/messages",
+            json={"inbox": inbox, "title": title, "content": content, "from": "portal"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        message_id = resp.json()["message_id"]
 
-asyncio.run(watch_build())
+    # 2. Derive task_id
+    task_id = f"task-{message_id[:8]}"
+    print(f"Submitted: message_id={message_id}, task_id={task_id}")
+
+    # 3. Watch WebSocket for events
+    async with websockets.connect(DASHBOARD_URL) as ws:
+        async for raw in ws:
+            msg = json.loads(raw)
+            if msg.get("type") != "task_stream":
+                continue
+            data = msg["data"]
+            if data.get("task_id") != task_id:
+                continue
+
+            stream_type = data.get("stream_type")
+            if stream_type == "text":
+                print(data.get("text", ""), end="")
+            elif stream_type == "tool_use":
+                print(f"\n[Tool] {data.get('tool_name')}")
+            elif stream_type == "status":
+                print(f"\n[Status] {data.get('status')}")
+                if data.get("status") in ("completed", "failed"):
+                    break
+
+asyncio.run(submit_and_watch(
+    "sprint-executor",
+    "Build landing page",
+    "Create a responsive landing page with hero section..."
+))
 ```
 
-**WebSocket message format:**
+#### WebSocket Message Format
 
 ```json
 {
   "type": "task_stream",
   "data": {
-    "task_id": "task-abc12345",
+    "task_id": "task-29404032",
     "stream_type": "text",
     "turn_num": 3,
     "text": "Let me fix the parser...",
-    "agent_id": "sprint-executor"
+    "agent_id": "sprint-executor",
+    "workspace": "/workspace/project",
+    "status": "running"
   }
 }
 ```
 
-**Comparison: WebSocket vs Pub/Sub for events:**
+**TaskStreamEvent fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `task_id` | string | Task identifier (`"task-" + message_id[:8]`) |
+| `stream_type` | string | Event type (see table above) |
+| `turn_num` | int | Agent turn number |
+| `text` | string | Model text output (for `text` events) |
+| `tool_name` | string | Tool name (for `tool_use` / `tool_result`) |
+| `tool_input` | string | Tool input JSON (truncated to 1000 chars) |
+| `tool_output` | string | Tool output (truncated to 2000 chars) |
+| `status` | string | `running`, `completed`, `failed` (for `status` events) |
+| `error_msg` | string | Error message (for `error` events) |
+| `tokens_in` | int | Input tokens used |
+| `tokens_out` | int | Output tokens used |
+| `cost` | float | Execution cost in USD |
+| `agent_id` | string | Agent identifier (e.g., `"sprint-executor"`) |
+| `workspace` | string | Working directory path |
+
+#### Comparison: WebSocket vs Pub/Sub for Events
 
 | Aspect | Dashboard WebSocket | Pub/Sub Pull |
 |--------|-------------------|--------------|
 | **SDK Required** | WebSocket client (built into browsers) | Google Cloud Pub/Sub SDK |
-| **Best For** | Web dashboards, browser apps | Backend services, CI/CD |
-| **Message Delivery** | Broadcast to all clients | Load-balanced across subscribers |
+| **Best For** | Web dashboards, browser apps, portals | Backend services, CI/CD pipelines |
+| **Message Delivery** | Broadcast to all connected clients | Load-balanced across subscribers |
 | **Persistence** | None (live stream only) | 1-hour retention in subscription |
 | **Auth** | Dashboard auth (Firebase, if configured) | GCP IAM (`roles/pubsub.subscriber`) |
+| **message_id → task_id** | Client derives: `"task-" + id[:8]` | Same derivation, or filter by attributes |
 
 ## Available Inboxes
 
@@ -1087,14 +1230,41 @@ curl -s "${COORDINATOR_URL}/api/messages?from=design-doc-creator&limit=10" \
   -H "Authorization: Bearer ${API_KEY}"
 ```
 
-### Watch live build progress (WebSocket)
+### Send + watch build progress (end-to-end)
+
+```bash
+# 1. Send message, get message_id
+MESSAGE_ID=$(curl -s -X POST "${COORDINATOR_URL}/api/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -d '{"inbox":"sprint-executor","title":"Build page","content":"...","from":"portal"}' \
+  | jq -r '.message_id')
+
+# 2. Derive task_id (deterministic: "task-" + first 8 chars of message_id)
+TASK_ID="task-${MESSAGE_ID:0:8}"
+echo "Watching task: ${TASK_ID}"
+
+# 3. Connect to dashboard WebSocket and filter by task_id
+websocat "wss://YOUR_DASHBOARD_URL/ws" | jq --arg tid "$TASK_ID" \
+  'select(.type == "task_stream" and .data.task_id == $tid) | .data'
+```
 
 ```javascript
-// Connect to dashboard WebSocket
+// JavaScript: send message, derive task_id, watch WebSocket
+const resp = await fetch(`${COORDINATOR_URL}/api/messages`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${API_KEY}` },
+  body: JSON.stringify({ inbox: "sprint-executor", title: "Build", content: "...", from: "portal" }),
+});
+const { message_id } = await resp.json();
+const task_id = `task-${message_id.substring(0, 8)}`;
+
 const ws = new WebSocket("wss://YOUR_DASHBOARD_URL/ws");
 ws.onmessage = (e) => {
   const msg = JSON.parse(e.data);
-  if (msg.type === "task_stream") console.log(msg.data);
+  if (msg.type === "task_stream" && msg.data.task_id === task_id) {
+    console.log(msg.data.stream_type, msg.data);
+  }
 };
 ```
 
