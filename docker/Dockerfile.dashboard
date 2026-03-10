@@ -1,0 +1,44 @@
+# AILANG Dashboard — Collaboration Hub
+#
+# Runs `ailang serve` which serves the React frontend and
+# provides REST API + WebSocket for real-time updates.
+
+# ── Build Go binary ──────────────────────────────────────────
+FROM golang:1.24-bookworm AS go-builder
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /ailang ./cmd/ailang/
+
+# ── Build React UI ───────────────────────────────────────────
+FROM node:22-bookworm-slim AS ui-builder
+
+WORKDIR /ui
+
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci
+
+COPY ui/ .
+RUN npm run build
+
+# ── Runtime stage ────────────────────────────────────────────
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY --from=go-builder /ailang /usr/local/bin/ailang
+
+# The React build output is embedded in the Go binary via go:embed,
+# but we also copy it separately in case of static file serving.
+# The ailang serve command serves from internal/server/dist/ (embedded).
+
+ENV AILANG_STORAGE=gcp
+ENV PORT=1957
+
+EXPOSE 1957
+
+ENTRYPOINT ["/usr/local/bin/ailang"]
+CMD ["serve", "--port", "1957"]
