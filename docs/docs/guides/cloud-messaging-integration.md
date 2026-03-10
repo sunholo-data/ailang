@@ -10,26 +10,25 @@ How to send messages to AILANG agents and receive results from an external clien
 
 ## Architecture Overview
 
-AILANG Cloud uses **Google Cloud Pub/Sub** as the message transport layer. Pub/Sub is a **notification layer**, not the primary store — message content lives in Firestore, and Pub/Sub carries lightweight notifications that trigger processing.
+The coordinator runs on Cloud Run and exposes a REST API for message ingestion. Clients send a single HTTP POST — the coordinator handles storage (Firestore) and notification (Pub/Sub) internally.
 
 ```
 Your Client
   │
-  ├── 1. Store message in Firestore (durable)
-  ├── 2. Publish notification to Pub/Sub (trigger)
+  POST /api/messages { inbox, title, content, from }
   │
   ▼
 Cloud Coordinator (Cloud Run)
-  │  ← receives push notification at /pubsub/push
   │
-  ├── 3. Reads full message from Firestore
-  ├── 4. Routes to agent based on inbox
-  ├── 5. Dispatches Cloud Run Job
+  ├── 1. Stores message in Firestore (durable)
+  ├── 2. Publishes Pub/Sub notification (trigger)
+  ├── 3. Routes to agent based on inbox
+  ├── 4. Dispatches Cloud Run Job
   │
   ▼
 Agent executes task
   │
-  ├── 6. Publishes completion to Pub/Sub
+  ├── 5. Publishes completion to Pub/Sub
   │
   ▼
 Your Client
@@ -37,33 +36,165 @@ Your Client
   ← pulls from messages subscription (completion notification)
 ```
 
-**Key principle**: Messages are ALWAYS stored durably first (Firestore), then a Pub/Sub notification triggers processing. If Pub/Sub delivery fails, the message is still safe in Firestore.
+**Key principle**: One HTTP call to send a message. The coordinator handles Firestore storage and Pub/Sub notification atomically.
 
 ## Prerequisites
 
-- A Google Cloud project with Pub/Sub enabled
-- Service account credentials with Pub/Sub Publisher/Subscriber roles
-- The AILANG infrastructure deployed (topics and subscriptions exist via Terraform)
-
-### GCP Project & Topic Prefix
-
-All topic and subscription names follow the pattern `{prefix}-{base}`. The default prefix is `ailang`.
-
-| Full Topic Name | Base Name | Purpose |
-|-----------------|-----------|---------|
-| `ailang-messages` | `messages` | Send messages to agents |
-| `ailang-tasks` | `tasks` | Internal: coordinator dispatches jobs |
-| `ailang-completions` | `completions` | Internal: jobs report completion |
-| `ailang-events` | `events` | Real-time execution progress |
-| `ailang-dead-letter` | `dead-letter` | Failed message sink |
-
-**For clients, you only need two topics:**
-1. **`ailang-messages`** — publish to this to send messages
-2. **`ailang-events`** — subscribe to this for real-time progress (optional)
+- The AILANG coordinator deployed on Cloud Run (or running locally)
+- An API key (`COORDINATOR_API_KEY`) if auth is enabled
+- For receiving results: a Pub/Sub pull subscription (see [Provisioning Client Subscriptions](#provisioning-client-subscriptions-terraform))
 
 ## Sending a Message
 
-### Step 1: Store in Firestore
+### Option 1: REST API (Recommended)
+
+Send a single HTTP POST to the coordinator. No GCP SDKs required — any HTTP client works.
+
+**Endpoint**: `POST /api/messages`
+
+**Headers**:
+- `Content-Type: application/json`
+- `Authorization: Bearer <COORDINATOR_API_KEY>` (if auth is configured)
+
+**Request body**:
+
+```json
+{
+  "inbox": "design-doc-creator",
+  "title": "Feature: Semantic Caching",
+  "content": "Design and implement a semantic caching layer with TTL...",
+  "from": "my-client",
+  "category": "feature",
+  "message_type": "request"
+}
+```
+
+**Required fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `inbox` | string | Target agent inbox (see [Available Inboxes](#available-inboxes)) |
+| `title` | string | Brief summary (shown in listings) |
+| `content` | string | Full message content / task description |
+| `from` | string | Your client identity (e.g., `"my-app"`, `"ci-pipeline"`) |
+
+**Optional fields**:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `category` | string | `"general"` | `"bug"`, `"feature"`, `"general"`, `"research"` |
+| `message_type` | string | `"request"` | `"request"`, `"notification"`, `"response"` |
+| `github_issue` | int | | Linked GitHub issue number |
+| `github_repo` | string | | GitHub repo (e.g., `"owner/repo"`) |
+
+**Response (201 Created)**:
+
+```json
+{
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
+  "inbox": "design-doc-creator",
+  "status": "unread"
+}
+```
+
+**Error responses**:
+- `400` — Missing required field or invalid JSON
+- `401` — Invalid or missing API key (when auth configured)
+- `503` — Message store not available
+
+#### Example: curl
+
+```bash
+COORDINATOR_URL="https://your-coordinator.run.app"  # Or http://localhost:8080
+
+curl -X POST "${COORDINATOR_URL}/api/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${COORDINATOR_API_KEY}" \
+  -d '{
+    "inbox": "design-doc-creator",
+    "title": "Feature: Semantic Caching",
+    "content": "Design and implement semantic caching with TTL support...",
+    "from": "my-script",
+    "category": "feature"
+  }'
+```
+
+#### Example: Python
+
+```python
+import requests
+
+COORDINATOR_URL = "https://your-coordinator.run.app"
+API_KEY = "your-api-key"
+
+resp = requests.post(
+    f"{COORDINATOR_URL}/api/messages",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    json={
+        "inbox": "design-doc-creator",
+        "title": "Feature: Semantic Caching",
+        "content": "Design and implement semantic caching with TTL...",
+        "from": "my-python-app",
+        "category": "feature",
+    },
+)
+resp.raise_for_status()
+print(f"Created: {resp.json()['message_id']}")
+```
+
+#### Example: Node.js
+
+```javascript
+const resp = await fetch(`${COORDINATOR_URL}/api/messages`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${API_KEY}`,
+  },
+  body: JSON.stringify({
+    inbox: "design-doc-creator",
+    title: "Feature: Semantic Caching",
+    content: "Design and implement semantic caching with TTL...",
+    from: "my-node-app",
+    category: "feature",
+  }),
+});
+const { message_id } = await resp.json();
+console.log(`Created: ${message_id}`);
+```
+
+#### Example: Go
+
+```go
+body, _ := json.Marshal(map[string]string{
+    "inbox":   "design-doc-creator",
+    "title":   "Feature: Semantic Caching",
+    "content": "Design and implement semantic caching with TTL...",
+    "from":    "my-go-app",
+    "category": "feature",
+})
+
+req, _ := http.NewRequest("POST", coordinatorURL+"/api/messages", bytes.NewReader(body))
+req.Header.Set("Content-Type", "application/json")
+req.Header.Set("Authorization", "Bearer "+apiKey)
+
+resp, err := http.DefaultClient.Do(req)
+```
+
+### Option 2: Direct Firestore + Pub/Sub (Advanced)
+
+For advanced use cases where you need direct control over storage and notification, you can bypass the REST API and write to Firestore + Pub/Sub directly. This requires GCP client SDKs (Firestore + Pub/Sub).
+
+**Topics** (all follow the pattern `{prefix}-{base}`, default prefix: `ailang`):
+
+| Full Topic Name | Purpose |
+|-----------------|---------|
+| `ailang-messages` | Publish message notifications here |
+| `ailang-events` | Subscribe for real-time execution progress |
+| `ailang-tasks` | Internal: coordinator dispatches jobs |
+| `ailang-completions` | Internal: jobs report completion |
+
+#### Step 1: Store in Firestore
 
 Store the full message in the `messages` collection:
 
@@ -102,7 +233,7 @@ Store the full message in the `messages` collection:
 | `github_issue` | int | Linked GitHub issue number |
 | `github_repo` | string | GitHub repo (e.g., `"owner/repo"`) |
 
-### Step 2: Publish Notification to Pub/Sub
+#### Step 2: Publish Notification to Pub/Sub
 
 Publish a **lightweight notification** to the `ailang-messages` topic. The notification just carries the message ID — the coordinator fetches full content from Firestore.
 
@@ -126,7 +257,7 @@ Publish a **lightweight notification** to the `ailang-messages` topic. The notif
 
 **Ordering key**: Set to the `inbox` value. This ensures messages to the same agent are delivered in order.
 
-### Example: Python Client
+#### Example: Python Client
 
 ```python
 from google.cloud import pubsub_v1, firestore
@@ -170,7 +301,7 @@ future = publisher.publish(
 print(f"Published: {future.result()}")
 ```
 
-### Example: Node.js Client
+#### Example: Node.js Client
 
 ```javascript
 const { PubSub } = require("@google-cloud/pubsub");
@@ -220,7 +351,7 @@ async function sendMessage(inbox, title, content, category = "general") {
 }
 ```
 
-### Example: Go Client
+#### Example: Go Client
 
 ```go
 package main
@@ -281,7 +412,7 @@ func sendMessage(ctx context.Context, inbox, title, content string) (string, err
 }
 ```
 
-### Example: curl (REST API)
+#### Example: curl (REST API)
 
 ```bash
 # Get access token
@@ -641,22 +772,21 @@ When your client reconnects, it automatically receives all queued messages.
 
 ## Quick Reference
 
-### Publish a message (minimal)
+### Send a message (REST API — recommended)
 
-```python
-# Pub/Sub data payload
-{"message_id": "<uuid>"}
-
-# Pub/Sub attributes (routing metadata)
-{"inbox": "<agent-inbox>", "from_agent": "<your-id>"}
+```bash
+curl -X POST "${COORDINATOR_URL}/api/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -d '{"inbox":"INBOX","title":"TITLE","content":"CONTENT","from":"CLIENT_ID"}'
 ```
 
-### Topic naming
+### Topic naming (for direct Pub/Sub integration)
 
 ```
 {prefix}-{base}
-ailang-messages      # You publish here
-ailang-events        # You subscribe here (optional)
+ailang-messages      # Publish notifications here (or use REST API instead)
+ailang-events        # Subscribe here for real-time progress
 ailang-tasks         # Internal only
 ailang-completions   # Internal only
 ailang-dead-letter   # Failed messages

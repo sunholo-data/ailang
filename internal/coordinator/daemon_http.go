@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/pubsub"
 )
@@ -44,6 +45,9 @@ func (d *Daemon) startHealthServer(port string) {
 	mux.HandleFunc("/chains/active", d.requireAPIKey(d.handleChainsActive))
 	mux.HandleFunc("/chains/stats", d.requireAPIKey(d.handleChainsStats))
 	mux.HandleFunc("/pending", d.requireAPIKey(d.handlePending))
+
+	// M-REST-INGESTION: REST API for client message ingestion (all modes).
+	mux.HandleFunc("/api/messages", d.requireAPIKey(d.handlePostMessage))
 
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
@@ -253,6 +257,126 @@ func (d *Daemon) handlePushCompletion(w http.ResponseWriter, r *http.Request) {
 
 	d.logger.Printf("Push /pubsub/completions: processed completion %s", msgID)
 	w.WriteHeader(http.StatusOK)
+}
+
+// M-REST-INGESTION: REST API for client message ingestion.
+
+// postMessageRequest is the JSON body for POST /api/messages.
+type postMessageRequest struct {
+	Inbox       string `json:"inbox"`
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	From        string `json:"from"`
+	Category    string `json:"category"`
+	MessageType string `json:"message_type"`
+	GitHubIssue *int   `json:"github_issue,omitempty"`
+	GitHubRepo  string `json:"github_repo,omitempty"`
+}
+
+// postMessageResponse is returned on successful message creation.
+type postMessageResponse struct {
+	MessageID string `json:"message_id"`
+	Inbox     string `json:"inbox"`
+	Status    string `json:"status"`
+}
+
+// handlePostMessage accepts a JSON message from an external client, stores it,
+// and optionally publishes a Pub/Sub notification to trigger processing.
+// This is the primary ingestion endpoint — clients only need an HTTP client.
+func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req postMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		return
+	}
+
+	// Validate required fields.
+	switch {
+	case req.Inbox == "":
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: inbox"})
+		return
+	case req.Title == "":
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: title"})
+		return
+	case req.Content == "":
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: content"})
+		return
+	case req.From == "":
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing required field: from"})
+		return
+	}
+
+	// Apply defaults.
+	if req.Category == "" {
+		req.Category = messaging.CategoryGeneral
+	}
+	if req.MessageType == "" {
+		req.MessageType = messaging.InboxTypeRequest
+	}
+
+	if d.msgStore == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
+		return
+	}
+
+	// Build and store the message.
+	msg := &messaging.InboxMessage{
+		FromAgent:   req.From,
+		ToInbox:     req.Inbox,
+		MessageType: req.MessageType,
+		Title:       req.Title,
+		Payload:     req.Content,
+		Category:    req.Category,
+		GitHubIssue: req.GitHubIssue,
+		GitHubRepo:  req.GitHubRepo,
+		Status:      messaging.InboxStatusUnread,
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	if err := d.msgStore.InsertInboxMessageWithContext(ctx, msg); err != nil {
+		d.logger.Printf("POST /api/messages: store error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store message"})
+		return
+	}
+
+	// Publish Pub/Sub notification (best-effort — message is already stored).
+	if d.pubsubPublisher != nil {
+		attrs := pubsub.MessageAttributes{
+			Inbox:       req.Inbox,
+			FromAgent:   req.From,
+			Category:    req.Category,
+			MessageType: req.MessageType,
+		}
+		if err := d.pubsubPublisher.PublishMessage(ctx, msg.ID, attrs); err != nil {
+			d.logger.Printf("POST /api/messages: pubsub publish warning (message stored OK): %v", err)
+			// Don't fail the request — message is safely stored.
+		}
+	}
+
+	// Trigger immediate processing (same pattern as handlePushMessage).
+	if d.msgAdapter != nil {
+		if err := d.pollAndProcessTasks(); err != nil {
+			d.logger.Printf("POST /api/messages: poll error: %v", err)
+		}
+	}
+	if err := d.executeTaskQueue(); err != nil {
+		d.logger.Printf("POST /api/messages: dispatch error: %v", err)
+	}
+
+	d.logger.Printf("POST /api/messages: created %s (inbox=%s, from=%s)", msg.ID, req.Inbox, req.From)
+
+	writeJSON(w, http.StatusCreated, postMessageResponse{
+		MessageID: msg.ID,
+		Inbox:     req.Inbox,
+		Status:    messaging.InboxStatusUnread,
+	})
 }
 
 // writeJSON writes a JSON response with the given status code.

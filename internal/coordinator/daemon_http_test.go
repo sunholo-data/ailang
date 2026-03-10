@@ -3,11 +3,15 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -313,6 +317,171 @@ func TestStatusEndpoint_RequiresAPIKey(t *testing.T) {
 	handler(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 with token, got %d", rec.Code)
+	}
+}
+
+// M-REST-INGESTION: POST /api/messages tests
+
+// newTestDaemonWithMsgStore creates a Daemon with a real SQLite message store.
+func newTestDaemonWithMsgStore(t *testing.T) *Daemon {
+	t.Helper()
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_collab.db")
+	store, err := messaging.OpenStore(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open test message store: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+
+	return &Daemon{
+		startedAt: time.Now().Add(-5 * time.Minute),
+		config: &Config{
+			PIDFile:  tmpDir + "/coordinator.pid",
+			StateDir: tmpDir,
+		},
+		msgStore: store,
+		logger:   log.Default(),
+	}
+}
+
+func TestHandlePostMessage_Success(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	body := `{"inbox":"user","title":"Test message","content":"Hello world","from":"test-client"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	d.handlePostMessage(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp postMessageResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.MessageID == "" {
+		t.Error("expected non-empty message_id")
+	}
+	if resp.Inbox != "user" {
+		t.Errorf("expected inbox 'user', got %q", resp.Inbox)
+	}
+	if resp.Status != "unread" {
+		t.Errorf("expected status 'unread', got %q", resp.Status)
+	}
+}
+
+func TestHandlePostMessage_MissingFields(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"missing inbox", `{"title":"T","content":"C","from":"F"}`, "inbox"},
+		{"missing title", `{"inbox":"I","content":"C","from":"F"}`, "title"},
+		{"missing content", `{"inbox":"I","title":"T","from":"F"}`, "content"},
+		{"missing from", `{"inbox":"I","title":"T","content":"C"}`, "from"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			d.handlePostMessage(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+
+			var resp map[string]string
+			json.NewDecoder(rec.Body).Decode(&resp)
+			if !strings.Contains(resp["error"], tt.want) {
+				t.Errorf("expected error mentioning %q, got %q", tt.want, resp["error"])
+			}
+		})
+	}
+}
+
+func TestHandlePostMessage_WrongMethod(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	rec := httptest.NewRecorder()
+
+	d.handlePostMessage(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rec.Code)
+	}
+}
+
+func TestHandlePostMessage_NoStore(t *testing.T) {
+	d := newTestDaemonT(t) // No msgStore set
+	d.logger = log.Default()
+
+	body := `{"inbox":"user","title":"T","content":"C","from":"F"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	d.handlePostMessage(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlePostMessage_DefaultValues(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	// Send without category or message_type — should default to "general" and "request"
+	body := `{"inbox":"coordinator","title":"Defaults test","content":"Body","from":"tester"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	d.handlePostMessage(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp postMessageResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+
+	// Verify the stored message has correct defaults
+	msg, err := d.msgStore.GetInboxMessage(resp.MessageID)
+	if err != nil {
+		t.Fatalf("failed to get stored message: %v", err)
+	}
+	if msg.Category != "general" {
+		t.Errorf("expected category 'general', got %q", msg.Category)
+	}
+	if msg.MessageType != "request" {
+		t.Errorf("expected message_type 'request', got %q", msg.MessageType)
+	}
+	if msg.ToInbox != "coordinator" {
+		t.Errorf("expected to_inbox 'coordinator', got %q", msg.ToInbox)
+	}
+}
+
+func TestHandlePostMessage_InvalidJSON(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader("not json"))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	d.handlePostMessage(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
 
