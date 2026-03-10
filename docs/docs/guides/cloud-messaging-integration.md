@@ -1,7 +1,7 @@
 ---
 sidebar_position: 22
 title: Cloud Messaging Integration
-description: How to integrate external clients with the AILANG Cloud Messaging Service via Google Cloud Pub/Sub
+description: How to send messages to AILANG agents and receive results — REST API, Firestore, and Pub/Sub integration options
 ---
 
 # Cloud Messaging Integration Guide
@@ -443,16 +443,220 @@ curl -X POST \
 
 ## Receiving Results
 
-### Option A: Pull Subscription (Recommended for Clients)
+After sending a message, agents process it and store results as response messages. Choose the approach that best fits your client type:
 
-Create your own pull subscription on the `ailang-messages` topic to receive responses. Or use the pre-provisioned `ailang-messages-laptop` subscription if you're the only external client.
+| Approach | Best For | Dependencies | Latency |
+|----------|----------|-------------|---------|
+| **REST API Polling** | Scripts, CLI tools, simple integrations | HTTP client only | Seconds (poll interval) |
+| **Firestore onSnapshot** | Web apps, mobile apps needing real-time | Firestore SDK | Sub-second |
+| **Pub/Sub Pull** | Backend services, always-on consumers | Pub/Sub SDK + Terraform | Sub-second |
+
+### Option 1: REST API Polling (Recommended)
+
+The simplest approach — poll `GET /api/messages` with filters. No GCP SDKs required.
+
+**Endpoint:** `GET /api/messages`
+
+**Query Parameters:**
+
+| Parameter | Example | Description |
+|-----------|---------|-------------|
+| `inbox` | `?inbox=my-client` | Filter by target inbox |
+| `status` | `?status=unread` | Filter by status (`unread`, `read`, `archived`) |
+| `from` | `?from=coordinator` | Filter by sender agent |
+| `limit` | `?limit=20` | Max results (default: 50) |
+| `collapsed` | `?collapsed=true` | Hide deduplicated messages |
+
+**Response:**
+```json
+{
+  "messages": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "from_agent": "design-doc-creator",
+      "to_inbox": "my-client",
+      "title": "Design Doc: Semantic Caching",
+      "payload": "Full design document content...",
+      "status": "unread",
+      "category": "feature",
+      "message_type": "response",
+      "created_at": "2026-03-10T15:30:00Z"
+    }
+  ],
+  "count": 1,
+  "limit": 50
+}
+```
+
+#### curl
+
+```bash
+# Check for unread messages in your inbox
+curl -s "${COORDINATOR_URL}/api/messages?inbox=my-client&status=unread" \
+  -H "Authorization: Bearer ${API_KEY}" | jq .
+
+# All messages from a specific agent
+curl -s "${COORDINATOR_URL}/api/messages?from=design-doc-creator" \
+  -H "Authorization: Bearer ${API_KEY}" | jq .
+```
+
+#### Python
+
+```python
+import requests
+import time
+
+COORDINATOR_URL = "https://your-coordinator.run.app"
+API_KEY = "your-api-key"
+HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+
+def poll_messages(inbox, interval=10):
+    """Poll for new messages with backoff."""
+    while True:
+        resp = requests.get(
+            f"{COORDINATOR_URL}/api/messages",
+            params={"inbox": inbox, "status": "unread"},
+            headers=HEADERS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        for msg in data["messages"]:
+            print(f"[{msg['from_agent']}] {msg['title']}")
+            print(f"  {msg['payload'][:200]}...")
+            # Process the message...
+
+        time.sleep(interval)
+
+poll_messages("my-client")
+```
+
+#### Node.js
+
+```javascript
+const COORDINATOR_URL = "https://your-coordinator.run.app";
+const API_KEY = "your-api-key";
+
+async function pollMessages(inbox, intervalMs = 10000) {
+  while (true) {
+    const resp = await fetch(
+      `${COORDINATOR_URL}/api/messages?inbox=${inbox}&status=unread`,
+      { headers: { Authorization: `Bearer ${API_KEY}` } }
+    );
+    const data = await resp.json();
+
+    for (const msg of data.messages) {
+      console.log(`[${msg.from_agent}] ${msg.title}`);
+      // Process the message...
+    }
+
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+pollMessages("my-client");
+```
+
+#### Go
+
+```go
+func pollMessages(coordinatorURL, apiKey, inbox string) error {
+    client := &http.Client{Timeout: 10 * time.Second}
+    for {
+        req, _ := http.NewRequest("GET",
+            fmt.Sprintf("%s/api/messages?inbox=%s&status=unread", coordinatorURL, inbox), nil)
+        req.Header.Set("Authorization", "Bearer "+apiKey)
+
+        resp, err := client.Do(req)
+        if err != nil {
+            log.Printf("poll error: %v", err)
+            time.Sleep(10 * time.Second)
+            continue
+        }
+
+        var result struct {
+            Messages []map[string]interface{} `json:"messages"`
+            Count    int                      `json:"count"`
+        }
+        json.NewDecoder(resp.Body).Decode(&result)
+        resp.Body.Close()
+
+        for _, msg := range result.Messages {
+            fmt.Printf("[%s] %s\n", msg["from_agent"], msg["title"])
+        }
+
+        time.Sleep(10 * time.Second)
+    }
+}
+```
+
+### Option 2: Firestore onSnapshot (Real-Time, Web/Mobile)
+
+For web or mobile apps that need instant updates, use Firestore's real-time listener. Messages arrive within milliseconds of being stored.
+
+```javascript
+import { initializeApp } from "firebase/app";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+
+const app = initializeApp({ projectId: "your-gcp-project" });
+const db = getFirestore(app);
+
+// Listen for new unread messages in your inbox
+const q = query(
+  collection(db, "inbox_messages"),
+  where("to_inbox", "==", "my-client"),
+  where("status", "==", "unread")
+);
+
+const unsubscribe = onSnapshot(q, (snapshot) => {
+  snapshot.docChanges().forEach((change) => {
+    if (change.type === "added") {
+      const msg = change.doc.data();
+      console.log(`New message: [${msg.from_agent}] ${msg.title}`);
+      console.log(`Content: ${msg.payload}`);
+    }
+  });
+});
+```
+
+**Python (Firestore watch):**
+
+```python
+from google.cloud import firestore
+
+db = firestore.Client(project="your-gcp-project")
+
+def on_snapshot(doc_snapshot, changes, read_time):
+    for change in changes:
+        if change.type.name == "ADDED":
+            msg = change.document.to_dict()
+            print(f"New: [{msg['from_agent']}] {msg['title']}")
+
+query = db.collection("inbox_messages") \
+    .where("to_inbox", "==", "my-client") \
+    .where("status", "==", "unread")
+
+query.on_snapshot(on_snapshot)
+```
+
+**Requirements:** Firestore SDK (`firebase` for web, `google-cloud-firestore` for Python/Go) and `roles/datastore.user` IAM role.
+
+### Option 3: Pub/Sub Pull Subscription (Backend Services)
+
+For always-on backend services, subscribe to the `ailang-messages` Pub/Sub topic. Messages queue while your service is offline (up to 7 days). Requires a Terraform-managed subscription (see [Provisioning Client Subscriptions](#provisioning-client-subscriptions-terraform)).
 
 ```python
 from google.cloud import pubsub_v1
 import json
 
 PROJECT_ID = "your-gcp-project"
-SUBSCRIPTION = "ailang-messages-laptop"  # Or your custom subscription
+SUBSCRIPTION = "ailang-messages-my-client"  # Your Terraform-provisioned subscription
 
 subscriber = pubsub_v1.SubscriberClient()
 subscription_path = subscriber.subscription_path(PROJECT_ID, SUBSCRIPTION)
@@ -465,8 +669,9 @@ def callback(message):
     print(f"Inbox: {attrs.get('inbox')}")
     print(f"Message ID: {data.get('message_id')}")
 
-    # Fetch full content from Firestore if needed
-    # ...
+    # Fetch full content from Firestore or REST API
+    # The Pub/Sub notification contains only the message_id —
+    # fetch the full payload via GET /api/messages or Firestore.
 
     message.ack()  # Acknowledge (removes from queue)
 
@@ -475,12 +680,14 @@ print("Listening for messages...")
 streaming_pull.result()  # Blocks forever
 ```
 
-### Option B: Real-Time Event Streaming
+**Requirements:** Pub/Sub SDK, Terraform subscription, `roles/pubsub.subscriber` IAM role.
 
-Subscribe to the `ailang-events` topic for live execution progress (tool calls, model output, etc.):
+### Real-Time Event Streaming (All Options)
+
+Regardless of which receiving approach you use, you can also subscribe to the `ailang-events` topic for live execution progress (tool calls, model output, etc.):
 
 ```python
-EVENTS_SUBSCRIPTION = "ailang-events-laptop"  # Or your custom subscription
+EVENTS_SUBSCRIPTION = "ailang-events-my-client"  # Your Terraform-provisioned subscription
 
 def event_callback(message):
     attrs = message.attributes
@@ -505,23 +712,6 @@ streaming_pull = subscriber.subscribe(
 | `text` | Model reasoning / text output |
 | `tool_use` | Agent invoked a tool (file edit, bash, etc.) |
 | `tool_result` | Tool returned a result |
-
-### Option C: Poll Firestore Directly
-
-If you don't need real-time notifications, query Firestore for message status changes:
-
-```python
-# Check for responses to your messages
-docs = db.collection("messages") \
-    .where("from_agent", "==", "ailang-coordinator") \
-    .where("to_inbox", "==", "my-client-inbox") \
-    .where("status", "==", "unread") \
-    .stream()
-
-for doc in docs:
-    msg = doc.to_dict()
-    print(f"{msg['title']}: {msg['payload']}")
-```
 
 ## Available Inboxes
 
@@ -611,7 +801,13 @@ Pub/Sub POSTs this JSON to your endpoint:
 
 ## Authentication
 
-### Application Default Credentials (Recommended)
+### Coordinator API Key
+
+The REST API (`/api/messages`) is protected by a single `COORDINATOR_API_KEY` set on the Cloud Run service. All clients share this key. Inbox-level filtering provides functional isolation — each client only queries their own inbox.
+
+For stronger per-user isolation, deploy separate coordinator instances with distinct API keys. The architecture supports this — Firestore and Pub/Sub are shared with workspace-based routing, so each coordinator instance serves its own set of workspaces.
+
+### Application Default Credentials (For Pub/Sub / Firestore)
 
 On Google Cloud (Cloud Run, GCE, GKE), ADC works automatically:
 
@@ -628,11 +824,14 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 
 ### Required IAM Roles
 
-| Role | Purpose |
-|------|---------|
-| `roles/pubsub.publisher` | Publish to `ailang-messages` topic |
-| `roles/pubsub.subscriber` | Pull from subscriptions |
-| `roles/datastore.user` | Read/write Firestore messages |
+| Role | When Needed | Purpose |
+|------|-------------|---------|
+| `COORDINATOR_API_KEY` | REST API (Options 1) | Send and receive messages via HTTP |
+| `roles/datastore.user` | Firestore (Option 2) | Real-time message listener |
+| `roles/pubsub.subscriber` | Pub/Sub (Option 3) | Pull from subscriptions |
+| `roles/pubsub.publisher` | Direct Pub/Sub send | Publish to `ailang-messages` topic (advanced) |
+
+**Minimum for REST API clients:** Only the `COORDINATOR_API_KEY` bearer token. No GCP IAM roles required.
 
 ## Provisioning Client Subscriptions (Terraform)
 
@@ -779,6 +978,18 @@ curl -X POST "${COORDINATOR_URL}/api/messages" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${API_KEY}" \
   -d '{"inbox":"INBOX","title":"TITLE","content":"CONTENT","from":"CLIENT_ID"}'
+```
+
+### Receive messages (REST API — recommended)
+
+```bash
+# Unread messages in your inbox
+curl -s "${COORDINATOR_URL}/api/messages?inbox=MY_INBOX&status=unread" \
+  -H "Authorization: Bearer ${API_KEY}"
+
+# All messages from a specific agent
+curl -s "${COORDINATOR_URL}/api/messages?from=design-doc-creator&limit=10" \
+  -H "Authorization: Bearer ${API_KEY}"
 ```
 
 ### Topic naming (for direct Pub/Sub integration)

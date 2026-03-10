@@ -408,16 +408,33 @@ func TestHandlePostMessage_MissingFields(t *testing.T) {
 	}
 }
 
-func TestHandlePostMessage_WrongMethod(t *testing.T) {
+func TestHandleMessages_MethodDispatch(t *testing.T) {
 	d := newTestDaemonWithMsgStore(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	// DELETE → 405
+	req := httptest.NewRequest(http.MethodDelete, "/api/messages", nil)
 	rec := httptest.NewRecorder()
-
-	d.handlePostMessage(rec, req)
-
+	d.handleMessages(rec, req)
 	if rec.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("expected 405, got %d", rec.Code)
+		t.Fatalf("DELETE: expected 405, got %d", rec.Code)
+	}
+
+	// GET → dispatches to handleGetMessages (200)
+	req = httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	rec = httptest.NewRecorder()
+	d.handleMessages(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// POST with valid body → dispatches to handlePostMessage (201)
+	body := `{"inbox":"user","title":"T","content":"C","from":"F"}`
+	req = httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	d.handleMessages(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST: expected 201, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -482,6 +499,174 @@ func TestHandlePostMessage_InvalidJSON(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+// M-REST-INGESTION: GET /api/messages tests
+
+func TestHandleGetMessages_Empty(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp getMessagesResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Count != 0 {
+		t.Errorf("expected 0 messages, got %d", resp.Count)
+	}
+	if resp.Limit != 50 {
+		t.Errorf("expected default limit 50, got %d", resp.Limit)
+	}
+	if resp.Messages == nil {
+		t.Error("expected non-nil messages array")
+	}
+}
+
+func TestHandleGetMessages_WithMessages(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	// Insert two messages.
+	for _, title := range []string{"First", "Second"} {
+		msg := &messaging.InboxMessage{
+			FromAgent:   "test",
+			ToInbox:     "user",
+			MessageType: "request",
+			Title:       title,
+			Payload:     "body",
+			Category:    "general",
+			Status:      messaging.InboxStatusUnread,
+		}
+		if err := d.msgStore.InsertInboxMessageWithContext(context.Background(), msg); err != nil {
+			t.Fatalf("failed to insert message: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp getMessagesResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Count != 2 {
+		t.Errorf("expected 2 messages, got %d", resp.Count)
+	}
+}
+
+func TestHandleGetMessages_FilterByInbox(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	// Insert messages to different inboxes.
+	for _, inbox := range []string{"user", "coordinator", "user"} {
+		msg := &messaging.InboxMessage{
+			FromAgent:   "test",
+			ToInbox:     inbox,
+			MessageType: "request",
+			Title:       "Msg to " + inbox,
+			Payload:     "body",
+			Category:    "general",
+			Status:      messaging.InboxStatusUnread,
+		}
+		d.msgStore.InsertInboxMessageWithContext(context.Background(), msg)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages?inbox=user", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	var resp getMessagesResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Count != 2 {
+		t.Errorf("expected 2 messages for inbox 'user', got %d", resp.Count)
+	}
+}
+
+func TestHandleGetMessages_FilterByStatus(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	// Insert one unread and one read message.
+	for _, status := range []string{messaging.InboxStatusUnread, messaging.InboxStatusRead} {
+		msg := &messaging.InboxMessage{
+			FromAgent:   "test",
+			ToInbox:     "user",
+			MessageType: "request",
+			Title:       "Msg " + status,
+			Payload:     "body",
+			Category:    "general",
+			Status:      status,
+		}
+		d.msgStore.InsertInboxMessageWithContext(context.Background(), msg)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages?status=unread", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	var resp getMessagesResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Count != 1 {
+		t.Errorf("expected 1 unread message, got %d", resp.Count)
+	}
+}
+
+func TestHandleGetMessages_NoStore(t *testing.T) {
+	d := newTestDaemonT(t) // No msgStore
+	d.logger = log.Default()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", rec.Code)
+	}
+}
+
+func TestHandleGetMessages_CustomLimit(t *testing.T) {
+	d := newTestDaemonWithMsgStore(t)
+
+	// Insert 5 messages.
+	for i := 0; i < 5; i++ {
+		msg := &messaging.InboxMessage{
+			FromAgent:   "test",
+			ToInbox:     "user",
+			MessageType: "request",
+			Title:       "Msg",
+			Payload:     "body",
+			Category:    "general",
+			Status:      messaging.InboxStatusUnread,
+		}
+		d.msgStore.InsertInboxMessageWithContext(context.Background(), msg)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/messages?limit=2", nil)
+	rec := httptest.NewRecorder()
+
+	d.handleGetMessages(rec, req)
+
+	var resp getMessagesResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Count != 2 {
+		t.Errorf("expected 2 messages (limit=2), got %d", resp.Count)
+	}
+	if resp.Limit != 2 {
+		t.Errorf("expected limit 2, got %d", resp.Limit)
 	}
 }
 

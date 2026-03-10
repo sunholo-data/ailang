@@ -46,8 +46,8 @@ func (d *Daemon) startHealthServer(port string) {
 	mux.HandleFunc("/chains/stats", d.requireAPIKey(d.handleChainsStats))
 	mux.HandleFunc("/pending", d.requireAPIKey(d.handlePending))
 
-	// M-REST-INGESTION: REST API for client message ingestion (all modes).
-	mux.HandleFunc("/api/messages", d.requireAPIKey(d.handlePostMessage))
+	// M-REST-INGESTION: REST API for client message ingestion and retrieval (all modes).
+	mux.HandleFunc("/api/messages", d.requireAPIKey(d.handleMessages))
 
 	// M-CLOUD-PUSH: Pub/Sub push endpoints for cloud mode.
 	// Pub/Sub delivers messages via HTTP POST instead of pull subscriptions.
@@ -259,7 +259,69 @@ func (d *Daemon) handlePushCompletion(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// M-REST-INGESTION: REST API for client message ingestion.
+// M-REST-INGESTION: REST API for client message ingestion and retrieval.
+
+// handleMessages dispatches /api/messages by HTTP method.
+func (d *Daemon) handleMessages(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		d.handleGetMessages(w, r)
+	case http.MethodPost:
+		d.handlePostMessage(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+// getMessagesResponse is returned by GET /api/messages.
+type getMessagesResponse struct {
+	Messages []messaging.InboxMessage `json:"messages"`
+	Count    int                      `json:"count"`
+	Limit    int                      `json:"limit"`
+}
+
+// handleGetMessages returns messages matching query filters.
+// Query params: inbox, status, from, limit (default 50), collapsed.
+func (d *Daemon) handleGetMessages(w http.ResponseWriter, r *http.Request) {
+	if d.msgStore == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "message store not configured"})
+		return
+	}
+
+	q := r.URL.Query()
+	limit := 50
+	if l := q.Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	opts := messaging.InboxListOptions{
+		Inbox:     q.Get("inbox"),
+		Status:    q.Get("status"),
+		FromAgent: q.Get("from"),
+		Limit:     limit,
+		Collapsed: q.Get("collapsed") == "true",
+	}
+
+	msgs, err := d.msgStore.ListInboxMessages(opts)
+	if err != nil {
+		d.logger.Printf("GET /api/messages: list error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list messages"})
+		return
+	}
+
+	// Return empty array (not null) when no messages found.
+	if msgs == nil {
+		msgs = []messaging.InboxMessage{}
+	}
+
+	writeJSON(w, http.StatusOK, getMessagesResponse{
+		Messages: msgs,
+		Count:    len(msgs),
+		Limit:    limit,
+	})
+}
 
 // postMessageRequest is the JSON body for POST /api/messages.
 type postMessageRequest struct {
@@ -284,11 +346,6 @@ type postMessageResponse struct {
 // and optionally publishes a Pub/Sub notification to trigger processing.
 // This is the primary ingestion endpoint — clients only need an HTTP client.
 func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req postMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})

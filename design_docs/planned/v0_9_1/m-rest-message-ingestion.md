@@ -1,6 +1,6 @@
-# M-REST-INGESTION: REST API for Client Message Ingestion
+# M-REST-INGESTION: REST API for Client Message Ingestion & Retrieval
 
-**Status**: Planned
+**Status**: Implemented
 **Priority**: High
 **Estimated Effort**: 3 hours
 **Target Version**: v0.9.1
@@ -72,6 +72,39 @@ No body (existing `requireAPIKey` pattern).
 ```json
 {
   "error": "failed to store message: <detail>"
+}
+```
+
+### GET /api/messages — Message Retrieval
+
+```
+GET /api/messages?inbox=my-client&status=unread&limit=50
+Authorization: Bearer <COORDINATOR_API_KEY>
+```
+
+**Query Parameters:**
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| `inbox` | (all) | Filter by target inbox |
+| `status` | (all) | Filter by status: `unread`, `read`, `archived` |
+| `from` | (all) | Filter by sender agent |
+| `limit` | `50` | Max results |
+| `collapsed` | `false` | Hide deduplicated messages |
+
+**Success (200 OK):**
+```json
+{
+  "messages": [ { "id": "...", "from_agent": "...", "title": "...", ... } ],
+  "count": 1,
+  "limit": 50
+}
+```
+
+**Store Unavailable (503):**
+```json
+{
+  "error": "message store not configured"
 }
 ```
 
