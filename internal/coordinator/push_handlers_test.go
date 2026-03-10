@@ -166,7 +166,7 @@ func TestHandlePushCompletion_NoHandler(t *testing.T) {
 func TestHandlePushCompletion_MalformedJSON(t *testing.T) {
 	d := &Daemon{
 		logger:            log.New(os.Stderr, "test: ", 0),
-		completionHandler: NewCompletionHandler(nil, nil, log.New(os.Stderr, "test: ", 0)),
+		completionHandler: NewCompletionHandler(nil, nil, nil, nil, log.New(os.Stderr, "test: ", 0)),
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/pubsub/completions", strings.NewReader("{bad"))

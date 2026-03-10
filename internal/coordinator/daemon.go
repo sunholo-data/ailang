@@ -243,7 +243,7 @@ func (d *Daemon) Run() error {
 	// In pull mode (fallback), Start() would run a background goroutine.
 	if d.cloudInboxAdapter != nil && d.pubsubClient != nil && d.taskStore != nil {
 		subscriber := pubsub.NewSubscriber(d.pubsubClient)
-		d.completionHandler = NewCompletionHandler(subscriber, d.taskStore, d.logger)
+		d.completionHandler = NewCompletionHandler(subscriber, d.taskStore, d.msgStore, d.agentRegistry, d.logger)
 		d.logger.Println("Cloud mode: completion handler ready (push delivery via /pubsub/completions)")
 	}
 

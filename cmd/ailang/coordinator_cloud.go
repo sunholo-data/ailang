@@ -26,7 +26,8 @@ import (
 //
 //	AILANG_PROVIDER      - Executor provider (default: "claude")
 //	AILANG_REPO_URL      - Git repository URL to clone
-//	AILANG_BRANCH        - Branch to work on (default: "dev")
+//	AILANG_BRANCH        - Base branch to clone (default: "dev")
+//	AILANG_PUSH_BRANCH   - Push directly to this branch (skip coordinator/ branch creation)
 //	AILANG_DIRECTIVE     - Task directive/prompt
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 func coordinatorExecuteJob(args []string) error {
@@ -127,8 +128,13 @@ func coordinatorExecuteJob(args []string) error {
 
 // executeCloudTask runs the AI executor in a cloned repository.
 // Returns the branch name with changes, or error.
+//
+// When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
+// and pushes to that branch (no coordinator/{taskID} branch creation). This is
+// used for skip_approval agents like website-builder that push directly to main.
 func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider string) (string, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
+	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
 	// Step 1: Clone the repository (required in cloud mode)
 	if repoURL == "" {
@@ -142,15 +148,23 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		return "", fmt.Errorf("git clone failed: %w", err)
 	}
 
-	// Step 2: Create task branch
-	branchName := fmt.Sprintf("coordinator/%s", taskID)
-	fmt.Printf("execute-job: creating branch %s\n", branchName)
+	// Step 2: Create task branch (skip if direct push mode)
+	var branchName string
+	if pushBranch != "" {
+		// Direct push mode: work on the cloned branch, push to pushBranch
+		branchName = pushBranch
+		fmt.Printf("execute-job: direct push mode — working on %s (no coordinator branch)\n", pushBranch)
+	} else {
+		// Standard mode: create coordinator/{taskID} branch
+		branchName = fmt.Sprintf("coordinator/%s", taskID)
+		fmt.Printf("execute-job: creating branch %s\n", branchName)
 
-	checkoutCmd := exec.CommandContext(ctx, "git", "-C", workDir, "checkout", "-b", branchName)
-	checkoutCmd.Stdout = os.Stdout
-	checkoutCmd.Stderr = os.Stderr
-	if err := checkoutCmd.Run(); err != nil {
-		return "", fmt.Errorf("git checkout -b failed: %w", err)
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", workDir, "checkout", "-b", branchName)
+		checkoutCmd.Stdout = os.Stdout
+		checkoutCmd.Stderr = os.Stderr
+		if err := checkoutCmd.Run(); err != nil {
+			return "", fmt.Errorf("git checkout -b failed: %w", err)
+		}
 	}
 
 	// Step 3: Run the AI executor
@@ -251,6 +265,7 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_PROVIDER         Executor: claude or gemini (default: claude)")
 	fmt.Println("  AILANG_REPO_URL         Git repo URL to clone")
 	fmt.Println("  AILANG_BRANCH           Base branch (default: dev)")
+	fmt.Println("  AILANG_PUSH_BRANCH      Push directly to this branch (skip coordinator/ branch)")
 	fmt.Println("  AILANG_DIRECTIVE        Task prompt/directive")
 	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
 }

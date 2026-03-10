@@ -2,9 +2,11 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/pubsub"
 )
 
@@ -13,17 +15,23 @@ import (
 // Completions arrive either via pull subscription (Start) or push HTTP endpoint
 // (HandleCompletion).
 type CompletionHandler struct {
-	subscriber *pubsub.Subscriber
-	taskStore  Store
-	logger     *log.Logger
+	subscriber    *pubsub.Subscriber
+	taskStore     Store
+	msgStore      messaging.MessageStore // For posting completion notifications
+	agentRegistry *AgentRegistry         // For checking skip_approval config
+	logger        *log.Logger
 }
 
 // NewCompletionHandler creates a handler that processes task completions.
-func NewCompletionHandler(subscriber *pubsub.Subscriber, taskStore Store, logger *log.Logger) *CompletionHandler {
+// msgStore and agentRegistry are optional — if nil, completion notifications
+// and skip_approval handling are disabled (backwards compatible).
+func NewCompletionHandler(subscriber *pubsub.Subscriber, taskStore Store, msgStore messaging.MessageStore, agentRegistry *AgentRegistry, logger *log.Logger) *CompletionHandler {
 	return &CompletionHandler{
-		subscriber: subscriber,
-		taskStore:  taskStore,
-		logger:     logger,
+		subscriber:    subscriber,
+		taskStore:     taskStore,
+		msgStore:      msgStore,
+		agentRegistry: agentRegistry,
+		logger:        logger,
 	}
 }
 
@@ -81,11 +89,32 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 
 	switch completion.Status {
 	case "completed":
-		if err := h.taskStore.MarkTaskPendingApproval(ctx, completion.TaskID, "", completion.BranchName, "", "", nil); err != nil {
-			return fmt.Errorf("mark task pending_approval: %w", err)
+		// Check if agent is configured to skip approval.
+		skipApproval := false
+		if h.agentRegistry != nil {
+			if agent := h.agentRegistry.GetAgentByID(completion.AgentID); agent != nil {
+				skipApproval = agent.SkipApproval
+			}
 		}
-		h.logger.Printf("CompletionHandler: task %s → pending_approval (branch=%s)",
-			completion.TaskID, completion.BranchName)
+
+		if skipApproval {
+			// Skip approval — mark completed directly.
+			if err := h.taskStore.MarkTaskCompleted(ctx, completion.TaskID, nil); err != nil {
+				return fmt.Errorf("mark task completed: %w", err)
+			}
+			h.logger.Printf("CompletionHandler: task %s → completed (skip_approval, branch=%s)",
+				completion.TaskID, completion.BranchName)
+		} else {
+			// Standard flow: mark pending_approval for human review.
+			if err := h.taskStore.MarkTaskPendingApproval(ctx, completion.TaskID, "", completion.BranchName, "", "", nil); err != nil {
+				return fmt.Errorf("mark task pending_approval: %w", err)
+			}
+			h.logger.Printf("CompletionHandler: task %s → pending_approval (branch=%s)",
+				completion.TaskID, completion.BranchName)
+		}
+
+		// Post completion notification to the agent's inbox so the portal/sidecar can detect it.
+		h.postCompletionNotification(ctx, task, completion)
 
 	case "failed":
 		if err := h.taskStore.MarkTaskFailed(ctx, completion.TaskID, fmt.Errorf("%s", completion.ErrorMsg)); err != nil {
@@ -94,10 +123,47 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 		h.logger.Printf("CompletionHandler: task %s → failed (error=%s)",
 			completion.TaskID, completion.ErrorMsg)
 
+		// Post failure notification too.
+		h.postCompletionNotification(ctx, task, completion)
+
 	default:
 		h.logger.Printf("CompletionHandler: unknown completion status %q for task %s",
 			completion.Status, completion.TaskID)
 	}
 
 	return nil
+}
+
+// postCompletionNotification sends a message to the agent's inbox with the
+// completion status. This allows external clients (portal, sidecar) to poll
+// for task completion via GET /api/messages.
+func (h *CompletionHandler) postCompletionNotification(ctx context.Context, task *TaskRecord, completion pubsub.TaskCompletion) {
+	if h.msgStore == nil {
+		return
+	}
+
+	payload, _ := json.Marshal(map[string]string{
+		"task_id":     completion.TaskID,
+		"agent_id":    completion.AgentID,
+		"status":      completion.Status,
+		"branch_name": completion.BranchName,
+		"error_msg":   completion.ErrorMsg,
+	})
+
+	msg := &messaging.InboxMessage{
+		FromAgent:     completion.AgentID,
+		ToInbox:       task.AgentID, // Same inbox as the agent
+		MessageType:   "completion",
+		Title:         fmt.Sprintf("Task %s: %s", completion.TaskID, completion.Status),
+		Payload:       string(payload),
+		CorrelationID: task.MessageID, // Links back to the original request message
+	}
+
+	if err := h.msgStore.InsertInboxMessage(msg); err != nil {
+		h.logger.Printf("CompletionHandler: failed to post completion notification for task %s: %v",
+			completion.TaskID, err)
+	} else {
+		h.logger.Printf("CompletionHandler: posted completion notification for task %s (correlation=%s)",
+			completion.TaskID, task.MessageID)
+	}
 }

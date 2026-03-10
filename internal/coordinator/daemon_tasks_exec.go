@@ -130,6 +130,13 @@ func (d *Daemon) dispatchTasksCloud() error {
 				RepoURL:   deriveRepoURL(task.Workspace),
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
 			}
+			// For skip_approval agents with a merge_branch, push directly to that branch
+			// instead of creating a coordinator/{taskID} branch.
+			if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
+				if agent.SkipApproval && agent.MergeBranch != "" {
+					params.PushBranch = agent.MergeBranch
+				}
+			}
 			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
 				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
 				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)

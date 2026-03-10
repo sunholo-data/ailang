@@ -72,6 +72,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		{Name: "AILANG_REPO_URL", Values: &runpb.EnvVar_Value{Value: params.RepoURL}},
 		{Name: "AILANG_BRANCH", Values: &runpb.EnvVar_Value{Value: params.Branch}},
 	}
+	// For skip_approval agents, push directly to target branch instead of coordinator/{taskID}.
+	if params.PushBranch != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_PUSH_BRANCH", Values: &runpb.EnvVar_Value{Value: params.PushBranch},
+		})
+	}
 
 	req := &runpb.RunJobRequest{
 		Name: jobName,
