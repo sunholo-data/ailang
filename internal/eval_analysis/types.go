@@ -3,6 +3,7 @@ package eval_analysis
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -244,13 +245,14 @@ func (d *DashboardJSON) Validate() error {
 		return fmt.Errorf("history must have at least one entry")
 	}
 
-	// Check for duplicate versions in history
+	// Check for duplicate versions in history (normalized: "v0.9.0" == "0.9.0")
 	seen := make(map[string]bool)
 	for _, entry := range d.History {
-		if seen[entry.Version] {
+		norm := strings.TrimPrefix(entry.Version, "v")
+		if seen[norm] {
 			return fmt.Errorf("duplicate version in history: %s", entry.Version)
 		}
-		seen[entry.Version] = true
+		seen[norm] = true
 	}
 
 	return nil

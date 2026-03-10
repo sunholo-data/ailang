@@ -255,6 +255,44 @@ func TestMergeHistoryOrder(t *testing.T) {
 	}
 }
 
+// TestMergeHistoryVersionNormalization verifies that "v0.9.0" and "0.9.0" are
+// treated as the same version (v-prefix normalization prevents duplicates).
+func TestMergeHistoryVersionNormalization(t *testing.T) {
+	dashboard := &DashboardJSON{
+		History: []HistoryEntry{
+			{Version: "v0.9.0", SuccessRate: 0.80},
+			{Version: "v0.8.0", SuccessRate: 0.75},
+		},
+	}
+
+	// Merge "0.9.0" (without v prefix) — should UPDATE existing "v0.9.0", not add
+	mergeHistory(dashboard, HistoryEntry{Version: "0.9.0", SuccessRate: 0.85})
+
+	if len(dashboard.History) != 2 {
+		t.Fatalf("Expected 2 entries (deduped), got %d", len(dashboard.History))
+	}
+
+	// The updated entry should have the new data
+	if dashboard.History[0].SuccessRate != 0.85 {
+		t.Errorf("Expected updated success rate 0.85, got %f", dashboard.History[0].SuccessRate)
+	}
+
+	// Reverse direction: existing "0.9.0", merge "v0.9.0"
+	dashboard2 := &DashboardJSON{
+		History: []HistoryEntry{
+			{Version: "0.9.0", SuccessRate: 0.80},
+		},
+	}
+	mergeHistory(dashboard2, HistoryEntry{Version: "v0.9.0", SuccessRate: 0.90})
+
+	if len(dashboard2.History) != 1 {
+		t.Fatalf("Expected 1 entry (deduped), got %d", len(dashboard2.History))
+	}
+	if dashboard2.History[0].SuccessRate != 0.90 {
+		t.Errorf("Expected updated success rate 0.90, got %f", dashboard2.History[0].SuccessRate)
+	}
+}
+
 // Helper functions
 
 func writeJSON(t *testing.T, path string, data interface{}) {

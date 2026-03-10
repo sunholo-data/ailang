@@ -28,13 +28,19 @@ func loadExistingDashboard(path string) (*DashboardJSON, error) {
 	return &dashboard, nil
 }
 
+// normalizeVersion strips the "v" prefix for consistent comparison
+func normalizeVersion(v string) string {
+	return strings.TrimPrefix(v, "v")
+}
+
 // mergeHistory adds a new entry to the dashboard history or updates an existing entry
 // If the version already exists, it updates that entry. Otherwise, prepends the new entry.
 // History is maintained in reverse chronological order (newest first)
+// Version comparison is normalized: "v0.9.0" and "0.9.0" are treated as the same version.
 func mergeHistory(dashboard *DashboardJSON, newEntry HistoryEntry) {
-	// Check for duplicate version
+	// Check for duplicate version (normalized to handle v-prefix inconsistency)
 	for i, entry := range dashboard.History {
-		if entry.Version == newEntry.Version {
+		if normalizeVersion(entry.Version) == normalizeVersion(newEntry.Version) {
 			// Update existing entry
 			dashboard.History[i] = newEntry
 			return
