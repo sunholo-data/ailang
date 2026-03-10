@@ -42,6 +42,12 @@ func NewSQLiteBackendFromPath(path string) (*SQLiteBackend, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// SQLite is single-writer; limit to 1 connection to serialize writes at
+	// the Go pool level instead of contending on the SQLite file lock.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
 	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		db.Close()

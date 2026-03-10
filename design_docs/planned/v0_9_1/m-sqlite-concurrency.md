@@ -1,9 +1,9 @@
 # M-SQLITE-CONCURRENCY: Fix SQLite Database Lock Contention
 
-**Status**: Planned
+**Status**: In Progress
 **Target**: v0.9.1
-**Priority**: P1 (High) — Data loss during agent evals, will worsen in cloud
-**Estimated**: 1 day (~4 hours implementation + 2 hours testing + 1 hour docs)
+**Priority**: P1 (High) — Data loss during agent evals
+**Estimated**: 30 minutes (Fix 1 only — connection pool limits)
 **Dependencies**: None
 **Source**: Agent eval run 2026-03-10 lost 171/184 chain stage writes to "database is locked"
 
@@ -15,7 +15,7 @@ When running agent evals with `--agent-parallel 5`, concurrent goroutines write 
 2. **Chat import failures**: `deleting existing messages: database is locked`
 3. **Chain status update failures**: `failed to update eval chain status: database is locked`
 
-This is a **local-only** issue today (SQLite), but will become critical when running evals on Cloud Run where multiple Cloud Run Jobs may contend on the same Firestore collections or shared state.
+This is a **local-only** issue (SQLite). Cloud mode (`AILANG_STORAGE=gcp`) uses Firestore for all 3 databases — including observatory chains — and handles concurrent writes natively. No cloud fix is needed.
 
 ## Root Cause Analysis
 
@@ -37,12 +37,13 @@ WAL mode allows concurrent reads, but still requires **exclusive access for writ
 
 ### Cloud implications
 
-**Firestore** (used in cloud mode for messages/spans): Natively handles concurrent writes — no SQLite lock issue. However:
-- `coordinator.db` still uses SQLite locally for task state
-- Cloud Run Jobs writing completion results to Pub/Sub → coordinator could contend
-- Eval chains stored in `observatory.db` — if we move evals to cloud, need Firestore backend for observatory
+**Not affected.** Firestore backends already exist for ALL 3 databases:
+- `internal/storage/firestore/observatory_spans.go` — spans
+- `internal/storage/firestore/observatory_chains.go` — eval chains (previously thought missing)
+- `internal/storage/firestore/coordinator.go` — coordinator tasks
+- `internal/storage/firestore/messaging.go` — collaboration messages
 
-**Pub/Sub**: Message-based, no contention. But completion handlers write to SQLite stores.
+Setting `AILANG_STORAGE=gcp` eliminates all SQLite concurrency issues. This design doc addresses **local mode only**.
 
 ## Design
 
@@ -60,131 +61,48 @@ db.SetConnMaxLifetime(0)     // Don't expire connections
 
 **Files**: `observatory/backend_sqlite.go`, `coordinator/store_sqlite.go`, `messaging/schema.go`
 
-### Fix 2: Write Serialization for Observatory (eval hot path)
+### Deferred Fixes (implement only if Fix 1 proves insufficient)
 
-Add a write channel to serialize span creation:
+**Fix 2 (Write Serialization)**, **Fix 3 (Retry with Backoff)**, and **Fix 4 (Batch Writes)** are deferred. `SetMaxOpenConns(1)` serializes writes at the Go `database/sql` pool level, which should eliminate lock contention since SQLite is single-writer anyway. Adding a write channel on top would create redundant serialization layers.
 
-```go
-type SQLiteBackend struct {
-    store   *Store
-    writeCh chan writeRequest  // Buffered channel for write serialization
-    done    chan struct{}
-}
-
-type writeRequest struct {
-    span   *Span
-    result chan error
-}
-
-func (b *SQLiteBackend) Start() {
-    go b.writeLoop()
-}
-
-func (b *SQLiteBackend) writeLoop() {
-    for req := range b.writeCh {
-        err := b.doCreateSpan(req.span)
-        req.result <- err
-    }
-}
-
-func (b *SQLiteBackend) CreateSpan(ctx context.Context, span *Span) error {
-    result := make(chan error, 1)
-    b.writeCh <- writeRequest{span: span, result: result}
-    return <-result
-}
-```
-
-**Trade-off**: Writes become sequential, but SQLite writes are already sequential at the lock level. This just moves the serialization from SQLite's lock to a Go channel, which is more predictable and doesn't timeout.
-
-**File**: `internal/observatory/backend_sqlite.go`
-
-### Fix 3: Retry with Backoff (defense in depth)
-
-For paths that can't use write serialization (e.g., cross-package writes):
-
-```go
-func withRetry(fn func() error, maxRetries int) error {
-    for i := 0; i <= maxRetries; i++ {
-        err := fn()
-        if err == nil {
-            return nil
-        }
-        if !strings.Contains(err.Error(), "database is locked") {
-            return err
-        }
-        if i < maxRetries {
-            time.Sleep(time.Duration(math.Pow(2, float64(i))) * 100 * time.Millisecond)
-        }
-    }
-    return fmt.Errorf("database is locked after %d retries", maxRetries)
-}
-```
-
-**File**: New `internal/storage/retry.go` (shared by all 3 databases)
-
-### Fix 4: Batch Span Writes in Eval Harness
-
-Instead of writing each span individually, batch completed benchmarks:
-
-```go
-// In eval runner, collect results then write in batch
-results := make([]*Span, 0, batchSize)
-for span := range completedCh {
-    results = append(results, span)
-    if len(results) >= batchSize {
-        backend.CreateSpanBatch(ctx, results)
-        results = results[:0]
-    }
-}
-```
-
-**File**: `internal/eval_harness/agent_runner.go`, `internal/observatory/backend_sqlite.go`
+If `--agent-parallel 10` still shows lock errors after Fix 1, escalate to Fix 3 (retry) next.
 
 ### Cloud Mode Considerations
 
-| Component | Local (SQLite) | Cloud (Firestore/Pub/Sub) | Fix Needed? |
-|-----------|---------------|--------------------------|-------------|
-| Observatory spans | Fix 1+2+4 | Firestore handles concurrency | No |
-| Coordinator tasks | Fix 1+3 | Pub/Sub + Firestore | No |
-| Collaboration msgs | Fix 1+3 | Firestore | No |
-| Eval chains | Fix 1+2+4 | Need Firestore backend | Yes (v0.10+) |
-| Chat import | Fix 3 | N/A (no local import) | No |
+**No cloud fix needed.** Firestore backends exist for all components:
 
-**Key insight**: Cloud mode eliminates SQLite concurrency for messages and coordinator tasks, but eval chains are currently SQLite-only. When evals move to cloud, the observatory needs a Firestore backend (or eval results write to Pub/Sub and a single consumer writes to Firestore).
+| Component | Local (SQLite) | Cloud (Firestore) | Cloud Fix Needed? |
+|-----------|---------------|-------------------|-------------------|
+| Observatory spans | Fix 1 | `firestore/observatory_spans.go` | No |
+| Observatory chains | Fix 1 | `firestore/observatory_chains.go` | No |
+| Coordinator tasks | Fix 1 | `firestore/coordinator.go` | No |
+| Collaboration msgs | Fix 1 | `firestore/messaging.go` | No |
 
 ## Implementation Plan
 
-### Milestone 1: Connection Pool + Retry (~2 hours)
-1. Add `SetMaxOpenConns(1)` to all 3 database init paths
-2. Create `internal/storage/retry.go` with `withRetry()` helper
-3. Wrap eval chain writes with retry
-4. Test: run agent eval with `--agent-parallel 10`, verify 0 lock errors
-
-### Milestone 2: Write Serialization for Observatory (~2 hours)
-1. Add `writeCh` channel to `SQLiteBackend`
-2. Move `CreateSpan` to use write channel
-3. Add `CreateSpanBatch` for eval harness
-4. Test: concurrent span writes don't lose data
-
-### Milestone 3: Eval Harness Batching (~1.5 hours)
-1. Collect completed spans in eval runner
-2. Flush batch on completion or timer
-3. Test: full eval suite with both models, verify chain completeness
-
-### Milestone 4: Docs + Cloud Assessment (~0.5 hours)
-1. Document SQLite concurrency patterns
-2. Assess Firestore observatory backend for v0.10
-3. Update CLAUDE.md with database concurrency guidelines
+### Milestone 1: Connection Pool Limits (~30 minutes)
+1. Add `SetMaxOpenConns(1)`, `SetMaxIdleConns(1)`, `SetConnMaxLifetime(0)` to:
+   - `internal/observatory/backend_sqlite.go` (NewSQLiteBackendFromPath)
+   - `internal/coordinator/store_sqlite.go` (NewSQLiteStore)
+   - `internal/messaging/schema.go` (InitDB, after configureDB)
+2. Test: `make test` passes
+3. Manual verification: `--agent-parallel 10` eval run records all stages
 
 ## Success Criteria
 
+- [ ] `make test` passes
 - [ ] Agent eval `--agent-parallel 10` records 100% of stages in chain
 - [ ] Zero "database is locked" errors in eval output
-- [ ] No performance regression (write serialization ≤ 5% slower)
-- [ ] Cloud mode unaffected (Firestore paths unchanged)
+- [ ] Cloud mode unaffected (Firestore paths unchanged — they don't use these SQLite init paths)
 
 ## Testing Strategy
 
-1. **Stress test**: `ailang eval-suite --agent --agent-parallel 10 --benchmarks fizzbuzz,adt_option,fold_reduce --models claude-haiku-4-5,gemini-2-5-flash` — all 12 stages recorded
-2. **Concurrent write test**: Spawn 20 goroutines writing spans simultaneously — 0 errors
-3. **Regression**: `make test` passes, existing eval chains still queryable
+1. **Regression**: `make test` passes, existing eval chains still queryable
+2. **Stress test**: `ailang eval-suite --agent --agent-parallel 10 --benchmarks fizzbuzz,adt_option,fold_reduce --models claude-haiku-4-5,gemini-2-5-flash` — all 12 stages recorded
+
+## Audit Notes (2026-03-10)
+
+**Design doc scored 8.5/10 in spec audit.** Key findings:
+- Firestore observatory backends already exist (`observatory_chains.go`, `observatory_spans.go`) — the "Need Firestore backend (v0.10+)" line was incorrect
+- Fix 1 alone should solve the problem — `SetMaxOpenConns(1)` serializes at the Go pool level, making Fix 2 (write channel) redundant
+- Fixes 2-4 deferred unless Fix 1 proves insufficient under `--agent-parallel 10`

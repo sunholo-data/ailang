@@ -35,6 +35,12 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// SQLite is single-writer; limit to 1 connection to serialize writes at
+	// the Go pool level instead of contending on the SQLite file lock.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
 	store := &SQLiteStore{db: db}
 	if err := store.migrate(); err != nil {
 		db.Close()

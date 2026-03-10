@@ -36,6 +36,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// SQLite is single-writer; limit to 1 connection to serialize writes at
+	// the Go pool level instead of contending on the SQLite file lock.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+
 	// Configure database for concurrent access
 	if err := configureDB(db); err != nil {
 		db.Close()
