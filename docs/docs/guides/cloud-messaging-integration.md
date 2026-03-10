@@ -28,11 +28,19 @@ Cloud Coordinator (Cloud Run)
   ▼
 Agent executes task
   │
-  ├── 5. Publishes completion to Pub/Sub
+  ├── 5. Pushes changes to git (branch or direct to main for skip_approval agents)
+  ├── 6. Publishes completion to Pub/Sub
+  │
+  ▼
+Coordinator receives completion
+  │
+  ├── 7. Updates task status (completed/failed/pending_approval)
+  ├── 8. Posts completion message to agent inbox (with correlation_id)
   │
   ▼
 Your Client
-  ← GET /api/messages (poll for results — recommended)
+  ← GET /api/messages + filter by correlation_id (recommended)
+  ← OR Dashboard WebSocket (real-time streaming)
   ← OR Firestore onSnapshot (real-time)
   ← OR Pub/Sub pull subscription (backend services)
 ```
@@ -957,10 +965,42 @@ Messages are routed to agents by `inbox` name. The coordinator matches inbox to 
 | `design-doc-creator` | Design Doc Creator | Creates design documents from requirements |
 | `sprint-planner` | Sprint Planner | Creates sprint plans from design docs |
 | `sprint-executor` | Sprint Executor | Implements approved sprint plans |
+| `website-builder` | Website Builder | Builds websites from briefs, pushes directly to GitHub |
 | `eval-runner` | Eval Runner (script) | Runs benchmark evaluations |
 | `user` | Human developer | Messages for human review |
 
 Custom agents can be added in `~/.ailang/config.yaml` — each agent watches its own inbox.
+
+### Skip-Approval Agents (Direct Push)
+
+Some agents are configured with `skip_approval: true` to bypass the human approval step. These agents push their changes directly to a target branch (e.g., `main`) instead of creating a `coordinator/{taskID}` branch.
+
+**How it works:**
+
+1. Agent config has `skip_approval: true` and `merge_branch: main`
+2. Coordinator sets `AILANG_PUSH_BRANCH=main` on the Cloud Run Job
+3. The job skips `git checkout -b coordinator/{taskID}` and works directly on the cloned branch
+4. Changes are pushed directly to the target branch (e.g., `main`)
+5. CompletionHandler marks the task as `completed` (not `pending_approval`)
+
+**Current skip-approval agents:**
+
+| Agent | Target Branch | Repo | Use Case |
+|-------|--------------|------|----------|
+| `website-builder` | `main` | `sunholo-data/sunholo-websites` | GitHub Pages sites — user-specific subdirectories, no review needed |
+
+**Agent config example** (`config.cloud.yaml`):
+
+```yaml
+- id: website-builder
+  label: "Website Builder"
+  inbox: website-builder
+  workspace: sunholo-data/sunholo-websites
+  model: sonnet
+  skip_approval: true    # Push directly, no human approval
+  merge_branch: main     # Target branch for direct push
+  auto_merge: false
+```
 
 ## Agent Chain Workflow
 
@@ -986,6 +1026,204 @@ curl -X POST "${COORDINATOR_URL}/api/messages" \
 ```
 
 The coordinator handles the rest — each agent completes, requests approval, and triggers the next.
+
+## Completion Notifications
+
+When an agent finishes a task (success or failure), the CompletionHandler posts a **completion message** to the agent's inbox. This enables external clients to detect task completion by polling `GET /api/messages`.
+
+### How It Works
+
+1. Cloud Run Job finishes → publishes `TaskCompletion` to `ailang-completions` topic
+2. CompletionHandler receives the completion (via push or pull subscription)
+3. Handler updates task status (`completed` or `failed`)
+4. Handler posts an inbox message with `message_type: "completion"` and a `correlation_id` linking back to the original request
+
+### Completion Message Format
+
+```json
+{
+  "id": "auto-generated-uuid",
+  "from_agent": "website-builder",
+  "to_inbox": "website-builder",
+  "message_type": "completion",
+  "title": "Task task-29404032: completed",
+  "payload": "{\"task_id\":\"task-29404032\",\"agent_id\":\"website-builder\",\"status\":\"completed\",\"branch_name\":\"main\",\"error_msg\":\"\"}",
+  "correlation_id": "29404032-74b3-40c6-acc3-23d6bbe14b68"
+}
+```
+
+**Key fields:**
+
+| Field | Description |
+|-------|-------------|
+| `message_type` | Always `"completion"` for these notifications |
+| `correlation_id` | The original `message_id` from the `POST /api/messages` request |
+| `payload` | JSON with `task_id`, `agent_id`, `status`, `branch_name`, `error_msg` |
+
+### Polling for Completion
+
+To check if your task has completed, poll `GET /api/messages` and match by `correlation_id`:
+
+```javascript
+// After submitting a build via POST /api/messages
+const { message_id } = await submitResponse.json();
+
+// Poll for completion
+async function waitForCompletion(messageId, inbox, intervalMs = 5000) {
+  while (true) {
+    const resp = await fetch(
+      `${COORDINATOR_URL}/api/messages?inbox=${inbox}&from=${inbox}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` } }
+    );
+    const data = await resp.json();
+
+    // Find completion message matching our original request
+    const completion = data.messages.find(
+      (msg) =>
+        msg.message_type === "completion" &&
+        msg.correlation_id === messageId
+    );
+
+    if (completion) {
+      const payload = JSON.parse(completion.payload);
+      return payload; // { task_id, agent_id, status, branch_name, error_msg }
+    }
+
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+const result = await waitForCompletion(message_id, "website-builder");
+if (result.status === "completed") {
+  console.log(`Site pushed to branch: ${result.branch_name}`);
+} else {
+  console.error(`Build failed: ${result.error_msg}`);
+}
+```
+
+**Note:** The `GET /api/messages` endpoint does not currently support filtering by `correlation_id` or `message_type` as query parameters. Clients must filter results client-side. The result set is small enough that this is efficient for typical workloads.
+
+## Website Builder Integration
+
+The website-builder agent builds websites from text briefs and pushes them directly to GitHub Pages.
+
+### Architecture
+
+```
+Portal (GitHub Pages SPA)
+  │
+  POST /api/build { title, content }
+  │
+  ▼
+Express Sidecar (Cloud Run)
+  │
+  POST /api/messages { inbox: "website-builder", title, content, from: "sidecar" }
+  │
+  ▼
+Coordinator (Cloud Run)
+  │
+  ├── Creates task-{id}
+  ├── Dispatches Cloud Run Job with AILANG_PUSH_BRANCH=main
+  │
+  ▼
+Cloud Run Job (website-builder agent)
+  │
+  ├── Clones sunholo-data/sunholo-websites (branch: main)
+  ├── Runs Claude CLI to build HTML/CSS
+  ├── git add + commit + push to main
+  ├── Publishes TaskCompletion to ailang-completions
+  │
+  ▼
+Coordinator
+  │
+  ├── Marks task completed (skip_approval)
+  ├── Posts completion message to website-builder inbox
+  │
+  ▼
+Sidecar polls GET /api/messages
+  │
+  ├── Finds completion with matching correlation_id
+  ├── Returns result to portal
+  │
+  ▼
+Portal loads preview from GitHub Pages
+```
+
+### Sidecar Endpoints
+
+The Express.js sidecar mediates between the portal and the coordinator:
+
+| Sidecar Endpoint | Maps To | Purpose |
+|-----------------|---------|---------|
+| `POST /api/build` | `POST /api/messages` on coordinator | Submit build brief |
+| `GET /api/status` | `GET /api/messages` on coordinator | Poll for completion |
+
+**Field mapping** (sidecar → coordinator):
+
+| Sidecar sends | Coordinator expects | Match? |
+|---------------|-------------------|--------|
+| `inbox` | `inbox` | Exact |
+| `title` | `title` | Exact |
+| `content` | `content` | Exact |
+| `from` | `from` | Exact |
+
+### Environment Variables
+
+The sidecar needs these environment variables:
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `COORDINATOR_URL` | `https://coordinator.run.app` | Coordinator Cloud Run service URL |
+| `COORDINATOR_API_KEY` | `sk-...` | API key for coordinator auth |
+
+### End-to-End Example (JavaScript)
+
+```javascript
+// Portal sends brief to sidecar
+const buildResp = await fetch("/api/build", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    inbox: "website-builder",
+    title: "Build Acme Corp landing page",
+    content: "Create a modern landing page for Acme Corp with hero section, features grid, and CTA...",
+    from: "portal",
+  }),
+});
+const { message_id } = await buildResp.json();
+
+// Poll sidecar for completion (sidecar forwards to coordinator)
+const pollInterval = setInterval(async () => {
+  const statusResp = await fetch(`/api/status?inbox=website-builder`);
+  const data = await statusResp.json();
+
+  const completion = data.messages?.find(
+    (msg) => msg.correlation_id === message_id && msg.message_type === "completion"
+  );
+
+  if (completion) {
+    clearInterval(pollInterval);
+    const result = JSON.parse(completion.payload);
+
+    if (result.status === "completed") {
+      // Load preview from GitHub Pages
+      window.location.href = `https://sunholo-data.github.io/sunholo-websites/${sitePath}/`;
+    } else {
+      showError(`Build failed: ${result.error_msg}`);
+    }
+  }
+}, 5000);
+```
+
+### Deployment Checklist
+
+To enable the website-builder flow:
+
+- [ ] Deploy coordinator with completion notification support (v0.9.1+)
+- [ ] Deploy agent executor Cloud Run Job with `AILANG_PUSH_BRANCH` support
+- [ ] Upload config: `make config-upload` (adds `skip_approval: true` to website-builder)
+- [ ] Verify sidecar has `COORDINATOR_URL` and `COORDINATOR_API_KEY` env vars
+- [ ] Agent executor has `GITHUB_TOKEN` from Secret Manager for git push
 
 ## Push Endpoint Format (For Server-Side Integration)
 
