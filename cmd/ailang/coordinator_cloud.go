@@ -217,7 +217,10 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		}
 	}
 
-	// Step 0: Clone shared skills plugin if configured (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	// Step 0: Resolve shared skills plugin directory (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	// Priority: 1) Clone from AILANG_PLUGIN_REPO if set, 2) Use pre-baked /plugins/ailang_bootstrap
+	// The Docker image pre-clones the plugin at build time (Dockerfile.agent line 54),
+	// so it's usually available without needing AILANG_PLUGIN_REPO at runtime.
 	pluginDir := ""
 	if pluginRepo != "" {
 		pluginDir = filepath.Join("/plugins", taskID, "ailang_bootstrap")
@@ -226,9 +229,16 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		pluginCloneCmd.Stdout = os.Stdout
 		pluginCloneCmd.Stderr = os.Stderr
 		if err := pluginCloneCmd.Run(); err != nil {
-			// Best effort — agent can still work without plugin skills
-			fmt.Fprintf(os.Stderr, "warning: plugin clone failed (continuing without plugin skills): %v\n", err)
+			// Best effort — fall through to check pre-baked plugin
+			fmt.Fprintf(os.Stderr, "warning: plugin clone failed: %v\n", err)
 			pluginDir = ""
+		}
+	}
+	// Fall back to pre-baked plugin from Docker image build
+	if pluginDir == "" {
+		if info, err := os.Stat("/plugins/ailang_bootstrap"); err == nil && info.IsDir() {
+			pluginDir = "/plugins/ailang_bootstrap"
+			fmt.Printf("execute-job: using pre-baked plugin at %s\n", pluginDir)
 		}
 	}
 
