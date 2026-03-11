@@ -45,6 +45,7 @@ import (
 //	AILANG_DIRECTIVE     - Task directive/prompt
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 //	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
+//	AILANG_MODEL         - AI model override (e.g., "sonnet", "opus") from agent config
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
 	for _, arg := range args {
@@ -165,10 +166,14 @@ func coordinatorExecuteJob(args []string) error {
 	// Read plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginRepo := os.Getenv("AILANG_PLUGIN_REPO")
 
-	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s)\n", taskID, agentID, workspace)
+	// Read model override from agent config (passed via AILANG_MODEL env var).
+	// Without this, the executor defaults to "haiku" which is too weak for coding tasks.
+	model := os.Getenv("AILANG_MODEL")
+
+	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s)\n", taskID, agentID, workspace, model)
 
 	// Execute the task
-	branchName, execResult, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo)
+	branchName, execResult, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
@@ -188,7 +193,7 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo string) (string, *executor.Result, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model string) (string, *executor.Result, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
@@ -272,7 +277,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir)
+	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model)
 	if execErr != nil {
 		return branchName, execResult, fmt.Errorf("executor failed: %w", execErr)
 	}
@@ -330,7 +335,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 // Instead of shelling out to raw CLI commands, it uses executor.GlobalFactory() to get
 // the registered executor and calls ExecuteStreaming() — giving us stream-JSON parsing,
 // token extraction, OTEL spans, session tracking, and a full executor.Result.
-func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir string) (*executor.Result, error) {
+func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model string) (*executor.Result, error) {
 	// Get executor from global factory (same as local coordinator's provider_executor.go)
 	exec, err := executor.GlobalFactory().GetExecutor(provider)
 	if err != nil {
@@ -342,6 +347,7 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		ID:        taskID,
 		Directive: directive,
 		Workspace: workDir,
+		Model:     model, // From AILANG_MODEL env var (agent config) — empty means executor default
 		Metadata:  make(map[string]string),
 	}
 	if pluginDir != "" {
@@ -411,4 +417,5 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_DIRECTIVE        Task prompt/directive")
 	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
 	fmt.Println("  AILANG_PLUGIN_REPO      Git URL for shared skills plugin (--plugin-dir)")
+	fmt.Println("  AILANG_MODEL            AI model override (e.g., sonnet, opus)")
 }

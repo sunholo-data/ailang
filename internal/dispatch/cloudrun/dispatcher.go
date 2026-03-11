@@ -84,6 +84,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_PLUGIN_REPO", Values: &runpb.EnvVar_Value{Value: params.PluginRepo},
 		})
 	}
+	// Pass model override from agent config so cloud executor uses the right model
+	// (without this, the executor defaults to "haiku" which is too weak for coding)
+	if params.Model != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_MODEL", Values: &runpb.EnvVar_Value{Value: params.Model},
+		})
+	}
 
 	req := &runpb.RunJobRequest{
 		Name: jobName,
