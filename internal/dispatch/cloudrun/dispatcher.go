@@ -91,6 +91,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_MODEL", Values: &runpb.EnvVar_Value{Value: params.Model},
 		})
 	}
+	// Pass executor timeout from agent config (M-CLOUD-OAUTH)
+	// Without this, the executor defaults to 5m which is too short for complex tasks
+	if params.Timeout != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_TIMEOUT", Values: &runpb.EnvVar_Value{Value: params.Timeout},
+		})
+	}
 
 	req := &runpb.RunJobRequest{
 		Name: jobName,

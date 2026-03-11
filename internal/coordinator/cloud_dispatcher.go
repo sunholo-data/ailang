@@ -24,4 +24,5 @@ type DispatchParams struct {
 	PushBranch string // If set, push directly to this branch (skip coordinator/ branch creation)
 	PluginRepo string // Git URL for shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	Model      string // AI model override (e.g., "sonnet", "opus") — from agent config
+	Timeout    string // Executor timeout (e.g., "15m", "60m") — from agent config (M-CLOUD-OAUTH)
 }

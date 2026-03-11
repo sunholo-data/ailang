@@ -147,6 +147,9 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.Model != "" {
 					params.Model = agent.Model
 				}
+				if agent.Timeout != "" {
+					params.Timeout = agent.Timeout
+				}
 			}
 			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
 				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)

@@ -170,10 +170,17 @@ func coordinatorExecuteJob(args []string) error {
 	// Without this, the executor defaults to "haiku" which is too weak for coding tasks.
 	model := os.Getenv("AILANG_MODEL")
 
-	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s)\n", taskID, agentID, workspace, model)
+	// Read timeout from agent config (passed via AILANG_TIMEOUT env var, M-CLOUD-OAUTH).
+	// Without this, the executor defaults to 5m which is too short for complex tasks.
+	timeoutStr := os.Getenv("AILANG_TIMEOUT")
+	if timeoutStr == "" {
+		timeoutStr = "30m" // Reasonable default for cloud tasks
+	}
+
+	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
 
 	// Execute the task
-	branchName, execResult, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model)
+	branchName, execResult, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
@@ -193,7 +200,7 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model string) (string, *executor.Result, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
@@ -287,7 +294,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model)
+	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 	if execErr != nil {
 		return branchName, execResult, fmt.Errorf("executor failed: %w", execErr)
 	}
@@ -345,11 +352,18 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 // Instead of shelling out to raw CLI commands, it uses executor.GlobalFactory() to get
 // the registered executor and calls ExecuteStreaming() — giving us stream-JSON parsing,
 // token extraction, OTEL spans, session tracking, and a full executor.Result.
-func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model string) (*executor.Result, error) {
+func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr string) (*executor.Result, error) {
 	// Get executor from global factory (same as local coordinator's provider_executor.go)
 	exec, err := executor.GlobalFactory().GetExecutor(provider)
 	if err != nil {
 		return nil, fmt.Errorf("get %s executor: %w", provider, err)
+	}
+
+	// Parse timeout from agent config (M-CLOUD-OAUTH)
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: invalid timeout %q, using 30m default: %v\n", timeoutStr, err)
+		timeout = 30 * time.Minute
 	}
 
 	// Build executor task (matches local coordinator's ExecutorProvider.Execute)
@@ -357,17 +371,17 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		ID:        taskID,
 		Directive: directive,
 		Workspace: workDir,
-		Model:     model, // From AILANG_MODEL env var (agent config) — empty means executor default
+		Model:     model,   // From AILANG_MODEL env var (agent config) — empty means executor default
+		Timeout:   timeout, // From AILANG_TIMEOUT env var — overrides executor default (5m)
 		Metadata:  make(map[string]string),
 	}
 	if pluginDir != "" {
 		task.PluginDirs = []string{pluginDir}
 	}
 
-	// Execute with streaming using the same path as local coordinator.
-	// The executor handles: CLI args, permissions (isCloudWorkspace), environment,
-	// stream-JSON parsing, token counting, OTEL spans, and result construction.
-	result, err := exec.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
+	// Execute with streaming using CloudEventHandler for Cloud Logging visibility.
+	// Previously used NoOpEventHandler which silently dropped all streaming events.
+	result, err := exec.ExecuteStreaming(ctx, task, &cloudEventHandler{taskID: taskID})
 	if err != nil {
 		return nil, fmt.Errorf("%s execution failed: %w", provider, err)
 	}
@@ -378,6 +392,52 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	}
 
 	return result, nil
+}
+
+// cloudEventHandler logs streaming events to stderr for Cloud Logging visibility.
+// Replaces NoOpEventHandler so we can see what Claude is doing in Cloud Run Job logs.
+type cloudEventHandler struct {
+	taskID string
+}
+
+func (h *cloudEventHandler) OnTurnStart(turnNum int) {
+	fmt.Fprintf(os.Stderr, "claude-stream: [turn %d] started\n", turnNum)
+}
+
+func (h *cloudEventHandler) OnText(text string) {
+	// Log text snippets (truncated to avoid flooding logs)
+	if len(text) > 200 {
+		text = text[:200] + "..."
+	}
+	// Only log non-empty text with actual content
+	trimmed := strings.TrimSpace(text)
+	if trimmed != "" {
+		fmt.Fprintf(os.Stderr, "claude-stream: %s\n", trimmed)
+	}
+}
+
+func (h *cloudEventHandler) OnToolUse(toolName string, input string) {
+	// Log tool name and truncated input
+	if len(input) > 300 {
+		input = input[:300] + "..."
+	}
+	fmt.Fprintf(os.Stderr, "claude-stream: [tool] %s: %s\n", toolName, input)
+}
+
+func (h *cloudEventHandler) OnToolResult(toolName string, output string) {
+	// Log tool completion (output truncated)
+	if len(output) > 200 {
+		output = output[:200] + "..."
+	}
+	fmt.Fprintf(os.Stderr, "claude-stream: [tool-result] %s: %s\n", toolName, output)
+}
+
+func (h *cloudEventHandler) OnTurnEnd(turnNum int) {
+	fmt.Fprintf(os.Stderr, "claude-stream: [turn %d] ended\n", turnNum)
+}
+
+func (h *cloudEventHandler) OnError(err error) {
+	fmt.Fprintf(os.Stderr, "claude-stream: [error] %v\n", err)
 }
 
 // injectAgentsMD copies AGENTS.md from the plugin directory into the workspace
