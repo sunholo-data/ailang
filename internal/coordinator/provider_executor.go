@@ -84,6 +84,8 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 		IdleTimeout:     opts.IdleTimeout,
 		Model:           opts.Model,
 		Effort:          opts.Effort,
+		PluginDirs:      opts.PluginDirs,                    // M-CLOUD-PLUGIN-SKILLS: pass plugin dirs to executor
+		Plugins:         convertPluginsConfig(opts.Plugins), // M-CLOUD-PLUGIN-SKILLS: third-party plugins
 		Metadata:        make(map[string]string),
 		Iteration:       task.Task.Iteration, // M-TRANSCRIPT: feedback loop iteration
 		ResumeSessionID: task.Task.SessionID, // M-TRANSCRIPT: resume session if iteration > 1
@@ -146,6 +148,18 @@ func (p *ExecutorProvider) Execute(ctx context.Context, task *AnalyzedTask, opts
 	result.SessionID = execResult.SessionID // For agent-to-agent handoffs
 
 	return result, nil
+}
+
+// convertPluginsConfig converts coordinator.PluginsConfig to executor.PluginsConfig.
+// Returns nil if input is nil.
+func convertPluginsConfig(pc *PluginsConfig) *executor.PluginsConfig {
+	if pc == nil {
+		return nil
+	}
+	return &executor.PluginsConfig{
+		Marketplaces: pc.Marketplaces,
+		Install:      pc.Install,
+	}
 }
 
 // buildDirective returns the directive for the executor.

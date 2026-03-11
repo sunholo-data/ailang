@@ -130,6 +130,10 @@ func (d *Daemon) dispatchTasksCloud() error {
 				RepoURL:   deriveRepoURL(task.Workspace),
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
 			}
+			// Pass plugin repo from coordinator config (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+			if d.coordConfig != nil && d.coordConfig.PluginRepo != "" {
+				params.PluginRepo = d.coordConfig.PluginRepo
+			}
 			// For skip_approval agents with a merge_branch, push directly to that branch
 			// instead of creating a coordinator/{taskID} branch.
 			if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
@@ -358,6 +362,19 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 	// Pass per-agent effort level (Claude Code 2.1.47+)
 	if agentConfig != nil && agentConfig.Effort != "" {
 		opts.Effort = agentConfig.Effort
+	}
+
+	// Pass plugin directories (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	if agentConfig != nil && len(agentConfig.PluginDirs) > 0 {
+		opts.PluginDirs = agentConfig.PluginDirs
+		d.logger.Printf("Task %s using %d plugin dir(s)", task.ID, len(agentConfig.PluginDirs))
+	}
+
+	// Pass third-party plugins config (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	if agentConfig != nil && agentConfig.Plugins != nil {
+		opts.Plugins = agentConfig.Plugins
+		d.logger.Printf("Task %s using plugins config: %d marketplaces, %d installs",
+			task.ID, len(agentConfig.Plugins.Marketplaces), len(agentConfig.Plugins.Install))
 	}
 
 	// Pass InvokeConfig for script execution (v0.6.4+)

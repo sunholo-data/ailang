@@ -139,6 +139,75 @@ func TestDispatchErrorPropagation(t *testing.T) {
 	}
 }
 
+func TestDispatchPluginRepoEnvVar(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+
+	params := coordinator.DispatchParams{
+		TaskID:     "task-plugin-test",
+		AgentID:    "website-builder",
+		Workspace:  "sunholo-data/websites",
+		Provider:   "claude",
+		Directive:  "Build the website",
+		RepoURL:    "https://github.com/sunholo-data/websites",
+		Branch:     "main",
+		PushBranch: "main",
+		PluginRepo: "https://github.com/sunholo-data/ailang_bootstrap.git",
+	}
+
+	err := d.Dispatch(context.Background(), params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
+	// 7 base + PushBranch + PluginRepo = 9
+	if len(envVars) != 9 {
+		t.Fatalf("expected 9 env vars (7 base + PushBranch + PluginRepo), got %d", len(envVars))
+	}
+
+	// Verify PluginRepo is set
+	found := false
+	for _, env := range envVars {
+		if env.Name == "AILANG_PLUGIN_REPO" {
+			val, ok := env.Values.(*runpb.EnvVar_Value)
+			if !ok {
+				t.Fatalf("AILANG_PLUGIN_REPO: expected *EnvVar_Value, got %T", env.Values)
+			}
+			if val.Value != params.PluginRepo {
+				t.Errorf("AILANG_PLUGIN_REPO = %q, want %q", val.Value, params.PluginRepo)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Error("AILANG_PLUGIN_REPO env var not found in overrides")
+	}
+}
+
+func TestDispatchWithoutPluginRepo(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "us-central1", "test")
+
+	// No PluginRepo set — should NOT include AILANG_PLUGIN_REPO env var
+	params := coordinator.DispatchParams{
+		TaskID:  "task-no-plugin",
+		AgentID: "sprint-executor",
+	}
+
+	err := d.Dispatch(context.Background(), params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
+	for _, env := range envVars {
+		if env.Name == "AILANG_PLUGIN_REPO" {
+			t.Error("AILANG_PLUGIN_REPO should not be set when PluginRepo is empty")
+		}
+	}
+}
+
 func TestDispatchDifferentRegions(t *testing.T) {
 	tests := []struct {
 		region   string

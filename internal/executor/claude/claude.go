@@ -129,6 +129,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
+	// Install per-agent third-party plugins before execution (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	// This is best-effort — failures don't prevent task execution.
+	if task.Plugins != nil {
+		e.installPlugins(ctx, task.Plugins, task.Workspace)
+	}
+
 	// Build command arguments
 	// Note: We do NOT pass --settings here. Claude Code will load project's
 	// .claude/settings.json naturally, which has the telemetry hooks configured.
@@ -163,6 +169,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Effort level (Claude Code 2.1.47+: low/medium/high)
 	if task.Effort != "" {
 		args = append(args, "--effort", task.Effort)
+	}
+
+	// Plugin directories (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	for _, dir := range task.PluginDirs {
+		args = append(args, "--plugin-dir", dir)
 	}
 
 	// Use task-specific tools if specified, otherwise fall back to executor config
@@ -546,6 +557,52 @@ func getErrorMessage(result *claudeHeadlessResult) string {
 func isValidUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil
+}
+
+// installPlugins registers marketplaces and installs third-party plugins.
+// This runs before task execution. Best-effort: failures are logged but don't block execution.
+func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.PluginsConfig, workspace string) {
+	if plugins == nil {
+		return
+	}
+
+	for _, mkt := range plugins.Marketplaces {
+		cmd := exec.CommandContext(ctx, e.claudePath, "plugin", "marketplace", "add", mkt)
+		if workspace != "" {
+			cmd.Dir = workspace
+		}
+		if e.nvmBinDir != "" {
+			cmd.Env = os.Environ()
+			for i, v := range cmd.Env {
+				if strings.HasPrefix(v, "PATH=") {
+					cmd.Env[i] = "PATH=" + e.nvmBinDir + ":" + v[5:]
+					break
+				}
+			}
+		}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to add marketplace %s: %v (%s)\n", mkt, err, strings.TrimSpace(string(output)))
+		}
+	}
+
+	for _, plugin := range plugins.Install {
+		cmd := exec.CommandContext(ctx, e.claudePath, "plugin", "install", plugin)
+		if workspace != "" {
+			cmd.Dir = workspace
+		}
+		if e.nvmBinDir != "" {
+			cmd.Env = os.Environ()
+			for i, v := range cmd.Env {
+				if strings.HasPrefix(v, "PATH=") {
+					cmd.Env[i] = "PATH=" + e.nvmBinDir + ":" + v[5:]
+					break
+				}
+			}
+		}
+		if output, err := cmd.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to install plugin %s: %v (%s)\n", plugin, err, strings.TrimSpace(string(output)))
+		}
+	}
 }
 
 // Register registers the Claude executor with the global factory

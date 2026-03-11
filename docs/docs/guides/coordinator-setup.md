@@ -109,6 +109,12 @@ When `auto_approve_handoffs: false`, each stage requires human approval before t
 | `trigger_on_complete` | No | Agent IDs to trigger on success |
 | `output_markers` | No | Lines to extract from output |
 | `artifact_patterns` | No | Glob patterns for git diff |
+| `plugin_dirs` | No | Local plugin directories (`--plugin-dir` flags) - v0.9.1+ |
+| `plugins.marketplaces` | No | Plugin marketplaces to register - v0.9.1+ |
+| `plugins.install` | No | Plugins to install from marketplaces - v0.9.1+ |
+| `model` | No | Claude model override (e.g., "opus") - v0.8.0+ |
+| `timeout` | No | Hard ceiling timeout (default: 60m) - v0.8.1+ |
+| `effort` | No | Claude effort level: "low", "medium", "high" |
 
 ### Template Files (v0.6.7+)
 

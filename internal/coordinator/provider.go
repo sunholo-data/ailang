@@ -72,6 +72,13 @@ type ExecuteOptions struct {
 
 	// Effort level for Claude Code (low/medium/high). Empty = Claude's default.
 	Effort string
+
+	// PluginDirs for Claude Code (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// Paths to plugin directories passed as --plugin-dir flags.
+	PluginDirs []string
+
+	// Plugins for per-agent third-party plugin installation (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	Plugins *PluginsConfig
 }
 
 // ObservatoryContext holds context for linking traces to coordinator entities.

@@ -49,9 +49,25 @@ type Task struct {
 	// Effort level (Claude Code 2.1.47+: "low", "medium", "high")
 	Effort string
 
+	// Plugin directories for Claude Code (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	// Each entry is a path to a plugin directory containing .claude-plugin/plugin.json.
+	// Passed as --plugin-dir flags to Claude CLI.
+	PluginDirs []string
+
+	// Plugins specifies third-party plugins to install before execution (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// Marketplaces are registered first, then plugins installed from those marketplaces.
+	Plugins *PluginsConfig
+
 	// Session continuity (M-TRANSCRIPT)
 	Iteration       int    // Iteration number (1 = first run, 2+ = re-run with feedback)
 	ResumeSessionID string // Previous session ID to resume (for Iteration > 1)
+}
+
+// PluginsConfig specifies third-party plugins to install before execution.
+// This is a copy of coordinator.PluginsConfig to avoid circular imports.
+type PluginsConfig struct {
+	Marketplaces []string // Marketplaces to register (e.g., "anthropics/claude-code")
+	Install      []string // Plugins to install (e.g., "frontend-design@anthropics-claude-code")
 }
 
 // Result is the normalized execution result

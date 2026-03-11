@@ -119,6 +119,25 @@ type AgentConfig struct {
 	// Per-agent effort level (Claude Code 2.1.47+: "low", "medium", "high")
 	// Controls how much effort Claude puts into the task. Default: unset (Claude's default).
 	Effort string `yaml:"effort" json:"effort,omitempty"`
+
+	// Per-agent plugin directories (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// Local paths to Claude Code plugin directories containing .claude-plugin/plugin.json.
+	// Passed as --plugin-dir flags. Complementary to coordinator-level PluginRepo (for cloud).
+	PluginDirs []string `yaml:"plugin_dirs" json:"plugin_dirs,omitempty"`
+
+	// Per-agent third-party plugin configuration (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// Installs marketplace and custom plugins before task execution.
+	Plugins *PluginsConfig `yaml:"plugins" json:"plugins,omitempty"`
+}
+
+// PluginsConfig specifies third-party plugins to install for an agent.
+// Marketplaces are registered first, then plugins are installed from those marketplaces.
+// This runs before task execution and is complementary to PluginDirs (static plugin paths).
+type PluginsConfig struct {
+	// Marketplaces to register (e.g., "anthropics/claude-code", "anthropics/skills")
+	Marketplaces []string `yaml:"marketplaces" json:"marketplaces,omitempty"`
+	// Plugins to install from registered marketplaces (e.g., "frontend-design@anthropics-claude-code")
+	Install []string `yaml:"install" json:"install,omitempty"`
 }
 
 // AgentRegistry manages the set of configured agents.

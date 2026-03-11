@@ -47,6 +47,7 @@
       "Skill(eval-gap-finder)",
       "Bash(.claude/skills/cli-doc-maintainer/scripts/:*)",
       "Skill(cli-doc-maintainer)",
+      "Skill(ailang:*)",
       "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)",
       "Read(//Users/mark/dev/sunholo/ailang/{s+=$1; c++} END {print \"\"AILANG avg turns:\"\", s/**)",
       "Read(//Users/mark/dev/sunholo/ailang/{s+=$1; c++} END {print \"\"Python avg turns:\"\", s/**)"

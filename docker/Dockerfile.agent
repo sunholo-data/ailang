@@ -47,6 +47,12 @@ COPY --from=builder /ailang /usr/local/bin/ailang
 RUN git config --system user.name "ailang-agent" \
     && git config --system user.email "ailang-agent@noreply.github.com"
 
+# Pre-clone shared skills plugin for faster cold starts (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+# This is a cache — the execute-job command will re-clone if AILANG_PLUGIN_REPO is set.
+# Override at build time: --build-arg AILANG_PLUGIN_REPO=https://github.com/your-org/your-plugin.git
+ARG AILANG_PLUGIN_REPO=https://github.com/sunholo-data/ailang_bootstrap.git
+RUN git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap 2>/dev/null || true
+
 ENV COORDINATOR_MODE=cloud
 
 # Working directory for git operations

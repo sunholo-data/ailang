@@ -78,6 +78,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_PUSH_BRANCH", Values: &runpb.EnvVar_Value{Value: params.PushBranch},
 		})
 	}
+	// Pass plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	if params.PluginRepo != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_PLUGIN_REPO", Values: &runpb.EnvVar_Value{Value: params.PluginRepo},
+		})
+	}
 
 	req := &runpb.RunJobRequest{
 		Name: jobName,

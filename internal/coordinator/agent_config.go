@@ -29,6 +29,11 @@ type CoordinatorConfig struct {
 	ClaudePath      string            `yaml:"claude_path" json:"claude_path,omitempty"` // Explicit path to Claude CLI binary (empty = auto-detect: native > PATH > NVM)
 	MergeBranch     string            `yaml:"merge_branch" json:"merge_branch"`         // Target branch for approvals (default: "dev")
 	GitHubSync      *GitHubSyncConfig `yaml:"github_sync" json:"github_sync"`
+
+	// PluginRepo is a git URL for a shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// In cloud mode, this repo is cloned and passed as --plugin-dir to Claude CLI.
+	// Example: "https://github.com/sunholo-data/ailang_bootstrap.git"
+	PluginRepo string `yaml:"plugin_repo" json:"plugin_repo,omitempty"`
 }
 
 // GitHubSyncConfig configures automatic GitHub issue import.

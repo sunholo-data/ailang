@@ -945,6 +945,8 @@ coordinator:
 | `timeout` | Hard ceiling execution timeout as Go duration (e.g., "30m", "1h"). Default: 60m |
 | `idle_timeout` | Kill if no output for this long (e.g., "3m", "5m"). Default: 3m |
 | `approval` | Config-driven GitHub labels (see below) |
+| `plugin_dirs` | Local plugin directories for `--plugin-dir` flags (v0.9.1+) |
+| `plugins` | Third-party plugin config: `marketplaces` + `install` (v0.9.1+) |
 
 **Approval Configuration (v0.8.0+):**
 
@@ -1139,13 +1141,15 @@ pubsub:
 | `AILANG_CLOUD_REGION` | GCP region for Cloud Run Jobs (default: `europe-west1`) |
 | `AILANG_WORKSPACE` | Workspace identifier for multi-project routing |
 | `AILANG_TOPIC_PREFIX` | Topic prefix (default: `ailang`) |
+| `AILANG_PLUGIN_REPO` | Git URL for shared skills plugin (cloned as `--plugin-dir`). v0.9.1+ |
 
 **Cloud Run Job execution:**
 ```bash
 # In Cloud Run Job container (env set by coordinator dispatcher):
 ailang coordinator execute-job
 # Reads: AILANG_TASK_ID, AILANG_AGENT_ID, AILANG_WORKSPACE, AILANG_PROVIDER,
-#         AILANG_DIRECTIVE, AILANG_REPO_URL, AILANG_BRANCH
+#         AILANG_DIRECTIVE, AILANG_REPO_URL, AILANG_BRANCH,
+#         AILANG_PUSH_BRANCH, AILANG_PLUGIN_REPO
 # Publishes completion to ailang-completions topic
 ```
 
@@ -1175,6 +1179,42 @@ ailang messages watch --pubsub          # Pull from Pub/Sub subscription
 - **No auth in Go code**: Cloud Run + OIDC token handle auth at infrastructure level (Terraform)
 - **No worktree managers in cloud mode**: Coordinator image has no git — agents run in separate Cloud Run Jobs
 
+**Plugin support for cloud agents (v0.9.1+ M-CLOUD-PLUGIN-SKILLS):**
+
+Cloud Run Jobs need access to cross-project skills that aren't in the git-cloned project repo. The plugin system solves this:
+
+```yaml
+# ~/.ailang/config.yaml
+coordinator:
+  # Plugin repo cloned at Cloud Run Job start (--plugin-dir)
+  plugin_repo: https://github.com/sunholo-data/ailang_bootstrap.git
+
+  agents:
+    - id: website-builder
+      invoke:
+        type: skill
+        name: "ailang:website-builder"  # Plugin-namespaced skill
+      # Local plugin directories (for laptop development)
+      plugin_dirs:
+        - /path/to/local/ailang_bootstrap
+      # Third-party plugins (marketplace + install)
+      plugins:
+        marketplaces:
+          - anthropics/claude-code
+        install:
+          - frontend-design@anthropics-claude-code
+```
+
+**Two execution paths:**
+- **Local mode**: `AgentConfig.PluginDirs` → `--plugin-dir` flags to Claude CLI; `AgentConfig.Plugins` → `claude plugin marketplace add` + `claude plugin install`
+- **Cloud mode**: `CoordinatorConfig.PluginRepo` → `AILANG_PLUGIN_REPO` env var → git clone at job start → `--plugin-dir` + AGENTS.md injection
+
+**Dockerfile pre-clone** (`docker/Dockerfile.agent`):
+```dockerfile
+ARG AILANG_PLUGIN_REPO=https://github.com/sunholo-data/ailang_bootstrap.git
+RUN git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap 2>/dev/null || true
+```
+
 **Key files:**
 - `internal/pubsub/` — Client, Publisher, Subscriber, topic constants
 - `internal/pubsub/push.go` — Push envelope decoder (reusable across push endpoints)
@@ -1182,8 +1222,9 @@ ailang messages watch --pubsub          # Pull from Pub/Sub subscription
 - `internal/coordinator/pubsub_broadcaster.go` — PubSubBroadcaster
 - `internal/coordinator/pubsub_completion_handler.go` — CompletionHandler (HandleCompletion for push+pull)
 - `internal/coordinator/daemon_http.go` — Push endpoints registered in cloud mode
-- `cmd/ailang/coordinator_cloud.go` — execute-job subcommand
+- `cmd/ailang/coordinator_cloud.go` — execute-job subcommand (plugin clone, AGENTS.md injection)
 - `internal/messaging/pubsub_notifier.go` — CLI dual-write helper
+- `internal/dispatch/cloudrun/dispatcher.go` — Cloud Run Jobs dispatcher (AILANG_PLUGIN_REPO env var)
 
 **For complete guide**: See [docs/docs/guides/coordinator.md](docs/docs/guides/coordinator.md)
 

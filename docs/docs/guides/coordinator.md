@@ -116,6 +116,12 @@ coordinator:
 | `invoke` | object | How to invoke this agent (skill/agent/prompt) - v0.6.3+ |
 | `output_markers` | list | Markers to extract from output - v0.6.3+ |
 | `approval` | object | Approval workflow configuration - v0.6.3+ |
+| `plugin_dirs` | list | Local plugin directories passed as `--plugin-dir` to Claude CLI - v0.9.1+ |
+| `plugins` | object | Third-party plugin installation config (marketplaces + install) - v0.9.1+ |
+| `model` | string | Claude model override (e.g., "opus", "sonnet", "haiku") - v0.8.0+ |
+| `timeout` | string | Hard ceiling timeout (e.g., "30m", "1h"). Default: 60m - v0.8.1+ |
+| `idle_timeout` | string | Kill if no output for this long. Default: 3m - v0.8.1+ |
+| `effort` | string | Claude Code effort level: "low", "medium", "high" |
 
 ### Generic Workflow Configuration (v0.6.3+)
 
@@ -286,6 +292,52 @@ approval:
     ## Design Document Ready
     Path: {{.DesignDocPath}}
 ```
+
+#### Plugin Configuration (v0.9.1+)
+
+Agents can use plugins to access cross-project skills that aren't in the project's `.claude/skills/` directory.
+
+**Plugin directories** — local paths to Claude Code plugins:
+
+```yaml
+# Agent uses local plugin directory
+- id: website-builder
+  plugin_dirs:
+    - /path/to/ailang_bootstrap  # Contains .claude-plugin/plugin.json
+  invoke:
+    type: skill
+    name: "ailang:website-builder"  # Plugin-namespaced skill
+```
+
+**Third-party plugins** — install from marketplace before execution:
+
+```yaml
+# Agent installs third-party plugins
+- id: frontend-agent
+  plugins:
+    marketplaces:
+      - anthropics/claude-code        # Register marketplace
+    install:
+      - frontend-design@anthropics-claude-code  # Install plugin
+```
+
+**Cloud plugin repo** — cloned at Cloud Run Job start:
+
+```yaml
+coordinator:
+  # Cloned into /plugins/{taskID}/ailang_bootstrap and passed as --plugin-dir
+  plugin_repo: https://github.com/sunholo-data/ailang_bootstrap.git
+```
+
+The cloud executor also injects `AGENTS.md` from the plugin into the workspace if the repo doesn't already have one.
+
+**How plugins are resolved:**
+| Mode | Source | Mechanism |
+|------|--------|-----------|
+| Local | `plugin_dirs` in agent config | `--plugin-dir` flags to Claude CLI |
+| Local | `plugins.install` in agent config | `claude plugin install` before execution |
+| Cloud | `plugin_repo` in coordinator config | `AILANG_PLUGIN_REPO` env var → git clone → `--plugin-dir` |
+| Cloud | Dockerfile pre-clone | `ARG AILANG_PLUGIN_REPO` → faster cold starts |
 
 #### Full Example with Generic Workflow
 

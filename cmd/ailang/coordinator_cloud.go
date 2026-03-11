@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -35,6 +36,7 @@ import (
 //	AILANG_PUSH_BRANCH   - Push directly to this branch (skip coordinator/ branch creation)
 //	AILANG_DIRECTIVE     - Task directive/prompt
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
+//	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
 	for _, arg := range args {
@@ -140,10 +142,13 @@ func coordinatorExecuteJob(args []string) error {
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
 	}
 
+	// Read plugin repo for shared skills (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	pluginRepo := os.Getenv("AILANG_PLUGIN_REPO")
+
 	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s)\n", taskID, agentID, workspace)
 
 	// Execute the task
-	branchName, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider)
+	branchName, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo)
 
 	// Publish completion (success or failure)
 	if execErr != nil {
@@ -163,9 +168,24 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider string) (string, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo string) (string, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
+
+	// Step 0: Clone shared skills plugin if configured (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	pluginDir := ""
+	if pluginRepo != "" {
+		pluginDir = filepath.Join("/plugins", taskID, "ailang_bootstrap")
+		fmt.Printf("execute-job: cloning plugin repo %s\n", pluginRepo)
+		pluginCloneCmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", pluginRepo, pluginDir)
+		pluginCloneCmd.Stdout = os.Stdout
+		pluginCloneCmd.Stderr = os.Stderr
+		if err := pluginCloneCmd.Run(); err != nil {
+			// Best effort — agent can still work without plugin skills
+			fmt.Fprintf(os.Stderr, "warning: plugin clone failed (continuing without plugin skills): %v\n", err)
+			pluginDir = ""
+		}
+	}
 
 	// Step 1: Clone the repository (required in cloud mode)
 	if repoURL == "" {
@@ -177,6 +197,12 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
 		return "", fmt.Errorf("git clone failed: %w", err)
+	}
+
+	// Step 1.5: Inject AGENTS.md from plugin if repo doesn't have one (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+	// This gives the agent cross-platform instructions without requiring every repo to include AGENTS.md.
+	if pluginDir != "" {
+		injectAgentsMD(pluginDir, workDir)
 	}
 
 	// Step 2: Create task branch (skip if direct push mode)
@@ -204,7 +230,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	fmt.Printf("execute-job: running %s executor\n", provider)
-	execErr := runExecutor(ctx, workDir, provider, directive, taskID)
+	execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir)
 	if execErr != nil {
 		return branchName, fmt.Errorf("executor failed: %w", execErr)
 	}
@@ -251,15 +277,17 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 }
 
 // runExecutor invokes the AI executor CLI tool.
-func runExecutor(ctx context.Context, workDir, provider, directive, taskID string) error {
+func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir string) error {
 	var cmd *exec.Cmd
 
 	switch provider {
 	case "claude":
-		cmd = exec.CommandContext(ctx, "claude",
-			"-p", directive,
-			"--output-format", "json",
-		)
+		args := []string{"-p", directive, "--output-format", "json"}
+		// Pass plugin directory if available (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
+		if pluginDir != "" {
+			args = append(args, "--plugin-dir", pluginDir)
+		}
+		cmd = exec.CommandContext(ctx, "claude", args...)
 	case "gemini":
 		cmd = exec.CommandContext(ctx, "gemini",
 			"-p", directive,
@@ -278,6 +306,33 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID strin
 	)
 
 	return cmd.Run()
+}
+
+// injectAgentsMD copies AGENTS.md from the plugin directory into the workspace
+// if the workspace doesn't already have one. This gives agents cross-platform
+// instructions without requiring every repo to include AGENTS.md.
+func injectAgentsMD(pluginDir, workDir string) {
+	src := filepath.Join(pluginDir, "AGENTS.md")
+	dst := filepath.Join(workDir, "AGENTS.md")
+
+	// Don't overwrite if repo already has AGENTS.md
+	if _, err := os.Stat(dst); err == nil {
+		fmt.Printf("execute-job: AGENTS.md already exists in repo, skipping injection\n")
+		return
+	}
+
+	// Check if plugin has AGENTS.md
+	srcData, err := os.ReadFile(src)
+	if err != nil {
+		// Plugin doesn't have AGENTS.md — that's OK
+		return
+	}
+
+	if err := os.WriteFile(dst, srcData, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to inject AGENTS.md: %v\n", err)
+		return
+	}
+	fmt.Printf("execute-job: injected AGENTS.md from plugin into workspace\n")
 }
 
 func printExecuteJobHelp() {
@@ -299,4 +354,5 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_PUSH_BRANCH      Push directly to this branch (skip coordinator/ branch)")
 	fmt.Println("  AILANG_DIRECTIVE        Task prompt/directive")
 	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
+	fmt.Println("  AILANG_PLUGIN_REPO      Git URL for shared skills plugin (--plugin-dir)")
 }

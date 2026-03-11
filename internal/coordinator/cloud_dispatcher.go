@@ -22,4 +22,5 @@ type DispatchParams struct {
 	RepoURL    string // Git repo URL
 	Branch     string // Base branch (default: "dev")
 	PushBranch string // If set, push directly to this branch (skip coordinator/ branch creation)
+	PluginRepo string // Git URL for shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 }

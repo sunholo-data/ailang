@@ -21,6 +21,10 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-reflect-structural-reflection.md)
 - [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/semantic-caching-future.md)
 
+## Planned for v0.9.1
+
+- [M-CLOUD-PLUGIN-SKILLS: Cross-Project Skill Distribution via Plugin System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_1/m-cloud-plugin-skills.md) ✅ Code complete
+
 ## Planned for v0.9.0
 
 - [M-TOOLING: Deterministic CLI for AI Agents (v0.3.15)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_0/M-TOOLING-DETERMINISTIC.md)
