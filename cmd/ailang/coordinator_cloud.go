@@ -173,6 +173,15 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
+	// When push branch is set, clone that branch instead of baseBranch.
+	// This handles repos where the default branch differs from "dev"
+	// (e.g., sunholo-websites uses "main"). The push branch is the branch
+	// that actually exists in the remote and where we want to commit.
+	if pushBranch != "" && baseBranch != pushBranch {
+		fmt.Printf("execute-job: overriding clone branch %s → %s (push branch)\n", baseBranch, pushBranch)
+		baseBranch = pushBranch
+	}
+
 	// Step 0: Clone shared skills plugin if configured (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginDir := ""
 	if pluginRepo != "" {

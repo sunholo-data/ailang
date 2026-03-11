@@ -134,9 +134,13 @@ func (d *Daemon) dispatchTasksCloud() error {
 			if d.coordConfig != nil && d.coordConfig.PluginRepo != "" {
 				params.PluginRepo = d.coordConfig.PluginRepo
 			}
-			// For skip_approval agents with a merge_branch, push directly to that branch
-			// instead of creating a coordinator/{taskID} branch.
+			// Use agent config for branch resolution and skip_approval push mode.
+			// The agent's MergeBranch is the correct clone branch for repos that
+			// don't use "dev" as default (e.g., sunholo-websites uses "main").
 			if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
+				if agent.MergeBranch != "" && params.Branch == "" {
+					params.Branch = agent.MergeBranch
+				}
 				if agent.SkipApproval && agent.MergeBranch != "" {
 					params.PushBranch = agent.MergeBranch
 				}
