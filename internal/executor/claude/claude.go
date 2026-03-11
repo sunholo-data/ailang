@@ -202,6 +202,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		cmd.Dir = task.Workspace
 	}
 
+	// Log the full command for debugging (helps diagnose cloud executor issues)
+	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
+
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
 	cmd.Env = executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:                  task,
@@ -271,11 +274,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		stdoutScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
 		stderrScanner.Buffer(make([]byte, 0, maxScannerBuffer), maxScannerBuffer)
 
-		// Read stderr in background
+		// Read stderr in background — log to os.Stderr for Cloud Logging visibility.
+		// Previously discarded, making it impossible to diagnose tool-use regressions.
 		go func() {
 			for stderrScanner.Scan() {
-				// Discard stderr for now
-				_ = stderrScanner.Text()
+				line := stderrScanner.Text()
+				fmt.Fprintf(os.Stderr, "claude-stderr: %s\n", line)
 			}
 		}()
 
