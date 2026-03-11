@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -129,6 +130,16 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
+	// Write OAuth credentials file from env var for cloud auth (M-CLOUD-OAUTH).
+	// Claude Code reads ~/.claude/.credentials.json for authentication.
+	// In cloud containers, the token is passed via CLAUDE_CODE_OAUTH_TOKEN env var
+	// from Secret Manager. This bridges the gap: env var → file → Claude reads it.
+	// IMPORTANT: The env var alone causes Claude to exit(1) with zero output.
+	// The file-based approach is what works (same as local interactive auth).
+	if err := writeCredentialsFile(); err != nil {
+		fmt.Fprintf(os.Stderr, "claude-auth: warning: %v\n", err)
+	}
+
 	// Install per-agent third-party plugins before execution (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	// This is best-effort — failures don't prevent task execution.
 	if task.Plugins != nil {
@@ -219,6 +230,11 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		Context:               ctx,
 		EnableClaudeTelemetry: true,
 	})
+
+	// Strip CLAUDE_CODE_OAUTH_TOKEN from subprocess environment (M-CLOUD-OAUTH).
+	// Credentials are written to ~/.claude/.credentials.json above.
+	// The env var causes Claude Code to crash (exit 1, 0 turns, no stderr).
+	cmd.Env = executor.RemoveEnvVar(cmd.Env, "CLAUDE_CODE_OAUTH_TOKEN")
 
 	// Prepend NVM node bin directory to PATH so the correct Node version
 	// is found by the claude shebang (#!/usr/bin/env node).
@@ -658,6 +674,58 @@ func (e *ClaudeExecutor) installPlugins(ctx context.Context, plugins *executor.P
 			fmt.Fprintf(os.Stderr, "warning: failed to install plugin %s: %v (%s)\n", plugin, err, strings.TrimSpace(string(output)))
 		}
 	}
+}
+
+// writeCredentialsFile writes ~/.claude/.credentials.json from the
+// CLAUDE_CODE_OAUTH_TOKEN environment variable (M-CLOUD-OAUTH).
+//
+// Claude Code authenticates locally via ~/.claude/.credentials.json.
+// In cloud containers (Cloud Run Jobs), the OAuth token is injected as an
+// env var from Secret Manager. This function bridges the two:
+//
+//	env var (inner):  {"accessToken":"...","refreshToken":"...","expiresAt":...}
+//	file (wrapper):   {"claudeAiOauth":{"accessToken":"...","refreshToken":"...","expiresAt":...}}
+//
+// Returns nil if CLAUDE_CODE_OAUTH_TOKEN is not set (no-op for local dev).
+func writeCredentialsFile() error {
+	token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
+	if token == "" {
+		return nil
+	}
+
+	// Validate the token is valid JSON
+	var inner json.RawMessage
+	if err := json.Unmarshal([]byte(token), &inner); err != nil {
+		return fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN is not valid JSON: %w", err)
+	}
+
+	// Wrap in the credentials file format that Claude Code expects
+	wrapper := map[string]json.RawMessage{
+		"claudeAiOauth": inner,
+	}
+	data, err := json.Marshal(wrapper)
+	if err != nil {
+		return fmt.Errorf("failed to marshal credentials: %w", err)
+	}
+
+	// Write to ~/.claude/.credentials.json
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home dir: %w", err)
+	}
+
+	claudeDir := filepath.Join(homeDir, ".claude")
+	if err := os.MkdirAll(claudeDir, 0700); err != nil {
+		return fmt.Errorf("failed to create .claude dir: %w", err)
+	}
+
+	credPath := filepath.Join(claudeDir, ".credentials.json")
+	if err := os.WriteFile(credPath, data, 0600); err != nil {
+		return fmt.Errorf("failed to write credentials: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "claude-auth: wrote credentials to %s (%d bytes)\n", credPath, len(data))
+	return nil
 }
 
 // Register registers the Claude executor with the global factory
