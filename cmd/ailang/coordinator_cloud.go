@@ -182,6 +182,17 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		baseBranch = pushBranch
 	}
 
+	// Step -1: Configure git credentials from GITHUB_TOKEN.
+	// Cloud containers don't have a credential helper — git can't authenticate HTTPS
+	// requests without this. GITHUB_TOKEN is provided via Secret Manager.
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		credHelper := fmt.Sprintf("!f() { echo username=x-access-token; echo \"password=%s\"; }; f", token)
+		credCmd := exec.CommandContext(ctx, "git", "config", "--global", "credential.helper", credHelper)
+		if err := credCmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to configure git credentials: %v\n", err)
+		}
+	}
+
 	// Step 0: Clone shared skills plugin if configured (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	pluginDir := ""
 	if pluginRepo != "" {
