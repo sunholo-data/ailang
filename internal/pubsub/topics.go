@@ -41,6 +41,15 @@ type TaskCompletion struct {
 	Status     string `json:"status"`                // "completed" or "failed"
 	BranchName string `json:"branch_name,omitempty"` // Git branch with changes
 	ErrorMsg   string `json:"error_msg,omitempty"`
+
+	// Executor metrics (populated when using full executor infrastructure)
+	SessionID     string  `json:"session_id,omitempty"`
+	NumTurns      int     `json:"num_turns,omitempty"`
+	ToolCallCount int     `json:"tool_call_count,omitempty"`
+	InputTokens   int     `json:"input_tokens,omitempty"`
+	OutputTokens  int     `json:"output_tokens,omitempty"`
+	CostUSD       float64 `json:"cost_usd,omitempty"`
+	DurationMS    int     `json:"duration_ms,omitempty"`
 }
 
 // MessageAttributes carries routing metadata as Pub/Sub message attributes.
