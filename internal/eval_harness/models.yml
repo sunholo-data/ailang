@@ -454,6 +454,47 @@ models:
       Good for quick tests and development iteration.
       Requires: ollama pull llama3.2:3b
 
+  ollama-gemma3:
+    api_name: "gemma3:12b"
+    provider: "ollama"
+    description: "Google Gemma 3 12B - multimodal open model"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Google's Gemma 3 12B model with multimodal capabilities.
+      General purpose, not specialized for document extraction.
+      Requires: ollama pull gemma3:12b
+
+  ollama-granite3-2-vision:
+    api_name: "granite3.2-vision:latest"
+    provider: "ollama"
+    description: "IBM Granite 3.2 Vision - document understanding and OCR"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      IBM's Granite 3.2 Vision model for document understanding.
+      Strong at OCR, table extraction, and document layout analysis.
+      2.4GB model, good for local document parsing.
+      Requires: ollama pull granite3.2-vision
+
+  ollama-paddleocr-vl:
+    api_name: "MedAIBase/PaddleOCR-VL:0.9b"
+    provider: "ollama"
+    description: "PaddleOCR-VL 0.9B - lightweight OCR vision-language model"
+    env_var: ""
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      PaddlePaddle's OCR Vision-Language model (0.9B parameters).
+      Lightweight, specialized for OCR and text extraction tasks.
+      Good for fast local document text extraction.
+      Requires: ollama pull MedAIBase/PaddleOCR-VL:0.9b
+
 # Default model for benchmarks
 default: "claude-sonnet-4-6"
 
@@ -502,10 +543,12 @@ dev_models:
 # Cost: $0.00 (runs locally via Ollama)
 # Requires: ollama serve running locally
 local_models:
-  - "ollama-codellama"      # CodeLlama 7B
-  - "ollama-deepseek-coder" # DeepSeek Coder 6.7B
-  - "ollama-qwen-coder"     # Qwen 2.5 Coder 7B
-  - "ollama-llama3-2"       # Llama 3.2 3B (fast)
+  - "ollama-codellama"          # CodeLlama 7B
+  - "ollama-deepseek-coder"     # DeepSeek Coder 6.7B
+  - "ollama-qwen-coder"         # Qwen 2.5 Coder 7B
+  - "ollama-llama3-2"           # Llama 3.2 3B (fast)
+  - "ollama-granite3-2-vision"  # IBM Granite 3.2 Vision (document OCR)
+  - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
 # - gpt5              # Superseded by gpt5-4

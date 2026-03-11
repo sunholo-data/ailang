@@ -188,13 +188,20 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		args = append(args, "--plugin-dir", dir)
 	}
 
-	// Use task-specific tools if specified, otherwise fall back to executor config
-	tools := e.allowedTools
-	if len(task.AllowedTools) > 0 {
-		tools = task.AllowedTools
-	}
-	if len(tools) > 0 {
-		args = append(args, "--allowedTools", strings.Join(tools, ","))
+	// Use task-specific tools if specified, otherwise fall back to executor config.
+	// IMPORTANT: Skip --allowedTools in cloud mode with --dangerously-skip-permissions.
+	// The --allowedTools flag restricts tool loading and interacts badly with
+	// --dangerously-skip-permissions in headless/Docker mode, causing 0-tool-call
+	// regressions (Claude receives the prompt but can't initialize tools properly).
+	// See: commit 30e388f6 regression analysis.
+	if !isCloudTask {
+		tools := e.allowedTools
+		if len(task.AllowedTools) > 0 {
+			tools = task.AllowedTools
+		}
+		if len(tools) > 0 {
+			args = append(args, "--allowedTools", strings.Join(tools, ","))
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, e.claudePath, args...)

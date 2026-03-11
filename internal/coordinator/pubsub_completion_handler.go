@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/pubsub"
@@ -87,6 +88,25 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 		return nil
 	}
 
+	// Build ExecuteResult from completion metrics so they're stored in Firestore.
+	var execResult *ExecuteResult
+	if completion.SessionID != "" || completion.NumTurns > 0 || completion.ToolCallCount > 0 {
+		execResult = &ExecuteResult{
+			Success:       completion.Status == "completed",
+			SessionID:     completion.SessionID,
+			NumTurns:      completion.NumTurns,
+			ToolCallCount: completion.ToolCallCount,
+			InputTokens:   completion.InputTokens,
+			OutputTokens:  completion.OutputTokens,
+			TokensUsed:    completion.InputTokens + completion.OutputTokens,
+			Cost:          completion.CostUSD,
+			Duration:      time.Duration(completion.DurationMS) * time.Millisecond,
+		}
+		if completion.ErrorMsg != "" {
+			execResult.Error = completion.ErrorMsg
+		}
+	}
+
 	switch completion.Status {
 	case "completed":
 		// Check if agent is configured to skip approval.
@@ -99,18 +119,18 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 
 		if skipApproval {
 			// Skip approval — mark completed directly.
-			if err := h.taskStore.MarkTaskCompleted(ctx, completion.TaskID, nil); err != nil {
+			if err := h.taskStore.MarkTaskCompleted(ctx, completion.TaskID, execResult); err != nil {
 				return fmt.Errorf("mark task completed: %w", err)
 			}
-			h.logger.Printf("CompletionHandler: task %s → completed (skip_approval, branch=%s)",
-				completion.TaskID, completion.BranchName)
+			h.logger.Printf("CompletionHandler: task %s → completed (skip_approval, branch=%s, turns=%d, tools=%d)",
+				completion.TaskID, completion.BranchName, completion.NumTurns, completion.ToolCallCount)
 		} else {
 			// Standard flow: mark pending_approval for human review.
-			if err := h.taskStore.MarkTaskPendingApproval(ctx, completion.TaskID, "", completion.BranchName, "", "", nil); err != nil {
+			if err := h.taskStore.MarkTaskPendingApproval(ctx, completion.TaskID, "", completion.BranchName, "", "", execResult); err != nil {
 				return fmt.Errorf("mark task pending_approval: %w", err)
 			}
-			h.logger.Printf("CompletionHandler: task %s → pending_approval (branch=%s)",
-				completion.TaskID, completion.BranchName)
+			h.logger.Printf("CompletionHandler: task %s → pending_approval (branch=%s, turns=%d, tools=%d)",
+				completion.TaskID, completion.BranchName, completion.NumTurns, completion.ToolCallCount)
 		}
 
 		// Post completion notification to the agent's inbox so the portal/sidecar can detect it.
