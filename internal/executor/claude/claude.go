@@ -144,8 +144,20 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
-		"--permission-mode", e.permissionMode,
 		"--model", e.getModel(task),
+	}
+
+	// Permission handling: Cloud environments may have restrictive settings.json files
+	// with permission.allow lists that override --permission-mode. For cloud tasks,
+	// use --dangerously-skip-permissions to bypass all checks (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+	// For local tasks, use the configured permission mode (default: bypassPermissions).
+	isCloudTask := isCloudWorkspace(task.Workspace)
+	if isCloudTask && e.permissionMode == "bypassPermissions" {
+		// Cloud mode: use dangerously-skip-permissions to bypass restrictive settings.json
+		args = append(args, "--dangerously-skip-permissions")
+	} else {
+		// Local mode or custom permission mode: use permission-mode flag
+		args = append(args, "--permission-mode", e.permissionMode)
 	}
 
 	// Session handling: use --resume for iterations > 1 with existing session
@@ -246,7 +258,8 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var transcriptBuf strings.Builder
 	var turnNum int
 	var toolCallCount int
-	var turnSpan trace.Span // Track current turn's OTEL span
+	var permissionDeniedCount int // Track permission denied events (M-CLOUD-PLUGIN-SKILLS)
+	var turnSpan trace.Span       // Track current turn's OTEL span
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -347,6 +360,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					// Claude Code sends tool results as separate user messages
 					_ = streamEvent["index"]
 
+				case "permission_denied":
+					// Permission denied event (M-CLOUD-PLUGIN-SKILLS)
+					// This occurs when Claude tries to use a tool that's not in the allow list
+					permissionDeniedCount++
+					toolName, _ := streamEvent["tool"].(string)
+					handler.OnError(fmt.Errorf("permission denied: tool %q not allowed", toolName))
+					transcriptBuf.WriteString(fmt.Sprintf("[PERMISSION DENIED] %s\n", toolName))
+
 				case "message_stop":
 					handler.OnTurnEnd(turnNum)
 					// End turn span
@@ -444,6 +465,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		}
 
 		success := !finalResult.IsError && finalResult.Subtype == "success"
+
+		// Detect permission failure: if we had tool calls but they were all denied,
+		// treat as failure even if Claude says "success" (M-CLOUD-PLUGIN-SKILLS)
+		if success && toolCallCount > 0 && permissionDeniedCount >= toolCallCount {
+			success = false
+		}
+
 		span.SetAttributes(
 			attribute.Int("task.turns", finalResult.NumTurns),
 			attribute.Bool("task.success", success),
@@ -451,9 +479,16 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 			attribute.Int64("task.tokens_in", int64(finalResult.Usage.InputTokens)),
 			attribute.Int64("task.tokens_out", int64(finalResult.Usage.OutputTokens)),
 			attribute.Float64("task.cost_usd", finalResult.TotalCostUSD),
+			attribute.Int("permission.denied_count", permissionDeniedCount),
 		)
+
+		errorMsg := getErrorMessage(finalResult)
+		if permissionDeniedCount > 0 && errorMsg == "" {
+			errorMsg = fmt.Sprintf("permission denied: %d tool calls were blocked", permissionDeniedCount)
+		}
+
 		if !success {
-			span.SetStatus(codes.Error, getErrorMessage(finalResult))
+			span.SetStatus(codes.Error, errorMsg)
 		} else {
 			span.SetStatus(codes.Ok, "task completed successfully")
 		}
@@ -461,7 +496,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		return &executor.Result{
 			Success:                  success,
 			Output:                   finalResult.Result,
-			Error:                    getErrorMessage(finalResult),
+			Error:                    errorMsg,
 			DurationMS:               finalResult.DurationMS,
 			NumTurns:                 finalResult.NumTurns,
 			ToolCallCount:            toolCallCount,
@@ -550,6 +585,15 @@ func getErrorMessage(result *claudeHeadlessResult) string {
 		return result.Result
 	}
 	return ""
+}
+
+// isCloudWorkspace detects if a workspace path is in a cloud container.
+// Cloud paths typically start with /workspace/ (Cloud Run, Google Cloud Container).
+// This detection ensures we use appropriate permission handling for cloud environments.
+func isCloudWorkspace(workspace string) bool {
+	// Cloud container paths typically start with /workspace/
+	// This convention is used by Cloud Run, Pub/Sub-triggered containers, and GCP workspaces
+	return strings.HasPrefix(workspace, "/workspace/")
 }
 
 // isValidUUID checks if a string is a valid UUID format

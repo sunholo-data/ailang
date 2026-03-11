@@ -497,6 +497,122 @@ func TestClaudeHealthCheckTimeout(t *testing.T) {
 	// Expected to fail in some way (binary not found, etc.)
 }
 
+// TestIsCloudWorkspace verifies cloud workspace detection (M-CLOUD-PLUGIN-SKILLS)
+func TestIsCloudWorkspace(t *testing.T) {
+	tests := []struct {
+		workspace   string
+		expected    bool
+		description string
+	}{
+		{
+			workspace:   "/workspace/task-abc123",
+			expected:    true,
+			description: "cloud container path with task ID",
+		},
+		{
+			workspace:   "/workspace/",
+			expected:    true,
+			description: "cloud root path",
+		},
+		{
+			workspace:   "/home/user/project",
+			expected:    false,
+			description: "local home directory",
+		},
+		{
+			workspace:   "/Users/mark/dev/project",
+			expected:    false,
+			description: "local macOS path",
+		},
+		{
+			workspace:   "/tmp/workspace",
+			expected:    false,
+			description: "local temp directory (not cloud convention)",
+		},
+		{
+			workspace:   "",
+			expected:    false,
+			description: "empty workspace",
+		},
+		{
+			workspace:   "workspace/task",
+			expected:    false,
+			description: "relative path without leading slash",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			result := isCloudWorkspace(tt.workspace)
+			if result != tt.expected {
+				t.Errorf("expected cloud=%v, got cloud=%v for %q", tt.expected, result, tt.workspace)
+			}
+		})
+	}
+}
+
+// TestClaudeCloudPermissionHandling verifies cloud tasks use dangerously-skip-permissions
+func TestClaudeCloudPermissionHandling(t *testing.T) {
+	tests := []struct {
+		name                 string
+		workspace            string
+		permissionMode       string
+		expectDangerously    bool
+		expectPermissionMode bool
+		description          string
+	}{
+		{
+			name:                 "cloud workspace with bypass",
+			workspace:            "/workspace/task-123",
+			permissionMode:       "bypassPermissions",
+			expectDangerously:    true,
+			expectPermissionMode: false,
+			description:          "cloud tasks should use --dangerously-skip-permissions",
+		},
+		{
+			name:                 "local workspace with bypass",
+			workspace:            "/home/user/project",
+			permissionMode:       "bypassPermissions",
+			expectDangerously:    false,
+			expectPermissionMode: true,
+			description:          "local tasks should use --permission-mode",
+		},
+		{
+			name:                 "cloud workspace with custom mode",
+			workspace:            "/workspace/task-456",
+			permissionMode:       "requestApproval",
+			expectDangerously:    false,
+			expectPermissionMode: true,
+			description:          "cloud tasks with custom mode should use --permission-mode",
+		},
+		{
+			name:                 "empty workspace",
+			workspace:            "",
+			permissionMode:       "bypassPermissions",
+			expectDangerously:    false,
+			expectPermissionMode: true,
+			description:          "empty workspace treated as local",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test verifies the logic for choosing permission flags
+			// In a real test with claude binary, we'd parse the command arguments
+			isCloud := isCloudWorkspace(tt.workspace)
+			useDangerously := isCloud && tt.permissionMode == "bypassPermissions"
+			usePermissionMode := !useDangerously
+
+			if useDangerously != tt.expectDangerously {
+				t.Errorf("expected dangerously=%v, got dangerously=%v", tt.expectDangerously, useDangerously)
+			}
+			if usePermissionMode != tt.expectPermissionMode {
+				t.Errorf("expected permissionMode=%v, got permissionMode=%v", tt.expectPermissionMode, usePermissionMode)
+			}
+		})
+	}
+}
+
 // BenchmarkClaudeNew benchmarks executor initialization
 func BenchmarkClaudeNew(b *testing.B) {
 	cfg := executor.DefaultConfig()
