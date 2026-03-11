@@ -55,6 +55,15 @@ RUN git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap 2>/dev/n
 
 ENV COORDINATOR_MODE=cloud
 
+# Create non-root user for agent execution.
+# Claude Code refuses --dangerously-skip-permissions when running as root.
+# Also a container security best practice — the agent doesn't need root.
+RUN useradd -m -s /bin/bash ailang \
+    && mkdir -p /workspace /plugins \
+    && chown -R ailang:ailang /workspace /plugins
+
+USER ailang
+
 # Working directory for git operations
 WORKDIR /workspace
 
