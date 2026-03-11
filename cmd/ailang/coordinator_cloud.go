@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sunholo/ailang/internal/executor"
 	"github.com/sunholo/ailang/internal/pubsub"
 )
 
@@ -277,12 +278,32 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 }
 
 // runExecutor invokes the AI executor CLI tool.
+// Uses executor.BuildEnvironment to match the local executor's environment setup,
+// ensuring AILANG_STDLIB_PATH, trace context, correlation IDs, and telemetry vars
+// are all set consistently between local and cloud execution.
 func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir string) error {
 	var cmd *exec.Cmd
 
+	// Build an executor.Task so BuildEnvironment has the same context as local executors
+	task := &executor.Task{
+		ID:        taskID,
+		Directive: directive,
+		Workspace: workDir,
+	}
+	if pluginDir != "" {
+		task.PluginDirs = []string{pluginDir}
+	}
+
 	switch provider {
 	case "claude":
-		args := []string{"-p", directive, "--output-format", "json"}
+		args := []string{
+			"-p", directive,
+			"--output-format", "json",
+			// Cloud containers always need --dangerously-skip-permissions because
+			// --permission-mode bypassPermissions does NOT bypass settings.json
+			// permission.allow lists. Without this, Write tool calls get denied.
+			"--dangerously-skip-permissions",
+		}
 		// Pass plugin directory if available (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 		if pluginDir != "" {
 			args = append(args, "--plugin-dir", pluginDir)
@@ -300,10 +321,15 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Pass task context via environment
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("AILANG_TASK_ID=%s", taskID),
-	)
+	// Use BuildEnvironment for consistent env between local and cloud executors.
+	// This sets AILANG_STDLIB_PATH, PWD, TRACEPARENT, correlation IDs, OTEL vars, etc.
+	cmd.Env = executor.BuildEnvironment(executor.EnvironmentOptions{
+		Task:                  task,
+		SessionID:             taskID,
+		Context:               ctx,
+		EnableClaudeTelemetry: provider == "claude",
+		EnableGeminiTelemetry: provider == "gemini",
+	})
 
 	return cmd.Run()
 }

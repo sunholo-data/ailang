@@ -64,9 +64,18 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 	// about this workaround.
 	env = RemoveEnvVar(env, "CLAUDECODE")
 
-	// Set up AILANG stdlib path
+	// Set up AILANG stdlib path.
+	// Priority: workspace/std (cloud: cloned repo has stdlib) > cwd/std (local: running from repo root).
+	// This ensures cloud agents (where cwd=/workspace but repo is at /workspace/{taskID})
+	// find the stdlib correctly when the cloned repo is an AILANG workspace.
 	cwd, _ := os.Getwd()
 	stdlibPath := filepath.Join(cwd, "std")
+	if opts.Task != nil && opts.Task.Workspace != "" {
+		workspaceStd := filepath.Join(opts.Task.Workspace, "std")
+		if info, err := os.Stat(workspaceStd); err == nil && info.IsDir() {
+			stdlibPath = workspaceStd
+		}
+	}
 	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
 
 	// Set working directory if specified
