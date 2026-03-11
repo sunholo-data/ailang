@@ -310,6 +310,18 @@ func (b *SQLiteBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]
 	return b.store.GetExecTaskHierarchy(limit)
 }
 
+func (b *SQLiteBackend) GetExecTaskHierarchyWithMessages(ctx context.Context, limit int) (*ExecHierarchyWithMessages, error) {
+	return b.store.GetExecTaskHierarchyWithMessages(limit)
+}
+
+func (b *SQLiteBackend) GetSpanHierarchy(ctx context.Context, limit int) (*SpanHierarchyResult, error) {
+	return b.store.GetSpanHierarchy(limit)
+}
+
+func (b *SQLiteBackend) GetToolsByTimestampRange(ctx context.Context, start, end time.Time, toolName string) ([]SessionTool, error) {
+	return b.store.GetToolsByTimestampRange(ctx, start, end, toolName)
+}
+
 // ===== Session Operations (M-SESSION-WORKSPACE-HOOKS) =====
 
 func (b *SQLiteBackend) GetSessionWorkspace(sessionID string) (string, error) {

@@ -187,6 +187,187 @@ func (s *ObservatoryStore) GetExecTaskHierarchy(ctx context.Context, limit int) 
 	return nodes, nil
 }
 
+func (s *ObservatoryStore) GetExecTaskHierarchyWithMessages(ctx context.Context, limit int) (*obs.ExecHierarchyWithMessages, error) {
+	// Get flat exec hierarchy first
+	execs, err := s.GetExecTaskHierarchy(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	if len(execs) == 0 {
+		return &obs.ExecHierarchyWithMessages{Count: 0}, nil
+	}
+
+	// Collect task IDs from exec nodes and look up source_ref (message_id) in obs_tasks
+	taskToMessage := make(map[string]string)
+	for _, exec := range execs {
+		if exec.TaskID == "" {
+			continue
+		}
+		if _, seen := taskToMessage[exec.TaskID]; seen {
+			continue
+		}
+		task, err := s.GetTask(ctx, exec.TaskID)
+		if err != nil || task == nil {
+			continue
+		}
+		if task.SourceType == "message" && task.SourceRef != "" {
+			taskToMessage[exec.TaskID] = task.SourceRef
+		}
+	}
+
+	// Group execs by message
+	messageToExecs := make(map[string][]*obs.ExecTaskNode)
+	var orphans []*obs.ExecTaskNode
+	for _, exec := range execs {
+		if msgID, ok := taskToMessage[exec.TaskID]; ok {
+			messageToExecs[msgID] = append(messageToExecs[msgID], exec)
+		} else {
+			orphans = append(orphans, exec)
+		}
+	}
+
+	// Fetch message details
+	var messages []*obs.MessageNode
+	for msgID, msgExecs := range messageToExecs {
+		msgNode := &obs.MessageNode{
+			MessageID: msgID,
+			Execs:     msgExecs,
+		}
+		if msg, err := s.GetMessage(ctx, msgID); err == nil && msg != nil {
+			msgNode.Title = msg.Title
+			msgNode.FromAgent = msg.FromAgent
+			msgNode.ToInbox = msg.Inbox
+			msgNode.Status = string(msg.Status)
+			msgNode.CreatedAt = &msg.CreatedAt
+		}
+		messages = append(messages, msgNode)
+	}
+
+	return &obs.ExecHierarchyWithMessages{
+		Messages: messages,
+		Orphan:   orphans,
+		Count:    len(execs),
+	}, nil
+}
+
+func (s *ObservatoryStore) GetSpanHierarchy(ctx context.Context, limit int) (*obs.SpanHierarchyResult, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// Fetch recent spans
+	iter := s.client.Collection(collObsSpans).
+		OrderBy("start_time", firestore.Desc).
+		Limit(limit).
+		Documents(ctx)
+	defer iter.Stop()
+
+	spanMap := make(map[string]*obs.SpanHierarchyNode)
+	var allNodes []*obs.SpanHierarchyNode
+	sessions := make(map[string]int)
+
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		startTime := snapshotToTime(data, "start_time")
+		node := &obs.SpanHierarchyNode{
+			ID:         getString(data, "id"),
+			Name:       getString(data, "name"),
+			ParentID:   getString(data, "parent_span_id"),
+			StartTime:  startTime,
+			DurationMs: getInt64(data, "duration_ms"),
+			TokensIn:   getInt64(data, "tokens_in"),
+			TokensOut:  getInt64(data, "tokens_out"),
+			CostUSD:    getFloat64(data, "cost_usd"),
+			SessionID:  getString(data, "session_id"),
+			Status:     obs.SpanStatus(getString(data, "status")),
+			Provider:   obs.Provider(getString(data, "provider")),
+		}
+		spanMap[node.ID] = node
+		allNodes = append(allNodes, node)
+
+		if node.SessionID != "" {
+			sessions[node.SessionID]++
+		}
+	}
+
+	// Build tree by linking children to parents
+	var roots []*obs.SpanHierarchyNode
+	for _, node := range allNodes {
+		if node.ParentID != "" {
+			if parent, ok := spanMap[node.ParentID]; ok {
+				parent.Children = append(parent.Children, node)
+				continue
+			}
+		}
+		roots = append(roots, node)
+	}
+
+	// Compute stats
+	stats := obs.SpanHierarchyStats{TotalSpans: len(allNodes)}
+	for _, node := range allNodes {
+		stats.TotalCost += node.CostUSD
+		stats.TotalTokens.In += node.TokensIn
+		stats.TotalTokens.Out += node.TokensOut
+	}
+
+	return &obs.SpanHierarchyResult{
+		Roots:    roots,
+		Sessions: sessions,
+		Stats:    stats,
+	}, nil
+}
+
+func (s *ObservatoryStore) GetToolsByTimestampRange(ctx context.Context, start, end time.Time, toolName string) ([]obs.SessionTool, error) {
+	q := s.client.Collection(collObsSessionTools).
+		Where("start_time", ">=", timeToFirestore(start)).
+		Where("start_time", "<=", timeToFirestore(end)).
+		OrderBy("start_time", firestore.Asc)
+	if toolName != "" {
+		q = q.Where("tool_name", "==", toolName)
+	}
+
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	var result []obs.SessionTool
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		tool := obs.SessionTool{
+			ToolUseID: getString(data, "tool_use_id"),
+			SessionID: getString(data, "session_id"),
+			ToolName:  getString(data, "tool_name"),
+			StartTime: snapshotToTime(data, "start_time"),
+			EndTime:   snapshotToTimePtr(data, "end_time"),
+		}
+		if input := getString(data, "tool_input"); input != "" {
+			tool.ToolInput = json.RawMessage(input)
+		}
+		if resp := getString(data, "tool_response"); resp != "" {
+			tool.ToolResponse = json.RawMessage(resp)
+		}
+		if v, ok := data["success"]; ok && v != nil {
+			b := getBool(data, "success")
+			tool.Success = &b
+		}
+		result = append(result, tool)
+	}
+	return result, nil
+}
+
 // --- Metric operations ---
 
 func (s *ObservatoryStore) CreateMetric(ctx context.Context, m *obs.Metric) error {

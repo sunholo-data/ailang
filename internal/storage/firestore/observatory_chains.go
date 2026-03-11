@@ -364,22 +364,177 @@ func (s *ObservatoryStore) UpdateStageError(ctx context.Context, stageID, errorM
 }
 
 func (s *ObservatoryStore) GetSpansByStageID(ctx context.Context, stageID string) ([]*obs.Span, error) {
-	return s.ListSpans(ctx, obs.SpanListOptions{}) // Filter by stage_id would need custom query
+	iter := s.client.Collection(collObsSpans).
+		Where("stage_id", "==", stageID).
+		OrderBy("start_time", firestore.Asc).
+		Documents(ctx)
+	defer iter.Stop()
+
+	var result []*obs.Span
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, mapToSpan(doc.Data()))
+	}
+	return result, nil
 }
 
 func (s *ObservatoryStore) GetChainStatusCounts(ctx context.Context, createdAfter *time.Time) (*obs.ChainStatusCounts, error) {
-	// TODO: Implement with Firestore aggregation queries
-	return &obs.ChainStatusCounts{}, nil
+	q := s.client.Collection(collObsChains).Query
+	if createdAfter != nil {
+		q = q.Where("created_at", ">=", timeToFirestore(*createdAfter))
+	}
+
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	counts := &obs.ChainStatusCounts{}
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		counts.Total++
+		counts.TotalCost += getFloat64(data, "total_cost")
+		counts.TotalTokens += getInt64(data, "total_tokens")
+		switch obs.ChainStatus(getString(data, "status")) {
+		case obs.ChainStatusCompleted:
+			counts.Completed++
+		case obs.ChainStatusActive:
+			counts.Active++
+		case obs.ChainStatusPendingApproval:
+			counts.Pending++
+		case obs.ChainStatusFailed:
+			counts.Failed++
+		}
+	}
+	return counts, nil
 }
 
 func (s *ObservatoryStore) GetChainStatsByAgent(ctx context.Context, createdAfter *time.Time) ([]*obs.AgentStatsResult, error) {
-	// TODO: Implement with Firestore aggregation queries
-	return nil, nil
+	q := s.client.Collection(collObsChainStages).Query
+	if createdAfter != nil {
+		q = q.Where("started_at", ">=", timeToFirestore(*createdAfter))
+	}
+
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	agentMap := make(map[string]*obs.AgentStatsResult)
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		agentID := getString(data, "agent_id")
+		if agentID == "" {
+			continue
+		}
+		stats, ok := agentMap[agentID]
+		if !ok {
+			stats = &obs.AgentStatsResult{AgentID: agentID}
+			agentMap[agentID] = stats
+		}
+		stats.Stages++
+		stats.TotalCost += getFloat64(data, "cost")
+		stats.TokensIn += getInt(data, "tokens_in")
+		stats.TokensOut += getInt(data, "tokens_out")
+		switch obs.ChainStageStatus(getString(data, "status")) {
+		case obs.StageStatusCompleted:
+			stats.Completed++
+		case obs.StageStatusFailed:
+			stats.Failed++
+		}
+	}
+
+	result := make([]*obs.AgentStatsResult, 0, len(agentMap))
+	for _, s := range agentMap {
+		result = append(result, s)
+	}
+	return result, nil
 }
 
 func (s *ObservatoryStore) GetSpanLitesByStageID(ctx context.Context, stageID string, limit, offset int) (*obs.SpanLitePage, error) {
-	// TODO: Implement with Firestore field mask projection
-	return &obs.SpanLitePage{}, nil
+	if limit <= 0 {
+		limit = 50
+	}
+
+	// Get total count first
+	allIter := s.client.Collection(collObsSpans).
+		Where("stage_id", "==", stageID).
+		Documents(ctx)
+	allDocs, err := collectDocs(allIter)
+	total := len(allDocs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get paginated spans
+	q := s.client.Collection(collObsSpans).
+		Where("stage_id", "==", stageID).
+		OrderBy("start_time", firestore.Asc).
+		Offset(offset).
+		Limit(limit)
+
+	iter := q.Documents(ctx)
+	defer iter.Stop()
+
+	var spans []*obs.SpanLite
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		startTime := snapshotToTime(data, "start_time")
+		endTime := snapshotToTime(data, "end_time")
+		var durationMs int64
+		if !endTime.IsZero() && !startTime.IsZero() {
+			durationMs = endTime.Sub(startTime).Milliseconds()
+		}
+		spans = append(spans, &obs.SpanLite{
+			ID:            getString(data, "id"),
+			TraceID:       getString(data, "trace_id"),
+			ParentSpanID:  getString(data, "parent_span_id"),
+			ChainID:       getString(data, "chain_id"),
+			StageID:       getString(data, "stage_id"),
+			Name:          getString(data, "name"),
+			Kind:          obs.SpanKind(getString(data, "kind")),
+			Status:        getString(data, "status"),
+			StatusMessage: getString(data, "status_message"),
+			StartTime:     startTime,
+			EndTime:       endTime,
+			DurationMs:    durationMs,
+			TokensIn:      getInt64(data, "tokens_in"),
+			TokensOut:     getInt64(data, "tokens_out"),
+			CostUSD:       getFloat64(data, "cost_usd"),
+			Model:         getString(data, "model"),
+			Provider:      getString(data, "provider"),
+		})
+	}
+
+	return &obs.SpanLitePage{
+		Spans:  spans,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
 }
 
 func (s *ObservatoryStore) LinkSpanToChain(ctx context.Context, spanID, chainID, stageID string) error {

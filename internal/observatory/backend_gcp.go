@@ -576,6 +576,15 @@ func (b *GCPTraceBackend) GetTaskTimeline(ctx context.Context, taskID string) ([
 func (b *GCPTraceBackend) GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error) {
 	return nil, errNotSupported("GetExecTaskHierarchy")
 }
+func (b *GCPTraceBackend) GetExecTaskHierarchyWithMessages(ctx context.Context, limit int) (*ExecHierarchyWithMessages, error) {
+	return nil, errNotSupported("GetExecTaskHierarchyWithMessages")
+}
+func (b *GCPTraceBackend) GetSpanHierarchy(ctx context.Context, limit int) (*SpanHierarchyResult, error) {
+	return nil, errNotSupported("GetSpanHierarchy")
+}
+func (b *GCPTraceBackend) GetToolsByTimestampRange(ctx context.Context, start, end time.Time, toolName string) ([]SessionTool, error) {
+	return nil, errNotSupported("GetToolsByTimestampRange")
+}
 
 // LookupTaskBySessionID is not supported by GCP backend (session correlation is local only).
 func (b *GCPTraceBackend) LookupTaskBySessionID(ctx context.Context, sessionID string) (string, string, string) {

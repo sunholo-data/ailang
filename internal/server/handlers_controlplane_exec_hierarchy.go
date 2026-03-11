@@ -33,18 +33,11 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 	// Parse include_messages parameter
 	includeMessages := r.URL.Query().Get("include_messages") == "true"
 
-	// Get SQLite backend for direct store access
-	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
-	if !ok {
-		http.Error(w, "Exec hierarchy requires SQLite backend", http.StatusServiceUnavailable)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 
 	if includeMessages {
 		// Return hierarchy grouped by messages (4-level: Message -> Exec -> Turn -> Tool)
-		result, err := sqliteBackend.Store().GetExecTaskHierarchyWithMessages(limit)
+		result, err := s.obsBackend.GetExecTaskHierarchyWithMessages(r.Context(), limit)
 		if err != nil {
 			log.Printf("Failed to get exec hierarchy with messages: %v", err)
 			http.Error(w, "Failed to get exec hierarchy", http.StatusInternalServerError)
@@ -52,9 +45,9 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 		}
 		// Enrich all exec hierarchies within messages
 		for _, msg := range result.Messages {
-			enrichExecHierarchy(r.Context(), sqliteBackend.Store(), msg.Execs)
+			enrichExecHierarchy(r.Context(), s.obsBackend, msg.Execs)
 		}
-		enrichExecHierarchy(r.Context(), sqliteBackend.Store(), result.Orphan)
+		enrichExecHierarchy(r.Context(), s.obsBackend, result.Orphan)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
 			log.Printf("Failed to encode exec hierarchy response: %v", err)
 		}
@@ -62,7 +55,7 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 	}
 
 	// Return flat hierarchy (backward compatible)
-	hierarchy, err := sqliteBackend.Store().GetExecTaskHierarchy(limit)
+	hierarchy, err := s.obsBackend.GetExecTaskHierarchy(r.Context(), limit)
 	if err != nil {
 		log.Printf("Failed to get exec hierarchy: %v", err)
 		http.Error(w, "Failed to get exec hierarchy", http.StatusInternalServerError)
@@ -70,7 +63,7 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 	}
 
 	// Enrich hierarchy with display names from session_tools
-	enrichExecHierarchy(r.Context(), sqliteBackend.Store(), hierarchy)
+	enrichExecHierarchy(r.Context(), s.obsBackend, hierarchy)
 
 	response := struct {
 		Hierarchy []*observatory.ExecTaskNode `json:"hierarchy"`
@@ -103,14 +96,7 @@ func (s *Server) handleSpanHierarchy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get SQLite backend for direct store access
-	sqliteBackend, ok := s.obsBackend.(*observatory.SQLiteBackend)
-	if !ok {
-		http.Error(w, "Span hierarchy requires SQLite backend", http.StatusServiceUnavailable)
-		return
-	}
-
-	result, err := sqliteBackend.Store().GetSpanHierarchy(limit)
+	result, err := s.obsBackend.GetSpanHierarchy(r.Context(), limit)
 	if err != nil {
 		log.Printf("Failed to get span hierarchy: %v", err)
 		http.Error(w, "Failed to get span hierarchy", http.StatusInternalServerError)
@@ -125,7 +111,7 @@ func (s *Server) handleSpanHierarchy(w http.ResponseWriter, r *http.Request) {
 
 // enrichExecHierarchy adds display_name to tool_use nodes using session_tools data.
 // This correlates OTEL spans with hook-captured tool metadata for richer display.
-func enrichExecHierarchy(ctx context.Context, store *observatory.Store, hierarchy []*observatory.ExecTaskNode) {
+func enrichExecHierarchy(ctx context.Context, backend observatory.Backend, hierarchy []*observatory.ExecTaskNode) {
 	if len(hierarchy) == 0 {
 		return
 	}
@@ -163,7 +149,7 @@ func enrichExecHierarchy(ctx context.Context, store *observatory.Store, hierarch
 	maxTime = maxTime.Add(30 * time.Second)
 
 	// Fetch session tools in range
-	tools, err := store.GetToolsByTimestampRange(ctx, minTime, maxTime, "")
+	tools, err := backend.GetToolsByTimestampRange(ctx, minTime, maxTime, "")
 	if err != nil || len(tools) == 0 {
 		return
 	}

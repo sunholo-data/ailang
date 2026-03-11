@@ -89,6 +89,12 @@ type Backend interface {
 	GetTaskTimeline(ctx context.Context, taskID string) ([]*TaskTimeline, error)
 	// GetExecTaskHierarchy returns hierarchy of ailang command spans (exec, run, check)
 	GetExecTaskHierarchy(ctx context.Context, limit int) ([]*ExecTaskNode, error)
+	// GetExecTaskHierarchyWithMessages returns hierarchy grouped by triggering messages (4-level)
+	GetExecTaskHierarchyWithMessages(ctx context.Context, limit int) (*ExecHierarchyWithMessages, error)
+	// GetSpanHierarchy returns hierarchical tree of spans using parent_span_id relationships
+	GetSpanHierarchy(ctx context.Context, limit int) (*SpanHierarchyResult, error)
+	// GetToolsByTimestampRange returns session tools within a time range for enrichment
+	GetToolsByTimestampRange(ctx context.Context, start, end time.Time, toolName string) ([]SessionTool, error)
 
 	// Metric operations (Claude Code telemetry metrics)
 	CreateMetric(ctx context.Context, m *Metric) error
