@@ -108,8 +108,21 @@ func verifyCommand() {
 		os.Exit(0)
 	}
 
-	// Extract ADT types from the Surface AST
+	// Extract ADT types from the Surface AST (current file + imported modules)
 	adtTypes := extractADTTypes(surfaceAST)
+	// Also extract ADTs from imported modules so cross-module types
+	// (e.g., Block, XmlNode) get declare-datatype in the Z3 output.
+	if result.Modules != nil {
+		for _, mod := range result.Modules {
+			if mod.File != nil {
+				for name, variants := range extractADTTypes(mod.File) {
+					if _, exists := adtTypes[name]; !exists {
+						adtTypes[name] = variants
+					}
+				}
+			}
+		}
+	}
 
 	// Build Surface AST function lookup for param extraction
 	surfaceFuncs := make(map[string]*ast.FuncDecl)

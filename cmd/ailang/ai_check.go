@@ -10,6 +10,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/smt"
 )
@@ -143,7 +144,7 @@ func aiCheckCommand() {
 		surfaceAST := result.Artifacts.AST
 
 		if coreProg != nil && coreProg.Meta != nil && surfaceAST != nil {
-			verifySection = runVerification(coreProg, surfaceAST, *timeoutFlag, *recursiveDepthFlag)
+			verifySection = runVerification(coreProg, surfaceAST, result.Modules, *timeoutFlag, *recursiveDepthFlag)
 		}
 	}
 
@@ -163,14 +164,23 @@ func aiCheckCommand() {
 
 // runVerification runs contract verification on compiled artifacts.
 // Extracted from verifyCommand() for reuse by ai-check.
-func runVerification(coreProg *core.Program, surfaceAST *ast.File, timeout time.Duration, recursiveDepth int) aiVerifySection {
+func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[string]*loader.LoadedModule, timeout time.Duration, recursiveDepth int) aiVerifySection {
 	section := aiVerifySection{
 		Available: true,
 		Results:   []verifyResult{},
 	}
 
-	// Extract ADT types from the Surface AST
+	// Extract ADT types from the Surface AST (current file + imported modules)
 	adtTypes := extractADTTypes(surfaceAST)
+	for _, mod := range modules {
+		if mod.File != nil {
+			for name, variants := range extractADTTypes(mod.File) {
+				if _, exists := adtTypes[name]; !exists {
+					adtTypes[name] = variants
+				}
+			}
+		}
+	}
 
 	// Build Surface AST function lookup
 	surfaceFuncs := make(map[string]*ast.FuncDecl)
