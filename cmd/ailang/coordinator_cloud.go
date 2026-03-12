@@ -307,34 +307,57 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			execResult.CostUSD, execResult.SessionID)
 	}
 
-	// Step 4: Check if there are changes to push
+	// Step 4: Check if there are uncommitted changes to stage+commit
 	statusCmd := exec.CommandContext(ctx, "git", "-C", workDir, "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return branchName, execResult, fmt.Errorf("git status failed: %w", err)
 	}
 
-	if len(strings.TrimSpace(string(statusOutput))) == 0 {
-		fmt.Println("execute-job: no changes to commit")
+	if len(strings.TrimSpace(string(statusOutput))) > 0 {
+		// Step 5a: Stage, commit uncommitted changes
+		addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
+		if err := addCmd.Run(); err != nil {
+			return branchName, execResult, fmt.Errorf("git add failed: %w", err)
+		}
+
+		commitMsg := fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+			taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339))
+
+		commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
+		commitCmd.Stdout = os.Stdout
+		commitCmd.Stderr = os.Stderr
+		if err := commitCmd.Run(); err != nil {
+			return branchName, execResult, fmt.Errorf("git commit failed: %w", err)
+		}
+	} else {
+		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
+	}
+
+	// Step 5b: Check for ANY unpushed commits (handles both executor commits
+	// and commits made by the agent via Bash tool during its session).
+	// Without this, agent-committed changes are lost because git status is clean.
+	logCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", fmt.Sprintf("origin/%s..HEAD", branchName), "--oneline")
+	logOutput, err := logCmd.Output()
+	if err != nil {
+		// If the ref doesn't exist (shallow clone), fall back to checking rev-list
+		fmt.Fprintf(os.Stderr, "execute-job: git log origin/%s..HEAD failed (shallow clone?): %v\n", branchName, err)
+		// Use rev-list as fallback — counts commits ahead of origin
+		revCmd := exec.CommandContext(ctx, "git", "-C", workDir, "rev-list", "--count", fmt.Sprintf("origin/%s..HEAD", branchName))
+		revOutput, revErr := revCmd.Output()
+		if revErr == nil && strings.TrimSpace(string(revOutput)) != "0" {
+			logOutput = revOutput // Non-zero means there are unpushed commits
+		}
+	}
+
+	if len(strings.TrimSpace(string(logOutput))) == 0 {
+		fmt.Println("execute-job: no commits to push")
 		return branchName, execResult, nil
 	}
 
-	// Step 5: Stage, commit, and push
-	addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
-	if err := addCmd.Run(); err != nil {
-		return branchName, execResult, fmt.Errorf("git add failed: %w", err)
-	}
+	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
 
-	commitMsg := fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
-		taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339))
-
-	commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
-	commitCmd.Stdout = os.Stdout
-	commitCmd.Stderr = os.Stderr
-	if err := commitCmd.Run(); err != nil {
-		return branchName, execResult, fmt.Errorf("git commit failed: %w", err)
-	}
-
+	// Step 5c: Push all commits (executor's and agent's)
 	if repoURL != "" {
 		pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
 		pushCmd.Stdout = os.Stdout
