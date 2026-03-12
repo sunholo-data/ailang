@@ -62,6 +62,10 @@ type EncodeFunctionOpts struct {
 	// HOF calls are specialized into recursive functions and unrolled.
 	// Default: 3 if not specified and HOF calls are detected.
 	HOFInlineDepth int
+	// ExtraDeclarations are additional SMT-LIB declarations to prepend
+	// (e.g., record types found in ADT constructor fields that need
+	// to be declared before the ADT itself).
+	ExtraDeclarations []string
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.
@@ -123,6 +127,24 @@ func EncodeFunction(
 		contracts = opts[0].Contracts
 	}
 	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
+
+	// Step 0.5: Add extra declarations (e.g., record types from ADT constructor fields)
+	// These must come before ADT declarations since ADTs may reference these sorts.
+	// Skip any that were already declared by collectAndDeclareRecordTypes.
+	if len(opts) > 0 {
+		for _, decl := range opts[0].ExtraDeclarations {
+			// Extract sort name from "(declare-datatype SortName ...)"
+			// to check if already declared
+			sortName := extractSortNameFromDecl(decl)
+			if sortName != "" && ctx.DeclaredTypes[sortName] {
+				continue // Already declared by record type discovery
+			}
+			result.Declarations = append(result.Declarations, decl)
+			if sortName != "" {
+				ctx.DeclaredTypes[sortName] = true
+			}
+		}
+	}
 
 	// Step 1: Declare ADT types
 	for typeName, variants := range adtTypes {
@@ -269,4 +291,18 @@ func EncodeFunction(
 
 	result.SMTLib = strings.Join(lines, "\n")
 	return result, nil
+}
+
+// extractSortNameFromDecl extracts the sort name from a "(declare-datatype SortName ...)" string.
+func extractSortNameFromDecl(decl string) string {
+	const prefix = "(declare-datatype "
+	if !strings.HasPrefix(decl, prefix) {
+		return ""
+	}
+	rest := decl[len(prefix):]
+	idx := strings.IndexByte(rest, ' ')
+	if idx < 0 {
+		return ""
+	}
+	return rest[:idx]
 }

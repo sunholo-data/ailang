@@ -170,15 +170,20 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		Results:   []verifyResult{},
 	}
 
-	// Extract ADT types from the Surface AST (current file + imported modules)
-	adtTypes := extractADTTypes(surfaceAST)
+	// Extract ADT types from the Surface AST (current file + imported modules).
+	// Also collects record type declarations for record-typed ADT fields.
+	adtResult := extractADTTypesWithRecords(surfaceAST)
+	adtTypes := adtResult.ADTTypes
+	adtRecordDecls := adtResult.RecordDecls
 	for _, mod := range modules {
 		if mod.File != nil {
-			for name, variants := range extractADTTypes(mod.File) {
+			modResult := extractADTTypesWithRecords(mod.File)
+			for name, variants := range modResult.ADTTypes {
 				if _, exists := adtTypes[name]; !exists {
 					adtTypes[name] = variants
 				}
 			}
+			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
 		}
 	}
 
@@ -223,6 +228,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		Program:            coreProg,
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
+		ExtraDeclarations:  adtRecordDecls,
 	}
 
 	// Process each function with contracts

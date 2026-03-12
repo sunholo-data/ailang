@@ -108,18 +108,23 @@ func verifyCommand() {
 		os.Exit(0)
 	}
 
-	// Extract ADT types from the Surface AST (current file + imported modules)
-	adtTypes := extractADTTypes(surfaceAST)
+	// Extract ADT types from the Surface AST (current file + imported modules).
+	// Also collects record type declarations for record-typed ADT fields.
+	adtResult := extractADTTypesWithRecords(surfaceAST)
+	adtTypes := adtResult.ADTTypes
+	adtRecordDecls := adtResult.RecordDecls
 	// Also extract ADTs from imported modules so cross-module types
 	// (e.g., Block, XmlNode) get declare-datatype in the Z3 output.
 	if result.Modules != nil {
 		for _, mod := range result.Modules {
 			if mod.File != nil {
-				for name, variants := range extractADTTypes(mod.File) {
+				modResult := extractADTTypesWithRecords(mod.File)
+				for name, variants := range modResult.ADTTypes {
 					if _, exists := adtTypes[name]; !exists {
 						adtTypes[name] = variants
 					}
 				}
+				adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
 			}
 		}
 	}
@@ -171,6 +176,7 @@ func verifyCommand() {
 		Program:            coreProg,
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
+		ExtraDeclarations:  adtRecordDecls,
 	}
 
 	// Process each function with contracts
@@ -349,10 +355,23 @@ type verifyResult struct {
 	BoundedDepth int                      `json:"bounded_depth,omitempty"`
 }
 
+// adtExtractionResult holds ADT types and any record types found in ADT constructor fields.
+type adtExtractionResult struct {
+	ADTTypes    map[string][]smt.ADTVariant
+	RecordDecls []string // SMT-LIB declare-datatype for record types in ADT fields
+}
+
 // extractADTTypes extracts ADT type definitions from the Surface AST
 // and converts them to SMT ADTVariant format for the encoder.
-func extractADTTypes(file *ast.File) map[string][]smt.ADTVariant {
-	adtTypes := make(map[string][]smt.ADTVariant)
+// Also collects record type declarations needed by ADT constructor fields
+// (e.g., Heading({level: int, style: string, text: string}) needs
+// Record_level_style_text declared before the ADT).
+func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
+	result := adtExtractionResult{
+		ADTTypes: make(map[string][]smt.ADTVariant),
+	}
+	// Track record types found in ADT fields that need declaration
+	recordsSeen := make(map[string]bool)
 
 	for _, decl := range file.Decls {
 		typeDecl, ok := decl.(*ast.TypeDecl)
@@ -379,13 +398,48 @@ func extractADTTypes(file *ast.File) map[string][]smt.ADTVariant {
 					Name: fieldName,
 					Sort: sortName,
 				})
+				// If this field is a record type, collect its declaration
+				if recType, ok := field.Type.(*ast.RecordType); ok {
+					collectRecordDeclFromAST(recType, &result, recordsSeen)
+				}
 			}
 			variants = append(variants, variant)
 		}
-		adtTypes[typeDecl.Name] = variants
+		result.ADTTypes[typeDecl.Name] = variants
 	}
 
-	return adtTypes
+	return result
+}
+
+// collectRecordDeclFromAST generates a declare-datatype for a record type
+// found in an ADT constructor field, so it's declared before the ADT.
+func collectRecordDeclFromAST(recType *ast.RecordType, result *adtExtractionResult, seen map[string]bool) {
+	rec := convertASTTypeToType(recType)
+	if rec == nil {
+		return
+	}
+	trec, ok := rec.(*types.TRecord)
+	if !ok {
+		return
+	}
+	sortName := smt.MapRecordSortName(trec)
+	if seen[sortName] {
+		return
+	}
+	seen[sortName] = true
+
+	// Build field sorts
+	fields := make(map[string]string)
+	for name, fieldType := range trec.Fields {
+		sort, err := smt.MapType(fieldType)
+		if err != nil {
+			continue // Skip unencodable fields
+		}
+		fields[name] = sort
+	}
+	if len(fields) > 0 {
+		result.RecordDecls = append(result.RecordDecls, smt.DeclareRecordDatatype(sortName, fields))
+	}
 }
 
 // astTypeToSMTSort converts an AST type annotation to an SMT-LIB sort name.
