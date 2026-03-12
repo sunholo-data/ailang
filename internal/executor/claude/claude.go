@@ -284,10 +284,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var transcriptBuf strings.Builder
 	var turnNum int
 	var toolCallCount int
-	var permissionDeniedCount int        // Track permission denied events (M-CLOUD-PLUGIN-SKILLS)
-	var turnSpan trace.Span              // Track current turn's OTEL span
-	var currentToolName string           // Accumulates tool name across streaming events
-	var currentToolInput strings.Builder // Accumulates input_json_delta chunks
+	var permissionDeniedCount int
+	var turnSpan trace.Span
+	var currentToolName string
+	var currentToolInput strings.Builder
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
