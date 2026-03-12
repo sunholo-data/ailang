@@ -1,0 +1,42 @@
+-- Per-function verify depth example
+-- Demonstrates @verify(depth: N) attribute for per-function recursion depth override
+--
+-- Usage:
+--   ailang verify examples/runnable/contracts/per_function_depth_verify.ail
+--   ailang verify --verify-recursive-depth 1 examples/runnable/contracts/per_function_depth_verify.ail
+--
+-- The @verify(depth: N) attribute overrides the global --verify-recursive-depth flag
+-- for the annotated function, allowing different recursion unrolling depths per function.
+
+module examples/contracts/per_function_depth_verify
+
+-- Fibonacci with deep unrolling (depth 5)
+-- This function needs more unrolling depth to verify properties of fibonacci
+@verify(depth: 5)
+export func fibonacci(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { result >= 0 }
+{
+  if n <= 1 then n else fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+-- Factorial with moderate unrolling (depth 2)
+-- Factorial grows fast, so depth 2 is usually sufficient
+@verify(depth: 2)
+export func factorial(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { result >= 1 }
+{
+  if n <= 0 then 1 else n * factorial(n - 1)
+}
+
+-- Simple non-recursive function (no @verify attribute)
+-- Uses the global --verify-recursive-depth default
+export func clamp(x: int, lo: int, hi: int) -> int ! {}
+requires { lo <= hi }
+ensures { result >= lo, result <= hi }
+{
+  if x < lo then lo
+  else if x > hi then hi
+  else x
+}

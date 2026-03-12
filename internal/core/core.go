@@ -410,11 +410,12 @@ type Program struct {
 
 // DeclMeta contains metadata for top-level declarations
 type DeclMeta struct {
-	Name      string
-	IsExport  bool
-	IsPure    bool
-	SID       string      // Source ID for tracing
-	Contracts []*Contract // M-VERIFY: Contract clauses (requires/ensures)
+	Name        string
+	IsExport    bool
+	IsPure      bool
+	SID         string      // Source ID for tracing
+	Contracts   []*Contract // M-VERIFY: Contract clauses (requires/ensures)
+	VerifyDepth int         // Per-function SMT verify depth override (0 = use global default)
 }
 
 // ContractKind distinguishes between requires and ensures contracts.

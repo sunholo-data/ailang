@@ -196,11 +196,18 @@ func verifyCommand() {
 			continue
 		}
 
+		// M4: Determine effective recursive depth for this function
+		// Per-function @verify(depth: N) overrides global --verify-recursive-depth
+		effectiveDepth := *recursiveDepthFlag
+		if meta.VerifyDepth > 0 {
+			effectiveDepth = meta.VerifyDepth
+		}
+
 		// Check if function is in the decidable SMT fragment
 		encodable, rejections := smt.IsSMTEncodable(funcName, meta, body)
 		if !encodable {
 			// If bounded recursion is enabled, filter out RejectRecursive
-			if *recursiveDepthFlag > 0 {
+			if effectiveDepth > 0 {
 				var filtered []smt.SMTRejectionReason
 				for _, r := range rejections {
 					if r.Code != smt.RejectRecursive {
@@ -242,7 +249,7 @@ func verifyCommand() {
 		funcEncOpts.ReturnType = returnType
 		funcEncOpts.Body = innerBody
 		funcEncOpts.Contracts = meta.Contracts
-		funcEncOpts.RecursiveDepth = *recursiveDepthFlag
+		funcEncOpts.RecursiveDepth = effectiveDepth
 
 		// Encode function to SMT-LIB (with cross-function call support)
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
@@ -273,8 +280,8 @@ func verifyCommand() {
 			Duration: solveResult.Duration,
 		}
 		// Mark bounded recursion depth if the function is recursive
-		if *recursiveDepthFlag > 0 && smt.IsRecursiveFunc(innerBody, funcName) {
-			vr.BoundedDepth = *recursiveDepthFlag
+		if effectiveDepth > 0 && smt.IsRecursiveFunc(innerBody, funcName) {
+			vr.BoundedDepth = effectiveDepth
 		}
 		if *verboseFlag {
 			vr.SMTLib = encResult.SMTLib
