@@ -386,6 +386,15 @@ func patternDepth(pat core.CorePattern) int {
 			}
 		}
 		return 1 + maxChildDepth
+	case *core.RecordPattern:
+		maxChildDepth := 0
+		for _, fieldPat := range p.Fields {
+			d := patternDepth(fieldPat)
+			if d > maxChildDepth {
+				maxChildDepth = d
+			}
+		}
+		return 1 + maxChildDepth
 	default:
 		return 0
 	}

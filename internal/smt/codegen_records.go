@@ -330,6 +330,10 @@ func lookupRecordByFields(fields interface{}) *RecordTypeInfo {
 		for name := range f {
 			names = append(names, name)
 		}
+	case map[string]core.CorePattern:
+		for name := range f {
+			names = append(names, name)
+		}
 	default:
 		return nil
 	}

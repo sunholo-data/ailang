@@ -2,6 +2,7 @@ package smt
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
@@ -71,7 +72,49 @@ func encodePattern(pat core.CorePattern) (string, error) {
 		return "_", nil
 	case *core.LitPattern:
 		return fmt.Sprintf("%v", p.Value), nil
+	case *core.RecordPattern:
+		return encodeRecordPattern(p)
 	default:
 		return "", fmt.Errorf("unsupported pattern type %T in SMT encoding", pat)
 	}
+}
+
+// encodeRecordPattern encodes a record pattern for SMT-LIB match.
+// Record pattern {x, y} with Point type → (mk_Point x y)
+//
+// The encoding:
+//  1. Build a canonical key from the pattern's field names (sorted, comma-joined)
+//  2. Look up the record type info via activeFieldSetToSort
+//  3. Emit (mk_<SortName> field1_pattern field2_pattern ...) in alphabetical field order
+//
+// Nested record patterns are handled recursively via encodePattern.
+func encodeRecordPattern(rp *core.RecordPattern) (string, error) {
+	// Look up the record type by matching field names
+	info := lookupRecordByFields(rp.Fields)
+	if info == nil {
+		names := make([]string, 0, len(rp.Fields))
+		for name := range rp.Fields {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		return "", fmt.Errorf("record pattern: unknown record type with fields %v", names)
+	}
+
+	// Encode each field's sub-pattern in alphabetical (sorted) order
+	var args []string
+	for _, fieldName := range info.FieldNames {
+		fieldPat, ok := rp.Fields[fieldName]
+		if !ok {
+			// Field not present in pattern — use wildcard
+			args = append(args, "_")
+			continue
+		}
+		encoded, err := encodePattern(fieldPat)
+		if err != nil {
+			return "", fmt.Errorf("record pattern field %q: %w", fieldName, err)
+		}
+		args = append(args, encoded)
+	}
+
+	return fmt.Sprintf("(%s %s)", info.CtorName, strings.Join(args, " ")), nil
 }
