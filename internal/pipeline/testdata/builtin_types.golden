@@ -64,9 +64,14 @@ _io_writeBytes : bytes -> () ! {IO}
 _json_decode : string -> Result[Json, string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
+_list_contains : (list[a], a) -> bool
+_list_drop : (int, list[a]) -> list[a]
+_list_extract : (list[a], int, int) -> list[a]
 _list_head : list[a] -> a
 _list_length : list[a] -> int
 _list_nth : (list[a], int) -> a
+_list_reverse : list[a] -> list[a]
+_list_take : (int, list[a]) -> list[a]
 _math_E : () -> float
 _math_PI : () -> float
 _math_abs_Float : float -> float

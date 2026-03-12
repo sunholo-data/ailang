@@ -17,6 +17,11 @@ func init() {
 	registerListLength()
 	registerListHead()
 	registerListNth()
+	registerListContains()
+	registerListExtract()
+	registerListReverse()
+	registerListTake()
+	registerListDrop()
 }
 
 // ============================================================================
@@ -313,4 +318,321 @@ func listNthImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		return nil, fmt.Errorf("_list_nth: index %d out of bounds for list of length %d", idx, len(list.Elements))
 	}
 	return list.Elements[idx], nil
+}
+
+// ============================================================================
+// Additional SMT-Verifiable List Builtins (M3_RECURSIVE_LIST_OPS)
+// ============================================================================
+
+// registerListContains registers the _list_contains builtin
+func registerListContains() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_contains",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListContainsType,
+		Impl:    listContainsImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Check if a list contains a given element",
+			Params: []ParamDoc{
+				{Name: "xs", Description: "The list to search"},
+				{Name: "elem", Description: "The element to find"},
+			},
+			Returns:   "true if the element is in the list, false otherwise",
+			Since:     "v0.9.0",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "contains", "search", "smt"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_contains: %v", err))
+	}
+}
+
+func makeListContainsType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA, a).Returns(&types.TCon{Name: "bool"}).Build()
+}
+
+func listContainsImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_contains: expected List, got %T", args[0])
+	}
+	elem := args[1]
+	for _, v := range list.Elements {
+		if valuesEqual(v, elem) {
+			return &eval.BoolValue{Value: true}, nil
+		}
+	}
+	return &eval.BoolValue{Value: false}, nil
+}
+
+// valuesEqual compares two eval.Value instances for structural equality.
+// Supports Int, Float, String, Bool, and Unit values.
+func valuesEqual(left, right eval.Value) bool {
+	switch l := left.(type) {
+	case *eval.IntValue:
+		if r, ok := right.(*eval.IntValue); ok {
+			return l.Value == r.Value
+		}
+	case *eval.FloatValue:
+		if r, ok := right.(*eval.FloatValue); ok {
+			return l.Value == r.Value
+		}
+	case *eval.StringValue:
+		if r, ok := right.(*eval.StringValue); ok {
+			return l.Value == r.Value
+		}
+	case *eval.BoolValue:
+		if r, ok := right.(*eval.BoolValue); ok {
+			return l.Value == r.Value
+		}
+	case *eval.UnitValue:
+		_, ok := right.(*eval.UnitValue)
+		return ok
+	}
+	return false
+}
+
+// registerListExtract registers the _list_extract builtin
+func registerListExtract() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_extract",
+		NumArgs: 3,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListExtractType,
+		Impl:    listExtractImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Extract a subsequence from a list",
+			Params: []ParamDoc{
+				{Name: "xs", Description: "The list"},
+				{Name: "offset", Description: "Starting index (0-based)"},
+				{Name: "length", Description: "Number of elements to extract"},
+			},
+			Returns:   "Subsequence of the list",
+			Since:     "v0.9.0",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "extract", "slice", "smt"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_extract: %v", err))
+	}
+}
+
+func makeListExtractType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA, &types.TCon{Name: "int"}, &types.TCon{Name: "int"}).Returns(listA).Build()
+}
+
+func listExtractImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_extract: expected List, got %T", args[0])
+	}
+	offsetVal, ok := args[1].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_extract: expected Int for offset, got %T", args[1])
+	}
+	lengthVal, ok := args[2].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_extract: expected Int for length, got %T", args[2])
+	}
+
+	offset := offsetVal.Value
+	length := lengthVal.Value
+	n := len(list.Elements)
+
+	// Clamp to valid range (matching Z3 seq.extract semantics)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > n {
+		offset = n
+	}
+	end := offset + length
+	if end > n {
+		end = n
+	}
+	if length < 0 || offset >= n {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+
+	result := make([]eval.Value, end-offset)
+	copy(result, list.Elements[offset:end])
+	return &eval.ListValue{Elements: result}, nil
+}
+
+// registerListReverse registers the _list_reverse builtin
+func registerListReverse() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_reverse",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListReverseType,
+		Impl:    listReverseImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Reverse a list",
+			Params:      []ParamDoc{{Name: "xs", Description: "The list to reverse"}},
+			Returns:     "A new list with elements in reverse order",
+			Since:       "v0.9.0",
+			Stability:   StabilityStable,
+			Tags:        []string{"list", "reverse", "smt"},
+			Category:    "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_reverse: %v", err))
+	}
+}
+
+func makeListReverseType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(listA).Returns(listA).Build()
+}
+
+func listReverseImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	list, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_reverse: expected List, got %T", args[0])
+	}
+	n := len(list.Elements)
+	result := make([]eval.Value, n)
+	for i, v := range list.Elements {
+		result[n-1-i] = v
+	}
+	return &eval.ListValue{Elements: result}, nil
+}
+
+// registerListTake registers the _list_take builtin
+func registerListTake() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_take",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListTakeType,
+		Impl:    listTakeImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Take the first n elements from a list",
+			Params: []ParamDoc{
+				{Name: "n", Description: "Number of elements to take"},
+				{Name: "xs", Description: "The list"},
+			},
+			Returns:   "A new list containing the first n elements",
+			Since:     "v0.9.0",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "take", "slice", "smt"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_take: %v", err))
+	}
+}
+
+func makeListTakeType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(&types.TCon{Name: "int"}, listA).Returns(listA).Build()
+}
+
+func listTakeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	nVal, ok := args[0].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_take: expected Int for n, got %T", args[0])
+	}
+	list, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_take: expected List, got %T", args[1])
+	}
+
+	n := nVal.Value
+	if n <= 0 {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+	if n > len(list.Elements) {
+		n = len(list.Elements)
+	}
+
+	result := make([]eval.Value, n)
+	copy(result, list.Elements[:n])
+	return &eval.ListValue{Elements: result}, nil
+}
+
+// registerListDrop registers the _list_drop builtin
+func registerListDrop() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "$builtin",
+		Name:    "_list_drop",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeListDropType,
+		Impl:    listDropImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Drop the first n elements from a list",
+			Params: []ParamDoc{
+				{Name: "n", Description: "Number of elements to drop"},
+				{Name: "xs", Description: "The list"},
+			},
+			Returns:   "A new list with the first n elements removed",
+			Since:     "v0.9.0",
+			Stability: StabilityStable,
+			Tags:      []string{"list", "drop", "slice", "smt"},
+			Category:  "list",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _list_drop: %v", err))
+	}
+}
+
+func makeListDropType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	listA := T.List(a)
+	return T.Func(&types.TCon{Name: "int"}, listA).Returns(listA).Build()
+}
+
+func listDropImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	nVal, ok := args[0].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_drop: expected Int for n, got %T", args[0])
+	}
+	list, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_list_drop: expected List, got %T", args[1])
+	}
+
+	n := nVal.Value
+	if n <= 0 {
+		result := make([]eval.Value, len(list.Elements))
+		copy(result, list.Elements)
+		return &eval.ListValue{Elements: result}, nil
+	}
+	if n >= len(list.Elements) {
+		return &eval.ListValue{Elements: []eval.Value{}}, nil
+	}
+
+	result := make([]eval.Value, len(list.Elements)-n)
+	copy(result, list.Elements[n:])
+	return &eval.ListValue{Elements: result}, nil
 }

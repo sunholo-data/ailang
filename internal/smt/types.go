@@ -336,14 +336,29 @@ var ListBuiltinSpecial = map[string]ListBuiltinSpec{
 	"_list_head": {Op: "seq.nth", Unary: true, AppendZero: true},
 	// _list_nth(xs, i) → (seq.nth xs i) — binary
 	"_list_nth": {Op: "seq.nth"},
+	// _list_contains(xs, elem) → (seq.contains xs (seq.unit elem)) — contains mode
+	"_list_contains": {Op: "seq.contains", ContainsMode: true},
+	// _list_extract(xs, offset, length) → (seq.extract xs offset length) — ternary
+	"_list_extract": {Op: "seq.extract", TernaryMode: true},
 }
 
 // ListBuiltinSpec describes how to encode a list builtin in SMT-LIB.
 type ListBuiltinSpec struct {
-	Op         string // SMT-LIB operator name
-	Unary      bool   // Single argument
-	AppendZero bool   // Append literal 0 as extra argument
-	ConsMode   bool   // First arg wrapped in (seq.unit ...)
+	Op           string // SMT-LIB operator name
+	Unary        bool   // Single argument
+	AppendZero   bool   // Append literal 0 as extra argument
+	ConsMode     bool   // First arg wrapped in (seq.unit ...)
+	ContainsMode bool   // Second arg wrapped in (seq.unit ...) for element containment
+	TernaryMode  bool   // Three arguments (e.g., seq.extract xs offset length)
+}
+
+// RecursiveListBuiltins maps recursive list operation names to their descriptions.
+// These are encoded via bounded unrolling (GenerateListUnrolling) rather than
+// direct Z3 operator mapping.
+var RecursiveListBuiltins = map[string]string{
+	"_list_reverse": "reverse",
+	"_list_take":    "take",
+	"_list_drop":    "drop",
 }
 
 // NumericBuiltinSpecial maps AILANG numeric conversion builtins to SMT-LIB operators.
@@ -375,7 +390,11 @@ var StdlibStringToSMT = map[string]string{
 
 // StdlibListToSMT maps std/list function names to their builtin equivalents.
 var StdlibListToSMT = map[string]string{
-	"length": "_list_length",
+	"length":   "_list_length",
+	"reverse":  "_list_reverse",
+	"take":     "_list_take",
+	"drop":     "_list_drop",
+	"contains": "_list_contains",
 }
 
 // ResolveStdlibToBuiltin checks if a module/function pair refers to a stdlib
