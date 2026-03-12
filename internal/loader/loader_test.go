@@ -112,6 +112,48 @@ func TestIsTempPath_NestedTempDir(t *testing.T) {
 	}
 }
 
+func TestLoad_EmbeddedStdlibFallback(t *testing.T) {
+	// Use a temp dir with NO std/ subdirectory — forces filesystem resolution to fail
+	tmpDir := t.TempDir()
+	ml := NewModuleLoader(tmpDir)
+	// Point resolver at a non-existent path to ensure filesystem lookup fails
+	ml.ConfigureStdlibResolver("/nonexistent/stdlib/path", false, false)
+
+	t.Run("loads stdlib from embedded FS when filesystem fails", func(t *testing.T) {
+		loaded, err := ml.Load("std/option")
+		if err != nil {
+			t.Fatalf("expected embedded fallback to succeed, got error: %v", err)
+		}
+		if loaded == nil {
+			t.Fatal("expected non-nil LoadedModule")
+		}
+		if len(loaded.Exports) == 0 && len(loaded.Types) == 0 {
+			t.Error("expected loaded module to have exports or types")
+		}
+	})
+
+	t.Run("non-existent embedded module fails", func(t *testing.T) {
+		_, err := ml.Load("std/nonexistent_module_xyz")
+		if err == nil {
+			t.Fatal("expected error for non-existent module")
+		}
+	})
+
+	t.Run("module is cached after embedded load", func(t *testing.T) {
+		loaded1, err := ml.Load("std/result")
+		if err != nil {
+			t.Fatalf("first load failed: %v", err)
+		}
+		loaded2, err := ml.Load("std/result")
+		if err != nil {
+			t.Fatalf("second load failed: %v", err)
+		}
+		if loaded1 != loaded2 {
+			t.Error("expected same pointer from cache")
+		}
+	})
+}
+
 func TestCanonicalModuleID(t *testing.T) {
 	tests := []struct {
 		input    string

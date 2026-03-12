@@ -16,6 +16,7 @@ import (
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo/ailang/std"
 )
 
 // ModuleLoader loads and caches modules
@@ -107,6 +108,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 
 	// Resolve path and track attempts
 	fullPath := ""
+	var content []byte // Pre-loaded content (from embedded stdlib fallback)
 
 	// Try relative path first
 	if strings.HasPrefix(canonPath, "./") || strings.HasPrefix(canonPath, "../") {
@@ -122,11 +124,26 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 
 		resolvedPath, err := ml.stdlibResolver.ResolveStdlib(canonPath)
 		if err != nil {
-			// StdlibResolver already provides detailed error with search trace
-			return nil, err
+			// Filesystem resolution failed — try embedded stdlib fallback.
+			// The stdlib .ail files are compiled into the binary via std/embed.go,
+			// so the binary is self-contained even without a filesystem std/ directory.
+			moduleName := strings.TrimPrefix(canonPath, "std/")
+			embFile := moduleName + ".ail"
+			if embContent, embErr := std.FS.ReadFile(embFile); embErr == nil {
+				content = embContent
+				fullPath = "<embedded>/std/" + embFile
+				searchTrace = append(searchTrace, "embedded: "+fullPath)
+				if ml.stdlibResolver.traceEnabled {
+					fmt.Fprintf(os.Stderr, "[trace-loader] Filesystem stdlib not found, using embedded fallback: %s\n", fullPath)
+				}
+			} else {
+				// Both filesystem and embedded failed — return original error
+				return nil, err
+			}
+		} else {
+			fullPath = resolvedPath
+			searchTrace = append(searchTrace, "std: "+resolvedPath)
 		}
-		fullPath = resolvedPath
-		searchTrace = append(searchTrace, "std: "+resolvedPath)
 	} else if strings.HasSuffix(canonPath, ".ail") {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
@@ -138,13 +155,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		fullPath = projPath
 	}
 
-	// Read file
-	content, err := os.ReadFile(fullPath)
-	if err != nil {
-		// Collect similar module suggestions
-		similar := ml.suggestSimilar(path)
-		report := newLDR001(canonicalID, searchTrace, similar, nil)
-		return nil, errors.WrapReport(report)
+	// Read file (skip if content already loaded from embedded stdlib)
+	if content == nil {
+		var err error
+		content, err = os.ReadFile(fullPath)
+		if err != nil {
+			// Collect similar module suggestions
+			similar := ml.suggestSimilar(path)
+			report := newLDR001(canonicalID, searchTrace, similar, nil)
+			return nil, errors.WrapReport(report)
+		}
 	}
 
 	// Parse file
