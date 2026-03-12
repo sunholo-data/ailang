@@ -28,7 +28,27 @@ bin/ailang eval-suite --full --langs python,ailang --parallel 5 \
 - [ ] Results include both AILANG and Python
 - [ ] All models run successfully
 
-## 2. Update Website Dashboard
+## 2. Verify Codebase Statistics
+
+The release workflow auto-commits updated stats to `docs/static/codebase_stats.json`.
+Verify it ran, or generate manually:
+
+```bash
+# Check if stats were auto-updated by CI
+git pull
+cat docs/static/codebase_stats.json | python3 -c "import json,sys; d=json.load(sys.stdin); print('Current:', d['current']['version'])"
+
+# If stale, generate manually:
+AILANG_VERSION=vX.X.X bash tools/generate_codebase_stats.sh
+git add docs/static/codebase_stats.json
+git commit -m "Update codebase statistics for vX.X.X"
+git push
+```
+
+- [ ] `codebase_stats.json` shows vX.X.X as current
+- [ ] History includes vX.X.X entry
+
+## 3. Update Website Dashboard
 
 Use the automation script:
 ```bash
@@ -46,7 +66,7 @@ This will:
 - [ ] JSON validation passed
 - [ ] Cache cleared
 
-## 3. Test Dashboard Locally (Optional)
+## 4. Test Dashboard Locally (Optional)
 
 ```bash
 cd docs && npm start
@@ -57,7 +77,7 @@ cd docs && npm start
 - [ ] Success rate matches eval results
 - [ ] No webpack/cache errors
 
-## 4. Update Axiom Scorecard (if applicable)
+## 5. Update Axiom Scorecard (if applicable)
 
 Review axiom compliance if the release includes features that affect design axioms:
 
@@ -90,7 +110,7 @@ Always add history entry:
 - [ ] Scores updated if applicable
 - [ ] History entry added
 
-## 5. Extract Metrics for CHANGELOG
+## 6. Extract Metrics for CHANGELOG
 
 Use the automation script:
 ```bash
@@ -106,7 +126,7 @@ This outputs a CHANGELOG.md template with:
 - [ ] Metrics extracted
 - [ ] CHANGELOG.md updated with benchmark results
 
-## 6. Commit Dashboard Updates
+## 7. Commit Dashboard Updates
 
 ```bash
 git add docs/docs/benchmarks/performance.md docs/static/benchmarks/latest.json
@@ -118,7 +138,7 @@ git push
 - [ ] Committed
 - [ ] Pushed
 
-## 7. Verify Sprint JSON Tracking
+## 8. Verify Sprint JSON Tracking
 
 Check that sprint state JSON files are properly completed:
 
@@ -156,13 +176,13 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
 - `velocity.efficiency` not computed
 - `completion_summary` section missing
 
-## 8. Update Design Docs
+## 9. Update Design Docs
 
 - [ ] Move completed design docs to design_docs/implemented/vX_Y/
 - [ ] Update design docs with what was actually implemented
 - [ ] Create new design docs in design_docs/planned/ for deferred features
 
-## 9. Update Public Documentation
+## 10. Update Public Documentation
 
 - [ ] Ensure prompts/ reflects latest AILANG syntax
 - [ ] Update website docs (docs/) with latest features
@@ -177,7 +197,7 @@ cat .ailang/state/sprints/sprint_<MILESTONE>.json | jq '.'
   - [ ] Test examples in LIMITATIONS.md still work/fail as documented
   - [ ] Commit: `git add docs/LIMITATIONS.md && git commit -m "Update LIMITATIONS.md for vX.X.X"`
 
-## 10. Run Documentation Sync Check
+## 11. Run Documentation Sync Check
 
 Use the docs-sync skill to verify website accuracy:
 

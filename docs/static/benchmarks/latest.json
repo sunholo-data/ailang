@@ -3398,98 +3398,6 @@
       }
     },
     {
-      "version": "0.9.0",
-      "timestamp": "2026-03-09T19:54:27+01:00",
-      "successRate": 0.7989130434782609,
-      "totalRuns": 552,
-      "successCount": 441,
-      "languages": "ailang,python",
-      "languageStats": {
-        "ailang": {
-          "success_rate": 0.8405797101449275,
-          "total_runs": 276
-        },
-        "python": {
-          "success_rate": 0.7572463768115942,
-          "total_runs": 276
-        }
-      },
-      "modelStats": {
-        "claude-opus-4-6": {
-          "ailang": {
-            "avgTokens": 319.7826086956522,
-            "successRate": 0.8695652173913043,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 417.2391304347826,
-            "successRate": 0.8043478260869565,
-            "totalRuns": 46
-          }
-        },
-        "claude-sonnet-4-6": {
-          "ailang": {
-            "avgTokens": 366.1521739130435,
-            "successRate": 0.8695652173913043,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 332.0652173913044,
-            "successRate": 0.7391304347826086,
-            "totalRuns": 46
-          }
-        },
-        "gemini-3-1-pro": {
-          "ailang": {
-            "avgTokens": 224.65217391304347,
-            "successRate": 0.8260869565217391,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 251.2391304347826,
-            "successRate": 0.6956521739130435,
-            "totalRuns": 46
-          }
-        },
-        "gemini-3-pro": {
-          "ailang": {
-            "avgTokens": 254.30434782608697,
-            "successRate": 0.6956521739130435,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 303.4347826086956,
-            "successRate": 0.6739130434782609,
-            "totalRuns": 46
-          }
-        },
-        "gpt5-2-codex": {
-          "ailang": {
-            "avgTokens": 278.04347826086956,
-            "successRate": 0.8695652173913043,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 269.60869565217394,
-            "successRate": 0.8043478260869565,
-            "totalRuns": 46
-          }
-        },
-        "gpt5-4": {
-          "ailang": {
-            "avgTokens": 290.39130434782606,
-            "successRate": 0.9130434782608695,
-            "totalRuns": 46
-          },
-          "python": {
-            "avgTokens": 303.0869565217391,
-            "successRate": 0.8260869565217391,
-            "totalRuns": 46
-          }
-        }
-      }
-    },
-    {
       "version": "v0.8.0",
       "timestamp": "2026-02-14T16:28:33+01:00",
       "successRate": 0.782608695652174,
@@ -3650,7 +3558,7 @@
       }
     },
     {
-      "version": "0.6.2",
+      "version": "v0.6.2",
       "timestamp": "2026-01-03T07:40:37+01:00",
       "successRate": 0.6401869158878505,
       "totalRuns": 642,
@@ -4138,7 +4046,7 @@
       }
     },
     {
-      "version": "0.3.14",
+      "version": "v0.3.14",
       "timestamp": "2025-10-18T20:30:58Z",
       "successRate": 0.6387665198237885,
       "totalRuns": 227,
@@ -4230,7 +4138,7 @@
       }
     },
     {
-      "version": "0.3.15",
+      "version": "v0.3.15",
       "timestamp": "2025-10-21T16:57:43Z",
       "successRate": 0.5914786967418546,
       "totalRuns": 399,
@@ -4322,7 +4230,7 @@
       }
     },
     {
-      "version": "0.3.16",
+      "version": "v0.3.16",
       "timestamp": "2025-10-22T09:22:00Z",
       "successRate": 0.5735294117647058,
       "totalRuns": 408,
@@ -4892,7 +4800,7 @@
       }
     },
     {
-      "version": "0.4.6",
+      "version": "v0.4.6",
       "timestamp": "2025-11-25T16:26:38+01:00",
       "successRate": 0.6885758998435054,
       "totalRuns": 639,
@@ -5008,7 +4916,7 @@
       }
     },
     {
-      "version": "0.4.5",
+      "version": "v0.4.5",
       "timestamp": "2025-11-16T16:01:19+01:00",
       "successRate": 0.68125,
       "totalRuns": 480,
@@ -5026,7 +4934,7 @@
       }
     },
     {
-      "version": "0.4.4",
+      "version": "v0.4.4",
       "timestamp": "2025-11-13T18:41:38Z",
       "successRate": 0.6672661870503597,
       "totalRuns": 556,
@@ -5118,7 +5026,7 @@
       }
     },
     {
-      "version": "0.4.3",
+      "version": "v0.4.3",
       "timestamp": "2025-11-06T17:47:35+01:00",
       "successRate": 0.6283924843423799,
       "totalRuns": 479,
@@ -5154,7 +5062,7 @@
       }
     },
     {
-      "version": "0.4.1",
+      "version": "v0.4.1",
       "timestamp": "2025-11-02T19:49:28+01:00",
       "successRate": 0.55,
       "totalRuns": 480,
@@ -5372,7 +5280,7 @@
       }
     },
     {
-      "version": "0.3.20",
+      "version": "v0.3.20",
       "timestamp": "2025-10-26T20:02:35Z",
       "successRate": 0.597051597051597,
       "totalRuns": 407,
@@ -5464,7 +5372,7 @@
       }
     },
     {
-      "version": "0.3.17",
+      "version": "v0.3.17",
       "timestamp": "2025-10-22T20:01:30Z",
       "successRate": 0.6029411764705882,
       "totalRuns": 408,

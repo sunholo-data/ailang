@@ -81,7 +81,10 @@ jobs:
         run: bash docs/scripts/generate-version-constants.sh
 
       - name: Generate codebase statistics
-        run: bash tools/generate_codebase_stats.sh
+        run: |
+          # Use latest git tag for version (handles tags on other branches)
+          export AILANG_VERSION=$(git tag --sort=-v:refname | head -1)
+          bash tools/generate_codebase_stats.sh
 
       - name: Sync teaching prompts
         run: bash docs/scripts/sync-prompts.sh

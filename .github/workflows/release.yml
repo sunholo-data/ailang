@@ -222,6 +222,37 @@ jobs:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.zip
 
+  update-codebase-stats:
+    name: Update Codebase Statistics
+    needs: [build-release, build-wasm, build-bootstrap-content, build-examples]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout default branch
+      uses: actions/checkout@v4
+      with:
+        ref: dev
+        fetch-depth: 0  # Need full history for stats
+
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Generate codebase statistics
+      env:
+        AILANG_VERSION: ${{ github.ref_name }}
+      run: bash tools/generate_codebase_stats.sh
+
+    - name: Commit and push updated stats
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        if git diff --quiet docs/static/codebase_stats.json; then
+          echo "No changes to codebase stats"
+        else
+          git add docs/static/codebase_stats.json
+          git commit -m "Update codebase statistics for ${{ github.ref_name }} [skip ci]"
+          git push
+        fi
+
   create-release:
     name: Create GitHub Release
     needs: [build-release, build-wasm, build-bootstrap-content, build-examples]

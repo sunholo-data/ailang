@@ -10,8 +10,15 @@ OUTPUT_FILE="${1:-$ROOT_DIR/docs/static/codebase_stats.json}"
 
 cd "$ROOT_DIR"
 
-# Get current version from changelog or git tag
-VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")
+# Get current version: prefer AILANG_VERSION env var, then git tag
+# (git describe --abbrev=0 can miss tags on other branches, e.g. release tags
+# not merged back to dev — use AILANG_VERSION override in CI)
+VERSION="${AILANG_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")}"
+
+# Normalize: ensure version starts with 'v' prefix
+if [[ "$VERSION" != "dev" && "$VERSION" != v* ]]; then
+  VERSION="v${VERSION}"
+fi
 
 # Get timestamp
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
