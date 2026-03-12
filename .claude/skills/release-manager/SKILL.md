@@ -265,16 +265,30 @@ git commit -m "Release vX.X.X"
 
 ### 5. Create and Push Git Tag
 
+**CRITICAL: Tag MUST be on the dev branch at HEAD. Never tag a divergent commit.**
+
 ```bash
+# 1. Create the tag on current HEAD
 git tag -a vX.X.X -m "Release vX.X.X"
+
+# 2. VERIFY tag is reachable from HEAD (prevents v0.9.0-style divergence)
+git describe --tags --exact-match HEAD  # Must output "vX.X.X"
+
+# 3. VERIFY binary version matches BEFORE pushing
+go install -ldflags "-X main.Version=$(git describe --tags --always) -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildTime=$(date -u '+%Y-%m-%d_%H:%M:%S')" ./cmd/ailang/
+ailang --version  # Must show "AILANG vX.X.X"
+
+# 4. Only push AFTER verification passes
+git push origin dev
 git push origin vX.X.X
 ```
 
-### 6. Push Commit
+**If `git describe` doesn't show the expected version:**
+- The tag is on a different commit than HEAD — DELETE the tag and re-tag on HEAD
+- `git tag -d vX.X.X` then start step 5 again
+- **NEVER push a tag that diverges from the dev branch**
 
-```bash
-git push
-```
+**What went wrong with v0.9.0:** The tag was placed on a commit not on `dev` (a WASM fix commit on a side branch). `dev` kept advancing, so `git describe --tags` couldn't find the tag as an ancestor — the binary reported `v0.8.1.1` instead of `v0.9.0`.
 
 ### 7. Monitor CI/CD
 
