@@ -1450,6 +1450,79 @@ func TestEncodeStdlib_StringSubstring(t *testing.T) {
 	}
 }
 
+// --- New list builtin encoding tests (M3_RECURSIVE_LIST_OPS) ---
+
+func TestEncodeExpr_ListContains(t *testing.T) {
+	// _list_contains(xs, elem) → (seq.contains xs (seq.unit elem))
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_contains"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "elem"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(seq.contains xs (seq.unit elem))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeExpr_ListExtract(t *testing.T) {
+	// _list_extract(xs, offset, length) → (seq.extract xs offset length)
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_extract"}},
+		Args: []core.CoreExpr{
+			&core.Var{Name: "xs"},
+			&core.Var{Name: "offset"},
+			&core.Var{Name: "length"},
+		},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(seq.extract xs offset length)"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeExpr_ListContains_WithLiteral(t *testing.T) {
+	// _list_contains(xs, 2) → (seq.contains xs (seq.unit 2))
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "_list_contains"}},
+		Args: []core.CoreExpr{
+			&core.Var{Name: "xs"},
+			&core.Lit{Kind: core.IntLit, Value: int64(2)},
+		},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(seq.contains xs (seq.unit 2))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestEncodeStdlib_ListContains(t *testing.T) {
+	// std/list.contains(xs, elem) → (seq.contains xs (seq.unit elem))
+	expr := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "contains"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "elem"}},
+	}
+	got, err := EncodeExpr(expr)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(seq.contains xs (seq.unit elem))"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestEncodeStdlib_ListLength(t *testing.T) {
 	// std/list.length(xs) → (seq.len xs)
 	expr := &core.App{

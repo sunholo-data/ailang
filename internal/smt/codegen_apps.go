@@ -251,6 +251,43 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 		return fmt.Sprintf("(seq.++ (seq.unit %s) %s)", head, tail), nil
 	}
 
+	if spec.ContainsMode {
+		// _list_contains(xs, elem) → (seq.contains xs (seq.unit elem))
+		// Z3's seq.contains checks for subsequence, so we wrap elem in seq.unit
+		if len(args) != 2 {
+			return "", fmt.Errorf("list builtin %q expects 2 args, got %d", spec.Op, len(args))
+		}
+		xs, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		elem, err := EncodeExpr(args[1])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(%s %s (seq.unit %s))", spec.Op, xs, elem), nil
+	}
+
+	if spec.TernaryMode {
+		// _list_extract(xs, offset, length) → (seq.extract xs offset length)
+		if len(args) != 3 {
+			return "", fmt.Errorf("list builtin %q expects 3 args, got %d", spec.Op, len(args))
+		}
+		a, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		b, err := EncodeExpr(args[1])
+		if err != nil {
+			return "", err
+		}
+		c, err := EncodeExpr(args[2])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(%s %s %s %s)", spec.Op, a, b, c), nil
+	}
+
 	if spec.Unary {
 		if len(args) != 1 {
 			return "", fmt.Errorf("list builtin %q expects 1 arg, got %d", spec.Op, len(args))

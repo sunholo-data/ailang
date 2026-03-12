@@ -522,6 +522,9 @@ func isUnencodableBuiltin(name string) bool {
 	if _, ok := NumericBuiltinSpecial[name]; ok {
 		return false // numeric conversion builtins — encodable
 	}
+	if _, ok := RecursiveListBuiltins[name]; ok {
+		return false // recursive list builtins with bounded unrolling — encodable
+	}
 	// Everything else from $builtin module is NOT encodable
 	return true
 }

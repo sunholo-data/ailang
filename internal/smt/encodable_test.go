@@ -493,6 +493,12 @@ func TestIsUnencodableBuiltin(t *testing.T) {
 		{"_list_length", false},
 		{"_list_head", false},
 		{"_list_nth", false},
+		{"_list_contains", false},
+		{"_list_extract", false},
+		// Recursive list builtins — encodable (via unrolling)
+		{"_list_reverse", false},
+		{"_list_take", false},
+		{"_list_drop", false},
 		// List builtins WITHOUT SMT mapping — unencodable
 		{"map_List", true},
 		{"filter_List", true},
@@ -552,6 +558,28 @@ func TestHasUnencodableTypes_StdlibListLength(t *testing.T) {
 	}
 	if hasUnencodableTypes(body) {
 		t.Error("std/list.length should be encodable (has SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibListContains(t *testing.T) {
+	// std/list.contains(xs, elem) should be encodable
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "contains"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}, &core.Var{Name: "elem"}},
+	}
+	if hasUnencodableTypes(body) {
+		t.Error("std/list.contains should be encodable (has SMT mapping)")
+	}
+}
+
+func TestHasUnencodableTypes_StdlibListReverse(t *testing.T) {
+	// std/list.reverse(xs) should be encodable (via recursive unrolling)
+	body := &core.App{
+		Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "std/list", Name: "reverse"}},
+		Args: []core.CoreExpr{&core.Var{Name: "xs"}},
+	}
+	if hasUnencodableTypes(body) {
+		t.Error("std/list.reverse should be encodable (has SMT mapping)")
 	}
 }
 
