@@ -284,8 +284,10 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	var transcriptBuf strings.Builder
 	var turnNum int
 	var toolCallCount int
-	var permissionDeniedCount int // Track permission denied events (M-CLOUD-PLUGIN-SKILLS)
-	var turnSpan trace.Span       // Track current turn's OTEL span
+	var permissionDeniedCount int    // Track permission denied events (M-CLOUD-PLUGIN-SKILLS)
+	var turnSpan trace.Span          // Track current turn's OTEL span
+	var currentToolName string       // Accumulates tool name across streaming events
+	var currentToolInput strings.Builder // Accumulates input_json_delta chunks
 
 	go func() {
 		stdoutScanner := bufio.NewScanner(stdout)
@@ -350,19 +352,9 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					if contentBlock != nil {
 						if blockType, _ := contentBlock["type"].(string); blockType == "tool_use" {
 							toolCallCount++
-							toolName, _ := contentBlock["name"].(string)
-							// Extract tool input if available (may be in initial block or come via delta)
-							toolInput := ""
-							if input, ok := contentBlock["input"]; ok {
-								if inputMap, ok := input.(map[string]interface{}); ok {
-									inputBytes, _ := json.Marshal(inputMap)
-									toolInput = string(inputBytes)
-								} else if inputStr, ok := input.(string); ok {
-									toolInput = inputStr
-								}
-							}
-							handler.OnToolUse(toolName, toolInput)
-							transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", toolName))
+							currentToolName, _ = contentBlock["name"].(string)
+							currentToolInput.Reset()
+							transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", currentToolName))
 						}
 					}
 
@@ -376,16 +368,22 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 							handler.OnText(text)
 							transcriptBuf.WriteString(text)
 						case "input_json_delta":
-							// Tool input streaming - accumulate but we already called OnToolUse
-							// The input will be visible in the initial tool_use block
-							_ = delta["partial_json"]
+							// Accumulate tool input chunks — emitted at content_block_stop
+							if partial, ok := delta["partial_json"].(string); ok {
+								currentToolInput.WriteString(partial)
+							}
 						}
 					}
 
 				case "content_block_stop":
-					// Tool block completed - could signal OnToolResult here if we had a result
-					// Claude Code sends tool results as separate user messages
-					_ = streamEvent["index"]
+					// Emit tool use with complete accumulated input.
+					// Claude streams input via input_json_delta after content_block_start,
+					// so we must wait until stop to have the full JSON.
+					if currentToolName != "" {
+						handler.OnToolUse(currentToolName, currentToolInput.String())
+						currentToolName = ""
+						currentToolInput.Reset()
+					}
 
 				case "permission_denied":
 					// Permission denied event (M-CLOUD-PLUGIN-SKILLS)

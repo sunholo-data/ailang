@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -440,11 +441,62 @@ func (h *cloudEventHandler) OnText(text string) {
 }
 
 func (h *cloudEventHandler) OnToolUse(toolName string, input string) {
-	// Log tool name and truncated input
-	if len(input) > 300 {
-		input = input[:300] + "..."
+	// Extract the most useful field from tool input for concise logging
+	summary := extractToolSummary(toolName, input)
+	fmt.Fprintf(os.Stderr, "claude-stream: [tool] %s: %s\n", toolName, summary)
+}
+
+// extractToolSummary pulls the most diagnostic field from a tool's JSON input.
+// For Bash: the command. For Write/Read: the file path. For Edit: old→new summary.
+func extractToolSummary(toolName, input string) string {
+	if input == "" || input == "{}" {
+		return "(no input)"
 	}
-	fmt.Fprintf(os.Stderr, "claude-stream: [tool] %s: %s\n", toolName, input)
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &m); err != nil {
+		// Not JSON — return truncated raw input
+		if len(input) > 500 {
+			return input[:500] + "..."
+		}
+		return input
+	}
+	switch toolName {
+	case "Bash":
+		if cmd, ok := m["command"].(string); ok {
+			if len(cmd) > 500 {
+				cmd = cmd[:500] + "..."
+			}
+			return cmd
+		}
+	case "Write":
+		if fp, ok := m["file_path"].(string); ok {
+			return fmt.Sprintf("→ %s", fp)
+		}
+	case "Read":
+		if fp, ok := m["file_path"].(string); ok {
+			return fp
+		}
+	case "Edit":
+		fp, _ := m["file_path"].(string)
+		old, _ := m["old_string"].(string)
+		if len(old) > 100 {
+			old = old[:100] + "..."
+		}
+		return fmt.Sprintf("%s (replacing %q)", fp, old)
+	case "Glob":
+		if pat, ok := m["pattern"].(string); ok {
+			return pat
+		}
+	case "Grep":
+		if pat, ok := m["pattern"].(string); ok {
+			return fmt.Sprintf("/%s/", pat)
+		}
+	}
+	// Fallback: truncated JSON
+	if len(input) > 500 {
+		return input[:500] + "..."
+	}
+	return input
 }
 
 func (h *cloudEventHandler) OnToolResult(toolName string, output string) {
