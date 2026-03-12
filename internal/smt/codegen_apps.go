@@ -251,6 +251,18 @@ func encodeListBuiltin(spec ListBuiltinSpec, args []core.CoreExpr) (string, erro
 		return fmt.Sprintf("(seq.++ (seq.unit %s) %s)", head, tail), nil
 	}
 
+	if spec.TailMode {
+		// _list_tail(xs) → (seq.extract xs 1 (- (seq.len xs) 1))
+		if len(args) != 1 {
+			return "", fmt.Errorf("list builtin %q expects 1 arg, got %d", spec.Op, len(args))
+		}
+		arg, err := EncodeExpr(args[0])
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("(seq.extract %s 1 (- (seq.len %s) 1))", arg, arg), nil
+	}
+
 	if spec.Unary {
 		if len(args) != 1 {
 			return "", fmt.Errorf("list builtin %q expects 1 arg, got %d", spec.Op, len(args))

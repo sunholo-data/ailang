@@ -336,6 +336,8 @@ var ListBuiltinSpecial = map[string]ListBuiltinSpec{
 	"_list_head": {Op: "seq.nth", Unary: true, AppendZero: true},
 	// _list_nth(xs, i) → (seq.nth xs i) — binary
 	"_list_nth": {Op: "seq.nth"},
+	// _list_tail(xs) → (seq.extract xs 1 (- (seq.len xs) 1)) — tail mode
+	"_list_tail": {Op: "seq.extract", Unary: true, TailMode: true},
 }
 
 // ListBuiltinSpec describes how to encode a list builtin in SMT-LIB.
@@ -344,6 +346,7 @@ type ListBuiltinSpec struct {
 	Unary      bool   // Single argument
 	AppendZero bool   // Append literal 0 as extra argument
 	ConsMode   bool   // First arg wrapped in (seq.unit ...)
+	TailMode   bool   // _list_tail: (seq.extract xs 1 (- (seq.len xs) 1))
 }
 
 // NumericBuiltinSpecial maps AILANG numeric conversion builtins to SMT-LIB operators.
