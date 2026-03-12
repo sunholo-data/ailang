@@ -1419,11 +1419,92 @@
         "stdout": "hello from AILANG\nstreaming to subprocess\ndone!\nwrote line 1\nwrote line 2\nwrote line 3\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/contracts/nested_record_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "nested-records",
+        "field-access"
+      ],
+      "description": "Nested record contract verification — Z3 proves properties about nested record field access (o.pos.x) with dependency-ordered type declarations"
+    },
+    {
+      "path": "runnable/contracts/record_pattern_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "records",
+        "pattern-matching",
+        "record-patterns"
+      ],
+      "description": "Record pattern matching in contracts — Z3 verifies match expressions that destructure records into field bindings"
+    },
+    {
+      "path": "runnable/contracts/list_recursive_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "lists",
+        "list-contains",
+        "list-extract",
+        "z3-sequence-theory"
+      ],
+      "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract"
+    },
+    {
+      "path": "runnable/contracts/per_function_depth_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "bounded-recursion",
+        "verify-attribute",
+        "per-function-depth"
+      ],
+      "description": "Per-function recursion depth — @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
+    },
+    {
+      "path": "runnable/contracts/hof_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "higher-order",
+        "hof-inlining",
+        "map",
+        "filter",
+        "lambda"
+      ],
+      "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
+    },
+    {
+      "path": "runnable/contracts/quantifier_verify.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "ailang-verify",
+        "quantifiers",
+        "forall",
+        "bounded-quantifiers"
+      ],
+      "description": "Bounded quantifier verification — forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
     }
   ],
   "statistics": {
-    "total": 134,
-    "working": 127,
+    "total": 140,
+    "working": 133,
     "aspirational": 4,
     "broken": 3,
     "coverage": 0.946

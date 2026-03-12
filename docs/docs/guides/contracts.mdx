@@ -570,21 +570,25 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 - Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
 - Logical: `&&`, `||`, `!`
 - String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
-- List operations: `length` from `std/list`, `_list_head`, `_list_nth`, `::` (cons), `++` (concat), list literals
+- List operations: `length`, `reverse`, `take`, `drop`, `contains` from `std/list`, `_list_head`, `_list_nth`, `_list_contains`, `_list_extract`, `::` (cons), `++` (concat), list literals
 - Control flow: `if`/`else`, `let` bindings
-- Pattern matching: `match` on enums and ADTs
-- Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`)
+- Pattern matching: `match` on enums, ADTs, and **records** (field destructuring)
+- Records: field access (`p.x`), construction (`{x: 5, y: 10}`), functional update (`{p with x: 20}`), **nested records** (`o.pos.x`)
 - Cross-function calls: callees inlined via `define-fun` (transitive chains supported)
+- Recursive functions: bounded unrolling (Dafny-style, depth 1-10, default 2)
+- **Per-function depth**: `@verify(depth: N)` attribute overrides global `--verify-recursive-depth`
+- **Higher-order functions**: `map`, `filter`, `foldl` with **known lambda arguments** are inlined and verified via bounded unrolling
+- **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
+- Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → `to_int`
 - Must be pure: `! {}` (no effects)
 
 **Currently skipped (with hints):**
 
 | Feature | Reason | Expandable? |
 |---------|--------|-------------|
-| Recursive functions | Full induction not yet supported | ✅ Bounded unrolling (depth 1-10, default 2) |
-| Higher-order functions | SMT-LIB is first-order | Yes — via monomorphization/inlining |
-| Higher-order list ops | `map`, `filter`, `foldl` take function args | Yes — via monomorphization/inlining |
+| Higher-order functions (unknown lambda) | `map(f, xs)` where `f` is a parameter | Requires whole-program analysis |
 | Effectful functions | Nondeterminism breaks proofs | Fundamental — effects are inherently nondeterministic |
+| Nested quantifiers | `forall i: ... => forall j: ...` | Future — single-level only for now |
 
 Functions outside the fragment are skipped with clear messages explaining why and what to change:
 
@@ -593,6 +597,45 @@ Functions outside the fragment are skipped with clear messages explaining why an
     Reason: Function "effectfulFunc" has effects
     Hint: Remove effect annotations or use ! {} for pure
 ```
+
+### Per-Function Recursion Depth
+
+Use the `@verify(depth: N)` attribute to set recursion unrolling depth per function:
+
+```ailang
+@verify(depth: 5)
+export func fibonacci(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { result >= 0 }
+{ if n <= 1 then n else fibonacci(n - 1) + fibonacci(n - 2) }
+```
+
+This overrides the global `--verify-recursive-depth` flag for that specific function.
+
+### Higher-Order Function Verification
+
+When `map`, `filter`, or `foldl` are called with **literal lambda arguments**, the verifier automatically inlines them into recursive functions and applies bounded unrolling:
+
+```ailang
+export func incrementAll(xs: [int]) -> [int] ! {}
+ensures { listLength(result) >= 0 }
+{ map(\x -> x + 1, xs) }
+```
+
+The lambda `\x -> x + 1` is specialized into a recursive `map_specialized` function, which is then unrolled and verified by Z3. If the lambda argument is a parameter (not a literal), the function is skipped with a clear message.
+
+### Bounded Quantifiers
+
+Use `forall` in `ensures` clauses to assert element-wise properties:
+
+```ailang
+export func allPositive(n: int) -> int ! {}
+requires { n >= 0 }
+ensures { forall i: 0..n => i >= 0 }
+{ n }
+```
+
+This encodes to `(forall ((i Int)) (=> (and (>= i 0) (< i n)) (>= i 0)))` in SMT-LIB. Only integer-typed bounded quantifiers are currently supported.
 
 ## Comparison with Other Languages
 
