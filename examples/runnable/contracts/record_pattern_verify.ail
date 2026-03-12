@@ -1,0 +1,37 @@
+-- examples/runnable/contracts/record_pattern_verify.ail
+-- Record pattern matching in contract verification
+-- Demonstrates SMT encoding of match expressions with record destructuring
+-- Tests: record patterns in function bodies verified by Z3
+--
+-- Run:    ailang verify examples/runnable/contracts/record_pattern_verify.ail
+-- Expect: 2 verified (sumFields, getXCoord)
+
+module examples/runnable/contracts/record_pattern_verify
+
+-- Sum both fields of a point using record pattern matching
+-- The match destructures the record, binding x and y as local vars
+export func sumFields(p: {x: int, y: int}) -> int ! {}
+requires { p.x >= 0, p.y >= 0 }
+ensures { result >= 0 }
+{
+  match p {
+    {x, y} => x + y
+  }
+}
+
+-- Extract x coordinate via record pattern
+export func getXCoord(p: {x: int, y: int}) -> int ! {}
+requires { p.x >= 0 }
+ensures { result >= 0 }
+{
+  match p {
+    {x, y} => x
+  }
+}
+
+-- Entry point
+export func main() -> int ! {}
+{
+  let p = {x: 3, y: 4};
+  sumFields(p) + getXCoord(p)
+}
