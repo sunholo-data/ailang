@@ -67,6 +67,22 @@ func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, 
 		return nil // already declared
 	}
 
+	// Map all field types early to compute field-set key
+	fieldSorts, err := MapRecordFields(rec)
+	if err != nil {
+		return nil // skip records with unencodable field types
+	}
+	fieldNames := SortedFieldNamesStr(fieldSorts)
+	key := strings.Join(fieldNames, ",")
+
+	// If this is an anonymous record (Record_x_y) but a named alias already exists
+	// for the same field set, skip — the named version takes priority.
+	if rec.TypeName == "" {
+		if existingSortName, ok := activeFieldSetToSort[key]; ok && existingSortName != sortName {
+			return nil
+		}
+	}
+
 	// Initialize visiting set on first call
 	if visiting == nil {
 		visiting = make(map[string]bool)
@@ -79,12 +95,6 @@ func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, 
 	visiting[sortName] = true
 	defer func() { delete(visiting, sortName) }()
 
-	// Map all field types (may recursively discover nested record types)
-	fieldSorts, err := MapRecordFields(rec)
-	if err != nil {
-		return nil // skip records with unencodable field types
-	}
-
 	// Recursively collect nested record types first (depth-first ensures inner before outer)
 	for fieldName, fieldType := range rec.Fields {
 		if err := collectRecordTypeSafe(fieldType, ctx, result, visiting); err != nil {
@@ -93,7 +103,6 @@ func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, 
 	}
 
 	// Build record type info
-	fieldNames := SortedFieldNamesStr(fieldSorts)
 	info := &RecordTypeInfo{
 		SortName:   sortName,
 		CtorName:   RecordConstructorName(sortName),
@@ -103,7 +112,6 @@ func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, 
 	activeRecordTypes[sortName] = info
 
 	// Build field-set key for lookup during encoding
-	key := strings.Join(fieldNames, ",")
 	activeFieldSetToSort[key] = sortName
 
 	// Emit declaration (inner records already emitted by recursive calls above)

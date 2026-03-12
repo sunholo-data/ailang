@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -170,11 +171,11 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		Results:   []verifyResult{},
 	}
 
-	// Extract ADT types from the Surface AST (current file + imported modules).
-	// Also collects record type declarations for record-typed ADT fields.
+	// Extract ADT types, record type aliases, and inline record types.
 	adtResult := extractADTTypesWithRecords(surfaceAST)
 	adtTypes := adtResult.ADTTypes
 	adtRecordDecls := adtResult.RecordDecls
+	recordAliases := adtResult.RecordAliases
 	for _, mod := range modules {
 		if mod.File != nil {
 			modResult := extractADTTypesWithRecords(mod.File)
@@ -184,6 +185,11 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 				}
 			}
 			adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
+			for name, rec := range modResult.RecordAliases {
+				if _, exists := recordAliases[name]; !exists {
+					recordAliases[name] = rec
+				}
+			}
 		}
 	}
 
@@ -229,6 +235,7 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
 		ExtraDeclarations:  adtRecordDecls,
+		RecordTypeAliases:  recordAliases,
 	}
 
 	// Process each function with contracts
@@ -301,6 +308,19 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
 		if err != nil {
+			if errors.Is(err, smt.ErrUnresolvableTypes) {
+				section.Results = append(section.Results, verifyResult{
+					Function: funcName, Status: "skipped",
+					Reason: fmt.Sprintf("Uses cross-module types not yet supported in Z3 encoding (%v)", err),
+					Rejections: []smt.SMTRejectionReason{{
+						Code:    smt.RejectUnencodable,
+						Message: err.Error(),
+						Hint:    "Cross-module record type aliases and recursive ADTs are not yet supported in Z3 verification",
+					}},
+				})
+				section.Skipped++
+				continue
+			}
 			section.Results = append(section.Results, verifyResult{
 				Function: funcName, Status: "error",
 				Reason: fmt.Sprintf("encoding error: %v", err),

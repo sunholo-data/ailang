@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -108,13 +109,13 @@ func verifyCommand() {
 		os.Exit(0)
 	}
 
-	// Extract ADT types from the Surface AST (current file + imported modules).
-	// Also collects record type declarations for record-typed ADT fields.
+	// Extract ADT types, record type aliases, and inline record types from the Surface AST.
 	adtResult := extractADTTypesWithRecords(surfaceAST)
 	adtTypes := adtResult.ADTTypes
 	adtRecordDecls := adtResult.RecordDecls
-	// Also extract ADTs from imported modules so cross-module types
-	// (e.g., Block, XmlNode) get declare-datatype in the Z3 output.
+	recordAliases := adtResult.RecordAliases
+	// Also extract from imported modules so cross-module types
+	// (e.g., Block, XmlNode, TableCell) get declare-datatype in the Z3 output.
 	if result.Modules != nil {
 		for _, mod := range result.Modules {
 			if mod.File != nil {
@@ -125,6 +126,11 @@ func verifyCommand() {
 					}
 				}
 				adtRecordDecls = append(adtRecordDecls, modResult.RecordDecls...)
+				for name, rec := range modResult.RecordAliases {
+					if _, exists := recordAliases[name]; !exists {
+						recordAliases[name] = rec
+					}
+				}
 			}
 		}
 	}
@@ -177,6 +183,7 @@ func verifyCommand() {
 		SurfaceParams:      allSurfaceParams,
 		SurfaceReturnSorts: allSurfaceReturnSorts,
 		ExtraDeclarations:  adtRecordDecls,
+		RecordTypeAliases:  recordAliases,
 	}
 
 	// Process each function with contracts
@@ -273,6 +280,22 @@ func verifyCommand() {
 		// Encode function to SMT-LIB (with cross-function call support)
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
 		if err != nil {
+			// If the error is due to unresolvable cross-module types,
+			// skip gracefully instead of reporting as error
+			if errors.Is(err, smt.ErrUnresolvableTypes) {
+				results = append(results, verifyResult{
+					Function: funcName,
+					Status:   "skipped",
+					Reason:   fmt.Sprintf("Uses cross-module types not yet supported in Z3 encoding (%v)", err),
+					Rejections: []smt.SMTRejectionReason{{
+						Code:    smt.RejectUnencodable,
+						Message: err.Error(),
+						Hint:    "Cross-module record type aliases and recursive ADTs are not yet supported in Z3 verification",
+					}},
+				})
+				skipped++
+				continue
+			}
 			results = append(results, verifyResult{
 				Function: funcName,
 				Status:   "error",
@@ -355,20 +378,24 @@ type verifyResult struct {
 	BoundedDepth int                      `json:"bounded_depth,omitempty"`
 }
 
-// adtExtractionResult holds ADT types and any record types found in ADT constructor fields.
+// adtExtractionResult holds ADT types, inline record types from ADT constructor fields,
+// and named record type aliases (type X = {fields}).
 type adtExtractionResult struct {
-	ADTTypes    map[string][]smt.ADTVariant
-	RecordDecls []string // SMT-LIB declare-datatype for record types in ADT fields
+	ADTTypes      map[string][]smt.ADTVariant
+	RecordDecls   []string                  // SMT-LIB declare-datatype for inline record types in ADT fields
+	RecordAliases map[string]*types.TRecord // Named record type aliases (e.g., "TableCell" → TRecord)
 }
 
-// extractADTTypes extracts ADT type definitions from the Surface AST
-// and converts them to SMT ADTVariant format for the encoder.
-// Also collects record type declarations needed by ADT constructor fields
-// (e.g., Heading({level: int, style: string, text: string}) needs
-// Record_level_style_text declared before the ADT).
+// extractADTTypesWithRecords extracts ADT type definitions and record type aliases
+// from the Surface AST and converts them to SMT-compatible formats.
+// Handles three cases:
+//  1. Record type aliases (type TableCell = {text: string, ...}) → RecordAliases
+//  2. ADTs (type Block = TextBlock(...) | ...) → ADTTypes
+//  3. Inline record types in ADT constructor fields → RecordDecls
 func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
 	result := adtExtractionResult{
-		ADTTypes: make(map[string][]smt.ADTVariant),
+		ADTTypes:      make(map[string][]smt.ADTVariant),
+		RecordAliases: make(map[string]*types.TRecord),
 	}
 	// Track record types found in ADT fields that need declaration
 	recordsSeen := make(map[string]bool)
@@ -378,6 +405,14 @@ func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
 		if !ok {
 			continue
 		}
+
+		// Case 1: Record type alias (type TableCell = {text: string, colSpan: int, ...})
+		if recType, ok := typeDecl.Definition.(*ast.RecordType); ok {
+			collectNamedRecordAlias(typeDecl.Name, recType, &result, recordsSeen)
+			continue
+		}
+
+		// Case 2: ADT (type Block = TextBlock(...) | TableBlock(...) | ...)
 		algType, ok := typeDecl.Definition.(*ast.AlgebraicType)
 		if !ok {
 			continue
@@ -398,7 +433,7 @@ func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
 					Name: fieldName,
 					Sort: sortName,
 				})
-				// If this field is a record type, collect its declaration
+				// If this field is an inline record type, collect its declaration
 				if recType, ok := field.Type.(*ast.RecordType); ok {
 					collectRecordDeclFromAST(recType, &result, recordsSeen)
 				}
@@ -409,6 +444,38 @@ func extractADTTypesWithRecords(file *ast.File) adtExtractionResult {
 	}
 
 	return result
+}
+
+// collectNamedRecordAlias registers a named record type alias for Z3 encoding.
+// For example: type TableCell = {text: string, colSpan: int, rowSpan: int, merged: bool}
+// becomes: (declare-datatype TableCell ((mk_TableCell (colSpan Int) (merged Bool) (rowSpan Int) (text String))))
+func collectNamedRecordAlias(name string, recType *ast.RecordType, result *adtExtractionResult, seen map[string]bool) {
+	if seen[name] {
+		return
+	}
+	seen[name] = true
+
+	typeFields := make(map[string]types.Type, len(recType.Fields))
+	for _, f := range recType.Fields {
+		ft := convertASTTypeToType(f.Type)
+		if ft == nil {
+			continue
+		}
+		typeFields[f.Name] = ft
+	}
+	if len(typeFields) > 0 {
+		result.RecordAliases[name] = &types.TRecord{
+			Fields:   typeFields,
+			TypeName: name,
+		}
+	}
+
+	// Also check if any field is itself an inline record type that needs declaration
+	for _, f := range recType.Fields {
+		if innerRec, ok := f.Type.(*ast.RecordType); ok {
+			collectRecordDeclFromAST(innerRec, result, seen)
+		}
+	}
 }
 
 // collectRecordDeclFromAST generates a declare-datatype for a record type

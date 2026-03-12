@@ -1,12 +1,19 @@
 package smt
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
 )
+
+// ErrUnresolvableTypes indicates that the function references types
+// (ADTs, record aliases) that cannot be fully resolved in Z3.
+// Functions with this error should be SKIPPED, not reported as errors.
+var ErrUnresolvableTypes = errors.New("unresolvable cross-module types")
 
 // FunctionParam describes a function parameter for SMT encoding.
 type FunctionParam struct {
@@ -66,6 +73,10 @@ type EncodeFunctionOpts struct {
 	// (e.g., record types found in ADT constructor fields that need
 	// to be declared before the ADT itself).
 	ExtraDeclarations []string
+	// RecordTypeAliases maps named record type aliases (e.g., "TableCell", "Point")
+	// to their TRecord types. These are pre-registered during record type collection
+	// so that named sorts take priority over anonymous Record_field1_field2 sorts.
+	RecordTypeAliases map[string]*types.TRecord
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.
@@ -126,32 +137,132 @@ func EncodeFunction(
 		coreBody = opts[0].Body
 		contracts = opts[0].Contracts
 	}
-	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
 
-	// Step 0.5: Add extra declarations (e.g., record types from ADT constructor fields)
-	// These must come before ADT declarations since ADTs may reference these sorts.
-	// Skip any that were already declared by collectAndDeclareRecordTypes.
-	if len(opts) > 0 {
-		for _, decl := range opts[0].ExtraDeclarations {
-			// Extract sort name from "(declare-datatype SortName ...)"
-			// to check if already declared
-			sortName := extractSortNameFromDecl(decl)
-			if sortName != "" && ctx.DeclaredTypes[sortName] {
-				continue // Already declared by record type discovery
+	// Step 0: Pre-register named record type aliases (e.g., type TableCell = {text: string, ...}).
+	// These must be registered BEFORE collectAndDeclareRecordTypes so that when anonymous
+	// record literals with the same fields are discovered in function bodies, the named
+	// sort takes priority (e.g., "TableCell" instead of "Record_colSpan_merged_rowSpan_text").
+	//
+	// Multi-pass: aliases may reference other aliases (e.g., ParsedDocument uses DocMetadata).
+	// Iterate until no more progress, declaring aliases only when all their field sorts
+	// are primitive (Int/Bool/String/Real), already declared, or other record aliases.
+	// Aliases that reference ADT sorts (like Block) are skipped to avoid circular
+	// dependencies — they'll be emitted only if needed by function params/return type.
+	if len(opts) > 0 && opts[0].RecordTypeAliases != nil {
+		remaining := make(map[string]*types.TRecord)
+		for name, rec := range opts[0].RecordTypeAliases {
+			remaining[name] = rec
+		}
+		for {
+			progress := false
+			for aliasName, rec := range remaining {
+				if ctx.DeclaredTypes[aliasName] {
+					delete(remaining, aliasName)
+					progress = true
+					continue
+				}
+				namedRec := &types.TRecord{Fields: rec.Fields, TypeName: aliasName}
+				fieldSorts, err := MapRecordFields(namedRec)
+				if err != nil {
+					delete(remaining, aliasName)
+					continue
+				}
+				// Only declare if all field sorts are primitives or already declared.
+				// Do NOT count ADT types as resolvable — they may create circular
+				// dependencies (e.g., ParsedDocument → Block → Record_blocks_kind → Block).
+				if !allFieldsPrimitiveOrDeclared(fieldSorts, ctx) {
+					continue // defer to next pass
+				}
+				fieldNames := SortedFieldNamesStr(fieldSorts)
+				info := &RecordTypeInfo{
+					SortName:   aliasName,
+					CtorName:   RecordConstructorName(aliasName),
+					FieldNames: fieldNames,
+					FieldSorts: fieldSorts,
+				}
+				activeRecordTypes[aliasName] = info
+				key := strings.Join(fieldNames, ",")
+				activeFieldSetToSort[key] = aliasName
+				decl := DeclareRecordDatatype(aliasName, fieldSorts)
+				result.Declarations = append(result.Declarations, decl)
+				ctx.DeclaredTypes[aliasName] = true
+				delete(remaining, aliasName)
+				progress = true
 			}
-			result.Declarations = append(result.Declarations, decl)
-			if sortName != "" {
-				ctx.DeclaredTypes[sortName] = true
+			if !progress {
+				break // no more aliases can be resolved
 			}
 		}
 	}
 
-	// Step 1: Declare ADT types
-	for typeName, variants := range adtTypes {
-		if !ctx.DeclaredTypes[typeName] {
-			decl := DeclareDatatype(typeName, variants)
-			result.Declarations = append(result.Declarations, decl)
-			ctx.DeclaredTypes[typeName] = true
+	collectAndDeclareRecordTypes(params, returnSort, returnType, coreBody, contracts, ctx, result)
+
+	// Step 0.5 + Step 1: Declare inline record types and ADT types.
+	// Use multi-pass to handle dependencies: declarations are only emitted when
+	// all sort references they contain are already declared or primitive.
+	// This prevents cascading errors from recursive ADTs (e.g., Block → Record_blocks_kind → Block).
+	{
+		// Collect all pending declarations
+		type pendingDecl struct {
+			sortName string
+			decl     string
+		}
+		var pending []pendingDecl
+
+		// Add extra declarations (inline record types from ADT constructor fields)
+		if len(opts) > 0 {
+			for _, decl := range opts[0].ExtraDeclarations {
+				sortName := extractSortNameFromDecl(decl)
+				if sortName != "" && ctx.DeclaredTypes[sortName] {
+					continue
+				}
+				pending = append(pending, pendingDecl{sortName: sortName, decl: decl})
+			}
+		}
+
+		// Add ADT type declarations
+		for typeName, variants := range adtTypes {
+			if !ctx.DeclaredTypes[typeName] {
+				decl := DeclareDatatype(typeName, variants)
+				pending = append(pending, pendingDecl{sortName: typeName, decl: decl})
+			}
+		}
+
+		// Multi-pass: emit declarations only when all referenced sorts are declared.
+		for {
+			progress := false
+			var remaining []pendingDecl
+			for _, pd := range pending {
+				if ctx.DeclaredTypes[pd.sortName] {
+					progress = true
+					continue // already declared in a previous pass
+				}
+				if declReferencesUndeclaredSort(pd.decl, ctx) {
+					remaining = append(remaining, pd) // defer
+					continue
+				}
+				result.Declarations = append(result.Declarations, pd.decl)
+				if pd.sortName != "" {
+					ctx.DeclaredTypes[pd.sortName] = true
+				}
+				progress = true
+			}
+			if !progress || len(remaining) == 0 {
+				break
+			}
+			pending = remaining
+		}
+		// If any declarations remain unresolved after multi-pass, we have circular
+		// dependencies (mutual recursion) that require declare-datatypes (plural).
+		// For now, emit them and let validateDeclarations catch ordering issues.
+		// Sort: non-recursive first, then potentially recursive ones.
+		for _, pd := range pending {
+			if !ctx.DeclaredTypes[pd.sortName] {
+				result.Declarations = append(result.Declarations, pd.decl)
+				if pd.sortName != "" {
+					ctx.DeclaredTypes[pd.sortName] = true
+				}
+			}
 		}
 	}
 
@@ -277,6 +388,14 @@ func EncodeFunction(
 		result.Assertions = append(result.Assertions, AssertNot(encoded))
 	}
 
+	// Step 5.5: Validate declarations — check for forward references to undeclared sorts.
+	// If any declaration references a sort that's not primitive and not declared,
+	// return ErrUnresolvableTypes so the caller can skip this function gracefully
+	// instead of sending broken SMT-LIB to Z3.
+	if err := validateDeclarations(result.Declarations, ctx); err != nil {
+		return nil, err
+	}
+
 	// Step 6: Build complete SMT-LIB program
 	var lines []string
 	lines = append(lines, fmt.Sprintf("; Verification of %s", funcName))
@@ -305,4 +424,194 @@ func extractSortNameFromDecl(decl string) string {
 		return ""
 	}
 	return rest[:idx]
+}
+
+// extractConstructorNames extracts constructor/accessor names from a declare-datatype declaration.
+// Format: (declare-datatype Name ((Ctor1) (Ctor2 (field1 Type1) (field2 Type2))))
+// Returns all constructor names AND field accessor names (which are NOT sort references).
+func extractConstructorNames(decl string) map[string]bool {
+	names := make(map[string]bool)
+	// Find the variants section: everything after "(declare-datatype Name ("
+	const prefix = "(declare-datatype "
+	if !strings.HasPrefix(decl, prefix) {
+		return names
+	}
+	rest := decl[len(prefix):]
+	spaceIdx := strings.IndexByte(rest, ' ')
+	if spaceIdx < 0 {
+		return names
+	}
+	body := rest[spaceIdx+1:] // now starts with "((" for variants
+
+	// Parse: find each constructor (first token after each top-level "(")
+	depth := 0
+	inToken := false
+	tokenStart := 0
+	isConstructor := false // true when depth indicates constructor name position
+	fieldNameNext := false // true when we just saw "(" at field level
+
+	for i := 0; i < len(body); i++ {
+		ch := body[i]
+		switch ch {
+		case '(':
+			depth++
+			inToken = false
+			// depth 2 = start of a variant: next token is constructor name
+			if depth == 2 {
+				isConstructor = true
+			}
+			// depth 3 = start of a field: next token is field accessor name
+			if depth == 3 {
+				fieldNameNext = true
+			}
+		case ')':
+			if inToken {
+				token := body[tokenStart:i]
+				if isConstructor {
+					names[token] = true
+				}
+				if fieldNameNext {
+					names[token] = true
+				}
+				inToken = false
+			}
+			isConstructor = false
+			fieldNameNext = false
+			depth--
+		case ' ', '\t', '\n':
+			if inToken {
+				token := body[tokenStart:i]
+				if isConstructor {
+					names[token] = true
+					isConstructor = false
+				}
+				if fieldNameNext {
+					names[token] = true
+					fieldNameNext = false
+				}
+				inToken = false
+			}
+		default:
+			if !inToken {
+				inToken = true
+				tokenStart = i
+			}
+		}
+	}
+	return names
+}
+
+// declReferencesUndeclaredSort checks if a single declare-datatype declaration
+// references any sort that is not yet declared in the context.
+func declReferencesUndeclaredSort(decl string, ctx *SMTContext) bool {
+	if !strings.HasPrefix(decl, "(declare-datatype ") {
+		return false
+	}
+	sortName := extractSortNameFromDecl(decl)
+	constructors := extractConstructorNames(decl)
+	refs := sortRefPattern.FindAllString(decl, -1)
+	for _, ref := range refs {
+		if primitiveSorts[ref] || ref == sortName || constructors[ref] {
+			continue
+		}
+		if ctx.DeclaredTypes[ref] {
+			continue
+		}
+		if strings.HasPrefix(ref, "mk_") {
+			continue
+		}
+		return true // undeclared sort referenced
+	}
+	return false
+}
+
+// sortRefPattern matches sort names referenced inside SMT-LIB declarations.
+// Captures sort names from (Seq SortName), (define-const result SortName ...),
+// and (fieldName SortName) patterns.
+var sortRefPattern = regexp.MustCompile(`\b([A-Z][A-Za-z_0-9]*)\b`)
+
+// primitiveSorts are Z3 built-in sorts that don't need declaration.
+var primitiveSorts = map[string]bool{
+	"Int": true, "Bool": true, "String": true, "Real": true,
+	"Seq": true, "ALL": true, "Array": true,
+}
+
+// validateDeclarations checks that all sort references in the assembled declarations
+// resolve to either primitive sorts or declared sorts. Returns ErrUnresolvableTypes
+// if any declaration references an undeclared non-primitive sort.
+func validateDeclarations(decls []string, ctx *SMTContext) error {
+	// Walk declarations IN ORDER, tracking which sorts have been declared so far.
+	// This catches forward references that Z3 would reject.
+	//
+	// We seed with ctx.DeclaredTypes BUT exclude sorts that are being declared
+	// in this batch — those must be checked positionally.
+	declaredInBatch := make(map[string]bool)
+	for _, decl := range decls {
+		if name := extractSortNameFromDecl(decl); name != "" {
+			declaredInBatch[name] = true
+		}
+	}
+	declared := make(map[string]bool)
+	for k, v := range ctx.DeclaredTypes {
+		if v && !declaredInBatch[k] {
+			declared[k] = true
+		}
+	}
+
+	for _, decl := range decls {
+		if !strings.HasPrefix(decl, "(declare-datatype ") {
+			// Non-datatype declarations (declare-const, define-const, etc.) are fine
+			continue
+		}
+		sortName := extractSortNameFromDecl(decl)
+		constructors := extractConstructorNames(decl)
+		refs := sortRefPattern.FindAllString(decl, -1)
+		for _, ref := range refs {
+			if primitiveSorts[ref] || ref == sortName || constructors[ref] {
+				continue
+			}
+			if declared[ref] {
+				continue
+			}
+			if strings.HasPrefix(ref, "mk_") {
+				continue
+			}
+			return fmt.Errorf("%w: sort %q referenced in declaration of %q is not declared", ErrUnresolvableTypes, ref, sortName)
+		}
+		// Mark this sort as declared for subsequent declarations
+		if sortName != "" {
+			declared[sortName] = true
+		}
+	}
+	return nil
+}
+
+// allFieldsPrimitiveOrDeclared checks whether all field sorts are either
+// primitive (Int, Bool, String, Real), sequence types of primitives/declared sorts,
+// or already declared in the context. Does NOT count pending ADT types as declared
+// to avoid circular dependency chains.
+func allFieldsPrimitiveOrDeclared(fieldSorts map[string]string, ctx *SMTContext) bool {
+	for _, sort := range fieldSorts {
+		if !isSortPrimitiveOrDeclared(sort, ctx) {
+			return false
+		}
+	}
+	return true
+}
+
+// isSortPrimitiveOrDeclared checks if a sort is primitive or already declared.
+func isSortPrimitiveOrDeclared(sort string, ctx *SMTContext) bool {
+	switch sort {
+	case "Int", "Bool", "String", "Real":
+		return true
+	}
+	if ctx.DeclaredTypes[sort] {
+		return true
+	}
+	// Sequence type: (Seq X) — check inner sort
+	if strings.HasPrefix(sort, "(Seq ") && strings.HasSuffix(sort, ")") {
+		inner := sort[5 : len(sort)-1]
+		return isSortPrimitiveOrDeclared(inner, ctx)
+	}
+	return false
 }
