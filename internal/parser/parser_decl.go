@@ -2,14 +2,121 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/lexer"
 )
 
+// parseVerifyAttribute parses an @verify(depth: N) attribute.
+// Expects the parser to be AT the '@' token.
+// Returns the parsed depth value, or nil if no @verify attribute.
+// On error, reports a parser error and returns nil.
+func (p *Parser) parseVerifyAttribute() *int {
+	// We're at '@', consume it
+	p.nextToken() // move past '@' to identifier
+
+	if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != "verify" {
+		p.report("PAR_INVALID_ATTRIBUTE",
+			fmt.Sprintf("unknown attribute '@%s'; only @verify is supported", p.curToken.Literal),
+			"Use @verify(depth: N) before a function declaration")
+		return nil
+	}
+
+	// Consume 'verify', expect '('
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	p.nextToken() // move past '(' to key
+
+	// Expect 'depth' identifier
+	if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != "depth" {
+		p.report("PAR_VERIFY_ATTR_KEY",
+			fmt.Sprintf("expected 'depth' key in @verify attribute, got '%s'", p.curToken.Literal),
+			"Use @verify(depth: N) where N is a positive integer")
+		return nil
+	}
+
+	// Expect ':'
+	if !p.expectPeek(lexer.COLON) {
+		return nil
+	}
+
+	// Expect integer literal
+	if !p.expectPeek(lexer.INT) {
+		return nil
+	}
+
+	// Parse the integer value
+	depth, err := strconv.Atoi(p.curToken.Literal)
+	if err != nil {
+		p.report("PAR_VERIFY_ATTR_VALUE",
+			fmt.Sprintf("invalid depth value '%s': must be a positive integer", p.curToken.Literal),
+			"Use @verify(depth: N) where N is 1-10")
+		return nil
+	}
+
+	if depth < 0 || depth > 10 {
+		p.report("PAR_VERIFY_ATTR_RANGE",
+			fmt.Sprintf("depth %d out of range; must be 0-10", depth),
+			"Use @verify(depth: N) where N is 0-10")
+		return nil
+	}
+
+	// Expect ')'
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	return &depth
+}
+
 // parseTopLevelDecl parses a top-level declaration
 func (p *Parser) parseTopLevelDecl() ast.Node {
 	switch p.curToken.Type {
+	case lexer.AT:
+		// Parse @verify(depth: N) attribute before function declaration
+		verifyDepth := p.parseVerifyAttribute()
+		p.nextToken() // move past ')' to next token
+
+		// The next token must begin a function declaration (export, pure, func)
+		var fn *ast.FuncDecl
+		switch p.curToken.Type {
+		case lexer.EXPORT:
+			p.nextToken()
+			if p.curTokenIs(lexer.FUNC) || p.curTokenIs(lexer.PURE) {
+				fn = p.parseFunctionDeclaration(false, true)
+			} else {
+				p.report("PAR_ATTR_REQUIRES_FUNC",
+					"@verify attribute must be followed by a function declaration",
+					"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+				return nil
+			}
+		case lexer.PURE:
+			if p.peekTokenIs(lexer.FUNC) {
+				p.nextToken()
+				fn = p.parseFunctionDeclaration(true, false)
+			} else {
+				p.report("PAR_ATTR_REQUIRES_FUNC",
+					"@verify attribute must be followed by a function declaration",
+					"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+				return nil
+			}
+		case lexer.FUNC:
+			fn = p.parseFunctionDeclaration(false, false)
+		default:
+			p.report("PAR_ATTR_REQUIRES_FUNC",
+				"@verify attribute must be followed by a function declaration",
+				"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+			return nil
+		}
+
+		if fn != nil && verifyDepth != nil {
+			fn.VerifyDepth = verifyDepth
+		}
+		return fn
+
 	case lexer.EXPORT:
 		// Handle export prefix
 		p.nextToken()

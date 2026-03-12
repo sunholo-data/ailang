@@ -200,12 +200,17 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 				if err != nil {
 					return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
 				}
-				meta[f.Name] = &core.DeclMeta{
+				dm := &core.DeclMeta{
 					Name:      f.Name,
 					IsExport:  astFunc.IsExport,
 					IsPure:    astFunc.IsPure,
 					Contracts: contracts,
 				}
+				// M4: Carry per-function verify depth from AST attribute
+				if astFunc.VerifyDepth != nil {
+					dm.VerifyDepth = *astFunc.VerifyDepth
+				}
+				meta[f.Name] = dm
 			}
 			coreDecls = append(coreDecls, let)
 		} else {
@@ -228,12 +233,17 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					if err != nil {
 						return nil, fmt.Errorf("elaborating contracts for %s: %w", f.Name, err)
 					}
-					meta[f.Name] = &core.DeclMeta{
+					dm := &core.DeclMeta{
 						Name:      f.Name,
 						IsExport:  astFunc.IsExport,
 						IsPure:    astFunc.IsPure,
 						Contracts: contracts,
 					}
+					// M4: Carry per-function verify depth from AST attribute
+					if astFunc.VerifyDepth != nil {
+						dm.VerifyDepth = *astFunc.VerifyDepth
+					}
+					meta[f.Name] = dm
 				}
 			}
 

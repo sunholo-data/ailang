@@ -43,21 +43,22 @@ import (
 //	    Body: body, Pos: startPos,
 //	}
 type FuncDecl struct {
-	Name       string
-	TypeParams []string // Generic type parameters
-	Params     []*Param
-	ReturnType Type
-	Effects    []EffectAnnotation // Effect annotations with optional budgets
-	Tests      []*TestCase
-	Properties []*Property
-	Body       Expr // nil for extern functions
-	IsPure     bool
-	IsExport   bool // Export flag
-	IsExtern   bool // Extern flag - function implemented in Go, no body
-	Pos        Pos
-	Span       Span   // For SID calculation
-	SID        string // Stable ID (calculated post-parse)
-	Origin     string // "func_decl" for metadata
+	Name        string
+	TypeParams  []string // Generic type parameters
+	Params      []*Param
+	ReturnType  Type
+	Effects     []EffectAnnotation // Effect annotations with optional budgets
+	Tests       []*TestCase
+	Properties  []*Property
+	Body        Expr // nil for extern functions
+	IsPure      bool
+	IsExport    bool // Export flag
+	IsExtern    bool // Extern flag - function implemented in Go, no body
+	VerifyDepth *int // Per-function SMT verification depth override (nil = use global default)
+	Pos         Pos
+	Span        Span   // For SID calculation
+	SID         string // Stable ID (calculated post-parse)
+	Origin      string // "func_decl" for metadata
 }
 
 type TestCase struct {
