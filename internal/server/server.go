@@ -154,6 +154,9 @@ type Server struct {
 	// Hook authentication (simple bearer token for cloud deployments)
 	hookToken string
 
+	// WebSocket authentication (reuses COORDINATOR_API_KEY for external clients)
+	wsToken string
+
 	// Pub/Sub event subscriber for cloud mode (bridges events to WebSocket).
 	// pubsubEventSub is created in NewServer after wsServer is initialized.
 	pubsubEventSub     *PubSubEventSubscriber
@@ -190,6 +193,13 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 	}
 
 	s.wsServer = websocket.NewServer(s.store)
+	if s.wsToken != "" {
+		s.wsServer.SetToken(s.wsToken)
+		if s.obsHub != nil {
+			s.obsHub.SetToken(s.wsToken)
+		}
+		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
+	}
 
 	// Create Pub/Sub event subscriber if configured (cloud mode).
 	// Must happen after wsServer is created since it broadcasts to WebSocket clients.
@@ -239,6 +249,16 @@ func WithObservatoryBackend(backend observatory.Backend) ServerOption {
 func WithHookToken(token string) ServerOption {
 	return func(s *Server) {
 		s.hookToken = token
+	}
+}
+
+// WithWebSocketToken sets a token for authenticating external WebSocket connections.
+// When set, external clients must connect with ?token=<value> query parameter.
+// Same-origin browser connections (embedded React UI) are exempt.
+// When empty (default), no authentication is required (local mode).
+func WithWebSocketToken(token string) ServerOption {
+	return func(s *Server) {
+		s.wsToken = token
 	}
 }
 

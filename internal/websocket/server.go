@@ -52,6 +52,15 @@ type Server struct {
 	// Polling state: track last seen seq for each subscribed thread
 	threadSeqMu sync.RWMutex
 	threadSeq   map[string]int // threadID -> last seen message_seq
+
+	// Authentication token for external WebSocket clients.
+	// When set, non-same-origin connections must provide ?token=<value>.
+	token string
+}
+
+// SetToken sets the authentication token for external WebSocket clients.
+func (s *Server) SetToken(token string) {
+	s.token = token
 }
 
 // Connection represents a WebSocket client connection
@@ -233,6 +242,20 @@ func (s *Server) broadcastToThread(threadID string, msg *messaging.Message) {
 
 // HandleWebSocket handles WebSocket upgrade requests
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Token authentication for external clients.
+	// Same-origin browser connections (embedded React UI) are exempt.
+	if s.token != "" {
+		origin := r.Header.Get("Origin")
+		isSameOrigin := origin != "" && (origin == "http://"+r.Host || origin == "https://"+r.Host)
+		if !isSameOrigin {
+			qToken := r.URL.Query().Get("token")
+			if qToken != s.token {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+	}
+
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

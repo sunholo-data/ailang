@@ -162,6 +162,12 @@ func serverCommand(args []string) error {
 		log.Printf("Hook token authentication enabled for /api/hooks/*")
 	}
 
+	// Add WebSocket token auth if configured (reuses COORDINATOR_API_KEY)
+	if wsToken := os.Getenv("COORDINATOR_API_KEY"); wsToken != "" {
+		serverOpts = append(serverOpts, server.WithWebSocketToken(wsToken))
+		log.Printf("WebSocket token authentication enabled (external clients require ?token= parameter)")
+	}
+
 	// Add Firebase auth if configured
 	if firebaseProject != "" {
 		log.Printf("Firebase authentication enabled for project: %s", firebaseProject)

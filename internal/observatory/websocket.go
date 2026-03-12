@@ -79,6 +79,15 @@ type Hub struct {
 	// Context for graceful shutdown
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Authentication token for external WebSocket clients.
+	// When set, non-same-origin connections must provide ?token=<value>.
+	token string
+}
+
+// SetToken sets the authentication token for external WebSocket clients.
+func (h *Hub) SetToken(token string) {
+	h.token = token
 }
 
 // NewHub creates a new WebSocket hub.
@@ -251,6 +260,20 @@ func (h *Hub) ClientCount() int {
 
 // HandleWebSocket handles a WebSocket connection upgrade request.
 func (h *Hub) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	// Token authentication for external clients.
+	// Same-origin browser connections (embedded React UI) are exempt.
+	if h.token != "" {
+		origin := r.Header.Get("Origin")
+		isSameOrigin := origin != "" && (origin == "http://"+r.Host || origin == "https://"+r.Host)
+		if !isSameOrigin {
+			qToken := r.URL.Query().Get("token")
+			if qToken != h.token {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+	}
+
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return

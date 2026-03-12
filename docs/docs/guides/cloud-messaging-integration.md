@@ -456,7 +456,9 @@ curl -X POST \
 
 ## Receiving Results
 
-After sending a message, agents process it and store results as response messages. Choose the approach that best fits your client type:
+After sending a message, agents process it and store results as response messages. Choose the approach that best fits your client type.
+
+> **Most common case:** If you just need to know when an agent finishes, see [Completion Notifications](#completion-notifications) — poll the agent's inbox and match by `correlation_id`.
 
 | Approach | Best For | Dependencies | Latency |
 |----------|----------|-------------|---------|
@@ -738,6 +740,8 @@ The AILANG Dashboard provides a WebSocket endpoint for real-time task streaming 
 
 **How it works**: In cloud mode, the dashboard pulls events from the `ailang-events-dashboard` Pub/Sub subscription and broadcasts them to all connected WebSocket clients. No Pub/Sub SDK required — just a WebSocket client.
 
+**Authentication**: When `COORDINATOR_API_KEY` is set (cloud deployments), external WebSocket clients must connect with `?token=API_KEY` query parameter. The same API key used for `POST /api/messages` works for WebSocket. The embedded dashboard UI (same-origin) connects without a token. In local mode (no key configured), all connections are open.
+
 #### Connecting message_id to task_id
 
 When you send a message via `POST /api/messages`, the response returns a `message_id` (UUID). The coordinator creates a task with a **deterministic** task_id derived from that UUID:
@@ -806,7 +810,7 @@ async function submitBuild(inbox, title, content) {
 
 // 2. Connect to WebSocket and filter by task_id
 function watchTask(task_id, callbacks) {
-  const ws = new WebSocket(DASHBOARD_URL);
+  const ws = new WebSocket(`${DASHBOARD_URL}?token=${API_KEY}`);
 
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
@@ -881,8 +885,8 @@ async def submit_and_watch(inbox: str, title: str, content: str):
     task_id = f"task-{message_id[:8]}"
     print(f"Submitted: message_id={message_id}, task_id={task_id}")
 
-    # 3. Watch WebSocket for events
-    async with websockets.connect(DASHBOARD_URL) as ws:
+    # 3. Watch WebSocket for events (token required for external clients)
+    async with websockets.connect(f"{DASHBOARD_URL}?token={API_KEY}") as ws:
         async for raw in ws:
             msg = json.loads(raw)
             if msg.get("type") != "task_stream":
@@ -952,7 +956,7 @@ asyncio.run(submit_and_watch(
 | **Best For** | Web dashboards, browser apps, portals | Backend services, CI/CD pipelines |
 | **Message Delivery** | Broadcast to all connected clients | Load-balanced across subscribers |
 | **Persistence** | None (live stream only) | 1-hour retention in subscription |
-| **Auth** | Dashboard auth (Firebase, if configured) | GCP IAM (`roles/pubsub.subscriber`) |
+| **Auth** | API key via `?token=API_KEY` query parameter | GCP IAM (`roles/pubsub.subscriber`) |
 | **message_id → task_id** | Client derives: `"task-" + id[:8]` | Same derivation, or filter by attributes |
 
 ## Available Inboxes
@@ -1444,6 +1448,68 @@ When your client reconnects, it automatically receives all queued messages.
 3. **For direct Firestore + Pub/Sub clients:** Always store in Firestore FIRST, then publish to Pub/Sub. If Pub/Sub publish fails, the message is still safe.
 
 4. **For Pub/Sub consumers:** ACK messages after processing. If your handler crashes before ACK, Pub/Sub redelivers automatically. Don't hold messages beyond the ack deadline (30s pull / 60s push).
+
+## Common Pitfalls
+
+These are real issues encountered while building the [Website Builder integration](#website-builder-integration). Check this list before debugging unexpected behavior.
+
+### 1. Polling the wrong inbox for completions
+
+Completion notifications go to the **agent's own inbox**, not a client-specific inbox. If your agent is `website-builder`, poll `inbox=website-builder`.
+
+```javascript
+// ✅ Correct — poll the agent's inbox
+const resp = await fetch(`${COORDINATOR_URL}/api/messages?inbox=website-builder&status=unread`);
+
+// ❌ Wrong — "portal" is not where completions land
+const resp = await fetch(`${COORDINATOR_URL}/api/messages?inbox=portal&status=unread`);
+```
+
+The coordinator's `CompletionHandler` posts to `ToInbox: task.AgentID` — always the agent that ran the task.
+
+### 2. Inventing client-side correlation IDs
+
+Use the `message_id` returned by `POST /api/messages` for correlation. Don't generate your own IDs — they won't match the `correlation_id` on completion messages.
+
+```javascript
+// ✅ Correct — use the coordinator's message_id
+const { message_id } = await resp.json();
+// ... later, match: msg.correlation_id === message_id
+
+// ❌ Wrong — frontend-generated ID won't appear in completion
+const myId = crypto.randomUUID();
+```
+
+### 3. Forgetting to parse `payload`
+
+The `payload` field on completion messages is a **JSON string**, not an object. Parse it before accessing fields.
+
+```javascript
+// ✅ Correct
+const payload = JSON.parse(completion.payload);
+console.log(payload.status); // "completed"
+
+// ❌ Wrong — payload is a string, not an object
+console.log(completion.payload.status); // undefined
+```
+
+### 4. Checking the wrong status value
+
+The coordinator sends `status: "completed"` (past tense). Some integrations also accept `"complete"` as a fallback — check both if unsure:
+
+```javascript
+if (payload.status === "completed" || payload.status === "complete") {
+  // Task finished successfully
+}
+```
+
+### 5. Expecting the sidecar to commit (for skip_approval agents)
+
+Agents with `skip_approval: true` push changes **directly to GitHub** from the Cloud Run Job. The sidecar does not perform a save/commit step. Don't wait for a sidecar-side git operation that will never happen.
+
+### 6. Not allowing time for GitHub Pages deployment
+
+After the agent commits, GitHub Pages needs time to rebuild and deploy (typically 30–120 seconds). Poll the live URL with retries rather than loading immediately after completion.
 
 ## Quick Reference
 
