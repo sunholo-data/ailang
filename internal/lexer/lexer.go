@@ -180,6 +180,13 @@ func (l *Lexer) NextToken() Token {
 			l.readChar()
 			l.readChar()
 			tok = NewToken(ELLIPSIS, "...", line, column, l.file)
+		} else if l.peekChar() == '.' {
+			// ".." range operator (DOTDOT)
+			// ELLIPSIS ("...") is handled above, so this is always two dots.
+			// Float literals (e.g., 1.5) are handled by readNumber(), so the lexer
+			// only reaches here when a DOT follows a non-numeric context.
+			l.readChar()
+			tok = NewToken(DOTDOT, "..", line, column, l.file)
 		} else {
 			tok = NewToken(DOT, string(l.ch), line, column, l.file)
 		}

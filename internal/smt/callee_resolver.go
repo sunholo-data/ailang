@@ -213,6 +213,10 @@ func collectCalleeCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 		collectCalleeCallsInner(e.Body, selfName, prog, seen)
 	case *core.Lambda:
 		collectCalleeCallsInner(e.Body, selfName, prog, seen)
+	case *core.Forall:
+		collectCalleeCallsInner(e.Lo, selfName, prog, seen)
+		collectCalleeCallsInner(e.Hi, selfName, prog, seen)
+		collectCalleeCallsInner(e.Body, selfName, prog, seen)
 	}
 }
 
@@ -344,6 +348,10 @@ func collectDirectCallsInner(expr core.CoreExpr, selfName string, prog *core.Pro
 	case *core.DictAbs:
 		collectDirectCallsInner(e.Body, selfName, prog, seen)
 	case *core.Lambda:
+		collectDirectCallsInner(e.Body, selfName, prog, seen)
+	case *core.Forall:
+		collectDirectCallsInner(e.Lo, selfName, prog, seen)
+		collectDirectCallsInner(e.Hi, selfName, prog, seen)
 		collectDirectCallsInner(e.Body, selfName, prog, seen)
 	}
 }

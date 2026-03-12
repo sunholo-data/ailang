@@ -163,6 +163,10 @@ func collectRecordTypesFromBody(expr core.CoreExpr, ctx *SMTContext, result *Enc
 		}
 	case *core.DictAbs:
 		collectRecordTypesFromBody(e.Body, ctx, result)
+	case *core.Forall:
+		collectRecordTypesFromBody(e.Lo, ctx, result)
+		collectRecordTypesFromBody(e.Hi, ctx, result)
+		collectRecordTypesFromBody(e.Body, ctx, result)
 	}
 	// Lit, Var, VarGlobal, DictRef — no sub-expressions to walk
 }

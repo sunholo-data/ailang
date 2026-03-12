@@ -146,3 +146,88 @@ func (p *Parser) parseContractPredicate(kind ast.ContractKind) *ast.Property {
 		Pos:     pos,
 	}
 }
+
+// parseForallExpression parses a bounded universal quantifier expression:
+//
+//	forall i: lo..hi => body
+//
+// This is used in contract clauses (requires/ensures) for element-wise properties.
+// The bound variable is always an integer. The range is [lo, hi) (lo inclusive, hi exclusive).
+//
+// Grammar:
+//
+//	forall_expr ::= 'forall' IDENT ':' expr '..' expr '=>' expr
+func (p *Parser) parseForallExpression() ast.Expr {
+	pos := p.curPos()
+
+	// Current token is FORALL, advance to variable name
+	if !p.expectPeek(lexer.IDENT) {
+		p.report("PAR_FORALL_MISSING_VAR",
+			"expected identifier after 'forall'",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+	varName := p.curToken.Literal
+
+	// Expect COLON after variable name
+	if !p.expectPeek(lexer.COLON) {
+		p.report("PAR_FORALL_MISSING_COLON",
+			"expected ':' after forall variable name",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	// Parse lower bound expression (stops at DOTDOT)
+	p.nextToken() // advance past COLON to start of lo expression
+	lo := p.parseExpression(LOWEST)
+	if lo == nil {
+		p.report("PAR_FORALL_MISSING_LO",
+			"expected lower bound expression after ':'",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	// Expect DOTDOT (..) range operator
+	if !p.expectPeek(lexer.DOTDOT) {
+		p.report("PAR_FORALL_MISSING_RANGE",
+			"expected '..' range operator after lower bound",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	// Parse upper bound expression (stops at FARROW)
+	p.nextToken() // advance past DOTDOT to start of hi expression
+	hi := p.parseExpression(LOWEST)
+	if hi == nil {
+		p.report("PAR_FORALL_MISSING_HI",
+			"expected upper bound expression after '..'",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	// Expect FAT_ARROW (=>) before body
+	if !p.expectPeek(lexer.FARROW) {
+		p.report("PAR_FORALL_MISSING_ARROW",
+			"expected '=>' after range",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	// Parse body expression
+	p.nextToken() // advance past FARROW to start of body
+	body := p.parseExpression(LOWEST)
+	if body == nil {
+		p.report("PAR_FORALL_MISSING_BODY",
+			"expected body expression after '=>'",
+			"Usage: forall i: lo..hi => body")
+		return nil
+	}
+
+	return &ast.ForallExpr{
+		Var:  varName,
+		Lo:   lo,
+		Hi:   hi,
+		Body: body,
+		Pos:  pos,
+	}
+}

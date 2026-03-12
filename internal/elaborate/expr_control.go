@@ -284,3 +284,30 @@ func (e *Elaborator) normalizeBlock(block *ast.Block) (core.CoreExpr, error) {
 
 	return result, nil
 }
+
+// normalizeForall handles bounded universal quantifier expressions.
+// forall i: lo..hi => body  →  core.Forall{Var: "i", Lo: lo, Hi: hi, Body: body}
+func (e *Elaborator) normalizeForall(fa *ast.ForallExpr) (core.CoreExpr, error) {
+	lo, err := e.normalize(fa.Lo)
+	if err != nil {
+		return nil, fmt.Errorf("forall lower bound: %w", err)
+	}
+
+	hi, err := e.normalize(fa.Hi)
+	if err != nil {
+		return nil, fmt.Errorf("forall upper bound: %w", err)
+	}
+
+	body, err := e.normalize(fa.Body)
+	if err != nil {
+		return nil, fmt.Errorf("forall body: %w", err)
+	}
+
+	return &core.Forall{
+		CoreNode: e.makeNode(fa.Position()),
+		Var:      fa.Var,
+		Lo:       lo,
+		Hi:       hi,
+		Body:     body,
+	}, nil
+}

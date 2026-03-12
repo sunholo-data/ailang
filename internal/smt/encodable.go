@@ -222,6 +222,15 @@ func containsRef(expr core.CoreExpr, name string) bool {
 			}
 		}
 		return false
+	case *core.Forall:
+		if containsRef(e.Lo, name) || containsRef(e.Hi, name) {
+			return true
+		}
+		// If the forall variable shadows the name, don't search body
+		if e.Var == name {
+			return false
+		}
+		return containsRef(e.Body, name)
 	case *core.DictApp:
 		return containsRef(e.Dict, name) || containsRefsInSlice(e.Args, name)
 	case *core.DictAbs:
@@ -303,6 +312,8 @@ func walkForHigherOrder(expr core.CoreExpr, inArgPosition bool) bool {
 			}
 		}
 		return false
+	case *core.Forall:
+		return walkForHigherOrder(e.Lo, false) || walkForHigherOrder(e.Hi, false) || walkForHigherOrder(e.Body, false)
 	default:
 		return false
 	}
@@ -354,6 +365,8 @@ func walkForDeepPatterns(expr core.CoreExpr) bool {
 		return false
 	case *core.Lambda:
 		return walkForDeepPatterns(e.Body)
+	case *core.Forall:
+		return walkForDeepPatterns(e.Lo) || walkForDeepPatterns(e.Hi) || walkForDeepPatterns(e.Body)
 	default:
 		return false
 	}
@@ -500,6 +513,8 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 		return false
 	case *core.Lambda:
 		return walkForUnencodableTypes(e.Body)
+	case *core.Forall:
+		return walkForUnencodableTypes(e.Lo) || walkForUnencodableTypes(e.Hi) || walkForUnencodableTypes(e.Body)
 	default:
 		return false
 	}

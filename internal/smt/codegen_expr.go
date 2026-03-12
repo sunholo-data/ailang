@@ -94,6 +94,9 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 	case *core.List:
 		return encodeList(e)
 
+	case *core.Forall:
+		return encodeForall(e)
+
 	default:
 		return "", fmt.Errorf("unsupported Core expression type %T", expr)
 	}
