@@ -42,30 +42,54 @@ func collectAndDeclareRecordTypes(params []FunctionParam, returnSort string, ret
 }
 
 // collectRecordType recursively extracts record types from an AILANG type
-// and emits declare-datatype declarations.
+// and emits declare-datatype declarations. Uses DFS with cycle detection
+// to handle nested records and reject self-referential types.
 func collectRecordType(t types.Type, ctx *SMTContext, result *EncodeResult) {
+	// Delegate to the safe version, ignoring errors (legacy behavior for non-cycle cases)
+	_ = collectRecordTypeSafe(t, ctx, result, nil)
+}
+
+// collectRecordTypeSafe recursively extracts record types from an AILANG type
+// and emits declare-datatype declarations in dependency order (inner before outer).
+// The visiting set tracks records currently being processed to detect cycles.
+// Returns an error if a self-referential or mutually recursive record is detected.
+func collectRecordTypeSafe(t types.Type, ctx *SMTContext, result *EncodeResult, visiting map[string]bool) error {
 	if t == nil {
-		return
+		return nil
 	}
 	rec, ok := t.(*types.TRecord)
 	if !ok {
-		return
+		return nil
 	}
 
 	sortName := MapRecordSortName(rec)
 	if ctx.DeclaredTypes[sortName] {
-		return // already declared
+		return nil // already declared
 	}
+
+	// Initialize visiting set on first call
+	if visiting == nil {
+		visiting = make(map[string]bool)
+	}
+
+	// Cycle detection: if we're already visiting this sort, it's self-referential
+	if visiting[sortName] {
+		return fmt.Errorf("self-referential record type cycle detected: %s", sortName)
+	}
+	visiting[sortName] = true
+	defer func() { delete(visiting, sortName) }()
 
 	// Map all field types (may recursively discover nested record types)
 	fieldSorts, err := MapRecordFields(rec)
 	if err != nil {
-		return // skip records with unencodable field types
+		return nil // skip records with unencodable field types
 	}
 
-	// Recursively collect nested record types first
-	for _, fieldType := range rec.Fields {
-		collectRecordType(fieldType, ctx, result)
+	// Recursively collect nested record types first (depth-first ensures inner before outer)
+	for fieldName, fieldType := range rec.Fields {
+		if err := collectRecordTypeSafe(fieldType, ctx, result, visiting); err != nil {
+			return fmt.Errorf("field %q: %w", fieldName, err)
+		}
 	}
 
 	// Build record type info
@@ -82,10 +106,12 @@ func collectRecordType(t types.Type, ctx *SMTContext, result *EncodeResult) {
 	key := strings.Join(fieldNames, ",")
 	activeFieldSetToSort[key] = sortName
 
-	// Emit declaration
+	// Emit declaration (inner records already emitted by recursive calls above)
 	decl := DeclareRecordDatatype(sortName, fieldSorts)
 	result.Declarations = append(result.Declarations, decl)
 	ctx.DeclaredTypes[sortName] = true
+
+	return nil
 }
 
 // collectRecordTypesFromBody walks a Core AST expression to discover record
