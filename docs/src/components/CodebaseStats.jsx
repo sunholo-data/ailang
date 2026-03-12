@@ -275,7 +275,7 @@ function prepareBreakdownData(current) {
   const { lines } = current;
   // Calculate "other docs" as everything not in specific categories
   const knownDocs = (lines.design_docs || 0) + (lines.website_docs || 0) +
-                    (lines.prompts || 0) + (lines.changelog || 0);
+                    (lines.prompts || 0) + (lines.changelogs || lines.changelog || 0);
   const otherDocs = Math.max(0, lines.documentation - knownDocs);
 
   return [
@@ -284,7 +284,8 @@ function prepareBreakdownData(current) {
     { name: 'Design Docs', lines: lines.design_docs },
     { name: 'Website Docs', lines: lines.website_docs || 0 },
     { name: 'Prompts', lines: lines.prompts || 0 },
-    { name: 'Changelog', lines: lines.changelog || 0 },
+    { name: 'Changelogs', lines: lines.changelogs || lines.changelog || 0 },
+    { name: 'Claude Skills', lines: lines.claude_skills || 0 },
     { name: 'Other Docs', lines: otherDocs },
     { name: 'Shell Scripts', lines: lines.shell },
     { name: 'AILANG', lines: lines.ailang_examples + lines.ailang_stdlib },

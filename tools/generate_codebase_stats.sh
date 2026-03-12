@@ -59,8 +59,12 @@ WEBSITE_DOCS=$(find ./docs/docs -name "*.md" -o -name "*.mdx" 2>/dev/null | xarg
 # Count prompts (just prompts/, not cmd/ailang/prompts which is a copy)
 PROMPTS_TOTAL=$(find ./prompts -name "*.md" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
 
-# Count CHANGELOG
-CHANGELOG_TOTAL=$(wc -l < CHANGELOG.md 2>/dev/null | tr -d ' ' || echo "0")
+# Count changelogs (split into changelogs/ directory; CHANGELOG.md is now just an index)
+CHANGELOG_TOTAL=$(find ./changelogs -name "*.md" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+
+# Count Claude skills/rules (.claude/ directory)
+CLAUDE_SKILLS_TOTAL=$(find ./.claude -name "*.md" -o -name "*.sh" 2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+CLAUDE_SKILLS_FILES=$(find ./.claude -name "*.md" -o -name "*.sh" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
 
 # Git stats
 COMMITS=$(git log --oneline 2>/dev/null | wc -l | tr -d ' ')
@@ -92,7 +96,8 @@ CURRENT_STATS=$(cat <<EOF
     "design_docs": $DESIGN_TOTAL,
     "website_docs": $WEBSITE_DOCS,
     "prompts": $PROMPTS_TOTAL,
-    "changelog": $CHANGELOG_TOTAL,
+    "changelogs": $CHANGELOG_TOTAL,
+    "claude_skills": $CLAUDE_SKILLS_TOTAL,
     "implementation_total": $IMPL_TOTAL
   },
   "files": {
@@ -102,6 +107,7 @@ CURRENT_STATS=$(cat <<EOF
     "typescript": $TS_FILES,
     "shell": $SH_FILES,
     "design_docs": $DESIGN_FILES,
+    "claude_skills": $CLAUDE_SKILLS_FILES,
     "documentation": $DOC_FILES
   },
   "tokens": {
