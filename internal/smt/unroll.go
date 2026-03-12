@@ -269,6 +269,21 @@ func ReplaceSelfCalls(expr core.CoreExpr, funcName, replacement string) core.Cor
 			return e
 		}
 		return &core.DictAbs{Params: e.Params, Body: newBody}
+	case *core.Forall:
+		newLo := ReplaceSelfCalls(e.Lo, funcName, replacement)
+		newHi := ReplaceSelfCalls(e.Hi, funcName, replacement)
+		// If the forall variable shadows funcName, don't replace in body
+		if e.Var == funcName {
+			if newLo == e.Lo && newHi == e.Hi {
+				return e
+			}
+			return &core.Forall{Var: e.Var, Lo: newLo, Hi: newHi, Body: e.Body}
+		}
+		newBody := ReplaceSelfCalls(e.Body, funcName, replacement)
+		if newLo == e.Lo && newHi == e.Hi && newBody == e.Body {
+			return e
+		}
+		return &core.Forall{Var: e.Var, Lo: newLo, Hi: newHi, Body: newBody}
 	case *core.DictRef:
 		return e
 	default:

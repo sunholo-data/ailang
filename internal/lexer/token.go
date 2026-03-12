@@ -99,6 +99,7 @@ const (
 	RBRACKET  // ]
 	COMMA     // ,
 	DOT       // .
+	DOTDOT    // ..
 	ELLIPSIS  // ...
 	SEMICOLON // ;
 	NEWLINE   // \n
@@ -209,6 +210,7 @@ var tokens = map[TokenType]string{
 	RBRACKET:  "]",
 	COMMA:     ",",
 	DOT:       ".",
+	DOTDOT:    "..",
 	ELLIPSIS:  "...",
 	SEMICOLON: ";",
 	NEWLINE:   "\\n",

@@ -504,3 +504,20 @@ func (r *Recv) String() string {
 }
 func (r *Recv) Position() Pos { return r.Pos }
 func (r *Recv) exprNode()     {}
+
+// ForallExpr represents a bounded universal quantifier: forall i: lo..hi => body
+// Used in contract clauses (requires/ensures) for element-wise properties.
+// Only integer quantifiers are supported.
+type ForallExpr struct {
+	Var  string // Bound variable name
+	Lo   Expr   // Lower bound (inclusive)
+	Hi   Expr   // Upper bound (exclusive)
+	Body Expr   // Quantified body (boolean predicate)
+	Pos  Pos
+}
+
+func (f *ForallExpr) exprNode() {}
+func (f *ForallExpr) String() string {
+	return fmt.Sprintf("forall %s: %s..%s => %s", f.Var, f.Lo, f.Hi, f.Body)
+}
+func (f *ForallExpr) Position() Pos { return f.Pos }

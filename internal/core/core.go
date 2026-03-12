@@ -521,6 +521,22 @@ type DictValue struct {
 	Provides  []string               // Other instances this provides (e.g., Ord provides Eq)
 }
 
+// Forall represents a bounded universal quantifier in the Core IR.
+// Encodes to (forall ((Var Int)) (=> (and (>= Var Lo) (< Var Hi)) Body)) in SMT-LIB.
+// Only integer quantifiers are supported.
+type Forall struct {
+	CoreNode
+	Var  string   // Bound variable
+	Lo   CoreExpr // Lower bound (inclusive)
+	Hi   CoreExpr // Upper bound (exclusive)
+	Body CoreExpr // Quantified body (boolean predicate)
+}
+
+func (f *Forall) coreExpr() {}
+func (f *Forall) String() string {
+	return fmt.Sprintf("(forall %s: %s..%s => %s)", f.Var, f.Lo, f.Hi, f.Body)
+}
+
 // Helper to check if expression is atomic (for ANF verification)
 func IsAtomic(expr CoreExpr) bool {
 	switch expr.(type) {

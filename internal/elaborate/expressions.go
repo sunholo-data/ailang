@@ -110,6 +110,9 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 	case *ast.Match:
 		return e.normalizeMatch(ex)
 
+	case *ast.ForallExpr:
+		return e.normalizeForall(ex)
+
 	default:
 		if expr == nil {
 			return nil, fmt.Errorf("normalization received nil expression")
