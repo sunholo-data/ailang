@@ -57,6 +57,11 @@ type EncodeFunctionOpts struct {
 	// When > 0 and the function is self-recursive, generates a define-fun chain
 	// instead of rejecting. 0 means no unrolling (default behavior).
 	RecursiveDepth int
+	// HOFInlineDepth controls the unrolling depth for HOF specializations
+	// (map, filter, foldl with literal lambda arguments). When > 0, inlinable
+	// HOF calls are specialized into recursive functions and unrolled.
+	// Default: 3 if not specified and HOF calls are detected.
+	HOFInlineDepth int
 }
 
 // EncodeFunction generates a complete SMT-LIB program for verifying a function's contracts.
@@ -132,6 +137,35 @@ func EncodeFunction(
 	for _, def := range calleeDefs {
 		result.Declarations = append(result.Declarations, def.SMTLib)
 	}
+
+	// Step 1.55: HOF inlining — specialize map/filter/foldl with literal lambdas
+	var hofInlinedKinds []string
+	hofDepth := 0
+	if len(opts) > 0 {
+		hofDepth = opts[0].HOFInlineDepth
+	}
+	if hofDepth == 0 {
+		hofDepth = 3 // default depth for HOF specializations
+	}
+	inlineResult := InlineHOFCalls(funcName, body, hofDepth)
+	if inlineResult != nil {
+		body = inlineResult.NewBody
+		for _, spec := range inlineResult.Specializations {
+			result.Declarations = append(result.Declarations, spec.Declarations...)
+			// Register specialized functions as resolved callees so encodeApp recognizes them
+			ctx.ResolvedCallees[spec.TopLevelName] = true
+			switch spec.Kind {
+			case HOFMap:
+				hofInlinedKinds = append(hofInlinedKinds, "map")
+			case HOFFilter:
+				hofInlinedKinds = append(hofInlinedKinds, "filter")
+			case HOFFoldl:
+				hofInlinedKinds = append(hofInlinedKinds, "foldl")
+			}
+		}
+	}
+	// Suppress "unused" warning for hofInlinedKinds (used for labeling output)
+	_ = hofInlinedKinds
 
 	// Step 1.6: Bounded recursion unrolling (if enabled)
 	var unrollTopName string

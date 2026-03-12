@@ -340,6 +340,8 @@ var ListBuiltinSpecial = map[string]ListBuiltinSpec{
 	"_list_contains": {Op: "seq.contains", ContainsMode: true},
 	// _list_extract(xs, offset, length) → (seq.extract xs offset length) — ternary
 	"_list_extract": {Op: "seq.extract", TernaryMode: true},
+	// _list_tail(xs) → (seq.extract xs 1 (- (seq.len xs) 1)) — tail mode
+	"_list_tail": {Op: "seq.extract", Unary: true, TailMode: true},
 }
 
 // ListBuiltinSpec describes how to encode a list builtin in SMT-LIB.
@@ -350,6 +352,7 @@ type ListBuiltinSpec struct {
 	ConsMode     bool   // First arg wrapped in (seq.unit ...)
 	ContainsMode bool   // Second arg wrapped in (seq.unit ...) for element containment
 	TernaryMode  bool   // Three arguments (e.g., seq.extract xs offset length)
+	TailMode     bool   // _list_tail: (seq.extract xs 1 (- (seq.len xs) 1))
 }
 
 // RecursiveListBuiltins maps recursive list operation names to their descriptions.

@@ -70,8 +70,8 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 		})
 	}
 
-	// Check 4: No higher-order functions
-	if hasHigherOrder(body) {
+	// Check 4: No higher-order functions (unless all HOF calls are inlinable)
+	if hasHigherOrder(body) && !AllHigherOrderIsInlinable(body) {
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectHigherOrder,
 			Message: fmt.Sprintf("Function %q uses higher-order functions", funcName),
@@ -465,6 +465,24 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 		}
 		return false
 	case *core.App:
+		// Check if this is an inlinable HOF call (map/filter/foldl with literal lambda).
+		// If so, the HOF builtin itself is not unencodable — it will be specialized.
+		// We still need to check the lambda body and list arg for unencodable types.
+		if _, ok := matchHOFCall(e); ok {
+			for _, arg := range e.Args {
+				if lam, isLam := arg.(*core.Lambda); isLam {
+					// Walk the lambda body, not the lambda itself
+					if walkForUnencodableTypes(lam.Body) {
+						return true
+					}
+				} else {
+					if walkForUnencodableTypes(arg) {
+						return true
+					}
+				}
+			}
+			return false
+		}
 		if walkForUnencodableTypes(e.Func) {
 			return true
 		}
