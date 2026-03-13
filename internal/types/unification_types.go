@@ -4,17 +4,46 @@ import (
 	"fmt"
 )
 
+// flattenFunc collects all parameters from a potentially curried function type.
+// E.g., TFunc2{[a], Return: TFunc2{[b], Return: c}} → params=[a,b], return=c
+// A non-curried TFunc2{[a,b], Return: c} → params=[a,b], return=c (unchanged).
+func flattenFunc(f *TFunc2) (params []Type, ret Type) {
+	params = append(params, f.Params...)
+	ret = f.Return
+	for {
+		inner, ok := ret.(*TFunc2)
+		if !ok || len(inner.Params) == 0 {
+			break
+		}
+		params = append(params, inner.Params...)
+		ret = inner.Return
+	}
+	return
+}
+
 // unifyFunctions unifies two function types
 func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substitution, error) {
 	if t2Func, ok := t2.(*TFunc2); ok {
-		if len(t1.Params) != len(t2Func.Params) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2Func.Params))
+		p1, r1 := t1.Params, t1.Return
+		p2, r2 := t2Func.Params, t2Func.Return
+
+		// M-DOCPARSE-DX M1: If arity mismatches, try flattening curried forms.
+		// This allows (a -> (b -> c)) to unify with ((a, b) -> c).
+		if len(p1) != len(p2) {
+			fp1, fr1 := flattenFunc(t1)
+			fp2, fr2 := flattenFunc(t2Func)
+			if len(fp1) == len(fp2) {
+				p1, r1 = fp1, fr1
+				p2, r2 = fp2, fr2
+			} else {
+				return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(fp1), len(fp2))
+			}
 		}
 
 		// Unify parameters
-		for i := range t1.Params {
+		for i := range p1 {
 			var err error
-			sub, err = u.Unify(t1.Params[i], t2Func.Params[i], sub)
+			sub, err = u.Unify(p1[i], p2[i], sub)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
 			}
@@ -38,22 +67,24 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 		}
 
 		// Unify return type
-		return u.Unify(t1.Return, t2Func.Return, sub)
+		return u.Unify(r1, r2, sub)
 	}
 	if t2Old, ok := t2.(*TFunc); ok {
 		// Cross-unify TFunc2 ↔ TFunc: unify params and return, elide effect rows
 		// (symmetric with unifyTFunc's TFunc2 case)
-		if len(t1.Params) != len(t2Old.Params) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2Old.Params))
+		fp1, fr1 := flattenFunc(t1)
+		p2, r2 := t2Old.Params, t2Old.Return
+		if len(fp1) != len(p2) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(fp1), len(p2))
 		}
-		for i := range t1.Params {
+		for i := range fp1 {
 			var err error
-			sub, err = u.Unify(t1.Params[i], t2Old.Params[i], sub)
+			sub, err = u.Unify(fp1[i], p2[i], sub)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
 			}
 		}
-		return u.Unify(t1.Return, t2Old.Return, sub)
+		return u.Unify(fr1, r2, sub)
 	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
@@ -86,21 +117,24 @@ func (u *Unifier) unifyTFunc(t1 *TFunc, t2 Type, sub Substitution) (Substitution
 
 	case *TFunc2:
 		// Convert TFunc to TFunc2 semantics: unify params and return
-		if len(t1.Params) != len(t2.Params) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2.Params))
+		// M-DOCPARSE-DX M1: flatten curried TFunc2 before comparing with TFunc
+		fp2, fr2 := flattenFunc(t2)
+		p1, r1 := t1.Params, t1.Return
+		if len(p1) != len(fp2) {
+			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(p1), len(fp2))
 		}
 
 		// Unify parameters
-		for i := range t1.Params {
+		for i := range p1 {
 			var err error
-			sub, err = u.Unify(t1.Params[i], t2.Params[i], sub)
+			sub, err = u.Unify(p1[i], fp2[i], sub)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
 			}
 		}
 
 		// Unify return types
-		return u.Unify(t1.Return, t2.Return, sub)
+		return u.Unify(r1, fr2, sub)
 
 	case *TVar2:
 		// Swap and retry

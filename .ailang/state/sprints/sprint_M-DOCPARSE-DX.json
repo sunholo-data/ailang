@@ -1,0 +1,90 @@
+{
+  "sprint_id": "M-DOCPARSE-DX",
+  "status": "in_progress",
+  "created": "2026-03-13T13:46:19Z",
+  "design_doc": "design_docs/planned/v0_9_3/m-docparse-dx.md",
+  "sprint_plan": "design_docs/planned/v0_9_3/m-docparse-dx-sprint-plan.md",
+  "github_issues": [
+    140,
+    141
+  ],
+  "velocity": {
+    "target_loc_per_day": 170,
+    "estimated_total_loc": 670,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_CURRIED_LAMBDA_FIX",
+      "description": "Fix type unification so curried lambdas (\\a. \\b. expr) unify with multi-param functions ((a, b) -> c) in HOF arguments",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "foldl(\\acc. \\cell. acc + cell, 0, [1,2,3]) type-checks and returns 6",
+        "Existing multi-param lambdas (\\x y. x + y) unchanged",
+        "make test passes",
+        "Full eval suite shows no regressions"
+      ],
+      "passes": true,
+      "started": "2026-03-13T13:50:00Z",
+      "completed": "2026-03-13T14:33:00Z",
+      "notes": "Added flattenFunc helper + curried flattening to all 3 unification paths (TFunc2↔TFunc2, TFunc2↔TFunc, TFunc↔TFunc2). 49 insertions, 15 deletions. 7 unit tests added."
+    },
+    {
+      "id": "M2_LIST_SET_OPERATIONS",
+      "description": "Add member, dedup, intersect, union, difference to std/list using Go builtins with reflect.DeepEqual",
+      "estimated_loc": 290,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "member(3, [1,2,3]) returns true",
+        "dedup([1,2,1,3,2]) returns [1,2,3]",
+        "intersect([1,2,3], [2,3,4]) returns [2,3]",
+        "union([1,2], [2,3]) returns [1,2,3]",
+        "difference([1,2,3], [2]) returns [1,3]",
+        "examples/set_operations.ail runs successfully",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_LISTDIR_STRING_SPLITTING",
+      "description": "Add listDir to std/fs and words/splitAny string splitting functions",
+      "estimated_loc": 155,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "listDir(\"examples/\") returns sorted list of filenames",
+        "listDir returns error for nonexistent directory",
+        "words(\"hello  world\\tfoo\") returns [\"hello\", \"world\", \"foo\"]",
+        "splitAny(\"a,b;c\", [\",\", \";\"]) returns [\"a\", \"b\", \"c\"]",
+        "examples/directory_listing.ail runs successfully",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_XML_SERIALIZE_ZIP_WRITE",
+      "description": "Add XML serialization (XmlNode -> string) and ZIP archive write capabilities, plus CHANGELOG and docs",
+      "estimated_loc": 330,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "serialize(element(\"root\", [], [textNode(\"hello\")])) returns <root>hello</root>",
+        "XML roundtrip: parse(serialize(tree)) produces equivalent tree",
+        "ZIP roundtrip: create archive, write entries, read back, entries match",
+        "closeArchive properly flushes and closes ZIP",
+        "CHANGELOG.md updated",
+        "make test and make lint pass",
+        "make verify-examples passes"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Largest milestone. XML serialize is pure (no effect). ZIP write requires ! {FS}."
+    }
+  ]
+}
