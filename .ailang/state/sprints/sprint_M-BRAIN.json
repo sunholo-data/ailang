@@ -2,7 +2,7 @@
   "sprint_id": "M-BRAIN",
   "design_doc": "design_docs/planned/v0_9_3/m-brain.md",
   "sprint_plan": "design_docs/planned/v0_9_3/m-brain-sprint-plan.md",
-  "status": "planned",
+  "status": "in_progress",
   "created": "2026-03-13T18:00:00+01:00",
   "github_issues": [],
   "features": [
@@ -22,16 +22,18 @@
         "Data persists across process restarts",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-13T18:30:00+01:00",
+      "completed": "2026-03-13T19:15:00+01:00",
+      "notes": "SQLiteSharedCache + BrainStore implemented. 23 tests pass. 1,291 LOC. Commit 3f809b43."
     },
     {
       "id": "M2_CLI_SURFACE",
       "description": "ailang cache CLI: search, list, put, put-resolution, stats, gc, export/import",
       "estimated_loc": 600,
-      "dependencies": ["M1_SQLITE_BACKEND"],
+      "dependencies": [
+        "M1_SQLITE_BACKEND"
+      ],
       "acceptance_criteria": [
         "ailang cache search returns relevant results in <100ms",
         "ailang cache list --recent shows newest frames",
@@ -51,7 +53,9 @@
       "id": "M3_HOOK_INTEGRATION",
       "description": "Claude Code hooks: session start context injection, post-commit resolution capture, edit capture",
       "estimated_loc": 200,
-      "dependencies": ["M2_CLI_SURFACE"],
+      "dependencies": [
+        "M2_CLI_SURFACE"
+      ],
       "acceptance_criteria": [
         "Session start hook injects relevant brain context (top-3 frames)",
         "Post-commit hook captures resolution frames automatically",
@@ -69,7 +73,9 @@
       "id": "M4_POLISH_DOCS",
       "description": "Config support, user guide, example file, CHANGELOG update",
       "estimated_loc": 120,
-      "dependencies": ["M3_HOOK_INTEGRATION"],
+      "dependencies": [
+        "M3_HOOK_INTEGRATION"
+      ],
       "acceptance_criteria": [
         "Config file controls backend, TTLs, enabled state",
         "User guide at docs/docs/guides/brain-cache.md",

@@ -217,6 +217,9 @@ func main() {
 	case "messages", "msg":
 		messagesCommand()
 
+	case "cache", "brain":
+		cacheCommand()
+
 	case "prompt":
 		runPrompt()
 

@@ -272,11 +272,20 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 // SearchBySimHash finds frames with similar SimHash values in a given namespace.
 // Returns results sorted by score descending, key ascending (deterministic).
 func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, limit int) []BrainSearchResult {
-	rows, err := c.db.Query(
-		`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source
-		 FROM brain_frames WHERE namespace = ? AND simhash IS NOT NULL`,
-		namespace,
-	)
+	var rows *sql.Rows
+	var err error
+	if namespace != "" {
+		rows, err = c.db.Query(
+			`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source
+			 FROM brain_frames WHERE namespace = ? AND simhash IS NOT NULL`,
+			namespace,
+		)
+	} else {
+		rows, err = c.db.Query(
+			`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source
+			 FROM brain_frames WHERE simhash IS NOT NULL`,
+		)
+	}
 	if err != nil {
 		return nil
 	}
@@ -313,6 +322,10 @@ func (c *SQLiteSharedCache) SearchBySimHash(namespace string, queryHash int64, l
 func (c *SQLiteSharedCache) SearchByText(query string, namespace string, limit int) []BrainSearchResult {
 	var rows *sql.Rows
 	var err error
+
+	if limit <= 0 {
+		limit = 1000 // no limit → reasonable max
+	}
 
 	if namespace != "" {
 		rows, err = c.db.Query(
