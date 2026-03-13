@@ -18,10 +18,10 @@
         "PutVector stores frame with embedding but no text content",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-13T20:35:00+01:00",
+      "completed": "2026-03-13T20:55:00+01:00",
+      "notes": "Schema v1→v2 migration, encodeEmbedding/decodeEmbedding (IEEE 754 LE), cosineSimilarityF32, PutVector, SearchByEmbedding, EmbeddingStats, scanBrainFrame helper. 8 new tests (32 total). ~190 LOC."
     },
     {
       "id": "M2_EMBEDDER_WIRING",
