@@ -2,7 +2,7 @@
   "sprint_id": "M-BRAIN-VECTORS",
   "design_doc": "design_docs/planned/v0_9_3/m-brain-vectors.md",
   "sprint_plan": "design_docs/planned/v0_9_3/m-brain-vectors-sprint-plan.md",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-03-13T20:30:00+01:00",
   "github_issues": [],
   "features": [
@@ -68,10 +68,10 @@
         "End-to-end: put --embed → search --cosine → correct ranking",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-13T21:30:00+01:00",
+      "completed": "2026-03-13T21:40:00+01:00",
+      "notes": "CHANGELOG with M-BRAIN-VECTORS section. User guide updated with embedding vectors, cosine search, embed backfill, put-vector, embedder config sections. CLI reference updated."
     }
   ],
   "velocity": {

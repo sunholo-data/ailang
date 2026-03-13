@@ -63,21 +63,23 @@ Frames are organized by namespace for filtering and lifecycle management:
 
 ### `ailang cache search <query>`
 
-Search by SimHash similarity + keyword matching. Results are merged and deduplicated.
+Search by cosine similarity + SimHash + keyword matching (three-tier). Results are merged and deduplicated.
 
 ```bash
 ailang cache search "type inference bug"
+ailang cache search --cosine "semantic patterns"        # Force cosine (embedding) search
+ailang cache search --simhash "quick lookup"             # Force SimHash only (fast)
 ailang cache search --context internal/types/unify.go   # Find knowledge about specific files
 ailang cache search "parser" --namespace patterns --limit 5
 ```
 
 ### `ailang cache put <key> --content "text"`
 
-Store a frame manually.
+Store a frame manually. Use `--embed` to compute and store an embedding vector.
 
 ```bash
 ailang cache put fix_unify --content "Always check occurs in unification" --ns learnings
-ailang cache put go_tip --ns patterns --scope user --content "Use sync.Pool for allocations"
+ailang cache put --embed --content "Use sync.Pool for allocations" --ns patterns --scope user go_tip
 ailang cache put temp_note --ns ephemeral --ttl 24h --content "Investigating race in scheduler"
 ```
 
@@ -110,6 +112,24 @@ Garbage collect expired frames.
 ailang cache gc                         # Remove TTL-expired frames
 ailang cache gc --older-than 90d        # Remove frames older than 90 days
 ailang cache gc --namespace ephemeral   # Only clean ephemeral namespace
+```
+
+### `ailang cache embed`
+
+Backfill embeddings for frames that don't have them yet.
+
+```bash
+ailang cache embed                        # All frames, both tiers
+ailang cache embed --namespace learnings  # Only learnings
+ailang cache embed --scope project        # Only project tier
+```
+
+### `ailang cache put-vector`
+
+Store a vector-only frame (embedding + payload, no text) from JSON on stdin.
+
+```bash
+echo '{"key":"v1","embedding":[0.1,0.2],"payload":{"type":"task"}}' | ailang cache put-vector
 ```
 
 ### `ailang cache export` / `import`
@@ -151,15 +171,76 @@ Over time, this builds a searchable history of what was fixed and how.
 
 Set `AILANG_BRAIN_HOOKS=0` in your environment to disable all brain hooks.
 
+## Embedding Vectors
+
+The brain supports real embedding vectors for cosine similarity search, enabling semantic matching that SimHash can't achieve.
+
+### Storing with Embeddings
+
+```bash
+# Auto-embed: computes embedding using configured provider
+ailang cache put --embed --content "Use sync.Pool for hot-path allocations" sync_pool_tip
+
+# Backfill: add embeddings to existing frames
+ailang cache embed                        # All frames in both tiers
+ailang cache embed --namespace learnings  # Only learnings namespace
+ailang cache embed --scope user           # Only user tier
+```
+
+### Cosine Search
+
+```bash
+# Three-tier search (default): cosine → SimHash → text
+ailang cache search "memory allocation patterns"
+
+# Force cosine-only search
+ailang cache search --cosine "memory allocation patterns"
+
+# Force SimHash-only (fast path, no embedder needed)
+ailang cache search --simhash "memory allocation"
+```
+
+### Machine-to-Machine Vectors
+
+Store embedding-only frames (no text content) for vector communication:
+
+```bash
+echo '{"key":"task_001","embedding":[0.1,0.2,0.3],"payload":{"type":"task"}}' | ailang cache put-vector
+```
+
+### Embedding Coverage
+
+```bash
+ailang cache stats
+# Shows: With embeddings: 42 (85%)
+#        ollama:embeddinggemma: 42
+```
+
+### Embedder Configuration
+
+Configure via `~/.ailang/config.yaml` or environment variables:
+
+```yaml
+embeddings:
+  provider: ollama  # ollama, openai, gemini, or none
+  ollama:
+    model: embeddinggemma
+    endpoint: http://localhost:11434
+```
+
+Or via env: `AILANG_EMBED_PROVIDER=ollama`, `AILANG_OLLAMA_MODEL=embeddinggemma`.
+
 ## How Search Works
 
-The brain uses two complementary search strategies:
+The brain uses a three-tier search strategy:
 
-1. **SimHash similarity** — Locality-sensitive hashing computes a 64-bit fingerprint of text content. Similar texts have similar hashes (measured by Hamming distance). Score: `1.0 - (hamming_distance / 64.0)`.
+1. **Cosine similarity** (best quality, requires embeddings) — Computes cosine similarity between query embedding and stored frame embeddings. Results get a +0.1 boost over SimHash-only results.
 
-2. **Keyword search** — SQL LIKE matching on content and key fields. Always returns score 1.0 for matches.
+2. **SimHash similarity** (fast, always available) — Locality-sensitive hashing computes a 64-bit fingerprint of text content. Similar texts have similar hashes (measured by Hamming distance). Score: `1.0 - (hamming_distance / 64.0)`.
 
-Results from both methods are merged, deduplicated by key, and sorted by score (descending).
+3. **Keyword search** (fallback) — SQL LIKE matching on content and key fields. Always returns score 1.0 for matches.
+
+Results from all tiers are merged, deduplicated by key, and sorted by score (descending). When an embedder is not available, the brain falls back to SimHash + text only.
 
 ## Storage
 
@@ -168,4 +249,4 @@ Brain databases are SQLite with WAL mode (same configuration as `ailang messages
 - Busy timeout: 5 seconds
 - Cache size: 64MB
 
-Each frame stores: key, namespace, content, SimHash, version, timestamps, TTL, and source metadata.
+Each frame stores: key, namespace, content, SimHash, version, timestamps, TTL, source metadata, and optional embedding (BLOB), embedding dimension, and embedding model.
