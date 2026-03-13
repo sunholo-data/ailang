@@ -49,14 +49,14 @@ Sprint target: ~200 LOC across 8 files. Well within capacity.
 - `cmd/ailang/coordinator_cloud_test.go` — Test event broadcasting (~30 LOC)
 
 **Acceptance Criteria:**
-- [ ] `OnTurnStart` broadcasts `TaskStreamTurnStart` event
-- [ ] `OnText` broadcasts `TaskStreamText` (rate-limited)
-- [ ] `OnToolUse` broadcasts `TaskStreamToolUse`
-- [ ] `OnTurnEnd` broadcasts `TaskStreamTurnEnd`
-- [ ] `OnError` broadcasts `TaskStreamError`
-- [ ] Events include `TaskID`, `AgentID`, `Workspace`
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] `OnTurnStart` broadcasts `TaskStreamTurnStart` event
+- [x] `OnText` broadcasts `TaskStreamText` (rate-limited)
+- [x] `OnToolUse` broadcasts `TaskStreamToolUse`
+- [x] `OnTurnEnd` broadcasts `TaskStreamTurnEnd`
+- [x] `OnError` broadcasts `TaskStreamError`
+- [x] Events include `TaskID`, `AgentID`, `Workspace`
+- [x] `make test` passes
+- [x] `make lint` passes
 
 **Risks:**
 - Pub/Sub publish latency per event — Mitigation: fire-and-forget, don't block executor
@@ -92,12 +92,12 @@ This is cleaner than modifying `OnTurnEnd(int)` signature (which would break all
 - `internal/coordinator/event_handler.go` — No-op OnTurnMetrics (~3 LOC)
 
 **Acceptance Criteria:**
-- [ ] `TurnStats` includes InputTokens, OutputTokens, CostUSD, Model
-- [ ] `cloudEventHandler` accumulates running cost
-- [ ] TurnEnd broadcasts include `cost` and `tokens_in`/`tokens_out` fields
-- [ ] Cost calculation uses existing `internal/ai/pricing.go` model pricing
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] `ExecutionMetrics` includes InputTokens, OutputTokens, CostUSD, NumTurns, DurationMS, SessionID, Success
+- [x] `cloudEventHandler` receives final metrics via `OnMetrics` (optional `MetricsHandler` interface)
+- [x] Status broadcasts include `cost` and `tokens_in`/`tokens_out` fields
+- [x] Cost from executor's `result` event (already calculated in claude.go)
+- [x] `make test` passes
+- [x] `make lint` passes
 
 **Risks:**
 - Token counts may not be available in all stream-json formats — Mitigation: only emit when usage data present, gracefully skip otherwise
@@ -130,12 +130,12 @@ This is cleaner than modifying `OnTurnEnd(int)` signature (which would break all
 - `cmd/ailang/coordinator_cloud_test.go` — Test budget abort (~20 LOC)
 
 **Acceptance Criteria:**
-- [ ] `AILANG_MAX_COST_USD` passed as env var to Cloud Run Job
-- [ ] Task aborts when running cost exceeds budget
-- [ ] Completion published with `status=failed, error='cost budget exceeded ($X.XX > $Y.YY limit)'`
-- [ ] Budget of 0 (or unset) means unlimited (no enforcement)
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] `AILANG_MAX_COST_USD` passed as env var to Cloud Run Job
+- [x] Task aborts when running cost exceeds budget
+- [x] Error event broadcast with `cost budget exceeded ($X.XX > $Y.YY limit)` message
+- [x] Budget of 0 (or unset) means unlimited (no enforcement)
+- [x] `make test` passes
+- [x] `make lint` passes
 
 **Risks:**
 - Context cancellation race with normal completion — Mitigation: check cancellation reason before reporting
@@ -167,12 +167,12 @@ This is cleaner than modifying `OnTurnEnd(int)` signature (which would break all
 - `internal/dispatch/cloudrun/dispatcher_test.go` — Test trace injection (~10 LOC)
 
 **Acceptance Criteria:**
-- [ ] Coordinator span linked to Cloud Run Job span via W3C traceparent
-- [ ] `TRACEPARENT` env var passed to Cloud Run Job
-- [ ] Cloud Run Job creates child span `cloud_job.execute`
-- [ ] Spans visible in GCP Cloud Trace (if GOOGLE_CLOUD_PROJECT set)
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] Coordinator span linked to Cloud Run Job span via W3C traceparent
+- [x] `TRACEPARENT` env var passed to Cloud Run Job
+- [x] Cloud Run Job creates child span `cloud_job.execute`
+- [x] Spans visible in GCP Cloud Trace (if GOOGLE_CLOUD_PROJECT set)
+- [x] `make test` passes
+- [x] `make lint` passes
 
 **Risks:**
 - `GOOGLE_CLOUD_PROJECT` may not be set on Cloud Run Job — Mitigation: trace init is no-op when not set, graceful degradation

@@ -140,6 +140,26 @@ type ContextAwareHandler interface {
 	SetContext(ctx context.Context)
 }
 
+// MetricsHandler is an optional interface for handlers that want execution metrics.
+// When implemented, the executor calls OnMetrics after parsing the final result,
+// allowing the handler to broadcast cost/token data before the executor returns.
+// This is used by the cloud event handler to publish cost data to Pub/Sub.
+type MetricsHandler interface {
+	EventHandler
+	OnMetrics(metrics ExecutionMetrics)
+}
+
+// ExecutionMetrics contains cost and token data from the executor.
+type ExecutionMetrics struct {
+	NumTurns     int
+	InputTokens  int
+	OutputTokens int
+	CostUSD      float64
+	DurationMS   int
+	SessionID    string
+	Success      bool
+}
+
 // CostModel contains pricing information
 type CostModel struct {
 	ProviderName    string

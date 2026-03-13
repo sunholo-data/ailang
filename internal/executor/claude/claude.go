@@ -433,6 +433,19 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 					done <- fmt.Errorf("failed to parse final result: %w", err)
 					return
 				}
+				// Notify MetricsHandler with cost/token data (M-CLOUD-PROGRESS-TRACKING).
+				// This lets cloud handlers broadcast metrics before the executor returns.
+				if mh, ok := handler.(executor.MetricsHandler); ok && finalResult != nil {
+					mh.OnMetrics(executor.ExecutionMetrics{
+						NumTurns:     finalResult.NumTurns,
+						InputTokens:  finalResult.Usage.InputTokens,
+						OutputTokens: finalResult.Usage.OutputTokens,
+						CostUSD:      finalResult.TotalCostUSD,
+						DurationMS:   finalResult.DurationMS,
+						SessionID:    finalResult.SessionID,
+						Success:      !finalResult.IsError,
+					})
+				}
 			}
 		}
 

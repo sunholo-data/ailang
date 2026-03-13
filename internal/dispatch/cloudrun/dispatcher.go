@@ -6,10 +6,13 @@ package cloudrun
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	run "cloud.google.com/go/run/apiv2"
 	runpb "cloud.google.com/go/run/apiv2/runpb"
 	"github.com/googleapis/gax-go/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/sunholo/ailang/internal/coordinator"
 )
@@ -105,6 +108,24 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_TIMEOUT", Values: &runpb.EnvVar_Value{Value: params.Timeout},
 		})
 	}
+	// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
+	if params.MaxCostUSD > 0 {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_MAX_COST_USD", Values: &runpb.EnvVar_Value{Value: fmt.Sprintf("%.4f", params.MaxCostUSD)},
+		})
+	}
+	// M-CLOUD-PROGRESS-TRACKING M4: Inject W3C trace context for Cloud Trace linking.
+	// This propagates the coordinator's span context to the Cloud Run Job so
+	// job spans appear as children of the coordinator dispatch span.
+	traceCarrier := make(map[string]string)
+	otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(traceCarrier))
+	for key, value := range traceCarrier {
+		envKey := strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: envKey, Values: &runpb.EnvVar_Value{Value: value},
+		})
+	}
+
 	// M-CLOUD-DUAL-AUTH: Inject API key and auth mode marker for apikey mode.
 	// The Cloud Run Job reads ANTHROPIC_API_KEY natively (Claude Code supports it).
 	// AILANG_AUTH_MODE tells the executor to skip OAuth credentials file writing.

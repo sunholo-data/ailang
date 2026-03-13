@@ -1,6 +1,6 @@
 # M-CLOUD-PROGRESS-TRACKING: Cloud Execution Visibility & Cost Controls
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.2
 **Priority**: P0 (High — blocks laptop→cloud migration)
 **Estimated**: 2–3 days (~20h)

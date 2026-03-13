@@ -4,18 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/executor"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo/ailang/internal/executor/claude"
 	_ "github.com/sunholo/ailang/internal/executor/gemini"
 	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo/ailang/internal/websocket"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // coordinatorExecuteJob is the entry point for Cloud Run Jobs.
@@ -46,6 +53,7 @@ import (
 //	AILANG_DIRECTIVE     - Task directive/prompt
 //	AILANG_TOPIC_PREFIX  - Topic prefix (default: "ailang")
 //	AILANG_PLUGIN_REPO   - Git URL for shared skills plugin (cloned as --plugin-dir)
+//	AILANG_MAX_COST_USD  - Per-task cost budget in USD (0 = unlimited) from budget config
 //	AILANG_MODEL         - AI model override (e.g., "sonnet", "opus") from agent config
 func coordinatorExecuteJob(args []string) error {
 	// Parse flags
@@ -377,6 +385,19 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 // the registered executor and calls ExecuteStreaming() — giving us stream-JSON parsing,
 // token extraction, OTEL spans, session tracking, and a full executor.Result.
 func runExecutor(ctx context.Context, workDir, provider, directive, taskID, pluginDir, model, timeoutStr string) (*executor.Result, error) {
+	// M-CLOUD-PROGRESS-TRACKING M4: Extract trace context from env (injected by dispatcher).
+	// This links Cloud Run Job spans to the coordinator's dispatch span in Cloud Trace.
+	ctx = telemetry.ExtractTraceContext(ctx)
+	tracer := telemetry.Tracer("cloud_job")
+	ctx, span := tracer.Start(ctx, "cloud_job.execute",
+		trace.WithAttributes(
+			attribute.String("task.id", taskID),
+			attribute.String("provider", provider),
+			attribute.String("agent.id", os.Getenv("AILANG_AGENT_ID")),
+		),
+	)
+	defer span.End()
+
 	// Get executor from global factory (same as local coordinator's provider_executor.go)
 	exec, err := executor.GlobalFactory().GetExecutor(provider)
 	if err != nil {
@@ -403,9 +424,55 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 		task.PluginDirs = []string{pluginDir}
 	}
 
-	// Execute with streaming using CloudEventHandler for Cloud Logging visibility.
-	// Previously used NoOpEventHandler which silently dropped all streaming events.
-	result, err := exec.ExecuteStreaming(ctx, task, &cloudEventHandler{taskID: taskID})
+	// Create PubSubBroadcaster for live progress streaming (M-CLOUD-PROGRESS-TRACKING).
+	// Reuses the same GCP project/prefix env vars as the completion publisher.
+	var broadcaster *coordinator.PubSubBroadcaster
+	evtProjectID := os.Getenv("AILANG_CLOUD_PROJECT")
+	if evtProjectID == "" {
+		evtProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+	evtPrefix := os.Getenv("AILANG_TOPIC_PREFIX")
+	if evtPrefix == "" {
+		evtPrefix = pubsub.DefaultTopicPrefix
+	}
+	if evtProjectID != "" {
+		evtClient, evtErr := pubsub.NewClient(ctx, evtProjectID, evtPrefix)
+		if evtErr == nil {
+			evtPublisher := pubsub.NewPublisher(evtClient)
+			broadcaster = coordinator.NewPubSubBroadcaster(
+				evtPublisher,
+				workDir,
+				log.New(os.Stderr, "[cloud-events] ", log.LstdFlags),
+			)
+			defer evtClient.Close()
+			defer evtPublisher.Stop()
+		}
+	}
+
+	// M-CLOUD-PROGRESS-TRACKING M3: Parse per-task cost budget from env var.
+	var maxCostUSD float64
+	if maxCostStr := os.Getenv("AILANG_MAX_COST_USD"); maxCostStr != "" {
+		if parsed, parseErr := fmt.Sscanf(maxCostStr, "%f", &maxCostUSD); parsed != 1 || parseErr != nil {
+			fmt.Fprintf(os.Stderr, "execute-job: invalid AILANG_MAX_COST_USD=%q, ignoring\n", maxCostStr)
+			maxCostUSD = 0
+		}
+	}
+
+	// Create cancellable context for budget enforcement.
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
+
+	handler := &cloudEventHandler{
+		taskID:      taskID,
+		agentID:     os.Getenv("AILANG_AGENT_ID"),
+		workspace:   workDir,
+		broadcaster: broadcaster,
+		maxCostUSD:  maxCostUSD,
+		cancel:      execCancel,
+	}
+
+	// Execute with streaming using CloudEventHandler for Cloud Logging + Pub/Sub visibility.
+	result, err := exec.ExecuteStreaming(execCtx, task, handler)
 	if err != nil {
 		return nil, fmt.Errorf("%s execution failed: %w", provider, err)
 	}
@@ -418,32 +485,81 @@ func runExecutor(ctx context.Context, workDir, provider, directive, taskID, plug
 	return result, nil
 }
 
-// cloudEventHandler logs streaming events to stderr for Cloud Logging visibility.
-// Replaces NoOpEventHandler so we can see what Claude is doing in Cloud Run Job logs.
+// cloudEventHandler logs streaming events to stderr for Cloud Logging visibility
+// AND broadcasts them to Pub/Sub for dashboard live progress (M-CLOUD-PROGRESS-TRACKING).
 type cloudEventHandler struct {
-	taskID string
+	taskID      string
+	agentID     string
+	workspace   string
+	broadcaster *coordinator.PubSubBroadcaster // nil if Pub/Sub not available
+
+	// Rate limiting for text broadcasts (avoid flooding Pub/Sub)
+	mu            sync.Mutex
+	lastBroadcast time.Time
+
+	// Turn tracking
+	currentTurn int
+
+	// Budget enforcement (M-CLOUD-PROGRESS-TRACKING M3)
+	maxCostUSD float64
+	cancel     context.CancelFunc
 }
 
 func (h *cloudEventHandler) OnTurnStart(turnNum int) {
+	h.currentTurn = turnNum
 	fmt.Fprintf(os.Stderr, "claude-stream: [turn %d] started\n", turnNum)
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:     h.taskID,
+		StreamType: websocket.TaskStreamTurnStart,
+		TurnNum:    turnNum,
+		AgentID:    h.agentID,
+		Workspace:  h.workspace,
+	})
 }
 
 func (h *cloudEventHandler) OnText(text string) {
 	// Log text snippets (truncated to avoid flooding logs)
-	if len(text) > 200 {
-		text = text[:200] + "..."
+	displayText := text
+	if len(displayText) > 200 {
+		displayText = displayText[:200] + "..."
 	}
-	// Only log non-empty text with actual content
-	trimmed := strings.TrimSpace(text)
+	trimmed := strings.TrimSpace(displayText)
 	if trimmed != "" {
 		fmt.Fprintf(os.Stderr, "claude-stream: %s\n", trimmed)
+	}
+	// Rate-limit text broadcasts to max 1 per 500ms
+	h.mu.Lock()
+	shouldBroadcast := time.Since(h.lastBroadcast) >= 500*time.Millisecond
+	if shouldBroadcast {
+		h.lastBroadcast = time.Now()
+	}
+	h.mu.Unlock()
+	if shouldBroadcast && strings.TrimSpace(text) != "" {
+		broadcastText := text
+		if len(broadcastText) > 500 {
+			broadcastText = broadcastText[:500] + "..."
+		}
+		h.broadcast(&websocket.TaskStreamEvent{
+			TaskID:     h.taskID,
+			StreamType: websocket.TaskStreamText,
+			Text:       broadcastText,
+			TurnNum:    h.currentTurn,
+			AgentID:    h.agentID,
+		})
 	}
 }
 
 func (h *cloudEventHandler) OnToolUse(toolName string, input string) {
-	// Extract the most useful field from tool input for concise logging
 	summary := extractToolSummary(toolName, input)
 	fmt.Fprintf(os.Stderr, "claude-stream: [tool] %s: %s\n", toolName, summary)
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:     h.taskID,
+		StreamType: websocket.TaskStreamToolUse,
+		ToolName:   toolName,
+		ToolInput:  summary,
+		TurnNum:    h.currentTurn,
+		AgentID:    h.agentID,
+	})
 }
 
 // extractToolSummary pulls the most diagnostic field from a tool's JSON input.
@@ -500,19 +616,91 @@ func extractToolSummary(toolName, input string) string {
 }
 
 func (h *cloudEventHandler) OnToolResult(toolName string, output string) {
-	// Log tool completion (output truncated)
-	if len(output) > 200 {
-		output = output[:200] + "..."
+	displayOutput := output
+	if len(displayOutput) > 200 {
+		displayOutput = displayOutput[:200] + "..."
 	}
-	fmt.Fprintf(os.Stderr, "claude-stream: [tool-result] %s: %s\n", toolName, output)
+	fmt.Fprintf(os.Stderr, "claude-stream: [tool-result] %s: %s\n", toolName, displayOutput)
+	broadcastOutput := output
+	if len(broadcastOutput) > 500 {
+		broadcastOutput = broadcastOutput[:500] + "..."
+	}
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:     h.taskID,
+		StreamType: websocket.TaskStreamToolResult,
+		ToolName:   toolName,
+		ToolOutput: broadcastOutput,
+		TurnNum:    h.currentTurn,
+		AgentID:    h.agentID,
+	})
 }
 
 func (h *cloudEventHandler) OnTurnEnd(turnNum int) {
 	fmt.Fprintf(os.Stderr, "claude-stream: [turn %d] ended\n", turnNum)
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:     h.taskID,
+		StreamType: websocket.TaskStreamTurnEnd,
+		TurnNum:    turnNum,
+		AgentID:    h.agentID,
+		Workspace:  h.workspace,
+	})
 }
 
 func (h *cloudEventHandler) OnError(err error) {
 	fmt.Fprintf(os.Stderr, "claude-stream: [error] %v\n", err)
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:     h.taskID,
+		StreamType: websocket.TaskStreamError,
+		ErrorMsg:   err.Error(),
+		TurnNum:    h.currentTurn,
+		AgentID:    h.agentID,
+	})
+}
+
+// OnMetrics receives final execution metrics from the executor (cost, tokens, turns).
+// Implements executor.MetricsHandler optional interface.
+func (h *cloudEventHandler) OnMetrics(metrics executor.ExecutionMetrics) {
+	fmt.Fprintf(os.Stderr, "claude-stream: [metrics] turns=%d, tokens=%d+%d, cost=$%.4f\n",
+		metrics.NumTurns, metrics.InputTokens, metrics.OutputTokens, metrics.CostUSD)
+	status := "completed"
+	if !metrics.Success {
+		status = "failed"
+	}
+	h.broadcast(&websocket.TaskStreamEvent{
+		TaskID:      h.taskID,
+		StreamType:  websocket.TaskStreamStatus,
+		Status:      status,
+		TurnNum:     metrics.NumTurns,
+		TokensIn:    metrics.InputTokens,
+		TokensOut:   metrics.OutputTokens,
+		Cost:        metrics.CostUSD,
+		DurationSec: metrics.DurationMS / 1000,
+		AgentID:     h.agentID,
+		Workspace:   h.workspace,
+	})
+
+	// M-CLOUD-PROGRESS-TRACKING M3: Check cost budget and abort if exceeded.
+	if h.maxCostUSD > 0 && metrics.CostUSD > h.maxCostUSD {
+		fmt.Fprintf(os.Stderr, "claude-stream: [BUDGET] cost $%.4f exceeds limit $%.4f — aborting\n",
+			metrics.CostUSD, h.maxCostUSD)
+		h.broadcast(&websocket.TaskStreamEvent{
+			TaskID:     h.taskID,
+			StreamType: websocket.TaskStreamError,
+			ErrorMsg:   fmt.Sprintf("cost budget exceeded ($%.2f > $%.2f limit)", metrics.CostUSD, h.maxCostUSD),
+			AgentID:    h.agentID,
+		})
+		if h.cancel != nil {
+			h.cancel()
+		}
+	}
+}
+
+// broadcast sends an event to Pub/Sub if a broadcaster is configured.
+// Fire-and-forget: failures are logged but don't affect execution.
+func (h *cloudEventHandler) broadcast(event *websocket.TaskStreamEvent) {
+	if h.broadcaster != nil {
+		h.broadcaster.Broadcast(event)
+	}
 }
 
 // injectAgentsMD copies AGENTS.md from the plugin directory into the workspace
@@ -563,4 +751,5 @@ func printExecuteJobHelp() {
 	fmt.Println("  AILANG_TOPIC_PREFIX     Topic prefix (default: ailang)")
 	fmt.Println("  AILANG_PLUGIN_REPO      Git URL for shared skills plugin (--plugin-dir)")
 	fmt.Println("  AILANG_MODEL            AI model override (e.g., sonnet, opus)")
+	fmt.Println("  AILANG_MAX_COST_USD     Per-task cost budget in USD (0 = unlimited)")
 }

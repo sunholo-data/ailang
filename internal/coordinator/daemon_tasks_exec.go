@@ -155,6 +155,21 @@ func (d *Daemon) dispatchTasksCloud() error {
 					params.AuthMode = agent.AuthMode
 				}
 			}
+			// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
+			if budgetsCfg, budgetErr := LoadBudgetsConfig(); budgetErr == nil && budgetsCfg != nil {
+				var taskMaxCost float64
+				if budgetsCfg.Providers != nil {
+					if provCfg, ok := budgetsCfg.Providers[provider]; ok && provCfg != nil && provCfg.TaskMaxCost > 0 {
+						taskMaxCost = provCfg.TaskMaxCost
+					}
+				}
+				if taskMaxCost == 0 && budgetsCfg.Global != nil && budgetsCfg.Global.TaskMaxCost > 0 {
+					taskMaxCost = budgetsCfg.Global.TaskMaxCost
+				}
+				if taskMaxCost > 0 {
+					params.MaxCostUSD = taskMaxCost
+				}
+			}
 			// M-CLOUD-DUAL-AUTH: Check if the originating message had a user-provided API key.
 			// The cache is keyed by message ID — if a key exists, use apikey mode.
 			// This overrides per-agent defaults (user-provided key takes precedence).
