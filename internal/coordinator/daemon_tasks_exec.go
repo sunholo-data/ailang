@@ -150,6 +150,19 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.Timeout != "" {
 					params.Timeout = agent.Timeout
 				}
+				// M-CLOUD-DUAL-AUTH: Per-agent default auth mode.
+				if agent.AuthMode != "" {
+					params.AuthMode = agent.AuthMode
+				}
+			}
+			// M-CLOUD-DUAL-AUTH: Check if the originating message had a user-provided API key.
+			// The cache is keyed by message ID — if a key exists, use apikey mode.
+			// This overrides per-agent defaults (user-provided key takes precedence).
+			if d.apiKeyCache != nil && task.MessageID != "" {
+				if apiKey, ok := d.apiKeyCache.Retrieve(task.MessageID); ok {
+					params.AuthMode = "apikey"
+					params.APIKey = apiKey
+				}
 			}
 			if err := d.cloudDispatcher.Dispatch(d.ctx, params); err != nil {
 				d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)

@@ -128,6 +128,11 @@ type AgentConfig struct {
 	// Per-agent third-party plugin configuration (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
 	// Installs marketplace and custom plugins before task execution.
 	Plugins *PluginsConfig `yaml:"plugins" json:"plugins,omitempty"`
+
+	// Per-agent auth mode override (M-CLOUD-DUAL-AUTH, v0.9.2).
+	// "oauth" (default) or "apikey" — selects Cloud Run Job template.
+	// User-provided API keys from messages override this setting.
+	AuthMode string `yaml:"auth_mode" json:"auth_mode,omitempty"`
 }
 
 // PluginsConfig specifies third-party plugins to install for an agent.

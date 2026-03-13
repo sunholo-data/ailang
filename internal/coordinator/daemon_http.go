@@ -333,6 +333,10 @@ type postMessageRequest struct {
 	MessageType string `json:"message_type"`
 	GitHubIssue *int   `json:"github_issue,omitempty"`
 	GitHubRepo  string `json:"github_repo,omitempty"`
+
+	// M-CLOUD-DUAL-AUTH: Optional user-provided Anthropic API key.
+	// Stored in memory cache only (10min TTL), NEVER persisted to Firestore.
+	AnthropicAPIKey string `json:"anthropic_api_key,omitempty"`
 }
 
 // postMessageResponse is returned on successful message creation.
@@ -401,6 +405,23 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		d.logger.Printf("POST /api/messages: store error: %v", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store message"})
 		return
+	}
+
+	// M-CLOUD-DUAL-AUTH: Encrypt and cache API key in memory (never persisted).
+	if req.AnthropicAPIKey != "" && d.apiKeyCache != nil {
+		apiKeyValue := req.AnthropicAPIKey
+		if d.kmsEncrypter != nil {
+			encrypted, err := d.kmsEncrypter.Encrypt(ctx, apiKeyValue)
+			if err != nil {
+				d.logger.Printf("POST /api/messages: KMS encrypt failed for %s: %v", msg.ID, err)
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt API key"})
+				return
+			}
+			apiKeyValue = encrypted
+			d.logger.Printf("POST /api/messages: encrypted API key for message %s", msg.ID)
+		}
+		d.apiKeyCache.Store(msg.ID, apiKeyValue)
+		d.logger.Printf("POST /api/messages: cached API key for message %s (10min TTL)", msg.ID)
 	}
 
 	// Publish Pub/Sub notification (best-effort — message is already stored).

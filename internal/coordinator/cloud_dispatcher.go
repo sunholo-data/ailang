@@ -25,4 +25,6 @@ type DispatchParams struct {
 	PluginRepo string // Git URL for shared skills plugin (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	Model      string // AI model override (e.g., "sonnet", "opus") — from agent config
 	Timeout    string // Executor timeout (e.g., "15m", "60m") — from agent config (M-CLOUD-OAUTH)
+	AuthMode   string // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
+	APIKey     string // User-provided Anthropic API key, only when AuthMode == "apikey"
 }

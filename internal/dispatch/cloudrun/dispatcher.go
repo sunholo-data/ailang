@@ -60,8 +60,15 @@ func newDispatcherWithClient(client jobRunner, projectID, region, prefix string)
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
 // This matches the Terraform-defined job name in cloud_run_jobs.tf.
 func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) error {
-	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-agent-executor",
-		d.projectID, d.region, d.prefix)
+	// M-CLOUD-DUAL-AUTH: Select job template based on auth mode.
+	// "apikey" uses agent-executor-apikey (no OAuth token, user provides API key).
+	// Default uses agent-executor (OAuth credentials from Secret Manager).
+	jobSuffix := "agent-executor"
+	if params.AuthMode == "apikey" {
+		jobSuffix = "agent-executor-apikey"
+	}
+	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
+		d.projectID, d.region, d.prefix, jobSuffix)
 
 	envOverrides := []*runpb.EnvVar{
 		{Name: "AILANG_TASK_ID", Values: &runpb.EnvVar_Value{Value: params.TaskID}},
@@ -97,6 +104,19 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_TIMEOUT", Values: &runpb.EnvVar_Value{Value: params.Timeout},
 		})
+	}
+	// M-CLOUD-DUAL-AUTH: Inject API key and auth mode marker for apikey mode.
+	// The Cloud Run Job reads ANTHROPIC_API_KEY natively (Claude Code supports it).
+	// AILANG_AUTH_MODE tells the executor to skip OAuth credentials file writing.
+	if params.AuthMode == "apikey" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_AUTH_MODE", Values: &runpb.EnvVar_Value{Value: "apikey"},
+		})
+		if params.APIKey != "" {
+			envOverrides = append(envOverrides, &runpb.EnvVar{
+				Name: "ANTHROPIC_API_KEY", Values: &runpb.EnvVar_Value{Value: params.APIKey},
+			})
+		}
 	}
 
 	req := &runpb.RunJobRequest{

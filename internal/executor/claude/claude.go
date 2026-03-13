@@ -130,14 +130,30 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
-	// Write OAuth credentials file from env var for cloud auth (M-CLOUD-OAUTH).
-	// Claude Code reads ~/.claude/.credentials.json for authentication.
-	// In cloud containers, the token is passed via CLAUDE_CODE_OAUTH_TOKEN env var
-	// from Secret Manager. This bridges the gap: env var → file → Claude reads it.
-	// IMPORTANT: The env var alone causes Claude to exit(1) with zero output.
-	// The file-based approach is what works (same as local interactive auth).
-	if err := writeCredentialsFile(); err != nil {
-		fmt.Fprintf(os.Stderr, "claude-auth: warning: %v\n", err)
+	// M-CLOUD-DUAL-AUTH: Branch on auth mode.
+	// "apikey" mode: ANTHROPIC_API_KEY is already in env (set by cloud dispatcher).
+	// Claude Code reads it natively — no credentials file needed.
+	// Default (OAuth) mode: write credentials file from CLAUDE_CODE_OAUTH_TOKEN.
+	authMode := os.Getenv("AILANG_AUTH_MODE")
+	if authMode == "apikey" {
+		// Decrypt KMS-encrypted API key if present (ENC: prefix).
+		if err := decryptAPIKeyIfNeeded(ctx); err != nil {
+			return nil, fmt.Errorf("claude-auth: %w", err)
+		}
+		if os.Getenv("ANTHROPIC_API_KEY") == "" {
+			return nil, fmt.Errorf("AILANG_AUTH_MODE=apikey but ANTHROPIC_API_KEY not set")
+		}
+		fmt.Fprintf(os.Stderr, "claude-auth: using ANTHROPIC_API_KEY (pay-per-token mode)\n")
+	} else {
+		// Write OAuth credentials file from env var for cloud auth (M-CLOUD-OAUTH).
+		// Claude Code reads ~/.claude/.credentials.json for authentication.
+		// In cloud containers, the token is passed via CLAUDE_CODE_OAUTH_TOKEN env var
+		// from Secret Manager. This bridges the gap: env var → file → Claude reads it.
+		// IMPORTANT: The env var alone causes Claude to exit(1) with zero output.
+		// The file-based approach is what works (same as local interactive auth).
+		if err := writeCredentialsFile(); err != nil {
+			fmt.Fprintf(os.Stderr, "claude-auth: warning: %v\n", err)
+		}
 	}
 
 	// Install per-agent third-party plugins before execution (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
@@ -235,6 +251,12 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Credentials are written to ~/.claude/.credentials.json above.
 	// The env var causes Claude Code to crash (exit 1, 0 turns, no stderr).
 	cmd.Env = executor.RemoveEnvVar(cmd.Env, "CLAUDE_CODE_OAUTH_TOKEN")
+
+	// M-CLOUD-DUAL-AUTH: In OAuth mode, strip ANTHROPIC_API_KEY to prevent conflicts.
+	// In apikey mode, keep it — Claude Code reads it natively.
+	if authMode != "apikey" {
+		cmd.Env = executor.RemoveEnvVar(cmd.Env, "ANTHROPIC_API_KEY")
+	}
 
 	// Prepend NVM node bin directory to PATH so the correct Node version
 	// is found by the claude shebang (#!/usr/bin/env node).

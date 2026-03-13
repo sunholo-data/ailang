@@ -208,6 +208,84 @@ func TestDispatchWithoutPluginRepo(t *testing.T) {
 	}
 }
 
+func TestDispatchAPIKeyMode(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
+
+	params := coordinator.DispatchParams{
+		TaskID:   "task-apikey-1",
+		AgentID:  "external-agent",
+		AuthMode: "apikey",
+		APIKey:   "sk-ant-test-key-123",
+	}
+
+	err := d.Dispatch(context.Background(), params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should select the apikey job template
+	expectedJob := "projects/proj-1/locations/europe-west1/jobs/ailang-agent-executor-apikey"
+	if mock.lastReq.Name != expectedJob {
+		t.Errorf("job name = %q, want %q", mock.lastReq.Name, expectedJob)
+	}
+
+	// Should include AILANG_AUTH_MODE and ANTHROPIC_API_KEY in env overrides
+	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
+	foundAuthMode := false
+	foundAPIKey := false
+	for _, env := range envVars {
+		val, _ := env.Values.(*runpb.EnvVar_Value)
+		switch env.Name {
+		case "AILANG_AUTH_MODE":
+			foundAuthMode = true
+			if val.Value != "apikey" {
+				t.Errorf("AILANG_AUTH_MODE = %q, want %q", val.Value, "apikey")
+			}
+		case "ANTHROPIC_API_KEY":
+			foundAPIKey = true
+			if val.Value != "sk-ant-test-key-123" {
+				t.Errorf("ANTHROPIC_API_KEY = %q, want %q", val.Value, "sk-ant-test-key-123")
+			}
+		}
+	}
+	if !foundAuthMode {
+		t.Error("AILANG_AUTH_MODE env var not found")
+	}
+	if !foundAPIKey {
+		t.Error("ANTHROPIC_API_KEY env var not found")
+	}
+}
+
+func TestDispatchOAuthModeDefault(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
+
+	// Default (no AuthMode) should use oauth job template
+	params := coordinator.DispatchParams{
+		TaskID:  "task-oauth-1",
+		AgentID: "internal-agent",
+	}
+
+	err := d.Dispatch(context.Background(), params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedJob := "projects/proj-1/locations/europe-west1/jobs/ailang-agent-executor"
+	if mock.lastReq.Name != expectedJob {
+		t.Errorf("job name = %q, want %q", mock.lastReq.Name, expectedJob)
+	}
+
+	// Should NOT include AILANG_AUTH_MODE or ANTHROPIC_API_KEY
+	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
+	for _, env := range envVars {
+		if env.Name == "AILANG_AUTH_MODE" || env.Name == "ANTHROPIC_API_KEY" {
+			t.Errorf("unexpected env var in oauth mode: %s", env.Name)
+		}
+	}
+}
+
 func TestDispatchDifferentRegions(t *testing.T) {
 	tests := []struct {
 		region   string
