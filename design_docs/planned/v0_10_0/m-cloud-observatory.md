@@ -328,5 +328,11 @@ New queries need composite indexes. Add to `firestore.indexes.json` or create ma
 
 ---
 
+## Relationship to M-CLOUD-PROGRESS-TRACKING
+
+This doc fixes the dashboard API endpoints (exec-hierarchy, span-hierarchy) that return 503 in cloud mode. It is referenced as the solution for "GAP 5: Dashboard Cloud-Mode API Endpoints" in [M-CLOUD-PROGRESS-TRACKING](../v0_9_2/m-cloud-progress-tracking.md). That doc covers the producer-side streaming; this doc covers the query-side endpoints.
+
+---
+
 **Document created**: 2026-03-11
-**Last updated**: 2026-03-11
+**Last updated**: 2026-03-13

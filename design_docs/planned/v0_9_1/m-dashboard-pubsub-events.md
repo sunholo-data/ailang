@@ -187,6 +187,12 @@ AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-dev ailang serve
 # 3. Confirm events stream in real-time
 ```
 
+## Relationship to M-CLOUD-PROGRESS-TRACKING
+
+This doc covers the **consumer side** (dashboard subscribes to events). The **producer side** (Cloud Run Job publishes progress events to Pub/Sub) is covered by [M-CLOUD-PROGRESS-TRACKING](../v0_9_2/m-cloud-progress-tracking.md) GAP 1. Both are needed for end-to-end live progress visibility.
+
+After M-CLOUD-PROGRESS-TRACKING GAP 1 is implemented, events will include `running_cost_usd`, `running_tokens`, and `turn_number` fields — the dashboard subscriber should pass these through to WebSocket clients without modification.
+
 ## Follow-Up
 
 1. **Integration guide update**: Add "Live Build Progress" section documenting WebSocket connectivity for external clients

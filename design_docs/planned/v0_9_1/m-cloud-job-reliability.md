@@ -1,8 +1,9 @@
 # M-CLOUD-JOB-RELIABILITY: Silent Failure Detection & Recovery
 
-**Status**: Planned
+**Status**: Implemented
 **Priority**: CRITICAL
 **Version**: v0.9.1
+**Implemented**: 2026-03 (Phases 1-3 confirmed working as of 2026-03-13)
 **Triggered by**: First end-to-end website-builder test (2026-03-10)
 **Message ID**: `e63a4ef5-3e11-42a2-995d-8b01bec15e8d`
 
@@ -334,6 +335,17 @@ func (w *JobStatusWatcher) check(ctx context.Context) {
 | 3 | `internal/coordinator/pubsub_completion_handler.go` | Post failure notifications to inbox | ~20 |
 
 **Total: ~200 lines across 6 files** (Phases 1-3)
+
+## Implementation Notes (2026-03-13)
+
+Phases 1-3 confirmed working by ailang-multivac audit:
+- **Phase 1 (defer guard)**: `publishFailedCompletion` + `completionSent` atomic guard in `coordinator_cloud.go`
+- **Phase 2 (stale detector)**: `stale_task_detector.go` runs with 2-min interval in cloud mode
+- **Phase 3 (structured error)**: Completion handler posts failure notifications to inbox
+
+**Phase 4 (Cloud Run Job Status Watcher)** remains deferred — stale detector covers the use case.
+
+See also: [M-CLOUD-PROGRESS-TRACKING](../v0_9_2/m-cloud-progress-tracking.md) for the next set of cloud visibility improvements.
 
 ## Verification Plan
 

@@ -1,7 +1,8 @@
 # M-CLOUD-DUAL-AUTH: OAuth vs API Key Cloud Run Jobs
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.2
+**Implemented**: 2026-03-13 (KMS encryption deployed, confirmed by ailang-multivac audit)
 **Priority**: P2 (Medium — enables external user workloads)
 **Estimated**: 1 day
 **Dependencies**: M-CLOUD-OAUTH (implemented), Terraform `agent-executor-apikey` job (done), KMS keyring (done)
@@ -125,6 +126,16 @@ APIKey   string // User-provided key, only when AuthMode == "apikey"
 - Agent SA has `roles/cloudkms.cryptoKeyDecrypter`
 
 ### 11. New dependency: `cloud.google.com/go/kms`
+
+## Implementation Notes (2026-03-13)
+
+KMS encryption confirmed working by ailang-multivac audit:
+- `internal/coordinator/kms.go` — EncryptAPIKey (coordinator SA: `cryptoKeyEncrypter`)
+- `internal/executor/claude/kms.go` — DecryptAPIKey (agent SA: `cryptoKeyDecrypter`)
+- Both have unit tests (`kms_test.go`)
+- REST endpoint accepts `anthropic_api_key` in POST body
+- Cache stores encrypted key with TTL, one-time retrieval
+- Cloud Run Job receives `ENC:`-prefixed ciphertext via env override
 
 ## Testing
 
