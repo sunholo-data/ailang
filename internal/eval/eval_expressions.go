@@ -389,7 +389,7 @@ func (e *CoreEvaluator) evalCoreRecordUpdate(update *core.RecordUpdate) (Value, 
 
 // evalCoreList evaluates list construction
 func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
-	var elements []Value
+	elements := make([]Value, 0, len(list.Elements))
 
 	for _, elemExpr := range list.Elements {
 		val, err := e.evalCore(elemExpr)
@@ -404,7 +404,7 @@ func (e *CoreEvaluator) evalCoreList(list *core.List) (Value, error) {
 
 // evalCoreArray evaluates array construction
 func (e *CoreEvaluator) evalCoreArray(arr *core.Array) (Value, error) {
-	var elements []Value
+	elements := make([]Value, 0, len(arr.Elements))
 
 	for _, elemExpr := range arr.Elements {
 		val, err := e.evalCore(elemExpr)
@@ -419,7 +419,7 @@ func (e *CoreEvaluator) evalCoreArray(arr *core.Array) (Value, error) {
 
 // evalCoreTuple evaluates tuple construction
 func (e *CoreEvaluator) evalCoreTuple(tuple *core.Tuple) (Value, error) {
-	var elements []Value
+	elements := make([]Value, 0, len(tuple.Elements))
 
 	for _, elemExpr := range tuple.Elements {
 		val, err := e.evalCore(elemExpr)

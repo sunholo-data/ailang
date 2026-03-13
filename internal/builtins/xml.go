@@ -195,8 +195,16 @@ type prefixMap struct {
 
 func (pm *prefixMap) lookupPrefix(uri string) string {
 	for p := pm; p != nil; p = p.parent {
+		// Check default namespace first (empty prefix) for determinism.
+		// Go map iteration is random, so iterating directly could return
+		// different prefixes across runs when multiple prefixes map to
+		// the same URI (e.g. xmlns="..." and xmlns:opf="..." both point
+		// to the same namespace). Always prefer the default namespace.
+		if u, ok := p.entries[""]; ok && u == uri {
+			return ""
+		}
 		for prefix, u := range p.entries {
-			if u == uri {
+			if prefix != "" && u == uri {
 				return prefix
 			}
 		}
@@ -237,7 +245,7 @@ func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Va
 		case xml.StartElement:
 			// Extract xmlns prefix mappings from attributes
 			localPM := &prefixMap{parent: pm, entries: make(map[string]string)}
-			var attrs []eval.Value
+			attrs := make([]eval.Value, 0, len(t.Attr))
 			for _, a := range t.Attr {
 				if a.Name.Space == "xmlns" {
 					// xmlns:prefix="URI" — record the mapping
@@ -262,18 +270,14 @@ func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Va
 			}
 
 			tagName := resolveTagName(t.Name, localPM)
-			if attrs == nil {
-				attrs = []eval.Value{}
-			}
 			children = append(children, makeXmlElement(tagName, attrs, childNodes))
 
 		case xml.EndElement:
 			return children, nil
 
 		case xml.CharData:
-			text := string(t)
-			if strings.TrimSpace(text) != "" {
-				children = append(children, makeXmlText(text))
+			if !isAllWhitespace(t) {
+				children = append(children, makeXmlText(string(t)))
 			}
 
 		case xml.Comment:
@@ -286,6 +290,17 @@ func parseXmlChildren(decoder *xml.Decoder, depth int, pm *prefixMap) ([]eval.Va
 			// Skip processing instructions (<?xml ...?>)
 		}
 	}
+}
+
+// isAllWhitespace checks if a byte slice contains only whitespace,
+// without allocating a new string (unlike strings.TrimSpace).
+func isAllWhitespace(data []byte) bool {
+	for _, b := range data {
+		if b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // ============================================================================

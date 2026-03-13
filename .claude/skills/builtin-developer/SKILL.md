@@ -292,13 +292,14 @@ ailang builtins list --by-effect    # Group by effect
 ailang builtins check-migration     # Check for orphaned builtins
 ```
 
-**6 validation rules:**
+**7 validation rules:**
 1. Type function exists and valid
 2. Implementation function exists
 3. Arity matches NumArgs
 4. Effect consistency (IsPure vs Effect field)
 5. Module name valid
 6. Metadata complete
+7. **Determinism**: `IsPure: true` builtins MUST NOT use nondeterministic Go patterns (map iteration, goroutines, time-dependent logic). Tests must run with `-count=20` to verify. See xml.go `lookupPrefix` bug — Go map iteration caused `findAll` to randomly drop elements.
 
 ## Metrics
 

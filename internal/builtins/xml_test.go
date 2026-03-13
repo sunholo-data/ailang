@@ -436,6 +436,40 @@ func TestXmlFindAll_NoMatch(t *testing.T) {
 	}
 }
 
+func TestXmlFindAll_DuplicateNamespace(t *testing.T) {
+	// Reproducer for nondeterministic findAll: when both default xmlns and
+	// a named prefix map to the same URI, Go map iteration could randomly
+	// pick either prefix, causing tag names to sometimes be "item" and
+	// sometimes "opf:item". Run 20 times to catch nondeterminism.
+	xmlStr := `<package xmlns="http://www.idpf.org/2007/opf" xmlns:opf="http://www.idpf.org/2007/opf">
+		<metadata><item id="1"/><item id="2"/><item id="3"/></metadata>
+		<manifest><item id="4"/><item id="5"/><item id="6"/><item id="7"/></manifest>
+		<spine><itemref idref="1"/><itemref idref="2"/><itemref idref="3"/></spine>
+	</package>`
+
+	ctx := xmlTestCtx(t)
+	for i := 0; i < 20; i++ {
+		root := parseTestXml(t, xmlStr)
+		result, err := xmlFindAllImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "item"}})
+		if err != nil {
+			t.Fatalf("run %d: unexpected error: %v", i, err)
+		}
+		list := result.(*eval.ListValue)
+		if len(list.Elements) != 7 {
+			t.Fatalf("run %d: expected 7 items, got %d (nondeterministic namespace resolution)", i, len(list.Elements))
+		}
+
+		result2, err := xmlFindAllImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "itemref"}})
+		if err != nil {
+			t.Fatalf("run %d: unexpected error: %v", i, err)
+		}
+		list2 := result2.(*eval.ListValue)
+		if len(list2.Elements) != 3 {
+			t.Fatalf("run %d: expected 3 itemrefs, got %d (nondeterministic namespace resolution)", i, len(list2.Elements))
+		}
+	}
+}
+
 // ============================================================================
 // _xml_findFirst tests
 // ============================================================================

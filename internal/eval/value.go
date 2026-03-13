@@ -83,15 +83,16 @@ type ListValue struct {
 
 func (l *ListValue) Type() string { return "list" }
 func (l *ListValue) String() string {
-	result := "["
+	var b strings.Builder
+	b.WriteByte('[')
 	for i, elem := range l.Elements {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += elem.String()
+		b.WriteString(elem.String())
 	}
-	result += "]"
-	return result
+	b.WriteByte(']')
+	return b.String()
 }
 
 // ArrayValue represents an array with O(1) indexed access
@@ -101,15 +102,16 @@ type ArrayValue struct {
 
 func (a *ArrayValue) Type() string { return "array" }
 func (a *ArrayValue) String() string {
-	result := "#["
+	var b strings.Builder
+	b.WriteString("#[")
 	for i, elem := range a.Elements {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += elem.String()
+		b.WriteString(elem.String())
 	}
-	result += "]"
-	return result
+	b.WriteByte(']')
+	return b.String()
 }
 
 // Get returns the element at index i, or nil if out of bounds
@@ -139,15 +141,16 @@ type TupleValue struct {
 
 func (t *TupleValue) Type() string { return "tuple" }
 func (t *TupleValue) String() string {
-	result := "("
+	var b strings.Builder
+	b.WriteByte('(')
 	for i, elem := range t.Elements {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += elem.String()
+		b.WriteString(elem.String())
 	}
-	result += ")"
-	return result
+	b.WriteByte(')')
+	return b.String()
 }
 
 // RecordValue represents a record (struct) value
@@ -164,15 +167,18 @@ func (r *RecordValue) String() string {
 	}
 	sort.Strings(keys)
 
-	result := "{"
+	var b strings.Builder
+	b.WriteByte('{')
 	for i, k := range keys {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += fmt.Sprintf("%s: %s", k, r.Fields[k].String())
+		b.WriteString(k)
+		b.WriteString(": ")
+		b.WriteString(r.Fields[k].String())
 	}
-	result += "}"
-	return result
+	b.WriteByte('}')
+	return b.String()
 }
 
 // ContractSpec represents a requires/ensures contract for a function (M-VERIFY-CONTRACTS)
@@ -226,19 +232,19 @@ type TaggedValue struct {
 func (t *TaggedValue) Type() string { return t.TypeName }
 func (t *TaggedValue) String() string {
 	if len(t.Fields) == 0 {
-		// Nullary constructor: None
 		return t.CtorName
 	}
-	// Constructor with fields: Some(42)
-	result := t.CtorName + "("
+	var b strings.Builder
+	b.WriteString(t.CtorName)
+	b.WriteByte('(')
 	for i, field := range t.Fields {
 		if i > 0 {
-			result += ", "
+			b.WriteString(", ")
 		}
-		result += field.String()
+		b.WriteString(field.String())
 	}
-	result += ")"
-	return result
+	b.WriteByte(')')
+	return b.String()
 }
 
 // ConstructorClosure represents an ADT constructor that takes arguments

@@ -17,6 +17,21 @@
 - [ ] Comprehensive coverage (all acceptance criteria)
 - [ ] Include edge cases and error conditions
 - [ ] Test both success and failure paths
+- [ ] Use realistic-complexity inputs (not just toy examples)
+  - XML: include namespaces, duplicate prefixes, nested elements
+  - Lists: test with >10 elements, not just 2-3
+  - Maps: verify ordering doesn't affect output
+
+## Determinism Verification (AILANG Axiom)
+- [ ] For builtins marked `IsPure: true`: run tests with `-count=20`
+  - `go test ./internal/builtins/ -run TestMyPureFunc -count=20`
+  - A pure function MUST return identical output for identical input, every time
+  - Single-pass tests can hide Go map iteration nondeterminism
+- [ ] For any Go code iterating maps in pure function paths:
+  - **Red flag**: `for k, v := range someMap` in code called by `IsPure: true` builtins
+  - Prefer deterministic alternatives: sorted keys, explicit priority (e.g., check default first)
+  - Or add multi-iteration tests that detect ordering sensitivity
+- [ ] If test uses random/time-based data: verify with fixed seed or multiple runs
 
 ## Quality Verification
 - [ ] Run tests: `make test` - MUST PASS

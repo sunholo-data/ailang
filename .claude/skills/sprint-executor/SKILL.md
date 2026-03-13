@@ -88,6 +88,7 @@ All milestones have been completed and tests pass.
 6. **DX-First**: Improve AILANG development experience as we go - make it easier next time
 7. **Parallelize When Possible**: Independent milestones run as concurrent Task sub-agents for speed
 8. **Failing Tests First**: Sub-agents MUST write failing tests before implementation — no exceptions
+9. **Determinism Verified**: Pure builtins (`IsPure: true`) MUST be tested with `-count=20` — single-pass tests hide Go map iteration nondeterminism. Use realistic inputs, not toy examples. See [milestone_checklist.md](resources/milestone_checklist.md) for details.
 
 ## Multi-Session Continuity (NEW)
 
