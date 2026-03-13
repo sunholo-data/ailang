@@ -29,9 +29,11 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match) (Value, error) {
 	}
 
 	// Decision tree optimization: compile to tree if beneficial
-	// Note: Decision tree compilation is available but disabled by default
-	// This is a runtime optimization that doesn't change semantics
-	useDecisionTree := false // Can be enabled via flag in future
+	// DISABLED by default due to guard failure bug: when a guard evaluates to false,
+	// the dtree returns an error instead of falling through to the next arm.
+	// Also missing: list/record/tuple pattern support, guard backtracking.
+	// Enable with AILANG_DTREE=1 for experimentation (no guards in match).
+	useDecisionTree := os.Getenv("AILANG_DTREE") == "1"
 	if useDecisionTree {
 		compiler := dtree.NewDecisionTreeCompiler(match.Arms)
 		tree := compiler.Compile()
