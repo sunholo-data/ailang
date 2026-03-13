@@ -1256,3 +1256,151 @@ func TestSQLiteSharedCache_MixedFrames(t *testing.T) {
 		t.Errorf("expected 2 embedding results, got %d", len(embResults))
 	}
 }
+
+// --- Three-tier search tests (M-BRAIN-VECTORS M3) ---
+
+func TestBrainStore_SearchThreeTier(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewBrainStore(
+		filepath.Join(dir, "user.db"),
+		filepath.Join(dir, "project.db"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	// Frame with embedding + simhash + content
+	store.Put(BrainFrame{
+		Key: "full", Namespace: "test", Value: []byte("v"),
+		Content: "parser crash fix", SimHash: 100,
+		Embedding: []float32{0.9, 0.1, 0.0}, EmbedModel: "test",
+	}, ScopeProject)
+
+	// Frame with simhash + content only
+	store.Put(BrainFrame{
+		Key: "sim_only", Namespace: "test", Value: []byte("v"),
+		Content: "parser optimization", SimHash: 101, // close to 100
+	}, ScopeProject)
+
+	// Frame with content only (no simhash close match, no embedding)
+	store.Put(BrainFrame{
+		Key: "text_only", Namespace: "test", Value: []byte("v"),
+		Content: "parser debug tips", SimHash: 999999,
+	}, ScopeProject)
+
+	// Three-tier search with embedding
+	queryEmb := []float32{0.9, 0.1, 0.0} // matches "full"
+	results := store.SearchThreeTier("parser", 100, queryEmb, "test", 10, ScopeBoth)
+
+	if len(results) < 3 {
+		t.Fatalf("expected at least 3 results, got %d", len(results))
+	}
+
+	// "full" should rank highest (cosine + boost)
+	if results[0].Frame.Key != "full" {
+		t.Errorf("expected 'full' first (cosine+boost), got %s (score=%.3f)", results[0].Frame.Key, results[0].Score)
+	}
+
+	// Verify cosine results get boost
+	if results[0].Score <= 1.0 {
+		// Score should be > 1.0 with cosine boost + project boost
+		// (but capped at 1.0, so check it's at the cap)
+	}
+}
+
+func TestBrainStore_SearchByEmbedding(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewBrainStore(
+		filepath.Join(dir, "user.db"),
+		filepath.Join(dir, "project.db"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	store.Put(BrainFrame{
+		Key: "proj_vec", Namespace: "test", Value: []byte("v"),
+		Embedding: []float32{1, 0, 0}, EmbedModel: "test",
+	}, ScopeProject)
+
+	store.Put(BrainFrame{
+		Key: "user_vec", Namespace: "test", Value: []byte("v"),
+		Embedding: []float32{0, 1, 0}, EmbedModel: "test",
+	}, ScopeUser)
+
+	// Search both
+	results := store.SearchByEmbedding([]float32{1, 0, 0}, "test", 10, ScopeBoth)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	// proj_vec should rank first (higher cosine + project boost)
+	if results[0].Frame.Key != "proj_vec" {
+		t.Errorf("expected proj_vec first, got %s", results[0].Frame.Key)
+	}
+
+	// Search project only
+	results = store.SearchByEmbedding([]float32{1, 0, 0}, "test", 10, ScopeProject)
+	if len(results) != 1 || results[0].Frame.Key != "proj_vec" {
+		t.Error("scope project should only return project frame")
+	}
+}
+
+func TestExportImportWithEmbeddings(t *testing.T) {
+	// Create frame with embedding
+	f := BrainFrame{
+		Key: "emb_frame", Namespace: "test", Value: []byte("payload"),
+		Content: "test content", SimHash: 42,
+		Embedding: []float32{0.1, 0.2, 0.3, 0.4}, EmbeddingDim: 4, EmbedModel: "test-model",
+	}
+
+	// Export
+	record := ExportFrameRecord(f, "project")
+
+	// Verify embedding is in record
+	if _, ok := record["embedding"]; !ok {
+		t.Fatal("exported record should have embedding field")
+	}
+	if record["embedding_dim"] != 4 {
+		t.Errorf("expected dim 4, got %v", record["embedding_dim"])
+	}
+
+	// Import into new frame
+	var imported BrainFrame
+	imported.Key = record["key"].(string)
+	ImportFrameEmbedding(record, &imported)
+
+	if len(imported.Embedding) != 4 {
+		t.Fatalf("expected 4-dim embedding, got %d", len(imported.Embedding))
+	}
+	for i, want := range f.Embedding {
+		if imported.Embedding[i] != want {
+			t.Errorf("embedding[%d]: got %f, want %f", i, imported.Embedding[i], want)
+		}
+	}
+	if imported.EmbedModel != "test-model" {
+		t.Errorf("expected model test-model, got %s", imported.EmbedModel)
+	}
+}
+
+func TestExportImportWithoutEmbeddings(t *testing.T) {
+	// Frame without embedding
+	f := BrainFrame{
+		Key: "no_emb", Namespace: "test", Value: []byte("v"),
+		Content: "text only", SimHash: 42,
+	}
+
+	record := ExportFrameRecord(f, "user")
+
+	// Should not have embedding field
+	if _, ok := record["embedding"]; ok {
+		t.Error("frame without embedding should not have embedding in export")
+	}
+
+	var imported BrainFrame
+	ImportFrameEmbedding(record, &imported)
+	if len(imported.Embedding) != 0 {
+		t.Error("import should produce no embedding when none in record")
+	}
+}

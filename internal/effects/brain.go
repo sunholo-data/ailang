@@ -3,6 +3,7 @@
 package effects
 
 import (
+	"encoding/base64"
 	"sort"
 )
 
@@ -109,6 +110,165 @@ func (b *BrainStore) Search(namespace string, queryHash int64, limit int, scope 
 		results = results[:limit]
 	}
 	return results
+}
+
+// SearchByEmbedding queries both brains by cosine similarity.
+func (b *BrainStore) SearchByEmbedding(query []float32, namespace string, limit int, scope BrainScope) []BrainSearchResult {
+	const projectBoost = 0.05
+
+	var results []BrainSearchResult
+
+	if (scope == ScopeBoth || scope == ScopeProject) && b.Project != nil {
+		projectResults := b.Project.SearchByEmbedding(query, namespace, 0)
+		for i := range projectResults {
+			projectResults[i].Tier = "project"
+			projectResults[i].Score += projectBoost
+			if projectResults[i].Score > 1.0 {
+				projectResults[i].Score = 1.0
+			}
+		}
+		results = append(results, projectResults...)
+	}
+
+	if (scope == ScopeBoth || scope == ScopeUser) && b.User != nil {
+		userResults := b.User.SearchByEmbedding(query, namespace, 0)
+		for i := range userResults {
+			userResults[i].Tier = "user"
+		}
+		results = append(results, userResults...)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+		if results[i].Tier != results[j].Tier {
+			return results[i].Tier == "project"
+		}
+		return results[i].Frame.Key < results[j].Frame.Key
+	})
+
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results
+}
+
+// SearchThreeTier performs a three-tier search: cosine > SimHash > text.
+// Cosine results get a +0.1 boost over SimHash-only results.
+// Results are merged and deduplicated by key.
+func (b *BrainStore) SearchThreeTier(query string, queryHash int64, queryEmbedding []float32, namespace string, limit int, scope BrainScope) []BrainSearchResult {
+	const cosineBoost = 0.1
+
+	seen := make(map[string]bool)
+	var merged []BrainSearchResult
+
+	// Tier 1: Cosine (if embedding available)
+	if len(queryEmbedding) > 0 {
+		cosResults := b.SearchByEmbedding(queryEmbedding, namespace, 0, scope)
+		for _, r := range cosResults {
+			r.Score += cosineBoost
+			if r.Score > 1.0 {
+				r.Score = 1.0
+			}
+			seen[r.Frame.Key] = true
+			merged = append(merged, r)
+		}
+	}
+
+	// Tier 2: SimHash
+	simResults := b.Search(namespace, queryHash, 0, scope)
+	for _, r := range simResults {
+		if !seen[r.Frame.Key] {
+			seen[r.Frame.Key] = true
+			merged = append(merged, r)
+		}
+	}
+
+	// Tier 3: Text
+	textResults := b.SearchText(query, namespace, 0, scope)
+	for _, r := range textResults {
+		if !seen[r.Frame.Key] {
+			seen[r.Frame.Key] = true
+			merged = append(merged, r)
+		}
+	}
+
+	// Sort merged: score DESC, tier (project first), key ASC
+	sort.Slice(merged, func(i, j int) bool {
+		if merged[i].Score != merged[j].Score {
+			return merged[i].Score > merged[j].Score
+		}
+		if merged[i].Tier != merged[j].Tier {
+			return merged[i].Tier == "project"
+		}
+		return merged[i].Frame.Key < merged[j].Frame.Key
+	})
+
+	if limit > 0 && len(merged) > limit {
+		merged = merged[:limit]
+	}
+	return merged
+}
+
+// EmbeddingStats returns embedding coverage for both tiers.
+func (b *BrainStore) EmbeddingStats() map[string]struct {
+	Total, WithEmbedding int
+	Models               map[string]int
+} {
+	result := make(map[string]struct {
+		Total, WithEmbedding int
+		Models               map[string]int
+	})
+	for name, cache := range map[string]*SQLiteSharedCache{"user": b.User, "project": b.Project} {
+		if cache == nil {
+			continue
+		}
+		total, withEmb, models := cache.EmbeddingStats()
+		result[name] = struct {
+			Total, WithEmbedding int
+			Models               map[string]int
+		}{total, withEmb, models}
+	}
+	return result
+}
+
+// ExportFrameRecord creates an export-ready map from a BrainFrame, including base64 embedding.
+func ExportFrameRecord(f BrainFrame, tier string) map[string]interface{} {
+	record := map[string]interface{}{
+		"tier":       tier,
+		"key":        f.Key,
+		"namespace":  f.Namespace,
+		"value":      string(f.Value),
+		"simhash":    f.SimHash,
+		"content":    f.Content,
+		"version":    f.Version,
+		"created_at": f.CreatedAt,
+		"updated_at": f.UpdatedAt,
+		"source":     f.Source,
+	}
+	if f.ExpiresAt != nil {
+		record["expires_at"] = *f.ExpiresAt
+	}
+	if len(f.Embedding) > 0 {
+		record["embedding"] = base64.StdEncoding.EncodeToString(encodeEmbedding(f.Embedding))
+		record["embedding_dim"] = f.EmbeddingDim
+		record["embed_model"] = f.EmbedModel
+	}
+	return record
+}
+
+// ImportFrameEmbedding decodes base64 embedding from an import record.
+func ImportFrameEmbedding(record map[string]interface{}, f *BrainFrame) {
+	if embStr, ok := record["embedding"].(string); ok && embStr != "" {
+		if embBytes, err := base64.StdEncoding.DecodeString(embStr); err == nil {
+			f.Embedding = decodeEmbedding(embBytes)
+			f.EmbeddingDim = len(f.Embedding)
+		}
+	}
+	if model, ok := record["embed_model"].(string); ok {
+		f.EmbedModel = model
+	}
 }
 
 // SearchText queries both brains by keyword and merges results.

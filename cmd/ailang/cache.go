@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,6 +50,8 @@ func cacheCommand() {
 		runCacheImport(args)
 	case "embed":
 		runCacheEmbed(args)
+	case "put-vector":
+		runCachePutVector(args)
 	case "--help", "-h", "help":
 		printCacheHelp()
 	default:
@@ -125,12 +128,13 @@ func runCacheSearch(args []string) {
 	ns := fs.String("namespace", "", "Filter by namespace")
 	limit := fs.Int("limit", 10, "Maximum results")
 	context := fs.String("context", "", "Comma-separated file paths to find related knowledge")
+	cosineOnly := fs.Bool("cosine", false, "Force cosine (embedding) search only")
+	simhashOnly := fs.Bool("simhash", false, "Force SimHash search only (fast path)")
 	fs.Parse(args)
 
 	query := strings.Join(fs.Args(), " ")
 	if query == "" && *context == "" {
-		fmt.Fprintln(os.Stderr, "Usage: ailang cache search <query> [--scope user|project|both] [--namespace NS] [--limit N]")
-		fmt.Fprintln(os.Stderr, "       ailang cache search --context FILE1,FILE2")
+		fmt.Fprintln(os.Stderr, "Usage: ailang cache search <query> [--cosine] [--simhash] [--scope both|user|project]")
 		os.Exit(1)
 	}
 
@@ -143,7 +147,6 @@ func runCacheSearch(args []string) {
 
 	start := time.Now()
 
-	// If --context provided, build query from file paths
 	if *context != "" {
 		files := strings.Split(*context, ",")
 		if query == "" {
@@ -151,26 +154,40 @@ func runCacheSearch(args []string) {
 		}
 	}
 
-	// SimHash search + text search, merge results
 	queryHash := builtins.SimHash(query)
-	simResults := store.Search(*ns, queryHash, *limit, parseScope(*scope))
-	textResults := store.SearchText(query, *ns, *limit, parseScope(*scope))
+	sc := parseScope(*scope)
 
-	// Merge: deduplicate by key, prefer SimHash score
-	seen := make(map[string]bool)
 	var merged []effects.BrainSearchResult
-	for _, r := range simResults {
-		seen[r.Frame.Key] = true
-		merged = append(merged, r)
-	}
-	for _, r := range textResults {
-		if !seen[r.Frame.Key] {
-			merged = append(merged, r)
-		}
-	}
 
-	if len(merged) > *limit {
-		merged = merged[:*limit]
+	switch {
+	case *cosineOnly:
+		// Cosine-only: need embedder to compute query embedding
+		embedder := createEmbedder()
+		if embedder == nil {
+			fmt.Fprintln(os.Stderr, "Error: --cosine requires an embedder. Set AILANG_EMBED_PROVIDER.")
+			os.Exit(1)
+		}
+		queryEmb, err := embedder.Embed(query)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error computing query embedding: %v\n", err)
+			os.Exit(1)
+		}
+		merged = store.SearchByEmbedding(queryEmb, *ns, *limit, sc)
+
+	case *simhashOnly:
+		// SimHash-only fast path
+		merged = store.Search(*ns, queryHash, *limit, sc)
+
+	default:
+		// Three-tier: cosine (if embedder available) > SimHash > text
+		var queryEmb []float32
+		embedder := createEmbedder()
+		if embedder != nil {
+			if emb, err := embedder.Embed(query); err == nil {
+				queryEmb = emb
+			}
+		}
+		merged = store.SearchThreeTier(query, queryHash, queryEmb, *ns, *limit, sc)
 	}
 
 	elapsed := time.Since(start)
@@ -181,14 +198,24 @@ func runCacheSearch(args []string) {
 		for i, r := range merged {
 			age := formatAgeMillis(r.Frame.UpdatedAt)
 			content := truncateClean(r.Frame.Content, 80)
-			fmt.Printf("  %d. [%s] [%s] %s (score: %.2f)\n", i+1, r.Tier, r.Frame.Namespace, r.Frame.Key, r.Score)
+			embTag := ""
+			if r.Frame.EmbeddingDim > 0 {
+				embTag = " [emb]"
+			}
+			fmt.Printf("  %d. [%s] [%s] %s (score: %.2f)%s\n", i+1, r.Tier, r.Frame.Namespace, r.Frame.Key, r.Score, embTag)
 			if content != "" {
 				fmt.Printf("     %s — %s\n", age, content)
 			}
 		}
 	}
 
-	fmt.Printf("\nscope=%s results=%d query_ms=%d\n", *scope, len(merged), elapsed.Milliseconds())
+	mode := "three-tier"
+	if *cosineOnly {
+		mode = "cosine"
+	} else if *simhashOnly {
+		mode = "simhash"
+	}
+	fmt.Printf("\nmode=%s scope=%s results=%d query_ms=%d\n", mode, *scope, len(merged), elapsed.Milliseconds())
 }
 
 func runCacheList(args []string) {
@@ -420,6 +447,7 @@ func runCacheStats(args []string) {
 	defer store.Close()
 
 	allStats := store.Stats()
+	embStats := store.EmbeddingStats()
 
 	for tier, stats := range allStats {
 		fmt.Printf("━━━ %s brain ━━━\n", tier)
@@ -430,6 +458,16 @@ func runCacheStats(args []string) {
 		}
 		for ns, count := range stats.Namespaces {
 			fmt.Printf("  [%s]: %d\n", ns, count)
+		}
+		if es, ok := embStats[tier]; ok {
+			pct := 0.0
+			if es.Total > 0 {
+				pct = float64(es.WithEmbedding) / float64(es.Total) * 100
+			}
+			fmt.Printf("  With embeddings: %d (%.0f%%)\n", es.WithEmbedding, pct)
+			for model, count := range es.Models {
+				fmt.Printf("    %s: %d\n", model, count)
+			}
 		}
 		fmt.Println()
 	}
@@ -506,21 +544,7 @@ func runCacheExport(args []string) {
 		}
 		frames := tier.cache.ListRecent("", 100000) // all frames
 		for _, f := range frames {
-			record := map[string]interface{}{
-				"tier":       tier.name,
-				"key":        f.Key,
-				"namespace":  f.Namespace,
-				"value":      string(f.Value),
-				"simhash":    f.SimHash,
-				"content":    f.Content,
-				"version":    f.Version,
-				"created_at": f.CreatedAt,
-				"updated_at": f.UpdatedAt,
-				"source":     f.Source,
-			}
-			if f.ExpiresAt != nil {
-				record["expires_at"] = *f.ExpiresAt
-			}
+			record := effects.ExportFrameRecord(f, tier.name)
 			encoder.Encode(record)
 		}
 	}
@@ -565,12 +589,72 @@ func runCacheImport(args []string) {
 			e := int64(exp)
 			frame.ExpiresAt = &e
 		}
+		effects.ImportFrameEmbedding(record, &frame)
 
 		store.Put(frame, parseScope(tier))
 		count++
 	}
 
 	fmt.Printf("Imported %d frame(s)\n", count)
+}
+
+func runCachePutVector(args []string) {
+	fs := flag.NewFlagSet("cache put-vector", flag.ExitOnError)
+	ns := fs.String("ns", "vectors", "Namespace")
+	scope := fs.String("scope", "project", "Brain tier")
+	model := fs.String("model", "manual", "Embedding model name")
+	fs.Parse(args)
+
+	// Read JSON from stdin: {"key": "k", "embedding": [0.1, 0.2, ...], "payload": {...}}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+		os.Exit(1)
+	}
+
+	var input struct {
+		Key       string          `json:"key"`
+		Embedding []float32       `json:"embedding"`
+		Payload   json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal(data, &input); err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	if input.Key == "" || len(input.Embedding) == 0 {
+		fmt.Fprintln(os.Stderr, "JSON must have 'key' and 'embedding' fields")
+		fmt.Fprintln(os.Stderr, `Example: echo '{"key":"v1","embedding":[0.1,0.2],"payload":{"type":"task"}}' | ailang cache put-vector`)
+		os.Exit(1)
+	}
+
+	store, err := openBrainStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening brain: %v\n", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	payload := input.Payload
+	if payload == nil {
+		payload = []byte("{}")
+	}
+
+	cache := store.Project
+	if parseScope(*scope) == effects.ScopeUser {
+		cache = store.User
+	}
+	if cache == nil {
+		fmt.Fprintln(os.Stderr, "Error: specified brain tier is not available")
+		os.Exit(1)
+	}
+
+	if err := cache.PutVector(input.Key, *ns, input.Embedding, *model, payload); err != nil {
+		fmt.Fprintf(os.Stderr, "Error storing vector: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Stored vector: %s [%s] (dim=%d, model=%s)\n", input.Key, *ns, len(input.Embedding), *model)
 }
 
 func runCacheEmbed(args []string) {
