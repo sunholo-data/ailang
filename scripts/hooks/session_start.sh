@@ -115,6 +115,69 @@ log "GitHub import handled by coordinator (github_sync enabled)"
 MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
 UNREAD_COUNT=$(echo "$MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
 
+# Function to query brain for relevant context based on recent files
+get_brain_context() {
+    local BRAIN_CONTEXT=""
+
+    # Check if brain hooks are disabled
+    if [ "${AILANG_BRAIN_HOOKS:-1}" = "0" ]; then
+        echo ""
+        return
+    fi
+
+    # Check if ailang supports cache command
+    if ! command -v ailang &> /dev/null; then
+        echo ""
+        return
+    fi
+
+    # Check if any brain DB exists (graceful bootstrap)
+    if [ ! -f "$PROJECT_ROOT/.ailang/state/brain.db" ] && [ ! -f "$HOME/.ailang/state/brain.db" ]; then
+        echo ""
+        return
+    fi
+
+    # Get recently modified files for context query
+    local RECENT_FILES
+    RECENT_FILES=$(git diff --name-only HEAD~3 HEAD 2>/dev/null | head -5 | tr '\n' ',' | sed 's/,$//')
+
+    local BRAIN_RESULTS=""
+    if [ -n "$RECENT_FILES" ]; then
+        # Search brain based on recently touched files
+        BRAIN_RESULTS=$(ailang cache search --context "$RECENT_FILES" --limit 3 2>/dev/null || echo "")
+    fi
+
+    # Also do a general search based on current branch/task
+    local BRANCH_NAME
+    BRANCH_NAME=$(git branch --show-current 2>/dev/null || echo "")
+    if [ -n "$BRANCH_NAME" ] && [ "$BRANCH_NAME" != "dev" ] && [ "$BRANCH_NAME" != "main" ]; then
+        local BRANCH_RESULTS
+        BRANCH_RESULTS=$(ailang cache search "${BRANCH_NAME//-/ }" --limit 2 2>/dev/null || echo "")
+        if [ -n "$BRANCH_RESULTS" ] && ! echo "$BRANCH_RESULTS" | grep -q "No results"; then
+            BRAIN_RESULTS="${BRAIN_RESULTS}
+${BRANCH_RESULTS}"
+        fi
+    fi
+
+    # Only output if we got results
+    if [ -n "$BRAIN_RESULTS" ] && ! echo "$BRAIN_RESULTS" | grep -q "No results"; then
+        # Filter to just the result lines (skip metadata)
+        local FILTERED
+        FILTERED=$(echo "$BRAIN_RESULTS" | grep -E '^\s+[0-9]+\.|^\s+[0-9]+[dhm] ago' | head -6)
+        if [ -n "$FILTERED" ]; then
+            BRAIN_CONTEXT="
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 BRAIN: Relevant knowledge for this session
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+$FILTERED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            log "Brain context injected ($(echo "$FILTERED" | wc -l | tr -d ' ') entries)"
+        fi
+    fi
+
+    echo "$BRAIN_CONTEXT"
+}
+
 # Function to check for active sprint and return context
 get_sprint_context() {
     local SPRINT_DIR="$PROJECT_ROOT/.ailang/state/sprints"
@@ -181,16 +244,18 @@ if [ "$UNREAD_COUNT" -eq 0 ]; then
         log "Exported AGENT_INBOX_COUNT=0 to CLAUDE_ENV_FILE"
     fi
 
-    # Check for active sprint even when no inbox messages
+    # Check for active sprint and brain context even when no inbox messages
     SPRINT_CONTEXT=$(get_sprint_context)
+    BRAIN_CONTEXT=$(get_brain_context)
 
     # Output context (will appear in system reminders)
     echo "📦 AILANG $CURRENT_VERSION"
+    echo "📭 Agent inbox: No unread messages from autonomous agents."
     if [ -n "$SPRINT_CONTEXT" ]; then
-        echo "📭 Agent inbox: No unread messages from autonomous agents."
         echo "$SPRINT_CONTEXT"
-    else
-        echo "📭 Agent inbox: No unread messages from autonomous agents."
+    fi
+    if [ -n "$BRAIN_CONTEXT" ]; then
+        echo "$BRAIN_CONTEXT"
     fi
 
     log "Outputted context to Claude"
@@ -212,8 +277,9 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     log "Exported AGENT_INBOX_MESSAGES (base64 encoded JSON) to CLAUDE_ENV_FILE"
 fi
 
-# Get sprint context using the function defined earlier
+# Get sprint and brain context using the functions defined earlier
 SPRINT_CONTEXT=$(get_sprint_context)
+BRAIN_CONTEXT=$(get_brain_context)
 
 # If many messages (5+), try to generate triage summary
 TRIAGE_SUMMARY=""
@@ -244,6 +310,7 @@ $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $TRIAGE_SUMMARY
 $SPRINT_CONTEXT
+$BRAIN_CONTEXT
 EOF
 )
 

@@ -44,10 +44,10 @@
         "ailang cache export | ailang cache import round-trips cleanly",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-13T19:20:00+01:00",
+      "completed": "2026-03-13T19:50:00+01:00",
+      "notes": "Full CLI: search, list, show, put, put-resolution, promote, stats, gc, export/import. Fixed SearchBySimHash empty namespace + SearchByText LIMIT 0 bugs. 614 LOC. Commit 3a82f84e."
     },
     {
       "id": "M3_HOOK_INTEGRATION",
