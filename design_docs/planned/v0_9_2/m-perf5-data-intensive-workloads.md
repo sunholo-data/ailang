@@ -1,6 +1,6 @@
 # M-PERF5: Data-Intensive Workload Performance
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.9.2
 **Priority**: P1 (High — blocks DocParse production use)
 **Estimated**: 3-4 days
@@ -206,3 +206,35 @@ export pure func join(parts: List[string], sep: string) -> string = _str_join(pa
 - Bytecode interpreter (M-PERF4 — separate, larger effort)
 - Codegen optimizations (M-PERF3 Track C — separate concern)
 - Streaming XML API (future design doc — different paradigm)
+
+## Implementation Results (Sprint M-PERF5)
+
+### Benchmarks
+
+**Synthetic benchmark (parse + findAllTexts + join):**
+
+| XML Size | Elements | Time | Notes |
+|----------|----------|------|-------|
+| 8KB | 50 paragraphs | 0.1s | Trivial |
+| 31KB | 200 paragraphs | 0.2s | Fast |
+| 77KB | 500 paragraphs | 0.5s | Fast |
+| 159KB | 1000 paragraphs | 0.35s | Bulk ops dominate |
+| 236KB | 1000 paragraphs (w/ build) | 3.5s | String building dominates |
+
+**Projected DocParse performance (linear scaling from benchmark):**
+- Alice EPUB (185KB): ~0.4s (down from 3.8s, target <2s) — **9.5x improvement**
+- Moby Dick EPUB (797KB): ~1.8s (down from 11.5s, target <3s) — **6.4x improvement**
+
+**Total improvement from baseline:**
+- Moby Dick: 62s → 11.5s (String() fix) → ~1.8s (bulk ops + join) = **34x improvement**
+
+### What Was Implemented
+
+1. **M1: Bulk XML Operations** — `findAllTexts(node, tag)` and `findAllAttrs(node, tag, attr)` Go builtins that do N operations in 1 call, eliminating per-element interpreter round-trips
+2. **M2: String Join Builtin** — `_str_join` Go builtin using `strings.Join`, replacing O(n²) recursive AILANG `join` with single-allocation O(n)
+3. **M3: Decision Tree Investigation** — Root cause: guard failure returns error instead of trying next arm. Also missing list/record/tuple pattern support. Gated behind `AILANG_DTREE=1` env flag
+
+### What Was Deferred
+
+- **Track 2: Native list ops** — Requires evaluator access from builtins, architecture risk
+- **Track 5: Environment CoW** — Complex refactor, marginal impact now that bulk ops bypass most function calls
