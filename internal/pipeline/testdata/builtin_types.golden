@@ -146,6 +146,8 @@ _string_intToStr : int -> string
 _string_reverse : string -> string
 _trace_check : string -> bool
 _xml_findAll : (XmlNode, string) -> list[XmlNode]
+_xml_findAllAttrs : (XmlNode, string, string) -> list[string]
+_xml_findAllTexts : (XmlNode, string) -> list[string]
 _xml_findFirst : (XmlNode, string) -> Option[XmlNode]
 _xml_getAttr : (XmlNode, string) -> Option[string]
 _xml_getChildren : XmlNode -> list[XmlNode]

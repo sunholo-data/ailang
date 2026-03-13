@@ -471,6 +471,160 @@ func TestXmlFindAll_DuplicateNamespace(t *testing.T) {
 }
 
 // ============================================================================
+// _xml_findAllTexts tests
+// ============================================================================
+
+func TestXmlFindAllTexts_Basic(t *testing.T) {
+	root := parseTestXml(t, "<root><p>Hello</p><div/><p>World</p></root>")
+	ctx := xmlTestCtx(t)
+	result, err := xmlFindAllTextsImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "p"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := result.(*eval.ListValue)
+	if len(list.Elements) != 2 {
+		t.Fatalf("expected 2 texts, got %d", len(list.Elements))
+	}
+	if list.Elements[0].(*eval.StringValue).Value != "Hello" {
+		t.Errorf("expected 'Hello', got %q", list.Elements[0].(*eval.StringValue).Value)
+	}
+	if list.Elements[1].(*eval.StringValue).Value != "World" {
+		t.Errorf("expected 'World', got %q", list.Elements[1].(*eval.StringValue).Value)
+	}
+}
+
+func TestXmlFindAllTexts_Nested(t *testing.T) {
+	root := parseTestXml(t, "<root><p>One <b>bold</b> text</p><p>Two</p></root>")
+	ctx := xmlTestCtx(t)
+	result, err := xmlFindAllTextsImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "p"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := result.(*eval.ListValue)
+	if len(list.Elements) != 2 {
+		t.Fatalf("expected 2 texts, got %d", len(list.Elements))
+	}
+	// getText concatenates all descendant text
+	if list.Elements[0].(*eval.StringValue).Value != "One bold text" {
+		t.Errorf("expected 'One bold text', got %q", list.Elements[0].(*eval.StringValue).Value)
+	}
+}
+
+func TestXmlFindAllTexts_NoMatch(t *testing.T) {
+	root := parseTestXml(t, "<root><item/></root>")
+	ctx := xmlTestCtx(t)
+	result, err := xmlFindAllTextsImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "p"}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := result.(*eval.ListValue)
+	if len(list.Elements) != 0 {
+		t.Fatalf("expected 0 results, got %d", len(list.Elements))
+	}
+}
+
+func TestXmlFindAllTexts_DuplicateNamespace(t *testing.T) {
+	// Determinism test: 20 iterations with duplicate namespace prefixes
+	xmlStr := `<package xmlns="http://www.idpf.org/2007/opf" xmlns:opf="http://www.idpf.org/2007/opf">
+		<spine><itemref>ch1</itemref><itemref>ch2</itemref><itemref>ch3</itemref>
+		<itemref>ch4</itemref><itemref>ch5</itemref><itemref>ch6</itemref>
+		<itemref>ch7</itemref><itemref>ch8</itemref><itemref>ch9</itemref>
+		<itemref>ch10</itemref><itemref>ch11</itemref><itemref>ch12</itemref></spine>
+	</package>`
+	ctx := xmlTestCtx(t)
+	for i := 0; i < 20; i++ {
+		root := parseTestXml(t, xmlStr)
+		result, err := xmlFindAllTextsImpl(ctx, []eval.Value{root, &eval.StringValue{Value: "itemref"}})
+		if err != nil {
+			t.Fatalf("run %d: unexpected error: %v", i, err)
+		}
+		list := result.(*eval.ListValue)
+		if len(list.Elements) != 12 {
+			t.Fatalf("run %d: expected 12 itemref texts, got %d (nondeterministic)", i, len(list.Elements))
+		}
+	}
+}
+
+// ============================================================================
+// _xml_findAllAttrs tests
+// ============================================================================
+
+func TestXmlFindAllAttrs_Basic(t *testing.T) {
+	root := parseTestXml(t, `<root><item href="a.html"/><div/><item href="b.html"/><item href="c.html"/></root>`)
+	ctx := xmlTestCtx(t)
+	result, err := xmlFindAllAttrsImpl(ctx, []eval.Value{
+		root,
+		&eval.StringValue{Value: "item"},
+		&eval.StringValue{Value: "href"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := result.(*eval.ListValue)
+	if len(list.Elements) != 3 {
+		t.Fatalf("expected 3 attrs, got %d", len(list.Elements))
+	}
+	expected := []string{"a.html", "b.html", "c.html"}
+	for i, exp := range expected {
+		got := list.Elements[i].(*eval.StringValue).Value
+		if got != exp {
+			t.Errorf("element %d: expected %q, got %q", i, exp, got)
+		}
+	}
+}
+
+func TestXmlFindAllAttrs_MissingAttr(t *testing.T) {
+	// Elements without the requested attribute are skipped
+	root := parseTestXml(t, `<root><item href="a.html"/><item/><item href="c.html"/></root>`)
+	ctx := xmlTestCtx(t)
+	result, err := xmlFindAllAttrsImpl(ctx, []eval.Value{
+		root,
+		&eval.StringValue{Value: "item"},
+		&eval.StringValue{Value: "href"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	list := result.(*eval.ListValue)
+	if len(list.Elements) != 2 {
+		t.Fatalf("expected 2 attrs (skipping element without href), got %d", len(list.Elements))
+	}
+}
+
+func TestXmlFindAllAttrs_DuplicateNamespace(t *testing.T) {
+	// Determinism test with duplicate namespace prefixes
+	xmlStr := `<manifest xmlns="http://www.idpf.org/2007/opf" xmlns:opf="http://www.idpf.org/2007/opf">
+		<item id="ch1" href="ch1.xhtml"/><item id="ch2" href="ch2.xhtml"/>
+		<item id="ch3" href="ch3.xhtml"/><item id="ch4" href="ch4.xhtml"/>
+		<item id="ch5" href="ch5.xhtml"/><item id="ch6" href="ch6.xhtml"/>
+		<item id="ch7" href="ch7.xhtml"/><item id="ch8" href="ch8.xhtml"/>
+		<item id="ch9" href="ch9.xhtml"/><item id="ch10" href="ch10.xhtml"/>
+		<item id="ch11" href="ch11.xhtml"/><item id="ch12" href="ch12.xhtml"/>
+		<item id="ch13" href="ch13.xhtml"/><item id="ch14" href="ch14.xhtml"/>
+		<item id="ch15" href="ch15.xhtml"/><item id="ch16" href="ch16.xhtml"/>
+		<item id="ch17" href="ch17.xhtml"/><item id="ch18" href="ch18.xhtml"/>
+		<item id="ch19" href="ch19.xhtml"/><item id="ch20" href="ch20.xhtml"/>
+		<item id="ch21" href="ch21.xhtml"/>
+	</manifest>`
+	ctx := xmlTestCtx(t)
+	for i := 0; i < 20; i++ {
+		root := parseTestXml(t, xmlStr)
+		result, err := xmlFindAllAttrsImpl(ctx, []eval.Value{
+			root,
+			&eval.StringValue{Value: "item"},
+			&eval.StringValue{Value: "href"},
+		})
+		if err != nil {
+			t.Fatalf("run %d: unexpected error: %v", i, err)
+		}
+		list := result.(*eval.ListValue)
+		if len(list.Elements) != 21 {
+			t.Fatalf("run %d: expected 21 href attrs, got %d (nondeterministic)", i, len(list.Elements))
+		}
+	}
+}
+
+// ============================================================================
 // _xml_findFirst tests
 // ============================================================================
 

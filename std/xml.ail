@@ -46,3 +46,11 @@ export pure func getChildren(node: XmlNode) -> List[XmlNode] = _xml_getChildren(
 -- Get tag name of an element
 -- Returns tag string for Element, empty string for Text/CData/Comment
 export pure func getTag(node: XmlNode) -> string = _xml_getTag(node)
+
+-- Bulk: find all matching elements and extract their text content
+-- Equivalent to map(findAll(node, tag), getText) but in one Go call
+export pure func findAllTexts(node: XmlNode, tag: string) -> List[string] = _xml_findAllTexts(node, tag)
+
+-- Bulk: find all matching elements and extract a named attribute
+-- Equivalent to filterMap(findAll(node, tag), \n -> getAttr(n, attr)) but in one Go call
+export pure func findAllAttrs(node: XmlNode, tag: string, attr: string) -> List[string] = _xml_findAllAttrs(node, tag, attr)
