@@ -166,9 +166,11 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 	// M-EVAL-GUARD: Create new process group so we can kill all children on timeout
 	SetProcessGroup(cmd)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Use limited writers to prevent infinite loop bugs from generating gigabyte-sized output
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	// Start command
 	if err := cmd.Start(); err != nil {

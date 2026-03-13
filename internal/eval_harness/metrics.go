@@ -108,8 +108,27 @@ func NewMetricsLogger(outputDir string) *MetricsLogger {
 	}
 }
 
+// maxFieldSize is the maximum size for any single string field in the JSON output.
+// This is a safety net to prevent oversized result files even if upstream limits fail.
+const maxFieldSize = 1 * 1024 * 1024 // 1 MB
+
+// truncateField truncates a string to maxFieldSize with a truncation marker
+func truncateField(s string) string {
+	if len(s) <= maxFieldSize {
+		return s
+	}
+	return s[:maxFieldSize] + "\n\n[TRUNCATED - field exceeded 1 MB limit]"
+}
+
 // Log writes a RunMetrics to a JSON file
 func (l *MetricsLogger) Log(m *RunMetrics) error {
+	// Safety truncation: prevent any single field from producing oversized JSON
+	m.Stdout = truncateField(m.Stdout)
+	m.Stderr = truncateField(m.Stderr)
+	m.Code = truncateField(m.Code)
+	m.AgentTranscript = truncateField(m.AgentTranscript)
+	m.VerifyJSON = truncateField(m.VerifyJSON)
+
 	// Determine subdirectory based on eval mode
 	var targetDir string
 	switch m.EvalMode {
