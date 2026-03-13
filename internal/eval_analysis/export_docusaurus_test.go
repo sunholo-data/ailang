@@ -277,6 +277,11 @@ func TestMergeHistoryVersionNormalization(t *testing.T) {
 		t.Errorf("Expected updated success rate 0.85, got %f", dashboard.History[0].SuccessRate)
 	}
 
+	// Verify stored version is normalized with v-prefix
+	if dashboard.History[0].Version != "v0.9.0" {
+		t.Errorf("Expected normalized version 'v0.9.0', got '%s'", dashboard.History[0].Version)
+	}
+
 	// Reverse direction: existing "0.9.0", merge "v0.9.0"
 	dashboard2 := &DashboardJSON{
 		History: []HistoryEntry{
@@ -290,6 +295,9 @@ func TestMergeHistoryVersionNormalization(t *testing.T) {
 	}
 	if dashboard2.History[0].SuccessRate != 0.90 {
 		t.Errorf("Expected updated success rate 0.90, got %f", dashboard2.History[0].SuccessRate)
+	}
+	if dashboard2.History[0].Version != "v0.9.0" {
+		t.Errorf("Expected normalized version 'v0.9.0', got '%s'", dashboard2.History[0].Version)
 	}
 }
 

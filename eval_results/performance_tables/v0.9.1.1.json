@@ -1,0 +1,2501 @@
+{
+  "version": "v0.9.1.1",
+  "timestamp": "2026-03-13T07:51:51.705939+01:00",
+  "total_runs": 612,
+  "aggregates": {
+    "0-shot_success": 0.630718954248366,
+    "final_success": 0.6944444444444444,
+    "repair_used": 147,
+    "repair_success_rate": 0.2653061224489796,
+    "total_tokens": 5457960,
+    "total_cost_usd": 17.283119749999987,
+    "avg_duration_ms": 434.2761437908497
+  },
+  "models": {
+    "claude-opus-4-6": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.7254901960784313,
+        "final_success": 0.7941176470588235,
+        "repair_used": 17,
+        "repair_success_rate": 0.4117647058823529,
+        "total_tokens": 1085556,
+        "total_cost_usd": 5.969864999999996,
+        "avg_duration_ms": 521.5784313725491
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19499
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19456
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19583
+        },
+        "binary_tree_sum": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19644
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19653
+        },
+        "cli_args": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19381
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20243
+        },
+        "contract_bst_validate": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20018
+        },
+        "contract_matrix_determinant": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19839
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20160
+        },
+        "contract_roman_numeral": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 41431
+        },
+        "contract_sorted_merge": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20583
+        },
+        "csv_to_json_converter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20336
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19908
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19640
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19702
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19849
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19540
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19798
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19589
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19405
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19099
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19821
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19555
+        },
+        "graph_bfs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20206
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19662
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19630
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19537
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19375
+        },
+        "json_parse": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19533
+        },
+        "json_transform": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 19947
+        },
+        "lambda_calc": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20040
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19619
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20702
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19789
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19938
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19485
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19976
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19088
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19875
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 19234
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19444
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19430
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19367
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 20216
+        },
+        "run_length_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19815
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20818
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20685
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20473
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19521
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20570
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.8431372549019608,
+          "avg_tokens": 363.4117647058824
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.7450980392156863,
+          "avg_tokens": 409.88235294117646
+        }
+      }
+    },
+    "claude-sonnet-4-6": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.6666666666666666,
+        "final_success": 0.7549019607843137,
+        "repair_used": 26,
+        "repair_success_rate": 0.34615384615384615,
+        "total_tokens": 1146072,
+        "total_cost_usd": 3.596768999999999,
+        "avg_duration_ms": 726.5980392156863
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19529
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 534
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19595
+        },
+        "binary_tree_sum": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 19560
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19663
+        },
+        "cli_args": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19340
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20096
+        },
+        "contract_bst_validate": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 40889
+        },
+        "contract_matrix_determinant": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 19748
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 20023
+        },
+        "contract_roman_numeral": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 41559
+        },
+        "contract_sorted_merge": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20625
+        },
+        "csv_to_json_converter": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 41569
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19898
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19640
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19706
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19842
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19570
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19798
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19596
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19399
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19099
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19819
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19555
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20118
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19718
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19652
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19537
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19375
+        },
+        "json_parse": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19612
+        },
+        "json_transform": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19957
+        },
+        "lambda_calc": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 1213
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19777
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 20736
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19784
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19946
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19485
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19952
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19084
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 41095
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 19220
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19444
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19430
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19367
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20226
+        },
+        "run_length_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19842
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20837
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20662
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 20461
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19519
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 20758
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.803921568627451,
+          "avg_tokens": 394.4313725490196
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.7058823529411765,
+          "avg_tokens": 398.72549019607845
+        }
+      }
+    },
+    "gemini-3-1-pro": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.45098039215686275,
+        "final_success": 0.5196078431372549,
+        "repair_used": 30,
+        "repair_success_rate": 0.23333333333333334,
+        "total_tokens": 599763,
+        "total_cost_usd": 1.31634,
+        "avg_duration_ms": 158.19607843137254
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18274
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18256
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18353
+        },
+        "binary_tree_sum": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18329
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18448
+        },
+        "cli_args": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18430
+        },
+        "contract_bst_validate": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18757
+        },
+        "contract_matrix_determinant": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "contract_roman_numeral": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18258
+        },
+        "contract_sorted_merge": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "csv_to_json_converter": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18610
+        },
+        "effect_composition": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18407
+        },
+        "effect_tracking_io_fs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "error_handling": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "exhaustive_pattern_matching": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "explicit_state_threading": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "expression_evaluator": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "fizzbuzz": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17887
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 37545
+        },
+        "gcd_lcm": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "higher_order_functions": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "immutable_data_structures": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18322
+        },
+        "json_encode": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "json_parse": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "json_transform": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18681
+        },
+        "lambda_calc": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 978
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18600
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18704
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18499
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18651
+        },
+        "nested_records": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "no_runtime_crashes_option": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17877
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18625
+        },
+        "pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18037
+        },
+        "record_update": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18214
+        },
+        "recursion_fibonacci": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18433
+        },
+        "run_length_encode": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 39062
+        },
+        "symbolic_diff": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18912
+        },
+        "tree_transformation_pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18744
+        },
+        "type_safe_record_access": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18668
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.37254901960784315,
+          "avg_tokens": 125.92156862745098
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.6666666666666666,
+          "avg_tokens": 330.19607843137254
+        }
+      }
+    },
+    "gemini-3-pro": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.4803921568627451,
+        "final_success": 0.5490196078431373,
+        "repair_used": 39,
+        "repair_success_rate": 0.1794871794871795,
+        "total_tokens": 830669,
+        "total_cost_usd": 1.87641,
+        "avg_duration_ms": 254.84313725490196
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18329
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18266
+        },
+        "balanced_parens": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "binary_tree_sum": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18341
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18488
+        },
+        "cli_args": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18107
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18428
+        },
+        "contract_bst_validate": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "contract_matrix_determinant": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18321
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "contract_roman_numeral": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18256
+        },
+        "contract_sorted_merge": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18694
+        },
+        "csv_to_json_converter": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18610
+        },
+        "effect_composition": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18545
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18601
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18612
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18327
+        },
+        "explicit_state_threading": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18500
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18338
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18185
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17897
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18597
+        },
+        "gcd_lcm": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18554
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18590
+        },
+        "immutable_data_structures": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 18432
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18330
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18180
+        },
+        "json_parse": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "json_transform": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 763
+        },
+        "lambda_calc": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18987
+        },
+        "list_comprehension": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 18700
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18706
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18472
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 37663
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18296
+        },
+        "no_runtime_crashes_option": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18756
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17885
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 37695
+        },
+        "pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18053
+        },
+        "record_update": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "records_book": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18123
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18433
+        },
+        "run_length_encode": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "state_machine_elevator": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 19098
+        },
+        "symbolic_diff": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 18912
+        },
+        "tree_transformation_pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 18410
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 18668
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.45098039215686275,
+          "avg_tokens": 170.7843137254902
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.6470588235294118,
+          "avg_tokens": 502.03921568627453
+        }
+      }
+    },
+    "gpt5-2-codex": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.696078431372549,
+        "final_success": 0.7352941176470589,
+        "repair_used": 20,
+        "repair_success_rate": 0.2,
+        "total_tokens": 913515,
+        "total_cost_usd": 1.956060749999999,
+        "avg_duration_ms": 468.72549019607845
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16837
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16782
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16933
+        },
+        "binary_tree_sum": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 16904
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17006
+        },
+        "cli_args": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 16692
+        },
+        "config_file_parser": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17423
+        },
+        "contract_bst_validate": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17203
+        },
+        "contract_matrix_determinant": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17239
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17260
+        },
+        "contract_roman_numeral": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 16833
+        },
+        "contract_sorted_merge": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17847
+        },
+        "csv_to_json_converter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17478
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17175
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16947
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17059
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17142
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16903
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17140
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16916
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16767
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16481
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17118
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16916
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17374
+        },
+        "higher_order_functions": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17034
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17001
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16923
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16761
+        },
+        "json_parse": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16913
+        },
+        "json_transform": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17336
+        },
+        "lambda_calc": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": true,
+          "tokens": 17230
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17115
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17886
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16958
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17197
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16879
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17242
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16510
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17121
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 16643
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16797
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16812
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16707
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17387
+        },
+        "run_length_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17026
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17958
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17872
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17578
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16864
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17716
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.7450980392156863,
+          "avg_tokens": 305.37254901960785
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.7254901960784313,
+          "avg_tokens": 304.94117647058823
+        }
+      }
+    },
+    "gpt5-4": {
+      "total_runs": 102,
+      "aggregates": {
+        "0-shot_success": 0.7647058823529411,
+        "final_success": 0.8137254901960784,
+        "repair_used": 15,
+        "repair_success_rate": 0.3333333333333333,
+        "total_tokens": 882385,
+        "total_cost_usd": 2.567675,
+        "avg_duration_ms": 475.7156862745098
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16832
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16775
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16875
+        },
+        "binary_tree_sum": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16879
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16987
+        },
+        "cli_args": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16692
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17449
+        },
+        "contract_bst_validate": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17216
+        },
+        "contract_matrix_determinant": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17380
+        },
+        "contract_rle_roundtrip": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "contract_roman_numeral": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17284
+        },
+        "contract_sorted_merge": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "csv_to_json_converter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17605
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17127
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16931
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16997
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17089
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16860
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17112
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16864
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16734
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16476
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17129
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16868
+        },
+        "graph_bfs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17433
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17011
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16942
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16875
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16725
+        },
+        "json_parse": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16896
+        },
+        "json_transform": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17281
+        },
+        "lambda_calc": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17257
+        },
+        "list_comprehension": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17144
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17862
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16978
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17167
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16809
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17221
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16464
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17240
+        },
+        "pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16604
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16764
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16767
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16685
+        },
+        "red_black_tree": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17404
+        },
+        "run_length_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17088
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17939
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17703
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 17530
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 16853
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 17624
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 51,
+          "success_rate": 0.8235294117647058,
+          "avg_tokens": 272.88235294117646
+        },
+        "python": {
+          "total_runs": 51,
+          "success_rate": 0.803921568627451,
+          "avg_tokens": 359.5686274509804
+        }
+      }
+    }
+  },
+  "benchmarks": {
+    "adt_option": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 199.41666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "api_call_json": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 181.16666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "balanced_parens": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 162,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "binary_tree_sum": {
+      "total_runs": 12,
+      "success_rate": 0.75,
+      "avg_tokens": 546.6666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "canonical_normalization": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 168.08333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "cli_args": {
+      "total_runs": 12,
+      "success_rate": 0.3333333333333333,
+      "avg_tokens": 332.4166666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "config_file_parser": {
+      "total_runs": 12,
+      "success_rate": 0.5833333333333334,
+      "avg_tokens": 478.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_bst_validate": {
+      "total_runs": 12,
+      "success_rate": 0.5833333333333334,
+      "avg_tokens": 595.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_matrix_determinant": {
+      "total_runs": 12,
+      "success_rate": 0.08333333333333333,
+      "avg_tokens": 387.0833333333333,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_rle_roundtrip": {
+      "total_runs": 12,
+      "success_rate": 0,
+      "avg_tokens": 352.6666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_roman_numeral": {
+      "total_runs": 12,
+      "success_rate": 0.16666666666666666,
+      "avg_tokens": 660.9166666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_sorted_merge": {
+      "total_runs": 12,
+      "success_rate": 0.08333333333333333,
+      "avg_tokens": 548.0833333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "csv_to_json_converter": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 526.5833333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_composition": {
+      "total_runs": 12,
+      "success_rate": 0.75,
+      "avg_tokens": 219.33333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_pure_separation": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 202.83333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_tracking_io_fs": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 329.9166666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "error_handling": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 316.9166666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "exhaustive_pattern_matching": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 250.58333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "explicit_state_threading": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 188.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "expression_evaluator": {
+      "total_runs": 12,
+      "success_rate": 0.75,
+      "avg_tokens": 231.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fizzbuzz": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 113.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "float_eq": {
+      "total_runs": 12,
+      "success_rate": 0.5,
+      "avg_tokens": 257.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fold_reduce": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 277.1666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "gcd_lcm": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 107.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "graph_bfs": {
+      "total_runs": 12,
+      "success_rate": 0.6666666666666666,
+      "avg_tokens": 335.6666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "higher_order_functions": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 197,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "immutable_data_structures": {
+      "total_runs": 12,
+      "success_rate": 0.6666666666666666,
+      "avg_tokens": 146.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "inline_tests": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 92,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_encode": {
+      "total_runs": 12,
+      "success_rate": 0.4166666666666667,
+      "avg_tokens": 239.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_parse": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 181.66666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_transform": {
+      "total_runs": 12,
+      "success_rate": 0.16666666666666666,
+      "avg_tokens": 285.8333333333333,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "lambda_calc": {
+      "total_runs": 12,
+      "success_rate": 0.5833333333333334,
+      "avg_tokens": 582.9166666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "list_comprehension": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 221.33333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "log_file_analyzer": {
+      "total_runs": 12,
+      "success_rate": 0.08333333333333333,
+      "avg_tokens": 545.9166666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "merge_sort": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 323.4166666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "mini_interpreter": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 461.1666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "nested_records": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 127.16666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "no_runtime_crashes_option": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 387.1666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "numeric_modulo": {
+      "total_runs": 12,
+      "success_rate": 0.5,
+      "avg_tokens": 217.08333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pattern_matching_complex": {
+      "total_runs": 12,
+      "success_rate": 1,
+      "avg_tokens": 525.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pipeline": {
+      "total_runs": 12,
+      "success_rate": 0.25,
+      "avg_tokens": 286.6666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "record_update": {
+      "total_runs": 12,
+      "success_rate": 0.6666666666666666,
+      "avg_tokens": 148.41666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "records_book": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 129.41666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "recursion_fibonacci": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 85.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "red_black_tree": {
+      "total_runs": 12,
+      "success_rate": 0.3333333333333333,
+      "avg_tokens": 596.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "run_length_encode": {
+      "total_runs": 12,
+      "success_rate": 0.75,
+      "avg_tokens": 226.41666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "state_machine_elevator": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 875.6666666666666,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "symbolic_diff": {
+      "total_runs": 12,
+      "success_rate": 0.8333333333333334,
+      "avg_tokens": 655.8333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "tree_transformation_pipeline": {
+      "total_runs": 12,
+      "success_rate": 0.5833333333333334,
+      "avg_tokens": 486.1666666666667,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_safe_record_access": {
+      "total_runs": 12,
+      "success_rate": 0.9166666666666666,
+      "avg_tokens": 123.08333333333333,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_unify": {
+      "total_runs": 12,
+      "success_rate": 0.4166666666666667,
+      "avg_tokens": 618.8333333333334,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    }
+  },
+  "error_codes": [
+    {
+      "code": "WRONG_LANG",
+      "count": 90,
+      "repair_success": 0
+    },
+    {
+      "code": "PAR_001",
+      "count": 18,
+      "repair_success": 0
+    }
+  ],
+  "languages": {
+    "ailang": {
+      "total_runs": 306,
+      "success_rate": 0.673202614379085,
+      "avg_tokens": 272.13398692810455
+    },
+    "python": {
+      "total_runs": 306,
+      "success_rate": 0.7156862745098039,
+      "avg_tokens": 384.22549019607845
+    }
+  },
+  "prompt_versions": {
+    "python": {
+      "total_runs": 306,
+      "0-shot_success": 0.6176470588235294,
+      "final_success": 0.7156862745098039,
+      "avg_tokens": 948.0816993464052
+    }
+  }
+}

@@ -31,6 +31,11 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
+// Annotations for significant benchmark suite changes
+const VERSION_ANNOTATIONS = [
+  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
+];
+
 // Color palette for models (distinct colors)
 const MODEL_COLORS = {
   'gpt5-1': '#FF6B6B',
@@ -137,6 +142,19 @@ export default function ModelDeltaTrend({ history }) {
             label={{ value: 'Gap (AILANG - Python) %', angle: -90, position: 'insideLeft' }}
           />
           <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" strokeWidth={1} />
+          {VERSION_ANNOTATIONS.map(ann => {
+            const formattedVersion = formatVersion(ann.version);
+            const exists = chartData.some(d => d.version === formattedVersion);
+            return exists ? (
+              <ReferenceLine
+                key={ann.version}
+                x={formattedVersion}
+                stroke={ann.color}
+                strokeDasharray="4 4"
+                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+              />
+            ) : null;
+          })}
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ paddingTop: '20px' }}

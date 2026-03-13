@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Activity, DollarSign, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, CheckCircle, Lock, Target, Bot } from 'lucide-react';
 import ModelChart from './ModelChart';
 import ModelComparisonTable from './ModelComparisonTable';
 import ModelTokenChart from './ModelTokenChart';
@@ -81,6 +81,7 @@ export default function BenchmarkDashboard() {
   const tokenDelta = pythonStats ? ((ailangStats.avg_tokens - pythonStats.avg_tokens) / pythonStats.avg_tokens * 100) : 0;
   const tokenRatio = pythonStats ? (ailangStats.avg_tokens / pythonStats.avg_tokens) : 1;
 
+
   // Calculate trend (compare to previous version if available)
   let trend = null;
   if (history && history.length > 1) {
@@ -124,10 +125,10 @@ export default function BenchmarkDashboard() {
             subtitle={`Across ${Object.keys(models || {}).length} AI models`}
           />
           <MetricCard
-            icon={<DollarSign />}
-            title="Cost Efficiency"
-            value={pythonStats ? `${tokenRatio.toFixed(1)}x` : 'N/A'}
-            subtitle={pythonStats ? `More expensive than Python` : 'Cost comparison'}
+            icon={<Target />}
+            title="Zero-Shot Rate"
+            value={`${((ailangStats.zero_shot_success || ailangZeroShot || 0) * 100).toFixed(1)}%`}
+            subtitle="First-attempt success (no repair)"
           />
         </div>
       </div>

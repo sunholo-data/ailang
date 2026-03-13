@@ -287,21 +287,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		modelsJS[name] = modelData
 	}
 
-	// Add agent-only models (models that ran agents but not standard evals)
+	// Separate agent-only models (models that ran agents but not standard evals)
+	agentModelsJS := make(map[string]interface{})
 	for modelName, agentStats := range modelAgentStats {
 		if _, exists := modelsJS[modelName]; !exists && agentStats.runs > 0 {
-			// Create minimal model entry with only agent stats
-			modelsJS[modelName] = map[string]interface{}{
-				"totalRuns": 0, // No standard runs
-				"aggregates": map[string]interface{}{
-					"zeroShotSuccess":   0.0,
-					"finalSuccess":      0.0,
-					"repairUsed":        0,
-					"repairSuccessRate": 0.0,
-					"totalTokens":       0,
-					"totalCostUSD":      0.0,
-					"avgDurationMs":     0.0,
-				},
+			agentModelsJS[modelName] = map[string]interface{}{
+				"totalRuns": agentStats.runs,
 				"agentStats": map[string]interface{}{
 					"runs":        agentStats.runs,
 					"successRate": float64(agentStats.success) / float64(agentStats.runs),
@@ -749,6 +740,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.TotalRuns = matrix.TotalRuns
 	dashboard.Aggregates = aggregatesJS
 	dashboard.Models = modelsJS
+	dashboard.AgentModels = agentModelsJS
 	dashboard.Benchmarks = benchmarksJS
 	dashboard.Languages = languagesMap
 	dashboard.Executors = executorsJS

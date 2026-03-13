@@ -1,6 +1,11 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
+
+// Annotations for significant benchmark suite changes
+const VERSION_ANNOTATIONS = [
+  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
+];
 
 export default function SuccessTrend({ history, languages }) {
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
@@ -106,6 +111,19 @@ export default function SuccessTrend({ history, languages }) {
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
           />
+          {VERSION_ANNOTATIONS.map(ann => {
+            const formattedVersion = formatVersion(ann.version);
+            const exists = chartData.some(d => d.version === formattedVersion);
+            return exists ? (
+              <ReferenceLine
+                key={ann.version}
+                x={formattedVersion}
+                stroke={ann.color}
+                strokeDasharray="4 4"
+                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+              />
+            ) : null;
+          })}
           <Line
             type="monotone"
             dataKey="AILANG"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
 
 function formatModelName(name) {
@@ -30,6 +30,11 @@ function formatVersion(version) {
   // For simple versions, show as-is
   return `v${version}`;
 }
+
+// Annotations for significant benchmark suite changes
+const VERSION_ANNOTATIONS = [
+  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
+];
 
 // Color palette for models (distinct colors)
 const MODEL_COLORS = {
@@ -149,6 +154,19 @@ export default function PerModelTrend({ history }) {
             iconType="circle"
             formatter={(value) => formatModelName(value)}
           />
+          {VERSION_ANNOTATIONS.map(ann => {
+            const formattedVersion = formatVersion(ann.version);
+            const exists = chartData.some(d => d.version === formattedVersion);
+            return exists ? (
+              <ReferenceLine
+                key={ann.version}
+                x={formattedVersion}
+                stroke={ann.color}
+                strokeDasharray="4 4"
+                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+              />
+            ) : null;
+          })}
           {Array.from(allModels).map(modelName => (
             <Line
               key={modelName}

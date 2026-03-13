@@ -210,15 +210,16 @@ type SummaryEntry struct {
 // DashboardJSON represents the structure of docs/static/benchmarks/latest.json
 // This is the single source of truth for the dashboard frontend
 type DashboardJSON struct {
-	Version    string                 `json:"version"`
-	Timestamp  string                 `json:"timestamp"`
-	TotalRuns  int                    `json:"totalRuns"`
-	Aggregates map[string]interface{} `json:"aggregates"`
-	Models     map[string]interface{} `json:"models"`
-	Benchmarks map[string]interface{} `json:"benchmarks"`
-	Languages  map[string]interface{} `json:"languages"` // map[language]->stats
-	Executors  map[string]interface{} `json:"executors"` // map[executor]->agent stats (claude, gemini)
-	History    []HistoryEntry         `json:"history"`
+	Version     string                 `json:"version"`
+	Timestamp   string                 `json:"timestamp"`
+	TotalRuns   int                    `json:"totalRuns"`
+	Aggregates  map[string]interface{} `json:"aggregates"`
+	Models      map[string]interface{} `json:"models"`
+	AgentModels map[string]interface{} `json:"agentModels,omitempty"` // Agent-only models (separate from standard)
+	Benchmarks  map[string]interface{} `json:"benchmarks"`
+	Languages   map[string]interface{} `json:"languages"` // map[language]->stats
+	Executors   map[string]interface{} `json:"executors"` // map[executor]->agent stats (claude, gemini)
+	History     []HistoryEntry         `json:"history"`
 }
 
 // HistoryEntry represents a single version's data in the history array
