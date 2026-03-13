@@ -1,0 +1,82 @@
+{
+  "sprint_id": "M-BRAIN-VECTORS",
+  "design_doc": "design_docs/planned/v0_9_3/m-brain-vectors.md",
+  "sprint_plan": "design_docs/planned/v0_9_3/m-brain-vectors-sprint-plan.md",
+  "status": "in_progress",
+  "created": "2026-03-13T20:30:00+01:00",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M1_SCHEMA_EMBEDDING_STORAGE",
+      "description": "Schema migration v1→v2 (embedding BLOB, embedding_dim, embed_model columns), encode/decode, PutVector, SearchByEmbedding with cosine scan",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Schema migrates non-destructively (v1 DB opens with v2 code)",
+        "Embedding encode/decode round-trips exactly (float32 precision)",
+        "Cosine search returns correct top-K with deterministic ordering",
+        "PutVector stores frame with embedding but no text content",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_EMBEDDER_WIRING",
+      "description": "Wire messaging.Embedder into SQLiteSharedCache via CacheOption, auto-embed on PutFrame, ailang cache put --embed, ailang cache embed backfill",
+      "estimated_loc": 250,
+      "dependencies": ["M1_SCHEMA_EMBEDDING_STORAGE"],
+      "acceptance_criteria": [
+        "ailang cache put --embed stores embedding alongside SimHash",
+        "ailang cache embed backfills frames lacking embeddings",
+        "Brain works identically with nil embedder (SimHash fallback)",
+        "Embedder errors don't block frame storage",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_THREE_TIER_SEARCH",
+      "description": "Three-tier search merge (cosine > SimHash > text), --cosine/--simhash flags, put-vector CLI, stats embedding coverage, export/import with embeddings",
+      "estimated_loc": 250,
+      "dependencies": ["M2_EMBEDDER_WIRING"],
+      "acceptance_criteria": [
+        "Cosine results rank above SimHash-only for semantically similar queries",
+        "--cosine forces embedding search, --simhash forces SimHash",
+        "Stats shows embedding coverage percentage and model info",
+        "Export/import round-trips embedding BLOBs correctly",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_POLISH",
+      "description": "Update user guide with embedding sections, CHANGELOG, end-to-end smoke test",
+      "estimated_loc": 150,
+      "dependencies": ["M3_THREE_TIER_SEARCH"],
+      "acceptance_criteria": [
+        "User guide documents --embed, --cosine, put-vector, cache embed",
+        "CHANGELOG has M-BRAIN-VECTORS section",
+        "End-to-end: put --embed → search --cosine → correct ranking",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 950,
+    "estimated_days": 3
+  }
+}
