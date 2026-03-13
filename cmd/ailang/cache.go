@@ -12,6 +12,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo/ailang/internal/messaging"
 )
 
 // cacheCommand handles the 'cache' subcommand for the AILANG brain.
@@ -46,6 +47,8 @@ func cacheCommand() {
 		runCacheExport(args)
 	case "import":
 		runCacheImport(args)
+	case "embed":
+		runCacheEmbed(args)
 	case "--help", "-h", "help":
 		printCacheHelp()
 	default:
@@ -61,6 +64,24 @@ func openBrainStore() (*effects.BrainStore, error) {
 	userDB := getUserBrainPath()
 	projectDB := getProjectBrainPath()
 	return effects.NewBrainStore(userDB, projectDB)
+}
+
+func openBrainStoreWithOpts(opts ...effects.CacheOption) (*effects.BrainStore, error) {
+	userDB := getUserBrainPath()
+	projectDB := getProjectBrainPath()
+	return effects.NewBrainStore(userDB, projectDB, opts...)
+}
+
+// createEmbedder creates an embedder from config/env.
+// Returns nil if no embedder available (graceful fallback).
+func createEmbedder() effects.Embedder {
+	cfg := messaging.LoadEmbedConfigFromEnv()
+	embedder, err := messaging.NewEmbedderFromConfig(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: embedder unavailable (%v), falling back to SimHash\n", err)
+		return nil
+	}
+	return embedder
 }
 
 func getUserBrainPath() string {
@@ -262,15 +283,24 @@ func runCachePut(args []string) {
 	scope := fs.String("scope", "project", "Brain tier: user, project")
 	source := fs.String("source", "cli", "Source identifier")
 	ttlStr := fs.String("ttl", "", "Time-to-live (e.g., 7d, 30d, 90d)")
+	embed := fs.Bool("embed", false, "Compute and store embedding vector alongside SimHash")
 	fs.Parse(args)
 
 	key := strings.Join(fs.Args(), "_")
 	if key == "" || *content == "" {
-		fmt.Fprintln(os.Stderr, "Usage: ailang cache put <key> --content \"text\" [--ns NAME] [--scope user|project]")
+		fmt.Fprintln(os.Stderr, "Usage: ailang cache put <key> --content \"text\" [--ns NAME] [--scope user|project] [--embed]")
 		os.Exit(1)
 	}
 
-	store, err := openBrainStore()
+	var opts []effects.CacheOption
+	if *embed {
+		embedder := createEmbedder()
+		if embedder != nil {
+			opts = append(opts, effects.WithEmbedder(embedder))
+		}
+	}
+
+	store, err := openBrainStoreWithOpts(opts...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening brain: %v\n", err)
 		os.Exit(1)
@@ -302,7 +332,12 @@ func runCachePut(args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Stored: %s [%s] (scope: %s, simhash: %d)\n", key, *ns, *scope, frame.SimHash)
+	status := fmt.Sprintf("Stored: %s [%s] (scope: %s, simhash: %d", key, *ns, *scope, frame.SimHash)
+	if frame.EmbeddingDim > 0 {
+		status += fmt.Sprintf(", embedding: %d-dim %s", frame.EmbeddingDim, frame.EmbedModel)
+	}
+	status += ")"
+	fmt.Println(status)
 }
 
 func runCachePutResolution(args []string) {
@@ -538,6 +573,60 @@ func runCacheImport(args []string) {
 	fmt.Printf("Imported %d frame(s)\n", count)
 }
 
+func runCacheEmbed(args []string) {
+	fs := flag.NewFlagSet("cache embed", flag.ExitOnError)
+	ns := fs.String("namespace", "", "Only backfill in this namespace")
+	scope := fs.String("scope", "both", "Brain tier: both, user, project")
+	fs.Parse(args)
+
+	embedder := createEmbedder()
+	if embedder == nil {
+		fmt.Fprintln(os.Stderr, "Error: no embedder available. Set AILANG_EMBED_PROVIDER or configure brain.embedding in config.")
+		os.Exit(1)
+	}
+
+	store, err := openBrainStoreWithOpts(effects.WithEmbedder(embedder))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening brain: %v\n", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	fmt.Printf("Backfilling embeddings with %s (dim=%d)...\n", embedder.ModelName(), embedder.Dimension())
+
+	var totalProcessed, totalErrors int
+
+	sc := parseScope(*scope)
+	for _, tier := range []struct {
+		name  string
+		cache *effects.SQLiteSharedCache
+	}{
+		{"project", store.Project},
+		{"user", store.User},
+	} {
+		if tier.cache == nil {
+			continue
+		}
+		if sc != effects.ScopeBoth && string(sc) != tier.name {
+			continue
+		}
+
+		tier.cache.SetEmbedder(embedder)
+		processed, errors := tier.cache.BackfillEmbeddings(*ns)
+		totalProcessed += processed
+		totalErrors += errors
+		if processed > 0 || errors > 0 {
+			fmt.Printf("  %s: embedded %d frames (%d errors)\n", tier.name, processed, errors)
+		}
+	}
+
+	if totalProcessed == 0 && totalErrors == 0 {
+		fmt.Println("All frames already have embeddings (nothing to backfill).")
+	} else {
+		fmt.Printf("Done: %d embedded, %d errors\n", totalProcessed, totalErrors)
+	}
+}
+
 // --- Helpers ---
 
 func formatAgeMillis(unixMilli int64) string {
@@ -585,6 +674,7 @@ Subcommands:
   put <key>           Store a frame manually
   put-resolution      Store a commit resolution frame
   promote <key>       Copy frame from project → user brain
+  embed               Backfill embeddings for frames missing them
   stats               Show brain statistics
   gc                  Garbage collect expired frames
   export              Export all frames as JSONL (stdout)
@@ -601,14 +691,18 @@ Put options:
   --content "text"   Text content (required)
   --scope user|project  Brain tier (default: project)
   --ttl 30d          Time-to-live (optional)
+  --embed            Compute embedding vector alongside SimHash
+
+Embed options:
+  --namespace NAME   Only backfill in this namespace
+  --scope both|user|project  Brain tier (default: both)
 
 Examples:
   ailang cache search "type inference bug"
-  ailang cache search --context internal/types/unify.go
   ailang cache put fix_unify --content "Always check occurs in unification"
-  ailang cache put go_tip --ns patterns --scope user --content "Use sync.Pool"
-  ailang cache promote fix_unify
+  ailang cache put --embed --content "sync.Pool pattern" sync_pool_tip
+  ailang cache embed                     # backfill all missing embeddings
+  ailang cache embed --namespace learnings
   ailang cache stats
-  ailang cache gc --older-than 90d --namespace ephemeral
   ailang cache export > backup.jsonl`)
 }

@@ -2,6 +2,7 @@ package effects
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -940,6 +941,279 @@ func TestSQLiteSharedCache_EmbeddingStats(t *testing.T) {
 	}
 	if models["gemini"] != 1 {
 		t.Errorf("expected 1 gemini, got %d", models["gemini"])
+	}
+}
+
+// --- Mock embedder for testing ---
+
+type mockEmbedder struct {
+	dim       int
+	model     string
+	callCount int
+	failNext  bool
+}
+
+func (m *mockEmbedder) Embed(text string) ([]float32, error) {
+	m.callCount++
+	if m.failNext {
+		return nil, fmt.Errorf("mock embedder error")
+	}
+	// Generate deterministic embedding from text length
+	v := make([]float32, m.dim)
+	for i := range v {
+		v[i] = float32(len(text)+i) / float32(m.dim*100)
+	}
+	return v, nil
+}
+
+func (m *mockEmbedder) EmbedBatch(texts []string) ([][]float32, error) {
+	results := make([][]float32, len(texts))
+	for i, t := range texts {
+		emb, err := m.Embed(t)
+		if err != nil {
+			return nil, err
+		}
+		results[i] = emb
+	}
+	return results, nil
+}
+
+func (m *mockEmbedder) Dimension() int    { return m.dim }
+func (m *mockEmbedder) ModelName() string { return m.model }
+
+// --- Embedder wiring tests (M-BRAIN-VECTORS M2) ---
+
+func TestSQLiteSharedCache_WithEmbedder_AutoEmbed(t *testing.T) {
+	mock := &mockEmbedder{dim: 4, model: "test-model"}
+	dir := t.TempDir()
+	cache, err := NewSQLiteSharedCache(filepath.Join(dir, "brain.db"), WithEmbedder(mock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cache.Close()
+
+	// PutFrame with content should auto-embed
+	err = cache.PutFrame(BrainFrame{
+		Key: "auto_embed", Namespace: "test", Value: []byte("v"),
+		Content: "This will be auto-embedded", SimHash: 42,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mock.callCount != 1 {
+		t.Errorf("expected 1 embed call, got %d", mock.callCount)
+	}
+
+	// Verify embedding was stored
+	results := cache.SearchByEmbedding([]float32{0.1, 0.2, 0.3, 0.4}, "", 10)
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Frame.EmbedModel != "test-model" {
+		t.Errorf("expected model test-model, got %s", results[0].Frame.EmbedModel)
+	}
+	if results[0].Frame.EmbeddingDim != 4 {
+		t.Errorf("expected dim 4, got %d", results[0].Frame.EmbeddingDim)
+	}
+}
+
+func TestSQLiteSharedCache_WithEmbedder_SkipsExistingEmbedding(t *testing.T) {
+	mock := &mockEmbedder{dim: 4, model: "test-model"}
+	dir := t.TempDir()
+	cache, err := NewSQLiteSharedCache(filepath.Join(dir, "brain.db"), WithEmbedder(mock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cache.Close()
+
+	// PutFrame with EXISTING embedding should NOT call embedder
+	err = cache.PutFrame(BrainFrame{
+		Key: "pre_embedded", Namespace: "test", Value: []byte("v"),
+		Content:   "Already has embedding",
+		Embedding: []float32{1, 2, 3, 4}, EmbedModel: "original-model",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mock.callCount != 0 {
+		t.Errorf("embedder should NOT be called when frame already has embedding, got %d calls", mock.callCount)
+	}
+
+	// Verify original embedding preserved
+	results := cache.SearchByEmbedding([]float32{1, 2, 3, 4}, "", 10)
+	if results[0].Frame.EmbedModel != "original-model" {
+		t.Errorf("original embedding should be preserved, got model %s", results[0].Frame.EmbedModel)
+	}
+}
+
+func TestSQLiteSharedCache_WithEmbedder_ErrorFallback(t *testing.T) {
+	mock := &mockEmbedder{dim: 4, model: "test-model", failNext: true}
+	dir := t.TempDir()
+	cache, err := NewSQLiteSharedCache(filepath.Join(dir, "brain.db"), WithEmbedder(mock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cache.Close()
+
+	// PutFrame should succeed even if embedder fails
+	err = cache.PutFrame(BrainFrame{
+		Key: "embed_fail", Namespace: "test", Value: []byte("v"),
+		Content: "Embedder will fail", SimHash: 123,
+	})
+	if err != nil {
+		t.Fatalf("PutFrame should succeed even with embedder error: %v", err)
+	}
+
+	// Frame stored without embedding
+	val, ok := cache.Get("embed_fail")
+	if !ok {
+		t.Fatal("frame should be stored")
+	}
+	if string(val) != "v" {
+		t.Errorf("unexpected value: %s", val)
+	}
+
+	// No embedding results
+	results := cache.SearchByEmbedding([]float32{0, 0, 0, 0}, "", 10)
+	if len(results) != 0 {
+		t.Errorf("expected 0 embedding results, got %d", len(results))
+	}
+}
+
+func TestSQLiteSharedCache_NilEmbedder(t *testing.T) {
+	cache := newTestSQLiteCache(t) // no embedder
+
+	// PutFrame should work identically without embedder
+	err := cache.PutFrame(BrainFrame{
+		Key: "no_embedder", Namespace: "test", Value: []byte("v"),
+		Content: "No embedder configured", SimHash: 42,
+	})
+	if err != nil {
+		t.Fatalf("PutFrame should work without embedder: %v", err)
+	}
+
+	val, ok := cache.Get("no_embedder")
+	if !ok || string(val) != "v" {
+		t.Error("frame should be stored normally")
+	}
+}
+
+func TestSQLiteSharedCache_BackfillEmbeddings(t *testing.T) {
+	cache := newTestSQLiteCache(t)
+
+	// Store frames without embeddings
+	for i := 0; i < 5; i++ {
+		cache.PutFrame(BrainFrame{
+			Key: fmt.Sprintf("frame_%d", i), Namespace: "test",
+			Value: []byte("v"), Content: fmt.Sprintf("Content %d", i),
+		})
+	}
+	// Store one WITH embedding
+	cache.PutVector("already_embedded", "test", []float32{1, 0}, "existing", []byte("p"))
+
+	// No embedder = no backfill
+	processed, errors := cache.BackfillEmbeddings("")
+	if processed != 0 || errors != 0 {
+		t.Errorf("backfill without embedder should be no-op, got %d/%d", processed, errors)
+	}
+
+	// Set embedder and backfill
+	mock := &mockEmbedder{dim: 4, model: "backfill-model"}
+	cache.SetEmbedder(mock)
+
+	processed, errors = cache.BackfillEmbeddings("")
+	if processed != 5 {
+		t.Errorf("expected 5 processed, got %d", processed)
+	}
+	if errors != 0 {
+		t.Errorf("expected 0 errors, got %d", errors)
+	}
+	if mock.callCount != 5 {
+		t.Errorf("expected 5 embed calls, got %d", mock.callCount)
+	}
+
+	// All frames now have embeddings
+	total, withEmb, _ := cache.EmbeddingStats()
+	if total != 6 || withEmb != 6 {
+		t.Errorf("expected 6/6 with embeddings, got %d/%d", withEmb, total)
+	}
+
+	// Backfill again should be no-op (all embedded)
+	mock.callCount = 0
+	processed, _ = cache.BackfillEmbeddings("")
+	if processed != 0 {
+		t.Errorf("second backfill should be no-op, got %d", processed)
+	}
+}
+
+func TestSQLiteSharedCache_BackfillEmbeddings_NamespaceFilter(t *testing.T) {
+	cache := newTestSQLiteCache(t)
+
+	cache.PutFrame(BrainFrame{Key: "ns1_a", Namespace: "learnings", Value: []byte("v"), Content: "A"})
+	cache.PutFrame(BrainFrame{Key: "ns2_b", Namespace: "patterns", Value: []byte("v"), Content: "B"})
+
+	mock := &mockEmbedder{dim: 4, model: "test"}
+	cache.SetEmbedder(mock)
+
+	// Backfill only "learnings"
+	processed, _ := cache.BackfillEmbeddings("learnings")
+	if processed != 1 {
+		t.Errorf("expected 1 processed for learnings, got %d", processed)
+	}
+
+	// "patterns" still has no embedding
+	_, withEmb, _ := cache.EmbeddingStats()
+	if withEmb != 1 {
+		t.Errorf("expected 1 with embedding, got %d", withEmb)
+	}
+}
+
+func TestBrainStore_WithEmbedder(t *testing.T) {
+	mock := &mockEmbedder{dim: 4, model: "brain-test"}
+	dir := t.TempDir()
+
+	store, err := NewBrainStore(
+		filepath.Join(dir, "user.db"),
+		filepath.Join(dir, "project.db"),
+		WithEmbedder(mock),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	// Put to project — should auto-embed
+	err = store.Put(BrainFrame{
+		Key: "proj_frame", Namespace: "test", Value: []byte("v"),
+		Content: "Project content", SimHash: 100,
+	}, ScopeProject)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Put to user — should also auto-embed
+	err = store.Put(BrainFrame{
+		Key: "user_frame", Namespace: "test", Value: []byte("v"),
+		Content: "User content", SimHash: 200,
+	}, ScopeUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mock.callCount != 2 {
+		t.Errorf("expected 2 embed calls (both tiers), got %d", mock.callCount)
+	}
+
+	// Both should be searchable by embedding
+	projResults := store.Project.SearchByEmbedding([]float32{0.1, 0.1, 0.1, 0.1}, "", 10)
+	userResults := store.User.SearchByEmbedding([]float32{0.1, 0.1, 0.1, 0.1}, "", 10)
+	if len(projResults) != 1 {
+		t.Errorf("expected 1 project embedding result, got %d", len(projResults))
+	}
+	if len(userResults) != 1 {
+		t.Errorf("expected 1 user embedding result, got %d", len(userResults))
 	}
 }
 

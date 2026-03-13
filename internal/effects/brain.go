@@ -26,19 +26,20 @@ const (
 
 // NewBrainStore creates a BrainStore from two database paths.
 // Either path may be empty to skip that tier.
-func NewBrainStore(userDBPath, projectDBPath string) (*BrainStore, error) {
+// Optional CacheOption values are applied to both caches (e.g., WithEmbedder).
+func NewBrainStore(userDBPath, projectDBPath string, opts ...CacheOption) (*BrainStore, error) {
 	var userCache, projectCache *SQLiteSharedCache
 	var err error
 
 	if userDBPath != "" {
-		userCache, err = NewSQLiteSharedCache(userDBPath)
+		userCache, err = NewSQLiteSharedCache(userDBPath, opts...)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if projectDBPath != "" {
-		projectCache, err = NewSQLiteSharedCache(projectDBPath)
+		projectCache, err = NewSQLiteSharedCache(projectDBPath, opts...)
 		if err != nil {
 			if userCache != nil {
 				userCache.Close()
@@ -165,29 +166,26 @@ func (b *BrainStore) Promote(key string) bool {
 		return false
 	}
 
-	// Read the full frame for metadata
+	// Read the full frame for metadata (v2 schema with 13 columns)
 	rows, err := b.Project.db.Query(
-		`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source
+		`SELECT key, namespace, value, simhash, content, version, created_at, updated_at, expires_at, source, embedding, embedding_dim, embed_model
 		 FROM brain_frames WHERE key = ?`, key,
 	)
 	if err != nil {
-		// Fallback: just copy the raw value
 		b.User.Put(key, value)
 		return true
 	}
 	defer rows.Close()
 
 	if rows.Next() {
-		var f BrainFrame
-		if err := rows.Scan(&f.Key, &f.Namespace, &f.Value, &f.SimHash, &f.Content,
-			&f.Version, &f.CreatedAt, &f.UpdatedAt, &f.ExpiresAt, &f.Source); err == nil {
+		f := scanBrainFrame(rows)
+		if f != nil {
 			f.Source = "promoted:" + f.Source
-			_ = b.User.PutFrame(f)
+			_ = b.User.PutFrame(*f)
 			return true
 		}
 	}
 
-	// Fallback
 	b.User.Put(key, value)
 	return true
 }

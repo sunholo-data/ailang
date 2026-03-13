@@ -16,6 +16,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// Embedder is the interface for generating text embeddings.
+// Matches messaging.Embedder but defined here to avoid circular imports.
+type Embedder interface {
+	Embed(text string) ([]float32, error)
+	EmbedBatch(texts []string) ([][]float32, error)
+	Dimension() int
+	ModelName() string
+}
+
 // SQLiteSharedCache is a persistent implementation of SharedCache backed by SQLite.
 //
 // Features:
@@ -23,13 +32,27 @@ import (
 //   - Thread-safe: SQLite WAL mode + Go-level serialization
 //   - SimHash search: find similar frames by hamming distance
 //   - FTS5 keyword search: full-text search on content
+//   - Embedding search: cosine similarity over float32 vectors
 //   - TTL support: automatic expiration via GarbageCollect
 //   - Namespace support: partition frames by namespace
 //
 // The schema uses the same pragmas as internal/messaging/schema.go:
 //   - WAL mode, NORMAL synchronous, 5s busy timeout, 64MB cache
 type SQLiteSharedCache struct {
-	db *sql.DB
+	db       *sql.DB
+	embedder Embedder // optional, for auto-embedding on PutFrame
+}
+
+// CacheOption configures a SQLiteSharedCache after creation.
+type CacheOption func(*SQLiteSharedCache)
+
+// WithEmbedder sets an embedder for auto-embedding on PutFrame.
+// When set, PutFrame will automatically compute and store embeddings
+// for frames that have content but no embedding.
+func WithEmbedder(e Embedder) CacheOption {
+	return func(c *SQLiteSharedCache) {
+		c.embedder = e
+	}
 }
 
 const brainSchemaVersion = "2.0.0"
@@ -38,7 +61,8 @@ const brainSchemaVersion = "2.0.0"
 //
 // The database is configured with WAL mode and the same pragmas as the messaging system.
 // If the database doesn't exist, it is created with the brain_frames schema.
-func NewSQLiteSharedCache(dbPath string) (*SQLiteSharedCache, error) {
+// Optional CacheOption values can configure the cache (e.g., WithEmbedder).
+func NewSQLiteSharedCache(dbPath string, opts ...CacheOption) (*SQLiteSharedCache, error) {
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return nil, fmt.Errorf("brain: failed to create directory %s: %w", dbDir, err)
@@ -75,7 +99,11 @@ func NewSQLiteSharedCache(dbPath string) (*SQLiteSharedCache, error) {
 		return nil, fmt.Errorf("brain: schema creation failed: %w", err)
 	}
 
-	return &SQLiteSharedCache{db: db}, nil
+	cache := &SQLiteSharedCache{db: db}
+	for _, opt := range opts {
+		opt(cache)
+	}
+	return cache, nil
 }
 
 func createBrainSchema(db *sql.DB) error {
@@ -284,6 +312,9 @@ type BrainSearchResult struct {
 }
 
 // PutFrame stores a frame with full metadata.
+// If an embedder is configured (via WithEmbedder) and the frame has content
+// but no embedding, the embedding is computed automatically. Embedder errors
+// are silently ignored — the frame is stored with SimHash only.
 func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 	now := time.Now().UnixMilli()
 	if f.CreatedAt == 0 {
@@ -291,6 +322,16 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 	}
 	if f.UpdatedAt == 0 {
 		f.UpdatedAt = now
+	}
+
+	// Auto-embed: if we have an embedder, content, and no existing embedding
+	if c.embedder != nil && f.Content != "" && len(f.Embedding) == 0 {
+		if emb, err := c.embedder.Embed(f.Content); err == nil && len(emb) > 0 {
+			f.Embedding = emb
+			f.EmbeddingDim = len(emb)
+			f.EmbedModel = c.embedder.ModelName()
+		}
+		// Embedder errors silently ignored — falls back to SimHash only
 	}
 
 	var embBlob []byte
@@ -582,6 +623,70 @@ func (c *SQLiteSharedCache) EmbeddingStats() (total, withEmbedding int, models m
 		}
 	}
 	return
+}
+
+// SetEmbedder configures the embedder for auto-embedding on PutFrame.
+func (c *SQLiteSharedCache) SetEmbedder(e Embedder) {
+	c.embedder = e
+}
+
+// GetEmbedder returns the configured embedder (may be nil).
+func (c *SQLiteSharedCache) GetEmbedder() Embedder {
+	return c.embedder
+}
+
+// BackfillEmbeddings computes embeddings for all frames that have content
+// but no embedding. Returns (processed, errors) counts.
+func (c *SQLiteSharedCache) BackfillEmbeddings(namespace string) (int, int) {
+	if c.embedder == nil {
+		return 0, 0
+	}
+
+	query := `SELECT key, content FROM brain_frames WHERE embedding IS NULL AND content IS NOT NULL AND content != ''`
+	args := []interface{}{}
+	if namespace != "" {
+		query += ` AND namespace = ?`
+		args = append(args, namespace)
+	}
+
+	rows, err := c.db.Query(query, args...)
+	if err != nil {
+		return 0, 0
+	}
+
+	// Collect all rows first to release the DB connection (MaxOpenConns=1)
+	type pending struct {
+		key, content string
+	}
+	var items []pending
+	for rows.Next() {
+		var p pending
+		if rows.Scan(&p.key, &p.content) == nil {
+			items = append(items, p)
+		}
+	}
+	rows.Close()
+
+	var processed, errCount int
+	for _, p := range items {
+		emb, err := c.embedder.Embed(p.content)
+		if err != nil || len(emb) == 0 {
+			errCount++
+			continue
+		}
+
+		embBlob := encodeEmbedding(emb)
+		_, err = c.db.Exec(
+			`UPDATE brain_frames SET embedding = ?, embedding_dim = ?, embed_model = ?, updated_at = ? WHERE key = ?`,
+			embBlob, len(emb), c.embedder.ModelName(), time.Now().UnixMilli(), p.key,
+		)
+		if err != nil {
+			errCount++
+			continue
+		}
+		processed++
+	}
+	return processed, errCount
 }
 
 // DB returns the underlying database connection for advanced operations.

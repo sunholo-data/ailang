@@ -35,10 +35,10 @@
         "Embedder errors don't block frame storage",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-13T20:55:00+01:00",
+      "completed": "2026-03-13T21:15:00+01:00",
+      "notes": "WithEmbedder CacheOption, auto-embed in PutFrame, SetEmbedder, BackfillEmbeddings (fixed MaxOpenConns=1 deadlock), CLI --embed flag and embed subcommand. 7 new tests. ~180 LOC."
     },
     {
       "id": "M3_THREE_TIER_SEARCH",
