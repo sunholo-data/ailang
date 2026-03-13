@@ -15,15 +15,16 @@ The coordinator runs on Cloud Run and exposes a REST API for message ingestion. 
 ```
 Your Client
   │
-  POST /api/messages { inbox, title, content, from }
+  POST /api/messages { inbox, title, content, from, [anthropic_api_key] }
   │
   ▼
 Cloud Coordinator (Cloud Run)
   │
   ├── 1. Stores message in Firestore (durable)
+  ├── 1b. If API key provided: encrypt with KMS, cache in memory (10min TTL)
   ├── 2. Publishes Pub/Sub notification (trigger)
   ├── 3. Routes to agent based on inbox
-  ├── 4. Dispatches Cloud Run Job
+  ├── 4. Dispatches Cloud Run Job (OAuth or API Key mode)
   │
   ▼
 Agent executes task
@@ -97,6 +98,7 @@ Send a single HTTP POST to the coordinator. No GCP SDKs required — any HTTP cl
 | `message_type` | string | `"request"` | `"request"`, `"notification"`, `"response"` |
 | `github_issue` | int | | Linked GitHub issue number |
 | `github_repo` | string | | GitHub repo (e.g., `"owner/repo"`) |
+| `anthropic_api_key` | string | | Your Anthropic API key for pay-per-token mode (see [Bring Your Own Key](#bring-your-own-key-byok)) |
 
 **Response (201 Created)**:
 
@@ -193,6 +195,68 @@ req.Header.Set("Authorization", "Bearer "+apiKey)
 
 resp, err := http.DefaultClient.Do(req)
 ```
+
+### Bring Your Own Key (BYOK)
+
+By default, cloud agents authenticate using OAuth credentials managed by the coordinator (internal workloads). External users can instead provide their own Anthropic API key for **pay-per-token** execution.
+
+To use BYOK mode, include `anthropic_api_key` in your message:
+
+```bash
+curl -X POST "${COORDINATOR_URL}/api/messages" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${COORDINATOR_API_KEY}" \
+  -d '{
+    "inbox": "sprint-executor",
+    "title": "Implement caching layer",
+    "content": "Add Redis-backed caching to the API endpoints...",
+    "from": "external-client",
+    "anthropic_api_key": "sk-ant-api03-YOUR-KEY-HERE"
+  }'
+```
+
+```python
+resp = requests.post(
+    f"{COORDINATOR_URL}/api/messages",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    json={
+        "inbox": "sprint-executor",
+        "title": "Implement caching layer",
+        "content": "Add Redis-backed caching to the API endpoints...",
+        "from": "external-client",
+        "anthropic_api_key": "sk-ant-api03-YOUR-KEY-HERE",
+    },
+)
+```
+
+**How it works:**
+
+1. The coordinator encrypts your API key with [Cloud KMS](https://cloud.google.com/security/products/security-key-management) before dispatch
+2. The encrypted key is passed as a Cloud Run Job environment override
+3. The agent executor decrypts the key at runtime using KMS
+4. Claude Code reads `ANTHROPIC_API_KEY` natively (pay-per-token billing to your account)
+
+**Security properties:**
+
+- Your API key is **never persisted** to Firestore, Secret Manager, or any database
+- It is held in an **in-memory cache** (10-minute TTL) on the coordinator only
+- Cloud Audit Logs see only **KMS ciphertext**, never plaintext
+- The coordinator can only encrypt (not decrypt); the agent can only decrypt (not encrypt)
+- The KMS key auto-rotates every 90 days
+
+**Auth mode comparison:**
+
+| Property | OAuth (default) | API Key (BYOK) |
+|----------|----------------|----------------|
+| Billing | Coordinator's Anthropic account | Your Anthropic account |
+| Credentials | OAuth token from Secret Manager | User-provided `sk-ant-...` key |
+| Cloud Run Job | `agent-executor` | `agent-executor-apikey` |
+| Audit log exposure | N/A (token in Secret Manager) | KMS-encrypted ciphertext only |
+| Use case | Internal/team workloads | External users, per-project billing |
+
+:::caution
+If the coordinator processes your message before your API key's 10-minute cache TTL expires, execution proceeds normally. If the coordinator is under heavy load and the cache entry expires, the task will **fail explicitly** rather than silently falling back to OAuth. Retry the message if this occurs.
+:::
 
 ### Option 2: Direct Firestore + Pub/Sub (Advanced)
 
