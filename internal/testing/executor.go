@@ -3,6 +3,7 @@ package testing
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -266,13 +267,39 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 	// to avoid type-checking errors in test mode
 	strippedSource := e.stripNonPureFunctions(string(sourceCode), sourceFile)
 
-	// Run through pipeline to get Core for pure functions only
+	// Run through pipeline to get Core for pure functions only.
+	// Two bugs fixed here (M-BUG-INLINE-TEST-EXTRACTION):
+	//
+	// Bug 1: Module-less files — the module pipeline reads from disk (not src.Code)
+	// and ElaborateFile skips file.Funcs when Module==nil, producing 0 Core decls.
+	// Fix: write a temp file with a synthetic module declaration prepended so the
+	// module pipeline reads it from disk and ElaborateFile processes Funcs properly.
+	//
+	// Bug 2: Absolute paths — cause MOD010 module path mismatch.
+	// Fix: RelaxModules=true converts MOD010 to warnings.
+	pipelineFilename := e.modulePath
+	if sourceFile.Module == nil {
+		// Write temp file with synthetic module so the module pipeline can load it
+		tmpDir, tmpErr := os.MkdirTemp("", "ailang-test-*")
+		if tmpErr != nil {
+			return nil, fmt.Errorf("failed to create temp dir for module-less test: %w", tmpErr)
+		}
+		defer os.RemoveAll(tmpDir)
+		baseName := strings.TrimSuffix(filepath.Base(e.modulePath), ".ail")
+		tmpFile := filepath.Join(tmpDir, filepath.Base(e.modulePath))
+		syntheticSource := fmt.Sprintf("module _test/%s\n\n%s", baseName, strippedSource)
+		if writeErr := os.WriteFile(tmpFile, []byte(syntheticSource), 0644); writeErr != nil {
+			return nil, fmt.Errorf("failed to write temp file for module-less test: %w", writeErr)
+		}
+		pipelineFilename = tmpFile
+	}
 	cfg := pipeline.Config{
-		Mode: pipeline.ModeEval,
+		Mode:         pipeline.ModeEval,
+		RelaxModules: true, // Test-only pipeline: accept module path mismatches
 	}
 	src := pipeline.Source{
 		Code:     strippedSource,
-		Filename: e.modulePath,
+		Filename: pipelineFilename,
 		IsREPL:   false,
 	}
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -38,15 +39,147 @@ var backgroundOperationSpans = map[string]bool{
 	"messages.import-github": true,
 }
 
+// FilterPattern defines a single span filter rule.
+type FilterPattern struct {
+	Type    string // "prefix", "exact", "suffix"
+	Pattern string // The pattern to match against span name
+	Service string // Optional: only match spans from this service (service.name)
+}
+
+// SpanFilterConfig holds configurable span filtering rules.
+// Loaded once at startup from environment variables; immutable after creation.
+type SpanFilterConfig struct {
+	AllowPatterns []FilterPattern // Allow takes priority — matching spans are ALWAYS kept
+	DenyPatterns  []FilterPattern // Matching spans are dropped (unless allow-listed)
+	DisableAll    bool            // Bypass all filtering (debug mode)
+}
+
+// DefaultSpanFilterConfig returns the default deny rules matching the original hard-coded behavior.
+func DefaultSpanFilterConfig() *SpanFilterConfig {
+	return &SpanFilterConfig{
+		DenyPatterns: []FilterPattern{
+			// GCP Trace exporter internals
+			{Type: "prefix", Pattern: "google.devtools.cloudtrace"},
+			// OTEL SDK internals
+			{Type: "prefix", Pattern: "opentelemetry."},
+			// Health checks
+			{Type: "exact", Pattern: "/health"},
+			{Type: "exact", Pattern: "health.check"},
+			{Type: "exact", Pattern: "/api/health"},
+			// Static assets
+			{Type: "prefix", Pattern: "/assets/"},
+			{Type: "suffix", Pattern: ".js"},
+			{Type: "suffix", Pattern: ".css"},
+			{Type: "suffix", Pattern: ".png"},
+			{Type: "suffix", Pattern: ".ico"},
+			{Type: "suffix", Pattern: ".svg"},
+			// UI polling endpoints
+			{Type: "prefix", Pattern: "/api/approvals"},
+			{Type: "prefix", Pattern: "/api/hierarchy"},
+			{Type: "prefix", Pattern: "/api/statistics"},
+			{Type: "prefix", Pattern: "/api/version"},
+			{Type: "prefix", Pattern: "/api/monitor"},
+			{Type: "prefix", Pattern: "/api/telemetry/config"},
+			{Type: "prefix", Pattern: "/api/metrics"},
+			{Type: "prefix", Pattern: "/api/observatory/traces"},
+			{Type: "prefix", Pattern: "/api/observatory/metrics"},
+			{Type: "prefix", Pattern: "/api/inbox"},
+			{Type: "prefix", Pattern: "/api/budget/"},
+			// Control plane polling
+			{Type: "prefix", Pattern: "/api/controlplane/"},
+			// Coordinator events SSE
+			{Type: "exact", Pattern: "/api/coordinator/events"},
+			// Service-scoped: coordinator polling
+			{Type: "exact", Pattern: "messages.list", Service: "ailang-coordinator"},
+			{Type: "exact", Pattern: "messages.count", Service: "ailang-coordinator"},
+			{Type: "exact", Pattern: "inbox.poll", Service: "ailang-coordinator"},
+			{Type: "exact", Pattern: "agent.heartbeat", Service: "ailang-coordinator"},
+			// Service-scoped: server polling
+			{Type: "exact", Pattern: "messages.list", Service: "ailang-server"},
+			{Type: "exact", Pattern: "messages.count", Service: "ailang-server"},
+		},
+	}
+}
+
+// parseFilterPattern parses a single pattern string into a FilterPattern.
+// Formats: "name" (exact), "name*" (prefix), "*name" (suffix), "service:name" (service-scoped).
+func parseFilterPattern(raw string) FilterPattern {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return FilterPattern{}
+	}
+
+	// Check for service-scoped pattern: "service:pattern"
+	var service string
+	if idx := strings.Index(raw, ":"); idx > 0 && !strings.HasPrefix(raw, "/") {
+		service = raw[:idx]
+		raw = raw[idx+1:]
+	}
+
+	var patternType, pattern string
+	switch {
+	case strings.HasPrefix(raw, "*") && strings.HasSuffix(raw, "*"):
+		// *contains* — treat as prefix+suffix not supported, use prefix for simplicity
+		patternType = "prefix"
+		pattern = strings.TrimPrefix(raw, "*")
+		pattern = strings.TrimSuffix(pattern, "*")
+	case strings.HasSuffix(raw, "*"):
+		patternType = "prefix"
+		pattern = strings.TrimSuffix(raw, "*")
+	case strings.HasPrefix(raw, "*"):
+		patternType = "suffix"
+		pattern = strings.TrimPrefix(raw, "*")
+	default:
+		patternType = "exact"
+		pattern = raw
+	}
+
+	return FilterPattern{Type: patternType, Pattern: pattern, Service: service}
+}
+
+// LoadSpanFilterConfig creates a SpanFilterConfig from environment variables,
+// merging with defaults. Exported for testing.
+func LoadSpanFilterConfig() *SpanFilterConfig {
+	config := DefaultSpanFilterConfig()
+
+	if os.Getenv("AILANG_SPAN_FILTER_DISABLE") == "true" {
+		config.DisableAll = true
+	}
+
+	if allowEnv := os.Getenv("AILANG_SPAN_FILTER_ALLOW"); allowEnv != "" {
+		for _, raw := range strings.Split(allowEnv, ",") {
+			if p := parseFilterPattern(raw); p.Pattern != "" {
+				config.AllowPatterns = append(config.AllowPatterns, p)
+			}
+		}
+	}
+
+	if denyEnv := os.Getenv("AILANG_SPAN_FILTER_DENY"); denyEnv != "" {
+		for _, raw := range strings.Split(denyEnv, ",") {
+			if p := parseFilterPattern(raw); p.Pattern != "" {
+				config.DenyPatterns = append(config.DenyPatterns, p)
+			}
+		}
+	}
+
+	fmt.Printf("observatory: span filter config loaded (allow=%d, deny=%d, disable=%v)\n",
+		len(config.AllowPatterns), len(config.DenyPatterns), config.DisableAll)
+	return config
+}
+
 // OTLPReceiver receives spans via the standard OTLP HTTP protocol.
 // This allows any OTEL-compatible exporter to send traces to the observatory.
 type OTLPReceiver struct {
-	backend Backend
+	backend      Backend
+	filterConfig *SpanFilterConfig
 }
 
 // NewOTLPReceiver creates a new OTLP receiver that stores spans in the backend.
 func NewOTLPReceiver(backend Backend) *OTLPReceiver {
-	return &OTLPReceiver{backend: backend}
+	return &OTLPReceiver{
+		backend:      backend,
+		filterConfig: LoadSpanFilterConfig(),
+	}
 }
 
 // RegisterRoutes registers the OTLP HTTP endpoints on the given mux.
@@ -582,95 +715,51 @@ func generateTraceID() string {
 	return hex.EncodeToString(b)
 }
 
+// matchesPattern checks if a span name matches a single filter pattern,
+// optionally scoped to a specific service.
+func matchesPattern(name string, resourceAttrs map[string]any, p FilterPattern) bool {
+	// Check service scope first
+	if p.Service != "" {
+		serviceName, _ := resourceAttrs["service.name"].(string)
+		if serviceName != p.Service {
+			return false
+		}
+	}
+
+	switch p.Type {
+	case "prefix":
+		return strings.HasPrefix(name, p.Pattern)
+	case "suffix":
+		return strings.HasSuffix(name, p.Pattern)
+	case "exact":
+		return name == p.Pattern
+	default:
+		return name == p.Pattern
+	}
+}
+
 // shouldFilterSpan returns true if the span should be filtered out (not stored).
-// Filters out internal OTEL exporter operations and other noisy traces.
-// resourceAttrs contains service.name and other resource-level attributes.
-func shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
-	// Filter out GCP Trace exporter internal operations
-	if strings.HasPrefix(name, "google.devtools.cloudtrace") {
-		return true
+// Uses the receiver's SpanFilterConfig: allow-list takes priority over deny-list.
+func (r *OTLPReceiver) shouldFilterSpan(name string, resourceAttrs map[string]any) bool {
+	if r.filterConfig.DisableAll {
+		return false
 	}
 
-	// Filter out OTEL SDK internal operations
-	if strings.HasPrefix(name, "opentelemetry.") {
-		return true
+	// Allow-list takes priority: if any allow pattern matches, keep the span
+	for _, p := range r.filterConfig.AllowPatterns {
+		if matchesPattern(name, resourceAttrs, p) {
+			return false
+		}
 	}
 
-	// Filter out health checks and monitoring endpoints
-	if name == "/health" || name == "health.check" || name == "/api/health" {
-		return true
-	}
-
-	// Filter out static asset requests
-	if strings.HasPrefix(name, "/assets/") || strings.HasSuffix(name, ".js") ||
-		strings.HasSuffix(name, ".css") || strings.HasSuffix(name, ".png") ||
-		strings.HasSuffix(name, ".ico") || strings.HasSuffix(name, ".svg") {
-		return true
-	}
-
-	// Filter out high-frequency polling endpoints (UI polls these constantly)
-	// M-DB-CLEANUP: These generated 97% of ailang-server span noise
-	pollingEndpoints := []string{
-		"/api/approvals",
-		"/api/hierarchy",
-		"/api/statistics",
-		"/api/version",
-		"/api/monitor",
-		"/api/telemetry/config",
-		"/api/metrics",
-		"/api/observatory/traces",
-		"/api/observatory/metrics",
-		"/api/inbox",
-		"/api/budget/",
-	}
-	for _, ep := range pollingEndpoints {
-		if strings.HasPrefix(name, ep) {
+	// Deny-list: if any deny pattern matches, filter the span
+	for _, p := range r.filterConfig.DenyPatterns {
+		if matchesPattern(name, resourceAttrs, p) {
 			return true
 		}
 	}
 
-	// Filter out control plane polling endpoints (dashboard polls these every few seconds)
-	if strings.HasPrefix(name, "/api/controlplane/") {
-		return true
-	}
-
-	// Filter coordinator events SSE endpoint
-	if name == "/api/coordinator/events" {
-		return true
-	}
-
-	// Filter out daemon/server polling operations
-	// These run frequently and clutter the trace view
-	// M-DB-CLEANUP: messages.list generated 10K+ spans from automated polling
-	serviceName, _ := resourceAttrs["service.name"].(string)
-	switch serviceName {
-	case "ailang-coordinator":
-		// Filter coordinator internal polling - runs every 30 seconds
-		coordinatorPolling := []string{
-			"messages.list",
-			"messages.count",
-			"inbox.poll",
-			"agent.heartbeat",
-		}
-		for _, op := range coordinatorPolling {
-			if name == op {
-				return true
-			}
-		}
-	case "ailang-server":
-		// Filter server-side message polling (API calls from dashboard)
-		serverPolling := []string{
-			"messages.list",
-			"messages.count",
-		}
-		for _, op := range serverPolling {
-			if name == op {
-				return true
-			}
-		}
-	}
-	// NOTE: messages.list from ailang-messages (CLI) is kept - deliberate user commands
-
+	// Default: keep the span
 	return false
 }
 
@@ -688,7 +777,7 @@ func (r *OTLPReceiver) processResourceSpans(ctx context.Context, rs *tracepb.Res
 	for _, scopeSpans := range rs.ScopeSpans {
 		for _, span := range scopeSpans.Spans {
 			// Check if span should be filtered out (pass resource attrs for service-based filtering)
-			if shouldFilterSpan(span.Name, resourceAttrs) {
+			if r.shouldFilterSpan(span.Name, resourceAttrs) {
 				fmt.Printf("observatory: filtered span name=%s (internal/noise)\n", span.Name)
 				continue
 			}

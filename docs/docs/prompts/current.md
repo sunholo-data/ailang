@@ -484,6 +484,7 @@ import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
 import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
+import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
 import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
 ```
@@ -588,6 +589,11 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `asyncExecProcess(cmd, args, name, priority, chunkSize) -> StreamSource ! {Stream}` - Subprocess stdout as byte chunks (requires `--caps Stream,Process`)
 - `selectEvents(sources, handler) -> unit ! {Stream}` - Priority-ordered multi-source event loop
 
+*Subprocess stdin writing (v0.9.0 Phase 3):*
+- `spawnProcess(cmd, args) -> ProcessHandle ! {Process}` - Spawn subprocess with writable stdin pipe
+- `writeProcessStdin(handle, data) -> Result[(), string] ! {Process}` - Write bytes to subprocess stdin
+- `closeProcessStdin(handle) -> () ! {Process}` - Close stdin pipe (signals EOF, subprocess exits)
+
 *Event types (StreamEvent ADT):*
 `Message(string)`, `Binary(string)`, `Opened(string)`, `Closed(int, string)`, `StreamError(StreamErrorKind)`, `Ping(string)`, `SSEData(string, string)`, `SourceText(string, string)`, `SourceBytes(string, bytes)`
 
@@ -607,6 +613,27 @@ export func main() -> unit ! {Stream, Process, IO} {
   })
 }
 ```
+
+*Subprocess stdin writing example (v0.9.0 Phase 3):*
+```ailang
+import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
+import std/bytes (fromString)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {Process, IO} {
+  let handle = spawnProcess("cat", []);
+  match writeProcessStdin(handle, fromString("hello\n")) {
+    Ok(_) => println("wrote line"),
+    Err(e) => println("write error: " ++ e)
+  };
+  closeProcessStdin(handle)
+}
+```
+
+- `spawnProcess` spawns subprocess with writable stdin; stdout/stderr discarded
+- `writeProcessStdin` writes bytes (non-blocking, 256-slot buffer with backpressure)
+- `closeProcessStdin` signals EOF — subprocess sees end-of-input and exits
+- Requires `--caps Process` (NOT Stream — stdin writing uses Process effect only)
 
 ## String Parsing (Returns Option)
 

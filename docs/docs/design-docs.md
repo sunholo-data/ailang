@@ -10,13 +10,28 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.9.0
 
+- [Sprint Plan: M-ASYNC-IO Phase 2 — asyncExecProcess](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-process-sprint-plan.md)
+- [Sprint Plan: M-ASYNC-IO Phase 3 — Subprocess Stdin Writing (ProcessHandle)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-process-stdin-sprint-plan.md)
+- [M-ASYNC-IO Phase 3: Subprocess Stdin Writing (ProcessHandle)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-process-stdin.md)
+- [M-ASYNC-IO Phase 2: Subprocess Stdout as StreamSource (asyncExecProcess)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-process.md)
 - [Sprint Plan: M-ASYNC-IO Phase 1 — Multi-Source Event Multiplexer](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-sprint-plan.md)
 - [M-ASYNC-IO: Multi-Source Event Multiplexing for std/stream](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-stream.md)
 - [Sprint Plan: M-CLOUD-DISPATCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-dispatch-sprint-plan.md)
 - [M-CLOUD-DISPATCH: Cloud Run Job Dispatch & Cloud Logging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-dispatch.md)
+- [M-CLOUD-E2E-FIXES: Cloud End-to-End Wiring Fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-e2e-fixes.md)
 - [M-CLOUD-E2E: Cloud End-to-End Message Flow](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-e2e.md)
+- [M-CLOUD-ENDPOINT-AUTH: Secure Coordinator Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-endpoint-auth.md)
+- [Sprint Plan: M-CLOUD-HEALTH — Cloud Run HTTP Health & Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-health-sprint-plan.md)
+- [M-CLOUD-HEALTH: Cloud Run HTTP Health & Status Endpoints](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-health.md)
+- [M-CLOUD-INFRA: GCP Cloud Infrastructure for AILANG Services](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-cloud-infra.md)
+- [Sprint Plan: M-HTTP-HOOKS-CLOUD-TELEMETRY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-http-hooks-cloud-telemetry-sprint-plan.md)
+- [M-HTTP-HOOKS-CLOUD-TELEMETRY: Claude Code HTTP Hooks for Cloud-Native Telemetry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-http-hooks-cloud-telemetry.md)
 - [Sprint Plan: M-MODULE-SCOPE — Per-module Environment Isolation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-module-scope-sprint-plan.md)
 - [M-MODULE-SCOPE: Non-exported function name collision across modules](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-module-scope.md)
+- [M-PERF-OBSERVATORY: Tiered Loading for Chain Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-perf-observatory-tiered-loading.md)
+- [M-PROTOCOL-SUPPORT: OpenAPI, MCP, and A2A for `ailang serve-api`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-protocol-support.md)
+- [Sprint Plan: M-PUBSUB — Pub/Sub Cloud Messaging Transport](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-pubsub-messaging-sprint-plan.md)
+- [M-PUBSUB: Pub/Sub Cloud Messaging Transport](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-pubsub-messaging.md)
 
 ## v0.8.1
 
@@ -24,6 +39,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-CLOUD-STORAGE: Cloud Database Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-cloud-storage.md)
 - [Sprint Plan: M-CONTRACT-EVAL — Contract-Guided Evaluation Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-contract-guided-eval-sprint-plan.md)
 - [M-CONTRACT-EVAL: Contract-Guided Evaluation Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-contract-guided-eval.md)
+- [M-CONTRACTS-ASSERT: Contract-Based Preconditions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-contracts-assert-original.md)
 - [M-DEV-TOOLS-AI-DOC: AI-Consumable Dev Tools Documentation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-dev-tools-ai-documentation.md)
 - [M-DX-TEST-HARNESS-NIL: Inline Tests Fail with Stdlib Imports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-dx-test-harness-stdlib-nil.md)
 - [M-EVAL-CHAINS: Chains as Single Source of Truth for Agent Evals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_8_1/m-eval-chains-source-of-truth.md)
@@ -297,6 +313,10 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-TYPENAME-NESTED-PROPAGATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_0/m-typename-nested-propagation-sprint.md)
 - [M-TYPENAME-NESTED-PROPAGATION: TypeName Propagation to Nested Record Literals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_0/m-typename-nested-propagation.md)
 - [Semantic Caching: Implementation Status (v0.5.11)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_0/semantic-caching-complete.md)
+
+## v0.5.11
+
+- [Semantic Caching: Future Work (v0.6.0+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_11/semantic-caching-future.md)
 
 ## v0.5.10
 
@@ -608,4 +628,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 457 design documents across 47 versions.*
+*Generated at build time. 474 design documents across 48 versions.*
