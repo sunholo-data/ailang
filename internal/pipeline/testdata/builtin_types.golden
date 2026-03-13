@@ -119,6 +119,7 @@ _str_compare : (string, string) -> int
 _str_endsWith : (string, string) -> bool
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
+_str_join : (list[string], string) -> string
 _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string

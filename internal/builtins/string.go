@@ -31,6 +31,7 @@ func init() {
 	registerStringChars()
 	registerStringStartsWith()
 	registerStringEndsWith()
+	registerStrJoin()
 }
 
 // ============================================================================
@@ -966,4 +967,77 @@ func strEndsWithImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 		return nil, fmt.Errorf("_str_endsWith: arg 1 - %w", err)
 	}
 	return &eval.BoolValue{Value: strings.HasSuffix(s, suffix)}, nil
+}
+
+// ============================================================================
+// String Join Builtin (M-PERF5)
+// ============================================================================
+
+// registerStrJoin registers the _str_join builtin
+// Replaces O(n²) recursive AILANG join with single-allocation strings.Join
+func registerStrJoin() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_join",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrJoinType,
+		Impl:    strJoinImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Join list of strings with separator",
+			LongDesc:    "Joins a list of strings with a separator between each element. Uses Go's strings.Join for O(n) performance instead of O(n²) recursive concatenation.",
+			Params: []ParamDoc{
+				{Name: "parts", Description: "List of strings to join"},
+				{Name: "separator", Description: "String to insert between elements"},
+			},
+			Returns: "Single string with all parts joined by separator",
+			Examples: []Example{
+				{Code: `_str_join(["a", "b", "c"], ", ")`, Description: `Returns "a, b, c"`},
+				{Code: `_str_join([], ", ")`, Description: `Returns ""`},
+				{Code: `_str_join(["hello"], "")`, Description: `Returns "hello"`},
+			},
+			SeeAlso:   []string{"_str_split", "concat_String"},
+			Since:     "v0.9.2",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "join", "concat", "list"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_join: %v", err))
+	}
+}
+
+// makeStrJoinType builds the type signature for _str_join
+// Type: (List[string], string) -> string
+func makeStrJoinType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.List(T.String()), T.String()).Returns(T.String()).Build()
+}
+
+// strJoinImpl is the implementation for _str_join
+// Uses Go's strings.Join for single-allocation O(n) performance
+func strJoinImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	listVal, ok := args[0].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_join: expected List for parts, got %T", args[0])
+	}
+
+	sep, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_join: arg 1 (separator) - %w", err)
+	}
+
+	parts := make([]string, len(listVal.Elements))
+	for i, elem := range listVal.Elements {
+		s, err := SafeAsString(elem)
+		if err != nil {
+			return nil, fmt.Errorf("_str_join: element %d - %w", i, err)
+		}
+		parts[i] = s
+	}
+
+	return &eval.StringValue{Value: strings.Join(parts, sep)}, nil
 }

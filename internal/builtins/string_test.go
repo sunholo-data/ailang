@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/effects/testctx"
@@ -699,5 +700,161 @@ func TestStrEndsWithType(t *testing.T) {
 	typ := makeStrEndsWithType()
 	if typ == nil {
 		t.Error("makeStrEndsWithType() returned nil")
+	}
+}
+
+// ============================================================================
+// String Join Tests (M-PERF5)
+// ============================================================================
+
+// TestStrJoin_Basic tests the _str_join builtin with standard cases
+func TestStrJoin_Basic(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		parts    []string
+		sep      string
+		expected string
+	}{
+		{"comma separated", []string{"a", "b", "c"}, ", ", "a, b, c"},
+		{"dash separated", []string{"hello", "world"}, "-", "hello-world"},
+		{"empty separator", []string{"a", "b", "c"}, "", "abc"},
+		{"single element", []string{"only"}, ", ", "only"},
+		{"empty list", []string{}, ", ", ""},
+		{"empty strings", []string{"", "", ""}, ",", ",,"},
+		{"newline separator", []string{"line1", "line2", "line3"}, "\n", "line1\nline2\nline3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elements := make([]eval.Value, len(tt.parts))
+			for i, s := range tt.parts {
+				elements[i] = &eval.StringValue{Value: s}
+			}
+			args := []eval.Value{
+				&eval.ListValue{Elements: elements},
+				&eval.StringValue{Value: tt.sep},
+			}
+			result, err := strJoinImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strJoinImpl() error: %v", err)
+			}
+			sv, ok := result.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("expected StringValue, got %T", result)
+			}
+			if sv.Value != tt.expected {
+				t.Errorf("got %q, want %q", sv.Value, tt.expected)
+			}
+		})
+	}
+}
+
+// TestStrJoin_LargeList tests with 1000+ elements to verify O(n) performance
+func TestStrJoin_LargeList(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	n := 1000
+	elements := make([]eval.Value, n)
+	for i := 0; i < n; i++ {
+		elements[i] = &eval.StringValue{Value: "item"}
+	}
+	args := []eval.Value{
+		&eval.ListValue{Elements: elements},
+		&eval.StringValue{Value: ","},
+	}
+
+	result, err := strJoinImpl(ctx.EffContext, args)
+	if err != nil {
+		t.Fatalf("strJoinImpl() error: %v", err)
+	}
+	sv, ok := result.(*eval.StringValue)
+	if !ok {
+		t.Fatalf("expected StringValue, got %T", result)
+	}
+
+	// Expected: "item" repeated 1000 times with "," between = 4*1000 + 999 = 4999 chars
+	expectedLen := 4*n + (n - 1)
+	if len(sv.Value) != expectedLen {
+		t.Errorf("got length %d, want %d", len(sv.Value), expectedLen)
+	}
+}
+
+// TestStrJoin_Determinism runs 20 iterations to verify deterministic output
+func TestStrJoin_Determinism(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	elements := make([]eval.Value, 20)
+	for i := 0; i < 20; i++ {
+		elements[i] = &eval.StringValue{Value: fmt.Sprintf("elem_%d", i)}
+	}
+	args := []eval.Value{
+		&eval.ListValue{Elements: elements},
+		&eval.StringValue{Value: "|"},
+	}
+
+	// Run first to get baseline
+	baseline, err := strJoinImpl(ctx.EffContext, args)
+	if err != nil {
+		t.Fatalf("strJoinImpl() error: %v", err)
+	}
+	baselineStr := baseline.(*eval.StringValue).Value
+
+	// Run 19 more times and compare
+	for i := 0; i < 19; i++ {
+		result, err := strJoinImpl(ctx.EffContext, args)
+		if err != nil {
+			t.Fatalf("iteration %d: strJoinImpl() error: %v", i, err)
+		}
+		if result.(*eval.StringValue).Value != baselineStr {
+			t.Errorf("iteration %d: nondeterministic output", i)
+		}
+	}
+}
+
+// TestStrJoin_ErrorCases tests error handling
+func TestStrJoin_ErrorCases(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	// Wrong type for first arg (not a list)
+	args := []eval.Value{
+		&eval.StringValue{Value: "not a list"},
+		&eval.StringValue{Value: ","},
+	}
+	_, err := strJoinImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("expected error for non-list first argument")
+	}
+
+	// Wrong type for separator (not a string)
+	args = []eval.Value{
+		&eval.ListValue{Elements: []eval.Value{&eval.StringValue{Value: "a"}}},
+		&eval.IntValue{Value: 42},
+	}
+	_, err = strJoinImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("expected error for non-string separator")
+	}
+
+	// Non-string element in list
+	args = []eval.Value{
+		&eval.ListValue{Elements: []eval.Value{
+			&eval.StringValue{Value: "a"},
+			&eval.IntValue{Value: 42},
+		}},
+		&eval.StringValue{Value: ","},
+	}
+	_, err = strJoinImpl(ctx.EffContext, args)
+	if err == nil {
+		t.Error("expected error for non-string element in list")
+	}
+}
+
+// TestStrJoinType verifies the type signature
+func TestStrJoinType(t *testing.T) {
+	typ := makeStrJoinType()
+	if typ == nil {
+		t.Error("makeStrJoinType() returned nil")
 	}
 }

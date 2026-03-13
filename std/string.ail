@@ -60,14 +60,8 @@ export pure func intToStr(n: int) -> string { _string_intToStr(n) }
 -- ============================================================================
 
 -- join: Concatenate list of strings with delimiter
--- Complexity: O(n²) due to repeated concatenation - acceptable for small lists
-export pure func join(delimiter: string, xs: [string]) -> string {
-  match xs {
-    [] => "",
-    [x] => x,
-    [x, ...rest] => x ++ delimiter ++ join(delimiter, rest)
-  }
-}
+-- Uses Go's strings.Join for O(n) single-allocation performance
+export pure func join(delimiter: string, xs: [string]) -> string = _str_join(xs, delimiter)
 
 -- repeat: Repeat a string n times
 -- Complexity: O(n) concatenations - acceptable for typical use (n < 1000)
