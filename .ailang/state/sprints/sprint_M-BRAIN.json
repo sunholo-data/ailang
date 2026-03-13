@@ -1,0 +1,91 @@
+{
+  "sprint_id": "M-BRAIN",
+  "design_doc": "design_docs/planned/v0_9_3/m-brain.md",
+  "sprint_plan": "design_docs/planned/v0_9_3/m-brain-sprint-plan.md",
+  "status": "planned",
+  "created": "2026-03-13T18:00:00+01:00",
+  "github_issues": [],
+  "features": [
+    {
+      "id": "M1_SQLITE_BACKEND",
+      "description": "SQLite SharedCache implementation with two-tier BrainStore (user + project), search (SimHash + FTS5), GC, and persistent storage",
+      "estimated_loc": 850,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "SQLiteSharedCache passes all existing SharedCache interface tests",
+        "BrainStore queries both user + project brains, merges with project boost",
+        "ailang cache promote copies frame from project to user brain",
+        "SimHash search returns top-K results with deterministic ordering",
+        "FTS5 keyword search returns relevant results",
+        "GC removes expired frames based on TTL",
+        "Concurrent stress test passes (100 goroutines)",
+        "Data persists across process restarts",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_CLI_SURFACE",
+      "description": "ailang cache CLI: search, list, put, put-resolution, stats, gc, export/import",
+      "estimated_loc": 600,
+      "dependencies": ["M1_SQLITE_BACKEND"],
+      "acceptance_criteria": [
+        "ailang cache search returns relevant results in <100ms",
+        "ailang cache list --recent shows newest frames",
+        "ailang cache put stores frame with correct namespace and SimHash",
+        "ailang cache put-resolution creates resolution frame from commit info",
+        "ailang cache stats shows namespace breakdown and storage size",
+        "ailang cache gc removes expired frames",
+        "ailang cache export | ailang cache import round-trips cleanly",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_HOOK_INTEGRATION",
+      "description": "Claude Code hooks: session start context injection, post-commit resolution capture, edit capture",
+      "estimated_loc": 200,
+      "dependencies": ["M2_CLI_SURFACE"],
+      "acceptance_criteria": [
+        "Session start hook injects relevant brain context (top-3 frames)",
+        "Post-commit hook captures resolution frames automatically",
+        "Hooks are async and don't add >200ms to any tool call",
+        "Brain hooks can be disabled via config",
+        "Hooks work when brain.db doesn't exist yet (graceful bootstrap)",
+        "make test and make lint pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_POLISH_DOCS",
+      "description": "Config support, user guide, example file, CHANGELOG update",
+      "estimated_loc": 120,
+      "dependencies": ["M3_HOOK_INTEGRATION"],
+      "acceptance_criteria": [
+        "Config file controls backend, TTLs, enabled state",
+        "User guide at docs/docs/guides/brain-cache.md",
+        "Example file runs with --caps IO,SharedMem",
+        "CHANGELOG.md updated",
+        "Design doc moved to implemented/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1770,
+    "estimated_days": 4
+  }
+}
