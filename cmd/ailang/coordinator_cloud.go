@@ -110,16 +110,18 @@ func coordinatorExecuteJob(args []string) error {
 
 	// publishCompletion is a closure that publishes (or logs to stderr as fallback).
 	// The optional execResult carries metrics from the executor for parity with local.
-	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result) {
+	// changedFiles lists files created/modified by the agent (discovered via git diff).
+	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, changedFiles []string) {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
 		completion := pubsub.TaskCompletion{
-			TaskID:     taskID,
-			AgentID:    agentID,
-			Status:     status,
-			ErrorMsg:   errMsg,
-			BranchName: branchName,
+			TaskID:       taskID,
+			AgentID:      agentID,
+			Status:       status,
+			ErrorMsg:     errMsg,
+			BranchName:   branchName,
+			ChangedFiles: changedFiles,
 		}
 		// Populate executor metrics when available (same data as local coordinator)
 		if execResult != nil {
@@ -151,24 +153,24 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil)
+			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, nil)
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
-			publishCompletion("failed", "unknown: exited without publishing completion", "", nil)
+			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, nil)
 		}
 	}()
 
 	// Validate required env vars (after Pub/Sub init so failures are reported).
 	if taskID == "" {
-		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil)
+		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, nil)
 		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
 	}
 	if agentID == "" {
-		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil)
+		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, nil)
 		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
 	}
 	if projectID == "" {
-		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil)
+		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, nil)
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
 	}
 
@@ -189,15 +191,15 @@ func coordinatorExecuteJob(args []string) error {
 	fmt.Printf("execute-job: starting task %s (agent=%s, workspace=%s, model=%s, timeout=%s)\n", taskID, agentID, workspace, model, timeoutStr)
 
 	// Execute the task
-	branchName, execResult, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
+	branchName, execResult, changedFiles, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
-		publishCompletion("failed", execErr.Error(), branchName, execResult)
+		publishCompletion("failed", execErr.Error(), branchName, execResult, nil)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
-		publishCompletion("completed", "", branchName, execResult)
-		fmt.Printf("execute-job: task %s completed (branch=%s)\n", taskID, branchName)
+		publishCompletion("completed", "", branchName, execResult, changedFiles)
+		fmt.Printf("execute-job: task %s completed (branch=%s, files=%d)\n", taskID, branchName, len(changedFiles))
 	}
 
 	return execErr
@@ -209,7 +211,7 @@ func coordinatorExecuteJob(args []string) error {
 // When AILANG_PUSH_BRANCH is set, the agent works directly on the cloned branch
 // and pushes to that branch (no coordinator/{taskID} branch creation). This is
 // used for skip_approval agents like website-builder that push directly to main.
-func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, error) {
+func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch, directive, provider, pluginRepo, model, timeoutStr string) (string, *executor.Result, []string, error) {
 	workDir := fmt.Sprintf("/workspace/%s", taskID)
 	pushBranch := os.Getenv("AILANG_PUSH_BRANCH")
 
@@ -260,14 +262,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	// Step 1: Clone the repository (required in cloud mode)
 	if repoURL == "" {
-		return "", nil, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
+		return "", nil, nil, fmt.Errorf("AILANG_REPO_URL is required: set workspace to GitHub org/repo (e.g., sunholo-data/ailang) in agent config")
 	}
 	fmt.Printf("execute-job: cloning %s (branch=%s)\n", repoURL, baseBranch)
 	cloneCmd := exec.CommandContext(ctx, "git", "clone", "--branch", baseBranch, "--depth", "1", repoURL, workDir)
 	cloneCmd.Stdout = os.Stdout
 	cloneCmd.Stderr = os.Stderr
 	if err := cloneCmd.Run(); err != nil {
-		return "", nil, fmt.Errorf("git clone failed: %w", err)
+		return "", nil, nil, fmt.Errorf("git clone failed: %w", err)
 	}
 
 	// Step 1.5: Inject AGENTS.md from plugin if repo doesn't have one (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
@@ -291,7 +293,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		checkoutCmd.Stdout = os.Stdout
 		checkoutCmd.Stderr = os.Stderr
 		if err := checkoutCmd.Run(); err != nil {
-			return "", nil, fmt.Errorf("git checkout -b failed: %w", err)
+			return "", nil, nil, fmt.Errorf("git checkout -b failed: %w", err)
 		}
 	}
 
@@ -311,7 +313,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
 	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 	if execErr != nil {
-		return branchName, execResult, fmt.Errorf("executor failed: %w", execErr)
+		return branchName, execResult, nil, fmt.Errorf("executor failed: %w", execErr)
 	}
 
 	// Log executor metrics
@@ -326,14 +328,14 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	statusCmd := exec.CommandContext(ctx, "git", "-C", workDir, "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
-		return branchName, execResult, fmt.Errorf("git status failed: %w", err)
+		return branchName, execResult, nil, fmt.Errorf("git status failed: %w", err)
 	}
 
 	if len(strings.TrimSpace(string(statusOutput))) > 0 {
 		// Step 5a: Stage, commit uncommitted changes
 		addCmd := exec.CommandContext(ctx, "git", "-C", workDir, "add", "-A")
 		if err := addCmd.Run(); err != nil {
-			return branchName, execResult, fmt.Errorf("git add failed: %w", err)
+			return branchName, execResult, nil, fmt.Errorf("git add failed: %w", err)
 		}
 
 		commitMsg := fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
@@ -343,7 +345,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		commitCmd.Stdout = os.Stdout
 		commitCmd.Stderr = os.Stderr
 		if err := commitCmd.Run(); err != nil {
-			return branchName, execResult, fmt.Errorf("git commit failed: %w", err)
+			return branchName, execResult, nil, fmt.Errorf("git commit failed: %w", err)
 		}
 	} else {
 		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
@@ -367,7 +369,8 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	if len(strings.TrimSpace(string(logOutput))) == 0 {
 		fmt.Println("execute-job: no commits to push")
-		return branchName, execResult, nil
+		changedFiles := discoverChangedFiles(workDir, baseBranch)
+		return branchName, execResult, changedFiles, nil
 	}
 
 	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
@@ -378,12 +381,32 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		pushCmd.Stdout = os.Stdout
 		pushCmd.Stderr = os.Stderr
 		if err := pushCmd.Run(); err != nil {
-			return branchName, execResult, fmt.Errorf("git push failed: %w", err)
+			return branchName, execResult, nil, fmt.Errorf("git push failed: %w", err)
 		}
 		fmt.Printf("execute-job: pushed branch %s\n", branchName)
 	}
 
-	return branchName, execResult, nil
+	// Step 6: Discover changed files for the completion message.
+	changedFiles := discoverChangedFiles(workDir, baseBranch)
+	return branchName, execResult, changedFiles, nil
+}
+
+// discoverChangedFiles uses ArtifactDiscovery to find files created/modified by the agent.
+// Returns nil on error (best-effort — completion should still be sent without files).
+func discoverChangedFiles(workDir, baseBranch string) []string {
+	ad := coordinator.NewArtifactDiscovery(workDir, nil) // No pattern filter — return all
+	if baseBranch != "" {
+		ad.WithBaseBranch(baseBranch)
+	}
+	files, err := ad.DiscoverChangedFiles()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: warning: artifact discovery failed: %v\n", err)
+		return nil
+	}
+	if len(files) > 0 {
+		fmt.Printf("execute-job: discovered %d changed files\n", len(files))
+	}
+	return files
 }
 
 // runExecutor uses the unified executor infrastructure (same as local coordinator).

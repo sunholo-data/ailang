@@ -42,6 +42,10 @@ type TaskCompletion struct {
 	BranchName string `json:"branch_name,omitempty"` // Git branch with changes
 	ErrorMsg   string `json:"error_msg,omitempty"`
 
+	// Changed files discovered via git diff after execution.
+	// Used by external clients (portal, sidecar) to know which files were created/modified.
+	ChangedFiles []string `json:"changed_files,omitempty"`
+
 	// Executor metrics (populated when using full executor infrastructure)
 	SessionID     string  `json:"session_id,omitempty"`
 	NumTurns      int     `json:"num_turns,omitempty"`

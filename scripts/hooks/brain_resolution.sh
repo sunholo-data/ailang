@@ -1,12 +1,17 @@
 #!/bin/bash
 # brain_resolution.sh - Capture git commit resolutions into the AILANG brain
 #
-# PostToolUse hook for Bash — detects git commit commands and stores
-# resolution frames automatically. Runs async, <200ms budget.
+# User-level PostToolUse hook — works in any git project.
+# Detects git commit commands and stores resolution frames automatically.
 #
 # Two storage strategies:
 #   1. Resolution frames (append-only, timestamped key) — commit history
 #   2. Design doc frames (upsert, stable key per doc) — always-current content
+#
+# Enrichment patterns (configurable via AILANG_BRAIN_ENRICH_PATTERNS):
+#   - design_docs/*.md, docs/*.md — design documents
+#   - CHANGELOG.md — release history
+#   - std/*.ail — stdlib definitions
 #
 # Claude Code PostToolUse hook sends JSON on stdin with:
 #   { "tool_name": "Bash", "tool_input": { "command": "..." }, "tool_output": "..." }
@@ -38,8 +43,10 @@ if ! command -v ailang &> /dev/null; then
     exit 0
 fi
 
-# Extract commit info from the tool output
-TOOL_OUTPUT=$(echo "$HOOK_JSON" | jq -r '.tool_output // ""' 2>/dev/null)
+# Must be in a git repo
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+    exit 0
+fi
 
 # Try to get the latest commit message
 COMMIT_MSG=$(git log -1 --format="%s" 2>/dev/null || echo "")
@@ -52,41 +59,55 @@ DIFF_SUMMARY=$(git diff --stat HEAD~1 HEAD 2>/dev/null | tail -1 || echo "")
 CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | tr '\n' ',' | sed 's/,$//' || echo "")
 
 # Enrich: Collect content from key files touched by this commit
-# Design docs, CHANGELOG, and stdlib files get their content stored in the resolution
+# Matches by path prefix — works with any depth of subdirectories
 ENRICH_CONTENT=""
 MAX_ENRICH_BYTES=2048  # Cap enrichment at 2KB — just enough for key context
 
-# Also track design docs for separate upsert
-DESIGN_DOCS=()
+# Track design/doc files for separate upsert
+DOC_FILES=()
 
 while IFS= read -r file; do
     [ -z "$file" ] && continue
 
-    # Track design docs for upsert (strategy 2)
+    # Match key file types by path prefix and extension
+    # This covers design_docs/planned/v0_9_3/foo.md, docs/guides/bar.md, etc.
+    MATCHED=false
+    IS_DOC=false
     case "$file" in
-        design_docs/*.md)
-            if [ -f "$file" ] && [ -r "$file" ]; then
-                DESIGN_DOCS+=("$file")
-            fi
-            ;;
+        design_docs/*.md|design_docs/*/*.md|design_docs/*/*/*.md|design_docs/*/*/*/*.md) MATCHED=true; IS_DOC=true ;;
+        docs/*.md|docs/*/*.md|docs/*/*/*.md|docs/*/*/*/*.md) MATCHED=true; IS_DOC=true ;;
+        CHANGELOG.md|CHANGELOG*.md) MATCHED=true; IS_DOC=true ;;
+        std/*.ail|stdlib/*.ail) MATCHED=true ;;
     esac
 
-    # Enrich resolution content (strategy 1)
-    case "$file" in
-        design_docs/*.md|CHANGELOG.md|std/*.ail)
-            if [ -f "$file" ] && [ -r "$file" ]; then
-                CURRENT_SIZE=${#ENRICH_CONTENT}
-                REMAINING=$((MAX_ENRICH_BYTES - CURRENT_SIZE))
+    # Allow override via env var (pipe-delimited extra patterns)
+    if [ "$MATCHED" = false ] && [ -n "${AILANG_BRAIN_ENRICH_EXTRA:-}" ]; then
+        IFS='|' read -ra EXTRA <<< "$AILANG_BRAIN_ENRICH_EXTRA"
+        for pattern in "${EXTRA[@]}"; do
+            # shellcheck disable=SC2254
+            case "$file" in
+                $pattern) MATCHED=true; [[ "$file" == *.md ]] && IS_DOC=true; break ;;
+            esac
+        done
+    fi
 
-                if [ "$REMAINING" -gt 200 ]; then
-                    ENRICH_CONTENT="${ENRICH_CONTENT}
+    if [ "$MATCHED" = true ] && [ -f "$file" ] && [ -r "$file" ]; then
+        # Track doc files for strategy 2
+        if [ "$IS_DOC" = true ]; then
+            DOC_FILES+=("$file")
+        fi
+
+        # Enrich resolution content (strategy 1)
+        CURRENT_SIZE=${#ENRICH_CONTENT}
+        REMAINING=$((MAX_ENRICH_BYTES - CURRENT_SIZE))
+
+        if [ "$REMAINING" -gt 200 ]; then
+            ENRICH_CONTENT="${ENRICH_CONTENT}
 --- ${file} ---
 $(head -c "$REMAINING" "$file" 2>/dev/null || true)
 "
-                fi
-            fi
-            ;;
-    esac
+        fi
+    fi
 done < <(git diff --name-only HEAD~1 HEAD 2>/dev/null)
 
 # Build the put-resolution command
@@ -108,16 +129,14 @@ RESOLUTION_ARGS+=(--embed)
 # Strategy 1: Store append-only resolution (fire-and-forget)
 ailang cache put-resolution "${RESOLUTION_ARGS[@]}" >/dev/null 2>&1 &
 
-# Strategy 2: Upsert each design doc as a standalone frame with stable key
+# Strategy 2: Upsert each doc as a standalone frame with stable key
 # Stores summary (first 2KB) + file path pointer, not full content.
-# This keeps frames lean for search/injection while giving embeddings enough signal.
-# Key format: design_doc_<filename_without_ext> — overwrites on each commit
+# Key format: doc_<filename_without_ext> — overwrites on each commit
 MAX_DOC_LINES=200    # First ~200 lines captures title, status, problem, key decisions
 MAX_DOC_BYTES=2048   # Hard cap at 2KB
-for doc in "${DESIGN_DOCS[@]}"; do
-    # Derive stable key from path: design_docs/planned/v0_9_3/m-brain.md -> design_doc_m-brain
+for doc in "${DOC_FILES[@]}"; do
     DOC_BASENAME=$(basename "$doc" .md)
-    DOC_KEY="design_doc_${DOC_BASENAME}"
+    DOC_KEY="doc_${DOC_BASENAME}"
 
     # Read summary: first N lines, capped at byte limit
     DOC_SUMMARY=$(head -n "$MAX_DOC_LINES" "$doc" 2>/dev/null | head -c "$MAX_DOC_BYTES" || true)

@@ -162,12 +162,13 @@ func (h *CompletionHandler) postCompletionNotification(ctx context.Context, task
 		return
 	}
 
-	payload, _ := json.Marshal(map[string]string{
-		"task_id":     completion.TaskID,
-		"agent_id":    completion.AgentID,
-		"status":      completion.Status,
-		"branch_name": completion.BranchName,
-		"error_msg":   completion.ErrorMsg,
+	payload, _ := json.Marshal(map[string]interface{}{
+		"task_id":       completion.TaskID,
+		"agent_id":      completion.AgentID,
+		"status":        completion.Status,
+		"branch_name":   completion.BranchName,
+		"error_msg":     completion.ErrorMsg,
+		"changed_files": completion.ChangedFiles,
 	})
 
 	msg := &messaging.InboxMessage{

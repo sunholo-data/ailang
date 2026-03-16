@@ -277,9 +277,8 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     log "Exported AGENT_INBOX_MESSAGES (base64 encoded JSON) to CLAUDE_ENV_FILE"
 fi
 
-# Get sprint and brain context using the functions defined earlier
+# Get sprint context (brain context is now handled by user-level hook ~/.ailang/hooks/brain_session.sh)
 SPRINT_CONTEXT=$(get_sprint_context)
-BRAIN_CONTEXT=$(get_brain_context)
 
 # If many messages (5+), try to generate triage summary
 TRIAGE_SUMMARY=""
@@ -310,7 +309,6 @@ $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $TRIAGE_SUMMARY
 $SPRINT_CONTEXT
-$BRAIN_CONTEXT
 EOF
 )
 

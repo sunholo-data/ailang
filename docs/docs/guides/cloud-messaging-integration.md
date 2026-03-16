@@ -25,9 +25,10 @@ Cloud Coordinator (Cloud Run)
   ├── 2. Publishes Pub/Sub notification (trigger)
   ├── 3. Routes to agent based on inbox
   ├── 4. Dispatches Cloud Run Job (OAuth or API Key mode)
+  │       env: AILANG_GIT_MODE, AILANG_PUSH_BRANCH, AILANG_TASK_ID
   │
   ▼
-Agent executes task
+Agent executes task (git guardrails enforced by PreToolUse hook)
   │
   ├── 5. Pushes changes to git (branch or direct to main for skip_approval agents)
   ├── 6. Publishes completion to Pub/Sub
@@ -1069,6 +1070,65 @@ Some agents are configured with `skip_approval: true` to bypass the human approv
   merge_branch: main     # Target branch for direct push
   auto_merge: false
 ```
+
+### Git Guardrails
+
+Cloud agent executors enforce git guardrails via a PreToolUse hook (`ailang_bootstrap/scripts/hooks/git_guard.sh`). This prevents agents from creating rogue branches, pushing to wrong remotes, or wasting turns on merge conflicts.
+
+**Why hooks, not settings.json**: The agent runs with `--dangerously-skip-permissions` which bypasses all `settings.json` deny rules. PreToolUse hooks are the only enforcement mechanism that still fires in this mode.
+
+:::warning
+The hook script must NOT use `jq` or `grep -P` — neither is installed in the agent container (Debian slim). Use `grep -E` and `sed` only.
+:::
+
+**`AILANG_GIT_MODE` environment variable** (set on Cloud Run Jobs):
+
+| Mode | Reads | Commits | Push | Branch creation | Use case |
+|------|-------|---------|------|----------------|----------|
+| `guardrails` (default) | Yes | Yes | Only to expected branch | Blocked | Most agents |
+| `strict` | Yes | No | No | Blocked | Read-only agents |
+| `permissive` | Yes | Yes | Yes | Yes | Legacy/escape hatch |
+| (not set) | N/A | N/A | N/A | N/A | Local dev (no-op) |
+
+**Decision matrix:**
+
+| Git Command | `guardrails` | `strict` | `permissive` |
+|---|---|---|---|
+| `git status/diff/log` | Allow | Allow | Allow |
+| `git add/commit/stash` | Allow | Deny | Allow |
+| `git push origin $PUSH_BRANCH` | Allow | Deny | Allow |
+| `git push origin other-branch` | **Deny** | Deny | Allow |
+| `git push --force` | **Deny** | Deny | **Deny** |
+| `git checkout -b new-branch` | **Deny** | Deny | Allow |
+| `git remote add/set-url` | **Deny** | Deny | Allow |
+| `git reset --hard` | **Deny** | Deny | **Deny** |
+
+When a command is blocked, the hook returns a structured deny message that the AI reads and self-corrects from:
+
+```
+BLOCKED: Creating new branches is not allowed. Work on the current branch ('main').
+The executor manages branch creation.
+```
+
+**Per-agent configuration** (`config.cloud.yaml`):
+
+```yaml
+- id: website-builder
+  git_mode: strict        # Read-only git access
+- id: sprint-executor
+  git_mode: guardrails    # Can commit and push to expected branch
+```
+
+The executor's post-AI phase handles all git push operations deterministically — the agent should focus on creating/editing files and committing locally.
+
+**Agent executor environment variables** (set on Cloud Run Job):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AILANG_GIT_MODE` | `guardrails` | Git guardrails mode — per-agent override via `git_mode` in config |
+| `AILANG_PUSH_BRANCH` | `coordinator/{taskID}` | Target branch for push validation |
+| `AILANG_TASK_ID` | (set by coordinator) | Task ID for branch naming |
+| `AILANG_REPO_URL` | (set by coordinator) | Git repo URL for the workspace |
 
 ## Agent Chain Workflow
 
