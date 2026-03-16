@@ -163,6 +163,8 @@ _xml_getChildren : XmlNode -> list[XmlNode]
 _xml_getTag : XmlNode -> string
 _xml_getText : XmlNode -> string
 _xml_parse : string -> Result[XmlNode, string]
+_xml_parseElements : (string, string, int) -> Result[list[XmlNode], string]
+_xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
 _zip_createArchive : (string, list[{content: string, name: string}]) -> Result[(), string] ! {FS}

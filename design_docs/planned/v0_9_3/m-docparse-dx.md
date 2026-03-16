@@ -210,18 +210,19 @@ closeArchive : ZipWriter -> () ! {FS}
 
 **Risk**: Resource handle lifecycle — if user forgets `closeArchive`, archive is corrupted. Consider a `withArchive` bracket pattern.
 
-### M7: XLSX Merged-Cell Performance (P2 — Bug/Performance)
+### M7: XLSX Merged-Cell Performance (P2 — Bug/Performance) — RESOLVED
 
-**Problem**: `poi_many_merges.xlsx` (829KB, hundreds of merged cells) causes XLSX parser to hang (>60s timeout). Likely O(n²) in merged cell resolution or repeated std/xml.findAll on large trees.
+**Problem**: `poi_many_merges.xlsx` (829KB ZIP, 7.3MB uncompressed sheet XML, 50K rows, 140K cells) causes `std/xml.parse()` to allocate 4.8GB RAM building ~200K eval.Value nodes. The process never completes — bottleneck is in parse(), not findAll.
 
-**Investigation needed**: This may be a DocParse-side algorithm issue rather than an AILANG stdlib issue. Need profiling to determine whether the bottleneck is in AILANG interpreter overhead (known issue per XML performance message) or in the parser algorithm itself.
+**Root cause**: Every XML node becomes a TaggedValue with nested ListValue for attrs and children. For 200K+ nodes, this creates ~20-25x memory bloat vs input size.
 
-**Deliverables**:
-- Profile the hang to identify hot path
-- If AILANG-side: add bulk XML query operations or optimize interpreter loop
-- If DocParse-side: provide guidance on algorithm optimization
+**Solution (M-PERF6)**: Two new builtins in `internal/builtins/xml.go`:
+- `parseElements(xml, tag, maxResults)` — Streaming parser that scans token stream, only builds subtrees for matched elements, skips everything else. Memory: O(largest element) vs O(entire document).
+- `parseWithLimit(xml, maxNodes)` — Full parse with fail-fast node count limit.
 
-**Location**: TBD after profiling
+**DocParse migration**: Replace `parse(sheetXml)` + `findAll(root, "row")` with `parseElements(sheetXml, "row", 10000)`.
+
+**Location**: `internal/builtins/xml.go` (parseElements, parseWithLimit), `std/xml.ail` (wrappers)
 
 ---
 
