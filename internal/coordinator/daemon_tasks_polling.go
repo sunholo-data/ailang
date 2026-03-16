@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -142,6 +143,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 				if adapter := d.inboxAdapters[im.inbox]; adapter != nil {
 					_ = adapter.MarkAsRead(msg.ID)
 				}
+				d.publishDedupCompletion(taskID, agentID, dup.ID)
 				continue
 			}
 		}
@@ -367,6 +369,18 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			iteration = 1
 		}
 
+		// M-HARNESS-COMMIT-CONTRACT: Extract siteSlug and briefId from message content.
+		// Messages from website-builder may contain JSON with these fields.
+		var siteSlug, briefID string
+		var payloadFields struct {
+			SiteSlug string `json:"siteSlug"`
+			BriefID  string `json:"briefId"`
+		}
+		if json.Unmarshal([]byte(msg.Content), &payloadFields) == nil {
+			siteSlug = payloadFields.SiteSlug
+			briefID = payloadFields.BriefID
+		}
+
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
@@ -386,6 +400,8 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			Capabilities:  analyzed.Capabilities,
 			ImpactLevel:   analyzed.ImpactLevel,
 			EstimatedCost: analyzed.EstimatedCost,
+			SiteSlug:      siteSlug, // M-HARNESS-COMMIT-CONTRACT
+			BriefID:       briefID,  // M-HARNESS-COMMIT-CONTRACT
 		}
 
 		// Check for duplicates
@@ -393,6 +409,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		if fingerprint != 0 {
 			if dup, _ := d.taskStore.FindDuplicateTask(d.ctx, fingerprint, 0.9); dup != nil {
 				d.logger.Printf("Skipping duplicate task for message %s (similar to task %s)", msg.ID, dup.ID)
+				d.publishDedupCompletion(taskID, agentID, dup.ID)
 				continue
 			}
 		}
@@ -487,4 +504,35 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 	}
 
 	return nil
+}
+
+// publishDedupCompletion posts a completion notification when a task is skipped
+// due to deduplication. This ensures external clients (portal, sidecar) receive
+// a response instead of hanging indefinitely waiting for a build that never starts.
+func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) {
+	if d.msgStore == nil {
+		return
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{
+		"task_id":          taskID,
+		"agent_id":         agentID,
+		"status":           "deduplicated",
+		"error_msg":        fmt.Sprintf("Skipped: similar to recent task %s", originalTaskID),
+		"original_task_id": originalTaskID,
+	})
+
+	msg := &messaging.InboxMessage{
+		FromAgent:   agentID,
+		ToInbox:     agentID,
+		MessageType: "completion",
+		Title:       fmt.Sprintf("Task %s: deduplicated", taskID),
+		Payload:     string(payload),
+	}
+
+	if err := d.msgStore.InsertInboxMessage(msg); err != nil {
+		d.logger.Printf("Failed to post dedup completion for task %s: %v", taskID, err)
+	} else {
+		d.logger.Printf("Posted dedup completion for task %s (original: %s)", taskID, originalTaskID)
+	}
 }
