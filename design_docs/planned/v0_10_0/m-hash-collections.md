@@ -91,18 +91,25 @@ AILANG has lists (O(n) lookup), records (fixed compile-time keys), and nothing i
 | `union` | O(n×m) | O(n+m) |
 | `lookup` by key | O(n) | O(1) |
 
-### Axiom 1 Violation: Nondeterministic Equality
+### Axiom 1 Concern: Three Separate Equality Implementations
 
-```go
-// Current: list_set.go valuesEqual()
-func valuesEqual(left, right eval.Value) bool {
-    // ... primitive cases use == (deterministic) ...
-    // Fallback: NONDETERMINISTIC for Records/ADTs containing maps
-    return reflect.DeepEqual(left, right)
-}
-```
+**Audit finding: There are THREE `valuesEqual` implementations, not one:**
 
-`RecordValue` uses `map[string]Value` internally. `reflect.DeepEqual` iterates map entries in Go's random order. While the final boolean result is correct (Go's DeepEqual handles this), the **intermediate comparisons** and any future tracing/logging would be nondeterministic.
+| Location | Used By | Non-primitive behavior |
+|----------|---------|----------------------|
+| `internal/builtins/list.go:380` | `dedup`, `intersect`, `union`, `difference`, `member` | `reflect.DeepEqual` fallback |
+| `internal/eval/eval_simple.go:594` | `==` / `!=` operators in AILANG | Returns `false` (no deep comparison) |
+| `internal/eval/eval_typed_helpers.go:12` | TypedEvaluator equality | Returns `false` (no deep comparison) |
+
+**The `reflect.DeepEqual` concern is narrower than initially stated:**
+- AILANG's `==` operator does **NOT** use `reflect.DeepEqual` — it returns `false` for records/ADTs
+- Only the **builtin set operations** (dedup, intersect, etc.) use `reflect.DeepEqual` via `list.go:valuesEqual`
+- `reflect.DeepEqual` is actually deterministic for the final boolean result (Go handles map comparison correctly), but it's **slow** and **bypasses the Eq typeclass**
+
+**The real problems are:**
+1. **Performance**: `reflect.DeepEqual` is orders of magnitude slower than direct comparison — O(n²) set ops × slow equality = unusable at scale
+2. **Semantic disconnect**: The builtins use `reflect.DeepEqual` while the language has a proper Eq typeclass (`deriving (Eq)` exists via M-DX19). These should be unified.
+3. **Incompleteness**: AILANG `==` returns `false` for `{x:1} == {x:1}` unless the type has `deriving (Eq)`. This is correct but surprising — the builtins bypass this and compare structurally.
 
 ---
 
@@ -493,10 +500,24 @@ let jaccard = size(common) / size(total)  -- O(1) size, O(min(n,m)) intersect
 
 ## Related Documents
 
+<!-- Found via `ailang docs search --neural` -->
+
+**Directly relevant (equality & collections):**
+- [M-DX19: Auto-Derive Eq](../../implemented/v0_6_2/m-dx19-auto-derive-eq.md) — Eq typeclass with `deriving (Eq)` for ADTs. Phase 2 Hashable typeclass should follow this pattern.
+- [M-R7: Type Fixes (Integral & Float Comparison)](../../implemented/v0_3_0/M-R7_type_fixes.md) — Prior equality comparison work
+- [Float Equality Investigation](../../implemented/v0_3/FLOAT_EQUALITY_INVESTIGATION_2025-10-10.md) — Float equality semantics (relevant for hashKey of floats)
+- [typesIdentical Performance Bug](../../implemented/v0_5_7/types-identical-performance.md) — Prior performance bug from using `String()` for comparison. Same anti-pattern as current `reflect.DeepEqual`.
+- [M-BUILTIN-SAFETY](../../implemented/v0_7_0/m-builtin-safety-type-checks.md) — Safe type casting in builtins. hashKey should use SafeAs* helpers.
+- [M-CODEGEN-DICTIONARIES](../../implemented/v0_6_2/m-codegen-dictionaries.md) — Typeclass dictionary system. Hashable instances would be generated here.
+
+**Performance precedent:**
 - [M-DOCPARSE-DX](../v0_9_3/m-docparse-dx.md) — Added list set operations (M2), now hitting O(n²) wall
 - [M-PERF7](../v0_9_3/m-perf7-docparse-production-pipeline.md) — DocParse production pipeline optimization
 - [M-PERF5](../v0_9_2/m-perf5-data-intensive-workloads.md) — Data-intensive workload performance
-- [DEDUP_IMPLEMENTATION](../../implemented/v0_3_6/DEDUP_IMPLEMENTATION.md) — Original dedup design (analysis-level)
+
+**Pattern matching (affected by Set/Map types):**
+- [M-R3: Pattern Matching](../../implemented/v0_2_0/m_r3_pattern_matching.md) — Pattern matching system. Set/Map may need match support in Phase 2+.
+- [DEDUP_IMPLEMENTATION](../../implemented/v0_3_6/DEDUP_IMPLEMENTATION.md) — Original dedup design (analysis-level, not collection-level)
 
 ---
 
@@ -506,6 +527,25 @@ let jaccard = size(common) / size(total)  -- O(1) size, O(min(n,m)) intersect
 - **Persistent data structures**: If Set/Map updates are frequent, consider HAMTs (Hash Array Mapped Tries) for structural sharing.
 - **Custom Hashable instances**: Allow users to define hash functions for domain types.
 - **Map comprehensions**: `{k: v | (k,v) <- pairs, predicate(k)}` syntax.
+
+---
+
+## Design Doc Audit (2026-03-16)
+
+**Audited via design-doc-creator skill. Claims verified against codebase:**
+
+| Claim | Verified | Notes |
+|-------|----------|-------|
+| `valuesEqual` uses `reflect.DeepEqual` | ✅ Confirmed | `internal/builtins/list.go:402-403` — only in builtins, not evaluator |
+| O(n²) dedup/intersect/union | ✅ Confirmed | `list_set.go` uses nested loops with `valuesEqual` |
+| Axiom 1 violation via `reflect.DeepEqual` | ⚠️ Narrowed | `reflect.DeepEqual` result is deterministic; real issue is performance + bypassing Eq typeclass |
+| No Hashable typeclass | ✅ Confirmed | Grep for `Hashable` in `internal/types/` returns nothing |
+| Eq typeclass exists | ✅ Confirmed | `DerivedADTEquality` in `dictionaries.go`, `deriving (Eq)` works for ADTs |
+| No Map/Set types | ✅ Confirmed | Only `RecordValue` (fixed keys) and `ListValue` exist |
+| Three `valuesEqual` implementations | 🆕 Found | Builtins (DeepEqual fallback), SimpleEvaluator (returns false), TypedEvaluator (returns false) |
+| `==` in AILANG uses DeepEqual | ❌ Corrected | `==` returns `false` for records/ADTs unless `deriving (Eq)`. Only builtins use DeepEqual. |
+
+**Neural search found 6 additional related docs** not in original version (M-DX19, M-R7, Float Equality, typesIdentical perf, M-BUILTIN-SAFETY, M-CODEGEN-DICTIONARIES).
 
 ---
 
