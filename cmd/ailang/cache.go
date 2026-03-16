@@ -52,6 +52,10 @@ func cacheCommand() {
 		runCacheEmbed(args)
 	case "put-vector":
 		runCachePutVector(args)
+	case "compile-clear":
+		runCompileCacheClear()
+	case "compile-stats":
+		runCompileCacheStats()
 	case "--help", "-h", "help":
 		printCacheHelp()
 	default:
@@ -373,14 +377,24 @@ func runCachePutResolution(args []string) {
 	diffSummary := fs.String("diff-summary", "", "Git diff stat summary")
 	files := fs.String("files", "", "Comma-separated changed files")
 	source := fs.String("source", "hook:commit", "Source identifier")
+	embed := fs.Bool("embed", false, "Compute and store embedding vector alongside SimHash")
+	enrichContent := fs.String("enrich", "", "Extra content to store alongside commit metadata (e.g., design doc text)")
 	fs.Parse(args)
 
 	if *commitMsg == "" {
-		fmt.Fprintln(os.Stderr, "Usage: ailang cache put-resolution --commit-msg \"msg\" [--diff-summary \"...\"] [--files \"f1,f2\"]")
+		fmt.Fprintln(os.Stderr, "Usage: ailang cache put-resolution --commit-msg \"msg\" [--diff-summary \"...\"] [--files \"f1,f2\"] [--embed] [--enrich \"content\"]")
 		os.Exit(1)
 	}
 
-	store, err := openBrainStore()
+	var opts []effects.CacheOption
+	if *embed {
+		embedder := createEmbedder()
+		if embedder != nil {
+			opts = append(opts, effects.WithEmbedder(embedder))
+		}
+	}
+
+	store, err := openBrainStoreWithOpts(opts...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening brain: %v\n", err)
 		os.Exit(1)
@@ -394,6 +408,9 @@ func runCachePutResolution(args []string) {
 	}
 	if *files != "" {
 		content += "\n\nFiles: " + *files
+	}
+	if *enrichContent != "" {
+		content += "\n\n---\n" + *enrichContent
 	}
 
 	// Generate key from timestamp
@@ -414,7 +431,11 @@ func runCachePutResolution(args []string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Resolution stored: %s\n", key)
+	status := fmt.Sprintf("Resolution stored: %s", key)
+	if frame.EmbeddingDim > 0 {
+		status += fmt.Sprintf(" (embedding: %d-dim %s)", frame.EmbeddingDim, frame.EmbedModel)
+	}
+	fmt.Println(status)
 }
 
 func runCachePromote(args []string) {
@@ -756,7 +777,7 @@ Subcommands:
   list                List recent frames
   show <key>          Show full frame detail
   put <key>           Store a frame manually
-  put-resolution      Store a commit resolution frame
+  put-resolution      Store a commit resolution frame (supports --embed, --enrich)
   promote <key>       Copy frame from project → user brain
   embed               Backfill embeddings for frames missing them
   stats               Show brain statistics

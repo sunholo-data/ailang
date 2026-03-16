@@ -578,6 +578,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		TrackInstantiations:     trackInstantiations,
 		DisableMonomorphization: noMono,
 		DebugCompile:            debugCompile,
+		NoCache:                 os.Getenv("AILANG_NO_CACHE") == "1",
 		StrictSyntaxMode:        strictSyntax,
 		RelaxModules:            relaxModulesEffective,
 		GlobalResolver:          builtinResolver, // Provide builtin access for type checking

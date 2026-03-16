@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -140,6 +141,16 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	compiledUnits := make(map[string]*CompileUnit)
 
+	// M-PERF6: Load compilation cache for hit/miss tracking
+	var cacheStore *CacheStore
+	var cacheHits, cacheMisses int
+	if !cfg.NoCache {
+		projectDir := filepath.Dir(src.Filename)
+		if cs, err := NewCacheStore(projectDir); err == nil {
+			cacheStore = cs
+		}
+	}
+
 	// M-DX11: Variables to capture root module's type checker and debug sink
 	var rootTypeChecker *types.CoreTypeChecker
 	var rootDebugSink *types.VerboseDebugSink
@@ -149,6 +160,35 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		unit := &CompileUnit{
 			ID:      string(modID),
 			Surface: mod.File,
+		}
+
+		// M-PERF6: Compute cache key and check for hits
+		var moduleCacheKey string
+		if cacheStore != nil {
+			// Build dep digests from already-compiled dependencies
+			depDigests := make(map[string]string)
+			for _, imp := range mod.Imports {
+				if cu, ok := compiledUnits[imp]; ok && cu.Iface != nil {
+					depDigests[imp] = cu.Iface.Digest
+				}
+			}
+			// Read source from disk for content hash
+			sourceContent := ""
+			if srcBytes, err := os.ReadFile(mod.Path); err == nil {
+				sourceContent = string(srcBytes)
+			}
+			moduleCacheKey = ModuleCacheKey(cacheKeyVersion, sourceContent, depDigests)
+			if entry, ok := cacheStore.Lookup(string(modID), moduleCacheKey); ok {
+				cacheHits++
+				if cfg.DebugCompile {
+					fmt.Fprintf(os.Stderr, "[CACHE] %s: HIT (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+				}
+			} else {
+				cacheMisses++
+				if cfg.DebugCompile {
+					fmt.Fprintf(os.Stderr, "[CACHE] %s: MISS\n", modID)
+				}
+			}
 		}
 
 		// Validate module declaration matches canonical path (MOD010)
@@ -760,12 +800,34 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		unit.Iface = unitIface
 		modLinker.RegisterIface(unitIface)
 
+		// M-PERF6: Store cache entry after successful compilation
+		if cacheStore != nil && moduleCacheKey != "" {
+			ifaceJSON, _ := unitIface.ToNormalizedJSON()
+			cacheStore.Store(string(modID), &CacheEntry{
+				CacheKey:      moduleCacheKey,
+				IfaceDigest:   unitIface.Digest,
+				IfaceJSON:     ifaceJSON,
+				CompileTimeMs: 0, // TODO: per-module timing
+				Timestamp:     time.Now(),
+			})
+		}
+
 		compiledUnits[string(modID)] = unit
 	}
 
 	// Register $adt module after all modules are loaded and their interfaces are built
 	// This allows $adt to collect all constructors from all loaded modules
 	link.RegisterAdtModule(modLinker)
+
+	// M-PERF6: Save cache and report stats
+	if cacheStore != nil {
+		_ = cacheStore.Save()
+		if cfg.DebugCompile {
+			totalEntries, _ := cacheStore.Stats()
+			fmt.Fprintf(os.Stderr, "[CACHE] Summary: %d hits, %d misses (%d modules cached)\n",
+				cacheHits, cacheMisses, totalEntries)
+		}
+	}
 
 	compileSpan.SetAttributes(attribute.Int("modules.compiled", len(compiledUnits)))
 	compileSpan.End()
