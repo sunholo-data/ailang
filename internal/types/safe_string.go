@@ -14,7 +14,9 @@ const MaxStringifyDepth = 100
 // If the depth exceeds MaxStringifyDepth, returns a truncated representation.
 // This prevents infinite loops on cyclic type graphs.
 func SafeTypeString(t Type) string {
-	return safeTypeStringWithDepth(t, 0, make(map[Type]bool))
+	visited := getTypeBoolMap()
+	defer putTypeBoolMap(visited)
+	return safeTypeStringWithDepth(t, 0, visited)
 }
 
 // safeTypeStringWithDepth is the internal depth-limited string implementation.

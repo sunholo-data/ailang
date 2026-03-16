@@ -288,7 +288,8 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 // which provides the same cycle-safe behavior with a cleaner API.
 // See: internal/types/traverse/wrappers.go
 func collectFreeVars(t Type, vars map[string]bool) {
-	visited := make(map[Type]bool)
+	visited := getTypeBoolMap()
+	defer putTypeBoolMap(visited)
 	collectFreeVarsWithVisited(t, vars, visited)
 }
 

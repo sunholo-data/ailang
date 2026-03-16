@@ -3,7 +3,8 @@ package types
 // occurs performs the occurs check - ensures variable doesn't occur in type
 // This is the public entry point that creates a visited set for cycle detection
 func (u *Unifier) occurs(varName string, t Type, varKind Kind) bool {
-	visited := make(map[Type]bool)
+	visited := getTypeBoolMap()
+	defer putTypeBoolMap(visited)
 	return u.occursWithVisited(varName, t, varKind, visited)
 }
 

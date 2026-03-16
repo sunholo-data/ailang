@@ -240,7 +240,9 @@ func (u *Unifier) kindsCompatible(k1, k2 Kind) bool {
 // the types may have different TypeName values. We need to propagate TypeName
 // recursively through all nested TRecord types.
 func propagateTypeNameRecursive(t1, t2 Type) {
-	propagateTypeNameWithVisited(t1, t2, make(map[Type]bool))
+	visited := getTypeBoolMap()
+	defer putTypeBoolMap(visited)
+	propagateTypeNameWithVisited(t1, t2, visited)
 }
 
 func propagateTypeNameWithVisited(t1, t2 Type, visited map[Type]bool) {

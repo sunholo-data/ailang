@@ -3,7 +3,8 @@ package types
 // SafeEquals compares two types for equality with cycle detection
 // This prevents infinite loops when comparing cyclic type graphs
 func SafeEquals(t1, t2 Type) bool {
-	visited := make(map[typePair]bool)
+	visited := getTypePairBoolMap()
+	defer putTypePairBoolMap(visited)
 	return safeEqualsWithVisited(t1, t2, visited)
 }
 

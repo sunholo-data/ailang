@@ -5,7 +5,8 @@ func ApplySubstitution(sub Substitution, t Type) Type {
 	if len(sub) == 0 {
 		return t
 	}
-	visited := make(map[Type]Type)
+	visited := getTypeTypeMap()
+	defer putTypeTypeMap(visited)
 	return safeSubstitute(t, sub, visited)
 }
 
