@@ -30,20 +30,26 @@ Cloud Coordinator (Cloud Run)
   ▼
 Agent executes task (git guardrails enforced by PreToolUse hook)
   │
-  ├── 5. Pushes changes to git (branch or direct to main for skip_approval agents)
-  ├── 6. Publishes completion to Pub/Sub
+  ├── 5a. Streams progress events to Pub/Sub (text, tool_use, tool_result, error)
+  ├── 5b. Pushes changes to git (branch or direct to main for skip_approval agents)
+  ├── 6. Publishes TaskCompletion to Pub/Sub
   │
   ▼
-Coordinator receives completion
+Dashboard (Cloud Run) subscribes to ailang-events-dashboard
+  │
+  ├── PubSubEventSubscriber pulls events → BroadcastTaskEvent() to WebSocket clients
+  │
+  ▼
+Coordinator receives completion (ailang-completions topic)
   │
   ├── 7. Updates task status (completed/failed/pending_approval)
   ├── 8. Posts completion message to agent inbox (with correlation_id)
   │
   ▼
 Your Client
-  ← GET /api/messages + filter by correlation_id (recommended)
-  ← OR Dashboard WebSocket (real-time streaming)
-  ← OR Firestore onSnapshot (real-time)
+  ← GET /api/messages + filter by correlation_id (polling, recommended for completion)
+  ← OR Dashboard WebSocket /ws (real-time streaming of all events)
+  ← OR Firestore onSnapshot (real-time completion)
   ← OR Pub/Sub pull subscription (backend services)
 ```
 
@@ -787,15 +793,19 @@ streaming_pull = subscriber.subscribe(
 
 **Event types in the stream:**
 
-| `event_type` | Description |
-|--------------|-------------|
-| `text` | Model reasoning / text output |
-| `tool_use` | Agent invoked a tool (file edit, bash, etc.) |
-| `tool_result` | Tool returned a result |
-| `turn_start` | Agent turn begins |
-| `turn_end` | Agent turn completes |
-| `status` | Task status change (running, completed, failed) |
-| `error` | Error during execution |
+| `event_type` | Description | Rate Limit / Truncation |
+|--------------|-------------|------------------------|
+| `text` | Model reasoning / text output | 1 per 500ms, truncated to 2000 chars |
+| `tool_use` | Agent invoked a tool (file edit, bash, etc.) | Tool input truncated to 1000 chars |
+| `tool_result` | Tool returned a result | Output truncated to 2000 chars |
+| `turn_start` | Agent turn begins | Always broadcast |
+| `turn_end` | Agent turn completes | Always broadcast |
+| `status` | Task status change (running, completed, failed) | Always broadcast, includes tokens/cost |
+| `error` | Error during execution | Always broadcast |
+
+:::info
+The cloud executor rate-limits `text` events to 1 per 500ms to avoid flooding Pub/Sub. All events are logged to Cloud Logging (stderr) regardless of rate limiting. The `status` event includes final metrics: `tokens_in`, `tokens_out`, `cost`, and `duration_sec`.
+:::
 
 ### Live Build Progress via WebSocket (Dashboard)
 
@@ -803,7 +813,37 @@ The AILANG Dashboard provides a WebSocket endpoint for real-time task streaming 
 
 **Dashboard URL**: `wss://your-dashboard.run.app/ws` (or `ws://localhost:1957/ws` locally)
 
-**How it works**: In cloud mode, the dashboard pulls events from the `ailang-events-dashboard` Pub/Sub subscription and broadcasts them to all connected WebSocket clients. No Pub/Sub SDK required — just a WebSocket client.
+**How it works**: The cloud executor publishes **all mid-execution events** (text, tool_use, tool_result, error, turn_start, turn_end, status) to the `ailang-events` Pub/Sub topic via `PubSubBroadcaster`. The dashboard's `PubSubEventSubscriber` pulls from the `ailang-events-dashboard` subscription and calls `BroadcastTaskEvent()` to relay events to all connected WebSocket clients.
+
+**Full streaming chain**:
+
+```
+Cloud Run Job (agent executor)
+  │
+  cloudEventHandler receives executor callbacks:
+  │  OnText()       → rate-limited 1 per 500ms
+  │  OnToolUse()    → tool name + summary
+  │  OnToolResult() → tool output (truncated to 2000 chars)
+  │  OnError()      → error message
+  │  OnMetrics()    → final status with tokens/cost
+  │
+  ▼
+PubSubBroadcaster.Broadcast()
+  │  Serializes TaskStreamEvent → publishes to ailang-events topic
+  │  Attributes: event_type, task_id, workspace
+  │
+  ▼
+Dashboard (PubSubEventSubscriber)
+  │  Pulls from ailang-events-dashboard subscription
+  │  Deserializes → wsServer.BroadcastTaskEvent()
+  │
+  ▼
+WebSocket /ws endpoint
+  │  Broadcasts to all connected clients
+  │
+  ▼
+Your Client (browser, portal, CLI)
+```
 
 **Authentication**: When `COORDINATOR_API_KEY` is set (cloud deployments), external WebSocket clients must connect with `?token=API_KEY` query parameter. The same API key used for `POST /api/messages` works for WebSocket. The embedded dashboard UI (same-origin) connects without a token. In local mode (no key configured), all connections are open.
 
@@ -1240,12 +1280,14 @@ The website-builder agent builds websites from text briefs and pushes them direc
 ```
 Portal (GitHub Pages SPA)
   │
-  POST /api/build { title, content }
+  ├── POST /api/build { title, content }
+  ├── WSS /api/ws (live streaming)
   │
   ▼
 Express Sidecar (Cloud Run)
   │
-  POST /api/messages { inbox: "website-builder", title, content, from: "sidecar" }
+  ├── POST /api/messages { inbox: "website-builder", title, content, from: "sidecar" }
+  ├── WSS proxy → DASHBOARD_URL/ws?token=COORDINATOR_API_KEY
   │
   ▼
 Coordinator (Cloud Run)
@@ -1258,23 +1300,25 @@ Cloud Run Job (website-builder agent)
   │
   ├── Clones sunholo-data/sunholo-websites (branch: main)
   ├── Runs Claude CLI to build HTML/CSS
+  ├── Streams progress → PubSubBroadcaster → ailang-events topic
   ├── git add + commit + push to main
   ├── Publishes TaskCompletion to ailang-completions
   │
-  ▼
-Coordinator
-  │
-  ├── Marks task completed (skip_approval)
-  ├── Posts completion message to website-builder inbox
-  │
-  ▼
-Sidecar polls GET /api/messages
-  │
-  ├── Finds completion with matching correlation_id
-  ├── Returns result to portal
-  │
-  ▼
-Portal loads preview from GitHub Pages
+  ▼                                          ▼
+Coordinator                           Dashboard
+  │                                     │
+  ├── Marks task completed              ├── PubSubEventSubscriber pulls events
+  ├── Posts completion message          ├── Broadcasts to WebSocket /ws
+  │                                     │
+  ▼                                     ▼
+Sidecar polls GET /api/messages    Sidecar proxies WSS to portal
+  │                                     │
+  ├── Finds completion                  ├── Portal shows live activity:
+  ├── Returns result to portal          │   text, tool_use, status, error
+  │                                     │
+  ▼                                     ▼
+Portal loads preview               Portal shows "Build complete"
+from GitHub Pages                  (completedViaWs fast-path)
 ```
 
 ### Sidecar Endpoints
@@ -1285,6 +1329,7 @@ The Express.js sidecar mediates between the portal and the coordinator:
 |-----------------|---------|---------|
 | `POST /api/build` | `POST /api/messages` on coordinator | Submit build brief |
 | `GET /api/status` | `GET /api/messages` on coordinator | Poll for completion |
+| `WSS /api/ws` | `WSS DASHBOARD_URL/ws?token=API_KEY` | Proxy live streaming events |
 
 **Field mapping** (sidecar → coordinator):
 
@@ -1295,6 +1340,49 @@ The Express.js sidecar mediates between the portal and the coordinator:
 | `content` | `content` | Exact |
 | `from` | `from` | Exact |
 
+### Sidecar WebSocket Proxy (Live Streaming)
+
+The sidecar proxies WebSocket connections from the portal to the dashboard, enabling real-time build progress without exposing the dashboard URL or API key to the browser.
+
+```
+Portal (BuildStep.vue)
+  │
+  wss://sidecar-url/api/ws
+  │
+  ▼
+Sidecar (Express.js on Cloud Run)
+  │
+  Upgrades connection, proxies to:
+  wss://DASHBOARD_URL/ws?token=COORDINATOR_API_KEY
+  │
+  ▼
+Dashboard (AILANG Coordinator)
+  │
+  PubSubEventSubscriber → BroadcastTaskEvent() → WebSocket broadcast
+  │
+  ▼
+Portal receives task_stream messages:
+  • text: AI reasoning output (truncated to 200 chars in UI)
+  • tool_use: tool name with friendly labels ("Writing file...")
+  • status: completed/failed → triggers final pollStatus()
+  • error: error messages
+```
+
+**Portal event handling** (BuildStep.vue):
+
+The portal's `connectTaskStream(taskId)` converts the sidecar HTTP URL to WebSocket (`https:` → `wss:`, appends `/ws`) and handles four event types:
+
+| `stream_type` | Portal behavior |
+|---------------|----------------|
+| `text` | Appends to activity log (truncated to 200 chars) |
+| `tool_use` | Shows friendly tool label (e.g., "Writing file...") |
+| `status` | Sets `completedViaWs = true`, triggers `pollStatus()` for final payload |
+| `error` | Logs error message |
+
+The portal keeps the last 30 activity log entries and uses `completedViaWs` as a fast-path to skip polling — when a `status: "completed"` event arrives via WebSocket, it immediately fetches the completion payload rather than waiting for the next poll cycle.
+
+**Dual completion path**: The portal supports both WebSocket completion (fast, sub-second) and polling completion (fallback, 5-second intervals). The WebSocket path fires first when streaming is active; polling acts as a safety net if the WebSocket connection drops.
+
 ### Environment Variables
 
 The sidecar needs these environment variables:
@@ -1303,6 +1391,7 @@ The sidecar needs these environment variables:
 |----------|---------|-------------|
 | `COORDINATOR_URL` | `https://coordinator.run.app` | Coordinator Cloud Run service URL |
 | `COORDINATOR_API_KEY` | `sk-...` | API key for coordinator auth |
+| `DASHBOARD_URL` | `https://dashboard.run.app` | Dashboard URL for WebSocket proxy upstream |
 
 ### End-to-End Example (JavaScript)
 
