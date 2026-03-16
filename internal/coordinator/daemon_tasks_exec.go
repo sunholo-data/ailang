@@ -154,6 +154,10 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.AuthMode != "" {
 					params.AuthMode = agent.AuthMode
 				}
+				// M-GIT-GUARDRAILS: Per-agent git mode for PreToolUse hook enforcement.
+				if agent.GitMode != "" {
+					params.GitMode = agent.GitMode
+				}
 			}
 			// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
 			if budgetsCfg, budgetErr := LoadBudgetsConfig(); budgetErr == nil && budgetsCfg != nil {

@@ -28,4 +28,5 @@ type DispatchParams struct {
 	AuthMode   string  // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
 	APIKey     string  // User-provided Anthropic API key, only when AuthMode == "apikey"
 	MaxCostUSD float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
+	GitMode    string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
 }

@@ -133,6 +133,13 @@ type AgentConfig struct {
 	// "oauth" (default) or "apikey" — selects Cloud Run Job template.
 	// User-provided API keys from messages override this setting.
 	AuthMode string `yaml:"auth_mode" json:"auth_mode,omitempty"`
+
+	// Per-agent git mode (M-GIT-GUARDRAILS, v0.9.2).
+	// Controls how the PreToolUse git_guard.sh hook restricts git operations:
+	// "guardrails" (default) — reads + commits allowed, push only to expected branch
+	// "strict" — all git write operations blocked (read-only)
+	// "permissive" — all allowed except force-push and reset --hard
+	GitMode string `yaml:"git_mode" json:"git_mode,omitempty"`
 }
 
 // PluginsConfig specifies third-party plugins to install for an agent.

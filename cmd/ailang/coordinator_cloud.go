@@ -302,6 +302,12 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		directive = fmt.Sprintf("Execute task %s as agent %s", taskID, agentID)
 	}
 
+	// M-GIT-GUARDRAILS: Default to guardrails if not set per-agent or via Terraform.
+	// Ensures local coordinator runs and test environments also get git guardrails.
+	if os.Getenv("AILANG_GIT_MODE") == "" {
+		os.Setenv("AILANG_GIT_MODE", "guardrails")
+	}
+
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
 	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 	if execErr != nil {

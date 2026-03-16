@@ -114,6 +114,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_MAX_COST_USD", Values: &runpb.EnvVar_Value{Value: fmt.Sprintf("%.4f", params.MaxCostUSD)},
 		})
 	}
+	// M-GIT-GUARDRAILS: Pass per-agent git mode for PreToolUse hook enforcement.
+	// When set, overrides the Terraform-level AILANG_GIT_MODE default.
+	if params.GitMode != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_GIT_MODE", Values: &runpb.EnvVar_Value{Value: params.GitMode},
+		})
+	}
 	// M-CLOUD-PROGRESS-TRACKING M4: Inject W3C trace context for Cloud Trace linking.
 	// This propagates the coordinator's span context to the Cloud Run Job so
 	// job spans appear as children of the coordinator dispatch span.
