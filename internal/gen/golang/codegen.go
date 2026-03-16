@@ -190,6 +190,11 @@ type Generator struct {
 	// M-CODEGEN-VALUE-TYPES: These handle both values and pointers in interface{}
 	// Generated as AsTypeName(v interface{}) TypeName helper functions
 	valueTypeConverters map[string]bool
+
+	// interfaceCache memoizes exprProducesInterface() results per function.
+	// M-PERF6: Cleared at the start of each function declaration since the result
+	// depends on per-function state (expectedReturnType, typedLocalVars, currentFuncParams).
+	interfaceCache map[core.CoreExpr]bool
 }
 
 // FuncTypeOverride stores explicit function type signatures from AST annotations.

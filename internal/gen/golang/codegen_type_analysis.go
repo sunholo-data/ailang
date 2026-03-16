@@ -14,6 +14,24 @@ import (
 // regardless of what CoreTypeInfo says about the AILANG type.
 // M-DX26: In _impl functions, everything produces interface{} (except literals).
 func (g *Generator) exprProducesInterface(expr core.CoreExpr) bool {
+	// M-PERF6: Check memoization cache first
+	if g.interfaceCache != nil {
+		if cached, ok := g.interfaceCache[expr]; ok {
+			return cached
+		}
+	}
+
+	result := g.exprProducesInterfaceUncached(expr)
+
+	// M-PERF6: Store result in cache
+	if g.interfaceCache != nil {
+		g.interfaceCache[expr] = result
+	}
+	return result
+}
+
+// exprProducesInterfaceUncached is the actual implementation without caching.
+func (g *Generator) exprProducesInterfaceUncached(expr core.CoreExpr) bool {
 	// M-DX26: In _impl functions, almost everything is interface{}
 	// Exceptions: literals and ADT constructor calls (which return typed values)
 	if g.expectedReturnType == "interface{}" {

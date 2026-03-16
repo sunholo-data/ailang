@@ -75,6 +75,9 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	// Must be reset per-function to avoid scope contamination.
 	g.typedLocalVars = make(map[string]string)
 
+	// M-PERF6: Clear interface cache — result depends on per-function state
+	g.interfaceCache = make(map[core.CoreExpr]bool)
+
 	// M-DX26: Get typed signature for the wrapper
 	// M-CODEGEN-TYPED-PARAMS: Pass function name to check for AST-derived type overrides
 	paramTypes, returnType := g.getTypedSignature(name, lam)
