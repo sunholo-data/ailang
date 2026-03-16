@@ -272,6 +272,13 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		return "", nil, nil, fmt.Errorf("git clone failed: %w", err)
 	}
 
+	// M-HARNESS-COMMIT-CONTRACT: Capture clone point for artifact discovery.
+	// With --depth 1, origin/main..HEAD shows nothing because there's only 1 commit.
+	// Record HEAD at clone time so we can diff agent's commits against it later.
+	clonePointCmd := exec.CommandContext(ctx, "git", "-C", workDir, "rev-parse", "HEAD")
+	clonePointOutput, _ := clonePointCmd.Output()
+	clonePoint := strings.TrimSpace(string(clonePointOutput))
+
 	// Step 1.5: Inject AGENTS.md from plugin if repo doesn't have one (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 	// This gives the agent cross-platform instructions without requiring every repo to include AGENTS.md.
 	if pluginDir != "" {
@@ -383,7 +390,7 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	if len(strings.TrimSpace(string(logOutput))) == 0 {
 		fmt.Println("execute-job: no commits to push")
-		changedFiles := discoverChangedFiles(workDir, baseBranch)
+		changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
 		return branchName, execResult, changedFiles, nil
 	}
 
@@ -401,16 +408,19 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	}
 
 	// Step 6: Discover changed files for the completion message.
-	changedFiles := discoverChangedFiles(workDir, baseBranch)
+	// M-HARNESS-COMMIT-CONTRACT: Use clonePoint commit hash instead of baseBranch
+	// to handle shallow clones where branch-based diff returns empty.
+	changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
 	return branchName, execResult, changedFiles, nil
 }
 
-// discoverChangedFiles uses ArtifactDiscovery to find files created/modified by the agent.
+// discoverChangedFilesFromCommit uses ArtifactDiscovery to find files created/modified by the agent.
+// Uses the clone-point commit hash for reliable diffing in shallow clones.
 // Returns nil on error (best-effort — completion should still be sent without files).
-func discoverChangedFiles(workDir, baseBranch string) []string {
+func discoverChangedFilesFromCommit(workDir, clonePoint string) []string {
 	ad := coordinator.NewArtifactDiscovery(workDir, nil) // No pattern filter — return all
-	if baseBranch != "" {
-		ad.WithBaseBranch(baseBranch)
+	if clonePoint != "" {
+		ad.WithBaseCommit(clonePoint)
 	}
 	files, err := ad.DiscoverChangedFiles()
 	if err != nil {
