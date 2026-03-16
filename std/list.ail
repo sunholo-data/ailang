@@ -329,3 +329,20 @@ export pure func minimumString(xs: [string]) -> Option[string] {
     }
   }
 }
+
+-- M-DOCPARSE-DX M2: Set operations
+
+-- member: Check if element is in list
+export pure func member[a](elem: a, xs: [a]) -> bool = _list_member(elem, xs)
+
+-- dedup: Remove duplicates, preserving first occurrence order
+export pure func dedup[a](xs: [a]) -> [a] = _list_dedup(xs)
+
+-- intersect: Elements present in both lists
+export pure func intersect[a](xs: [a], ys: [a]) -> [a] = _list_intersect(xs, ys)
+
+-- union: Combine two lists without duplicates
+export pure func union[a](xs: [a], ys: [a]) -> [a] = _list_union(xs, ys)
+
+-- difference: Elements in first list but not in second
+export pure func difference[a](xs: [a], ys: [a]) -> [a] = _list_difference(xs, ys)

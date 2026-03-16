@@ -44,10 +44,10 @@
         "examples/set_operations.ail runs successfully",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-16T05:50:00Z",
+      "completed": "2026-03-16T06:02:00Z",
+      "notes": "5 builtins (member, dedup, intersect, union, difference) with reflect.DeepEqual fallback. 568 LOC added. 28 test cases pass with -count=20. Example file works end-to-end."
     },
     {
       "id": "M3_LISTDIR_STRING_SPLITTING",

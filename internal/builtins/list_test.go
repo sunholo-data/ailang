@@ -500,3 +500,245 @@ func TestListConcatImmutability(t *testing.T) {
 	assert.Equal(t, xsLen, len(xsList.Elements), "first list should not be mutated")
 	assert.Equal(t, ysLen, len(ysList.Elements), "second list should not be mutated")
 }
+
+// ============================================================================
+// M-DOCPARSE-DX M2: Set Operations Tests
+// ============================================================================
+
+func TestListMember(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		elem     eval.Value
+		list     []eval.Value
+		expected bool
+	}{
+		{"found int", testctx.MakeInt(3), []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)}, true},
+		{"not found int", testctx.MakeInt(4), []eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)}, false},
+		{"empty list", testctx.MakeInt(1), []eval.Value{}, false},
+		{"found string", testctx.MakeString("b"), []eval.Value{testctx.MakeString("a"), testctx.MakeString("b")}, true},
+		{"single element match", testctx.MakeInt(42), []eval.Value{testctx.MakeInt(42)}, true},
+		{"single element no match", testctx.MakeInt(42), []eval.Value{testctx.MakeInt(99)}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := listMemberImpl(ctx.EffContext, []eval.Value{
+				tt.elem,
+				&eval.ListValue{Elements: tt.list},
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result.(*eval.BoolValue).Value)
+		})
+	}
+}
+
+func TestListDedup(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		input    []eval.Value
+		expected []eval.Value
+	}{
+		{
+			"with duplicates",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(1), testctx.MakeInt(3), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+		{
+			"no duplicates",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+		{"empty", []eval.Value{}, []eval.Value{}},
+		{
+			"all same",
+			[]eval.Value{testctx.MakeInt(5), testctx.MakeInt(5), testctx.MakeInt(5)},
+			[]eval.Value{testctx.MakeInt(5)},
+		},
+		{
+			"strings",
+			[]eval.Value{testctx.MakeString("a"), testctx.MakeString("b"), testctx.MakeString("a")},
+			[]eval.Value{testctx.MakeString("a"), testctx.MakeString("b")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := listDedupImpl(ctx.EffContext, []eval.Value{
+				&eval.ListValue{Elements: tt.input},
+			})
+			assert.NoError(t, err)
+			got := result.(*eval.ListValue).Elements
+			assert.Equal(t, len(tt.expected), len(got), "length mismatch")
+			for i := range tt.expected {
+				assert.True(t, valuesEqual(tt.expected[i], got[i]), "element %d mismatch", i)
+			}
+		})
+	}
+}
+
+func TestListIntersect(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		xs       []eval.Value
+		ys       []eval.Value
+		expected []eval.Value
+	}{
+		{
+			"overlap",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(2), testctx.MakeInt(3), testctx.MakeInt(4)},
+			[]eval.Value{testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+		{
+			"no overlap",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(3), testctx.MakeInt(4)},
+			[]eval.Value{},
+		},
+		{
+			"full overlap",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+		},
+		{"empty first", []eval.Value{}, []eval.Value{testctx.MakeInt(1)}, []eval.Value{}},
+		{"empty second", []eval.Value{testctx.MakeInt(1)}, []eval.Value{}, []eval.Value{}},
+		{
+			"duplicates in input",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(1)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := listIntersectImpl(ctx.EffContext, []eval.Value{
+				&eval.ListValue{Elements: tt.xs},
+				&eval.ListValue{Elements: tt.ys},
+			})
+			assert.NoError(t, err)
+			got := result.(*eval.ListValue).Elements
+			assert.Equal(t, len(tt.expected), len(got), "length mismatch")
+			for i := range tt.expected {
+				assert.True(t, valuesEqual(tt.expected[i], got[i]), "element %d mismatch", i)
+			}
+		})
+	}
+}
+
+func TestListUnion(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		xs       []eval.Value
+		ys       []eval.Value
+		expected []eval.Value
+	}{
+		{
+			"basic union",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(2), testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+		{
+			"no overlap",
+			[]eval.Value{testctx.MakeInt(1)},
+			[]eval.Value{testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+		},
+		{
+			"full overlap",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+		},
+		{"both empty", []eval.Value{}, []eval.Value{}, []eval.Value{}},
+		{
+			"duplicates in first",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := listUnionImpl(ctx.EffContext, []eval.Value{
+				&eval.ListValue{Elements: tt.xs},
+				&eval.ListValue{Elements: tt.ys},
+			})
+			assert.NoError(t, err)
+			got := result.(*eval.ListValue).Elements
+			assert.Equal(t, len(tt.expected), len(got), "length mismatch")
+			for i := range tt.expected {
+				assert.True(t, valuesEqual(tt.expected[i], got[i]), "element %d mismatch", i)
+			}
+		})
+	}
+}
+
+func TestListDifference(t *testing.T) {
+	ctx := testctx.NewMockEffContext()
+
+	tests := []struct {
+		name     string
+		xs       []eval.Value
+		ys       []eval.Value
+		expected []eval.Value
+	}{
+		{
+			"basic difference",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2), testctx.MakeInt(3)},
+			[]eval.Value{testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(3)},
+		},
+		{
+			"remove all",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{},
+		},
+		{
+			"remove none",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{testctx.MakeInt(3), testctx.MakeInt(4)},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+		},
+		{"empty first", []eval.Value{}, []eval.Value{testctx.MakeInt(1)}, []eval.Value{}},
+		{
+			"empty second",
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+			[]eval.Value{},
+			[]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)},
+		},
+		{
+			"strings",
+			[]eval.Value{testctx.MakeString("a"), testctx.MakeString("b"), testctx.MakeString("c")},
+			[]eval.Value{testctx.MakeString("b")},
+			[]eval.Value{testctx.MakeString("a"), testctx.MakeString("c")},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := listDifferenceImpl(ctx.EffContext, []eval.Value{
+				&eval.ListValue{Elements: tt.xs},
+				&eval.ListValue{Elements: tt.ys},
+			})
+			assert.NoError(t, err)
+			got := result.(*eval.ListValue).Elements
+			assert.Equal(t, len(tt.expected), len(got), "length mismatch")
+			for i := range tt.expected {
+				assert.True(t, valuesEqual(tt.expected[i], got[i]), "element %d mismatch", i)
+			}
+		})
+	}
+}
