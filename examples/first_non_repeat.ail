@@ -1,0 +1,34 @@
+module examples/first_non_repeat
+
+import std/string (chars, foldChars)
+import std/list (foldl, filter, head)
+import std/option (Some, None)
+
+-- Look up count for a char in frequency list
+pure func countOf(freqs: [(string, int)], c: string) -> int =
+  match freqs {
+    [] => 0,
+    (ch, n) :: rest => if ch == c then n else countOf(rest, c)
+  }
+
+-- Increment or insert char in frequency list
+pure func incFreq(freqs: [(string, int)], c: string) -> [(string, int)] =
+  match freqs {
+    [] => [(c, 1)],
+    (ch, n) :: rest => if ch == c then (ch, n + 1) :: rest
+                       else (ch, n) :: incFreq(rest, c)
+  }
+
+-- First non-repeating character, or None if all repeat
+pure func firstNonRepeat(s: string) -> Option[string] {
+  let cs = chars(s);
+  let freqs = foldl(\acc c. incFreq(acc, c), [], cs);
+  head(filter(\c. countOf(freqs, c) == 1, cs))
+}
+
+export func main() -> () ! {IO} {
+  let show_result = \r. match r { Some(c) => "\"" ++ c ++ "\"", None => "null" };
+  println("stress → " ++ show_result(firstNonRepeat("stress")));
+  println("aabbcc → " ++ show_result(firstNonRepeat("aabbcc")));
+  println("programming → " ++ show_result(firstNonRepeat("programming")))
+}
