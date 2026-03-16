@@ -337,6 +337,7 @@ func runCommand() {
 	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
+	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
 	capsFlag := fs.String("caps", "", "Enable capabilities (comma-separated: IO,FS,Net,Env,Process)")
 	maxRecursionDepthFlag := fs.Int("max-recursion-depth", 10000, "Maximum recursion depth (default: 10000)")
 
@@ -414,10 +415,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
@@ -616,174 +617,217 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 	// Entrypoint resolution and execution
 	// Only attempt entrypoint resolution if the module has exports
 	if result.Interface != nil && len(result.Interface.Exports) > 0 {
-		// Module execution with runtime (v0.2.0+)
-		// Use CWD as base path for module resolution, not file directory.
-		// This ensures imports like "sim/protocol" from "sim/world.ail" resolve
-		// from project root, not relative to the importing file's directory.
-		// Fix for: LDR001 module not found when importing from subdirectories
-		rt := runtime.NewModuleRuntime(".")
 
-		// Set up effect context with capability grants
-		effCtx := effects.NewEffContext(programArgs)
-		grantCapabilities(effCtx, caps)
-
-		// OTEL: Wire Go context and span wrapper for effect tracing
-		effCtx.GoCtx = ctx
-		effCtx.SpanWrapper = telemetry.NewEffectSpanWrapper()
-
-		// M-CAPABILITY-BUDGETS: Allow bypassing budget enforcement via --no-budgets flag
-		if noBudgets {
-			effCtx.DisableBudgets = true
-		}
-
-		// M-DX25: Initialize budget report if requested
-		if budgetReport != "" {
-			effCtx.BudgetReport = effects.NewBudgetReport()
-		}
-
-		// Set up effect handlers if requested
-		setupSharedMemHandler(effCtx)                                                         // SharedMem for semantic caching (M-DX15)
-		setupSharedIndexHandler(effCtx)                                                       // SharedIndex for semantic retrieval (M-DX16)
-		setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
-		if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		if debugEffect {
-			effCtx.Debug = effects.NewDebugContext()
-		}
-
-		// M-VERIFY-CONTRACTS: Enable contract verification if requested
-		if verifyContracts {
-			effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+		// M-PERF7: Batch mode — compile once, execute entrypoint per input
+		// In batch mode, programArgs are treated as inputs (one execution per arg).
+		// Each execution gets a fresh runtime and effect context to avoid state leaks.
+		if batch {
+			if len(programArgs) == 0 {
+				fmt.Fprintf(os.Stderr, "%s: --batch requires at least one input argument\n", red("Error"))
+				fmt.Fprintln(os.Stderr, "Usage: ailang run --batch <file.ail> input1 input2 ...")
+				os.Exit(1)
+			}
 			if !quiet {
-				fmt.Fprintln(os.Stderr, "Contract verification enabled (panic mode)")
+				fmt.Fprintf(os.Stderr, "%s Batch mode: %d inputs, compiled once\n", cyan("→"), len(programArgs))
 			}
-		}
 
-		// M-TRACE-EXPORT: Enable semantic execution trace collection
-		// Auto-enable when OTEL is configured (zero extra flags needed)
-		if emitTrace == "" && (telemetry.IsGoogleCloudEnabled() || telemetry.IsEnabled()) {
-			emitTrace = "auto"
-		}
-		if emitTrace != "" {
-			effCtx.Trace = ailtrace.NewCollector()
-			if strings.Contains(emitTrace, "jsonl") {
-				effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
-			}
-			if !quiet && emitTrace != "auto" {
-				fmt.Fprintf(os.Stderr, "Trace collection enabled (%s)\n", emitTrace)
-			}
-		}
-
-		// Process environment variable flags
-		envConfig := envFlags{
-			allowEnv:         allowEnv,
-			allowEnvFile:     allowEnvFile,
-			env:              env,
-			envSnapshot:      envSnapshot,
-			writeEnvSnapshot: writeEnvSnapshot,
-		}
-		if shouldExit := setupEnvContext(effCtx, envConfig); shouldExit {
-			os.Exit(0)
-		}
-
-		rt.GetEvaluator().SetEffContext(effCtx)
-
-		// M-STREAM-BIDI: Wire function caller for stream event handlers
-		{
-			evaluator := rt.GetEvaluator()
-			effCtx.FnCaller = evaluator.CallValue
-			effCtx.FnCallerN = evaluator.CallValueN
-		}
-
-		// M-VERIFY-CONTRACTS: Enable binop shim for contract evaluation if needed
-		if binopShim {
-			rt.GetEvaluator().SetExperimentalBinopShim(true)
-		}
-
-		// M-DX19: Inject dictionary registry with derived type class instances
-		if result.DictReg != nil {
-			rt.GetEvaluator().SetDictionaryRegistry(result.DictReg)
-		}
-
-		// M-TRACE-EXPORT: Record module start for replay metadata
-		moduleName := ""
-		if result.Interface != nil {
-			moduleName = result.Interface.Module
-		}
-		var capsList []string
-		if caps != "" {
-			capsList = strings.Split(caps, ",")
-		}
-		if effCtx.Trace != nil && effCtx.Trace.Enabled() {
-			effCtx.Trace.RecordModuleStart(moduleName, capsList)
-		}
-
-		// Execute module entrypoint
-		moduleStartTime := time.Now()
-		execParams := moduleExecParams{
-			filename:          filename,
-			iface:             result.Interface,
-			modules:           result.Modules,
-			entry:             entry,
-			argsJSON:          argsJSON,
-			print:             print,
-			noprint:           noprint,
-			maxRecursionDepth: maxRecursionDepth,
-		}
-		execErr := executeModuleEntrypoint(rt, execParams)
-
-		// M-TRACE-EXPORT: Record module end with duration
-		if effCtx.Trace != nil && effCtx.Trace.Enabled() {
-			durationNS := time.Since(moduleStartTime).Nanoseconds()
-			effCtx.Trace.RecordModuleEnd(moduleName, durationNS)
-		}
-
-		if execErr != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
-			os.Exit(1)
-		}
-
-		// M-DX25: Print budget report after successful execution
-		if budgetReport != "" && effCtx.BudgetReport != nil && effCtx.BudgetReport.HasUsage() {
-			var output string
-			switch budgetReport {
-			case "json":
-				if data, err := effects.FormatReportJSON(effCtx.BudgetReport); err == nil {
-					output = string(data)
+			batchErrors := 0
+			for i, input := range programArgs {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "\n%s [%d/%d] %s\n", cyan("─── "), i+1, len(programArgs), input)
 				}
-			default: // "flat" or any other value
-				output = effects.FormatReport(effCtx.BudgetReport)
+				batchErr := executeBatchItem(ctx, result, input, entry, argsJSON, print, noprint, caps,
+					maxRecursionDepth, noBudgets, budgetReport, debugEffect, verifyContracts,
+					emitTrace, binopShim, quiet,
+					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
+					processTimeout, processAllowlist, processMaxOutput,
+					aiStub, aiModel, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
+					filename)
+				if batchErr != nil {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), batchErr)
+					batchErrors++
+				}
 			}
-			if output != "" {
-				fmt.Fprintln(os.Stderr, output)
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "\n%s Batch complete: %d/%d succeeded\n",
+					green("✓"), len(programArgs)-batchErrors, len(programArgs))
 			}
-		}
+			if batchErrors > 0 {
+				os.Exit(1)
+			}
+			// Skip normal execution path — batch handled above
+		} else {
 
-		// M-TRACE-EXPORT: Output semantic execution trace
-		if emitTrace != "" && effCtx.Trace != nil {
-			events := effCtx.Trace.Events()
+			// Module execution with runtime (v0.2.0+)
+			// Use CWD as base path for module resolution, not file directory.
+			// This ensures imports like "sim/protocol" from "sim/world.ail" resolve
+			// from project root, not relative to the importing file's directory.
+			// Fix for: LDR001 module not found when importing from subdirectories
+			rt := runtime.NewModuleRuntime(".")
 
-			// Phase 1: JSONL output to stdout
-			if strings.Contains(emitTrace, "jsonl") && len(events) > 0 {
-				if err := ailtrace.WriteJSONL(os.Stdout, events); err != nil {
-					fmt.Fprintf(os.Stderr, "%s: trace output: %v\n", red("Error"), err)
+			// Set up effect context with capability grants
+			effCtx := effects.NewEffContext(programArgs)
+			grantCapabilities(effCtx, caps)
+
+			// OTEL: Wire Go context and span wrapper for effect tracing
+			effCtx.GoCtx = ctx
+			effCtx.SpanWrapper = telemetry.NewEffectSpanWrapper()
+
+			// M-CAPABILITY-BUDGETS: Allow bypassing budget enforcement via --no-budgets flag
+			if noBudgets {
+				effCtx.DisableBudgets = true
+			}
+
+			// M-DX25: Initialize budget report if requested
+			if budgetReport != "" {
+				effCtx.BudgetReport = effects.NewBudgetReport()
+			}
+
+			// Set up effect handlers if requested
+			setupSharedMemHandler(effCtx)                                                         // SharedMem for semantic caching (M-DX15)
+			setupSharedIndexHandler(effCtx)                                                       // SharedIndex for semantic retrieval (M-DX16)
+			setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
+			if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+			if debugEffect {
+				effCtx.Debug = effects.NewDebugContext()
+			}
+
+			// M-VERIFY-CONTRACTS: Enable contract verification if requested
+			if verifyContracts {
+				effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+				if !quiet {
+					fmt.Fprintln(os.Stderr, "Contract verification enabled (panic mode)")
 				}
 			}
 
-			// Phase 2: OTEL span emission
-			if (strings.Contains(emitTrace, "otel") || emitTrace == "auto") && len(events) > 0 {
-				evalTracer := otel.Tracer("ailang.eval")
-				if err := ailtrace.EmitOTELSpans(ctx, evalTracer, events, effCtx.Trace.BaseTime()); err != nil {
-					fmt.Fprintf(os.Stderr, "%s: OTEL trace emission: %v\n", red("Error"), err)
+			// M-TRACE-EXPORT: Enable semantic execution trace collection
+			// Auto-enable when OTEL is configured (zero extra flags needed)
+			if emitTrace == "" && (telemetry.IsGoogleCloudEnabled() || telemetry.IsEnabled()) {
+				emitTrace = "auto"
+			}
+			if emitTrace != "" {
+				effCtx.Trace = ailtrace.NewCollector()
+				if strings.Contains(emitTrace, "jsonl") {
+					effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
+				}
+				if !quiet && emitTrace != "auto" {
+					fmt.Fprintf(os.Stderr, "Trace collection enabled (%s)\n", emitTrace)
 				}
 			}
-		}
+
+			// Process environment variable flags
+			envConfig := envFlags{
+				allowEnv:         allowEnv,
+				allowEnvFile:     allowEnvFile,
+				env:              env,
+				envSnapshot:      envSnapshot,
+				writeEnvSnapshot: writeEnvSnapshot,
+			}
+			if shouldExit := setupEnvContext(effCtx, envConfig); shouldExit {
+				os.Exit(0)
+			}
+
+			rt.GetEvaluator().SetEffContext(effCtx)
+
+			// M-STREAM-BIDI: Wire function caller for stream event handlers
+			{
+				evaluator := rt.GetEvaluator()
+				effCtx.FnCaller = evaluator.CallValue
+				effCtx.FnCallerN = evaluator.CallValueN
+			}
+
+			// M-VERIFY-CONTRACTS: Enable binop shim for contract evaluation if needed
+			if binopShim {
+				rt.GetEvaluator().SetExperimentalBinopShim(true)
+			}
+
+			// M-DX19: Inject dictionary registry with derived type class instances
+			if result.DictReg != nil {
+				rt.GetEvaluator().SetDictionaryRegistry(result.DictReg)
+			}
+
+			// M-TRACE-EXPORT: Record module start for replay metadata
+			moduleName := ""
+			if result.Interface != nil {
+				moduleName = result.Interface.Module
+			}
+			var capsList []string
+			if caps != "" {
+				capsList = strings.Split(caps, ",")
+			}
+			if effCtx.Trace != nil && effCtx.Trace.Enabled() {
+				effCtx.Trace.RecordModuleStart(moduleName, capsList)
+			}
+
+			// Execute module entrypoint
+			moduleStartTime := time.Now()
+			execParams := moduleExecParams{
+				filename:          filename,
+				iface:             result.Interface,
+				modules:           result.Modules,
+				entry:             entry,
+				argsJSON:          argsJSON,
+				print:             print,
+				noprint:           noprint,
+				maxRecursionDepth: maxRecursionDepth,
+			}
+			execErr := executeModuleEntrypoint(rt, execParams)
+
+			// M-TRACE-EXPORT: Record module end with duration
+			if effCtx.Trace != nil && effCtx.Trace.Enabled() {
+				durationNS := time.Since(moduleStartTime).Nanoseconds()
+				effCtx.Trace.RecordModuleEnd(moduleName, durationNS)
+			}
+
+			if execErr != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
+				os.Exit(1)
+			}
+
+			// M-DX25: Print budget report after successful execution
+			if budgetReport != "" && effCtx.BudgetReport != nil && effCtx.BudgetReport.HasUsage() {
+				var output string
+				switch budgetReport {
+				case "json":
+					if data, err := effects.FormatReportJSON(effCtx.BudgetReport); err == nil {
+						output = string(data)
+					}
+				default: // "flat" or any other value
+					output = effects.FormatReport(effCtx.BudgetReport)
+				}
+				if output != "" {
+					fmt.Fprintln(os.Stderr, output)
+				}
+			}
+
+			// M-TRACE-EXPORT: Output semantic execution trace
+			if emitTrace != "" && effCtx.Trace != nil {
+				events := effCtx.Trace.Events()
+
+				// Phase 1: JSONL output to stdout
+				if strings.Contains(emitTrace, "jsonl") && len(events) > 0 {
+					if err := ailtrace.WriteJSONL(os.Stdout, events); err != nil {
+						fmt.Fprintf(os.Stderr, "%s: trace output: %v\n", red("Error"), err)
+					}
+				}
+
+				// Phase 2: OTEL span emission
+				if (strings.Contains(emitTrace, "otel") || emitTrace == "auto") && len(events) > 0 {
+					evalTracer := otel.Tracer("ailang.eval")
+					if err := ailtrace.EmitOTELSpans(ctx, evalTracer, events, effCtx.Trace.BaseTime()); err != nil {
+						fmt.Fprintf(os.Stderr, "%s: OTEL trace emission: %v\n", red("Error"), err)
+					}
+				}
+			}
+
+		} // end non-batch else
 	} else {
 		// Non-module mode - print result if evaluated by pipeline (ModeEval)
 		printNonModuleResult(result.Value, print, noprint)

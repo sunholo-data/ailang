@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/runtime/argdecode"
 	"github.com/sunholo/ailang/internal/types"
@@ -349,4 +351,87 @@ func printNonModuleResult(value eval.Value, print, noprint bool) {
 			fmt.Println(value.String())
 		}
 	}
+}
+
+// executeBatchItem runs one batch input with a fresh runtime and effect context.
+// The pipeline result (compilation) is reused — only the execution is per-input.
+// M-PERF7: This avoids re-compiling 19 modules per input file.
+func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
+	entry string, argsJSON string, printResult bool, noprint bool, caps string,
+	maxRecursionDepth int, noBudgets bool, budgetReport string, debugEffect bool,
+	verifyContracts bool, emitTrace string, binopShim bool, quiet bool,
+	streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool,
+	processTimeout string, processAllowlist string, processMaxOutput int64,
+	aiStub bool, aiModel string,
+	allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string,
+	filename string) error {
+
+	// Fresh runtime per input — prevents state leaks between batch items
+	rt := runtime.NewModuleRuntime(".")
+
+	// Each input gets its own args: the input path is the sole program argument
+	effCtx := effects.NewEffContext([]string{input})
+	grantCapabilities(effCtx, caps)
+
+	effCtx.GoCtx = ctx
+
+	if noBudgets {
+		effCtx.DisableBudgets = true
+	}
+
+	// Set up effect handlers
+	setupSharedMemHandler(effCtx)
+	setupSharedIndexHandler(effCtx)
+	setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)
+	if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
+		return fmt.Errorf("process handler setup: %w", err)
+	}
+	if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
+		return fmt.Errorf("AI handler setup: %w", err)
+	}
+	if debugEffect {
+		effCtx.Debug = effects.NewDebugContext()
+	}
+	if verifyContracts {
+		effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
+	}
+
+	// Process environment variable flags
+	envConfig := envFlags{
+		allowEnv:         allowEnv,
+		allowEnvFile:     allowEnvFile,
+		env:              env,
+		envSnapshot:      envSnapshot,
+		writeEnvSnapshot: writeEnvSnapshot,
+	}
+	setupEnvContext(effCtx, envConfig)
+
+	rt.GetEvaluator().SetEffContext(effCtx)
+
+	// Wire function callers for builtins that invoke AILANG closures
+	{
+		evaluator := rt.GetEvaluator()
+		effCtx.FnCaller = evaluator.CallValue
+		effCtx.FnCallerN = evaluator.CallValueN
+	}
+
+	if binopShim {
+		rt.GetEvaluator().SetExperimentalBinopShim(true)
+	}
+	if result.DictReg != nil {
+		rt.GetEvaluator().SetDictionaryRegistry(result.DictReg)
+	}
+
+	// Execute module entrypoint
+	execParams := moduleExecParams{
+		filename:          filename,
+		iface:             result.Interface,
+		modules:           result.Modules,
+		entry:             entry,
+		argsJSON:          argsJSON,
+		print:             printResult,
+		noprint:           noprint,
+		maxRecursionDepth: maxRecursionDepth,
+	}
+	return executeModuleEntrypoint(rt, execParams)
 }
