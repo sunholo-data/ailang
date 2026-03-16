@@ -35,3 +35,12 @@ export func readEntry(path: string, entry: string) -> Result[string, string] ! {
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _zip_readEntryBytes(path, entry)
+
+-- M-DOCPARSE-DX M4: ZIP write capabilities
+
+-- Create a ZIP archive from a list of entries
+-- Each entry is {name: string, content: string}
+-- Returns Ok(()) on success, Err(message) on failure
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func createArchive(path: string, entries: [{name: string, content: string}]) -> Result[(), string] ! {FS} = _zip_createArchive(path, entries)

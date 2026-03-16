@@ -54,3 +54,13 @@ export pure func findAllTexts(node: XmlNode, tag: string) -> List[string] = _xml
 -- Bulk: find all matching elements and extract a named attribute
 -- Equivalent to filterMap(findAll(node, tag), \n -> getAttr(n, attr)) but in one Go call
 export pure func findAllAttrs(node: XmlNode, tag: string, attr: string) -> List[string] = _xml_findAllAttrs(node, tag, attr)
+
+-- M-DOCPARSE-DX M4: XML serialization
+
+-- Serialize XmlNode tree to XML string
+-- Element("root", [], [Text("hello")]) => "<root>hello</root>"
+export pure func serialize(node: XmlNode) -> string = _xml_serialize(node)
+
+-- Serialize XmlNode tree to XML string with XML declaration
+-- Prepends <?xml version="1.0" encoding="UTF-8"?>
+export pure func serializeWithDecl(node: XmlNode) -> string = _xml_serializeWithDecl(node)

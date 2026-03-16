@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DOCPARSE-DX",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-03-13T13:46:19Z",
   "design_doc": "design_docs/planned/v0_9_3/m-docparse-dx.md",
   "sprint_plan": "design_docs/planned/v0_9_3/m-docparse-dx-sprint-plan.md",
@@ -81,10 +81,10 @@
         "make test and make lint pass",
         "make verify-examples passes"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": "Largest milestone. XML serialize is pure (no effect). ZIP write requires ! {FS}."
+      "passes": true,
+      "started": "2026-03-16T06:20:00Z",
+      "completed": "2026-03-16T06:40:00Z",
+      "notes": "XML serialize: recursive tree walker with proper escaping, self-closing tags, CData/Comment support. 10 tests including roundtrip. ZIP write: functional batch _zip_createArchive(path, entries) API - creates archive atomically from list of {name, content} records. Path traversal protection, sandbox support. 6 tests including roundtrip. CHANGELOG updated. Builtins 202→205."
     }
   ]
 }

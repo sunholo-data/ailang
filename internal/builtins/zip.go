@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,6 +27,7 @@ func init() {
 	registerZipListEntries()
 	registerZipReadEntry()
 	registerZipReadEntryBytes()
+	registerZipCreateArchive()
 }
 
 // Result helpers for Ok/Err return values
@@ -282,6 +284,131 @@ func zipReadEntryBytesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Val
 	}
 
 	return zipMakeErr(fmt.Sprintf("entry not found: %s", entryName)), nil
+}
+
+// ============================================================================
+// _zip_createArchive: string -> [{name: string, content: string}] -> Result[(), string] ! {FS}
+// ============================================================================
+// M-DOCPARSE-DX M4: Functional batch ZIP write — creates entire archive atomically
+
+func registerZipCreateArchive() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/zip",
+		Name:    "_zip_createArchive",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "FS",
+		Type:    makeZipCreateArchiveType,
+		Impl:    zipCreateArchiveImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create a ZIP archive from a list of entries",
+			LongDesc:    "Creates a complete ZIP archive atomically. Each entry is a record with {name: string, content: string}. Archive is properly flushed and closed. Respects AILANG_FS_SANDBOX.",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Output path for the ZIP archive"},
+				{Name: "entries", Description: "List of {name: string, content: string} records"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success or Err(error message)",
+			Examples: []Example{
+				{Code: `_zip_createArchive("out.zip", [{name: "hello.txt", content: "Hello!"}])`, Description: "Creates archive with one text entry"},
+			},
+			SeeAlso:   []string{"_zip_listEntries", "_zip_readEntry"},
+			Since:     "v0.9.3",
+			Stability: StabilityStable,
+			Tags:      []string{"zip", "archive", "write", "create", "fs"},
+			Category:  "zip",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _zip_createArchive: %v", err))
+	}
+}
+
+func makeZipCreateArchiveType() types.Type {
+	T := types.NewBuilder()
+	entryType := T.Record(
+		types.Field("name", T.String()),
+		types.Field("content", T.String()),
+	)
+	return T.Func(T.String(), T.List(entryType)).Returns(
+		T.App("Result", T.Unit(), T.String()),
+	).Effects("FS")
+}
+
+func zipCreateArchiveImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_createArchive: expected String for path, got %T", args[0])
+	}
+	entriesVal, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_createArchive: expected List for entries, got %T", args[1])
+	}
+
+	if len(entriesVal.Elements) > zipMaxEntries {
+		return zipMakeErr(fmt.Sprintf("too many entries: %d (max %d)", len(entriesVal.Elements), zipMaxEntries)), nil
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return zipMakeErr(fmt.Sprintf("cannot create file: %v", err)), nil
+	}
+
+	w := zip.NewWriter(f)
+	var writeErr error
+
+	for i, entry := range entriesVal.Elements {
+		rec, ok := entry.(*eval.RecordValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: expected record, got %T", i, entry)
+			break
+		}
+		nameVal, ok := rec.Fields["name"].(*eval.StringValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: 'name' field must be string", i)
+			break
+		}
+		contentVal, ok := rec.Fields["content"].(*eval.StringValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: 'content' field must be string", i)
+			break
+		}
+
+		if strings.Contains(nameVal.Value, "..") {
+			writeErr = fmt.Errorf("entry %d: path traversal rejected: %s", i, nameVal.Value)
+			break
+		}
+
+		ew, err := w.Create(nameVal.Value)
+		if err != nil {
+			writeErr = fmt.Errorf("entry %d: cannot create: %v", i, err)
+			break
+		}
+		if _, err := io.WriteString(ew, contentVal.Value); err != nil {
+			writeErr = fmt.Errorf("entry %d: write error: %v", i, err)
+			break
+		}
+	}
+
+	// Always close the writer and file
+	if cerr := w.Close(); cerr != nil && writeErr == nil {
+		writeErr = fmt.Errorf("close archive: %v", cerr)
+	}
+	if cerr := f.Close(); cerr != nil && writeErr == nil {
+		writeErr = fmt.Errorf("close file: %v", cerr)
+	}
+
+	if writeErr != nil {
+		// Clean up on error
+		os.Remove(path)
+		return zipMakeErr(writeErr.Error()), nil
+	}
+
+	return zipMakeOk(&eval.UnitValue{}), nil
 }
 
 // ============================================================================
