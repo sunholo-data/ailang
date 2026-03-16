@@ -159,6 +159,13 @@ func (d *Daemon) dispatchTasksCloud() error {
 					params.GitMode = agent.GitMode
 				}
 			}
+			// M-HARNESS-COMMIT-CONTRACT: Pass site metadata for structured commit messages.
+			if task.SiteSlug != "" {
+				params.SiteSlug = task.SiteSlug
+			}
+			if task.BriefID != "" {
+				params.BriefID = task.BriefID
+			}
 			// M-CLOUD-PROGRESS-TRACKING: Pass per-task cost budget for mid-execution enforcement.
 			if budgetsCfg, budgetErr := LoadBudgetsConfig(); budgetErr == nil && budgetsCfg != nil {
 				var taskMaxCost float64

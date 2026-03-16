@@ -54,6 +54,9 @@ type TaskRecord struct {
 	Capabilities  []Capability `json:"capabilities,omitempty"`   // Detected capability requirements
 	ImpactLevel   string       `json:"impact_level,omitempty"`   // "low", "medium", or "high"
 	EstimatedCost float64      `json:"estimated_cost,omitempty"` // Pre-execution cost estimate in USD
+	// M-HARNESS-COMMIT-CONTRACT: Website builder metadata from message payload
+	SiteSlug string `json:"site_slug,omitempty"` // Site identifier for commit messages
+	BriefID  string `json:"brief_id,omitempty"`  // Brief identifier for commit messages
 }
 
 // TaskStatus represents the lifecycle state of a task

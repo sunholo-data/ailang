@@ -29,4 +29,6 @@ type DispatchParams struct {
 	APIKey     string  // User-provided Anthropic API key, only when AuthMode == "apikey"
 	MaxCostUSD float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
 	GitMode    string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
+	SiteSlug   string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT
+	BriefID    string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
 }

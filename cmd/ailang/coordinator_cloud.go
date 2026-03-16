@@ -338,8 +338,22 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			return branchName, execResult, nil, fmt.Errorf("git add failed: %w", err)
 		}
 
-		commitMsg := fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
-			taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339))
+		// M-HARNESS-COMMIT-CONTRACT: Use structured commit message when site metadata available.
+		var commitMsg string
+		siteSlug := os.Getenv("AILANG_SITE_SLUG")
+		briefID := os.Getenv("AILANG_BRIEF_ID")
+		if siteSlug != "" {
+			// Website builder format: "Build: {siteSlug} [briefId={briefId}]"
+			subject := fmt.Sprintf("Build: %s", siteSlug)
+			if briefID != "" {
+				subject += fmt.Sprintf(" [briefId=%s]", briefID)
+			}
+			commitMsg = fmt.Sprintf("%s\n\nTask: %s\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+				subject, taskID, agentID, time.Now().UTC().Format(time.RFC3339))
+		} else {
+			commitMsg = fmt.Sprintf("Task %s: %s\n\nAgent: %s\nTimestamp: %s\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+				taskID, directive, agentID, time.Now().UTC().Format(time.RFC3339))
+		}
 
 		commitCmd := exec.CommandContext(ctx, "git", "-C", workDir, "commit", "-m", commitMsg)
 		commitCmd.Stdout = os.Stdout

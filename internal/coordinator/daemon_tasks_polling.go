@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -97,6 +98,18 @@ func (d *Daemon) pollAndProcessTasks() error {
 			iteration = 1 // First run is iteration 1
 		}
 
+		// M-HARNESS-COMMIT-CONTRACT: Extract siteSlug and briefId from message content.
+		// Messages from website-builder may contain JSON with these fields.
+		var siteSlug, briefID string
+		var payloadFields struct {
+			SiteSlug string `json:"siteSlug"`
+			BriefID  string `json:"briefId"`
+		}
+		if json.Unmarshal([]byte(msg.Content), &payloadFields) == nil {
+			siteSlug = payloadFields.SiteSlug
+			briefID = payloadFields.BriefID
+		}
+
 		task := &TaskRecord{
 			ID:            taskID,
 			MessageID:     msg.ID,
@@ -116,6 +129,8 @@ func (d *Daemon) pollAndProcessTasks() error {
 			Capabilities:  analyzed.Capabilities,  // M-DEPRECATE-AILANG-AGENT
 			ImpactLevel:   analyzed.ImpactLevel,   // M-DEPRECATE-AILANG-AGENT
 			EstimatedCost: analyzed.EstimatedCost, // M-DEPRECATE-AILANG-AGENT
+			SiteSlug:      siteSlug,               // M-HARNESS-COMMIT-CONTRACT
+			BriefID:       briefID,                // M-HARNESS-COMMIT-CONTRACT
 		}
 
 		// Check for duplicates
