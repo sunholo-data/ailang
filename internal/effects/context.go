@@ -51,6 +51,10 @@ type EffContext struct {
 	// Set by the evaluator; allows effects to call AILANG functions without import cycles.
 	FnCaller func(fn eval.Value, arg eval.Value) (eval.Value, error)
 
+	// M-ITERATIVE-LIST: Multi-arg function caller for iterative builtins (e.g., foldl callback).
+	// Set by the evaluator alongside FnCaller.
+	FnCallerN func(fn eval.Value, args []eval.Value) (eval.Value, error)
+
 	// OTEL effect tracing: callback injection to avoid effects→telemetry import cycle.
 	// GoCtx carries the Go context with OTEL trace propagation.
 	// SpanWrapper wraps each effect operation with an OTEL span (nil = no tracing).
@@ -340,6 +344,7 @@ func (ctx *EffContext) WithBudget(budget *BudgetContext) *EffContext {
 		DeclaredBudgets: nil,             // Reset for new scope (will be set by WithBudgetLimits)
 		CallerContext:   nil,             // Reset for new scope (will be set by WithBudgetLimits)
 		FnCaller:        ctx.FnCaller,    // Preserve function caller across budget scopes (M-STREAM-BIDI)
+		FnCallerN:       ctx.FnCallerN,   // Preserve multi-arg function caller across budget scopes (M-ITERATIVE-LIST)
 		GoCtx:           ctx.GoCtx,       // Preserve OTEL trace context across budget scopes
 		SpanWrapper:     ctx.SpanWrapper, // Preserve OTEL span wrapper across budget scopes
 	}
@@ -599,6 +604,18 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 		ctx.stdinReader = bufio.NewReader(src)
 	}
 	return ctx.stdinReader
+}
+
+// SetFnCaller sets the single-arg function caller callback.
+// M-ITERATIVE-LIST: Used by embed.Engine to wire callbacks without importing effects.
+func (ctx *EffContext) SetFnCaller(fn func(eval.Value, eval.Value) (eval.Value, error)) {
+	ctx.FnCaller = fn
+}
+
+// SetFnCallerN sets the multi-arg function caller callback.
+// M-ITERATIVE-LIST: Used by embed.Engine to wire callbacks without importing effects.
+func (ctx *EffContext) SetFnCallerN(fn func(eval.Value, []eval.Value) (eval.Value, error)) {
+	ctx.FnCallerN = fn
 }
 
 func (ctx *EffContext) HasTraceCollector() bool {

@@ -695,9 +695,10 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		rt.GetEvaluator().SetEffContext(effCtx)
 
 		// M-STREAM-BIDI: Wire function caller for stream event handlers
-		if effCtx.Stream != nil {
+		{
 			evaluator := rt.GetEvaluator()
 			effCtx.FnCaller = evaluator.CallValue
+			effCtx.FnCallerN = evaluator.CallValueN
 		}
 
 		// M-VERIFY-CONTRACTS: Enable binop shim for contract evaluation if needed

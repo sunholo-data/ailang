@@ -126,6 +126,21 @@ func (e *CoreEvaluator) SetGlobalResolver(resolver GlobalResolver) {
 //	evaluator.SetEffContext(effCtx)
 func (e *CoreEvaluator) SetEffContext(ctx interface{}) {
 	e.effContext = ctx
+	// M-ITERATIVE-LIST: Auto-wire FnCaller/FnCallerN for iterative builtins
+	e.wireFnCallers()
+}
+
+// wireFnCallers wires FnCaller/FnCallerN on the EffContext using interface
+// to avoid import cycles with the effects package.
+func (e *CoreEvaluator) wireFnCallers() {
+	type fnCallerWirer interface {
+		SetFnCaller(func(Value, Value) (Value, error))
+		SetFnCallerN(func(Value, []Value) (Value, error))
+	}
+	if ctx, ok := e.effContext.(fnCallerWirer); ok {
+		ctx.SetFnCaller(e.CallValue)
+		ctx.SetFnCallerN(e.CallValueN)
+	}
 }
 
 // GetEffContext returns the current effect context
@@ -257,6 +272,19 @@ func (e *CoreEvaluator) CallValue(fn Value, arg Value) (Value, error) {
 		return e.CallFunction(f, []Value{arg})
 	case *BuiltinFunction:
 		return f.Fn([]Value{arg})
+	default:
+		return nil, fmt.Errorf("cannot call non-function value: %T", fn)
+	}
+}
+
+// CallValueN calls a function value with multiple arguments.
+// M-ITERATIVE-LIST: Used by iterative builtins (e.g., foldl) that need multi-arg callbacks.
+func (e *CoreEvaluator) CallValueN(fn Value, args []Value) (Value, error) {
+	switch f := fn.(type) {
+	case *FunctionValue:
+		return e.CallFunction(f, args)
+	case *BuiltinFunction:
+		return f.Fn(args)
 	default:
 		return nil, fmt.Errorf("cannot call non-function value: %T", fn)
 	}

@@ -89,6 +89,11 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 
 // getEffContext retrieves the EffContext from the evaluator
 //
+// M-ITERATIVE-LIST: If no EffContext exists but evaluator is available,
+// creates a minimal default EffContext with FnCaller/FnCallerN wired.
+// This ensures iterative builtins work even when no explicit EffContext is set
+// (e.g., embed.Engine, REPL tests).
+//
 // Returns:
 //   - The EffContext if available, nil otherwise
 func (br *BuiltinRegistry) getEffContext() *effects.EffContext {
@@ -97,7 +102,13 @@ func (br *BuiltinRegistry) getEffContext() *effects.EffContext {
 	}
 	ctx := br.evaluator.GetEffContext()
 	if ctx == nil {
-		return nil
+		// M-ITERATIVE-LIST: Create a minimal default EffContext with FnCallers wired
+		// so pure iterative builtins (_list_map, etc.) can call AILANG callbacks.
+		defaultCtx := effects.NewEffContext(nil)
+		defaultCtx.FnCaller = br.evaluator.CallValue
+		defaultCtx.FnCallerN = br.evaluator.CallValueN
+		br.evaluator.SetEffContext(defaultCtx)
+		return defaultCtx
 	}
 	effCtx, ok := ctx.(*effects.EffContext)
 	if !ok {

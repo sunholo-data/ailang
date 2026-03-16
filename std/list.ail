@@ -52,20 +52,12 @@ export pure func zip[a, b](xs: [a], ys: [b]) -> [(a, b)] {
 }
 
 -- Apply a function to each element, returning a new list.
-export pure func map[a, b](f: (a) -> b, xs: [a]) -> [b] {
-  match xs { [] => [], [x, ...rest] => [f(x)] ++ map(f, rest) }
-}
+-- M-ITERATIVE-LIST: Delegates to Go-level iterative builtin for O(1) stack usage.
+export pure func map[a, b](f: (a) -> b, xs: [a]) -> [b] = _list_map(f, xs)
 
-export pure func filter[a](p: (a) -> bool, xs: [a]) -> [a] {
-  match xs {
-    [] => [],
-    [x, ...rest] => if p(x) then [x] ++ filter(p, rest) else filter(p, rest)
-  }
-}
+export pure func filter[a](p: (a) -> bool, xs: [a]) -> [a] = _list_filter(p, xs)
 
-export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b {
-  match xs { [] => acc, [x, ...rest] => foldl(f, f(acc, x), rest) }
-}
+export pure func foldl[a, b](f: (b, a) -> b, acc: b, xs: [a]) -> b = _list_foldl(f, acc, xs)
 
 export pure func foldr[a, b](f: (a, b) -> b, acc: b, xs: [a]) -> b {
   match xs { [] => acc, [x, ...rest] => f(x, foldr(f, acc, rest)) }

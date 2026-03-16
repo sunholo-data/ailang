@@ -70,9 +70,12 @@ _list_dedup : list[a] -> list[a]
 _list_difference : (list[a], list[a]) -> list[a]
 _list_drop : (int, list[a]) -> list[a]
 _list_extract : (list[a], int, int) -> list[a]
+_list_filter : (a -> bool, list[a]) -> list[a]
+_list_foldl : ((b, a) -> b, b, list[a]) -> b
 _list_head : list[a] -> a
 _list_intersect : (list[a], list[a]) -> list[a]
 _list_length : list[a] -> int
+_list_map : (a -> b, list[a]) -> list[b]
 _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
 _list_reverse : list[a] -> list[a]

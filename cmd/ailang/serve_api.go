@@ -114,10 +114,13 @@ func serveAPICommand(args []string) error {
 		return fmt.Errorf("failed to load modules: %w", err)
 	}
 
-	// Wire FnCaller for stream event handler dispatch (must happen after modules loaded)
-	if effCtx != nil && effCtx.Stream != nil {
-		effCtx.FnCaller = srv.GetEngine().GetCallValue()
-		log.Println("Stream FnCaller wired for event handler dispatch")
+	// Wire FnCaller/FnCallerN for stream event handler dispatch and iterative builtins
+	if effCtx != nil {
+		effCtx.FnCallerN = srv.GetEngine().GetCallValueN()
+		if effCtx.Stream != nil {
+			effCtx.FnCaller = srv.GetEngine().GetCallValue()
+			log.Println("Stream FnCaller wired for event handler dispatch")
+		}
 	}
 
 	return srv.Start()

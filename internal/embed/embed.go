@@ -379,6 +379,12 @@ func (e *Engine) GetCallValue() func(eval.Value, eval.Value) (eval.Value, error)
 	return e.runtime.GetEvaluator().CallValue
 }
 
+// GetCallValueN returns the evaluator's CallValueN function for multi-arg callbacks.
+// M-ITERATIVE-LIST: Used by iterative builtins (foldl, etc.) via serve-api.
+func (e *Engine) GetCallValueN() func(eval.Value, []eval.Value) (eval.Value, error) {
+	return e.runtime.GetEvaluator().CallValueN
+}
+
 // HasExport checks if a module exports a value with the given name.
 func (e *Engine) HasExport(modulePath, name string) bool {
 	e.mu.RLock()

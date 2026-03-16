@@ -718,8 +718,12 @@ func (mr *ModuleRegistry) InvokeExport(moduleName, funcName string, args []eval.
 	evaluator.SetGlobalResolver(registryResolver)
 
 	// Set effect context if available (enables AI, IO, and other effects in WASM)
+	// M-ITERATIVE-LIST: Always set an EffContext so FnCaller/FnCallerN are wired
+	// for iterative builtins (_list_map, _list_foldl, etc.)
 	if mr.effContext != nil {
 		evaluator.SetEffContext(mr.effContext)
+	} else {
+		evaluator.SetEffContext(effects.NewEffContext(nil))
 	}
 
 	// Enable experimental binop shim (handles float equality until OpLowering is complete)

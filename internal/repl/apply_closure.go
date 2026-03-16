@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 
+	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/runtime"
 )
@@ -57,8 +58,11 @@ func (r *REPL) makeRegistryEvaluator() *eval.CoreEvaluator {
 	evaluator.SetGlobalResolver(registryResolver)
 
 	// Propagate effect context so effects work in the closure
+	// M-ITERATIVE-LIST: Always set an EffContext so FnCaller/FnCallerN are wired
 	if r.effContext != nil {
 		evaluator.SetEffContext(r.effContext)
+	} else {
+		evaluator.SetEffContext(effects.NewEffContext(nil))
 	}
 
 	// Enable experimental binop shim (same as InvokeExport)
