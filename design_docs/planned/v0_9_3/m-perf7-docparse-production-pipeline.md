@@ -301,15 +301,24 @@ if batchMode {
 
 ## Implementation Plan
 
-### Day 1: Track 2 — foldChars + charAt Builtins
+### Day 1: Track 2 — foldChars + charAt Builtins ✅ COMPLETE (2026-03-16)
 
-- [ ] Add `_str_foldChars` Go builtin with closure invocation (needs evaluator `applyFunction` access — check M-ITERATIVE-LIST pattern for how `_list_map` does this)
-- [ ] Add `_str_charAt` Go builtin (rune-safe indexing)
-- [ ] Add `_str_length` if not already present
-- [ ] Add wrappers to `std/string.ail`
-- [ ] Tests: empty string, ASCII, Unicode (multi-byte runes), large strings (10K chars)
-- [ ] Tests with `-count=20` for determinism
-- [ ] Benchmark: markdown parsing before/after
+- [x] Add `_str_foldChars` Go builtin with closure invocation — uses `ctx.FnCallerN` (same as `_list_foldl`)
+- [x] Add `_str_charAt` Go builtin (rune-safe indexing with bounds checking)
+- [x] `_str_length` not needed — `_str_len` already exists in `string.go`
+- [x] Add `foldChars`/`charAt` wrappers to `std/string.ail`
+- [x] 14 unit tests: empty string, ASCII, Unicode (emoji 🎉), 10K char stress, error propagation, type validation
+- [x] Tests pass with `-count=20` — fully deterministic
+- [x] Benchmark: 10K chars folded in ~515µs (0.5ms) — well within <0.5s target
+
+**Files created:**
+- `internal/builtins/string_char.go` (144 LOC) — `_str_foldChars`, `_str_charAt` implementations + registration
+- `internal/builtins/string_char_test.go` (246 LOC) — 14 tests + 1 benchmark
+
+**Files modified:**
+- `std/string.ail` — added `foldChars`, `charAt` exports
+
+**Design note:** Created `string_char.go` as a new file because `string.go` was at 1163 lines (near 1200-line limit).
 
 ### Day 2: Track 3 Option C — Batch CLI Mode
 
@@ -342,15 +351,15 @@ if batchMode {
 ## Files to Modify/Create
 
 **New files:**
-- `internal/builtins/string_char.go` (~80 LOC) — foldChars, charAt builtins
-- `internal/builtins/string_char_test.go` (~120 LOC) — tests
+- `internal/builtins/string_char.go` (144 LOC) — foldChars, charAt builtins ✅
+- `internal/builtins/string_char_test.go` (246 LOC) — 14 tests + benchmark ✅
 - `internal/executor/ailang/ailang.go` (~100 LOC) — ailang-script executor
 - `internal/executor/ailang/ailang_test.go` (~80 LOC) — executor tests
 - `examples/batch_processing.ail` (~30 LOC) — batch mode example
 
 **Modified files:**
 - `cmd/ailang/run.go` (~50 LOC) — `--batch` flag and compile-once loop
-- `std/string.ail` (~10 LOC) — foldChars, charAt, stringLength wrappers
+- `std/string.ail` (~10 LOC) — foldChars, charAt wrappers ✅ (stringLength not needed — `length` already wraps `_str_len`)
 - `internal/coordinator/provider_executor.go` (~2 LOC) — auto-import ailang executor
 
 ---
@@ -409,9 +418,9 @@ ailang messages send coordinator \
 
 ## Success Criteria
 
-- [ ] `foldChars(\acc c -> acc ++ c, "", "hello")` returns `"hello"`
-- [ ] `charAt("hello", 2)` returns `"l"`
-- [ ] Markdown 4KB parsing: <0.5s (from 3.4s) with foldChars
+- [x] `foldChars(\acc c -> acc ++ c, "", "hello")` returns `"hello"` — verified in unit test
+- [x] `charAt("hello", 2)` returns `"l"` — verified in unit test
+- [ ] Markdown 4KB parsing: <0.5s (from 3.4s) with foldChars — pending DocParse parser update
 - [ ] `ailang run eval.ail --batch file1 file2 file3` processes all files in one invocation
 - [ ] Batch mode startup: ~2s total (not 2s × N)
 - [ ] Coordinator dispatches ailang-script tasks and returns results
@@ -496,4 +505,4 @@ ailang messages send coordinator \
 ---
 
 **Document created**: 2026-03-16
-**Last updated**: 2026-03-16
+**Last updated**: 2026-03-16 (Track 2 implemented)

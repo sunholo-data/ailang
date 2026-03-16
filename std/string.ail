@@ -80,3 +80,18 @@ export pure func words(s: string) -> [string] = _str_words(s)
 -- splitAny: Split on any of multiple single-character delimiters
 -- splitAny("a,b;c", [",", ";"]) = ["a", "b", "c"]
 export pure func splitAny(s: string, delimiters: [string]) -> [string] = _str_splitAny(s, delimiters)
+
+-- ============================================================================
+-- Character-Level Iteration (v0.9.3 / M-PERF7)
+-- ============================================================================
+
+-- foldChars: Fold over characters without intermediate list allocation
+-- 10-100x faster than foldl(f, acc, chars(s)) for large strings
+-- Each character is passed as a single-character string
+-- Example: foldChars(\acc c -> acc ++ c, "", "abc") = "abc"
+export pure func foldChars(f: (a, string) -> a, acc: a, s: string) -> a = _str_foldChars(f, acc, s)
+
+-- charAt: Get character at rune index (0-based)
+-- Note: O(n) rune conversion per call — use foldChars for sequential access
+-- Example: charAt("hello", 1) = "e"
+export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
