@@ -1,10 +1,14 @@
 # M-FS-RUNTIME-CAPS: FS Capability Not Propagated at Runtime
 
-**Status**: Planned
+**Status**: RESOLVED (not a bug — test syntax error)
 **Target**: v0.9.3
-**Priority**: P1 — Medium (blocks all FS-effect examples from running)
-**Estimated**: 0.5 days (~4 hours investigation + fix + tests)
+**Priority**: Closed
+**Estimated**: N/A
 **Dependencies**: None
+**Resolution**: The FS capability routing works correctly. The reported failure was caused by
+test files using `let main = { ... }` (block expression) instead of
+`export func main() -> () ! {IO, FS} { ... }` (function with effect declaration).
+Verified: `ailang run --caps IO,FS` with correct syntax succeeds for all FS builtins.
 
 ## Axiom Compliance
 

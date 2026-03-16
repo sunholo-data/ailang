@@ -43,7 +43,41 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		}
 		defer func() { e.recursionDepth-- }()
 
-		if len(args) != len(fn.Params) {
+		// M-DOCPARSE-DX M1: Auto-curry support.
+		// When more args than params (e.g., f(a, b) where f = \x. \y. ...),
+		// apply first batch to get intermediate function, then apply rest.
+		if len(args) > len(fn.Params) {
+			// Apply first len(fn.Params) args
+			firstArgs := args[:len(fn.Params)]
+			restArgs := args[len(fn.Params):]
+
+			newEnv := fn.Env.Clone()
+			for i, param := range fn.Params {
+				newEnv.Set(param, firstArgs[i])
+			}
+
+			oldEnv := e.env
+			e.env = newEnv
+			var intermediate Value
+			if coreBody, ok := fn.Body.(core.CoreExpr); ok {
+				intermediate, err = e.evalCore(coreBody)
+			} else {
+				e.env = oldEnv
+				return nil, fmt.Errorf("function body is not Core AST")
+			}
+			e.env = oldEnv
+			if err != nil {
+				return nil, err
+			}
+
+			// Apply remaining args to the intermediate result
+			if innerFn, ok := intermediate.(*FunctionValue); ok {
+				return e.applyFunction(innerFn, restArgs)
+			}
+			return nil, fmt.Errorf("function expects %d arguments, got %d (intermediate result is not a function)", len(fn.Params), len(args))
+		}
+
+		if len(args) < len(fn.Params) {
 			return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 		}
 
@@ -373,6 +407,64 @@ func applyUnOp(op string, operand Value) (Value, error) {
 }
 
 // extractFuncName extracts a human-readable function name from a Core expression.
+// applyFunction applies args to a FunctionValue, supporting auto-currying.
+// Used by the auto-curry path when intermediate results need further application.
+func (e *CoreEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, error) {
+	if len(args) > len(fn.Params) {
+		// Still more args than params — recurse
+		firstArgs := args[:len(fn.Params)]
+		restArgs := args[len(fn.Params):]
+
+		newEnv := fn.Env.Clone()
+		for i, param := range fn.Params {
+			newEnv.Set(param, firstArgs[i])
+		}
+
+		oldEnv := e.env
+		e.env = newEnv
+		var intermediate Value
+		var err error
+		if coreBody, ok := fn.Body.(core.CoreExpr); ok {
+			intermediate, err = e.evalCore(coreBody)
+		} else {
+			e.env = oldEnv
+			return nil, fmt.Errorf("function body is not Core AST")
+		}
+		e.env = oldEnv
+		if err != nil {
+			return nil, err
+		}
+
+		if innerFn, ok := intermediate.(*FunctionValue); ok {
+			return e.applyFunction(innerFn, restArgs)
+		}
+		return nil, fmt.Errorf("auto-curry: intermediate result is not a function")
+	}
+
+	if len(args) < len(fn.Params) {
+		return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
+	}
+
+	// Exact match — evaluate directly
+	newEnv := fn.Env.Clone()
+	for i, param := range fn.Params {
+		newEnv.Set(param, args[i])
+	}
+
+	oldEnv := e.env
+	e.env = newEnv
+	var result Value
+	var err error
+	if coreBody, ok := fn.Body.(core.CoreExpr); ok {
+		result, err = e.evalCore(coreBody)
+	} else {
+		e.env = oldEnv
+		return nil, fmt.Errorf("function body is not Core AST")
+	}
+	e.env = oldEnv
+	return result, err
+}
+
 // M-TRACE-EXPORT: Used to label function enter/exit trace events.
 func extractFuncName(expr core.CoreExpr) string {
 	switch e := expr.(type) {

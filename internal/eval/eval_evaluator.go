@@ -167,8 +167,13 @@ func (e *CoreEvaluator) GetEnvironmentBindings() map[string]Value {
 //   - The result value from executing the function
 //   - An error if execution fails
 func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, error) {
+	// M-DOCPARSE-DX M1: Auto-curry support for CallFunction
+	if len(args) > len(fn.Params) {
+		return e.applyFunction(fn, args)
+	}
+
 	// Verify argument count
-	if len(args) != len(fn.Params) {
+	if len(args) < len(fn.Params) {
 		return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 	}
 
