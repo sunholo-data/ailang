@@ -1,0 +1,19 @@
+-- Directory listing and string splitting
+-- Demonstrates listDir, words, and splitAny
+module examples/runnable/directory_listing
+
+import std/fs (listDir)
+import std/string (words, splitAny)
+
+export func main() -> () ! {IO, FS} =
+  let _ = println("=== listDir ===") in
+  let files = listDir("examples/runnable/") in
+  let _ = println("Files in examples/runnable/: " ++ show(files)) in
+
+  let _ = println("") in
+  let _ = println("=== words ===") in
+  let _ = println("words(\"hello  world\\tfoo\") = " ++ show(words("hello  world\tfoo"))) in
+
+  let _ = println("") in
+  let _ = println("=== splitAny ===") in
+  println("splitAny(\"a,b;c\", [\",\", \";\"]) = " ++ show(splitAny("a,b;c", [",", ";"])))

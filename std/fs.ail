@@ -60,3 +60,9 @@ export func appendFileBytes(path: string, data: bytes) -> () ! {FS} = _fs_append
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func fileExists(path: string) -> bool ! {FS} = _fs_exists(path)
+
+-- M-DOCPARSE-DX M3: Directory listing
+-- Returns sorted list of entry names (files and directories)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func listDir(path: string) -> [string] ! {FS} = _fs_listDir(path)

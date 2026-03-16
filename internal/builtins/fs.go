@@ -250,4 +250,33 @@ func registerFS() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_appendFileBytes: %v", err))
 	}
+
+	// _fs_listDir — M-DOCPARSE-DX M3
+	implListDir := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "listDir", args)
+	}
+	typeListDir := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.List(T.String())).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_listDir", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeListDir, Impl: implListDir,
+		Metadata: &BuiltinMetadata{
+			Description: "List directory entries sorted by name",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Directory path to list"},
+			},
+			Returns:   "Sorted list of entry names (files and directories)",
+			Examples:  []Example{{Code: `_fs_listDir("examples/")`, Description: "Returns sorted list of filenames"}},
+			LongDesc:  "Uses os.ReadDir which returns entries sorted by name. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_readFile", "_fs_exists"},
+			Since:     "v0.9.3",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "list", "readdir"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_listDir: %v", err))
+	}
 }

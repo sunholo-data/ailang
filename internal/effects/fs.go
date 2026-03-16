@@ -18,6 +18,7 @@ func init() {
 	RegisterOp("FS", "appendFile", fsAppendFile)
 	RegisterOp("FS", "appendFileBytes", fsAppendFileBytes)
 	RegisterOp("FS", "exists", fsExists)
+	RegisterOp("FS", "listDir", fsListDir)
 }
 
 // fsReadFile implements FS.readFile(path: String) -> String
@@ -382,4 +383,38 @@ func fsReadFileBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	// Encode as base64
 	encoded := base64.StdEncoding.EncodeToString(content)
 	return fsMakeOk(&eval.StringValue{Value: encoded}), nil
+}
+
+// fsListDir implements FS.listDir(path: String) -> [String]
+// M-DOCPARSE-DX M3: Returns sorted list of entry names in a directory.
+// If AILANG_FS_SANDBOX is set, the path is restricted to the sandbox directory.
+func fsListDir(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("listDir: expected 1 argument, got %d", len(args))
+	}
+
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("listDir: expected String, got %T", args[0])
+	}
+
+	path := pathVal.Value
+
+	// Apply sandbox if configured
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, fmt.Errorf("listDir: %w", err)
+	}
+
+	// os.ReadDir returns entries sorted by name
+	result := make([]eval.Value, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, &eval.StringValue{Value: entry.Name()})
+	}
+
+	return &eval.ListValue{Elements: result}, nil
 }

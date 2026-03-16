@@ -32,6 +32,8 @@ func init() {
 	registerStringStartsWith()
 	registerStringEndsWith()
 	registerStrJoin()
+	registerStrWords()
+	registerStrSplitAny()
 }
 
 // ============================================================================
@@ -1040,4 +1042,122 @@ func strJoinImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	return &eval.StringValue{Value: strings.Join(parts, sep)}, nil
+}
+
+// ============================================================================
+// M-DOCPARSE-DX M3: String Splitting
+// ============================================================================
+
+// registerStrWords registers _str_words: split on whitespace
+func registerStrWords() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_words",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrWordsType,
+		Impl:    strWordsImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Split string on whitespace, dropping empty segments",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to split"},
+			},
+			Returns:   "List of non-empty words",
+			Examples:  []Example{{Code: `_str_words("hello  world\tfoo")`, Description: `Returns ["hello", "world", "foo"]`}},
+			Since:     "v0.9.3",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "split", "words", "whitespace"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_words: %v", err))
+	}
+}
+
+func makeStrWordsType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.List(T.String())).Build()
+}
+
+func strWordsImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_words: expected String, got %T", args[0])
+	}
+	words := strings.Fields(strVal.Value)
+	result := make([]eval.Value, len(words))
+	for i, w := range words {
+		result[i] = &eval.StringValue{Value: w}
+	}
+	return &eval.ListValue{Elements: result}, nil
+}
+
+// registerStrSplitAny registers _str_splitAny: split on any of multiple delimiters
+func registerStrSplitAny() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_splitAny",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrSplitAnyType,
+		Impl:    strSplitAnyImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Split string on any of the given delimiter strings",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to split"},
+				{Name: "delimiters", Description: "List of delimiter strings (single characters)"},
+			},
+			Returns:   "List of non-empty segments",
+			Examples:  []Example{{Code: `_str_splitAny("a,b;c", [",", ";"])`, Description: `Returns ["a", "b", "c"]`}},
+			Since:     "v0.9.3",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "split", "delimiter", "multi"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_splitAny: %v", err))
+	}
+}
+
+func makeStrSplitAnyType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.List(T.String())).Returns(T.List(T.String())).Build()
+}
+
+func strSplitAnyImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_splitAny: expected String, got %T", args[0])
+	}
+	delimList, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_splitAny: expected List for delimiters, got %T", args[1])
+	}
+
+	// Collect delimiter runes
+	delimRunes := make(map[rune]bool)
+	for _, d := range delimList.Elements {
+		ds, ok := d.(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("_str_splitAny: delimiter must be String, got %T", d)
+		}
+		for _, r := range ds.Value {
+			delimRunes[r] = true
+		}
+	}
+
+	// Split using FieldsFunc
+	parts := strings.FieldsFunc(strVal.Value, func(r rune) bool {
+		return delimRunes[r]
+	})
+
+	result := make([]eval.Value, len(parts))
+	for i, p := range parts {
+		result[i] = &eval.StringValue{Value: p}
+	}
+	return &eval.ListValue{Elements: result}, nil
 }

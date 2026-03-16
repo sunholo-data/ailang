@@ -62,10 +62,10 @@
         "examples/directory_listing.ail runs successfully",
         "make test and make lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-03-16T06:04:00Z",
+      "completed": "2026-03-16T06:16:00Z",
+      "notes": "3 builtins: _fs_listDir (FS effect with sandbox), _str_words (strings.Fields), _str_splitAny (strings.FieldsFunc). 18 test cases total."
     },
     {
       "id": "M4_XML_SERIALIZE_ZIP_WRITE",

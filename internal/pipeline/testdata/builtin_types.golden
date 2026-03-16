@@ -48,6 +48,7 @@ _float_to_int : float -> int
 _fs_appendFile : (string, string) -> () ! {FS}
 _fs_appendFileBytes : (string, bytes) -> () ! {FS}
 _fs_exists : string -> bool ! {FS}
+_fs_listDir : string -> list[string] ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
@@ -129,9 +130,11 @@ _str_len : string -> int
 _str_lower : string -> string
 _str_slice : (string, int, int) -> string
 _str_split : (string, string) -> list[string]
+_str_splitAny : (string, list[string]) -> list[string]
 _str_startsWith : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
+_str_words : string -> list[string]
 _stream_async_exec_process : (string, list[string], string, int, int) -> StreamSource ! {Stream}
 _stream_async_read_stdin_lines : (string, int) -> StreamSource ! {Stream}
 _stream_close : StreamConn -> () ! {Stream}

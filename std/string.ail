@@ -70,3 +70,13 @@ export pure func join(delimiter: string, xs: [string]) -> string = _str_join(xs,
 export pure func repeat(s: string, n: int) -> string {
   if n <= 0 then "" else s ++ repeat(s, n - 1)
 }
+
+-- M-DOCPARSE-DX M3: String splitting
+
+-- words: Split on whitespace (tabs, spaces, newlines), drop empties
+-- words("hello  world\tfoo") = ["hello", "world", "foo"]
+export pure func words(s: string) -> [string] = _str_words(s)
+
+-- splitAny: Split on any of multiple single-character delimiters
+-- splitAny("a,b;c", [",", ";"]) = ["a", "b", "c"]
+export pure func splitAny(s: string, delimiters: [string]) -> [string] = _str_splitAny(s, delimiters)
