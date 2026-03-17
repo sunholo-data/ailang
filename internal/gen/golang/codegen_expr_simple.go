@@ -57,6 +57,13 @@ func (g *Generator) generateLit(lit *core.Lit) error {
 
 // generateVar generates code for a Var expression (local variable reference).
 func (g *Generator) generateVar(v *core.Var) error {
+	// M-CODEGEN-LETBIND-FIX: Check top-level variables FIRST (non-function lets).
+	// These must NOT get _impl suffix — they are plain Go variables.
+	if goName, ok := g.topLevelVars[v.Name]; ok {
+		g.write(goName)
+		return nil
+	}
+
 	// Check if this is a reference to a top-level function
 	if goName, ok := g.topLevelFuncs[v.Name]; ok {
 		// M-DX26: In _impl functions, call other _impl functions
@@ -122,22 +129,10 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 		return nil
 	}
 
-	// M-CODEGEN-STDLIB-MATH: Check if this is a pure math builtin
-	if mathExpr := g.mapPureMathBuiltin(e.Ref.Name); mathExpr != "" {
-		g.write(mathExpr)
-		return nil
-	}
-
-	// M-DX17-FIX: Check if this is a pure list builtin (concat, length, etc.)
-	if listExpr := g.mapPureListBuiltin(e.Ref.Name); listExpr != "" {
-		g.write(listExpr)
-		return nil
-	}
-
-	// M-CODEGEN-STDLIB-BUILTINS: Check if this is a stdlib function that needs
-	// a Go runtime helper with a different name (to avoid collisions).
-	if stdlibExpr := g.mapStdlibBuiltin(e.Ref.Name); stdlibExpr != "" {
-		g.write(stdlibExpr)
+	// M-CODEGEN-SUSTAINABILITY: Query the builtin registry for Go codegen specs.
+	// This replaces mapPureMathBuiltin, mapPureListBuiltin, and mapStdlibBuiltin.
+	if resolved := g.resolveBuiltinViaRegistry(e.Ref.Name); resolved != "" {
+		g.write(resolved)
 		return nil
 	}
 

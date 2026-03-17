@@ -24,6 +24,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
 )
@@ -84,6 +85,10 @@ type Generator struct {
 	// topLevelImplFuncs maps original function names to their Go _impl names
 	// M-DX18-FIX: Needed because _impl uses ToGoVarName (camelCase) while wrapper uses ToGoFuncName
 	topLevelImplFuncs map[string]string
+
+	// topLevelVars maps non-function let binding names to their Go variable names
+	// M-CODEGEN-LETBIND-FIX: Separated from topLevelFuncs to prevent _impl suffix on variables
+	topLevelVars map[string]string
 
 	// emittedVars tracks variable names already emitted in the current module.
 	// M-CODEGEN-MULTIMOD: Prevents duplicate var declarations when the Core program
@@ -160,6 +165,22 @@ type Generator struct {
 	// M-CODEGEN-STDLIB-STRING: Set to true when string conversion builtins are used
 	needsStrconvImport bool
 
+	// needsStringsImport tracks whether generated code uses strings package functions
+	// M-CODEGEN-SUSTAINABILITY: Set by trackImport when string builtins are used
+	needsStringsImport bool
+
+	// needsSortImport tracks whether generated code uses sort package functions
+	// M-CODEGEN-SUSTAINABILITY: Set by trackImport when sortBy is used
+	needsSortImport bool
+
+	// registryHelpers tracks GoHelperSpecs that need to be emitted in runtime.
+	// M-CODEGEN-SUSTAINABILITY: Populated during code generation, emitted in writeRegistryHelpers.
+	registryHelpers map[string]*builtins.GoHelperSpec
+
+	// emittedHelpers tracks which helper functions have already been emitted.
+	// M-CODEGEN-SUSTAINABILITY: Prevents duplicate emission during migration.
+	emittedHelpers map[string]bool
+
 	// output buffer for generated code
 	buf bytes.Buffer
 
@@ -217,6 +238,7 @@ type FuncTypeOverride struct {
 func (g *Generator) ResetPerModuleState() {
 	g.topLevelFuncs = make(map[string]string)
 	g.topLevelImplFuncs = make(map[string]string)
+	g.topLevelVars = make(map[string]string)
 	g.emittedVars = make(map[string]bool)
 	g.funcParamTypes = make(map[string][]string)
 	g.funcReturnTypes = make(map[string]string)
@@ -298,6 +320,7 @@ func New(packageName string) *Generator {
 		adtConstructors:     make(map[string]*ADTConstructorInfo),
 		topLevelFuncs:       make(map[string]string),
 		topLevelImplFuncs:   make(map[string]string),
+		topLevelVars:        make(map[string]string),
 		emittedVars:         make(map[string]bool),
 		adtSliceTypes:       make(map[string]bool),
 		recordTypes:         make(map[string]*RecordTypeInfo),
@@ -307,6 +330,7 @@ func New(packageName string) *Generator {
 		typedLocalVars:      make(map[string]string),
 		valueThreshold:      4, // M-CODEGEN-VALUE-TYPES: Default threshold
 		valueTypeConverters: make(map[string]bool),
+		emittedHelpers:      make(map[string]bool),
 	}
 	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
 	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {

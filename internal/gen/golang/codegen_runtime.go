@@ -32,5 +32,9 @@ func (g *Generator) writeRuntimeHelpers() {
 	g.writeValueTypeConverters()
 
 	// M-CODEGEN-STDLIB-BUILTINS: Stdlib function implementations (string ops, list HOFs)
+	// TODO(M-CODEGEN-SUSTAINABILITY): Remove after migration to registry helpers is verified
 	g.writeRuntimeStdlibHelpers()
+
+	// M-CODEGEN-SUSTAINABILITY: Registry-generated helpers (replaces codegen_runtime_stdlib.go)
+	g.writeRegistryHelpers()
 }

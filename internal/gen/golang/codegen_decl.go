@@ -47,8 +47,12 @@ func (g *Generator) generateTopLevelLet(let *core.Let) error {
 	if g.moduleName != "" {
 		varName = g.moduleName + "__" + varName
 	}
-	// M-CODEGEN-MULTIMOD: Register in topLevelFuncs so VarGlobal references resolve correctly
-	g.topLevelFuncs[let.Name] = varName
+	// M-CODEGEN-LETBIND-FIX: Do NOT register non-function lets in topLevelFuncs.
+	// Only Lambda-valued lets belong there (and they're registered in generateFuncFromLambda).
+	// Non-function lets in topLevelFuncs cause generateVar to emit "varName_impl" which
+	// doesn't exist, silently breaking ALL function codegen in the module.
+	// Instead, register in a separate map for variable references.
+	g.topLevelVars[let.Name] = varName
 
 	// M-CODEGEN-MULTIMOD: Dedup — skip if this var was already emitted in this module.
 	// The Core program can contain duplicate Let nodes for the same binding when

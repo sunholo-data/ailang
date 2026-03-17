@@ -355,6 +355,54 @@ func registerListCodegenSpecs() {
 		StdlibName: "dedup",
 	})
 
+	// M-CODEGEN-LETBIND-FIX: Set operations (intersect, union) used by DocParse
+	registerIfMissing("_list_intersect", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Intersect",
+			Signature: "func Intersect(xs, ys interface{}) interface{}",
+			Body: `listA := toSlice(xs)
+	listB := toSlice(ys)
+	set := make(map[interface{}]bool)
+	for _, x := range listB { set[x] = true }
+	var result []interface{}
+	seen := make(map[interface{}]bool)
+	for _, x := range listA {
+		if set[x] && !seen[x] {
+			seen[x] = true
+			result = append(result, x)
+		}
+	}
+	if result == nil { result = []interface{}{} }
+	return result`,
+		},
+		StdlibName: "intersect",
+	})
+	registerIfMissing("_list_union", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Union",
+			Signature: "func Union(xs, ys interface{}) interface{}",
+			Body: `listA := toSlice(xs)
+	listB := toSlice(ys)
+	seen := make(map[interface{}]bool)
+	var result []interface{}
+	for _, x := range listA {
+		if !seen[x] {
+			seen[x] = true
+			result = append(result, x)
+		}
+	}
+	for _, x := range listB {
+		if !seen[x] {
+			seen[x] = true
+			result = append(result, x)
+		}
+	}
+	if result == nil { result = []interface{}{} }
+	return result`,
+		},
+		StdlibName: "union",
+	})
+
 	// Additional list helpers used by stdlib but not as builtins
 	for _, spec := range []struct {
 		name, stdlib string

@@ -230,6 +230,52 @@ func TestNonLambdaLetBindingVarReference(t *testing.T) {
 	}
 }
 
+// TestNonLambdaLetBindingInFuncBody verifies that a module-level let binding
+// used as a Var reference inside a function body does NOT get _impl suffix.
+// Bug: topLevelFuncs included non-function lets, causing generateVar to emit
+// "myMax_impl" which doesn't exist — silently breaking ALL module functions.
+func TestNonLambdaLetBindingInFuncBody(t *testing.T) {
+	prog := &core.Program{
+		Decls: []core.CoreExpr{
+			// let myMax = 5000
+			&core.Let{
+				Name:  "myMax",
+				Value: &core.Lit{Kind: core.IntLit, Value: int64(5000)},
+				Body:  &core.Var{Name: "myMax"},
+			},
+			// let test = \x -> myMax  (references myMax as a Var inside function body)
+			&core.Let{
+				Name: "test",
+				Value: &core.Lambda{
+					Params: []string{"x"},
+					Body:   &core.Var{Name: "myMax"}, // Same-module Var ref, NOT VarGlobal
+				},
+				Body: &core.Var{Name: "test"},
+			},
+		},
+	}
+
+	gen := New("testpkg")
+	gen.SetModuleName("repro")
+	code, err := gen.Generate(prog)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	output := string(code)
+	// The function body MUST reference repro__myMax (the variable), not myMax_impl
+	if strings.Contains(output, "myMax_impl") {
+		t.Errorf("Bug: non-function let binding got _impl suffix in function body:\n%s", output)
+	}
+	if !strings.Contains(output, "repro__myMax") {
+		t.Errorf("Expected function body to reference repro__myMax variable, got:\n%s", output)
+	}
+	// The function itself should still be generated
+	if !strings.Contains(output, "func repro__test_impl") {
+		t.Errorf("Expected function repro__test_impl to be generated, got:\n%s", output)
+	}
+}
+
 // TestListPatternMatchGeneratesValidGo verifies that match expressions with
 // list patterns generate syntactically valid Go code (via if-else path, not switch).
 // Bug: The switch/case fallback emitted `case []interface{}{}:` which is invalid Go.
