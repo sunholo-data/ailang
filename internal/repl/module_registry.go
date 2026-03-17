@@ -510,9 +510,27 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		return nil, fmt.Errorf("dictionary elaboration error: %w", err)
 	}
 
+	// Step 4.5: Monomorphization (matches native pipeline Phase 3.5)
+	// Without this, polymorphic functions remain unspecialized and operator
+	// lowering can't determine concrete types for dictionary dispatch.
+	// This fixes: import shadowing (Bug 1) and eq_Int dispatch in helper lambdas (Bug 2).
+	specializer := pipeline.NewSpecializer(&typeChecker.CoreTI)
+	specializedProg, err := specializer.Specialize(elaboratedProg)
+	if err != nil {
+		return nil, fmt.Errorf("monomorphization error: %w", err)
+	}
+
+	// Step 4.6: Var Type Resolution (matches native pipeline Phase 3.5.5)
+	// Resolves remaining type variables in Var nodes after monomorphization.
+	varResolver := pipeline.NewVarResolver(typeChecker.CoreTI)
+	varResolver.Resolve(specializedProg)
+
 	// Step 5: Op lowering
 	lowerer := pipeline.NewOpLowerer(typeEnv, typeChecker.CoreTI)
-	loweredProg, err := lowerer.Lower(elaboratedProg)
+	// Pass resolved constraints so the lowerer knows concrete types for == , <, etc.
+	// Without this, the lowerer defaults to eq_Int for all equality operations.
+	lowerer.SetResolvedConstraints(typeChecker.GetResolvedConstraints())
+	loweredProg, err := lowerer.Lower(specializedProg)
 	if err != nil {
 		return nil, fmt.Errorf("op lowering error: %w", err)
 	}
@@ -537,6 +555,9 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// This enables cross-module imports like "import std/json (js, encode)"
 	registryResolver := NewRegistryResolver(mr, builtinRegistry)
 	evaluator.SetGlobalResolver(registryResolver)
+	// Enable binop shim so comparison ops deferred by op lowering (unknown type)
+	// can dispatch based on runtime operand types (M-WASM-DICTIONARY-DISPATCH)
+	evaluator.SetExperimentalBinopShim(true)
 
 	// First, check if there are any explicit exports in the module
 	hasExplicitExports := false
@@ -864,6 +885,52 @@ func registerPreludeInstances(linker *link.Linker) {
 		},
 	}
 
+	// Eq[Int]
+	eqInt := core.DictValue{
+		TypeClass: "Eq", Type: "Int",
+		Methods: map[string]interface{}{
+			"eq": &eval.BuiltinFunction{Name: "eq_Int", Fn: func(args []eval.Value) (eval.Value, error) {
+				x, ok1 := args[0].(*eval.IntValue)
+				y, ok2 := args[1].(*eval.IntValue)
+				if !ok1 || !ok2 {
+					return nil, fmt.Errorf("eq_Int: expected IntValue for arg 0, got %T", args[0])
+				}
+				return &eval.BoolValue{Value: x.Value == y.Value}, nil
+			}},
+			"neq": &eval.BuiltinFunction{Name: "neq_Int", Fn: func(args []eval.Value) (eval.Value, error) {
+				x, ok1 := args[0].(*eval.IntValue)
+				y, ok2 := args[1].(*eval.IntValue)
+				if !ok1 || !ok2 {
+					return nil, fmt.Errorf("neq_Int: expected IntValue, got %T", args[0])
+				}
+				return &eval.BoolValue{Value: x.Value != y.Value}, nil
+			}},
+		},
+	}
+
+	// Eq[String]
+	eqString := core.DictValue{
+		TypeClass: "Eq", Type: "String",
+		Methods: map[string]interface{}{
+			"eq": &eval.BuiltinFunction{Name: "eq_String", Fn: func(args []eval.Value) (eval.Value, error) {
+				x, ok1 := args[0].(*eval.StringValue)
+				y, ok2 := args[1].(*eval.StringValue)
+				if !ok1 || !ok2 {
+					return nil, fmt.Errorf("eq_String: expected StringValue, got %T", args[0])
+				}
+				return &eval.BoolValue{Value: x.Value == y.Value}, nil
+			}},
+			"neq": &eval.BuiltinFunction{Name: "neq_String", Fn: func(args []eval.Value) (eval.Value, error) {
+				x, ok1 := args[0].(*eval.StringValue)
+				y, ok2 := args[1].(*eval.StringValue)
+				if !ok1 || !ok2 {
+					return nil, fmt.Errorf("neq_String: expected StringValue, got %T", args[0])
+				}
+				return &eval.BoolValue{Value: x.Value != y.Value}, nil
+			}},
+		},
+	}
+
 	// Register with canonical keys
 	for methodName := range numInt.Methods {
 		key := types.MakeDictionaryKey("prelude", "Num", &types.TCon{Name: "Int"}, methodName)
@@ -873,6 +940,16 @@ func registerPreludeInstances(linker *link.Linker) {
 	for methodName := range numFloat.Methods {
 		key := types.MakeDictionaryKey("prelude", "Num", &types.TCon{Name: "Float"}, methodName)
 		linker.AddDictionary(key, numFloat)
+	}
+
+	for methodName := range eqInt.Methods {
+		key := types.MakeDictionaryKey("prelude", "Eq", &types.TCon{Name: "Int"}, methodName)
+		linker.AddDictionary(key, eqInt)
+	}
+
+	for methodName := range eqString.Methods {
+		key := types.MakeDictionaryKey("prelude", "Eq", &types.TCon{Name: "String"}, methodName)
+		linker.AddDictionary(key, eqString)
 	}
 }
 
@@ -969,6 +1046,33 @@ func registerPreludeInstancesForEvaluator(evaluator *eval.CoreEvaluator) {
 			Methods: map[string]interface{}{
 				"eq":  wrapFloatCmp2("eq", func(a, b float64) bool { return a == b }),
 				"neq": wrapFloatCmp2("neq", func(a, b float64) bool { return a != b }),
+			},
+		},
+		"Eq[String]": {
+			TypeClass: "Eq", Type: "String",
+			Methods: map[string]interface{}{
+				"eq": &eval.BuiltinFunction{Name: "eq_String", Fn: func(args []eval.Value) (eval.Value, error) {
+					if len(args) != 2 {
+						return nil, fmt.Errorf("eq_String: expected 2 arguments")
+					}
+					x, ok1 := args[0].(*eval.StringValue)
+					y, ok2 := args[1].(*eval.StringValue)
+					if !ok1 || !ok2 {
+						return nil, fmt.Errorf("eq_String: expected StringValue arguments, got %T and %T", args[0], args[1])
+					}
+					return &eval.BoolValue{Value: x.Value == y.Value}, nil
+				}},
+				"neq": &eval.BuiltinFunction{Name: "neq_String", Fn: func(args []eval.Value) (eval.Value, error) {
+					if len(args) != 2 {
+						return nil, fmt.Errorf("neq_String: expected 2 arguments")
+					}
+					x, ok1 := args[0].(*eval.StringValue)
+					y, ok2 := args[1].(*eval.StringValue)
+					if !ok1 || !ok2 {
+						return nil, fmt.Errorf("neq_String: expected StringValue arguments, got %T and %T", args[0], args[1])
+					}
+					return &eval.BoolValue{Value: x.Value != y.Value}, nil
+				}},
 			},
 		},
 		"Ord[Int]": {

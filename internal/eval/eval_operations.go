@@ -350,6 +350,28 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 			}
 		}
 
+		// Try String operations (comparison/equality only)
+		if lStr, lOk := left.(*StringValue); lOk {
+			if rStr, rOk := right.(*StringValue); rOk {
+				switch op {
+				case "==":
+					return &BoolValue{Value: lStr.Value == rStr.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lStr.Value != rStr.Value}, nil
+				case "<":
+					return &BoolValue{Value: lStr.Value < rStr.Value}, nil
+				case ">":
+					return &BoolValue{Value: lStr.Value > rStr.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lStr.Value <= rStr.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lStr.Value >= rStr.Value}, nil
+				case "++":
+					return &StringValue{Value: lStr.Value + rStr.Value}, nil
+				}
+			}
+		}
+
 		// Try Float operations
 		if lFloat, lOk := left.(*FloatValue); lOk {
 			if rFloat, rOk := right.(*FloatValue); rOk {

@@ -413,7 +413,19 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 					// has a type variable but the operands have concrete types
 					typeSuffix = l.tryOperandTypes(intrinsic)
 					if typeSuffix == "" {
-						// Last resort: use default based on operator
+						// M-WASM-DICTIONARY-DISPATCH: For comparison/equality ops with unknown
+						// type, leave as Intrinsic for runtime dispatch via binop shim.
+						// This avoids incorrectly defaulting to eq_Int for string comparisons
+						// inside lambdas passed to polymorphic HOFs like any().
+						if isComparisonOrEqualityOp(intrinsic.Op) {
+							l.trackFallback(intrinsic.Op, typeNode, "Deferred-to-shim", location)
+							return &core.Intrinsic{
+								CoreNode: intrinsic.CoreNode,
+								Op:       intrinsic.Op,
+								Args:     l.lowerExprs(intrinsic.Args),
+							}
+						}
+						// Last resort for non-comparison ops: use default based on operator
 						typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 						l.trackFallback(intrinsic.Op, typeNode, "Default", location)
 					} else {
@@ -437,6 +449,14 @@ func (l *OpLowerer) lowerIntrinsic(intrinsic *core.Intrinsic) core.CoreExpr {
 				// M-FIX-FLOAT-OP: For arithmetic operators, try operand types before defaulting
 				typeSuffix = l.tryOperandTypes(intrinsic)
 				if typeSuffix == "" {
+					// M-WASM-DICTIONARY-DISPATCH: Same deferral for CoreTI-miss path
+					if isComparisonOrEqualityOp(intrinsic.Op) {
+						return &core.Intrinsic{
+							CoreNode: intrinsic.CoreNode,
+							Op:       intrinsic.Op,
+							Args:     l.lowerExprs(intrinsic.Args),
+						}
+					}
 					// Last resort: use default based on operator
 					typeSuffix = getDefaultTypeSuffix(intrinsic.Op)
 				}
