@@ -58,6 +58,7 @@ const sidebars = {
         'guides/agent-messaging',
         'guides/cross-project-messaging',
         'guides/collaboration-hub',
+        'guides/cloud-messaging-integration',
       ],
     },
     {

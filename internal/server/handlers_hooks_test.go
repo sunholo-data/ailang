@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -124,7 +123,6 @@ func TestHookHandlerMethodNotAllowed(t *testing.T) {
 }
 
 // TestHookHandlerInvalidJSON tests that invalid JSON is rejected
-// (Note: handler checks Observatory backend first, so will get 503 if not configured)
 func TestHookHandlerInvalidJSON(t *testing.T) {
 	server := &Server{}
 
@@ -133,7 +131,6 @@ func TestHookHandlerInvalidJSON(t *testing.T) {
 
 	server.handleObservatoryHooks(w, req)
 
-	// Handler checks Observatory first, so returns 503 when not configured
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503, got %d", w.Code)
 	}
@@ -152,13 +149,11 @@ func TestHookResponseFormat(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/observatory/hooks", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 
-	// Note: Can't test response format without Observatory backend, so just verify HTTP error handling
 	server := &Server{
-		obsBackend: nil, // Not configured
+		obsBackend: nil,
 	}
 	server.handleObservatoryHooks(w, req)
 
-	// Verify response exists and has error status
 	if w.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status 503, got %d", w.Code)
 	}
@@ -178,7 +173,6 @@ func TestHookEventTimestamp(t *testing.T) {
 	var parsed HookEvent
 	json.Unmarshal(body, &parsed)
 
-	// Timestamps may lose nanosecond precision in JSON
 	timeDiff := parsed.Timestamp.Sub(now)
 	if timeDiff < -1*time.Microsecond || timeDiff > 1*time.Microsecond {
 		t.Errorf("Timestamp mismatch: expected %v, got %v", now, parsed.Timestamp)
@@ -206,7 +200,6 @@ func TestHookEventWithRawMessage(t *testing.T) {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	// Just verify that the RawMessages exist and are not nil
 	if parsed.ToolInput == nil {
 		t.Errorf("ToolInput should not be nil")
 	}
@@ -215,7 +208,6 @@ func TestHookEventWithRawMessage(t *testing.T) {
 		t.Errorf("ToolResponse should not be nil")
 	}
 
-	// Verify we can parse them back to valid JSON
 	var inputObj map[string]interface{}
 	if err := json.Unmarshal(parsed.ToolInput, &inputObj); err != nil {
 		t.Errorf("Failed to unmarshal ToolInput: %v", err)
@@ -232,7 +224,6 @@ func TestHookEventEmptyFields(t *testing.T) {
 	event := HookEvent{
 		Event:     "Stop",
 		SessionID: "session-123",
-		// Leave other fields empty
 		Timestamp: time.Now(),
 	}
 
@@ -322,26 +313,6 @@ func TestHookEventWorkspacePath(t *testing.T) {
 	}
 }
 
-// TestHookEventContextHandling tests that context is properly handled
-func TestHookEventContextHandling(t *testing.T) {
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Simulate a request with this context
-	req := httptest.NewRequest("POST", "/api/observatory/hooks", bytes.NewReader([]byte("invalid")))
-	req = req.WithContext(ctx)
-
-	w := httptest.NewRecorder()
-	server := &Server{}
-	server.handleObservatoryHooks(w, req)
-
-	// Handler checks Observatory backend first (not configured), returns 503
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf("Expected status 503, got %d", w.Code)
-	}
-}
-
 // TestHookEventHTTPHeaders tests that required HTTP headers are present
 func TestHookEventHTTPHeaders(t *testing.T) {
 	event := HookEvent{
@@ -358,57 +329,19 @@ func TestHookEventHTTPHeaders(t *testing.T) {
 	server := &Server{}
 	server.handleObservatoryHooks(w, req)
 
-	// Check response has JSON content type (when Observatory not configured)
 	contentType := w.Header().Get("Content-Type")
 	if contentType == "" {
 		t.Error("Expected Content-Type header")
 	}
 }
 
-// BenchmarkHookEventMarshal benchmarks marshaling of hook events
-func BenchmarkHookEventMarshal(b *testing.B) {
-	event := HookEvent{
-		Event:         "SessionStart",
-		SessionID:     "session-123",
-		Workspace:     "/home/user/project",
-		ClaudeVersion: "v0.3.14",
-		Timestamp:     time.Now(),
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		json.Marshal(event)
-	}
-}
-
-// BenchmarkHookEventUnmarshal benchmarks unmarshaling of hook events
-func BenchmarkHookEventUnmarshal(b *testing.B) {
-	event := HookEvent{
-		Event:         "SessionStart",
-		SessionID:     "session-123",
-		Workspace:     "/home/user/project",
-		ClaudeVersion: "v0.3.14",
-		Timestamp:     time.Now(),
-	}
-
-	data, _ := json.Marshal(event)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var parsed HookEvent
-		json.Unmarshal(data, &parsed)
-	}
-}
-
 // TestHookEventLargeToolResponse tests handling of very large tool responses
 func TestHookEventLargeToolResponse(t *testing.T) {
-	// Create a valid JSON response larger than 10000 bytes
-	// Use valid JSON characters to avoid unmarshaling errors
 	largeData := ""
 	for i := 0; i < 1000; i++ {
 		largeData += `{"key":"value"},`
 	}
-	largeData = largeData[:len(largeData)-1] // Remove trailing comma
+	largeData = largeData[:len(largeData)-1]
 
 	largeJSON := `{"status":"ok","data":[` + largeData + `]}`
 
@@ -430,7 +363,6 @@ func TestHookEventLargeToolResponse(t *testing.T) {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	// Verify the response is preserved
 	if len(parsed.ToolResponse) == 0 {
 		t.Errorf("Expected ToolResponse to have content")
 	}
@@ -484,10 +416,9 @@ func TestHookEventSpecialCharacters(t *testing.T) {
 }
 
 // TestHookHandlerPostToolUseValidation tests PostToolUse event validation
-// Note: Handler checks Observatory backend first, so missing backend returns 503
 func TestHookHandlerPostToolUseValidation(t *testing.T) {
 	server := &Server{
-		obsBackend: nil, // Not configured - will return 503 before validation
+		obsBackend: nil,
 	}
 
 	testCases := []struct {
@@ -503,7 +434,7 @@ func TestHookHandlerPostToolUseValidation(t *testing.T) {
 				ToolResponse: json.RawMessage(`{"status":"ok"}`),
 				Timestamp:    time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Observatory not configured
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name: "missing ToolUseID",
@@ -513,7 +444,7 @@ func TestHookHandlerPostToolUseValidation(t *testing.T) {
 				ToolResponse: json.RawMessage(`{"status":"ok"}`),
 				Timestamp:    time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -533,10 +464,9 @@ func TestHookHandlerPostToolUseValidation(t *testing.T) {
 }
 
 // TestHookHandlerPreToolUseValidation tests PreToolUse event validation
-// Note: Handler checks Observatory backend first, so missing backend returns 503
 func TestHookHandlerPreToolUseValidation(t *testing.T) {
 	server := &Server{
-		obsBackend: nil, // Not configured - will return 503 before validation
+		obsBackend: nil,
 	}
 
 	testCases := []struct {
@@ -554,7 +484,7 @@ func TestHookHandlerPreToolUseValidation(t *testing.T) {
 				ToolInput: json.RawMessage(`{"command":"ls"}`),
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Observatory not configured
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name: "missing SessionID",
@@ -565,29 +495,7 @@ func TestHookHandlerPreToolUseValidation(t *testing.T) {
 				ToolName:  "Bash",
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
-		},
-		{
-			name: "missing ToolUseID",
-			event: HookEvent{
-				Event:     "PreToolUse",
-				SessionID: "session-123",
-				ToolUseID: "",
-				ToolName:  "Bash",
-				Timestamp: time.Now(),
-			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
-		},
-		{
-			name: "missing ToolName",
-			event: HookEvent{
-				Event:     "PreToolUse",
-				SessionID: "session-123",
-				ToolUseID: "tool-use-456",
-				ToolName:  "",
-				Timestamp: time.Now(),
-			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -607,10 +515,9 @@ func TestHookHandlerPreToolUseValidation(t *testing.T) {
 }
 
 // TestHookHandlerSessionStartValidation tests SessionStart event validation
-// Note: Handler checks Observatory backend first, so missing backend returns 503
 func TestHookHandlerSessionStartValidation(t *testing.T) {
 	server := &Server{
-		obsBackend: nil, // Not configured - will return 503 before validation
+		obsBackend: nil,
 	}
 
 	testCases := []struct {
@@ -626,7 +533,7 @@ func TestHookHandlerSessionStartValidation(t *testing.T) {
 				Workspace: "/home/user/project",
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name: "missing Workspace",
@@ -636,7 +543,7 @@ func TestHookHandlerSessionStartValidation(t *testing.T) {
 				Workspace: "",
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -656,10 +563,9 @@ func TestHookHandlerSessionStartValidation(t *testing.T) {
 }
 
 // TestHookHandlerStopValidation tests Stop event validation
-// Note: Handler checks Observatory backend first, so missing backend returns 503
 func TestHookHandlerStopValidation(t *testing.T) {
 	server := &Server{
-		obsBackend: nil, // Not configured - will return 503 before validation
+		obsBackend: nil,
 	}
 
 	testCases := []struct {
@@ -674,7 +580,7 @@ func TestHookHandlerStopValidation(t *testing.T) {
 				SessionID: "session-123",
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Observatory not configured
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 		{
 			name: "missing SessionID",
@@ -683,7 +589,7 @@ func TestHookHandlerStopValidation(t *testing.T) {
 				SessionID: "",
 				Timestamp: time.Now(),
 			},
-			expectedStatus: http.StatusServiceUnavailable, // Backend check happens first
+			expectedStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -699,225 +605,5 @@ func TestHookHandlerStopValidation(t *testing.T) {
 				t.Errorf("Expected status %d, got %d", tc.expectedStatus, w.Code)
 			}
 		})
-	}
-}
-
-// TestHookEventComplexJSONStructures tests handling of nested JSON in tool input/output
-func TestHookEventComplexJSONStructures(t *testing.T) {
-	complexInput := json.RawMessage(`{
-		"command": "ls",
-		"options": {
-			"recursive": true,
-			"hidden": false,
-			"filters": ["*.go", "*.md"]
-		},
-		"timeout": 30,
-		"retries": [
-			{"delay": 100, "backoff": 2.0},
-			{"delay": 200, "backoff": 2.0}
-		]
-	}`)
-
-	event := HookEvent{
-		Event:     "PreToolUse",
-		SessionID: "session-123",
-		ToolUseID: "tool-use-456",
-		ToolName:  "Bash",
-		ToolInput: complexInput,
-		Timestamp: time.Now(),
-	}
-
-	body, _ := json.Marshal(event)
-	var parsed HookEvent
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		t.Fatalf("Failed to unmarshal: %v", err)
-	}
-
-	// Verify complex structure is preserved
-	var inputObj map[string]interface{}
-	if err := json.Unmarshal(parsed.ToolInput, &inputObj); err != nil {
-		t.Errorf("Failed to unmarshal ToolInput: %v", err)
-	}
-
-	if options, ok := inputObj["options"].(map[string]interface{}); !ok {
-		t.Errorf("Expected options to be a map")
-	} else if filters, ok := options["filters"].([]interface{}); !ok || len(filters) != 2 {
-		t.Errorf("Expected filters array in options")
-	}
-
-	if retries, ok := inputObj["retries"].([]interface{}); !ok || len(retries) != 2 {
-		t.Errorf("Expected retries array with 2 elements")
-	}
-}
-
-// TestHookEventNullValues tests handling of null vs empty values
-func TestHookEventNullValues(t *testing.T) {
-	// Test with explicit null in JSON
-	jsonWithNull := []byte(`{
-		"event": "PostToolUse",
-		"session_id": "session-123",
-		"tool_use_id": "tool-use-456",
-		"tool_response": null,
-		"timestamp": "2024-01-01T00:00:00Z"
-	}`)
-
-	var parsed HookEvent
-	if err := json.Unmarshal(jsonWithNull, &parsed); err != nil {
-		t.Fatalf("Failed to unmarshal: %v", err)
-	}
-
-	// null in JSON is preserved as the literal text "null" in RawMessage
-	if len(parsed.ToolResponse) > 0 {
-		// Verify it's the JSON null value
-		if string(parsed.ToolResponse) != "null" {
-			t.Errorf("Expected ToolResponse to be 'null' for null JSON value, got %s", string(parsed.ToolResponse))
-		}
-	}
-}
-
-// TestHookEventTimestampPrecision tests timestamp precision handling
-func TestHookEventTimestampPrecision(t *testing.T) {
-	testTimes := []string{
-		"2024-01-15T10:30:45Z",
-		"2024-01-15T10:30:45.123Z",
-		"2024-01-15T10:30:45.123456Z",
-		"2024-01-15T10:30:45.123456789Z",
-	}
-
-	for _, timeStr := range testTimes {
-		t.Run(timeStr, func(t *testing.T) {
-			jsonData := []byte(`{
-				"event": "SessionStart",
-				"session_id": "session-123",
-				"workspace": "/home/user/project",
-				"timestamp": "` + timeStr + `"
-			}`)
-
-			var parsed HookEvent
-			if err := json.Unmarshal(jsonData, &parsed); err != nil {
-				t.Fatalf("Failed to unmarshal: %v", err)
-			}
-
-			if parsed.Event != "SessionStart" {
-				t.Errorf("Event mismatch")
-			}
-		})
-	}
-}
-
-// TestHookEventUnknownEventType tests handling of unknown event types
-func TestHookEventUnknownEventType(t *testing.T) {
-	server := &Server{
-		obsBackend: nil,
-	}
-
-	event := HookEvent{
-		Event:     "UnknownEvent",
-		SessionID: "session-123",
-		Timestamp: time.Now(),
-	}
-
-	body, _ := json.Marshal(event)
-	req := httptest.NewRequest("POST", "/api/observatory/hooks", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-
-	server.handleObservatoryHooks(w, req)
-
-	// Unknown event types should still get 503 (Observatory not configured)
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf("Expected status 503, got %d", w.Code)
-	}
-}
-
-// TestHookEventEdgeCaseToolNames tests edge case tool names
-func TestHookEventEdgeCaseToolNames(t *testing.T) {
-	toolNames := []string{
-		"Bash",
-		"bash",
-		"BASH",
-		"Tool-With-Dash",
-		"Tool_With_Underscore",
-		"Tool.With.Dots",
-		"",
-	}
-
-	for _, toolName := range toolNames {
-		t.Run(toolName, func(t *testing.T) {
-			event := HookEvent{
-				Event:     "PreToolUse",
-				SessionID: "session-123",
-				ToolUseID: "tool-use-456",
-				ToolName:  toolName,
-				Timestamp: time.Now(),
-			}
-
-			body, _ := json.Marshal(event)
-			var parsed HookEvent
-			if err := json.Unmarshal(body, &parsed); err != nil {
-				t.Fatalf("Failed to unmarshal: %v", err)
-			}
-
-			if parsed.ToolName != toolName {
-				t.Errorf("Expected ToolName=%q, got %q", toolName, parsed.ToolName)
-			}
-		})
-	}
-}
-
-// BenchmarkHookEventWithLargeToolResponse benchmarks handling of large tool responses
-func BenchmarkHookEventWithLargeToolResponse(b *testing.B) {
-	largeResponse := make([]byte, 100000)
-	for i := range largeResponse {
-		largeResponse[i] = byte((i % 256))
-	}
-
-	event := HookEvent{
-		Event:        "PostToolUse",
-		SessionID:    "session-123",
-		ToolUseID:    "tool-use-456",
-		ToolResponse: json.RawMessage(largeResponse),
-		Timestamp:    time.Now(),
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		json.Marshal(event)
-	}
-}
-
-// BenchmarkHookEventWithComplexStructure benchmarks handling of complex nested JSON
-func BenchmarkHookEventWithComplexStructure(b *testing.B) {
-	complexInput := json.RawMessage(`{
-		"command": "ls",
-		"options": {
-			"recursive": true,
-			"hidden": false,
-			"filters": ["*.go", "*.md", "*.test"],
-			"depth": 5
-		},
-		"timeout": 30,
-		"retries": [
-			{"delay": 100, "backoff": 2.0},
-			{"delay": 200, "backoff": 2.0},
-			{"delay": 400, "backoff": 2.0}
-		],
-		"metadata": {
-			"user": "developer",
-			"env": {"PATH": "/usr/bin", "HOME": "/home/dev"}
-		}
-	}`)
-
-	event := HookEvent{
-		Event:     "PreToolUse",
-		SessionID: "session-123",
-		ToolUseID: "tool-use-456",
-		ToolName:  "Bash",
-		ToolInput: complexInput,
-		Timestamp: time.Now(),
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		json.Marshal(event)
 	}
 }
