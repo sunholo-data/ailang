@@ -6,11 +6,64 @@ type BuiltinMeta struct {
 	Name    string
 	NumArgs int
 	IsPure  bool
+
+	// GoCodegen holds the Go code generation specification for this builtin.
+	// M-CODEGEN-SUSTAINABILITY: When set, the Go codegen can emit this builtin
+	// without hardcoded mapping tables. Each builtin registers BOTH its interpreter
+	// implementation (in the eval package) and its codegen equivalent (here).
+	GoCodegen *GoCodegenSpec
+}
+
+// GoCodegenSpec describes how a builtin function should be emitted in generated Go code.
+// M-CODEGEN-SUSTAINABILITY: This is the single source of truth for builtin → Go mapping.
+// It replaces mapPureMathBuiltin, mapPureListBuiltin, and mapStdlibBuiltin.
+type GoCodegenSpec struct {
+	// Inline is a Go expression template for simple builtins.
+	// Use {{arg0}}, {{arg1}}, etc. as placeholders for arguments.
+	// Example: "strings.TrimSpace({{arg0}}.(string))"
+	// When set, the codegen substitutes arguments and emits the expression inline.
+	Inline string
+
+	// Helper defines a runtime helper function for complex builtins.
+	// The function is emitted once in runtime.go and called by name.
+	// Use this for builtins that need control flow (loops, conditionals).
+	Helper *GoHelperSpec
+
+	// Imports lists Go packages needed by Inline or Helper.
+	// These are added to the generated file's import block.
+	// Example: []string{"strings", "strconv"}
+	Imports []string
+
+	// StdlibName is the AILANG stdlib function name that wraps this builtin.
+	// Example: "_str_trim" has StdlibName "trim" (from std/string.trim).
+	// Used by the codegen to resolve VarGlobal references from stdlib imports.
+	StdlibName string
+}
+
+// GoHelperSpec describes a Go runtime helper function to emit in generated code.
+type GoHelperSpec struct {
+	// FuncName is the Go function name (PascalCase).
+	// Example: "Map", "Filter", "Trim"
+	FuncName string
+
+	// Signature is the full Go function signature.
+	// Example: "func Map(f, xs interface{}) interface{}"
+	Signature string
+
+	// Body is the Go function body (without enclosing braces).
+	// Example: "return strings.TrimSpace(s.(string))"
+	Body string
 }
 
 // Registry holds all registered builtin function metadata
 // This is a simple data structure with no dependencies on eval or runtime
 var Registry = make(map[string]*BuiltinMeta)
+
+// StdlibIndex maps stdlib function names (e.g., "trim", "map") to their
+// internal builtin names (e.g., "_str_trim", "_list_map").
+// M-CODEGEN-SUSTAINABILITY: Built automatically from GoCodegenSpec.StdlibName fields.
+// The codegen queries this to resolve VarGlobal references from stdlib imports.
+var StdlibIndex = make(map[string]string)
 
 func init() {
 	registerArithmeticMeta()
@@ -22,6 +75,9 @@ func init() {
 	registerIOMeta()
 	registerJSONMeta()
 	registerNetMeta()
+
+	// M-CODEGEN-SUSTAINABILITY: Build stdlib name → builtin name index
+	RebuildStdlibIndex()
 }
 
 // GetBuiltinNames returns all registered builtin names
@@ -37,6 +93,36 @@ func GetBuiltinNames() []string {
 func IsBuiltin(name string) bool {
 	_, ok := Registry[name]
 	return ok
+}
+
+// GetCodegenSpec returns the Go codegen specification for a builtin.
+// Returns nil if the builtin has no codegen spec.
+func GetCodegenSpec(name string) *GoCodegenSpec {
+	meta, ok := Registry[name]
+	if !ok || meta.GoCodegen == nil {
+		return nil
+	}
+	return meta.GoCodegen
+}
+
+// GetCodegenSpecByStdlibName looks up a codegen spec by stdlib function name.
+// Example: GetCodegenSpecByStdlibName("trim") returns the spec for _str_trim.
+func GetCodegenSpecByStdlibName(stdlibName string) *GoCodegenSpec {
+	builtinName, ok := StdlibIndex[stdlibName]
+	if !ok {
+		return nil
+	}
+	return GetCodegenSpec(builtinName)
+}
+
+// RebuildStdlibIndex populates StdlibIndex from all registered builtins.
+// Called after all builtins are registered.
+func RebuildStdlibIndex() {
+	for name, meta := range Registry {
+		if meta.GoCodegen != nil && meta.GoCodegen.StdlibName != "" {
+			StdlibIndex[meta.GoCodegen.StdlibName] = name
+		}
+	}
 }
 
 // registerArithmeticMeta registers metadata for arithmetic builtins
