@@ -613,13 +613,12 @@ func (g *Generator) generateMatchArmValueSwitch(arm *core.MatchArm) error {
 			g.writef("case %v:\n", v)
 		}
 	case *core.ListPattern:
-		if len(p.Elements) == 0 {
-			// Empty list pattern - check for empty slice
-			g.writef("case []interface{}{}:\n")
-		} else {
-			// Non-empty list - needs more complex handling
-			g.writef("default: // TODO: complex list pattern\n")
-		}
+		// M-CODEGEN-MULTIMOD: ListPatterns should always go through the if-else path
+		// (patternsNeedIfElse returns true for ListPattern). If we reach here, it's
+		// a routing bug. Previously emitted `case []interface{}{}:` which is invalid Go
+		// (slices are not comparable, can't be switch cases).
+		// Fallback: use default case to avoid generating invalid Go syntax.
+		g.writef("default: // ListPattern in switch (should use if-else path)\n")
 	default:
 		g.writef("default:\n")
 	}

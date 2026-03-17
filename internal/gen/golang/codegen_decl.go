@@ -42,7 +42,22 @@ func (g *Generator) generateTopLevelLet(let *core.Let) error {
 	}
 
 	// Otherwise generate as a variable
-	varName := ToGoFuncName(let.Name, exported) // Use same naming for consistency
+	// M-CODEGEN-MULTIMOD: Apply module prefix to ALL let bindings when moduleName is set.
+	varName := ToGoFuncName(let.Name, exported)
+	if g.moduleName != "" {
+		varName = g.moduleName + "__" + varName
+	}
+	// M-CODEGEN-MULTIMOD: Register in topLevelFuncs so VarGlobal references resolve correctly
+	g.topLevelFuncs[let.Name] = varName
+
+	// M-CODEGEN-MULTIMOD: Dedup — skip if this var was already emitted in this module.
+	// The Core program can contain duplicate Let nodes for the same binding when
+	// the lowering phase inlines references.
+	if g.emittedVars[let.Name] {
+		return nil
+	}
+	g.emittedVars[let.Name] = true
+
 	g.writef("var %s = ", varName)
 	if err := g.generateExpr(let.Value); err != nil {
 		return err
@@ -112,10 +127,13 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	g.funcReturnTypes[name] = typedRetType
 
 	// Register function name mapping (uses wrapper name for external references)
-	// M-DX18: Non-exported functions are namespaced to prevent collisions across modules
+	// M-CODEGEN-MULTIMOD: ALL functions (exported and non-exported) are prefixed when
+	// moduleName is set. This prevents collisions when multiple modules export the same
+	// function name (e.g., parseDocxComments in both docx_parser and docparse_browser).
+	// Previously only non-exported functions were prefixed (M-DX18), but exported
+	// functions from different modules also collide in a single Go package.
 	funcName := ToGoFuncName(name, exported)
-	if !exported && g.moduleName != "" {
-		// Prefix non-exported functions with module name to avoid collisions
+	if g.moduleName != "" {
 		funcName = g.moduleName + "__" + funcName
 	}
 	g.topLevelFuncs[name] = funcName
@@ -123,7 +141,7 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 	// M-DX18-FIX: Also store the _impl name since ToGoVarName != ToGoFuncName for exported funcs
 	// _impl uses ToGoVarName (camelCase), wrapper uses ToGoFuncName (PascalCase for exported)
 	implName := ToGoVarName(name) + "_impl"
-	if !exported && g.moduleName != "" {
+	if g.moduleName != "" {
 		implName = g.moduleName + "__" + implName
 	}
 	g.topLevelImplFuncs[name] = implName
@@ -153,8 +171,8 @@ func (g *Generator) generateFuncFromLambda(name string, lam *core.Lambda, export
 // M-DX18: Non-exported functions are namespaced to prevent collisions across modules.
 func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 	implName := ToGoVarName(name) + "_impl"
-	// M-DX18: Namespace non-exported _impl functions
-	if !g.isExported(name) && g.moduleName != "" {
+	// M-CODEGEN-MULTIMOD: Namespace ALL _impl functions when moduleName is set
+	if g.moduleName != "" {
 		implName = g.moduleName + "__" + implName
 	}
 
@@ -221,8 +239,8 @@ func (g *Generator) generateImplFunc(name string, lam *core.Lambda) error {
 func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTypes []string, retType string, exported bool) error {
 	funcName := ToGoFuncName(name, exported)
 	implName := ToGoVarName(name) + "_impl"
-	// M-DX18: Namespace non-exported wrapper and _impl functions
-	if !exported && g.moduleName != "" {
+	// M-CODEGEN-MULTIMOD: Namespace ALL functions when moduleName is set
+	if g.moduleName != "" {
 		funcName = g.moduleName + "__" + funcName
 		implName = g.moduleName + "__" + implName
 	}

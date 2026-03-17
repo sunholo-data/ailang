@@ -432,6 +432,10 @@ func compileCommand() {
 				continue
 			}
 
+			// M-CODEGEN-MULTIMOD: Reset per-module name caches to prevent cross-module
+			// function name collisions. Preserves shared type registrations (ADTs, records).
+			codeGen.ResetPerModuleState()
+
 			// M-DX23: Set CoreTypeInfo for typed function signatures
 			if res.Artifacts.CoreTI != nil {
 				codeGen.SetCoreTypeInfo(res.Artifacts.CoreTI)

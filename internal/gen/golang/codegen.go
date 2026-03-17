@@ -85,6 +85,11 @@ type Generator struct {
 	// M-DX18-FIX: Needed because _impl uses ToGoVarName (camelCase) while wrapper uses ToGoFuncName
 	topLevelImplFuncs map[string]string
 
+	// emittedVars tracks variable names already emitted in the current module.
+	// M-CODEGEN-MULTIMOD: Prevents duplicate var declarations when the Core program
+	// contains multiple Let nodes for the same binding (e.g., inlined references).
+	emittedVars map[string]bool
+
 	// adtSliceTypes tracks ADT type names that need slice converter functions
 	// M-DX12: These are generated as ConvertTo<ADT>Slice() functions (exported)
 	adtSliceTypes map[string]bool
@@ -204,6 +209,23 @@ type FuncTypeOverride struct {
 	ReturnType GoType
 }
 
+// ResetPerModuleState clears per-module name caches between module generation passes.
+// M-CODEGEN-MULTIMOD: When compiling multiple modules to the same Go package, the
+// Generator accumulates function name mappings that can leak across modules.
+// This method resets per-module state while preserving shared type registrations
+// (ADT constructors, record types, slice types) that span all modules.
+func (g *Generator) ResetPerModuleState() {
+	g.topLevelFuncs = make(map[string]string)
+	g.topLevelImplFuncs = make(map[string]string)
+	g.emittedVars = make(map[string]bool)
+	g.funcParamTypes = make(map[string][]string)
+	g.funcReturnTypes = make(map[string]string)
+	g.funcTypeOverrides = nil
+	g.currentFuncParams = make(map[string]string)
+	g.typedLocalVars = make(map[string]string)
+	g.moduleName = ""
+}
+
 // SetSkipRuntimeHelpers controls whether runtime helpers are included in output.
 // Use this when compiling multiple files to avoid duplicate declarations.
 func (g *Generator) SetSkipRuntimeHelpers(skip bool) {
@@ -276,6 +298,7 @@ func New(packageName string) *Generator {
 		adtConstructors:     make(map[string]*ADTConstructorInfo),
 		topLevelFuncs:       make(map[string]string),
 		topLevelImplFuncs:   make(map[string]string),
+		emittedVars:         make(map[string]bool),
 		adtSliceTypes:       make(map[string]bool),
 		recordTypes:         make(map[string]*RecordTypeInfo),
 		funcParamTypes:      make(map[string][]string),
@@ -537,6 +560,10 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("\t\"reflect\"\n")
 	g.writef("\t\"strings\"\n")
 	g.writef(")\n\n")
+	// M-CODEGEN-MULTIMOD: List type alias — AILANG's bare List type (without type arg)
+	// maps to []interface{} in Go. Needed when functions have unparameterized List return types.
+	g.writef("// List is the AILANG list type (unparameterized).\n")
+	g.writef("type List = []interface{}\n\n")
 	g.writeRuntimeHelpers()
 
 	return g.formatOutput()
