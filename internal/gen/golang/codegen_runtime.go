@@ -35,6 +35,36 @@ func (g *Generator) writeRuntimeHelpers() {
 	// TODO(M-CODEGEN-SUSTAINABILITY): Remove after migration to registry helpers is verified
 	g.writeRuntimeStdlibHelpers()
 
+	// M-CODEGEN-SUSTAINABILITY: Mark legacy helpers as emitted so registry doesn't duplicate them.
+	g.markLegacyHelpersEmitted()
+
 	// M-CODEGEN-SUSTAINABILITY: Registry-generated helpers (replaces codegen_runtime_stdlib.go)
 	g.writeRegistryHelpers()
+}
+
+// markLegacyHelpersEmitted records all function names emitted by writeRuntimeStdlibHelpers.
+// M-CODEGEN-SUSTAINABILITY: Prevents writeRegistryHelpers from re-emitting the same functions.
+// This list should shrink as we delete sections from codegen_runtime_stdlib.go.
+func (g *Generator) markLegacyHelpersEmitted() {
+	legacyHelpers := []string{
+		// String helpers (codegen_runtime_stdlib.go)
+		"Trim", "ToUpper", "ToLower", "Contains", "StartsWith", "EndsWith",
+		"Find", "Compare", "Split", "Substring", "Join", "Chars", "Words",
+		"Repeat", "IntToStr", "FloatToStr", "StringToInt", "StringToFloat", "SplitAny",
+		// List helpers
+		"toSlice", "Map", "Filter", "Foldl", "Foldr", "Reverse", "Take", "Drop",
+		"Any", "SortBy", "FlatMap", "Zip", "Dedup", "Nth", "Last", "FindIndex",
+		"MapE", "ForEachE",
+		// JSON helpers
+		"ConvertToJsonSlice", "ConvertToRecordSlice",
+		"JsonGet", "JsonHas", "GetString", "GetInt", "GetBool", "GetArray",
+		"AsString", "AsNumber", "AsBool", "AsArray", "AsObject",
+		"JsonKeys", "OptionGetOrElse", "IsNone", "IsSome", "IsOk", "IsErr",
+		"JsonGetOr", "JsonRepair",
+		"Js", "Jn", "Jb", "Jnum", "Ja", "Jo", "Kv",
+		"Decode", "Encode",
+	}
+	for _, name := range legacyHelpers {
+		g.emittedHelpers[name] = true
+	}
 }

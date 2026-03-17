@@ -394,35 +394,9 @@ func compileCommand() {
 	if totalDecls > 0 {
 		fmt.Printf("%s Generating functions (%d declarations from %d files)\n", cyan("→"), totalDecls, len(allCoreDecls))
 
-		// For multi-file compilation, generate runtime helpers separately
-		fmt.Printf("%s Generating runtime helpers (shared)\n", cyan("→"))
-		runtimeCode, err := codeGen.GenerateRuntime()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: runtime generation failed: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		runtimeFile := filepath.Join(outDir, "runtime.go")
-		if err := os.WriteFile(runtimeFile, runtimeCode, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: cannot write runtime file: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
-
-		// M-CODEGEN-DICTIONARIES: Generate type class dictionaries
-		fmt.Printf("%s Generating type class dictionaries\n", cyan("→"))
-		dictCode, err := codeGen.GenerateDictionaries()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: dictionary generation failed: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		dictFile := filepath.Join(outDir, "dictionaries.go")
-		if err := os.WriteFile(dictFile, dictCode, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: cannot write dictionaries file: %v\n", red("Error"), err)
-			os.Exit(1)
-		}
-		fmt.Printf("%s Generated %s\n", green("✓"), dictFile)
-
-		// Skip runtime helpers in subsequent code generation
+		// M-CODEGEN-SUSTAINABILITY: Generate module files FIRST so that registry
+		// helpers (Intersect, Union, etc.) are accumulated during codegen.
+		// Runtime is generated AFTER to include all needed registry helpers.
 		codeGen.SetSkipRuntimeHelpers(true)
 
 		// Generate code for each file's Core program into separate output files
@@ -474,6 +448,36 @@ func compileCommand() {
 			}
 			fmt.Printf("%s Generated %s\n", green("✓"), goFilePath)
 		}
+
+		// M-CODEGEN-SUSTAINABILITY: Generate runtime AFTER module files so that
+		// registry-only helpers (Intersect, Union, etc.) accumulated during module
+		// codegen are included in runtime.go.
+		fmt.Printf("%s Generating runtime helpers (shared)\n", cyan("→"))
+		runtimeCode, err := codeGen.GenerateRuntime()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: runtime generation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		runtimeFile := filepath.Join(outDir, "runtime.go")
+		if err := os.WriteFile(runtimeFile, runtimeCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write runtime file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), runtimeFile)
+
+		// M-CODEGEN-DICTIONARIES: Generate type class dictionaries
+		fmt.Printf("%s Generating type class dictionaries\n", cyan("→"))
+		dictCode, err := codeGen.GenerateDictionaries()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: dictionary generation failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		dictFile := filepath.Join(outDir, "dictionaries.go")
+		if err := os.WriteFile(dictFile, dictCode, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: cannot write dictionaries file: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("%s Generated %s\n", green("✓"), dictFile)
 	}
 
 	fmt.Printf("\n%s Compilation complete!\n", green("✓"))

@@ -4,30 +4,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/core"
 )
 
-// TestMathBuiltinMapping tests that math builtins are mapped to Go math package.
-// M-CODEGEN-STDLIB-MATH: Verifies PI, sin, cos, etc. generate correct Go code.
-func TestMathBuiltinMapping(t *testing.T) {
+// TestMathBuiltinRegistryMapping tests that math builtins have registry specs.
+// M-CODEGEN-SUSTAINABILITY: Verifies all math builtins are in the registry.
+func TestMathBuiltinRegistryMapping(t *testing.T) {
 	tests := []struct {
-		name     string
-		builtin  string
-		expected string
+		name        string
+		builtin     string
+		containsStr string // substring that must appear in the Inline spec
 	}{
 		// Constants
 		{"PI builtin", "_math_PI", "math.Pi"},
-		{"PI wrapper", "PI", "math.Pi"},
 		{"E builtin", "_math_E", "math.E"},
-		{"E wrapper", "E", "math.E"},
 
 		// Trig functions
 		{"sin builtin", "_math_sin", "math.Sin"},
-		{"sin wrapper", "sin", "math.Sin"},
 		{"cos builtin", "_math_cos", "math.Cos"},
-		{"cos wrapper", "cos", "math.Cos"},
 		{"tan builtin", "_math_tan", "math.Tan"},
-		{"tan wrapper", "tan", "math.Tan"},
 
 		// Inverse trig
 		{"asin", "_math_asin", "math.Asin"},
@@ -53,13 +49,28 @@ func TestMathBuiltinMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := New("test")
-			result := g.mapPureMathBuiltin(tt.builtin)
-			if result != tt.expected {
-				t.Errorf("mapPureMathBuiltin(%q) = %q, want %q", tt.builtin, result, tt.expected)
+			spec := builtins.GetCodegenSpec(tt.builtin)
+			if spec == nil {
+				t.Fatalf("no codegen spec found for %q", tt.builtin)
 			}
-			if result != "" && !g.needsMathImport {
-				t.Errorf("needsMathImport should be true after mapping %q", tt.builtin)
+			if !strings.Contains(spec.Inline, tt.containsStr) {
+				t.Errorf("registry spec for %q: Inline = %q, want it to contain %q", tt.builtin, spec.Inline, tt.containsStr)
+			}
+		})
+	}
+}
+
+// TestMathStdlibNameResolution tests that stdlib names (sin, cos, PI) resolve via registry.
+func TestMathStdlibNameResolution(t *testing.T) {
+	stdlibNames := []string{"sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+		"exp", "log", "log10", "pow", "sqrt", "ceil", "floor", "round"}
+
+	for _, name := range stdlibNames {
+		t.Run(name, func(t *testing.T) {
+			g := New("test")
+			result := g.resolveBuiltinViaRegistry(name)
+			if result == "" {
+				t.Errorf("resolveBuiltinViaRegistry(%q) returned empty — not in registry", name)
 			}
 		})
 	}
@@ -169,12 +180,12 @@ func TestMathFunctionCall(t *testing.T) {
 	}
 }
 
-// TestMathNonBuiltin tests that non-math builtins don't trigger math import.
+// TestMathNonBuiltin tests that non-math builtins don't resolve via registry.
 func TestMathNonBuiltin(t *testing.T) {
 	g := New("test")
-	result := g.mapPureMathBuiltin("some_random_func")
+	result := g.resolveBuiltinViaRegistry("some_random_func")
 	if result != "" {
-		t.Errorf("mapPureMathBuiltin should return empty for non-math builtin, got %q", result)
+		t.Errorf("resolveBuiltinViaRegistry should return empty for non-math builtin, got %q", result)
 	}
 	if g.needsMathImport {
 		t.Error("needsMathImport should be false for non-math builtin")

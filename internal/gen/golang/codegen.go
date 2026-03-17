@@ -158,7 +158,7 @@ type Generator struct {
 	funcTypeOverrides map[string]*FuncTypeOverride
 
 	// needsMathImport tracks whether generated code uses math package functions
-	// M-CODEGEN-STDLIB-MATH: Set to true when mapPureMathBuiltin returns a match
+	// M-CODEGEN-SUSTAINABILITY: Set by trackImport when math builtins are used
 	needsMathImport bool
 
 	// needsStrconvImport tracks whether generated code uses strconv package functions
