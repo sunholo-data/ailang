@@ -207,7 +207,294 @@ This design doc is motivated by the 2026-03-17 session where 8 commits were need
 - [ ] DocParse compiles with `go build` in CI
 - [ ] No more "whack-a-mole" debugging sessions for Go codegen
 
+---
+
+## Deep Analysis: Architectural Options
+
+The fundamental problem: AILANG has **two execution backends** (interpreter + Go codegen) that must both handle 57 registered builtins, 283 stdlib exports, ADT operations, pattern matching, and effects. Today these are maintained independently. Every new builtin or stdlib function requires updates in both.
+
+### The Execution Chain
+
+```
+AILANG source
+    ↓
+Parser → AST → Elaboration → Core IR
+    ↓                              ↓
+Interpreter                    Go Codegen
+    ↓                              ↓
+eval.Value                     Go source
+(builtins in Go)               (runtime helpers in Go)
+```
+
+Both paths need Go implementations of the same functions. The interpreter has them in `internal/builtins/*.go`. The codegen re-implements them in `codegen_runtime_stdlib.go`. This duplication is the root cause of all scaling problems.
+
+### Option A: Stdlib-as-Go-Module (External Import)
+
+Generated code imports a published `ailang-go-stdlib` module.
+
+```go
+import stdlib "github.com/sunholo/ailang-go-stdlib"
+result := stdlib.Trim(text)
+```
+
+| Pros | Cons |
+|------|------|
+| Functions defined once | Generated code needs external dependency |
+| Versioned updates | Module version must match codegen version |
+| -1000 LOC from codegen | Still need `interface{}` wrappers |
+| No `mapStdlibBuiltin` table | Need to publish and maintain separate repo |
+
+**Verdict:** Solves the maintenance problem but adds deployment complexity. Every compiled project depends on an external module, making standalone binaries harder.
+
+### Option B: Compile stdlib .ail to Go (Self-Hosting)
+
+Instead of hardcoding mappings, compile `std/string.ail`, `std/list.ail` etc. through the same Go codegen pipeline as user code. The stdlib becomes part of the generated output.
+
+The chain for `trim`:
+```
+std/string.ail: export pure func trim(s: string) -> string { _str_trim(s) }
+    ↓ compile to Core IR
+Let("trim", Lambda(["s"], App(VarGlobal("_str_trim"), [Var("s")])))
+    ↓ Go codegen
+func Trim(s interface{}) interface{} { return _str_trim(s) }
+```
+
+This **almost works** today — except `_str_trim` is a Go builtin that the codegen doesn't know how to emit. If we provide Go implementations for the ~57 low-level builtins (`_str_trim`, `_str_split`, `_list_map`, etc.), the stdlib .ail files would compile through the normal codegen pipeline.
+
+| Pros | Cons |
+|------|------|
+| Truly self-hosting — stdlib compiles like user code | Still need ~57 builtin primitives in Go |
+| No mapping table at all | Stdlib functions in generated output (larger binary) |
+| Automatic — add .ail function, it just works | Two-phase compile (stdlib first, then user code) |
+| Tests stdlib through codegen pipeline | May hit codegen bugs in stdlib itself |
+
+**Verdict:** Elegant but requires solving the "last mile" — the ~57 primitives. And stdlib functions that use AILANG features the codegen doesn't support yet would fail.
+
+### Option C: Colocated Builtin Registry (Recommended)
+
+Extend `BuiltinMeta` with Go codegen specifications. When a builtin is registered for the interpreter, it simultaneously registers its codegen equivalent. **Zero separate tables.**
+
+```go
+// internal/builtins/registry.go — EXTENDED
+type BuiltinMeta struct {
+    Name    string
+    NumArgs int
+    IsPure  bool
+
+    // Go codegen support — when set, codegen can emit this builtin
+    GoCodegen *GoCodegenSpec  // NEW
+}
+
+type GoCodegenSpec struct {
+    // For simple mappings: inline Go expression template
+    // {{arg0}}, {{arg1}} etc. are replaced with argument expressions
+    Inline string        // e.g., "strings.TrimSpace({{arg0}}.(string))"
+
+    // For complex mappings: runtime helper function to emit
+    Helper *GoHelperSpec  // e.g., Map, Filter, Foldl
+
+    // Go imports needed
+    Imports []string       // e.g., ["strings"]
+}
+
+type GoHelperSpec struct {
+    FuncName  string  // Go function name, e.g., "Map"
+    Signature string  // e.g., "func Map(f, xs interface{}) interface{}"
+    Body      string  // Go function body
+}
+```
+
+**Registration example:**
+```go
+// Before (two separate systems):
+// 1. internal/builtins/string.go  — interpreter impl
+// 2. codegen_runtime_stdlib.go    — re-implemented Trim()
+// 3. codegen_expr_simple.go       — mapStdlibBuiltin("trim" → "Trim")
+
+// After (single registration):
+Registry["_str_trim"] = &BuiltinMeta{
+    Name: "_str_trim", NumArgs: 1, IsPure: true,
+    GoCodegen: &GoCodegenSpec{
+        Inline:  "strings.TrimSpace({{arg0}}.(string))",
+        Imports: []string{"strings"},
+    },
+}
+```
+
+**For higher-order functions:**
+```go
+Registry["_list_map"] = &BuiltinMeta{
+    Name: "_list_map", NumArgs: 2, IsPure: true,
+    GoCodegen: &GoCodegenSpec{
+        Helper: &GoHelperSpec{
+            FuncName:  "Map",
+            Signature: "func Map(f, xs interface{}) interface{}",
+            Body: `list := toSlice(xs)
+result := make([]interface{}, len(list))
+for i, x := range list {
+    result[i] = CallFunc(f, x)
+}
+return result`,
+        },
+    },
+}
+```
+
+**How the codegen uses it:**
+
+1. When encountering `VarGlobal("_str_trim")`, query `Registry["_str_trim"].GoCodegen`
+2. If `Inline` is set, substitute args and emit inline expression
+3. If `Helper` is set, emit the helper function in `runtime.go` (only if not already emitted)
+4. Track required imports from `GoCodegen.Imports`
+
+**What this eliminates:**
+- `mapStdlibBuiltin()` — **deleted** (replaced by registry lookup)
+- `mapPureMathBuiltin()` — **deleted** (absorbed into registry)
+- `mapPureListBuiltin()` — **deleted** (absorbed into registry)
+- `codegen_runtime_stdlib.go` — **deleted** (~1000 LOC) (helpers emitted from registry specs)
+
+**What this enables:**
+- Adding a new builtin automatically makes it available in Go codegen
+- The `builtin-developer` skill can generate both interpreter AND codegen implementations
+- `ailang doctor builtins` can verify all builtins have codegen specs
+- CI can validate: "every builtin with IsPure=true has GoCodegen set"
+
+| Pros | Cons |
+|------|------|
+| Zero maintenance for new builtins | Need to annotate all ~57 existing builtins |
+| Single source of truth | Registry struct grows |
+| Existing skill (`builtin-developer`) can generate both | Initial migration effort |
+| CI-verifiable: every builtin has codegen | Go body strings are less IDE-friendly |
+| -1000 LOC codegen, -80 mapping entries | Runtime helper bodies as strings |
+
+**Verdict: This is the right answer.** It follows the GHC primop pattern where each primitive has both an evaluator and a code generator, defined together. The migration is ~200 LOC of annotations across existing builtins.
+
+### Option D: Hybrid — Registry + Compiled Stdlib
+
+Combine Option C (registry for primitives) with Option B (compile stdlib .ail).
+
+The ~57 low-level builtins (`_str_trim`, `_list_map`, etc.) get Go codegen specs via the registry. Then `std/string.ail`, `std/list.ail` etc. compile through the normal codegen pipeline — they call the primitives which now have Go implementations.
+
+```
+Layer 1: Primitives (_str_trim, _list_map, etc.)
+         → GoCodegen specs in BuiltinMeta registry
+         → Emitted as inline expressions or runtime helpers
+
+Layer 2: Stdlib (trim, map, filter, etc.)
+         → Compiled from .ail source via codegen pipeline
+         → Calls Layer 1 primitives
+         → No manual mapping needed
+
+Layer 3: User code
+         → Compiled from .ail source via codegen pipeline
+         → Calls Layer 2 stdlib functions
+```
+
+This is the most sustainable architecture: **57 annotated primitives** support **283 stdlib functions** which support **unlimited user code**. The 283 stdlib functions require zero codegen maintenance because they compile through the same pipeline as user code.
+
+| Pros | Cons |
+|------|------|
+| Only 57 primitives to annotate (not 283) | Two-phase compilation (stdlib → user code) |
+| Stdlib changes propagate automatically | Stdlib must compile cleanly through codegen |
+| Tests stdlib through the codegen itself | Initial effort to get stdlib compiling |
+| Catches codegen bugs in stdlib before users hit them | May need stdlib-specific codegen fixes |
+
+**Estimated effort:**
+- Phase 1: Registry annotations for 57 primitives — 3 days
+- Phase 2: Codegen changes to query registry — 2 days
+- Phase 3: Compile stdlib .ail to Go — 1 week (may hit new codegen issues)
+- Phase 4: CI integration — 1 day
+
+### Recommendation
+
+**Short-term (v0.10.0):** Option C — Colocated builtin registry. This is the smallest change that eliminates the mapping tables and makes new builtins automatic. ~1 week effort.
+
+**Medium-term (v0.11.0):** Option D — Add compiled stdlib on top of registry. This eliminates ALL manual stdlib mapping. The 283 stdlib functions compile through the same pipeline. ~2 weeks additional effort.
+
+**Long-term:** The compiled stdlib approach naturally leads to self-hosting — AILANG's Go backend compiles its own standard library. This is the path compilers like GHC, Rust, and Go itself took.
+
+---
+
+## Codegen Validator Skill: Detailed Design
+
+The skill should be more than "run `go build`". It should be a comprehensive regression gate:
+
+### Reference Test Project
+
+Create `tests/codegen-harness/` with AILANG modules that exercise every codegen feature:
+
+```
+tests/codegen-harness/
+├── types/types.ail           # ADTs, records, nested types, [[string]]
+├── services/string_ops.ail    # All std/string imports
+├── services/list_ops.ail      # All std/list imports (HOFs, pattern match)
+├── services/json_ops.ail      # JSON construction, accessors, decode
+├── services/xml_ops.ail       # XML parse, findAll, getText
+├── services/math_ops.ail      # Math builtins
+├── services/cross_ref.ail     # Cross-module function references
+├── services/effects.ail       # IO, FS, Env, AI effect stubs
+├── main.ail                   # Multi-module imports, match patterns
+└── expected_errors.txt        # Known issues (xlsx_parser pipeline)
+```
+
+**Key patterns to test:**
+- Multi-module with same-named functions (the DocParse parseDocxComments case)
+- ADT match with nested literal patterns (Some("heading"), Some("text"))
+- Forward references (function passed as value before declaration)
+- Nested list types ([[string]], [Option[int]])
+- Effectful function stubs
+- Higher-order functions (Map, Filter with lambdas and named functions)
+- Cross-module type imports
+
+### Skill Trigger
+
+```yaml
+# .claude/skills/codegen-validator/SKILL.md
+trigger: after changes to internal/gen/golang/, cmd/ailang/compile*, std/*.ail, internal/builtins/
+```
+
+### Validation Steps
+
+1. `ailang compile --emit-go --out /tmp/codegen-test --package-name harness tests/codegen-harness/*.ail`
+2. `cd /tmp/codegen-test && go mod init harness && go build ./harness/`
+3. `go vet ./harness/`
+4. Diff generated output against golden files (detect unexpected changes)
+5. Report: pass/fail, new errors, removed errors
+
+### CI Workflow
+
+```yaml
+# .github/workflows/test-codegen-multimodule.yml
+name: Go Codegen Integration
+on:
+  pull_request:
+    paths: ['internal/gen/golang/**', 'cmd/ailang/compile*', 'std/**', 'internal/builtins/**']
+jobs:
+  codegen-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: make build
+      - run: make quick-install
+      - run: |
+          ailang compile --emit-go --out /tmp/harness --package-name harness \
+            tests/codegen-harness/*.ail
+          cd /tmp/harness && go mod init harness && go build ./harness/
+          go vet ./harness/
+```
+
 ## Related Documents
+
+- [m-codegen-multimodule-bugs](../v0_9_2/m-codegen-multimodule-bugs.md) — The bugs this session fixed
+- [m-codegen-stdlib-builtins](../v0_9_3/m-codegen-stdlib-builtins.md) — The stdlib mapping problem
+- [m-codegen-ir-strategy](m-codegen-ir-strategy.md) — Future IR refactoring (complements this)
+- [m-codegen-api-server](m-codegen-api-server.md) — Compiled API server (depends on stable codegen)
+
+---
+
+**Document created**: 2026-03-17
+**Last updated**: 2026-03-17
 
 - [m-codegen-multimodule-bugs](../v0_9_2/m-codegen-multimodule-bugs.md) — The bugs this session fixed
 - [m-codegen-stdlib-builtins](../v0_9_3/m-codegen-stdlib-builtins.md) — The stdlib mapping problem
