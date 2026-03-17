@@ -558,6 +558,8 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("import (\n")
 	g.writef("\t\"fmt\"\n")
 	g.writef("\t\"reflect\"\n")
+	g.writef("\t\"sort\"\n")
+	g.writef("\t\"strconv\"\n")
 	g.writef("\t\"strings\"\n")
 	g.writef(")\n\n")
 	// M-CODEGEN-MULTIMOD: List type alias — AILANG's bare List type (without type arg)

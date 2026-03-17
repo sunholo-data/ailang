@@ -30,4 +30,7 @@ func (g *Generator) writeRuntimeHelpers() {
 
 	// M-CODEGEN-VALUE-TYPES: Generate value-type converters (AsTypeName)
 	g.writeValueTypeConverters()
+
+	// M-CODEGEN-STDLIB-BUILTINS: Stdlib function implementations (string ops, list HOFs)
+	g.writeRuntimeStdlibHelpers()
 }

@@ -134,6 +134,13 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 		return nil
 	}
 
+	// M-CODEGEN-STDLIB-BUILTINS: Check if this is a stdlib function that needs
+	// a Go runtime helper with a different name (to avoid collisions).
+	if stdlibExpr := g.mapStdlibBuiltin(e.Ref.Name); stdlibExpr != "" {
+		g.write(stdlibExpr)
+		return nil
+	}
+
 	// For other global references
 	// M-CODEGEN-TYPE-ASSERTIONS: In _impl functions, call other _impl functions
 	// to avoid type mismatches (typed exports expect concrete types, not interface{})
@@ -143,7 +150,20 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 		// Cross-module function references need _impl versions to stay in interface{} land
 		// BUT stdlib modules (std/*) don't generate _impl - they use typed wrappers that call runtime helpers
 		if e.Ref.Module != "" && !strings.HasPrefix(e.Ref.Module, "$") && !strings.HasPrefix(e.Ref.Module, "std/") {
-			g.write(ToGoVarName(e.Ref.Name) + "_impl")
+			// M-CODEGEN-MULTIMOD: Cross-module references need the target module's prefix
+			parts := strings.Split(e.Ref.Module, "/")
+			targetModule := parts[len(parts)-1]
+			// Sanitize module name same as compile.go does
+			targetModule = strings.Map(func(r rune) rune {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+					return r
+				}
+				if r == '-' {
+					return '_'
+				}
+				return '_'
+			}, targetModule)
+			g.write(targetModule + "__" + ToGoVarName(e.Ref.Name) + "_impl")
 			return nil
 		}
 		// Check if this is a known top-level function (has _impl version)
@@ -333,6 +353,57 @@ func (g *Generator) mapPureListBuiltin(name string) string {
 		"_list_length": "Length",
 	}
 	return listMappings[name]
+}
+
+// mapStdlibBuiltin maps stdlib function names that need special Go names
+// (to avoid collisions with runtime helpers or to prefix with module).
+// M-CODEGEN-STDLIB-BUILTINS: Handles name conflicts like std/json.get vs array Get.
+func (g *Generator) mapStdlibBuiltin(name string) string {
+	mappings := map[string]string{
+		// std/json — prefixed to avoid collision with array Get
+		"get":       "JsonGet",
+		"has":       "JsonHas",
+		"getOr":     "JsonGetOr",
+		"getString": "GetString",
+		"getInt":    "GetInt",
+		"getArray":  "GetArray",
+		"asString":  "AsString",
+		"asNumber":  "AsNumber",
+		"asBool":    "AsBool",
+		"asArray":   "AsArray",
+		"asObject":  "AsObject",
+		"keys":      "JsonKeys",
+		"decode":    "Decode",
+		"encode":    "Encode",
+		"repair":    "JsonRepair",
+
+		// std/option
+		"getOrElse": "OptionGetOrElse",
+		"isNone":    "IsNone",
+		"isSome":    "IsSome",
+
+		// std/result
+		"isOk":  "IsOk",
+		"isErr": "IsErr",
+
+		// std/xml
+		"parse":        "XmlParse",
+		"findAll":      "XmlFindAll",
+		"findFirst":    "XmlFindFirst",
+		"getText":      "XmlGetText",
+		"getAttr":      "GetAttr",
+		"getChildren":  "XmlGetChildren",
+		"getTag":       "XmlGetTag",
+		"findAllTexts": "FindAllTexts",
+		"findAllAttrs": "FindAllAttrs",
+		"serialize":    "XmlSerialize",
+
+		// AI effects
+		"callJson":       "CallJson",
+		"callJsonSimple": "CallJsonSimple",
+		"call":           "Call",
+	}
+	return mappings[name]
 }
 
 // mathConstants lists the math builtins that are constants (not functions).
