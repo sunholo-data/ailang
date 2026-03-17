@@ -19,6 +19,14 @@ module std/xml
 import std/result (Result)
 import std/option (Option)
 
+-- XmlNode ADT — represents an XML document tree.
+-- Constructors match the Go builtins in internal/builtins/xml.go.
+-- M-CODEGEN-MULTIMOD: Type declaration required for Go codegen to emit struct definitions.
+export type XmlNode =
+  | Element(string, [{name: string, value: string}], [XmlNode])
+  | Text(string)
+  | Comment(string)
+
 -- Parse XML string into XmlNode tree
 -- Returns Ok(XmlNode) or Err(message) for malformed XML
 export pure func parse(xml: string) -> Result[XmlNode, string] = _xml_parse(xml)
