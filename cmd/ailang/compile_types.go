@@ -206,6 +206,12 @@ func isUserDefinedGoType(goType string) bool {
 		"map[string]interface{}", "map[string]any", "[]interface{}":
 		return false
 	default:
+		// M-CODEGEN-MULTIMOD: Slice types like []string, []int64, [][]string are NOT
+		// user-defined types. Without this check, [[string]] produces []*[]string.
+		// Same fix as isUserDefinedType in adt.go.
+		if strings.HasPrefix(goType, "[]") {
+			return false
+		}
 		// Pointers to types (e.g., *Direction) are user-defined
 		// Named types (e.g., Direction, NPC) are user-defined
 		return true

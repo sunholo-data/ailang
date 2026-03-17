@@ -399,14 +399,18 @@ func (g *Generator) mapStdlibBuiltin(name string) string {
 		"serialize":    "XmlSerialize",
 
 		// std/list extra
-		"last": "Last",
-		"nth":  "Nth",
-		"mapE": "MapE",
+		"last":     "Last",
+		"nth":      "Nth",
+		"mapE":     "MapE",
+		"forEachE": "ForEachE",
 
 		// std/io
-		"println":   "Println",
-		"writeFile": "WriteFile",
-		"readFile":  "ReadFile",
+		"println":    "Println",
+		"writeFile":  "WriteFile",
+		"readFile":   "ReadFile",
+		"fileExists": "FileExists",
+		"charAt":     "CharAt",
+		"foldChars":  "FoldChars",
 
 		// std/env
 		"getEnvOr": "GetEnvOr",
@@ -414,9 +418,10 @@ func (g *Generator) mapStdlibBuiltin(name string) string {
 		"getEnv":   "GetEnv",
 
 		// std/zip effects
-		"readEntry":     "ReadEntry",
-		"listEntries":   "ListEntries",
-		"createArchive": "CreateArchive",
+		"readEntry":      "ReadEntry",
+		"readEntryBytes": "ReadEntryBytes",
+		"listEntries":    "ListEntries",
+		"createArchive":  "CreateArchive",
 
 		// AI effects
 		"callJson":       "CallJson",

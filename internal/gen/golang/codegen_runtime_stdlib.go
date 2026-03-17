@@ -452,7 +452,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("// Js creates a JString Json value.\n")
 	g.writef("func Js(s interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewJsonJString(s)\n")
+	g.writef("return NewJsonJString(s.(string))\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -468,7 +468,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("// Jb creates a JBool Json value.\n")
 	g.writef("func Jb(b interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewJsonJBool(b)\n")
+	g.writef("return NewJsonJBool(b.(bool))\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -476,7 +476,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("// Jnum creates a JNumber Json value.\n")
 	g.writef("func Jnum(x interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewJsonJNumber(x)\n")
+	g.writef("return NewJsonJNumber(x.(float64))\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -484,7 +484,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("// Ja creates a JArray Json value.\n")
 	g.writef("func Ja(xs interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewJsonJArray(xs)\n")
+	g.writef("return NewJsonJArray(ConvertToJsonSlice(xs))\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -492,7 +492,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("// Jo creates a JObject Json value.\n")
 	g.writef("func Jo(kvs interface{}) interface{} {\n")
 	g.indent++
-	g.writef("return NewJsonJObject(kvs)\n")
+	g.writef("return NewJsonJObject(ConvertToRecordSlice(kvs))\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -531,7 +531,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := j.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJString {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JString.Field0)\n")
+	g.writef("return NewOptionSome(json.JString.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -545,7 +545,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := j.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJArray {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JArray.Field0)\n")
+	g.writef("return NewOptionSome(json.JArray.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -559,7 +559,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := obj.(*Json)\n")
 	g.writef("if json.Kind != JsonKindJObject { return NewOptionNone() }\n")
 	g.writef("k := key.(string)\n")
-	g.writef("kvs := toSlice(json.JObject.Field0)\n")
+	g.writef("kvs := toSlice(json.JObject.Value0)\n")
 	g.writef("for _, kv := range kvs {\n")
 	g.indent++
 	g.writef("rec := kv.(map[string]interface{})\n")
@@ -596,7 +596,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := val.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJNumber {\n")
 	g.indent++
-	g.writef("return NewOptionSome(int64(json.JNumber.Field0.(float64)))\n")
+	g.writef("return NewOptionSome(int64(json.JNumber.Value0))\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -625,7 +625,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("func OptionGetOrElse(opt interface{}, defaultVal interface{}) interface{} {\n")
 	g.indent++
 	g.writef("o := opt.(*Option)\n")
-	g.writef("if o.Kind == OptionKindSome { return o.Some.Field0 }\n")
+	g.writef("if o.Kind == OptionKindSome { return o.Some.Value0 }\n")
 	g.writef("return defaultVal\n")
 	g.indent--
 	g.writef("}\n\n")
@@ -664,7 +664,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.indent++
 	g.writef("json := obj.(*Json)\n")
 	g.writef("if json.Kind != JsonKindJObject { return []interface{}{} }\n")
-	g.writef("kvs := toSlice(json.JObject.Field0)\n")
+	g.writef("kvs := toSlice(json.JObject.Value0)\n")
 	g.writef("result := make([]interface{}, len(kvs))\n")
 	g.writef("for i, kv := range kvs {\n")
 	g.indent++
@@ -705,7 +705,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := val.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJBool {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JBool.Field0)\n")
+	g.writef("return NewOptionSome(json.JBool.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -719,7 +719,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := j.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJNumber {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JNumber.Field0)\n")
+	g.writef("return NewOptionSome(json.JNumber.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -733,7 +733,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := j.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJBool {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JBool.Field0)\n")
+	g.writef("return NewOptionSome(json.JBool.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -747,7 +747,7 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("json := j.(*Json)\n")
 	g.writef("if json.Kind == JsonKindJObject {\n")
 	g.indent++
-	g.writef("return NewOptionSome(json.JObject.Field0)\n")
+	g.writef("return NewOptionSome(json.JObject.Value0)\n")
 	g.indent--
 	g.writef("}\n")
 	g.writef("return NewOptionNone()\n")
@@ -763,9 +763,9 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
-	// GetArgs — Env effect
+	// GetArgs — Env effect (accepts optional unit arg for zero-arg call compatibility)
 	g.writef("// GetArgs returns command line arguments. Requires Env handler.\n")
-	g.writef("func GetArgs() interface{} {\n")
+	g.writef("func GetArgs(args ...interface{}) interface{} {\n")
 	g.indent++
 	g.writef("panic(\"GetArgs: Env effect not available in compiled mode - provide an Env handler\")\n")
 	g.indent--
@@ -787,11 +787,61 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.indent--
 	g.writef("}\n\n")
 
+	// CharAt — returns character at index as string
+	g.writef("// CharAt returns the character at the given index as a string.\n")
+	g.writef("func CharAt(s interface{}, idx interface{}) interface{} {\n")
+	g.indent++
+	g.writef("str := s.(string)\n")
+	g.writef("i := int(toInt64(idx))\n")
+	g.writef("if i < 0 || i >= len(str) { return \"\" }\n")
+	g.writef("return string(str[i])\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// FoldChars — fold over characters
+	g.writef("// FoldChars folds over characters of a string.\n")
+	g.writef("func FoldChars(f interface{}, acc interface{}, s interface{}) interface{} {\n")
+	g.indent++
+	g.writef("str := s.(string)\n")
+	g.writef("result := acc\n")
+	g.writef("for _, r := range str {\n")
+	g.indent++
+	g.writef("result = CallFunc(f, result, string(r))\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return result\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// FileExists — FS effect
+	g.writef("// FileExists checks if a file exists. Requires FS handler.\n")
+	g.writef("func FileExists(path interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"FileExists: FS effect not available in compiled mode - provide an FS handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// NotBool — logical NOT for interface{} booleans
+	g.writef("// NotBool negates a boolean value.\n")
+	g.writef("func NotBool(v interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return !v.(bool)\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	// WriteFile — FS effect
 	g.writef("// WriteFile writes data to a file. Requires FS handler.\n")
 	g.writef("func WriteFile(path interface{}, data interface{}) interface{} {\n")
 	g.indent++
 	g.writef("panic(\"WriteFile: FS effect not available in compiled mode - provide an FS handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ReadEntryBytes — zip effect
+	g.writef("// ReadEntryBytes reads a zip entry as bytes. Requires zip handler.\n")
+	g.writef("func ReadEntryBytes(args ...interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"ReadEntryBytes: zip effect not available in compiled mode - provide a zip handler\")\n")
 	g.indent--
 	g.writef("}\n\n")
 
@@ -930,6 +980,20 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("list := toSlice(xs)\n")
 	g.writef("if len(list) == 0 { return NewOptionNone() }\n")
 	g.writef("return NewOptionSome(list[len(list)-1])\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ForEachE — effectful forEach (like Map but discards results)
+	g.writef("// ForEachE applies an effectful function to each element, discarding results.\n")
+	g.writef("func ForEachE(f interface{}, xs interface{}) interface{} {\n")
+	g.indent++
+	g.writef("list := toSlice(xs)\n")
+	g.writef("for _, x := range list {\n")
+	g.indent++
+	g.writef("CallFunc(f, x)\n")
+	g.indent--
+	g.writef("}\n")
+	g.writef("return struct{}{}\n")
 	g.indent--
 	g.writef("}\n\n")
 
