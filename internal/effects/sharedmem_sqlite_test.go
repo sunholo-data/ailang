@@ -521,8 +521,8 @@ func TestBrainStore_NilTier(t *testing.T) {
 }
 
 func TestNewSQLiteSharedCache_BadPath(t *testing.T) {
-	// Verify error on impossible path
-	_, err := NewSQLiteSharedCache("/dev/null/impossible/brain.db")
+	// Verify error on impossible path (null byte is invalid on all platforms)
+	_, err := NewSQLiteSharedCache("/nonexistent\x00dir/brain.db")
 	if err == nil {
 		t.Error("expected error for impossible path")
 	}
