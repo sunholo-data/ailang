@@ -755,6 +755,14 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("}\n\n")
 
 	// Effect function placeholders — these need handler implementations
+	// WriteFile — FS effect
+	g.writef("// WriteFile writes data to a file. Requires FS handler.\n")
+	g.writef("func WriteFile(path interface{}, data interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"WriteFile: FS effect not available in compiled mode - provide an FS handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	// ReadFileBytes — FS effect
 	g.writef("// ReadFileBytes reads file as bytes. Requires FS handler implementation.\n")
 	g.writef("func ReadFileBytes(path interface{}) interface{} {\n")
@@ -860,6 +868,68 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.indent++
 	g.writef("// Placeholder: returns the string unchanged\n")
 	g.writef("return NewResultOk(s)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Nth — returns element at index as Option
+	g.writef("// Nth returns element at index, or None if out of bounds.\n")
+	g.writef("func Nth(xs interface{}, idx interface{}) interface{} {\n")
+	g.indent++
+	g.writef("list := toSlice(xs)\n")
+	g.writef("i := int(toInt64(idx))\n")
+	g.writef("if i < 0 || i >= len(list) { return NewOptionNone() }\n")
+	g.writef("return NewOptionSome(list[i])\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Println — IO effect
+	g.writef("// Println prints a value to stdout.\n")
+	g.writef("func Println(v interface{}) interface{} {\n")
+	g.indent++
+	g.writef("fmt.Println(Show(v))\n")
+	g.writef("return struct{}{}\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// Last — returns last element of list as Option
+	g.writef("// Last returns the last element of a list, or None if empty.\n")
+	g.writef("func Last(xs interface{}) interface{} {\n")
+	g.indent++
+	g.writef("list := toSlice(xs)\n")
+	g.writef("if len(list) == 0 { return NewOptionNone() }\n")
+	g.writef("return NewOptionSome(list[len(list)-1])\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// MapE — effectful map (same as Map for compiled mode — effects are panics)
+	g.writef("// MapE is the effectful version of Map. In compiled mode, behaves like Map.\n")
+	g.writef("func MapE(f interface{}, xs interface{}) interface{} {\n")
+	g.indent++
+	g.writef("return Map(f, xs)\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ReadEntry — zip effect
+	g.writef("// ReadEntry reads a zip entry. Requires FS/zip handler.\n")
+	g.writef("func ReadEntry(args ...interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"ReadEntry: zip effect not available in compiled mode - provide a zip handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ListEntries — zip effect
+	g.writef("// ListEntries lists entries in a zip archive. Requires FS/zip handler.\n")
+	g.writef("func ListEntries(args ...interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"ListEntries: zip effect not available in compiled mode - provide a zip handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// CreateArchive — zip/archive effect
+	g.writef("// CreateArchive creates a zip archive. Requires FS handler.\n")
+	g.writef("func CreateArchive(path interface{}, entries interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"CreateArchive: FS/zip effect not available in compiled mode - provide an FS handler\")\n")
 	g.indent--
 	g.writef("}\n\n")
 

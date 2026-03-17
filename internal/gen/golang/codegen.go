@@ -477,6 +477,11 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	origBuf := g.buf
 	g.buf = declsBuf
 
+	// M-CODEGEN-STDLIB-BUILTINS: Pre-register all function names before generating code.
+	// This ensures forward references (e.g., function used as value before declaration)
+	// resolve to the correct module-prefixed _impl name.
+	g.preRegisterDecls(prog)
+
 	for _, decl := range prog.Decls {
 		if err := g.generateDecl(decl); err != nil {
 			g.errors = append(g.errors, err)
@@ -542,6 +547,50 @@ func (g *Generator) writePackageHeader() {
 			g.writef("\t\"strconv\"\n")
 		}
 		g.writef(")\n\n")
+	}
+}
+
+// preRegisterDecls scans all declarations and pre-populates topLevelFuncs
+// and topLevelImplFuncs so that forward references resolve correctly.
+// M-CODEGEN-STDLIB-BUILTINS: Without this, functions used as values (e.g., passed to
+// Map/foldl) before their declaration generate bare PascalCase names instead of
+// module-prefixed _impl names.
+func (g *Generator) preRegisterDecls(prog *core.Program) {
+	for _, decl := range prog.Decls {
+		switch d := decl.(type) {
+		case *core.Let:
+			if _, ok := d.Value.(*core.Lambda); ok {
+				exported := g.isExported(d.Name)
+				funcName := ToGoFuncName(d.Name, exported)
+				if g.moduleName != "" {
+					funcName = g.moduleName + "__" + funcName
+				}
+				g.topLevelFuncs[d.Name] = funcName
+
+				implName := ToGoVarName(d.Name) + "_impl"
+				if g.moduleName != "" {
+					implName = g.moduleName + "__" + implName
+				}
+				g.topLevelImplFuncs[d.Name] = implName
+			}
+		case *core.LetRec:
+			for _, bind := range d.Bindings {
+				if _, ok := bind.Value.(*core.Lambda); ok {
+					exported := g.isExported(bind.Name)
+					funcName := ToGoFuncName(bind.Name, exported)
+					if g.moduleName != "" {
+						funcName = g.moduleName + "__" + funcName
+					}
+					g.topLevelFuncs[bind.Name] = funcName
+
+					implName := ToGoVarName(bind.Name) + "_impl"
+					if g.moduleName != "" {
+						implName = g.moduleName + "__" + implName
+					}
+					g.topLevelImplFuncs[bind.Name] = implName
+				}
+			}
+		}
 	}
 }
 

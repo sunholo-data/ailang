@@ -552,6 +552,70 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 		}
 		return cond, bindings, nil
 
+	case *core.ConstructorPattern:
+		// M-CODEGEN-STDLIB-BUILTINS: Handle ADT constructor patterns in if-else chains.
+		// This is used when multiple arms match the same constructor with different
+		// nested literal patterns (e.g., Some("heading"), Some("text")).
+		// Generate: _adt := scrutinee.(*ADT); _adt.Kind == KindSome && _adt.Some.Field0 == "heading"
+
+		// Find ADT type name from constructor
+		adtTypeName := ""
+		if info, ok := g.LookupADTConstructor("", pat.Name); ok {
+			adtTypeName = info.TypeName
+		}
+		if adtTypeName == "" {
+			adtTypeName = "Option" // fallback for common case
+		}
+
+		kindConstName := ToKindConstName(adtTypeName, pat.Name)
+		variantFieldName := ToPascalCase(pat.Name)
+
+		// Get constructor field info
+		var ctorFieldNames []string
+		if info, ok := g.LookupADTConstructor("", pat.Name); ok && len(info.FieldNames) > 0 {
+			ctorFieldNames = info.FieldNames
+		}
+
+		// Condition: check Kind
+		adtVar := fmt.Sprintf("_adt_%d", g.varCounter)
+		g.varCounter++
+		cond := fmt.Sprintf("func() bool { %s := %s.(*%s); return %s.Kind == %s", adtVar, scrutinee, adtTypeName, adtVar, kindConstName)
+
+		// Check nested argument patterns (e.g., the "heading" in Some("heading"))
+		for i, arg := range pat.Args {
+			fieldAccess := ""
+			if i < len(ctorFieldNames) && ctorFieldNames[i] != "" {
+				fieldAccess = ToPascalCase(ctorFieldNames[i])
+			} else {
+				fieldAccess = fmt.Sprintf("Value%d", i)
+			}
+			fieldExpr := fmt.Sprintf("%s.%s.%s", adtVar, variantFieldName, fieldAccess)
+
+			switch ap := arg.(type) {
+			case *core.LitPattern:
+				switch v := ap.Value.(type) {
+				case string:
+					cond += fmt.Sprintf(" && %s == %q", fieldExpr, v)
+				case int64:
+					cond += fmt.Sprintf(" && %s == int64(%d)", fieldExpr, v)
+				case bool:
+					cond += fmt.Sprintf(" && %s == %v", fieldExpr, v)
+				default:
+					cond += fmt.Sprintf(" && %s == %v", fieldExpr, v)
+				}
+			case *core.VarPattern:
+				if ap.Name != "_" {
+					bindings = append(bindings, fmt.Sprintf("%s := %s.(*%s).%s.%s", ToGoVarName(ap.Name), scrutinee, adtTypeName, variantFieldName, fieldAccess))
+					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(ap.Name)))
+				}
+			case *core.WildcardPattern:
+				// No binding or condition needed
+			}
+		}
+
+		cond += " }()"
+		return cond, bindings, nil
+
 	default:
 		return "true", nil, nil
 	}
@@ -561,14 +625,30 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 // M-CODEGEN-TUPLE: Added TuplePattern check.
 // M-PATTERN-GUARDS: Also returns true if any arm has a guard (switches can't handle guards).
 func (g *Generator) patternsNeedIfElse(arms []core.MatchArm) bool {
+	// Track constructor names to detect duplicates
+	ctorNames := make(map[string]bool)
 	for _, arm := range arms {
 		// M-PATTERN-GUARDS: Guards require if-else chains
 		if arm.Guard != nil {
 			return true
 		}
-		switch arm.Pattern.(type) {
+		switch p := arm.Pattern.(type) {
 		case *core.ListPattern, *core.TuplePattern:
 			return true
+		case *core.ConstructorPattern:
+			// M-CODEGEN-STDLIB-BUILTINS: If multiple arms match the same constructor
+			// (e.g., Some("heading"), Some("text")), we need if-else because Go switch
+			// can't have duplicate case values. This happens with nested literal patterns.
+			if ctorNames[p.Name] {
+				return true
+			}
+			ctorNames[p.Name] = true
+			// Also check if any constructor arg is a literal pattern (nested matching)
+			for _, arg := range p.Args {
+				if _, isLit := arg.(*core.LitPattern); isLit {
+					return true
+				}
+			}
 		}
 	}
 	return false

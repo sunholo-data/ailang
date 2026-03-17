@@ -398,6 +398,20 @@ func (g *Generator) mapStdlibBuiltin(name string) string {
 		"findAllAttrs": "FindAllAttrs",
 		"serialize":    "XmlSerialize",
 
+		// std/list extra
+		"last": "Last",
+		"nth":  "Nth",
+		"mapE": "MapE",
+
+		// std/io
+		"println":   "Println",
+		"writeFile": "WriteFile",
+
+		// std/zip effects
+		"readEntry":     "ReadEntry",
+		"listEntries":   "ListEntries",
+		"createArchive": "CreateArchive",
+
 		// AI effects
 		"callJson":       "CallJson",
 		"callJsonSimple": "CallJsonSimple",
