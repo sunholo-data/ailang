@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/sunholo/ailang/internal/ast"
+	gen "github.com/sunholo/ailang/internal/gen/golang"
 )
 
 // sanitizePackageName converts a string to a valid Go package name
@@ -198,24 +199,10 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// isUserDefinedGoType returns true if the Go type is a user-defined type (ADT, struct, etc.)
-// rather than a primitive type. Used to determine if slice elements need interface{} wrapping.
+// isUserDefinedGoType delegates to the canonical implementation in the codegen package.
+// M-CODEGEN-SUSTAINABILITY: Single source of truth for user-defined type detection.
 func isUserDefinedGoType(goType string) bool {
-	switch goType {
-	case "int64", "float64", "bool", "string", "interface{}", "struct{}",
-		"map[string]interface{}", "map[string]any", "[]interface{}":
-		return false
-	default:
-		// M-CODEGEN-MULTIMOD: Slice types like []string, []int64, [][]string are NOT
-		// user-defined types. Without this check, [[string]] produces []*[]string.
-		// Same fix as isUserDefinedType in adt.go.
-		if strings.HasPrefix(goType, "[]") {
-			return false
-		}
-		// Pointers to types (e.g., *Direction) are user-defined
-		// Named types (e.g., Direction, NPC) are user-defined
-		return true
-	}
+	return gen.IsUserDefinedType(goType)
 }
 
 // extractFieldTypes extracts Go type strings from AST constructor fields

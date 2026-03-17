@@ -349,7 +349,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		// M-CODEGEN-POINTER-RETURN-TYPES: User-defined types need pointers to match ADT constructor returns
 		// All ADT values are pointers, so struct fields holding ADTs must be pointers
 		// M-CODEGEN-VALUE-TYPES: EXCEPT value records (leaf records ≤threshold fields) use value types
-		if isUserDefinedType(goType) {
+		if IsUserDefinedType(goType) {
 			if g.valueRecords[goType] {
 				return goType // Value type - no pointer
 			}
@@ -366,7 +366,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		// M-DX12: For ADT/user-defined element types, generate typed slice []*ADTType
 		// World boundary marshalling converts []interface{} to typed slices at profile boundaries
 		// M-CODEGEN-VALUE-TYPES: Value records use []Type instead of []*Type
-		if isUserDefinedType(elemType) {
+		if IsUserDefinedType(elemType) {
 			// Track this ADT type for converter generation (strip * prefix for tracking)
 			baseType := strings.TrimPrefix(elemType, "*")
 			g.adtSliceTypes[baseType] = true
@@ -383,7 +383,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		elemType := g.mapASTType(typ.Element)
 		// M-DX12: Same as ListType - generate typed slice for ADT elements
 		// M-CODEGEN-VALUE-TYPES: Value records use []Type instead of []*Type
-		if isUserDefinedType(elemType) {
+		if IsUserDefinedType(elemType) {
 			baseType := strings.TrimPrefix(elemType, "*")
 			g.adtSliceTypes[baseType] = true
 			if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
@@ -412,7 +412,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		if typ.Constructor == "list" && len(typ.Args) > 0 {
 			elemType := g.mapASTType(typ.Args[0])
 			// Same logic as ast.ListType case
-			if isUserDefinedType(elemType) {
+			if IsUserDefinedType(elemType) {
 				baseType := strings.TrimPrefix(elemType, "*")
 				g.adtSliceTypes[baseType] = true
 				if g.valueRecords[elemType] || strings.HasPrefix(elemType, "*") {
@@ -426,7 +426,7 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		// For other generic types, use the constructor name with pointer for ADTs
 		goType := g.mapNamedType(typ.Constructor)
 		// Most generic types (Option, Result, etc.) are ADTs and need pointers
-		if isUserDefinedType(goType) {
+		if IsUserDefinedType(goType) {
 			return "*" + goType
 		}
 		return goType
@@ -436,9 +436,10 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 	}
 }
 
-// isUserDefinedType returns true if the Go type is a user-defined type (ADT, struct, etc.)
+// IsUserDefinedType returns true if the Go type is a user-defined type (ADT, struct, etc.)
 // rather than a primitive type. Used to determine if slice elements need interface{} wrapping.
-func isUserDefinedType(goType string) bool {
+// M-CODEGEN-SUSTAINABILITY: Exported so compile_types.go can use the same implementation.
+func IsUserDefinedType(goType string) bool {
 	// Primitives that don't need interface{} wrapping
 	switch goType {
 	case "int64", "float64", "bool", "string", "interface{}", "struct{}",
