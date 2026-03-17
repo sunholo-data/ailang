@@ -76,6 +76,9 @@ func init() {
 	registerJSONMeta()
 	registerNetMeta()
 
+	// M-CODEGEN-SUSTAINABILITY: Register Go codegen specs for all builtins
+	registerCodegenSpecs()
+
 	// M-CODEGEN-SUSTAINABILITY: Build stdlib name → builtin name index
 	RebuildStdlibIndex()
 }
