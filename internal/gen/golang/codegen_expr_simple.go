@@ -406,6 +406,12 @@ func (g *Generator) mapStdlibBuiltin(name string) string {
 		// std/io
 		"println":   "Println",
 		"writeFile": "WriteFile",
+		"readFile":  "ReadFile",
+
+		// std/env
+		"getEnvOr": "GetEnvOr",
+		"getArgs":  "GetArgs",
+		"getEnv":   "GetEnv",
 
 		// std/zip effects
 		"readEntry":     "ReadEntry",

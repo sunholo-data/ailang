@@ -755,6 +755,38 @@ func (g *Generator) writeStdlibJsonHelpers() {
 	g.writef("}\n\n")
 
 	// Effect function placeholders — these need handler implementations
+	// GetEnvOr — Env effect
+	g.writef("// GetEnvOr gets environment variable with default. Requires Env handler.\n")
+	g.writef("func GetEnvOr(key interface{}, defaultVal interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"GetEnvOr: Env effect not available in compiled mode - provide an Env handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// GetArgs — Env effect
+	g.writef("// GetArgs returns command line arguments. Requires Env handler.\n")
+	g.writef("func GetArgs() interface{} {\n")
+	g.indent++
+	g.writef("panic(\"GetArgs: Env effect not available in compiled mode - provide an Env handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// GetEnv — Env effect
+	g.writef("// GetEnv gets environment variable. Requires Env handler.\n")
+	g.writef("func GetEnv(key interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"GetEnv: Env effect not available in compiled mode - provide an Env handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
+	// ReadFile — FS effect
+	g.writef("// ReadFile reads a file as string. Requires FS handler.\n")
+	g.writef("func ReadFile(path interface{}) interface{} {\n")
+	g.indent++
+	g.writef("panic(\"ReadFile: FS effect not available in compiled mode - provide an FS handler\")\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	// WriteFile — FS effect
 	g.writef("// WriteFile writes data to a file. Requires FS handler.\n")
 	g.writef("func WriteFile(path interface{}, data interface{}) interface{} {\n")

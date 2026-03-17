@@ -457,7 +457,9 @@ func compileCommand() {
 			funcsCode, err := codeGen.Generate(coreProg)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s: function generation failed for file %d: %v\n", yellow("Warning"), i+1, err)
-				continue
+				// M-CODEGEN-STDLIB-BUILTINS: Still write the raw (unformatted) code on error.
+				// The code may be partially valid — writing it allows other modules to reference
+				// functions that were successfully generated before the error.
 			}
 
 			// Derive output filename from source filename

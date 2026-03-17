@@ -454,6 +454,7 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 					tempVar := fmt.Sprintf("_listElem%d", i)
 					binding := fmt.Sprintf("%s := %s", tempVar, elemExpr)
 					bindings = append(bindings, binding)
+					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", tempVar))
 					_, nestedBindings, err := g.generatePatternCondition(elem, tempVar)
 					if err != nil {
 						return "", nil, err
@@ -532,6 +533,7 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 				tempVar := fmt.Sprintf("_tuple%d", i)
 				binding := fmt.Sprintf("%s := %s.([]interface{})[%d]", tempVar, scrutinee, i)
 				bindings = append(bindings, binding)
+				bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", tempVar))
 				// Recursively get bindings for nested tuple
 				_, nestedBindings, err := g.generatePatternCondition(elemPat, tempVar)
 				if err != nil {
