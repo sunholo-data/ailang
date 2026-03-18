@@ -253,6 +253,18 @@ The following are intentionally left open for the implementer:
 - Estimate each phase separately
 - Use checkboxes for tracking
 
+**Pipeline Pass Checklist** (include when adding/modifying compiler pipeline passes):
+
+If your feature adds or modifies a compiler pipeline pass, verify it handles ALL expression sources. Omitting contract expressions has caused repeated regressions (M-CONTRACTS-OPLOWERING v0.8.0, M-CONTRACT-OPLOWERING-FIX v0.9.2).
+
+```markdown
+### Pipeline Pass Coverage
+
+- [ ] `prog.Decls` — top-level declarations
+- [ ] `prog.Meta[*].Contracts[*].Expr` — contract expressions (requires/ensures)
+- [ ] Integration test: `TestContractExpressionsFullyLowered` still passes
+```
+
 **Good example:**
 ```markdown
 ### Overview
