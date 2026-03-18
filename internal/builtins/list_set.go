@@ -107,16 +107,13 @@ func listDedupImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if !ok {
 		return nil, fmt.Errorf("_list_dedup: expected List, got %T", args[0])
 	}
+	// M-HASH-COLLECTIONS Phase 1: O(n) via canonicalKey + Go map
+	seen := make(map[string]bool, len(list.Elements))
 	result := make([]eval.Value, 0, len(list.Elements))
 	for _, v := range list.Elements {
-		found := false
-		for _, r := range result {
-			if valuesEqual(v, r) {
-				found = true
-				break
-			}
-		}
-		if !found {
+		key := canonicalKey(v)
+		if !seen[key] {
+			seen[key] = true
 			result = append(result, v)
 		}
 	}
@@ -168,23 +165,18 @@ func listIntersectImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, er
 	if !ok {
 		return nil, fmt.Errorf("_list_intersect: expected List, got %T", args[1])
 	}
+	// M-HASH-COLLECTIONS Phase 1: O(n+m) via canonicalKey + Go map
+	set2 := make(map[string]bool, len(list2.Elements))
+	for _, v := range list2.Elements {
+		set2[canonicalKey(v)] = true
+	}
+	seen := make(map[string]bool)
 	result := make([]eval.Value, 0)
 	for _, v := range list1.Elements {
-		for _, w := range list2.Elements {
-			if valuesEqual(v, w) {
-				// Avoid duplicates in result
-				dup := false
-				for _, r := range result {
-					if valuesEqual(v, r) {
-						dup = true
-						break
-					}
-				}
-				if !dup {
-					result = append(result, v)
-				}
-				break
-			}
+		key := canonicalKey(v)
+		if set2[key] && !seen[key] {
+			seen[key] = true
+			result = append(result, v)
 		}
 	}
 	return &eval.ListValue{Elements: result}, nil
@@ -228,29 +220,20 @@ func listUnionImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if !ok {
 		return nil, fmt.Errorf("_list_union: expected List, got %T", args[1])
 	}
-	// Start with deduped list1, then add unique elements from list2
+	// M-HASH-COLLECTIONS Phase 1: O(n+m) via canonicalKey + Go map
+	seen := make(map[string]bool, len(list1.Elements)+len(list2.Elements))
 	result := make([]eval.Value, 0, len(list1.Elements)+len(list2.Elements))
 	for _, v := range list1.Elements {
-		dup := false
-		for _, r := range result {
-			if valuesEqual(v, r) {
-				dup = true
-				break
-			}
-		}
-		if !dup {
+		key := canonicalKey(v)
+		if !seen[key] {
+			seen[key] = true
 			result = append(result, v)
 		}
 	}
 	for _, v := range list2.Elements {
-		dup := false
-		for _, r := range result {
-			if valuesEqual(v, r) {
-				dup = true
-				break
-			}
-		}
-		if !dup {
+		key := canonicalKey(v)
+		if !seen[key] {
+			seen[key] = true
 			result = append(result, v)
 		}
 	}
@@ -295,16 +278,14 @@ func listDifferenceImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, e
 	if !ok {
 		return nil, fmt.Errorf("_list_difference: expected List, got %T", args[1])
 	}
+	// M-HASH-COLLECTIONS Phase 1: O(n+m) via canonicalKey + Go map
+	set2 := make(map[string]bool, len(list2.Elements))
+	for _, v := range list2.Elements {
+		set2[canonicalKey(v)] = true
+	}
 	result := make([]eval.Value, 0, len(list1.Elements))
 	for _, v := range list1.Elements {
-		inSecond := false
-		for _, w := range list2.Elements {
-			if valuesEqual(v, w) {
-				inSecond = true
-				break
-			}
-		}
-		if !inSecond {
+		if !set2[canonicalKey(v)] {
 			result = append(result, v)
 		}
 	}

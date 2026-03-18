@@ -2,7 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
@@ -376,31 +375,97 @@ func listContainsImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, err
 }
 
 // valuesEqual compares two eval.Value instances for structural equality.
-// Supports Int, Float, String, Bool, and Unit values.
+// M-HASH-COLLECTIONS Phase 1: Replaced reflect.DeepEqual fallback with
+// recursive structural comparison for all value types.
 func valuesEqual(left, right eval.Value) bool {
+	if left == right {
+		return true
+	}
 	switch l := left.(type) {
 	case *eval.IntValue:
-		if r, ok := right.(*eval.IntValue); ok {
-			return l.Value == r.Value
-		}
+		r, ok := right.(*eval.IntValue)
+		return ok && l.Value == r.Value
 	case *eval.FloatValue:
-		if r, ok := right.(*eval.FloatValue); ok {
-			return l.Value == r.Value
-		}
+		r, ok := right.(*eval.FloatValue)
+		return ok && l.Value == r.Value
 	case *eval.StringValue:
-		if r, ok := right.(*eval.StringValue); ok {
-			return l.Value == r.Value
-		}
+		r, ok := right.(*eval.StringValue)
+		return ok && l.Value == r.Value
 	case *eval.BoolValue:
-		if r, ok := right.(*eval.BoolValue); ok {
-			return l.Value == r.Value
-		}
+		r, ok := right.(*eval.BoolValue)
+		return ok && l.Value == r.Value
 	case *eval.UnitValue:
 		_, ok := right.(*eval.UnitValue)
 		return ok
+	case *eval.ListValue:
+		r, ok := right.(*eval.ListValue)
+		if !ok || len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if !valuesEqual(l.Elements[i], r.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case *eval.ArrayValue:
+		r, ok := right.(*eval.ArrayValue)
+		if !ok || len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if !valuesEqual(l.Elements[i], r.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case *eval.TupleValue:
+		r, ok := right.(*eval.TupleValue)
+		if !ok || len(l.Elements) != len(r.Elements) {
+			return false
+		}
+		for i := range l.Elements {
+			if !valuesEqual(l.Elements[i], r.Elements[i]) {
+				return false
+			}
+		}
+		return true
+	case *eval.RecordValue:
+		r, ok := right.(*eval.RecordValue)
+		if !ok || len(l.Fields) != len(r.Fields) {
+			return false
+		}
+		for k, lv := range l.Fields {
+			rv, exists := r.Fields[k]
+			if !exists || !valuesEqual(lv, rv) {
+				return false
+			}
+		}
+		return true
+	case *eval.TaggedValue:
+		r, ok := right.(*eval.TaggedValue)
+		if !ok || l.CtorName != r.CtorName || len(l.Fields) != len(r.Fields) {
+			return false
+		}
+		for i := range l.Fields {
+			if !valuesEqual(l.Fields[i], r.Fields[i]) {
+				return false
+			}
+		}
+		return true
+	case *eval.BytesValue:
+		r, ok := right.(*eval.BytesValue)
+		if !ok || len(l.Value) != len(r.Value) {
+			return false
+		}
+		for i := range l.Value {
+			if l.Value[i] != r.Value[i] {
+				return false
+			}
+		}
+		return true
 	}
-	// M-DOCPARSE-DX M2: fallback to reflect.DeepEqual for records, ADTs, lists
-	return reflect.DeepEqual(left, right)
+	return false
 }
 
 // registerListExtract registers the _list_extract builtin
