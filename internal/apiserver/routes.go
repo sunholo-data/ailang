@@ -162,9 +162,11 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
-	// Fix: zero-arg functions should work with empty body
-	if arity == 0 && len(args) > 0 {
-		args = nil
+	// Fix: zero-arg functions in AILANG internally take a unit parameter.
+	// When arity==0 (from type signature), inject a unit arg so the evaluator
+	// doesn't reject the call with "expects 1 arguments, got 0".
+	if arity == 0 {
+		args = []interface{}{nil} // nil converts to UnitValue via FromGo
 	}
 
 	// Call AILANG function
