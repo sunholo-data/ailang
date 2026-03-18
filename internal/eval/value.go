@@ -43,14 +43,18 @@ type StringValue struct {
 func (s *StringValue) Type() string   { return "string" }
 func (s *StringValue) String() string { return s.Value }
 
-// BytesValue represents a byte slice value
+// BytesValue represents raw binary data (e.g., file content, uploads).
 type BytesValue struct {
-	Value []byte
+	Value    []byte
+	Filename string // original filename from upload (empty if not from upload)
+	MimeType string // detected or declared MIME type (empty if unknown)
 }
 
 func (b *BytesValue) Type() string { return "bytes" }
 func (b *BytesValue) String() string {
-	// Display as hex for readability, truncate if too long
+	if b.Filename != "" {
+		return fmt.Sprintf("<bytes:%d:%s:%s>", len(b.Value), b.MimeType, b.Filename)
+	}
 	if len(b.Value) <= 32 {
 		return fmt.Sprintf("<bytes:%x>", b.Value)
 	}

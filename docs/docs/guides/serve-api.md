@@ -374,6 +374,9 @@ Flags:
   --verify-contracts   Enable runtime contract validation (requires/ensures)
   --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)
   --mcp-http           Enable MCP HTTP endpoint at /mcp/
+  --max-upload-size N  Maximum upload size in bytes (default: 50MB)
+  --api-key-header H   HTTP header name for API key authentication
+  --api-key-env VAR    Environment variable containing the expected API key
 
 Arguments:
   <path...>            One or more .ail files or directories
@@ -639,6 +642,106 @@ For production, build the frontend and serve statically:
 cd ui && npm run build && cd ..
 ailang serve-api ./api/ --static ./ui/dist
 ```
+
+---
+
+## Custom Routes (v0.9.4+)
+
+Use `@route` annotations to define custom URL paths and HTTP methods:
+
+```ailang
+module docparse/api
+
+@route("POST", "/api/v1/parse")
+export func parse(content: string) -> ParseResult ! {IO}
+  parseDocument(content)
+
+@route("GET", "/api/v1/formats")
+export pure func listFormats() -> [string]
+  ["docx", "pdf", "epub", "html"]
+
+@route("GET", "/health")
+export pure func health() -> {status: string}
+  {status = "ok"}
+```
+
+Custom routes are registered before the auto-generated catch-all routes, so they take precedence. They appear with their custom paths in the OpenAPI spec and A2A Agent Card.
+
+Multiple annotations can be combined:
+
+```ailang
+@route("POST", "/api/v1/compute")
+@verify(depth: 3)
+export func compute(x: int) -> int ! {}
+  x * x
+```
+
+Supported HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS.
+
+---
+
+## File Upload (v0.9.4+)
+
+Functions can accept file uploads via `multipart/form-data`. File fields arrive as `Bytes` values:
+
+```ailang
+@route("POST", "/api/v1/upload")
+export func processFile(file: Bytes) -> {name: string, size: int} ! {IO}
+  {name = bytesFilename(file), size = bytesLength(file)}
+```
+
+```bash
+curl -F "file=@document.pdf" http://localhost:8080/api/v1/upload
+```
+
+Upload size limit: 50MB default, configurable via `--max-upload-size`.
+
+### Upload Builtins
+
+| Function | Type | Description |
+|----------|------|-------------|
+| `bytesFilename(b)` | `Bytes -> string` | Original upload filename |
+| `bytesMimeType(b)` | `Bytes -> string` | Upload MIME type |
+| `bytesLength(b)` | `Bytes -> int` | Length in bytes |
+| `bytesToString(b)` | `Bytes -> string` | Decode as UTF-8 |
+
+---
+
+## Binary Response (v0.9.4+)
+
+To return raw binary files (not JSON), return a record with `_body`, `_status`, and `_headers` fields:
+
+```ailang
+@route("POST", "/api/v1/convert")
+export func convertToDocx(file: Bytes) -> {_body: Bytes, _status: int, _headers: {string: string}} ! {IO}
+  let result = convert(file, "docx")
+  {
+    _body = result,
+    _status = 200,
+    _headers = {
+      "Content-Type" = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Disposition" = "attachment; filename=\"output.docx\""
+    }
+  }
+```
+
+The server detects `_body` and sends a raw HTTP response instead of JSON-wrapping.
+
+---
+
+## Authentication (v0.9.4+)
+
+API key authentication via CLI flags:
+
+```bash
+ailang serve-api app.ail \
+  --api-key-header "x-api-key" \
+  --api-key-env "DOCPARSE_API_KEY"
+```
+
+- Requests without a valid key get 401 Unauthorized
+- Also accepts `Authorization: Bearer <token>` as fallback
+- Meta endpoints (`/api/_health`, `/api/_meta/*`), MCP, and A2A bypass auth
 
 ---
 

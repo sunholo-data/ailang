@@ -31,6 +31,9 @@ import (
 	"github.com/sunholo/ailang/internal/pipeline"
 )
 
+// DefaultMaxUploadSize is the default maximum upload size (50MB).
+const DefaultMaxUploadSize = 50 << 20
+
 // Server is the API server that exposes AILANG functions as REST endpoints.
 type Server struct {
 	engine   *embed.Engine
@@ -51,8 +54,11 @@ type Server struct {
 	watchPaths []string // absolute paths of loaded .ail files (for reload mapping)
 
 	// Protocol support
-	mcpEnabled bool // serve MCP at /mcp/
-	mcpOnly    bool // stdio-only MCP mode (no HTTP)
+	mcpEnabled    bool   // serve MCP at /mcp/
+	mcpOnly       bool   // stdio-only MCP mode (no HTTP)
+	maxUploadSize int64  // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
+	apiKeyHeader  string // HTTP header name for API key auth
+	apiKeyEnv     string // env var containing expected API key
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -63,22 +69,27 @@ type ModuleInfo struct {
 
 // ExportInfo describes a single exported function from an AILANG module.
 type ExportInfo struct {
-	Name  string `json:"name"`
-	Type  string `json:"type"`  // human-readable type signature
-	Pure  bool   `json:"pure"`  // whether the function is pure
-	Arity int    `json:"arity"` // number of parameters (-1 if not a function)
+	Name        string `json:"name"`
+	Type        string `json:"type"`                   // human-readable type signature
+	Pure        bool   `json:"pure"`                   // whether the function is pure
+	Arity       int    `json:"arity"`                  // number of parameters (-1 if not a function)
+	RouteMethod string `json:"route_method,omitempty"` // custom HTTP method from @route annotation
+	RoutePath   string `json:"route_path,omitempty"`   // custom URL path from @route annotation
 }
 
 // Config holds configuration for the API server.
 type Config struct {
-	Port         string
-	CORS         bool
-	FrontendPath string      // optional: React project path for Vite proxy
-	StaticPath   string      // optional: built frontend files
-	Watch        bool        // enable file watching for hot reload
-	EffCtx       interface{} // optional: pre-configured effect context (*effects.EffContext)
-	MCP          bool        // enable MCP endpoint at /mcp/
-	MCPOnly      bool        // run as MCP stdio server only (no HTTP)
+	Port          string
+	CORS          bool
+	FrontendPath  string      // optional: React project path for Vite proxy
+	StaticPath    string      // optional: built frontend files
+	Watch         bool        // enable file watching for hot reload
+	EffCtx        interface{} // optional: pre-configured effect context (*effects.EffContext)
+	MCP           bool        // enable MCP endpoint at /mcp/
+	MCPOnly       bool        // run as MCP stdio server only (no HTTP)
+	MaxUploadSize int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
+	APIKeyHeader  string      // HTTP header for API key auth (empty = no auth)
+	APIKeyEnv     string      // env var containing expected API key
 }
 
 // New creates a new API server.
@@ -90,17 +101,24 @@ func New(basePath string, cfg Config) *Server {
 	if cfg.EffCtx != nil {
 		eng.SetEffContext(cfg.EffCtx)
 	}
+	maxUpload := cfg.MaxUploadSize
+	if maxUpload == 0 {
+		maxUpload = DefaultMaxUploadSize
+	}
 	return &Server{
-		engine:       eng,
-		modules:      make(map[string]*ModuleInfo),
-		port:         cfg.Port,
-		basePath:     basePath,
-		cors:         cfg.CORS,
-		frontendPath: cfg.FrontendPath,
-		staticPath:   cfg.StaticPath,
-		watch:        cfg.Watch,
-		mcpEnabled:   cfg.MCP,
-		mcpOnly:      cfg.MCPOnly,
+		engine:        eng,
+		modules:       make(map[string]*ModuleInfo),
+		port:          cfg.Port,
+		basePath:      basePath,
+		cors:          cfg.CORS,
+		frontendPath:  cfg.FrontendPath,
+		staticPath:    cfg.StaticPath,
+		watch:         cfg.Watch,
+		mcpEnabled:    cfg.MCP,
+		mcpOnly:       cfg.MCPOnly,
+		maxUploadSize: maxUpload,
+		apiKeyHeader:  cfg.APIKeyHeader,
+		apiKeyEnv:     cfg.APIKeyEnv,
 	}
 }
 
@@ -167,6 +185,11 @@ func (s *Server) loadFile(path string) error {
 	}
 
 	modInfo := extractModuleInfo(result.Interface)
+
+	// Extract route annotations from AST
+	if result.Artifacts.AST != nil {
+		extractRouteAnnotations(modInfo, result.Artifacts.AST)
+	}
 
 	// Derive module path from file path relative to basePath.
 	// This is more reliable than using the pipeline's canonical path which
@@ -319,8 +342,12 @@ func (s *Server) buildRoutes() *http.ServeMux {
 		mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
 	}
 
+	// Custom routes from @route annotations (registered before catch-all)
+	// Auth middleware wraps custom routes and the catch-all
+	s.registerCustomRoutes(mux)
+
 	// Function call endpoints - catch-all under /api/
-	mux.HandleFunc("/api/", s.corsWrap(s.handleFunctionCall))
+	mux.HandleFunc("/api/", s.corsWrap(s.authMiddleware(s.handleFunctionCall)))
 
 	// Static files or frontend proxy
 	if s.staticPath != "" {

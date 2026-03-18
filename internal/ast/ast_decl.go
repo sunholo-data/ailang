@@ -52,13 +52,31 @@ type FuncDecl struct {
 	Properties  []*Property
 	Body        Expr // nil for extern functions
 	IsPure      bool
-	IsExport    bool // Export flag
-	IsExtern    bool // Extern flag - function implemented in Go, no body
-	VerifyDepth *int // Per-function SMT verification depth override (nil = use global default)
+	IsExport    bool          // Export flag
+	IsExtern    bool          // Extern flag - function implemented in Go, no body
+	VerifyDepth *int          // Per-function SMT verification depth override (nil = use global default)
+	Annotations []*Annotation // Generic annotations (e.g., @route, @verify)
 	Pos         Pos
 	Span        Span   // For SID calculation
 	SID         string // Stable ID (calculated post-parse)
 	Origin      string // "func_decl" for metadata
+}
+
+// Annotation represents a parsed @name(...) annotation on a declaration.
+type Annotation struct {
+	Name string // e.g., "route", "verify"
+	Args []Expr // Positional arguments (string literals, int literals, etc.)
+	Pos  Pos
+}
+
+// GetAnnotation returns the first annotation with the given name, or nil.
+func (f *FuncDecl) GetAnnotation(name string) *Annotation {
+	for _, a := range f.Annotations {
+		if a.Name == name {
+			return a
+		}
+	}
+	return nil
 }
 
 type TestCase struct {

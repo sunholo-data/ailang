@@ -23,6 +23,8 @@ func init() {
 	registerBytesConcat()
 	registerBytesConcatList()
 	registerBytesFromInts()
+	registerBytesFilename()
+	registerBytesMimeType()
 }
 
 // ============================================================================
@@ -547,5 +549,75 @@ func registerBytesFromInts() {
 	})
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _bytes_from_ints: %v", err))
+	}
+}
+
+// registerBytesFilename registers the _bytes_filename builtin
+func registerBytesFilename() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_filename",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Bytes()).Returns(T.String()).Build()
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			bytesVal, ok := args[0].(*eval.BytesValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_filename: expected Bytes, got %T", args[0])
+			}
+			return &eval.StringValue{Value: bytesVal.Filename}, nil
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Get the original filename of uploaded bytes",
+			LongDesc:    "Returns the original filename from a file upload. Returns empty string if the bytes were not from an upload.",
+			Params:      []ParamDoc{{Name: "b", Description: "Bytes value (typically from file upload)"}},
+			Returns:     "Original filename or empty string",
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"bytes", "upload", "filename"},
+			Category:    "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_filename: %v", err))
+	}
+}
+
+// registerBytesMimeType registers the _bytes_mime_type builtin
+func registerBytesMimeType() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_mime_type",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.Bytes()).Returns(T.String()).Build()
+		},
+		Impl: func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+			bytesVal, ok := args[0].(*eval.BytesValue)
+			if !ok {
+				return nil, fmt.Errorf("_bytes_mime_type: expected Bytes, got %T", args[0])
+			}
+			return &eval.StringValue{Value: bytesVal.MimeType}, nil
+		},
+		Metadata: &BuiltinMetadata{
+			Description: "Get the MIME type of uploaded bytes",
+			LongDesc:    "Returns the MIME type from a file upload. Returns empty string if unknown or not from an upload.",
+			Params:      []ParamDoc{{Name: "b", Description: "Bytes value (typically from file upload)"}},
+			Returns:     "MIME type string or empty string",
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"bytes", "upload", "mime", "content-type"},
+			Category:    "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_mime_type: %v", err))
 	}
 }

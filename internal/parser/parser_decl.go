@@ -8,21 +8,40 @@ import (
 	"github.com/sunholo/ailang/internal/lexer"
 )
 
-// parseVerifyAttribute parses an @verify(depth: N) attribute.
+// parseAnnotation parses a generic @name(...) annotation.
 // Expects the parser to be AT the '@' token.
-// Returns the parsed depth value, or nil if no @verify attribute.
-// On error, reports a parser error and returns nil.
-func (p *Parser) parseVerifyAttribute() *int {
+// Returns the parsed annotation, or nil on error.
+// Supported annotations: @verify(depth: N), @route("METHOD", "/path")
+func (p *Parser) parseAnnotation() *ast.Annotation {
+	pos := p.curPos()
 	// We're at '@', consume it
 	p.nextToken() // move past '@' to identifier
 
-	if !p.curTokenIs(lexer.IDENT) || p.curToken.Literal != "verify" {
+	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; only @verify is supported", p.curToken.Literal),
-			"Use @verify(depth: N) before a function declaration")
+			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
+			"Use @verify(depth: N) or @route(\"METHOD\", \"/path\")")
 		return nil
 	}
 
+	name := p.curToken.Literal
+
+	switch name {
+	case "verify":
+		return p.parseVerifyAnnotation(pos)
+	case "route":
+		return p.parseRouteAnnotation(pos)
+	default:
+		p.report("PAR_UNKNOWN_ATTRIBUTE",
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route", name),
+			"Use @verify(depth: N) or @route(\"METHOD\", \"/path\")")
+		return nil
+	}
+}
+
+// parseVerifyAnnotation parses @verify(depth: N) into an Annotation.
+// Expects the parser to be AT the 'verify' identifier.
+func (p *Parser) parseVerifyAnnotation(pos ast.Pos) *ast.Annotation {
 	// Consume 'verify', expect '('
 	if !p.expectPeek(lexer.LPAREN) {
 		return nil
@@ -69,16 +88,94 @@ func (p *Parser) parseVerifyAttribute() *int {
 		return nil
 	}
 
-	return &depth
+	return &ast.Annotation{
+		Name: "verify",
+		Args: []ast.Expr{&ast.Literal{Kind: ast.IntLit, Value: int64(depth), Pos: p.curPos()}},
+		Pos:  pos,
+	}
+}
+
+// parseRouteAnnotation parses @route("METHOD", "/path") into an Annotation.
+// Expects the parser to be AT the 'route' identifier.
+func (p *Parser) parseRouteAnnotation(pos ast.Pos) *ast.Annotation {
+	// Consume 'route', expect '('
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Expect string literal for HTTP method
+	if !p.expectPeek(lexer.STRING) {
+		p.report("PAR_ROUTE_METHOD",
+			"@route expects a string literal for HTTP method",
+			"Use @route(\"POST\", \"/path\")")
+		return nil
+	}
+	method := p.curToken.Literal
+
+	// Validate HTTP method
+	switch method {
+	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS":
+		// valid
+	default:
+		p.report("PAR_ROUTE_INVALID_METHOD",
+			fmt.Sprintf("invalid HTTP method %q in @route; expected GET, POST, PUT, DELETE, PATCH, HEAD, or OPTIONS", method),
+			"Use @route(\"POST\", \"/path\")")
+		return nil
+	}
+
+	// Expect ','
+	if !p.expectPeek(lexer.COMMA) {
+		p.report("PAR_ROUTE_COMMA",
+			"@route expects two arguments: method and path",
+			"Use @route(\"POST\", \"/path\")")
+		return nil
+	}
+
+	// Expect string literal for path
+	if !p.expectPeek(lexer.STRING) {
+		p.report("PAR_ROUTE_PATH",
+			"@route expects a string literal for path",
+			"Use @route(\"POST\", \"/path\")")
+		return nil
+	}
+	path := p.curToken.Literal
+
+	// Validate path starts with /
+	if len(path) == 0 || path[0] != '/' {
+		p.report("PAR_ROUTE_PATH_SLASH",
+			fmt.Sprintf("route path must start with '/', got %q", path),
+			"Use @route(\"POST\", \"/api/v1/endpoint\")")
+		return nil
+	}
+
+	// Expect ')'
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	return &ast.Annotation{
+		Name: "route",
+		Args: []ast.Expr{
+			&ast.Literal{Kind: ast.StringLit, Value: method, Pos: pos},
+			&ast.Literal{Kind: ast.StringLit, Value: path, Pos: pos},
+		},
+		Pos: pos,
+	}
 }
 
 // parseTopLevelDecl parses a top-level declaration
 func (p *Parser) parseTopLevelDecl() ast.Node {
 	switch p.curToken.Type {
 	case lexer.AT:
-		// Parse @verify(depth: N) attribute before function declaration
-		verifyDepth := p.parseVerifyAttribute()
-		p.nextToken() // move past ')' to next token
+		// Parse annotations (may be multiple: @verify, @route, etc.)
+		var annotations []*ast.Annotation
+		for p.curTokenIs(lexer.AT) {
+			ann := p.parseAnnotation()
+			if ann != nil {
+				annotations = append(annotations, ann)
+			}
+			p.nextToken() // move past ')' to next token (or next '@')
+		}
 
 		// The next token must begin a function declaration (export, pure, func)
 		var fn *ast.FuncDecl
@@ -89,8 +186,8 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 				fn = p.parseFunctionDeclaration(false, true)
 			} else {
 				p.report("PAR_ATTR_REQUIRES_FUNC",
-					"@verify attribute must be followed by a function declaration",
-					"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+					"annotations must be followed by a function declaration",
+					"Use @route(\"POST\", \"/path\") or @verify(depth: N) before 'func', 'export func', or 'pure func'")
 				return nil
 			}
 		case lexer.PURE:
@@ -99,21 +196,28 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 				fn = p.parseFunctionDeclaration(true, false)
 			} else {
 				p.report("PAR_ATTR_REQUIRES_FUNC",
-					"@verify attribute must be followed by a function declaration",
-					"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+					"annotations must be followed by a function declaration",
+					"Use @route(\"POST\", \"/path\") or @verify(depth: N) before 'func', 'export func', or 'pure func'")
 				return nil
 			}
 		case lexer.FUNC:
 			fn = p.parseFunctionDeclaration(false, false)
 		default:
 			p.report("PAR_ATTR_REQUIRES_FUNC",
-				"@verify attribute must be followed by a function declaration",
-				"Use @verify(depth: N) before 'func', 'export func', or 'pure func'")
+				"annotations must be followed by a function declaration",
+				"Use @route(\"POST\", \"/path\") or @verify(depth: N) before 'func', 'export func', or 'pure func'")
 			return nil
 		}
 
-		if fn != nil && verifyDepth != nil {
-			fn.VerifyDepth = verifyDepth
+		if fn != nil {
+			fn.Annotations = annotations
+			// Backward compat: extract VerifyDepth from @verify annotation
+			if vAnn := fn.GetAnnotation("verify"); vAnn != nil && len(vAnn.Args) > 0 {
+				if lit, ok := vAnn.Args[0].(*ast.Literal); ok && lit.Kind == ast.IntLit {
+					depth := int(lit.Value.(int64))
+					fn.VerifyDepth = &depth
+				}
+			}
 		}
 		return fn
 

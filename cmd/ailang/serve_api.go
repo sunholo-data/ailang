@@ -26,6 +26,9 @@ func serveAPICommand(args []string) error {
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
 	mcpFlag := fs.Bool("mcp", false, "Run as MCP stdio server (for Claude Desktop, Cursor, etc.)")
 	mcpHTTPFlag := fs.Bool("mcp-http", false, "Enable MCP HTTP endpoint at /mcp/")
+	maxUploadFlag := fs.Int64("max-upload-size", 0, "Maximum upload size in bytes (default: 50MB)")
+	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
+	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 
 	if err := fs.Parse(args); err != nil {
@@ -96,14 +99,17 @@ func serveAPICommand(args []string) error {
 	}
 
 	cfg := apiserver.Config{
-		Port:         *portFlag,
-		CORS:         *corsFlag,
-		FrontendPath: *frontendFlag,
-		StaticPath:   *staticFlag,
-		Watch:        *watchFlag,
-		EffCtx:       effCtx,
-		MCP:          *mcpHTTPFlag,
-		MCPOnly:      *mcpFlag,
+		Port:          *portFlag,
+		CORS:          *corsFlag,
+		FrontendPath:  *frontendFlag,
+		StaticPath:    *staticFlag,
+		Watch:         *watchFlag,
+		EffCtx:        effCtx,
+		MCP:           *mcpHTTPFlag,
+		MCPOnly:       *mcpFlag,
+		MaxUploadSize: *maxUploadFlag,
+		APIKeyHeader:  *apiKeyHeaderFlag,
+		APIKeyEnv:     *apiKeyEnvFlag,
 	}
 
 	srv := apiserver.New(basePath, cfg)

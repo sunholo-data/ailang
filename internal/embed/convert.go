@@ -36,6 +36,12 @@ func fromGoInternal(v interface{}, preserveFloats bool) (eval.Value, error) {
 		return &eval.UnitValue{}, nil
 	}
 
+	// If the value is already an eval.Value, return it directly.
+	// This happens when multipart uploads pass *eval.BytesValue as args.
+	if ev, ok := v.(eval.Value); ok {
+		return ev, nil
+	}
+
 	rv := reflect.ValueOf(v)
 	return fromReflect(rv, preserveFloats)
 }

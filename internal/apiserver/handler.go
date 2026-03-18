@@ -3,13 +3,9 @@ package apiserver
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strings"
-	"time"
-
-	"github.com/sunholo/ailang/internal/embed"
 )
 
 // FunctionCallRequest is the JSON body for calling an AILANG function.
@@ -78,14 +74,14 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate function exists in module
-	var exportInfo *ExportInfo
+	var found bool
 	for i := range modInfo.Exports {
 		if modInfo.Exports[i].Name == funcName {
-			exportInfo = &modInfo.Exports[i]
+			found = true
 			break
 		}
 	}
-	if exportInfo == nil {
+	if !found {
 		available := make([]string, len(modInfo.Exports))
 		for i, e := range modInfo.Exports {
 			available[i] = e.Name
@@ -98,63 +94,8 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read request body
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
-			Module: modulePath,
-			Func:   funcName,
-			Error:  "failed to read request body",
-		})
-		return
-	}
-
-	// Parse arguments
-	args, err := parseArgs(body)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
-			Module: modulePath,
-			Func:   funcName,
-			Error:  fmt.Sprintf("invalid arguments: %v", err),
-		})
-		return
-	}
-
-	// Call AILANG function (preserve floats since JSON has no int/float distinction —
-	// 100.0 must remain FloatValue, not become IntValue).
-	start := time.Now()
-	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
-	elapsed := time.Since(start).Milliseconds()
-
-	if callErr != nil {
-		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
-		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
-			Module:    modulePath,
-			Func:      funcName,
-			Error:     callErr.Error(),
-			ElapsedMs: elapsed,
-		})
-		return
-	}
-
-	// Convert result to Go value
-	goResult, err := embed.ToGo(result)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
-			Module:    modulePath,
-			Func:      funcName,
-			Error:     fmt.Sprintf("result conversion failed: %v", err),
-			ElapsedMs: elapsed,
-		})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, FunctionCallResponse{
-		Module:    modulePath,
-		Func:      funcName,
-		Result:    goResult,
-		ElapsedMs: elapsed,
-	})
+	// Delegate to shared function caller
+	s.callFunction(w, r, modulePath, funcName)
 }
 
 // parseArgs extracts function arguments from the JSON body.

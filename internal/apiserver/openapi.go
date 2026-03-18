@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/apiserver/schema"
 )
@@ -177,7 +178,14 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 				continue
 			}
 
+			// Use custom route path if @route annotation present, else auto-route
 			pathKey := "/api/" + modPath + "/" + export.Name
+			httpMethod := "post"
+			if export.RoutePath != "" {
+				pathKey = export.RoutePath
+				httpMethod = strings.ToLower(export.RouteMethod)
+			}
+
 			fs := schema.FromTypeString(export.Type)
 
 			operation := map[string]any{
@@ -189,10 +197,13 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			if export.Pure {
 				operation["x-ailang-pure"] = true
 			}
+			if export.RoutePath != "" {
+				operation["x-ailang-route"] = export.RouteMethod + " " + export.RoutePath
+			}
 
-			// Request body.
+			// Request body (only for methods that accept a body).
 			reqSchema := schema.RequestSchema(fs)
-			if fs.Arity > 0 {
+			if fs.Arity > 0 && httpMethod != "get" && httpMethod != "head" {
 				operation["requestBody"] = map[string]any{
 					"required": true,
 					"content": map[string]any{
@@ -226,7 +237,7 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			}
 
 			paths[pathKey] = map[string]any{
-				"post": operation,
+				httpMethod: operation,
 			}
 		}
 	}
