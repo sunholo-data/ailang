@@ -184,6 +184,16 @@ func (s *Server) loadFile(path string) error {
 		return fmt.Errorf("compilation errors for %s: %v", path, result.Errors)
 	}
 
+	// Preload all transitively resolved modules into the runtime.
+	// Without this, transitive import chains (A → B → std/zip) fail because
+	// serve-api loads each file independently, unlike ailang run which preloads
+	// all modules from result.Modules.
+	if result.Modules != nil {
+		for modPath, loaded := range result.Modules {
+			s.engine.PreloadModule(modPath, loaded)
+		}
+	}
+
 	// Extract module interface
 	if result.Interface == nil {
 		return fmt.Errorf("no module interface for %s", path)

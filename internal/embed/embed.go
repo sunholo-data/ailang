@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 )
@@ -386,6 +387,12 @@ func (e *Engine) GetCallValueN() func(eval.Value, []eval.Value) (eval.Value, err
 }
 
 // HasExport checks if a module exports a value with the given name.
+// PreloadModule preloads a compiled module into the runtime's loader cache.
+// This ensures transitive dependencies are available when functions execute.
+func (e *Engine) PreloadModule(path string, loaded *loader.LoadedModule) {
+	e.runtime.PreloadModule(path, loaded)
+}
+
 func (e *Engine) HasExport(modulePath, name string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()

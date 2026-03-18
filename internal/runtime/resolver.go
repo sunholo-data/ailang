@@ -91,6 +91,18 @@ func (r *moduleGlobalResolver) ResolveValue(ref core.GlobalRef) (eval.Value, err
 	// Case 2: Reference to imported module (exports only)
 	dep, ok := r.current.Imports[ref.Module]
 	if !ok {
+		// Fallback: check if the module is loaded in the runtime.
+		// This handles transitive imports in serve-api where the resolver is
+		// bound to the entry module but a called function references a module
+		// that only its own module directly imports.
+		if r.runtime != nil {
+			if inst := r.runtime.GetInstance(ref.Module); inst != nil {
+				dep = inst
+				ok = true
+			}
+		}
+	}
+	if !ok {
 		// Build list of available imports for error message
 		available := make([]string, 0, len(r.current.Imports))
 		for modPath := range r.current.Imports {
