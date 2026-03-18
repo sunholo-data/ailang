@@ -146,6 +146,23 @@ func (s *Server) LoadModules(paths []string) error {
 			}
 		}
 	}
+
+	// Eagerly evaluate all loaded modules so they're fully initialized before
+	// any HTTP requests arrive. This prevents deadlocks where concurrent requests
+	// trigger lazy LoadAndEvaluate under the Engine's write lock.
+	s.mu.RLock()
+	modPaths := make([]string, 0, len(s.modules))
+	for modPath := range s.modules {
+		modPaths = append(modPaths, modPath)
+	}
+	s.mu.RUnlock()
+
+	for _, modPath := range modPaths {
+		if err := s.engine.Load(modPath); err != nil {
+			log.Printf("  Warning: eager load failed for %s: %v", modPath, err)
+		}
+	}
+
 	return nil
 }
 
