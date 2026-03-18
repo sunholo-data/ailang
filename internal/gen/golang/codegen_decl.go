@@ -287,19 +287,8 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 	// Call _impl and convert result
 	if hasEnsures {
 		// M-VERIFY: Capture result in variable for ensures checks
-		resultExpr := fmt.Sprintf("%s(%s)", implName, strings.Join(callArgs, ", "))
-		if retType == "interface{}" {
-			g.writef("_result := %s\n", resultExpr)
-		} else if strings.HasPrefix(retType, "[]") {
-			sliceConv := g.getSliceConversion(retType)
-			if sliceConv != "" {
-				g.writef("_result := %s(%s)\n", sliceConv, resultExpr)
-			} else {
-				g.writef("_result := %s.(%s)\n", resultExpr, retType)
-			}
-		} else {
-			g.writef("_result := %s.(%s)\n", resultExpr, retType)
-		}
+		implCall := fmt.Sprintf("%s(%s)", implName, strings.Join(callArgs, ", "))
+		g.writef("_result := %s\n", g.coerceReturnExpr(implCall, retType))
 
 		// Generate ensures checks
 		if err := g.generateContractEnsuresChecks(name, "_result", retType); err != nil {
@@ -308,25 +297,59 @@ func (g *Generator) generateTypedWrapper(name string, lam *core.Lambda, paramTyp
 
 		g.writef("return _result\n")
 	} else {
-		// No ensures - generate direct return
-		if retType == "interface{}" {
-			g.writef("return %s(%s)\n", implName, strings.Join(callArgs, ", "))
-		} else if strings.HasPrefix(retType, "[]") {
-			sliceConv := g.getSliceConversion(retType)
-			if sliceConv != "" {
-				g.writef("return %s(%s(%s))\n", sliceConv, implName, strings.Join(callArgs, ", "))
-			} else {
-				g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
-			}
-		} else {
-			g.writef("return %s(%s).(%s)\n", implName, strings.Join(callArgs, ", "), retType)
-		}
+		// No ensures - generate direct return with appropriate type coercion
+		implCall := fmt.Sprintf("%s(%s)", implName, strings.Join(callArgs, ", "))
+		g.writef("return %s\n", g.coerceReturnExpr(implCall, retType))
 	}
 
 	g.indent--
 	g.writef("}\n\n")
 
 	return nil
+}
+
+// coerceReturnExpr generates Go code to convert an interface{} expression to a concrete return type.
+// M-CODEGEN-COMPILE-GATE: Handles the _impl → typed wrapper boundary safely.
+// _impl functions return interface{} but typed wrappers need concrete Go types.
+// Direct .(type) assertion panics when the runtime representation differs from the Go type
+// (e.g., _impl returns []interface{} but wrapper expects []string).
+func (g *Generator) coerceReturnExpr(expr, retType string) string {
+	// interface{} — no conversion needed
+	if retType == "interface{}" {
+		return expr
+	}
+
+	// Slice types — use converter functions
+	if strings.HasPrefix(retType, "[]") {
+		if conv := g.getSliceConversion(retType); conv != "" {
+			return fmt.Sprintf("%s(%s)", conv, expr)
+		}
+		// Fallback for unknown slice types: direct assertion
+		return fmt.Sprintf("%s.(%s)", expr, retType)
+	}
+
+	// Pointer types to ADTs/records — direct assertion works (runtime stores as *Type)
+	if strings.HasPrefix(retType, "*") {
+		return fmt.Sprintf("%s.(%s)", expr, retType)
+	}
+
+	// Value types (small records) — may be stored as pointer, use As<Type> converter if available
+	if g.hasValueTypeConverter(retType) {
+		return fmt.Sprintf("As%s(%s)", retType, expr)
+	}
+
+	// Primitive types — direct assertion
+	// string, int64, float64, bool are stored as themselves in interface{}
+	return fmt.Sprintf("%s.(%s)", expr, retType)
+}
+
+// hasValueTypeConverter checks if a value-type converter (AsTypeName) exists for this type.
+func (g *Generator) hasValueTypeConverter(typeName string) bool {
+	if g.recordTypes == nil {
+		return false
+	}
+	info, ok := g.recordTypes[typeName]
+	return ok && info.Category == TypeCategoryValue
 }
 
 // hasEnsuresContracts checks if a function has any ensures contracts.

@@ -89,15 +89,16 @@ No syntax highlighting, no type checking, no refactoring support. A typo in a he
 
 Rather than a big-bang rewrite, each phase is independently valuable and can ship separately.
 
-### Phase 0: Compile-Check Gate (v0.9.3)
+### Phase 0: Compile-Check Gate (v0.9.3) — IMPLEMENTED
 
-**Add `go build` verification to the codegen pipeline itself.**
+**Add `go build` verification to the codegen pipeline itself.** ✅
 
-After generating all `.go` files, run `go build` on the output directory. If it fails, report the errors as codegen errors — not as a surprise to the user. This is the single highest-leverage change: it turns every silent failure into a loud failure at the right time.
-
-Implementation: ~50 lines in `cmd/ailang/compile.go` after the generation loop. Run `go build ./...` in the output directory, capture stderr, report as codegen diagnostics.
-
-This also enables a CI test: compile every example to Go, verify `go build` passes.
+Implemented in commit `4fa59db4` (2026-03-18):
+- `--verify-go` flag (default on, `--no-verify-go` to skip)
+- `go build` runs on generated output, errors reported as codegen diagnostics
+- `make compile-examples-go` CI target: 104/129 examples pass (81%)
+- Conditional imports in both runtime.go and module files
+- Also delivered: M-CODEGEN-REGISTRY-ONLY (deleted 1,047-line legacy stdlib), 40+ registry specs, `writeSuppressUnused` fix, transitive dependency tracking
 
 ### Phase 1: Reference Validation (v0.9.3)
 
