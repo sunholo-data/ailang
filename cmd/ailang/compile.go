@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -25,6 +26,8 @@ func compileCommand() {
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches)")
 	// M-CODEGEN-VALUE-TYPES: Control value vs pointer generation for small leaf records
 	valueThresholdFlag := fs.Int("value-threshold", 4, "Max fields for value-type records (0 = all pointers, v0.5.9 behavior)")
+	// M-CODEGEN-COMPILE-GATE: Verify generated Go code compiles
+	noVerifyGoFlag := fs.Bool("no-verify-go", false, "Skip go build verification of generated code")
 
 	// Help flag
 	helpFlag := fs.Bool("help", false, "Show help for compile command")
@@ -480,9 +483,84 @@ func compileCommand() {
 		fmt.Printf("%s Generated %s\n", green("✓"), dictFile)
 	}
 
+	// M-CODEGEN-COMPILE-GATE: Verify generated Go code compiles
+	if !*noVerifyGoFlag {
+		verifyGoCompilation(outDir, pkgName)
+	}
+
 	fmt.Printf("\n%s Compilation complete!\n", green("✓"))
 	fmt.Printf("  Output: %s/\n", outDir)
 	fmt.Printf("\n  %s Build commands:\n", cyan("→"))
 	fmt.Printf("    Debug mode:   cd %s && go build\n", *outFlag)
 	fmt.Printf("    Release mode: cd %s && go build -tags release\n", *outFlag)
+}
+
+// verifyGoCompilation runs `go build` on generated code to catch codegen errors early.
+// M-CODEGEN-COMPILE-GATE: This is the single highest-leverage quality gate — it turns
+// every silent codegen failure into a loud error at the right time.
+func verifyGoCompilation(outDir, pkgName string) {
+	// Check if go binary is available
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		fmt.Printf("%s Skipping Go verification (go binary not in PATH)\n", yellow("⚠"))
+		return
+	}
+	_ = goPath
+
+	fmt.Printf("\n%s Verifying generated Go code compiles...\n", cyan("→"))
+
+	// Create temporary go.mod if one doesn't exist
+	goModPath := filepath.Join(outDir, "go.mod")
+	createdGoMod := false
+	if _, err := os.Stat(goModPath); os.IsNotExist(err) {
+		modContent := fmt.Sprintf("module %s\n\ngo 1.21\n", pkgName)
+		if err := os.WriteFile(goModPath, []byte(modContent), 0644); err != nil {
+			fmt.Printf("%s Cannot create temporary go.mod: %v\n", yellow("⚠"), err)
+			return
+		}
+		createdGoMod = true
+		defer func() {
+			if createdGoMod {
+				os.Remove(goModPath)
+			}
+		}()
+	}
+
+	// Run go build
+	cmd := exec.Command("go", "build", "./...")
+	cmd.Dir = outDir
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		// Parse and display Go compiler errors as codegen diagnostics
+		fmt.Printf("\n%s Generated Go code has compilation errors:\n", red("✗"))
+		lines := strings.Split(string(output), "\n")
+		errorCount := 0
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			// Format: ./file.go:line:col: error message
+			if strings.Contains(line, ": ") {
+				fmt.Printf("  %s codegen: %s\n", red("→"), line)
+				errorCount++
+			}
+		}
+		if errorCount > 0 {
+			fmt.Printf("\n  %s %d codegen error(s). Fix the codegen or use --no-verify-go to skip.\n", red("✗"), errorCount)
+		}
+		// Clean up temporary go.mod before exit
+		if createdGoMod {
+			os.Remove(goModPath)
+		}
+		os.Exit(1)
+	}
+
+	// Clean up temporary go.mod
+	if createdGoMod {
+		os.Remove(goModPath)
+	}
+
+	fmt.Printf("%s Generated Go code compiles successfully\n", green("✓"))
 }

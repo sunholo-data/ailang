@@ -24,7 +24,12 @@ func registerCodegenSpecs() {
 
 func registerStringCodegenSpecs() {
 	setSpec("_str_trim", &GoCodegenSpec{
-		Inline:     `strings.TrimSpace({{arg0}}.(string))`,
+		Inline: `strings.TrimSpace({{arg0}}.(string))`,
+		Helper: &GoHelperSpec{
+			FuncName:  "Trim",
+			Signature: "func Trim(s interface{}) interface{}",
+			Body:      `return strings.TrimSpace(s.(string))`,
+		},
 		Imports:    []string{"strings"},
 		StdlibName: "trim",
 	})
@@ -158,6 +163,20 @@ func registerStringCodegenSpecs() {
 		Imports:    []string{"strings"},
 		StdlibName: "splitAny",
 	})
+	registerIfMissing("_str_contains", 2, true, &GoCodegenSpec{
+		Inline:     `strings.Contains({{arg0}}.(string), {{arg1}}.(string))`,
+		Imports:    []string{"strings"},
+		StdlibName: "contains",
+	})
+	registerIfMissing("_str_repeat", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Repeat",
+			Signature: "func Repeat(s interface{}, n interface{}) interface{}",
+			Body:      `return strings.Repeat(s.(string), int(toInt64(n)))`,
+		},
+		Imports:    []string{"strings"},
+		StdlibName: "repeat",
+	})
 	registerIfMissing("_str_charAt", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName:  "CharAt",
@@ -280,16 +299,14 @@ func registerMathCodegenSpecs() {
 // ============================================================================
 
 func registerListCodegenSpecs() {
+	// ConcatList is emitted by codegen_runtime_collections.go (infrastructure).
+	// Concat is a thin alias for VarGlobal resolution; ConcatList handles the actual work.
 	setSpec("concat_List", &GoCodegenSpec{
+		Inline: `ConcatList({{arg0}}, {{arg1}})`,
 		Helper: &GoHelperSpec{
-			FuncName:  "ConcatList",
-			Signature: "func ConcatList(a, b interface{}) interface{}",
-			Body: `listA := toSlice(a)
-	listB := toSlice(b)
-	result := make([]interface{}, len(listA)+len(listB))
-	copy(result, listA)
-	copy(result[len(listA):], listB)
-	return result`,
+			FuncName:  "Concat",
+			Signature: "func Concat(a, b interface{}) interface{}",
+			Body:      `return ConcatList(a, b)`,
 		},
 		StdlibName: "concat",
 	})
@@ -335,6 +352,19 @@ func registerListCodegenSpecs() {
 	return result`,
 		},
 		StdlibName: "foldl",
+	})
+	registerIfMissing("_list_foldr", 3, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Foldr",
+			Signature: "func Foldr(f, acc, xs interface{}) interface{}",
+			Body: `list := toSlice(xs)
+	result := acc
+	for i := len(list) - 1; i >= 0; i-- {
+		result = CallFunc(f, list[i], result)
+	}
+	return result`,
+		},
+		StdlibName: "foldr",
 	})
 	registerIfMissing("_list_dedup", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
@@ -620,14 +650,16 @@ func registerJSONCodegenSpecs() {
 			FuncName: "Decode", Signature: "func Decode(s interface{}) interface{}",
 			Body: `return NewResultErr("JSON decode not yet available in compiled Go mode")`,
 		},
-		StdlibName: "decode",
+		StdlibName:  "decode",
+		RequiresADT: "Json",
 	})
 	setSpec("_json_encode", &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName: "Encode", Signature: "func Encode(obj interface{}) interface{}",
 			Body: `return "{}"`,
 		},
-		StdlibName: "encode",
+		StdlibName:  "encode",
+		RequiresADT: "Json",
 	})
 
 	// JSON constructor and accessor helpers
@@ -635,35 +667,36 @@ func registerJSONCodegenSpecs() {
 		name, stdlib string
 		numArgs      int
 		helper       *GoHelperSpec
+		requiresADT  string
 	}{
 		{"_json_js", "js", 1, &GoHelperSpec{
 			FuncName: "Js", Signature: "func Js(s interface{}) interface{}",
 			Body: `return NewJsonJString(s.(string))`,
-		}},
+		}, "Json"},
 		{"_json_jn", "jn", 0, &GoHelperSpec{
 			FuncName: "Jn", Signature: "func Jn() interface{}",
 			Body: `return NewJsonJNull()`,
-		}},
+		}, "Json"},
 		{"_json_jb", "jb", 1, &GoHelperSpec{
 			FuncName: "Jb", Signature: "func Jb(b interface{}) interface{}",
 			Body: `return NewJsonJBool(b.(bool))`,
-		}},
+		}, "Json"},
 		{"_json_jnum", "jnum", 1, &GoHelperSpec{
 			FuncName: "Jnum", Signature: "func Jnum(x interface{}) interface{}",
 			Body: `return NewJsonJNumber(x.(float64))`,
-		}},
+		}, "Json"},
 		{"_json_ja", "ja", 1, &GoHelperSpec{
 			FuncName: "Ja", Signature: "func Ja(xs interface{}) interface{}",
 			Body: `return NewJsonJArray(ConvertToJsonSlice(xs))`,
-		}},
+		}, "Json"},
 		{"_json_jo", "jo", 1, &GoHelperSpec{
 			FuncName: "Jo", Signature: "func Jo(kvs interface{}) interface{}",
 			Body: `return NewJsonJObject(ConvertToRecordSlice(kvs))`,
-		}},
+		}, "Json"},
 		{"_json_kv", "kv", 2, &GoHelperSpec{
 			FuncName: "Kv", Signature: `func Kv(k, v interface{}) interface{}`,
 			Body: `return map[string]interface{}{"key": k, "value": v}`,
-		}},
+		}, "Json"},
 		{"_json_get", "get", 2, &GoHelperSpec{
 			FuncName: "JsonGet", Signature: "func JsonGet(obj, key interface{}) interface{}",
 			Body: `json := obj.(*Json)
@@ -679,17 +712,17 @@ func registerJSONCodegenSpecs() {
 		}
 	}
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_has", "has", 2, &GoHelperSpec{
 			FuncName: "JsonHas", Signature: "func JsonHas(obj, key interface{}) interface{}",
 			Body: `return IsSome(JsonGet(obj, key))`,
-		}},
+		}, "Json"},
 		{"_json_getString", "getString", 2, &GoHelperSpec{
 			FuncName: "GetString", Signature: "func GetString(obj, key interface{}) interface{}",
 			Body: `opt := JsonGet(obj, key)
 	if IsNone(opt).(bool) { return NewOptionNone() }
 	return AsString(OptionGetOrElse(opt, nil))`,
-		}},
+		}, "Json"},
 		{"_json_getInt", "getInt", 2, &GoHelperSpec{
 			FuncName: "GetInt", Signature: "func GetInt(obj, key interface{}) interface{}",
 			Body: `opt := JsonGet(obj, key)
@@ -700,7 +733,7 @@ func registerJSONCodegenSpecs() {
 		return NewOptionSome(int64(json.JNumber.Value0))
 	}
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_getBool", "getBool", 2, &GoHelperSpec{
 			FuncName: "GetBool", Signature: "func GetBool(obj, key interface{}) interface{}",
 			Body: `opt := JsonGet(obj, key)
@@ -711,43 +744,43 @@ func registerJSONCodegenSpecs() {
 		return NewOptionSome(json.JBool.Value0)
 	}
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_getArray", "getArray", 2, &GoHelperSpec{
 			FuncName: "GetArray", Signature: "func GetArray(obj, key interface{}) interface{}",
 			Body: `opt := JsonGet(obj, key)
 	if IsNone(opt).(bool) { return NewOptionNone() }
 	return AsArray(OptionGetOrElse(opt, nil))`,
-		}},
+		}, "Json"},
 		{"_json_asString", "asString", 1, &GoHelperSpec{
 			FuncName: "AsString", Signature: "func AsString(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJString { return NewOptionSome(json.JString.Value0) }
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_asNumber", "asNumber", 1, &GoHelperSpec{
 			FuncName: "AsNumber", Signature: "func AsNumber(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJNumber { return NewOptionSome(json.JNumber.Value0) }
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_asBool", "asBool", 1, &GoHelperSpec{
 			FuncName: "AsBool", Signature: "func AsBool(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJBool { return NewOptionSome(json.JBool.Value0) }
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_asArray", "asArray", 1, &GoHelperSpec{
 			FuncName: "AsArray", Signature: "func AsArray(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJArray { return NewOptionSome(json.JArray.Value0) }
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_asObject", "asObject", 1, &GoHelperSpec{
 			FuncName: "AsObject", Signature: "func AsObject(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJObject { return NewOptionSome(json.JObject.Value0) }
 	return NewOptionNone()`,
-		}},
+		}, "Json"},
 		{"_json_keys", "keys", 1, &GoHelperSpec{
 			FuncName: "JsonKeys", Signature: "func JsonKeys(obj interface{}) interface{}",
 			Body: `json := obj.(*Json)
@@ -761,19 +794,20 @@ func registerJSONCodegenSpecs() {
 		result[i] = k
 	}
 	return result`,
-		}},
+		}, "Json"},
 		{"_json_getOr", "getOr", 3, &GoHelperSpec{
 			FuncName: "JsonGetOr", Signature: "func JsonGetOr(obj, key, defaultVal interface{}) interface{}",
 			Body: `return OptionGetOrElse(JsonGet(obj, key), defaultVal)`,
-		}},
+		}, "Json"},
 		{"_json_repair", "repair", 1, &GoHelperSpec{
 			FuncName: "JsonRepair", Signature: "func JsonRepair(s interface{}) interface{}",
 			Body: `return NewResultOk(s)`,
-		}},
+		}, "Json"},
 	} {
 		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
-			Helper:     spec.helper,
-			StdlibName: spec.stdlib,
+			Helper:      spec.helper,
+			StdlibName:  spec.stdlib,
+			RequiresADT: spec.requiresADT,
 		})
 	}
 
@@ -782,33 +816,35 @@ func registerJSONCodegenSpecs() {
 		name, stdlib string
 		numArgs      int
 		helper       *GoHelperSpec
+		requiresADT  string
 	}{
 		{"_option_getOrElse", "getOrElse", 2, &GoHelperSpec{
 			FuncName: "OptionGetOrElse", Signature: "func OptionGetOrElse(opt, defaultVal interface{}) interface{}",
 			Body: `o := opt.(*Option)
 	if o.Kind == OptionKindSome { return o.Some.Value0 }
 	return defaultVal`,
-		}},
+		}, "Option"},
 		{"_option_isNone", "isNone", 1, &GoHelperSpec{
 			FuncName: "IsNone", Signature: "func IsNone(opt interface{}) interface{}",
 			Body: `return opt.(*Option).Kind == OptionKindNone`,
-		}},
+		}, "Option"},
 		{"_option_isSome", "isSome", 1, &GoHelperSpec{
 			FuncName: "IsSome", Signature: "func IsSome(opt interface{}) interface{}",
 			Body: `return opt.(*Option).Kind == OptionKindSome`,
-		}},
+		}, "Option"},
 		{"_result_isOk", "isOk", 1, &GoHelperSpec{
 			FuncName: "IsOk", Signature: "func IsOk(r interface{}) interface{}",
 			Body: `return r.(*Result).Kind == ResultKindOk`,
-		}},
+		}, "Result"},
 		{"_result_isErr", "isErr", 1, &GoHelperSpec{
 			FuncName: "IsErr", Signature: "func IsErr(r interface{}) interface{}",
 			Body: `return r.(*Result).Kind == ResultKindErr`,
-		}},
+		}, "Result"},
 	} {
 		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
-			Helper:     spec.helper,
-			StdlibName: spec.stdlib,
+			Helper:      spec.helper,
+			StdlibName:  spec.stdlib,
+			RequiresADT: spec.requiresADT,
 		})
 	}
 }
@@ -845,13 +881,226 @@ func registerEffectCodegenSpecs() {
 		})
 	}
 
-	// NotBool helper
-	registerIfMissing("not_Bool_runtime", 1, true, &GoCodegenSpec{
+	// XML streaming — panic stub for compiled mode
+	registerIfMissing("_xml_parseElements", 3, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "ParseElements",
+			Signature: "func ParseElements(args ...interface{}) interface{}",
+			Body:      `panic("ParseElements: XML streaming not available in compiled mode - provide an XML handler")`,
+		},
+		StdlibName: "parseElements",
+	})
+
+	// JSON helpers for DocParse
+	registerIfMissing("_json_filterStrings", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "FilterStrings",
+			Signature: "func FilterStrings(xs interface{}) interface{}",
+			Body: `list := toSlice(xs)
+	var result []interface{}
+	for _, x := range list {
+		if json, ok := x.(*Json); ok && json.Kind == JsonKindJString {
+			result = append(result, json.JString.Value0)
+		}
+	}
+	if result == nil { result = []interface{}{} }
+	return result`,
+		},
+		StdlibName:  "filterStrings",
+		RequiresADT: "Json",
+	})
+	registerIfMissing("_json_getObject", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "GetObject",
+			Signature: "func GetObject(obj, key interface{}) interface{}",
+			Body: `opt := JsonGet(obj, key)
+	if IsNone(opt).(bool) { return NewOptionNone() }
+	return AsObject(OptionGetOrElse(opt, nil))`,
+		},
+		StdlibName:  "getObject",
+		RequiresADT: "Json",
+	})
+
+	// NotBool helper — registered as not_Bool to match Core IR VarGlobal name
+	registerIfMissing("not_Bool", 1, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName:  "NotBool",
 			Signature: "func NotBool(v interface{}) interface{}",
 			Body:      `return !v.(bool)`,
 		},
+	})
+
+	// Debug effect helpers
+	registerIfMissing("_debug_check", 2, false, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Check",
+			Signature: "func Check(label interface{}, value interface{}) interface{}",
+			Body:      `return value`,
+		},
+		StdlibName: "check",
+	})
+
+	// Effectful list combinators — panic stubs for compiled mode
+	effectfulListFuncs := []struct {
+		name, stdlib, funcName string
+		numArgs                int
+	}{
+		{"_list_filterE", "filterE", "FilterE", 2},
+		{"_list_foldlE", "foldlE", "FoldlE", 3},
+		{"_list_flatMapE", "flatMapE", "FlatMapE", 2},
+	}
+	for _, spec := range effectfulListFuncs {
+		funcName := spec.funcName
+		registerIfMissing(spec.name, spec.numArgs, false, &GoCodegenSpec{
+			Helper: &GoHelperSpec{
+				FuncName:  funcName,
+				Signature: "func " + funcName + "(args ...interface{}) interface{}",
+				Body:      `panic("` + funcName + `: effectful list operation not available in compiled mode - provide a handler")`,
+			},
+			StdlibName: spec.stdlib,
+		})
+	}
+
+	// JSON helpers missing from registry
+	jsonHelpers := []struct {
+		name, stdlib, funcName string
+		numArgs                int
+	}{
+		{"_json_getNumber", "getNumber", "GetNumber", 2},
+		{"_json_allStrings", "allStrings", "AllStrings", 1},
+		{"_json_allNumbers", "allNumbers", "AllNumbers", 1},
+		{"_json_filterNumbers", "filterNumbers", "FilterNumbers", 1},
+		{"_json_getStringArray", "getStringArray", "GetStringArray", 2},
+		{"_json_getStringArrayOrEmpty", "getStringArrayOrEmpty", "GetStringArrayOrEmpty", 2},
+		{"_json_getNumberArrayOrEmpty", "getNumberArrayOrEmpty", "GetNumberArrayOrEmpty", 2},
+	}
+	for _, spec := range jsonHelpers {
+		funcName := spec.funcName
+		registerIfMissing(spec.name, spec.numArgs, true, &GoCodegenSpec{
+			Helper: &GoHelperSpec{
+				FuncName:  funcName,
+				Signature: "func " + funcName + "(args ...interface{}) interface{}",
+				Body:      `panic("` + funcName + `: JSON helper not yet available in compiled mode")`,
+			},
+			StdlibName:  spec.stdlib,
+			RequiresADT: "Json",
+		})
+	}
+
+	// Conversion helpers
+	registerIfMissing("_str_toString", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "ToString",
+			Signature: "func ToString(v interface{}) interface{}",
+			Body:      `return Show(v)`,
+		},
+		StdlibName: "toString",
+	})
+	registerIfMissing("_str_fromString", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "FromString",
+			Signature: "func FromString(s interface{}) interface{}",
+			Body:      `return s`,
+		},
+		StdlibName: "fromString",
+	})
+
+	// Math helpers
+	mathHelpers := []struct {
+		name, stdlib, funcName, body string
+	}{
+		{"_math_maximumInt", "maximumInt", "MaximumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a > b { return a }; return b`},
+		{"_math_minimumInt", "minimumInt", "MinimumInt", `a := toInt64(args[0]); b := toInt64(args[1]); if a < b { return a }; return b`},
+		{"_math_maximumFloat", "maximumFloat", "MaximumFloat", `a := args[0].(float64); b := args[1].(float64); if a > b { return a }; return b`},
+		{"_math_minimumFloat", "minimumFloat", "MinimumFloat", `a := args[0].(float64); b := args[1].(float64); if a < b { return a }; return b`},
+		{"_math_absInt", "absInt", "AbsInt", `v := toInt64(args[0]); if v < 0 { return -v }; return v`},
+		{"_math_maximumString", "maximumString", "MaximumString", `a := args[0].(string); b := args[1].(string); if a > b { return a }; return b`},
+		{"_math_minimumString", "minimumString", "MinimumString", `a := args[0].(string); b := args[1].(string); if a < b { return a }; return b`},
+	}
+	for _, spec := range mathHelpers {
+		registerIfMissing(spec.name, 2, true, &GoCodegenSpec{
+			Helper: &GoHelperSpec{
+				FuncName:  spec.funcName,
+				Signature: "func " + spec.funcName + "(args ...interface{}) interface{}",
+				Body:      spec.body,
+			},
+			StdlibName: spec.stdlib,
+		})
+	}
+
+	// Process/IO effect stubs
+	ioEffectFuncs := []struct {
+		name, stdlib, funcName string
+		numArgs                int
+	}{
+		{"_process_spawn", "spawnProcess", "SpawnProcess", 1},
+		{"_process_exec", "exec", "Exec", 1},
+		{"_process_asyncExec", "asyncExecProcess", "AsyncExecProcess", 1},
+		{"_process_writeStdin", "writeProcessStdin", "WriteProcessStdin", 2},
+		{"_process_closeStdin", "closeProcessStdin", "CloseProcessStdin", 1},
+		{"_process_asyncReadStdinLines", "asyncReadStdinLines", "AsyncReadStdinLines", 1},
+		{"_io_listDir", "listDir", "ListDir", 1},
+		{"_clock_now", "now", "Now", 0},
+		{"_net_httpGet", "httpGet", "HttpGet", 1},
+		{"_net_httpRequest", "httpRequest", "HttpRequest", 1},
+	}
+	for _, spec := range ioEffectFuncs {
+		funcName := spec.funcName
+		registerIfMissing(spec.name, spec.numArgs, false, &GoCodegenSpec{
+			Helper: &GoHelperSpec{
+				FuncName:  funcName,
+				Signature: "func " + funcName + "(args ...interface{}) interface{}",
+				Body:      `panic("` + funcName + `: effect not available in compiled mode - provide a handler")`,
+			},
+			StdlibName: spec.stdlib,
+		})
+	}
+
+	// List utilities
+	registerIfMissing("_list_head", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Head",
+			Signature: "func Head(xs interface{}) interface{}",
+			Body:      `return ListHead(xs)`,
+		},
+		StdlibName: "head",
+	})
+	registerIfMissing("_list_tail", 1, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Tail",
+			Signature: "func Tail(xs interface{}) interface{}",
+			Body:      `return ListTail(xs)`,
+		},
+		StdlibName: "tail",
+	})
+	registerIfMissing("_list_member", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Member",
+			Signature: "func Member(x, xs interface{}) interface{}",
+			Body: `list := toSlice(xs)
+	for _, v := range list {
+		if v == x { return true }
+	}
+	return false`,
+		},
+		StdlibName: "member",
+	})
+	registerIfMissing("_list_difference", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "Difference",
+			Signature: "func Difference(xs, ys interface{}) interface{}",
+			Body: `listA := toSlice(xs)
+	listB := toSlice(ys)
+	set := make(map[interface{}]bool)
+	for _, b := range listB { set[b] = true }
+	var result []interface{}
+	for _, a := range listA {
+		if !set[a] { result = append(result, a) }
+	}
+	if result == nil { result = []interface{}{} }
+	return result`,
+		},
+		StdlibName: "difference",
 	})
 }
 

@@ -3,6 +3,16 @@ package golang
 
 // writeRuntimeListHelpers writes list manipulation functions.
 func (g *Generator) writeRuntimeListHelpers() {
+	// toSlice — core infrastructure used by 24+ runtime helpers
+	g.writef("// toSlice converts interface{} to []interface{} slice.\n")
+	g.writef("func toSlice(v interface{}) []interface{} {\n")
+	g.indent++
+	g.writef("if v == nil { return nil }\n")
+	g.writef("if s, ok := v.([]interface{}); ok { return s }\n")
+	g.writef("return nil\n")
+	g.indent--
+	g.writef("}\n\n")
+
 	g.writef("// Cons prepends an element to a list (cons operator).\n")
 	g.writef("// AILANG: head :: tail\n")
 	g.writef("func Cons(head interface{}, tail interface{}) []interface{} {\n")

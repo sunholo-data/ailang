@@ -1,10 +1,11 @@
 # AILANG Execution Profiles — A Unified Architecture for Games, Agents, Services, and Tools
 
-**Status**: Planned
-**Target**: v0.6.0
+**Status**: Archived (2026-03-18)
+**Original Target**: v0.6.0
 **Priority**: P0 - Strategic
 **Estimated**: 2 weeks
 **Dependencies**: Go codegen (v0.5.x), Effect contexts (v0.5.x)
+**Archived Reason**: Implementation plan is obsolete — assumed an IR pipeline that doesn't exist yet. The profile taxonomy (Sim/Service/CLI) has been extracted into [M-CODEGEN-IR-LAYERS](../planned/v0_10_0/m-codegen-ir-layers.md) Phase 5 as a downstream deliverable of the IR architecture.
 
 ## Axiom Compliance
 

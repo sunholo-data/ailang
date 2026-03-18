@@ -38,6 +38,13 @@ type GoCodegenSpec struct {
 	// Example: "_str_trim" has StdlibName "trim" (from std/string.trim).
 	// Used by the codegen to resolve VarGlobal references from stdlib imports.
 	StdlibName string
+
+	// RequiresADT specifies which ADT must be registered for this helper to be emitted.
+	// Values: "Json", "Option", "Result", or "" (always emit).
+	// Helpers with RequiresADT are eagerly emitted when their ADT is registered,
+	// ensuring inter-dependent helpers (e.g., GetString depends on JsonGet, IsNone)
+	// are always available as a group.
+	RequiresADT string
 }
 
 // GoHelperSpec describes a Go runtime helper function to emit in generated code.
@@ -116,6 +123,18 @@ func GetCodegenSpecByStdlibName(stdlibName string) *GoCodegenSpec {
 		return nil
 	}
 	return GetCodegenSpec(builtinName)
+}
+
+// GetHelpersRequiringADT returns all helper specs that require a specific ADT.
+// Used by the codegen to eagerly emit all helpers for a registered ADT as a group.
+func GetHelpersRequiringADT(adtName string) []*GoCodegenSpec {
+	var result []*GoCodegenSpec
+	for _, meta := range Registry {
+		if meta.GoCodegen != nil && meta.GoCodegen.Helper != nil && meta.GoCodegen.RequiresADT == adtName {
+			result = append(result, meta.GoCodegen)
+		}
+	}
+	return result
 }
 
 // RebuildStdlibIndex populates StdlibIndex from all registered builtins.

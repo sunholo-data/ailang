@@ -28,15 +28,16 @@ func (g *Generator) resolveBuiltinViaRegistry(name string) string {
 		return ""
 	}
 
-	// Track imports
-	for _, imp := range spec.Imports {
-		g.trackImport(imp)
-	}
-
-	// If it has a Helper, ensure the helper is registered for emission and return its name
+	// If it has a Helper, ensure the helper is registered for emission and return its name.
+	// Don't track imports here — Helper functions live in runtime.go which manages its own imports.
 	if spec.Helper != nil {
 		g.registerHelperForEmission(spec.Helper)
 		return spec.Helper.FuncName
+	}
+
+	// Track imports only for Inline specs (these expand directly into the module file).
+	for _, imp := range spec.Imports {
+		g.trackImport(imp)
 	}
 
 	// If it has an Inline spec without arg placeholders, return it directly.
@@ -69,17 +70,83 @@ func (g *Generator) trackImport(pkg string) {
 
 // registerHelperForEmission marks a GoHelperSpec for emission in the runtime section.
 // M-CODEGEN-SUSTAINABILITY: Helpers are emitted once, deduped by FuncName.
+// Also registers transitive dependencies (helpers whose bodies call other helpers).
 func (g *Generator) registerHelperForEmission(helper *builtins.GoHelperSpec) {
 	if g.registryHelpers == nil {
 		g.registryHelpers = make(map[string]*builtins.GoHelperSpec)
 	}
+	if _, exists := g.registryHelpers[helper.FuncName]; exists {
+		return // Already registered, avoid infinite recursion
+	}
 	g.registryHelpers[helper.FuncName] = helper
+
+	// M-CODEGEN-COMPILE-GATE-CLEANUP: Register transitive dependencies.
+	// Some helper bodies call other helpers (e.g., ForEachE calls Map).
+	// Without this, the called helper is missing from runtime.go.
+	deps := map[string]string{
+		"Map":             "_list_map",
+		"Filter":          "_list_filter",
+		"toSlice":         "", // infrastructure, always present
+		"CallFunc":        "", // infrastructure, always present
+		"Show":            "", // infrastructure, always present
+		"JsonGet":         "_json_get",
+		"IsNone":          "_option_isNone",
+		"IsSome":          "_option_isSome",
+		"OptionGetOrElse": "_option_getOrElse",
+		"AsString":        "_json_asString",
+		"AsArray":         "_json_asArray",
+		"AsObject":        "_json_asObject",
+	}
+	for funcName, builtinName := range deps {
+		if builtinName == "" {
+			continue // infrastructure, always emitted
+		}
+		if strings.Contains(helper.Body, funcName+"(") {
+			if depSpec := builtins.GetCodegenSpec(builtinName); depSpec != nil && depSpec.Helper != nil {
+				g.registerHelperForEmission(depSpec.Helper)
+			}
+		}
+	}
+}
+
+// adtIsRegistered checks if an ADT type is registered for code generation.
+func (g *Generator) adtIsRegistered(adtName string) bool {
+	switch adtName {
+	case "Json":
+		_, ok := g.adtConstructors["Json.JString"]
+		return ok
+	case "Option":
+		_, ok := g.adtConstructors["Option.Some"]
+		return ok
+	case "Result":
+		_, ok := g.adtConstructors["Result.Ok"]
+		return ok
+	}
+	return false
+}
+
+// eagerRegisterADTHelpers scans the registry for helpers tagged with RequiresADT
+// and registers them for emission if their ADT is available. This ensures
+// inter-dependent helpers (e.g., GetString depends on JsonGet, IsNone, AsString)
+// are always emitted as a complete group.
+func (g *Generator) eagerRegisterADTHelpers() {
+	for _, adtName := range []string{"Json", "Option", "Result"} {
+		if !g.adtIsRegistered(adtName) {
+			continue
+		}
+		for _, spec := range builtins.GetHelpersRequiringADT(adtName) {
+			g.registerHelperForEmission(spec.Helper)
+		}
+	}
 }
 
 // writeRegistryHelpers emits all registered runtime helper functions.
-// M-CODEGEN-SUSTAINABILITY: Called during runtime generation. Only emits helpers
-// that were actually referenced during code generation (lazy emission).
+// Combines lazy emission (helpers referenced during codegen) with eager emission
+// (ADT-dependent helpers emitted as groups when their ADT is registered).
 func (g *Generator) writeRegistryHelpers() {
+	// Eagerly register all helpers for registered ADTs
+	g.eagerRegisterADTHelpers()
+
 	if len(g.registryHelpers) == 0 {
 		return
 	}
@@ -96,11 +163,10 @@ func (g *Generator) writeRegistryHelpers() {
 	}
 	sortStrings(names)
 
+	emitted := make(map[string]bool)
 	for _, name := range names {
 		helper := g.registryHelpers[name]
-		// Check if this function was already emitted by the legacy runtime helpers
-		// (during migration, some functions exist in both old and new systems)
-		if g.emittedHelpers[name] {
+		if emitted[name] {
 			continue
 		}
 		g.writef("// %s is a registry-generated runtime helper.\n", name)
@@ -113,7 +179,7 @@ func (g *Generator) writeRegistryHelpers() {
 		}
 		g.indent--
 		g.writef("}\n\n")
-		g.emittedHelpers[name] = true
+		emitted[name] = true
 	}
 }
 
@@ -183,5 +249,37 @@ func (g *Generator) resolveInlineBuiltin(name string, argExprs []string) string 
 		placeholder := fmt.Sprintf("{{arg%d}}", i)
 		result = strings.ReplaceAll(result, placeholder, arg)
 	}
+
+	// Fix invalid type assertions on literals: "...".(string) → "..."
+	// String literals are already typed in Go, so .(string) is invalid.
+	// Also handles int/float/bool literals with their respective assertions.
+	result = fixLiteralTypeAssertions(result)
+
 	return result
+}
+
+// fixLiteralTypeAssertions removes invalid type assertions on Go literals.
+// e.g. ".opf".(string) → ".opf" — string literals are already typed.
+// Also handles int64(42).(int64) and similar patterns.
+func fixLiteralTypeAssertions(s string) string {
+	// Fix string literal assertions: "...".(string)
+	// Match pattern: quote, content, quote, dot-paren-string-paren
+	i := 0
+	for i < len(s) {
+		// Find ".(string)" preceded by a closing quote
+		idx := strings.Index(s[i:], ".(string)")
+		if idx < 0 {
+			break
+		}
+		pos := i + idx
+		// Check if preceded by a string literal (closing double quote)
+		if pos > 0 && s[pos-1] == '"' {
+			// Remove the .(string)
+			s = s[:pos] + s[pos+len(".(string)"):]
+			// Don't advance i — more may follow at same position
+		} else {
+			i = pos + 1
+		}
+	}
+	return s
 }

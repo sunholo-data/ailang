@@ -174,12 +174,8 @@ type Generator struct {
 	needsSortImport bool
 
 	// registryHelpers tracks GoHelperSpecs that need to be emitted in runtime.
-	// M-CODEGEN-SUSTAINABILITY: Populated during code generation, emitted in writeRegistryHelpers.
+	// Populated during code generation (lazy) and ADT registration (eager).
 	registryHelpers map[string]*builtins.GoHelperSpec
-
-	// emittedHelpers tracks which helper functions have already been emitted.
-	// M-CODEGEN-SUSTAINABILITY: Prevents duplicate emission during migration.
-	emittedHelpers map[string]bool
 
 	// output buffer for generated code
 	buf bytes.Buffer
@@ -330,7 +326,6 @@ func New(packageName string) *Generator {
 		typedLocalVars:      make(map[string]string),
 		valueThreshold:      4, // M-CODEGEN-VALUE-TYPES: Default threshold
 		valueTypeConverters: make(map[string]bool),
-		emittedHelpers:      make(map[string]bool),
 	}
 	// M-BUGFIX: Wire up record type lookup for TRecord -> named struct mapping
 	g.TypeMapper.RecordTypeLookup = func(fields map[string]bool) (string, bool) {
@@ -494,6 +489,8 @@ func (g *Generator) Generate(prog *core.Program) ([]byte, error) {
 	g.prog = prog                // Store for DeclMeta access
 	g.needsMathImport = false    // Reset for each generation
 	g.needsStrconvImport = false // Reset for each generation
+	g.needsStringsImport = false // Reset for each generation
+	g.needsSortImport = false    // Reset for each generation
 
 	// M-CODEGEN-STDLIB-MATH: Two-phase generation to detect imports needed
 	// Phase 1: Generate declarations to temporary buffer to detect math usage
@@ -634,18 +631,40 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	g.writef("// Runtime helpers for AILANG generated code.\n")
 	g.writef("package %s\n\n", g.PackageName)
 	// M-DX16: reflect and strings needed for typed struct RecordUpdate
+	// M-CODEGEN-COMPILE-GATE: Only import packages that are actually used
+	// to avoid "imported and not used" errors caught by the compile gate.
+	// We generate helpers first into a temp buffer to detect which imports are needed,
+	// then write imports + helpers to the main buffer.
+	savedBuf := g.buf
+	g.buf = *bytes.NewBuffer(nil)
+	g.writeRuntimeHelpers()
+	helpersCode := g.buf.String()
+	g.buf = savedBuf
+
 	g.writef("import (\n")
 	g.writef("\t\"fmt\"\n")
 	g.writef("\t\"reflect\"\n")
-	g.writef("\t\"sort\"\n")
-	g.writef("\t\"strconv\"\n")
-	g.writef("\t\"strings\"\n")
+	if strings.Contains(helpersCode, "sort.") || g.needsSortImport {
+		g.writef("\t\"sort\"\n")
+	}
+	if strings.Contains(helpersCode, "strconv.") || g.needsStrconvImport {
+		g.writef("\t\"strconv\"\n")
+	}
+	if strings.Contains(helpersCode, "strings.") || g.needsStringsImport {
+		g.writef("\t\"strings\"\n")
+	}
+	if g.needsMathImport {
+		g.writef("\t\"math\"\n")
+	}
 	g.writef(")\n\n")
+
 	// M-CODEGEN-MULTIMOD: List type alias — AILANG's bare List type (without type arg)
 	// maps to []interface{} in Go. Needed when functions have unparameterized List return types.
 	g.writef("// List is the AILANG list type (unparameterized).\n")
 	g.writef("type List = []interface{}\n\n")
-	g.writeRuntimeHelpers()
+
+	// Write the pre-generated helpers (already generated above for import detection)
+	g.buf.WriteString(helpersCode)
 
 	return g.formatOutput()
 }
@@ -660,6 +679,25 @@ func (g *Generator) write(s string) {
 func (g *Generator) writef(format string, args ...interface{}) {
 	g.buf.WriteString(strings.Repeat("\t", g.indent))
 	fmt.Fprintf(&g.buf, format, args...)
+}
+
+// writeSuppressUnused emits `_ = varName // suppress unused` unless varName is
+// the blank identifier itself (which can't be read as a value in Go).
+// M-CODEGEN-COMPILE-GATE: Prevents generating invalid `_ = _` patterns.
+func (g *Generator) writeSuppressUnused(goVarName string) {
+	if goVarName == "_" || goVarName == "" {
+		return
+	}
+	g.writef("_ = %s // suppress unused\n", goVarName)
+}
+
+// suppressUnusedStr returns the suppress-unused string for use in binding arrays,
+// or empty string if the variable is a blank identifier.
+func suppressUnusedStr(goVarName string) string {
+	if goVarName == "_" || goVarName == "" {
+		return ""
+	}
+	return fmt.Sprintf("_ = %s // suppress unused", goVarName)
 }
 
 func (g *Generator) formatOutput() ([]byte, error) {

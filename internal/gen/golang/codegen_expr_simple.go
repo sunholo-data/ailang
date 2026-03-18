@@ -80,7 +80,15 @@ func (g *Generator) generateVar(v *core.Var) error {
 			g.write(goName)
 		}
 	} else {
-		g.write(ToGoVarName(v.Name))
+		// M-CODEGEN-COMPILE-GATE: Check if this local var name matches a builtin.
+		// This handles cases like `println` being passed as a first-class function
+		// argument — the Core IR binds it as a Var, but we need to resolve it
+		// to our helper function name (e.g., Println) to avoid shadowing Go built-ins.
+		if resolved := g.resolveBuiltinViaRegistry(v.Name); resolved != "" {
+			g.write(resolved)
+		} else {
+			g.write(ToGoVarName(v.Name))
+		}
 	}
 	return nil
 }

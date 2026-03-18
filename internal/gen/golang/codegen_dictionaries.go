@@ -57,6 +57,9 @@ func (g *Generator) GenerateDictionaries() ([]byte, error) {
 	generateOrdDictionary(&buf, "Float", "float64")
 	generateOrdDictionary(&buf, "String", "string")
 
+	// Generate Fractional dictionaries (float division)
+	generateFractionalDictionary(&buf, "Float", "float64")
+
 	// Generate Eq dictionaries (equality operations)
 	generateEqDictionary(&buf, "Int", "int64")
 	generateEqDictionary(&buf, "Float", "float64")
@@ -150,6 +153,42 @@ func generateEqDictionary(buf *bytes.Buffer, typeName, goType string) {
 	buf.WriteString("\tEq:  func(x, y interface{}) interface{} { return x.(" + goType + ") == y.(" + goType + ") },\n")
 	buf.WriteString("\tNeq: func(x, y interface{}) interface{} { return x.(" + goType + ") != y.(" + goType + ") },\n")
 
+	buf.WriteString("}\n\n")
+}
+
+// generateFractionalDictionary generates a Fractional type class dictionary.
+// Fractional extends Num with fractional-specific operations.
+// Methods: Add, Sub, Mul, Div, Neg, Abs (inherited from Num) + Divide, Recip, FromInt, FromRational
+func generateFractionalDictionary(buf *bytes.Buffer, typeName, goType string) {
+	buf.WriteString("// dict_Fractional_" + typeName + " provides Fractional type class methods for " + goType + "\n")
+	buf.WriteString("var dict_Fractional_" + typeName + " = struct {\n")
+	// Inherited from Num
+	buf.WriteString("\tAdd func(interface{}, interface{}) interface{}\n")
+	buf.WriteString("\tSub func(interface{}, interface{}) interface{}\n")
+	buf.WriteString("\tMul func(interface{}, interface{}) interface{}\n")
+	buf.WriteString("\tDiv func(interface{}, interface{}) interface{}\n")
+	buf.WriteString("\tNeg func(interface{}) interface{}\n")
+	buf.WriteString("\tAbs func(interface{}) interface{}\n")
+	// Fractional-specific
+	buf.WriteString("\tDivide  func(interface{}, interface{}) interface{}\n")
+	buf.WriteString("\tRecip   func(interface{}) interface{}\n")
+	buf.WriteString("\tFromInt func(interface{}) interface{}\n")
+	buf.WriteString("}{\n")
+	// Inherited from Num
+	buf.WriteString("\tAdd: func(x, y interface{}) interface{} { return x.(" + goType + ") + y.(" + goType + ") },\n")
+	buf.WriteString("\tSub: func(x, y interface{}) interface{} { return x.(" + goType + ") - y.(" + goType + ") },\n")
+	buf.WriteString("\tMul: func(x, y interface{}) interface{} { return x.(" + goType + ") * y.(" + goType + ") },\n")
+	buf.WriteString("\tDiv: func(x, y interface{}) interface{} { return x.(" + goType + ") / y.(" + goType + ") },\n")
+	buf.WriteString("\tNeg: func(x interface{}) interface{} { return -x.(" + goType + ") },\n")
+	buf.WriteString("\tAbs: func(x interface{}) interface{} {\n")
+	buf.WriteString("\t\tv := x.(float64)\n")
+	buf.WriteString("\t\tif v < 0 { return -v }\n")
+	buf.WriteString("\t\treturn v\n")
+	buf.WriteString("\t},\n")
+	// Fractional-specific
+	buf.WriteString("\tDivide:  func(x, y interface{}) interface{} { return x.(" + goType + ") / y.(" + goType + ") },\n")
+	buf.WriteString("\tRecip:   func(x interface{}) interface{} { return 1.0 / x.(" + goType + ") },\n")
+	buf.WriteString("\tFromInt: func(x interface{}) interface{} { return " + goType + "(toInt64(x)) },\n")
 	buf.WriteString("}\n\n")
 }
 

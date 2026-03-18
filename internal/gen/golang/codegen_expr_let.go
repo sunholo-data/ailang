@@ -272,7 +272,7 @@ func (g *Generator) generateFlatLetChain(let *core.Let) error {
 			return err
 		}
 		g.writef("\n")
-		g.writef("_ = %s // suppress unused\n", ToGoVarName(binding.Name))
+		g.writeSuppressUnused(ToGoVarName(binding.Name))
 	}
 
 	// Generate the final body
@@ -398,7 +398,7 @@ func (g *Generator) generateLet(let *core.Let) error {
 	}
 	g.writef("\n")
 
-	g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
+	g.writeSuppressUnused(ToGoVarName(let.Name))
 	g.writef("return ")
 
 	// Add type assertion if body produces interface{} but we need concrete returnType
@@ -461,7 +461,7 @@ func (g *Generator) generateLetIfChain(let *core.Let) error {
 		return err
 	}
 	g.writef("\n")
-	g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
+	g.writeSuppressUnused(ToGoVarName(let.Name))
 
 	// Generate all chain Let bindings
 	for _, chainLet := range chainLets {
@@ -471,7 +471,7 @@ func (g *Generator) generateLetIfChain(let *core.Let) error {
 			return err
 		}
 		g.writef("\n")
-		g.writef("_ = %s // suppress unused\n", ToGoVarName(chainLet.Name))
+		g.writeSuppressUnused(ToGoVarName(chainLet.Name))
 	}
 
 	// Generate flat if statements for each branch

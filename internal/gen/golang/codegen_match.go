@@ -215,7 +215,7 @@ func (g *Generator) generateMatchIfElse(match *core.Match) error {
 			// If it's a VarPattern, bind the variable
 			if vp, ok := arm.Pattern.(*core.VarPattern); ok {
 				g.writef("%s := _scrutinee\n", ToGoVarName(vp.Name))
-				g.writef("_ = %s // suppress unused\n", ToGoVarName(vp.Name))
+				g.writeSuppressUnused(ToGoVarName(vp.Name))
 			}
 
 			g.writef("return ")
@@ -291,7 +291,7 @@ func (g *Generator) generateMatchIfElseWithGuards(match *core.Match) error {
 			// If it's a VarPattern, bind the variable
 			if vp, ok := arm.Pattern.(*core.VarPattern); ok {
 				g.writef("%s := _scrutinee\n", ToGoVarName(vp.Name))
-				g.writef("_ = %s // suppress unused\n", ToGoVarName(vp.Name))
+				g.writeSuppressUnused(ToGoVarName(vp.Name))
 			}
 
 			g.writef("return ")
@@ -434,7 +434,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 					if elemPat.Name != "_" {
 						binding := fmt.Sprintf("%s := %s", ToGoVarName(elemPat.Name), elemExpr)
 						bindings = append(bindings, binding)
-						bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(elemPat.Name)))
+						if s := suppressUnusedStr(ToGoVarName(elemPat.Name)); s != "" {
+							bindings = append(bindings, s)
+						}
 					}
 				case *core.WildcardPattern:
 					// No binding needed for wildcards
@@ -454,7 +456,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 					tempVar := fmt.Sprintf("_listElem%d", i)
 					binding := fmt.Sprintf("%s := %s", tempVar, elemExpr)
 					bindings = append(bindings, binding)
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", tempVar))
+					if s := suppressUnusedStr(tempVar); s != "" {
+						bindings = append(bindings, s)
+					}
 					_, nestedBindings, err := g.generatePatternCondition(elem, tempVar)
 					if err != nil {
 						return "", nil, err
@@ -487,7 +491,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 					}
 				}
 				bindings = append(bindings, binding)
-				bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(tailPat.Name)))
+				if s := suppressUnusedStr(ToGoVarName(tailPat.Name)); s != "" {
+					bindings = append(bindings, s)
+				}
 			}
 
 			return cond, bindings, nil
@@ -505,7 +511,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 		// Var pattern always matches, binding is generated separately
 		binding := fmt.Sprintf("%s := %s", ToGoVarName(pat.Name), scrutinee)
 		bindings = append(bindings, binding)
-		bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(pat.Name)))
+		if s := suppressUnusedStr(ToGoVarName(pat.Name)); s != "" {
+			bindings = append(bindings, s)
+		}
 		return "true", bindings, nil
 
 	case *core.WildcardPattern:
@@ -524,7 +532,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 					binding := fmt.Sprintf("%s := %s.([]interface{})[%d]",
 						ToGoVarName(elemPat.Name), scrutinee, i)
 					bindings = append(bindings, binding)
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(elemPat.Name)))
+					if s := suppressUnusedStr(ToGoVarName(elemPat.Name)); s != "" {
+						bindings = append(bindings, s)
+					}
 				}
 			case *core.WildcardPattern:
 				// No binding needed for wildcards
@@ -533,7 +543,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 				tempVar := fmt.Sprintf("_tuple%d", i)
 				binding := fmt.Sprintf("%s := %s.([]interface{})[%d]", tempVar, scrutinee, i)
 				bindings = append(bindings, binding)
-				bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", tempVar))
+				if s := suppressUnusedStr(tempVar); s != "" {
+					bindings = append(bindings, s)
+				}
 				// Recursively get bindings for nested tuple
 				_, nestedBindings, err := g.generatePatternCondition(elemPat, tempVar)
 				if err != nil {
@@ -608,7 +620,9 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 			case *core.VarPattern:
 				if ap.Name != "_" {
 					bindings = append(bindings, fmt.Sprintf("%s := %s.(*%s).%s.%s", ToGoVarName(ap.Name), scrutinee, adtTypeName, variantFieldName, fieldAccess))
-					bindings = append(bindings, fmt.Sprintf("_ = %s // suppress unused", ToGoVarName(ap.Name)))
+					if s := suppressUnusedStr(ToGoVarName(ap.Name)); s != "" {
+						bindings = append(bindings, s)
+					}
 				}
 			case *core.WildcardPattern:
 				// No binding or condition needed
@@ -795,7 +809,7 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 					} else {
 						g.writef("%s := _adt.%s.%s\n", goVarName, variantFieldName, fieldAccess)
 					}
-					g.writef("_ = %s // suppress unused\n", goVarName)
+					g.writeSuppressUnused(goVarName)
 
 					// M-DX27: Record the concrete Go type for this local variable
 					// This allows exprProducesInterface to know that s is bool, not interface{}
@@ -839,7 +853,7 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		if p.Name != "_" {
 			goVarName := ToGoVarName(p.Name)
 			g.writef("%s := _adt\n", goVarName)
-			g.writef("_ = %s // suppress unused\n", goVarName)
+			g.writeSuppressUnused(goVarName)
 		}
 		g.writef("return ")
 		if err := g.generateExpr(arm.Body); err != nil {

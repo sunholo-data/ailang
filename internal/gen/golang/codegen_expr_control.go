@@ -189,7 +189,7 @@ func (g *Generator) generateIfChain(ifExpr *core.If) error {
 			return err
 		}
 		g.writef("\n")
-		g.writef("_ = %s // suppress unused\n", ToGoVarName(let.Name))
+		g.writeSuppressUnused(ToGoVarName(let.Name))
 	}
 
 	// Generate flat if statements for each branch (except the last)

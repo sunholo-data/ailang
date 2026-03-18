@@ -53,7 +53,7 @@ func (g *Generator) generateFlatBody(body core.CoreExpr) error {
 			return err
 		}
 		g.writef("\n")
-		g.writef("_ = %s // suppress unused\n", goName)
+		g.writeSuppressUnused(goName)
 	}
 
 	// Generate the final expression as the return value
