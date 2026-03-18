@@ -47,15 +47,17 @@ func (g *Generator) writeRuntimeHelpers() {
 // This list should shrink as we delete sections from codegen_runtime_stdlib.go.
 func (g *Generator) markLegacyHelpersEmitted() {
 	legacyHelpers := []string{
+		// Core runtime helpers (codegen_runtime_collections.go)
+		"ConcatList", "Length",
 		// String helpers (codegen_runtime_stdlib.go)
 		"Trim", "ToUpper", "ToLower", "Contains", "StartsWith", "EndsWith",
 		"Find", "Compare", "Split", "Substring", "Join", "Chars", "Words",
 		"Repeat", "IntToStr", "FloatToStr", "StringToInt", "StringToFloat", "SplitAny",
-		// List helpers
+		// List helpers (codegen_runtime_stdlib.go)
 		"toSlice", "Map", "Filter", "Foldl", "Foldr", "Reverse", "Take", "Drop",
-		"Any", "SortBy", "FlatMap", "Zip", "Dedup", "Nth", "Last", "FindIndex",
+		"Any", "SortBy", "FlatMap", "Zip", "Nth", "Last", "FindIndex",
 		"MapE", "ForEachE",
-		// JSON helpers
+		// JSON helpers (codegen_runtime_stdlib.go)
 		"ConvertToJsonSlice", "ConvertToRecordSlice",
 		"JsonGet", "JsonHas", "GetString", "GetInt", "GetBool", "GetArray",
 		"AsString", "AsNumber", "AsBool", "AsArray", "AsObject",

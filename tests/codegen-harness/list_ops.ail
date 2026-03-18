@@ -1,0 +1,17 @@
+module harness/list_ops
+
+import std/list (map, filter, foldl, concat, reverse, take, drop, any, dedup, intersect, union, flatMap, zip)
+
+export pure func testMap(xs: [int]) -> [int] = map(\x. x + 1, xs)
+export pure func testFilter(xs: [int]) -> [int] = filter(\x. x > 0, xs)
+export pure func testFoldl(xs: [int]) -> int = foldl(\acc. \x. acc + x, 0, xs)
+export pure func testConcat(xs: [int], ys: [int]) -> [int] = concat(xs, ys)
+export pure func testReverse(xs: [int]) -> [int] = reverse(xs)
+export pure func testTake(xs: [int]) -> [int] = take(3, xs)
+export pure func testDrop(xs: [int]) -> [int] = drop(2, xs)
+export pure func testAny(xs: [int]) -> bool = any(\x. x > 10, xs)
+export pure func testDedup(xs: [int]) -> [int] = dedup(xs)
+export pure func testIntersect(xs: [int], ys: [int]) -> [int] = intersect(xs, ys)
+export pure func testUnion(xs: [int], ys: [int]) -> [int] = union(xs, ys)
+export pure func testFlatMap(xs: [int]) -> [int] = flatMap(\x. [x, x], xs)
+export pure func testZip(xs: [int], ys: [int]) -> [[int]] = zip(xs, ys)

@@ -209,6 +209,19 @@ help-release: ## Show release workflow
 	@echo ""
 
 # =============================================================================
+# CODEGEN HARNESS
+# =============================================================================
+
+## test-codegen: Compile multi-module harness to Go and run go build (M-CODEGEN-SUSTAINABILITY)
+test-codegen: build
+	@echo "$(BOLD)Running codegen harness test...$(RESET)"
+	@rm -rf tests/codegen-harness/gen
+	@./bin/ailang compile -emit-go -out tests/codegen-harness/gen -relax-modules tests/codegen-harness/*.ail
+	@cd tests/codegen-harness/gen && go build ./...
+	@echo "$(GREEN)✓ Codegen harness: compile + go build passed$(RESET)"
+	@rm -rf tests/codegen-harness/gen
+
+# =============================================================================
 # DEFAULT TARGET
 # =============================================================================
 

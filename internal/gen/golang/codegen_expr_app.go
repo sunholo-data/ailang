@@ -84,6 +84,13 @@ func (g *Generator) generateApp(app *core.App) error {
 		}
 	}
 
+	// M-CODEGEN-SUSTAINABILITY: Check if this is an inline builtin with arg substitution.
+	// Inline specs like "strings.TrimSpace({{arg0}}.(string))" are resolved here at App level.
+	if inlineResult := g.tryResolveInlineApp(app); inlineResult != "" {
+		g.write(inlineResult)
+		return nil
+	}
+
 	// Special handling for cons operator (::)
 	if v, ok := app.Func.(*core.Var); ok && v.Name == "::" {
 		g.write("Cons(")

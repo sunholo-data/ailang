@@ -441,8 +441,15 @@ func (g *Generator) writeStdlibListHelpers() {
 	g.writef("}\n\n")
 }
 
-// writeStdlibJsonHelpers writes std/json function implementations.
+// writeStdlibJsonHelpers writes std/json and Option/Result function implementations.
+// M-CODEGEN-SUSTAINABILITY: Only emit if Json/Option ADT types are actually registered,
+// otherwise the generated code references undefined constructors (NewJsonJString, etc).
 func (g *Generator) writeStdlibJsonHelpers() {
+	_, hasOption := g.adtConstructors["Some"]
+	_, hasJson := g.adtConstructors["JString"]
+	if !hasJson && !hasOption {
+		return
+	}
 	g.writef("// ============================================================================\n")
 	g.writef("// std/json runtime helpers\n")
 	g.writef("// M-CODEGEN-STDLIB-BUILTINS: JSON constructor and accessor helpers.\n")

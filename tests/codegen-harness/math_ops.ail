@@ -1,0 +1,12 @@
+module harness/math_ops
+
+import std/math (sin, cos, sqrt, pow, PI, ceil, floor, round)
+
+export pure func testSin(x: float) -> float = sin(x)
+export pure func testCos(x: float) -> float = cos(x)
+export pure func testSqrt(x: float) -> float = sqrt(x)
+export pure func testPow(x: float) -> float = pow(x, 2.0)
+let pi = PI
+export pure func testCeil(x: float) -> float = ceil(x)
+export pure func testFloor(x: float) -> float = floor(x)
+export pure func testRound(x: float) -> float = round(x)

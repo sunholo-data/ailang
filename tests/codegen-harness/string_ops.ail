@@ -1,0 +1,18 @@
+module harness/string_ops
+
+import std/string (trim, toUpper, toLower, split, join, contains, startsWith, endsWith, length, substring, repeat, chars)
+
+export pure func testTrim(s: string) -> string = trim(s)
+export pure func testUpper(s: string) -> string = toUpper(s)
+export pure func testLower(s: string) -> string = toLower(s)
+export pure func testSplit(s: string) -> [string] = split(s, ",")
+export pure func testJoin(xs: [string]) -> string = join(", ", xs)
+export pure func testContains(s: string) -> bool = contains(s, "hello")
+let prefix = "hi"
+let suffix = "bye"
+export pure func testStartsWith(s: string) -> bool = startsWith(s, prefix)
+export pure func testEndsWith(s: string) -> bool = endsWith(s, suffix)
+export pure func testLength(s: string) -> int = length(s)
+export pure func testSubstring(s: string) -> string = substring(s, 0, 5)
+export pure func testRepeat(s: string) -> string = repeat(s, 3)
+export pure func testChars(s: string) -> [string] = chars(s)

@@ -1,0 +1,14 @@
+module harness/let_binding
+
+import std/string (length)
+
+-- M-CODEGEN-LETBIND-FIX: This was the root cause DocParse bug.
+-- Module-level let bindings used as function args must NOT get _impl suffix.
+let maxLength = 100
+
+export pure func testLetBinding(s: string) -> bool =
+  length(s) < maxLength
+
+let greeting = "hello"
+
+export pure func testLetRef() -> string = greeting

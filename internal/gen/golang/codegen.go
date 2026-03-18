@@ -560,15 +560,21 @@ func (g *Generator) writePackageHeader() {
 		g.writef("\t\"strings\"\n")
 		g.writef(")\n\n")
 		g.writeRuntimeHelpers()
-	} else if g.needsMathImport || g.needsStrconvImport {
-		// M-CODEGEN-STDLIB-MATH/STRING: Even when skipping runtime helpers,
-		// we need to add imports if the code uses stdlib functions
+	} else if g.needsMathImport || g.needsStrconvImport || g.needsStringsImport || g.needsSortImport {
+		// M-CODEGEN-SUSTAINABILITY: Even when skipping runtime helpers,
+		// we need to add imports if the code uses stdlib functions (inline templates)
 		g.writef("import (\n")
 		if g.needsMathImport {
 			g.writef("\t\"math\"\n")
 		}
+		if g.needsSortImport {
+			g.writef("\t\"sort\"\n")
+		}
 		if g.needsStrconvImport {
 			g.writef("\t\"strconv\"\n")
+		}
+		if g.needsStringsImport {
+			g.writef("\t\"strings\"\n")
 		}
 		g.writef(")\n\n")
 	}

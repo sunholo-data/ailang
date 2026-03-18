@@ -60,17 +60,31 @@ func TestMathBuiltinRegistryMapping(t *testing.T) {
 	}
 }
 
-// TestMathStdlibNameResolution tests that stdlib names (sin, cos, PI) resolve via registry.
+// TestMathStdlibNameResolution tests that stdlib names resolve via registry.
+// Math functions with {{arg}} placeholders resolve at App level (tryResolveInlineApp),
+// not at VarGlobal level (resolveBuiltinViaRegistry).
 func TestMathStdlibNameResolution(t *testing.T) {
-	stdlibNames := []string{"sin", "cos", "tan", "asin", "acos", "atan", "atan2",
-		"exp", "log", "log10", "pow", "sqrt", "ceil", "floor", "round"}
-
-	for _, name := range stdlibNames {
-		t.Run(name, func(t *testing.T) {
+	// Constants resolve at VarGlobal level (no arg placeholders)
+	constantNames := []string{"PI", "E"}
+	for _, name := range constantNames {
+		t.Run(name+"_varglobal", func(t *testing.T) {
 			g := New("test")
 			result := g.resolveBuiltinViaRegistry(name)
 			if result == "" {
 				t.Errorf("resolveBuiltinViaRegistry(%q) returned empty — not in registry", name)
+			}
+		})
+	}
+
+	// Functions with args resolve at App level via resolveInlineBuiltin
+	funcNames := []string{"sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+		"exp", "log", "log10", "pow", "sqrt", "ceil", "floor", "round"}
+	for _, name := range funcNames {
+		t.Run(name+"_inline", func(t *testing.T) {
+			g := New("test")
+			result := g.resolveInlineBuiltin(name, []string{"x"})
+			if result == "" {
+				t.Errorf("resolveInlineBuiltin(%q) returned empty — not in registry", name)
 			}
 		})
 	}
