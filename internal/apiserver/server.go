@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/embed"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/pipeline"
@@ -98,8 +99,12 @@ func New(basePath string, cfg Config) *Server {
 		cfg.Port = "8080"
 	}
 	eng := embed.New(basePath)
+	// Guard against Go's typed-nil interface gotcha: a *EffContext(nil) stored
+	// in interface{} is != nil but causes a nil pointer dereference.
 	if cfg.EffCtx != nil {
-		eng.SetEffContext(cfg.EffCtx)
+		if effCtx, ok := cfg.EffCtx.(*effects.EffContext); ok && effCtx != nil {
+			eng.SetEffContext(cfg.EffCtx)
+		}
 	}
 	maxUpload := cfg.MaxUploadSize
 	if maxUpload == 0 {

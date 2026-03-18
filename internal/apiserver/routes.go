@@ -95,21 +95,6 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
 // callFunction executes an AILANG function and writes the response.
 // Shared by both the catch-all handler and custom route handlers.
 func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string) {
-	// Look up export info for arity check
-	s.mu.RLock()
-	modInfo, ok := s.modules[modulePath]
-	s.mu.RUnlock()
-
-	var arity int = -1
-	if ok {
-		for _, exp := range modInfo.Exports {
-			if exp.Name == funcName {
-				arity = exp.Arity
-				break
-			}
-		}
-	}
-
 	// Parse arguments based on content type
 	var args []interface{}
 	contentType := r.Header.Get("Content-Type")
@@ -162,17 +147,18 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
-	// Fix: zero-arg functions in AILANG internally take a unit parameter.
-	// When arity==0 (from type signature), inject a unit arg so the evaluator
-	// doesn't reject the call with "expects 1 arguments, got 0".
-	if arity == 0 {
-		args = []interface{}{nil} // nil converts to UnitValue via FromGo
-	}
-
 	// Call AILANG function
 	start := time.Now()
 	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
 	elapsed := time.Since(start).Milliseconds()
+
+	// Fix: zero-arg functions in AILANG internally compile to take a unit parameter.
+	// If the call fails with "expects 1 arguments, got 0", retry with a unit arg.
+	if callErr != nil && len(args) == 0 && strings.Contains(callErr.Error(), "expects 1 arguments, got 0") {
+		start = time.Now()
+		result, callErr = s.engine.CallPreserveFloats(modulePath, funcName, nil)
+		elapsed = time.Since(start).Milliseconds()
+	}
 
 	if callErr != nil {
 		log.Printf("[API] %s/%s failed: %v", modulePath, funcName, callErr)
