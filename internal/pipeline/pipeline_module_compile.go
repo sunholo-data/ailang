@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/iface"
 	"github.com/sunholo/ailang/internal/link"
@@ -263,6 +264,56 @@ func typeCheckAndLowerModule(
 		typeChecker.FillOperatorMethods(decl)
 	}
 
+	// M-CONTRACT-OPLOWERING-FIX: Type-check contract expressions to populate CoreTI.
+	// Without this, OpLowering hits CoreTI misses for operators in ensures/requires clauses,
+	// causing comparison ops to be deferred as raw Intrinsic nodes that fail at runtime.
+	if unit.Core.Meta != nil {
+		// Build a map of function name -> Lambda params for contract env construction
+		funcParams := extractFuncParams(unit.Core)
+
+		for funcName, meta := range unit.Core.Meta {
+			if len(meta.Contracts) == 0 {
+				continue
+			}
+
+			// Build contract environment: module env + function params + result
+			contractEnv := moduleTypeEnv
+
+			// Bind function parameters from the function's type signature
+			if binding, err := moduleTypeEnv.Lookup(funcName); err == nil {
+				paramTypes, retType := extractFuncSignature(binding)
+
+				// Bind parameters by name (from Core Lambda) with types (from type env)
+				if params, ok := funcParams[funcName]; ok {
+					for i, paramName := range params {
+						if i < len(paramTypes) {
+							contractEnv = contractEnv.Extend(paramName, paramTypes[i])
+						}
+					}
+				}
+
+				// Bind "result" for ensures clauses
+				if retType != nil {
+					contractEnv = contractEnv.Extend("result", retType)
+				}
+			}
+
+			for _, contract := range meta.Contracts {
+				if contract.Expr == nil {
+					continue
+				}
+				// Infer types for contract expression — populates CoreTI as side effect.
+				// Errors are non-fatal: contract type-checking is best-effort for CoreTI population.
+				_, _, _, _, inferErr := typeChecker.InferWithConstraints(contract.Expr, contractEnv)
+				if inferErr != nil && cfg.DebugCompile {
+					fmt.Fprintf(os.Stderr, "[DEBUG] Contract type inference for %s: %v\n", funcName, inferErr)
+				}
+				// Also fill operator methods for contract expressions
+				typeChecker.FillOperatorMethods(contract.Expr)
+			}
+		}
+	}
+
 	// M-DX23: Capture type info for codegen
 	unit.CoreTI = typeChecker.CoreTI
 
@@ -405,6 +456,55 @@ func runPostTypeCheckPhases(
 	}
 
 	return nil
+}
+
+// extractFuncSignature extracts parameter types and return type from a type env binding.
+// Handles both TFunc (v1) and TFunc2 (v2) function types, and Scheme wrappers.
+func extractFuncSignature(binding interface{}) (paramTypes []types.Type, retType types.Type) {
+	// Unwrap Scheme if present
+	typ := binding
+	if scheme, ok := binding.(*types.Scheme); ok {
+		typ = scheme.Type
+	}
+	switch fn := typ.(type) {
+	case *types.TFunc:
+		return fn.Params, fn.Return
+	case *types.TFunc2:
+		return fn.Params, fn.Return
+	}
+	return nil, nil
+}
+
+// extractFuncParams walks Core declarations and extracts function name -> parameter names.
+// This maps DeclMeta function names to their Lambda parameter names for contract env construction.
+func extractFuncParams(prog *core.Program) map[string][]string {
+	result := make(map[string][]string)
+	for _, decl := range prog.Decls {
+		extractFuncParamsFromExpr(decl, result)
+	}
+	return result
+}
+
+func extractFuncParamsFromExpr(expr core.CoreExpr, result map[string][]string) {
+	switch e := expr.(type) {
+	case *core.Let:
+		// Top-level let: let funcName = Lambda{...} in ...
+		if lam, ok := e.Value.(*core.Lambda); ok {
+			result[e.Name] = lam.Params
+		}
+		if e.Body != nil {
+			extractFuncParamsFromExpr(e.Body, result)
+		}
+	case *core.LetRec:
+		for _, binding := range e.Bindings {
+			if lam, ok := binding.Value.(*core.Lambda); ok {
+				result[binding.Name] = lam.Params
+			}
+		}
+		if e.Body != nil {
+			extractFuncParamsFromExpr(e.Body, result)
+		}
+	}
 }
 
 // buildAndRegisterInterface builds the module interface and registers it with the linker.

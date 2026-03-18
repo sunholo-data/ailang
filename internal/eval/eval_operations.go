@@ -280,6 +280,30 @@ func (e *CoreEvaluator) evalIntrinsic(intrinsic *core.Intrinsic) (Value, error) 
 		}
 	}
 
+	// M-CONTRACT-OPLOWERING-FIX: Comparison/equality ops may be deferred by the lowerer
+	// when CoreTI can't resolve their type (e.g., inside contract expressions).
+	// Handle them here with runtime type dispatch rather than requiring the shim flag.
+	if len(args) == 2 {
+		var op string
+		switch intrinsic.Op {
+		case core.OpEq:
+			op = "=="
+		case core.OpNe:
+			op = "!="
+		case core.OpLt:
+			op = "<"
+		case core.OpLe:
+			op = "<="
+		case core.OpGt:
+			op = ">"
+		case core.OpGe:
+			op = ">="
+		}
+		if op != "" {
+			return e.applyBinOp(op, args[0], args[1])
+		}
+	}
+
 	return nil, fmt.Errorf("intrinsic operations require OpLowering pass or --experimental-binop-shim flag")
 }
 
@@ -310,6 +334,67 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 		case "||":
 			return &BoolValue{Value: lBool.Value || rBool.Value}, nil
 		}
+	}
+
+	// M-CONTRACT-OPLOWERING-FIX: Comparison/equality ops may survive to the evaluator
+	// from contract expressions where dictionary elaboration or OpLowering couldn't
+	// fully resolve types. Handle them with runtime type dispatch.
+	if isComparisonOp(op) {
+		if lInt, lOk := left.(*IntValue); lOk {
+			if rInt, rOk := right.(*IntValue); rOk {
+				switch op {
+				case "==":
+					return &BoolValue{Value: lInt.Value == rInt.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lInt.Value != rInt.Value}, nil
+				case "<":
+					return &BoolValue{Value: lInt.Value < rInt.Value}, nil
+				case ">":
+					return &BoolValue{Value: lInt.Value > rInt.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lInt.Value <= rInt.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lInt.Value >= rInt.Value}, nil
+				}
+			}
+		}
+		if lFloat, lOk := left.(*FloatValue); lOk {
+			if rFloat, rOk := right.(*FloatValue); rOk {
+				switch op {
+				case "==":
+					return &BoolValue{Value: lFloat.Value == rFloat.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lFloat.Value != rFloat.Value}, nil
+				case "<":
+					return &BoolValue{Value: lFloat.Value < rFloat.Value}, nil
+				case ">":
+					return &BoolValue{Value: lFloat.Value > rFloat.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lFloat.Value <= rFloat.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lFloat.Value >= rFloat.Value}, nil
+				}
+			}
+		}
+		if lStr, lOk := left.(*StringValue); lOk {
+			if rStr, rOk := right.(*StringValue); rOk {
+				switch op {
+				case "==":
+					return &BoolValue{Value: lStr.Value == rStr.Value}, nil
+				case "!=":
+					return &BoolValue{Value: lStr.Value != rStr.Value}, nil
+				case "<":
+					return &BoolValue{Value: lStr.Value < rStr.Value}, nil
+				case ">":
+					return &BoolValue{Value: lStr.Value > rStr.Value}, nil
+				case "<=":
+					return &BoolValue{Value: lStr.Value <= rStr.Value}, nil
+				case ">=":
+					return &BoolValue{Value: lStr.Value >= rStr.Value}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("comparison '%s' on unsupported types: %T and %T", op, left, right)
 	}
 
 	// Experimental operator shim for basic arithmetic
@@ -406,6 +491,15 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 
 	// All other operators must go through dictionary elaboration
 	return nil, fmt.Errorf("internal: BinOp reached evaluator; dictionaries not elaborated (op='%s')", op)
+}
+
+// isComparisonOp returns true for comparison and equality operators
+func isComparisonOp(op string) bool {
+	switch op {
+	case "==", "!=", "<", "<=", ">", ">=":
+		return true
+	}
+	return false
 }
 
 // applyUnOp applies a unary operator to a value

@@ -20,10 +20,36 @@ func ElaborateWithDictionaries(prog *core.Program, resolved map[uint64]*types.Re
 		newDecls = append(newDecls, transformed)
 	}
 
+	// M-CONTRACT-OPLOWERING-FIX: Also transform contract expressions in Meta.
+	// Without this, BinOp nodes in contracts (e.g., == in ensures clauses)
+	// survive to the evaluator without being elaborated to DictApp calls.
+	var newMeta map[string]*core.DeclMeta
+	if prog.Meta != nil {
+		newMeta = make(map[string]*core.DeclMeta, len(prog.Meta))
+		for name, meta := range prog.Meta {
+			if len(meta.Contracts) == 0 {
+				newMeta[name] = meta
+				continue
+			}
+			newMetaCopy := *meta
+			newMetaCopy.Contracts = make([]*core.Contract, len(meta.Contracts))
+			for i, contract := range meta.Contracts {
+				newContract := *contract
+				if contract.Expr != nil {
+					newContract.Expr = elaborator.transformExpr(contract.Expr)
+				}
+				newMetaCopy.Contracts[i] = &newContract
+			}
+			newMeta[name] = &newMetaCopy
+		}
+	} else {
+		newMeta = prog.Meta
+	}
+
 	// Preserve program metadata and flags (CRITICAL for module exports!)
 	return &core.Program{
 		Decls: newDecls,
-		Meta:  prog.Meta,  // Preserve export metadata
+		Meta:  newMeta,    // Preserve export metadata (with elaborated contracts)
 		Flags: prog.Flags, // Preserve compilation state
 	}, nil
 }

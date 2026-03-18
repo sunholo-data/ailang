@@ -18,10 +18,12 @@ _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
 _bytes_concat : (bytes, bytes) -> bytes
 _bytes_concat_list : list[bytes] -> bytes
+_bytes_filename : bytes -> string
 _bytes_from_base64 : string -> Option[bytes]
 _bytes_from_ints : list[int] -> bytes
 _bytes_from_string : string -> bytes
 _bytes_length : bytes -> int
+_bytes_mime_type : bytes -> string
 _bytes_slice : (bytes, int, int) -> Option[bytes]
 _bytes_to_base64 : bytes -> string
 _bytes_to_string : bytes -> string
@@ -56,7 +58,9 @@ _fs_writeFileBytes : (string, bytes) -> () ! {FS}
 _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
+_get_header : (a, string) -> Option[string]
 _hamming_distance : (int, int) -> int
+_has_header : (a, string) -> bool
 _int_to_float : int -> float
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
