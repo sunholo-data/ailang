@@ -76,6 +76,28 @@ The `Daemon` type in `internal/coordinator/` has grown into a "god object" with 
 - All existing tests pass
 - Test coverage increases (smaller components = easier to test)
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Daemon becomes orchestrator, not owner of state | All 39 methods move to sub-components; reverting means re-merging everything | human | design | high |
+| Component communication via method calls (not channels/events) | Determines coupling model between components; channels would be more decoupled but harder to debug | human | design | high |
+| Sub-packages under `internal/coordinator/` (lifecycle/, execution/, etc.) | Package layout locks import direction; components cannot import each other without cycles | human | design | high |
+| Shared state protected by per-component mutexes (not one global lock) | Eliminates global Daemon.mu but requires careful analysis of which state belongs to which component | human | design | med |
+| Delete original daemon_*.go files after migration (not keep as wrappers) | Clean break vs gradual deprecation; affects every caller of Daemon methods | human | design | med |
+| Phase-by-phase extraction (lifecycle first, execution second) | Order determines which components are decoupled first; execution is highest-risk | human | design | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Define the exact interface each component exposes to the Daemon orchestrator
+- [ ] Map every Daemon field to its owning component (especially shared fields like `store` and `registry`)
+- [ ] Decide dependency direction: can `execution/` depend on `approval/` or must Daemon mediate?
+- [ ] Confirm per-component mutex strategy and identify any cross-component locking needs
+- [ ] Resolve whether EventBroadcaster is a dependency of other components or only called by Daemon
+- [ ] Audit existing tests to determine which must be rewritten vs adapted
+
 ## Solution Design
 
 ### Overview
@@ -288,6 +310,17 @@ func TestApprovalCreation(t *testing.T) {
 - Run coordinator with all components
 - Verify dashboard receives events
 - Test approval workflow end-to-end
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Internal struct field layout within each component — [agent may resolve]
+- Whether LifecycleManager exposes health check as HTTP handler or just bool method — [agent may resolve]
+- Logging strategy within components (structured logger per-component vs shared) — [agent may resolve]
+- Naming convention for component constructors (`NewManager` vs `NewLifecycleManager`) — [agent may resolve]
+- Whether to introduce a shared `Config` struct or pass dependencies individually to constructors — [agent may resolve]
+- Worktree cleanup strategy (eager vs lazy) within WorktreeManager — [human may resolve]
 
 ## Non-Goals
 

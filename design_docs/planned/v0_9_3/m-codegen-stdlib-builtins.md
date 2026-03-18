@@ -62,6 +62,27 @@ VarGlobal(name)
 
 **Total:** ~105 stdlib function exports need Go codegen support.
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| 3-tier strategy (inline mapping / runtime helpers / effect handlers) | Determines the entire architecture for ~105 stdlib functions; wrong categorization means re-implementing functions later | human | design | high |
+| Runtime helpers use `interface{}` (untyped) vs typed specialization | Affects performance of all generated Go code using stdlib; switching from `interface{}` to typed later requires rewriting all ~50 helpers and call sites | human | design | high |
+| Self-contained runtime vs importing AILANG runtime package (`go.mod` dependency) | Self-contained means code duplication but zero dependency; import means single source of truth but couples generated code to AILANG version | human | design | high |
+| JSON decode/encode as effect handler (Tier 3) vs pure runtime helper (Tier 2) | Determines whether JSON operations require user-supplied handler implementations or work out of the box | human | design | med |
+| Argument order handling at `App` expression level vs wrapper functions | Wrapper is simpler but adds indirection; App-level fix is cleaner but touches hot codegen path | agent | compile | med |
+| Conditional emission (only emit referenced helpers) vs emit-all | Emit-all is simpler but bloats output; conditional requires reference tracking | agent | compile | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Self-contained runtime (re-implement helpers) vs `go.mod` dependency on AILANG runtime — affects all generated code
+- [ ] Whether JSON/XML operations are Tier 2 (pure runtime) or Tier 3 (effect handler) — determines if users must implement handler interfaces
+- [ ] Whether `interface{}` is acceptable for all runtime helpers or some need typed specialization now
+- [ ] How `applyFunc` will call closure values from generated code — must work with both lambdas and named function references
+- [ ] Whether to emit all runtime helpers or only those referenced by the compiled code
+
 ---
 
 ## Solution Design
@@ -303,11 +324,20 @@ func Filter(pred, xs interface{}) interface{} {
 - DocParse 22-module `go build` succeeds
 - Compare output of generated Go binary vs AILANG interpreter for same inputs
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Which stdlib functions go into Tier 1 (inline) vs Tier 2 (runtime helper) when the mapping is ambiguous (e.g., `substring` could be `s[start:end]` inline or a helper) — [agent may resolve]
+- Exact `applyFunc` implementation strategy (reflect-based vs type-switch vs generated dispatch) — [agent may resolve]
+- Whether to split runtime helpers into multiple files (`codegen_runtime_string.go`, `codegen_runtime_list.go`, etc.) or keep one file — [agent may resolve]
+- Stdlib functions beyond DocParse's usage — will be added incrementally as projects need them — [agent may resolve per project]
+- How to handle AILANG functions with different argument order from Go equivalents (per-function wrapper vs generic arg-reorder at App level) — [agent may resolve]
+
 ## Non-Goals
 
 - **Typed specialization** — All runtime helpers use `interface{}`. Typed versions (e.g., `MapInt64` for `[int] -> [int]`) are a future optimization (tracked in M-CODEGEN-IR-STRATEGY).
 - **Eliminating interpreter dependency** — Some complex builtins (JSON decode, XML parse) may still need effect handler implementations from the user. We don't auto-generate those.
-- **Exhaustive stdlib coverage** — Focus on functions DocParse actually uses first. Others added incrementally as projects need them.
 
 ## Risks & Mitigations
 

@@ -81,6 +81,30 @@ The local messaging system is now unified:
 - Zero data loss during network partitions (eventual consistency)
 - Cost target: <$50/month for typical team usage
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Firestore over Cloud SQL for cloud state | Determines cost model, scaling strategy, and real-time architecture; locks in NoSQL data modeling | human | design | high |
+| 100% serverless architecture (no always-on instances) | Eliminates Cloud SQL, shapes all deployment and operational patterns | human | design | high |
+| CollaborationStore abstraction (SQLite/Firestore backends) | Core interface contract that all components depend on; wrong shape blocks hybrid mode | human | design | high |
+| Cloud Pub/Sub as global message bus | Determines delivery guarantees (at-least-once), ordering model, and retry semantics | human | design | high |
+| Hybrid mode with local-first sync strategy | Defines offline behavior, conflict resolution, and consistency model (last-write-wins with vector clocks) | human | design | med |
+| Google Cloud IAM + OIDC for auth | Locks into GCP identity; no multi-cloud auth support | human | design | med |
+| Firestore real-time listeners for dashboard (not custom WebSocket) | Simplifies architecture but couples React UI to Firestore SDK | human | design | med |
+| At-least-once delivery with idempotency via message_id deduplication | Shapes all consumer code; exactly-once would require different infrastructure | human | design | high |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Firestore schema finalized (collection hierarchy, indexing strategy, security rules)
+- [ ] CollaborationStore interface signature frozen (all methods agreed upon)
+- [ ] Pub/Sub topic naming and ordering key strategy locked
+- [ ] Hybrid mode conflict resolution algorithm specified (vector clocks vs timestamps)
+- [ ] Authentication flow finalized (OIDC provider, token lifetime, refresh strategy)
+- [ ] Cost budget enforcement mechanism decided (Firestore triggers vs Cloud Run middleware)
+
 ## Solution Design
 
 ### Overview
@@ -920,6 +944,18 @@ ui/src/
 - [ ] Zero data loss during 30-second network partitions
 - [ ] Documentation complete with setup guide
 - [ ] Load test: 100 concurrent agents, 1000 msg/min
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Firestore index configuration and query optimization strategy — [agent may resolve]
+- Cloud Run container sizing (memory/CPU limits) and concurrency tuning — [agent may resolve]
+- Terraform vs Pulumi for IaC — [human may resolve]
+- Signed URL expiration policy for Cloud Storage uploads — [agent may resolve]
+- Sync interval tuning for hybrid mode (currently unspecified `SyncInterval`) — [agent may resolve]
+- WebSocket gateway session affinity and reconnection strategy — [agent may resolve]
+- Dead letter queue retry policy and alerting thresholds — [agent may resolve]
 
 ## Non-Goals
 

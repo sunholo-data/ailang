@@ -62,6 +62,29 @@ AILANG's Axiom A6 (Safe Concurrency) states: "Concurrency must not destroy meani
 - Effect typing for channel operations (! Chan)
 - **Axiom A6 score improved to 2/2 (strong)**
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| CSP (channels) over shared-memory concurrency | Fundamental execution model choice; determines all concurrency primitives and safety guarantees | human | design | high |
+| Session types for static protocol verification | Adds a new dimension to the type system; affects type checker, AST, and all channel-using code | human | design | high |
+| Binary sessions only (not multiparty) in v1 | Limits protocol expressiveness but dramatically reduces type system complexity | human | design | low |
+| `Chan` as a new effect type requiring `--caps Chan` | Shapes the capability model; channel ops must be declared in every function signature | human | design | high |
+| Deterministic scheduler (not OS-level threads) | Preserves A1 (Determinism) but constrains concurrency to cooperative scheduling | human | design | high |
+| Dual type computation (automatic client-side protocol derivation) | Compiler must mechanically derive dual; wrong algorithm causes unsound protocol checking | compiler | compile | high |
+| New syntax for `protocol` keyword and channel operations | Expands the grammar; interacts with pattern matching and effect declarations (A8 cost: -1) | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Session type AST representation finalized (how protocols are represented in the type system)
+- [ ] Dual type computation algorithm specified and proven correct for recursive protocols
+- [ ] `protocol` keyword syntax and grammar rules locked
+- [ ] Deadlock detection strategy decided (conservative static analysis vs runtime detection vs both)
+- [ ] Channel operation type signatures frozen (`newChan`, `send`, `recv`, `close`)
+- [ ] Scheduler semantics defined (cooperative yield points, spawn semantics, termination)
+
 ## Solution Design
 
 ### Overview
@@ -253,11 +276,20 @@ let badClient = \ch. ! Chan
 - Performance under load
 - Error message clarity
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Protocol subtyping rules (covariant/contravariant in send/recv positions) — [agent may resolve]
+- Channel buffer size (unbuffered synchronous vs bounded buffer) — [human may resolve]
+- Runtime deadlock detection fallback mechanism (timeout vs cycle detection) — [agent may resolve]
+- Error message format for protocol violation diagnostics — [agent may resolve]
+- Whether `spawn` is a keyword or a builtin function — [human may resolve]
+- Channel tracing format (how channel operations appear in execution traces) — [agent may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
-- Distributed channels (network) - Deferred
-- Multiparty session types - Future work
 - Channel priority/fairness - Out of scope
 - Linear types (affine OK) - Separate feature
 

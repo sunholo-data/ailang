@@ -76,6 +76,29 @@ Today, the coordinator daemon (`internal/coordinator/`) orchestrates AI agents i
 - Streaming events are accessible via callback (optional)
 - Session continuity: resume previous agent sessions
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Agent as a new effect type (not a Process subtype) | Determines whether Agent is a distinct capability gate or reuses Process; affects all type signatures | human | design | high |
+| Typed AgentResult record (not raw string output) | All consumers depend on structured fields (cost, turns, tools); changing shape breaks pipelines | human | design | high |
+| Pre-execution budget enforcement (not just after-the-fact tracking) | Requires runtime to intercept streaming events and halt execution mid-stream | human | design | high |
+| Wrap existing Go executors rather than rewrite in AILANG | Preserves working NDJSON parsing and session management; but couples to Go internals | human | design | med |
+| AgentError as an ADT with exhaustive match | Defines the failure contract; adding variants is a breaking change for consumers | human | design | med |
+| Sequential-only agent invocations (no parallel agents in v1) | Avoids A6 violations but limits throughput for multi-agent pipelines | human | design | low |
+| Session continuity via typed resumeSessionId field | Replaces ad-hoc string passing; wrong design blocks multi-turn workflows | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] AgentTask and AgentResult record field sets finalized
+- [ ] AgentError ADT variant list locked (all constructors agreed upon)
+- [ ] Budget enforcement mechanism specified (streaming event interception vs polling)
+- [ ] Interaction between `--agent-max-cost` (global) and per-task `maxCostUsd` defined
+- [ ] `_agent_invoke` builtin registration and Go executor bridge interface frozen
+- [ ] Decision on whether Agent subsumes Process or remains separate
+
 ## Solution Design
 
 ### Type Definitions
@@ -268,6 +291,17 @@ Agent workspace is set via `AgentTask.workspace`. Combined with `AILANG_FS_SANDB
 - Cost budget enforcement tests
 - Session continuity tests
 - Documentation and examples
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Streaming callback API shape (lambda signature, event buffering strategy) — [agent may resolve]
+- Session transcript storage location (observatory.db vs separate store vs in-memory) — [human may resolve]
+- Cost tracking granularity: whether cumulative cross-invocation budget is tracked in-process or externally — [agent may resolve]
+- WASM/browser executor backend for Agent effect (different from CLI executor) — [human may resolve]
+- Exact CLI flag names for agent constraints (`--agent-allowlist` vs `--agent-providers`, etc.) — [agent may resolve]
+- Error message formatting for AgentError variants — [agent may resolve]
 
 ## Non-Goals (v1)
 

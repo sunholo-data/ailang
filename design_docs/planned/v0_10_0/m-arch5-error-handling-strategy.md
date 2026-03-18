@@ -85,6 +85,28 @@ if err != nil {
 - All errors wrapped with context
 - No `return result, nil` when result.Success is false
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Three distinct error types (ProviderError, ExecutionError, CoordinatorError) instead of one generic | Callers use type assertions to distinguish error sources; adding/removing a type changes all switch sites | human | design | high |
+| Eliminate `return result, nil` pattern when `result.Success == false` | Every coordinator caller that checks `err == nil` before inspecting `result.Success` must be updated | human | design | high |
+| Centralized OTEL `RecordSpanError()` helper | All providers must switch to single recording pattern; provider-specific span attributes depend on error type | human | design | med |
+| Fluent builder API (`WithStatusCode().WithRequestID()`) for error construction | Locks the error enrichment pattern; alternative is struct literal construction | human | design | low |
+| Error types implement `Unwrap()` for `errors.Is()`/`errors.As()` compatibility | Required for Go idiomatic error handling; determines whether callers can inspect wrapped causes | compiler | compile | med |
+| `internal/errors/` package path (not per-package error types) | Centralizes errors but creates a dependency from ai/, executor/, and coordinator/ to one package | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Define exact fields for each error type (ProviderError, ExecutionError, CoordinatorError)
+- [ ] Audit all callers of coordinator provider methods that rely on `result.Error` + `nil` error return
+- [ ] Decide if `internal/errors/` conflicts with stdlib `errors` package (naming/import alias strategy)
+- [ ] Confirm OTEL span attribute schema for error recording (attribute keys and value types)
+- [ ] Coordinate with M-ARCH1 (AI Provider Base Class) on shared ProviderError type ownership
+- [ ] Determine whether CoordinatorError needs a TaskID field or if that context comes from wrapping
+
 ## Solution Design
 
 ### Overview
@@ -324,12 +346,22 @@ if err != nil {
 - Trigger API errors, verify error messages
 - Check OTEL traces for error attributes
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact error message format strings (as long as they include provider, operation, and cause) — [agent may resolve]
+- Whether to use a package alias for `internal/errors` to avoid conflict with stdlib `errors` — [agent may resolve]
+- Whether `RecordSpanError` should accept variadic attributes or only extract from typed errors — [agent may resolve]
+- Error categorization (`IsRetryable()`, `IsFatal()` methods) — will be added once error types stabilize — [human may resolve]
+- Error metrics and alerting integration (count by type, provider) — [human may resolve]
+- Structured error logging format (JSON vs text) — [agent may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
-- Error categorization (retryable vs fatal) - Future enhancement
-- Error metrics/alerting - Separate feature
-- Custom error responses to clients - API layer concern
+- Custom error responses to API clients - API layer concern
+- Error recovery/retry logic - Handled by callers, not error types
 
 ## Timeline
 

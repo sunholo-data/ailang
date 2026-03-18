@@ -269,6 +269,29 @@ Every feature must align with AILANG's 12 Design Axioms. Score each axiom and ve
 - [Measurable outcome 2]
 - [Measurable outcome 3]
 
+## High-Impact Decisions
+
+<!-- What choices are being made? Not "what we're building" (that's Solution Design) but
+     "what we're deciding." Chosen By: human = needs approval, agent = implementer decides,
+     compiler = language semantics decide. Deadline: design = before coding, compile = before
+     shipping, runtime = may remain flexible. Change Cost: high = architectural ripple,
+     med = multi-file, low = localized. Aim for 3-7 rows. -->
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| [Decision 1] | [Why it matters] | [human/agent/compiler] | [design/compile/runtime] | [high/med/low] |
+| [Decision 2] | [Why it matters] | [human/agent/compiler] | [design/compile/runtime] | [high/med/low] |
+
+### Design Freeze
+
+<!-- Every "high" change-cost decision above must appear here as a checkbox.
+     Unchecked items = sprint-executor should PAUSE for human input. -->
+
+Before implementation begins, these must be resolved:
+
+- [ ] [Decision that must be made before coding]
+- [ ] [Decision that must be made before coding]
+
 ## Solution Design
 
 ### Overview
@@ -347,10 +370,21 @@ Every feature must align with AILANG's 12 Design Axioms. Score each axiom and ve
 **Manual testing:**
 - [What to verify manually]
 
+## Deferred Decisions
+
+<!-- NOT the same as Non-Goals. Non-Goals = "we won't do X."
+     Deferred Decisions = "we WILL do X but haven't decided HOW yet."
+     This tells agents where they have latitude. Always say who may resolve. -->
+
+The following are intentionally left open for the implementer:
+
+- [Decision 1] — [who may resolve, e.g., "agent may choose"]
+- [Decision 2] — [who may resolve]
+
 ## Non-Goals
 
-**Not in this feature:**
-- [Thing 1] - [Why deferred]
+**Not attempted in this feature:**
+- [Thing 1] - [Why out of scope]
 - [Thing 2] - [Why out of scope]
 
 ## Timeline
@@ -460,13 +494,11 @@ echo "  1. Edit $DOC_PATH to fill in the template"
 echo "  2. Replace [placeholders] with actual content"
 echo "  3. Commit when ready: git add $DOC_PATH"
 echo ""
-echo -e "${YELLOW}Pro tips:${NC}"
-echo "  - Complete the Axiom Compliance section (score all 12 axioms)"
-echo "  - Hard violations on A1/A3/A4/A7 = automatic rejection"
-echo "  - Net axiom score must be ≥ +2 to proceed"
-echo "  - Use M-XXX naming for milestone features"
-echo "  - Include concrete examples and metrics"
-echo "  - Keep estimates realistic (2x your initial guess)"
+echo -e "${YELLOW}Key sections to fill:${NC}"
+echo "  - High-Impact Decisions: name the actual choices, who decides, change cost"
+echo "  - Design Freeze: check off decisions before sprint-executor starts"
+echo "  - Deferred Decisions: grant agent latitude (separate from Non-Goals)"
+echo "  - Axiom Compliance: score all 12, net ≥ +2, no -1 on A1/A3/A4/A7"
 echo ""
 # Output coordinator markers (deterministic - script knows exactly what was created)
 echo "---"

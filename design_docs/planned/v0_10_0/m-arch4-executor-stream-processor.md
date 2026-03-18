@@ -83,6 +83,26 @@ for scanner.Scan() {
 - New event types require changes in 1 file
 - All executor tests pass
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| JSON-lines only (no binary/protobuf streams) | Limits future executor integrations to JSON-lines output format; non-JSON CLIs would need adapters | human | design | med |
+| Non-JSON lines silently skipped (not errored) | Critical for Gemini executor which emits non-JSON debug lines to stdout; changing to strict mode would break it | human | design | high |
+| `EventHandler` is a callback function (not interface) | Simpler API but no lifecycle hooks (OnStart, OnEnd); interface would allow richer executor integration | human | design | med |
+| 1MB max line buffer default | Affects ability to handle large tool outputs; too small truncates, too large wastes memory | human | design | low |
+| Event struct uses `map[string]interface{}` for Content (not typed structs) | Keeps processor generic but pushes type assertions to executor-specific handlers | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Confirm that both Claude and Gemini CLI outputs are valid JSON-lines (one JSON object per line)
+- [ ] Decide if `Event.Content` should be `map[string]interface{}` or `json.RawMessage` for downstream parsing
+- [ ] Verify 1MB buffer is sufficient by checking max observed line length in production logs
+- [ ] Determine whether context cancellation should drain remaining buffered lines or abort immediately
+- [ ] Agree on error semantics: should handler errors stop processing or be collected?
+
 ## Solution Design
 
 ### Overview
@@ -312,12 +332,22 @@ func TestStreamProcessor_ParsesEvents(t *testing.T) {
 **Manual testing:**
 - Run actual CLI commands and verify stream handling
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Whether to use `bufio.Scanner` or `bufio.Reader` for line reading — [agent may resolve]
+- Exact error wrapping format for stream parse failures — [agent may resolve]
+- Whether `StreamProcessor` should be a struct with options or a plain function — [agent may resolve]
+- Binary/protobuf stream support — will be needed when non-JSON executors are added — [human may resolve]
+- Event filtering by type (skip certain event types before handler) — [human may resolve]
+- Event buffering/batching for high-throughput scenarios — [human may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
 - Adding new event types - Focus on extraction
 - Changing event handling behavior - Same functionality
-- Supporting non-JSON streams - JSON-lines only
 
 ## Timeline
 

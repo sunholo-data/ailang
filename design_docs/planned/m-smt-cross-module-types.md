@@ -131,6 +131,28 @@ When a parameter name matches a record field accessor name, Z3 can't disambiguat
 - Total docparse verified: 15+ (from current 3)
 - Zero cascade errors from unrelated type declarations
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Demand-driven type collection (per-function) vs emit-all-types | Determines whether cascade failures are structurally impossible or must be prevented by correct type declarations; demand-driven is more work but eliminates an entire failure class | human | design | high |
+| Tarjan's SCC for mutual recursion detection | Commits to a specific cycle-detection algorithm; alternative (manual annotation of recursive groups) would be simpler but error-prone for users | agent | compile | med |
+| `declare-datatypes` (plural) for recursive groups vs workaround (forward declarations) | Z3 has no forward declarations, so `declare-datatypes` is the only correct encoding; this is technically forced but has syntax complexity | compiler | compile | high |
+| Parameter name prefix `$p_` to disambiguate from field accessors | Baked into all Z3 output; changing prefix later requires updating all Z3 assertion patterns and test expectations | agent | design | med |
+| Type dependency graph built once per verify invocation vs per-function | Once-per-invocation is more efficient but requires careful invalidation if functions modify the graph; per-function is simpler but slower | agent | compile | low |
+| Named record aliases stored in `RecordTypeAliases` map vs unified with ADT type registry | Separate map is simpler now but creates two parallel type registries; unifying later touches every Z3 codegen path | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Demand-driven type collection is the approach (not fixing emit-all to handle all edge cases)
+- [ ] `declare-datatypes` (plural, mutual recursion) is the encoding for recursive ADTs — no workaround
+- [ ] Parameter prefix is `$p_` (not `param_` or other) — affects all Z3 variable references
+- [ ] Record type aliases are a separate `RecordTypeAliases` map (not merged into the ADT registry)
+- [ ] Topological sort for alias declaration ordering (not multi-pass with resolved-check or other strategy)
+- [ ] Phase 1 (demand-driven) ships independently before Phase 2/3 — each phase must leave the system in a working state
+
 ## Solution Design
 
 ### Overview
@@ -338,11 +360,21 @@ verify.go                          codegen.go
 - docparse project `ailang verify` on all `.ail` files
 - Regression check: `examples/runnable/contracts_*.ail` all still pass
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact seed-type extraction strategy for function bodies (AST walk vs type-annotation-only vs conservative over-approximation) — [agent may resolve]
+- Whether the type dependency graph is exposed as a reusable API or kept internal to the verify command — [agent may resolve]
+- How to handle XmlNode (builtin Go TaggedValue) in Z3 encoding — requires mapping Go types to Z3 datatypes; mechanism TBD — [human may resolve in future version]
+- Whether SCC groups are cached across functions or recomputed per-function — [agent may resolve]
+- Format for `--verbose` output of demand-driven type decisions (which types included/excluded per function) — [agent may resolve]
+- Whether the stashed record alias prototype is resurrected as-is or rewritten to fit the new demand-driven architecture — [agent may resolve]
+
 ## Non-Goals
 
 - **Full mutual recursion support for arbitrary depth** — Only handle the common case (ADT ↔ inline record). Deeply nested mutual recursion is rare in practice.
 - **Z3 `declare-datatypes` for user-declared mutually recursive types** — AILANG doesn't yet support explicit mutual recursion declarations.
-- **XmlNode verification** — XmlNode is a builtin Go type (TaggedValue), not a user-defined ADT. Its Z3 encoding requires special handling (future work).
 - **Automatic contract inference** — This doc focuses on fixing existing contract verification, not inferring new contracts.
 
 ## Timeline

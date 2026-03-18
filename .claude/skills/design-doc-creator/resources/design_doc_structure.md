@@ -106,6 +106,108 @@ Development is slow and hard.
 - Faster
 ```
 
+### High-Impact Decisions
+
+```markdown
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| [Decision 1] | [Why it matters] | [human/agent/compiler] | [design/compile/runtime] | [high/med/low] |
+```
+
+**Purpose**: Force authors to name the actual choices being made and who has authority to make them. This is the bridge between constraints (axioms) and implementation.
+
+**Column definitions:**
+- **Decision**: What is being decided (not "what we're building" — that's Solution Design)
+- **Why High Impact**: What breaks or gets expensive if this decision changes later
+- **Chosen By**: `human` (requires explicit approval), `agent` (implementer may choose), `compiler` (language semantics decide)
+- **Deadline**: `design` (before coding), `compile` (before shipping), `runtime` (may remain flexible)
+- **Change Cost**: `high` (architectural), `med` (multi-file), `low` (localized)
+
+**Tips:**
+- Put this BEFORE Solution Design — decisions should inform the design, not follow from it
+- 3-7 rows is typical. If you have fewer than 3, the feature may not need a design doc
+- If "Chosen By" is always "human", the doc may be over-constrained for agent execution
+- If "Change Cost" is always "low", consider whether a design doc is needed at all
+
+**Good example:**
+```markdown
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Validation at compile time, not runtime | Shapes compiler architecture | human | design | high |
+| Single registry file per module | Affects file layout conventions | agent | implementation | low |
+| Error messages use structured format | Determines downstream tooling | human | design | med |
+```
+
+**Bad example:**
+```markdown
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Build the feature | It's the whole point | human | design | high |
+```
+
+### Design Freeze
+
+```markdown
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] [Decision that must be locked before coding starts]
+- [ ] [Decision that must be locked before coding starts]
+```
+
+**Purpose**: Separate what's decided from what's still open. Tells agents when to pause for human input vs. proceed.
+
+**Tips:**
+- Every "high" change-cost row from High-Impact Decisions should appear here
+- Use checkboxes — check them off during design review, before sprint execution
+- If a Design Freeze item is unchecked when sprint-executor starts, it should pause
+- Keep to 3-7 items. More than 7 means the design is too uncertain to implement
+
+**Good example:**
+```markdown
+- [x] Registry lives in `internal/builtins/` (not `internal/runtime/`)
+- [x] Type builder uses fluent API (not struct literals)
+- [ ] Error message format for validation failures
+```
+
+### Deferred Decisions
+
+```markdown
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- [Decision 1] — [who may resolve, e.g., "agent may choose"]
+- [Decision 2] — [who may resolve]
+```
+
+**Purpose**: Explicitly grant latitude. This is NOT the same as Non-Goals. Non-Goals = "we won't do X." Deferred Decisions = "we will do X but haven't decided how yet, and that's intentional."
+
+**Why this matters for agents**: Without this section, agents either over-constrain (treating everything not specified as forbidden) or under-constrain (guessing at unspecified details). This section tells them: "you have authority here."
+
+**Tips:**
+- Always specify who may resolve: `agent`, `human at review`, `compiler`
+- If something appears here, it should NOT also appear in Design Freeze
+- 3-10 items is typical
+- Review after implementation — deferred items that caused problems should become Design Freeze items in future docs
+
+**Good example:**
+```markdown
+- CLI output formatting — agent may choose
+- Internal helper function naming — agent may choose
+- Test fixture organization — agent may choose
+- Caching strategy for large inputs — human at review
+```
+
+**Bad example (too vague):**
+```markdown
+- Details TBD
+- Will figure it out later
+```
+
 ### Solution Design
 
 ```markdown

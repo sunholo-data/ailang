@@ -132,6 +132,30 @@ Entropy is **vector-valued**, not scalar. Each axis has independent failure mode
 | Temporal | Clock effect | ⚠️ Warn-only |
 | Interpretive | AI effect | No "who decides" annotation |
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Only 3 normative axes in v0.7.0 (semantic, behavioral, interpretive) | Scopes the compiler enforcement surface; adding axes later requires schema migration | human | design | med |
+| Authority axis derived from capability system (not independent) | Avoids redundancy but couples entropy validation to capability checker | human | design | low |
+| Temporal axis warn-only (not enforced) | Defers hard enforcement; changing to normative later requires compiler pass changes | human | design | low |
+| Three canonical deadline phases (design/compile/runtime) | Simplifies the language surface but may be too coarse for internal tooling | human | design | med |
+| Source annotations can tighten but never loosen envelope constraints | Core safety invariant; reversal would undermine the entire layered validation model | human | design | high |
+| Turn count is observational only (never a hard failure condition) | Prevents agents from gaming turn counts; but means high-entropy threads produce no error | human | design | med |
+| YAML frontmatter for entropy envelopes (not inline source) | Design docs become the authority; links source to design docs at compile time | human | design | high |
+| Entropy locality invariant (bounded entropy must identify collapse point) | Core correctness property; wrong formulation causes false positives or missed violations | compiler | compile | high |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Entropy YAML schema finalized with JSON Schema validation document
+- [ ] `@entropy` annotation syntax and parser token set locked
+- [ ] Layered validation rules specified (tighten-only consistency matrix)
+- [ ] EntropyViolation error type fields and fix-hint generation strategy agreed
+- [ ] Integration point between M-ENTROPY envelopes and M-D4 spec schema defined
+- [ ] Turn-count classification algorithm (clarification vs progress turns) specified
+
 ## Solution Design
 
 ### Overview
@@ -541,6 +565,17 @@ decision-making that remains unresolved...
 ```
 
 Reserve theory for documentation; keep errors actionable.
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact lexer token names for `@entropy` annotations (AT_ENTROPY vs ENTROPY_ANNOTATION, etc.) — [agent may resolve]
+- Turn-count storage schema in message store (new table vs columns on existing table) — [agent may resolve]
+- How design docs are linked to source modules at compile time (path convention vs explicit declaration) — [human may resolve]
+- Error message wording for EntropyViolation diagnostics (must follow "boring error" style guide) — [agent may resolve]
+- `ailang init` skeleton generation format for entropy envelopes — [agent may resolve]
+- Fine-grained internal deadline vocabulary mapping (parse/type-check/link to canonical phases) — [agent may resolve]
 
 ## Non-Goals
 

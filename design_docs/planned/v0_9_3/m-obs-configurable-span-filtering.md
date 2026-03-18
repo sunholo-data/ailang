@@ -70,6 +70,27 @@ The Observatory's `shouldFilterSpan()` function in `internal/observatory/otlp_re
 4. Current filtering behavior is unchanged when no config is provided (zero-config default)
 5. Filter config is logged at startup for debuggability
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Allow takes priority over deny | Determines operator mental model for all filter configurations; reversing priority later would break every existing deployment's filtering behavior | human | design | high |
+| Environment variables as sole config mechanism (no config file) | Operators must encode all rules in env vars; adding config file later requires migration path and dual-source resolution | human | design | med |
+| Immutable config (read once at startup, no reload) | Operators must restart the binary to change filtering; adding hot-reload later requires concurrency-safe config access | human | design | med |
+| Pattern syntax: prefix/exact/suffix only (no regex) | Limits expressiveness but keeps implementation simple; adding regex later is backward-compatible but changes matching semantics for edge cases | human | design | low |
+| `service:pattern` scoping syntax | Baked into env var format; changing delimiter or format later breaks existing deployments | human | design | med |
+| Default deny list compiled into binary | New AILANG services require code changes to add default deny rules unless operators use env vars | agent | compile | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Allow-before-deny priority is confirmed (not deny-before-allow or longest-match-wins)
+- [ ] `service:pattern` delimiter is colon (not `/` or `@`) — must not conflict with span name characters
+- [ ] Whether `AILANG_SPAN_FILTER_ALLOW` patterns use the same prefix/exact/suffix syntax as deny patterns
+- [ ] Whether `AILANG_SPAN_FILTER_DISABLE=true` also suppresses the startup config log line
+- [ ] Default deny list is finalized (current 25+ patterns are the correct baseline)
+
 ---
 
 ## Solution Design
@@ -283,14 +304,22 @@ AILANG_SPAN_FILTER_DENY=ailang-builder:heartbeat,ailang-builder:status.poll
 
 ---
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Config file format (`~/.ailang/span-filters.yaml`) — will be added if env var lists become unwieldy; format TBD — [human may resolve in future version]
+- Observatory dashboard UI for filter management — planned for future but mechanism (settings page vs inline toggle) is open — [human may resolve]
+- Whether `FilterPattern` uses compiled regex internally or plain string comparison — [agent may resolve]
+- Log format for startup filter config summary (structured JSON vs human-readable) — [agent may resolve]
+- Whether to expose filter metrics (filtered vs stored counts per pattern) — useful for tuning but adds overhead — [agent may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
-- **Config file (YAML/TOML)** — env vars are sufficient for v0.9.2; config file can be added later if needed
 - **Runtime config reload** — would require file watching or API endpoint; out of scope
 - **Regex patterns** — prefix/exact/suffix covers all current use cases without regex complexity
 - **Per-span sampling rates** — this is allow/deny filtering, not probabilistic sampling
-- **UI for filter management** — operators use env vars directly
 
 ---
 

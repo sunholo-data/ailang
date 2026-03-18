@@ -85,6 +85,27 @@ case TaskTypeDocs, TaskTypeResearch:
 - All routing tests pass
 - Classification logic in one file (<300 lines)
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Single `TaskClassifier` service replaces 3 separate implementations | All routing depends on this; incorrect consolidation breaks task dispatch | human | design | high |
+| Keyword-based classification (not ML/heuristic) | Keeps classification deterministic and testable, but limits accuracy on ambiguous directives | human | design | med |
+| Fixed priority order: bug > test > docs > research > refactor > feature | Priority determines winner when directive matches multiple keyword lists; changing order changes routing | human | design | med |
+| Default to `TaskTypeFeature` when no keywords match | Unclassified tasks route to coding executors rather than failing; affects unrecognized directives | human | design | med |
+| Classifier lives in sub-package `classifier/` (not inline in coordinator) | Prevents import cycles and enables independent testing, but adds package indirection | human | design | low |
+| Providers delegate to classifier via `IsCodingTask()`/`IsResearchTask()` helpers | Providers lose ability to define custom routing logic per task type | compiler | compile | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Merge all 3 keyword lists and resolve conflicts (different keywords in analyzer vs capability detector)
+- [ ] Confirm the priority order is correct by testing against historical task routing data
+- [ ] Decide whether `TaskTypeFeature` default is acceptable or unclassified tasks should error
+- [ ] Determine if providers need a hook to override classifier decisions for edge cases
+- [ ] Write golden tests capturing current routing behavior before any code changes
+
 ## Solution Design
 
 ### Overview
@@ -281,12 +302,22 @@ func (a *TaskAnalyzer) analyzeType(directive string) TaskType {
 **Manual testing:**
 - Submit tasks via CLI, verify correct routing
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact keyword lists per task type (merge from 3 sources during implementation) — [agent may resolve]
+- Whether classifier is instantiated as singleton or per-request — [agent may resolve]
+- ML-based classification approach — will replace keyword matching in a future iteration — [human may resolve]
+- User-configurable keyword lists via config.yaml — will be added once classifier interface stabilizes — [human may resolve]
+- Classification confidence scores and how they affect routing — [human may resolve]
+- Whether `Classify()` returns a single type or ranked list of candidates — [agent may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
 - Adding new task types - Focus on consolidation
-- ML-based classification - Keep keyword-based for now
-- User-configurable keywords - Future enhancement
+- Changing task type enum values or adding new ones
 
 ## Timeline
 

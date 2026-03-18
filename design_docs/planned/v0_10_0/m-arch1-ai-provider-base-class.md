@@ -70,6 +70,26 @@ The `internal/ai/` package contains 4 provider implementations (Anthropic, OpenA
 - Single location for OTEL instrumentation, error handling, HTTP configuration
 - All existing tests continue to pass
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Use Go struct embedding (not interface) for BaseClient | Determines how providers access shared functionality; embedding exposes all base methods on provider type, interface would require delegation | human | design | high |
+| Place base package at `internal/ai/base/` | Package path determines import graph and dependency direction for all 4 providers | human | design | high |
+| Unified `ProviderError` replaces per-provider error structs | All callers must switch to single error type; affects every error handling path | human | design | med |
+| OTEL span helpers in base (not per-provider) | Provider-specific attributes (model, token counts) must still be attachable; base spans set the attribute schema | human | design | med |
+| Functional options pattern shared across providers | Locks all providers into same option signature `base.ClientOption`; provider-specific options need extension mechanism | human | design | med |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Confirm struct embedding over interface-based composition for BaseClient
+- [ ] Define the exact `ProviderError` fields and decide if status code + request ID are sufficient
+- [ ] Decide whether provider-specific `ClientOption` extensions are allowed or all options live in base
+- [ ] Agree on OTEL span naming convention (`provider.operation` vs `ai.provider.operation`)
+- [ ] Validate that `internal/ai/base/` creates no import cycle with existing provider packages
+
 ## Solution Design
 
 ### Overview
@@ -249,12 +269,21 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 - Run `ailang eval-suite` with refactored providers
 - Verify OTEL traces appear correctly in backend
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Internal field naming and accessor methods on BaseClient — [agent may resolve]
+- Whether `WithTimeout` uses `context.WithTimeout` or `http.Client.Timeout` — [agent may resolve]
+- Order of OTEL attributes on provider spans (beyond provider name and model) — [agent may resolve]
+- Whether to add a `Validate()` method on BaseClient for pre-flight checks — [agent may resolve]
+- Retry logic hooks in base (placeholder interface vs omit entirely for now) — [human may resolve in future iteration]
+
 ## Non-Goals
 
 **Not in this feature:**
 - Adding new providers - Focus on refactoring existing 4
 - Changing provider behavior - Purely structural refactor
-- Provider-specific optimizations - Same functionality, less code
 
 ## Timeline
 

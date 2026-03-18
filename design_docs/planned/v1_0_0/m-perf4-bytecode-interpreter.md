@@ -83,6 +83,29 @@ Source → Parse → Elaborate → Type Check → Core AST → EVALUATE (travers
 4. **No instruction locality**: CPU cache misses from random memory access
 5. **No tail-call optimization**: Stack grows linearly with recursion depth
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Custom bytecode VM (not reusing WASM/Lua/existing VM) | Avoids impedance mismatch with AILANG's effect system but means building and maintaining a VM from scratch | human | design | high |
+| Stack-based VM (not register-based) | Determines instruction set design, compiler complexity, and performance ceiling | human | design | high |
+| Bytecode as alternative path (tree-walker still available via flag) | Requires maintaining two execution backends indefinitely; but de-risks the migration | human | design | med |
+| Effect system support baked into opcode set (OP_EFFECT_CALL, OP_EFFECT_RESUME) | Effects must work identically in bytecode and tree-walking; wrong design breaks semantic equivalence | human | design | high |
+| Tail-call optimization in VM (OP_TAIL_CALL opcode) | Critical for recursive AILANG programs; without it, stack overflows on deep recursion | compiler | compile | med |
+| M-PERF3 quick wins as prerequisite (decision gate before starting) | May eliminate the need for bytecode entirely; avoids 4-6 weeks of unnecessary work | human | design | low |
+| Go codegen (`--emit-go`) kept as separate alternative to bytecode | Two performance paths (interpreted bytecode vs compiled Go); users choose based on context | human | design | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] M-PERF3 completed and benchmarked — proceed only if still >3x slower than Python
+- [ ] Opcode set finalized (especially effect-related opcodes)
+- [ ] VM value representation decided (tagged union vs interface vs NaN-boxing)
+- [ ] Closure and upvalue capture strategy specified
+- [ ] Pattern matching compilation strategy chosen (decision tree vs backtracking)
+- [ ] Semantic equivalence test suite defined (bytecode must pass all existing tests)
+
 ## Solution Design
 
 ### Bytecode Compilation
@@ -333,6 +356,17 @@ internal/
 | Effect system complexity | Medium | Design effects into VM from start |
 | Development time overrun | Medium | Time-box phases, cut scope if needed |
 | Not worth the investment | Low | M-PERF3 quick wins first, evaluate need |
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- VM value representation (tagged union vs Go interface vs NaN-boxing) — [agent may resolve]
+- Constant pool encoding format (inline vs separate section) — [agent may resolve]
+- Disassembler output format and debug annotation strategy — [agent may resolve]
+- Stack size limits and overflow detection mechanism — [agent may resolve]
+- Whether `--bytecode` is opt-in flag or becomes the default after validation — [human may resolve]
+- Upvalue capture strategy (flat closures vs upvalue chains) — [agent may resolve]
 
 ## Non-Goals
 

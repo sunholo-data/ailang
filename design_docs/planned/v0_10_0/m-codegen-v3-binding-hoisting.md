@@ -107,6 +107,26 @@ This is valid because:
 2. Evaluation order is preserved (`e1` before `e2`)
 3. `x` doesn't escape the function
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Recursive `LowerDeep` vs single-level hoisting | Recursive approach eliminates all nested IIFEs but increases complexity; single-level only removes one layer at a time | agent | design | med |
+| Variable name collision strategy: detect-and-rename vs rely on elaborator uniqueness | If elaborator guarantees uniqueness, no rename needed; if not, silent collisions corrupt generated code | compiler | compile | high |
+| Keep original `Lower()` as fallback or replace entirely | Keeping both means maintenance burden but provides safety net for debugging regressions | human | design | low |
+| Hoist only in function bodies vs all expression contexts | Function-body-only is safe and covers most cases; all-context hoisting is more complete but risks edge cases in nested lambdas | human | design | med |
+| Effect ordering: trust ANF guarantee vs add explicit ordering checks | ANF should guarantee correct order, but if the invariant is ever violated, hoisting silently reorders effects | compiler | compile | high |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Confirm elaborator uniqueness guarantee for tmp variables (determines whether rename logic is needed)
+- [ ] Decide whether `LowerDeep` replaces `Lower` or coexists as an alternative path
+- [ ] Decide scope of hoisting: function bodies only (Phase 1) or all expression contexts
+- [ ] Verify ANF invariant holds for all effect-bearing expressions in current codebase
+- [ ] Define IIFE count threshold for CI gate (stretch goal — needs a baseline number)
+
 ---
 
 ## Solution Design
@@ -276,6 +296,16 @@ let f = let x = 1 in (\() -> x) in f()
 
 ---
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact rename strategy for variable collisions (prefix, suffix, counter increment) — [agent may resolve]
+- Whether to emit comments in generated Go marking which bindings were hoisted (aids debugging but adds noise) — [agent may resolve]
+- Performance benchmark methodology for measuring IIFE reduction impact — [agent may resolve]
+- Whether `LowerDeep` should bail out and fall back to IIFE for specific edge cases (e.g., deeply nested closures) — [agent may resolve]
+- CI threshold value for IIFE count gate — depends on baseline measurement from stapledons_voyage — [human may resolve]
+
 ## Non-Goals
 
 - Full typed codegen (M-DX24)
@@ -283,7 +313,7 @@ let f = let x = 1 in (\() -> x) in f()
 - Direct field access
 - Eliminating `_impl` wrapper pattern
 
-These remain deferred to future milestones.
+These are explicitly out of scope for this milestone.
 
 ---
 

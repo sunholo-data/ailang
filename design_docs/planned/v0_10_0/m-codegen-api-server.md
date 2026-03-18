@@ -75,6 +75,29 @@ Today, deploying AILANG modules as APIs requires choosing between two imperfect 
 - MCP tools work with Claude Desktop without interpreter running
 - Single `go build` produces deployable binary (no runtime dependencies on AILANG)
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Embed metadata as `//go:embed` static files vs generate Go code that builds structs | Determines build-time dependencies and how OpenAPI/A2A specs are consumed — embed is simpler but less flexible for dynamic content | agent | design | med |
+| Reuse `internal/apiserver/schema/` at compile time vs fork/duplicate schema logic | Single source of truth avoids parity drift, but creates coupling between interpreter and codegen paths | human | design | high |
+| HTTP framework: raw `net/http` vs chi/echo/gin in generated server | Affects dependency footprint of generated binary and composability with user middleware | human | design | high |
+| MCP transport: stdio-only vs stdio+HTTP | Affects whether compiled binary can serve MCP over network (Claude Desktop uses stdio, but HTTP needed for remote MCP) | human | design | med |
+| Request format: `{"args": [...]}` positional vs named JSON fields | Locks the wire protocol for all consumers — changing later breaks all clients | human | design | high |
+| Generated `go.mod` pins dependency versions vs uses latest | Reproducibility vs freshness trade-off; pinning ensures deterministic builds | agent | compile | low |
+| Single binary entrypoint vs library package that users import | Single binary is simpler but library pattern allows embedding in existing Go services | human | design | high |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] HTTP framework choice (raw net/http vs third-party router) — affects all generated handler code
+- [ ] Wire protocol for function invocation (positional args vs named fields)
+- [ ] Whether generated server is a standalone binary or importable library
+- [ ] Schema code sharing strategy (reuse at compile time vs fork)
+- [ ] MCP transport modes to support (stdio, HTTP, or both)
+- [ ] How effect handlers are wired in the generated server (interface injection, config file, code generation)
+
 ---
 
 ## Solution Design
@@ -327,12 +350,23 @@ cd build && go build -o docparse-api && docker build -t docparse .
 - Swagger UI functionality
 - Docker containerization
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Template engine for generated Go code (text/template, string concatenation, or jennifer) — [agent may resolve]
+- Exact Swagger UI version and embedding strategy — [agent may resolve]
+- CORS configuration mechanism in generated server (flags, env vars, or config file) — [agent may resolve]
+- Port and host binding defaults for generated main.go — [agent may resolve]
+- Whether to generate a Dockerfile alongside the Go project — [agent may resolve]
+- Error response format details (beyond matching current `ailang serve-api` structure) — [agent may resolve]
+- How to handle auth/authz middleware injection points — architecture is "users add Go middleware," but the exact composability pattern (middleware chain, wrapper function, interface) is open — [agent may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
 - **Hot reload in compiled binary** — Use `ailang serve-api --watch` for development
 - **WebSocket support** — HTTP request/response only (matches current `ailang serve-api`)
-- **Authentication/authorization** — Users add Go middleware (compiled server composes with any Go framework)
 - **Database/state management** — Effect handlers are user-provided, not generated
 - **gRPC/GraphQL** — HTTP+JSON only (OpenAPI, MCP, A2A)
 

@@ -54,6 +54,29 @@ let json = "{\"name\": \"" ++ escapeJSON(name) ++ "\"}"  -- Quotes must be escap
 - 50% reduction in string construction boilerplate
 - AI models can generate safe web code (measured via M-EVAL)
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Three quasiquote forms: SQL, HTML, JSON (not extensible in v1) | Fixed set means no user-defined quasiquotes; adding new forms requires compiler changes | human | design | med |
+| Type annotations required on interpolations (`${x: int}`) | Explicit types prevent injection but add verbosity; inference would change the UX significantly | human | design | high |
+| SQL quasiquotes elaborate to parameterized queries (not string concat) | Core security guarantee; determines the entire SQL codegen strategy | human | design | high |
+| SafeText type for HTML escaping (compile-time enforcement) | Introduces a new type into the type system; all HTML-producing code must use it | human | design | high |
+| Triple-quoted string syntax for multi-line quasiquotes | Lexer must handle nested quotes and interpolations inside triple-quotes; complex tokenization | human | design | med |
+| JSON quasiquotes return JSONValue ADT (not string) | Structured return type enables composition but requires JSONValue to be a first-class type | human | design | med |
+| Defer to v0.5.0 unless web API support is critical | Timing decision; implementing in v0.4.2 blocks property-based testing which is higher priority | human | design | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Quasiquote prefix syntax locked (`sql"""`, `html"""`, `json{` — or alternatives)
+- [ ] Interpolation syntax finalized (`${expr: type}` vs `#{expr}` vs other)
+- [ ] SafeText type definition and escapeHTML builtin signature frozen
+- [ ] SQL parameterization output format decided (`$1` positional vs named params)
+- [ ] QuasiquoteExpr AST node shape agreed upon
+- [ ] Decision on v0.4.2 (JSON-only, ~40h) vs v0.5.0 (all three, ~100h) scope
+
 ## Solution Design
 
 ### Overview
@@ -361,12 +384,22 @@ let response = encode(
 - Add "generate XSS-safe HTML" benchmark
 - Measure AI success rate before/after quasiquotes
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Lexer tokenization strategy for nested quotes inside triple-quoted quasiquotes — [agent may resolve]
+- HTML quasiquote well-formedness checking depth (tag matching vs just escaping) — [agent may resolve]
+- JSON quasiquote type inference rules (how AILANG types map to JSON types) — [agent may resolve]
+- Error message format for interpolation type mismatches — [agent may resolve]
+- Whether `json{}` uses braces or triple-quotes for consistency with SQL/HTML — [human may resolve]
+- GraphQL quasiquote design (deferred to v0.5.0+) — [human may resolve]
+- Regex quasiquote design (deferred to v0.5.0+) — [human may resolve]
+- Custom/user-defined quasiquote type extension mechanism — [human may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
-- **GraphQL quasiquotes** - Deferred to v0.5.0+
-- **Regex quasiquotes** - Deferred to v0.5.0+
-- **Custom quasiquote types** - Only SQL, HTML, JSON in v0.4.2
 - **Quasiquote macros** - No user-defined quasiquotes yet
 - **Streaming/lazy evaluation** - Quasiquotes fully evaluate
 - **Syntax highlighting** - Editor support is out of scope

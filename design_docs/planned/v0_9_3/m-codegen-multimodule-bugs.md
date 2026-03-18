@@ -132,6 +132,26 @@ Option 1 is recommended — it's the smallest change and eliminates an entire cl
 - Zero syntax errors in generated Go code
 - Existing single-module codegen tests still pass
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Per-module Generator vs shared Generator with reset | Determines whether cross-module state contamination is structurally impossible or manually managed; wrong choice leads to recurring name-collision bugs | human | design | high |
+| Module prefix format (`moduleName__funcName`) | Baked into every generated Go identifier; changing later breaks all compiled Go consumers | agent | compile | high |
+| Non-exported prefix only (exported functions unprefixed) | Exported functions must be callable from user Go code; prefixing exported names changes the public API surface | human | design | med |
+| Dedup via `emittedVars` set vs Core-level dedup | Fixes symptom (duplicate Go vars) vs root cause (duplicate Core Let nodes); Core fix would be cleaner but riskier | agent | design | med |
+| Bug 3 fix scope: targeted patch vs general list-pattern codegen audit | Targeted is faster but may leave similar bugs; audit is slower but comprehensive | human | design | low |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Per-module Generator (Option A) vs shared Generator with `ResetPerModuleState()` (Option B) — determines compile loop architecture
+- [ ] Whether exported functions also get module prefixes (currently: no — but collisions possible if two modules export same name)
+- [ ] Whether Bug 1 dedup happens at codegen level (`emittedVars`) or Core lowering level (prevent duplicate Let nodes)
+- [ ] Confirm Bug 3 root cause by inspecting generated `markdown_parser.go` line 66 — fix design depends on the specific construct
+- [ ] What shared state (ADT constructors, record types, runtime helpers) must survive across per-module Generator instances
+
 ---
 
 ## Solution Design
@@ -245,6 +265,15 @@ func docparseBrowser__parseDocxComments_impl(...) interface{} { ... }
 **Manual testing:**
 - Inspect generated Go files for correct prefixing
 - Run DocParse Go binary (stretch goal — requires harness)
+
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Exact naming convention for module short names (last path component vs hash vs full path encoding) — [agent may resolve]
+- Whether `emittedVars` dedup set is per-module or global — [agent may resolve]
+- How to propagate shared ADT/record type info to fresh per-module Generators (constructor map copy vs shared pointer vs pre-registration pass) — [agent may resolve]
+- Bug 3 fix location (`codegen_match.go` vs `codegen_ops.go` vs `codegen_expr.go`) — depends on the specific construct found at line 66 — [agent may resolve after inspection]
 
 ## Non-Goals
 

@@ -67,6 +67,28 @@ When all code in a repository is AI-generated, we need to trace **which conversa
 - Dashboard shows clickable provenance links
 - 100% of coordinator-managed code changes are traceable
 
+## High-Impact Decisions
+
+| Decision | Why High Impact | Chosen By | Deadline | Change Cost |
+|----------|-----------------|-----------|----------|-------------|
+| Cross-database query strategy: JOIN via attached DB vs application-level join | Attached DB is faster but couples to SQLite; application-level join works with any backend but is slower | agent | design | med |
+| Content hash algorithm: murmur3 vs SHA-256 | Locks the hash format in Agent Trace exports — consumers will depend on this for deduplication | human | design | high |
+| Agent Trace spec version to target (0.1.0) | Spec is new and may change; pinning to 0.1.0 means we may need migration later | human | design | med |
+| Provenance record storage: query-on-demand from existing DBs vs materialized provenance table | Query-on-demand has no new storage but is slower; materialized table is fast but adds schema and sync complexity | human | design | high |
+| Line attribution source: parse `git diff` hunks vs use tool_input old_string/new_string offsets | Git diff is authoritative but requires repo access; tool_input is available in DB but may not have line numbers | agent | compile | med |
+| Internal URL scheme for conversation references (`ailang://task/...`) | Becomes part of the export format and must be stable — changing breaks external tooling that parses these URLs | human | design | high |
+
+### Design Freeze
+
+Before implementation begins, these must be resolved:
+
+- [ ] Cross-database query approach (SQLite ATTACH vs application-level join)
+- [ ] Content hash algorithm and format string (e.g., `murmur3:` prefix)
+- [ ] Internal URL scheme for `ailang://` provenance references
+- [ ] Whether provenance is query-on-demand or materialized
+- [ ] Agent Trace spec version commitment (0.1.0 or track latest)
+- [ ] Graceful degradation strategy for files not tracked by coordinator
+
 ## Solution Design
 
 ### Overview
@@ -366,13 +388,24 @@ Content hash: murmur3:9f2e8a1b
 - Test with files modified by multiple sessions
 - Test with renamed/moved files
 
+## Deferred Decisions
+
+The following are intentionally left open for the implementer:
+
+- Output formatting for human-readable mode (table, tree, or narrative style) — [agent may resolve]
+- Caching strategy for repeated provenance queries on the same file — [agent may resolve]
+- Index creation strategy on observatory.db (which columns, when to create) — [agent may resolve]
+- How to handle renamed/moved files in provenance chain (follow git renames, store old paths, or both) — [agent may resolve]
+- CLI flag naming conventions for time range filters (`--since`/`--until` vs `--from`/`--to`) — [agent may resolve]
+- Whether `--export agent-trace` writes to stdout or a file by default — [agent may resolve]
+- IDE integration approach (VS Code extension, LSP, or hover provider) — will be done but HOW is open — [human may resolve]
+
 ## Non-Goals
 
 **Not in this feature:**
-- **Real-time tracking** - We query after-the-fact, not during execution
-- **Blame integration** - We use our own data, not `git blame` (which doesn't know sessions)
-- **IDE integration** - CLI only; IDE plugins are future work
-- **Training data export** - Agent Trace is for attribution, not training
+- **Real-time tracking** — We query after-the-fact, not during execution
+- **Blame integration** — We use our own data, not `git blame` (which doesn't know sessions)
+- **Training data export** — Agent Trace is for attribution, not training
 
 ## Timeline
 
