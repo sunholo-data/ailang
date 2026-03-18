@@ -100,6 +100,42 @@ func NewCoreEvaluator() *CoreEvaluator {
 	}
 }
 
+// Fork creates a new evaluator for concurrent request handling.
+// It shares read-only state (registry, config) but creates fresh per-request
+// state (env, resolver, recursionDepth). This is the concurrency primitive:
+// each HTTP request goroutine gets its own Fork.
+func (e *CoreEvaluator) Fork() *CoreEvaluator {
+	env := NewEnvironment()
+	registerBuiltins(env)
+
+	forked := &CoreEvaluator{
+		env:                   env,
+		registry:              e.registry, // shared, read-only after init
+		experimentalBinopShim: e.experimentalBinopShim,
+		maxRecursionDepth:     e.maxRecursionDepth,
+		// resolver: nil        — set by CallEntrypoint per request
+		// recursionDepth: 0    — fresh per request
+		// coreTypeInfo: zero   — set during evaluation
+	}
+
+	// Clone EffContext so each request has its own FnCaller/FnCallerN bindings.
+	// The shallow copy shares config (Caps, Env, Clock, Net) but the forked
+	// evaluator's CallValue/CallValueN get wired to this fork, not the parent.
+	if e.effContext != nil {
+		type cloneable interface {
+			Clone() interface{}
+		}
+		if c, ok := e.effContext.(cloneable); ok {
+			forked.effContext = c.Clone()
+		} else {
+			forked.effContext = e.effContext
+		}
+		forked.wireFnCallers()
+	}
+
+	return forked
+}
+
 // AddDictionary adds a dictionary to the evaluator (for REPL)
 func (e *CoreEvaluator) AddDictionary(key string, dict core.DictValue) {
 	// Register each method in the dictionary

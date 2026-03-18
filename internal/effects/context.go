@@ -606,6 +606,14 @@ func (ctx *EffContext) GetIOReader() *bufio.Reader {
 	return ctx.stdinReader
 }
 
+// Clone creates a shallow copy of the EffContext for per-request isolation.
+// Config fields (Caps, Env, Clock, Net, etc.) are shared by reference.
+// FnCaller/FnCallerN will be re-wired by the forked evaluator.
+func (ctx *EffContext) Clone() interface{} {
+	clone := *ctx // shallow copy
+	return &clone
+}
+
 // SetFnCaller sets the single-arg function caller callback.
 // M-ITERATIVE-LIST: Used by embed.Engine to wire callbacks without importing effects.
 func (ctx *EffContext) SetFnCaller(fn func(eval.Value, eval.Value) (eval.Value, error)) {

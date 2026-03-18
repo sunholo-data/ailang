@@ -72,10 +72,15 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 		return nil, fmt.Errorf("entrypoint '%s' is not a function (got %T)", name, entrypoint)
 	}
 
-	// 3. Set up resolver for cross-module references
-	resolver := newModuleGlobalResolver(inst, rt)
-	rt.evaluator.SetGlobalResolver(resolver)
+	// 3. Fork the evaluator for this request — each goroutine gets its own copy.
+	// This eliminates race conditions on resolver, env, and effContext when
+	// serve-api handles concurrent HTTP requests.
+	reqEval := rt.evaluator.Fork()
 
-	// 4. Call the function using the evaluator's CallFunction method
-	return rt.evaluator.CallFunction(fn, args)
+	// 4. Set up resolver for this request's module context
+	resolver := newModuleGlobalResolver(inst, rt)
+	reqEval.SetGlobalResolver(resolver)
+
+	// 5. Call the function on the forked evaluator
+	return reqEval.CallFunction(fn, args)
 }
