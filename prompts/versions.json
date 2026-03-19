@@ -506,7 +506,7 @@
     },
     "v0.9.0": {
       "file": "prompts/v0.9.0.md",
-      "hash": "c6d9fea2b727dd711f2f0a4679046342e62814efc0d2b13466acfc0c18813fe8",
+      "hash": "5da4d52f258cc9354b8970a2f1cbba4b7e77fecf6d4cb99a17a6b3a2e4940765",
       "description": "Streaming v0.9.0: multi-source multiplexing (selectEvents), subprocess streaming (asyncExecProcess), correct SSE/WebSocket type signatures",
       "created": "2026-03-08",
       "tags": [
