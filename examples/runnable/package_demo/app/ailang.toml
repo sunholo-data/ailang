@@ -1,0 +1,17 @@
+[package]
+name = "demo/app"
+version = "0.1.0"
+edition = "1"
+description = "Demo app using the mathlib package"
+
+[exports]
+modules = ["demo/app/main"]
+
+[dependencies]
+"demo/mathlib" = { path = "../mathlib" }
+
+[effects]
+max = []
+
+[stability]
+level = "experimental"

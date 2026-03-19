@@ -101,6 +101,12 @@ func TestImportDeclarations(t *testing.T) {
 			"import std/list (length, map as listMap, filter)",
 			"module/import_mixed_symbol_aliases",
 		},
+		// Package import tests (M-PKG)
+		{
+			"import_package_symbols",
+			"import pkg/sunholo/json/parser (parseJson)",
+			"module/import_package_symbols",
+		},
 	}
 
 	for _, tt := range tests {

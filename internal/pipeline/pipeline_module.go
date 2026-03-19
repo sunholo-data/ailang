@@ -82,6 +82,12 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	modLoader := loader.NewModuleLoader(".")
 	modLoader.SetStrictSyntaxMode(cfg.StrictSyntaxMode)
+
+	// Wire up package loader if ailang.toml + ailang.lock exist
+	if pkgResolver := tryLoadPackageResolver("."); pkgResolver != nil {
+		modLoader.SetPackageResolver(pkgResolver)
+	}
+
 	modules, err := modLoader.LoadAll([]string{src.Filename})
 	if err != nil {
 		loadErr := fmt.Errorf("module loading error: %w", err)
@@ -379,6 +385,13 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	// Exception: std/* modules bypass this check
 	if strings.HasPrefix(canonicalID, "std/") || mod.File.Module.Path == canonicalID {
 		return nil
+	}
+	// Exception: pkg/* imports — strip pkg/ prefix before comparing
+	// The module declares "vendor/name/module" but the import path is "pkg/vendor/name/module"
+	if strings.HasPrefix(canonicalID, "pkg/") {
+		if mod.File.Module.Path == strings.TrimPrefix(canonicalID, "pkg/") {
+			return nil
+		}
 	}
 
 	// Check if relaxation applies

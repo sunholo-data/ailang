@@ -201,6 +201,18 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 		imp.Path = path
 	}
 
+	// Detect pkg/ prefix for external package imports
+	if strings.HasPrefix(imp.Path, "pkg/") {
+		imp.IsPackage = true
+		// Extract package name (first two segments after pkg/): pkg/vendor/name/module → vendor/name
+		rest := strings.TrimPrefix(imp.Path, "pkg/")
+		parts := strings.SplitN(rest, "/", 3)
+		if len(parts) >= 2 {
+			imp.PackageName = parts[0] + "/" + parts[1]
+		}
+		// Keep pkg/ prefix in path — the loader uses it to route to PackageLoader
+	}
+
 	// Check for module aliasing: import std/list as List
 	if p.peekTokenIs(lexer.AS) {
 		p.nextToken() // consume 'as'

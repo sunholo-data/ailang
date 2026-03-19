@@ -183,9 +183,10 @@ func TestCrossDirectoryImports(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Create two sibling directories: pkg/types and pkg/impl
-	typesDir := filepath.Join(tempDir, "pkg", "types")
-	implDir := filepath.Join(tempDir, "pkg", "impl")
+	// Create two sibling directories: lib/types and lib/impl
+	// (Note: "pkg/" is reserved for external package imports in AILANG)
+	typesDir := filepath.Join(tempDir, "lib", "types")
+	implDir := filepath.Join(tempDir, "lib", "impl")
 	if err := os.MkdirAll(typesDir, 0755); err != nil {
 		t.Fatalf("failed to create types dir: %v", err)
 	}
@@ -193,8 +194,8 @@ func TestCrossDirectoryImports(t *testing.T) {
 		t.Fatalf("failed to create impl dir: %v", err)
 	}
 
-	// Create pkg/types/defs.ail
-	defsContent := `module pkg/types/defs
+	// Create lib/types/defs.ail
+	defsContent := `module lib/types/defs
 
 type Point = { x: int, y: int }
 
@@ -206,10 +207,10 @@ export pure func newPoint(x: int, y: int) -> Point {
 		t.Fatalf("failed to write defs.ail: %v", err)
 	}
 
-	// Create pkg/impl/main.ail that imports from sibling
-	mainContent := `module pkg/impl/main
+	// Create lib/impl/main.ail that imports from sibling
+	mainContent := `module lib/impl/main
 
-import pkg/types/defs (newPoint)
+import lib/types/defs (newPoint)
 
 export func main() -> int {
     let p = newPoint(10, 20);
@@ -232,7 +233,7 @@ export func main() -> int {
 
 	// Compile
 	src := Source{
-		Filename: "pkg/impl/main.ail",
+		Filename: "lib/impl/main.ail",
 	}
 	cfg := Config{
 		Mode: ModeCheck,

@@ -292,6 +292,24 @@ func main() {
 	case "verify":
 		verifyCommand()
 
+	case "add":
+		if err := pkgAddCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "lock":
+		if err := pkgLockCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "tree":
+		if err := pkgTreeCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "ai-check":
 		aiCheckCommand()
 

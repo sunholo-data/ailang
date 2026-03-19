@@ -32,6 +32,8 @@ func initCommand(args []string) error {
 			name = flagSet.Arg(1)
 		}
 		return initWebApp(name)
+	case "package":
+		return initPackageCommand(flagSet.Args()[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "%s: unknown init type %q\n", red("Error"), kind)
 		printInitHelp()
@@ -113,8 +115,10 @@ func printInitHelp() {
 	fmt.Println()
 	fmt.Println("Types:")
 	fmt.Println("  web-app    Create a web app with AILANG API backend + React frontend")
+	fmt.Println("  package    Create an ailang.toml package manifest in the current directory")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang init web-app myproject")
 	fmt.Println("  ailang init web-app")
+	fmt.Println("  ailang init package --name sunholo/mylib")
 }

@@ -126,6 +126,8 @@ type ImportDecl struct {
 	Symbols       []string          // Selective imports (empty = whole module)
 	ModuleAlias   string            // Module alias: "import std/list as List" -> "List"
 	SymbolAliases map[string]string // Symbol aliases: original -> alias (e.g., "length" -> "stringLength")
+	IsPackage     bool              // True if import uses pkg/ prefix (external package)
+	PackageName   string            // Package name (vendor/name) extracted from pkg/ import path
 	Pos           Pos
 	Span          Span
 }

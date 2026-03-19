@@ -94,6 +94,10 @@ func simplify(node interface{}) interface{} {
 			"type": "ImportDecl",
 			"path": n.Path,
 		}
+		if n.IsPackage {
+			m["isPackage"] = true
+			m["packageName"] = n.PackageName
+		}
 		if n.ModuleAlias != "" {
 			m["moduleAlias"] = n.ModuleAlias
 		}

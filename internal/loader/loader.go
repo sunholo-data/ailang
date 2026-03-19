@@ -25,6 +25,13 @@ type ModuleLoader struct {
 	basePath         string          // Base directory for relative imports
 	strictSyntaxMode bool            // When true, syntactic sugar is not allowed
 	stdlibResolver   *StdlibResolver // Stdlib path resolver (initialized lazily)
+	pkgLoader        PackageResolver // Optional package loader for pkg/ imports
+}
+
+// PackageResolver resolves package imports to source file paths.
+// Implemented by pkg.PackageLoader.
+type PackageResolver interface {
+	ResolveImport(importPath string) (string, error)
 }
 
 // LoadedModule represents a loaded and parsed module
@@ -52,6 +59,11 @@ func NewModuleLoader(basePath string) *ModuleLoader {
 // SetStrictSyntaxMode enables or disables strict syntax mode
 func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 	ml.strictSyntaxMode = strict
+}
+
+// SetPackageResolver sets the resolver for pkg/ imports.
+func (ml *ModuleLoader) SetPackageResolver(resolver PackageResolver) {
+	ml.pkgLoader = resolver
 }
 
 // ConfigureStdlibResolver configures the stdlib resolver with CLI flags
@@ -115,6 +127,19 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		relPath := filepath.Join(ml.basePath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
+	} else if strings.HasPrefix(canonPath, "pkg/") {
+		// External package import — resolve via PackageLoader
+		if ml.pkgLoader == nil {
+			return nil, fmt.Errorf("package import %q requires ailang.toml and ailang.lock; run 'ailang init package' and 'ailang lock'", canonPath)
+		}
+		// Strip pkg/ prefix for the package resolver
+		pkgImportPath := strings.TrimPrefix(canonPath, "pkg/")
+		resolvedPath, err := ml.pkgLoader.ResolveImport(pkgImportPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve package import %q: %w", canonPath, err)
+		}
+		fullPath = resolvedPath
+		searchTrace = append(searchTrace, "package: "+resolvedPath)
 	} else if strings.HasPrefix(canonPath, "std/") {
 		// Standard library path - use StdlibResolver
 		// Initialize resolver lazily if not configured

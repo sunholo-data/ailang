@@ -1,0 +1,18 @@
+{
+  "file": {
+    "imports": [
+      {
+        "isPackage": true,
+        "packageName": "sunholo/json",
+        "path": "pkg/sunholo/json/parser",
+        "symbols": [
+          "parseJson"
+        ],
+        "type": "ImportDecl"
+      }
+    ],
+    "path": "test://unit",
+    "type": "File"
+  },
+  "type": "Program"
+}
