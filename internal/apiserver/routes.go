@@ -6,6 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -13,6 +15,17 @@ import (
 	"github.com/sunholo/ailang/internal/embed"
 	"github.com/sunholo/ailang/internal/eval"
 )
+
+// goroutineID extracts the goroutine ID for debug logging.
+func goroutineID() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	s := string(buf[:n])
+	s = strings.TrimPrefix(s, "goroutine ")
+	var id int
+	fmt.Sscanf(s, "%d", &id)
+	return id
+}
 
 // RouteEntry represents a custom route defined by a @route annotation.
 type RouteEntry struct {
@@ -95,6 +108,9 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
 // callFunction executes an AILANG function and writes the response.
 // Shared by both the catch-all handler and custom route handlers.
 func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string) {
+	if os.Getenv("DEBUG_CONCURRENCY") == "1" {
+		log.Printf("[CONCURRENCY] callFunction entered: %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
+	}
 	// Parse arguments based on content type
 	var args []interface{}
 	contentType := r.Header.Get("Content-Type")
@@ -148,9 +164,16 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	}
 
 	// Call AILANG function
+	debugConc := os.Getenv("DEBUG_CONCURRENCY") == "1"
+	if debugConc {
+		log.Printf("[CONCURRENCY] calling engine.CallPreserveFloats %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
+	}
 	start := time.Now()
 	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
 	elapsed := time.Since(start).Milliseconds()
+	if debugConc {
+		log.Printf("[CONCURRENCY] engine.CallPreserveFloats returned %s/%s (goroutine %d, err=%v, %dms)", modulePath, funcName, goroutineID(), callErr, elapsed)
+	}
 
 	// Fix: zero-arg functions in AILANG internally compile to take a unit parameter.
 	// If the call fails with "expects 1 arguments, got 0", retry with a unit arg.

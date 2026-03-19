@@ -23,8 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
+	"strings"
 	"sync"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -32,6 +35,18 @@ import (
 	"github.com/sunholo/ailang/internal/pipeline"
 	"github.com/sunholo/ailang/internal/runtime"
 )
+
+var debugConcurrency = os.Getenv("DEBUG_CONCURRENCY") == "1"
+
+func embedGoroutineID() int {
+	var buf [64]byte
+	n := goruntime.Stack(buf[:], false)
+	s := string(buf[:n])
+	s = strings.TrimPrefix(s, "goroutine ")
+	var id int
+	fmt.Sscanf(s, "%d", &id)
+	return id
+}
 
 // Engine manages AILANG module compilation and execution.
 // It caches compiled modules for efficient repeated calls.
@@ -226,7 +241,16 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 // even for whole numbers like 100.0. Use this for direct Go calls where you need
 // float arguments to stay as floats (not be converted to int for JSON compatibility).
 func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interface{}) (eval.Value, error) {
+	gid := 0
+	if debugConcurrency {
+		gid = embedGoroutineID()
+		log.Printf("[CONCURRENCY] CallPreserveFloats enter %s/%s (goroutine %d)", modulePath, funcName, gid)
+	}
+
 	// Fast path: check if module is already loaded (read lock only)
+	if debugConcurrency {
+		log.Printf("[CONCURRENCY] acquiring RLock %s/%s (goroutine %d)", modulePath, funcName, gid)
+	}
 	e.mu.RLock()
 	if e.closed {
 		e.mu.RUnlock()
@@ -235,9 +259,15 @@ func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interfa
 	inst := e.runtime.GetInstance(modulePath)
 	alreadyCompiled := e.compiled[modulePath]
 	e.mu.RUnlock()
+	if debugConcurrency {
+		log.Printf("[CONCURRENCY] RLock released %s/%s inst=%v compiled=%v (goroutine %d)", modulePath, funcName, inst != nil, alreadyCompiled, gid)
+	}
 
 	// Slow path: compile and load module (write lock)
 	if inst == nil {
+		if debugConcurrency {
+			log.Printf("[CONCURRENCY] SLOW PATH: acquiring write Lock %s/%s (goroutine %d)", modulePath, funcName, gid)
+		}
 		e.mu.Lock()
 		// Double-check after acquiring write lock
 		inst = e.runtime.GetInstance(modulePath)
