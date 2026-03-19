@@ -363,6 +363,12 @@ func runPostTypeCheckPhases(
 		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
 	}
 
+	// Validate package effect ceiling (M-PKG)
+	// If this module belongs to a package, check its declared effects against the ceiling
+	if err := validateEffectCeiling(unit.Surface, modID); err != nil {
+		return err
+	}
+
 	// Perform monomorphization unless explicitly disabled
 	if !cfg.DisableMonomorphization {
 		specializer := NewSpecializer(&typeChecker.CoreTI)

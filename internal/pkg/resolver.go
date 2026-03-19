@@ -8,13 +8,14 @@ import (
 
 // ResolvedPackage is a fully resolved dependency with computed hash.
 type ResolvedPackage struct {
-	Name        string
-	Version     string
-	ContentHash string
-	Source      string // "path" or "registry"
-	Path        string // absolute path for path deps
-	Effects     []string
-	Exports     []string
+	Name          string
+	Version       string
+	ContentHash   string
+	InterfaceHash string
+	Source        string // "path" or "registry"
+	Path          string // absolute path for path deps
+	Effects       []string
+	Exports       []string
 }
 
 // ResolveDependencies resolves all dependencies from a manifest.
@@ -84,13 +85,14 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					}
 
 					resolved = append(resolved, ResolvedPackage{
-						Name:        depName,
-						Version:     depManifest.Package.Version,
-						ContentHash: hash,
-						Source:      "path",
-						Path:        depDir,
-						Effects:     depManifest.Effects.Max,
-						Exports:     depManifest.Exports.Modules,
+						Name:          depName,
+						Version:       depManifest.Package.Version,
+						ContentHash:   hash,
+						InterfaceHash: InterfaceHash(depManifest),
+						Source:        "path",
+						Path:          depDir,
+						Effects:       depManifest.Effects.Max,
+						Exports:       depManifest.Exports.Modules,
 					})
 					resolvedSet[depName] = true
 				}

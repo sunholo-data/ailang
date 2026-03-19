@@ -29,13 +29,14 @@ type LockFile struct {
 
 // LockedPackage is a resolved dependency entry in the lock file.
 type LockedPackage struct {
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	ContentHash string   `json:"content_hash"`
-	Source      string   `json:"source"` // "path" or "registry"
-	Path        string   `json:"path,omitempty"`
-	Effects     []string `json:"effects"`
-	Exports     []string `json:"exports"`
+	Name          string   `json:"name"`
+	Version       string   `json:"version"`
+	ContentHash   string   `json:"content_hash"`
+	InterfaceHash string   `json:"interface_hash,omitempty"`
+	Source        string   `json:"source"` // "path" or "registry"
+	Path          string   `json:"path,omitempty"`
+	Effects       []string `json:"effects"`
+	Exports       []string `json:"exports"`
 }
 
 // NewLockFile creates a lock file from resolved packages.
@@ -138,6 +139,25 @@ func (lf *LockFile) FindPackage(name string) (*LockedPackage, bool) {
 		}
 	}
 	return nil, false
+}
+
+// ValidateContentHashes re-computes content hashes for all path dependencies
+// and verifies they match the lock file. Returns an error if any dependency
+// has changed since the lock file was generated.
+func (lf *LockFile) ValidateContentHashes() error {
+	for _, p := range lf.Packages {
+		if p.Source != "path" || p.Path == "" {
+			continue
+		}
+		currentHash, err := ContentHash(p.Path)
+		if err != nil {
+			return fmt.Errorf("failed to hash dependency %s at %s: %w", p.Name, p.Path, err)
+		}
+		if currentHash != p.ContentHash {
+			return fmt.Errorf("dependency %s content changed (locked: %s, current: %s)\nRun 'ailang lock' to update", p.Name, p.ContentHash[:24]+"...", currentHash[:24]+"...")
+		}
+	}
+	return nil
 }
 
 // ValidateAgainstManifest checks that the lock file is consistent with a manifest.

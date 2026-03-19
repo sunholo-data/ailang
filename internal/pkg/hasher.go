@@ -62,3 +62,36 @@ func ContentHash(dir string) (string, error) {
 
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
+
+// InterfaceHash computes a SHA256 hash over a package's public interface:
+// package name, edition, sorted exported module list, and sorted max effects.
+// This hash stays the same when only internal code changes — it only changes
+// when the package's public surface (exports, effects) changes.
+//
+// Explicitly excluded: source formatting, comments, internal modules,
+// declaration order, source file contents.
+func InterfaceHash(m *PackageManifest) string {
+	h := sha256.New()
+
+	// Package identity
+	fmt.Fprintf(h, "name:%s\n", m.Package.Name)
+	fmt.Fprintf(h, "edition:%s\n", m.Package.Edition)
+
+	// Sorted exported modules
+	exports := make([]string, len(m.Exports.Modules))
+	copy(exports, m.Exports.Modules)
+	sort.Strings(exports)
+	for _, mod := range exports {
+		fmt.Fprintf(h, "export:%s\n", mod)
+	}
+
+	// Sorted max effects
+	effects := make([]string, len(m.Effects.Max))
+	copy(effects, m.Effects.Max)
+	sort.Strings(effects)
+	for _, eff := range effects {
+		fmt.Fprintf(h, "effect:%s\n", eff)
+	}
+
+	return "sha256:" + hex.EncodeToString(h.Sum(nil))
+}

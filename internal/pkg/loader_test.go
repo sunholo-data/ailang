@@ -189,3 +189,44 @@ func TestPackageLoader_HasPackage(t *testing.T) {
 		t.Error("should not have sunholo/xml")
 	}
 }
+
+func TestCheckEffectCeiling_WithinBounds(t *testing.T) {
+	err := CheckEffectCeiling("test/pkg", []string{"IO"}, []string{"IO", "Net"})
+	if err != nil {
+		t.Errorf("should pass when effects within ceiling: %v", err)
+	}
+}
+
+func TestCheckEffectCeiling_Violation(t *testing.T) {
+	err := CheckEffectCeiling("test/pkg", []string{"IO", "FS"}, []string{"IO"})
+	if err == nil {
+		t.Fatal("should fail when effects exceed ceiling")
+	}
+	if !strings.Contains(err.Error(), "FS") {
+		t.Errorf("error should mention violating effect FS, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "ailang.toml") {
+		t.Errorf("error should suggest ailang.toml fix, got: %v", err)
+	}
+}
+
+func TestCheckEffectCeiling_PurePackage(t *testing.T) {
+	err := CheckEffectCeiling("test/pkg", []string{"IO"}, []string{})
+	if err == nil {
+		t.Fatal("should fail when pure package uses effects")
+	}
+}
+
+func TestCheckEffectCeiling_NoCeiling(t *testing.T) {
+	err := CheckEffectCeiling("test/pkg", []string{"IO", "Net", "FS"}, nil)
+	if err != nil {
+		t.Errorf("should pass when no ceiling declared: %v", err)
+	}
+}
+
+func TestCheckEffectCeiling_EmptyEffects(t *testing.T) {
+	err := CheckEffectCeiling("test/pkg", []string{}, []string{})
+	if err != nil {
+		t.Errorf("should pass when function has no effects: %v", err)
+	}
+}

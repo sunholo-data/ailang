@@ -87,3 +87,86 @@ func TestContentHash_EmptyDir(t *testing.T) {
 		t.Errorf("empty dir should still produce a valid hash, got %s", h)
 	}
 }
+
+func TestInterfaceHash_Deterministic(t *testing.T) {
+	m := &PackageManifest{
+		Package: PackageInfo{Name: "sunholo/json", Version: "0.3.1", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"sunholo/json/parser", "sunholo/json/types"}},
+		Effects: EffectConfig{Max: []string{"IO"}},
+	}
+
+	h1 := InterfaceHash(m)
+	h2 := InterfaceHash(m)
+	if h1 != h2 {
+		t.Errorf("interface hash not deterministic: %s != %s", h1, h2)
+	}
+	if !strings.HasPrefix(h1, "sha256:") {
+		t.Errorf("should have sha256: prefix, got %s", h1)
+	}
+}
+
+func TestInterfaceHash_OrderIndependent(t *testing.T) {
+	m1 := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/b", "test/pkg/a"}},
+		Effects: EffectConfig{Max: []string{"Net", "IO"}},
+	}
+	m2 := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/a", "test/pkg/b"}},
+		Effects: EffectConfig{Max: []string{"IO", "Net"}},
+	}
+
+	if InterfaceHash(m1) != InterfaceHash(m2) {
+		t.Error("interface hash should be order-independent for exports and effects")
+	}
+}
+
+func TestInterfaceHash_ChangesOnExportChange(t *testing.T) {
+	base := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+		Effects: EffectConfig{Max: []string{}},
+	}
+	modified := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core", "test/pkg/extra"}},
+		Effects: EffectConfig{Max: []string{}},
+	}
+
+	if InterfaceHash(base) == InterfaceHash(modified) {
+		t.Error("interface hash should change when exports change")
+	}
+}
+
+func TestInterfaceHash_ChangesOnEffectChange(t *testing.T) {
+	base := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+		Effects: EffectConfig{Max: []string{}},
+	}
+	modified := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+		Effects: EffectConfig{Max: []string{"IO"}},
+	}
+
+	if InterfaceHash(base) == InterfaceHash(modified) {
+		t.Error("interface hash should change when effects change")
+	}
+}
+
+func TestInterfaceHash_IgnoresVersion(t *testing.T) {
+	m1 := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.1.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+	}
+	m2 := &PackageManifest{
+		Package: PackageInfo{Name: "test/pkg", Version: "0.2.0", Edition: "1"},
+		Exports: ExportConfig{Modules: []string{"test/pkg/core"}},
+	}
+
+	if InterfaceHash(m1) != InterfaceHash(m2) {
+		t.Error("interface hash should not change on version bump alone")
+	}
+}

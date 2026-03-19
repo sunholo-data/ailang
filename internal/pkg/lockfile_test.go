@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -161,5 +162,71 @@ func TestLockFile_ValidateAgainstManifest(t *testing.T) {
 	}
 	if err := lf.ValidateAgainstManifest(m2); err == nil {
 		t.Error("should fail when manifest has dep not in lock file")
+	}
+}
+
+func TestLockFile_ValidateContentHashes_Pass(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/core\n"), 0644)
+
+	hash, err := ContentHash(dir)
+	if err != nil {
+		t.Fatalf("ContentHash: %v", err)
+	}
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "test/lib", ContentHash: hash, Source: "path", Path: dir},
+		},
+	}
+
+	if err := lf.ValidateContentHashes(); err != nil {
+		t.Errorf("should pass when content unchanged: %v", err)
+	}
+}
+
+func TestLockFile_ValidateContentHashes_Detect_Change(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/core\n"), 0644)
+
+	hash, _ := ContentHash(dir)
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "test/lib", ContentHash: hash, Source: "path", Path: dir},
+		},
+	}
+
+	// Modify the file — hash should now mismatch
+	os.WriteFile(filepath.Join(dir, "core.ail"), []byte("module test/core\n-- modified\n"), 0644)
+
+	err := lf.ValidateContentHashes()
+	if err == nil {
+		t.Fatal("should detect content change")
+	}
+	if !strings.Contains(err.Error(), "content changed") {
+		t.Errorf("error should mention content changed, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "ailang lock") {
+		t.Errorf("error should suggest running ailang lock, got: %v", err)
+	}
+}
+
+func TestLockFile_ValidateContentHashes_SkipsRegistry(t *testing.T) {
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "test/lib", ContentHash: "sha256:fake", Source: "registry"},
+		},
+	}
+
+	// Should not error — registry deps are not validated locally
+	if err := lf.ValidateContentHashes(); err != nil {
+		t.Errorf("should skip registry deps: %v", err)
 	}
 }

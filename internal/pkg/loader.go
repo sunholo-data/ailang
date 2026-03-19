@@ -141,3 +141,47 @@ func (pl *PackageLoader) HasPackage(pkgName string) bool {
 	_, found := pl.lockFile.FindPackage(pkgName)
 	return found
 }
+
+// EffectCeiling returns the max effects declared by a package, or nil if
+// no ceiling is declared (meaning all effects are allowed).
+func (pl *PackageLoader) EffectCeiling(pkgName string) []string {
+	locked, found := pl.lockFile.FindPackage(pkgName)
+	if !found {
+		return nil
+	}
+	pkgDir, err := pl.packageDir(locked)
+	if err != nil {
+		return nil
+	}
+	manifest, err := pl.loadManifest(pkgName, pkgDir)
+	if err != nil {
+		return nil
+	}
+	return manifest.Effects.Max
+}
+
+// CheckEffectCeiling validates that the given effects do not exceed a package's
+// declared [effects].max ceiling. Returns nil if within bounds or if no ceiling.
+func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []string) error {
+	if maxEffects == nil {
+		return nil // No ceiling declared
+	}
+
+	allowed := make(map[string]bool, len(maxEffects))
+	for _, e := range maxEffects {
+		allowed[e] = true
+	}
+
+	var violations []string
+	for _, eff := range functionEffects {
+		if eff != "" && !allowed[eff] {
+			violations = append(violations, eff)
+		}
+	}
+
+	if len(violations) > 0 {
+		return fmt.Errorf("effect ceiling violation in package %s: effects %v not in max %v\nAdd missing effects to [effects].max in ailang.toml",
+			pkgName, violations, maxEffects)
+	}
+	return nil
+}

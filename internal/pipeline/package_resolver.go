@@ -1,9 +1,18 @@
 package pipeline
 
 import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pkg"
 )
+
+// currentPackageManifest holds the manifest for the current package being compiled.
+// Set by tryLoadPackageResolver, read by validateEffectCeiling.
+var currentPackageManifest *pkg.PackageManifest
 
 // tryLoadPackageResolver attempts to set up a package resolver from
 // ailang.toml + ailang.lock in the given directory. Returns nil if
@@ -12,8 +21,17 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 	// Check if ailang.toml exists
 	manifestDir := pkg.FindManifest(dir)
 	if manifestDir == "" {
+		currentPackageManifest = nil
 		return nil // No package manifest — use legacy module resolution
 	}
+
+	// Load manifest for effect ceiling checks
+	manifest, err := pkg.LoadManifest(manifestDir)
+	if err != nil {
+		currentPackageManifest = nil
+		return nil
+	}
+	currentPackageManifest = manifest
 
 	// Load lock file
 	lf, err := pkg.LoadLockFile(manifestDir)
@@ -21,5 +39,44 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 		return nil // No lock file or invalid — skip package resolution
 	}
 
+	// Validate content hashes — detect stale lock files
+	if err := lf.ValidateContentHashes(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+	}
+
 	return pkg.NewPackageLoader(lf, manifestDir)
+}
+
+// validateEffectCeiling checks that a module's declared function effects
+// do not exceed the current package's [effects].max ceiling.
+// Only applies when an ailang.toml exists; bare projects are unchecked.
+func validateEffectCeiling(surfaceAST *ast.File, modID string) error {
+	if currentPackageManifest == nil {
+		return nil // No package — no ceiling to enforce
+	}
+	if surfaceAST == nil {
+		return nil
+	}
+
+	// Only check modules belonging to the current package (not dependencies)
+	// Dependencies are imported via pkg/ prefix; the current package's own
+	// modules use local paths.
+	if strings.HasPrefix(modID, "pkg/") {
+		return nil // This is a dependency module, not ours
+	}
+
+	maxEffects := currentPackageManifest.Effects.Max
+	if maxEffects == nil {
+		return nil // No ceiling declared
+	}
+
+	// Check each function's declared effects
+	for _, fn := range surfaceAST.Funcs {
+		declaredEffects := ast.EffectNames(fn.Effects)
+		if err := pkg.CheckEffectCeiling(currentPackageManifest.Package.Name, declaredEffects, maxEffects); err != nil {
+			return fmt.Errorf("in function %s in %s: %w", fn.Name, modID, err)
+		}
+	}
+
+	return nil
 }
