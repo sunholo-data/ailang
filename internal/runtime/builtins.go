@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"fmt"
+	"log"
+	"os"
 	goruntime "runtime"
 	"strings"
 	"sync"
@@ -10,6 +12,11 @@ import (
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 )
+
+var debugConcurrencyBuiltins = os.Getenv("DEBUG_CONCURRENCY") == "1"
+
+// suppress unused import
+var _ = log.Printf
 
 // BuiltinRegistry holds native Go implementations of builtin functions
 //
@@ -78,6 +85,9 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 		br.builtins[name] = &eval.BuiltinFunction{
 			Name: name,
 			Fn: func(args []eval.Value) (eval.Value, error) {
+				if debugConcurrencyBuiltins {
+					log.Printf("[BUILTIN] %s enter (goroutine %d)", builtinSpec.Name, builtinGoroutineID())
+				}
 				ctx := br.getEffContext()
 				if ctx == nil && !builtinSpec.IsPure {
 					return nil, fmt.Errorf("%s: no effect context available", builtinSpec.Name)
@@ -90,7 +100,11 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 					}
 				}
 
-				return builtinSpec.Impl(ctx, args)
+				result, err := builtinSpec.Impl(ctx, args)
+				if debugConcurrencyBuiltins {
+					log.Printf("[BUILTIN] %s done (goroutine %d, err=%v)", builtinSpec.Name, builtinGoroutineID(), err)
+				}
+				return result, err
 			},
 		}
 	}
