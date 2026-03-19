@@ -404,6 +404,37 @@ func (s *Store) GetInboxMessage(id string) (*InboxMessage, error) {
 	return &msg, nil
 }
 
+// FindMessageByPrefix resolves a short ID prefix to a full message ID using SQL.
+// Returns error if no match or multiple matches (ambiguous prefix).
+func (s *Store) FindMessageByPrefix(prefix string) (string, error) {
+	rows, err := s.db.Query(
+		`SELECT id FROM inbox_messages WHERE id LIKE ? LIMIT 2`,
+		prefix+"%",
+	)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var matches []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return "", err
+		}
+		matches = append(matches, id)
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no message found with prefix '%s'", prefix)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix '%s' matches multiple messages, use a longer prefix", prefix)
+	}
+}
+
 // MarkInboxMessageRead marks a message as read
 func (s *Store) MarkInboxMessageRead(id string) error {
 	// Start span for message ack operation

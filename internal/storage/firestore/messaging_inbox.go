@@ -107,6 +107,40 @@ func (s *MessagingStore) GetInboxMessage(id string) (*messaging.InboxMessage, er
 	return mapToInbox(doc.Data()), nil
 }
 
+// FindMessageByPrefix resolves a short ID prefix to a full message ID.
+// Firestore doesn't support LIKE queries, so we use range queries on the ID field.
+func (s *MessagingStore) FindMessageByPrefix(prefix string) (string, error) {
+	// Firestore range query: id >= prefix AND id < prefix + high unicode char
+	endPrefix := prefix + "\uf8ff"
+	iter := s.client.Collection(collInbox).
+		Where("id", ">=", prefix).
+		Where("id", "<", endPrefix).
+		Limit(2).
+		Documents(context.Background())
+	defer iter.Stop()
+
+	var matches []string
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		matches = append(matches, doc.Ref.ID)
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no message found with prefix '%s'", prefix)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix '%s' matches multiple messages, use a longer prefix", prefix)
+	}
+}
+
 func (s *MessagingStore) MarkInboxMessageRead(id string) error {
 	now := time.Now()
 	_, err := s.client.Doc(collInbox, id).Update(context.Background(), []firestore.Update{

@@ -18,6 +18,7 @@ func runMessagesList(args []string) {
 	from := fs.String("from", "", "Filter by sender agent")
 	limit := fs.Int("limit", 20, "Maximum messages to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	compact := fs.Bool("compact", false, "Machine-friendly output: SHORT_ID\\tFROM\\tTITLE\\tSTATUS\\tAGE (no ANSI)")
 	similarTo := fs.String("similar-to", "", "Find messages similar to this message ID")
 	collapsed := fs.Bool("collapsed", false, "Hide duplicate messages (where dup_of is set)")
 	duplicatesOf := fs.String("duplicates-of", "", "Show only duplicates of this message ID")
@@ -86,6 +87,19 @@ func runMessagesList(args []string) {
 
 	if len(messages) == 0 {
 		fmt.Println("No messages found.")
+		return
+	}
+
+	// Compact mode: tab-separated, no ANSI, one line per message
+	if *compact {
+		for _, msg := range messages {
+			shortID := msg.ID
+			if len(shortID) > 8 {
+				shortID = shortID[:8]
+			}
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
+				shortID, msg.FromAgent, msg.Title, msg.Status, formatAge(msg.CreatedAt))
+		}
 		return
 	}
 
@@ -206,14 +220,11 @@ func runMessagesRead(args []string) {
 	fs := flag.NewFlagSet("messages read", flag.ExitOnError)
 	peek := fs.Bool("peek", false, "Show without marking as read")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	allUnread := fs.Bool("all-unread", false, "Read all unread messages (no ID needed)")
+	latest := fs.Bool("latest", false, "Read the most recent unread message (no ID needed)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
-		os.Exit(1)
-	}
-
-	if fs.NArg() == 0 {
-		fmt.Fprintf(os.Stderr, "%s: message ID required\n", red("Error"))
 		os.Exit(1)
 	}
 
@@ -223,6 +234,73 @@ func runMessagesRead(args []string) {
 		os.Exit(1)
 	}
 	defer store.Close()
+
+	// --all-unread: fetch and display all unread messages
+	if *allUnread {
+		messages, err := store.ListInboxMessages(messaging.InboxListOptions{
+			UnreadOnly: true,
+			Limit:      100,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if len(messages) == 0 {
+			fmt.Println("No unread messages.")
+			return
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(messages, "", "  ")
+			fmt.Println(string(data))
+		} else {
+			for i, msg := range messages {
+				if i > 0 {
+					fmt.Println("---")
+				}
+				printInboxMessage(msg, true)
+			}
+		}
+		if !*peek {
+			for _, msg := range messages {
+				if msg.Status == messaging.InboxStatusUnread {
+					_ = store.MarkInboxMessageRead(msg.ID)
+				}
+			}
+		}
+		return
+	}
+
+	// --latest: read the most recent unread message
+	if *latest {
+		messages, err := store.ListInboxMessages(messaging.InboxListOptions{
+			UnreadOnly: true,
+			Limit:      1,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+		if len(messages) == 0 {
+			fmt.Println("No unread messages.")
+			return
+		}
+		msg := messages[0]
+		if !*peek && msg.Status == messaging.InboxStatusUnread {
+			_ = store.MarkInboxMessageRead(msg.ID)
+		}
+		if *jsonOut {
+			data, _ := json.MarshalIndent(msg, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+		printInboxMessage(msg, true)
+		return
+	}
+
+	if fs.NArg() == 0 {
+		fmt.Fprintf(os.Stderr, "%s: message ID required (or use --all-unread / --latest)\n", red("Error"))
+		os.Exit(1)
+	}
 
 	// Resolve short ID prefix to full ID
 	msgID, err := resolveMessageID(store, fs.Arg(0))

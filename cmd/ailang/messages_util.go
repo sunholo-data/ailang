@@ -199,29 +199,8 @@ func resolveMessageID(store messaging.MessageStore, prefix string) (string, erro
 		return prefix, nil
 	}
 
-	// Query messages where ID starts with prefix
-	messages, err := store.ListInboxMessages(messaging.InboxListOptions{
-		Limit: 100, // Reasonable limit for prefix search
-	})
-	if err != nil {
-		return "", err
-	}
-
-	var matches []string
-	for _, msg := range messages {
-		if strings.HasPrefix(msg.ID, prefix) {
-			matches = append(matches, msg.ID)
-		}
-	}
-
-	switch len(matches) {
-	case 0:
-		return "", fmt.Errorf("no message found with prefix '%s'", prefix)
-	case 1:
-		return matches[0], nil
-	default:
-		return "", fmt.Errorf("ambiguous prefix '%s' matches %d messages, use a longer prefix", prefix, len(matches))
-	}
+	// Use SQL prefix search (works across all messages, not just latest 100)
+	return store.FindMessageByPrefix(prefix)
 }
 
 func runMessagesWatch(args []string) {
@@ -412,11 +391,17 @@ func printInboxMessage(msg messaging.InboxMessage, full bool) {
 
 	age := formatAge(msg.CreatedAt)
 
-	fmt.Printf("  %s [%s] %s • %s\n",
+	shortID := msg.ID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+
+	fmt.Printf("  %s [%s] %s • %s  (%s)\n",
 		statusIcon,
 		cyan(msg.ToInbox),
 		msg.FromAgent,
 		age,
+		shortID,
 	)
 
 	if msg.Title != "" {

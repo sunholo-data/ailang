@@ -50,6 +50,7 @@ type MessageStore interface {
 	InsertInboxMessageWithContext(ctx context.Context, msg *InboxMessage) error
 	ListInboxMessages(opts InboxListOptions) ([]InboxMessage, error)
 	GetInboxMessage(id string) (*InboxMessage, error)
+	FindMessageByPrefix(prefix string) (string, error)
 	MarkInboxMessageRead(id string) error
 	MarkInboxMessageUnread(id string) error
 	MarkAllInboxMessagesRead(inbox string) (int64, error)

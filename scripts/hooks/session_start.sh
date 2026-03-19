@@ -303,8 +303,9 @@ CONTEXT_MESSAGE=$(cat <<EOF
 
 $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle: \(.title)\nTime: \(.created_at)\n"')
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 Use 'ailang messages read <id>' to view full content
-   Use 'ailang messages ack <id>' to mark as read
+💡 Use 'ailang messages read --all-unread' to view all
+   Use 'ailang messages read <id>' for a specific message
+   Use 'ailang messages list --compact' for machine-parseable list
    Use 'ailang messages ack --all' to mark all as read
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $TRIAGE_SUMMARY
