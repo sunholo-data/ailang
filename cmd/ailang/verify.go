@@ -277,8 +277,14 @@ func verifyCommand() {
 		funcEncOpts.Contracts = meta.Contracts
 		funcEncOpts.RecursiveDepth = effectiveDepth
 
+		// Demand-driven ADT filtering: only pass ADT types that this function actually
+		// references via its params, return type, or body. This prevents cascade failures
+		// where unrelated cross-module types (e.g., Json) poison functions that only use
+		// primitive types (e.g., int → int).
+		funcADTTypes := filterADTTypesForFunction(params, returnSort, innerBody, adtTypes)
+
 		// Encode function to SMT-LIB (with cross-function call support)
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
+		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
 		if err != nil {
 			// If the error is due to unresolvable cross-module types,
 			// skip gracefully instead of reporting as error
@@ -797,4 +803,226 @@ func printVerifyJSON(results []verifyResult, filename string, verified, countere
 		os.Exit(1)
 	}
 	fmt.Println(string(data))
+}
+
+// filterADTTypesForFunction returns only the ADT types that a function actually
+// references through its parameter types, return type, and body expressions.
+// This prevents cross-module type pollution where unrelated ADTs (e.g., Json)
+// cause cascade Z3 errors for functions that only use primitive types.
+func filterADTTypesForFunction(
+	params []smt.FunctionParam,
+	returnSort string,
+	body core.CoreExpr,
+	allADTTypes map[string][]smt.ADTVariant,
+) map[string][]smt.ADTVariant {
+	if len(allADTTypes) == 0 {
+		return allADTTypes
+	}
+
+	// Collect sort names referenced by this function
+	seeds := collectSortSeeds(params, returnSort, body)
+
+	// If no non-primitive sorts referenced, return empty map
+	if len(seeds) == 0 {
+		return map[string][]smt.ADTVariant{}
+	}
+
+	// Compute transitive closure: ADT variants may reference other ADT types
+	needed := make(map[string]bool)
+	queue := make([]string, 0, len(seeds))
+	for s := range seeds {
+		queue = append(queue, s)
+	}
+	for len(queue) > 0 {
+		sort := queue[0]
+		queue = queue[1:]
+		if needed[sort] {
+			continue
+		}
+		needed[sort] = true
+		// Check if this sort is an ADT; if so, collect sorts from its variant fields
+		if variants, ok := allADTTypes[sort]; ok {
+			for _, v := range variants {
+				for _, f := range v.Fields {
+					dep := extractBaseSortName(f.Sort)
+					if !needed[dep] && !isPrimitiveSMTSort(dep) {
+						queue = append(queue, dep)
+					}
+				}
+			}
+		}
+	}
+
+	// Filter ADT types to only those needed
+	result := make(map[string][]smt.ADTVariant, len(needed))
+	for name, variants := range allADTTypes {
+		if needed[name] {
+			result[name] = variants
+		}
+	}
+	return result
+}
+
+// collectSortSeeds gathers non-primitive sort names from function params, return type, and body.
+func collectSortSeeds(params []smt.FunctionParam, returnSort string, body core.CoreExpr) map[string]bool {
+	seeds := make(map[string]bool)
+
+	// From parameter types
+	for _, p := range params {
+		collectSortsFromType(p.Type, seeds)
+	}
+
+	// From return sort
+	base := extractBaseSortName(returnSort)
+	if !isPrimitiveSMTSort(base) {
+		seeds[base] = true
+	}
+
+	// From body: walk for constructor patterns and ADT constructor applications
+	if body != nil {
+		collectSortsFromBody(body, seeds)
+	}
+
+	return seeds
+}
+
+// collectSortsFromType extracts non-primitive sort names from a types.Type.
+func collectSortsFromType(t types.Type, sorts map[string]bool) {
+	if t == nil {
+		return
+	}
+	switch ty := t.(type) {
+	case *types.TCon:
+		if !isPrimitiveTypeName(ty.Name) {
+			sorts[ty.Name] = true
+		}
+	case *types.TApp:
+		collectSortsFromType(ty.Constructor, sorts)
+		for _, arg := range ty.Args {
+			collectSortsFromType(arg, sorts)
+		}
+	case *types.TFunc2:
+		for _, p := range ty.Params {
+			collectSortsFromType(p, sorts)
+		}
+		collectSortsFromType(ty.Return, sorts)
+	case *types.TList:
+		collectSortsFromType(ty.Element, sorts)
+	case *types.TTuple:
+		for _, elem := range ty.Elements {
+			collectSortsFromType(elem, sorts)
+		}
+	case *types.TRecord:
+		for _, fieldType := range ty.Fields {
+			collectSortsFromType(fieldType, sorts)
+		}
+	}
+}
+
+// collectSortsFromBody walks a core expression to find ADT constructor references.
+func collectSortsFromBody(expr core.CoreExpr, sorts map[string]bool) {
+	if expr == nil {
+		return
+	}
+	switch e := expr.(type) {
+	case *core.Match:
+		collectSortsFromBody(e.Scrutinee, sorts)
+		for _, arm := range e.Arms {
+			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+				// Constructor name might be the ADT type or variant name;
+				// the ADT type is what we need. We add the constructor name
+				// and let the transitive closure resolve it.
+				sorts[cp.Name] = true
+			}
+			collectSortsFromBody(arm.Body, sorts)
+		}
+	case *core.App:
+		collectSortsFromBody(e.Func, sorts)
+		for _, arg := range e.Args {
+			collectSortsFromBody(arg, sorts)
+		}
+	case *core.Let:
+		collectSortsFromBody(e.Value, sorts)
+		collectSortsFromBody(e.Body, sorts)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			collectSortsFromBody(b.Value, sorts)
+		}
+		collectSortsFromBody(e.Body, sorts)
+	case *core.Lambda:
+		collectSortsFromBody(e.Body, sorts)
+	case *core.If:
+		collectSortsFromBody(e.Cond, sorts)
+		collectSortsFromBody(e.Then, sorts)
+		collectSortsFromBody(e.Else, sorts)
+	case *core.BinOp:
+		collectSortsFromBody(e.Left, sorts)
+		collectSortsFromBody(e.Right, sorts)
+	case *core.UnOp:
+		collectSortsFromBody(e.Operand, sorts)
+	case *core.Record:
+		for _, v := range e.Fields {
+			collectSortsFromBody(v, sorts)
+		}
+	case *core.RecordAccess:
+		collectSortsFromBody(e.Record, sorts)
+	case *core.RecordUpdate:
+		collectSortsFromBody(e.Base, sorts)
+		for _, v := range e.Updates {
+			collectSortsFromBody(v, sorts)
+		}
+	case *core.List:
+		for _, elem := range e.Elements {
+			collectSortsFromBody(elem, sorts)
+		}
+	case *core.Tuple:
+		for _, elem := range e.Elements {
+			collectSortsFromBody(elem, sorts)
+		}
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			collectSortsFromBody(arg, sorts)
+		}
+	}
+}
+
+// extractBaseSortName extracts the base sort name from an SMT sort string.
+// e.g., "(Seq Int)" → "Int", "Int" → "Int", "(Seq Block)" → "Block"
+func extractBaseSortName(sort string) string {
+	sort = strings.TrimSpace(sort)
+	if strings.HasPrefix(sort, "(") {
+		// Parametric sort like (Seq Block) — extract inner sorts
+		inner := strings.TrimPrefix(sort, "(")
+		inner = strings.TrimSuffix(inner, ")")
+		parts := strings.Fields(inner)
+		// Return the last non-keyword part (the element type)
+		for i := len(parts) - 1; i >= 0; i-- {
+			if !isPrimitiveSMTSort(parts[i]) && parts[i] != "Seq" && parts[i] != "Array" {
+				return parts[i]
+			}
+		}
+		if len(parts) > 1 {
+			return parts[len(parts)-1]
+		}
+		return sort
+	}
+	return sort
+}
+
+// isPrimitiveSMTSort returns true for Z3 built-in sorts.
+func isPrimitiveSMTSort(sort string) bool {
+	switch sort {
+	case "Int", "Bool", "String", "Real", "", "()", "Seq", "Array", "ALL":
+		return true
+	}
+	return false
+}
+
+// isPrimitiveTypeName returns true for AILANG primitive type names.
+func isPrimitiveTypeName(name string) bool {
+	switch name {
+	case "int", "bool", "string", "float", "Int", "Bool", "String", "Real", "unit", "()":
+		return true
+	}
+	return false
 }

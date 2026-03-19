@@ -306,7 +306,10 @@ func runVerification(coreProg *core.Program, surfaceAST *ast.File, modules map[s
 		funcEncOpts.Contracts = meta.Contracts
 		funcEncOpts.RecursiveDepth = recursiveDepth
 
-		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, adtTypes, funcEncOpts)
+		// Demand-driven ADT filtering (same as verify.go)
+		funcADTTypes := filterADTTypesForFunction(params, returnSort, innerBody, adtTypes)
+
+		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
 		if err != nil {
 			if errors.Is(err, smt.ErrUnresolvableTypes) {
 				section.Results = append(section.Results, verifyResult{

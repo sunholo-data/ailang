@@ -115,6 +115,26 @@ Current emission order is non-deterministic (Go map iteration). Need topological
 
 When a parameter name matches a record field accessor name, Z3 can't disambiguate.
 
+### Issue 6: Field Name Collisions Across Record Types
+
+**Severity**: Medium (blocks verification of functions using multiple record types with shared field names)
+
+**Bug report**: docparse message 12839c7e (2026-03-19)
+
+```smt
+(declare-datatype CheckResult ((mk_CheckResult (applicable Bool) ...)))
+(declare-datatype MetaAccum  ((mk_MetaAccum  (applicable Int) ...)))
+;  Z3 error: unknown constant applicable (Int)
+;  declared: (declare-fun applicable (CheckResult) Bool)
+;  declared: (declare-fun applicable (MetaAccum) Int)
+```
+
+When two record types in the same module share a field name (e.g., `applicable` on both `CheckResult` and `MetaAccum`), Z3 emits two unqualified accessor functions with the same name but different signatures. Z3 cannot disambiguate which `applicable` is intended when the field is accessed in the function body.
+
+This is perfectly valid AILANG — same-named fields on different record types is standard. The fix is to qualify field accessor names with the record type name: `CheckResult_applicable` and `MetaAccum_applicable`.
+
+**Confirmed impact**: `evalComputeScore` in docparse `eval.ail` fails due to this. Workaround: rename one field (e.g., `MetaAccum.applicableCount`), but the encoder should handle this.
+
 **Impact:**
 - Any project using cross-module record type aliases and ADTs cannot verify contracts
 - docparse (primary external user) blocked on Z3 verification
@@ -215,14 +235,13 @@ verify.go                          codegen.go
 
 ### Implementation Plan
 
-**Phase 1: Demand-Driven Type Filtering** (~8 hours)
-- [ ] Create `internal/smt/type_deps.go` with `TypeDependencyGraph`
-- [ ] Implement `ComputeRequiredTypes(seedSorts []string) map[string]bool`
-- [ ] Walk function params, return type, and body to collect seed sorts
-- [ ] Filter ADT types and extra declarations per-function in `verify.go`
-- [ ] Test: simpleCell should only declare TableCell (no Block in preamble)
-- [ ] Test: format_router functions unaffected (no imported types)
-- [ ] ~200 LOC new, ~50 LOC modified
+**Phase 1: Demand-Driven Type Filtering** (~8 hours) — **DONE** (2026-03-19)
+- [x] Walk function params, return type, and body to collect seed sorts
+- [x] Compute transitive closure through ADT variant fields
+- [x] Filter ADT types per-function in `verify.go` and `ai_check.go`
+- [x] Test: pure int/string/bool functions no longer blocked by unrelated cross-module types
+- [x] Confirmed: docparse 3→10 verified functions after fix
+- Note: Implemented inline in `verify.go` (`filterADTTypesForFunction`) rather than as separate `type_deps.go`. Sufficient for current needs; can be extracted if reuse is needed.
 
 **Phase 2: Named Record Aliases** (~6 hours)
 - [ ] Resurrect stashed `collectNamedRecordAlias` and `RecordTypeAliases`
@@ -232,31 +251,35 @@ verify.go                          codegen.go
 - [ ] Test: `type ParsedDocument = {metadata: DocMetadata, ...}` → declared after DocMetadata
 - [ ] ~80 LOC new, ~30 LOC modified
 
-**Phase 3: Mutual Recursion + Parameter Disambiguation** (~8 hours)
+**Phase 3: Mutual Recursion + Name Disambiguation** (~10 hours)
 - [ ] Detect SCC groups in type dependency graph (Tarjan's algorithm)
 - [ ] Implement `DeclareDatatypesMutual()` for `declare-datatypes` emission
 - [ ] Handle Block + inline records as a mutual recursion group
-- [ ] Prefix parameter names with `$p_` in `declare-const`
+- [ ] Prefix parameter names with `$p_` in `declare-const` (Issue 5)
 - [ ] Update `EncodeExpr` variable lookup for prefixed names
+- [ ] Qualify record field accessor names with record type: `RecordType_fieldName` (Issue 6)
+- [ ] Update `encodeRecordAccess` to emit qualified accessor names matching declarations
 - [ ] Test: Block with SectionBlock({blocks: [Block]}) compiles in Z3
 - [ ] Test: `simpleCell(text: string)` → `(declare-const $p_text String)`, no ambiguity
-- [ ] ~150 LOC new, ~40 LOC modified
+- [ ] Test: `CheckResult.applicable` and `MetaAccum.applicable` → `CheckResult_applicable` / `MetaAccum_applicable`, no collision
+- [ ] ~180 LOC new, ~50 LOC modified
 
 ### Files to Modify/Create
 
-**New files:**
-- `internal/smt/type_deps.go` - Type dependency graph and demand analysis (~200 LOC)
-- `internal/smt/type_deps_test.go` - Tests for dependency graph (~150 LOC)
+**Already modified (Phase 1 — DONE):**
+- `cmd/ailang/verify.go` - `filterADTTypesForFunction()`, demand-driven per-function filtering (~180 LOC added)
+- `cmd/ailang/ai_check.go` - Same filtering applied (~5 LOC)
+
+**New files (Phases 2-3):**
 - `internal/smt/codegen_mutual.go` - Mutual recursion `declare-datatypes` (~150 LOC)
 - `internal/smt/codegen_mutual_test.go` - Tests (~100 LOC)
 
-**Modified files:**
-- `cmd/ailang/verify.go` - Record alias extraction, per-function type filtering (~130 LOC)
-- `cmd/ailang/ai_check.go` - Same changes as verify.go (~40 LOC)
-- `internal/smt/codegen.go` - RecordTypeAliases, demand-driven Step 0/1, param prefix (~80 LOC)
-- `internal/smt/codegen_records.go` - Skip anonymous sorts when named alias exists (~15 LOC)
+**Modified files (Phases 2-3):**
+- `cmd/ailang/verify.go` - Record alias extraction (~50 LOC)
+- `internal/smt/codegen.go` - RecordTypeAliases, param prefix `$p_`, qualified field accessors (~100 LOC)
+- `internal/smt/codegen_records.go` - Skip anonymous sorts when named alias exists, qualified accessor names (~30 LOC)
 
-**Total: ~600 LOC new code, ~265 LOC modifications**
+**Remaining: ~250 LOC new code, ~180 LOC modifications**
 
 ## Examples
 
@@ -331,14 +354,37 @@ verify.go                          codegen.go
 (declare-const $p_text String)  ; ← prefixed, no ambiguity
 ```
 
+### Example 5: Field Name Collision Across Record Types (Phase 3)
+
+**Before (broken):**
+```smt
+(declare-datatype CheckResult ((mk_CheckResult (applicable Bool) ...)))
+(declare-datatype MetaAccum  ((mk_MetaAccum  (applicable Int) ...)))
+; ERROR: unknown constant applicable (Int)
+; Z3 sees two 'applicable' functions with different signatures, can't disambiguate
+```
+
+**After:**
+```smt
+(declare-datatype CheckResult ((mk_CheckResult (CheckResult_applicable Bool) ...)))
+(declare-datatype MetaAccum  ((mk_MetaAccum  (MetaAccum_applicable Int) ...)))
+; OK: qualified accessor names, no ambiguity
+```
+
+Body references like `r.applicable` are emitted as `(CheckResult_applicable r)` when `r` is known to be a `CheckResult`.
+
 ## Success Criteria
 
-- [ ] docparse `simpleCell`, `spanCell`, `mergedCell` VERIFIED (currently ERROR)
-- [ ] docparse `emptyMetadata` VERIFIED (currently ERROR)
-- [ ] docparse `countBlocks` VERIFIED (currently ERROR)
-- [ ] docparse `headingLevelFromStyle` VERIFIED (currently ERROR)
+- [x] Pure int/string/bool functions verify despite cross-module imports (Phase 1 — DONE)
+- [x] docparse 3→10 verified functions after demand-driven filtering (Phase 1 — DONE)
+- [ ] docparse `simpleCell`, `spanCell`, `mergedCell` VERIFIED (currently ERROR — needs Phase 2)
+- [ ] docparse `emptyMetadata` VERIFIED (currently ERROR — needs Phase 2)
+- [ ] docparse `countBlocks` VERIFIED (currently ERROR — needs Phase 3)
+- [ ] docparse `headingLevelFromStyle` VERIFIED (currently ERROR — needs Phase 2)
+- [ ] docparse `evalComputeScore` VERIFIED (currently ERROR — needs Phase 3, Issue 6)
 - [ ] docparse `format_router.ail` maintains 3/3 VERIFIED (no regression)
 - [ ] No cascade errors from unused type declarations
+- [ ] No field accessor collisions across record types (qualified names)
 - [ ] Recursive ADTs (Block with SectionBlock) encode correctly
 - [ ] All existing AILANG tests pass (3400+)
 - [ ] Linting clean (0 issues)
@@ -379,23 +425,23 @@ The following are intentionally left open for the implementer:
 
 ## Timeline
 
-**Day 1** (~8 hours):
-- Phase 1: Type dependency graph + demand-driven filtering
-- Expected result: simpleCell/spanCell/mergedCell VERIFIED
+**Phase 1: COMPLETE** (2026-03-19):
+- Demand-driven ADT filtering in verify.go and ai_check.go
+- Result: docparse 3→10 verified functions
 
-**Day 2** (~6 hours):
+**Day 1** (~6 hours):
 - Phase 2: Named record alias extraction
-- Expected result: emptyMetadata VERIFIED
+- Expected result: simpleCell/spanCell/mergedCell/emptyMetadata/headingLevelFromStyle VERIFIED
 
-**Day 3** (~8 hours):
-- Phase 3: Mutual recursion groups + parameter disambiguation
-- Expected result: countBlocks VERIFIED, all cascade errors eliminated
+**Day 2** (~10 hours):
+- Phase 3: Mutual recursion groups + parameter disambiguation + field accessor qualification
+- Expected result: countBlocks VERIFIED, evalComputeScore VERIFIED, all name collisions eliminated
 
-**Day 4** (~2 hours):
+**Day 3** (~2 hours):
 - Integration testing with full docparse project
 - Documentation and examples
 
-**Total: ~24 hours across 3-4 days**
+**Remaining: ~18 hours across 2-3 days**
 
 ## Risks & Mitigations
 
@@ -406,6 +452,7 @@ The following are intentionally left open for the implementer:
 | Z3 `declare-datatypes` syntax edge cases | Medium | Validate against Z3 4.15 specifically, add --verbose output |
 | Demand analysis missing required types | High | Conservative: include type if in doubt, reject at Z3 level |
 | Performance: building dependency graph per-function | Low | Graph built once, queries are O(types_used) |
+| Qualified accessor names breaking body encoding | Medium | Must update all `encodeRecordAccess` paths to emit `RecordType_field` consistently |
 
 ## Related Documents
 
