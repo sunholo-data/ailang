@@ -30,6 +30,7 @@ func serveAPICommand(args []string) error {
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
+	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -38,6 +39,13 @@ func serveAPICommand(args []string) error {
 	if *helpFlag {
 		printServeAPIHelp()
 		return nil
+	}
+
+	// Apply memory limit early (process-wide setting)
+	if *maxMemoryFlag != "" {
+		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
+			return fmt.Errorf("invalid --max-memory: %w", err)
+		}
 	}
 
 	if fs.NArg() < 1 {

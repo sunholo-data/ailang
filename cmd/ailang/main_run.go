@@ -89,10 +89,22 @@ func runCommand() {
 	// Semantic trace export flag (M-TRACE-EXPORT)
 	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl, otel, jsonl,otel, auto)")
 
+	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
+	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Apply memory limit early (process-wide setting)
+	if *maxMemoryFlag != "" {
+		if err := applyMemoryLimit(*maxMemoryFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			fmt.Println("Examples: 256MB, 512MB, 1GB, 2GB")
+			os.Exit(1)
+		}
 	}
 
 	// Check for filename argument

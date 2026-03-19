@@ -84,6 +84,8 @@ _list_member : (a, list[a]) -> bool
 _list_nth : (list[a], int) -> a
 _list_reverse : list[a] -> list[a]
 _list_take : (int, list[a]) -> list[a]
+_list_takeFlatMap : (Int, a -> list[b], list[a]) -> list[b]
+_list_takeMap : (Int, a -> b, list[a]) -> list[b]
 _list_union : (list[a], list[a]) -> list[a]
 _math_E : () -> float
 _math_PI : () -> float
