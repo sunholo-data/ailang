@@ -66,7 +66,7 @@ import (
 
 func TestAbsolute_ValidInput(t *testing.T) {
 	// Should not panic with valid input
-	result := Absolute(5)
+	result := basic__Absolute(5)
 	if result != 5 {
 		t.Errorf("expected 5, got %d", result)
 	}
@@ -87,11 +87,11 @@ func TestAbsolute_ContractViolation(t *testing.T) {
 		}
 	}()
 	// This should panic because -5 violates requires: x >= 0
-	Absolute(-5)
+	basic__Absolute(-5)
 }
 
 func TestSafeDivide_ValidInput(t *testing.T) {
-	result := SafeDivide(10, 2)
+	result := basic__SafeDivide(10, 2)
 	if result != 5 {
 		t.Errorf("expected 5, got %d", result)
 	}
@@ -112,11 +112,11 @@ func TestSafeDivide_DivisionByZero(t *testing.T) {
 		}
 	}()
 	// This should panic because divisor=0 violates requires: divisor != 0
-	SafeDivide(10, 0)
+	basic__SafeDivide(10, 0)
 }
 
 func TestIncrement_ValidInput(t *testing.T) {
-	result := Increment(5, 100)
+	result := basic__Increment(5, 100)
 	if result != 6 {
 		t.Errorf("expected 6, got %d", result)
 	}
@@ -134,11 +134,11 @@ func TestIncrement_NegativeInput(t *testing.T) {
 		}
 	}()
 	// This should panic because -1 violates requires: x >= 0
-	Increment(-1, 100)
+	basic__Increment(-1, 100)
 }
 
 func TestClamp_ValidInput(t *testing.T) {
-	result := Clamp(150, 0, 100)
+	result := basic__Clamp(150, 0, 100)
 	if result != 100 {
 		t.Errorf("expected 100 (clamped), got %d", result)
 	}
@@ -159,12 +159,12 @@ func TestClamp_InvalidRange(t *testing.T) {
 		}
 	}()
 	// This should panic because minVal=100 > maxVal=0 violates requires: minVal <= maxVal
-	Clamp(50, 100, 0)
+	basic__Clamp(50, 100, 0)
 }
 
 func TestMain_Integration(t *testing.T) {
 	// Main should work because it uses valid inputs
-	result := Main()
+	result := basic__Main()
 	// a=5, b=5, c=6, d=100 => 5+5+6+100 = 116
 	if result != 116 {
 		t.Errorf("expected 116, got %d", result)
@@ -192,7 +192,7 @@ func TestSafeDivide_EnsuresViolation(t *testing.T) {
 		}
 	}()
 	// dividend=-10, divisor=2 → result=-5, which violates ensures: result >= 0
-	SafeDivide(-10, 2)
+	basic__SafeDivide(-10, 2)
 }
 
 func TestIncrement_EnsuresViolation(t *testing.T) {
@@ -210,7 +210,7 @@ func TestIncrement_EnsuresViolation(t *testing.T) {
 		}
 	}()
 	// x=99, max=99 → result=99 (capped), violates ensures: result > x (99 is not > 99)
-	Increment(99, 99)
+	basic__Increment(99, 99)
 }
 `
 

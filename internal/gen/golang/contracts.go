@@ -494,9 +494,9 @@ func (g *Generator) generateEnsuresPredicate(expr core.CoreExpr, resultVar strin
 		return g.generateEnsuresApp(e, resultVar, retType)
 
 	case *core.DictApp:
-		// M-EVAL-BOUNDED-PIPELINE fix: After OpLowering + FillOperatorMethods,
+		// M-CONTRACT-ENSURES-CODEGEN-FIX: After OpLowering + FillOperatorMethods,
 		// contract predicates like `result >= 0` become DictApp nodes:
-		//   DictApp{Dict: "dict_Ord_Int", Method: "Gte", Args: [result, 0]}
+		//   DictApp{Dict: "dict_Ord_Int", Method: "gte", Args: [result, 0]}
 		// Map dict methods back to typed Go operators with result substitution.
 		if goOp := dictMethodToGoOp(e.Method); goOp != "" && len(e.Args) == 2 {
 			g.write("(")
@@ -524,27 +524,27 @@ func (g *Generator) generateEnsuresPredicate(expr core.CoreExpr, resultVar strin
 // Used to convert DictApp nodes back to typed operators in ensures predicates.
 func dictMethodToGoOp(method string) string {
 	switch method {
-	case "Gte":
+	case "Gte", "gte":
 		return ">="
-	case "Gt":
+	case "Gt", "gt":
 		return ">"
-	case "Lte":
+	case "Lte", "lte":
 		return "<="
-	case "Lt":
+	case "Lt", "lt":
 		return "<"
-	case "Eq":
+	case "Eq", "eq":
 		return "=="
-	case "Neq":
+	case "Neq", "neq":
 		return "!="
-	case "Add":
+	case "Add", "add":
 		return "+"
-	case "Sub":
+	case "Sub", "sub":
 		return "-"
-	case "Mul":
+	case "Mul", "mul":
 		return "*"
-	case "Div":
+	case "Div", "div":
 		return "/"
-	case "Mod":
+	case "Mod", "mod":
 		return "%"
 	default:
 		return ""
