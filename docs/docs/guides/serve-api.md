@@ -745,6 +745,84 @@ ailang serve-api app.ail \
 
 ---
 
+## Concurrency (v0.9.4+)
+
+`serve-api` handles concurrent requests safely. Each HTTP request gets its own isolated evaluator via `Fork()` — there is no shared mutable state between requests. Go's `net/http` creates a goroutine per request, and AILANG's evaluator is designed to work correctly in this model.
+
+**No async server needed** — Go's built-in concurrency handles everything. You do NOT need an event loop, async runtime, or worker pool.
+
+### Cloud Run Deployment
+
+```yaml
+# Full concurrency — one container handles 80 simultaneous requests
+spec:
+  containerConcurrency: 80  # Cloud Run default
+```
+
+You do NOT need `containerConcurrency: 1`. A single instance serves many concurrent requests efficiently.
+
+### Performance
+
+Sequential and concurrent performance scale linearly:
+
+```
+Sequential 5x DOCX parse:  285ms (57ms × 5)
+Concurrent 5x DOCX parse:  261ms (near-perfect scaling)
+```
+
+### Testing Concurrency
+
+Use the included test script:
+
+```bash
+# Simple modules (no effects):
+./tools/test-concurrency.sh examples/web_api_demo/api/
+
+# With capabilities (effectful modules):
+CAPS=IO,FS,Env AI_STUB=1 ./tools/test-concurrency.sh path/to/modules/ 8081
+
+# With debug tracing:
+DEBUG_CONCURRENCY=1 CAPS=IO,FS ./tools/test-concurrency.sh path/to/modules/
+```
+
+### Bash Testing Pitfall
+
+> **Do NOT use `2>&1 | tee` when starting the server.**
+>
+> Go's HTTP response flushing interacts badly with pipe-based stderr redirects.
+> Responses complete but `wait` doesn't see them, making requests appear to hang.
+>
+> **Use instead:**
+> ```bash
+> # Correct — redirect to file:
+> ailang serve-api ./api/ > /tmp/server.log 2>&1 &
+>
+> # Correct — discard output:
+> ailang serve-api ./api/ > /dev/null 2>&1 &
+>
+> # WRONG — causes apparent hangs:
+> ailang serve-api ./api/ 2>&1 | tee /tmp/server.log &
+> ```
+
+### Debug Tracing
+
+Set `DEBUG_CONCURRENCY=1` to trace per-request evaluator lifecycle:
+
+```bash
+DEBUG_CONCURRENCY=1 ailang serve-api --caps IO,FS --port 8080 ./api/ > /tmp/server.log 2>&1 &
+# Then check the log:
+grep CONCURRENCY /tmp/server.log
+```
+
+Output shows goroutine ID at each stage:
+```
+[CONCURRENCY] Fork evaluator for api/main.health (goroutine 42)
+[CONCURRENCY] Calling api/main.health (goroutine 42)
+[CONCURRENCY] Done api/main.health (goroutine 42, err=<nil>)
+```
+
+---
+
 ## Relationship to Go Interop
 
 `serve-api` builds on the [Go Interop embed API](./go-interop.md):
