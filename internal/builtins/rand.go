@@ -1,6 +1,9 @@
 package builtins
 
 import (
+	cryptorand "crypto/rand"
+	"fmt"
+	"io"
 	"math/rand"
 	"sync"
 
@@ -24,6 +27,7 @@ func init() {
 	registerRandFloat()
 	registerRandBool()
 	registerRandSeed()
+	registerUuid4()
 }
 
 // SetRandSeed sets the random seed for deterministic random generation.
@@ -243,4 +247,51 @@ func randSeedImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 	SetRandSeed(seed)
 
 	return &eval.UnitValue{}, nil
+}
+
+// _uuid4: Generate a random UUID v4
+func registerUuid4() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/rand",
+		Name:    "_uuid4",
+		NumArgs: 1, // unit arg
+		IsPure:  false,
+		Effect:  "Rand",
+		Type:    makeUuid4Type,
+		Impl:    uuid4Impl,
+		Metadata: &BuiltinMetadata{
+			Description: "Generate a random UUID v4",
+			Returns:     "string - RFC 4122 v4 UUID",
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"uuid", "random", "id"},
+			Category:    "rand",
+		},
+	})
+	if err != nil {
+		panic("failed to register _uuid4: " + err.Error())
+	}
+}
+
+func makeUuid4Type() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.Unit()).Returns(T.String()).Effects("Rand")
+}
+
+func uuid4Impl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("Rand", ""); err != nil {
+		return nil, err
+	}
+
+	var uuid [16]byte
+	if _, err := io.ReadFull(cryptorand.Reader, uuid[:]); err != nil {
+		return nil, fmt.Errorf("_uuid4: failed to generate random bytes: %w", err)
+	}
+	// Set version (4) and variant (RFC 4122)
+	uuid[6] = (uuid[6] & 0x0f) | 0x40
+	uuid[8] = (uuid[8] & 0x3f) | 0x80
+
+	result := fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		uuid[0:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:16])
+	return &eval.StringValue{Value: result}, nil
 }

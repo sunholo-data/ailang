@@ -15,46 +15,40 @@ func registerJSONBuiltins() {
 		NumArgs: 1,
 		IsPure:  true,
 		Impl: func(v Value) (Value, error) {
-			str, ok := v.(*StringValue)
-			if !ok {
+			// Handle already-structured AILANG values by converting to Json ADT
+			switch val := v.(type) {
+			case *StringValue:
+				// Standard path: parse JSON string
+				return legacyDecodeString(val)
+
+			case *RecordValue:
+				// Pre-parsed data → convert to JObject
+				jsonVal := legacyValueToJSON(val)
+				return legacyWrapOk(jsonVal), nil
+
+			case *ListValue:
+				// Pre-parsed array → convert to JArray
+				jsonVal := legacyValueToJSON(val)
+				return legacyWrapOk(jsonVal), nil
+
+			case *TaggedValue:
+				// Try to unwrap Result/Option wrappers containing a string
+				if strVal, ok := unwrapTaggedToString(val); ok {
+					return legacyDecodeString(strVal)
+				}
+				if val.TypeName == "Json" {
+					return legacyWrapOk(val), nil
+				}
+				return nil, fmt.Errorf("_json_decode: expected string, got %s(%s) — unwrap the %s before calling json_decode",
+					val.TypeName, val.CtorName, val.TypeName)
+
+			case *IntValue, *FloatValue, *BoolValue:
+				jsonVal := legacyValueToJSON(val)
+				return legacyWrapOk(jsonVal), nil
+
+			default:
 				return nil, fmt.Errorf("_json_decode: expected string, got %T", v)
 			}
-
-			// Use Go's json.Decoder to parse
-			dec := json.NewDecoder(strings.NewReader(str.Value))
-			dec.UseNumber() // Preserve precision
-
-			// Read first token to get the JSON value
-			var result interface{}
-			if err := dec.Decode(&result); err != nil {
-				// Return Err(string)
-				return &TaggedValue{
-					ModulePath: "std/result",
-					TypeName:   "Result",
-					CtorName:   "Err",
-					Fields:     []Value{&StringValue{Value: err.Error()}},
-				}, nil
-			}
-
-			// Convert interface{} to Json ADT
-			jsonVal, err := interfaceToJSON(result)
-			if err != nil {
-				// Return Err(string)
-				return &TaggedValue{
-					ModulePath: "std/result",
-					TypeName:   "Result",
-					CtorName:   "Err",
-					Fields:     []Value{&StringValue{Value: err.Error()}},
-				}, nil
-			}
-
-			// Return Ok(Json)
-			return &TaggedValue{
-				ModulePath: "std/result",
-				TypeName:   "Result",
-				CtorName:   "Ok",
-				Fields:     []Value{jsonVal},
-			}, nil
 		},
 	}
 
@@ -270,6 +264,100 @@ func encodeJSONObject(list *ListValue) (string, error) {
 
 	b.WriteByte('}')
 	return b.String(), nil
+}
+
+// unwrapTaggedToString extracts a string from common TaggedValue wrappers.
+// Handles Ok(string), Some(string), and single-field constructors wrapping a string.
+func unwrapTaggedToString(tv *TaggedValue) (*StringValue, bool) {
+	if len(tv.Fields) != 1 {
+		return nil, false
+	}
+	if sv, ok := tv.Fields[0].(*StringValue); ok {
+		return sv, true
+	}
+	if inner, ok := tv.Fields[0].(*TaggedValue); ok {
+		return unwrapTaggedToString(inner)
+	}
+	return nil, false
+}
+
+// legacyDecodeString parses a JSON string into the Json ADT, returning Result[Json, string].
+func legacyDecodeString(str *StringValue) (Value, error) {
+	dec := json.NewDecoder(strings.NewReader(str.Value))
+	dec.UseNumber()
+	var result interface{}
+	if err := dec.Decode(&result); err != nil {
+		return legacyWrapErr(err.Error()), nil
+	}
+	jsonVal, err := interfaceToJSON(result)
+	if err != nil {
+		return legacyWrapErr(err.Error()), nil
+	}
+	return legacyWrapOk(jsonVal), nil
+}
+
+// legacyValueToJSON converts an AILANG value to the Json ADT.
+func legacyValueToJSON(v Value) Value {
+	switch val := v.(type) {
+	case *StringValue:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JString", Fields: []Value{val}}
+	case *IntValue:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JNumber", Fields: []Value{&FloatValue{Value: float64(val.Value)}}}
+	case *FloatValue:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JNumber", Fields: []Value{val}}
+	case *BoolValue:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JBool", Fields: []Value{val}}
+	case *UnitValue:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JNull", Fields: []Value{}}
+	case *ListValue:
+		elements := make([]Value, len(val.Elements))
+		for i, elem := range val.Elements {
+			elements[i] = legacyValueToJSON(elem)
+		}
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JArray", Fields: []Value{&ListValue{Elements: elements}}}
+	case *RecordValue:
+		kvPairs := make([]Value, 0, len(val.Fields))
+		for key, fieldVal := range val.Fields {
+			kvPairs = append(kvPairs, &RecordValue{
+				Fields: map[string]Value{
+					"key":   &StringValue{Value: key},
+					"value": legacyValueToJSON(fieldVal),
+				},
+			})
+		}
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JObject", Fields: []Value{&ListValue{Elements: kvPairs}}}
+	case *TaggedValue:
+		if val.TypeName == "Json" {
+			return val
+		}
+		fields := []Value{
+			&RecordValue{Fields: map[string]Value{"key": &StringValue{Value: "__type"}, "value": legacyValueToJSON(&StringValue{Value: val.TypeName})}},
+			&RecordValue{Fields: map[string]Value{"key": &StringValue{Value: "__tag"}, "value": legacyValueToJSON(&StringValue{Value: val.CtorName})}},
+		}
+		if len(val.Fields) > 0 {
+			fieldElements := make([]Value, len(val.Fields))
+			for i, f := range val.Fields {
+				fieldElements[i] = legacyValueToJSON(f)
+			}
+			fields = append(fields, &RecordValue{
+				Fields: map[string]Value{
+					"key":   &StringValue{Value: "fields"},
+					"value": &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JArray", Fields: []Value{&ListValue{Elements: fieldElements}}},
+				},
+			})
+		}
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JObject", Fields: []Value{&ListValue{Elements: fields}}}
+	default:
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JString", Fields: []Value{&StringValue{Value: fmt.Sprintf("%v", v)}}}
+	}
+}
+
+func legacyWrapOk(v Value) Value {
+	return &TaggedValue{ModulePath: "std/result", TypeName: "Result", CtorName: "Ok", Fields: []Value{v}}
+}
+
+func legacyWrapErr(msg string) Value {
+	return &TaggedValue{ModulePath: "std/result", TypeName: "Result", CtorName: "Err", Fields: []Value{&StringValue{Value: msg}}}
 }
 
 // interfaceToJSON converts Go's json.Decode output to AILANG Json ADT

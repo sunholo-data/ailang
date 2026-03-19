@@ -87,12 +87,12 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "*",
+        "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "http",
             "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
+            "timeout": 3,
             "headers": {
               "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
               "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
@@ -120,12 +120,12 @@
         ]
       },
       {
-        "matcher": "*",
+        "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "http",
             "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
+            "timeout": 3,
             "headers": {
               "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
               "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
@@ -144,12 +144,12 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "*",
+        "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "http",
             "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
+            "timeout": 3,
             "headers": {
               "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
               "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
@@ -218,7 +218,7 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/session_end_speak.sh",
-            "timeout": 120
+            "timeout": 15
           },
           {
             "type": "http",

@@ -22,3 +22,7 @@ export func rand_bool() -> bool ! {Rand} = _rand_bool()
 -- rand_seed: Set random seed for deterministic generation
 -- Use this for reproducible random sequences (game replays, testing)
 export func rand_seed(seed: int) -> () ! {Rand} = _rand_seed(seed)
+
+-- uuid4: Generate random UUID v4
+-- Returns RFC 4122 v4 UUID (e.g., "550e8400-e29b-41d4-a716-446655440000")
+export func uuid4() -> string ! {Rand} = _uuid4()
