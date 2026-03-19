@@ -29,6 +29,10 @@ _bytes_to_base64 : bytes -> string
 _bytes_to_string : bytes -> string
 _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
+_crypto_constanttimeequal : (string, string) -> bool
+_crypto_hmacsha256 : (string, string) -> string
+_crypto_sha256bytes : bytes -> string
+_crypto_sha256hex : string -> string
 _debug_check : (bool, string, string) -> () ! {Debug}
 _debug_log : (string, string) -> () ! {Debug}
 _dt_add : (int, int, int, int) -> int

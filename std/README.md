@@ -16,6 +16,7 @@ The standard library provides core types and utilities for AILANG programs.
 | `std/math` | Mathematical functions |
 | `std/string` | String manipulation |
 | `std/array` | Array operations |
+| `std/crypto` | Cryptographic hashing: SHA-256, HMAC-SHA256 (v0.9.4+) |
 | `std/sem` | Semantic caching types (v0.5.11+) |
 
 ## std/sem - Semantic Caching (v0.5.11)

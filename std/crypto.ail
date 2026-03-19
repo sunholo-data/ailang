@@ -1,0 +1,66 @@
+-- Standard library: Cryptographic operations
+-- Pure functions — no capabilities required
+
+module std/crypto
+
+-- SHA-256 hash of a string, returned as 64-character lowercase hex
+--
+-- Deterministic: same input always produces same output.
+-- Use for hashing API keys, content addressing, integrity checks.
+--
+-- Args:
+--   input: string - The string to hash
+--
+-- Returns:
+--   string - 64-character lowercase hex digest
+--
+-- Example:
+--   let hash = sha256Hex("hello")
+--   -- => "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+export pure func sha256Hex(input: string) -> string =
+  _crypto_sha256hex(input)
+
+-- SHA-256 hash of raw bytes, returned as 64-character lowercase hex
+--
+-- Args:
+--   input: bytes - The bytes to hash
+--
+-- Returns:
+--   string - 64-character lowercase hex digest
+export pure func sha256Bytes(input: bytes) -> string =
+  _crypto_sha256bytes(input)
+
+-- HMAC-SHA256: keyed hash for message authentication
+--
+-- Use for signing messages, verifying data integrity with a shared secret.
+-- Returns lowercase hex string.
+--
+-- Args:
+--   message: string - The message to authenticate
+--   key: string - The secret key
+--
+-- Returns:
+--   string - 64-character lowercase hex HMAC digest
+--
+-- Example:
+--   let sig = hmacSha256("payload", "my-secret-key")
+export pure func hmacSha256(message: string, key: string) -> string =
+  _crypto_hmacsha256(message, key)
+
+-- Constant-time string comparison (prevents timing attacks)
+--
+-- Use when comparing hashes, tokens, or API keys.
+-- Unlike == which may short-circuit, this always takes the same time
+-- regardless of where strings differ.
+--
+-- Args:
+--   a: string - First string
+--   b: string - Second string
+--
+-- Returns:
+--   bool - true if strings are equal
+--
+-- Example:
+--   let valid = constantTimeEqual(storedHash, computedHash)
+export pure func constantTimeEqual(a: string, b: string) -> bool =
+  _crypto_constanttimeequal(a, b)
