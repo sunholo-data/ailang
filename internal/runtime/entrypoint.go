@@ -2,9 +2,31 @@ package runtime
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"runtime"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/eval"
 )
+
+// debugConcurrency enables concurrency tracing via DEBUG_CONCURRENCY=1
+var debugConcurrency = os.Getenv("DEBUG_CONCURRENCY") == "1"
+
+// goroutineID extracts the goroutine ID for debug logging
+func goroutineID() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	s := string(buf[:n])
+	// "goroutine 123 [..."
+	s = strings.TrimPrefix(s, "goroutine ")
+	var id int
+	fmt.Sscanf(s, "%d", &id)
+	return id
+}
+
+// Suppress unused import warning
+var _ = log.Printf
 
 // getArity returns the arity (number of parameters) of a value
 //
@@ -75,6 +97,9 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 	// 3. Fork the evaluator for this request — each goroutine gets its own copy.
 	// This eliminates race conditions on resolver, env, and effContext when
 	// serve-api handles concurrent HTTP requests.
+	if debugConcurrency {
+		log.Printf("[CONCURRENCY] Fork evaluator for %s.%s (goroutine %d)", inst.Path, name, goroutineID())
+	}
 	reqEval := rt.evaluator.Fork()
 
 	// 4. Set up resolver for this request's module context
@@ -82,5 +107,12 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 	reqEval.SetGlobalResolver(resolver)
 
 	// 5. Call the function on the forked evaluator
-	return reqEval.CallFunction(fn, args)
+	if debugConcurrency {
+		log.Printf("[CONCURRENCY] Calling %s.%s (goroutine %d)", inst.Path, name, goroutineID())
+	}
+	result, err := reqEval.CallFunction(fn, args)
+	if debugConcurrency {
+		log.Printf("[CONCURRENCY] Done %s.%s (goroutine %d, err=%v)", inst.Path, name, goroutineID(), err)
+	}
+	return result, err
 }
