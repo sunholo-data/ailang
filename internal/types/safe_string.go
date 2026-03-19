@@ -47,27 +47,6 @@ func safeTypeStringWithDepth(t Type, depth int, visited map[Type]bool) string {
 	case *TCon:
 		return typ.Name
 
-	case *TFunc:
-		params := make([]string, len(typ.Params))
-		for i, p := range typ.Params {
-			params[i] = safeTypeStringWithDepth(p, depth+1, visited)
-		}
-		ret := safeTypeStringWithDepth(typ.Return, depth+1, visited)
-
-		effectStr := ""
-		if len(typ.Effects) > 0 {
-			effects := make([]string, len(typ.Effects))
-			for i, e := range typ.Effects {
-				effects[i] = e.String()
-			}
-			effectStr = fmt.Sprintf(" ! {%s}", strings.Join(effects, ", "))
-		}
-
-		if len(params) == 1 {
-			return fmt.Sprintf("%s -> %s%s", params[0], ret, effectStr)
-		}
-		return fmt.Sprintf("(%s) -> %s%s", strings.Join(params, ", "), ret, effectStr)
-
 	case *TFunc2:
 		params := make([]string, len(typ.Params))
 		for i, p := range typ.Params {

@@ -40,7 +40,7 @@ func TestVisitor_TFunc(t *testing.T) {
 	stringType := &types.TCon{Name: "string"}
 	boolType := &types.TCon{Name: "bool"}
 
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{intType, stringType},
 		Return: boolType,
 	}
@@ -50,7 +50,7 @@ func TestVisitor_TFunc(t *testing.T) {
 		visited = append(visited, typ)
 	})
 
-	// Should visit: TFunc, int, string, bool
+	// Should visit: TFunc2, int, string, bool
 	if len(visited) != 4 {
 		t.Errorf("expected 4 visited types, got %d", len(visited))
 	}
@@ -369,7 +369,7 @@ func TestCollectFreeVars(t *testing.T) {
 	bVar := &types.TVar{Name: "b"}
 	cVar := &types.TVar{Name: "c"}
 
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{aVar, bVar},
 		Return: cVar,
 	}
@@ -454,7 +454,7 @@ func TestContainsType(t *testing.T) {
 
 func TestContainsTypeByName(t *testing.T) {
 	aVar := &types.TVar{Name: "a"}
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{aVar},
 		Return: &types.TCon{Name: "int"},
 	}
@@ -471,13 +471,13 @@ func TestCountTypes(t *testing.T) {
 	// int -> string
 	intType := &types.TCon{Name: "int"}
 	stringType := &types.TCon{Name: "string"}
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{intType},
 		Return: stringType,
 	}
 
 	count := CountTypes(funcType)
-	// TFunc, int, string
+	// TFunc2, int, string
 	if count != 3 {
 		t.Errorf("expected 3 types, got %d", count)
 	}
@@ -486,7 +486,7 @@ func TestCountTypes(t *testing.T) {
 func TestCollectTypesByKind(t *testing.T) {
 	intType := &types.TCon{Name: "int"}
 	stringType := &types.TCon{Name: "string"}
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{intType},
 		Return: stringType,
 	}
@@ -565,7 +565,7 @@ func TestDepth_Nil(t *testing.T) {
 
 func TestHasTypeVars_WithTVar(t *testing.T) {
 	aVar := &types.TVar{Name: "a"}
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{aVar},
 		Return: &types.TCon{Name: "int"},
 	}
@@ -602,7 +602,7 @@ func TestHasTypeVars_WithRowVar(t *testing.T) {
 
 func TestHasTypeVars_Concrete(t *testing.T) {
 	// int -> string (no type variables)
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{&types.TCon{Name: "int"}},
 		Return: &types.TCon{Name: "string"},
 	}
@@ -649,7 +649,7 @@ func TestHasTypeVars_CyclicConcrete(t *testing.T) {
 }
 
 func TestIsMonomorphic_Concrete(t *testing.T) {
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{&types.TCon{Name: "int"}},
 		Return: &types.TCon{Name: "string"},
 	}
@@ -661,7 +661,7 @@ func TestIsMonomorphic_Concrete(t *testing.T) {
 
 func TestIsMonomorphic_Polymorphic(t *testing.T) {
 	aVar := &types.TVar{Name: "a"}
-	funcType := &types.TFunc{
+	funcType := &types.TFunc2{
 		Params: []types.Type{aVar},
 		Return: aVar,
 	}

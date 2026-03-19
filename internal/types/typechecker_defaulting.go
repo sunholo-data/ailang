@@ -264,11 +264,6 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 		for _, arg := range typ.Args {
 			collectConstraintVars(arg, vars)
 		}
-	case *TFunc:
-		for _, p := range typ.Params {
-			collectConstraintVars(p, vars)
-		}
-		collectConstraintVars(typ.Return, vars)
 	case *TFunc2:
 		for _, p := range typ.Params {
 			collectConstraintVars(p, vars)
@@ -313,11 +308,6 @@ func collectFreeVarsWithVisited(t Type, vars map[string]bool, visited map[Type]b
 		for _, arg := range typ.Args {
 			collectFreeVarsWithVisited(arg, vars, visited)
 		}
-	case *TFunc:
-		for _, p := range typ.Params {
-			collectFreeVarsWithVisited(p, vars, visited)
-		}
-		collectFreeVarsWithVisited(typ.Return, vars, visited)
 	case *TFunc2:
 		for _, p := range typ.Params {
 			collectFreeVarsWithVisited(p, vars, visited)

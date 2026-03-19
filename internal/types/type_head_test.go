@@ -63,13 +63,13 @@ func TestHead_Record(t *testing.T) {
 }
 
 func TestHead_Func(t *testing.T) {
-	// TFunc: int -> string
-	fn1 := &TFunc{
+	// TFunc2: int -> string (pure)
+	fn1 := &TFunc2{
 		Params: []Type{TInt},
 		Return: TString,
 	}
 	if Head(fn1) != HeadFunc {
-		t.Errorf("Head(TFunc) = %v, want %v", Head(fn1), HeadFunc)
+		t.Errorf("Head(TFunc2) = %v, want %v", Head(fn1), HeadFunc)
 	}
 
 	// TFunc2: int -> string ! {IO}

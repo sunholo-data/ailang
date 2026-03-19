@@ -70,7 +70,7 @@ func Head(t Type) TypeHead {
 	case *TRecord, *TRecord2:
 		return HeadRecord
 
-	case *TFunc, *TFunc2:
+	case *TFunc2:
 		return HeadFunc
 
 	case *TVar:

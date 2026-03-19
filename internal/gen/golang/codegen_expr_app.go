@@ -351,16 +351,6 @@ func (g *Generator) getFuncParamTypes(funcExpr core.CoreExpr) []string {
 // extractParamTypes extracts Go parameter types from an AILANG type.
 func (g *Generator) extractParamTypes(typ types.Type) []string {
 	switch t := typ.(type) {
-	case *types.TFunc:
-		var params []string
-		for _, p := range t.Params {
-			if goType, err := g.TypeMapper.MapType(p); err == nil {
-				params = append(params, string(goType))
-			} else {
-				params = append(params, "interface{}")
-			}
-		}
-		return params
 	case *types.TFunc2:
 		var params []string
 		for _, p := range t.Params {

@@ -141,9 +141,9 @@ func TestTypedLetBindings(t *testing.T) {
 	// - NodeID 101 (lambda) -> () -> bool (function type for wrapper signature)
 	// - NodeID 102 (value expression) -> bool (the variable's type)
 	coreTypeInfo := make(types.CoreTypeInfo)
-	coreTypeInfo[100] = &types.TCon{Name: "bool"}                                               // Let expression (body) type
-	coreTypeInfo[101] = &types.TFunc{Params: []types.Type{}, Return: &types.TCon{Name: "bool"}} // Lambda type for wrapper
-	coreTypeInfo[102] = &types.TCon{Name: "bool"}                                               // Value expression type
+	coreTypeInfo[100] = &types.TCon{Name: "bool"}                                                // Let expression (body) type
+	coreTypeInfo[101] = &types.TFunc2{Params: []types.Type{}, Return: &types.TCon{Name: "bool"}} // Lambda type for wrapper
+	coreTypeInfo[102] = &types.TCon{Name: "bool"}                                                // Value expression type
 
 	gen := New("test")
 	gen.SetCoreTypeInfo(coreTypeInfo)
@@ -204,9 +204,9 @@ func TestTypedLetBindingsWithAssertion(t *testing.T) {
 	// - NodeID 201 (BinOp value) -> int (the variable's type)
 	// - NodeID 202 (lambda) -> () -> int (function type for wrapper signature)
 	coreTypeInfo := make(types.CoreTypeInfo)
-	coreTypeInfo[200] = &types.TCon{Name: "int"}                                               // Let expression (body) type
-	coreTypeInfo[201] = &types.TCon{Name: "int"}                                               // Value expression type (BinOp)
-	coreTypeInfo[202] = &types.TFunc{Params: []types.Type{}, Return: &types.TCon{Name: "int"}} // Lambda type for wrapper
+	coreTypeInfo[200] = &types.TCon{Name: "int"}                                                // Let expression (body) type
+	coreTypeInfo[201] = &types.TCon{Name: "int"}                                                // Value expression type (BinOp)
+	coreTypeInfo[202] = &types.TFunc2{Params: []types.Type{}, Return: &types.TCon{Name: "int"}} // Lambda type for wrapper
 
 	gen := New("test")
 	gen.SetCoreTypeInfo(coreTypeInfo)

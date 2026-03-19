@@ -199,10 +199,6 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)
 
-	case *TFunc:
-		// M-FIX-FLOAT-OP: Handle old TFunc type that may appear after substitution chain resolution
-		return u.unifyTFunc(t1, t2, sub)
-
 	case *TList:
 		return u.unifyLists(t1, t2, sub)
 
@@ -290,8 +286,8 @@ func propagateTypeNameWithVisited(t1, t2 Type, visited map[Type]bool) {
 				}
 			}
 		}
-	case *TFunc:
-		if typ2, ok := t2.(*TFunc); ok {
+	case *TFunc2:
+		if typ2, ok := t2.(*TFunc2); ok {
 			for i := range typ1.Params {
 				if i < len(typ2.Params) {
 					propagateTypeNameWithVisited(typ1.Params[i], typ2.Params[i], visited)

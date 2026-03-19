@@ -147,7 +147,7 @@ func TestNormalizeTypeName(t *testing.T) {
 		},
 		{
 			name: "function type",
-			typ: &TFunc{
+			typ: &TFunc2{
 				Params: []Type{TInt, TInt},
 				Return: TInt,
 			},

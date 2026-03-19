@@ -517,7 +517,7 @@ func TestEncodeFunction_StringParam(t *testing.T) {
 
 func TestEncodeFunction_UnencodableParam(t *testing.T) {
 	params := []FunctionParam{
-		{Name: "f", Type: &types.TFunc{}},
+		{Name: "f", Type: &types.TFunc2{}},
 	}
 	body := &core.Var{Name: "f"}
 	meta := &core.DeclMeta{

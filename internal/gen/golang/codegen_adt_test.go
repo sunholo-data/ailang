@@ -92,7 +92,7 @@ func TestRecordReturnType(t *testing.T) {
 
 	// Set up CoreTypeInfo with the Lambda returning a TRecord with matching fields
 	cti := types.CoreTypeInfo{
-		1: &types.TFunc{
+		1: &types.TFunc2{
 			Params: []types.Type{&types.TCon{Name: "int"}},
 			Return: &types.TRecord{
 				Fields: map[string]types.Type{

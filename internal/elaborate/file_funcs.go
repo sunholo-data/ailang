@@ -363,7 +363,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		for i, p := range typ.Params {
 			params[i] = e.astTypeToInternalType(p)
 		}
-		return &types.TFunc{
+		return &types.TFunc2{
 			Params: params,
 			Return: e.astTypeToInternalType(typ.Return),
 		}

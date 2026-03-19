@@ -155,12 +155,6 @@ func (tc *CoreTypeChecker) propagateTypeNameRecursively(t Type, fieldSigToTypeNa
 			tc.propagateTypeNameRecursively(elem, fieldSigToTypeName, nodeID)
 		}
 
-	case *TFunc:
-		for _, param := range typ.Params {
-			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
-		}
-		tc.propagateTypeNameRecursively(typ.Return, fieldSigToTypeName, nodeID)
-
 	case *TFunc2:
 		for _, param := range typ.Params {
 			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
@@ -317,13 +311,6 @@ func isGround(t Type) bool {
 			}
 		}
 		return true
-	case *TFunc:
-		for _, p := range typ.Params {
-			if !isGround(p) {
-				return false
-			}
-		}
-		return isGround(typ.Return)
 	case *TRecord:
 		for _, fieldType := range typ.Fields {
 			if !isGround(fieldType) {

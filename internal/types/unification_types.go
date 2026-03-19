@@ -69,80 +69,11 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 		// Unify return type
 		return u.Unify(r1, r2, sub)
 	}
-	if t2Old, ok := t2.(*TFunc); ok {
-		// Cross-unify TFunc2 ↔ TFunc: unify params and return, elide effect rows
-		// (symmetric with unifyTFunc's TFunc2 case)
-		fp1, fr1 := flattenFunc(t1)
-		p2, r2 := t2Old.Params, t2Old.Return
-		if len(fp1) != len(p2) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(fp1), len(p2))
-		}
-		for i := range fp1 {
-			var err error
-			sub, err = u.Unify(fp1[i], p2[i], sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
-			}
-		}
-		return u.Unify(fr1, r2, sub)
-	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
 	return nil, fmt.Errorf("cannot unify function type with %T", t2)
-}
-
-// unifyTFunc unifies old-style TFunc types
-// M-FIX-FLOAT-OP: Added to handle TFunc types that appear after substitution chain resolution
-func (u *Unifier) unifyTFunc(t1 *TFunc, t2 Type, sub Substitution) (Substitution, error) {
-	switch t2 := t2.(type) {
-	case *TFunc:
-		// Both are old-style TFunc
-		if len(t1.Params) != len(t2.Params) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(t1.Params), len(t2.Params))
-		}
-
-		// Unify parameters
-		for i := range t1.Params {
-			var err error
-			sub, err = u.Unify(t1.Params[i], t2.Params[i], sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
-			}
-		}
-
-		// Unify return types
-		return u.Unify(t1.Return, t2.Return, sub)
-
-	case *TFunc2:
-		// Convert TFunc to TFunc2 semantics: unify params and return
-		// M-DOCPARSE-DX M1: flatten curried TFunc2 before comparing with TFunc
-		fp2, fr2 := flattenFunc(t2)
-		p1, r1 := t1.Params, t1.Return
-		if len(p1) != len(fp2) {
-			return nil, fmt.Errorf("function arity mismatch: %d vs %d", len(p1), len(fp2))
-		}
-
-		// Unify parameters
-		for i := range p1 {
-			var err error
-			sub, err = u.Unify(p1[i], fp2[i], sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
-			}
-		}
-
-		// Unify return types
-		return u.Unify(r1, fr2, sub)
-
-	case *TVar2:
-		// Swap and retry
-		return u.Unify(t2, t1, sub)
-
-	default:
-		return nil, fmt.Errorf("cannot unify function type with %T", t2)
-	}
 }
 
 // unifyLists unifies two list types

@@ -113,9 +113,6 @@ func (tm *TypeMapper) mapTypeWithVisited(t types.Type, visited map[types.Type]bo
 		// Fallback: anonymous struct
 		return GoType("struct{}"), nil
 
-	case *types.TFunc:
-		return tm.mapTFuncWithVisited(typ, visited)
-
 	case *types.TFunc2:
 		return tm.mapTFunc2WithVisited(typ, visited)
 
@@ -179,28 +176,6 @@ func (tm *TypeMapper) mapTCon(typ *types.TCon) (GoType, error) {
 	}
 }
 
-// mapTFuncWithVisited maps a function type to Go with cycle detection.
-func (tm *TypeMapper) mapTFuncWithVisited(typ *types.TFunc, visited map[types.Type]bool) (GoType, error) {
-	var paramTypes []string
-	for _, p := range typ.Params {
-		pt, err := tm.mapTypeWithVisited(p, visited)
-		if err != nil {
-			return "", err
-		}
-		paramTypes = append(paramTypes, string(pt))
-	}
-
-	returnType, err := tm.mapTypeWithVisited(typ.Return, visited)
-	if err != nil {
-		return "", err
-	}
-
-	if len(paramTypes) == 0 {
-		return GoType(fmt.Sprintf("func() %s", returnType)), nil
-	}
-	return GoType(fmt.Sprintf("func(%s) %s", join(paramTypes, ", "), returnType)), nil
-}
-
 // mapTFunc2WithVisited maps a TFunc2 to Go with cycle detection.
 // M-DX23: TFunc2 is the new function type system used after type checking.
 func (tm *TypeMapper) mapTFunc2WithVisited(typ *types.TFunc2, visited map[types.Type]bool) (GoType, error) {
@@ -230,21 +205,6 @@ func (tm *TypeMapper) mapTFunc2WithVisited(typ *types.TFunc2, visited map[types.
 // Returns nil slices and empty string if the type is not a function type.
 func (tm *TypeMapper) ExtractFuncSignature(t types.Type) (paramTypes []GoType, returnType GoType, ok bool) {
 	switch fn := t.(type) {
-	case *types.TFunc:
-		paramTypes = make([]GoType, len(fn.Params))
-		for i, p := range fn.Params {
-			pt, err := tm.MapType(p)
-			if err != nil {
-				return nil, "", false
-			}
-			paramTypes[i] = pt
-		}
-		rt, err := tm.MapType(fn.Return)
-		if err != nil {
-			return nil, "", false
-		}
-		return paramTypes, rt, true
-
 	case *types.TFunc2:
 		paramTypes = make([]GoType, len(fn.Params))
 		for i, p := range fn.Params {

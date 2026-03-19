@@ -61,13 +61,13 @@ func TestMapType_TypeVar(t *testing.T) {
 }
 
 func TestMapType_Function(t *testing.T) {
-	fn := &types.TFunc{
+	fn := &types.TFunc2{
 		Params: []types.Type{&types.TCon{Name: "int"}},
 		Return: &types.TCon{Name: "int"},
 	}
 	_, err := MapType(fn)
 	if err == nil {
-		t.Error("MapType(TFunc) expected error")
+		t.Error("MapType(TFunc2) expected error")
 	}
 }
 
@@ -385,7 +385,7 @@ func TestMapRecordFields_UnsupportedFieldType(t *testing.T) {
 	rec := &types.TRecord{
 		Fields: map[string]types.Type{
 			"x":  &types.TCon{Name: "int"},
-			"fn": &types.TFunc{}, // function type not supported
+			"fn": &types.TFunc2{}, // function type not supported
 		},
 	}
 	_, err := MapRecordFields(rec)

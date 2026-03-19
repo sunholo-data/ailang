@@ -93,35 +93,6 @@ func NormalizeTypeName(t Type) string {
 
 		return result
 
-	case *TFunc:
-		// Function types: Func<P1,P2,...->R>
-		// We include effects if present: Func<P1,P2->R!{E1,E2}>
-		var params []string
-		for _, p := range typ.Params {
-			params = append(params, NormalizeTypeName(p))
-		}
-
-		returnType := NormalizeTypeName(typ.Return)
-
-		// Format with arrow inside angle brackets for clarity
-		if len(params) == 0 {
-			result := fmt.Sprintf("Func<()->%s>", returnType)
-			if len(typ.Effects) > 0 {
-				result = addEffectsToFunc(result, typ.Effects)
-			}
-			return result
-		}
-
-		result := fmt.Sprintf("Func<%s->%s>",
-			strings.Join(params, ","),
-			returnType)
-
-		if len(typ.Effects) > 0 {
-			result = addEffectsToFunc(result, typ.Effects)
-		}
-
-		return result
-
 	case *TApp:
 		// Type application: Maybe<Int>, Either<Int,String>
 		constr := NormalizeTypeName(typ.Constructor)
@@ -217,22 +188,6 @@ func NormalizeTypeName(t Type) string {
 	}
 }
 
-// helper to add effects to function type
-func addEffectsToFunc(funcStr string, effects []EffectType) string {
-	var effectStrs []string
-	for _, e := range effects {
-		effectStrs = append(effectStrs, e.String())
-	}
-	sort.Strings(effectStrs) // Deterministic effect order
-
-	// Insert effects before the closing >
-	idx := strings.LastIndex(funcStr, ">")
-	if idx >= 0 {
-		return funcStr[:idx] + fmt.Sprintf("!{%s}", strings.Join(effectStrs, ",")) + funcStr[idx:]
-	}
-	return funcStr
-}
-
 // MakeDictionaryKey creates a deterministic registry key for a dictionary
 // Format: <namespace>::<ClassName>::<TypeNF>::<method>
 // Example: "prelude::Num::Int::add"
@@ -300,13 +255,6 @@ func IsGroundType(t Type) bool {
 			return IsGroundType(typ.Row)
 		}
 		return true
-	case *TFunc:
-		for _, param := range typ.Params {
-			if !IsGroundType(param) {
-				return false
-			}
-		}
-		return IsGroundType(typ.Return)
 	case *TFunc2:
 		for _, param := range typ.Params {
 			if !IsGroundType(param) {

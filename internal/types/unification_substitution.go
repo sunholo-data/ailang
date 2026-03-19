@@ -89,26 +89,6 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		visited[t] = result
 		return result
 
-	case *TFunc:
-		changed := false
-		params := make([]Type, len(typ.Params))
-		for i, p := range typ.Params {
-			params[i] = safeSubstitute(p, sub, visited)
-			if params[i] != p {
-				changed = true
-			}
-		}
-		ret := safeSubstitute(typ.Return, sub, visited)
-		if ret != typ.Return {
-			changed = true
-		}
-		if !changed {
-			return t
-		}
-		result := &TFunc{Params: params, Return: ret, Effects: typ.Effects}
-		visited[t] = result
-		return result
-
 	case *TFunc2:
 		changed := false
 		params := make([]Type, len(typ.Params))

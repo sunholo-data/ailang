@@ -467,8 +467,6 @@ func extractFuncSignature(binding interface{}) (paramTypes []types.Type, retType
 		typ = scheme.Type
 	}
 	switch fn := typ.(type) {
-	case *types.TFunc:
-		return fn.Params, fn.Return
 	case *types.TFunc2:
 		return fn.Params, fn.Return
 	}

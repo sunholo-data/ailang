@@ -103,12 +103,6 @@ func (v *TypeVisitor) children(t types.Type) []types.Type {
 		return nil
 
 	// Function types
-	case *types.TFunc:
-		children := make([]types.Type, 0, len(typ.Params)+1)
-		children = append(children, typ.Params...)
-		children = append(children, typ.Return)
-		return children
-
 	case *types.TFunc2:
 		children := make([]types.Type, 0, len(typ.Params)+2)
 		children = append(children, typ.Params...)

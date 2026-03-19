@@ -80,7 +80,7 @@ func TestSafeTypeStringNormalTypes(t *testing.T) {
 		},
 		{
 			name: "function type",
-			typ: &TFunc{
+			typ: &TFunc2{
 				Params: []Type{&TCon{Name: "int"}},
 				Return: &TCon{Name: "string"},
 			},
@@ -124,7 +124,7 @@ func TestSafeTypeStringNil(t *testing.T) {
 // TestTruncatedTypeString verifies the length-limited wrapper.
 func TestTruncatedTypeString(t *testing.T) {
 	// Create a moderately complex type
-	complex := &TFunc{
+	complex := &TFunc2{
 		Params: []Type{
 			&TRecord{Fields: map[string]Type{
 				"name": &TCon{Name: "string"},

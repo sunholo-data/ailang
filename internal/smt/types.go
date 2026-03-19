@@ -43,7 +43,7 @@ func MapType(t types.Type) (string, error) {
 		// Type variables are not directly encodable; they should be
 		// monomorphized before SMT encoding.
 		return "", fmt.Errorf("type variable %q cannot be encoded in SMT-LIB (needs monomorphization)", ty.Name)
-	case *types.TFunc:
+	case *types.TFunc2:
 		return "", fmt.Errorf("function types cannot be encoded in SMT-LIB")
 	case *types.TList:
 		elemSort, err := MapType(ty.Element)

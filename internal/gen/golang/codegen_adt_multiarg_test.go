@@ -61,7 +61,7 @@ func TestADTConstructorMultiArg(t *testing.T) {
 
 	// Set up CoreTypeInfo for the Lambda
 	cti := types.CoreTypeInfo{
-		1: &types.TFunc{
+		1: &types.TFunc2{
 			Params: []types.Type{
 				&types.TCon{Name: "int"},
 				&types.TCon{Name: "float"},
@@ -151,7 +151,7 @@ func TestADTConstructorUnregistered(t *testing.T) {
 	// gen.RegisterADTConstructorWithTypes("DrawCmd", "Viewport", []string{...})
 
 	cti := types.CoreTypeInfo{
-		1: &types.TFunc{
+		1: &types.TFunc2{
 			Params: []types.Type{
 				&types.TCon{Name: "int"},
 				&types.TCon{Name: "float"},

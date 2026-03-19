@@ -43,7 +43,7 @@ func TestSubstitutionIdempotent(t *testing.T) {
 		{"direct var", &TVar2{Name: "α"}},
 		{"intermediate var", &TVar2{Name: "β"}},
 		{"concrete", TFloat},
-		{"function", &TFunc{Params: []Type{&TVar2{Name: "α"}}, Return: &TVar2{Name: "β"}}},
+		{"function", &TFunc2{Params: []Type{&TVar2{Name: "α"}}, Return: &TVar2{Name: "β"}}},
 	}
 
 	for _, tc := range testCases {
@@ -101,16 +101,16 @@ func TestSubstitutionInFunction(t *testing.T) {
 		"β": TFloat,
 	}
 
-	funcType := &TFunc{
+	funcType := &TFunc2{
 		Params: []Type{&TVar2{Name: "α"}, &TVar2{Name: "α"}},
 		Return: &TVar2{Name: "α"},
 	}
 
 	result := ApplySubstitution(sub, funcType)
 
-	fn, ok := result.(*TFunc)
+	fn, ok := result.(*TFunc2)
 	if !ok {
-		t.Fatalf("Expected TFunc, got %T", result)
+		t.Fatalf("Expected TFunc2, got %T", result)
 	}
 
 	// All αs should be resolved to float
