@@ -493,10 +493,61 @@ func (g *Generator) generateEnsuresPredicate(expr core.CoreExpr, resultVar strin
 		// Function application - generate normally but handle result in args
 		return g.generateEnsuresApp(e, resultVar, retType)
 
+	case *core.DictApp:
+		// M-EVAL-BOUNDED-PIPELINE fix: After OpLowering + FillOperatorMethods,
+		// contract predicates like `result >= 0` become DictApp nodes:
+		//   DictApp{Dict: "dict_Ord_Int", Method: "Gte", Args: [result, 0]}
+		// Map dict methods back to typed Go operators with result substitution.
+		if goOp := dictMethodToGoOp(e.Method); goOp != "" && len(e.Args) == 2 {
+			g.write("(")
+			if err := g.generateEnsuresPredicate(e.Args[0], resultVar, retType); err != nil {
+				return err
+			}
+			g.writef(" %s ", goOp)
+			if err := g.generateEnsuresPredicate(e.Args[1], resultVar, retType); err != nil {
+				return err
+			}
+			g.write(")")
+			return nil
+		}
+		// Fallback for unrecognized dict methods
+		return g.generateExpr(expr)
+
 	default:
 		// Fallback to normal expression generation
 		// This handles complex expressions but won't substitute 'result'
 		return g.generateExpr(expr)
+	}
+}
+
+// dictMethodToGoOp maps dictionary method names to Go operators.
+// Used to convert DictApp nodes back to typed operators in ensures predicates.
+func dictMethodToGoOp(method string) string {
+	switch method {
+	case "Gte":
+		return ">="
+	case "Gt":
+		return ">"
+	case "Lte":
+		return "<="
+	case "Lt":
+		return "<"
+	case "Eq":
+		return "=="
+	case "Neq":
+		return "!="
+	case "Add":
+		return "+"
+	case "Sub":
+		return "-"
+	case "Mul":
+		return "*"
+	case "Div":
+		return "/"
+	case "Mod":
+		return "%"
+	default:
+		return ""
 	}
 }
 
