@@ -132,24 +132,41 @@ ailang run --clock-mode fixed --clock-start 1000 program.ail
 
 HTTP operations with security protections.
 
-```typescript
+```ailang
+-- Simple: httpGet/httpPost return body string directly
 import std/net (httpGet, httpPost)
 
-func fetchData(url: string) -> string ! {Net} {
+func fetchData(url: string) -> string ! {Net} =
   httpGet(url)
-}
 
-func postData(url: string, body: string) -> string ! {Net} {
+func postData(url: string, body: string) -> string ! {Net} =
   httpPost(url, body)
-}
 ```
+
+```ailang
+-- Advanced: httpRequest returns Result[HttpResponse, NetError]
+-- HttpResponse = {status: int, headers: List[{name, value}], body: string, ok: bool}
+import std/net (httpRequest)
+import std/json (decode)
+
+func fetchJson(url: string) -> Result[Json, string] ! {Net} =
+  match httpRequest("GET", url, [], "") {
+    Ok(resp) => decode(resp.body),   -- resp.body is the body string
+    Err(Transport(msg)) => Err("network error: " ++ msg),
+    Err(_) => Err("request failed")
+  }
+```
+
+> **Common mistake:** `Ok(resp)` captures the full `HttpResponse` record, not just the body.
+> Use `resp.body` to get the response body string. To parse JSON, do `decode(resp.body)` not `decode(resp)`.
 
 **Builtins:**
 
 | Function | Type | Description |
 |----------|------|-------------|
-| `httpGet` | `string -> string ! {Net}` | HTTP GET request |
-| `httpPost` | `(string, string) -> string ! {Net}` | HTTP POST request |
+| `httpGet` | `string -> string ! {Net}` | HTTP GET, returns body string directly |
+| `httpPost` | `(string, string) -> string ! {Net}` | HTTP POST, returns body string directly |
+| `httpRequest` | `(string, string, List[{name, value}], string) -> Result[HttpResponse, NetError] ! {Net}` | Full HTTP with headers, status codes, structured errors |
 
 **Security Features:**
 - DNS rebinding prevention
