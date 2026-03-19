@@ -363,9 +363,19 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		for i, p := range typ.Params {
 			params[i] = e.astTypeToInternalType(p)
 		}
+		// Use an open effect row when the annotation doesn't specify effects.
+		// A nil/closed row would mean "no effects allowed", which breaks
+		// unification with functions that have effects like AI, IO, FS.
+		e.freshVarNum++
+		openEffectRow := &types.Row{
+			Kind:   types.EffectRow,
+			Labels: make(map[string]types.Type),
+			Tail:   &types.RowVar{Name: fmt.Sprintf("ε_annot%d", e.freshVarNum), Kind: types.EffectRow},
+		}
 		return &types.TFunc2{
-			Params: params,
-			Return: e.astTypeToInternalType(typ.Return),
+			Params:    params,
+			EffectRow: openEffectRow,
+			Return:    e.astTypeToInternalType(typ.Return),
 		}
 
 	case *ast.TypeApp:
