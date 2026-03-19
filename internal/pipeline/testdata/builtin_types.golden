@@ -50,6 +50,7 @@ _embedding_encode : list[float] -> bytes
 _env_getArgs : () -> list[string] ! {Env}
 _env_getEnv : string -> Result[string, EnvError] ! {Env}
 _env_hasEnv : string -> bool ! {Env}
+_escapeXml : string -> string
 _float_to_int : float -> int
 _fs_appendFile : (string, string) -> () ! {FS}
 _fs_appendFileBytes : (string, bytes) -> () ! {FS}
@@ -169,6 +170,10 @@ _string_floatToStr : float -> string
 _string_intToStr : int -> string
 _string_reverse : string -> string
 _trace_check : string -> bool
+_uuid4 : () -> string ! {Rand}
+_xmlComment : string -> XmlNode
+_xmlElement : (string, list[{name: string, value: string}], list[XmlNode]) -> XmlNode
+_xmlText : string -> XmlNode
 _xml_findAll : (XmlNode, string) -> list[XmlNode]
 _xml_findAllAttrs : (XmlNode, string, string) -> list[string]
 _xml_findAllTexts : (XmlNode, string) -> list[string]
@@ -183,6 +188,7 @@ _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
 _zip_createArchive : (string, list[{content: string, name: string}]) -> Result[(), string] ! {FS}
+_zip_createArchiveWithBytes : (string, list[{data: string, name: string}]) -> Result[(), string] ! {FS}
 _zip_listEntries : string -> Result[list[string], string] ! {FS}
 _zip_readEntry : (string, string) -> Result[string, string] ! {FS}
 _zip_readEntryBytes : (string, string) -> Result[string, string] ! {FS}

@@ -28,6 +28,7 @@ func init() {
 	registerZipReadEntry()
 	registerZipReadEntryBytes()
 	registerZipCreateArchive()
+	registerZipCreateArchiveWithBytes()
 }
 
 // Result helpers for Ok/Err return values
@@ -404,6 +405,140 @@ func zipCreateArchiveImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 
 	if writeErr != nil {
 		// Clean up on error
+		os.Remove(path)
+		return zipMakeErr(writeErr.Error()), nil
+	}
+
+	return zipMakeOk(&eval.UnitValue{}), nil
+}
+
+// ============================================================================
+// _zip_createArchiveWithBytes: string -> [{name: string, data: string}] -> Result[(), string] ! {FS}
+// ============================================================================
+// M-STDLIB-XML-V2: Create ZIP archive with binary entries (base64-encoded data)
+
+func registerZipCreateArchiveWithBytes() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/zip",
+		Name:    "_zip_createArchiveWithBytes",
+		NumArgs: 2,
+		IsPure:  false,
+		Effect:  "FS",
+		Type:    makeZipCreateArchiveWithBytesType,
+		Impl:    zipCreateArchiveWithBytesImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create a ZIP archive with binary entries from base64-encoded data",
+			LongDesc:    "Creates a ZIP archive where each entry's data is a base64-encoded string. Use for embedding images, fonts, or other binary content in DOCX/PPTX archives. Rejects path traversal. Respects AILANG_FS_SANDBOX.",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path for the output ZIP archive"},
+				{Name: "entries", Description: "List of {name: string, data: string} where data is base64-encoded"},
+			},
+			Returns: "Result[(), string] - Ok(()) on success, Err(message) on failure",
+			Examples: []Example{
+				{Code: `_zip_createArchiveWithBytes("out.zip", [{name: "image.png", data: "iVBORw0KGgo..."}])`, Description: "Creates archive with binary entry"},
+			},
+			SeeAlso:   []string{"_zip_createArchive", "_zip_readEntryBytes"},
+			Since:     "v0.9.4",
+			Stability: StabilityStable,
+			Tags:      []string{"zip", "archive", "write", "binary", "base64", "fs"},
+			Category:  "zip",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _zip_createArchiveWithBytes: %v", err))
+	}
+}
+
+func makeZipCreateArchiveWithBytesType() types.Type {
+	T := types.NewBuilder()
+	entryType := T.Record(
+		types.Field("name", T.String()),
+		types.Field("data", T.String()),
+	)
+	return T.Func(T.String(), T.List(entryType)).Returns(
+		T.App("Result", T.Unit(), T.String()),
+	).Effects("FS")
+}
+
+func zipCreateArchiveWithBytesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_createArchiveWithBytes: expected String for path, got %T", args[0])
+	}
+	entriesVal, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_createArchiveWithBytes: expected List for entries, got %T", args[1])
+	}
+
+	if len(entriesVal.Elements) > zipMaxEntries {
+		return zipMakeErr(fmt.Sprintf("too many entries: %d (max %d)", len(entriesVal.Elements), zipMaxEntries)), nil
+	}
+
+	path := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		path = filepath.Join(ctx.Env.Sandbox, path)
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return zipMakeErr(fmt.Sprintf("cannot create file: %v", err)), nil
+	}
+
+	w := zip.NewWriter(f)
+	var writeErr error
+
+	for i, entry := range entriesVal.Elements {
+		rec, ok := entry.(*eval.RecordValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: expected record, got %T", i, entry)
+			break
+		}
+		nameVal, ok := rec.Fields["name"].(*eval.StringValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: 'name' field must be string", i)
+			break
+		}
+		dataVal, ok := rec.Fields["data"].(*eval.StringValue)
+		if !ok {
+			writeErr = fmt.Errorf("entry %d: 'data' field must be string (base64-encoded)", i)
+			break
+		}
+
+		if strings.Contains(nameVal.Value, "..") {
+			writeErr = fmt.Errorf("entry %d: path traversal rejected: %s", i, nameVal.Value)
+			break
+		}
+
+		decoded, err := base64.StdEncoding.DecodeString(dataVal.Value)
+		if err != nil {
+			writeErr = fmt.Errorf("entry %d: invalid base64: %v", i, err)
+			break
+		}
+
+		if len(decoded) > zipMaxDecompressedSize {
+			writeErr = fmt.Errorf("entry %d: data too large: %d bytes (max %d)", i, len(decoded), zipMaxDecompressedSize)
+			break
+		}
+
+		ew, err := w.Create(nameVal.Value)
+		if err != nil {
+			writeErr = fmt.Errorf("entry %d: cannot create: %v", i, err)
+			break
+		}
+		if _, err := ew.Write(decoded); err != nil {
+			writeErr = fmt.Errorf("entry %d: write error: %v", i, err)
+			break
+		}
+	}
+
+	if cerr := w.Close(); cerr != nil && writeErr == nil {
+		writeErr = fmt.Errorf("close archive: %v", cerr)
+	}
+	if cerr := f.Close(); cerr != nil && writeErr == nil {
+		writeErr = fmt.Errorf("close file: %v", cerr)
+	}
+
+	if writeErr != nil {
 		os.Remove(path)
 		return zipMakeErr(writeErr.Error()), nil
 	}

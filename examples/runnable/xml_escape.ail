@@ -1,0 +1,17 @@
+-- XML escaping example
+-- Demonstrates escapeXml for safe XML text content
+
+module examples/runnable/xml_escape
+
+import std/xml (escapeXml)
+
+export func main() -> unit ! {IO} = {
+    let safe = escapeXml("<script>alert('xss')</script>");
+    println(safe);
+
+    let query = escapeXml("x=1&y=2");
+    println(query);
+
+    let plain = escapeXml("Hello, world!");
+    println(plain)
+}

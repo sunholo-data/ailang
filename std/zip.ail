@@ -1,14 +1,13 @@
--- std/zip - ZIP archive reading
+-- std/zip - ZIP archive reading and writing
 --
--- Read entries from ZIP archives (including .docx, .xlsx, .pptx).
--- All operations are read-only (no extraction to disk).
+-- Read and write entries in ZIP archives (including .docx, .xlsx, .pptx).
 --
 -- Requires: FS capability (--caps FS)
 --
 -- Security: Path traversal rejected, 10K entry limit, 100MB decompressed size limit.
 --
 -- Usage:
---   import std/zip (listEntries, readEntry, readEntryBytes)
+--   import std/zip (listEntries, readEntry, readEntryBytes, createArchive, createArchiveWithBytes)
 --   match listEntries("archive.zip") {
 --     Ok(entries) => println(show(entries)),
 --     Err(msg) => println(msg)
@@ -44,3 +43,10 @@ export func readEntryBytes(path: string, entry: string) -> Result[string, string
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func createArchive(path: string, entries: [{name: string, content: string}]) -> Result[(), string] ! {FS} = _zip_createArchive(path, entries)
+
+-- Create a ZIP archive with binary entries (base64-encoded data)
+-- Each entry is {name: string, data: string} where data is base64
+-- For embedding images, fonts, or other binary content in DOCX/PPTX
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func createArchiveWithBytes(path: string, entries: [{name: string, data: string}]) -> Result[(), string] ! {FS} = _zip_createArchiveWithBytes(path, entries)

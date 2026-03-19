@@ -15,6 +15,10 @@ import (
 func init() {
 	registerXmlSerialize()
 	registerXmlSerializeWithDecl()
+	registerEscapeXml()
+	registerXmlElementCtor()
+	registerXmlTextCtor()
+	registerXmlCommentCtor()
 }
 
 // serializeNode recursively converts an XmlNode tree to XML string
@@ -199,4 +203,169 @@ func xmlSerializeWithDeclImpl(_ *effects.EffContext, args []eval.Value) (eval.Va
 		return nil, err
 	}
 	return &eval.StringValue{Value: buf.String()}, nil
+}
+
+// _escapeXml: Escape string for XML text content
+func registerEscapeXml() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_escapeXml",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeEscapeXmlType,
+		Impl:    escapeXmlImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Escape string for XML text content",
+			Returns:     "string - XML-escaped text",
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"xml", "escape", "text"},
+			Category:    "xml",
+		},
+	})
+	if err != nil {
+		panic("failed to register _escapeXml: " + err.Error())
+	}
+}
+
+func makeEscapeXmlType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.String()).Build()
+}
+
+func escapeXmlImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_escapeXml: expected string, got %T", args[0])
+	}
+	escaped := html.EscapeString(strVal.Value)
+	return &eval.StringValue{Value: escaped}, nil
+}
+
+// M-STDLIB-XML-V2: XmlNode constructor builtins
+// Expose makeXmlElement/makeXmlText/makeXmlComment as AILANG builtins
+
+func registerXmlElementCtor() {
+	attrType := types.NewBuilder().Record(
+		types.Field("name", types.NewBuilder().String()),
+		types.Field("value", types.NewBuilder().String()),
+	)
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_xmlElement",
+		NumArgs: 3,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.String(), T.List(attrType), T.List(T.Con("XmlNode"))).Returns(T.Con("XmlNode")).Build()
+		},
+		Impl: xmlElementCtorImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create an XML Element node",
+			Params: []ParamDoc{
+				{Name: "tag", Description: "Element tag name"},
+				{Name: "attrs", Description: "List of {name, value} attribute records"},
+				{Name: "children", Description: "List of child XmlNode values"},
+			},
+			Returns:   "XmlNode Element",
+			Examples:  []Example{{Code: `xmlElement("div", [{name: "class", value: "main"}], [xmlText("hello")])`, Description: `Creates <div class="main">hello</div>`}},
+			Since:     "v0.9.4",
+			Stability: StabilityStable,
+			Tags:      []string{"xml", "constructor", "element"},
+			Category:  "xml",
+		},
+	})
+	if err != nil {
+		panic("failed to register _xmlElement: " + err.Error())
+	}
+}
+
+func xmlElementCtorImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	tag, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_xmlElement: expected string for tag, got %T", args[0])
+	}
+	attrs, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_xmlElement: expected list for attrs, got %T", args[1])
+	}
+	children, ok := args[2].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_xmlElement: expected list for children, got %T", args[2])
+	}
+	return makeXmlElement(tag.Value, attrs.Elements, children.Elements), nil
+}
+
+func registerXmlTextCtor() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_xmlText",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.String()).Returns(T.Con("XmlNode")).Build()
+		},
+		Impl: xmlTextCtorImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create an XML Text node",
+			Params:      []ParamDoc{{Name: "content", Description: "Text content"}},
+			Returns:     "XmlNode Text",
+			Examples:    []Example{{Code: `xmlText("hello")`, Description: `Creates Text("hello")`}},
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"xml", "constructor", "text"},
+			Category:    "xml",
+		},
+	})
+	if err != nil {
+		panic("failed to register _xmlText: " + err.Error())
+	}
+}
+
+func xmlTextCtorImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	text, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_xmlText: expected string, got %T", args[0])
+	}
+	return makeXmlText(text.Value), nil
+}
+
+func registerXmlCommentCtor() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/xml",
+		Name:    "_xmlComment",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type: func() types.Type {
+			T := types.NewBuilder()
+			return T.Func(T.String()).Returns(T.Con("XmlNode")).Build()
+		},
+		Impl: xmlCommentCtorImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create an XML Comment node",
+			Params:      []ParamDoc{{Name: "content", Description: "Comment content"}},
+			Returns:     "XmlNode Comment",
+			Examples:    []Example{{Code: `xmlComment(" TODO: fix this ")`, Description: `Creates Comment(" TODO: fix this ")`}},
+			Since:       "v0.9.4",
+			Stability:   StabilityStable,
+			Tags:        []string{"xml", "constructor", "comment"},
+			Category:    "xml",
+		},
+	})
+	if err != nil {
+		panic("failed to register _xmlComment: " + err.Error())
+	}
+}
+
+func xmlCommentCtorImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	text, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_xmlComment: expected string, got %T", args[0])
+	}
+	return makeXmlComment(text.Value), nil
 }

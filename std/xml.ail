@@ -8,7 +8,8 @@
 -- Security: 256 depth limit, 50MB input size limit.
 --
 -- Usage:
---   import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
+--   import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag,
+--                   serialize, escapeXml, xmlElement, xmlText, xmlComment)
 --   match parse("<root><item id='1'>Hello</item></root>") {
 --     Ok(doc) => println(getText(doc)),
 --     Err(msg) => println(msg)
@@ -80,3 +81,19 @@ export pure func serialize(node: XmlNode) -> string = _xml_serialize(node)
 -- Serialize XmlNode tree to XML string with XML declaration
 -- Prepends <?xml version="1.0" encoding="UTF-8"?>
 export pure func serializeWithDecl(node: XmlNode) -> string = _xml_serializeWithDecl(node)
+
+-- escapeXml: Escape string for XML text content
+-- Converts <, >, &, " to entity references
+export pure func escapeXml(text: string) -> string = _escapeXml(text)
+
+-- M-STDLIB-XML-V2: XmlNode constructors
+-- Build XML trees programmatically instead of string concatenation
+
+-- Create an Element node with tag, attributes, and children
+export pure func xmlElement(tag: string, attrs: [{name: string, value: string}], children: [XmlNode]) -> XmlNode = _xmlElement(tag, attrs, children)
+
+-- Create a Text node
+export pure func xmlText(content: string) -> XmlNode = _xmlText(content)
+
+-- Create a Comment node
+export pure func xmlComment(content: string) -> XmlNode = _xmlComment(content)

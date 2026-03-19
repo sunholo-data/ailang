@@ -385,3 +385,134 @@ func TestZipListEntries_Sandbox(t *testing.T) {
 		t.Fatalf("expected 1 entry, got %d", len(list.Elements))
 	}
 }
+
+// ============================================================================
+// _zip_createArchiveWithBytes tests
+// ============================================================================
+
+func TestZipCreateArchiveWithBytes_RoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "out.zip")
+
+	// PNG header bytes
+	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+	b64 := base64.StdEncoding.EncodeToString(binaryData)
+
+	ctx := makeTestCtx(t)
+	entries := &eval.ListValue{Elements: []eval.Value{
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name": &eval.StringValue{Value: "image.png"},
+			"data": &eval.StringValue{Value: b64},
+		}},
+	}}
+
+	// Write
+	result, err := zipCreateArchiveWithBytesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+		entries,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertOk(t, result)
+
+	// Read back with readEntryBytes
+	readResult, err := zipReadEntryBytesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+		&eval.StringValue{Value: "image.png"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	inner := assertOk(t, readResult)
+	sv := inner.(*eval.StringValue)
+	if sv.Value != b64 {
+		t.Fatalf("round-trip failed: expected %q, got %q", b64, sv.Value)
+	}
+}
+
+func TestZipCreateArchiveWithBytes_PathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "out.zip")
+
+	ctx := makeTestCtx(t)
+	entries := &eval.ListValue{Elements: []eval.Value{
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name": &eval.StringValue{Value: "../evil.bin"},
+			"data": &eval.StringValue{Value: base64.StdEncoding.EncodeToString([]byte("bad"))},
+		}},
+	}}
+
+	result, err := zipCreateArchiveWithBytesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+		entries,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertErr(t, result, "path traversal rejected")
+}
+
+func TestZipCreateArchiveWithBytes_InvalidBase64(t *testing.T) {
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "out.zip")
+
+	ctx := makeTestCtx(t)
+	entries := &eval.ListValue{Elements: []eval.Value{
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name": &eval.StringValue{Value: "file.bin"},
+			"data": &eval.StringValue{Value: "not-valid-base64!!!"},
+		}},
+	}}
+
+	result, err := zipCreateArchiveWithBytesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+		entries,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertErr(t, result, "invalid base64")
+}
+
+func TestZipCreateArchiveWithBytes_MultipleEntries(t *testing.T) {
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "out.zip")
+
+	data1 := []byte{0x01, 0x02, 0x03}
+	data2 := []byte{0x04, 0x05, 0x06}
+
+	ctx := makeTestCtx(t)
+	entries := &eval.ListValue{Elements: []eval.Value{
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name": &eval.StringValue{Value: "a.bin"},
+			"data": &eval.StringValue{Value: base64.StdEncoding.EncodeToString(data1)},
+		}},
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name": &eval.StringValue{Value: "b.bin"},
+			"data": &eval.StringValue{Value: base64.StdEncoding.EncodeToString(data2)},
+		}},
+	}}
+
+	result, err := zipCreateArchiveWithBytesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+		entries,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertOk(t, result)
+
+	// Verify both entries exist
+	listResult, err := zipListEntriesImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: outPath},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	inner := assertOk(t, listResult)
+	list := inner.(*eval.ListValue)
+	if len(list.Elements) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(list.Elements))
+	}
+}

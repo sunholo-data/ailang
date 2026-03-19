@@ -154,6 +154,152 @@ func TestXmlSerializeWithDecl(t *testing.T) {
 	assert.True(t, strings.HasSuffix(xml, "<root>hello</root>"))
 }
 
+// M-STDLIB-XML-V2: escapeXml tests
+
+func TestEscapeXml_BasicEntities(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	tests := []struct {
+		input, expected string
+	}{
+		{"<", "&lt;"},
+		{">", "&gt;"},
+		{"&", "&amp;"},
+		{`"`, "&#34;"},
+		{"'", "&#39;"},
+		{"hello", "hello"},
+		{"", ""},
+		{"a < b & c > d", "a &lt; b &amp; c &gt; d"},
+		{`<div class="main">`, `&lt;div class=&#34;main&#34;&gt;`},
+	}
+	for _, tt := range tests {
+		result, err := escapeXmlImpl(ctx, []eval.Value{&eval.StringValue{Value: tt.input}})
+		require.NoError(t, err)
+		assert.Equal(t, tt.expected, result.(*eval.StringValue).Value, "input: %q", tt.input)
+	}
+}
+
+func TestEscapeXml_DoubleEscape(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	// Already-escaped text should be double-escaped
+	result, err := escapeXmlImpl(ctx, []eval.Value{&eval.StringValue{Value: "&amp;"}})
+	require.NoError(t, err)
+	assert.Equal(t, "&amp;amp;", result.(*eval.StringValue).Value)
+}
+
+func TestEscapeXml_WrongType(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	_, err := escapeXmlImpl(ctx, []eval.Value{&eval.IntValue{Value: 42}})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "_escapeXml")
+}
+
+// M-STDLIB-XML-V2: XmlNode constructor tests
+
+func TestXmlElementCtor_Basic(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	// xmlElement("p", [], [xmlText("hello")])
+	textNode, err := xmlTextCtorImpl(ctx, []eval.Value{&eval.StringValue{Value: "hello"}})
+	require.NoError(t, err)
+
+	result, err := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: "p"},
+		&eval.ListValue{Elements: nil},
+		&eval.ListValue{Elements: []eval.Value{textNode}},
+	})
+	require.NoError(t, err)
+
+	// Serialize and verify
+	serialized, err := xmlSerializeImpl(ctx, []eval.Value{result})
+	require.NoError(t, err)
+	assert.Equal(t, "<p>hello</p>", serialized.(*eval.StringValue).Value)
+}
+
+func TestXmlElementCtor_WithAttrs(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	attrs := &eval.ListValue{Elements: []eval.Value{
+		&eval.RecordValue{Fields: map[string]eval.Value{
+			"name":  &eval.StringValue{Value: "class"},
+			"value": &eval.StringValue{Value: "main"},
+		}},
+	}}
+	result, err := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: "div"},
+		attrs,
+		&eval.ListValue{Elements: nil},
+	})
+	require.NoError(t, err)
+
+	serialized, err := xmlSerializeImpl(ctx, []eval.Value{result})
+	require.NoError(t, err)
+	assert.Equal(t, `<div class="main"/>`, serialized.(*eval.StringValue).Value)
+}
+
+func TestXmlTextCtor(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	result, err := xmlTextCtorImpl(ctx, []eval.Value{&eval.StringValue{Value: "hello world"}})
+	require.NoError(t, err)
+
+	tv := result.(*eval.TaggedValue)
+	assert.Equal(t, "Text", tv.CtorName)
+	assert.Equal(t, "XmlNode", tv.TypeName)
+	assert.Equal(t, "hello world", tv.Fields[0].(*eval.StringValue).Value)
+}
+
+func TestXmlCommentCtor(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	result, err := xmlCommentCtorImpl(ctx, []eval.Value{&eval.StringValue{Value: " TODO "}})
+	require.NoError(t, err)
+
+	serialized, err := xmlSerializeImpl(ctx, []eval.Value{result})
+	require.NoError(t, err)
+	assert.Equal(t, "<!-- TODO -->", serialized.(*eval.StringValue).Value)
+}
+
+func TestXmlCtors_RoundTrip(t *testing.T) {
+	// Build: <root><p class="intro">Hello</p><p>World</p></root>
+	ctx := effects.NewEffContext([]string{})
+
+	text1, _ := xmlTextCtorImpl(ctx, []eval.Value{&eval.StringValue{Value: "Hello"}})
+	text2, _ := xmlTextCtorImpl(ctx, []eval.Value{&eval.StringValue{Value: "World"}})
+
+	p1, _ := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: "p"},
+		&eval.ListValue{Elements: []eval.Value{
+			&eval.RecordValue{Fields: map[string]eval.Value{
+				"name":  &eval.StringValue{Value: "class"},
+				"value": &eval.StringValue{Value: "intro"},
+			}},
+		}},
+		&eval.ListValue{Elements: []eval.Value{text1}},
+	})
+	p2, _ := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: "p"},
+		&eval.ListValue{Elements: nil},
+		&eval.ListValue{Elements: []eval.Value{text2}},
+	})
+
+	root, _ := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.StringValue{Value: "root"},
+		&eval.ListValue{Elements: nil},
+		&eval.ListValue{Elements: []eval.Value{p1, p2}},
+	})
+
+	serialized, err := xmlSerializeImpl(ctx, []eval.Value{root})
+	require.NoError(t, err)
+	assert.Equal(t, `<root><p class="intro">Hello</p><p>World</p></root>`, serialized.(*eval.StringValue).Value)
+}
+
+func TestXmlElementCtor_WrongType(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	_, err := xmlElementCtorImpl(ctx, []eval.Value{
+		&eval.IntValue{Value: 42},
+		&eval.ListValue{Elements: nil},
+		&eval.ListValue{Elements: nil},
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "_xmlElement")
+}
+
 func TestXmlSerialize_Roundtrip(t *testing.T) {
 	// Parse XML, then serialize, then parse again — should produce equivalent trees
 	ctx := effects.NewEffContext([]string{})
