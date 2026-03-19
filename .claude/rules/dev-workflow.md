@@ -34,6 +34,7 @@ make check-file-sizes     # Fails if >800 lines
 | `DEBUG_PARSER=1` | Token position tracing |
 | `DEBUG_CODEGEN=1` | Record type fallback warnings |
 | `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling |
+| `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing with goroutine IDs |
 | `--timeout 30s` | Compilation timeout with stack dump (CLI flag) |
 | `--debug-compile` | Phase timing breakdown (CLI flag) |
 
