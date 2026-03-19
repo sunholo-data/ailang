@@ -106,7 +106,13 @@ func CallEntrypoint(rt *ModuleRuntime, inst *ModuleInstance, name string, args [
 	resolver := newModuleGlobalResolver(inst, rt)
 	reqEval.SetGlobalResolver(resolver)
 
-	// 5. Call the function on the forked evaluator
+	// 5. Register forked evaluator for this goroutine so builtins use it.
+	// Without this, builtins resolve EffContext from the shared evaluator,
+	// causing FnCaller to use the shared evaluator instead of the fork.
+	rt.builtins.SetGoroutineEvaluator(reqEval)
+	defer rt.builtins.ClearGoroutineEvaluator()
+
+	// 6. Call the function on the forked evaluator
 	if debugConcurrency {
 		log.Printf("[CONCURRENCY] Calling %s.%s (goroutine %d)", inst.Path, name, goroutineID())
 	}

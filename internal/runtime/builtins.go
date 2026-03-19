@@ -2,6 +2,9 @@ package runtime
 
 import (
 	"fmt"
+	goruntime "runtime"
+	"strings"
+	"sync"
 
 	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/effects"
@@ -22,7 +25,13 @@ import (
 // so it is safe to use concurrently.
 type BuiltinRegistry struct {
 	builtins  map[string]eval.Value
-	evaluator *eval.CoreEvaluator // Reference to evaluator for EffContext access
+	evaluator *eval.CoreEvaluator // Reference to shared evaluator for EffContext access
+
+	// Per-goroutine evaluator overrides for concurrent serve-api requests.
+	// When a forked evaluator is active, it registers itself here so builtins
+	// use the forked evaluator's EffContext (with correct FnCaller binding)
+	// instead of the shared evaluator's.
+	goroutineEvals sync.Map // map[int64]*eval.CoreEvaluator
 }
 
 // NewBuiltinRegistry creates a new builtin registry with all stdlib functions registered
@@ -87,27 +96,55 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 	}
 }
 
-// getEffContext retrieves the EffContext from the evaluator
+// SetGoroutineEvaluator registers a forked evaluator for the current goroutine.
+// Builtins will use this evaluator's EffContext instead of the shared one.
+// Must be paired with ClearGoroutineEvaluator when the request completes.
+func (br *BuiltinRegistry) SetGoroutineEvaluator(e *eval.CoreEvaluator) {
+	br.goroutineEvals.Store(builtinGoroutineID(), e)
+}
+
+// ClearGoroutineEvaluator removes the goroutine-local evaluator override.
+func (br *BuiltinRegistry) ClearGoroutineEvaluator() {
+	br.goroutineEvals.Delete(builtinGoroutineID())
+}
+
+// builtinGoroutineID returns the current goroutine ID.
+func builtinGoroutineID() int64 {
+	var buf [64]byte
+	n := goruntime.Stack(buf[:], false)
+	s := string(buf[:n])
+	s = strings.TrimPrefix(s, "goroutine ")
+	var id int64
+	fmt.Sscanf(s, "%d", &id)
+	return id
+}
+
+// getEffContext retrieves the EffContext for the current goroutine.
+//
+// Resolution order:
+//  1. Check goroutine-local evaluator override (set by Fork for concurrent requests)
+//  2. Fall back to shared evaluator (single-threaded CLI, REPL, module eval)
 //
 // M-ITERATIVE-LIST: If no EffContext exists but evaluator is available,
 // creates a minimal default EffContext with FnCaller/FnCallerN wired.
-// This ensures iterative builtins work even when no explicit EffContext is set
-// (e.g., embed.Engine, REPL tests).
-//
-// Returns:
-//   - The EffContext if available, nil otherwise
 func (br *BuiltinRegistry) getEffContext() *effects.EffContext {
-	if br.evaluator == nil {
+	// Check goroutine-local evaluator first (concurrent serve-api requests)
+	evaluator := br.evaluator
+	if goroutineEval, ok := br.goroutineEvals.Load(builtinGoroutineID()); ok {
+		evaluator = goroutineEval.(*eval.CoreEvaluator)
+	}
+
+	if evaluator == nil {
 		return nil
 	}
-	ctx := br.evaluator.GetEffContext()
+	ctx := evaluator.GetEffContext()
 	if ctx == nil {
 		// M-ITERATIVE-LIST: Create a minimal default EffContext with FnCallers wired
 		// so pure iterative builtins (_list_map, etc.) can call AILANG callbacks.
 		defaultCtx := effects.NewEffContext(nil)
-		defaultCtx.FnCaller = br.evaluator.CallValue
-		defaultCtx.FnCallerN = br.evaluator.CallValueN
-		br.evaluator.SetEffContext(defaultCtx)
+		defaultCtx.FnCaller = evaluator.CallValue
+		defaultCtx.FnCallerN = evaluator.CallValueN
+		evaluator.SetEffContext(defaultCtx)
 		return defaultCtx
 	}
 	effCtx, ok := ctx.(*effects.EffContext)
