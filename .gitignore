@@ -63,3 +63,4 @@ __pycache__/
 temp_data/
 ui/.env.local
 code-harness-skills/
+registry-validator
