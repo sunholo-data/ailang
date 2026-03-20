@@ -506,8 +506,8 @@
     },
     "v0.9.0": {
       "file": "prompts/v0.9.0.md",
-      "hash": "b7134ad68879e6555c2333186db855453e528a83f00d228f665e8b01346575e6",
-      "description": "Streaming v0.9.0 + external package imports (import pkg/vendor/name/module)",
+      "hash": "5bc1a353a3d953adc9c7c65e0962de022f312ad581f1982b2358e7b536bad0b2",
+      "description": "Streaming v0.9.0 + registry workflow (search, install, publish, pkg-docs)",
       "created": "2026-03-08",
       "tags": [
         "production",

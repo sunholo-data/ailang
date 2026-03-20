@@ -82,6 +82,13 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Packages & Registry',
+      items: [
+        'guides/packages',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Development',
       items: [
         'guides/development-workflow',

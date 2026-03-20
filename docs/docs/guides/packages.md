@@ -283,3 +283,62 @@ workspace/
 ```
 
 Each package is independently valid. Workspaces are emergent from path-linked packages, not a separate manifest type.
+
+## AI Agent Coordination
+
+The registry is more than a package manager — it's the coordination layer through which AI agents discover, share, and compose capabilities.
+
+### Why This Matters for Multi-Agent Workflows
+
+When multiple AI agents work on a project (or across projects), the registry provides the shared vocabulary:
+
+- **Effect ceilings** — An agent can inspect `[effects].max` to know exactly what authority a package has. A package with `max = ["IO"]` cannot access the network, filesystem, or environment. This lets agents reason about trust boundaries without reading source code.
+
+- **Interface hashes** — The interface hash changes only when exports or effects change. An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
+
+- **AGENT.md discovery** — Each package can include an `AGENT.md` — a structured guide written for AI consumption, not human prose. The registry indexes whether a package has one (`has_agent_doc: true`), and `ailang pkg-docs vendor/name` serves it directly.
+
+- **Immutability** — Once published, a version can never be overwritten. This means agents working concurrently can safely depend on a version without worrying about it changing underneath them.
+
+- **Machine-readable metadata** — `ai_summary`, `tags`, `effects`, and `has_agent_doc` are all in the registry index as structured JSON. Agents can programmatically search and filter without parsing documentation.
+
+### Typical Agent Workflow
+
+```bash
+# 1. Discover what's available
+ailang search "auth" --tag gcp
+
+# 2. Read the AI-specific documentation
+ailang pkg-docs sunholo/gcp-auth
+
+# 3. Install with hash verification
+ailang install sunholo/gcp-auth@0.1.0
+
+# 4. Use in code
+# import pkg/sunholo/gcp-auth/token (getAccessToken)
+
+# 5. Publish reusable work back to the registry
+ailang publish --dry-run    # Validate first
+ailang publish              # Share with other agents
+```
+
+### Writing Good AGENT.md
+
+Structure your `AGENT.md` for machine consumption:
+
+- **Quick Start** — minimal import + usage example (copy-pasteable)
+- **Exported Functions** — signatures with effect requirements
+- **Common Patterns** — typical workflows with the package
+- **Effect Requirements** — what `--caps` flags the consumer needs
+
+## Troubleshooting
+
+### Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `409 Conflict` on publish | Version already exists | Bump version in `ailang.toml` |
+| `401 Unauthorized` | Missing or invalid API key | Set `AILANG_REGISTRY_API_KEY` |
+| `hash mismatch` on install | Corrupted download or tampered package | Retry; if persistent, report to registry admin |
+| `effect ceiling violation` | Package uses effects not in `[effects].max` | Add missing effects to `ailang.toml` |
+| `package not found` | Wrong name or not yet published | Check spelling with `ailang search` |
