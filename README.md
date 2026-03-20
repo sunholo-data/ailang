@@ -45,22 +45,28 @@ Once installed, just ask your agent to write AILANG code - it handles the rest.
 
 See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for details.
 
-### Manual Installation
+### Quick Install
+
+```bash
+curl -fsSL https://ailang.sunholo.com/install.sh | bash
+```
+
+Detects your OS/architecture automatically. Pin a version with `VERSION=v0.9.0` before the curl.
 
 <details>
 <summary>Click to expand manual installation instructions</summary>
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.arm64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Linux
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/linux.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # From source

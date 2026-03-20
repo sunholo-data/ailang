@@ -52,26 +52,37 @@ The agent will:
 
 ---
 
-## <Icon name="download" inline /> Manual Installation
+## <Icon name="download" inline /> Quick Install
 
-For standalone CLI usage or if you prefer manual installation:
+Install AILANG with a single command:
+
+```bash
+curl -fsSL https://ailang.sunholo.com/install.sh | bash
+```
+
+This auto-detects your OS and architecture, downloads the latest release, and installs to `/usr/local/bin`. Pin a specific version with `VERSION=v0.9.0` before the curl.
+
+<details>
+<summary>Manual installation (per-platform commands)</summary>
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.arm64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Linux
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/linux.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Verify
 ailang --version
 ```
+
+</details>
 
 ---
 
@@ -185,9 +196,13 @@ See [AI Prompt Guide](/docs/guides/ai-prompt-guide) for detailed instructions.
 
 ### Installation Options
 
-#### From GitHub Releases (Recommended)
+#### Quick Install (Recommended)
 
-Download pre-built binaries from the [latest release](https://github.com/sunholo-data/ailang/releases/latest).
+```bash
+curl -fsSL https://ailang.sunholo.com/install.sh | bash
+```
+
+Or download pre-built binaries from the [latest release](https://github.com/sunholo-data/ailang/releases/latest).
 
 #### From Source (For Development)
 

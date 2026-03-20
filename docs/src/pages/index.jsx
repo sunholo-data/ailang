@@ -20,7 +20,8 @@ import {
   Lock,
   Copy,
   Check,
-  Globe
+  Globe,
+  Download
 } from 'lucide-react';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '../constants/version';
 import BenchmarkMini from '../components/BenchmarkMini';
@@ -342,6 +343,7 @@ export func main() -> () ! {IO} =
 
 // Quick Start Section
 function QuickStartSection() {
+  const [copiedInstall, setCopiedInstall] = React.useState(false);
   const [copiedClaude, setCopiedClaude] = React.useState(false);
   const [copiedGemini, setCopiedGemini] = React.useState(false);
 
@@ -357,8 +359,26 @@ function QuickStartSection() {
         <div className="quickstart-header">
           <h2 className="quickstart-title">Start in 30 Seconds</h2>
           <p className="quickstart-subtitle">
-            Install via your AI coding agent's plugin system
+            One command to install, or use your AI coding agent's plugin system
           </p>
+        </div>
+
+        <div className="quickstart-install">
+          <div className="quickstart-card quickstart-card-featured">
+            <div className="quickstart-card-header">
+              <Download size={24} />
+              <span>Quick Install</span>
+            </div>
+            <div className="quickstart-code">
+              <pre>curl -fsSL https://ailang.sunholo.com/install.sh | bash</pre>
+              <button
+                className="quickstart-copy"
+                onClick={() => copyToClipboard('curl -fsSL https://ailang.sunholo.com/install.sh | bash', setCopiedInstall)}
+              >
+                {copiedInstall ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="quickstart-grid">
@@ -430,6 +450,20 @@ function QuickStartSection() {
         .quickstart-subtitle {
           font-size: 1.1rem;
           color: rgba(255, 255, 255, 0.7) !important;
+        }
+
+        .quickstart-install {
+          max-width: 600px;
+          margin: 0 auto 1.5rem;
+        }
+
+        .quickstart-card-featured {
+          border-color: rgba(231, 60, 23, 0.4) !important;
+          box-shadow: 0 0 20px rgba(231, 60, 23, 0.1);
+        }
+
+        .quickstart-card-featured .quickstart-code pre {
+          font-size: 0.95rem;
         }
 
         .quickstart-grid {
