@@ -1,12 +1,14 @@
 package pkg
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestGitCache_CacheDir_Deterministic(t *testing.T) {
-	cache := &GitCache{baseDir: "/tmp/test-cache"}
+	baseDir := filepath.Join(t.TempDir(), "test-cache")
+	cache := &GitCache{baseDir: baseDir}
 
 	dir1 := cache.CacheDir("https://github.com/sunholo-data/ailang-packages")
 	dir2 := cache.CacheDir("https://github.com/sunholo-data/ailang-packages")
@@ -14,7 +16,7 @@ func TestGitCache_CacheDir_Deterministic(t *testing.T) {
 	if dir1 != dir2 {
 		t.Errorf("cache dir not deterministic: %s != %s", dir1, dir2)
 	}
-	if !strings.HasPrefix(dir1, "/tmp/test-cache/") {
+	if !strings.HasPrefix(dir1, baseDir+string(filepath.Separator)) {
 		t.Errorf("cache dir should be under base: %s", dir1)
 	}
 }

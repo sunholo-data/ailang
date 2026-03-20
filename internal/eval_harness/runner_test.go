@@ -8,6 +8,13 @@ import (
 )
 
 func TestPythonRunner(t *testing.T) {
+	// Skip if Python is not available (e.g., Windows CI)
+	if _, err := exec.LookPath("python3"); err != nil {
+		if _, err := exec.LookPath("python"); err != nil {
+			t.Skip("python not available, skipping")
+		}
+	}
+
 	runner := NewPythonRunner()
 
 	if runner.Language() != "python" {

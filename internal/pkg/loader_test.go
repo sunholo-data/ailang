@@ -62,8 +62,9 @@ func TestPackageLoader_ResolveExportedModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveImport failed: %v", err)
 	}
-	if !strings.HasSuffix(path, "src/parser.ail") {
-		t.Errorf("resolved path = %q, want .../src/parser.ail", path)
+	wantSuffix := filepath.Join("src", "parser.ail")
+	if !strings.HasSuffix(path, wantSuffix) {
+		t.Errorf("resolved path = %q, want ...%s", path, wantSuffix)
 	}
 }
 

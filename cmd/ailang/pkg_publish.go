@@ -71,13 +71,6 @@ func pkgPublishCommand(args []string) error {
 	// Upload to validator
 	validatorURL := os.Getenv("AILANG_REGISTRY_VALIDATOR")
 	if validatorURL == "" {
-		// Derive from registry URL: registry = GCS bucket, validator = Cloud Run
-		// For now, use a conventional pattern
-		registryURL := os.Getenv("AILANG_REGISTRY")
-		if registryURL == "" {
-			registryURL = pkg.DefaultRegistryURL
-		}
-		// The validator URL must be set explicitly since it's a different service
 		return fmt.Errorf("AILANG_REGISTRY_VALIDATOR not set\nSet the Cloud Run validator URL: export AILANG_REGISTRY_VALIDATOR=https://ailang-registry-validator-XXXX.run.app")
 	}
 

@@ -2,7 +2,6 @@ package repl
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -423,21 +422,5 @@ export pure func makeItem(desc: string, qty: int, p: float) -> LineItem =
 	// Verify both exports exist
 	if len(exports) != 2 {
 		t.Errorf("Expected 2 exports, got %d: %v", len(exports), exports)
-	}
-}
-
-// loadStdlibDependencies loads common stdlib modules needed for InvokeExport tests
-func loadStdlibDependencies(t *testing.T, reg *ModuleRegistry, modules []string) {
-	t.Helper()
-	for _, modName := range modules {
-		path := filepath.Join("..", "..", "std", modName+".ail")
-		content, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("Failed to read std/%s.ail: %v", modName, err)
-		}
-		_, err = reg.LoadModule("std/"+modName, string(content))
-		if err != nil {
-			t.Fatalf("Failed to load std/%s: %v", modName, err)
-		}
 	}
 }
