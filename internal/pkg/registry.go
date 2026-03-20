@@ -38,12 +38,16 @@ func NewRegistryClient() *RegistryClient {
 func (rc *RegistryClient) FetchIndex() (*RegistryIndex, error) {
 	url := rc.BaseURL + "/index.json"
 
+	// Cache-bust: append timestamp to bypass GCS CDN stale cache
+	url = url + "?t=" + fmt.Sprintf("%d", time.Now().Unix())
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.Header.Set("Cache-Control", "no-cache")
 
-	// ETag-based caching
+	// ETag-based caching (within same session)
 	if rc.indexETag != "" {
 		req.Header.Set("If-None-Match", rc.indexETag)
 	}
