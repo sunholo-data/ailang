@@ -214,3 +214,74 @@ func TestIsPathDep(t *testing.T) {
 		t.Error("missing dep should not be path dep")
 	}
 }
+
+func TestLoadManifest_GitDep(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "test/app"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"sunholo/auth" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/auth", tag = "auth-v0.1.0" }
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	m, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	dep := m.Dependencies["sunholo/auth"]
+	if dep.Git != "https://github.com/sunholo-data/ailang-packages" {
+		t.Errorf("git = %q", dep.Git)
+	}
+	if dep.Tag != "auth-v0.1.0" {
+		t.Errorf("tag = %q", dep.Tag)
+	}
+	if dep.Subdir != "packages/auth" {
+		t.Errorf("subdir = %q", dep.Subdir)
+	}
+	if !m.IsGitDep("sunholo/auth") {
+		t.Error("should be git dep")
+	}
+}
+
+func TestLoadManifest_GitDepRequiresTagOrRev(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "test/app"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"sunholo/auth" = { git = "https://github.com/example/repo" }
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	_, err := LoadManifest(dir)
+	if err == nil {
+		t.Fatal("expected error for git dep without tag or rev")
+	}
+}
+
+func TestLoadManifest_GitAndPathConflict(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "test/app"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"sunholo/auth" = { git = "https://example.com/repo", path = "../local", tag = "v1" }
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	_, err := LoadManifest(dir)
+	if err == nil {
+		t.Fatal("expected error for dep with both path and git")
+	}
+}

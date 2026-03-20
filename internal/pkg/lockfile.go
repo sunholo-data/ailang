@@ -33,8 +33,11 @@ type LockedPackage struct {
 	Version       string   `json:"version"`
 	ContentHash   string   `json:"content_hash"`
 	InterfaceHash string   `json:"interface_hash,omitempty"`
-	Source        string   `json:"source"` // "path" or "registry"
+	Source        string   `json:"source"` // "path", "git", or "registry"
 	Path          string   `json:"path,omitempty"`
+	GitURL        string   `json:"git_url,omitempty"`
+	GitRev        string   `json:"git_rev,omitempty"`
+	GitSubdir     string   `json:"git_subdir,omitempty"`
 	Effects       []string `json:"effects"`
 	Exports       []string `json:"exports"`
 }

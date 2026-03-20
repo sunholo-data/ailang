@@ -12,23 +12,32 @@ import (
 func pkgAddCommand(args []string) error {
 	flagSet := flag.NewFlagSet("add", flag.ExitOnError)
 	pathFlag := flagSet.Bool("path", false, "Add as path dependency")
+	gitFlag := flagSet.String("git", "", "Add as git dependency (repo URL)")
+	tagFlag := flagSet.String("tag", "", "Git tag to pin to")
+	revFlag := flagSet.String("rev", "", "Git commit hash to pin to")
+	subdirFlag := flagSet.String("subdir", "", "Subdirectory within git repo")
 	helpFlag := flagSet.Bool("help", false, "Show help")
 
 	if err := flagSet.Parse(args); err != nil {
 		return err
 	}
 
-	if *helpFlag || flagSet.NArg() < 1 {
-		fmt.Println("Usage: ailang add <dependency> [--path]")
+	if *helpFlag || (flagSet.NArg() < 1 && *gitFlag == "") {
+		fmt.Println("Usage: ailang add <dependency> [flags]")
 		fmt.Println()
 		fmt.Println("Add a dependency to ailang.toml.")
 		fmt.Println()
 		fmt.Println("Flags:")
-		fmt.Println("  --path    Add as a path dependency (local directory)")
+		fmt.Println("  --path              Add as a path dependency (local directory)")
+		fmt.Println("  --git URL           Add as a git dependency")
+		fmt.Println("  --tag TAG           Git tag to pin to (with --git)")
+		fmt.Println("  --rev HASH          Git commit hash to pin to (with --git)")
+		fmt.Println("  --subdir DIR        Subdirectory within git repo (with --git)")
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  ailang add ../shared/json --path")
+		fmt.Println("  ailang add --path ../shared/json")
 		fmt.Println("  ailang add sunholo/json@0.3.1")
+		fmt.Println("  ailang add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag auth-v0.1.0")
 		return nil
 	}
 
@@ -40,6 +49,10 @@ func pkgAddCommand(args []string) error {
 	manifest, err := pkg.LoadManifest(cwd)
 	if err != nil {
 		return fmt.Errorf("no ailang.toml found in current directory: %w\nRun 'ailang init package' first", err)
+	}
+
+	if *gitFlag != "" {
+		return addGitDep(cwd, manifest, *gitFlag, *tagFlag, *revFlag, *subdirFlag)
 	}
 
 	arg := flagSet.Arg(0)
@@ -90,6 +103,81 @@ func addVersionDep(cwd string, manifest *pkg.PackageManifest, spec string) error
 	}
 
 	return appendDependencyToFile(cwd, name, version, false)
+}
+
+func addGitDep(cwd string, manifest *pkg.PackageManifest, gitURL, tag, rev, subdir string) error {
+	if tag == "" && rev == "" {
+		return fmt.Errorf("git dependency requires --tag or --rev\nExample: ailang add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag auth-v0.1.0")
+	}
+
+	// Resolve to find package name
+	cache, err := pkg.NewGitCache()
+	if err != nil {
+		return fmt.Errorf("failed to init git cache: %w", err)
+	}
+
+	fmt.Printf("Fetching %s...\n", gitURL)
+	localPath, resolvedRev, err := cache.Resolve(gitURL, tag, rev, subdir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve git dependency: %w", err)
+	}
+
+	depManifest, err := pkg.LoadManifest(localPath)
+	if err != nil {
+		return fmt.Errorf("no ailang.toml found at %s (subdir: %s): %w", gitURL, subdir, err)
+	}
+
+	name := depManifest.Package.Name
+
+	if _, exists := manifest.Dependencies[name]; exists {
+		return fmt.Errorf("dependency %s already exists in ailang.toml", name)
+	}
+
+	// Build the TOML line
+	parts := []string{fmt.Sprintf("git = %q", gitURL)}
+	if subdir != "" {
+		parts = append(parts, fmt.Sprintf("subdir = %q", subdir))
+	}
+	if rev != "" {
+		parts = append(parts, fmt.Sprintf("rev = %q", resolvedRev))
+	} else {
+		parts = append(parts, fmt.Sprintf("tag = %q", tag))
+	}
+
+	return appendGitDependencyToFile(cwd, name, parts, gitURL, tag, resolvedRev)
+}
+
+func appendGitDependencyToFile(dir, name string, parts []string, gitURL, tag, rev string) error {
+	path := dir + "/" + pkg.ManifestFile
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	content := string(data)
+	depLine := fmt.Sprintf("\"%s\" = { %s }\n", name, strings.Join(parts, ", "))
+
+	if strings.Contains(content, "[dependencies]") {
+		idx := strings.Index(content, "[dependencies]")
+		lineEnd := strings.Index(content[idx:], "\n")
+		insertAt := idx + lineEnd + 1
+		content = content[:insertAt] + depLine + content[insertAt:]
+	} else {
+		content += "\n[dependencies]\n" + depLine
+	}
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return err
+	}
+
+	label := gitURL
+	if tag != "" {
+		label += "@" + tag
+	} else {
+		label += "@" + rev[:12]
+	}
+	fmt.Printf("%s Added %s (git: %s)\n", green("✓"), name, label)
+	return nil
 }
 
 // appendDependencyToFile appends a dependency line to ailang.toml.

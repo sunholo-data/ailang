@@ -95,7 +95,7 @@ At small scale, missing packages is inconvenience. At large scale, it becomes:
 - **No install-time scripts/hooks** — packages are pure data + code; no arbitrary execution on install
 - **No implicit transitive imports** — if package A depends on B, you must explicitly import B's symbols
 - **No global mutable package store** — packages are local to the project; no `node_modules`-style global cache
-- **No git-based dependency resolution** (initially) — registry/path only; git adds complexity around hashing
+- ~~**No git-based dependency resolution**~~ — **NOW INCLUDED** in Phase 1.5b (tag/rev pinning, cached clones)
 - **No dynamic linking** — all dependencies resolved at compile time
 - **No package-level mutation** (publish --force, yank) in Phase 1 — immutable once published
 
@@ -461,6 +461,117 @@ Two levels of dependency graph exist and must not be confused:
 **Package dependency graph** — coarser. Must remain acyclic for resolution. A package depends on other packages (declared in `ailang.toml`). This graph is what `ailang lock` resolves and what the coordinator uses for task scoping.
 
 **Rule:** Cross-package module imports are only valid when rooted in a declared package dependency. If `import pkg/sunholo/json/parser (parseJson)` appears in your code, `sunholo/json` must be in your `[dependencies]`.
+
+---
+
+## Git-Based Dependencies (Phase 1.5b)
+
+Git dependencies enable version pinning without a registry. This is the standard pre-registry pattern (Go used it for years before `proxy.golang.org`).
+
+### TOML Syntax
+
+```toml
+[dependencies]
+# Path dependency (Phase 1 — local)
+"sunholo/auth" = { path = "../ailang-packages/packages/auth" }
+
+# Git dependency with tag (Phase 1.5b — pinned to release)
+"sunholo/auth" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/auth", tag = "auth-v0.1.0" }
+
+# Git dependency with exact commit (maximum reproducibility)
+"sunholo/auth" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/auth", rev = "abc123def456" }
+```
+
+### Resolution Algorithm
+
+1. `ailang lock` encounters a git dependency
+2. Hash the git URL → deterministic cache key
+3. Clone (or fetch if cached) to `~/.ailang/cache/git/<hash>/`
+4. Checkout the specified tag or rev
+5. If `subdir` specified, resolve to `cache/<hash>/<subdir>/`
+6. Load `ailang.toml` from resolved directory
+7. Compute content hash + interface hash (same as path deps)
+8. Record `git_url`, `git_rev` (resolved commit hash), `git_subdir` in lock file
+
+### Cache Structure
+
+```
+~/.ailang/cache/git/
+  a1b2c3d4e5f6/           # sha256(git_url)[:16]
+    .git/
+    packages/
+      auth/ailang.toml
+      logging/ailang.toml
+```
+
+### Semantics
+
+- **Tag** — resolved to commit hash at `ailang lock` time. Re-running `ailang lock` may pick up a new commit if the tag moved (tags are mutable in git). The lock file pins the resolved commit.
+- **Rev** — exact commit hash. Fully immutable. Preferred for reproducibility.
+- **No branch deps** — branches are inherently mutable. Use tags or revs.
+- **Subdir** — required for monorepo packages (like `ailang-packages`). Points to the package root within the cloned repo.
+
+### Lock File Entry (git dep)
+
+```json
+{
+  "name": "sunholo/auth",
+  "version": "0.1.0",
+  "content_hash": "sha256:a1b2c3...",
+  "interface_hash": "sha256:d4e5f6...",
+  "source": "git",
+  "git_url": "https://github.com/sunholo-data/ailang-packages",
+  "git_rev": "abc123def456789...",
+  "git_subdir": "packages/auth",
+  "effects": [],
+  "exports": ["sunholo/auth/keys", "sunholo/auth/bearer"]
+}
+```
+
+---
+
+## AGENT.md — AI Discovery
+
+Each package may include an `AGENT.md` file at its root — a structured guide for AI agents explaining what the package does, when to use it, and common patterns. This is the package equivalent of `CLAUDE.md` but for **consumers** of the package.
+
+### Purpose
+
+- `ai_summary` in `[metadata]` provides one-line discovery (for search/listing)
+- `AGENT.md` provides the full usage guide (for implementation)
+- AI agents read `AGENT.md` after adding a dependency, like reading API docs
+
+### Format
+
+```markdown
+# vendor/name
+
+## When to use this package
+<1-2 sentences explaining when an AI agent should reach for this package>
+
+## Quick start
+<Code example showing the most common usage pattern>
+
+## Exported functions
+<Table: function name, module, type signature, description>
+
+## Common patterns
+<Bullet points with idioms, gotchas, and integration advice>
+```
+
+### Discovery Flow
+
+1. Agent searches: `ailang.toml` `[metadata].ai_summary` fields (one-line, for filtering)
+2. Agent adds dep: `ailang add --path ...` or `ailang add --git ...`
+3. Agent reads: `AGENT.md` in the added package (detailed usage guide)
+4. Future: `ailang docs sunholo/auth` outputs AGENT.md content
+
+### Manifest Support
+
+```toml
+[metadata]
+ai_summary = "API key validation, HMAC signing, bearer token extraction"
+agent_doc = "AGENT.md"
+```
 
 ---
 
@@ -1219,14 +1330,41 @@ The following are intentionally left open for the implementer:
 
 ---
 
+## Implementation Status
+
+| Phase | Status | What |
+|-------|--------|------|
+| Phase 1 (v1.0) | **DONE** | Manifest, lock file, path deps, `import pkg/...`, export enforcement |
+| Phase 1.5 (v1.0) | **DONE** | Interface hash, content validation at build, effect ceilings |
+| Phase 1.5b (v1.0) | **IN PROGRESS** | Git-based deps, AGENT.md, ailang-packages repo |
+| Phase 2 (v1.1) | Planned | Registry (centralized CRAN-style), `ailang publish/install/search` |
+| Phase 3 (v1.x) | Planned | AI coordination: change classification, trust scoring, effect policies |
+
+### ailang-packages Repository
+
+URL: `https://github.com/sunholo-data/ailang-packages`
+
+Curated first-party packages extracted from production projects (docparse, ecommerce demos, streaming agents). Becomes the seed for the Phase 2 registry.
+
+| Package | ai_summary | Effects |
+|---------|-----------|---------|
+| `sunholo/gcp-auth` | GCP ADC OAuth2 token exchange, project detection | FS, Net |
+| `sunholo/auth` | API key validation, HMAC hashing, bearer tokens | Pure |
+| `sunholo/http-helpers` | HTTP request builders, auth headers, JSON response parsing | Net |
+| `sunholo/logging` | Structured JSON logging for Cloud Run | IO |
+| `sunholo/config` | Config loading from env vars with validation | Env |
+| `sunholo/testing-utils` | Test assertion helpers | Pure |
+
+---
+
 ## Future Work
 
-- **Git-based dependencies** — `{ git = "https://...", rev = "abc123" }` for pre-registry adoption
 - **Binary packages** — compiled AILANG bytecode distribution (depends on M-PERF4 bytecode interpreter)
 - **Cross-language interop packages** — packages that wrap Go/Python libraries via FFI
 - **Package-level benchmarks** — performance regression tracking per package version
 - **Incremental verification** — cache verification results per interface hash; skip re-verification when unchanged
 - **Organization policies** — `ailang-policy.toml` at org level defining allowed effects, required verification %, approved registries
+- **`ailang docs <package>`** — output AGENT.md content for installed packages
 
 ---
 
@@ -1243,4 +1381,4 @@ They define:
 ---
 
 **Document created**: 2026-03-19
-**Last updated**: 2026-03-19 (rev 2 — tightened semantic seams per review)
+**Last updated**: 2026-03-20 (rev 3 — git deps, AGENT.md, implementation status, ailang-packages repo)

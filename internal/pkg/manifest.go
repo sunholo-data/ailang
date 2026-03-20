@@ -39,17 +39,22 @@ type ExportConfig struct {
 	Modules []string `toml:"modules"`
 }
 
-// Dependency can be either a version string or a table with path/version fields.
+// Dependency can be a version string, path table, or git table.
 type Dependency struct {
 	Version string `toml:"version,omitempty"`
 	Path    string `toml:"path,omitempty"`
+	Git     string `toml:"git,omitempty"`    // git repo URL
+	Tag     string `toml:"tag,omitempty"`    // git tag (e.g., "auth-v0.1.0")
+	Rev     string `toml:"rev,omitempty"`    // git commit hash (overrides tag)
+	Subdir  string `toml:"subdir,omitempty"` // path within git repo (e.g., "packages/auth")
 }
 
 // UnmarshalTOML implements custom TOML unmarshalling for Dependency.
-// Supports both:
+// Supports:
 //
-//	"sunholo/json" = "0.3.1"          (string → version)
-//	"shared/utils" = { path = "../utils" }  (table → path dep)
+//	"sunholo/json" = "0.3.1"                                                 (string → version)
+//	"shared/utils" = { path = "../utils" }                                   (table → path dep)
+//	"sunholo/auth" = { git = "https://...", subdir = "packages/auth", tag = "v0.1.0" }  (table → git dep)
 func (d *Dependency) UnmarshalTOML(data interface{}) error {
 	switch v := data.(type) {
 	case string:
@@ -64,6 +69,26 @@ func (d *Dependency) UnmarshalTOML(data interface{}) error {
 		if ver, ok := v["version"]; ok {
 			if vs, ok := ver.(string); ok {
 				d.Version = vs
+			}
+		}
+		if g, ok := v["git"]; ok {
+			if gs, ok := g.(string); ok {
+				d.Git = gs
+			}
+		}
+		if t, ok := v["tag"]; ok {
+			if ts, ok := t.(string); ok {
+				d.Tag = ts
+			}
+		}
+		if r, ok := v["rev"]; ok {
+			if rs, ok := r.(string); ok {
+				d.Rev = rs
+			}
+		}
+		if s, ok := v["subdir"]; ok {
+			if ss, ok := s.(string); ok {
+				d.Subdir = ss
 			}
 		}
 		return nil
@@ -135,10 +160,16 @@ func (m *PackageManifest) Validate() error {
 		}
 	}
 
-	// Validate dependencies have either version or path, not both empty
+	// Validate dependencies have version, path, or git
 	for name, dep := range m.Dependencies {
-		if dep.Version == "" && dep.Path == "" {
-			return fmt.Errorf("dependency %q must specify version or path", name)
+		if dep.Version == "" && dep.Path == "" && dep.Git == "" {
+			return fmt.Errorf("dependency %q must specify version, path, or git", name)
+		}
+		if dep.Git != "" && dep.Tag == "" && dep.Rev == "" {
+			return fmt.Errorf("git dependency %q must specify tag or rev", name)
+		}
+		if dep.Path != "" && dep.Git != "" {
+			return fmt.Errorf("dependency %q cannot have both path and git", name)
 		}
 	}
 
@@ -159,6 +190,12 @@ func (m *PackageManifest) Validate() error {
 func (m *PackageManifest) IsPathDep(name string) bool {
 	dep, ok := m.Dependencies[name]
 	return ok && dep.Path != ""
+}
+
+// IsGitDep returns true if the named dependency is a git dependency.
+func (m *PackageManifest) IsGitDep(name string) bool {
+	dep, ok := m.Dependencies[name]
+	return ok && dep.Git != ""
 }
 
 // InitManifest creates a default ailang.toml in the given directory.

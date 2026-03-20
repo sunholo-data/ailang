@@ -90,8 +90,18 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 			return "", fmt.Errorf("package directory not found: %s", dir)
 		}
 		return dir, nil
+	case "git":
+		// Git deps are cached locally — Path points to the cached checkout
+		dir := locked.Path
+		if dir == "" {
+			return "", fmt.Errorf("git package %s has no cached path; run 'ailang lock' to resolve", locked.Name)
+		}
+		if _, err := os.Stat(dir); err != nil {
+			return "", fmt.Errorf("git package %s cache not found at %s; run 'ailang lock' to re-fetch", locked.Name, dir)
+		}
+		return dir, nil
 	case "registry":
-		return "", fmt.Errorf("registry packages not yet supported (package %s); use path dependencies", locked.Name)
+		return "", fmt.Errorf("registry packages not yet supported (package %s); use path or git dependencies", locked.Name)
 	default:
 		return "", fmt.Errorf("unknown package source: %s", locked.Source)
 	}

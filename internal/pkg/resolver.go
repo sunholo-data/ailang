@@ -12,8 +12,11 @@ type ResolvedPackage struct {
 	Version       string
 	ContentHash   string
 	InterfaceHash string
-	Source        string // "path" or "registry"
-	Path          string // absolute path for path deps
+	Source        string // "path", "git", or "registry"
+	Path          string // absolute path for path/git deps
+	GitURL        string // git repo URL (git deps only)
+	GitRev        string // resolved commit hash (git deps only)
+	GitSubdir     string // path within repo (git deps only)
 	Effects       []string
 	Exports       []string
 }
@@ -91,6 +94,52 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "path",
 						Path:          depDir,
+						Effects:       depManifest.Effects.Max,
+						Exports:       depManifest.Exports.Modules,
+					})
+					resolvedSet[depName] = true
+				}
+			} else if dep.Git != "" {
+				// Git dependency — clone/fetch to cache, resolve to local path
+				cache, err := NewGitCache()
+				if err != nil {
+					return fmt.Errorf("failed to init git cache: %w", err)
+				}
+				localPath, resolvedRev, err := cache.Resolve(dep.Git, dep.Tag, dep.Rev, dep.Subdir)
+				if err != nil {
+					return fmt.Errorf("failed to resolve git dep %s: %w", depName, err)
+				}
+
+				depManifest, err := LoadManifest(localPath)
+				if err != nil {
+					return fmt.Errorf("failed to load git dep %s at %s: %w", depName, localPath, err)
+				}
+
+				if depManifest.Package.Name != depName {
+					return fmt.Errorf("git dependency name mismatch: declared %q but manifest has name %q",
+						depName, depManifest.Package.Name)
+				}
+
+				if err := resolve(depManifest, localPath, append(path, name)); err != nil {
+					return err
+				}
+
+				if !resolvedSet[depName] {
+					hash, err := ContentHash(localPath)
+					if err != nil {
+						return fmt.Errorf("failed to hash git dep %s: %w", depName, err)
+					}
+
+					resolved = append(resolved, ResolvedPackage{
+						Name:          depName,
+						Version:       depManifest.Package.Version,
+						ContentHash:   hash,
+						InterfaceHash: InterfaceHash(depManifest),
+						Source:        "git",
+						Path:          localPath,
+						GitURL:        dep.Git,
+						GitRev:        resolvedRev,
+						GitSubdir:     dep.Subdir,
 						Effects:       depManifest.Effects.Max,
 						Exports:       depManifest.Exports.Modules,
 					})
