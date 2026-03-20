@@ -26,6 +26,7 @@ type Config struct {
 	PIDFile              string        // Path to PID file
 	StateDir             string        // Directory for state files
 	ApprovalPollInterval time.Duration // How often to poll GitHub for approval labels (M-COORD-GITHUB-AUTO-ROUTING)
+	DevMode              bool          // Skip stale detector + approval watcher, increase poll interval
 }
 
 // DefaultConfig returns sensible defaults
@@ -256,10 +257,13 @@ func (d *Daemon) Run() error {
 	// M-CLOUD-JOB-RELIABILITY: Start stale task detector in cloud mode.
 	// Periodically marks queued/running tasks as failed if they exceed their timeout.
 	// Catches container failures, Pub/Sub delivery failures, and missed completions.
-	if IsCloudMode() && d.taskStore != nil {
+	// M-COST1: Skip in dev mode to reduce Firestore reads.
+	if IsCloudMode() && d.taskStore != nil && !d.config.DevMode {
 		detector := NewStaleTaskDetector(d.taskStore, d.agentRegistry, d.msgStore, d.logger)
 		go detector.Run(d.ctx)
 		d.logger.Println("Cloud mode: stale task detector started (interval=2m)")
+	} else if d.config.DevMode {
+		d.logger.Println("Dev mode: stale task detector disabled")
 	}
 
 	// Register as an agent in the collaboration hub
@@ -282,12 +286,15 @@ func (d *Daemon) Run() error {
 		}
 
 		// Start GitHub approval watcher (M-COORD-GITHUB-AUTO-ROUTING)
-		if d.approvalWatcher != nil {
+		// M-COST1: Skip in dev mode to reduce Firestore reads.
+		if d.approvalWatcher != nil && !d.config.DevMode {
 			if err := d.approvalWatcher.Start(d.ctx); err != nil {
 				d.logger.Printf("Warning: Failed to start approval watcher: %v", err)
 			} else {
 				d.logger.Println("GitHub approval watcher started")
 			}
+		} else if d.config.DevMode {
+			d.logger.Println("Dev mode: approval watcher disabled")
 		}
 	} else {
 		d.logger.Println("Cloud mode: GitHub polling disabled (using webhook delivery)")

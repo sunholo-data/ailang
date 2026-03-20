@@ -43,6 +43,12 @@ func (d *Daemon) initTaskProcessing() error {
 	}
 	d.coordConfig = coordConfig
 
+	// Propagate dev mode from YAML config to daemon config. (M-COST1)
+	if coordConfig.DevMode {
+		d.config.DevMode = true
+		d.logger.Println("Dev mode enabled via coordinator config")
+	}
+
 	// Build agent registry
 	d.agentRegistry = NewAgentRegistry()
 	for _, agent := range coordConfig.Agents {

@@ -34,6 +34,10 @@ type CoordinatorConfig struct {
 	// In cloud mode, this repo is cloned and passed as --plugin-dir to Claude CLI.
 	// Example: "https://github.com/sunholo-data/ailang_bootstrap.git"
 	PluginRepo string `yaml:"plugin_repo" json:"plugin_repo,omitempty"`
+
+	// DevMode disables stale task detector and approval watcher to reduce
+	// Firestore reads during local development. (M-COST1)
+	DevMode bool `yaml:"dev_mode" json:"dev_mode,omitempty"`
 }
 
 // GitHubSyncConfig configures automatic GitHub issue import.

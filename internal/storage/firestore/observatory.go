@@ -34,11 +34,17 @@ const (
 // ObservatoryStore implements observatory.Backend backed by Firestore.
 type ObservatoryStore struct {
 	client *Client
+
+	// Dashboard aggregate caches.
+	metricsSummaryCache *ttlCache[obs.MetricsSummary]
 }
 
 // NewObservatoryStore creates a new Firestore-backed observatory store.
 func NewObservatoryStore(client *Client) *ObservatoryStore {
-	return &ObservatoryStore{client: client}
+	return &ObservatoryStore{
+		client:              client,
+		metricsSummaryCache: newTTLCache[obs.MetricsSummary](2 * time.Minute),
+	}
 }
 
 func (s *ObservatoryStore) Close() error {

@@ -149,6 +149,7 @@ func NewGCPBackends(ctx context.Context) (*Backends, error) {
 
 	// 1. Coordinator → Firestore
 	coordStore := fsstore.NewCoordinatorStore(fsClient)
+	coordStore.StartCostSync(ctx)
 
 	// 2. Messaging → Firestore
 	msgStore := fsstore.NewMessagingStore(fsClient)

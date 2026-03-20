@@ -304,6 +304,10 @@ func (s *MessagingStore) CountInboxMessagesByStatus(inbox string) (map[string]in
 }
 
 func (s *MessagingStore) GetMessageFlowEdges() ([]messaging.MessageFlowEdge, error) {
+	if cached, ok := s.messageFlowCache.get(); ok {
+		return cached, nil
+	}
+
 	ctx := context.Background()
 	iter := s.client.Collection(collInbox).Documents(ctx)
 	defer iter.Stop()
@@ -341,10 +345,16 @@ func (s *MessagingStore) GetMessageFlowEdges() ([]messaging.MessageFlowEdge, err
 	for _, e := range edges {
 		result = append(result, *e)
 	}
+
+	s.messageFlowCache.set(result)
 	return result, nil
 }
 
 func (s *MessagingStore) GetActiveAgents() ([]messaging.ActiveAgent, error) {
+	if cached, ok := s.activeAgentsCache.get(); ok {
+		return cached, nil
+	}
+
 	ctx := context.Background()
 	iter := s.client.Collection(collInbox).Documents(ctx)
 	defer iter.Stop()
@@ -383,5 +393,7 @@ func (s *MessagingStore) GetActiveAgents() ([]messaging.ActiveAgent, error) {
 	for _, a := range agents {
 		result = append(result, *a)
 	}
+
+	s.activeAgentsCache.set(result)
 	return result, nil
 }

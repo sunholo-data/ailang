@@ -3,6 +3,8 @@ package firestore
 import (
 	"context"
 	"fmt"
+	"log"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -16,20 +18,168 @@ import (
 const (
 	collTasks     = "tasks"
 	collApprovals = "approvals"
+	collMeta      = "_meta"
+
+	costCountersDocID = "cost_counters"
+	costSyncInterval  = 5 * time.Minute
+	statsCacheTTL     = 30 * time.Second
 )
 
 // CoordinatorStore implements coordinator.Store backed by Firestore.
 type CoordinatorStore struct {
 	client *Client
+
+	// In-memory cost tracking — avoids full collection scan on every budget check.
+	costMu       sync.RWMutex
+	costCounters map[string]float64 // provider -> total cost
+	costLoaded   bool               // true after initial bootstrap
+	costDirty    bool               // true if in-memory state diverges from Firestore
+	costCancel   context.CancelFunc // stops the background sync goroutine
+
+	// Cached task stats — avoids full collection scan on every status API call.
+	statsMu     sync.RWMutex
+	cachedStats *coordinator.TaskStats
+	statsExpiry time.Time
 }
 
 // NewCoordinatorStore creates a new Firestore-backed coordinator store.
 func NewCoordinatorStore(client *Client) *CoordinatorStore {
-	return &CoordinatorStore{client: client}
+	return &CoordinatorStore{
+		client:       client,
+		costCounters: make(map[string]float64),
+	}
 }
 
-// Close closes the underlying client.
+// StartCostSync bootstraps the in-memory cost counter from Firestore and starts
+// a background goroutine that writes dirty counters back every 5 minutes.
+func (s *CoordinatorStore) StartCostSync(ctx context.Context) {
+	s.bootstrapCostCounters(ctx)
+
+	syncCtx, cancel := context.WithCancel(ctx)
+	s.costCancel = cancel
+
+	go func() {
+		ticker := time.NewTicker(costSyncInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-syncCtx.Done():
+				// Final flush on shutdown.
+				flushCtx, flushCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				s.flushCostCounters(flushCtx)
+				flushCancel()
+				return
+			case <-ticker.C:
+				s.flushCostCounters(syncCtx)
+			}
+		}
+	}()
+}
+
+// StopCostSync stops the background sync goroutine and performs a final flush.
+func (s *CoordinatorStore) StopCostSync() {
+	if s.costCancel != nil {
+		s.costCancel()
+		s.costCancel = nil
+	}
+}
+
+// bootstrapCostCounters loads the _meta/cost_counters doc. If it doesn't exist,
+// falls back to a one-time full collection scan to seed the counters.
+func (s *CoordinatorStore) bootstrapCostCounters(ctx context.Context) {
+	doc, err := s.client.Doc(collMeta, costCountersDocID).Get(ctx)
+	if err == nil {
+		s.costMu.Lock()
+		for k, v := range doc.Data() {
+			if cost, ok := v.(float64); ok {
+				s.costCounters[k] = cost
+			}
+		}
+		s.costLoaded = true
+		s.costMu.Unlock()
+		return
+	}
+
+	// _meta doc doesn't exist — one-time full scan to bootstrap.
+	log.Println("[cost-sync] bootstrapping cost counters from full scan")
+	costs, err := s.fullScanCostByProvider(ctx)
+	if err != nil {
+		log.Printf("[cost-sync] bootstrap full scan failed: %v", err)
+		s.costMu.Lock()
+		s.costLoaded = true // mark loaded even on error to avoid blocking
+		s.costMu.Unlock()
+		return
+	}
+
+	s.costMu.Lock()
+	s.costCounters = costs
+	s.costLoaded = true
+	s.costDirty = true // flush to create the _meta doc
+	s.costMu.Unlock()
+}
+
+// flushCostCounters writes dirty in-memory counters to _meta/cost_counters.
+func (s *CoordinatorStore) flushCostCounters(ctx context.Context) {
+	s.costMu.RLock()
+	if !s.costDirty {
+		s.costMu.RUnlock()
+		return
+	}
+	snapshot := make(map[string]interface{}, len(s.costCounters))
+	for k, v := range s.costCounters {
+		snapshot[k] = v
+	}
+	s.costMu.RUnlock()
+
+	_, err := s.client.Doc(collMeta, costCountersDocID).Set(ctx, snapshot)
+	if err != nil {
+		log.Printf("[cost-sync] flush failed: %v", err)
+		return
+	}
+
+	s.costMu.Lock()
+	s.costDirty = false
+	s.costMu.Unlock()
+}
+
+// addCost increments the in-memory cost counter for a provider.
+func (s *CoordinatorStore) addCost(provider string, cost float64) {
+	if provider == "" || cost == 0 {
+		return
+	}
+	s.costMu.Lock()
+	s.costCounters[provider] += cost
+	s.costDirty = true
+	s.costMu.Unlock()
+}
+
+// fullScanCostByProvider does the original full collection scan (used only for bootstrap).
+func (s *CoordinatorStore) fullScanCostByProvider(ctx context.Context) (map[string]float64, error) {
+	iter := s.client.Collection(collTasks).Documents(ctx)
+	defer iter.Stop()
+
+	costs := make(map[string]float64)
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		data := doc.Data()
+		provider, _ := data["provider"].(string)
+		cost, _ := data["cost"].(float64)
+		if provider != "" {
+			costs[provider] += cost
+		}
+	}
+	return costs, nil
+}
+
+// Close stops the cost sync goroutine and closes the underlying client.
 func (s *CoordinatorStore) Close() error {
+	s.StopCostSync()
 	return s.client.Close()
 }
 
@@ -38,6 +188,9 @@ func (s *CoordinatorStore) Close() error {
 func (s *CoordinatorStore) CreateTask(ctx context.Context, task *coordinator.TaskRecord) error {
 	data := taskToMap(task)
 	_, err := s.client.Doc(collTasks, task.ID).Set(ctx, data)
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -134,7 +287,41 @@ func (s *CoordinatorStore) ListTasks(ctx context.Context, filter *coordinator.Ta
 	return tasks, nil
 }
 
+// GetTaskStats returns aggregate task statistics, served from an in-memory cache
+// with a 30-second TTL. This avoids a full collection scan on every API call.
 func (s *CoordinatorStore) GetTaskStats(ctx context.Context) (*coordinator.TaskStats, error) {
+	s.statsMu.RLock()
+	if s.cachedStats != nil && time.Now().Before(s.statsExpiry) {
+		stats := s.cachedStats
+		s.statsMu.RUnlock()
+		return stats, nil
+	}
+	s.statsMu.RUnlock()
+
+	// Cache miss — do a full scan and cache the result.
+	stats, err := s.fullScanTaskStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	s.statsMu.Lock()
+	s.cachedStats = stats
+	s.statsExpiry = time.Now().Add(statsCacheTTL)
+	s.statsMu.Unlock()
+
+	return stats, nil
+}
+
+// invalidateStatsCache clears the cached stats so the next call re-scans.
+// Called on every state transition to keep the cache fresh.
+func (s *CoordinatorStore) invalidateStatsCache() {
+	s.statsMu.Lock()
+	s.cachedStats = nil
+	s.statsMu.Unlock()
+}
+
+// fullScanTaskStats performs the original full collection scan.
+func (s *CoordinatorStore) fullScanTaskStats(ctx context.Context) (*coordinator.TaskStats, error) {
 	iter := s.client.Collection(collTasks).Documents(ctx)
 	defer iter.Stop()
 
@@ -206,6 +393,9 @@ func (s *CoordinatorStore) MarkTaskQueued(ctx context.Context, id string) error 
 	_, err := s.client.Doc(collTasks, id).Update(ctx, []firestore.Update{
 		{Path: "status", Value: string(coordinator.TaskStatusQueued)},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -217,6 +407,9 @@ func (s *CoordinatorStore) MarkTaskRunning(ctx context.Context, id, provider, wo
 		{Path: "worktree_id", Value: worktreeID},
 		{Path: "started_at", Value: now},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -241,7 +434,19 @@ func (s *CoordinatorStore) MarkTaskPendingApproval(ctx context.Context, id, work
 		)
 	}
 	_, err := s.client.Doc(collTasks, id).Update(ctx, updates)
-	return err
+	if err != nil {
+		return err
+	}
+	s.invalidateStatsCache()
+
+	// Update in-memory cost counter.
+	if result != nil && result.Cost > 0 {
+		task, taskErr := s.GetTask(ctx, id)
+		if taskErr == nil && task != nil {
+			s.addCost(task.Provider, result.Cost)
+		}
+	}
+	return nil
 }
 
 func (s *CoordinatorStore) MarkTaskCompleted(ctx context.Context, id string, result *coordinator.ExecuteResult) error {
@@ -265,7 +470,19 @@ func (s *CoordinatorStore) MarkTaskCompleted(ctx context.Context, id string, res
 		}
 	}
 	_, err := s.client.Doc(collTasks, id).Update(ctx, updates)
-	return err
+	if err != nil {
+		return err
+	}
+	s.invalidateStatsCache()
+
+	// Update in-memory cost counter.
+	if result != nil && result.Cost > 0 {
+		task, taskErr := s.GetTask(ctx, id)
+		if taskErr == nil && task != nil {
+			s.addCost(task.Provider, result.Cost)
+		}
+	}
+	return nil
 }
 
 func (s *CoordinatorStore) MarkTaskFailed(ctx context.Context, id string, taskErr error) error {
@@ -279,6 +496,9 @@ func (s *CoordinatorStore) MarkTaskFailed(ctx context.Context, id string, taskEr
 		{Path: "error", Value: errMsg},
 		{Path: "completed_at", Value: now},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -287,6 +507,9 @@ func (s *CoordinatorStore) MarkTaskRejected(ctx context.Context, id string) erro
 		{Path: "status", Value: string(coordinator.TaskStatusRejected)},
 		{Path: "completed_at", Value: time.Now()},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -295,6 +518,9 @@ func (s *CoordinatorStore) MarkTaskCancelled(ctx context.Context, id string) err
 		{Path: "status", Value: string(coordinator.TaskStatusCancelled)},
 		{Path: "completed_at", Value: time.Now()},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -306,6 +532,9 @@ func (s *CoordinatorStore) RequeueTask(ctx context.Context, id string) error {
 		{Path: "error", Value: ""},
 		{Path: "output", Value: ""},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -315,6 +544,9 @@ func (s *CoordinatorStore) ResetTaskToPending(ctx context.Context, id string) er
 		{Path: "worktree_id", Value: ""},
 		{Path: "provider", Value: ""},
 	})
+	if err == nil {
+		s.invalidateStatsCache()
+	}
 	return err
 }
 
@@ -455,28 +687,25 @@ func (s *CoordinatorStore) UpdateTaskMetrics(ctx context.Context, id string, pea
 
 // --- Budget Tracking ---
 
+// GetCostByProvider returns total cost per provider from the in-memory cache.
+// Zero Firestore reads on the hot path — counters are synced in the background.
 func (s *CoordinatorStore) GetCostByProvider() (map[string]float64, error) {
-	ctx := context.Background()
-	iter := s.client.Collection(collTasks).Documents(ctx)
-	defer iter.Stop()
+	s.costMu.RLock()
+	defer s.costMu.RUnlock()
 
-	costs := make(map[string]float64)
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		data := doc.Data()
-		provider, _ := data["provider"].(string)
-		cost, _ := data["cost"].(float64)
-		if provider != "" {
-			costs[provider] += cost
-		}
+	// If counters haven't been loaded yet (StartCostSync not called), fall back to full scan.
+	if !s.costLoaded {
+		s.costMu.RUnlock()
+		costs, err := s.fullScanCostByProvider(context.Background())
+		s.costMu.RLock()
+		return costs, err
 	}
-	return costs, nil
+
+	result := make(map[string]float64, len(s.costCounters))
+	for k, v := range s.costCounters {
+		result[k] = v
+	}
+	return result, nil
 }
 
 // --- Approval Requests ---

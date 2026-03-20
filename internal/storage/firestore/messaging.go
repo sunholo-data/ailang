@@ -31,11 +31,23 @@ var _ messaging.MessageStore = (*MessagingStore)(nil)
 // MessagingStore implements messaging.MessageStore backed by Firestore.
 type MessagingStore struct {
 	client *Client
+
+	// Dashboard aggregate caches (avoid full collection scans on every API call).
+	workspacesCache   *ttlCache[[]string]
+	threadStatsCache  *ttlCache[messaging.ThreadAggregateStats]
+	messageFlowCache  *ttlCache[[]messaging.MessageFlowEdge]
+	activeAgentsCache *ttlCache[[]messaging.ActiveAgent]
 }
 
 // NewMessagingStore creates a new Firestore-backed messaging store.
 func NewMessagingStore(client *Client) *MessagingStore {
-	return &MessagingStore{client: client}
+	return &MessagingStore{
+		client:            client,
+		workspacesCache:   newTTLCache[[]string](2 * time.Minute),
+		threadStatsCache:  newTTLCache[messaging.ThreadAggregateStats](60 * time.Second),
+		messageFlowCache:  newTTLCache[[]messaging.MessageFlowEdge](5 * time.Minute),
+		activeAgentsCache: newTTLCache[[]messaging.ActiveAgent](60 * time.Second),
+	}
 }
 
 // Close closes the underlying client.
@@ -250,6 +262,10 @@ func (s *MessagingStore) GetThreadsFiltered(filter messaging.ThreadFilter) ([]me
 }
 
 func (s *MessagingStore) GetDistinctWorkspaces() ([]string, error) {
+	if cached, ok := s.workspacesCache.get(); ok {
+		return cached, nil
+	}
+
 	ctx := context.Background()
 	iter := s.client.Collection(collThreads).Documents(ctx)
 	defer iter.Stop()
@@ -272,10 +288,16 @@ func (s *MessagingStore) GetDistinctWorkspaces() ([]string, error) {
 	for ws := range seen {
 		workspaces = append(workspaces, ws)
 	}
+
+	s.workspacesCache.set(workspaces)
 	return workspaces, nil
 }
 
 func (s *MessagingStore) GetThreadAggregateStats() (*messaging.ThreadAggregateStats, error) {
+	if cached, ok := s.threadStatsCache.get(); ok {
+		return &cached, nil
+	}
+
 	ctx := context.Background()
 	iter := s.client.Collection(collThreads).Documents(ctx)
 	defer iter.Stop()
@@ -302,6 +324,8 @@ func (s *MessagingStore) GetThreadAggregateStats() (*messaging.ThreadAggregateSt
 			stats.ByWorkspace[ws]++
 		}
 	}
+
+	s.threadStatsCache.set(*stats)
 	return stats, nil
 }
 

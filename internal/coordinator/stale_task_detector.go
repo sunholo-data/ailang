@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -25,6 +26,11 @@ type StaleTaskDetector struct {
 	msgStore      messaging.MessageStore
 	logger        *log.Logger
 	interval      time.Duration // Check interval (default: 2 min)
+
+	// TTL cache for stale task query results.
+	cacheMu     sync.RWMutex
+	cachedTasks []*TaskRecord
+	cacheExpiry time.Time
 }
 
 // NewStaleTaskDetector creates a detector that checks for stale tasks periodically.
@@ -58,9 +64,7 @@ func (d *StaleTaskDetector) Run(ctx context.Context) {
 // detectAndMarkStale finds tasks in queued/running status that have exceeded
 // their timeout and marks them as failed.
 func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
-	tasks, err := d.store.ListTasks(ctx, &TaskFilter{
-		Status: []TaskStatus{TaskStatusQueued, TaskStatusRunning},
-	})
+	tasks, err := d.getCachedOrQueryTasks(ctx)
 	if err != nil {
 		d.logger.Printf("stale task detector: query error: %v", err)
 		return
@@ -82,8 +86,39 @@ func (d *StaleTaskDetector) detectAndMarkStale(ctx context.Context) {
 			continue
 		}
 
+		// Invalidate cache since we changed task state.
+		d.cacheMu.Lock()
+		d.cachedTasks = nil
+		d.cacheMu.Unlock()
+
 		d.postFailureNotification(ctx, task, errMsg)
 	}
+}
+
+// getCachedOrQueryTasks returns queued/running tasks, using a 90-second TTL cache
+// to avoid repeated Firestore queries within the same detection window.
+func (d *StaleTaskDetector) getCachedOrQueryTasks(ctx context.Context) ([]*TaskRecord, error) {
+	d.cacheMu.RLock()
+	if d.cachedTasks != nil && time.Now().Before(d.cacheExpiry) {
+		tasks := d.cachedTasks
+		d.cacheMu.RUnlock()
+		return tasks, nil
+	}
+	d.cacheMu.RUnlock()
+
+	tasks, err := d.store.ListTasks(ctx, &TaskFilter{
+		Status: []TaskStatus{TaskStatusQueued, TaskStatusRunning},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	d.cacheMu.Lock()
+	d.cachedTasks = tasks
+	d.cacheExpiry = time.Now().Add(90 * time.Second)
+	d.cacheMu.Unlock()
+
+	return tasks, nil
 }
 
 // getTaskTimeout returns the timeout for a task, using agent config with 1.5x safety margin.

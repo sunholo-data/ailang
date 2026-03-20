@@ -17,6 +17,10 @@ import (
 // --- Aggregate operations ---
 
 func (s *ObservatoryStore) GetMetricsSummary(ctx context.Context) (*obs.MetricsSummary, error) {
+	if cached, ok := s.metricsSummaryCache.get(); ok {
+		return &cached, nil
+	}
+
 	summary := &obs.MetricsSummary{}
 
 	// Count workspaces
@@ -72,6 +76,7 @@ func (s *ObservatoryStore) GetMetricsSummary(ctx context.Context) (*obs.MetricsS
 	}
 	summary.TotalAgents = len(agentMap)
 
+	s.metricsSummaryCache.set(*summary)
 	return summary, nil
 }
 
@@ -197,21 +202,38 @@ func (s *ObservatoryStore) GetExecTaskHierarchyWithMessages(ctx context.Context,
 		return &obs.ExecHierarchyWithMessages{Count: 0}, nil
 	}
 
-	// Collect task IDs from exec nodes and look up source_ref (message_id) in obs_tasks
-	taskToMessage := make(map[string]string)
+	// Collect unique task IDs and batch-fetch them with GetAll (1 round-trip instead of N).
+	taskIDSet := make(map[string]bool)
+	var refs []*firestore.DocumentRef
 	for _, exec := range execs {
-		if exec.TaskID == "" {
+		if exec.TaskID == "" || taskIDSet[exec.TaskID] {
 			continue
 		}
-		if _, seen := taskToMessage[exec.TaskID]; seen {
-			continue
+		taskIDSet[exec.TaskID] = true
+		refs = append(refs, s.client.Doc(collObsTasks, exec.TaskID))
+	}
+
+	taskToMessage := make(map[string]string)
+	if len(refs) > 0 {
+		docs, err := s.client.GetAll(ctx, refs)
+		if err != nil {
+			// Fall back gracefully — hierarchy still works, just without message grouping.
+			docs = nil
 		}
-		task, err := s.GetTask(ctx, exec.TaskID)
-		if err != nil || task == nil {
-			continue
-		}
-		if task.SourceType == "message" && task.SourceRef != "" {
-			taskToMessage[exec.TaskID] = task.SourceRef
+		for _, doc := range docs {
+			if doc == nil || !doc.Exists() {
+				continue
+			}
+			data := doc.Data()
+			taskID := getString(data, "id")
+			if taskID == "" {
+				taskID = doc.Ref.ID
+			}
+			if getString(data, "source_type") == "message" {
+				if ref := getString(data, "source_ref"); ref != "" {
+					taskToMessage[taskID] = ref
+				}
+			}
 		}
 	}
 

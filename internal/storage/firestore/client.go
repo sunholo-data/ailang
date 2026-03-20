@@ -51,6 +51,16 @@ func (c *Client) Doc(collection, id string) *firestore.DocumentRef {
 	return c.fs.Collection(collection).Doc(id)
 }
 
+// Batch creates a new Firestore write batch.
+func (c *Client) Batch() *firestore.WriteBatch {
+	return c.fs.Batch()
+}
+
+// GetAll retrieves multiple documents in a single batch read.
+func (c *Client) GetAll(ctx context.Context, refs []*firestore.DocumentRef) ([]*firestore.DocumentSnapshot, error) {
+	return c.fs.GetAll(ctx, refs)
+}
+
 // RunTransaction runs a Firestore transaction.
 func (c *Client) RunTransaction(ctx context.Context, fn func(context.Context, *firestore.Transaction) error) error {
 	return c.fs.RunTransaction(ctx, fn)
