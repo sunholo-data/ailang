@@ -23,10 +23,17 @@ class AilangREPL {
     const go = new Go();
 
     try {
-      const result = await WebAssembly.instantiateStreaming(
-        fetch(wasmPath),
-        go.importObject
-      );
+      let result;
+      try {
+        // Preferred: streaming (fast, requires correct MIME type)
+        result = await WebAssembly.instantiateStreaming(fetch(wasmPath), go.importObject);
+      } catch (streamErr) {
+        // Fallback: fetch as ArrayBuffer (works with any MIME type, e.g. GitHub Pages)
+        console.warn('instantiateStreaming failed, falling back to ArrayBuffer:', streamErr.message);
+        const resp = await fetch(wasmPath);
+        const bytes = await resp.arrayBuffer();
+        result = await WebAssembly.instantiate(bytes, go.importObject);
+      }
 
       // Run the Go program (this will register the functions)
       go.run(result.instance);
