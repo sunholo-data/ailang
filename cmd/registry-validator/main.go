@@ -53,6 +53,7 @@ func main() {
 	}
 
 	http.HandleFunc("/publish", v.handlePublish)
+	http.HandleFunc("/rebuild-index", v.handleRebuildIndex)
 	http.HandleFunc("/health", handleHealth)
 
 	log.Printf("Registry validator listening on :%s (bucket: %s)", port, bucket)
@@ -466,6 +467,135 @@ func containsString(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// handleRebuildIndex scans all metadata.json files in the bucket and
+// rebuilds index.json from scratch. Requires API key auth.
+func (v *validator) handleRebuildIndex(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Same API key auth as publish
+	if v.apiKey != "" {
+		provided := r.Header.Get("X-API-Key")
+		if provided == "" {
+			provided = r.URL.Query().Get("api_key")
+		}
+		if provided != v.apiKey {
+			jsonError(w, http.StatusForbidden, "Invalid or missing API key")
+			return
+		}
+	}
+
+	if v.bucket == nil {
+		jsonError(w, http.StatusInternalServerError, "No GCS bucket configured")
+		return
+	}
+
+	ctx := r.Context()
+	log.Printf("Rebuilding index.json from metadata files...")
+
+	// Scan all metadata.json files in packages/
+	var index pkg.RegistryIndex
+	index.Schema = "ailang.registry/v1"
+
+	query := &storage.Query{Prefix: "packages/"}
+	query.SetAttrSelection([]string{"Name"})
+
+	it := v.bucket.Objects(ctx, query)
+	for {
+		attrs, err := it.Next()
+		if err != nil {
+			break // end of iteration
+		}
+
+		// Only process metadata.json files
+		if !strings.HasSuffix(attrs.Name, "/metadata.json") {
+			continue
+		}
+
+		// Read metadata
+		reader, err := v.bucket.Object(attrs.Name).NewReader(ctx)
+		if err != nil {
+			log.Printf("  Skip %s: %v", attrs.Name, err)
+			continue
+		}
+		data, err := io.ReadAll(reader)
+		reader.Close()
+		if err != nil {
+			continue
+		}
+
+		var meta pkg.PackageMetadata
+		if err := json.Unmarshal(data, &meta); err != nil {
+			log.Printf("  Skip %s: bad JSON: %v", attrs.Name, err)
+			continue
+		}
+
+		log.Printf("  Found %s@%s", meta.Name, meta.Version)
+
+		// Find or create entry
+		found := false
+		for i := range index.Packages {
+			if index.Packages[i].Name == meta.Name {
+				// Add version if new
+				if !containsString(index.Packages[i].Versions, meta.Version) {
+					index.Packages[i].Versions = append(index.Packages[i].Versions, meta.Version)
+				}
+				// Update latest to highest version
+				index.Packages[i].Latest = meta.Version
+				index.Packages[i].ContractsVerified = meta.Validation.ContractsVerified
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			index.Packages = append(index.Packages, pkg.IndexEntry{
+				Name:              meta.Name,
+				Latest:            meta.Version,
+				Versions:          []string{meta.Version},
+				AISummary:         meta.Manifest.AISummary,
+				Effects:           meta.Manifest.EffectsMax,
+				Stability:         meta.Manifest.Stability,
+				Exports:           meta.Manifest.Exports,
+				ContractsVerified: meta.Validation.ContractsVerified,
+				HasAgentDoc:       meta.Manifest.HasAgentDoc,
+			})
+		}
+	}
+
+	index.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	indexJSON, err := json.MarshalIndent(index, "", "  ")
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "Failed to marshal index: %v", err)
+		return
+	}
+
+	// Write index (unconditional — this is a full rebuild)
+	writer := v.bucket.Object("index.json").NewWriter(ctx)
+	writer.ContentType = "application/json"
+	writer.CacheControl = "no-cache, no-store, must-revalidate"
+	if _, err := io.Copy(writer, bytes.NewReader(indexJSON)); err != nil {
+		writer.Close()
+		jsonError(w, http.StatusInternalServerError, "Failed to write index: %v", err)
+		return
+	}
+	if err := writer.Close(); err != nil {
+		jsonError(w, http.StatusInternalServerError, "Failed to finalize index: %v", err)
+		return
+	}
+
+	log.Printf("Rebuilt index.json with %d packages", len(index.Packages))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   "ok",
+		"packages": len(index.Packages),
+	})
 }
 
 func jsonError(w http.ResponseWriter, status int, format string, args ...interface{}) {
