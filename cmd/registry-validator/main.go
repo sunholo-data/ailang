@@ -248,24 +248,60 @@ func (v *validator) uploadToGCS(ctx context.Context, path string, data []byte, c
 }
 
 // updateIndex reads index.json, merges the new package entry, and writes back.
+// Uses GCS generation preconditions for optimistic locking — retries on conflict.
 func (v *validator) updateIndex(ctx context.Context, manifest *pkg.PackageManifest, meta *pkg.PackageMetadata) error {
-	// Read current index
+	const maxRetries = 5
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Back off before retry
+			time.Sleep(time.Duration(attempt*200) * time.Millisecond)
+			log.Printf("Retrying index.json update (attempt %d/%d)", attempt+1, maxRetries)
+		}
+
+		err := v.tryUpdateIndex(ctx, manifest, meta)
+		if err == nil {
+			return nil
+		}
+
+		// If the error is a precondition failure (generation mismatch), retry
+		if strings.Contains(err.Error(), "conditionNotMet") || strings.Contains(err.Error(), "generation") {
+			log.Printf("index.json generation conflict, retrying: %v", err)
+			continue
+		}
+
+		// Non-retryable error
+		return err
+	}
+	return fmt.Errorf("failed to update index.json after %d retries (generation conflicts)", maxRetries)
+}
+
+func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageManifest, meta *pkg.PackageMetadata) error {
+	obj := v.bucket.Object("index.json")
+
+	// Read current index with its generation number
 	var index pkg.RegistryIndex
-	reader, err := v.bucket.Object("index.json").NewReader(ctx)
+	var generation int64
+
+	attrs, err := obj.Attrs(ctx)
 	if err == nil {
-		defer reader.Close()
-		data, _ := io.ReadAll(reader)
-		json.Unmarshal(data, &index)
+		generation = attrs.Generation
+
+		reader, err := obj.NewReader(ctx)
+		if err == nil {
+			data, _ := io.ReadAll(reader)
+			reader.Close()
+			json.Unmarshal(data, &index)
+		}
 	} else {
 		// First publish — create new index
 		index = pkg.RegistryIndex{Schema: "ailang.registry/v1"}
+		generation = 0
 	}
 
 	// Find or create entry for this package
 	found := false
 	for i := range index.Packages {
 		if index.Packages[i].Name == manifest.Package.Name {
-			// Update existing entry
 			index.Packages[i].Latest = manifest.Package.Version
 			if !containsString(index.Packages[i].Versions, manifest.Package.Version) {
 				index.Packages[i].Versions = append(index.Packages[i].Versions, manifest.Package.Version)
@@ -299,7 +335,21 @@ func (v *validator) updateIndex(ctx context.Context, manifest *pkg.PackageManife
 		return err
 	}
 
-	return v.uploadToGCS(ctx, "index.json", indexJSON, "application/json")
+	// Write with generation precondition — fails if someone else updated since we read
+	var writer *storage.Writer
+	if generation > 0 {
+		writer = obj.If(storage.Conditions{GenerationMatch: generation}).NewWriter(ctx)
+	} else {
+		writer = obj.If(storage.Conditions{DoesNotExist: true}).NewWriter(ctx)
+	}
+	writer.ContentType = "application/json"
+	writer.CacheControl = "no-cache, no-store, must-revalidate" // prevent stale reads
+
+	if _, err := io.Copy(writer, bytes.NewReader(indexJSON)); err != nil {
+		writer.Close()
+		return fmt.Errorf("write index.json: %w", err)
+	}
+	return writer.Close()
 }
 
 // runAilangCheck runs ailang check on the package directory.

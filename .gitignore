@@ -63,4 +63,5 @@ __pycache__/
 temp_data/
 ui/.env.local
 code-harness-skills/
-registry-validator
+# Stray compiled binary (build output lands in repo root)
+/registry-validator
