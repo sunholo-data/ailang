@@ -192,7 +192,15 @@ func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []s
 
 	var violations []string
 	for _, eff := range functionEffects {
-		if eff != "" && !allowed[eff] {
+		if eff == "" {
+			continue
+		}
+		// Skip effect variables (lowercase, typically single letter like 'e', 'r')
+		// These are polymorphic — they get instantiated to concrete effects at call sites
+		if len(eff) <= 2 && eff[0] >= 'a' && eff[0] <= 'z' {
+			continue
+		}
+		if !allowed[eff] {
 			violations = append(violations, eff)
 		}
 	}
