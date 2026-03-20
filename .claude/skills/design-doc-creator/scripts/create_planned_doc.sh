@@ -20,16 +20,20 @@ NC='\033[0m' # No Color
 
 # Get current version from changelogs/ or std/VERSION
 get_current_version() {
-    # Try std/VERSION first (canonical source)
+    # Try std/VERSION first (canonical source), skip if set to "dev"
     local VERSION_FILE="$PROJECT_ROOT/std/VERSION"
     if [ -f "$VERSION_FILE" ]; then
-        cat "$VERSION_FILE" | tr -d '[:space:]'
-        return
+        local ver
+        ver=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+        if [ "$ver" != "dev" ] && [ -n "$ver" ]; then
+            echo "$ver"
+            return
+        fi
     fi
     # Fall back to scanning changelogs/ for latest version header
     local CHANGELOGS_DIR="$PROJECT_ROOT/changelogs"
     if [ -d "$CHANGELOGS_DIR" ]; then
-        grep -roE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOGS_DIR"/*.md 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1
+        grep -hE '^## \[v[0-9]+\.[0-9]+\.[0-9]+\]' "$CHANGELOGS_DIR"/*.md 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1
         return
     fi
     echo "unknown"
@@ -38,11 +42,17 @@ get_current_version() {
 # Compute next patch version (e.g., v0.5.6 -> v0_5_7)
 get_next_version_folder() {
     local current="$1"
+    # Handle non-semver values (e.g., "dev")
+    if ! echo "$current" | grep -qE '^v?[0-9]+\.[0-9]+'; then
+        echo "v0_0_1"
+        return
+    fi
     # Extract major.minor.patch
     local version="${current#v}"  # Remove 'v' prefix
     local major=$(echo "$version" | cut -d. -f1)
     local minor=$(echo "$version" | cut -d. -f2)
     local patch=$(echo "$version" | cut -d. -f3)
+    patch="${patch:-0}"  # Default to 0 if missing
     # Increment patch
     local next_patch=$((patch + 1))
     # Return folder format (v0_5_7)
