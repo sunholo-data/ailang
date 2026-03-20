@@ -126,10 +126,12 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	// Step 4: Check immutability — reject if version already exists
 	ctx := r.Context()
 	metaPath := fmt.Sprintf("packages/%s/%s/%s/metadata.json", parts[0], parts[1], version)
-	_, err = v.bucket.Object(metaPath).Attrs(ctx)
-	if err == nil {
-		jsonError(w, http.StatusConflict, "Version %s@%s already published (immutable)", name, version)
-		return
+	if v.bucket != nil {
+		_, err = v.bucket.Object(metaPath).Attrs(ctx)
+		if err == nil {
+			jsonError(w, http.StatusConflict, "Version %s@%s already published (immutable)", name, version)
+			return
+		}
 	}
 
 	// Step 5: Namespace auth — deferred (accept all publishers for now)
@@ -190,22 +192,26 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 11: Upload to GCS
-	tarballGCSPath := fmt.Sprintf("packages/%s/%s/%s/package.tar.gz", parts[0], parts[1], version)
+	// Step 11: Upload to GCS (skip if no bucket configured — dry-run/test mode)
+	if v.bucket != nil {
+		tarballGCSPath := fmt.Sprintf("packages/%s/%s/%s/package.tar.gz", parts[0], parts[1], version)
 
-	if err := v.uploadToGCS(ctx, tarballGCSPath, tarballData, "application/gzip"); err != nil {
-		jsonError(w, http.StatusInternalServerError, "Failed to upload tarball: %v", err)
-		return
-	}
+		if err := v.uploadToGCS(ctx, tarballGCSPath, tarballData, "application/gzip"); err != nil {
+			jsonError(w, http.StatusInternalServerError, "Failed to upload tarball: %v", err)
+			return
+		}
 
-	if err := v.uploadToGCS(ctx, metaPath, metaJSON, "application/json"); err != nil {
-		jsonError(w, http.StatusInternalServerError, "Failed to upload metadata: %v", err)
-		return
-	}
+		if err := v.uploadToGCS(ctx, metaPath, metaJSON, "application/json"); err != nil {
+			jsonError(w, http.StatusInternalServerError, "Failed to upload metadata: %v", err)
+			return
+		}
 
-	// Update index.json
-	if err := v.updateIndex(ctx, manifest, &meta); err != nil {
-		log.Printf("WARNING: Failed to update index.json: %v (package uploaded but index stale)", err)
+		// Update index.json
+		if err := v.updateIndex(ctx, manifest, &meta); err != nil {
+			log.Printf("WARNING: Failed to update index.json: %v (package uploaded but index stale)", err)
+		}
+	} else {
+		log.Printf("No GCS bucket configured — validation-only mode (no upload)")
 	}
 
 	log.Printf("Published %s@%s (%d bytes, %d/%d contracts verified)", name, version, len(tarballData), contractsVerified, contractsTotal)
