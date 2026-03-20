@@ -131,16 +131,22 @@ export func main() -> () ! {IO} {
 		ExpectedOut: "Got: 42\nEmpty\n",
 	}
 
-	result := runAILANGSolution(code, spec)
+	// Use short timeout — trivial programs should compile+run in <2s
+	runner := NewAILANGRunnerWithTask(t.Context(), "", spec.Caps, "", spec)
+	runResult, err := runner.Run(code, 3*time.Second)
+	if err != nil {
+		t.Fatalf("runner error: %v", err)
+	}
 
-	if !result.CompileOk {
-		t.Errorf("Expected CompileOk=true, got false. Stderr: %s", result.Stderr)
+	if !runResult.CompileOk {
+		t.Errorf("Expected CompileOk=true, got false. Stderr: %s", runResult.Stderr)
 	}
-	if !result.RuntimeOk {
-		t.Errorf("Expected RuntimeOk=true, got false. Stderr: %s", result.Stderr)
+	if !runResult.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true, got false. Stderr: %s", runResult.Stderr)
 	}
-	if !result.StdoutOk {
-		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q, Expected: %q", result.Stdout, spec.ExpectedOut)
+	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	if !stdoutOk {
+		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q, Expected: %q", runResult.Stdout, spec.ExpectedOut)
 	}
 }
 
@@ -164,17 +170,23 @@ export func main() -> () ! {IO} {
 		ExpectedOut: "hello\n",
 	}
 
-	result := runAILANGSolution(code, spec)
+	// Use short timeout — trivial programs should compile+run in <2s
+	runner := NewAILANGRunnerWithTask(t.Context(), "", spec.Caps, "", spec)
+	runResult, err := runner.Run(code, 3*time.Second)
+	if err != nil {
+		t.Fatalf("runner error: %v", err)
+	}
 
 	// With --relax-modules, this should still compile and run
-	if !result.CompileOk {
-		t.Errorf("Expected CompileOk=true with --relax-modules, got false. Stderr: %s", result.Stderr)
+	if !runResult.CompileOk {
+		t.Errorf("Expected CompileOk=true with --relax-modules, got false. Stderr: %s", runResult.Stderr)
 	}
-	if !result.RuntimeOk {
-		t.Errorf("Expected RuntimeOk=true with --relax-modules, got false. Stderr: %s", result.Stderr)
+	if !runResult.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true with --relax-modules, got false. Stderr: %s", runResult.Stderr)
 	}
-	if !result.StdoutOk {
-		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q", result.Stdout)
+	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	if !stdoutOk {
+		t.Errorf("Expected StdoutOk=true, got false. Stdout: %q", runResult.Stdout)
 	}
 }
 

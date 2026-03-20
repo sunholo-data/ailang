@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 
 	cloudtrace "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"go.opentelemetry.io/otel"
@@ -84,12 +85,16 @@ func InitOTLP(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 		propagation.Baggage{},
 	))
 
-	// Return combined shutdown function
+	// Return combined shutdown function with a hard 2-second deadline.
+	// Without this, shutdown blocks for 30s when the OTLP collector is unreachable,
+	// causing ailang processes to hang after completing their work.
 	return func(ctx context.Context) error {
+		shutdownCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
 		var errs []error
 		// Shutdown in reverse order
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
-			if err := shutdownFuncs[i](ctx); err != nil {
+			if err := shutdownFuncs[i](shutdownCtx); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -178,12 +183,14 @@ func InitGoogleCloudTrace(ctx context.Context, serviceName string) (ShutdownFunc
 		propagation.Baggage{},
 	))
 
-	// Return combined shutdown function
+	// Return combined shutdown function with a hard 2-second deadline.
 	return func(ctx context.Context) error {
+		shutdownCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
 		var errs []error
 		// Shutdown in reverse order
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
-			if err := shutdownFuncs[i](ctx); err != nil {
+			if err := shutdownFuncs[i](shutdownCtx); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -278,11 +285,13 @@ func InitDual(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 		propagation.Baggage{},
 	))
 
-	// Return combined shutdown function
+	// Return combined shutdown function with a hard 2-second deadline.
 	return func(ctx context.Context) error {
+		shutdownCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
 		var errs []error
 		for i := len(shutdownFuncs) - 1; i >= 0; i-- {
-			if err := shutdownFuncs[i](ctx); err != nil {
+			if err := shutdownFuncs[i](shutdownCtx); err != nil {
 				errs = append(errs, err)
 			}
 		}
