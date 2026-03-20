@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -146,13 +147,52 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					resolvedSet[depName] = true
 				}
 			} else {
-				// Registry dependency — for now, just record it unresolved
-				// (Phase 2 will add registry resolution)
+				// Registry dependency — download from registry, cache locally
 				if !resolvedSet[depName] {
+					client := NewRegistryClient()
+					cachePath, err := CachedPackagePath(depName, dep.Version)
+					if err != nil {
+						return fmt.Errorf("failed to compute cache path for %s: %w", depName, err)
+					}
+
+					// Check if already cached
+					if _, statErr := os.Stat(filepath.Join(cachePath, ManifestFile)); statErr != nil {
+						// Not cached — download from registry
+						tarballData, err := client.FetchPackage(depName, dep.Version)
+						if err != nil {
+							return fmt.Errorf("failed to download %s@%s from registry: %w", depName, dep.Version, err)
+						}
+						if err := os.MkdirAll(cachePath, 0755); err != nil {
+							return fmt.Errorf("failed to create cache dir: %w", err)
+						}
+						if err := ExtractTarball(tarballData, cachePath); err != nil {
+							return fmt.Errorf("failed to extract %s@%s: %w", depName, dep.Version, err)
+						}
+					}
+
+					depManifest, err := LoadManifest(cachePath)
+					if err != nil {
+						return fmt.Errorf("failed to load cached %s@%s: %w", depName, dep.Version, err)
+					}
+
+					if err := resolve(depManifest, cachePath, append(path, name)); err != nil {
+						return err
+					}
+
+					hash, err := ContentHash(cachePath)
+					if err != nil {
+						return fmt.Errorf("failed to hash %s: %w", depName, err)
+					}
+
 					resolved = append(resolved, ResolvedPackage{
-						Name:    depName,
-						Version: dep.Version,
-						Source:  "registry",
+						Name:          depName,
+						Version:       dep.Version,
+						ContentHash:   hash,
+						InterfaceHash: InterfaceHash(depManifest),
+						Source:        "registry",
+						Path:          cachePath,
+						Effects:       depManifest.Effects.Max,
+						Exports:       depManifest.Exports.Modules,
 					})
 					resolvedSet[depName] = true
 				}

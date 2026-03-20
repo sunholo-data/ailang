@@ -101,7 +101,15 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 		}
 		return dir, nil
 	case "registry":
-		return "", fmt.Errorf("registry packages not yet supported (package %s); use path or git dependencies", locked.Name)
+		// Registry deps are cached locally after ailang install or ailang lock
+		dir := locked.Path
+		if dir == "" {
+			return "", fmt.Errorf("registry package %s has no cached path; run 'ailang install %s@%s'", locked.Name, locked.Name, locked.Version)
+		}
+		if _, err := os.Stat(dir); err != nil {
+			return "", fmt.Errorf("registry package %s cache not found at %s; run 'ailang install %s@%s'", locked.Name, dir, locked.Name, locked.Version)
+		}
+		return dir, nil
 	default:
 		return "", fmt.Errorf("unknown package source: %s", locked.Source)
 	}

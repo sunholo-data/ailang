@@ -310,6 +310,30 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "install":
+		if err := pkgInstallCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "search":
+		if err := pkgSearchCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "publish":
+		if err := pkgPublishCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
+	case "pkg-docs":
+		if err := pkgDocsCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "ai-check":
 		aiCheckCommand()
 

@@ -147,14 +147,25 @@ Link to local packages:
 "shared/types" = { path = "../types" }
 ```
 
-### Version Dependencies (Phase 2)
+### Git Dependencies
+
+Pin to a specific tag or commit in a git repository:
 
 ```toml
 [dependencies]
-"sunholo/json" = "0.3.1"
+"sunholo/auth" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/auth", tag = "main" }
 ```
 
-Registry-based version dependencies are planned for Phase 2.
+### Registry Dependencies
+
+Install from the AILANG package registry:
+
+```toml
+[dependencies]
+"sunholo/auth" = "0.1.0"
+```
+
+Resolution priority: path > git > registry.
 
 ## CLI Commands
 
@@ -162,9 +173,13 @@ Registry-based version dependencies are planned for Phase 2.
 |---------|-------------|
 | `ailang init package --name vendor/name` | Create `ailang.toml` |
 | `ailang add --path ../dep` | Add path dependency |
-| `ailang add vendor/name@version` | Add version dependency |
+| `ailang add --git URL --subdir DIR --tag TAG` | Add git dependency |
+| `ailang install vendor/name@version` | Install from registry |
 | `ailang lock` | Resolve deps, generate `ailang.lock` |
 | `ailang tree` | Display dependency tree |
+| `ailang search "query"` | Search registry packages |
+| `ailang publish` | Publish to registry |
+| `ailang pkg-docs vendor/name` | View package AGENT.md |
 
 ## Dual Hash Model
 
