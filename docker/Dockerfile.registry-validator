@@ -1,0 +1,49 @@
+# AILANG Registry Validator — Cloud Run Service
+#
+# Receives package tarballs via POST /publish, validates them
+# (compile, effects, contracts), and uploads to GCS if valid.
+#
+# Build context: ailang repo root
+# Build: docker build -f docker/Dockerfile.registry-validator -t registry-validator .
+
+# ── Build stage ──────────────────────────────────────────────
+FROM golang:1.24-bookworm AS builder
+
+WORKDIR /build
+
+# Cache Go modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Build both binaries
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /registry-validator ./cmd/registry-validator/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /ailang ./cmd/ailang/
+
+# ── Runtime stage ────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+# Install Z3 for contract verification + ca-certificates for GCS HTTPS
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    z3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy binaries
+COPY --from=builder /registry-validator /usr/local/bin/registry-validator
+COPY --from=builder /ailang /usr/local/bin/ailang
+
+# Bundle stdlib (needed for ailang check/verify)
+COPY std/ /usr/local/share/ailang/std/
+
+# Cloud Run convention
+ENV PORT=8080
+EXPOSE 8080
+
+# Health check for Cloud Run
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:${PORT}/health || exit 1
+
+CMD ["registry-validator"]

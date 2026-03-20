@@ -49,6 +49,7 @@ func main() {
 	v := &validator{
 		bucket:     gcsClient.Bucket(bucket),
 		bucketName: bucket,
+		apiKey:     os.Getenv("REGISTRY_API_KEY"),
 	}
 
 	http.HandleFunc("/publish", v.handlePublish)
@@ -61,6 +62,7 @@ func main() {
 type validator struct {
 	bucket     *storage.BucketHandle
 	bucketName string
+	apiKey     string // if set, requires X-API-Key header on publish
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +74,18 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
+	}
+
+	// Step 0: API key authentication (if configured)
+	if v.apiKey != "" {
+		provided := r.Header.Get("X-API-Key")
+		if provided == "" {
+			provided = r.URL.Query().Get("api_key")
+		}
+		if provided != v.apiKey {
+			jsonError(w, http.StatusForbidden, "Invalid or missing API key")
+			return
+		}
 	}
 
 	// Step 1: Read tarball from multipart form

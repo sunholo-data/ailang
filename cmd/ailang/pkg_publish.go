@@ -113,6 +113,11 @@ func uploadTarball(url string, tarballData []byte) error {
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
+	// API key auth (from AILANG_REGISTRY_API_KEY env var)
+	if apiKey := os.Getenv("AILANG_REGISTRY_API_KEY"); apiKey != "" {
+		req.Header.Set("X-API-Key", apiKey)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload failed: %w", err)
