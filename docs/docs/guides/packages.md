@@ -181,6 +181,80 @@ Resolution priority: path > git > registry.
 | `ailang publish` | Publish to registry |
 | `ailang pkg-docs vendor/name` | View package AGENT.md |
 
+## Registry
+
+The AILANG package registry is hosted on GCP at `https://storage.googleapis.com/ailang-registry`.
+
+### Publishing
+
+```bash
+cd my-package/
+ailang publish              # Upload to registry (requires AILANG_REGISTRY_API_KEY)
+ailang publish --dry-run    # Preview without uploading
+```
+
+The validator service automatically:
+- Compiles your package (`ailang check`)
+- Verifies effect ceilings match `[effects].max`
+- Runs contract verification (`ailang verify`, best-effort)
+- Computes content + interface + tarball hashes
+- Rejects duplicate versions (immutable once published)
+
+### Searching
+
+```bash
+ailang search "auth"         # Keyword search on name, ai_summary, tags
+ailang search --tag gcp      # Filter by tag
+ailang search                # List all packages
+```
+
+### Installing
+
+```bash
+ailang install sunholo/auth@0.1.0   # Download, verify hash, add to ailang.toml
+```
+
+### Package Documentation
+
+```bash
+ailang pkg-docs sunholo/auth    # Display AGENT.md usage guide
+```
+
+Each package can include an `AGENT.md` — a structured guide for AI agents with quick start, exported functions, and common patterns.
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `AILANG_REGISTRY` | Registry URL (default: `https://storage.googleapis.com/ailang-registry`) |
+| `AILANG_REGISTRY_VALIDATOR` | Validator service URL (for `ailang publish`) |
+| `AILANG_REGISTRY_API_KEY` | API key for publishing |
+
+### Admin: Rebuild Index
+
+If the registry index becomes corrupted, an admin can rebuild it from all published metadata:
+
+```bash
+curl -X POST https://<validator-url>/rebuild-index \
+  -H "X-API-Key: $AILANG_REGISTRY_API_KEY"
+```
+
+This scans all `metadata.json` files in the bucket and reconstructs `index.json`. Same API key auth as publish.
+
+### Available Packages
+
+| Package | Description | Effects |
+|---------|-------------|---------|
+| `sunholo/auth` | API key validation, HMAC hashing, bearer tokens | Pure |
+| `sunholo/gcp_auth` | GCP ADC OAuth2 token exchange, project detection | FS, Net, Env |
+| `sunholo/http_helpers` | HTTP request builders, auth headers, JSON response parsing | Net |
+| `sunholo/logging` | Structured JSON logging for Cloud Run | IO |
+| `sunholo/config` | Config loading from env vars with validation | Env |
+| `sunholo/testing_utils` | Test assertion helpers | Pure |
+| `sunholo/registry_validator` | Package validator written in AILANG (dogfooding) | IO, FS |
+
+Source: [github.com/sunholo-data/ailang-packages](https://github.com/sunholo-data/ailang-packages)
+
 ## Dual Hash Model
 
 Each package in the lock file has two hashes:
