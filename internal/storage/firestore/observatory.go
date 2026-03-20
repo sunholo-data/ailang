@@ -37,14 +37,29 @@ type ObservatoryStore struct {
 
 	// Dashboard aggregate caches.
 	metricsSummaryCache *ttlCache[obs.MetricsSummary]
+
+	// spanTTL controls the expire_at field written to obs_spans documents.
+	// Firestore TTL policy deletes documents after this timestamp.
+	// Default: 7 days for dev, 30 days for prod.
+	spanTTL time.Duration
 }
+
+// DefaultSpanTTL is the default time-to-live for observatory span documents.
+const DefaultSpanTTL = 7 * 24 * time.Hour // 7 days
 
 // NewObservatoryStore creates a new Firestore-backed observatory store.
 func NewObservatoryStore(client *Client) *ObservatoryStore {
 	return &ObservatoryStore{
 		client:              client,
 		metricsSummaryCache: newTTLCache[obs.MetricsSummary](2 * time.Minute),
+		spanTTL:             DefaultSpanTTL,
 	}
+}
+
+// WithSpanTTL sets the TTL for observatory span documents.
+func (s *ObservatoryStore) WithSpanTTL(d time.Duration) *ObservatoryStore {
+	s.spanTTL = d
+	return s
 }
 
 func (s *ObservatoryStore) Close() error {

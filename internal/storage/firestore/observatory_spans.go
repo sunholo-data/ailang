@@ -20,7 +20,7 @@ func (s *ObservatoryStore) CreateSpan(ctx context.Context, span *obs.Span) error
 	if span.CreatedAt.IsZero() {
 		span.CreatedAt = time.Now()
 	}
-	_, err := s.client.Doc(collObsSpans, span.ID).Set(ctx, spanToMap(span))
+	_, err := s.client.Doc(collObsSpans, span.ID).Set(ctx, spanToMap(span, s.spanTTL))
 	return err
 }
 
@@ -83,7 +83,7 @@ func (s *ObservatoryStore) ListSpans(ctx context.Context, opts obs.SpanListOptio
 }
 
 func (s *ObservatoryStore) UpdateSpan(ctx context.Context, span *obs.Span) error {
-	_, err := s.client.Doc(collObsSpans, span.ID).Set(ctx, spanToMap(span))
+	_, err := s.client.Doc(collObsSpans, span.ID).Set(ctx, spanToMap(span, s.spanTTL))
 	return err
 }
 
@@ -304,12 +304,14 @@ func (s *ObservatoryStore) UpdateSessionEnded(ctx context.Context, sessionID str
 }
 
 func (s *ObservatoryStore) InsertToolStart(ctx context.Context, sessionID, toolUseID, toolName, toolInput string) error {
+	now := time.Now()
 	_, err := s.client.Doc(collObsSessionTools, toolUseID).Set(ctx, map[string]interface{}{
 		"tool_use_id": toolUseID,
 		"session_id":  sessionID,
 		"tool_name":   toolName,
 		"tool_input":  toolInput,
-		"start_time":  time.Now(),
+		"start_time":  now,
+		"expire_at":   now.Add(s.spanTTL),
 	})
 	return err
 }
@@ -491,7 +493,7 @@ func (s *ObservatoryStore) DeleteSpanEvent(ctx context.Context, id int64) error 
 
 // --- Span conversion helpers ---
 
-func spanToMap(sp *obs.Span) map[string]interface{} {
+func spanToMap(sp *obs.Span, ttl time.Duration) map[string]interface{} {
 	m := map[string]interface{}{
 		"id":                    sp.ID,
 		"trace_id":              sp.TraceID,
@@ -515,6 +517,7 @@ func spanToMap(sp *obs.Span) map[string]interface{} {
 		"model":                 sp.Model,
 		"provider":              string(sp.Provider),
 		"created_at":            timeToFirestore(sp.CreatedAt),
+		"expire_at":             timeToFirestore(sp.CreatedAt.Add(ttl)),
 	}
 
 	// Store session_id at top level for efficient queries
