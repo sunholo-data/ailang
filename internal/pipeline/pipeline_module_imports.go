@@ -139,17 +139,6 @@ func resolveSelectiveImports(
 					fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
 				}
 			}
-			// M-CROSS-MODULE-RECORD-UNIFICATION: Import ALL type aliases from this module
-			// This ensures nested record types (e.g., SystemPos inside StarSystem) are available
-			// for unification when the parent type is imported
-			for aliasName, aliasTarget := range depIface.TypeAliases {
-				if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
-					imports.ImportedTypeAliases[aliasName] = aliasTarget
-					if cfg.TraceDefaulting {
-						fmt.Printf("  Import transitive type alias %s -> %s\n", aliasName, aliasTarget)
-					}
-				}
-			}
 			found = true
 		}
 
@@ -166,6 +155,20 @@ func resolveSelectiveImports(
 
 		if !found && cfg.TraceDefaulting {
 			fmt.Printf("  Symbol %s not found in %s\n", sym, imp.Path)
+		}
+	}
+
+	// M-TYPE-ALIAS: Import ALL type aliases from this module regardless of what symbols
+	// were imported. Previously this only ran when importing a type name, which meant
+	// importing functions/constructors from a module didn't bring in its type aliases.
+	// This is needed for cross-package type alias unification: if Package C imports
+	// function applyDelta(Usage, ...) from Package A, it needs the Usage alias for unification.
+	for aliasName, aliasTarget := range depIface.TypeAliases {
+		if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
+			imports.ImportedTypeAliases[aliasName] = aliasTarget
+			if cfg.TraceDefaulting {
+				fmt.Printf("  Import type alias %s -> %s from %s\n", aliasName, aliasTarget, imp.Path)
+			}
 		}
 	}
 }

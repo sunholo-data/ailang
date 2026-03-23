@@ -512,11 +512,14 @@ func extractFuncParamsFromExpr(expr core.CoreExpr, result map[string][]string) {
 }
 
 // buildAndRegisterInterface builds the module interface and registers it with the linker.
+// importedAliases are type aliases from this module's imports, used to embed transitive
+// aliases referenced in exported function signatures (M-TYPE-ALIAS).
 func buildAndRegisterInterface(
 	unit *CompileUnit,
 	modID string,
 	moduleTypeEnv *types.TypeEnv,
 	modLinker *link.ModuleLinker,
+	importedAliases map[string]types.Type,
 ) error {
 	// Convert pipeline constructors to iface constructors
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
@@ -525,9 +528,78 @@ func buildAndRegisterInterface(
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}
 
+	// M-TYPE-ALIAS: Embed transitive type aliases referenced in exported function signatures.
+	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in
+	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
+	if len(importedAliases) > 0 {
+		embedTransitiveAliases(unitIface, importedAliases)
+	}
+
 	unit.Iface = unitIface
 	modLinker.RegisterIface(unitIface)
 	return nil
+}
+
+// embedTransitiveAliases adds imported type aliases to a module's interface when they are
+// referenced in the module's exported function signatures or constructor types.
+func embedTransitiveAliases(ifc *iface.Iface, importedAliases map[string]types.Type) {
+	// Collect all TCon names referenced in exported signatures
+	referenced := make(map[string]bool)
+	for _, item := range ifc.Exports {
+		if item.Type != nil {
+			collectTConNames(item.Type.Type, referenced)
+		}
+	}
+	for _, ctor := range ifc.Constructors {
+		for _, ft := range ctor.FieldTypes {
+			collectTConNames(ft, referenced)
+		}
+		collectTConNames(ctor.ResultType, referenced)
+	}
+
+	// Add imported aliases that are referenced but not already in the interface
+	for name := range referenced {
+		if _, exists := ifc.TypeAliases[name]; !exists {
+			if alias, ok := importedAliases[name]; ok {
+				ifc.AddTypeAlias(name, alias)
+			}
+		}
+	}
+}
+
+// collectTConNames recursively collects all type constructor names from a type.
+func collectTConNames(t types.Type, names map[string]bool) {
+	if t == nil {
+		return
+	}
+	switch ty := t.(type) {
+	case *types.TCon:
+		names[ty.Name] = true
+	case *types.TApp:
+		collectTConNames(ty.Constructor, names)
+		for _, arg := range ty.Args {
+			collectTConNames(arg, names)
+		}
+	case *types.TFunc2:
+		for _, p := range ty.Params {
+			collectTConNames(p, names)
+		}
+		collectTConNames(ty.Return, names)
+	case *types.TRecord:
+		for _, ft := range ty.Fields {
+			collectTConNames(ft, names)
+		}
+		collectTConNames(ty.Row, names)
+	case *types.TList:
+		collectTConNames(ty.Element, names)
+	case *types.TArray:
+		collectTConNames(ty.Element, names)
+	case *types.TTuple:
+		for _, e := range ty.Elements {
+			collectTConNames(e, names)
+		}
+	}
+	// TVar2, TInt, TString, etc. — no TCon names to collect
 }
 
 // assembleModuleResult converts compiled units into LoadedModule entries

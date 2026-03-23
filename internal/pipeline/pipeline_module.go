@@ -249,7 +249,8 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		}
 
 		// Build and register interface (using accumulated module type environment)
-		if err := buildAndRegisterInterface(unit, string(modID), compileResult.ModuleTypeEnv, modLinker); err != nil {
+		// M-TYPE-ALIAS: Pass imported aliases so transitive aliases can be embedded in the interface
+		if err := buildAndRegisterInterface(unit, string(modID), compileResult.ModuleTypeEnv, modLinker, imports.ImportedTypeAliases); err != nil {
 			return result, err
 		}
 
