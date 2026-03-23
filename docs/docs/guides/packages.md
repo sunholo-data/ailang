@@ -7,6 +7,7 @@ AILANG's package system enables multi-package projects with deterministic depend
 ```bash
 # Create a package
 ailang init package --name myorg/mylib
+ailang init package --name sunholo/myapp --module-prefix myapp  # for existing apps
 
 # Add a dependency
 ailang add --path ../shared-utils
@@ -14,8 +15,18 @@ ailang add --path ../shared-utils
 # Resolve dependencies and generate lock file
 ailang lock
 
+# Validate package (cross-module type checking)
+ailang check --package .
+
+# Run tests
+ailang test --package .
+
 # View dependency tree
 ailang tree
+
+# Publish to registry
+ailang publish --dry-run
+ailang publish
 
 # Run (package resolution is automatic)
 ailang run main.ail
@@ -410,3 +421,23 @@ See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-me
 | `hash mismatch` on install | Corrupted download or tampered package | Retry; if persistent, report to registry admin |
 | `effect ceiling violation` | Package uses effects not in `[effects].max` | Add missing effects to `ailang.toml` |
 | `package not found` | Wrong name or not yet published | Check spelling with `ailang search` |
+| `IMP010: symbol not exported` | Type missing `export` keyword | Add `export type Foo = ...` |
+| `LDR001: module not found` | Missing dependency or wrong import | Add dep + `ailang lock` |
+| `cannot unify type constructor X with TRecord` | Type alias not exported | Add `export type` in defining module |
+| `PAR_HYPHEN_IN_MODULE` | Hyphen in module path | Use underscores: `billing_store` |
+
+### Common Pitfalls
+
+**1. Hyphens in module names**: Directory names can use hyphens (`billing-store/`) but module paths must use underscores (`module sunholo/billing_store/...`). Hyphens parse as subtraction.
+
+**2. Missing `export type`**: Any type used by another package must have `export type`, not just `type`. This includes record types AND ADTs.
+
+**3. Intra-package imports use `pkg/` prefix**: Even when importing a sibling module within the same package, use the `pkg/` prefix:
+```ailang
+-- In sunholo/billing_entitlements/entitlement.ail, importing sibling plan.ail:
+import pkg/sunholo/billing_entitlements/plan (Plan, lookupPlan)
+```
+
+**4. `Ok`/`Err` not in prelude**: Every file that uses `Result` needs `import std/result (Ok, Err)`.
+
+**5. Run `ailang lock` after changing dependencies**: The lockfile must be regenerated whenever `[dependencies]` changes.
