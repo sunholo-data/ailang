@@ -36,14 +36,22 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 
 	// Look up in lock file
 	locked, found := pl.lockFile.FindPackage(pkgName)
+	var pkgDir string
 	if !found {
-		return "", fmt.Errorf("package %q not found in ailang.lock; run 'ailang lock' to resolve dependencies", pkgName)
-	}
-
-	// Get the package directory
-	pkgDir, err := pl.packageDir(locked)
-	if err != nil {
-		return "", err
+		// Self-reference: if the import matches the current package name,
+		// resolve against the root directory (intra-package imports).
+		if pl.isSelfReference(pkgName) {
+			pkgDir = pl.rootDir
+		} else {
+			return "", fmt.Errorf("package %q not found in ailang.lock; run 'ailang lock' to resolve dependencies", pkgName)
+		}
+	} else {
+		// Get the package directory from the lock file entry
+		var err error
+		pkgDir, err = pl.packageDir(locked)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Check export visibility
@@ -181,6 +189,16 @@ func (pl *PackageLoader) LoadManifestByName(pkgName string) (*PackageManifest, e
 		return nil, err
 	}
 	return pl.loadManifest(pkgName, pkgDir)
+}
+
+// isSelfReference checks if the import matches the current package being compiled.
+// This supports intra-package imports where a module imports a sibling via pkg/ prefix.
+func (pl *PackageLoader) isSelfReference(pkgName string) bool {
+	manifest, err := LoadManifest(pl.rootDir)
+	if err != nil {
+		return false
+	}
+	return manifest.Package.Name == pkgName
 }
 
 // HasPackage returns true if the named package exists in the lock file.
