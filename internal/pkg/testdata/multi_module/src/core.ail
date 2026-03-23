@@ -1,0 +1,6 @@
+module test/multi/core
+
+import test/multi/types (MyRecord)
+
+export func greet(name: string) -> string =
+  name ++ " hello"

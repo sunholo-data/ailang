@@ -27,12 +27,13 @@ type PackageManifest struct {
 
 // PackageInfo holds the [package] section.
 type PackageInfo struct {
-	Name        string `toml:"name"`
-	Version     string `toml:"version"`
-	Edition     string `toml:"edition"`
-	AILANG      string `toml:"ailang"` // Minimum AILANG version required (e.g., ">=0.9.5")
-	Description string `toml:"description"`
-	License     string `toml:"license"`
+	Name         string `toml:"name"`
+	Version      string `toml:"version"`
+	Edition      string `toml:"edition"`
+	AILANG       string `toml:"ailang"`        // Minimum AILANG version required (e.g., ">=0.9.5")
+	ModulePrefix string `toml:"module_prefix"` // Optional: maps existing module paths to package namespace
+	Description  string `toml:"description"`
+	License      string `toml:"license"`
 }
 
 // ExportConfig holds the [exports] section.
@@ -161,9 +162,23 @@ func (m *PackageManifest) Validate() error {
 		return fmt.Errorf("[package].name segments must not be empty: %q", m.Package.Name)
 	}
 
-	// Validate exported modules start with package name prefix
+	// Validate module_prefix if set: must not contain "/" and must differ from package name
+	if m.Package.ModulePrefix != "" {
+		if strings.Contains(m.Package.ModulePrefix, "/") {
+			return fmt.Errorf("[package].module_prefix must be a single segment (no slashes), got %q", m.Package.ModulePrefix)
+		}
+	}
+
+	// Validate exported modules start with package name prefix or module_prefix
 	for _, mod := range m.Exports.Modules {
-		if !strings.HasPrefix(mod, m.Package.Name+"/") && mod != m.Package.Name {
+		matchesPkgName := strings.HasPrefix(mod, m.Package.Name+"/") || mod == m.Package.Name
+		matchesPrefix := m.Package.ModulePrefix != "" &&
+			(strings.HasPrefix(mod, m.Package.ModulePrefix+"/") || mod == m.Package.ModulePrefix)
+		if !matchesPkgName && !matchesPrefix {
+			if m.Package.ModulePrefix != "" {
+				return fmt.Errorf("exported module %q must start with package name %q or module_prefix %q",
+					mod, m.Package.Name, m.Package.ModulePrefix)
+			}
 			return fmt.Errorf("exported module %q must start with package name %q", mod, m.Package.Name)
 		}
 	}
@@ -192,6 +207,38 @@ func (m *PackageManifest) Validate() error {
 	}
 
 	return nil
+}
+
+// MapImportToModulePath converts a canonical import path to the local module path.
+// If module_prefix is set, remaps "vendor/name/subpath" → "prefix/subpath".
+// If not set, returns the import path unchanged.
+func (m *PackageManifest) MapImportToModulePath(importPath string) string {
+	if m.Package.ModulePrefix == "" {
+		return importPath
+	}
+	// importPath = "vendor/name/subpath" → extract subpath
+	prefix := m.Package.Name + "/"
+	if strings.HasPrefix(importPath, prefix) {
+		subpath := strings.TrimPrefix(importPath, prefix)
+		return m.Package.ModulePrefix + "/" + subpath
+	}
+	// Already uses module_prefix — return as-is
+	return importPath
+}
+
+// MapModuleToImportPath converts a local module path to the canonical import path.
+// If module_prefix is set, remaps "prefix/subpath" → "vendor/name/subpath".
+// If not set, returns the module path unchanged.
+func (m *PackageManifest) MapModuleToImportPath(modulePath string) string {
+	if m.Package.ModulePrefix == "" {
+		return modulePath
+	}
+	prefix := m.Package.ModulePrefix + "/"
+	if strings.HasPrefix(modulePath, prefix) {
+		subpath := strings.TrimPrefix(modulePath, prefix)
+		return m.Package.Name + "/" + subpath
+	}
+	return modulePath
 }
 
 // IsPathDep returns true if the named dependency is a path dependency.

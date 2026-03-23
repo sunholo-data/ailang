@@ -22,6 +22,7 @@ func (d *depSlice) Set(value string) error {
 func initPackageCommand(args []string) error {
 	flagSet := flag.NewFlagSet("init package", flag.ExitOnError)
 	nameFlag := flagSet.String("name", "", "Package name (vendor/name format)")
+	modulePrefixFlag := flagSet.String("module-prefix", "", "Module prefix mapping (e.g., 'docparse' if modules use 'docparse/...')")
 	helpFlag := flagSet.Bool("help", false, "Show help")
 	var deps depSlice
 	flagSet.Var(&deps, "dep", "Add dependency (vendor/name format, repeatable)")
@@ -63,8 +64,21 @@ func initPackageCommand(args []string) error {
 		return err
 	}
 
+	// Add module_prefix if specified
+	if *modulePrefixFlag != "" {
+		if strings.Contains(*modulePrefixFlag, "/") {
+			return fmt.Errorf("module-prefix must be a single segment (no slashes), got %q", *modulePrefixFlag)
+		}
+		if err := appendModulePrefixToFile(cwd, *modulePrefixFlag); err != nil {
+			return fmt.Errorf("failed to add module_prefix: %w", err)
+		}
+	}
+
 	fmt.Printf("%s Created %s\n", green("✓"), pkg.ManifestFile)
 	fmt.Printf("  Package: %s\n", cyan(name))
+	if *modulePrefixFlag != "" {
+		fmt.Printf("  Module prefix: %s\n", cyan(*modulePrefixFlag))
+	}
 	fmt.Printf("  Version: 0.1.0\n")
 
 	// Add dependencies if specified
@@ -101,18 +115,35 @@ func parseDep(dep string) (name, version string) {
 	return dep, "*"
 }
 
+// appendModulePrefixToFile adds module_prefix to the [package] section of ailang.toml.
+func appendModulePrefixToFile(dir, prefix string) error {
+	path := filepath.Join(dir, pkg.ManifestFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+	// Insert module_prefix after the name line
+	content = strings.Replace(content,
+		"\nversion = ",
+		fmt.Sprintf("\nmodule_prefix = %q\nversion = ", prefix),
+		1)
+	return os.WriteFile(path, []byte(content), 0644)
+}
+
 func printInitPackageHelp() {
-	fmt.Println("Usage: ailang init package [--name vendor/name] [--dep vendor/name[@version]]...")
+	fmt.Println("Usage: ailang init package [--name vendor/name] [--module-prefix prefix] [--dep vendor/name[@version]]...")
 	fmt.Println()
 	fmt.Println("Initialize a new AILANG package in the current directory.")
 	fmt.Println("Creates an ailang.toml manifest file.")
 	fmt.Println()
 	fmt.Println("Flags:")
-	fmt.Println("  --name    Package name in vendor/name format (default: local/<dirname>)")
-	fmt.Println("  --dep     Add a dependency (repeatable). Format: vendor/name or vendor/name@version")
+	fmt.Println("  --name           Package name in vendor/name format (default: local/<dirname>)")
+	fmt.Println("  --module-prefix  Map existing module paths (e.g., 'docparse' if modules use 'docparse/...')")
+	fmt.Println("  --dep            Add a dependency (repeatable). Format: vendor/name or vendor/name@version")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  ailang init package --name sunholo/docparse")
+	fmt.Println("  ailang init package --name sunholo/docparse --module-prefix docparse")
 	fmt.Println("  ailang init package --name sunholo/billing_store --dep sunholo/config --dep sunholo/gcp_auth")
 	fmt.Println("  ailang init package --dep sunholo/http_helpers@0.2.0")
 	fmt.Println("  ailang init package")

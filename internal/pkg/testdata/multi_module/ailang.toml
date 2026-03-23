@@ -1,0 +1,13 @@
+[package]
+name = "test/multi"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["test/multi/core", "test/multi/types"]
+
+[effects]
+max = []
+
+[stability]
+level = "experimental"

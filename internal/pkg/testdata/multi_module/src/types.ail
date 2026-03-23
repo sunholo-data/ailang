@@ -1,0 +1,3 @@
+module test/multi/types
+
+export type MyRecord = { name: string, value: int }

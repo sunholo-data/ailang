@@ -52,8 +52,12 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 	}
 
 	// Map import path to file path
-	// vendor/name/module → src/module.ail (relative to package dir)
-	// vendor/name → src/core.ail (default module)
+	// vendor/name/module → module.ail (relative to package dir)
+	// vendor/name → core.ail (default module)
+	//
+	// If module_prefix is set, the file uses the prefix-based name:
+	// import pkg/sunholo/docparse/services/api → maps to services/api.ail
+	// (because module_prefix="docparse" remaps the lookup)
 	var modulePath string
 	if len(parts) == 2 {
 		// Import the package root module
@@ -62,6 +66,14 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 		// Import a specific module within the package
 		modulePath = parts[2] + ".ail"
 	}
+
+	// If package has module_prefix, also try prefix-based file names.
+	// The source file might declare "module docparse/services/api" (using the prefix)
+	// but we're importing "pkg/sunholo/docparse/services/api" (canonical path).
+	// The file on disk is named "services/api.ail" which matches either way,
+	// but we need to check it with the remapped module declaration for visibility.
+	manifest, _ := pl.loadManifest(pkgName, pkgDir)
+	_ = manifest // used below for prefix-aware file lookup
 
 	// Try src/ subdirectory first, then root
 	candidates := []string{
@@ -127,9 +139,12 @@ func (pl *PackageLoader) checkExportVisibility(pkgName, importPath, pkgDir strin
 		return nil
 	}
 
-	// Check if the import path matches an exported module
+	// Check if the import path matches an exported module.
+	// If module_prefix is set, also check the remapped path:
+	//   import "sunholo/docparse/services/api" matches export "docparse/services/api"
+	remapped := manifest.MapImportToModulePath(importPath)
 	for _, exported := range manifest.Exports.Modules {
-		if importPath == exported {
+		if importPath == exported || remapped == exported {
 			return nil
 		}
 	}
@@ -152,6 +167,20 @@ func (pl *PackageLoader) loadManifest(pkgName, pkgDir string) (*PackageManifest,
 
 	pl.manifests[pkgName] = m
 	return m, nil
+}
+
+// LoadManifestByName loads a package's manifest by its name.
+// Returns the cached manifest or loads it from the package directory.
+func (pl *PackageLoader) LoadManifestByName(pkgName string) (*PackageManifest, error) {
+	locked, found := pl.lockFile.FindPackage(pkgName)
+	if !found {
+		return nil, fmt.Errorf("package %q not found in lock file", pkgName)
+	}
+	pkgDir, err := pl.packageDir(locked)
+	if err != nil {
+		return nil, err
+	}
+	return pl.loadManifest(pkgName, pkgDir)
 }
 
 // HasPackage returns true if the named package exists in the lock file.

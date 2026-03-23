@@ -288,3 +288,131 @@ edition = "1"
 		t.Fatal("expected error for dep with both path and git")
 	}
 }
+
+func TestLoadManifest_ModulePrefix_Valid(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "sunholo/docparse"
+version = "0.1.0"
+edition = "1"
+module_prefix = "docparse"
+
+[exports]
+modules = ["docparse/services/api", "docparse/handlers/parse"]
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	m, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.Package.ModulePrefix != "docparse" {
+		t.Errorf("expected module_prefix 'docparse', got %q", m.Package.ModulePrefix)
+	}
+}
+
+func TestLoadManifest_ModulePrefix_ExportsWithPkgName(t *testing.T) {
+	dir := t.TempDir()
+	// Exports can also use the full vendor/name prefix
+	content := `
+[package]
+name = "sunholo/docparse"
+version = "0.1.0"
+edition = "1"
+module_prefix = "docparse"
+
+[exports]
+modules = ["sunholo/docparse/new_module", "docparse/legacy_module"]
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	_, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadManifest_ModulePrefix_RejectsSlashes(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "sunholo/docparse"
+version = "0.1.0"
+edition = "1"
+module_prefix = "my/prefix"
+
+[exports]
+modules = ["my/prefix/module"]
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	_, err := LoadManifest(dir)
+	if err == nil {
+		t.Fatal("expected error for module_prefix with slashes")
+	}
+}
+
+func TestLoadManifest_ModulePrefix_BadExportStillFails(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+[package]
+name = "sunholo/docparse"
+version = "0.1.0"
+edition = "1"
+module_prefix = "docparse"
+
+[exports]
+modules = ["other/something"]
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+	_, err := LoadManifest(dir)
+	if err == nil {
+		t.Fatal("expected error for export not matching package name or module_prefix")
+	}
+}
+
+func TestManifest_MapImportToModulePath(t *testing.T) {
+	m := &PackageManifest{
+		Package: PackageInfo{
+			Name:         "sunholo/docparse",
+			ModulePrefix: "docparse",
+		},
+	}
+
+	// With module_prefix: remap vendor/name/sub → prefix/sub
+	got := m.MapImportToModulePath("sunholo/docparse/services/api")
+	if got != "docparse/services/api" {
+		t.Errorf("expected 'docparse/services/api', got %q", got)
+	}
+
+	// Already prefix-based: return as-is
+	got = m.MapImportToModulePath("docparse/services/api")
+	if got != "docparse/services/api" {
+		t.Errorf("expected 'docparse/services/api', got %q", got)
+	}
+
+	// No prefix set: return unchanged
+	m2 := &PackageManifest{
+		Package: PackageInfo{Name: "sunholo/auth"},
+	}
+	got = m2.MapImportToModulePath("sunholo/auth/keys")
+	if got != "sunholo/auth/keys" {
+		t.Errorf("expected 'sunholo/auth/keys', got %q", got)
+	}
+}
+
+func TestManifest_MapModuleToImportPath(t *testing.T) {
+	m := &PackageManifest{
+		Package: PackageInfo{
+			Name:         "sunholo/docparse",
+			ModulePrefix: "docparse",
+		},
+	}
+
+	got := m.MapModuleToImportPath("docparse/services/api")
+	if got != "sunholo/docparse/services/api" {
+		t.Errorf("expected 'sunholo/docparse/services/api', got %q", got)
+	}
+}

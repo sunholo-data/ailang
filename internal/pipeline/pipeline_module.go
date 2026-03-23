@@ -389,8 +389,23 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 	// Exception: pkg/* imports — strip pkg/ prefix before comparing
 	// The module declares "vendor/name/module" but the import path is "pkg/vendor/name/module"
 	if strings.HasPrefix(canonicalID, "pkg/") {
-		if mod.File.Module.Path == strings.TrimPrefix(canonicalID, "pkg/") {
+		stripped := strings.TrimPrefix(canonicalID, "pkg/")
+		if mod.File.Module.Path == stripped {
 			return nil
+		}
+		// Also check module_prefix mapping: if the package has module_prefix="docparse",
+		// then pkg/sunholo/docparse/services/api can declare "module docparse/services/api"
+		if currentModulePrefixMap != nil {
+			parts := strings.SplitN(stripped, "/", 3)
+			if len(parts) >= 2 {
+				pkgName := parts[0] + "/" + parts[1]
+				if prefix, ok := currentModulePrefixMap[pkgName]; ok && len(parts) == 3 {
+					prefixedPath := prefix + "/" + parts[2]
+					if mod.File.Module.Path == prefixedPath {
+						return nil
+					}
+				}
+			}
 		}
 	}
 

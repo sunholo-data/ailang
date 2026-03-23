@@ -102,6 +102,7 @@ func main() {
 		testFlags := flag.NewFlagSet("test", flag.ExitOnError)
 		formatFlag := testFlags.String("format", "human", "Output format: human or json")
 		noColorFlag := testFlags.Bool("no-color", false, "Disable colored output")
+		packageFlag := testFlags.Bool("package", false, "Run tests in package mode (discovers *_test.ail via ailang.toml)")
 		helpTestFlag := testFlags.Bool("help", false, "Show help for test command")
 
 		_ = testFlags.Parse(flag.Args()[1:]) // Parse errors handled by flags package
@@ -116,7 +117,11 @@ func main() {
 			path = testFlags.Arg(0)
 		}
 
-		runTestsV2(path, *formatFlag, !*noColorFlag)
+		if *packageFlag {
+			runPackageTests(path, *formatFlag, !*noColorFlag)
+		} else {
+			runTestsV2(path, *formatFlag, !*noColorFlag)
+		}
 
 	case "watch":
 		if flag.NArg() < 2 {
@@ -135,8 +140,19 @@ func main() {
 		debugCompileCheck := checkFS.Bool("debug-compile", false, "Show compilation phase timing breakdown")
 		jsonCheck := checkFS.Bool("json", false, "Output errors in JSON format (for AI/machine consumption)")
 		quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
+		packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
 
 		_ = checkFS.Parse(flag.Args()[1:])
+
+		// --package mode: check a package directory using ailang.toml
+		if *packageCheck {
+			dir := "."
+			if checkFS.NArg() >= 1 {
+				dir = checkFS.Arg(0)
+			}
+			checkPackageWithContext(dir, *strictSyntaxCheck, *relaxModulesCheck, *timeoutCheck, *debugCompileCheck, *jsonCheck, *quietCheck)
+			return
+		}
 
 		if checkFS.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%s: missing file or directory argument\n", red("Error"))
@@ -149,6 +165,7 @@ func main() {
 			fmt.Println("  --debug-compile    Show compilation phase timing breakdown")
 			fmt.Println("  --json             Output errors in JSON format")
 			fmt.Println("  --quiet            Suppress progress lines, only output errors")
+			fmt.Println("  --package          Check entire package (reads ailang.toml)")
 			fmt.Println()
 			fmt.Println("If a directory is given, all .ail files are checked recursively.")
 			os.Exit(1)

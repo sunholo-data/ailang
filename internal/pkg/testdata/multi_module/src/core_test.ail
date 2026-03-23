@@ -1,0 +1,5 @@
+module test/multi/tests
+
+test "greet works" {
+  true
+}

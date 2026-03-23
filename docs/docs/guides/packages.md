@@ -72,6 +72,33 @@ level = "experimental"
 ### Optional Fields
 
 - `[package].ailang` — Minimum AILANG version required (e.g., `">=0.9.5"`). Auto-set by `ailang init package`. Enforced on `ailang install` — incompatible packages are rejected with a clear error message.
+- `[package].module_prefix` — Maps existing module paths to the package namespace without renaming source files. See [Module Prefix](#module-prefix) below.
+
+### Module Prefix
+
+Existing applications can adopt the package system without renaming all module declarations. If your project uses `module myapp/services/api` but you want to publish as `sunholo/myapp`, set `module_prefix`:
+
+```toml
+[package]
+name = "sunholo/myapp"
+module_prefix = "myapp"
+
+[exports]
+modules = ["myapp/services/api", "myapp/handlers/parse"]
+```
+
+Source files keep their existing `module myapp/...` declarations. Consumers import via the canonical path:
+
+```ailang
+import pkg/sunholo/myapp/services/api (startServer)
+```
+
+The loader maps `sunholo/myapp/services/api` → `myapp/services/api` automatically.
+
+**Rules:**
+- `module_prefix` must be a single segment (no slashes)
+- Exports can use either `module_prefix/...` or `vendor/name/...` prefixes
+- CLI: `ailang init package --name sunholo/myapp --module-prefix myapp`
 
 ### Exports
 

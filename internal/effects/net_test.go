@@ -483,9 +483,12 @@ func TestNetHTTPRequestMethodWhitelist(t *testing.T) {
 	}{
 		{"GET", false},
 		{"POST", false},
-		{"PUT", true},
-		{"DELETE", true},
-		{"PATCH", true},
+		{"PUT", false},
+		{"DELETE", false},
+		{"PATCH", false},
+		{"HEAD", false},
+		{"TRACE", true},   // Not in whitelist
+		{"OPTIONS", true}, // Not in whitelist
 	}
 
 	for _, tc := range testCases {

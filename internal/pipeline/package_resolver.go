@@ -14,6 +14,11 @@ import (
 // Set by tryLoadPackageResolver, read by validateEffectCeiling.
 var currentPackageManifest *pkg.PackageManifest
 
+// currentModulePrefixMap holds module_prefix mappings for all loaded packages.
+// Set by tryLoadPackageResolver, read by MOD010 validation.
+// Key: package name (e.g., "sunholo/docparse"), Value: module_prefix (e.g., "docparse").
+var currentModulePrefixMap map[string]string
+
 // tryLoadPackageResolver attempts to set up a package resolver from
 // ailang.toml + ailang.lock in the given directory. Returns nil if
 // no package manifest exists (backward compatible — bare projects work unchanged).
@@ -33,6 +38,12 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 	}
 	currentPackageManifest = manifest
 
+	// Build module_prefix map from current package and dependencies
+	currentModulePrefixMap = make(map[string]string)
+	if manifest.Package.ModulePrefix != "" {
+		currentModulePrefixMap[manifest.Package.Name] = manifest.Package.ModulePrefix
+	}
+
 	// Load lock file
 	lf, err := pkg.LoadLockFile(manifestDir)
 	if err != nil {
@@ -44,7 +55,23 @@ func tryLoadPackageResolver(dir string) loader.PackageResolver {
 		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
 
-	return pkg.NewPackageLoader(lf, manifestDir)
+	// Load module_prefix from dependency manifests
+	pkgLoader := pkg.NewPackageLoader(lf, manifestDir)
+	for depName := range manifest.Dependencies {
+		if depManifest, err := loadDepManifest(pkgLoader, depName); err == nil {
+			if depManifest.Package.ModulePrefix != "" {
+				currentModulePrefixMap[depName] = depManifest.Package.ModulePrefix
+			}
+		}
+	}
+
+	return pkgLoader
+}
+
+// loadDepManifest loads a dependency's manifest via the package loader.
+func loadDepManifest(pkgLoader *pkg.PackageLoader, depName string) (*pkg.PackageManifest, error) {
+	// Use the loader's internal manifest cache
+	return pkgLoader.LoadManifestByName(depName)
 }
 
 // validateEffectCeiling checks that a module's declared function effects
