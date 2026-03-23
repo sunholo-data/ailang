@@ -91,12 +91,19 @@ export func compute() -> int {
 - **Effect tracking**: `! {IO, FS, Clock, Net}` for side effects
 - **Numeric types**: `int`, `float` with conversions `intToFloat`, `floatToInt`
 
+### ✅ Imports
+- **Standard library**: `import std/io (println)` — bundled modules
+- **External packages**: `import pkg/sunholo/firestore/client (getDoc)` — from dependencies
+- **Intra-package siblings**: `import ./plan (Plan)` — modules in same package
+- **Selective imports**: `import std/list (map, filter, foldl)` — import specific symbols
+- **Note**: `Ok`, `Err` require `import std/result (Ok, Err)` (not in prelude)
+
 ### ✅ Standard Library
 - **Auto-imported std/prelude**: Comparisons (`<`, `>`, `==`, `!=`) work without imports
 - **std/io**: `println`, `readLine`, `readInt`
 - **std/fs**: `readFile`, `writeFile`, `listDir`
 - **std/clock**: `now`, `sleep`
-- **std/net**: `httpGet`, `httpPost`
+- **std/net**: `httpGet`, `httpPost`, `httpRequest` (GET/POST/PUT/PATCH/DELETE/HEAD)
 - **std/json**: `json.decode`, `json.encode`
 
 ## Limitations (Things That DON'T Work)

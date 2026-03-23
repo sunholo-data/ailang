@@ -38,6 +38,27 @@ Files in temp directories (`/tmp/`, `/var/folders/`) auto-relax with a warning.
 
 ## Imports
 
+### Import Syntax
+
+AILANG has three import forms — each for a different scope:
+
+```ailang
+-- Standard library
+import std/io (println, print)
+import std/fs (readFile, writeFile)
+
+-- External package (from dependencies in ailang.toml)
+import pkg/sunholo/firestore/client (getDoc, setDoc)
+
+-- Intra-package sibling (same package, resolved in module namespace)
+import ./plan (Plan, lookupPlan)
+import ./sub/helpers (validate)
+```
+
+**Rule of thumb**: `./` for local siblings, `pkg/` for external deps, `std/` for stdlib.
+
+`./` resolves in module namespace: if current module is `a/b/c`, then `./d` means `a/b/d`. Interfaces and hashes always use canonical paths.
+
 ### Basic Imports
 
 Import specific symbols from a module:

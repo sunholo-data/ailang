@@ -432,11 +432,13 @@ See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-me
 
 **2. Missing `export type`**: Any type used by another package must have `export type`, not just `type`. This includes record types AND ADTs.
 
-**3. Intra-package imports use `pkg/` prefix**: Even when importing a sibling module within the same package, use the `pkg/` prefix:
+**3. Use `./` for intra-package siblings, `pkg/` for external**: Three-way import distinction:
 ```ailang
--- In sunholo/billing_entitlements/entitlement.ail, importing sibling plan.ail:
-import pkg/sunholo/billing_entitlements/plan (Plan, lookupPlan)
+import ./plan (Plan, lookupPlan)              -- LOCAL: sibling in same package
+import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
+import std/result (Ok, Err)                   -- STDLIB: bundled
 ```
+`./` resolves in module namespace: if current module is `a/b/c`, then `./d` means `a/b/d`.
 
 **4. `Ok`/`Err` not in prelude**: Every file that uses `Result` needs `import std/result (Ok, Err)`.
 

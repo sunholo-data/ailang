@@ -42,15 +42,24 @@ Module:     module sunholo/billing_store/customers_repo
 Import:     import pkg/sunholo/billing_store/customers_repo (getCustomer)
 ```
 
-### 2. Intra-package imports use `pkg/` prefix
+### 2. Use `./` for intra-package sibling imports
 
-Modules within the SAME package import siblings via `pkg/` prefix, just like external imports. The loader detects self-references automatically.
+Modules within the SAME package import siblings via `./` prefix. External dependencies use `pkg/`. This gives a clean three-way distinction:
 
 ```ailang
--- In billing_entitlements/entitlement.ail, importing sibling plan.ail:
-import pkg/sunholo/billing_entitlements/plan (Plan, lookupPlan, freePlan)
---     ^^^^ required, even for siblings
+import ./plan (Plan, lookupPlan)              -- LOCAL: sibling in same package
+import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
+import std/result (Ok, Err)                   -- STDLIB: bundled
 ```
+
+`./` resolves in module namespace: if current module is `sunholo/billing_entitlements/entitlement`, then `./plan` normalizes to `sunholo/billing_entitlements/plan`.
+
+```ailang
+import ./plan (Plan, lookupPlan, freePlan)    -- sibling
+import ./sub/helpers (validate)               -- child directory
+```
+
+Note: `pkg/` self-imports also work (backward compatible) but `./` is preferred.
 
 ### 3. Cross-package types MUST use `export type`
 

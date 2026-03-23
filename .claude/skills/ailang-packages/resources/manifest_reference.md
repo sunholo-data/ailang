@@ -96,6 +96,21 @@ level = "experimental"
 - `stable`: Semver guarantees (breaking changes = major version bump)
 - `frozen`: No changes planned
 
+## Import Conventions
+
+Three-way import distinction:
+
+```ailang
+import ./plan (Plan)                          -- LOCAL: sibling in same package
+import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
+import std/result (Ok, Err)                   -- STDLIB: bundled
+```
+
+- `./` resolves in module namespace (not filesystem): `./plan` in module `a/b/c` → `a/b/plan`
+- `./sub/bar` supported for child directories
+- `pkg/` self-imports also work (backward compatible) but `./` is preferred
+- Interfaces and hashes always use canonical paths (no `./` in metadata)
+
 ## AGENT.md
 
 Every package should include an `AGENT.md` file for AI agent discovery:

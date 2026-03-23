@@ -41,15 +41,18 @@ LDR001: module not found: sunholo/billing_entitlements/plan
 ailang lock
 ```
 
-**Cause 2**: Import path doesn't use `pkg/` prefix
+**Cause 2**: Import path uses bare module name (no prefix)
 
-**Fix**: All package imports (including intra-package sibling imports) must use `pkg/` prefix:
+**Fix**: Use `./` for intra-package siblings or `pkg/` for external dependencies:
 
 ```ailang
--- WRONG
+-- WRONG (bare path — loader can't resolve)
 import sunholo/billing_entitlements/plan (Plan)
 
--- CORRECT
+-- CORRECT: sibling in same package
+import ./plan (Plan)
+
+-- ALSO CORRECT: explicit full path (works for both self and external)
 import pkg/sunholo/billing_entitlements/plan (Plan)
 ```
 
