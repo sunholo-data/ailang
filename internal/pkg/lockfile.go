@@ -20,17 +20,19 @@ const LockFileSchema = "ailang.lock/v1"
 
 // LockFile represents the resolved dependency graph.
 type LockFile struct {
-	Schema      string          `json:"schema"`
-	Version     string          `json:"schema_version"`
-	GeneratedAt time.Time       `json:"generated_at"`
-	Generator   string          `json:"generator"`
-	Packages    []LockedPackage `json:"packages"`
+	Schema        string          `json:"schema"`
+	Version       string          `json:"schema_version"`
+	AILANGVersion string          `json:"ailang_version,omitempty"` // AILANG version that generated this lockfile
+	GeneratedAt   time.Time       `json:"generated_at"`
+	Generator     string          `json:"generator"`
+	Packages      []LockedPackage `json:"packages"`
 }
 
 // LockedPackage is a resolved dependency entry in the lock file.
 type LockedPackage struct {
 	Name          string   `json:"name"`
 	Version       string   `json:"version"`
+	AILANG        string   `json:"ailang,omitempty"` // Minimum AILANG version from package manifest
 	ContentHash   string   `json:"content_hash"`
 	InterfaceHash string   `json:"interface_hash,omitempty"`
 	Source        string   `json:"source"` // "path", "git", or "registry"

@@ -49,6 +49,7 @@ type ValidationResult struct {
 // MetadataManifest is the manifest section of metadata.json.
 type MetadataManifest struct {
 	Edition     string   `json:"edition"`
+	AILANG      string   `json:"ailang,omitempty"` // Minimum AILANG version (e.g., ">=0.9.5")
 	EffectsMax  []string `json:"effects_max"`
 	Exports     []string `json:"exports"`
 	Stability   string   `json:"stability"`

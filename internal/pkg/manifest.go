@@ -30,6 +30,7 @@ type PackageInfo struct {
 	Name        string `toml:"name"`
 	Version     string `toml:"version"`
 	Edition     string `toml:"edition"`
+	AILANG      string `toml:"ailang"` // Minimum AILANG version required (e.g., ">=0.9.5")
 	Description string `toml:"description"`
 	License     string `toml:"license"`
 }
@@ -144,6 +145,13 @@ func (m *PackageManifest) Validate() error {
 		return fmt.Errorf("[package].edition is required")
 	}
 
+	// Validate ailang version constraint format if present (optional field)
+	if m.Package.AILANG != "" {
+		if _, err := ParseVersionConstraint(m.Package.AILANG); err != nil {
+			return fmt.Errorf("[package].ailang: %w", err)
+		}
+	}
+
 	// Validate package name is two-level: vendor/name
 	parts := strings.SplitN(m.Package.Name, "/", 3)
 	if len(parts) != 2 {
@@ -199,7 +207,9 @@ func (m *PackageManifest) IsGitDep(name string) bool {
 }
 
 // InitManifest creates a default ailang.toml in the given directory.
-func InitManifest(dir, name string) error {
+// ailangVersion is the current AILANG compiler version (used to set the ailang constraint).
+// Pass empty string to omit the constraint.
+func InitManifest(dir, name, ailangVersion string) error {
 	path := filepath.Join(dir, ManifestFile)
 
 	// Don't overwrite existing manifest
@@ -210,11 +220,17 @@ func InitManifest(dir, name string) error {
 	// Default stability
 	stability := "experimental"
 
+	ailangLine := ""
+	constraint := FormatVersionConstraint(ailangVersion)
+	if constraint != "" {
+		ailangLine = fmt.Sprintf("ailang = %q\n", constraint)
+	}
+
 	content := fmt.Sprintf(`[package]
 name = %q
 version = "0.1.0"
 edition = "1"
-
+%s
 [exports]
 modules = [%q]
 
@@ -223,7 +239,7 @@ max = []
 
 [stability]
 level = %q
-`, name, name+"/core", stability)
+`, name, ailangLine, name+"/core", stability)
 
 	return os.WriteFile(path, []byte(content), 0644)
 }

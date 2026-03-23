@@ -11,6 +11,7 @@ import (
 type ResolvedPackage struct {
 	Name          string
 	Version       string
+	AILANG        string // Minimum AILANG version from package manifest
 	ContentHash   string
 	InterfaceHash string
 	Source        string // "path", "git", or "registry"
@@ -91,6 +92,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					resolved = append(resolved, ResolvedPackage{
 						Name:          depName,
 						Version:       depManifest.Package.Version,
+						AILANG:        depManifest.Package.AILANG,
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "path",
@@ -134,6 +136,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					resolved = append(resolved, ResolvedPackage{
 						Name:          depName,
 						Version:       depManifest.Package.Version,
+						AILANG:        depManifest.Package.AILANG,
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "git",
@@ -187,6 +190,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					resolved = append(resolved, ResolvedPackage{
 						Name:          depName,
 						Version:       dep.Version,
+						AILANG:        depManifest.Package.AILANG,
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "registry",

@@ -52,6 +52,19 @@ func pkgInstallCommand(args []string) error {
 		return fmt.Errorf("failed to fetch package metadata: %w", err)
 	}
 
+	// Check AILANG version compatibility
+	if meta.Manifest.AILANG != "" {
+		ok, checkErr := pkg.SatisfiesAILANGVersion(meta.Manifest.AILANG, Version)
+		if checkErr != nil {
+			fmt.Fprintf(os.Stderr, "%s version check: %v\n", yellow("⚠"), checkErr)
+		} else if !ok {
+			return fmt.Errorf("%s@%s requires AILANG %s (you have %s)\n\n  Options:\n    1. Upgrade AILANG:  go install github.com/sunholo/ailang@latest\n    2. Use older version: ailang install %s@<older-version>",
+				name, version, meta.Manifest.AILANG, Version, name)
+		} else {
+			fmt.Printf("  AILANG compatibility: %s (you have %s) %s\n", meta.Manifest.AILANG, Version, green("✓"))
+		}
+	}
+
 	// Download tarball
 	tarballData, err := client.FetchPackage(name, version)
 	if err != nil {

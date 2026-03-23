@@ -252,6 +252,7 @@ func pkgLockCommand(args []string) error {
 		fmt.Printf("%s No dependencies to resolve\n", yellow("⚠"))
 		// Still create an empty lock file for consistency
 		lf := pkg.NewLockFile(nil, fmt.Sprintf("ailang lock %s", Version))
+		lf.AILANGVersion = Version
 		if err := lf.Save(cwd); err != nil {
 			return fmt.Errorf("failed to write lock file: %w", err)
 		}
@@ -271,6 +272,7 @@ func pkgLockCommand(args []string) error {
 	}
 
 	lf := pkg.NewLockFile(locked, fmt.Sprintf("ailang lock %s", Version))
+	lf.AILANGVersion = Version
 	if err := lf.Save(cwd); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}

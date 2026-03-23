@@ -144,7 +144,7 @@ level = "invalid"
 func TestInitManifest(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := InitManifest(dir, "sunholo/mylib"); err != nil {
+	if err := InitManifest(dir, "sunholo/mylib", "0.9.9"); err != nil {
 		t.Fatalf("InitManifest failed: %v", err)
 	}
 
@@ -159,13 +159,16 @@ func TestInitManifest(t *testing.T) {
 	if m.Package.Version != "0.1.0" {
 		t.Errorf("version = %q, want 0.1.0", m.Package.Version)
 	}
+	if m.Package.AILANG != ">=0.9.9" {
+		t.Errorf("ailang = %q, want >=0.9.9", m.Package.AILANG)
+	}
 }
 
 func TestInitManifest_AlreadyExists(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, ManifestFile), []byte("existing"), 0644)
 
-	err := InitManifest(dir, "sunholo/mylib")
+	err := InitManifest(dir, "sunholo/mylib", "0.9.9")
 	if err == nil {
 		t.Fatal("expected error when manifest already exists")
 	}

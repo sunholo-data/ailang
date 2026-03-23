@@ -43,6 +43,7 @@ my-package/
 name = "sunholo/docparse"
 version = "0.3.0"
 edition = "1"
+ailang = ">=0.9.5"
 description = "Parse documents into structured blocks"
 license = "MIT"
 
@@ -67,6 +68,10 @@ level = "experimental"
 - `[package].name` — Two-level `vendor/name` format
 - `[package].version` — Semantic version
 - `[package].edition` — Language edition (currently `"1"`)
+
+### Optional Fields
+
+- `[package].ailang` — Minimum AILANG version required (e.g., `">=0.9.5"`). Auto-set by `ailang init package`. Enforced on `ailang install` — incompatible packages are rejected with a clear error message.
 
 ### Exports
 

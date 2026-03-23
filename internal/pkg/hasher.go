@@ -76,6 +76,9 @@ func InterfaceHash(m *PackageManifest) string {
 	// Package identity
 	fmt.Fprintf(h, "name:%s\n", m.Package.Name)
 	fmt.Fprintf(h, "edition:%s\n", m.Package.Edition)
+	if m.Package.AILANG != "" {
+		fmt.Fprintf(h, "ailang:%s\n", m.Package.AILANG)
+	}
 
 	// Sorted exported modules
 	exports := make([]string, len(m.Exports.Modules))

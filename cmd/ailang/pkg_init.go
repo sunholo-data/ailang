@@ -48,7 +48,7 @@ func initPackageCommand(args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	if err := pkg.InitManifest(cwd, name); err != nil {
+	if err := pkg.InitManifest(cwd, name, Version); err != nil {
 		return err
 	}
 

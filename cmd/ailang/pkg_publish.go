@@ -48,6 +48,15 @@ func pkgPublishCommand(args []string) error {
 
 	fmt.Printf("Publishing %s@%s...\n", manifest.Package.Name, manifest.Package.Version)
 
+	// Warn if ailang version constraint is missing
+	if manifest.Package.AILANG == "" {
+		constraint := pkg.FormatVersionConstraint(Version)
+		fmt.Printf("%s No ailang version constraint in ailang.toml\n", yellow("⚠"))
+		if constraint != "" {
+			fmt.Printf("  Consider adding: ailang = %q\n", constraint)
+		}
+	}
+
 	// Create tarball
 	tarballData, err := pkg.CreateTarball(cwd)
 	if err != nil {
