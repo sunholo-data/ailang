@@ -359,7 +359,23 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 func runAilangCheck(dir string) (bool, string) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
 	if fileExists(filepath.Join(dir, "ailang.toml")) {
-		// Generate lockfile for dependencies
+		// Step 1: Install dependencies from the registry so ailang lock can resolve them.
+		// Path deps in ailang.toml won't exist in the validator's temp dir,
+		// so we install each dependency from the registry first.
+		manifest, err := pkg.LoadManifest(dir)
+		if err == nil && len(manifest.Dependencies) > 0 {
+			for depName := range manifest.Dependencies {
+				installCmd := exec.Command("ailang", "install", depName)
+				installCmd.Dir = dir
+				if installOutput, err := installCmd.CombinedOutput(); err != nil {
+					log.Printf("Warning: ailang install %s failed: %s", depName, string(installOutput))
+				} else {
+					log.Printf("Installed dependency: %s", depName)
+				}
+			}
+		}
+
+		// Step 2: Generate lockfile (may use registry-installed deps instead of path deps)
 		lockCmd := exec.Command("ailang", "lock")
 		lockCmd.Dir = dir
 		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
@@ -367,6 +383,7 @@ func runAilangCheck(dir string) (bool, string) {
 			// Fall through to package check anyway — it may work without deps
 		}
 
+		// Step 3: Run package-level type check
 		cmd := exec.Command("ailang", "check", "--package", ".")
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
