@@ -667,6 +667,85 @@ The envelope uses the same embedding provider configured for neural search. Thre
 | OpenAI | `provider: openai` | text-embedding-3-small, text-embedding-3-large | Per token |
 | Gemini | `provider: gemini` | text-embedding-004 | Per token |
 
+## Package Coordination Messages (M-PKG-MSG)
+
+Package coordination messages are structured messages that carry typed envelopes for multi-agent package management. They use the `ailang.package-message/v1` schema.
+
+### Package-Scoped Inboxes
+
+Messages use typed addressing prefixes:
+
+| Prefix | Example | Use Case |
+|--------|---------|----------|
+| `pkg:vendor/name` | `pkg:sunholo/auth` | Package maintainer inbox |
+| `workspace:name` | `workspace:docparse` | Consumer workspace inbox |
+| `team:name` | `team:registry-admin` | Team review inbox |
+
+### Message Kinds
+
+| Kind | When Emitted | Action Required |
+|------|-------------|-----------------|
+| `upgrade-available` | New version published | Check compatibility |
+| `interface-change-notice` | Exported API changed | Verify imports |
+| `effect-widening-warning` | Effect ceiling expanded | Policy review |
+| `compatibility-request` | Maintainer asks for validation | Run tests |
+| `compatibility-report` | Downstream reports pass/fail | Track status |
+| `contract-regression` | Previously working API broken | Escalate |
+| `migration-request` | Downstream needs help upgrading | Provide guidance |
+| `deprecation-notice` | API will be removed | Plan migration |
+| `upgrade-complete` | Downstream adopted new version | Close task |
+| `blocked` | Migration stalled | Investigate |
+| `superseded` | Newer release obsoletes this | No action |
+
+### Auto-Emission
+
+When you run `ailang publish`, the system automatically emits:
+- `upgrade-available` if the version changed
+- `interface-change-notice` if the interface hash changed
+- `effect-widening-warning` if the effect ceiling expanded
+- Older open messages for the same package are marked `superseded`
+
+### CLI Commands
+
+```bash
+# Emit upgrade notification
+ailang pkg notify-upgrade sunholo/auth@0.2.0 --summary "Tightened validation"
+
+# Find affected workspaces
+ailang pkg affected-by sunholo/auth
+
+# View package-scoped messages
+ailang messages list --inbox pkg:sunholo/auth
+
+# Filter all package inboxes
+ailang messages list --inbox pkg:sunholo/auth --unread
+```
+
+### Message Lifecycle
+
+Messages follow enforced state transitions:
+
+```
+open → acknowledged → in_progress → completed
+                   ↘ blocked → in_progress
+                   ↘ rejected
+open → superseded (when newer version published)
+```
+
+Terminal states: `completed`, `rejected`, `superseded`.
+
+### Triage Classification
+
+Package messages are automatically classified by actionability:
+
+| Action | Meaning | Triggered By |
+|--------|---------|-------------|
+| `no_action` | No downstream impact | Internal-only change, passing compat report |
+| `verify_local` | Local verification recommended | Content change, interface change |
+| `migrate` | Downstream migration needed | Contract change, deprecation |
+| `escalate` | Needs maintainer attention | Contract regression, blocked |
+| `policy_block` | Policy review required | Effect widening |
+
 ## Aliases
 
 The `messages` command has an alias for convenience:

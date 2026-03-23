@@ -18,6 +18,19 @@ Complete reference for the AILANG messaging system CLI commands.
 | `ailang messages watch` | `msg watch` | Watch for new |
 | `ailang messages cleanup` | `msg cleanup` | Remove old messages |
 | `ailang messages import-github` | - | Import from GitHub |
+| `ailang pkg notify-upgrade` | - | Emit upgrade-available message |
+| `ailang pkg affected-by` | - | List workspaces depending on package |
+
+### Package-Scoped Inboxes
+
+Messages support typed inbox addressing for package coordination:
+- `pkg:vendor/name` — e.g., `pkg:sunholo/auth`
+- `workspace:name` — e.g., `workspace:docparse`
+- `team:name` — e.g., `team:registry-admin`
+
+Use `--inbox pkg:sunholo/auth` with list/search to filter package messages.
+
+11 package message kinds: `upgrade-available`, `interface-change-notice`, `effect-widening-warning`, `compatibility-request`, `compatibility-report`, `contract-regression`, `migration-request`, `deprecation-notice`, `upgrade-complete`, `blocked`, `superseded`.
 
 ## List Messages
 

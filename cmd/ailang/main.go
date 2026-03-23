@@ -334,6 +334,33 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "pkg":
+		// Sub-commands under "ailang pkg"
+		subArgs := flag.Args()[1:]
+		if len(subArgs) == 0 {
+			fmt.Println("Usage: ailang pkg <command>")
+			fmt.Println()
+			fmt.Println("Commands:")
+			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message")
+			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
+			os.Exit(1)
+		}
+		switch subArgs[0] {
+		case "notify-upgrade":
+			if err := pkgNotifyUpgradeCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "affected-by":
+			if err := pkgAffectedByCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		default:
+			fmt.Fprintf(os.Stderr, "%s: unknown pkg command '%s'\n", red("Error"), subArgs[0])
+			os.Exit(1)
+		}
+
 	case "ai-check":
 		aiCheckCommand()
 

@@ -331,6 +331,42 @@ Structure your `AGENT.md` for machine consumption:
 - **Common Patterns** — typical workflows with the package
 - **Effect Requirements** — what `--caps` flags the consumer needs
 
+## Package Coordination Messages
+
+When packages are published or upgraded, the system emits structured coordination messages to notify affected workspaces. This enables multi-agent coordination at package scale.
+
+### Auto-Emitted Events
+
+Running `ailang publish` automatically emits:
+- **`upgrade-available`** — new version with change class (A=internal, B=additive, C=contract)
+- **`interface-change-notice`** — when exported API (interface hash) changed
+- **`effect-widening-warning`** — when effect ceiling expanded (e.g., added `Net`)
+
+### Package-Scoped Inboxes
+
+Messages route to typed inboxes: `pkg:sunholo/auth`, `workspace:docparse`, `team:registry-admin`.
+
+```bash
+# Notify downstream consumers
+ailang pkg notify-upgrade sunholo/auth@0.2.0 --summary "Tightened validation"
+
+# Find who depends on your package
+ailang pkg affected-by sunholo/auth
+
+# View coordination messages
+ailang messages list --inbox pkg:sunholo/auth
+```
+
+### For AI Agents
+
+When upgrading a dependency, check for coordination messages:
+1. `ailang messages list --inbox workspace:<your-workspace> --unread`
+2. Review any `upgrade-available` or `interface-change-notice` messages
+3. Run compatibility checks
+4. Send a `compatibility-report` back to the package inbox
+
+See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-messages-m-pkg-msg) for full details.
+
 ## Troubleshooting
 
 ### Common Errors

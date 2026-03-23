@@ -359,6 +359,27 @@ See [`resources/troubleshooting.md`](resources/troubleshooting.md) for common is
 ailang msg list        # Same as: ailang messages list
 ```
 
+## Package Coordination Messages (M-PKG-MSG)
+
+Package-scoped messages use typed inbox addressing for multi-agent coordination:
+
+| Command | Purpose |
+|---------|---------|
+| `ailang pkg notify-upgrade sunholo/auth@0.2.0` | Emit upgrade-available message |
+| `ailang pkg affected-by sunholo/auth` | List workspaces depending on package |
+| `ailang messages list --inbox pkg:sunholo/auth` | View package-scoped messages |
+| `ailang messages list --inbox workspace:docparse` | View workspace messages |
+
+**Inbox addressing**: `pkg:vendor/name`, `workspace:name`, `team:name`
+
+**Auto-emitted on publish**: `upgrade-available`, `interface-change-notice`, `effect-widening-warning`
+
+**11 message kinds**: upgrade-available, interface-change-notice, effect-widening-warning,
+compatibility-request, compatibility-report, contract-regression, migration-request,
+deprecation-notice, upgrade-complete, blocked, superseded
+
+**Lifecycle**: open → acknowledged → in_progress → completed (or blocked/rejected/superseded)
+
 ## Notes
 
 - **Required by CLAUDE.md**: Session start check is mandatory

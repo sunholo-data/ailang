@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/pkg"
 )
 
@@ -81,6 +82,10 @@ func pkgPublishCommand(args []string) error {
 	}
 
 	fmt.Printf("%s Published %s@%s\n", green("✓"), manifest.Package.Name, manifest.Package.Version)
+
+	// Auto-emit package coordination messages (M-PKG-MSG)
+	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
+
 	return nil
 }
 
@@ -130,5 +135,66 @@ func uploadTarball(url string, tarballData []byte) error {
 		return fmt.Errorf("not authorized to publish to this namespace")
 	default:
 		return fmt.Errorf("publish failed (HTTP %d): %s", resp.StatusCode, string(body))
+	}
+}
+
+// emitPublishMessages auto-emits package coordination messages after a successful publish.
+// This is best-effort — failures are logged but don't block the publish.
+func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interfaceHash string) {
+	store, err := openPkgMsgStore()
+	if err != nil {
+		return // No messaging store available
+	}
+	defer store.Close()
+
+	pkgName := manifest.Package.Name
+	newInfo := messaging.PackageVersionInfo{
+		Name:          pkgName,
+		Version:       manifest.Package.Version,
+		InterfaceHash: interfaceHash,
+		ContentHash:   contentHash,
+		Effects:       manifest.Effects.Max,
+		Exports:       manifest.Exports.Modules,
+	}
+
+	// Try to load previous version from lockfile
+	var oldInfo messaging.PackageVersionInfo
+	lf, err := pkg.LoadLockFile(cwd)
+	if err == nil {
+		for _, lp := range lf.Packages {
+			if lp.Name == pkgName {
+				oldInfo = messaging.PackageVersionInfo{
+					Name:          lp.Name,
+					Version:       lp.Version,
+					InterfaceHash: lp.InterfaceHash,
+					ContentHash:   lp.ContentHash,
+					Effects:       lp.Effects,
+					Exports:       lp.Exports,
+				}
+				break
+			}
+		}
+	}
+
+	recipients := []string{messaging.FormatPackageInbox(pkgName)}
+
+	// Emit upgrade-available
+	if msgID, err := messaging.EmitUpgradeAvailable(store, oldInfo, newInfo, recipients); err == nil && msgID != "" {
+		fmt.Printf("%s Emitted upgrade-available (ID: %s)\n", green("✓"), msgID)
+	}
+
+	// Emit interface-change-notice if interface hash changed
+	if msgID, err := messaging.EmitInterfaceChangeNotice(store, oldInfo, newInfo, recipients); err == nil && msgID != "" {
+		fmt.Printf("%s Emitted interface-change-notice (ID: %s)\n", green("✓"), msgID)
+	}
+
+	// Emit effect-widening-warning if effects expanded
+	if msgID, err := messaging.EmitEffectWideningWarning(store, pkgName, oldInfo, newInfo, recipients); err == nil && msgID != "" {
+		fmt.Printf("%s Emitted effect-widening-warning (ID: %s)\n", yellow("⚠"), msgID)
+	}
+
+	// Supersede older messages
+	if count, err := store.SupersedeOlderMessages(pkgName, manifest.Package.Version); err == nil && count > 0 {
+		fmt.Printf("%s Superseded %d older message(s)\n", cyan("→"), count)
 	}
 }
