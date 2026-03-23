@@ -1,6 +1,6 @@
 # M-TYPE-ALIAS: Cross-Package Record Type Alias Unification
 
-**Status**: Proposed
+**Status**: Implemented (v0.9.11)
 **Priority**: P1 (blocks clean cross-package record type usage)
 **Estimated**: 1-2 days
 **Dependencies**: None
