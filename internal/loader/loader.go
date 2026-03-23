@@ -447,13 +447,49 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 	return modules, nil
 }
 
-// extractImports extracts module paths from import declarations
+// extractImports extracts module paths from import declarations.
+// Relative imports (./...) are normalized to canonical pkg/ paths using the
+// current module's declaration. The AST's imp.Path is updated in-place so all
+// downstream pipeline stages see the canonical identity (not the relative syntax).
 func (ml *ModuleLoader) extractImports(file *ast.File) []string {
 	var imports []string
 	for _, imp := range file.Imports {
+		// Normalize relative imports: ./plan → pkg/vendor/name/plan
+		// Update imp.Path in-place so pipeline import resolution uses canonical paths
+		if imp.IsRelative && file.Module != nil {
+			canonical := NormalizeRelativeImport(file.Module.Path, imp.RelativePath)
+			if canonical != "" {
+				imp.Path = "pkg/" + canonical
+				// Also mark as package import so the loader routes correctly
+				imp.IsPackage = true
+				parts := strings.SplitN(canonical, "/", 3)
+				if len(parts) >= 2 {
+					imp.PackageName = parts[0] + "/" + parts[1]
+				}
+			}
+		}
 		imports = append(imports, imp.Path)
 	}
 	return imports
+}
+
+// NormalizeRelativeImport resolves a relative import against the current module's
+// canonical path. This is module-space resolution, not filesystem resolution.
+//
+// If current module is "sunholo/billing_entitlements/entitlement" and relative is "plan",
+// the result is "sunholo/billing_entitlements/plan".
+//
+// If relative contains "/" (e.g., "sub/bar"), it resolves to the same prefix:
+// "sunholo/billing_entitlements/sub/bar".
+func NormalizeRelativeImport(currentModulePath, relativePath string) string {
+	// Strip last segment (current module name) to get the prefix
+	lastSlash := strings.LastIndex(currentModulePath, "/")
+	if lastSlash == -1 {
+		// Single-segment module path — relative resolves to same level
+		return relativePath
+	}
+	prefix := currentModulePath[:lastSlash]
+	return prefix + "/" + relativePath
 }
 
 // LoadInterface loads just the interface of a module (for the linker)

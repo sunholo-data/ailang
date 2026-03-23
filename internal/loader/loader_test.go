@@ -186,3 +186,53 @@ func TestCanonicalModuleID(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeRelativeImport(t *testing.T) {
+	tests := []struct {
+		name       string
+		modulePath string
+		relative   string
+		expected   string
+	}{
+		{
+			name:       "sibling module",
+			modulePath: "sunholo/billing_entitlements/entitlement",
+			relative:   "plan",
+			expected:   "sunholo/billing_entitlements/plan",
+		},
+		{
+			name:       "child directory module",
+			modulePath: "sunholo/docparse/services/api_server",
+			relative:   "utils/validation",
+			expected:   "sunholo/docparse/services/utils/validation",
+		},
+		{
+			name:       "sibling in flat package",
+			modulePath: "sunholo/firestore/client",
+			relative:   "fields",
+			expected:   "sunholo/firestore/fields",
+		},
+		{
+			name:       "two-segment module path",
+			modulePath: "sunholo/firestore",
+			relative:   "client",
+			expected:   "sunholo/client",
+		},
+		{
+			name:       "single-segment module path",
+			modulePath: "main",
+			relative:   "helpers",
+			expected:   "helpers",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeRelativeImport(tt.modulePath, tt.relative)
+			if result != tt.expected {
+				t.Errorf("NormalizeRelativeImport(%q, %q) = %q, expected %q",
+					tt.modulePath, tt.relative, result, tt.expected)
+			}
+		})
+	}
+}

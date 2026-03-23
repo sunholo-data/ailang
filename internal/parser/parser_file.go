@@ -281,6 +281,12 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 		// Keep pkg/ prefix in path — the loader uses it to route to PackageLoader
 	}
 
+	// Detect ./ prefix for intra-package relative imports
+	if strings.HasPrefix(imp.Path, "./") {
+		imp.IsRelative = true
+		imp.RelativePath = strings.TrimPrefix(imp.Path, "./")
+	}
+
 	// Check for module aliasing: import std/list as List
 	if p.peekTokenIs(lexer.AS) {
 		p.nextToken() // consume 'as'

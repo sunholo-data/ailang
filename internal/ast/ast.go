@@ -128,6 +128,8 @@ type ImportDecl struct {
 	SymbolAliases map[string]string // Symbol aliases: original -> alias (e.g., "length" -> "stringLength")
 	IsPackage     bool              // True if import uses pkg/ prefix (external package)
 	PackageName   string            // Package name (vendor/name) extracted from pkg/ import path
+	IsRelative    bool              // True if import uses ./ prefix (intra-package sibling)
+	RelativePath  string            // Relative portion after ./ (e.g., "plan" from "./plan")
 	Pos           Pos
 	Span          Span
 }
