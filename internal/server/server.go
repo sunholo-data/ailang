@@ -174,8 +174,8 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 		agents:            make(map[string]*AgentProcess),
 		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
 		previouslySeen:    make(map[int]ProcessStats),
-		pollingCache:      newResponseCache(5 * time.Second),  // 5s TTL for dashboard polling endpoints
-		breakdownCache:    newResponseCache(60 * time.Second), // 60s TTL for expensive breakdown queries
+		pollingCache:      newResponseCache(30 * time.Second),  // 30s TTL for dashboard polling endpoints (M-COST2: was 5s)
+		breakdownCache:    newResponseCache(300 * time.Second), // 300s TTL for expensive breakdown queries (M-COST2: was 60s)
 	}
 
 	// Apply options (may set s.store and s.obsBackend via WithBackends)

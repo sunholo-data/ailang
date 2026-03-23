@@ -37,7 +37,7 @@ interface UseBreakdownDataOptions {
 }
 
 export function useBreakdownData(options: UseBreakdownDataOptions = {}) {
-  const { refreshInterval = 30000, filters = {} } = options; // Default 30s for breakdown (less frequent)
+  const { refreshInterval = 120000, filters = {} } = options; // Default 120s for breakdown (cost optimization M-COST2)
   const [data, setData] = useState<BreakdownData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

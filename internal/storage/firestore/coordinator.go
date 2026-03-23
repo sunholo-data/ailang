@@ -22,7 +22,7 @@ const (
 
 	costCountersDocID = "cost_counters"
 	costSyncInterval  = 5 * time.Minute
-	statsCacheTTL     = 30 * time.Second
+	statsCacheTTL     = 300 * time.Second // 5 min (M-COST2: was 30s)
 )
 
 // CoordinatorStore implements coordinator.Store backed by Firestore.
@@ -154,11 +154,14 @@ func (s *CoordinatorStore) addCost(provider string, cost float64) {
 }
 
 // fullScanCostByProvider does the original full collection scan (used only for bootstrap).
+// Bounded to 10000 documents to limit Firestore read costs (M-COST2).
 func (s *CoordinatorStore) fullScanCostByProvider(ctx context.Context) (map[string]float64, error) {
-	iter := s.client.Collection(collTasks).Documents(ctx)
+	const limit = 10000
+	iter := s.client.Collection(collTasks).Limit(limit).Documents(ctx)
 	defer iter.Stop()
 
 	costs := make(map[string]float64)
+	count := 0
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -167,12 +170,16 @@ func (s *CoordinatorStore) fullScanCostByProvider(ctx context.Context) (map[stri
 		if err != nil {
 			return nil, err
 		}
+		count++
 		data := doc.Data()
 		provider, _ := data["provider"].(string)
 		cost, _ := data["cost"].(float64)
 		if provider != "" {
 			costs[provider] += cost
 		}
+	}
+	if count >= limit {
+		log.Printf("WARNING: fullScanCostByProvider hit limit of %d documents — costs may be incomplete", limit)
 	}
 	return costs, nil
 }
@@ -321,8 +328,10 @@ func (s *CoordinatorStore) invalidateStatsCache() {
 }
 
 // fullScanTaskStats performs the original full collection scan.
+// Bounded to 10000 documents to limit Firestore read costs (M-COST2).
 func (s *CoordinatorStore) fullScanTaskStats(ctx context.Context) (*coordinator.TaskStats, error) {
-	iter := s.client.Collection(collTasks).Documents(ctx)
+	const limit = 10000
+	iter := s.client.Collection(collTasks).Limit(limit).Documents(ctx)
 	defer iter.Stop()
 
 	stats := &coordinator.TaskStats{
@@ -383,6 +392,9 @@ func (s *CoordinatorStore) fullScanTaskStats(ctx context.Context) (*coordinator.
 			ds.InputTokens += task.InputTokens
 			ds.OutputTokens += task.OutputTokens
 		}
+	}
+	if stats.TotalTasks >= limit {
+		log.Printf("WARNING: fullScanTaskStats hit limit of %d documents — stats may be incomplete", limit)
 	}
 	return stats, nil
 }

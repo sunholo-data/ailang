@@ -65,7 +65,7 @@ interface UseBudgetStatusResult {
 }
 
 export function useBudgetStatus(
-  refreshInterval = 30000,
+  refreshInterval = 120000,
   filters?: ControlPlaneFilters
 ): UseBudgetStatusResult {
   const [budget, setBudget] = useState<BudgetResponse | null>(null);

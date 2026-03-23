@@ -8,8 +8,8 @@ import { useBudgetStatus } from '../hooks/useBudgetStatus';
 import './HeaderStats.css';
 
 export const HeaderStats: React.FC = () => {
-  const { stats, loading } = useControlPlaneStats({ refreshInterval: 10000 });
-  const { budget, loading: budgetLoading } = useBudgetStatus(30000);
+  const { stats, loading } = useControlPlaneStats({ refreshInterval: 60000 });
+  const { budget, loading: budgetLoading } = useBudgetStatus(120000);
   const [showProviders, setShowProviders] = useState(false);
 
   // Calculate budget percentage and warning state

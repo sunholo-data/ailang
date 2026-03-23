@@ -70,7 +70,7 @@ interface UseControlPlaneStatsOptions {
 }
 
 export function useControlPlaneStats(options: UseControlPlaneStatsOptions = {}) {
-  const { refreshInterval = 10000, filters = {} } = options;
+  const { refreshInterval = 60000, filters = {} } = options;
   const [data, setData] = useState<UnifiedStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -3,6 +3,7 @@ package firestore
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -266,11 +267,13 @@ func (s *MessagingStore) GetDistinctWorkspaces() ([]string, error) {
 		return cached, nil
 	}
 
+	const limit = 5000
 	ctx := context.Background()
-	iter := s.client.Collection(collThreads).Documents(ctx)
+	iter := s.client.Collection(collThreads).Limit(limit).Documents(ctx)
 	defer iter.Stop()
 
 	seen := make(map[string]bool)
+	count := 0
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -279,9 +282,13 @@ func (s *MessagingStore) GetDistinctWorkspaces() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		count++
 		if ws := getString(doc.Data(), "workspace"); ws != "" {
 			seen[ws] = true
 		}
+	}
+	if count >= limit {
+		log.Printf("WARNING: GetDistinctWorkspaces hit limit of %d documents — results may be incomplete", limit)
 	}
 
 	workspaces := make([]string, 0, len(seen))
@@ -298,8 +305,9 @@ func (s *MessagingStore) GetThreadAggregateStats() (*messaging.ThreadAggregateSt
 		return &cached, nil
 	}
 
+	const limit = 5000
 	ctx := context.Background()
-	iter := s.client.Collection(collThreads).Documents(ctx)
+	iter := s.client.Collection(collThreads).Limit(limit).Documents(ctx)
 	defer iter.Stop()
 
 	stats := &messaging.ThreadAggregateStats{
@@ -323,6 +331,9 @@ func (s *MessagingStore) GetThreadAggregateStats() (*messaging.ThreadAggregateSt
 		if ws := getString(data, "workspace"); ws != "" {
 			stats.ByWorkspace[ws]++
 		}
+	}
+	if stats.TotalThreads >= limit {
+		log.Printf("WARNING: GetThreadAggregateStats hit limit of %d documents — stats may be incomplete", limit)
 	}
 
 	s.threadStatsCache.set(*stats)

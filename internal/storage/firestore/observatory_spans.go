@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -96,8 +97,10 @@ func (s *ObservatoryStore) UpdateSpanLinks(ctx context.Context, spanID, taskID, 
 }
 
 func (s *ObservatoryStore) RecalculateTaskAggregates(ctx context.Context, taskID string) error {
+	const limit = 1000
 	iter := s.client.Collection(collObsSpans).
 		Where("task_id", "==", taskID).
+		Limit(limit).
 		Documents(ctx)
 	defer iter.Stop()
 
@@ -122,6 +125,9 @@ func (s *ObservatoryStore) RecalculateTaskAggregates(ctx context.Context, taskID
 		if getString(data, "status") == "error" {
 			errorCount++
 		}
+	}
+	if spanCount >= limit {
+		log.Printf("WARNING: RecalculateTaskAggregates hit limit of %d spans for task %s — aggregates may be incomplete", limit, taskID)
 	}
 
 	_, err := s.client.Doc(collObsTasks, taskID).Update(ctx, []firestore.Update{
@@ -179,6 +185,8 @@ func (s *ObservatoryStore) ListTraces(ctx context.Context, opts obs.TraceQuery) 
 	q = q.OrderBy("start_time", firestore.Desc)
 	if opts.Limit > 0 {
 		q = q.Limit(opts.Limit)
+	} else {
+		q = q.Limit(100) // Default limit to bound Firestore reads (M-COST2)
 	}
 
 	iter := q.Documents(ctx)
