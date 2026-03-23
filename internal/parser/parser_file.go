@@ -100,6 +100,41 @@ func (p *Parser) parseModuleDecl() *ast.ModuleDecl {
 		path += "/" + p.curToken.Literal
 	}
 
+	// Detect hyphens in module paths — common mistake since '-' is the subtraction operator.
+	// e.g., "module sunholo/billing-entitlements" parses "billing" then hits MINUS.
+	if p.peekTokenIs(lexer.MINUS) {
+		// Consume the minus and the next ident to build the suggested fix
+		suggested := path
+		for p.peekTokenIs(lexer.MINUS) {
+			p.nextToken() // consume MINUS
+			if p.peekTokenIs(lexer.IDENT) {
+				p.nextToken() // consume the ident after hyphen
+				suggested += "_" + p.curToken.Literal
+			}
+			// Continue consuming slash/ident segments after the hyphenated part
+			for p.peekTokenIs(lexer.SLASH) {
+				p.nextToken() // consume slash
+				if p.peekTokenIs(lexer.IDENT) {
+					p.nextToken()
+					suggested += "/" + p.curToken.Literal
+				}
+			}
+		}
+		err := NewSuggestionError(
+			"PAR_HYPHEN_IN_MODULE",
+			p.curPos(),
+			p.curToken,
+			fmt.Sprintf("hyphens in module paths are parsed as subtraction (in '%s')", path),
+			[]string{
+				fmt.Sprintf("Use underscores instead: module %s", suggested),
+				"Hyphens are OK in directory names, just not in module declarations",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		)
+		p.errors = append(p.errors, err)
+		return nil
+	}
+
 	endPos := p.curPos()
 	return &ast.ModuleDecl{
 		Path: path,
@@ -195,6 +230,39 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 				"expected import path",
 				[]lexer.TokenType{lexer.STRING, lexer.IDENT, lexer.DOT},
 				"Provide a valid import path"))
+			return nil
+		}
+
+		// Detect hyphens in import paths — common mistake since '-' is the subtraction operator.
+		// e.g., "import pkg/sunholo/billing-store/core" stops at "billing" then hits MINUS.
+		if p.peekTokenIs(lexer.MINUS) {
+			suggested := path
+			for p.peekTokenIs(lexer.MINUS) {
+				p.nextToken() // consume MINUS
+				if p.peekTokenIs(lexer.IDENT) {
+					p.nextToken()
+					suggested += "_" + p.curToken.Literal
+				}
+				for p.peekTokenIs(lexer.SLASH) {
+					p.nextToken()
+					if p.peekTokenIs(lexer.IDENT) {
+						p.nextToken()
+						suggested += "/" + p.curToken.Literal
+					}
+				}
+			}
+			err := NewSuggestionError(
+				"PAR_HYPHEN_IN_IMPORT",
+				p.curPos(),
+				p.curToken,
+				fmt.Sprintf("hyphens in import paths are parsed as subtraction (in '%s')", path),
+				[]string{
+					fmt.Sprintf("Use underscores instead: import %s", suggested),
+					"Hyphens are OK in directory names, just not in import paths",
+				},
+				"https://ailang.sunholo.com/docs/reference/language-syntax",
+			)
+			p.errors = append(p.errors, err)
 			return nil
 		}
 

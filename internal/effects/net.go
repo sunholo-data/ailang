@@ -375,7 +375,7 @@ func matchDomain(hostname, pattern string) bool {
 // Advanced HTTP client with custom headers, status codes, and structured error handling.
 //
 // Parameters:
-//   - method: HTTP method ("GET", "POST" supported in v0.3.8)
+//   - method: HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD)
 //   - url: Target URL (must pass allowlist/security validation)
 //   - headers: List of {name, value} records
 //   - body: Request body (empty string for GET)
@@ -389,7 +389,7 @@ func matchDomain(hostname, pattern string) bool {
 //   - Blocks Host, Accept-Encoding, Content-Length overrides
 //   - Strips Authorization on cross-origin redirects
 //   - Case-insensitive header matching, preserves order
-//   - Method whitelist (GET, POST only)
+//   - Method whitelist (GET, POST, PUT, PATCH, DELETE, HEAD)
 //
 // Example AILANG code:
 //
@@ -441,8 +441,8 @@ func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	body := bodyVal.Value
 
 	// Step 2: Validate HTTP method (whitelist)
-	if method != "GET" && method != "POST" {
-		return makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST)", method)), nil
+	if method != "GET" && method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && method != "HEAD" {
+		return makeResultErr("InvalidMethod", fmt.Sprintf("unsupported HTTP method: %s (supported: GET, POST, PUT, PATCH, DELETE, HEAD)", method)), nil
 	}
 
 	// Step 3: Parse and validate URL

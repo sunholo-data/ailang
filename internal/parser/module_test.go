@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -158,11 +159,13 @@ func TestInvalidModuleSyntax(t *testing.T) {
 		{"module_no_name", "module"},
 		{"module_trailing_slash", "module Foo/"},
 		{"module_leading_slash", "module /Foo"},
-		{"module_invalid_char", "module Foo@Bar"}, // Changed from //Bar (now valid comment)
+		{"module_invalid_char", "module Foo@Bar"},                     // Changed from //Bar (now valid comment)
+		{"module_hyphen", "module sunholo/billing-entitlements/plan"}, // PAR_HYPHEN_IN_MODULE
 		{"import_no_name", "import"},
 		{"import_bare", "import Foo"}, // IMP012: namespace imports not supported
 		{"import_empty_parens", "import Foo ()"},
 		{"import_trailing_comma", "import Foo (bar,)"},
+		{"import_hyphen", "import pkg/sunholo/billing-store/core (get)"}, // PAR_HYPHEN_IN_IMPORT
 	}
 
 	for _, tt := range tests {
@@ -170,6 +173,53 @@ func TestInvalidModuleSyntax(t *testing.T) {
 			errs := mustParseError(t, tt.input)
 			if len(errs) == 0 {
 				t.Errorf("Expected parse error for %q, but got none", tt.input)
+			}
+		})
+	}
+}
+
+// TestHyphenInModulePath tests that hyphens in module/import paths produce clear errors
+func TestHyphenInModulePath(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantCode  string
+		wantInMsg string
+	}{
+		{
+			"module_hyphen_simple",
+			"module sunholo/billing-store",
+			"PAR_HYPHEN_IN_MODULE",
+			"billing_store",
+		},
+		{
+			"module_hyphen_deep",
+			"module sunholo/billing-entitlements/plan",
+			"PAR_HYPHEN_IN_MODULE",
+			"billing_entitlements",
+		},
+		{
+			"import_hyphen",
+			"import pkg/sunholo/billing-store/core (get)",
+			"PAR_HYPHEN_IN_IMPORT",
+			"billing_store",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := mustParseError(t, tt.input)
+			if len(errs) == 0 {
+				t.Fatalf("expected error for %q, got none", tt.input)
+			}
+			errStr := errs[0].Error()
+			if pe, ok := errs[0].(*ParserError); ok {
+				if pe.Code != tt.wantCode {
+					t.Errorf("expected error code %s, got %s", tt.wantCode, pe.Code)
+				}
+			}
+			if !strings.Contains(errStr, tt.wantInMsg) {
+				t.Errorf("expected error to contain %q, got: %s", tt.wantInMsg, errStr)
 			}
 		})
 	}
