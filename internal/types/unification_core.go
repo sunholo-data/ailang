@@ -188,6 +188,16 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 			// Swap and retry
 			return u.Unify(t2Var, t1, sub)
 		}
+		// Handle TCon vs TRecord — expand type alias and retry structurally.
+		// type Usage = { ... } creates TCon("Usage") which must unify with
+		// TRecord{...} when the alias is transparent (not opaque).
+		// The reverse (TRecord vs TCon) is already handled in unifyRecords.
+		if _, ok := t2.(*TRecord); ok {
+			expanded := u.expandAlias(t1)
+			if expanded != nil && expanded != t1 {
+				return u.Unify(expanded, t2, sub)
+			}
+		}
 		// M-TAPP-FIX: Handle TCon vs TApp - swap and let unifyTypeApps handle it
 		// This allows TApp(Option, [a]) to unify with TCon(Option) when
 		// the TCon represents the same parameterized type
