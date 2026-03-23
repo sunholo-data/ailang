@@ -354,8 +354,29 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 }
 
 // runAilangCheck runs ailang check on the package directory.
+// Uses `ailang check --package .` for packages with ailang.toml (resolves dependencies
+// and cross-module types), falls back to per-file checks for bare packages.
 func runAilangCheck(dir string) (bool, string) {
-	// Find .ail files to check
+	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
+	if fileExists(filepath.Join(dir, "ailang.toml")) {
+		// Generate lockfile for dependencies
+		lockCmd := exec.Command("ailang", "lock")
+		lockCmd.Dir = dir
+		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
+			log.Printf("Warning: ailang lock failed: %s", string(lockOutput))
+			// Fall through to package check anyway — it may work without deps
+		}
+
+		cmd := exec.Command("ailang", "check", "--package", ".")
+		cmd.Dir = dir
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return false, string(output)
+		}
+		return true, ""
+	}
+
+	// Fallback: check individual files (for packages without ailang.toml)
 	var files []string
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() && strings.HasSuffix(path, ".ail") {
