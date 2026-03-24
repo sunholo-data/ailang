@@ -298,8 +298,15 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		os.Setenv("AILANG_GIT_MODE", "guardrails")
 	}
 
+	// M-PKG-AUTONOMOUS-UPDATES: Scope executor to monorepo subdirectory if set.
+	execWorkDir := workDir
+	if subdir := os.Getenv("AILANG_SUBDIRECTORY"); subdir != "" {
+		execWorkDir = filepath.Join(workDir, subdir)
+		fmt.Printf("execute-job: scoped to subdirectory %s (within %s)\n", subdir, workDir)
+	}
+
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
-	execResult, execErr := runExecutor(ctx, workDir, provider, directive, taskID, pluginDir, model, timeoutStr)
+	execResult, execErr := runExecutor(ctx, execWorkDir, provider, directive, taskID, pluginDir, model, timeoutStr)
 	if execErr != nil {
 		return branchName, execResult, nil, fmt.Errorf("executor failed: %w", execErr)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -157,6 +158,10 @@ func (d *Daemon) dispatchTasksCloud() error {
 				// M-GIT-GUARDRAILS: Per-agent git mode for PreToolUse hook enforcement.
 				if agent.GitMode != "" {
 					params.GitMode = agent.GitMode
+				}
+				// M-PKG-AUTONOMOUS-UPDATES: Pass subdirectory for monorepo package agents.
+				if agent.Subdirectory != "" {
+					params.Subdirectory = agent.Subdirectory
 				}
 			}
 			// M-HARNESS-COMMIT-CONTRACT: Pass site metadata for structured commit messages.
@@ -354,6 +359,18 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			d.logger.Printf("Warning: Failed to mark task %s as failed: %v", task.ID, err)
 		}
 		return failErr
+	}
+
+	// Apply subdirectory for monorepo package agents (M-PKG-AUTONOMOUS-UPDATES, v0.10.0).
+	// When set, the agent works within a subdirectory of the worktree (e.g., "packages/auth").
+	if agentConfig != nil && agentConfig.Subdirectory != "" && workspacePath != "" {
+		subdirPath := filepath.Join(workspacePath, agentConfig.Subdirectory)
+		if info, err := os.Stat(subdirPath); err == nil && info.IsDir() {
+			d.logger.Printf("Task %s scoped to subdirectory: %s (within %s)", task.ID, agentConfig.Subdirectory, workspacePath)
+			workspacePath = subdirPath
+		} else {
+			d.logger.Printf("WARN: Subdirectory %q does not exist in workspace %s, using workspace root", agentConfig.Subdirectory, workspacePath)
+		}
 	}
 
 	// Sync task to Observatory for trace linking (M-TASK-HIERARCHY)

@@ -132,6 +132,12 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_BRIEF_ID", Values: &runpb.EnvVar_Value{Value: params.BriefID},
 		})
 	}
+	// M-PKG-AUTONOMOUS-UPDATES: Pass monorepo subdirectory for package agents.
+	if params.Subdirectory != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_SUBDIRECTORY", Values: &runpb.EnvVar_Value{Value: params.Subdirectory},
+		})
+	}
 	// M-CLOUD-PROGRESS-TRACKING M4: Inject W3C trace context for Cloud Trace linking.
 	// This propagates the coordinator's span context to the Cloud Run Job so
 	// job spans appear as children of the coordinator dispatch span.

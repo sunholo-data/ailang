@@ -595,3 +595,122 @@ func TestAgentConfig_NilOptionalFields(t *testing.T) {
 		t.Error("expected nil Approval for legacy agent")
 	}
 }
+
+// M-PKG-AUTONOMOUS-UPDATES: Tests for subdirectory field and pkg: inbox format.
+
+func TestAgentConfig_SubdirectoryField(t *testing.T) {
+	agent := &AgentConfig{
+		ID:           "pkg-sunholo-auth",
+		Label:        "Package: sunholo/auth",
+		Inbox:        "pkg:sunholo/auth",
+		Workspace:    "/tmp/ailang-packages",
+		Subdirectory: "packages/auth",
+		Capabilities: []string{"code", "test"},
+		Provider:     "claude",
+	}
+
+	if agent.Subdirectory != "packages/auth" {
+		t.Errorf("expected Subdirectory 'packages/auth', got %q", agent.Subdirectory)
+	}
+
+	// Verify subdirectory produces correct workspace path
+	expectedPath := filepath.Join(agent.Workspace, agent.Subdirectory)
+	if expectedPath != "/tmp/ailang-packages/packages/auth" {
+		t.Errorf("expected path '/tmp/ailang-packages/packages/auth', got %q", expectedPath)
+	}
+}
+
+func TestAgentRegistry_PackageInboxFormat(t *testing.T) {
+	// Verify that pkg:vendor/name inbox format works for registration and lookup
+	registry := NewAgentRegistry()
+
+	agent := &AgentConfig{
+		ID:           "pkg-sunholo-auth",
+		Label:        "Package: sunholo/auth",
+		Inbox:        "pkg:sunholo/auth",
+		Workspace:    "/tmp/test",
+		Subdirectory: "packages/auth",
+	}
+
+	if err := registry.Register(agent); err != nil {
+		t.Fatalf("failed to register agent with pkg: inbox: %v", err)
+	}
+
+	// Lookup by inbox with colon
+	found := registry.GetAgentForInbox("pkg:sunholo/auth")
+	if found == nil {
+		t.Fatal("expected to find agent by pkg:sunholo/auth inbox")
+	}
+	if found.ID != "pkg-sunholo-auth" {
+		t.Errorf("expected ID 'pkg-sunholo-auth', got %q", found.ID)
+	}
+	if found.Subdirectory != "packages/auth" {
+		t.Errorf("expected Subdirectory 'packages/auth', got %q", found.Subdirectory)
+	}
+
+	// Register multiple package agents
+	if err := registry.Register(&AgentConfig{
+		ID:           "pkg-sunholo-gcp-auth",
+		Inbox:        "pkg:sunholo/gcp-auth",
+		Workspace:    "/tmp/test",
+		Subdirectory: "packages/gcp-auth",
+	}); err != nil {
+		t.Fatalf("failed to register second pkg agent: %v", err)
+	}
+
+	// Verify both are findable
+	if registry.GetAgentForInbox("pkg:sunholo/gcp-auth") == nil {
+		t.Error("expected to find pkg:sunholo/gcp-auth agent")
+	}
+	if registry.Count() != 2 {
+		t.Errorf("expected 2 agents, got %d", registry.Count())
+	}
+}
+
+func TestLoadAgentRegistryFrom_WithSubdirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+
+	configContent := `
+coordinator:
+  default_provider: claude
+  agents:
+    - id: pkg-sunholo-auth
+      label: "Package: sunholo/auth"
+      inbox: "pkg:sunholo/auth"
+      workspace: /tmp/ailang-packages
+      subdirectory: packages/auth
+      capabilities: [code, test]
+      provider: claude
+      model: sonnet
+      timeout: "30m"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	registry, err := LoadAgentRegistryFrom(configPath)
+	if err != nil {
+		t.Fatalf("failed to load registry: %v", err)
+	}
+
+	agent := registry.GetAgentByID("pkg-sunholo-auth")
+	if agent == nil {
+		t.Fatal("expected to find pkg-sunholo-auth agent")
+	}
+	if agent.Inbox != "pkg:sunholo/auth" {
+		t.Errorf("expected inbox 'pkg:sunholo/auth', got %q", agent.Inbox)
+	}
+	if agent.Subdirectory != "packages/auth" {
+		t.Errorf("expected subdirectory 'packages/auth', got %q", agent.Subdirectory)
+	}
+	if agent.Model != "sonnet" {
+		t.Errorf("expected model 'sonnet', got %q", agent.Model)
+	}
+
+	// Verify inbox lookup with colon works after YAML load
+	found := registry.GetAgentForInbox("pkg:sunholo/auth")
+	if found == nil {
+		t.Fatal("expected to find agent by inbox after YAML load")
+	}
+}

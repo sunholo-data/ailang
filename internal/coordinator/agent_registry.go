@@ -140,6 +140,12 @@ type AgentConfig struct {
 	// "strict" — all git write operations blocked (read-only)
 	// "permissive" — all allowed except force-push and reset --hard
 	GitMode string `yaml:"git_mode" json:"git_mode,omitempty"`
+
+	// Subdirectory within the workspace for monorepo support (M-PKG-AUTONOMOUS-UPDATES, v0.10.0).
+	// When set, the agent's working directory is scoped to this path within the worktree.
+	// Used for package agents that operate on a specific package within a monorepo.
+	// Example: "packages/auth" for a package agent in the ailang-packages monorepo.
+	Subdirectory string `yaml:"subdirectory" json:"subdirectory,omitempty"`
 }
 
 // PluginsConfig specifies third-party plugins to install for an agent.
