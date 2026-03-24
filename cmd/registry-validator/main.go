@@ -368,6 +368,13 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			index.Packages[i].Repository = meta.Manifest.Repository
 			index.Packages[i].Homepage = meta.Manifest.Homepage
 			index.Packages[i].LicenseURL = meta.Manifest.LicenseURL
+			// Update metadata fields that may change between versions
+			index.Packages[i].AISummary = getMetaString(manifest.Metadata, "ai_summary")
+			index.Packages[i].Tags = getMetaStringSlice(manifest.Metadata, "tags")
+			index.Packages[i].Effects = manifest.Effects.Max
+			index.Packages[i].Stability = manifest.Stability.Level
+			index.Packages[i].Exports = manifest.Exports.Modules
+			index.Packages[i].HasAgentDoc = meta.Manifest.HasAgentDoc
 			found = true
 			break
 		}
