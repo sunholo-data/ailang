@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "type": "category",
+    "label": "sunholo",
+    "link": {"type": "doc", "id": "packages/sunholo/index"},
+    "items": ["packages/sunholo/auth","packages/sunholo/config","packages/sunholo/gcp_auth","packages/sunholo/http_helpers","packages/sunholo/logging","packages/sunholo/registry_validator","packages/sunholo/testing_utils","packages/sunholo/billing_entitlements","packages/sunholo/firestore","packages/sunholo/billing_stripe","packages/sunholo/billing_proposals","packages/sunholo/billing_store","packages/sunholo/billing_service_api","packages/sunholo/docparse_access_gate","packages/sunholo/test_pkg"]
+  }
+]

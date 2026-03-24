@@ -8,6 +8,81 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.9.11
+
+- [M-DX-APP: Application Package Adoption — Module Prefix Mismatch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_11/m-dx-app-package-adoption.md)
+- [Sprint Plan: M-DX-PKG-CHECK + M-DX-PKG-TEST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_11/m-dx-pkg-tools-sprint-plan.md)
+
+## v0.9.10
+
+- [M-PKG-COMPAT: AILANG Version Compatibility Gate for Packages](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_10/m-pkg-compat-ailang-version-gate.md)
+
+## v0.9.9
+
+- [M-PKG-MSG: Package Messaging Graph for Multi-Agent Coordination](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_9/m-pkg-msg-package-messaging-graph.md)
+- [Sprint Plan: M-PKG-MSG — Package Messaging Graph](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_9/m-pkg-msg-sprint-plan.md)
+
+## v0.9.8
+
+- [Sprint Plan: M-COST2 Dashboard Firestore Read Optimization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_8/m-cost2-dashboard-firestore-optimization-sprint-plan.md)
+- [M-COST2: Dashboard Firestore Read Optimization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_8/m-cost2-dashboard-firestore-optimization.md)
+
+## v0.9.7
+
+- [Sprint Plan: M-PKG-REGISTRY — Client-Side Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_7/m-pkg-registry-sprint-plan.md)
+- [M-PKG-REGISTRY: AILANG Package Registry on GCP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_7/m-pkg-registry.md)
+
+## v0.9.6
+
+- [Sprint Plan: M-COST1 Firestore Cost Optimization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_6/m-cost1-firestore-cost-optimization-sprint-plan.md)
+- [M-COST1: Firestore Cost Optimization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_6/m-cost1-firestore-cost-optimization.md)
+
+## v0.9.5
+
+- [Sprint Plan: M-PKG Phase 1 — Local Package Management](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_5/m-pkg-package-system-sprint-plan.md)
+- [M-PKG: AILANG Package System & Multi-Agent Coordination](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_5/m-pkg-package-system.md)
+- [Sprint Plan: M-PKG Phase 1.5 — Tightening](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_5/m-pkg-phase1.5-sprint-plan.md)
+
+## v0.9.4
+
+- [M-SERVE-API-JSON-DECODE: Fix TaggedValue arg decoding in serve-api](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_4/m-serve-api-json-decode-taggedvalue.md)
+- [Sprint Plan: M-STDLIB-XML — XmlNode Constructors, writeEntryBytes, escapeXml Tests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_4/m-stdlib-xml-improvements-sprint-plan.md)
+- [M-STDLIB-XML: XmlNode Constructors, writeEntryBytes, escapeXml](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_4/m-stdlib-xml-improvements.md)
+- [M-TYPE-EFFECT-ROW: Fix Effect Row Unification Regression](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_4/m-type-effect-row-regression.md)
+
+## v0.9.2
+
+- [Sprint Plan: M-BRAIN — AILANG Persistent Semantic Cache](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-brain-sprint-plan.md)
+- [Sprint Plan: M-BRAIN-VECTORS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-brain-vectors-sprint-plan.md)
+- [M-BRAIN-VECTORS: Vector-Native Brain with Embedding Storage and Cosine Search](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-brain-vectors.md)
+- [M-BRAIN: AILANG Persistent Semantic Cache ("The Brain")](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-brain.md)
+- [M-BUG-INLINE-TEST-EXTRACTION: Fix ExtractFunctionBinding for Module-less Files and Absolute Paths](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-bug-inline-test-extraction.md)
+- [M-CLOUD-DUAL-AUTH: OAuth vs API Key Cloud Run Jobs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-dual-auth.md)
+- [Sprint Plan: M-CLOUD-JOB-RELIABILITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-job-reliability-sprint-plan.md)
+- [M-CLOUD-JOB-RELIABILITY: Silent Failure Detection & Recovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-job-reliability.md)
+- [M-CLOUD-PLUGIN-SKILLS: Cross-Project Skill Distribution via Plugin System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-plugin-skills.md)
+- [Sprint Plan: M-CLOUD-PROGRESS-TRACKING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-progress-tracking-sprint-plan.md)
+- [M-CLOUD-PROGRESS-TRACKING: Cloud Execution Visibility & Cost Controls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-cloud-progress-tracking.md)
+- [M-CODEGEN-REGISTRY-ONLY: Delete Legacy Stdlib, Registry-Only Runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-codegen-registry-only.md)
+- [M-CONTRACT-OPLOWERING-FIX: Complete OpLowering for Contract Expressions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-contract-oplowering-fix.md)
+- [M-CONTRACT-PIPELINE-DX: Contract Pipeline Coverage & Developer Experience](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-contract-pipeline-dx.md)
+- [Sprint Plan: M-DOCPARSE-DX Stdlib & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-docparse-dx-sprint-plan.md)
+- [M-DOCPARSE-DX: Stdlib & DX Improvements from DocParse Feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-docparse-dx.md)
+- [M-GIT-GUARDRAILS: Per-Agent Git Mode for Cloud Coordinator](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-git-guardrails.md)
+- [M-HARNESS-COMMIT-CONTRACT: Website Builder Commit Message & Payload Contract](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-harness-commit-contract.md)
+- [M-HASH-COLLECTIONS: Hash-Based Collections & Deterministic Equality](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-hash-collections.md)
+- [Sprint Plan: M-ITERATIVE-LIST — Iterative List Builtins](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-iterative-list-builtins-sprint-plan.md)
+- [M-ITERATIVE-LIST: Iterative List Builtins for Large Collections](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-iterative-list-builtins.md)
+- [Sprint Plan: M-PERF5 Data-Intensive Workload Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf5-data-intensive-workloads-sprint-plan.md)
+- [M-PERF5: Data-Intensive Workload Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf5-data-intensive-workloads.md)
+- [Sprint Plan: M-PERF6 Compilation & Runtime Performance](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf6-compilation-performance-sprint-plan.md)
+- [M-PERF6: Compilation & Runtime Performance (Phase 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf6-compilation-performance.md)
+- [M-PERF7 Sprint Plan: DocParse Production Pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf7-docparse-production-pipeline-sprint-plan.md)
+- [M-PERF7: DocParse Production Pipeline Optimization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-perf7-docparse-production-pipeline.md)
+- [M-REST-INGESTION: REST API for Client Message Ingestion & Retrieval](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-rest-message-ingestion.md)
+- [Sprint Plan: M-WASM-DICTIONARY-DISPATCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-wasm-dictionary-dispatch-sprint-plan.md)
+- [M-WASM-DICTIONARY-DISPATCH: Fix WASM Dictionary Dispatch Bugs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-wasm-dictionary-dispatch.md)
+
 ## v0.9.0
 
 - [Sprint Plan: M-ASYNC-IO Phase 2 — asyncExecProcess](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_0/m-async-io-process-sprint-plan.md)
@@ -628,4 +703,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 474 design documents across 48 versions.*
+*Generated at build time. 522 design documents across 57 versions.*

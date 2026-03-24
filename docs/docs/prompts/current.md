@@ -460,6 +460,27 @@ export func main() -> () ! {IO} { println("hi") }
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
 
+### Debug Effect — Use Instead of IO for Logging
+
+**Debug is a "ghost effect"** — erasable in release mode, zero-cost. Use `Debug` instead of `IO` (println) for logging in packages to avoid effect cascade:
+
+```ailang
+import std/debug (log, check)
+
+func process(data: string) -> string ! {Net, Debug} {
+  log("processing: " ++ data);
+  check(length(data) > 0, "data must not be empty");
+  httpGet("https://example.com/" ++ data)
+}
+```
+
+**Key rules:**
+- **Use Debug, not IO** for logging in library/package code — IO cascades to every caller
+- **Write-only**: `log` and `check` write to host context; AILANG code cannot read it
+- **Assertions don't throw**: `check(false, msg)` records failure but continues
+- **Release mode erases**: `--release` flag removes all Debug calls (zero cost)
+- **Run with**: `ailang run --debug --caps IO,Debug --entry main file.ail`
+
 ## Standard Library
 
 **Auto-imported (no import needed):**
@@ -1616,6 +1637,38 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 - For list `head`/`nth` in contracts, use builtins `_list_head`/`_list_nth` (stdlib versions return `Option`)
 - Install Z3: `brew install z3` (macOS) or `apt install z3` (Linux)
 
+### Structure Code for Z3 Verification
+
+**Whenever possible, structure your code so Z3 can verify it.** This means preferring the decidable fragment (pure, non-recursive, non-higher-order) for core logic, even when the outer program uses effects and recursion.
+
+**Pattern: Pure core + effectful shell.** Extract pure computation into small, contract-bearing functions. Wrap them in effectful entry points:
+
+```ailang
+-- GOOD: Z3 can verify the pure core
+pure func applyDiscount(price: int, pct: int) -> int ! {}
+requires { price >= 0, pct >= 0, pct <= 100 }
+ensures { result >= 0, result <= price }
+{
+  price - (price * pct) / 100
+}
+
+-- Effectful shell just calls the verified core
+export func main() -> () ! {IO} {
+  let finalPrice = applyDiscount(1000, 15);
+  println(show(finalPrice))
+}
+```
+
+**Guidelines:**
+- **Split logic from effects** — Keep arithmetic, validation, and decision logic in pure `! {}` functions with contracts. Push IO/Net/FS to the outer layer.
+- **Prefer enums over strings for decisions** — `match bracket { STANDARD => ..., REDUCED => ... }` is fully decidable; string parsing is not.
+- **Use `int` over `float` where possible** — Integer arithmetic is fully decidable in Z3; floats are not verifiable.
+- **Keep verified functions non-recursive** — If you need recursion, have the recursive function call a pure verified helper for its core logic.
+- **Add contracts to ALL pure functions** — Even simple ones. `ensures { result >= 0 }` catches edge cases you won't think to test.
+- **Decompose complex logic into small verifiable pieces** — Instead of one 20-line function, write 3-4 small functions each with tight contracts. Z3 inlines across calls automatically.
+
+**Think of it this way:** Every function you can mark `! {}` with a contract is a function that is *mathematically proven correct* — not just tested. Maximize the surface area of verified code.
+
 ## Testing
 
 **Inline tests on functions (recommended):**
@@ -1674,6 +1727,48 @@ let exists = fileExists(path)
 let found = fileExists(path)
 ```
 
+## External Package Imports
+
+Use `pkg/` prefix for external packages:
+
+```ailang
+import std/io (println)                            -- Stdlib (bundled)
+import myproject/utils (helper)                    -- Local module
+import pkg/sunholo/gcp-auth/token (getAccessToken) -- External package
+import pkg/sunholo/auth/keys (validateKeyHash)      -- External package
+```
+
+### Registry Workflow (recommended)
+
+```bash
+ailang search "auth"                        # Discover packages by keyword
+ailang search --tag gcp                     # Filter by tag
+ailang install sunholo/auth@0.1.0           # Download, verify hash, add to ailang.toml
+ailang pkg-docs sunholo/auth                # Read AGENT.md (structured AI usage guide)
+```
+
+Search results include `ai_summary`, `tags`, and `effects` per package — use effects to know what capabilities (`IO`, `Net`, `FS`, etc.) a dependency requires.
+
+### Alternative: Git or path dependencies
+
+```bash
+ailang add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag v0.1.0
+ailang add --path ../ailang-packages/packages/auth   # Local development
+ailang lock                                          # Resolve and lock all deps
+```
+
+### Publishing
+
+```bash
+ailang init package --name myorg/mylib      # Create ailang.toml with exports, effects, metadata
+ailang publish --dry-run                    # Preview: compile check, effect validation, contract verification
+ailang publish                              # Upload to registry (immutable — versions cannot be overwritten)
+```
+
+Include an `AGENT.md` in your package root for AI agent consumers — it's served via `ailang pkg-docs` and indexed in registry search results.
+
+**Available packages**: `sunholo/gcp-auth` (OAuth2), `sunholo/auth` (API keys), `sunholo/http-helpers` (request builders), `sunholo/logging` (JSON logs), `sunholo/config` (env loading), `sunholo/testing-utils` (assertions).
+
 ## Module Import Rules
 
 **Imports are NOT transitive.** When module A imports module B, A does **not** get B's imports.
@@ -1712,6 +1807,8 @@ let data = readFile("other.txt")  -- Works!
 | `module benchmark/myname` | Use exactly `module benchmark/solution` |
 | Using reserved keyword as name | See Reserved Keywords section above |
 | Expecting transitive imports | Each module must import what it uses directly |
+| No output from println | Check: `--caps IO` flag present AND before filename, effect sig is `! {IO}` not `IO[Unit]` |
+| `let x = e` then `println(x)` in `{ }` | Use semicolons: `let x = e; println(x)` — or use `let x = e in println(x)` without braces |
 
 ## Running Programs
 
