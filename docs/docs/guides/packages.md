@@ -217,7 +217,8 @@ Resolution priority: path > git > registry.
 | `ailang init package --name vendor/name` | Create `ailang.toml` |
 | `ailang add --path ../dep` | Add path dependency |
 | `ailang add --git URL --subdir DIR --tag TAG` | Add git dependency |
-| `ailang install vendor/name@version` | Install from registry |
+| `ailang install vendor/name` | Install latest from registry |
+| `ailang install vendor/name@version` | Install exact version from registry |
 | `ailang lock` | Resolve deps, generate `ailang.lock` |
 | `ailang tree` | Display dependency tree |
 | `ailang search "query"` | Search registry packages |
@@ -254,8 +255,16 @@ ailang search                # List all packages
 ### Installing
 
 ```bash
-ailang install sunholo/auth@0.1.0   # Download, verify hash, add to ailang.toml
+ailang install sunholo/auth           # Install latest version
+ailang install sunholo/auth@latest    # Same as above
+ailang install sunholo/auth@0.1.0     # Install exact version
 ```
+
+The resolved exact version is always written to `ailang.toml`. Semver ranges (`^`, `~`, `>=`) are not supported — AILANG requires exact versions for deterministic builds.
+
+### Lock File Portability
+
+`ailang.lock` is portable across machines and containers — it does not contain absolute paths. Cache paths for registry and git packages are resolved at runtime. This means you can `COPY ailang.lock` into Docker and run `ailang install` to populate the cache.
 
 ### Package Documentation
 

@@ -20,6 +20,16 @@ ailang init package --name vendor/name
 ailang init package --name sunholo/mylib --module-prefix mylib --dep sunholo/config
 ```
 
+### Install Dependencies
+
+```bash
+ailang install sunholo/auth           # Install latest version (resolves from registry)
+ailang install sunholo/auth@latest    # Same as above
+ailang install sunholo/auth@0.1.0     # Install exact version
+```
+
+`@latest` resolves once and writes the **exact version** to `ailang.toml`. Semver ranges (`^`, `~`, `>=`) are not supported — AILANG requires exact versions in manifests for determinism.
+
 ### Package Lifecycle
 
 ```bash
@@ -141,8 +151,9 @@ modules = [
 "sunholo/firestore" = { path = "../firestore" }
 # Git deps (version pinned):
 # "sunholo/firestore" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/firestore", tag = "main" }
-# Registry deps (published packages):
+# Registry deps (published packages — use exact versions only, no ranges):
 # "sunholo/firestore" = "0.1.0"
+# Install latest: ailang install sunholo/firestore
 
 [effects]
 max = ["Net", "FS", "Env"]     # effect ceiling — functions can't exceed this
@@ -154,6 +165,22 @@ ai_summary = "Firestore CRUD for billing records"
 [stability]
 level = "experimental"          # experimental | stable | frozen
 ```
+
+### Lock File Portability
+
+`ailang.lock` is portable — it does **not** contain absolute paths. Registry and git package paths are resolved at runtime from the local cache (`~/.ailang/cache/`).
+
+**Docker workflow:**
+```dockerfile
+COPY ailang.toml ailang.lock .
+RUN ailang install sunholo/auth    # Populates cache from lock file versions
+```
+
+**Key facts:**
+- Lock file stores: name, version, content hash, source type, git URL/rev
+- Lock file does NOT store: absolute cache paths
+- `ailang install` populates the cache; `ailang lock` resolves + downloads
+- Old lock files with stored paths still work (backward compatible)
 
 ## Common Error Solutions
 
