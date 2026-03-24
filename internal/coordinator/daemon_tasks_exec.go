@@ -274,6 +274,19 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 		}
 	}
 
+	// M-PKG-AUTONOMOUS-UPDATES: Adjust autonomy based on package message change class.
+	// Must happen before budget/approval checks since it modifies SkipApproval/AutoMerge.
+	if agentConfig != nil && d.msgStore != nil && task.MessageID != "" {
+		if msg, err := d.msgStore.GetInboxMessage(task.MessageID); err == nil && msg != nil {
+			adjusted := AdjustAutonomyForChangeClass(agentConfig, msg)
+			if adjusted != agentConfig {
+				d.logger.Printf("Autonomy router: task %s adjusted (SkipApproval=%v, AutoMerge=%v, AutoApproveHandoffs=%v)",
+					task.ID, adjusted.SkipApproval, adjusted.AutoMerge, adjusted.AutoApproveHandoffs)
+				agentConfig = adjusted
+			}
+		}
+	}
+
 	// Budget enforcement check (M-PER-PROVIDER-BUDGETS)
 	// Check budget before executing task. If hard limit exceeded, create approval request.
 	if budgetBlocked, budgetErr := d.checkBudgetBeforeExecution(taskCtx, task, agentConfig); budgetBlocked {
