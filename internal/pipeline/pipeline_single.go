@@ -496,6 +496,13 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		// }
 
 		loweredProg.Flags.Lowered = true
+
+		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
+		if cfg.ReleaseMode {
+			eraser := &DebugEraser{}
+			loweredProg = eraser.Erase(loweredProg)
+		}
+
 		coreProg = loweredProg
 
 		if cfg.DumpCoreLowered { //nolint:staticcheck // Flag for caller to display lowered Core

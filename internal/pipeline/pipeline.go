@@ -73,6 +73,7 @@ type Config struct {
 	StrictSyntaxMode        bool                  // Disable syntactic sugar (require canonical syntax)
 	RelaxModules            bool                  // Relax MOD010 validation (allow module path mismatches with warning)
 	NoCache                 bool                  // M-PERF6: Disable compilation cache (--no-cache)
+	ReleaseMode             bool                  // M-DEBUG-ERASURE: Erase Debug ghost effect (--release)
 
 	// M-DX11: Type debugging
 	DebugTypes     bool   // Enable type inference debugging output

@@ -108,6 +108,7 @@ func compileCommand() {
 		cfg := pipeline.Config{
 			Mode:         pipeline.ModeCheck, // Parse + type-check only, no eval
 			RelaxModules: relaxModulesEffective,
+			ReleaseMode:  *releaseFlag,
 		}
 		src := pipeline.Source{
 			Code:     string(content),

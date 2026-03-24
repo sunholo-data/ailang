@@ -459,6 +459,12 @@ func runPostTypeCheckPhases(
 		// }
 
 		unit.Core.Flags.Lowered = true
+
+		// M-DEBUG-ERASURE: Erase Debug ghost effect in release mode
+		if cfg.ReleaseMode {
+			eraser := &DebugEraser{}
+			unit.Core = eraser.Erase(unit.Core)
+		}
 	}
 
 	return nil
