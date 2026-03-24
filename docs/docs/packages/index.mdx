@@ -1,0 +1,43 @@
+---
+title: "Package Registry"
+description: "Browse AILANG packages published to the registry"
+sidebar_label: "Overview"
+---
+
+# AILANG Package Registry
+
+Browse all published AILANG packages. Each package has a dedicated page with manifest details, version history, provenance chains, and dependency information.
+
+## Quick Links
+
+- **[Interactive Explorer](/docs/packages/explorer)** — Search, filter, and browse all packages with live data
+- **[Dependency Graph](/docs/packages/graph)** — Visualize package relationships and effect ceilings
+
+## How It Works
+
+AILANG packages are published to a [GCS-backed registry](/docs/guides/packages) via `ailang publish`. Each version is validated (compilation, effects, contracts) before acceptance. Package data on these pages is snapshotted at build time and hydrated with live data from the registry API.
+
+### URL Convention
+
+Package URLs mirror the module import path convention:
+
+```
+import pkg/sunholo/auth/keys    →    /docs/packages/sunholo/auth
+import pkg/sunholo/firestore    →    /docs/packages/sunholo/firestore
+```
+
+## Installing Packages
+
+```bash
+ailang install sunholo/auth@0.2.0
+ailang install sunholo/firestore@0.1.0
+```
+
+## Publishing Packages
+
+```bash
+ailang init package --name vendor/name
+ailang publish
+```
+
+See the [Packages Guide](/docs/guides/packages) for full documentation.

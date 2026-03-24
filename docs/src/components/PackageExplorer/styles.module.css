@@ -1,0 +1,82 @@
+/* PackageExplorer component styles — placeholder for M2, full styling in M3/M4 */
+
+.vendorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.packageCard {
+  display: block;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-surface-color);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.packageCard:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.packageName {
+  font-weight: 600;
+  font-size: 1.1rem;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.version {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.summary {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.stabilityBadge {
+  background: var(--ifm-color-warning-contrast-background);
+  color: var(--ifm-color-warning-darkest);
+}
+
+.effectBadge {
+  background: var(--ifm-color-info-contrast-background);
+  color: var(--ifm-color-info-darkest);
+}
+
+.tagBadge {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+}
