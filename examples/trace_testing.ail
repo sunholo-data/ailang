@@ -11,7 +11,7 @@
 
 module examples/trace_testing
 
-import stdlib/trace_test (assert_trace_exists, assert_trace_not_exists)
+import std/trace_test (assert_trace_exists, assert_trace_not_exists)
 
 -- Test that compilation traces were recorded.
 -- With AILANG_TRACE_RECORDING=1, these should all pass because

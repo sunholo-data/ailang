@@ -2,7 +2,7 @@
 -- Provides helpers for verifying trace spans in tests.
 -- Part of M-TRACE-TEST (Trace Testing Framework)
 
-module stdlib/trace_test
+module std/trace_test
 
 -- Check if a trace span with the given name exists.
 -- Supports prefix matching: "compile" matches "compile.parse", "compile.typecheck", etc.

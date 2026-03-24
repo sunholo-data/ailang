@@ -22,7 +22,7 @@ func init() {
 // registerTraceCheck registers the _trace_check builtin
 func registerTraceCheck() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
-		Module:  "stdlib/trace_test",
+		Module:  "std/trace_test",
 		Name:    "_trace_check",
 		NumArgs: 1,
 		IsPure:  true, // Reading trace state is side-effect free
