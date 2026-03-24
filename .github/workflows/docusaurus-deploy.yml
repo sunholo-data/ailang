@@ -90,6 +90,10 @@ jobs:
       - name: Sync teaching prompts
         run: bash docs/scripts/sync-prompts.sh
 
+      - name: Sync package registry data
+        run: bash docs/scripts/sync-registry.sh
+        continue-on-error: true  # Build proceeds even if registry unavailable
+
       - name: Build Docusaurus site
         run: make docs-build
 
