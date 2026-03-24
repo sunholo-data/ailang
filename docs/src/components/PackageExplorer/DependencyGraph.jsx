@@ -31,6 +31,7 @@ export default function DependencyGraph() {
   const [tooltip, setTooltip] = useState(null);
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
+  const [graphSize, setGraphSize] = useState({ width: 800, height: 500 });
 
   const packages = indexData?.packages || [];
 
@@ -71,9 +72,11 @@ export default function DependencyGraph() {
       levels[depth].push(p);
     });
 
-    const svgWidth = 800;
-    const svgHeight = 500;
+    // Dynamic sizing: ensure minimum 120px per node on the widest level
+    const maxLevelSize = Math.max(...Object.values(levels).map(l => l.length));
+    const svgWidth = Math.max(800, maxLevelSize * 120);
     const levelCount = Object.keys(levels).length;
+    const svgHeight = Math.max(400, levelCount * 140 + 80);
     const ySpacing = svgHeight / (levelCount + 1);
 
     const computedNodes = [];
@@ -87,7 +90,7 @@ export default function DependencyGraph() {
           const x = xSpacing * (i + 1);
           const y = ySpacing * (levelIndex + 1);
           const dependentCount = depCounts[p.name] || 0;
-          const radius = Math.max(18, Math.min(35, 18 + dependentCount * 5));
+          const radius = Math.max(16, Math.min(30, 16 + dependentCount * 4));
 
           const node = {
             id: p.name,
@@ -124,6 +127,7 @@ export default function DependencyGraph() {
 
     setNodes(computedNodes);
     setEdges(computedEdges);
+    setGraphSize({ width: svgWidth, height: svgHeight });
   }, [packages]);
 
   const handleNodeHover = useCallback((node, event) => {
@@ -160,8 +164,8 @@ export default function DependencyGraph() {
         </div>
       )}
 
-      <div className={styles.graphContainer} ref={svgRef}>
-        <svg className={styles.graphSvg} viewBox="0 0 800 500">
+      <div className={styles.graphContainer} ref={svgRef} style={{ overflowX: 'auto' }}>
+        <svg className={styles.graphSvg} viewBox={`0 0 ${graphSize.width} ${graphSize.height}`} style={{ minWidth: graphSize.width, height: graphSize.height }}>
           <defs>
             <marker
               id="arrowhead"
@@ -223,9 +227,9 @@ export default function DependencyGraph() {
                 strokeOpacity={0.3}
               />
               <text
-                className={styles.graphNodeLabel}
+                className={styles.graphNodeLabelBelow}
                 x={node.x}
-                y={node.y}
+                y={node.y + node.radius + 14}
               >
                 {node.shortName}
               </text>

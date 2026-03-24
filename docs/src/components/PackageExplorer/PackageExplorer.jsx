@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { usePackageIndex, useEcosystemStats } from '@site/src/hooks/useRegistryData';
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { BarChart, Bar, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import styles from './styles.module.css';
 
 const CHART_COLORS = ['#e73c17', '#2c7a7b', '#6b46c1', '#dd6b20', '#2b6cb0', '#38a169', '#d69e2e'];
@@ -208,31 +208,35 @@ function StatsCharts({ stats }) {
     .sort((a, b) => b.value - a.value);
 
   const stabilityData = Object.entries(stats.stability_breakdown || {})
-    .map(([name, value]) => ({ name, value }));
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   const agentHumanData = [
     { name: 'Agent', value: stats.agent_vs_human?.agent || 0 },
     { name: 'Human', value: stats.agent_vs_human?.human || 0 },
-  ];
+  ].filter(d => d.value > 0);
 
-  const topDeps = (stats.top_depended_on || []).slice(0, 5).map((d) => ({
+  // Cap at top 10 for scalability — works at any package count
+  const topDeps = (stats.top_depended_on || []).slice(0, 10).map((d) => ({
     name: d.name.split('/')[1],
     value: d.dependent_count,
   }));
 
-  if (effectData.length === 0 && stabilityData.length === 0) return null;
+  if (effectData.length === 0 && topDeps.length === 0) return null;
+
+  const barHeight = (data) => Math.max(120, data.length * 32 + 20);
 
   return (
     <div className={styles.chartsGrid}>
       {effectData.length > 0 && (
         <div className={styles.chartPanel}>
-          <div className={styles.chartTitle}>Effect Distribution</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={effectData} layout="vertical">
+          <div className={styles.chartTitle}>Effect Usage</div>
+          <ResponsiveContainer width="100%" height={barHeight(effectData)}>
+            <BarChart data={effectData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={40} tick={{ fontSize: 12, fontFamily: 'JetBrains Mono' }} />
-              <Tooltip />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+              <YAxis type="category" dataKey="name" width={50} tick={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'var(--ifm-color-emphasis-100)' }} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
                 {effectData.map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
@@ -244,25 +248,14 @@ function StatsCharts({ stats }) {
 
       {stabilityData.length > 0 && (
         <div className={styles.chartPanel}>
-          <div className={styles.chartTitle}>Stability Breakdown</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={stabilityData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={70}
-                label={({ name, value }) => `${name} (${value})`}
-                labelLine={false}
-              >
-                {stabilityData.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
+          <div className={styles.chartTitle}>Stability</div>
+          <ResponsiveContainer width="100%" height={barHeight(stabilityData)}>
+            <BarChart data={stabilityData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'var(--ifm-color-emphasis-100)' }} />
+              <Bar dataKey="value" fill="#2c7a7b" radius={[0, 4, 4, 0]} barSize={20} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       )}
@@ -270,37 +263,31 @@ function StatsCharts({ stats }) {
       {topDeps.length > 0 && (
         <div className={styles.chartPanel}>
           <div className={styles.chartTitle}>Most Depended On</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={topDeps} layout="vertical">
+          <ResponsiveContainer width="100%" height={barHeight(topDeps)}>
+            <BarChart data={topDeps} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} />
-              <Tooltip />
-              <Bar dataKey="value" fill="#2c7a7b" radius={[0, 4, 4, 0]} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'var(--ifm-color-emphasis-100)' }} />
+              <Bar dataKey="value" fill="#6b46c1" radius={[0, 4, 4, 0]} barSize={20} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {(agentHumanData[0].value > 0 || agentHumanData[1].value > 0) && (
+      {agentHumanData.length > 0 && (
         <div className={styles.chartPanel}>
-          <div className={styles.chartTitle}>Agent vs Human Updates</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={agentHumanData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={70}
-                label={({ name, value }) => `${name} (${value})`}
-                labelLine={false}
-              >
-                <Cell fill="#e73c17" />
-                <Cell fill="#2b6cb0" />
-              </Pie>
-              <Tooltip />
-            </PieChart>
+          <div className={styles.chartTitle}>Updates By</div>
+          <ResponsiveContainer width="100%" height={barHeight(agentHumanData)}>
+            <BarChart data={agentHumanData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={60} tick={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: 'var(--ifm-color-emphasis-100)' }} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                {agentHumanData.map((d, i) => (
+                  <Cell key={i} fill={d.name === 'Agent' ? '#e73c17' : '#2b6cb0'} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       )}
