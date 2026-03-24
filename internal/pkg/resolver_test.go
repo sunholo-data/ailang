@@ -2,10 +2,12 @@ package pkg
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -340,6 +342,163 @@ edition = "1"
 		}
 		if r.Path != "" {
 			t.Errorf("package %s: Path should be empty for portable lock file, got %q", r.Name, r.Path)
+		}
+	}
+}
+
+func TestResolveDependencies_VersionConflict_DirectVsTransitive(t *testing.T) {
+	// Scenario: app depends on lib@0.2.0 (direct), but helper depends on lib@0.1.0 (transitive)
+	// Expected: structured VersionConflictError
+	root := t.TempDir()
+
+	// lib@0.1.0 (what helper wants)
+	libDir := filepath.Join(root, "lib")
+	writeManifest(t, libDir, `
+[package]
+name = "test/lib"
+version = "0.1.0"
+edition = "1"
+`)
+
+	// helper depends on lib via path (resolves to lib@0.1.0)
+	helperDir := filepath.Join(root, "helper")
+	writeManifest(t, helperDir, `
+[package]
+name = "test/helper"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"test/lib" = { path = "../lib" }
+`)
+
+	// app depends on lib@0.2.0 (direct) AND helper (which wants lib@0.1.0)
+	// Since lib is a path dep resolved via helper, the version comes from lib's manifest (0.1.0)
+	// but app's direct dep says version "0.2.0" — this should conflict
+	appDir := filepath.Join(root, "app")
+	writeManifest(t, appDir, `
+[package]
+name = "test/app"
+version = "1.0.0"
+edition = "1"
+
+[dependencies]
+"test/helper" = { path = "../helper" }
+"test/lib" = { path = "../lib" }
+`)
+
+	// Note: both point to the same lib dir (version 0.1.0), so no conflict here.
+	// To test a real conflict, we need two different versions of lib.
+	// Let's use a different approach: create lib-v2 at a different path.
+	libV2Dir := filepath.Join(root, "lib-v2")
+	writeManifest(t, libV2Dir, `
+[package]
+name = "test/lib"
+version = "0.2.0"
+edition = "1"
+`)
+
+	// app: direct dep on lib@0.2.0 via lib-v2, transitive on lib@0.1.0 via helper→lib
+	appDir2 := filepath.Join(root, "app2")
+	writeManifest(t, appDir2, `
+[package]
+name = "test/app2"
+version = "1.0.0"
+edition = "1"
+
+[dependencies]
+"test/helper" = { path = "../helper" }
+"test/lib" = { path = "../lib-v2" }
+`)
+
+	manifest, err := LoadManifest(appDir2)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+
+	_, err = ResolveDependencies(manifest, appDir2)
+	if err == nil {
+		t.Fatal("expected VersionConflictError, got nil")
+	}
+
+	var conflictErr *VersionConflictError
+	if !errors.As(err, &conflictErr) {
+		t.Fatalf("expected *VersionConflictError, got %T: %v", err, err)
+	}
+	if conflictErr.Package != "test/lib" {
+		t.Errorf("conflict package = %q, want test/lib", conflictErr.Package)
+	}
+	// One version should be 0.1.0, the other 0.2.0
+	versions := []string{conflictErr.ExistingVersion, conflictErr.RequestedVersion}
+	sort.Strings(versions)
+	if versions[0] != "0.1.0" || versions[1] != "0.2.0" {
+		t.Errorf("conflict versions = %v, want [0.1.0, 0.2.0]", versions)
+	}
+
+	// Error message should be actionable
+	errStr := err.Error()
+	if !strings.Contains(errStr, "version conflict") {
+		t.Errorf("error should contain 'version conflict', got: %s", errStr)
+	}
+	if !strings.Contains(errStr, "suggestion") {
+		t.Errorf("error should contain 'suggestion', got: %s", errStr)
+	}
+}
+
+func TestResolveDependencies_SameVersionNoConflict(t *testing.T) {
+	// Scenario: app and helper both depend on lib@0.1.0 — no conflict
+	root := t.TempDir()
+
+	libDir := filepath.Join(root, "lib")
+	writeManifest(t, libDir, `
+[package]
+name = "test/lib"
+version = "0.1.0"
+edition = "1"
+`)
+
+	helperDir := filepath.Join(root, "helper")
+	writeManifest(t, helperDir, `
+[package]
+name = "test/helper"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"test/lib" = { path = "../lib" }
+`)
+
+	appDir := filepath.Join(root, "app")
+	writeManifest(t, appDir, `
+[package]
+name = "test/app"
+version = "1.0.0"
+edition = "1"
+
+[dependencies]
+"test/helper" = { path = "../helper" }
+"test/lib" = { path = "../lib" }
+`)
+
+	manifest, err := LoadManifest(appDir)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+
+	resolved, err := ResolveDependencies(manifest, appDir)
+	if err != nil {
+		t.Fatalf("same version should not conflict: %v", err)
+	}
+
+	// Should have lib and helper (deduplicated)
+	if len(resolved) != 2 {
+		t.Fatalf("expected 2 resolved, got %d", len(resolved))
+	}
+
+	// Verify lib is resolved exactly once at 0.1.0
+	for _, r := range resolved {
+		if r.Name == "test/lib" && r.Version != "0.1.0" {
+			t.Errorf("lib version = %s, want 0.1.0", r.Version)
 		}
 	}
 }

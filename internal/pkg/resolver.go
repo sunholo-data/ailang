@@ -4,8 +4,37 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
+
+// VersionConflictError is returned when the dependency graph has incompatible
+// version requirements for the same package.
+type VersionConflictError struct {
+	Package          string // e.g., "sunholo/firestore"
+	DirectVersion    string // root manifest's version (empty if not a direct dep)
+	ExistingVersion  string // version already resolved
+	RequestedVersion string // conflicting version requested
+	RequestedBy      string // package that requested the conflicting version
+}
+
+func (e *VersionConflictError) Error() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "version conflict: %s\n", e.Package)
+	if e.DirectVersion != "" {
+		fmt.Fprintf(&b, "  root requires: %s\n", e.DirectVersion)
+	}
+	fmt.Fprintf(&b, "  already resolved: %s\n", e.ExistingVersion)
+	fmt.Fprintf(&b, "  transitive requires: %s (via %s)\n", e.RequestedVersion, e.RequestedBy)
+	b.WriteString("\nresolution aborted\n\nsuggestion:\n")
+	if e.DirectVersion != "" {
+		fmt.Fprintf(&b, "  - republish %s against %s@%s\n", e.RequestedBy, e.Package, e.DirectVersion)
+		fmt.Fprintf(&b, "  - or change root dependency to %s@%s explicitly\n", e.Package, e.ExistingVersion)
+	} else {
+		fmt.Fprintf(&b, "  - pin %s in root ailang.toml to resolve ambiguity\n", e.Package)
+	}
+	return b.String()
+}
 
 // ResolvedPackage is a fully resolved dependency with computed hash.
 type ResolvedPackage struct {
@@ -36,7 +65,15 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 	visited := make(map[string]bool) // fully resolved
 	inStack := make(map[string]bool) // currently being resolved (cycle detection)
 	resolved := []ResolvedPackage{}
-	resolvedSet := make(map[string]bool)
+	resolvedSet := make(map[string]string) // name → resolved version
+
+	// Collect root direct dependency versions (authoritative)
+	directDeps := make(map[string]string) // name → version
+	for depName, dep := range manifest.Dependencies {
+		if dep.Version != "" {
+			directDeps[depName] = dep.Version
+		}
+	}
 
 	// Shared registry client for all registry lookups in this resolution
 	var registryClient *RegistryClient
@@ -56,8 +93,15 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 		inStack[name] = true
 		defer func() { delete(inStack, name) }()
 
-		// Resolve each dependency
-		for depName, dep := range m.Dependencies {
+		// Resolve each dependency (sorted for deterministic order)
+		depNames := make([]string, 0, len(m.Dependencies))
+		for n := range m.Dependencies {
+			depNames = append(depNames, n)
+		}
+		sort.Strings(depNames)
+
+		for _, depName := range depNames {
+			dep := m.Dependencies[depName]
 			// When inside a registry package, path deps can't be resolved locally.
 			// Convert them to registry lookups using the registry index.
 			if fromRegistry && dep.Path != "" {
@@ -110,8 +154,18 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					return err
 				}
 
-				// Add this dep if not already resolved
-				if !resolvedSet[depName] {
+				// Add this dep if not already resolved (with version conflict detection)
+				if existingVer, already := resolvedSet[depName]; already {
+					if existingVer != depManifest.Package.Version {
+						return &VersionConflictError{
+							Package:          depName,
+							DirectVersion:    directDeps[depName],
+							ExistingVersion:  existingVer,
+							RequestedVersion: depManifest.Package.Version,
+							RequestedBy:      name,
+						}
+					}
+				} else {
 					hash, err := ContentHash(depDir)
 					if err != nil {
 						return fmt.Errorf("failed to hash %s: %w", depName, err)
@@ -128,7 +182,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						Effects:       depManifest.Effects.Max,
 						Exports:       depManifest.Exports.Modules,
 					})
-					resolvedSet[depName] = true
+					resolvedSet[depName] = depManifest.Package.Version
 				}
 			} else if dep.Git != "" {
 				// Git dependency — clone/fetch to cache, resolve to local path
@@ -155,7 +209,17 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 					return err
 				}
 
-				if !resolvedSet[depName] {
+				if existingVer, already := resolvedSet[depName]; already {
+					if existingVer != depManifest.Package.Version {
+						return &VersionConflictError{
+							Package:          depName,
+							DirectVersion:    directDeps[depName],
+							ExistingVersion:  existingVer,
+							RequestedVersion: depManifest.Package.Version,
+							RequestedBy:      name,
+						}
+					}
+				} else {
 					hash, err := ContentHash(localPath)
 					if err != nil {
 						return fmt.Errorf("failed to hash git dep %s: %w", depName, err)
@@ -175,11 +239,21 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						Effects:   depManifest.Effects.Max,
 						Exports:   depManifest.Exports.Modules,
 					})
-					resolvedSet[depName] = true
+					resolvedSet[depName] = depManifest.Package.Version
 				}
 			} else {
 				// Registry dependency — download from registry, cache locally
-				if !resolvedSet[depName] {
+				if existingVer, already := resolvedSet[depName]; already {
+					if existingVer != dep.Version {
+						return &VersionConflictError{
+							Package:          depName,
+							DirectVersion:    directDeps[depName],
+							ExistingVersion:  existingVer,
+							RequestedVersion: dep.Version,
+							RequestedBy:      name,
+						}
+					}
+				} else {
 					if registryClient == nil {
 						registryClient = NewRegistryClient()
 					}
@@ -229,7 +303,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						Effects: depManifest.Effects.Max,
 						Exports: depManifest.Exports.Modules,
 					})
-					resolvedSet[depName] = true
+					resolvedSet[depName] = dep.Version
 				}
 			}
 		}
@@ -240,6 +314,22 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 
 	if err := resolve(manifest, rootDir, false, nil); err != nil {
 		return nil, err
+	}
+
+	// Post-resolution validation: verify direct deps are authoritative
+	// If a transitive dep resolved a different version than the root manifest
+	// specifies, the resolve() above should have caught it. But as a safety
+	// net, verify here too.
+	for depName, directVersion := range directDeps {
+		if resolvedVersion, ok := resolvedSet[depName]; ok && resolvedVersion != directVersion {
+			return nil, &VersionConflictError{
+				Package:          depName,
+				DirectVersion:    directVersion,
+				ExistingVersion:  resolvedVersion,
+				RequestedVersion: directVersion,
+				RequestedBy:      "(root manifest)",
+			}
+		}
 	}
 
 	return resolved, nil
