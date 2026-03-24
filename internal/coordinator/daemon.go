@@ -316,6 +316,10 @@ func (d *Daemon) Run() error {
 		d.logger.Printf("Triggered %d missed handoff(s) from previous approvals", count)
 	}
 
+	// M-OBS-RETENTION: Periodic retention cleanup (every hour)
+	retentionTicker := time.NewTicker(1 * time.Hour)
+	defer retentionTicker.Stop()
+
 	for {
 		select {
 		case <-d.ctx.Done():
@@ -339,6 +343,35 @@ func (d *Daemon) Run() error {
 
 			// Sync worktree manager state with disk (handles CLI-initiated cleanups)
 			d.syncWorktreeState()
+
+		case <-retentionTicker.C:
+			// M-OBS-RETENTION: Run retention cleanup on observatory + coordinator DBs
+			d.runRetentionCleanup()
+		}
+	}
+}
+
+// runRetentionCleanup runs periodic retention on observatory and coordinator databases.
+func (d *Daemon) runRetentionCleanup() {
+	// Observatory DB retention (spans, metrics, chat_messages)
+	obsStore, err := observatory.OpenDefaultStore()
+	if err == nil {
+		stats, err := obsStore.RunRetention(d.ctx)
+		obsStore.Close()
+		if err != nil {
+			d.logger.Printf("Warning: observatory retention failed: %v", err)
+		} else if stats.Total() > 0 {
+			d.logger.Printf("Observatory retention: %s", stats)
+		}
+	}
+
+	// Coordinator task_events retention (30-day TTL)
+	if sqliteStore, ok := d.taskStore.(*SQLiteStore); ok {
+		count, err := sqliteStore.DeleteOldTaskEvents(d.ctx, 30*24*time.Hour)
+		if err != nil {
+			d.logger.Printf("Warning: task event cleanup failed: %v", err)
+		} else if count > 0 {
+			d.logger.Printf("Task event retention: deleted %d old events", count)
 		}
 	}
 }

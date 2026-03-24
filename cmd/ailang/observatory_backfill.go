@@ -210,6 +210,22 @@ func observatoryCleanupCommand() {
 			}
 		}
 	}
+
+	// M-OBS-RETENTION: Also run full retention on all tables (chat, metrics, summaries, tools)
+	fmt.Println()
+	fmt.Println("Running full retention (7d spans/metrics, 30d chat/tools)...")
+	obsStore, err := observatory.OpenDefaultStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to open store for retention: %v\n", err)
+		return
+	}
+	defer obsStore.Close()
+	stats, err := obsStore.RunRetention(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: retention failed: %v\n", err)
+	} else {
+		fmt.Printf("Retention: %s (total: %d rows)\n", stats, stats.Total())
+	}
 }
 
 // BackfillOptions configures the backfill operation.
