@@ -385,7 +385,31 @@ func runAilangCheck(dir string) (bool, string) {
 			}
 		}
 
-		// Step 2: Generate lockfile with registry-resolved deps
+		// Step 2: Install each dependency from registry, then generate lockfile.
+		// ailang lock needs packages in the local cache to resolve them.
+		reloadedManifest, _ := pkg.LoadManifest(dir)
+		if reloadedManifest != nil {
+			for depName, dep := range reloadedManifest.Dependencies {
+				if dep.Path != "" {
+					continue // skip any remaining path deps
+				}
+				ver := dep.Version
+				if ver == "" {
+					ver = lookupLatestVersion(depName)
+				}
+				if ver != "" {
+					installArg := depName + "@" + ver
+					installCmd := exec.Command("ailang", "install", installArg)
+					installCmd.Dir = dir
+					if out, err := installCmd.CombinedOutput(); err != nil {
+						log.Printf("Warning: ailang install %s failed: %s", installArg, string(out))
+					} else {
+						log.Printf("Installed dep: %s", installArg)
+					}
+				}
+			}
+		}
+
 		lockCmd := exec.Command("ailang", "lock")
 		lockCmd.Dir = dir
 		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
