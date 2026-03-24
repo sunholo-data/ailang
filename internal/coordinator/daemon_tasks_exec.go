@@ -13,6 +13,7 @@ import (
 
 	"github.com/sunholo/ailang/internal/messaging"
 	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo/ailang/internal/pkg"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -596,19 +597,61 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			}
 		}
 
-		// M-PKG-AUTONOMOUS-UPDATES: Deterministic publish for package agents.
-		// Run `ailang publish` in the worktree after agent finishes, regardless of
-		// whether the AI remembered to do it. This is the same pattern as the cloud
-		// executor's deterministic git push — don't rely on the AI for side effects.
+		// M-PKG-AUTONOMOUS-UPDATES: Deterministic version bump + publish for package agents.
+		// Don't rely on the AI for mechanical steps — bump version based on change class
+		// and run `ailang publish` deterministically after the agent finishes.
 		if agentConfig != nil && agentConfig.Subdirectory != "" && worktreePath != "" {
 			publishDir := filepath.Join(worktreePath, agentConfig.Subdirectory)
+
+			// Determine bump type from change class (re-read message to classify)
+			bumpType := "patch" // Default for Class A
+			if task.MessageID != "" && d.msgStore != nil {
+				if msg, err := d.msgStore.GetInboxMessage(task.MessageID); err == nil && msg != nil {
+					env, _ := messaging.ExtractPackageEnvelope(msg)
+					if env != nil {
+						switch ClassifyChange(env) {
+						case ChangeClassB:
+							bumpType = "minor"
+						case ChangeClassC:
+							bumpType = "major"
+						}
+					}
+				}
+			}
+
+			// Deterministic version bump in ailang.toml
+			tomlPath := filepath.Join(publishDir, "ailang.toml")
+			if tomlData, err := os.ReadFile(tomlPath); err == nil {
+				manifest, _ := pkg.LoadManifest(publishDir)
+				if manifest != nil {
+					newVersion, bumpErr := pkg.BumpSemver(manifest.Package.Version, bumpType)
+					if bumpErr == nil {
+						// Replace version in ailang.toml
+						oldLine := fmt.Sprintf(`version = "%s"`, manifest.Package.Version)
+						newLine := fmt.Sprintf(`version = "%s"`, newVersion)
+						updated := strings.Replace(string(tomlData), oldLine, newLine, 1)
+						if err := os.WriteFile(tomlPath, []byte(updated), 0644); err == nil {
+							d.logger.Printf("Deterministic version bump: %s → %s (%s) for %s",
+								manifest.Package.Version, newVersion, bumpType, agentConfig.ID)
+							// Commit the version bump
+							commitCmd := exec.Command("git", "-C", worktreePath, "add", "-A")
+							commitCmd.Run()
+							commitMsg := fmt.Sprintf("chore: bump %s %s → %s (%s update)", manifest.Package.Name, manifest.Package.Version, newVersion, bumpType)
+							exec.Command("git", "-C", worktreePath, "commit", "-m", commitMsg).Run()
+						}
+					} else {
+						d.logger.Printf("Warning: Version bump failed for %s: %v", agentConfig.ID, bumpErr)
+					}
+				}
+			}
+
+			// Deterministic publish
 			d.logger.Printf("Running deterministic publish for package agent %s in %s", agentConfig.ID, publishDir)
 			publishCmd := exec.Command("ailang", "publish")
 			publishCmd.Dir = publishDir
 			publishOutput, publishErr := publishCmd.CombinedOutput()
 			if publishErr != nil {
 				d.logger.Printf("Warning: Deterministic publish failed for %s: %s\n%s", agentConfig.ID, publishErr, string(publishOutput))
-				// Don't fail the task — publish failure is logged but agent work is preserved
 			} else {
 				d.logger.Printf("Deterministic publish succeeded for %s: %s", agentConfig.ID, strings.TrimSpace(string(publishOutput)))
 			}

@@ -164,3 +164,39 @@ func TestFormatVersionConstraint(t *testing.T) {
 		})
 	}
 }
+
+func TestBumpSemver(t *testing.T) {
+	tests := []struct {
+		version, bump, want string
+		err                 bool
+	}{
+		{"0.1.0", "patch", "0.1.1", false},
+		{"0.1.0", "minor", "0.2.0", false},
+		{"0.1.0", "major", "1.0.0", false},
+		{"1.2.3", "patch", "1.2.4", false},
+		{"1.2.3", "minor", "1.3.0", false},
+		{"1.2.3", "major", "2.0.0", false},
+		{"0.0.1", "patch", "0.0.2", false},
+		{"0.0.1", "minor", "0.1.0", false},
+		{"0.0.1", "major", "1.0.0", false},
+		{"0.1.0", "invalid", "", true},
+		{"bad", "patch", "", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.version+"_"+tc.bump, func(t *testing.T) {
+			got, err := BumpSemver(tc.version, tc.bump)
+			if tc.err {
+				if err == nil {
+					t.Errorf("expected error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("BumpSemver(%q, %q) = %q, want %q", tc.version, tc.bump, got, tc.want)
+			}
+		})
+	}
+}

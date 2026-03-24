@@ -118,6 +118,29 @@ func SatisfiesAILANGVersion(requirement, currentVersion string) (bool, error) {
 	return current.gte(required), nil
 }
 
+// BumpSemver increments a version string by the specified bump type.
+// bumpType must be "patch", "minor", or "major".
+func BumpSemver(version, bumpType string) (string, error) {
+	sv, err := ParseSemver(version)
+	if err != nil {
+		return "", err
+	}
+	switch bumpType {
+	case "patch":
+		sv.Patch++
+	case "minor":
+		sv.Minor++
+		sv.Patch = 0
+	case "major":
+		sv.Major++
+		sv.Minor = 0
+		sv.Patch = 0
+	default:
+		return "", fmt.Errorf("invalid bump type %q: must be patch, minor, or major", bumpType)
+	}
+	return fmt.Sprintf("%d.%d.%d", sv.Major, sv.Minor, sv.Patch), nil
+}
+
 // FormatVersionConstraint creates a >=X.Y.Z constraint from a version string.
 func FormatVersionConstraint(version string) string {
 	v := strings.TrimPrefix(version, "v")
