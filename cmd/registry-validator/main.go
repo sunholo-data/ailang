@@ -499,21 +499,27 @@ func lookupLatestVersion(pkgName string) string {
 	if registryURL == "" {
 		registryURL = "https://storage.googleapis.com/ailang-registry"
 	}
-	// Fetch index.json
 	indexURL := registryURL + "/index.json"
-	cmd := exec.Command("curl", "-sf", indexURL)
-	output, err := cmd.Output()
+
+	resp, err := http.Get(indexURL)
+	if err != nil {
+		log.Printf("Warning: failed to fetch registry index: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return ""
 	}
-	// Parse index to find package
+
 	var index struct {
 		Packages []struct {
 			Name   string `json:"name"`
 			Latest string `json:"latest"`
 		} `json:"packages"`
 	}
-	if err := json.Unmarshal(output, &index); err != nil {
+	if err := json.Unmarshal(body, &index); err != nil {
 		return ""
 	}
 	for _, p := range index.Packages {
