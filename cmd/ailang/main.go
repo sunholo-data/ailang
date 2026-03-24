@@ -363,13 +363,31 @@ func main() {
 			fmt.Println("Usage: ailang pkg <command>")
 			fmt.Println()
 			fmt.Println("Commands:")
-			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message")
-			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
+			fmt.Println("  info <vendor/name>          Show detailed package information")
+			fmt.Println("  versions <vendor/name>      List all versions with hashes")
+			fmt.Println("  stats                       Show ecosystem-wide statistics")
 			fmt.Println("  provenance <pkg>@<ver>      Show provenance chain for a version")
 			fmt.Println("  history <pkg>@<ver>         Show version history timeline")
+			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message")
+			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
 			os.Exit(1)
 		}
 		switch subArgs[0] {
+		case "info":
+			if err := pkgInfoCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "versions":
+			if err := pkgVersionsCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "stats":
+			if err := pkgStatsCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
 		case "notify-upgrade":
 			if err := pkgNotifyUpgradeCommand(subArgs[1:]); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
