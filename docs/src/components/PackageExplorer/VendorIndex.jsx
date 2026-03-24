@@ -7,16 +7,25 @@ import styles from './styles.module.css';
  */
 export default function VendorIndex({ vendor, packages = [] }) {
   if (!packages || packages.length === 0) {
-    return <p>No packages found for {vendor}.</p>;
+    return (
+      <div className={styles.emptyState}>
+        <p>No packages found for <strong>{vendor}</strong>.</p>
+      </div>
+    );
   }
 
   return (
     <div className={styles.vendorGrid}>
       {packages.map((pkg) => {
         const shortName = pkg.name.split('/')[1];
-        const effects = pkg.effects && pkg.effects.length > 0
-          ? pkg.effects.join(', ')
-          : 'Pure';
+        const isPure = !pkg.effects || pkg.effects.length === 0;
+        const effects = isPure ? 'Pure' : pkg.effects.join(', ');
+
+        const stabilityClass = pkg.stability === 'stable'
+          ? styles.stabilityStable
+          : pkg.stability === 'frozen'
+            ? styles.stabilityFrozen
+            : styles.stabilityBadge;
 
         return (
           <a
@@ -30,10 +39,10 @@ export default function VendorIndex({ vendor, packages = [] }) {
             </div>
             <p className={styles.summary}>{pkg.ai_summary || 'No description'}</p>
             <div className={styles.badges}>
-              <span className={`${styles.badge} ${styles.stabilityBadge}`}>
+              <span className={`${styles.badge} ${stabilityClass}`}>
                 {pkg.stability || 'experimental'}
               </span>
-              <span className={`${styles.badge} ${styles.effectBadge}`}>
+              <span className={`${styles.badge} ${isPure ? styles.effectPure : styles.effectBadge}`}>
                 {effects}
               </span>
               {(pkg.tags || []).slice(0, 3).map((tag) => (
