@@ -40,8 +40,8 @@ When running `ailang install foo@1.0` and `foo` already exists in ailang.toml, i
 ### 2. `../` parent traversal not supported in relative imports
 Only `./sibling` and `./sub/child` work. `../types/document` doesn't. Deferred by design — `./` covers most use cases. Add later if real projects need it.
 
-### 3. Validator Terraform doesn't auto-deploy on image push
-The Cloud Run revision doesn't automatically roll over when a new image is pushed to Artifact Registry. Requires manual `gcloud run services update` or Terraform variable change. Should add image digest tracking to Terraform.
+### 3. Validator auto-deploys via Cloud Build trigger only
+The `cloudbuild-registry.yaml` trigger includes a `redeploy-validator` step that runs `gcloud run services update` to force Cloud Run to pull the new `:latest` image. This works automatically when using the trigger. Manual `docker push` without the trigger would NOT auto-deploy (Cloud Run doesn't watch Artifact Registry for changes). Always use the trigger or include an explicit `gcloud run services update` step.
 
 ### 4. No `ailang install` overwrite mode
 `ailang install foo@1.0` should update an existing dep entry, not add a duplicate. Simple fix in the install command's TOML writer.
