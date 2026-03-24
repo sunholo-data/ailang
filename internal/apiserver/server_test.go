@@ -258,8 +258,19 @@ func TestFunctionCallErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("GET not allowed for function calls", func(t *testing.T) {
+	t.Run("GET allowed for function calls", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/test/api/greet/hello", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+
+		// GET is now allowed — should attempt the call (not 405)
+		if w.Code == http.StatusMethodNotAllowed {
+			t.Fatalf("GET should be allowed for function calls, got 405")
+		}
+	})
+
+	t.Run("DELETE not allowed for function calls", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/test/api/greet/hello", nil)
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
 

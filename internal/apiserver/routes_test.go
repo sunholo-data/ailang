@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -156,5 +157,60 @@ func TestParseArgs_SingleValue(t *testing.T) {
 	}
 	if args[0] != "just a string" {
 		t.Errorf("expected 'just a string', got %v", args[0])
+	}
+}
+
+func TestParseQueryArgs_Positional(t *testing.T) {
+	query := url.Values{"args": {"3", "5"}}
+	args := parseQueryArgs(query)
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+	// Numbers should be parsed as float64
+	if args[0] != float64(3) {
+		t.Errorf("expected 3, got %v (%T)", args[0], args[0])
+	}
+	if args[1] != float64(5) {
+		t.Errorf("expected 5, got %v (%T)", args[1], args[1])
+	}
+}
+
+func TestParseQueryArgs_Named(t *testing.T) {
+	query := url.Values{"name": {"Alice"}, "age": {"30"}}
+	args := parseQueryArgs(query)
+	if len(args) != 1 {
+		t.Fatalf("expected 1 record arg, got %d", len(args))
+	}
+	record, ok := args[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map, got %T", args[0])
+	}
+	if record["name"] != "Alice" {
+		t.Errorf("expected name=Alice, got %v", record["name"])
+	}
+	if record["age"] != float64(30) {
+		t.Errorf("expected age=30, got %v (%T)", record["age"], record["age"])
+	}
+}
+
+func TestParseQueryArgs_Empty(t *testing.T) {
+	args := parseQueryArgs(url.Values{})
+	if args != nil {
+		t.Fatalf("expected nil for empty query, got %v", args)
+	}
+}
+
+func TestParseQueryArgs_StringValues(t *testing.T) {
+	query := url.Values{"query": {"hello world"}, "flag": {"true"}}
+	args := parseQueryArgs(query)
+	if len(args) != 1 {
+		t.Fatalf("expected 1 record arg, got %d", len(args))
+	}
+	record := args[0].(map[string]interface{})
+	if record["query"] != "hello world" {
+		t.Errorf("expected 'hello world', got %v", record["query"])
+	}
+	if record["flag"] != true {
+		t.Errorf("expected true, got %v (%T)", record["flag"], record["flag"])
 	}
 }

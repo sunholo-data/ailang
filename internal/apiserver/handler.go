@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -27,9 +29,9 @@ type FunctionCallResponse struct {
 // handleFunctionCall is the generic handler for calling any AILANG exported function.
 // URL pattern: POST /api/{modulePath}/{functionName}
 func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	if r.Method != "POST" && r.Method != "GET" {
 		writeJSON(w, http.StatusMethodNotAllowed, FunctionCallResponse{
-			Error: "use POST with JSON body to call functions",
+			Error: "use GET with query params or POST with JSON body to call functions",
 		})
 		return
 	}
@@ -121,6 +123,69 @@ func parseArgs(body []byte) ([]interface{}, error) {
 	}
 
 	return []interface{}{singleArg}, nil
+}
+
+// parseQueryArgs extracts function arguments from URL query parameters.
+// Supports two conventions:
+//  1. Positional: ?args=val1&args=val2 → ["val1", "val2"]
+//  2. Named: ?name=Alice&age=30 → [{name: "Alice", age: 30}] (single record arg)
+func parseQueryArgs(query url.Values) []interface{} {
+	if len(query) == 0 {
+		return nil
+	}
+
+	// Convention 1: positional via ?args=...&args=...
+	if positional, ok := query["args"]; ok {
+		result := make([]interface{}, len(positional))
+		for i, a := range positional {
+			result[i] = tryParseJSON(a)
+		}
+		return result
+	}
+
+	// Convention 2: named params → single record arg
+	record := make(map[string]interface{})
+	for key, values := range query {
+		if len(values) == 1 {
+			record[key] = tryParseJSON(values[0])
+		} else {
+			parsed := make([]interface{}, len(values))
+			for i, v := range values {
+				parsed[i] = tryParseJSON(v)
+			}
+			record[key] = parsed
+		}
+	}
+	if len(record) > 0 {
+		return []interface{}{record}
+	}
+	return nil
+}
+
+// tryParseJSON attempts to parse a string as a JSON value (number, bool, null).
+// Falls back to returning the string as-is.
+func tryParseJSON(s string) interface{} {
+	// Try integer
+	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return float64(i) // JSON numbers are float64
+	}
+	// Try float
+	if f, err := strconv.ParseFloat(s, 64); err == nil {
+		return f
+	}
+	// Try bool
+	if b, err := strconv.ParseBool(s); err == nil {
+		return b
+	}
+	// Try JSON object/array
+	if (strings.HasPrefix(s, "{") && strings.HasSuffix(s, "}")) ||
+		(strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]")) {
+		var v interface{}
+		if err := json.Unmarshal([]byte(s), &v); err == nil {
+			return v
+		}
+	}
+	return s
 }
 
 // writeJSON writes a JSON response with the given status code.

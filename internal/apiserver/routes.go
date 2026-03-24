@@ -163,6 +163,11 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
+	// Fall back to query parameters when body args are empty (e.g., GET requests)
+	if len(args) == 0 && len(r.URL.Query()) > 0 {
+		args = parseQueryArgs(r.URL.Query())
+	}
+
 	// Call AILANG function
 	debugConc := os.Getenv("DEBUG_CONCURRENCY") == "1"
 	if debugConc {
