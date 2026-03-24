@@ -3,6 +3,9 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"log"
+	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -41,6 +44,13 @@ func InitOTLP(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 		return func(context.Context) error { return nil }, nil
 	}
 
+	// Health check: skip if endpoint is unreachable to avoid blocking exports
+	if !isOTLPReachable() {
+		endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+		log.Printf("OTLP endpoint %s unreachable — telemetry disabled", endpoint)
+		return func(context.Context) error { return nil }, nil
+	}
+
 	var shutdownFuncs []func(context.Context) error
 
 	// Create resource
@@ -49,8 +59,10 @@ func InitOTLP(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 		return nil, err
 	}
 
-	// Setup trace exporter
-	traceExporter, err := otlptracehttp.New(ctx)
+	// Setup trace exporter with short timeout
+	traceExporter, err := otlptracehttp.New(ctx,
+		otlptracehttp.WithTimeout(3*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +76,10 @@ func InitOTLP(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
-	// Setup metric exporter
-	metricExporter, err := otlpmetrichttp.New(ctx)
+	// Setup metric exporter with short timeout
+	metricExporter, err := otlpmetrichttp.New(ctx,
+		otlpmetrichttp.WithTimeout(3*time.Second),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +212,34 @@ func InitGoogleCloudTrace(ctx context.Context, serviceName string) (ShutdownFunc
 	}, nil
 }
 
+// isOTLPReachable performs a quick TCP connection check to the OTLP endpoint.
+// Returns false if the endpoint is unreachable, preventing the exporter from
+// blocking on failed HTTP requests every 5 seconds (which causes laptop slowdowns).
+func isOTLPReachable() bool {
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		return false
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	host := u.Host
+	if host == "" {
+		host = u.Path // Handle bare host:port
+	}
+	if _, _, err := net.SplitHostPort(host); err != nil {
+		// No port specified, add default OTLP port
+		host = net.JoinHostPort(host, "4318")
+	}
+	conn, err := net.DialTimeout("tcp", host, 1*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
 // IsDualExportEnabled returns true if both GCP and OTLP are configured.
 // This enables sending traces to both destinations simultaneously.
 func IsDualExportEnabled() bool {
@@ -240,14 +282,23 @@ func InitDual(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 		spanExporters = append(spanExporters, gcpExporter)
 	}
 
-	// Add OTLP exporter
-	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
-		otlpExporter, err := otlptracehttp.New(ctx)
-		if err != nil {
-			return nil, err
+	// Add OTLP exporter — but only if the endpoint is reachable.
+	// When the dashboard isn't running, failed exports block for up to 30s each
+	// (default HTTP timeout), causing significant laptop pressure every 5s batch cycle.
+	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if otlpEndpoint != "" {
+		if isOTLPReachable() {
+			otlpExporter, err := otlptracehttp.New(ctx,
+				otlptracehttp.WithTimeout(3*time.Second), // Short timeout to avoid blocking
+			)
+			if err != nil {
+				return nil, err
+			}
+			shutdownFuncs = append(shutdownFuncs, otlpExporter.Shutdown)
+			spanExporters = append(spanExporters, otlpExporter)
+		} else {
+			log.Printf("OTLP endpoint %s unreachable — skipping (traces still go to GCP)", otlpEndpoint)
 		}
-		shutdownFuncs = append(shutdownFuncs, otlpExporter.Shutdown)
-		spanExporters = append(spanExporters, otlpExporter)
 	}
 
 	// Create trace provider with multiple exporters
@@ -264,8 +315,11 @@ func InitDual(ctx context.Context, serviceName string) (ShutdownFunc, error) {
 	otel.SetTracerProvider(tracerProvider)
 
 	// Setup metric exporter (OTLP only - GCP uses separate metrics API)
-	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
-		metricExporter, err := otlpmetrichttp.New(ctx)
+	// Only if OTLP was successfully connected above.
+	if otlpEndpoint != "" && isOTLPReachable() {
+		metricExporter, err := otlpmetrichttp.New(ctx,
+			otlpmetrichttp.WithTimeout(3*time.Second),
+		)
 		if err != nil {
 			return nil, err
 		}
