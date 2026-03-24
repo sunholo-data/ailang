@@ -359,23 +359,18 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 func runAilangCheck(dir string) (bool, string) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
 	if fileExists(filepath.Join(dir, "ailang.toml")) {
-		// Step 1: Install dependencies from the registry so ailang lock can resolve them.
-		// Path deps in ailang.toml won't exist in the validator's temp dir,
-		// so we install each dependency from the registry first.
+		// Step 1: Rewrite path deps to registry deps.
+		// The tarball's ailang.toml has path deps (e.g., { path = "../gcp-auth" })
+		// which don't exist in the validator's temp dir. Replace them with
+		// registry version deps so ailang lock can resolve them.
 		manifest, err := pkg.LoadManifest(dir)
 		if err == nil && len(manifest.Dependencies) > 0 {
-			for depName := range manifest.Dependencies {
-				installCmd := exec.Command("ailang", "install", depName)
-				installCmd.Dir = dir
-				if installOutput, err := installCmd.CombinedOutput(); err != nil {
-					log.Printf("Warning: ailang install %s failed: %s", depName, string(installOutput))
-				} else {
-					log.Printf("Installed dependency: %s", depName)
-				}
+			if err := rewritePathDepsToRegistry(dir, manifest); err != nil {
+				log.Printf("Warning: failed to rewrite path deps: %v", err)
 			}
 		}
 
-		// Step 2: Generate lockfile (may use registry-installed deps instead of path deps)
+		// Step 2: Generate lockfile with registry-resolved deps
 		lockCmd := exec.Command("ailang", "lock")
 		lockCmd.Dir = dir
 		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
@@ -448,6 +443,85 @@ func runAilangVerify(dir string) (verified, total, skipped int) {
 		}
 	}
 	return
+}
+
+// rewritePathDepsToRegistry reads ailang.toml, replaces path dependencies with
+// registry version strings (latest version from registry index), and writes back.
+// This enables the validator to resolve deps that were local path deps during development.
+func rewritePathDepsToRegistry(dir string, manifest *pkg.PackageManifest) error {
+	tomlPath := filepath.Join(dir, "ailang.toml")
+	data, err := os.ReadFile(tomlPath)
+	if err != nil {
+		return fmt.Errorf("read ailang.toml: %w", err)
+	}
+	content := string(data)
+
+	for depName, dep := range manifest.Dependencies {
+		if dep.Path == "" {
+			continue // Not a path dep — skip
+		}
+		// Replace the path dep line with a version dep.
+		// Look up the latest version from registry index.
+		version := lookupLatestVersion(depName)
+		if version == "" {
+			log.Printf("Warning: dependency %s not found in registry, skipping", depName)
+			continue
+		}
+
+		// Replace various path dep formats:
+		//   "vendor/name" = { path = "..." }
+		//   "vendor/name" = { path = "../something" }
+		// with:
+		//   "vendor/name" = "version"
+		old := fmt.Sprintf(`"%s" = { path = "%s" }`, depName, dep.Path)
+		new := fmt.Sprintf(`"%s" = "%s"`, depName, version)
+		if strings.Contains(content, old) {
+			content = strings.Replace(content, old, new, 1)
+			log.Printf("Rewrote dep %s: path -> registry %s", depName, version)
+		} else {
+			// Try without quotes around path value
+			old2 := fmt.Sprintf(`"%s" = {path = "%s"}`, depName, dep.Path)
+			if strings.Contains(content, old2) {
+				content = strings.Replace(content, old2, new, 1)
+				log.Printf("Rewrote dep %s: path -> registry %s", depName, version)
+			} else {
+				log.Printf("Warning: could not find path dep pattern for %s in ailang.toml", depName)
+			}
+		}
+	}
+
+	return os.WriteFile(tomlPath, []byte(content), 0644)
+}
+
+// lookupLatestVersion fetches the registry index and finds the latest version of a package.
+func lookupLatestVersion(pkgName string) string {
+	registryURL := os.Getenv("AILANG_REGISTRY")
+	if registryURL == "" {
+		registryURL = "https://storage.googleapis.com/ailang-registry"
+	}
+	// Fetch index.json
+	indexURL := registryURL + "/index.json"
+	cmd := exec.Command("curl", "-sf", indexURL)
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	// Parse index to find package
+	var index struct {
+		Packages []struct {
+			Name   string `json:"name"`
+			Latest string `json:"latest"`
+		} `json:"packages"`
+	}
+	if err := json.Unmarshal(output, &index); err != nil {
+		return ""
+	}
+	for _, p := range index.Packages {
+		if p.Name == pkgName {
+			return p.Latest
+		}
+	}
+	return ""
 }
 
 func getAilangVersion() string {
