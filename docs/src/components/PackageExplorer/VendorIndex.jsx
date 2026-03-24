@@ -30,7 +30,7 @@ export default function VendorIndex({ vendor, packages = [] }) {
         return (
           <a
             key={pkg.name}
-            href={`./${shortName}`}
+            href={`/docs/packages/${vendor}/${shortName}`}
             className={styles.packageCard}
           >
             <div className={styles.cardHeader}>
