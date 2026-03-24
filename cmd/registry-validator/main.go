@@ -236,6 +236,21 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// M-PKG-AUTONOMOUS-UPDATES: Upload AGENT.md as a separate first-class artifact.
+		// Makes it directly queryable without downloading the tarball.
+		agentMDPath := filepath.Join(tempDir, "AGENT.md")
+		if hasAgentDoc {
+			agentMDData, err := os.ReadFile(agentMDPath)
+			if err == nil {
+				gcsAgentPath := fmt.Sprintf("packages/%s/%s/%s/AGENT.md", parts[0], parts[1], version)
+				if err := v.uploadToGCS(ctx, gcsAgentPath, agentMDData, "text/markdown"); err != nil {
+					log.Printf("Warning: failed to upload AGENT.md: %v", err)
+				} else {
+					log.Printf("Uploaded AGENT.md as first-class artifact")
+				}
+			}
+		}
+
 		// Update index.json
 		if err := v.updateIndex(ctx, manifest, &meta); err != nil {
 			log.Printf("WARNING: Failed to update index.json: %v (package uploaded but index stale)", err)
@@ -314,6 +329,12 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 		generation = 0
 	}
 
+	// Extract dependency names from manifest (M-PKG-AUTONOMOUS-UPDATES)
+	var depNames []string
+	for depName := range manifest.Dependencies {
+		depNames = append(depNames, depName)
+	}
+
 	// Find or create entry for this package
 	found := false
 	for i := range index.Packages {
@@ -323,6 +344,9 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 				index.Packages[i].Versions = append(index.Packages[i].Versions, manifest.Package.Version)
 			}
 			index.Packages[i].ContractsVerified = meta.Validation.ContractsVerified
+			index.Packages[i].Dependencies = depNames
+			index.Packages[i].LastUpdated = meta.PublishedAt
+			index.Packages[i].UpdatedBy = meta.PublishedBy
 			found = true
 			break
 		}
@@ -341,6 +365,9 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			Exports:           manifest.Exports.Modules,
 			ContractsVerified: meta.Validation.ContractsVerified,
 			HasAgentDoc:       meta.Manifest.HasAgentDoc,
+			Dependencies:      depNames,
+			LastUpdated:       meta.PublishedAt,
+			UpdatedBy:         meta.PublishedBy,
 		})
 	}
 
