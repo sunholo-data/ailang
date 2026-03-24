@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo/ailang/internal/agentprompt"
 	"github.com/sunholo/ailang/internal/devtoolsprompt"
 	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/prompt"
 	"github.com/sunholo/ailang/internal/schema"
 )
@@ -62,6 +63,10 @@ func main() {
 	)
 
 	flag.Parse()
+
+	// Observatory health check — detect bloated DB early (M-OBS-RETENTION).
+	// Fast path: just os.Stat, no DB open unless cleanup needed.
+	observatory.CheckHealth(observatory.DefaultDatabasePath())
 
 	// Set binary version for stdlib compatibility check
 	// Version is set by ldflags at build time (e.g., "v0.4.8")

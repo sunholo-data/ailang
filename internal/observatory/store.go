@@ -38,6 +38,11 @@ func (s *Store) DB() *sql.DB {
 	return s.db
 }
 
+// Close closes the underlying database connection.
+func (s *Store) Close() error {
+	return s.db.Close()
+}
+
 // OpenDefaultStore opens the observatory database at the default path,
 // runs migrations, and returns a ready-to-use Store.
 // This is the recommended way to access observatory.db from CLI tools.
@@ -57,6 +62,10 @@ func OpenStore(dbPath string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to run observatory migrations: %w", err)
 	}
+
+	// Checkpoint WAL on open to prevent unbounded WAL growth.
+	// Without this, the WAL can grow to 40GB+ and cause memory pressure.
+	db.Exec("PRAGMA wal_checkpoint(TRUNCATE)") //nolint:errcheck
 
 	return NewStore(db), nil
 }
