@@ -55,6 +55,7 @@ func main() {
 	http.HandleFunc("/publish", v.handlePublish)
 	http.HandleFunc("/rebuild-index", v.handleRebuildIndex)
 	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/version", handleVersion)
 
 	log.Printf("Registry validator listening on :%s (bucket: %s)", port, bucket)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -66,9 +67,23 @@ type validator struct {
 	apiKey     string // if set, requires X-API-Key header on publish
 }
 
+// validatorBuildVersion is set at build time via -ldflags.
+// Falls back to git describe at runtime if not set.
+var validatorBuildVersion = "dev"
+
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	ailangVer := getAilangVersion()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"validator": validatorBuildVersion,
+		"ailang":    ailangVer,
+		"features":  "check-package,path-dep-rewrite,relative-imports,type-alias-propagation",
+	})
 }
 
 func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
