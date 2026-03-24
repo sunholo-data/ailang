@@ -374,47 +374,30 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 func runAilangCheck(dir string) (bool, string) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
 	if fileExists(filepath.Join(dir, "ailang.toml")) {
-		// Step 1: Rewrite path deps to registry deps.
-		// The tarball's ailang.toml has path deps (e.g., { path = "../gcp-auth" })
-		// which don't exist in the validator's temp dir. Replace them with
-		// registry version deps so ailang lock can resolve them.
+		// Step 1: Rewrite any remaining path deps to registry versions.
+		// The publish command now rewrites path deps client-side, but older clients
+		// may still send tarballs with path deps.
 		manifest, err := pkg.LoadManifest(dir)
-		if err == nil && len(manifest.Dependencies) > 0 {
-			if err := rewritePathDepsToRegistry(dir, manifest); err != nil {
-				log.Printf("Warning: failed to rewrite path deps: %v", err)
-			}
-		}
-
-		// Step 2: Install each dependency from registry, then generate lockfile.
-		// ailang lock needs packages in the local cache to resolve them.
-		reloadedManifest, _ := pkg.LoadManifest(dir)
-		if reloadedManifest != nil {
-			for depName, dep := range reloadedManifest.Dependencies {
+		if err == nil {
+			hasPathDeps := false
+			for _, dep := range manifest.Dependencies {
 				if dep.Path != "" {
-					continue // skip any remaining path deps
+					hasPathDeps = true
+					break
 				}
-				ver := dep.Version
-				if ver == "" {
-					ver = lookupLatestVersion(depName)
-				}
-				if ver != "" {
-					installArg := depName + "@" + ver
-					installCmd := exec.Command("ailang", "install", installArg)
-					installCmd.Dir = dir
-					if out, err := installCmd.CombinedOutput(); err != nil {
-						log.Printf("Warning: ailang install %s failed: %s", installArg, string(out))
-					} else {
-						log.Printf("Installed dep: %s", installArg)
-					}
+			}
+			if hasPathDeps {
+				if err := rewritePathDepsToRegistry(dir, manifest); err != nil {
+					log.Printf("Warning: failed to rewrite path deps: %v", err)
 				}
 			}
 		}
 
+		// Step 2: Generate lockfile. ailang lock downloads registry deps automatically.
 		lockCmd := exec.Command("ailang", "lock")
 		lockCmd.Dir = dir
 		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
 			log.Printf("Warning: ailang lock failed: %s", string(lockOutput))
-			// Fall through to package check anyway — it may work without deps
 		}
 
 		// Step 3: Run package-level type check
