@@ -38,8 +38,11 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 	resolved := []ResolvedPackage{}
 	resolvedSet := make(map[string]bool)
 
-	var resolve func(m *PackageManifest, dir string, path []string) error
-	resolve = func(m *PackageManifest, dir string, path []string) error {
+	// Shared registry client for all registry lookups in this resolution
+	var registryClient *RegistryClient
+
+	var resolve func(m *PackageManifest, dir string, fromRegistry bool, path []string) error
+	resolve = func(m *PackageManifest, dir string, fromRegistry bool, path []string) error {
 		name := m.Package.Name
 
 		if inStack[name] {
@@ -55,6 +58,31 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 
 		// Resolve each dependency
 		for depName, dep := range m.Dependencies {
+			// When inside a registry package, path deps can't be resolved locally.
+			// Convert them to registry lookups using the registry index.
+			if fromRegistry && dep.Path != "" {
+				if registryClient == nil {
+					registryClient = NewRegistryClient()
+				}
+				// Look up the dep's latest version from the registry index
+				index, err := registryClient.FetchIndex()
+				if err != nil {
+					return fmt.Errorf("failed to fetch registry index to resolve transitive dep %s: %w", depName, err)
+				}
+				version := ""
+				for _, entry := range index.Packages {
+					if entry.Name == depName {
+						version = entry.Latest
+						break
+					}
+				}
+				if version == "" {
+					return fmt.Errorf("transitive dependency %s (path dep in registry package %s) not found in registry", depName, name)
+				}
+				// Replace the path dep with a registry version dep for resolution
+				dep = Dependency{Version: version}
+			}
+
 			if dep.Path != "" {
 				// Path dependency — resolve relative to current package dir
 				depDir := dep.Path
@@ -78,7 +106,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 				}
 
 				// Recursively resolve transitive deps
-				if err := resolve(depManifest, depDir, append(path, name)); err != nil {
+				if err := resolve(depManifest, depDir, false, append(path, name)); err != nil {
 					return err
 				}
 
@@ -123,7 +151,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						depName, depManifest.Package.Name)
 				}
 
-				if err := resolve(depManifest, localPath, append(path, name)); err != nil {
+				if err := resolve(depManifest, localPath, false, append(path, name)); err != nil {
 					return err
 				}
 
@@ -152,7 +180,10 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 			} else {
 				// Registry dependency — download from registry, cache locally
 				if !resolvedSet[depName] {
-					client := NewRegistryClient()
+					if registryClient == nil {
+						registryClient = NewRegistryClient()
+					}
+					client := registryClient
 					cachePath, err := CachedPackagePath(depName, dep.Version)
 					if err != nil {
 						return fmt.Errorf("failed to compute cache path for %s: %w", depName, err)
@@ -178,7 +209,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						return fmt.Errorf("failed to load cached %s@%s: %w", depName, dep.Version, err)
 					}
 
-					if err := resolve(depManifest, cachePath, append(path, name)); err != nil {
+					if err := resolve(depManifest, cachePath, true, append(path, name)); err != nil {
 						return err
 					}
 
@@ -207,7 +238,7 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 		return nil
 	}
 
-	if err := resolve(manifest, rootDir, nil); err != nil {
+	if err := resolve(manifest, rootDir, false, nil); err != nil {
 		return nil, err
 	}
 
