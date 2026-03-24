@@ -131,6 +131,22 @@ func setupSharedMemHandler(effCtx *effects.EffContext) {
 	}
 }
 
+// setupNetHandler configures Net effect security settings if the capability is granted.
+func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool) {
+	if effCtx.HasCap("Net") {
+		effCtx.Net.AllowHTTP = allowHTTP
+		effCtx.Net.AllowLocalhost = allowLocalhost
+		if allowDomains != "" {
+			for _, d := range strings.Split(allowDomains, ",") {
+				d = strings.TrimSpace(d)
+				if d != "" {
+					effCtx.Net.AllowedDomains = append(effCtx.Net.AllowedDomains, d)
+				}
+			}
+		}
+	}
+}
+
 // setupStreamHandler initializes the Stream effect context if the capability is granted.
 // Stream provides bidirectional WebSocket connections (M-STREAM-BIDI).
 func setupStreamHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool) {
@@ -360,6 +376,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	entry string, argsJSON string, printResult bool, noprint bool, caps string,
 	maxRecursionDepth int, noBudgets bool, budgetReport string, debugEffect bool,
 	verifyContracts bool, emitTrace string, binopShim bool, quiet bool,
+	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool,
 	streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool,
 	processTimeout string, processAllowlist string, processMaxOutput int64,
 	aiStub bool, aiModel string,
@@ -382,6 +399,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	// Set up effect handlers
 	setupSharedMemHandler(effCtx)
 	setupSharedIndexHandler(effCtx)
+	setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost)
 	setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)
 	if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)

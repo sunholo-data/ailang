@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunholo/ailang/internal/effects"
 )
 
 // runCLI runs the ailang CLI with given arguments and returns stdout, stderr, and exit code
@@ -341,5 +343,91 @@ func TestCLI_InvalidCommand(t *testing.T) {
 	if !strings.Contains(stderr, "Unknown command") && !strings.Contains(stderr, "invalid") {
 		t.Logf("Note: Expected error about invalid command. Stderr: %s", stderr)
 		// Don't fail - error message format may vary
+	}
+}
+
+// TestSetupNetHandler_Parity ensures Net effect gets the same security
+// configuration options as Stream. Regression test: --net-allow-http flag
+// was documented in error messages but never wired up, causing httpRequest
+// to silently reject all http:// URLs (including GCP metadata server).
+func TestSetupNetHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		caps           string
+		allowHTTP      bool
+		allowLocalhost bool
+		allowDomains   string
+		wantHTTP       bool
+		wantLocalhost  bool
+		wantDomains    int
+	}{
+		{
+			name:      "no Net cap — defaults unchanged",
+			caps:      "IO",
+			allowHTTP: true,
+			wantHTTP:  false, // Net not granted, so AllowHTTP stays default
+		},
+		{
+			name:      "Net cap with AllowHTTP",
+			caps:      "Net",
+			allowHTTP: true,
+			wantHTTP:  true,
+		},
+		{
+			name:           "Net cap with AllowLocalhost",
+			caps:           "Net",
+			allowLocalhost: true,
+			wantLocalhost:  true,
+		},
+		{
+			name:         "Net cap with domain allowlist",
+			caps:         "Net",
+			allowDomains: "metadata.google.internal,example.com",
+			wantDomains:  2,
+		},
+		{
+			name:     "Net cap defaults — http blocked",
+			caps:     "Net",
+			wantHTTP: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			effCtx := effects.NewEffContext([]string{})
+			grantCapabilities(effCtx, tt.caps)
+			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost)
+
+			if effCtx.Net.AllowHTTP != tt.wantHTTP {
+				t.Errorf("AllowHTTP = %v, want %v", effCtx.Net.AllowHTTP, tt.wantHTTP)
+			}
+			if effCtx.Net.AllowLocalhost != tt.wantLocalhost {
+				t.Errorf("AllowLocalhost = %v, want %v", effCtx.Net.AllowLocalhost, tt.wantLocalhost)
+			}
+			if tt.wantDomains > 0 && len(effCtx.Net.AllowedDomains) != tt.wantDomains {
+				t.Errorf("AllowedDomains len = %d, want %d", len(effCtx.Net.AllowedDomains), tt.wantDomains)
+			}
+		})
+	}
+}
+
+// TestCLI_NetAllowHTTPFlag_Exists is a regression test ensuring the
+// --net-allow-http flag is recognized by the CLI (not just documented).
+func TestCLI_NetAllowHTTPFlag_Exists(t *testing.T) {
+	// Create a minimal .ail file that uses Net effect
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_http.ail")
+	os.WriteFile(testFile, []byte(`module test_http
+
+export func main() -> string ! {Net} {
+  "ok"
+}
+`), 0644)
+
+	// The flag should be accepted without "flag provided but not defined" error
+	_, stderr, _ := runCLI(t, "run", "--caps", "Net", "--net-allow-http", testFile)
+
+	if strings.Contains(stderr, "flag provided but not defined") {
+		t.Errorf("--net-allow-http flag not recognized by CLI: %s", stderr)
 	}
 }

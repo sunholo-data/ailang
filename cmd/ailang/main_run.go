@@ -67,6 +67,11 @@ func runCommand() {
 	debugTypesFlag := fs.Bool("debug-types", false, "Show type inference debug output (substitutions, constraints, CoreTI)")
 	debugTypesNodeFlag := fs.Uint64("node", 0, "Filter --debug-types output to specific node ID")
 
+	// Net capability flags
+	netAllowHTTPFlag := fs.Bool("net-allow-http", false, "Allow http:// URLs for Net effect (default: https only)")
+	netAllowDomainsFlag := fs.String("net-allow-domains", "", "Domain allowlist for Net requests (comma-separated)")
+	netAllowLocalhostFlag := fs.Bool("net-allow-localhost", false, "Allow localhost Net requests")
+
 	// Stream capability flags (M-STREAM-BIDI)
 	streamAllowHTTPFlag := fs.Bool("stream-allow-http", false, "Allow insecure ws:// connections (default: wss:// only)")
 	streamAllowDomainsFlag := fs.String("stream-allow-domains", "", "Domain allowlist for Stream connections (comma-separated)")
@@ -129,10 +134,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64) {
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
@@ -353,6 +358,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				batchErr := executeBatchItem(ctx, result, input, entry, argsJSON, print, noprint, caps,
 					maxRecursionDepth, noBudgets, budgetReport, debugEffect, verifyContracts,
 					emitTrace, binopShim, quiet,
+					netAllowHTTP, netAllowDomains, netAllowLocalhost,
 					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
 					processTimeout, processAllowlist, processMaxOutput,
 					aiStub, aiModel, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
@@ -400,6 +406,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			// Set up effect handlers if requested
 			setupSharedMemHandler(effCtx)                                                         // SharedMem for semantic caching (M-DX15)
 			setupSharedIndexHandler(effCtx)                                                       // SharedIndex for semantic retrieval (M-DX16)
+			setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost)             // Net HTTP request security settings
 			setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost) // Stream for WebSocket connections (M-STREAM-BIDI)
 			if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

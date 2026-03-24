@@ -104,6 +104,12 @@ func serveAPICommand(args []string) error {
 			effCtx.Stream.AllowLocalhost = true // local development
 			log.Println("Stream capability enabled (SSE/WebSocket client)")
 		}
+
+		// Allow http:// for Net effect (serve-api needs metadata server, internal APIs)
+		if effCtx.HasCap("Net") {
+			effCtx.Net.AllowHTTP = true
+			effCtx.Net.AllowLocalhost = true
+		}
 	}
 
 	cfg := apiserver.Config{
