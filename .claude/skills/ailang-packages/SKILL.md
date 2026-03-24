@@ -182,12 +182,41 @@ RUN ailang install sunholo/auth    # Populates cache from lock file versions
 - `ailang install` populates the cache; `ailang lock` resolves + downloads
 - Old lock files with stored paths still work (backward compatible)
 
+### Version Conflict Detection
+
+The resolver enforces **flat dependencies** — one version per package name. If a transitive dependency requires a different version than the root manifest pins, `ailang lock` fails with a structured error:
+
+```
+version conflict: sunholo/firestore
+  root requires: 0.2.0
+  already resolved: 0.1.0
+  transitive requires: 0.1.0 (via sunholo/billing_store)
+
+resolution aborted
+
+suggestion:
+  - republish sunholo/billing_store against sunholo/firestore@0.2.0
+  - or change root dependency to sunholo/firestore@0.1.0 explicitly
+```
+
+**Resolution rules:**
+- Direct dependencies in the root `ailang.toml` are **authoritative**
+- Transitive dependencies must match the direct pin exactly
+- If they conflict, the resolver fails (never silently downgrades)
+- Same version from multiple sources is fine (silently deduplicated)
+
+**How to fix version conflicts:**
+1. Republish the transitive package against the version you need
+2. Or change your root `ailang.toml` to match the transitive version
+3. The error message tells you exactly which package introduced the conflict
+
 ## Common Error Solutions
 
 See [resources/error_solutions.md](resources/error_solutions.md) for full troubleshooting guide.
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| `version conflict: pkg` | Direct and transitive deps disagree on version | Republish transitive dep or change root pin (see error message) |
 | `IMP010: symbol not exported` | Type missing `export` keyword | Add `export type Foo = ...` |
 | `LDR001: module not found` | Missing dependency or wrong import path | Add dep to ailang.toml + `ailang lock` |
 | `cannot unify type constructor X with TRecord` | Type alias not exported across packages | Add `export type` to the defining module |

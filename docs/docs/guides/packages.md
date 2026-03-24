@@ -266,6 +266,25 @@ The resolved exact version is always written to `ailang.toml`. Semver ranges (`^
 
 `ailang.lock` is portable across machines and containers — it does not contain absolute paths. Cache paths for registry and git packages are resolved at runtime. This means you can `COPY ailang.lock` into Docker and run `ailang install` to populate the cache.
 
+### Version Conflict Detection
+
+AILANG uses flat dependencies — one version per package name. If a transitive dependency requires a different version than your root manifest pins, `ailang lock` fails with a structured error:
+
+```
+version conflict: sunholo/firestore
+  root requires: 0.2.0
+  already resolved: 0.1.0
+  transitive requires: 0.1.0 (via sunholo/billing_store)
+
+resolution aborted
+
+suggestion:
+  - republish sunholo/billing_store against sunholo/firestore@0.2.0
+  - or change root dependency to sunholo/firestore@0.1.0 explicitly
+```
+
+Direct dependencies are authoritative — the resolver never silently downgrades them. To fix a conflict, either republish the transitive package or change your root pin to match.
+
 ### Package Documentation
 
 ```bash
