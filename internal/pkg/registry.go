@@ -207,6 +207,27 @@ func CachedPackagePath(name, version string) (string, error) {
 	return fmt.Sprintf("%s/%s/%s/%s", cacheDir, parts[0], parts[1], version), nil
 }
 
+// ResolveLatestVersion looks up the latest version of a package from the registry index.
+// Returns the exact version string (e.g., "0.3.2").
+func (rc *RegistryClient) ResolveLatestVersion(name string) (string, error) {
+	index, err := rc.FetchIndex()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch registry index: %w", err)
+	}
+
+	nameLower := strings.ToLower(name)
+	for _, pkg := range index.Packages {
+		if strings.ToLower(pkg.Name) == nameLower {
+			if pkg.Latest == "" {
+				return "", fmt.Errorf("package %q has no latest version in registry", name)
+			}
+			return pkg.Latest, nil
+		}
+	}
+
+	return "", fmt.Errorf("package %q not found in registry", name)
+}
+
 func containsTag(tags []string, target string) bool {
 	for _, t := range tags {
 		if strings.ToLower(t) == target {

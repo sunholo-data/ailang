@@ -18,13 +18,14 @@ func pkgInstallCommand(args []string) error {
 	}
 
 	if *helpFlag || flagSet.NArg() < 1 {
-		fmt.Println("Usage: ailang install <vendor/name@version>")
+		fmt.Println("Usage: ailang install <vendor/name[@version]>")
 		fmt.Println()
 		fmt.Println("Download a package from the registry, verify its hash, and add it to ailang.toml.")
 		fmt.Println()
 		fmt.Println("Examples:")
-		fmt.Println("  ailang install sunholo/auth@0.1.0")
-		fmt.Println("  ailang install sunholo/gcp-auth@0.1.0")
+		fmt.Println("  ailang install sunholo/auth           # installs latest version")
+		fmt.Println("  ailang install sunholo/auth@latest     # same as above")
+		fmt.Println("  ailang install sunholo/auth@0.1.0      # installs exact version")
 		fmt.Println()
 		fmt.Println("Registry: $AILANG_REGISTRY (default: https://storage.googleapis.com/ailang-registry)")
 		return nil
@@ -32,18 +33,36 @@ func pkgInstallCommand(args []string) error {
 
 	spec := flagSet.Arg(0)
 	parts := strings.SplitN(spec, "@", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return fmt.Errorf("invalid package spec: %q (must be vendor/name@version)\nExample: ailang install sunholo/auth@0.1.0", spec)
+	name := parts[0]
+	if name == "" {
+		return fmt.Errorf("invalid package spec: %q (must be vendor/name or vendor/name@version)\nExample: ailang install sunholo/auth", spec)
 	}
-	name, version := parts[0], parts[1]
 
-	// Validate name format
+	// Validate name format early
 	nameParts := strings.SplitN(name, "/", 2)
 	if len(nameParts) != 2 {
 		return fmt.Errorf("invalid package name: %q (must be vendor/name)", name)
 	}
 
 	client := pkg.NewRegistryClient()
+
+	// Determine version: bare name or @latest → resolve from registry
+	var version string
+	if len(parts) == 1 || parts[1] == "" || parts[1] == "latest" {
+		fmt.Printf("Resolving latest version of %s...\n", name)
+		resolved, err := client.ResolveLatestVersion(name)
+		if err != nil {
+			return fmt.Errorf("failed to resolve latest version: %w\n\nTip: use an exact version instead: ailang install %s@0.1.0", err, name)
+		}
+		version = resolved
+		fmt.Printf("Resolved %s@latest → %s@%s\n", name, name, version)
+	} else {
+		version = parts[1]
+		// Reject semver ranges — only exact versions allowed
+		if strings.ContainsAny(version, "^~><=") {
+			return fmt.Errorf("semver ranges not supported: %q\n\nUse an exact version or @latest:\n  ailang install %s@latest\n  ailang install %s@0.1.0", version, name, name)
+		}
+	}
 
 	// Download metadata for hash verification
 	fmt.Printf("Fetching %s@%s from %s...\n", name, version, client.BaseURL)

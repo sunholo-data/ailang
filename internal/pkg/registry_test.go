@@ -152,6 +152,58 @@ func TestCachedPackagePath(t *testing.T) {
 	}
 }
 
+func TestRegistryClient_ResolveLatestVersion(t *testing.T) {
+	index := RegistryIndex{
+		Schema: "ailang.registry/v1",
+		Packages: []IndexEntry{
+			{Name: "sunholo/auth", Latest: "0.3.2", Versions: []string{"0.1.0", "0.2.0", "0.3.2"}},
+			{Name: "sunholo/logging", Latest: "0.1.0", Versions: []string{"0.1.0"}},
+		},
+	}
+	indexJSON, _ := json.Marshal(index)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/index.json" {
+			w.Write(indexJSON)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := &RegistryClient{
+		BaseURL:    server.URL,
+		httpClient: server.Client(),
+	}
+
+	// Resolve existing package
+	version, err := client.ResolveLatestVersion("sunholo/auth")
+	if err != nil {
+		t.Fatalf("ResolveLatestVersion: %v", err)
+	}
+	if version != "0.3.2" {
+		t.Errorf("expected 0.3.2, got %s", version)
+	}
+
+	// Resolve another package
+	version, err = client.ResolveLatestVersion("sunholo/logging")
+	if err != nil {
+		t.Fatalf("ResolveLatestVersion: %v", err)
+	}
+	if version != "0.1.0" {
+		t.Errorf("expected 0.1.0, got %s", version)
+	}
+
+	// Nonexistent package
+	_, err = client.ResolveLatestVersion("sunholo/nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent package")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention not found, got: %v", err)
+	}
+}
+
 // M-PKG-AUTONOMOUS-UPDATES: Tests for dependent lookup via Dependencies field.
 
 func TestRegistryIndex_FindDependents(t *testing.T) {

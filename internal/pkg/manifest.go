@@ -194,6 +194,10 @@ func (m *PackageManifest) Validate() error {
 		if dep.Path != "" && dep.Git != "" {
 			return fmt.Errorf("dependency %q cannot have both path and git", name)
 		}
+		// Reject non-exact version specifiers — only exact semver allowed in ailang.toml
+		if dep.Version != "" && (dep.Version == "latest" || strings.ContainsAny(dep.Version, "^~><=")) {
+			return fmt.Errorf("dependency %q has non-exact version %q — ailang.toml requires exact versions (e.g., \"0.1.0\")\n\nUse: ailang install %s@latest\nThis resolves and writes the exact version automatically.", name, dep.Version, name)
+		}
 	}
 
 	// Validate stability level if set

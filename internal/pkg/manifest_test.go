@@ -3,6 +3,7 @@ package pkg
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -370,6 +371,49 @@ modules = ["other/something"]
 	_, err := LoadManifest(dir)
 	if err == nil {
 		t.Fatal("expected error for export not matching package name or module_prefix")
+	}
+}
+
+func TestLoadManifest_RejectsNonExactVersions(t *testing.T) {
+	tests := []struct {
+		version string
+		wantErr bool
+	}{
+		{"0.1.0", false},
+		{"1.2.3", false},
+		{"latest", true},
+		{"^0.1.0", true},
+		{"~0.1.0", true},
+		{">=0.1.0", true},
+		{"<=0.1.0", true},
+		{">0.1.0", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.version, func(t *testing.T) {
+			dir := t.TempDir()
+			content := `
+[package]
+name = "test/pkg"
+version = "0.1.0"
+edition = "1"
+
+[dependencies]
+"sunholo/auth" = { version = "` + tc.version + `" }
+`
+			os.WriteFile(filepath.Join(dir, ManifestFile), []byte(content), 0644)
+
+			_, err := LoadManifest(dir)
+			if tc.wantErr && err == nil {
+				t.Errorf("expected error for version %q, got nil", tc.version)
+			}
+			if tc.wantErr && err != nil && !strings.Contains(err.Error(), "non-exact version") {
+				t.Errorf("expected 'non-exact version' error, got: %v", err)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("unexpected error for version %q: %v", tc.version, err)
+			}
+		})
 	}
 }
 
