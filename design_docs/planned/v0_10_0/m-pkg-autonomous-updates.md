@@ -1,6 +1,6 @@
 # M-PKG-AUTONOMOUS-UPDATES: Message-Driven Autonomous Package Updates
 
-**Status**: Planned
+**Status**: Partially Implemented
 **Target**: v0.10.0
 **Priority**: P1 (High)
 **Estimated**: 2 weeks (Phase 1-2: 1 week, Phase 3-4: 1 week)
@@ -527,58 +527,79 @@ Package agents receive skills through the existing plugin system:
 
 ### Implementation Plan
 
-**Phase 1: MVP — Single Package, Local** (~3 days)
-- [ ] Add `Subdirectory` field to `AgentConfig` struct
-- [ ] Wire `Subdirectory` through worktree setup (agent's working dir = `worktree/subdirectory`)
-- [ ] Add one package agent config to local `~/.ailang/config.yaml` (sunholo/auth)
-- [ ] Verify InboxMessageAdapter works with `pkg:sunholo/auth` inbox format (colon in name)
+**Phase 1: MVP — Single Package, Local** (~3 days) ✅ IMPLEMENTED
+- [x] Add `Subdirectory` field to `AgentConfig` struct
+- [x] Wire `Subdirectory` through worktree setup (agent's working dir = `worktree/subdirectory`)
+- [x] Wire `Subdirectory` through cloud dispatch (`DispatchParams` + `AILANG_SUBDIRECTORY` env var)
+- [x] Wire `Subdirectory` through cloud executor entry point (`coordinator_cloud.go`)
+- [x] Verify `pkg:sunholo/auth` inbox format works in `AgentRegistry` (3 test cases)
 - [ ] Manual test: `ailang messages send pkg:sunholo/auth "test update" --title "Test"` → verify daemon picks it up
 - [ ] Agent executes in correct subdirectory, runs tests, reports result
 
-**Phase 2: Cloud + Multi-Package** (~2 days)
-- [ ] Add all 14 package agent configs to `config.cloud.yaml`
-- [ ] Add workspace mapping for `sunholo-data/ailang-packages` in workspaces config
-- [ ] Create `pkg-update.md` invoke template (uploaded to GCS config or baked into plugin)
+**Phase 2: Cloud + Multi-Package** (~2 days) ✅ IMPLEMENTED
+- [x] Add 13 package agent configs to `config.cloud.yaml` (all except registry-validator)
+- [x] Add workspace mapping for `sunholo-data/ailang-packages` in workspaces config
+- [x] Inline invoke templates per agent (prompt type with package-specific context)
 - [ ] Deploy to dev environment, test with one package via Pub/Sub message
 - [ ] Verify worktree isolation — two package agents don't conflict in same monorepo
 
-**Phase 3: Dependent Notification + Dynamic Autonomy** (~3 days)
-- [ ] Implement `emitDependentNotifications()` in `cmd/ailang/pkg_publish.go`
-- [ ] Add `dependsOn()` helper that checks registry manifests
-- [ ] Implement `AdjustAutonomyForChangeClass()` pre-execution hook
-- [ ] Wire hook into `executeTask()` in `daemon_tasks_exec.go`
+**Phase 3: Dependent Notification + Dynamic Autonomy** (~3 days) ✅ IMPLEMENTED
+- [x] Implement `emitDependentNotifications()` in `cmd/ailang/pkg_publish.go`
+- [x] Add `FindDependents()` method on `RegistryIndex` (used by publish flow)
+- [x] Add `Dependencies []string` field to `IndexEntry` (omitempty, backward compat)
+- [x] Implement `AdjustAutonomyForChangeClass()` in `internal/coordinator/autonomy_router.go`
+- [x] Implement `ClassifyChange()` mapping all 11 `PackageMessageKind` values to Class A/B/C
+- [x] 22 test cases covering all message kinds, breaking override, nil inputs
+- [ ] Wire autonomy router hook into `executeTask()` in `daemon_tasks_exec.go`
 - [ ] Test cascade: publish `sunholo/auth` → verify `sunholo/gcp-auth` gets notified
 
-**Phase 4: Provenance + History + AGENT.md + Cascade** (~3 days)
-- [ ] Add `ProvenanceInfo` to `PackageMetadata` (backward compatible — optional field)
-- [ ] Modify publish flow to embed provenance from triggering message context
+**Phase 4: Provenance + History + AGENT.md + Cascade** (~3 days) ✅ IMPLEMENTED
+- [x] Add `ProvenanceInfo` struct to `PackageMetadata` (backward compatible — optional field)
+- [x] Add `VersionHistory` and `HistoryEntry` structs for `history.json`
+- [x] Extend `IndexEntry` with `LastUpdated`, `UpdatedBy`, `LatestSummary` for website/CLI
+- [x] Upload AGENT.md as separate blob in registry validator (`packages/vendor/name/version/AGENT.md`)
+- [x] Populate `Dependencies` in index from manifest during publish
+- [x] Populate `LastUpdated`/`UpdatedBy` in index during publish
+- [x] Implement `ScheduleCascadeUpdate()` with topological sort (Kahn's algorithm)
+- [x] Add `CascadeCircuitBreaker` (configurable threshold, success resets)
+- [x] Add `ailang pkg provenance vendor/name@version` CLI command
+- [x] Add `ailang pkg history vendor/name@version` CLI command (fetches + displays history.json)
 - [ ] Implement `HistoryCollector` — captures events during task lifecycle into `VersionHistory`
 - [ ] Upload `history.json` alongside package on publish (message trail + actions + approvals)
-- [ ] Extend `IndexEntry` with `last_updated`, `updated_by`, `latest_summary` for website
-- [ ] Upload AGENT.md as separate blob in registry validator
-- [ ] Implement `ScheduleCascadeUpdate()` with topological sort
-- [ ] Add `CascadeCircuitBreaker` (3 failures = pause + alert)
-- [ ] Add `ailang pkg provenance vendor/name@version` CLI command
-- [ ] Add `ailang pkg history vendor/name@version` CLI command (fetches + displays history.json)
+- [ ] Modify publish flow to embed provenance from triggering message context
+
+**Remaining work (not yet implemented):**
+- Wire `AdjustAutonomyForChangeClass()` into `executeTask()` (hook point identified, not wired)
+- `HistoryCollector` — event capture during coordinator task lifecycle
+- `history.json` upload in publish flow (schema ready, collector not yet built)
+- Provenance embedding in publish flow (struct ready, population not yet wired)
+- Deploy to dev environment and end-to-end testing
 
 ### Files to Modify/Create
 
-**New files:**
-- `internal/coordinator/autonomy_router.go` — Change-class-to-autonomy mapping (~80 LOC)
-- `internal/coordinator/cascade_scheduler.go` — Topological cascade scheduling (~120 LOC)
-- `internal/coordinator/history_collector.go` — Collect HistoryEntry events during task lifecycle (~100 LOC)
+**New files (created):**
+- `internal/coordinator/autonomy_router.go` — Change-class-to-autonomy mapping (87 LOC) ✅
+- `internal/coordinator/autonomy_router_test.go` — 22 test cases for all message kinds (163 LOC) ✅
+- `internal/coordinator/cascade_scheduler.go` — Topological cascade scheduling + circuit breaker (142 LOC) ✅
+- `internal/coordinator/cascade_scheduler_test.go` — Linear chain, diamond deps, circuit breaker tests (103 LOC) ✅
+- `cmd/ailang/pkg_provenance.go` — `ailang pkg provenance` and `ailang pkg history` CLI commands (138 LOC) ✅
+- `internal/coordinator/history_collector.go` — Collect HistoryEntry events during task lifecycle (~100 LOC) ❌ NOT YET
 
-**Modified files:**
-- `internal/coordinator/agent_registry.go` — Add `Subdirectory` field (~5 LOC)
-- `internal/coordinator/daemon_tasks_exec.go` — Wire autonomy router hook + history collection (~30 LOC)
-- `internal/coordinator/worktree.go` — Use `Subdirectory` for agent working dir (~10 LOC)
-- `cmd/ailang/pkg_publish.go` — Add `emitDependentNotifications()`, upload `history.json` (~80 LOC)
-- `internal/pkg/registry_types.go` — Add `ProvenanceInfo`, `VersionHistory`, `HistoryEntry` structs, `IndexEntry` extensions (~60 LOC)
-- `cmd/registry-validator/main.go` — Upload AGENT.md + history.json as separate blobs (~25 LOC)
+**Modified files (done):**
+- `internal/coordinator/agent_registry.go` — Add `Subdirectory` field ✅
+- `internal/coordinator/agent_registry_test.go` — Add 3 tests for subdirectory + pkg: inbox ✅
+- `internal/coordinator/cloud_dispatcher.go` — Add `Subdirectory` to `DispatchParams` ✅
+- `internal/coordinator/daemon_tasks_exec.go` — Apply subdirectory to workspacePath + cloud dispatch ✅
+- `internal/dispatch/cloudrun/dispatcher.go` — Pass `AILANG_SUBDIRECTORY` env var to Cloud Run Jobs ✅
+- `cmd/ailang/coordinator_cloud.go` — Apply `AILANG_SUBDIRECTORY` in cloud executor entry point ✅
+- `cmd/ailang/pkg_publish.go` — Add `emitDependentNotifications()` using `FindDependents()` ✅
+- `cmd/ailang/main.go` — Add `ailang pkg provenance` and `ailang pkg history` subcommands ✅
+- `internal/pkg/registry_types.go` — Add `ProvenanceInfo`, `VersionHistory`, `HistoryEntry`, `Dependencies`, `LastUpdated`, `UpdatedBy`, `LatestSummary`, `FindDependents()` ✅
+- `internal/pkg/registry_test.go` — Add `FindDependents` test (5 cases) + `Dependencies` JSON test ✅
+- `cmd/registry-validator/main.go` — Upload AGENT.md as separate blob, populate Dependencies/LastUpdated/UpdatedBy in index ✅
 
-**Config files:**
-- `config/config.cloud.yaml` (ailang-multivac) — Add 14 package agent entries
-- GCS templates — `pkg-update.md` invoke template
+**Config files (done):**
+- `config/config.cloud.yaml` (ailang-multivac) — Add 13 package agent entries + workspace mapping ✅
 
 ## Examples
 
@@ -758,4 +779,4 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-03-24
-**Last updated**: 2026-03-24
+**Last updated**: 2026-03-24 (sprint M1-M4 implemented, config + validator updated)
