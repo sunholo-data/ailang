@@ -360,6 +360,8 @@ func main() {
 			fmt.Println("Commands:")
 			fmt.Println("  notify-upgrade <pkg>@<ver>  Emit upgrade-available message")
 			fmt.Println("  affected-by <pkg>           List workspaces depending on a package")
+			fmt.Println("  provenance <pkg>@<ver>      Show provenance chain for a version")
+			fmt.Println("  history <pkg>@<ver>         Show version history timeline")
 			os.Exit(1)
 		}
 		switch subArgs[0] {
@@ -370,6 +372,16 @@ func main() {
 			}
 		case "affected-by":
 			if err := pkgAffectedByCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "provenance":
+			if err := pkgProvenanceCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
+		case "history":
+			if err := pkgHistoryCommand(subArgs[1:]); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
