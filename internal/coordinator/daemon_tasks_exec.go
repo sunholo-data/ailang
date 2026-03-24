@@ -596,6 +596,24 @@ func (d *Daemon) executeTask(task *TaskRecord) error {
 			}
 		}
 
+		// M-PKG-AUTONOMOUS-UPDATES: Deterministic publish for package agents.
+		// Run `ailang publish` in the worktree after agent finishes, regardless of
+		// whether the AI remembered to do it. This is the same pattern as the cloud
+		// executor's deterministic git push — don't rely on the AI for side effects.
+		if agentConfig != nil && agentConfig.Subdirectory != "" && worktreePath != "" {
+			publishDir := filepath.Join(worktreePath, agentConfig.Subdirectory)
+			d.logger.Printf("Running deterministic publish for package agent %s in %s", agentConfig.ID, publishDir)
+			publishCmd := exec.Command("ailang", "publish")
+			publishCmd.Dir = publishDir
+			publishOutput, publishErr := publishCmd.CombinedOutput()
+			if publishErr != nil {
+				d.logger.Printf("Warning: Deterministic publish failed for %s: %s\n%s", agentConfig.ID, publishErr, string(publishOutput))
+				// Don't fail the task — publish failure is logged but agent work is preserved
+			} else {
+				d.logger.Printf("Deterministic publish succeeded for %s: %s", agentConfig.ID, strings.TrimSpace(string(publishOutput)))
+			}
+		}
+
 		// M-SEMANTIC-ENVELOPE: Compute resolution envelope from git diff
 		// Best-effort — failures don't affect task completion
 		if worktreePath != "" && task.MessageID != "" && d.msgStore != nil {
