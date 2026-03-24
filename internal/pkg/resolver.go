@@ -168,12 +168,12 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "git",
-						Path:          localPath,
-						GitURL:        dep.Git,
-						GitRev:        resolvedRev,
-						GitSubdir:     dep.Subdir,
-						Effects:       depManifest.Effects.Max,
-						Exports:       depManifest.Exports.Modules,
+						// Path omitted — resolved at runtime from GitURL (portable lock file)
+						GitURL:    dep.Git,
+						GitRev:    resolvedRev,
+						GitSubdir: dep.Subdir,
+						Effects:   depManifest.Effects.Max,
+						Exports:   depManifest.Exports.Modules,
 					})
 					resolvedSet[depName] = true
 				}
@@ -225,9 +225,9 @@ func ResolveDependencies(manifest *PackageManifest, rootDir string) ([]ResolvedP
 						ContentHash:   hash,
 						InterfaceHash: InterfaceHash(depManifest),
 						Source:        "registry",
-						Path:          cachePath,
-						Effects:       depManifest.Effects.Max,
-						Exports:       depManifest.Exports.Modules,
+						// Path omitted — resolved at runtime from name+version (portable lock file)
+						Effects: depManifest.Effects.Max,
+						Exports: depManifest.Exports.Modules,
 					})
 					resolvedSet[depName] = true
 				}

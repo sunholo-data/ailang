@@ -333,10 +333,13 @@ edition = "1"
 		t.Errorf("expected [test/c, test/b], got %v", names)
 	}
 
-	// Both should be registry source
+	// Both should be registry source with NO stored Path (portable lock file)
 	for _, r := range resolved {
 		if r.Source != "registry" {
 			t.Errorf("package %s: source = %q, want registry", r.Name, r.Source)
+		}
+		if r.Path != "" {
+			t.Errorf("package %s: Path should be empty for portable lock file, got %q", r.Name, r.Path)
 		}
 	}
 }

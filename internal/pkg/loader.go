@@ -111,8 +111,24 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 		}
 		return dir, nil
 	case "git":
-		// Git deps are cached locally — Path points to the cached checkout
-		dir := locked.Path
+		// Compute cache path at runtime (portable — no absolute paths in lock file)
+		var dir string
+		if locked.GitURL != "" {
+			cache, err := NewGitCache()
+			if err != nil {
+				return "", fmt.Errorf("failed to init git cache for %s: %w", locked.Name, err)
+			}
+			dir = cache.CacheDir(locked.GitURL)
+			if locked.GitSubdir != "" {
+				dir = filepath.Join(dir, locked.GitSubdir)
+			}
+		}
+		// Fallback to stored Path for old lock files or if computed dir doesn't exist
+		if dir == "" || func() bool { _, e := os.Stat(dir); return e != nil }() {
+			if locked.Path != "" {
+				dir = locked.Path
+			}
+		}
 		if dir == "" {
 			return "", fmt.Errorf("git package %s has no cached path; run 'ailang lock' to resolve", locked.Name)
 		}
@@ -121,10 +137,16 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 		}
 		return dir, nil
 	case "registry":
-		// Registry deps are cached locally after ailang install or ailang lock
-		dir := locked.Path
+		// Compute cache path at runtime (portable — no absolute paths in lock file)
+		dir, err := CachedPackagePath(locked.Name, locked.Version)
+		if err != nil || (dir != "" && func() bool { _, e := os.Stat(dir); return e != nil }()) {
+			// Fallback to stored Path for old lock files or non-standard cache locations
+			if locked.Path != "" {
+				dir = locked.Path
+			}
+		}
 		if dir == "" {
-			return "", fmt.Errorf("registry package %s has no cached path; run 'ailang install %s@%s'", locked.Name, locked.Name, locked.Version)
+			return "", fmt.Errorf("registry package %s not cached; run 'ailang install %s@%s'", locked.Name, locked.Name, locked.Version)
 		}
 		if _, err := os.Stat(dir); err != nil {
 			return "", fmt.Errorf("registry package %s cache not found at %s; run 'ailang install %s@%s'", locked.Name, dir, locked.Name, locked.Version)

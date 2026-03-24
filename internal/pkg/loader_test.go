@@ -231,3 +231,72 @@ func TestCheckEffectCeiling_EmptyEffects(t *testing.T) {
 		t.Errorf("should pass when function has no effects: %v", err)
 	}
 }
+
+func TestPackageDir_RegistryRuntimeResolution(t *testing.T) {
+	// Setup: create a registry package in the cache (simulates ailang install)
+	cachePath, err := CachedPackagePath("sunholo/testpkg", "0.1.0")
+	if err != nil {
+		t.Fatalf("CachedPackagePath: %v", err)
+	}
+	os.MkdirAll(cachePath, 0755)
+	defer os.RemoveAll(cachePath)
+
+	// Write a minimal manifest so loader can work
+	manifest := `[package]
+name = "sunholo/testpkg"
+version = "0.1.0"
+edition = "1"
+
+[exports]
+modules = ["sunholo/testpkg/hello"]
+`
+	os.WriteFile(filepath.Join(cachePath, ManifestFile), []byte(manifest), 0644)
+	os.WriteFile(filepath.Join(cachePath, "hello.ail"), []byte("module sunholo/testpkg/hello\n"), 0644)
+
+	// Lock entry has NO Path — must resolve at runtime
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/testpkg", Version: "0.1.0", ContentHash: "sha256:abc", Source: "registry"},
+			// Note: Path is empty
+		},
+	}
+
+	loader := NewPackageLoader(lf, t.TempDir())
+
+	// Should resolve via CachedPackagePath at runtime
+	resolved, err := loader.ResolveImport("sunholo/testpkg/hello")
+	if err != nil {
+		t.Fatalf("ResolveImport should work without stored Path: %v", err)
+	}
+	if !strings.HasSuffix(resolved, "hello.ail") {
+		t.Errorf("expected .../hello.ail, got %s", resolved)
+	}
+}
+
+func TestPackageDir_RegistryBackwardCompat(t *testing.T) {
+	// Old lock file format has stored Path — should still work
+	root := t.TempDir()
+	libDir := setupTestPackage(t, root, "sunholo/oldpkg", []string{"sunholo/oldpkg/util"}, map[string]string{
+		"util.ail": "module sunholo/oldpkg/util\n",
+	})
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/oldpkg", Version: "0.1.0", ContentHash: "sha256:abc", Source: "registry", Path: libDir},
+		},
+	}
+
+	loader := NewPackageLoader(lf, root)
+
+	resolved, err := loader.ResolveImport("sunholo/oldpkg/util")
+	if err != nil {
+		t.Fatalf("backward compat failed — old lock file with Path should work: %v", err)
+	}
+	if !strings.HasSuffix(resolved, "util.ail") {
+		t.Errorf("expected .../util.ail, got %s", resolved)
+	}
+}
