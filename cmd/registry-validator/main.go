@@ -223,6 +223,9 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 			Stability:   manifest.Stability.Level,
 			AISummary:   getMetaString(manifest.Metadata, "ai_summary"),
 			HasAgentDoc: hasAgentDoc,
+			Repository:  getMetaString(manifest.Metadata, "repository"),
+			Homepage:    getMetaString(manifest.Metadata, "homepage"),
+			LicenseURL:  getMetaString(manifest.Metadata, "license_url"),
 		},
 	}
 
@@ -362,6 +365,9 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			index.Packages[i].Dependencies = depNames
 			index.Packages[i].LastUpdated = meta.PublishedAt
 			index.Packages[i].UpdatedBy = meta.PublishedBy
+			index.Packages[i].Repository = meta.Manifest.Repository
+			index.Packages[i].Homepage = meta.Manifest.Homepage
+			index.Packages[i].LicenseURL = meta.Manifest.LicenseURL
 			found = true
 			break
 		}
@@ -383,6 +389,9 @@ func (v *validator) tryUpdateIndex(ctx context.Context, manifest *pkg.PackageMan
 			Dependencies:      depNames,
 			LastUpdated:       meta.PublishedAt,
 			UpdatedBy:         meta.PublishedBy,
+			Repository:        meta.Manifest.Repository,
+			Homepage:          meta.Manifest.Homepage,
+			LicenseURL:        meta.Manifest.LicenseURL,
 		})
 	}
 
@@ -745,6 +754,9 @@ func (v *validator) handleRebuildIndex(w http.ResponseWriter, r *http.Request) {
 				Exports:           meta.Manifest.Exports,
 				ContractsVerified: meta.Validation.ContractsVerified,
 				HasAgentDoc:       meta.Manifest.HasAgentDoc,
+				Repository:        meta.Manifest.Repository,
+				Homepage:          meta.Manifest.Homepage,
+				LicenseURL:        meta.Manifest.LicenseURL,
 			})
 		}
 	}

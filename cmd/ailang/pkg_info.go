@@ -75,6 +75,9 @@ func pkgInfoCommand(args []string) error {
 			Deps       []string `json:"dependencies"`
 			LastUpdate string   `json:"last_updated"`
 			UpdatedBy  string   `json:"updated_by"`
+			Repository string   `json:"repository"`
+			Homepage   string   `json:"homepage"`
+			LicenseURL string   `json:"license_url"`
 		} `json:"index"`
 		Versions []struct {
 			Version  string `json:"version"`
@@ -118,6 +121,15 @@ func pkgInfoCommand(args []string) error {
 		fmt.Printf("  Tags:       %s\n", strings.Join(idx.Tags, ", "))
 	}
 	fmt.Printf("  AGENT.md:   %v\n", idx.HasAgent)
+	if idx.Repository != "" {
+		fmt.Printf("  Repository: %s\n", idx.Repository)
+	}
+	if idx.Homepage != "" {
+		fmt.Printf("  Homepage:   %s\n", idx.Homepage)
+	}
+	if idx.LicenseURL != "" {
+		fmt.Printf("  License:    %s\n", idx.LicenseURL)
+	}
 	fmt.Println()
 
 	// Exports

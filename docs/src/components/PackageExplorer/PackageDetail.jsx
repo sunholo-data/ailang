@@ -23,6 +23,9 @@ export default function PackageDetail({ packageName, staticData }) {
         </div>
       )}
 
+      {/* Source / Docs / License links */}
+      <PackageLinks detail={liveDetail} staticData={staticData} />
+
       <div className={styles.detailGrid}>
         {/* Exports */}
         <div className={styles.detailSection}>
@@ -78,6 +81,34 @@ export default function PackageDetail({ packageName, staticData }) {
         <p style={{ fontSize: '0.85rem', color: 'var(--ifm-color-emphasis-500)', fontStyle: 'italic' }}>
           Loading version history from registry...
         </p>
+      )}
+    </div>
+  );
+}
+
+function PackageLinks({ detail, staticData }) {
+  const repo = detail?.index?.repository || staticData?.repository;
+  const homepage = detail?.index?.homepage || staticData?.homepage;
+  const licenseUrl = detail?.index?.license_url || staticData?.license_url;
+
+  if (!repo && !homepage && !licenseUrl) return null;
+
+  return (
+    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+      {repo && (
+        <a href={repo} target="_blank" rel="noopener noreferrer" className={styles.depLink} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+          Source Code &#8599;
+        </a>
+      )}
+      {homepage && (
+        <a href={homepage} target="_blank" rel="noopener noreferrer" className={styles.depLink} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+          Documentation &#8599;
+        </a>
+      )}
+      {licenseUrl && (
+        <a href={licenseUrl} target="_blank" rel="noopener noreferrer" className={styles.depLink} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+          License &#8599;
+        </a>
       )}
     </div>
   );

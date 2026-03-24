@@ -23,6 +23,9 @@ type IndexEntry struct {
 	LastUpdated       string   `json:"last_updated,omitempty"`   // When latest version was published
 	UpdatedBy         string   `json:"updated_by,omitempty"`     // "human", "agent", or agent ID
 	LatestSummary     string   `json:"latest_summary,omitempty"` // From history.json summary
+	Repository        string   `json:"repository,omitempty"`     // Source code URL (M-PKG-METADATA-URLS)
+	Homepage          string   `json:"homepage,omitempty"`       // Documentation/project homepage
+	LicenseURL        string   `json:"license_url,omitempty"`    // Full license text URL
 }
 
 // PackageMetadata is the per-version metadata.json from the registry.
@@ -78,6 +81,9 @@ type MetadataManifest struct {
 	Stability   string   `json:"stability"`
 	AISummary   string   `json:"ai_summary"`
 	HasAgentDoc bool     `json:"has_agent_doc"`
+	Repository  string   `json:"repository,omitempty"`  // Source code URL (M-PKG-METADATA-URLS)
+	Homepage    string   `json:"homepage,omitempty"`    // Documentation/project homepage
+	LicenseURL  string   `json:"license_url,omitempty"` // Full license text URL
 }
 
 // ProvenanceInfo records who/what triggered a package version and the approval chain.
