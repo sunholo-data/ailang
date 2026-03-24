@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sunholo/ailang/internal/messaging"
@@ -57,7 +59,25 @@ func pkgPublishCommand(args []string) error {
 		}
 	}
 
-	// Create tarball
+	// Rewrite path deps to registry versions in ailang.toml before creating tarball.
+	// Published packages must reference dependencies by registry version, not local paths.
+	// We save and restore the original so the developer's local file isn't permanently changed.
+	tomlPath := filepath.Join(cwd, pkg.ManifestFile)
+	originalToml, _ := os.ReadFile(tomlPath)
+
+	if pathDepsRewritten, err := rewritePathDepsForPublish(cwd, manifest); err != nil {
+		return fmt.Errorf("failed to rewrite path deps: %w", err)
+	} else if pathDepsRewritten {
+		// Restore original after tarball creation (deferred)
+		defer os.WriteFile(tomlPath, originalToml, 0644)
+		// Reload manifest after rewrite
+		manifest, err = pkg.LoadManifest(cwd)
+		if err != nil {
+			return fmt.Errorf("failed to reload manifest after path dep rewrite: %w", err)
+		}
+	}
+
+	// Create tarball (uses the rewritten ailang.toml with registry deps)
 	tarballData, err := pkg.CreateTarball(cwd)
 	if err != nil {
 		return fmt.Errorf("failed to create package tarball: %w", err)
@@ -96,6 +116,64 @@ func pkgPublishCommand(args []string) error {
 	emitPublishMessages(manifest, cwd, contentHash, interfaceHash)
 
 	return nil
+}
+
+// rewritePathDepsForPublish replaces path dependencies in ailang.toml with
+// registry version strings. Published packages must not contain path deps
+// since consumers won't have the local filesystem layout.
+//
+// Returns true if any deps were rewritten.
+func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool, error) {
+	hasPathDeps := false
+	for _, dep := range manifest.Dependencies {
+		if dep.Path != "" {
+			hasPathDeps = true
+			break
+		}
+	}
+	if !hasPathDeps {
+		return false, nil
+	}
+
+	tomlPath := dir + "/" + pkg.ManifestFile
+	data, err := os.ReadFile(tomlPath)
+	if err != nil {
+		return false, err
+	}
+	content := string(data)
+	rewritten := false
+
+	for depName, dep := range manifest.Dependencies {
+		if dep.Path == "" {
+			continue
+		}
+		// Look up the dep's version from its own ailang.toml (local path)
+		depManifestPath := dep.Path
+		if !filepath.IsAbs(depManifestPath) {
+			depManifestPath = filepath.Join(dir, dep.Path)
+		}
+		depManifest, err := pkg.LoadManifest(depManifestPath)
+		if err != nil {
+			return false, fmt.Errorf("cannot read dependency %s at %s: %w\nPath deps must be resolvable at publish time", depName, dep.Path, err)
+		}
+		version := depManifest.Package.Version
+
+		// Replace path dep with version dep
+		old := fmt.Sprintf(`"%s" = { path = "%s" }`, depName, dep.Path)
+		replacement := fmt.Sprintf(`"%s" = "%s"`, depName, version)
+		if strings.Contains(content, old) {
+			content = strings.Replace(content, old, replacement, 1)
+			fmt.Printf("  %s Rewrote dep %s: path %q → registry %s\n", cyan("→"), depName, dep.Path, version)
+			rewritten = true
+		}
+	}
+
+	if rewritten {
+		if err := os.WriteFile(tomlPath, []byte(content), 0644); err != nil {
+			return false, err
+		}
+	}
+	return rewritten, nil
 }
 
 func uploadTarball(url string, tarballData []byte) error {
