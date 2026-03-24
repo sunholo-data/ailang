@@ -284,4 +284,56 @@ func emitPublishMessages(manifest *pkg.PackageManifest, cwd, contentHash, interf
 	if count, err := store.SupersedeOlderMessages(pkgName, manifest.Package.Version); err == nil && count > 0 {
 		fmt.Printf("%s Superseded %d older message(s)\n", cyan("→"), count)
 	}
+
+	// Notify dependent packages (M-PKG-AUTONOMOUS-UPDATES)
+	emitDependentNotifications(store, manifest, contentHash, interfaceHash)
+}
+
+// emitDependentNotifications queries the registry index for packages that depend on
+// the just-published package and sends them upgrade-available messages.
+// Best-effort — failures are logged but don't block the publish.
+func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageManifest, contentHash, interfaceHash string) {
+	client := pkg.NewRegistryClient()
+	index, err := client.FetchIndex()
+	if err != nil {
+		// Registry unavailable — skip dependent notifications silently
+		return
+	}
+
+	pkgName := manifest.Package.Name
+	newVersion := manifest.Package.Version
+
+	// Find all packages that list us as a dependency
+	dependents := index.FindDependents(pkgName)
+
+	if len(dependents) == 0 {
+		return
+	}
+
+	// Determine change class from interface hash
+	changeClass := "patch"
+	// Check if interface hash changed (use the old info from lockfile if available)
+	// Interface hash change → minor, same → patch
+	lf, lfErr := pkg.LoadLockFile(".")
+	if lfErr == nil {
+		for _, lp := range lf.Packages {
+			if lp.Name == pkgName && lp.InterfaceHash != "" && lp.InterfaceHash != interfaceHash {
+				changeClass = "minor"
+				break
+			}
+		}
+	}
+
+	for _, depName := range dependents {
+		recipients := []string{messaging.FormatPackageInbox(depName)}
+		depInfo := messaging.PackageVersionInfo{
+			Name:          pkgName,
+			Version:       newVersion,
+			InterfaceHash: interfaceHash,
+			ContentHash:   contentHash,
+		}
+		if msgID, err := messaging.EmitUpgradeAvailable(store, messaging.PackageVersionInfo{Name: pkgName}, depInfo, recipients); err == nil && msgID != "" {
+			fmt.Printf("%s Notified dependent %s (ID: %s, class: %s)\n", cyan("→"), depName, msgID, changeClass)
+		}
+	}
 }

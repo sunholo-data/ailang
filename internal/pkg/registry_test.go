@@ -151,3 +151,82 @@ func TestCachedPackagePath(t *testing.T) {
 		t.Errorf("path should be under cache/registry, got %s", path)
 	}
 }
+
+// M-PKG-AUTONOMOUS-UPDATES: Tests for dependent lookup via Dependencies field.
+
+func TestRegistryIndex_FindDependents(t *testing.T) {
+	index := &RegistryIndex{
+		Packages: []IndexEntry{
+			{Name: "sunholo/auth", Dependencies: nil},
+			{Name: "sunholo/gcp-auth", Dependencies: []string{"sunholo/auth"}},
+			{Name: "sunholo/http-helpers", Dependencies: nil},
+			{Name: "sunholo/firestore", Dependencies: []string{"sunholo/auth", "sunholo/http-helpers"}},
+			{Name: "sunholo/billing_store", Dependencies: []string{"sunholo/firestore"}},
+		},
+	}
+
+	// auth has 2 dependents: gcp-auth and firestore
+	deps := index.FindDependents("sunholo/auth")
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependents of auth, got %d: %v", len(deps), deps)
+	}
+	if deps[0] != "sunholo/gcp-auth" || deps[1] != "sunholo/firestore" {
+		t.Errorf("expected [gcp-auth, firestore], got %v", deps)
+	}
+
+	// http-helpers has 1 dependent: firestore
+	deps = index.FindDependents("sunholo/http-helpers")
+	if len(deps) != 1 || deps[0] != "sunholo/firestore" {
+		t.Errorf("expected [firestore], got %v", deps)
+	}
+
+	// firestore has 1 dependent: billing_store
+	deps = index.FindDependents("sunholo/firestore")
+	if len(deps) != 1 || deps[0] != "sunholo/billing_store" {
+		t.Errorf("expected [billing_store], got %v", deps)
+	}
+
+	// billing_store has no dependents
+	deps = index.FindDependents("sunholo/billing_store")
+	if len(deps) != 0 {
+		t.Errorf("expected 0 dependents, got %d: %v", len(deps), deps)
+	}
+
+	// nonexistent package has no dependents
+	deps = index.FindDependents("sunholo/nonexistent")
+	if len(deps) != 0 {
+		t.Errorf("expected 0 dependents for nonexistent, got %d", len(deps))
+	}
+}
+
+func TestIndexEntry_DependenciesJSON(t *testing.T) {
+	// Verify Dependencies field serializes/deserializes correctly
+	entry := IndexEntry{
+		Name:         "sunholo/gcp-auth",
+		Latest:       "0.1.0",
+		Dependencies: []string{"sunholo/auth", "sunholo/http-helpers"},
+	}
+
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var decoded IndexEntry
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if len(decoded.Dependencies) != 2 {
+		t.Errorf("expected 2 dependencies, got %d", len(decoded.Dependencies))
+	}
+	if decoded.Dependencies[0] != "sunholo/auth" {
+		t.Errorf("expected first dep 'sunholo/auth', got %q", decoded.Dependencies[0])
+	}
+
+	// Verify omitempty: nil Dependencies should not appear in JSON
+	entryNoDeps := IndexEntry{Name: "sunholo/auth", Latest: "0.1.0"}
+	data2, _ := json.Marshal(entryNoDeps)
+	if strings.Contains(string(data2), "dependencies") {
+		t.Errorf("expected dependencies to be omitted when nil, got: %s", string(data2))
+	}
+}

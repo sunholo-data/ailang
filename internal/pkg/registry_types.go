@@ -19,6 +19,7 @@ type IndexEntry struct {
 	Exports           []string `json:"exports"`
 	ContractsVerified int      `json:"contracts_verified"`
 	HasAgentDoc       bool     `json:"has_agent_doc"`
+	Dependencies      []string `json:"dependencies,omitempty"` // Package names this depends on (M-PKG-AUTONOMOUS-UPDATES)
 }
 
 // PackageMetadata is the per-version metadata.json from the registry.
@@ -44,6 +45,24 @@ type ValidationResult struct {
 	ContractsTotal    int    `json:"contracts_total"`
 	ContractsSkipped  int    `json:"contracts_skipped"`
 	AILANGVersion     string `json:"ailang_version"`
+}
+
+// FindDependents returns the names of all packages in the index that
+// list the given package as a dependency.
+func (idx *RegistryIndex) FindDependents(pkgName string) []string {
+	var dependents []string
+	for _, entry := range idx.Packages {
+		if entry.Name == pkgName {
+			continue
+		}
+		for _, dep := range entry.Dependencies {
+			if dep == pkgName {
+				dependents = append(dependents, entry.Name)
+				break
+			}
+		}
+	}
+	return dependents
 }
 
 // MetadataManifest is the manifest section of metadata.json.
