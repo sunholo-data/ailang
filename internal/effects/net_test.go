@@ -1,12 +1,64 @@
 package effects
 
 import (
+	"net"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/eval"
 )
+
+// TestValidateIP_MetadataServer tests the cloud metadata server exception.
+// GCP/AWS/Azure metadata servers live at 169.254.169.254 (link-local).
+// AllowMetadata flag permits this specific IP while keeping other link-local blocked.
+func TestValidateIP_MetadataServer(t *testing.T) {
+	metadataIP := net.IPv4(169, 254, 169, 254)
+	otherLinkLocal := net.IPv4(169, 254, 1, 1)
+
+	t.Run("metadata IP blocked by default", func(t *testing.T) {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("Net"))
+		err := validateIP(metadataIP, ctx)
+		if err == nil {
+			t.Error("expected metadata IP to be blocked by default")
+		}
+		if !strings.Contains(err.Error(), "link-local IP blocked") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("metadata IP allowed with AllowMetadata", func(t *testing.T) {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("Net"))
+		ctx.Net.AllowMetadata = true
+		err := validateIP(metadataIP, ctx)
+		if err != nil {
+			t.Errorf("expected metadata IP to be allowed, got: %v", err)
+		}
+	})
+
+	t.Run("other link-local still blocked with AllowMetadata", func(t *testing.T) {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("Net"))
+		ctx.Net.AllowMetadata = true
+		err := validateIP(otherLinkLocal, ctx)
+		if err == nil {
+			t.Error("expected other link-local IP to still be blocked")
+		}
+	})
+
+	t.Run("localhost unaffected by AllowMetadata", func(t *testing.T) {
+		ctx := NewEffContext(nil)
+		ctx.Grant(NewCapability("Net"))
+		ctx.Net.AllowMetadata = true
+		// Localhost should still be blocked (AllowLocalhost not set)
+		err := validateIP(net.IPv4(127, 0, 0, 1), ctx)
+		if err == nil {
+			t.Error("expected localhost to still be blocked")
+		}
+	})
+}
 
 // TestNetCapabilityChecks verifies that Net operations require Net capability
 func TestNetCapabilityChecks(t *testing.T) {

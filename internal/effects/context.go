@@ -138,6 +138,7 @@ type NetContext struct {
 	MaxRedirects   int           // Max HTTP redirects
 	AllowHTTP      bool          // Allow http:// (default: false, https only)
 	AllowLocalhost bool          // Allow localhost/127.x/::1 (default: false)
+	AllowMetadata  bool          // Allow cloud metadata server at 169.254.169.254 (default: false)
 	AllowedDomains []string      // Domain allowlist (empty = all allowed)
 	UserAgent      string        // User-Agent header
 }

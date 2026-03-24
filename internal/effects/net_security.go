@@ -37,7 +37,13 @@ func validateIP(ip net.IP, ctx *EffContext) error {
 	// Link-local IPv4: 169.254.x.x
 	// Link-local IPv6: fe80::/10
 	if ip.IsLinkLocalUnicast() {
-		return fmt.Errorf("E_NET_IP_BLOCKED: link-local IP blocked: %s", ip)
+		// Cloud metadata server exception: 169.254.169.254 is used by GCP, AWS, and Azure
+		// for instance metadata. Safe because the metadata server itself requires a
+		// provider-specific header (e.g., Metadata-Flavor: Google) to prevent SSRF.
+		if ctx.Net.AllowMetadata && ip.Equal(net.IPv4(169, 254, 169, 254)) {
+			return nil
+		}
+		return fmt.Errorf("E_NET_IP_BLOCKED: link-local IP blocked: %s (use --net-allow-metadata for cloud metadata server)", ip)
 	}
 
 	// Unspecified (0.0.0.0, ::)

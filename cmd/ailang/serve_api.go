@@ -109,6 +109,7 @@ func serveAPICommand(args []string) error {
 		if effCtx.HasCap("Net") {
 			effCtx.Net.AllowHTTP = true
 			effCtx.Net.AllowLocalhost = true
+			effCtx.Net.AllowMetadata = true // Cloud Run needs GCP metadata server (169.254.169.254)
 		}
 	}
 

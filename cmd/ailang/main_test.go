@@ -356,9 +356,11 @@ func TestSetupNetHandler(t *testing.T) {
 		caps           string
 		allowHTTP      bool
 		allowLocalhost bool
+		allowMetadata  bool
 		allowDomains   string
 		wantHTTP       bool
 		wantLocalhost  bool
+		wantMetadata   bool
 		wantDomains    int
 	}{
 		{
@@ -380,6 +382,12 @@ func TestSetupNetHandler(t *testing.T) {
 			wantLocalhost:  true,
 		},
 		{
+			name:          "Net cap with AllowMetadata",
+			caps:          "Net",
+			allowMetadata: true,
+			wantMetadata:  true,
+		},
+		{
 			name:         "Net cap with domain allowlist",
 			caps:         "Net",
 			allowDomains: "metadata.google.internal,example.com",
@@ -396,13 +404,16 @@ func TestSetupNetHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			effCtx := effects.NewEffContext([]string{})
 			grantCapabilities(effCtx, tt.caps)
-			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost)
+			setupNetHandler(effCtx, tt.allowHTTP, tt.allowDomains, tt.allowLocalhost, tt.allowMetadata)
 
 			if effCtx.Net.AllowHTTP != tt.wantHTTP {
 				t.Errorf("AllowHTTP = %v, want %v", effCtx.Net.AllowHTTP, tt.wantHTTP)
 			}
 			if effCtx.Net.AllowLocalhost != tt.wantLocalhost {
 				t.Errorf("AllowLocalhost = %v, want %v", effCtx.Net.AllowLocalhost, tt.wantLocalhost)
+			}
+			if effCtx.Net.AllowMetadata != tt.wantMetadata {
+				t.Errorf("AllowMetadata = %v, want %v", effCtx.Net.AllowMetadata, tt.wantMetadata)
 			}
 			if tt.wantDomains > 0 && len(effCtx.Net.AllowedDomains) != tt.wantDomains {
 				t.Errorf("AllowedDomains len = %d, want %d", len(effCtx.Net.AllowedDomains), tt.wantDomains)

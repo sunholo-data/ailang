@@ -132,10 +132,11 @@ func setupSharedMemHandler(effCtx *effects.EffContext) {
 }
 
 // setupNetHandler configures Net effect security settings if the capability is granted.
-func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool) {
+func setupNetHandler(effCtx *effects.EffContext, allowHTTP bool, allowDomains string, allowLocalhost bool, allowMetadata bool) {
 	if effCtx.HasCap("Net") {
 		effCtx.Net.AllowHTTP = allowHTTP
 		effCtx.Net.AllowLocalhost = allowLocalhost
+		effCtx.Net.AllowMetadata = allowMetadata
 		if allowDomains != "" {
 			for _, d := range strings.Split(allowDomains, ",") {
 				d = strings.TrimSpace(d)
@@ -376,7 +377,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	entry string, argsJSON string, printResult bool, noprint bool, caps string,
 	maxRecursionDepth int, noBudgets bool, budgetReport string, debugEffect bool,
 	verifyContracts bool, emitTrace string, binopShim bool, quiet bool,
-	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool,
+	netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool,
 	streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool,
 	processTimeout string, processAllowlist string, processMaxOutput int64,
 	aiStub bool, aiModel string,
@@ -399,7 +400,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	// Set up effect handlers
 	setupSharedMemHandler(effCtx)
 	setupSharedIndexHandler(effCtx)
-	setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost)
+	setupNetHandler(effCtx, netAllowHTTP, netAllowDomains, netAllowLocalhost, netAllowMetadata)
 	setupStreamHandler(effCtx, streamAllowHTTP, streamAllowDomains, streamAllowLocalhost)
 	if err := setupProcessHandler(effCtx, processTimeout, processAllowlist, processMaxOutput); err != nil {
 		return fmt.Errorf("process handler setup: %w", err)
