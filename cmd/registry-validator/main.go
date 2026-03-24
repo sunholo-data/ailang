@@ -28,6 +28,8 @@ import (
 	"github.com/sunholo/ailang/internal/pkg"
 )
 
+const cacheTTL = 5 * time.Minute
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -46,16 +48,23 @@ func main() {
 	}
 	defer gcsClient.Close()
 
+	bucketHandle := gcsClient.Bucket(bucket)
 	v := &validator{
-		bucket:     gcsClient.Bucket(bucket),
+		bucket:     bucketHandle,
 		bucketName: bucket,
 		apiKey:     os.Getenv("REGISTRY_API_KEY"),
+		cache:      newRegistryCache(bucketHandle, cacheTTL),
 	}
 
 	http.HandleFunc("/publish", v.handlePublish)
 	http.HandleFunc("/rebuild-index", v.handleRebuildIndex)
 	http.HandleFunc("/health", handleHealth)
 	http.HandleFunc("/version", handleVersion)
+
+	// Read-only API for package explorer website
+	http.HandleFunc("/api/packages", corsMiddleware(v.handleAPIPackages))
+	http.HandleFunc("/api/packages/", corsMiddleware(v.handleAPIPackageDetail))
+	http.HandleFunc("/api/stats", corsMiddleware(v.handleAPIStats))
 
 	log.Printf("Registry validator listening on :%s (bucket: %s)", port, bucket)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -65,6 +74,7 @@ type validator struct {
 	bucket     *storage.BucketHandle
 	bucketName string
 	apiKey     string // if set, requires X-API-Key header on publish
+	cache      *registryCache
 }
 
 // validatorBuildVersion is set at build time via -ldflags.
@@ -260,6 +270,11 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Published %s@%s (%d bytes, %d/%d contracts verified)", name, version, len(tarballData), contractsVerified, contractsTotal)
+
+	// Invalidate API cache so fresh data is served immediately
+	if v.cache != nil {
+		v.cache.Invalidate()
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(metaJSON)
