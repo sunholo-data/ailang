@@ -141,3 +141,40 @@ MOD010: module declaration 'sunholo/firestore/client' doesn't match canonical pa
 - Use `AILANG_RELAX_MODULES=1` environment variable
 - Use `--relax-modules` flag
 - Move the file to match the declared module path
+
+---
+
+## Key 'X' has already been defined (TOML parse error)
+
+```
+toml: line 23: Key 'dependencies."sunholo/firestore"' has already been defined.
+```
+
+**Cause**: Duplicate dependency entry in ailang.toml. Can happen if `ailang install` adds a dep that already exists.
+
+**Fix**: Open ailang.toml and remove the duplicate entry. Keep only one format:
+
+```toml
+[dependencies]
+"sunholo/firestore" = "0.1.0"           # registry dep (published)
+# "sunholo/firestore" = { path = "..." }  # DELETE this duplicate
+```
+
+---
+
+## Publishing with path deps
+
+`ailang publish` automatically rewrites path deps to registry versions in the tarball. If publish fails with path dep errors, ensure:
+
+1. All deps exist locally (path deps must be readable at publish time)
+2. All deps are either published to registry OR available via git
+3. Publish in dependency order — leaf packages (no deps) first
+
+**Publish order example**:
+```
+1. billing_entitlements (no deps)
+2. firestore (deps: gcp_auth, config — already published)
+3. billing_proposals (deps: billing_entitlements — from step 1)
+4. billing_store (deps: firestore, billing_entitlements, billing_proposals)
+5. billing_service_api (deps: everything above)
+```

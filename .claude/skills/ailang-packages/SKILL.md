@@ -9,7 +9,7 @@ Create, validate, and publish AILANG packages with correct conventions. Use when
 - User asks about `ailang.toml`, `ailang.lock`, package imports, or package publishing
 - User wants to add dependencies between packages
 - User asks "how do I import from another package" or "how do I export types"
-- Code has `import pkg/` paths that aren't resolving
+- Code has `import pkg/` or `import ./` paths that aren't resolving
 
 ## Quick Reference
 
@@ -26,7 +26,7 @@ ailang init package --name sunholo/mylib --module-prefix mylib --dep sunholo/con
 ailang lock                    # Resolve dependencies → ailang.lock
 ailang check --package .       # Type-check all modules (cross-module resolution)
 ailang test --package .        # Run *_test.ail files
-ailang publish --dry-run       # Preview registry publication
+ailang publish --dry-run       # Preview registry publication (rewrites path deps → registry versions)
 ailang publish                 # Publish to registry
 ```
 
@@ -44,7 +44,7 @@ Import:     import pkg/sunholo/billing_store/customers_repo (getCustomer)
 
 ### 2. Use `./` for intra-package sibling imports
 
-Modules within the SAME package import siblings via `./` prefix. External dependencies use `pkg/`. This gives a clean three-way distinction:
+Three-way import distinction — locality is explicit at the point of use:
 
 ```ailang
 import ./plan (Plan, lookupPlan)              -- LOCAL: sibling in same package
@@ -52,14 +52,14 @@ import pkg/sunholo/firestore/client (getDoc)  -- EXTERNAL: different package
 import std/result (Ok, Err)                   -- STDLIB: bundled
 ```
 
-`./` resolves in module namespace: if current module is `sunholo/billing_entitlements/entitlement`, then `./plan` normalizes to `sunholo/billing_entitlements/plan`.
+`./` resolves in **module namespace** (not filesystem): if current module is `sunholo/billing_entitlements/entitlement`, then `./plan` normalizes to `sunholo/billing_entitlements/plan`.
 
 ```ailang
 import ./plan (Plan, lookupPlan, freePlan)    -- sibling
 import ./sub/helpers (validate)               -- child directory
 ```
 
-Note: `pkg/` self-imports also work (backward compatible) but `./` is preferred.
+`pkg/` self-imports also work (backward compatible) but `./` is preferred.
 
 ### 3. Cross-package types MUST use `export type`
 
@@ -110,6 +110,12 @@ modules = ["myapp/services/api", "myapp/handlers/parse"]
 
 Zero source changes needed — existing `module myapp/...` declarations work as-is.
 
+### 7. Publishing rewrites path deps automatically
+
+`ailang publish` automatically rewrites path deps (`{ path = "../firestore" }`) to registry version strings (`"0.1.0"`) in the tarball. Your local `ailang.toml` is restored after. You don't need to change deps manually before publishing.
+
+**Publish in dependency order**: packages with no deps first, then packages that depend on already-published packages.
+
 ## ailang.toml Reference
 
 See [resources/manifest_reference.md](resources/manifest_reference.md) for full field documentation.
@@ -131,11 +137,11 @@ modules = [
 ]
 
 [dependencies]
+# Path deps (local development):
 "sunholo/firestore" = { path = "../firestore" }
-"sunholo/billing_entitlements" = { path = "../billing-entitlements" }
-# OR git deps:
+# Git deps (version pinned):
 # "sunholo/firestore" = { git = "https://github.com/sunholo-data/ailang-packages", subdir = "packages/firestore", tag = "main" }
-# OR registry deps:
+# Registry deps (published packages):
 # "sunholo/firestore" = "0.1.0"
 
 [effects]
@@ -157,9 +163,28 @@ See [resources/error_solutions.md](resources/error_solutions.md) for full troubl
 |-------|-------|-----|
 | `IMP010: symbol not exported` | Type missing `export` keyword | Add `export type Foo = ...` |
 | `LDR001: module not found` | Missing dependency or wrong import path | Add dep to ailang.toml + `ailang lock` |
-| `cannot unify type constructor X with TRecord` | Type alias not propagating across packages | Add `export type` to the defining module |
+| `cannot unify type constructor X with TRecord` | Type alias not exported across packages | Add `export type` to the defining module |
 | `package not found in ailang.lock` | Dependencies not resolved | Run `ailang lock` |
 | `PAR_HYPHEN_IN_MODULE` | Hyphen in module path | Use underscores: `billing_store` not `billing-store` |
+| `Key has already been defined` | Duplicate dep entry in ailang.toml | Remove duplicate, keep one format |
+
+## Publishing Checklist
+
+1. All modules pass: `ailang check --package .`
+2. Dependencies are listed in `[dependencies]` (path deps OK — publish rewrites them)
+3. Exported types have `export type`
+4. `[exports].modules` lists all public modules
+5. `[effects].max` includes all effects used
+6. `AGENT.md` exists with usage guide
+7. Publish in dependency order (leaf packages first)
+
+## Registry Validator
+
+The registry validator (`/version` endpoint shows deployed version):
+- Runs `ailang check --package .` on uploaded tarballs
+- Rewrites any remaining path deps to registry versions (safety net for older clients)
+- Runs `ailang lock` to download deps from registry before checking
+- Validates compilation, effect ceilings, and contracts
 
 ## Workflow
 
