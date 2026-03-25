@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/eval"
 )
 
 func TestExtractRouteAnnotations(t *testing.T) {
@@ -296,29 +297,65 @@ func TestBuildHttpRequestRecord(t *testing.T) {
 		t.Errorf("unexpected path: %v", rec["path"])
 	}
 
-	// Check headers
-	headers, ok := rec["headers"].(map[string]interface{})
+	// Check headers are JObject
+	headersJObj, ok := rec["headers"].(*eval.TaggedValue)
 	if !ok {
-		t.Fatalf("headers is not map[string]interface{}: %T", rec["headers"])
+		t.Fatalf("headers is not *eval.TaggedValue: %T", rec["headers"])
 	}
-	if headers["Stripe-Signature"] != "t=123,v1=abc" {
-		t.Errorf("unexpected Stripe-Signature header: %v", headers["Stripe-Signature"])
+	if headersJObj.CtorName != "JObject" {
+		t.Fatalf("headers should be JObject, got %s", headersJObj.CtorName)
 	}
-	if headers["Content-Type"] != "application/json" {
-		t.Errorf("unexpected Content-Type header: %v", headers["Content-Type"])
+	// Verify Stripe-Signature header is present (hyphenated key!)
+	found := findJObjectValue(headersJObj, "Stripe-Signature")
+	if found != "t=123,v1=abc" {
+		t.Errorf("expected Stripe-Signature 't=123,v1=abc', got %q", found)
+	}
+	found = findJObjectValue(headersJObj, "Content-Type")
+	if found != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got %q", found)
 	}
 
-	// Check query
-	query, ok := rec["query"].(map[string]interface{})
+	// Check query is JObject
+	queryJObj, ok := rec["query"].(*eval.TaggedValue)
 	if !ok {
-		t.Fatalf("query is not map[string]interface{}: %T", rec["query"])
+		t.Fatalf("query is not *eval.TaggedValue: %T", rec["query"])
 	}
-	if query["event"] != "checkout" {
-		t.Errorf("unexpected query event: %v", query["event"])
+	if queryJObj.CtorName != "JObject" {
+		t.Fatalf("query should be JObject, got %s", queryJObj.CtorName)
 	}
-	if query["debug"] != "true" {
-		t.Errorf("unexpected query debug: %v", query["debug"])
+	if findJObjectValue(queryJObj, "event") != "checkout" {
+		t.Errorf("expected query event 'checkout', got %q", findJObjectValue(queryJObj, "event"))
 	}
+}
+
+// findJObjectValue extracts a string value from a JObject by key (for testing).
+func findJObjectValue(jobj *eval.TaggedValue, key string) string {
+	if len(jobj.Fields) == 0 {
+		return ""
+	}
+	list, ok := jobj.Fields[0].(*eval.ListValue)
+	if !ok {
+		return ""
+	}
+	for _, elem := range list.Elements {
+		rec, ok := elem.(*eval.RecordValue)
+		if !ok {
+			continue
+		}
+		kv, ok := rec.Fields["key"].(*eval.StringValue)
+		if !ok || kv.Value != key {
+			continue
+		}
+		valTag, ok := rec.Fields["value"].(*eval.TaggedValue)
+		if !ok || valTag.CtorName != "JString" || len(valTag.Fields) == 0 {
+			continue
+		}
+		sv, ok := valTag.Fields[0].(*eval.StringValue)
+		if ok {
+			return sv.Value
+		}
+	}
+	return ""
 }
 
 func TestBuildHttpRequestRecord_EmptyBody(t *testing.T) {
@@ -332,11 +369,15 @@ func TestBuildHttpRequestRecord_EmptyBody(t *testing.T) {
 		t.Errorf("unexpected method: %v", rec["method"])
 	}
 
-	query, ok := rec["query"].(map[string]interface{})
+	queryJObj, ok := rec["query"].(*eval.TaggedValue)
 	if !ok {
-		t.Fatalf("query should be map, got %T", rec["query"])
+		t.Fatalf("query should be *eval.TaggedValue, got %T", rec["query"])
 	}
-	if len(query) != 0 {
-		t.Errorf("expected empty query, got %v", query)
+	if queryJObj.CtorName != "JObject" {
+		t.Fatalf("query should be JObject, got %s", queryJObj.CtorName)
+	}
+	list := queryJObj.Fields[0].(*eval.ListValue)
+	if len(list.Elements) != 0 {
+		t.Errorf("expected empty query JObject, got %d elements", len(list.Elements))
 	}
 }

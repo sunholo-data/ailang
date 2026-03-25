@@ -353,24 +353,37 @@ func parseMultipartArgs(r *http.Request, maxSize int64) ([]interface{}, error) {
 
 // buildHttpRequestRecord constructs a map representing an HttpRequest record
 // from an http.Request and its already-read body. Used by @raw routes.
+// Headers and query are JObject (Json ADT) so handlers can use std/json.get()
+// for dynamic key access (e.g., hyphenated header names like "Stripe-Signature").
 func buildHttpRequestRecord(r *http.Request, body []byte) map[string]interface{} {
-	headers := make(map[string]interface{})
-	for k, v := range r.Header {
-		if len(v) > 0 {
-			headers[k] = v[0] // first value per header
-		}
-	}
-	query := make(map[string]interface{})
-	for k, v := range r.URL.Query() {
-		if len(v) > 0 {
-			query[k] = v[0]
-		}
-	}
 	return map[string]interface{}{
 		"body":    string(body),
-		"headers": headers,
+		"headers": stringMapToJObject(r.Header),
 		"method":  r.Method,
 		"path":    r.URL.Path,
-		"query":   query,
+		"query":   stringMapToJObject(r.URL.Query()),
+	}
+}
+
+// stringMapToJObject converts an http.Header or url.Values (map[string][]string)
+// to a JObject TaggedValue: JObject(List[{key: string, value: JString(string)}]).
+func stringMapToJObject(m map[string][]string) *eval.TaggedValue {
+	kvPairs := make([]eval.Value, 0, len(m))
+	for k, v := range m {
+		if len(v) > 0 {
+			kvPairs = append(kvPairs, &eval.RecordValue{
+				Fields: map[string]eval.Value{
+					"key": &eval.StringValue{Value: k},
+					"value": &eval.TaggedValue{
+						ModulePath: "std/json", TypeName: "Json", CtorName: "JString",
+						Fields: []eval.Value{&eval.StringValue{Value: v[0]}},
+					},
+				},
+			})
+		}
+	}
+	return &eval.TaggedValue{
+		ModulePath: "std/json", TypeName: "Json", CtorName: "JObject",
+		Fields: []eval.Value{&eval.ListValue{Elements: kvPairs}},
 	}
 }
