@@ -246,62 +246,7 @@ func (e *DebugEraser) eraseExpr(expr core.CoreExpr) core.CoreExpr {
 // EraseDebugFromEffectRow removes the "Debug" label from an effect row.
 // If the row becomes empty (no labels, no tail), returns nil (pure).
 // If the row was nil (pure), returns nil.
+// Delegates to the generic EraseEffectFromRow.
 func EraseDebugFromEffectRow(row *types.Row) *types.Row {
-	if row == nil {
-		return nil
-	}
-
-	// Check if Debug is present
-	if _, hasDebug := row.Labels["Debug"]; !hasDebug {
-		return row // No Debug to erase
-	}
-
-	// Build new labels without Debug
-	newLabels := make(map[string]types.Type, len(row.Labels)-1)
-	for k, v := range row.Labels {
-		if k != "Debug" {
-			newLabels[k] = v
-		}
-	}
-
-	// Build new budgets without Debug
-	var newBudgets map[string]*int
-	if row.Budgets != nil {
-		newBudgets = make(map[string]*int, len(row.Budgets))
-		for k, v := range row.Budgets {
-			if k != "Debug" {
-				newBudgets[k] = v
-			}
-		}
-		if len(newBudgets) == 0 {
-			newBudgets = nil
-		}
-	}
-
-	// Build new min budgets without Debug
-	var newMinBudgets map[string]*int
-	if row.MinBudgets != nil {
-		newMinBudgets = make(map[string]*int, len(row.MinBudgets))
-		for k, v := range row.MinBudgets {
-			if k != "Debug" {
-				newMinBudgets[k] = v
-			}
-		}
-		if len(newMinBudgets) == 0 {
-			newMinBudgets = nil
-		}
-	}
-
-	// If no labels remain and no row variable tail, this is pure
-	if len(newLabels) == 0 && row.Tail == nil {
-		return nil
-	}
-
-	return &types.Row{
-		Kind:       row.Kind,
-		Labels:     newLabels,
-		Tail:       row.Tail,
-		Budgets:    newBudgets,
-		MinBudgets: newMinBudgets,
-	}
+	return EraseEffectFromRow(row, "Debug")
 }

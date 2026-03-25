@@ -18,9 +18,84 @@ func debugLog(format string, args ...interface{}) {
 	}
 }
 
+// ghostEffects lists effects that are transparent to callers.
+// Ghost effects don't propagate through function calls — callers never need
+// to declare them. The effect is still enforced at runtime (capability check)
+// and can be erased entirely in release mode (--release).
+var ghostEffects = map[string]bool{
+	"Debug": true,
+}
+
+// eraseGhostEffects removes ghost effects (e.g., Debug) from a required effect row.
+// Ghost effects don't propagate to callers — they're transparent at the type level.
+func eraseGhostEffects(row *types.Row) *types.Row {
+	if row == nil {
+		return nil
+	}
+	result := row
+	for effect := range ghostEffects {
+		result = EraseEffectFromRow(result, effect)
+	}
+	return result
+}
+
+// EraseEffectFromRow removes a named effect from an effect row.
+// Returns nil if the row becomes empty (pure).
+func EraseEffectFromRow(row *types.Row, effect string) *types.Row {
+	if row == nil {
+		return nil
+	}
+	if _, has := row.Labels[effect]; !has {
+		return row
+	}
+	newLabels := make(map[string]types.Type, len(row.Labels)-1)
+	for k, v := range row.Labels {
+		if k != effect {
+			newLabels[k] = v
+		}
+	}
+	// Copy budgets without the erased effect
+	var newBudgets map[string]*int
+	if row.Budgets != nil {
+		newBudgets = make(map[string]*int, len(row.Budgets))
+		for k, v := range row.Budgets {
+			if k != effect {
+				newBudgets[k] = v
+			}
+		}
+		if len(newBudgets) == 0 {
+			newBudgets = nil
+		}
+	}
+	var newMinBudgets map[string]*int
+	if row.MinBudgets != nil {
+		newMinBudgets = make(map[string]*int, len(row.MinBudgets))
+		for k, v := range row.MinBudgets {
+			if k != effect {
+				newMinBudgets[k] = v
+			}
+		}
+		if len(newMinBudgets) == 0 {
+			newMinBudgets = nil
+		}
+	}
+	if len(newLabels) == 0 && row.Tail == nil {
+		return nil
+	}
+	return &types.Row{
+		Kind:       row.Kind,
+		Labels:     newLabels,
+		Tail:       row.Tail,
+		Budgets:    newBudgets,
+		MinBudgets: newMinBudgets,
+	}
+}
+
 // ValidateEffects validates that functions declare all effects they use
 // Compares declared effects from Surface AST with required effects from Core AST
 // Returns error if a function uses effects not declared in its signature
+// Ghost effects (e.g., Debug) are filtered from required effects — callers
+// never need to declare them.
 func ValidateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo types.CoreTypeInfo) error {
 	// Early return for empty programs
 	if len(coreProg.Decls) == 0 {
@@ -62,6 +137,10 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string][]string, typeI
 			required := collectRequiredEffects(binding.Value, typeInfo, declaredEffects)
 			debugLog("  Required effects: %s", formatRow(required))
 
+			// Ghost effects (Debug) don't need to be declared by callers
+			required = eraseGhostEffects(required)
+			debugLog("  Required effects (after ghost erasure): %s", formatRow(required))
+
 			if !types.SubsumeEffectRows(required, declared) {
 				return formatEffectError(binding.Name, required, declared)
 			}
@@ -81,6 +160,10 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string][]string, typeI
 		// Collect required effects from Core AST
 		required := collectRequiredEffects(let.Value, typeInfo, declaredEffects)
 		debugLog("  Required effects: %s", formatRow(required))
+
+		// Ghost effects (Debug) don't need to be declared by callers
+		required = eraseGhostEffects(required)
+		debugLog("  Required effects (after ghost erasure): %s", formatRow(required))
 
 		if !types.SubsumeEffectRows(required, declared) {
 			return formatEffectError(let.Name, required, declared)
