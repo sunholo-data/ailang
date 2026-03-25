@@ -451,11 +451,17 @@ func runAilangCheck(dir string) (bool, string) {
 			}
 		}
 
-		// Step 2: Generate lockfile. ailang lock downloads registry deps automatically.
+		// Step 2: Generate lockfile + download deps. ailang lock resolves transitive deps automatically.
 		lockCmd := exec.Command("ailang", "lock")
 		lockCmd.Dir = dir
-		if lockOutput, err := lockCmd.CombinedOutput(); err != nil {
-			log.Printf("Warning: ailang lock failed: %s", string(lockOutput))
+		lockOutput, err := lockCmd.CombinedOutput()
+		if err != nil {
+			return false, fmt.Sprintf("Dependency resolution failed (ailang lock):\n%s", string(lockOutput))
+		}
+
+		// Verify lock file was actually created
+		if !fileExists(filepath.Join(dir, "ailang.lock")) {
+			return false, "ailang lock succeeded but ailang.lock was not generated"
 		}
 
 		// Step 3: Run package-level type check
