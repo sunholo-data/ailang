@@ -32,8 +32,8 @@ install: prepare-embed ## Install ailang to GOPATH/bin (with version info)
 		echo "  export PATH=\"$$(go env GOPATH)/bin:\$$PATH\""; \
 	fi
 
-quick-install: prepare-embed ## Quick install without version info (faster)
-	@go install ./cmd/ailang
+quick-install: prepare-embed ## Quick install with version info
+	@go install $(LDFLAGS) ./cmd/ailang
 	@echo "$(GREEN)$(CHECKMARK) ailang updated in $$(go env GOPATH)/bin$(RESET)"
 
 dev: ## Quick development build (no optimization)

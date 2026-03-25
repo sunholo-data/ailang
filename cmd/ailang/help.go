@@ -60,13 +60,21 @@ func checkStaleBinary() {
 func printVersion() {
 	fmt.Printf("AILANG %s\n", bold(Version))
 	if Commit != "unknown" {
-		fmt.Printf("Commit: %s\n", Commit)
+		// Show short hash on main line, full hash on next
+		short := Commit
+		if len(Commit) > 7 {
+			short = Commit[:7]
+		}
+		fmt.Printf("Commit: %s\n", short)
+		if len(Commit) > 7 {
+			fmt.Printf("Full:   %s\n", Commit)
+		}
 	}
 	if BuildTime != "unknown" {
 		fmt.Printf("Built:  %s\n", BuildTime)
 	}
 	fmt.Println("\nThe AI-First Programming Language")
-	fmt.Println("Copyright (c) 2025")
+	fmt.Println("Copyright (c) 2025-2026")
 }
 
 func printHelp() {
@@ -76,6 +84,7 @@ func printHelp() {
 	fmt.Println("  ailang <command> [arguments]")
 	fmt.Println()
 	fmt.Println("Commands:")
+	fmt.Printf("  %s                    Show version, commit hash, and build time\n", cyan("version"))
 	fmt.Printf("  %s             Run an AILANG program\n", cyan("run [flags] <file>"))
 	fmt.Printf("  %s                       Start the interactive REPL\n", cyan("repl"))
 	fmt.Printf("  %s                   Run tests\n", cyan("test [path]"))

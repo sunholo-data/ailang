@@ -96,6 +96,10 @@ func main() {
 	command := flag.Arg(0)
 
 	switch command {
+	case "version":
+		printVersion()
+		return
+
 	case "run":
 		runCommand()
 
