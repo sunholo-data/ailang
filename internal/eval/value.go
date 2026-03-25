@@ -198,6 +198,7 @@ type FunctionValue struct {
 	Params           []string
 	Body             interface{} // Can be ast.Expr, core.CoreExpr, or typedast.TypedNode
 	Env              *Environment
+	Resolver         GlobalResolver  // M-DX-XPKG-RESOLVE: resolver from defining module (for cross-package calls)
 	Typed            bool            // Whether Body is typed
 	EffectBudgets    map[string]int  // Budget max limits per effect (from @limit annotation)
 	EffectMinBudgets map[string]int  // Budget min limits per effect (from @min annotation, M-DX25 M4)

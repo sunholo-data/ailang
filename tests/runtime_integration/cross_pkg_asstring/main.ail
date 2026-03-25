@@ -1,0 +1,34 @@
+module tests/runtime_integration/cross_pkg_asstring/main
+
+import std/json (asString, getString, get, jo, kv, js)
+-- NOTE: deliberately NOT importing std/option — asString's body needs Some/None
+-- but the calling module shouldn't need to know that
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let obj = jo([kv("value", js("test-123"))]);
+
+  -- getString should work (calls asString internally)
+  let gsResult = match getString(obj, "value") {
+    Some(s) => s,
+    None    => "NONE"
+  };
+  println("getString result: " ++ gsResult);
+
+  -- Direct asString on same value
+  let field = match get(obj, "value") {
+    Some(v) => v,
+    None    => js("")
+  };
+  let asResult = match asString(field) {
+    Some(s) => s,
+    None    => "NONE"
+  };
+  println("asString result: " ++ asResult);
+
+  -- Both should be equal
+  if gsResult == asResult then
+    println("PASS: both return same result")
+  else
+    println("FAIL: getString=" ++ gsResult ++ " asString=" ++ asResult)
+}

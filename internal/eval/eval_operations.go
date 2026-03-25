@@ -58,14 +58,29 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 
 			oldEnv := e.env
 			e.env = newEnv
+			// M-DX-XPKG-RESOLVE: fallback resolver for curry body
+			var oldResolver GlobalResolver
+			if fn.Resolver != nil && fn.Resolver != e.resolver {
+				oldResolver = e.resolver
+				e.resolver = &FallbackResolver{
+					Primary:   e.resolver,
+					Secondary: fn.Resolver,
+				}
+			}
 			var intermediate Value
 			if coreBody, ok := fn.Body.(core.CoreExpr); ok {
 				intermediate, err = e.evalCore(coreBody)
 			} else {
 				e.env = oldEnv
+				if oldResolver != nil {
+					e.resolver = oldResolver
+				}
 				return nil, fmt.Errorf("function body is not Core AST")
 			}
 			e.env = oldEnv
+			if oldResolver != nil {
+				e.resolver = oldResolver
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -119,9 +134,25 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		oldEnv := e.env
 		e.env = newEnv
 
+		// M-DX-XPKG-RESOLVE: Create a fallback resolver that tries the caller's
+		// resolver first (for builtins/effect context), then falls back to the
+		// function's defining module resolver (for constructors like Some/None
+		// that the caller might not have in scope).
+		var oldResolver GlobalResolver
+		if fn.Resolver != nil && fn.Resolver != e.resolver {
+			oldResolver = e.resolver
+			e.resolver = &FallbackResolver{
+				Primary:   e.resolver,
+				Secondary: fn.Resolver,
+			}
+		}
+
 		// M-VERIFY-CONTRACTS: Check preconditions before executing body
 		if err := e.checkPreconditions(fn); err != nil {
 			e.env = oldEnv
+			if oldResolver != nil {
+				e.resolver = oldResolver
+			}
 			return nil, err
 		}
 
@@ -130,6 +161,9 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		if coreBody, ok := fn.Body.(core.CoreExpr); ok {
 			result, err = e.evalCore(coreBody)
 		} else {
+			if oldResolver != nil {
+				e.resolver = oldResolver
+			}
 			return nil, fmt.Errorf("function body is not Core AST")
 		}
 
@@ -137,11 +171,17 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		if err == nil {
 			if postErr := e.checkPostconditions(fn, result); postErr != nil {
 				e.env = oldEnv
+				if oldResolver != nil {
+					e.resolver = oldResolver
+				}
 				return nil, postErr
 			}
 		}
 
 		e.env = oldEnv
+		if oldResolver != nil {
+			e.resolver = oldResolver
+		}
 
 		// M-TRACE-EXPORT: Record function exit
 		if recorder, ok := e.effContext.(TraceRecorder); ok && recorder.HasTraceCollector() {
@@ -526,6 +566,21 @@ func applyUnOp(op string, operand Value) (Value, error) {
 // applyFunction applies args to a FunctionValue, supporting auto-currying.
 // Used by the auto-curry path when intermediate results need further application.
 func (e *CoreEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, error) {
+	// M-DX-XPKG-RESOLVE: fallback resolver for function's defining module
+	var oldResolver GlobalResolver
+	if fn.Resolver != nil && fn.Resolver != e.resolver {
+		oldResolver = e.resolver
+		e.resolver = &FallbackResolver{
+			Primary:   e.resolver,
+			Secondary: fn.Resolver,
+		}
+	}
+	defer func() {
+		if oldResolver != nil {
+			e.resolver = oldResolver
+		}
+	}()
+
 	if len(args) > len(fn.Params) {
 		// Still more args than params — recurse
 		firstArgs := args[:len(fn.Params)]

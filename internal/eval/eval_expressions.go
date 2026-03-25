@@ -159,10 +159,11 @@ func (e *CoreEvaluator) evalCoreLit(lit *core.Lit) (Value, error) {
 // evalCoreLambda evaluates a lambda (creates closure)
 func (e *CoreEvaluator) evalCoreLambda(lam *core.Lambda) (Value, error) {
 	fn := &FunctionValue{
-		Params: lam.Params,
-		Body:   lam.Body,
-		Env:    e.env, // Capture environment by reference (needed for recursion)
-		Typed:  false,
+		Params:   lam.Params,
+		Body:     lam.Body,
+		Env:      e.env,      // Capture environment by reference (needed for recursion)
+		Resolver: e.resolver, // M-DX-XPKG-RESOLVE: capture defining module's resolver
+		Typed:    false,
 	}
 
 	// M-CAPABILITY-BUDGETS: Extract effect budgets from type info if available

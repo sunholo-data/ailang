@@ -767,9 +767,10 @@ func isLambda(expr core.CoreExpr) (*core.Lambda, bool) {
 // buildClosure creates a FunctionValue from a Lambda, capturing the given environment
 func (e *CoreEvaluator) buildClosure(lam *core.Lambda, env *Environment) (*FunctionValue, error) {
 	return &FunctionValue{
-		Params: lam.Params,
-		Body:   lam.Body,
-		Env:    env,
-		Typed:  false,
+		Params:   lam.Params,
+		Body:     lam.Body,
+		Env:      env,
+		Resolver: e.resolver, // M-DX-XPKG-RESOLVE: capture defining module's resolver
+		Typed:    false,
 	}, nil
 }

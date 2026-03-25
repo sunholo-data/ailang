@@ -12,6 +12,25 @@ type GlobalResolver interface {
 	ResolveValue(ref core.GlobalRef) (Value, error)
 }
 
+// FallbackResolver tries the primary resolver first, then falls back to the
+// secondary resolver. Used by M-DX-XPKG-RESOLVE to combine the caller's resolver
+// (for builtins/effect context) with the function's defining resolver (for constructors
+// and module-specific lookups that the caller's resolver can't see).
+type FallbackResolver struct {
+	Primary   GlobalResolver // Caller's resolver (builtins, effects)
+	Secondary GlobalResolver // Function's defining resolver (constructors, module scope)
+}
+
+// ResolveValue tries Primary first, then Secondary on failure.
+func (f *FallbackResolver) ResolveValue(ref core.GlobalRef) (Value, error) {
+	val, err := f.Primary.ResolveValue(ref)
+	if err == nil {
+		return val, nil
+	}
+	// Primary failed — try secondary (defining module's resolver)
+	return f.Secondary.ResolveValue(ref)
+}
+
 // BudgetEnforcer is implemented by effect contexts that support budget enforcement
 // This interface avoids import cycles between eval and effects packages
 type BudgetEnforcer interface {
