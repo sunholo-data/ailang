@@ -260,16 +260,16 @@ func runMessagesReply(args []string) {
 		ghClient.SetOverrideUser(*githubUser)
 	}
 
-	// Determine the repo: CLI flag > message repo > config default
+	// Determine the repo: CLI flag > message repo > inbox mapping > config default
 	targetRepo := msg.GitHubRepo
 	if *repo != "" {
 		targetRepo = *repo
 	}
 	if targetRepo == "" {
-		// Try to get default from config
+		// Try inbox-specific mapping, then default
 		cfg := ghClient.GetConfig()
-		if cfg != nil && cfg.DefaultRepo != "" {
-			targetRepo = cfg.DefaultRepo
+		if cfg != nil {
+			targetRepo = cfg.RepoForInbox(msg.ToInbox)
 		}
 	}
 	if targetRepo == "" {

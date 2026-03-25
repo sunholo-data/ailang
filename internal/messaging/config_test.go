@@ -139,6 +139,50 @@ func TestIsAutoImportEnabled(t *testing.T) {
 	}
 }
 
+func TestRepoForInbox(t *testing.T) {
+	config := &GitHubConfig{
+		DefaultRepo: "sunholo-data/ailang",
+		InboxRepos: map[string]string{
+			"http-helpers":        "sunholo-data/ailang-packages",
+			"pkg:":                "sunholo-data/ailang-packages",
+			"twilight-design-doc": "MarkEdmondson1234/TwilightGame",
+		},
+	}
+
+	tests := []struct {
+		inbox string
+		want  string
+	}{
+		{"http-helpers", "sunholo-data/ailang-packages"},          // exact match
+		{"pkg:sunholo/auth", "sunholo-data/ailang-packages"},      // prefix match
+		{"pkg:sunholo/test_pkg", "sunholo-data/ailang-packages"},  // prefix match
+		{"twilight-design-doc", "MarkEdmondson1234/TwilightGame"}, // exact match
+		{"design-doc-creator", "sunholo-data/ailang"},             // fallback to default
+		{"sprint-executor", "sunholo-data/ailang"},                // fallback to default
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.inbox, func(t *testing.T) {
+			got := config.RepoForInbox(tt.inbox)
+			if got != tt.want {
+				t.Errorf("RepoForInbox(%q) = %q, want %q", tt.inbox, got, tt.want)
+			}
+		})
+	}
+
+	// Nil config edge case
+	var nilConfig *GitHubConfig
+	if got := nilConfig.RepoForInbox("anything"); got != "" {
+		t.Errorf("nil config should return empty, got %q", got)
+	}
+
+	// No inbox_repos should return default
+	noMapping := &GitHubConfig{DefaultRepo: "default/repo"}
+	if got := noMapping.RepoForInbox("anything"); got != "default/repo" {
+		t.Errorf("expected default/repo, got %q", got)
+	}
+}
+
 func TestConfigWithoutGitHub(t *testing.T) {
 	// Test parsing a config without github section
 	configContent := `

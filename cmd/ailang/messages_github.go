@@ -256,10 +256,10 @@ func syncMessageToGitHub(msg *messaging.InboxMessage, repoOverride string, githu
 		client.SetOverrideUser(githubUserOverride)
 	}
 
-	// Determine repo
+	// Determine repo: CLI flag > inbox-specific mapping > default
 	repo := repoOverride
 	if repo == "" && config != nil {
-		repo = config.DefaultRepo
+		repo = config.RepoForInbox(msg.ToInbox)
 	}
 
 	// Create the issue

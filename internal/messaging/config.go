@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,6 +13,11 @@ import (
 type GitHubConfig struct {
 	// DefaultRepo is the default repository for --github flag (e.g., "sunholo-data/ailang")
 	DefaultRepo string `yaml:"default_repo"`
+
+	// InboxRepos maps inbox names (or prefixes) to specific GitHub repositories.
+	// This allows messages sent to different inboxes to create issues in the correct repo.
+	// Supports exact matches and prefix matches (e.g., "pkg:" matches "pkg:sunholo/auth").
+	InboxRepos map[string]string `yaml:"inbox_repos"`
 
 	// ExpectedUser is the expected GitHub username (must match gh auth status)
 	// This prevents accidentally creating issues under the wrong account
@@ -25,6 +31,31 @@ type GitHubConfig struct {
 
 	// AutoImport enables automatic import on session start (default: true)
 	AutoImport *bool `yaml:"auto_import"`
+}
+
+// RepoForInbox returns the GitHub repository for a given inbox name.
+// Resolution order: exact match in inbox_repos, then prefix match, then default_repo.
+func (c *GitHubConfig) RepoForInbox(inbox string) string {
+	if c == nil {
+		return ""
+	}
+	if len(c.InboxRepos) == 0 {
+		return c.DefaultRepo
+	}
+
+	// Exact match first
+	if repo, ok := c.InboxRepos[inbox]; ok {
+		return repo
+	}
+
+	// Prefix match (e.g., "pkg:" matches "pkg:sunholo/auth")
+	for prefix, repo := range c.InboxRepos {
+		if strings.HasSuffix(prefix, ":") && strings.HasPrefix(inbox, prefix) {
+			return repo
+		}
+	}
+
+	return c.DefaultRepo
 }
 
 // IsAutoImportEnabled returns whether auto-import is enabled (defaults to true)
