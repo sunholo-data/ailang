@@ -109,8 +109,8 @@ Running `ailang serve-api ./api/` auto-generates these endpoints:
 | GET | `/api/_meta/docs` | Swagger UI (interactive explorer) |
 | GET | `/api/_meta/redoc` | ReDoc (API reference) |
 | GET | `/api/_health` | Health check |
-| GET | `/.well-known/agent.json` | A2A Agent Card |
-| POST | `/a2a/` | A2A JSON-RPC endpoint |
+| GET | `/.well-known/agent.json` | A2A Agent Card (requires `--a2a`) |
+| POST | `/a2a/` | A2A JSON-RPC endpoint (requires `--a2a`) |
 
 ### URL Convention
 
@@ -328,7 +328,7 @@ Each exported AILANG function becomes an MCP tool with proper JSON Schema for ar
 
 ### A2A (Agent-to-Agent Protocol)
 
-Google's A2A protocol is always enabled:
+Google's A2A protocol is enabled with the `--a2a` flag:
 
 - **Agent Card**: `GET /.well-known/agent.json` — lists all functions as skills
 - **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0 for function invocation

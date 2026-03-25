@@ -94,9 +94,16 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 
 // registerCustomRoutes adds custom route handlers to the mux.
 // Custom routes are registered BEFORE the catch-all /api/ handler.
-func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
+// builtinPaths contains paths already registered by buildRoutes(); any @route
+// annotation that collides with a built-in path is skipped with a warning
+// (Go 1.22+ ServeMux panics on duplicate patterns).
+func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[string]bool) {
 	routes := s.getCustomRoutes()
 	for _, route := range routes {
+		if builtinPaths[route.Path] {
+			log.Printf("  WARNING: @route %s %s collides with built-in route, skipping (use built-in handler instead)", route.Method, route.Path)
+			continue
+		}
 		r := route // capture for closure
 		handler := func(w http.ResponseWriter, req *http.Request) {
 			// Enforce HTTP method

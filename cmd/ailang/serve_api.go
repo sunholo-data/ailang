@@ -26,6 +26,7 @@ func serveAPICommand(args []string) error {
 	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
 	mcpFlag := fs.Bool("mcp", false, "Run as MCP stdio server (for Claude Desktop, Cursor, etc.)")
 	mcpHTTPFlag := fs.Bool("mcp-http", false, "Enable MCP HTTP endpoint at /mcp/")
+	a2aFlag := fs.Bool("a2a", false, "Enable A2A protocol endpoints (/.well-known/agent.json, /a2a/)")
 	maxUploadFlag := fs.Int64("max-upload-size", 0, "Maximum upload size in bytes (default: 50MB)")
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
@@ -128,6 +129,7 @@ func serveAPICommand(args []string) error {
 		EffCtx:        effCtx,
 		MCP:           *mcpHTTPFlag,
 		MCPOnly:       *mcpFlag,
+		A2A:           *a2aFlag,
 		MaxUploadSize: *maxUploadFlag,
 		APIKeyHeader:  *apiKeyHeaderFlag,
 		APIKeyEnv:     *apiKeyEnvFlag,
@@ -229,6 +231,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --verify-contracts   Enable runtime contract validation (requires/ensures)")
 	fmt.Println("  --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)")
 	fmt.Println("  --mcp-http           Enable MCP HTTP endpoint at /mcp/")
+	fmt.Println("  --a2a                Enable A2A protocol (/.well-known/agent.json, /a2a/)")
 	fmt.Println("  --max-upload-size N  Maximum file upload size in bytes (default: 50MB)")
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
@@ -255,6 +258,7 @@ func printServeAPIHelp() {
 	fmt.Println("  ailang serve-api --caps IO,AI --ai gemini-2-5-flash ./api/")
 	fmt.Println("  ailang serve-api --mcp ./api/                        # MCP stdio server")
 	fmt.Println("  ailang serve-api --mcp-http ./api/                   # HTTP + MCP at /mcp/")
+	fmt.Println("  ailang serve-api --a2a ./api/                        # HTTP + A2A protocol")
 	fmt.Println("  ailang serve-api --api-key-header x-api-key --api-key-env API_KEY ./api/")
 	fmt.Println()
 	fmt.Println("Concurrency:")
@@ -276,8 +280,8 @@ func printServeAPIHelp() {
 	fmt.Println("  GET  /api/_meta/modules/{path}    Details for a specific module")
 	fmt.Println("  GET  /api/_health                 Health check")
 	fmt.Println()
-	fmt.Println("Protocol endpoints:")
-	fmt.Println("  GET  /.well-known/agent.json      A2A Agent Card")
-	fmt.Println("  POST /a2a/                        A2A JSON-RPC task endpoint")
+	fmt.Println("Protocol endpoints (opt-in via flags):")
+	fmt.Println("  GET  /.well-known/agent.json      A2A Agent Card (with --a2a)")
+	fmt.Println("  POST /a2a/                        A2A JSON-RPC task endpoint (with --a2a)")
 	fmt.Println("  POST /mcp/                        MCP streamable HTTP (with --mcp-http)")
 }

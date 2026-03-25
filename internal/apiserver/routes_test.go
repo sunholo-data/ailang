@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -356,6 +357,99 @@ func findJObjectValue(jobj *eval.TaggedValue, key string) string {
 		}
 	}
 	return ""
+}
+
+// --- Route Collision Guard Tests ---
+
+func TestRouteCollisionGuard_SkipsBuiltinPath(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	// Manually inject a custom route that collides with a built-in path
+	srv.mu.Lock()
+	for _, mod := range srv.modules {
+		mod.Exports = append(mod.Exports, ExportInfo{
+			Name:        "agentCard",
+			RoutePath:   "/.well-known/agent.json",
+			RouteMethod: "GET",
+		})
+	}
+	srv.mu.Unlock()
+
+	// Enable A2A so the built-in path is registered
+	srv.a2aEnabled = true
+
+	// buildRoutes should NOT panic — collision guard skips the duplicate
+	mux := srv.buildRoutes()
+
+	// The built-in A2A handler should still work
+	req := httptest.NewRequest("GET", "/.well-known/agent.json", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from built-in A2A handler, got %d", w.Code)
+	}
+}
+
+func TestRouteCollisionGuard_AllowsNonCollidingRoute(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	// Inject a custom route that does NOT collide with any built-in
+	srv.mu.Lock()
+	for _, mod := range srv.modules {
+		mod.Exports = append(mod.Exports, ExportInfo{
+			Name:        "custom",
+			RoutePath:   "/custom/endpoint",
+			RouteMethod: "GET",
+		})
+	}
+	srv.mu.Unlock()
+
+	// buildRoutes should register the non-colliding route
+	mux := srv.buildRoutes()
+
+	req := httptest.NewRequest("GET", "/custom/endpoint", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	// Should not 404 — the custom route was registered
+	if w.Code == http.StatusNotFound {
+		t.Fatal("expected custom route to be registered, got 404")
+	}
+}
+
+func TestA2ADisabledByDefault(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+	// a2aEnabled is false by default
+
+	mux := srv.buildRoutes()
+
+	req := httptest.NewRequest("GET", "/.well-known/agent.json", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code == http.StatusOK {
+		t.Fatal("expected non-200 when A2A is disabled, got 200")
+	}
+}
+
+func TestA2AEnabledRegistersRoutes(t *testing.T) {
+	srv := testServer(t)
+	srv.a2aEnabled = true
+	defer srv.Close()
+
+	mux := srv.buildRoutes()
+
+	req := httptest.NewRequest("GET", "/.well-known/agent.json", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 when A2A is enabled, got %d", w.Code)
+	}
 }
 
 func TestBuildHttpRequestRecord_EmptyBody(t *testing.T) {

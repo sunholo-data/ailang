@@ -58,6 +58,7 @@ type Server struct {
 	// Protocol support
 	mcpEnabled    bool                // serve MCP at /mcp/
 	mcpOnly       bool                // stdio-only MCP mode (no HTTP)
+	a2aEnabled    bool                // serve A2A at /.well-known/agent.json and /a2a/
 	maxUploadSize int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
 	apiKeyHeader  string              // HTTP header name for API key auth
 	apiKeyEnv     string              // env var containing expected API key
@@ -92,6 +93,7 @@ type Config struct {
 	EffCtx        interface{} // optional: pre-configured effect context (*effects.EffContext)
 	MCP           bool        // enable MCP endpoint at /mcp/
 	MCPOnly       bool        // run as MCP stdio server only (no HTTP)
+	A2A           bool        // enable A2A endpoints (/.well-known/agent.json, /a2a/)
 	MaxUploadSize int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
 	APIKeyHeader  string      // HTTP header for API key auth (empty = no auth)
 	APIKeyEnv     string      // env var containing expected API key
@@ -128,6 +130,7 @@ func New(basePath string, cfg Config) *Server {
 		watch:         cfg.Watch,
 		mcpEnabled:    cfg.MCP,
 		mcpOnly:       cfg.MCPOnly,
+		a2aEnabled:    cfg.A2A,
 		maxUploadSize: maxUpload,
 		apiKeyHeader:  cfg.APIKeyHeader,
 		apiKeyEnv:     cfg.APIKeyEnv,
@@ -425,9 +428,11 @@ func (s *Server) buildRoutes() *http.ServeMux {
 	mux.HandleFunc("/api/_meta/docs", s.corsWrap(s.handleSwaggerUI))
 	mux.HandleFunc("/api/_meta/redoc", s.corsWrap(s.handleReDoc))
 
-	// A2A Agent Card
-	mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
-	mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+	// A2A Agent Card (opt-in via --a2a flag)
+	if s.a2aEnabled {
+		mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
+		mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+	}
 
 	// MCP endpoint (streamable HTTP transport)
 	if s.mcpEnabled {
@@ -435,9 +440,27 @@ func (s *Server) buildRoutes() *http.ServeMux {
 		mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
 	}
 
+	// Build set of built-in paths to prevent @route collisions (Go 1.22+ panics on duplicates)
+	builtinPaths := map[string]bool{
+		"/api/_meta/modules":      true,
+		"/api/_meta/modules/":     true,
+		"/api/_health":            true,
+		"/api/_meta/openapi.json": true,
+		"/api/_meta/docs":         true,
+		"/api/_meta/redoc":        true,
+		"/api/":                   true,
+	}
+	if s.a2aEnabled {
+		builtinPaths["/.well-known/agent.json"] = true
+		builtinPaths["/a2a/"] = true
+	}
+	if s.mcpEnabled {
+		builtinPaths["/mcp/"] = true
+	}
+
 	// Custom routes from @route annotations (registered before catch-all)
 	// Auth middleware wraps custom routes and the catch-all
-	s.registerCustomRoutes(mux)
+	s.registerCustomRoutes(mux, builtinPaths)
 
 	// Function call endpoints - catch-all under /api/
 	mux.HandleFunc("/api/", s.corsWrap(s.authMiddleware(s.handleFunctionCall)))
@@ -520,8 +543,10 @@ func (s *Server) printStartupBanner() {
 	log.Println("    GET  /api/_health")
 	log.Println()
 	log.Println("  Protocols:")
-	log.Println("    GET  /.well-known/agent.json    (A2A Agent Card)")
-	log.Println("    POST /a2a/                      (A2A JSON-RPC)")
+	if s.a2aEnabled {
+		log.Println("    GET  /.well-known/agent.json    (A2A Agent Card)")
+		log.Println("    POST /a2a/                      (A2A JSON-RPC)")
+	}
 	if s.mcpEnabled {
 		log.Println("    POST /mcp/                      (MCP Streamable HTTP)")
 	}

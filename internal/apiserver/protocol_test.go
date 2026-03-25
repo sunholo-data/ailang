@@ -110,6 +110,7 @@ func TestOpenAPISpecPureAnnotation(t *testing.T) {
 
 func TestA2AAgentCard(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -151,6 +152,7 @@ func TestA2AAgentCard(t *testing.T) {
 
 func TestA2AAgentCardMethodNotAllowed(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -165,6 +167,7 @@ func TestA2AAgentCardMethodNotAllowed(t *testing.T) {
 
 func TestA2ATaskSend(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -246,6 +249,7 @@ func TestA2ATaskSend(t *testing.T) {
 
 func TestA2ATaskGet(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -271,6 +275,7 @@ func TestA2ATaskGet(t *testing.T) {
 
 func TestA2AUnknownMethod(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -296,6 +301,7 @@ func TestA2AUnknownMethod(t *testing.T) {
 
 func TestA2AInvalidJSON(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -315,6 +321,7 @@ func TestA2AInvalidJSON(t *testing.T) {
 
 func TestA2AMethodNotAllowed(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
@@ -330,6 +337,7 @@ func TestA2AMethodNotAllowed(t *testing.T) {
 
 func TestA2ATextPartArgParsing(t *testing.T) {
 	srv := testServer(t)
+	srv.a2aEnabled = true
 	defer srv.Close()
 
 	mux := srv.buildRoutes()
