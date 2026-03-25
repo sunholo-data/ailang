@@ -1296,7 +1296,7 @@
       }
     },
     {
-      "path": "runnable/zip_reader.ail",
+      "path": "expected_fail/zip_reader.ail",
       "status": "working",
       "tags": [
         "stdlib",
@@ -1380,7 +1380,7 @@
       "description": "Type inference regression T8: effectful combinators on string lists"
     },
     {
-      "path": "runnable/process_demo.ail",
+      "path": "expected_fail/process_demo.ail",
       "status": "working",
       "tags": ["effects", "process", "exec", "std/process", "security"],
       "description": "External command execution with Process effect: exec, error handling, completion semantics",
@@ -1390,7 +1390,7 @@
       }
     },
     {
-      "path": "runnable/stream_multi_source.ail",
+      "path": "expected_fail/stream_multi_source.ail",
       "status": "working",
       "tags": ["stream", "async", "stdin", "multiplexer", "M-ASYNC-IO"],
       "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
@@ -1401,7 +1401,7 @@
       }
     },
     {
-      "path": "runnable/stream_process_source.ail",
+      "path": "expected_fail/stream_process_source.ail",
       "status": "working",
       "tags": ["stream", "async", "process", "subprocess", "M-ASYNC-IO"],
       "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
@@ -1411,7 +1411,7 @@
       }
     },
     {
-      "path": "runnable/process_stdin_write.ail",
+      "path": "expected_fail/process_stdin_write.ail",
       "status": "working",
       "tags": ["process", "stdin", "pipe", "subprocess", "M-ASYNC-IO"],
       "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
@@ -1447,7 +1447,7 @@
       "description": "Record pattern matching in contracts — Z3 verifies match expressions that destructure records into field bindings"
     },
     {
-      "path": "runnable/contracts/list_recursive_verify.ail",
+      "path": "expected_fail/contracts/list_recursive_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -1461,7 +1461,7 @@
       "description": "Recursive list operation contracts — Z3 proves containment and extraction properties using seq.contains and seq.extract"
     },
     {
-      "path": "runnable/contracts/per_function_depth_verify.ail",
+      "path": "expected_fail/contracts/per_function_depth_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -1474,7 +1474,7 @@
       "description": "Per-function recursion depth — @verify(depth: N) attribute overrides global --verify-recursive-depth for individual functions"
     },
     {
-      "path": "runnable/contracts/hof_verify.ail",
+      "path": "expected_fail/contracts/hof_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
@@ -1489,7 +1489,7 @@
       "description": "Higher-order function verification — Z3 proves properties about map/filter with known lambdas via monomorphic inlining and bounded unrolling"
     },
     {
-      "path": "runnable/contracts/quantifier_verify.ail",
+      "path": "expected_fail/contracts/quantifier_verify.ail",
       "status": "working",
       "tags": [
         "contracts",
