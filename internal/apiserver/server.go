@@ -55,11 +55,12 @@ type Server struct {
 	watchPaths []string // absolute paths of loaded .ail files (for reload mapping)
 
 	// Protocol support
-	mcpEnabled    bool   // serve MCP at /mcp/
-	mcpOnly       bool   // stdio-only MCP mode (no HTTP)
-	maxUploadSize int64  // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
-	apiKeyHeader  string // HTTP header name for API key auth
-	apiKeyEnv     string // env var containing expected API key
+	mcpEnabled    bool                // serve MCP at /mcp/
+	mcpOnly       bool                // stdio-only MCP mode (no HTTP)
+	maxUploadSize int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
+	apiKeyHeader  string              // HTTP header name for API key auth
+	apiKeyEnv     string              // env var containing expected API key
+	effCtx        *effects.EffContext // for Debug output collection
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -101,9 +102,11 @@ func New(basePath string, cfg Config) *Server {
 	eng := embed.New(basePath)
 	// Guard against Go's typed-nil interface gotcha: a *EffContext(nil) stored
 	// in interface{} is != nil but causes a nil pointer dereference.
+	var storedEffCtx *effects.EffContext
 	if cfg.EffCtx != nil {
 		if effCtx, ok := cfg.EffCtx.(*effects.EffContext); ok && effCtx != nil {
 			eng.SetEffContext(cfg.EffCtx)
+			storedEffCtx = effCtx
 		}
 	}
 	maxUpload := cfg.MaxUploadSize
@@ -124,7 +127,26 @@ func New(basePath string, cfg Config) *Server {
 		maxUploadSize: maxUpload,
 		apiKeyHeader:  cfg.APIKeyHeader,
 		apiKeyEnv:     cfg.APIKeyEnv,
+		effCtx:        storedEffCtx,
 	}
+}
+
+// flushDebugOutput collects Debug ghost effect logs and prints them to stderr,
+// then resets the context for the next request.
+func (s *Server) flushDebugOutput() {
+	if s.effCtx == nil || s.effCtx.Debug == nil {
+		return
+	}
+	out := s.effCtx.Debug.Collect()
+	for _, l := range out.Logs {
+		log.Printf("[Debug] %s", l.Message)
+	}
+	for _, a := range out.Assertions {
+		if !a.Passed {
+			log.Printf("[Debug ASSERT FAIL] %s at %s", a.Message, a.Location)
+		}
+	}
+	s.effCtx.Debug.Reset()
 }
 
 // LoadModules compiles and loads AILANG modules from the given paths.

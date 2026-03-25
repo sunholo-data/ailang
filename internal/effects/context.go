@@ -188,7 +188,7 @@ func NewNetContext() *NetContext {
 //	ctx.Grant(NewCapability("Net"))
 //	ctx.Grant(NewCapability("Env"))
 func NewEffContext(args []string) *EffContext {
-	return &EffContext{
+	ctx := &EffContext{
 		Caps:         make(map[string]Capability),
 		Env:          loadEffEnv(),
 		Clock:        NewClockContext(), // Initialize monotonic time anchor
@@ -197,6 +197,10 @@ func NewEffContext(args []string) *EffContext {
 		EnvAllowlist: nil, // nil = allow all (no restrictions by default)
 		Args:         args,
 	}
+	// Debug is a ghost effect — always available, no explicit --caps needed
+	ctx.Grant(NewCapability("Debug"))
+	ctx.Debug = NewDebugContext()
+	return ctx
 }
 
 // Grant adds a capability to the context

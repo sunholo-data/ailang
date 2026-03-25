@@ -227,28 +227,22 @@ func TestDebugCheck_EffectOperation(t *testing.T) {
 	}
 }
 
-func TestDebug_CapabilityRequired(t *testing.T) {
-	// Create effect context WITHOUT Debug capability
+func TestDebug_AlwaysAvailable(t *testing.T) {
+	// Debug is a ghost effect — always auto-granted, no --caps needed
 	ctx := NewEffContext(nil)
-	ctx.Debug = NewDebugContext()
 
-	// Try to call debug log - should fail with capability error
 	args := []eval.Value{
-		&eval.StringValue{Value: "test"},
+		&eval.StringValue{Value: "test message"},
 		&eval.StringValue{Value: "test.ail:1"},
 	}
 
 	_, err := Call(ctx, "Debug", "log", args)
-	if err == nil {
-		t.Fatal("expected capability error, got nil")
+	if err != nil {
+		t.Fatalf("Debug should always be available (ghost effect), got error: %v", err)
 	}
 
-	capErr, ok := err.(*CapabilityError)
-	if !ok {
-		t.Fatalf("expected CapabilityError, got %T: %v", err, err)
-	}
-
-	if capErr.Effect != "Debug" {
-		t.Errorf("expected Debug capability error, got %s", capErr.Effect)
+	out := ctx.Debug.Collect()
+	if len(out.Logs) != 1 || out.Logs[0].Message != "test message" {
+		t.Errorf("expected 1 log entry with 'test message', got %v", out.Logs)
 	}
 }

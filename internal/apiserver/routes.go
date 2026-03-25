@@ -168,6 +168,9 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		args = parseQueryArgs(r.URL.Query())
 	}
 
+	// Flush Debug ghost effect output after each request
+	defer s.flushDebugOutput()
+
 	// Call AILANG function
 	debugConc := os.Getenv("DEBUG_CONCURRENCY") == "1"
 	if debugConc {

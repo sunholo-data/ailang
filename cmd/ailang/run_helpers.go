@@ -408,9 +408,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	if err := setupAIHandler(effCtx, aiStub, aiModel); err != nil {
 		return fmt.Errorf("AI handler setup: %w", err)
 	}
-	if debugEffect {
-		effCtx.Debug = effects.NewDebugContext()
-	}
+	// Debug is auto-granted as a ghost effect in NewEffContext() — no conditional setup needed
 	if verifyContracts {
 		effCtx.Contracts = effects.NewContractContextWithMode(effects.ContractModePanic)
 	}
@@ -453,4 +451,21 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 		maxRecursionDepth: maxRecursionDepth,
 	}
 	return executeModuleEntrypoint(rt, execParams)
+}
+
+// flushDebugOutput collects Debug effect logs and prints them to stderr.
+// Called after execution completes. Safe to call with nil Debug context.
+func flushDebugOutput(effCtx *effects.EffContext) {
+	if effCtx == nil || effCtx.Debug == nil {
+		return
+	}
+	out := effCtx.Debug.Collect()
+	for _, log := range out.Logs {
+		fmt.Fprintf(os.Stderr, "%s\n", log.Message)
+	}
+	for _, a := range out.Assertions {
+		if !a.Passed {
+			fmt.Fprintf(os.Stderr, "[ASSERT FAIL] %s at %s\n", a.Message, a.Location)
+		}
+	}
 }

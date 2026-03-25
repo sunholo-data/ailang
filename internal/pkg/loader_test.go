@@ -232,6 +232,26 @@ func TestCheckEffectCeiling_EmptyEffects(t *testing.T) {
 	}
 }
 
+func TestCheckEffectCeiling_GhostEffectBypass(t *testing.T) {
+	// Debug is a ghost effect — it should pass ceiling check even when not in max list
+	err := CheckEffectCeiling("test/pkg", []string{"IO", "Debug"}, []string{"IO"})
+	if err != nil {
+		t.Errorf("ghost effect Debug should bypass ceiling check: %v", err)
+	}
+
+	// Debug-only function with no max effects should also pass
+	err = CheckEffectCeiling("test/pkg", []string{"Debug"}, []string{})
+	if err != nil {
+		t.Errorf("ghost effect Debug should bypass empty ceiling: %v", err)
+	}
+
+	// Non-ghost effects should still be checked
+	err = CheckEffectCeiling("test/pkg", []string{"IO", "Debug"}, []string{"Debug"})
+	if err == nil {
+		t.Error("non-ghost effect IO should still be caught by ceiling check")
+	}
+}
+
 func TestPackageDir_RegistryRuntimeResolution(t *testing.T) {
 	// Setup: create a registry package in the cache (simulates ailang install)
 	cachePath, err := CachedPackagePath("sunholo/testpkg", "0.1.0")

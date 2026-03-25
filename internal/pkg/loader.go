@@ -247,6 +247,12 @@ func (pl *PackageLoader) EffectCeiling(pkgName string) []string {
 	return manifest.Effects.Max
 }
 
+// IsGhostEffect returns true if the named effect is a ghost effect.
+// Ghost effects are invisible to callers and don't need ceiling declarations.
+func IsGhostEffect(name string) bool {
+	return name == "Debug"
+}
+
 // CheckEffectCeiling validates that the given effects do not exceed a package's
 // declared [effects].max ceiling. Returns nil if within bounds or if no ceiling.
 func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []string) error {
@@ -267,6 +273,10 @@ func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []s
 		// Skip effect variables (lowercase, typically single letter like 'e', 'r')
 		// These are polymorphic — they get instantiated to concrete effects at call sites
 		if len(eff) <= 2 && eff[0] >= 'a' && eff[0] <= 'z' {
+			continue
+		}
+		// Skip ghost effects — they're invisible to packages and don't need ceiling declaration
+		if IsGhostEffect(eff) {
 			continue
 		}
 		if !allowed[eff] {

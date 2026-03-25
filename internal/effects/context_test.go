@@ -28,8 +28,15 @@ func TestNewEffContext(t *testing.T) {
 		t.Error("expected Caps map to be initialized")
 	}
 
-	if len(ctx.Caps) != 0 {
-		t.Errorf("expected no capabilities granted by default, got %d", len(ctx.Caps))
+	// Debug is auto-granted as a ghost effect
+	if !ctx.HasCap("Debug") {
+		t.Error("expected Debug capability to be auto-granted (ghost effect)")
+	}
+	if ctx.Debug == nil {
+		t.Error("expected DebugContext to be initialized")
+	}
+	if len(ctx.Caps) != 1 {
+		t.Errorf("expected only Debug capability auto-granted, got %d", len(ctx.Caps))
 	}
 
 	// Environment should be loaded
@@ -67,8 +74,9 @@ func TestGrantMultipleCapabilities(t *testing.T) {
 		}
 	}
 
-	if len(ctx.Caps) != 3 {
-		t.Errorf("expected 3 capabilities, got %d", len(ctx.Caps))
+	// +1 for auto-granted Debug ghost effect
+	if len(ctx.Caps) != 4 {
+		t.Errorf("expected 4 capabilities (3 + Debug ghost), got %d", len(ctx.Caps))
 	}
 }
 
@@ -78,8 +86,9 @@ func TestGrantIdempotent(t *testing.T) {
 	ctx.Grant(NewCapability("IO"))
 	ctx.Grant(NewCapability("IO")) // Grant same cap twice
 
-	if len(ctx.Caps) != 1 {
-		t.Errorf("expected 1 capability after duplicate grant, got %d", len(ctx.Caps))
+	// 1 IO + 1 auto-granted Debug = 2
+	if len(ctx.Caps) != 2 {
+		t.Errorf("expected 2 capabilities (IO + Debug ghost), got %d", len(ctx.Caps))
 	}
 }
 
