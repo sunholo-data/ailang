@@ -51,6 +51,51 @@ func TestFromGoErrors(t *testing.T) {
 	}
 }
 
+func TestFromGo_MapWithEvalValues(t *testing.T) {
+	// Regression test: map[string]interface{} containing *eval.TaggedValue
+	// must preserve the TaggedValue, not convert it to a plain RecordValue.
+	// This is the exact pattern used by @raw route handlers.
+	jobj := &eval.TaggedValue{
+		ModulePath: "std/json", TypeName: "Json", CtorName: "JObject",
+		Fields: []eval.Value{&eval.ListValue{Elements: []eval.Value{
+			&eval.RecordValue{
+				Fields: map[string]eval.Value{
+					"key": &eval.StringValue{Value: "X-Test"},
+					"value": &eval.TaggedValue{
+						ModulePath: "std/json", TypeName: "Json", CtorName: "JString",
+						Fields: []eval.Value{&eval.StringValue{Value: "hello"}},
+					},
+				},
+			},
+		}}},
+	}
+
+	m := map[string]interface{}{
+		"body":    "test body",
+		"headers": jobj,
+		"method":  "POST",
+	}
+
+	result, err := FromGo(m)
+	if err != nil {
+		t.Fatalf("FromGo error: %v", err)
+	}
+
+	rec, ok := result.(*eval.RecordValue)
+	if !ok {
+		t.Fatalf("expected RecordValue, got %T", result)
+	}
+
+	// headers must be the original TaggedValue, not a converted struct
+	headers, ok := rec.Fields["headers"].(*eval.TaggedValue)
+	if !ok {
+		t.Fatalf("headers should be *eval.TaggedValue, got %T", rec.Fields["headers"])
+	}
+	if headers.CtorName != "JObject" {
+		t.Errorf("headers should be JObject, got %s", headers.CtorName)
+	}
+}
+
 func TestToGo(t *testing.T) {
 	tests := []struct {
 		name  string

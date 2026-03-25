@@ -47,10 +47,16 @@ func fromGoInternal(v interface{}, preserveFloats bool) (eval.Value, error) {
 }
 
 func fromReflect(rv reflect.Value, preserveFloats bool) (eval.Value, error) {
-	// Handle pointers
+	// Handle pointers and interfaces — but check for eval.Value first.
+	// When a map[string]interface{} contains *eval.TaggedValue, reflect sees it
+	// as interface{} wrapping a pointer. We must detect eval.Value before
+	// unwrapping destroys the type identity (e.g., TaggedValue → plain Struct).
 	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
 			return &eval.UnitValue{}, nil
+		}
+		if ev, ok := rv.Interface().(eval.Value); ok {
+			return ev, nil
 		}
 		rv = rv.Elem()
 	}
