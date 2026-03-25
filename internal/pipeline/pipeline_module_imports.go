@@ -171,6 +171,17 @@ func resolveSelectiveImports(
 			}
 		}
 	}
+
+	// M-CTOR-AUTO: Auto-import ALL constructors from imported modules so the
+	// elaborator can recognize nullary constructors (like None, Err) in pattern
+	// matching even when the user only imports functions (e.g., getOrElse, isSome).
+	// Without this, `None` in a match pattern is treated as a variable binding,
+	// silently matching everything. Same pattern as type alias auto-import above.
+	for _, ctor := range depIface.Constructors {
+		if _, exists := imports.ImportedCtorInfos[ctor.CtorName]; !exists {
+			resolveConstructorImport(ctor.CtorName, ctor, imports, cfg)
+		}
+	}
 }
 
 // resolveConstructorImport adds a single constructor from a dependency to the import set.

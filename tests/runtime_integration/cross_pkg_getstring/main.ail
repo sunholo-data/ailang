@@ -1,0 +1,67 @@
+module tests/runtime_integration/cross_pkg_getstring/main
+
+-- Regression test for M-CTOR-AUTO: constructor auto-import.
+--
+-- Before the fix, nullary constructors like None were treated as variable
+-- patterns when not explicitly imported, silently matching everything.
+-- This test validates that pattern matching on Option/Result constructors
+-- works correctly even when only functions (not constructors) are imported.
+
+import std/json (decode, getString, get, asString, jo, kv, js)
+import std/option (getOrElse, isSome)
+import std/io (println)
+
+-- NOTE: Does NOT import Some/None from std/option or Ok/Err from std/result.
+-- Constructors must be auto-imported for pattern matching to work.
+
+-- Pattern 1: getOrElse(getString(...), "") — the gcp_auth pattern
+pure func getField(jsonStr: string, key: string) -> string =
+  match decode(jsonStr) {
+    Ok(json) => getOrElse(getString(json, key), ""),
+    Err(_) => "ERROR"
+  }
+
+-- Pattern 2: Firestore nested get() without importing Some/None
+pure func asStr(fields: Json, fieldName: string) -> string =
+  match get(fields, fieldName) {
+    None => "",
+    Some(field) =>
+      match get(field, "stringValue") {
+        None => "",
+        Some(sv) => getOrElse(asString(sv), "")
+      }
+  }
+
+-- Pattern 3: Firestore extraction from JSON string
+pure func firestoreExtract(jsonStr: string, fieldName: string) -> string =
+  match decode(jsonStr) {
+    Ok(fields) => asStr(fields, fieldName),
+    Err(_) => "DECODE_ERROR"
+  }
+
+-- Pattern 4: isSome + getOrElse combo
+pure func getOrMissing(jsonStr: string, key: string) -> string =
+  match decode(jsonStr) {
+    Ok(json) => {
+      let val = getString(json, key);
+      if isSome(val) then getOrElse(val, "")
+      else "MISSING"
+    },
+    Err(_) => "ERROR"
+  }
+
+-- Simple test helper
+func check(name: string, actual: string, expected: string) -> string ! {IO} {
+  if actual == expected then { println("PASS: " ++ name); "pass" }
+  else { println("FAIL: " ++ name ++ " expected '" ++ expected ++ "' got '" ++ actual ++ "'"); "fail" }
+}
+
+export func main() -> () ! {IO} {
+  let _ = check("getField found", getField("{\"name\":\"Alice\"}", "name"), "Alice");
+  let _ = check("getField missing", getField("{\"name\":\"Alice\"}", "email"), "");
+  let _ = check("firestoreExtract", firestoreExtract("{\"name\":{\"stringValue\":\"Bob\"}}", "name"), "Bob");
+  let _ = check("firestoreExtract missing", firestoreExtract("{\"name\":{\"stringValue\":\"Bob\"}}", "email"), "");
+  let _ = check("getOrMissing found", getOrMissing("{\"token\":\"abc123\"}", "token"), "abc123");
+  let _ = check("getOrMissing missing", getOrMissing("{\"token\":\"abc123\"}", "secret"), "MISSING");
+  ()
+}
