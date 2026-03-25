@@ -76,7 +76,7 @@ Recent supply-chain attack characteristics:
 - No silent dependency substitution possible at any layer
 - All upgrades traceable via structured provenance chain
 - Malicious package cannot execute at install time (by construction)
-- Untrusted publisher cannot inject code into a consuming project
+- Untrusted publisher blocked before artifact contents are admitted into the dependency graph
 - Upgrade chains computable and automatable by agents
 - System converges to consistent state autonomously under policy constraints
 
@@ -102,6 +102,7 @@ Before implementation begins, these must be resolved:
 - [ ] No install-time execution: confirm this is absolute (no exceptions)
 - [ ] Runtime containment scope: what restrictions apply to trusted code
 - [ ] Failure semantics: confirm no-rollback model for published artifacts
+- [ ] Install flow: confirm metadata-only fetch → policy check → artifact fetch sequence
 
 ## Solution Design
 
@@ -118,13 +119,13 @@ This design integrates four concerns into a unified package evolution system:
 
 **P1 — Package Identity Is Inviolable.** A published package version means: exact dependency graph, exact interface + effects, immutable content. No root override of transitive dependencies.
 
-**P2 — No Code Runs at Install Time.** Installation = fetch + verify + extract. Never: execute, evaluate, or mutate environment.
+**P2 — No Code Runs at Install Time.** Installation follows a strict sequence: (1) fetch metadata only, (2) verify provenance + evaluate policy, (3) fetch artifact, (4) verify artifact hash + signature, (5) extract. Never: execute, evaluate, or mutate environment.
 
 **P3 — Upgrades Are Explicit Graph Transformations.** An upgrade is a deterministic transformation of a dependency DAG, not implicit version drift.
 
 **P4 — Trust Is First-Class.** A package is not trusted because it resolves. It must satisfy: identity, provenance, policy, compatibility.
 
-**P5 — Automation Is Policy-Bounded.** Autonomous actions must respect policy, pass verification gates, and be traceable.
+**P5 — Automation Is Policy-Bounded.** Autonomous actions must respect policy, pass verification gates, and be traceable. Autonomous upgrade mode only operates on packages whose provenance is verifiable under the configured trust policy.
 
 ### Architecture
 
@@ -181,9 +182,11 @@ Based on interface hash, effects, and contracts:
 | AUTHORITY | Effects widened (new capabilities) | Block |
 | UNKNOWN | Unverifiable (no interface hash, etc.) | Block |
 
+**Important:** SAFE means *structurally compatible by available interface/effect signals*, not proof of semantic equivalence. A package can keep the same interface hash and effect set while changing runtime behavior. Contracts and future behavioral verification (see Future Work) strengthen this guarantee over time.
+
 **Interface-Aware Pruning:** If a dependency version changes BUT interface hash + effects are unchanged → skip republish (optional, opt-in).
 
-#### C. Security Model (LiteLLM-Class Defense)
+#### C. Supply-Chain Defense Model
 
 **Threat Model:**
 
@@ -201,7 +204,7 @@ Based on interface hash, effects, and contracts:
 
 **Layer 2 — Package Integrity:** Content hash, interface hash, immutable versions. Already implemented in registry (v0.9.7).
 
-**Layer 3 — Provenance (NEW):** Signed publishing. Each package includes:
+**Layer 3 — Provenance (NEW):** Signed publishing establishes artifact origin. Each package includes:
 
 ```json
 {
@@ -215,7 +218,7 @@ Based on interface hash, effects, and contracts:
 
 Registry enforces: signature valid, publisher authorized for namespace.
 
-**Layer 4 — Admission Policy (NEW):** Packages must pass consumer-defined policy before use.
+**Layer 4 — Admission Policy (NEW):** Policy decides whether a given origin is acceptable in a given project or environment. Provenance establishes *who*; policy decides *whether*. Packages must pass consumer-defined policy before admission.
 
 ```toml
 # ailang-policy.toml
@@ -243,7 +246,7 @@ require_contracts = true
 - Dependency delta (version changes)
 - Publisher change flag (different signer than previous version)
 
-**Layer 6 — Runtime Containment:** Even trusted code runs with: least privilege, scoped credentials, network restrictions, container isolation.
+**Layer 6 — Runtime Containment:** Even trusted code runs with: least privilege, scoped credentials, network restrictions, container isolation. Note: runtime containment is a required deployment practice; the specific enforcement mechanism is out of scope for this doc and depends on the execution environment (Cloud Run, local dev, etc.).
 
 #### D. Coordinator Integration
 
@@ -299,8 +302,9 @@ All changes emit events:
 - [ ] Tests for signature verification, policy enforcement
 
 **Phase 4: Coordinator Integration + Autonomous Mode** (~1 week)
-- [ ] `ailang coordinator --auto-upgrade` mode
+- [ ] `ailang coordinator --auto-upgrade` mode (requires all packages have verified provenance)
 - [ ] Event detection → plan → classify → verify → execute → publish pipeline
+- [ ] Reject unsigned/unverified packages from autonomous flows
 - [ ] Policy-bounded automation (SAFE auto, ADDITIVE configurable, BREAKING/AUTHORITY block)
 - [ ] Structured messaging for all upgrade events
 - [ ] Circuit breaker for cascade failures
@@ -410,7 +414,9 @@ $ ailang publish --sign
 | `ailang publish --sign` | Sign package on publish |
 | `ailang pkg keygen` | Generate Ed25519 signing keypair |
 | `ailang policy check <pkg>@<version>` | Dry-run policy evaluation |
-| `ailang coordinator --auto-upgrade` | Autonomous upgrade mode |
+| `ailang coordinator --auto-upgrade` | Autonomous upgrade mode (requires verified provenance) |
+
+**Note:** Policy evaluation is automatic on `ailang install` and `ailang lock` when `ailang-policy.toml` exists. `ailang policy check` is for dry-run evaluation without modifying state.
 
 ## Failure Semantics
 
@@ -433,7 +439,7 @@ Instead of rollback:
 |-----------|-------------|-----------|
 | Dependency change only, no source changes | Patch | Minimal version increment |
 | Source code also changed | Minor | Signals functional change |
-| Breaking interface change | Minor (warn) | Consumer must adapt |
+| Breaking interface change | Explicit bump required (tool refuses implicit default) | Consumer must adapt; silent minor bump would hide breakage |
 | Override via CLI | `--patch` / `--minor` / `--major` | Explicit control |
 
 ## Success Criteria
@@ -441,7 +447,7 @@ Instead of rollback:
 - [ ] No silent dependency substitution at any layer
 - [ ] All upgrades traceable via structured provenance chain
 - [ ] Malicious package cannot execute at install time (by construction)
-- [ ] Untrusted publisher blocked by policy before code is fetched
+- [ ] Untrusted publisher blocked before package artifact contents are fetched, extracted, or admitted into the dependency graph
 - [ ] Upgrade chains computable as DAGs and automatable by agents
 - [ ] Classification correctly categorizes SAFE/ADDITIVE/BREAKING/AUTHORITY/UNKNOWN
 - [ ] `ailang-policy.toml` enforced on install and lock
