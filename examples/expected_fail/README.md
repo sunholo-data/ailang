@@ -1,35 +1,28 @@
 # Expected-to-Fail Examples
 
-These examples are known to fail and are tracked for future implementation. They were moved from `examples/runnable/` to avoid noise in `verify-examples` output.
+These examples are known to fail and are tracked for future implementation. They live here (not in `runnable/`) so `verify-examples` reports 100% pass rate without noise.
 
 ## Categories
 
-### Contracts (advanced verification)
-- `contracts/hof_verify.ail` — Higher-order function contract verification
-- `contracts/list_recursive_verify.ail` — Recursive list contract verification
-- `contracts/per_function_depth_verify.ail` — Per-function depth limit contracts
-- `contracts/quantifier_verify.ail` — Quantifier-based contracts
+### Contracts (verify-only, no main entrypoint)
+- `contracts/per_function_depth_verify.ail` — Per-function `@verify(depth: N)` attribute (verify-only, no main)
+- `contracts/quantifier_verify.ail` — Bounded quantifier `forall` in ensures (verify-only, no main)
 
-### Effect Budgets
+### Contracts (unimplemented parser features)
+- `contracts/hof_verify.ail` — Lambda arrow syntax `\x -> x + 1` in HOF args
+- `contracts/list_recursive_verify.ail` — Multiple `requires` blocks per function
+
+### Effect Budgets (physical vs semantic counting bug)
 - `effect_budgets.ail` — Basic effect budget tracking
 - `effect_budgets_exhausted.ail` — Budget exhaustion behavior
 - `effect_budgets_multi.ail` — Multi-effect budgets
 - `effect_budgets_rand.ail` — Random effect budgets
 
-### Process/Stream (OS-level effects)
-- `process_demo.ail` — Process spawning
-- `process_stdin_write.ail` — Writing to process stdin
-- `stream_multi_source.ail` — Multi-source streams
-- `stream_process_source.ail` — Process-backed streams
-- `stream_sse.ail` — Server-sent events
-- `stream_websocket.ail` — WebSocket streams
-
-### Package Demo
+### Package Demo (package management not implemented)
 - `package_demo/` — Multi-module package import demo
 
-### Archive/Binary
-- `xml_zip_roundtrip.ail` — XML zip round-trip
-- `zip_reader.ail` — Zip file reading
+### API (parser limitation)
+- `serve_api_webhook.ail` — `match` with `let` bindings in route handler
 
 ## When to move back
 

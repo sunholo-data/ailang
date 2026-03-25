@@ -95,33 +95,52 @@ func runExample(filename string) reporttypes.ExampleResult {
 	fileContent := string(content)
 
 	// Detect required capabilities
+	// Effect rows can list multiple effects: ! {IO, FS, Net}
+	// We check for the effect name anywhere in an effect row (after "! {") plus import patterns
 	caps := []string{}
-	if strings.Contains(fileContent, "! {IO") || strings.Contains(fileContent, "_io_") || strings.Contains(fileContent, "import std/io") {
-		caps = append(caps, "IO")
-	}
-	if strings.Contains(fileContent, "! {FS") || strings.Contains(fileContent, "_fs_") || strings.Contains(fileContent, "import std/fs") {
-		caps = append(caps, "FS")
-	}
-	if strings.Contains(fileContent, "! {Net") || strings.Contains(fileContent, "_net_") || strings.Contains(fileContent, "import std/net") {
-		caps = append(caps, "Net")
-	}
-	if strings.Contains(fileContent, "! {Clock") || strings.Contains(fileContent, "_clock_") || strings.Contains(fileContent, "import std/clock") {
-		caps = append(caps, "Clock")
-	}
-	if strings.Contains(fileContent, "! {Rand") || strings.Contains(fileContent, "_rand_") || strings.Contains(fileContent, "import std/rand") {
-		caps = append(caps, "Rand")
-	}
-	if strings.Contains(fileContent, "! {Env") || strings.Contains(fileContent, "_env_") || strings.Contains(fileContent, "import std/env") {
-		caps = append(caps, "Env")
-	}
-	// Detect AI capability (requires --ai-stub for testing)
 	needsAIStub := false
-	if strings.Contains(fileContent, "! {AI") || strings.Contains(fileContent, "import std/ai") {
-		caps = append(caps, "AI")
-		needsAIStub = true
+
+	type capSpec struct {
+		name    string
+		imports []string // import paths that imply this cap
+		isAI    bool     // special handling for AI stub
 	}
-	if strings.Contains(fileContent, "! {Debug") || strings.Contains(fileContent, "import std/debug") {
-		caps = append(caps, "Debug")
+	capSpecs := []capSpec{
+		{name: "IO", imports: []string{"import std/io"}},
+		{name: "FS", imports: []string{"import std/fs", "import std/zip"}},
+		{name: "Net", imports: []string{"import std/net"}},
+		{name: "Clock", imports: []string{"import std/clock"}},
+		{name: "Rand", imports: []string{"import std/rand"}},
+		{name: "Env", imports: []string{"import std/env"}},
+		{name: "AI", imports: []string{"import std/ai"}, isAI: true},
+		{name: "Debug", imports: []string{"import std/debug"}},
+		{name: "Process", imports: []string{"import std/process"}},
+		{name: "Stream", imports: []string{"import std/stream"}},
+	}
+
+	for _, spec := range capSpecs {
+		found := false
+		// Check effect rows: ! {IO, FS} — the cap name appears after "! {"
+		if strings.Contains(fileContent, "! {"+spec.name) || strings.Contains(fileContent, ", "+spec.name) {
+			found = true
+		}
+		// Check builtin references
+		if strings.Contains(fileContent, "_"+strings.ToLower(spec.name)+"_") {
+			found = true
+		}
+		// Check import patterns
+		for _, imp := range spec.imports {
+			if strings.Contains(fileContent, imp) {
+				found = true
+				break
+			}
+		}
+		if found {
+			caps = append(caps, spec.name)
+			if spec.isAI {
+				needsAIStub = true
+			}
+		}
 	}
 
 	// Detect entrypoint (look for export func NAME)

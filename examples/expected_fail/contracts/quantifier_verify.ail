@@ -2,7 +2,7 @@
 -- Bounded quantifier examples demonstrating forall in ensures clauses
 -- M6: Bounded quantifiers for element-wise contract verification
 
-module examples/runnable/contracts/quantifier_verify
+module examples/expected_fail/contracts/quantifier_verify
 
 -- Simple bounded quantifier: all elements in range are non-negative
 -- The forall clause asserts that for every index i in [0, n),

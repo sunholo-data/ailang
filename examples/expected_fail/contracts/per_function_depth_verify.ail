@@ -8,7 +8,7 @@
 -- The @verify(depth: N) attribute overrides the global --verify-recursive-depth flag
 -- for the annotated function, allowing different recursion unrolling depths per function.
 
-module examples/contracts/per_function_depth_verify
+module examples/expected_fail/contracts/per_function_depth_verify
 
 -- Fibonacci with deep unrolling (depth 5)
 -- This function needs more unrolling depth to verify properties of fibonacci

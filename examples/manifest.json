@@ -1296,7 +1296,7 @@
       }
     },
     {
-      "path": "expected_fail/zip_reader.ail",
+      "path": "runnable/zip_reader.ail",
       "status": "working",
       "tags": [
         "stdlib",
@@ -1380,7 +1380,7 @@
       "description": "Type inference regression T8: effectful combinators on string lists"
     },
     {
-      "path": "expected_fail/process_demo.ail",
+      "path": "runnable/process_demo.ail",
       "status": "working",
       "tags": ["effects", "process", "exec", "std/process", "security"],
       "description": "External command execution with Process effect: exec, error handling, completion semantics",
@@ -1390,7 +1390,7 @@
       }
     },
     {
-      "path": "expected_fail/stream_multi_source.ail",
+      "path": "runnable/stream_multi_source.ail",
       "status": "working",
       "tags": ["stream", "async", "stdin", "multiplexer", "M-ASYNC-IO"],
       "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
@@ -1401,7 +1401,7 @@
       }
     },
     {
-      "path": "expected_fail/stream_process_source.ail",
+      "path": "runnable/stream_process_source.ail",
       "status": "working",
       "tags": ["stream", "async", "process", "subprocess", "M-ASYNC-IO"],
       "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
@@ -1411,7 +1411,7 @@
       }
     },
     {
-      "path": "expected_fail/process_stdin_write.ail",
+      "path": "runnable/process_stdin_write.ail",
       "status": "working",
       "tags": ["process", "stdin", "pipe", "subprocess", "M-ASYNC-IO"],
       "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
