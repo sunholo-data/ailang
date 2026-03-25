@@ -9,19 +9,14 @@
 
 module webhook_example
 
-import std/json (parse, getString)
-
--- A @raw @route handler receives a single HttpRequest record argument:
---   { body: string, headers: Map, method: string, path: string, query: Map }
+-- A @raw @route handler receives a single record argument with fields:
+--   body: string, headers: {..}, method: string, path: string, query: {..}
+-- Headers and query are records with dynamic fields (accessed via dot notation).
 @raw
 @route("POST", "/webhooks/example")
-export func handleWebhook(request: HttpRequest) -> string ! {IO} {
+export func handleWebhook(request: {body: string, method: string, path: string}) -> string ! {IO} {
   let body = request.body
-  let sig = match get(request.headers, "X-Signature") {
-    Some(s) => s,
-    None => "no-signature"
-  }
-  "received webhook with signature: " ++ sig ++ " body length: " ++ toString(length(body))
+  "received webhook: " ++ request.method ++ " " ++ request.path ++ " body length: " ++ toString(length(body))
 }
 
 -- Non-@raw routes continue to work with parsed arguments as before
