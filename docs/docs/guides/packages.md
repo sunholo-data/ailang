@@ -139,6 +139,8 @@ Add missing effects to [effects].max in ailang.toml
 
 An empty `max = []` means the package is pure — no effects allowed.
 
+**Ghost effects** (like `Debug`) are exempt from ceiling checks. Packages can use `std/debug` or `sunholo/logging` without listing `Debug` in `[effects].max`. Ghost effects are invisible to callers, auto-granted at runtime, and erased in `--release` mode.
+
 ### Stability
 
 ```toml
@@ -447,7 +449,7 @@ See [Agent Messaging Guide](/docs/guides/agent-messaging#package-coordination-me
 | `409 Conflict` on publish | Version already exists | Bump version in `ailang.toml` |
 | `401 Unauthorized` | Missing or invalid API key | Set `AILANG_REGISTRY_API_KEY` |
 | `hash mismatch` on install | Corrupted download or tampered package | Retry; if persistent, report to registry admin |
-| `effect ceiling violation` | Package uses effects not in `[effects].max` | Add missing effects to `ailang.toml` |
+| `effect ceiling violation` | Package uses effects not in `[effects].max` | Add missing effects to `ailang.toml` (note: Debug is exempt as a ghost effect) |
 | `package not found` | Wrong name or not yet published | Check spelling with `ailang search` |
 | `IMP010: symbol not exported` | Type missing `export` keyword | Add `export type Foo = ...` |
 | `LDR001: module not found` | Missing dependency or wrong import | Add dep + `ailang lock` |

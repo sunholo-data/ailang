@@ -1,14 +1,20 @@
 -- Debug Effect Example
--- Demonstrates structured tracing and assertions using the Debug effect
+-- Demonstrates structured tracing and assertions using the Debug ghost effect
 --
--- Debug is a "ghost effect" - erasable in release mode:
+-- Debug is a "ghost effect" — fully invisible:
+--   - No ! {Debug} needed in function signatures
+--   - No --caps Debug needed at runtime
+--   - No [effects].max needed in ailang.toml
 --   - Debug.log and Debug.check are write-only from AILANG
---   - Only the host can collect debug output
+--   - Only the host can collect debug output (printed to stderr)
 --   - In release builds, Debug becomes zero-cost no-ops
+--   - --log-level filters output (debug, info, warn, error, none)
 --
 -- Note: We use "check" instead of "assert" because "assert" is a reserved keyword
 --
--- Run: ailang run --caps IO,Debug --entry main examples/runnable/debug_effect.ail
+-- Run: ailang run --caps IO --entry main examples/runnable/debug_effect.ail
+-- Filtered: ailang run --caps IO --log-level warn --entry main examples/runnable/debug_effect.ail
+-- Release: ailang run --release --caps IO --entry main examples/runnable/debug_effect.ail
 
 module examples/runnable/debug_effect
 
@@ -18,7 +24,8 @@ import std/debug as Debug
 type Entity = { id: int, name: string, health: int }
 
 -- Update an entity's health with debug tracing
-func damage(e: Entity, amount: int) -> Entity ! {Debug} {
+-- Note: No ! {Debug} needed — ghost effect is invisible
+func damage(e: Entity, amount: int) -> Entity {
     Debug.log("Damaging entity " ++ show(e.id) ++ " by " ++ show(amount));
     Debug.check(amount >= 0, "damage amount must be non-negative");
 
@@ -29,7 +36,7 @@ func damage(e: Entity, amount: int) -> Entity ! {Debug} {
 }
 
 -- Heal an entity with debug tracing
-func heal(e: Entity, amount: int) -> Entity ! {Debug} {
+func heal(e: Entity, amount: int) -> Entity {
     Debug.log("Healing entity " ++ show(e.id) ++ " by " ++ show(amount));
     Debug.check(amount >= 0, "heal amount must be non-negative");
 
@@ -40,7 +47,7 @@ func heal(e: Entity, amount: int) -> Entity ! {Debug} {
 }
 
 -- Process a list of entities with debug logging
-func process_entities(entities: [Entity]) -> [Entity] ! {Debug} {
+func process_entities(entities: [Entity]) -> [Entity] {
     Debug.log("Processing entities");
     match entities {
         [] => [],
@@ -52,8 +59,8 @@ func process_entities(entities: [Entity]) -> [Entity] ! {Debug} {
     }
 }
 
--- Main entry point
-export func main() -> () ! {IO, Debug} {
+-- Main entry point — only IO is declared, Debug is invisible
+export func main() -> () ! {IO} {
     println("Debug Effect Demo");
     println("=================");
 

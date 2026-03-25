@@ -8,6 +8,44 @@ description: Complete guide to debugging AILANG with environment variables and t
 
 Complete guide to debugging AILANG with environment variables and tools.
 
+## Debug Ghost Effect (In-Program Logging)
+
+The `Debug` effect is a **ghost effect** — use it instead of `IO` (println) for logging. It's fully invisible: no `! {Debug}` in signatures, no `--caps Debug` needed, no `[effects].max` config.
+
+```ailang
+import std/debug (log, check)
+
+-- Or use sunholo/logging for structured JSON:
+-- import pkg/sunholo/logging/logger (info, warn, infoWith)
+
+func processData(x: int) -> int {
+  log("processing " ++ show(x));     -- ghost: invisible to callers
+  check(x > 0, "x must be positive"); -- recorded, doesn't throw
+  x * 2
+}
+```
+
+Debug output is collected by the host and printed to **stderr** after execution. Control it with:
+
+```bash
+# See all debug output (default)
+ailang run --caps IO --entry main app.ail
+
+# Filter by severity (works with sunholo/logging JSON output)
+ailang run --caps IO --log-level warn --entry main app.ail
+
+# Suppress all debug output
+ailang run --caps IO --log-level none --entry main app.ail
+
+# Erase debug calls entirely (zero cost, production)
+ailang run --release --caps IO --entry main app.ail
+```
+
+The `sunholo/logging` package provides structured JSON logging (`info`, `warn`, `err`, `trace`, `infoWith`, etc.) that integrates with `--log-level` filtering and Cloud Run log aggregation:
+```bash
+ailang install sunholo/logging@0.4.0
+```
+
 ## Debug Flags
 
 AILANG provides environment variables for verbose debugging and strict error checking.

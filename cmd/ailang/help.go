@@ -211,6 +211,8 @@ func printHelp() {
 	fmt.Println("  --trace              Enable execution tracing")
 	fmt.Println("  --print              Print return value (default: true)")
 	fmt.Println("  --no-print           Suppress output (exit code only)")
+	fmt.Println("  --release            Release mode: erase Debug ghost effect (zero-cost)")
+	fmt.Println("  --log-level <level>  Debug output filter (debug, info, warn, error, none)")
 	fmt.Println("  --no-budgets         Bypass effect budget enforcement (allow unlimited operations)")
 	fmt.Println("  --budget-report=MODE Print budget usage after execution (flat, json)")
 	fmt.Println()
