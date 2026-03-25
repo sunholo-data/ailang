@@ -451,17 +451,37 @@ func runAilangCheck(dir string) (bool, string) {
 			}
 		}
 
-		// Step 2: Generate lockfile + download deps. ailang lock resolves transitive deps automatically.
-		lockCmd := exec.Command("ailang", "lock")
-		lockCmd.Dir = dir
-		lockOutput, err := lockCmd.CombinedOutput()
+		// Step 2: Resolve deps and generate lock file directly via Go API.
+		// This downloads all transitive deps to cache and writes ailang.lock.
+		// We call the resolver directly instead of shelling out to avoid issues
+		// with ailang install modifying ailang.toml or ailang lock silently failing.
+		resolveManifest, err := pkg.LoadManifest(dir)
 		if err != nil {
-			return false, fmt.Sprintf("Dependency resolution failed (ailang lock):\n%s", string(lockOutput))
+			return false, fmt.Sprintf("Failed to load manifest for dependency resolution: %v", err)
 		}
 
-		// Verify lock file was actually created
-		if !fileExists(filepath.Join(dir, "ailang.lock")) {
-			return false, "ailang lock succeeded but ailang.lock was not generated"
+		if len(resolveManifest.Dependencies) > 0 {
+			resolved, err := pkg.ResolveDependencies(resolveManifest, dir)
+			if err != nil {
+				return false, fmt.Sprintf("Dependency resolution failed: %v", err)
+			}
+
+			locked := make([]pkg.LockedPackage, len(resolved))
+			for i, r := range resolved {
+				locked[i] = pkg.LockedPackage(r)
+			}
+
+			lf := pkg.NewLockFile(locked, "registry-validator")
+			if err := lf.Save(dir); err != nil {
+				return false, fmt.Sprintf("Failed to write lock file: %v", err)
+			}
+			log.Printf("Resolved %d dependencies, lock file written", len(resolved))
+		} else {
+			// No deps — write empty lock file for consistency
+			lf := pkg.NewLockFile(nil, "registry-validator")
+			if err := lf.Save(dir); err != nil {
+				return false, fmt.Sprintf("Failed to write lock file: %v", err)
+			}
 		}
 
 		// Step 3: Run package-level type check
