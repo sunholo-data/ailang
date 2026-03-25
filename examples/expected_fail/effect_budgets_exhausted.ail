@@ -1,4 +1,4 @@
-module examples/runnable/effect_budgets_exhausted
+module examples/expected_fail/effect_budgets_exhausted
 -- Demonstrates budget exhaustion behavior
 -- Shows what happens when effect limits are exceeded
 

@@ -1,6 +1,0 @@
-module main
-
-import pkg/demo/mathlib/core (add, square)
-
--- Package import demo: use functions from external package
-export pure func result() -> int = add(square(3), square(4))

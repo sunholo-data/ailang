@@ -4,7 +4,7 @@
 -- Demonstrates: HOF inlining, lambda specialization, bounded unrolling
 -- M5_HOF_INLINING milestone
 
-module examples/runnable/contracts/hof_verify
+module examples/expected_fail/contracts/hof_verify
 
 import std/list (length as listLength)
 

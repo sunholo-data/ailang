@@ -8,7 +8,7 @@
 -- The @verify(depth: N) attribute overrides the global --verify-recursive-depth flag
 -- for the annotated function, allowing different recursion unrolling depths per function.
 
-module examples/expected_fail/contracts/per_function_depth_verify
+module examples/runnable/contracts/per_function_depth_verify
 
 -- Fibonacci with deep unrolling (depth 5)
 -- This function needs more unrolling depth to verify properties of fibonacci
@@ -39,4 +39,12 @@ ensures { result >= lo, result <= hi }
   if x < lo then lo
   else if x > hi then hi
   else x
+}
+
+-- Entry point to make this runnable (not just verify-only)
+export func main() -> int ! {} {
+  let f5 = fibonacci(5);
+  let f4 = factorial(4);
+  let c = clamp(100, 0, 50);
+  f5 + f4 + c
 }

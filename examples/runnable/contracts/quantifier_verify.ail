@@ -2,7 +2,7 @@
 -- Bounded quantifier examples demonstrating forall in ensures clauses
 -- M6: Bounded quantifiers for element-wise contract verification
 
-module examples/expected_fail/contracts/quantifier_verify
+module examples/runnable/contracts/quantifier_verify
 
 -- Simple bounded quantifier: all elements in range are non-negative
 -- The forall clause asserts that for every index i in [0, n),
@@ -30,4 +30,12 @@ requires { x >= 0, y >= 0 }
 ensures { result >= x }
 {
   x + y
+}
+
+-- Entry point to make this runnable (not just verify-only)
+export func main() -> int ! {} {
+  let p = positiveRange(5);
+  let d = doubleRange(3);
+  let c = clampedAdd(10, 20);
+  p + d + c
 }

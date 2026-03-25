@@ -1,4 +1,4 @@
-module examples/runnable/effect_budgets
+module examples/expected_fail/effect_budgets
 -- Demonstrates effect budget annotations
 -- Budgets limit how many times an effect can be invoked within a function
 

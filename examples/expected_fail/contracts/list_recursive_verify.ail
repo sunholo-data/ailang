@@ -2,7 +2,7 @@
 -- Demonstrates _list_contains and list operations in contracts
 -- Shows Z3 proving containment and length preservation properties
 
-module examples/runnable/contracts/list_recursive_verify
+module examples/expected_fail/contracts/list_recursive_verify
 
 import std/list (length as listLength)
 

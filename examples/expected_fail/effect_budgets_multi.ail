@@ -1,4 +1,4 @@
-module examples/runnable/effect_budgets_multi
+module examples/expected_fail/effect_budgets_multi
 -- Demonstrates multiple effect budgets in a single function
 -- Shows how different effects can have independent limits
 

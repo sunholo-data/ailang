@@ -1,8 +1,0 @@
-module demo/mathlib/core
-
--- Simple math functions exported as a package
-export pure func add(a: int, b: int) -> int = a + b
-
-export pure func multiply(a: int, b: int) -> int = a * b
-
-export pure func square(x: int) -> int = multiply(x, x)

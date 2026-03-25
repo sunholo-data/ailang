@@ -1,29 +1,20 @@
 # Expected-to-Fail Examples
 
-These examples are known to fail and are tracked for future implementation. They live here (not in `runnable/`) so `verify-examples` reports 100% pass rate without noise.
+These examples demonstrate features that have known parser or runtime bugs. They are tracked in the design doc `design_docs/planned/v0_9_5/m-dx-expected-fail-examples.md`.
 
-## Categories
+## Parser Bugs
 
-### Contracts (verify-only, no main entrypoint)
-- `contracts/per_function_depth_verify.ail` — Per-function `@verify(depth: N)` attribute (verify-only, no main)
-- `contracts/quantifier_verify.ail` — Bounded quantifier `forall` in ensures (verify-only, no main)
+- `contracts/hof_verify.ail` — Lambda syntax `\x -> x + 1` not parsed (expects `.` after param)
+- `contracts/list_recursive_verify.ail` — Multiple `requires` blocks rejected (`PAR_DUPLICATE_REQUIRES`)
+- `serve_api_webhook.ail` — `let` binding inside `@raw` route handler fails to parse
 
-### Contracts (unimplemented parser features)
-- `contracts/hof_verify.ail` — Lambda arrow syntax `\x -> x + 1` in HOF args
-- `contracts/list_recursive_verify.ail` — Multiple `requires` blocks per function
+## Runtime Bugs
 
-### Effect Budgets (physical vs semantic counting bug)
-- `effect_budgets.ail` — Basic effect budget tracking
-- `effect_budgets_exhausted.ail` — Budget exhaustion behavior
-- `effect_budgets_multi.ail` — Multi-effect budgets
-- `effect_budgets_rand.ail` — Random effect budgets
-
-### Package Demo (package management not implemented)
-- `package_demo/` — Multi-module package import demo
-
-### API (parser limitation)
-- `serve_api_webhook.ail` — `match` with `let` bindings in route handler
+- `effect_budgets.ail` — `@limit=N` annotation breaks cap checking at runtime
+- `effect_budgets_exhausted.ail` — Same budget cap checking bug
+- `effect_budgets_multi.ail` — Same budget cap checking bug
+- `effect_budgets_rand.ail` — Same budget cap checking bug
 
 ## When to move back
 
-Move examples back to `examples/runnable/` once the underlying feature is implemented and the example passes `ailang run`.
+Move examples back to `examples/runnable/` once the underlying bug is fixed and the example passes `ailang run`.
