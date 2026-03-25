@@ -95,6 +95,9 @@ func runCommand() {
 	// Release mode flag (M-DEBUG-ERASURE)
 	releaseFlag := fs.Bool("release", false, "Release mode: erase Debug ghost effect (zero-cost)")
 
+	// Log level filtering for Debug ghost effect
+	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
+
 	// Semantic trace export flag (M-TRACE-EXPORT)
 	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl, otel, jsonl,otel, auto)")
 
@@ -105,6 +108,11 @@ func runCommand() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Set log level filter for Debug ghost effect output
+	if *logLevelFlag != "" {
+		debugLogLevel = parseLogLevel(*logLevelFlag)
 	}
 
 	// Apply memory limit early (process-wide setting)

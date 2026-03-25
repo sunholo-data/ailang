@@ -453,14 +453,75 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	return executeModuleEntrypoint(rt, execParams)
 }
 
+// debugLogLevel is the minimum severity level to print. Set by --log-level flag.
+// 0=DEBUG/TRACE, 1=INFO, 2=WARNING, 3=ERROR, 4=NONE (suppress all)
+var debugLogLevel int
+
+// parseLogLevel converts a log level string to a numeric severity threshold.
+func parseLogLevel(level string) int {
+	switch strings.ToLower(level) {
+	case "debug", "trace":
+		return 0
+	case "info", "":
+		return 1
+	case "warn", "warning":
+		return 2
+	case "error", "err":
+		return 3
+	case "none", "off":
+		return 4
+	default:
+		return 1 // default to INFO
+	}
+}
+
+// severityLevel returns the numeric level for a severity string found in JSON log messages.
+func severityLevel(severity string) int {
+	switch severity {
+	case "DEBUG", "TRACE":
+		return 0
+	case "INFO":
+		return 1
+	case "WARNING":
+		return 2
+	case "ERROR":
+		return 3
+	default:
+		return 1
+	}
+}
+
+// extractSeverity extracts the "severity" field from a JSON log message.
+// Returns "" if the message is not JSON or has no severity field.
+func extractSeverity(msg string) string {
+	// Fast path: check if it looks like JSON with severity
+	if len(msg) < 2 || msg[0] != '{' {
+		return ""
+	}
+	var parsed struct {
+		Severity string `json:"severity"`
+	}
+	if err := json.Unmarshal([]byte(msg), &parsed); err != nil {
+		return ""
+	}
+	return parsed.Severity
+}
+
 // flushDebugOutput collects Debug effect logs and prints them to stderr.
-// Called after execution completes. Safe to call with nil Debug context.
+// Respects debugLogLevel for severity filtering. Called after execution completes.
 func flushDebugOutput(effCtx *effects.EffContext) {
 	if effCtx == nil || effCtx.Debug == nil {
 		return
 	}
 	out := effCtx.Debug.Collect()
 	for _, log := range out.Logs {
+		// Filter by log level if set
+		if debugLogLevel > 0 {
+			severity := extractSeverity(log.Message)
+			if severity != "" && severityLevel(severity) < debugLogLevel {
+				continue
+			}
+		}
 		fmt.Fprintf(os.Stderr, "%s\n", log.Message)
 	}
 	for _, a := range out.Assertions {

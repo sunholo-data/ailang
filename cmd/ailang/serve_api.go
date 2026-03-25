@@ -31,6 +31,7 @@ func serveAPICommand(args []string) error {
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
+	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -39,6 +40,11 @@ func serveAPICommand(args []string) error {
 	if *helpFlag {
 		printServeAPIHelp()
 		return nil
+	}
+
+	// Set log level filter for Debug ghost effect output
+	if *logLevelFlag != "" {
+		debugLogLevel = parseLogLevel(*logLevelFlag)
 	}
 
 	// Apply memory limit early (process-wide setting)
@@ -125,6 +131,7 @@ func serveAPICommand(args []string) error {
 		MaxUploadSize: *maxUploadFlag,
 		APIKeyHeader:  *apiKeyHeaderFlag,
 		APIKeyEnv:     *apiKeyEnvFlag,
+		LogLevel:      debugLogLevel,
 	}
 
 	srv := apiserver.New(basePath, cfg)

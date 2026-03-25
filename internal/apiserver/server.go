@@ -11,6 +11,7 @@ package apiserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -61,6 +62,7 @@ type Server struct {
 	apiKeyHeader  string              // HTTP header name for API key auth
 	apiKeyEnv     string              // env var containing expected API key
 	effCtx        *effects.EffContext // for Debug output collection
+	logLevel      int                 // minimum severity for Debug output
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -92,6 +94,7 @@ type Config struct {
 	MaxUploadSize int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
 	APIKeyHeader  string      // HTTP header for API key auth (empty = no auth)
 	APIKeyEnv     string      // env var containing expected API key
+	LogLevel      int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
 }
 
 // New creates a new API server.
@@ -128,17 +131,24 @@ func New(basePath string, cfg Config) *Server {
 		apiKeyHeader:  cfg.APIKeyHeader,
 		apiKeyEnv:     cfg.APIKeyEnv,
 		effCtx:        storedEffCtx,
+		logLevel:      cfg.LogLevel,
 	}
 }
 
 // flushDebugOutput collects Debug ghost effect logs and prints them to stderr,
-// then resets the context for the next request.
+// then resets the context for the next request. Respects s.logLevel for filtering.
 func (s *Server) flushDebugOutput() {
 	if s.effCtx == nil || s.effCtx.Debug == nil {
 		return
 	}
 	out := s.effCtx.Debug.Collect()
 	for _, l := range out.Logs {
+		if s.logLevel > 0 {
+			sev := extractServerSeverity(l.Message)
+			if sev != "" && serverSeverityLevel(sev) < s.logLevel {
+				continue
+			}
+		}
 		log.Printf("[Debug] %s", l.Message)
 	}
 	for _, a := range out.Assertions {
@@ -147,6 +157,34 @@ func (s *Server) flushDebugOutput() {
 		}
 	}
 	s.effCtx.Debug.Reset()
+}
+
+func extractServerSeverity(msg string) string {
+	if len(msg) < 2 || msg[0] != '{' {
+		return ""
+	}
+	var parsed struct {
+		Severity string `json:"severity"`
+	}
+	if err := json.Unmarshal([]byte(msg), &parsed); err != nil {
+		return ""
+	}
+	return parsed.Severity
+}
+
+func serverSeverityLevel(severity string) int {
+	switch severity {
+	case "DEBUG", "TRACE":
+		return 0
+	case "INFO":
+		return 1
+	case "WARNING":
+		return 2
+	case "ERROR":
+		return 3
+	default:
+		return 1
+	}
 }
 
 // LoadModules compiles and loads AILANG modules from the given paths.
