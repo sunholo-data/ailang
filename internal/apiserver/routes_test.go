@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -74,6 +75,63 @@ func TestExtractRouteAnnotations(t *testing.T) {
 	// helper should NOT have route
 	if modInfo.Exports[2].RouteMethod != "" || modInfo.Exports[2].RoutePath != "" {
 		t.Errorf("expected helper to have no route, got %q %q", modInfo.Exports[2].RouteMethod, modInfo.Exports[2].RoutePath)
+	}
+}
+
+func TestExtractRouteAnnotations_Raw(t *testing.T) {
+	modInfo := &ModuleInfo{
+		Path: "test/webhooks",
+		Exports: []ExportInfo{
+			{Name: "handleStripe", Type: "HttpRequest -> Result", Arity: 1},
+			{Name: "handleNormal", Type: "string -> string", Arity: 1},
+		},
+	}
+
+	file := &ast.File{
+		Funcs: []*ast.FuncDecl{
+			{
+				Name:     "handleStripe",
+				IsExport: true,
+				Annotations: []*ast.Annotation{
+					{Name: "raw"},
+					{
+						Name: "route",
+						Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "POST"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/webhooks/stripe"},
+						},
+					},
+				},
+			},
+			{
+				Name:     "handleNormal",
+				IsExport: true,
+				Annotations: []*ast.Annotation{
+					{
+						Name: "route",
+						Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "POST"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/api/normal"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	extractRouteAnnotations(modInfo, file)
+
+	if !modInfo.Exports[0].IsRaw {
+		t.Error("expected handleStripe to have IsRaw=true")
+	}
+	if modInfo.Exports[0].RouteMethod != "POST" {
+		t.Errorf("expected POST, got %q", modInfo.Exports[0].RouteMethod)
+	}
+	if modInfo.Exports[0].RoutePath != "/webhooks/stripe" {
+		t.Errorf("expected /webhooks/stripe, got %q", modInfo.Exports[0].RoutePath)
+	}
+	if modInfo.Exports[1].IsRaw {
+		t.Error("expected handleNormal to have IsRaw=false")
 	}
 }
 
@@ -212,5 +270,73 @@ func TestParseQueryArgs_StringValues(t *testing.T) {
 	}
 	if record["flag"] != true {
 		t.Errorf("expected true, got %v (%T)", record["flag"], record["flag"])
+	}
+}
+
+func TestBuildHttpRequestRecord(t *testing.T) {
+	req, _ := http.NewRequest("POST", "/webhooks/stripe?event=checkout&debug=true", nil)
+	req.Header.Set("Stripe-Signature", "t=123,v1=abc")
+	req.Header.Set("Content-Type", "application/json")
+
+	body := []byte(`{"type": "checkout.session.completed"}`)
+	rec := buildHttpRequestRecord(req, body)
+
+	// Check body
+	if rec["body"] != `{"type": "checkout.session.completed"}` {
+		t.Errorf("unexpected body: %v", rec["body"])
+	}
+
+	// Check method
+	if rec["method"] != "POST" {
+		t.Errorf("unexpected method: %v", rec["method"])
+	}
+
+	// Check path
+	if rec["path"] != "/webhooks/stripe" {
+		t.Errorf("unexpected path: %v", rec["path"])
+	}
+
+	// Check headers
+	headers, ok := rec["headers"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("headers is not map[string]interface{}: %T", rec["headers"])
+	}
+	if headers["Stripe-Signature"] != "t=123,v1=abc" {
+		t.Errorf("unexpected Stripe-Signature header: %v", headers["Stripe-Signature"])
+	}
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("unexpected Content-Type header: %v", headers["Content-Type"])
+	}
+
+	// Check query
+	query, ok := rec["query"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("query is not map[string]interface{}: %T", rec["query"])
+	}
+	if query["event"] != "checkout" {
+		t.Errorf("unexpected query event: %v", query["event"])
+	}
+	if query["debug"] != "true" {
+		t.Errorf("unexpected query debug: %v", query["debug"])
+	}
+}
+
+func TestBuildHttpRequestRecord_EmptyBody(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/health", nil)
+	rec := buildHttpRequestRecord(req, nil)
+
+	if rec["body"] != "" {
+		t.Errorf("expected empty body, got %q", rec["body"])
+	}
+	if rec["method"] != "GET" {
+		t.Errorf("unexpected method: %v", rec["method"])
+	}
+
+	query, ok := rec["query"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("query should be map, got %T", rec["query"])
+	}
+	if len(query) != 0 {
+		t.Errorf("expected empty query, got %v", query)
 	}
 }

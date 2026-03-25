@@ -264,3 +264,100 @@ func f(x: int) -> int ! {} { x }`
 		}
 	}
 }
+
+// TestRawAnnotation_Basic tests @raw @route parsing.
+func TestRawAnnotation_Basic(t *testing.T) {
+	input := `
+@raw
+@route("POST", "/webhooks/stripe")
+export func handleStripe(request: HttpRequest) -> string ! {} { request.body }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	if len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 function, got %d", len(file.Funcs))
+	}
+
+	fn := file.Funcs[0]
+	if len(fn.Annotations) != 2 {
+		t.Fatalf("expected 2 annotations, got %d", len(fn.Annotations))
+	}
+
+	rawAnn := fn.GetAnnotation("raw")
+	if rawAnn == nil {
+		t.Fatal("expected @raw annotation")
+	}
+	if len(rawAnn.Args) != 0 {
+		t.Errorf("expected @raw to have no args, got %d", len(rawAnn.Args))
+	}
+
+	routeAnn := fn.GetAnnotation("route")
+	if routeAnn == nil {
+		t.Fatal("expected @route annotation")
+	}
+	if routeAnn.Args[0].(*ast.Literal).Value.(string) != "POST" {
+		t.Errorf("expected method POST, got %v", routeAnn.Args[0].(*ast.Literal).Value)
+	}
+}
+
+// TestRawAnnotation_AfterRoute tests @route @raw ordering.
+func TestRawAnnotation_AfterRoute(t *testing.T) {
+	input := `
+@route("POST", "/webhooks/github")
+@raw
+export func handleGithub(request: HttpRequest) -> string ! {} { request.body }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	if fn.GetAnnotation("raw") == nil {
+		t.Error("expected @raw annotation when placed after @route")
+	}
+	if fn.GetAnnotation("route") == nil {
+		t.Error("expected @route annotation")
+	}
+}
+
+// TestRawAnnotation_WithoutRoute tests that @raw parses standalone.
+func TestRawAnnotation_WithoutRoute(t *testing.T) {
+	input := `
+@raw
+export func process(request: HttpRequest) -> string ! {} { request.body }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	if fn.GetAnnotation("raw") == nil {
+		t.Error("expected @raw annotation")
+	}
+	if fn.GetAnnotation("route") != nil {
+		t.Error("expected no @route annotation")
+	}
+}

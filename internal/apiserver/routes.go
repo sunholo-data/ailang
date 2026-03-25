@@ -33,6 +33,7 @@ type RouteEntry struct {
 	Path     string // "/general/v0/general"
 	Module   string // module path
 	Function string // function name
+	IsRaw    bool   // @raw: pass full HttpRequest record instead of parsed args
 }
 
 // extractRouteAnnotations populates ExportInfo.RouteMethod/RoutePath from
@@ -50,13 +51,19 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 		}
 		method := methodLit.Value.(string)
 		path := pathLit.Value.(string)
+		isRaw := fn.GetAnnotation("raw") != nil
 
 		// Find matching export and set route info
 		for i := range modInfo.Exports {
 			if modInfo.Exports[i].Name == fn.Name {
 				modInfo.Exports[i].RouteMethod = method
 				modInfo.Exports[i].RoutePath = path
-				log.Printf("    Route: %s %s -> %s", method, path, fn.Name)
+				modInfo.Exports[i].IsRaw = isRaw
+				if isRaw {
+					log.Printf("    Route: %s %s -> %s (raw)", method, path, fn.Name)
+				} else {
+					log.Printf("    Route: %s %s -> %s", method, path, fn.Name)
+				}
 				break
 			}
 		}
@@ -77,6 +84,7 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					Path:     exp.RoutePath,
 					Module:   mod.Path,
 					Function: exp.Name,
+					IsRaw:    exp.IsRaw,
 				})
 			}
 		}
@@ -98,7 +106,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
 				})
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function)
+			s.callFunction(w, req, r.Module, r.Function, r.IsRaw)
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		log.Printf("  Custom route: %s %s -> %s/%s", r.Method, r.Path, r.Module, r.Function)
@@ -107,15 +115,27 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux) {
 
 // callFunction executes an AILANG function and writes the response.
 // Shared by both the catch-all handler and custom route handlers.
-func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string) {
+func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string, isRaw ...bool) {
 	if os.Getenv("DEBUG_CONCURRENCY") == "1" {
 		log.Printf("[CONCURRENCY] callFunction entered: %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
 	}
 	// Parse arguments based on content type
 	var args []interface{}
-	contentType := r.Header.Get("Content-Type")
+	raw := len(isRaw) > 0 && isRaw[0]
 
-	if strings.HasPrefix(contentType, "multipart/form-data") {
+	if raw {
+		// @raw routes: pass full HttpRequest record instead of parsed args
+		body, err := readRequestBody(r, 1<<20) // 1MB limit
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
+				Module: modulePath,
+				Func:   funcName,
+				Error:  "failed to read request body",
+			})
+			return
+		}
+		args = []interface{}{buildHttpRequestRecord(r, body)}
+	} else if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
 		// Handle file uploads via multipart/form-data
 		maxSize := s.maxUploadSize
 		if maxSize == 0 {
@@ -329,4 +349,28 @@ func parseMultipartArgs(r *http.Request, maxSize int64) ([]interface{}, error) {
 	}
 
 	return args, nil
+}
+
+// buildHttpRequestRecord constructs a map representing an HttpRequest record
+// from an http.Request and its already-read body. Used by @raw routes.
+func buildHttpRequestRecord(r *http.Request, body []byte) map[string]interface{} {
+	headers := make(map[string]interface{})
+	for k, v := range r.Header {
+		if len(v) > 0 {
+			headers[k] = v[0] // first value per header
+		}
+	}
+	query := make(map[string]interface{})
+	for k, v := range r.URL.Query() {
+		if len(v) > 0 {
+			query[k] = v[0]
+		}
+	}
+	return map[string]interface{}{
+		"body":    string(body),
+		"headers": headers,
+		"method":  r.Method,
+		"path":    r.URL.Path,
+		"query":   query,
+	}
 }
