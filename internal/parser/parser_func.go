@@ -101,12 +101,13 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		p.nextToken()
 		p.nextToken()
 		fn.ReturnType = p.parseType()
+	}
 
-		// Parse effects if present: ! {IO, FS}
-		if p.peekTokenIs(lexer.BANG) {
-			p.nextToken() // move to BANG
-			fn.Effects = p.parseEffectAnnotation()
-		}
+	// Parse effects if present: ! {IO, FS}
+	// Effects can appear after return type (-> T ! {IO}) or without one (func f(x) ! {IO})
+	if p.peekTokenIs(lexer.BANG) {
+		p.nextToken() // move to BANG
+		fn.Effects = p.parseEffectAnnotation()
 	}
 
 	// Parse contracts if present: requires { ... } ensures { ... }
