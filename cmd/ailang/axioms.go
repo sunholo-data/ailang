@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +9,26 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+//go:embed axiom_scorecard.json
+var embeddedScorecard []byte
+
+// axiomDescriptions contains the core principle behind each axiom,
+// drawn from docs/docs/references/axioms.mdx.
+var axiomDescriptions = map[string]string{
+	"A1_determinism":          "If a program's execution cannot be replayed, it cannot be trusted. Any source of nondeterminism must be explicit, typed, localized, and observable in traces.",
+	"A2_replayability":        "Execution is a first-class artifact. Traces must be inspectable, serializable, replayable, and suitable for verification and debugging.",
+	"A3_effect_legibility":    "Side effects are not a failure of abstraction; they are a property of reality. Effects define what a computation is allowed to do, not just what it computes.",
+	"A4_explicit_authority":   "No program should have implicit access to the world. Authority must be explicitly declared, statically visible, and constrained by capability and budget.",
+	"A5_bounded_verification": "Verification is most useful when it is cheap and frequent. Favor local properties, bounded checks, and machine-driven verification.",
+	"A6_safe_concurrency":     "Parallelism must not introduce ambiguity. Concurrency is permitted only when its semantics remain deterministic and replayable.",
+	"A7_machines_first":       "Machines are the primary consumers of code. Prioritize semantic compression, decidable structure, and toolability over stylistic expressiveness.",
+	"A8_minimal_syntax":       "Every syntactic feature increases the semantic surface area. Expressiveness without semantic payoff is rejected.",
+	"A9_cost_visibility":      "Computation has cost. Cost — in time, memory, IO, or external calls — is part of a program's semantics, not an incidental runtime detail.",
+	"A10_composability":       "Features must compose without creating semantic blind spots. Composability is a correctness property.",
+	"A11_structured_failure":  "Failure is not exceptional; it is informative. Failure must be structured, typed, inspectable, and composable.",
+	"A12_system_boundary":     "The language is a boundary between intent and execution, authority and action, possibility and permission. Crossing it must always be explicit.",
+}
 
 // AxiomScorecard represents the AILANG design axiom compliance scorecard
 type AxiomScorecard struct {
@@ -60,19 +81,16 @@ func axiomsCommand() {
 		return
 	}
 
-	// Find scorecard file
-	scorecardPath := findScorecardPath()
-	if scorecardPath == "" {
-		fmt.Fprintf(os.Stderr, "%s: axiom scorecard not found\n", red("Error"))
-		fmt.Fprintf(os.Stderr, "Expected at: docs/static/benchmarks/axiom_scorecard.json\n")
-		os.Exit(1)
-	}
-
-	// Load scorecard
-	data, err := os.ReadFile(scorecardPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: failed to read scorecard: %v\n", red("Error"), err)
-		os.Exit(1)
+	// Load scorecard: try file on disk first (for development), fall back to embedded
+	var data []byte
+	if scorecardPath := findScorecardPath(); scorecardPath != "" {
+		var err error
+		data, err = os.ReadFile(scorecardPath)
+		if err != nil {
+			data = embeddedScorecard
+		}
+	} else {
+		data = embeddedScorecard
 	}
 
 	var scorecard AxiomScorecard
@@ -195,6 +213,14 @@ func printAxiomsScorecard(sc *AxiomScorecard, compact bool) {
 			}
 
 			fmt.Printf("  %-4s %-35s %s %s\n", id, name, scoreStr, statusIcon)
+
+			// Show axiom description
+			if desc, ok := axiomDescriptions[key]; ok {
+				wrapped := wrapText(desc, 48)
+				for _, line := range strings.Split(wrapped, "\n") {
+					fmt.Printf("        %s\n", dim(line))
+				}
+			}
 		}
 
 		fmt.Printf("  %s\n", strings.Repeat("─", 50))

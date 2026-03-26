@@ -22,6 +22,10 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.11.0
+
+- [M-PKG-TRUSTED-AUTONOMOUS-EVOLUTION: Secure Autonomous Package Evolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_11_0/m-pkg-trusted-autonomous-evolution.md)
+
 ## Planned for v0.10.0
 
 - [AILANG: Auto-Caps and Capability Inference](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/20251013_auto_caps_capability_inference.md)
@@ -65,6 +69,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-OBS-RETENTION: Observatory Database Retention & Growth Control](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-obs-retention.md)
 - [Sprint Plan: M-PKG-AUTONOMOUS-UPDATES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-autonomous-updates-sprint-plan.md)
 - [M-PKG-AUTONOMOUS-UPDATES: Message-Driven Autonomous Package Updates](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-autonomous-updates.md)
+- [M-PKG-CI-PUBLISH: Auto-Publish Packages via Cloud Build](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-ci-publish.md)
 - [Package Ecosystem Status — Post-Publication Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-ecosystem-status.md)
 - [Sprint Plan: M-PKG-EXPLORER — Package Explorer Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-explorer-website-sprint-plan.md)
 - [M-PKG-EXPLORER: Package Explorer Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-explorer-website.md)
@@ -75,6 +80,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-PKG-METADATA-URLS: Add Repository, Homepage, and License URL to Package Metadata](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-metadata-urls.md)
 - [M-PKG-RESOLVER-DIRECT-WINS: Direct Dependencies Override Transitive Versions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-resolver-direct-wins.md)
 - [Fix: ailang lock Transitive Registry Dependency Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-transitive-lock-fix.md)
+- [M-PKG-UPGRADE-CHAIN-TOOLING: Package Upgrade Chain Diagnostics and Automation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-pkg-upgrade-chain-tooling.md)
 - [Sprint Plan: M-PROTOCOL-SUPPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-protocol-support-sprint-plan.md)
 - [M-PROVENANCE: Code Provenance Tracing & Agent Trace Export](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-provenance-tracing.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-reflect-structural-reflection.md)
@@ -94,6 +100,15 @@ For completed features, see [Design Documents](/docs/design-docs).
 ## Planned for v0.9.5
 
 - [M-CONCURRENCY-LEVERAGE: Leverage Fork() Across All Execution Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-concurrency-leverage.md)
+- [M-DX-XPKG-RESOLVE: Cross-Package Stdlib Function Resolution Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-cross-package-stdlib-resolution.md)
+- [M-DX-EXPECTED-FAIL-FIXES: Fix Remaining Expected-Fail Examples](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-expected-fail-fixes.md)
+- [M-DX-JSON-BOOL: JSON Boolean Coercion and Firestore Encoding Consistency](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-json-bool-coercion.md)
+- [Sprint Plan: M-DX-ROUTE-CTX — HTTP Request Context for @route Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-route-ctx-sprint-plan.md)
+- [M-DX-ROUTE-CTX: HTTP Request Context for @route Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-route-request-context.md)
+- [M-DX-SPLIT-ARG: Compile-Time Warning for Reversed `split` Arguments](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-split-argument-warning.md)
+- [Sprint Plan: M-DX-XPKG-RESOLVE — Cross-Package Stdlib Function Resolution Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-dx-xpkg-resolve-sprint-plan.md)
+- [M-ROUTE-COLLISION: Route Collision Guard & Optional A2A](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-route-collision-guard.md)
+- [M-ROUTE-NOWRAP: @nowrap annotation for unwrapped @route responses](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_9_5/m-route-nowrap.md)
 
 ## Planned for v0.9.4
 
@@ -150,4 +165,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 106 planned features across 7 upcoming versions.*
+*Generated at build time. 118 planned features across 8 upcoming versions.*

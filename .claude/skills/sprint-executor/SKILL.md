@@ -533,6 +533,46 @@ Create `docs/sprint-retros/<sprint-id>-retro.md` with:
 6. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
 7. **DX Impact Summary** - Document improvements made during sprint
 
+### Phase 5: Hand Off to sprint-evaluator
+
+**CRITICAL: After finalizing a sprint, ALWAYS hand off to sprint-evaluator for independent quality assessment.**
+
+Based on [Anthropic's generator-evaluator architecture](https://www.anthropic.com/engineering/harness-design-long-running-apps) — separating the agent doing the work from the agent judging it is "a strong lever" for quality.
+
+This is the standard workflow:
+1. **sprint-executor** (this skill): Implements the plan with TDD
+2. **sprint-evaluator** (quality judge): Independently evaluates implementation against design doc and acceptance criteria
+
+**Send handoff message:**
+```bash
+ailang messages send sprint-evaluator '{
+  "type": "implementation_complete",
+  "correlation_id": "eval_<sprint-id>_<date>",
+  "sprint_id": "<sprint-id>",
+  "branch_name": "<branch>",
+  "sprint_json_path": ".ailang/state/sprints/sprint_<id>.json",
+  "design_doc_path": "<path to design doc>",
+  "files_created": [...],
+  "files_modified": [...],
+  "evaluation_round": 1
+}' --title "Sprint <sprint-id> ready for evaluation" --from "sprint-executor"
+```
+
+**Why separate evaluation?**
+- Agents doing work struggle with self-evaluation ("confidently praise work even when mediocre")
+- Concrete scoring rubric (100 points, 70 to pass) catches issues executor may miss
+- Feedback loop drives quality: fail → specific feedback → retry (max 3 rounds)
+
+### Handling Evaluation Feedback
+
+**If session starts with an `evaluation_feedback` message:**
+1. Read the feedback: `ailang messages read MSG_ID`
+2. Parse the specific issues (files, criteria, suggestions)
+3. Address each issue in priority order (high severity first)
+4. Re-run `milestone_checkpoint.sh` for affected milestones
+5. Re-run `finalize_sprint.sh`
+6. Hand off to sprint-evaluator again (increment evaluation_round)
+
 ## Key Features
 
 ### Continuous Testing
@@ -694,7 +734,7 @@ coordinator:
       inbox: sprint-executor
       workspace: /path/to/ailang
       capabilities: [code, test, docs]
-      trigger_on_complete: []  # End of chain
+      trigger_on_complete: [sprint-evaluator]  # Evaluator judges implementation
       auto_approve_handoffs: false
       auto_merge: false
       session_continuity: true

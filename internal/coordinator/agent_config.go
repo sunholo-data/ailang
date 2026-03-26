@@ -653,8 +653,19 @@ coordinator:
       workspace: /path/to/main/project
       capabilities: [code, test]
       provider: claude
+      trigger_on_complete: [sprint-evaluator]  # Evaluator judges implementation quality
       auto_merge: false  # Require approval before merge
       session_continuity: true
+
+    - id: sprint-evaluator
+      label: "Sprint Evaluator"
+      inbox: sprint-evaluator
+      workspace: /path/to/main/project
+      capabilities: [review, test, docs]
+      provider: claude
+      trigger_on_complete: []  # End of chain on pass
+      auto_merge: false
+      session_continuity: false  # Stateless per evaluation round
 
     # Script agent for deterministic workflows (v0.6.4+)
     # Runs shell scripts instead of AI - useful for evals, deploys, syncs

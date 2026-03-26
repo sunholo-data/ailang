@@ -37,6 +37,13 @@ type CommentData struct {
 	InputTokens  int
 	OutputTokens int
 
+	// Evaluation results (sprint-evaluator)
+	EvaluationScore      int
+	EvaluationResult     string // "pass" or "fail"
+	EvaluationRound      int
+	EvaluationReportPath string
+	FeedbackSummary      string
+
 	// Artifacts
 	DesignDocPath     string
 	DesignDocContent  string // Actual markdown content of the design doc
@@ -53,21 +60,23 @@ type CommentData struct {
 
 // CommentTemplates holds all the comment templates.
 var CommentTemplates = struct {
-	Working           *template.Template
-	DesignDocComplete *template.Template
-	SprintPlanReady   *template.Template
-	ImplementComplete *template.Template
-	MergeComplete     *template.Template
-	NeedsRevision     *template.Template
-	Error             *template.Template
+	Working            *template.Template
+	DesignDocComplete  *template.Template
+	SprintPlanReady    *template.Template
+	ImplementComplete  *template.Template
+	EvaluationComplete *template.Template
+	MergeComplete      *template.Template
+	NeedsRevision      *template.Template
+	Error              *template.Template
 }{
-	Working:           template.Must(template.New("working").Parse(workingTemplate)),
-	DesignDocComplete: template.Must(template.New("design").Parse(designDocCompleteTemplate)),
-	SprintPlanReady:   template.Must(template.New("sprint").Parse(sprintPlanReadyTemplate)),
-	ImplementComplete: template.Must(template.New("implement").Parse(implementCompleteTemplate)),
-	MergeComplete:     template.Must(template.New("merge").Parse(mergeCompleteTemplate)),
-	NeedsRevision:     template.Must(template.New("revision").Parse(needsRevisionTemplate)),
-	Error:             template.Must(template.New("error").Parse(errorTemplate)),
+	Working:            template.Must(template.New("working").Parse(workingTemplate)),
+	DesignDocComplete:  template.Must(template.New("design").Parse(designDocCompleteTemplate)),
+	SprintPlanReady:    template.Must(template.New("sprint").Parse(sprintPlanReadyTemplate)),
+	ImplementComplete:  template.Must(template.New("implement").Parse(implementCompleteTemplate)),
+	EvaluationComplete: template.Must(template.New("evaluation").Parse(evaluationCompleteTemplate)),
+	MergeComplete:      template.Must(template.New("merge").Parse(mergeCompleteTemplate)),
+	NeedsRevision:      template.Must(template.New("revision").Parse(needsRevisionTemplate)),
+	Error:              template.Must(template.New("error").Parse(errorTemplate)),
 }
 
 const workingTemplate = `**🤖 Agent Working**
@@ -189,6 +198,48 @@ I've completed the implementation for this issue.
 
 Once approved, I'll merge the changes and close this issue.`
 
+const evaluationCompleteTemplate = `**🔍 Sprint Evaluation {{if eq .EvaluationResult "pass"}}Passed ✅{{else}}Failed ❌{{end}}**
+
+I've independently evaluated the sprint implementation.
+
+### Score: {{.EvaluationScore}}/100 {{if eq .EvaluationResult "pass"}}(PASS — threshold: 70){{else}}(FAIL — threshold: 70){{end}}
+
+| Field | Value |
+|-------|-------|
+| **Task ID** | ` + "`{{.TaskID}}`" + ` |
+| **Evaluation Round** | {{.EvaluationRound}} |
+| **Result** | {{.EvaluationResult}} |
+| **Duration** | {{.Duration}} |
+{{if gt .Cost 0.0}}| **Cost** | ${{printf "%.4f" .Cost}} |{{end}}
+{{if gt .TokensUsed 0}}| **Tokens** | {{.TokensUsed}} ({{.InputTokens}} in / {{.OutputTokens}} out) |{{end}}
+{{if .EvaluationReportPath}}| **Full Report** | ` + "`{{.EvaluationReportPath}}`" + ` |{{end}}
+
+{{if eq .EvaluationResult "pass"}}
+### Next Steps
+
+1. **Review the evaluation report** above
+2. **Add the ` + "`evaluation-approved`" + ` label** to proceed to merge
+3. **Add the ` + "`needs-revision`" + ` label** if you disagree with the assessment
+
+Once approved, I'll merge the changes and close this issue.
+{{else}}
+### Feedback Summary
+
+{{.FeedbackSummary}}
+
+### What Happens Next
+
+{{if le .EvaluationRound 2}}The sprint-executor will receive specific feedback and address the issues. Another evaluation round will follow automatically (round {{.EvaluationRound}}/3).{{else}}**Maximum evaluation rounds reached (3/3).** Human review is required.
+
+1. **Review the evaluation report** for persistent issues
+2. **Address the feedback manually** or delegate to an agent
+3. **Add the ` + "`evaluation-approved`" + ` label** to override and proceed to merge
+{{end}}
+{{end}}
+
+---
+*🤖 Evaluated by the AILANG Sprint Evaluator (generator-evaluator pattern)*`
+
 const mergeCompleteTemplate = `**🎉 Merged and Complete**
 
 The implementation has been merged successfully!
@@ -300,6 +351,11 @@ func RenderSprintPlanComment(data *CommentData) (string, error) {
 // RenderImplementCompleteComment renders the implementation complete comment.
 func RenderImplementCompleteComment(data *CommentData) (string, error) {
 	return RenderComment(CommentTemplates.ImplementComplete, data)
+}
+
+// RenderEvaluationComment renders the evaluation complete comment.
+func RenderEvaluationComment(data *CommentData) (string, error) {
+	return RenderComment(CommentTemplates.EvaluationComplete, data)
 }
 
 // RenderMergeCompleteComment renders the merge complete comment.

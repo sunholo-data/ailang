@@ -12,6 +12,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [M-DX-APP: Application Package Adoption — Module Prefix Mismatch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_11/m-dx-app-package-adoption.md)
 - [Sprint Plan: M-DX-PKG-CHECK + M-DX-PKG-TEST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_11/m-dx-pkg-tools-sprint-plan.md)
+- [M-PKG-RESOLVER-DIRECT-WINS: Version Conflict Detection in Dependency Resolver](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_11/m-pkg-resolver-direct-wins.md)
 
 ## v0.9.10
 
@@ -66,6 +67,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-CODEGEN-REGISTRY-ONLY: Delete Legacy Stdlib, Registry-Only Runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-codegen-registry-only.md)
 - [M-CONTRACT-OPLOWERING-FIX: Complete OpLowering for Contract Expressions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-contract-oplowering-fix.md)
 - [M-CONTRACT-PIPELINE-DX: Contract Pipeline Coverage & Developer Experience](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-contract-pipeline-dx.md)
+- [M-DEBUG-ERASURE: Implement Debug Ghost Effect Erasure in Release Mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-debug-erasure-release-mode.md)
+- [Sprint Plan: M-DEBUG-ERASURE — Debug Ghost Effect Erasure](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-debug-erasure-sprint-plan.md)
 - [Sprint Plan: M-DOCPARSE-DX Stdlib & DX Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-docparse-dx-sprint-plan.md)
 - [M-DOCPARSE-DX: Stdlib & DX Improvements from DocParse Feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-docparse-dx.md)
 - [M-GIT-GUARDRAILS: Per-Agent Git Mode for Cloud Coordinator](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_9_2/m-git-guardrails.md)
@@ -703,4 +706,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 522 design documents across 57 versions.*
+*Generated at build time. 525 design documents across 57 versions.*

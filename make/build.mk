@@ -4,11 +4,15 @@
 
 .PHONY: build install quick-install dev deps clean prepare-embed bootstrap-content
 
-prepare-embed: ## Internal: Copy prompts for embedding
+prepare-embed: ## Internal: Copy prompts and scorecard for embedding
 	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
 		echo "Copying prompts for embedding..."; \
 		rm -rf cmd/ailang/prompts; \
 		cp -r prompts cmd/ailang/prompts; \
+	fi
+	@if [ docs/static/benchmarks/axiom_scorecard.json -nt cmd/ailang/axiom_scorecard.json ]; then \
+		echo "Copying axiom scorecard for embedding..."; \
+		cp docs/static/benchmarks/axiom_scorecard.json cmd/ailang/axiom_scorecard.json; \
 	fi
 
 build: prepare-embed ## Build the ailang binary to bin/

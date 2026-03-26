@@ -345,6 +345,11 @@ func DefaultInvokeConfig(agentID string) *InvokeConfig {
 			Type: "skill",
 			Name: "sprint-executor",
 		}
+	case "sprint-evaluator":
+		return &InvokeConfig{
+			Type: "skill",
+			Name: "sprint-evaluator",
+		}
 	default:
 		return nil
 	}
@@ -362,6 +367,8 @@ func DefaultOutputMarkers(agentID string) []string {
 		return []string{"SPRINT_PLAN_PATH:", "SPRINT_JSON_PATH:"}
 	case "sprint-executor":
 		return []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}
+	case "sprint-evaluator":
+		return []string{"EVALUATION_RESULT:", "EVALUATION_SCORE:", "EVALUATION_ROUND:", "EVALUATION_REPORT_PATH:", "FEEDBACK_SUMMARY:"}
 	default:
 		return nil
 	}
@@ -384,6 +391,9 @@ func DefaultArtifactPatterns(agentID string) []string {
 	case "sprint-executor":
 		// Sprint executor modifies many files - collect .go, .md, .json
 		return []string{"**/*.go", "**/*.md", "**/*.json", "**/*.ail"}
+	case "sprint-evaluator":
+		// Sprint evaluator creates evaluation report JSON files
+		return []string{".ailang/state/evaluations/*.json"}
 	default:
 		// Universal default: discover ALL changed files
 		// No hardcoded agent IDs - works for any agent
@@ -414,6 +424,12 @@ func DefaultApprovalConfig(agentID string) *ApprovalConfig {
 			NeedsLabel:            "needs-implementation-approval",
 			ApprovedLabel:         "implementation-approved",
 			GithubCommentTemplate: "implementation",
+		}
+	case "sprint-evaluator":
+		return &ApprovalConfig{
+			NeedsLabel:            "needs-evaluation-approval",
+			ApprovedLabel:         "evaluation-approved",
+			GithubCommentTemplate: "evaluation",
 		}
 	default:
 		return nil

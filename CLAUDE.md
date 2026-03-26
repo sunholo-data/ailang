@@ -97,7 +97,7 @@ Priorities: Machine decidability, semantic transparency, compositional determini
 - **use-ailang** — Write correct AILANG code
 - **skill-builder** — Create new skills (meta-skill)
 - **release-manager** / **post-release** — Release workflow
-- **sprint-planner** / **sprint-executor** — Sprint workflow
+- **sprint-planner** / **sprint-executor** / **sprint-evaluator** — Sprint workflow (plan, execute, evaluate)
 - **collaboration-hub** — Collaboration Hub UI (React)
 - **codebase-organizer** — Refactor large files
 - **design-spec-auditor** — Verify code matches specs

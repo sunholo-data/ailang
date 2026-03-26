@@ -166,4 +166,12 @@ else
     echo "  1. Commit the changes: git add -A && git commit -m 'Finalize sprint $SPRINT_ID'"
 fi
 echo "  2. Update CHANGELOG.md if not already done"
-echo "  3. Consider creating a release if milestone reached"
+echo "  3. Hand off to sprint-evaluator for independent quality assessment:"
+echo "     ailang messages send sprint-evaluator '{"
+echo "       \"type\": \"implementation_complete\","
+echo "       \"sprint_id\": \"$SPRINT_ID\","
+echo "       \"sprint_json_path\": \"$SPRINT_FILE\","
+echo "       \"design_doc\": \"$(jq -r '.design_doc // ""' "$SPRINT_FILE")\","
+echo "       \"evaluation_round\": 1"
+echo "     }' --title \"Sprint $SPRINT_ID ready for evaluation\" --from \"sprint-executor\""
+echo "  4. Consider creating a release if milestone reached"
