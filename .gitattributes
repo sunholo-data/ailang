@@ -13,6 +13,10 @@ prompts/*.md text eol=lf
 # Trace baselines (generated, hide from diffs)
 examples/traces/*.jsonl linguist-generated text eol=lf
 
+# AILANG language recognition
+# Uses OCaml highlighting as closest match until AILANG is added to Linguist
+*.ail linguist-language=OCaml linguist-detectable
+
 # Binary files
 *.png binary
 *.jpg binary
