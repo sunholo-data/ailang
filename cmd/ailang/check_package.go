@@ -593,6 +593,8 @@ func collectPatternVars(pat core.CorePattern, locals map[string]bool) {
 		if p.Tail != nil {
 			collectPatternVars(*p.Tail, locals)
 		}
+	case *core.LitPattern, *core.WildcardPattern:
+		// No variable bindings
 	}
 }
 
