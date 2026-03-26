@@ -3,6 +3,7 @@ package gemini
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,7 +35,8 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 	}
 
 	// Add generation config if needed
-	if req.MaxTokens > 0 || req.Temperature > 0 || req.ResponseFormat == "json" {
+	needsConfig := req.MaxTokens > 0 || req.Temperature > 0 || req.ResponseFormat == "json" || len(req.ResponseModalities) > 0
+	if needsConfig {
 		apiReq.GenerationConfig = &generationConfig{}
 		if req.MaxTokens > 0 {
 			apiReq.GenerationConfig.MaxOutputTokens = req.MaxTokens
@@ -48,6 +50,9 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 				raw := json.RawMessage(req.ResponseSchema)
 				apiReq.GenerationConfig.ResponseSchema = &raw
 			}
+		}
+		if len(req.ResponseModalities) > 0 {
+			apiReq.GenerationConfig.ResponseModalities = req.ResponseModalities
 		}
 	}
 
@@ -108,10 +113,20 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 		return nil, ai.NewProviderError("gemini", 0, "no content in response", nil)
 	}
 
-	// Extract text from parts
+	// Extract text and image data from parts
 	var text string
+	var imageData []byte
+	var imageMIME string
 	for _, part := range result.Candidates[0].Content.Parts {
 		text += part.Text
+		if part.InlineData != nil && part.InlineData.Data != "" {
+			decoded, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
+			if err != nil {
+				return nil, ai.NewProviderError("gemini", 0, "failed to decode image data from response", err)
+			}
+			imageData = decoded
+			imageMIME = part.InlineData.MimeType
+		}
 	}
 
 	// Calculate output tokens
@@ -120,6 +135,8 @@ func (c *Client) generateContent(ctx context.Context, req *ai.Request) (*ai.Resp
 
 	return &ai.Response{
 		Text:         text,
+		ImageData:    imageData,
+		ImageMIME:    imageMIME,
 		InputTokens:  result.UsageMetadata.PromptTokenCount,
 		OutputTokens: outputTokens,
 		TotalTokens:  result.UsageMetadata.TotalTokenCount,

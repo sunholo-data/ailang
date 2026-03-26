@@ -1,0 +1,45 @@
+-- AILANG AI Image Generation Example
+-- Demonstrates generating images via AI models
+--
+-- Usage with real API:
+--   ailang run --ai gemini-2.5-flash-image --caps AI,FS,IO --entry main examples/runnable/ai_image_generation.ail
+--
+-- Usage with stub (for testing):
+--   ailang run --ai-stub --caps AI,FS,IO --entry main examples/runnable/ai_image_generation.ail
+--
+-- What this demonstrates:
+--   - AI.callImage: generate an image and save to file
+--   - AI.callImageBase64: generate an image and get base64 data
+--   - Effect composition: {AI, FS} for file-writing, {AI} for base64
+
+module examples/runnable/ai_image_generation
+
+import std/ai as AI
+import std/io (println)
+
+export func main() -> string ! {AI, FS, IO} =
+  let _ = println("AILANG AI Image Generation Demo") in
+  let _ = println("===============================") in
+  let _ = println("") in
+
+  -- Generate and save an image
+  let _ = println("1. Generating image and saving to file...") in
+  let path = AI.callImage(
+    "A simple geometric pattern with blue circles on white background",
+    "/tmp/ailang_demo_image.png",
+    "{}"
+  ) in
+  let _ = println("   Saved to: " ++ path) in
+
+  -- Generate with base64 output
+  let _ = println("") in
+  let _ = println("2. Generating image as base64...") in
+  let b64json = AI.callImageBase64(
+    "A small red square on white background",
+    "{\"aspect_ratio\": \"1:1\"}"
+  ) in
+  let _ = println("   Got base64 JSON response") in
+
+  let _ = println("") in
+  let _ = println("Done!") in
+  path

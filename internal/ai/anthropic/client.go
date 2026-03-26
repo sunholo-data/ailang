@@ -131,6 +131,9 @@ type errorResponse struct {
 
 // Generate implements ai.Provider.
 func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, error) {
+	if ai.RequestsImage(req) {
+		return nil, ai.NewProviderError("anthropic", 0, "image generation not supported by provider \"anthropic\" (model: "+req.Model+")", nil)
+	}
 	// Start OTEL span
 	ctx, span := telemetry.StartSpan(ctx, anthropicTracer, "anthropic.generate",
 		trace.WithAttributes(

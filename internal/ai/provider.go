@@ -14,8 +14,7 @@ import (
 	"fmt"
 )
 
-// Request represents a generic AI request (v0.5.10: text only).
-// Future versions will add multimodal support (images, audio, etc.).
+// Request represents a generic AI request.
 type Request struct {
 	// Model is the model name (e.g., "gemini-2.5-flash", "gpt-5", "claude-sonnet-4-5")
 	Model string
@@ -41,14 +40,38 @@ type Request struct {
 	// When empty with ResponseFormat="json", providers return valid JSON without schema.
 	ResponseSchema string
 
+	// ResponseModalities controls output types. Values: ["TEXT"], ["IMAGE"], ["TEXT", "IMAGE"].
+	// When set to ["IMAGE"], providers that support image generation will return image data.
+	ResponseModalities []string
+
+	// ImageOptions configures image generation parameters (used with ResponseModalities containing "IMAGE").
+	ImageOptions *ImageOptions
+
 	// Options contains provider-specific options
 	Options map[string]any
 }
 
-// Response represents a generic AI response (v0.5.10: text only).
+// ImageOptions configures image generation parameters.
+type ImageOptions struct {
+	// AspectRatio controls the image aspect ratio (e.g., "1:1", "16:9", "9:16").
+	AspectRatio string
+
+	// MIMEType controls the output format (e.g., "image/png", "image/jpeg").
+	MIMEType string
+}
+
+// Response represents a generic AI response.
 type Response struct {
 	// Text is the generated text content
 	Text string
+
+	// ImageData contains raw image bytes (PNG/JPEG) when the response includes an image.
+	// Nil for text-only responses.
+	ImageData []byte
+
+	// ImageMIME is the MIME type of ImageData (e.g., "image/png").
+	// Empty for text-only responses.
+	ImageMIME string
 
 	// InputTokens is the number of prompt/input tokens
 	InputTokens int
@@ -64,6 +87,16 @@ type Response struct {
 
 	// Model is the model that was actually used (may differ from request)
 	Model string
+}
+
+// RequestsImage returns true if the request asks for image generation.
+func RequestsImage(req *Request) bool {
+	for _, m := range req.ResponseModalities {
+		if m == "IMAGE" {
+			return true
+		}
+	}
+	return false
 }
 
 // Provider interface for AI providers.

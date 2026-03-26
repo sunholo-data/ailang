@@ -2,6 +2,11 @@ package ai
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -128,6 +133,81 @@ func (h *Handler) GenerateWithDetails(ctx context.Context, input string) (*Respo
 		UserPrompt:   input,
 		MaxTokens:    h.maxTokens,
 	})
+}
+
+// CallImage generates an image and writes it to outputPath.
+// Options is a JSON string: {"aspect_ratio": "16:9", "mime_type": "image/png"}.
+func (h *Handler) CallImage(prompt, outputPath, options string) (string, error) {
+	opts := parseImageOptions(options)
+	resp, err := h.provider.Generate(context.Background(), &Request{
+		Model:              h.model,
+		SystemPrompt:       h.systemPrompt,
+		UserPrompt:         prompt,
+		ResponseModalities: []string{"IMAGE"},
+		ImageOptions:       opts,
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp.ImageData == nil {
+		return "", fmt.Errorf("provider returned no image data for prompt: %s", prompt)
+	}
+	// Ensure parent directory exists
+	if dir := filepath.Dir(outputPath); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+	if err := os.WriteFile(outputPath, resp.ImageData, 0o644); err != nil {
+		return "", fmt.Errorf("failed to write image to %s: %w", outputPath, err)
+	}
+	return outputPath, nil
+}
+
+// CallImageBase64 generates an image and returns JSON with base64 data.
+// Returns: {"base64": "...", "mime_type": "image/png"}
+func (h *Handler) CallImageBase64(prompt, options string) (string, error) {
+	opts := parseImageOptions(options)
+	resp, err := h.provider.Generate(context.Background(), &Request{
+		Model:              h.model,
+		SystemPrompt:       h.systemPrompt,
+		UserPrompt:         prompt,
+		ResponseModalities: []string{"IMAGE"},
+		ImageOptions:       opts,
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp.ImageData == nil {
+		return "", fmt.Errorf("provider returned no image data for prompt: %s", prompt)
+	}
+	b64 := base64.StdEncoding.EncodeToString(resp.ImageData)
+	mime := resp.ImageMIME
+	if mime == "" {
+		mime = "image/png"
+	}
+	return fmt.Sprintf(`{"base64":"%s","mime_type":"%s"}`, b64, mime), nil
+}
+
+// parseImageOptions parses a JSON options string into ImageOptions.
+func parseImageOptions(optionsJSON string) *ImageOptions {
+	if optionsJSON == "" || optionsJSON == "{}" {
+		return nil
+	}
+	var raw struct {
+		AspectRatio string `json:"aspect_ratio"`
+		MIMEType    string `json:"mime_type"`
+	}
+	if err := json.Unmarshal([]byte(optionsJSON), &raw); err != nil {
+		return nil
+	}
+	if raw.AspectRatio == "" && raw.MIMEType == "" {
+		return nil
+	}
+	return &ImageOptions{
+		AspectRatio: raw.AspectRatio,
+		MIMEType:    raw.MIMEType,
+	}
 }
 
 // Provider returns the underlying provider.

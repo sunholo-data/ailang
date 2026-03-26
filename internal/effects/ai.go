@@ -1,8 +1,11 @@
 package effects
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/sunholo/ailang/internal/eval"
 )
@@ -27,6 +30,13 @@ type AIHandler interface {
 	// If schema is non-empty, providers enforce the schema.
 	// Returns raw JSON string (caller parses to Json ADT).
 	CallJson(input string, schema string) (string, error)
+	// CallImage generates an image and writes it to outputPath.
+	// Options is a JSON string with optional fields: aspect_ratio, mime_type.
+	// Returns the output path on success.
+	CallImage(prompt string, outputPath string, options string) (string, error)
+	// CallImageBase64 generates an image and returns it as a JSON string
+	// containing base64-encoded data: {"base64": "...", "mime_type": "image/png"}.
+	CallImageBase64(prompt string, options string) (string, error)
 }
 
 // AIContext holds the handler for the current execution
@@ -63,6 +73,22 @@ func (c *AIContext) CallJson(input string, schema string) (string, error) {
 		return "", ErrNoAIHandler
 	}
 	return c.handler.CallJson(input, schema)
+}
+
+// CallImage generates an image and writes it to outputPath.
+func (c *AIContext) CallImage(prompt, outputPath, options string) (string, error) {
+	if c.handler == nil {
+		return "", ErrNoAIHandler
+	}
+	return c.handler.CallImage(prompt, outputPath, options)
+}
+
+// CallImageBase64 generates an image and returns it as base64 JSON.
+func (c *AIContext) CallImageBase64(prompt, options string) (string, error) {
+	if c.handler == nil {
+		return "", ErrNoAIHandler
+	}
+	return c.handler.CallImageBase64(prompt, options)
 }
 
 // StubAIHandler returns deterministic placeholder responses
@@ -110,11 +136,39 @@ func (h *StubAIHandler) SetDefaultResponse(response string) {
 	h.defaultResponse = response
 }
 
+// CallImage returns a stub image path (writes a minimal 1x1 PNG to disk).
+func (h *StubAIHandler) CallImage(prompt, outputPath, options string) (string, error) {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return "", fmt.Errorf("stub: failed to create directory: %w", err)
+	}
+	if err := os.WriteFile(outputPath, stubPNG, 0o644); err != nil {
+		return "", fmt.Errorf("stub: failed to write image: %w", err)
+	}
+	return outputPath, nil
+}
+
+// CallImageBase64 returns a stub base64 JSON response.
+func (h *StubAIHandler) CallImageBase64(prompt, options string) (string, error) {
+	b64 := base64.StdEncoding.EncodeToString(stubPNG)
+	return fmt.Sprintf(`{"base64":"%s","mime_type":"image/png"}`, b64), nil
+}
+
+// stubPNG is a minimal valid 1x1 transparent PNG (67 bytes).
+var stubPNG = func() []byte {
+	// Minimal 1x1 RGBA PNG
+	b, _ := base64.StdEncoding.DecodeString(
+		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+	)
+	return b
+}()
+
 // init registers AI effect operations
 func init() {
 	RegisterOp("AI", "call", aiCall)
 	RegisterOp("AI", "callJson", aiCallJson)
 	RegisterOp("AI", "callJsonSimple", aiCallJsonSimple)
+	RegisterOp("AI", "callImage", aiCallImage)
+	RegisterOp("AI", "callImageBase64", aiCallImageBase64)
 }
 
 // aiCall implements AI.call(input: string) -> string
@@ -200,4 +254,65 @@ func aiCallJsonSimple(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	}
 
 	return &eval.StringValue{Value: output}, nil
+}
+
+// aiCallImage implements AI.callImage(prompt: string, output_path: string, options: string) -> string
+func aiCallImage(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 3 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImage: expected 3 arguments, got %d", len(args))
+	}
+
+	prompt, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImage: expected string prompt, got %T", args[0])
+	}
+
+	outputPath, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImage: expected string output_path, got %T", args[1])
+	}
+
+	options, ok := args[2].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImage: expected string options, got %T", args[2])
+	}
+
+	if ctx.AI == nil {
+		return nil, ErrNoAIHandler
+	}
+
+	result, err := ctx.AI.CallImage(prompt.Value, outputPath.Value, options.Value)
+	if err != nil {
+		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+	}
+
+	return &eval.StringValue{Value: result}, nil
+}
+
+// aiCallImageBase64 implements AI.callImageBase64(prompt: string, options: string) -> string
+func aiCallImageBase64(ctx *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) < 2 {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImageBase64: expected 2 arguments, got %d", len(args))
+	}
+
+	prompt, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImageBase64: expected string prompt, got %T", args[0])
+	}
+
+	options, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("E_AI_TYPE_ERROR: callImageBase64: expected string options, got %T", args[1])
+	}
+
+	if ctx.AI == nil {
+		return nil, ErrNoAIHandler
+	}
+
+	result, err := ctx.AI.CallImageBase64(prompt.Value, options.Value)
+	if err != nil {
+		return nil, fmt.Errorf("E_AI_CALL_ERROR: %w", err)
+	}
+
+	return &eval.StringValue{Value: result}, nil
 }

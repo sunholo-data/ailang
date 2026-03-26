@@ -10,6 +10,8 @@ func init() {
 	registerAICall()
 	registerAICallJson()
 	registerAICallJsonSimple()
+	registerAICallImage()
+	registerAICallImageBase64()
 }
 
 // _ai_call: Call the AI oracle with a string input
@@ -176,4 +178,107 @@ func aiCallJsonSimpleImpl(ctx *effects.EffContext, args []eval.Value) (eval.Valu
 		return nil, err
 	}
 	return effects.Call(ctx, "AI", "callJsonSimple", args)
+}
+
+// _ai_call_image: Generate an image and save to file
+func registerAICallImage() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_call_image",
+		NumArgs: 3, // prompt, output_path, options
+		Effect:  "AI",
+		Type:    makeAICallImageType,
+		Impl:    aiCallImageImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Generate an image via AI and save to file",
+			LongDesc: `Calls an AI image generation model (e.g., Gemini gemini-2.5-flash-image)
+and writes the resulting image to the specified output path.
+
+Options is a JSON string with optional fields:
+  - aspect_ratio: "1:1", "16:9", "9:16", etc.
+  - mime_type: "image/png" (default), "image/jpeg"
+
+Returns the output path on success. Requires both AI and FS capabilities.`,
+			Params: []ParamDoc{
+				{Name: "prompt", Description: "Image generation prompt"},
+				{Name: "output_path", Description: "File path to write the image"},
+				{Name: "options", Description: "JSON options string (aspect_ratio, mime_type)"},
+			},
+			Returns: "The output file path",
+			Examples: []Example{
+				{Code: `AI.callImage("A sunset over mountains", "output.png", "{}")`, Description: "Generate image with defaults"},
+				{Code: `AI.callImage("Banner", "banner.png", "{\"aspect_ratio\": \"16:9\"}")`, Description: "Generate with aspect ratio"},
+			},
+			SeeAlso:   []string{"std/ai.callImageBase64", "std/ai.call"},
+			Since:     "v0.10.0",
+			Stability: StabilityStable,
+			Tags:      []string{"ai", "image", "generation", "gemini"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_call_image builtin: " + err.Error())
+	}
+}
+
+func makeAICallImageType() types.Type {
+	T := types.NewBuilder()
+	// (prompt: string, output_path: string, options: string) -> string ! {AI}
+	return T.Func(T.String(), T.String(), T.String()).Returns(T.String()).Effects("AI")
+}
+
+func aiCallImageImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "callImage", args)
+}
+
+// _ai_call_image_base64: Generate an image and return as base64 JSON
+func registerAICallImageBase64() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/ai",
+		Name:    "_ai_call_image_base64",
+		NumArgs: 2, // prompt, options
+		Effect:  "AI",
+		Type:    makeAICallImageBase64Type,
+		Impl:    aiCallImageBase64Impl,
+		Metadata: &BuiltinMetadata{
+			Description: "Generate an image via AI and return as base64 JSON",
+			LongDesc: `Calls an AI image generation model and returns the image as a JSON string:
+{"base64": "<base64-encoded-data>", "mime_type": "image/png"}
+
+Use std/bytes.fromBase64 to decode the base64 data to bytes if needed.
+Only requires AI capability (no file system access).`,
+			Params: []ParamDoc{
+				{Name: "prompt", Description: "Image generation prompt"},
+				{Name: "options", Description: "JSON options string (aspect_ratio, mime_type)"},
+			},
+			Returns: "JSON string with base64 and mime_type fields",
+			Examples: []Example{
+				{Code: `AI.callImageBase64("A logo", "{}")`, Description: "Generate image as base64"},
+			},
+			SeeAlso:   []string{"std/ai.callImage", "std/bytes.fromBase64"},
+			Since:     "v0.10.0",
+			Stability: StabilityStable,
+			Tags:      []string{"ai", "image", "generation", "base64"},
+			Category:  "ai",
+		},
+	})
+	if err != nil {
+		panic("failed to register _ai_call_image_base64 builtin: " + err.Error())
+	}
+}
+
+func makeAICallImageBase64Type() types.Type {
+	T := types.NewBuilder()
+	// (prompt: string, options: string) -> string ! {AI}
+	return T.Func(T.String(), T.String()).Returns(T.String()).Effects("AI")
+}
+
+func aiCallImageBase64Impl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	if err := ctx.RequireCapWithBudget("AI", ""); err != nil {
+		return nil, err
+	}
+	return effects.Call(ctx, "AI", "callImageBase64", args)
 }

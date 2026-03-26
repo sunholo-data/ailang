@@ -31,12 +31,13 @@ type inlineData struct {
 
 // generationConfig represents generation parameters.
 type generationConfig struct {
-	MaxOutputTokens  int              `json:"maxOutputTokens,omitempty"`
-	Temperature      float64          `json:"temperature,omitempty"`
-	TopP             float64          `json:"topP,omitempty"`
-	TopK             int              `json:"topK,omitempty"`
-	ResponseMimeType string           `json:"responseMimeType,omitempty"` // "application/json" for structured output
-	ResponseSchema   *json.RawMessage `json:"responseSchema,omitempty"`   // JSON Schema for structured output
+	MaxOutputTokens    int              `json:"maxOutputTokens,omitempty"`
+	Temperature        float64          `json:"temperature,omitempty"`
+	TopP               float64          `json:"topP,omitempty"`
+	TopK               int              `json:"topK,omitempty"`
+	ResponseMimeType   string           `json:"responseMimeType,omitempty"`   // "application/json" for structured output
+	ResponseSchema     *json.RawMessage `json:"responseSchema,omitempty"`     // JSON Schema for structured output
+	ResponseModalities []string         `json:"responseModalities,omitempty"` // ["TEXT"], ["IMAGE"], etc.
 }
 
 // generateResponse represents the response from generateContent API.

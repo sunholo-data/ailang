@@ -50,3 +50,19 @@ export func callJson(input: string, schema: string) -> string ! {AI} =
 -- Returns the raw JSON string. Use std/json.decode to parse.
 export func callJsonSimple(input: string) -> string ! {AI} =
   _ai_call_json_simple(input)
+
+-- callImage: Generate an image via AI and save to file
+-- Calls an image generation model (e.g., Gemini gemini-2.5-flash-image)
+-- and writes the resulting PNG/JPEG to output_path.
+-- Options is a JSON string: {"aspect_ratio": "16:9", "mime_type": "image/png"}
+-- Returns the output path on success.
+-- Requires both AI and FS capabilities.
+export func callImage(prompt: string, output_path: string, options: string) -> string ! {AI, FS} =
+  _ai_call_image(prompt, output_path, options)
+
+-- callImageBase64: Generate an image via AI and return as base64 JSON
+-- Returns a JSON string: {"base64": "...", "mime_type": "image/png"}
+-- Use std/bytes.fromBase64 to decode the base64 data to bytes.
+-- Only requires AI capability (no file system access).
+export func callImageBase64(prompt: string, options: string) -> string ! {AI} =
+  _ai_call_image_base64(prompt, options)
