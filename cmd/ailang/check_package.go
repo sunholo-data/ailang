@@ -590,6 +590,9 @@ func collectPatternVars(pat core.CorePattern, locals map[string]bool) {
 		for _, sub := range p.Elements {
 			collectPatternVars(sub, locals)
 		}
+		if p.Tail != nil {
+			collectPatternVars(*p.Tail, locals)
+		}
 	}
 }
 
