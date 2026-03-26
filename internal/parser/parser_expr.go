@@ -341,9 +341,9 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 		}
 	}
 
-	// Check for record literal: {field: value, ...}
-	// This is detected by IDENT followed by COLON
-	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON) {
+	// Check for record literal: {field: value, ...} or {"quoted-key": value, ...}
+	// This is detected by IDENT or STRING followed by COLON
+	if (p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING)) && p.peekTokenIs(lexer.COLON) {
 		p.traceDelimiterClose(delimCtxBlock) // Close the block trace since we're switching to record
 		return p.parseRecordLiteralContent(startPos)
 	}
@@ -397,8 +397,8 @@ func (p *Parser) parseBlockOrExpression() ast.Expr {
 }
 
 // parseRecordLiteralContent parses a record literal after the { has been consumed.
-// Called when we detect {IDENT COLON ...} pattern in parseBlockOrExpression.
-// Cursor is at the first IDENT token.
+// Called when we detect {IDENT/STRING COLON ...} pattern in parseBlockOrExpression.
+// Cursor is at the first IDENT or STRING token.
 func (p *Parser) parseRecordLiteralContent(startPos ast.Pos) ast.Expr {
 	record := &ast.Record{
 		Pos: startPos,
@@ -409,12 +409,12 @@ func (p *Parser) parseRecordLiteralContent(startPos ast.Pos) ast.Expr {
 			Pos: p.curPos(),
 		}
 
-		if !p.curTokenIs(lexer.IDENT) {
-			p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
+		if p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING) {
+			field.Name = p.curToken.Literal
+		} else {
+			p.errors = append(p.errors, fmt.Errorf("expected field name (identifier or quoted string), got %s", p.curToken.Type))
 			return nil
 		}
-
-		field.Name = p.curToken.Literal
 
 		if !p.expectPeek(lexer.COLON) {
 			return nil

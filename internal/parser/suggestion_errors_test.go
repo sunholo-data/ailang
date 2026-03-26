@@ -299,6 +299,87 @@ func TestMultipleSuggestionsFormatting(t *testing.T) {
 	}
 }
 
+// TestDetectRecordEqualsInsteadOfColon tests detection of {field = value} (ML/Haskell syntax)
+func TestDetectRecordEqualsInsteadOfColon(t *testing.T) {
+	input := `module test
+export func main() -> string =
+  let r = {_body = "hello", _status = 200} in
+  r._body`
+
+	l := lexer.New(input, "<test>")
+	p := New(l)
+	_ = p.Parse()
+
+	if len(p.errors) == 0 {
+		t.Fatal("expected at least one error, got none")
+	}
+
+	// Find the PAR016 error
+	var err *ParserError
+	for _, e := range p.errors {
+		if pe, ok := e.(*ParserError); ok && pe.Code == "PAR016" {
+			err = pe
+			break
+		}
+	}
+
+	if err == nil {
+		t.Fatalf("expected PAR016 error for '{_body = ...}', got errors: %v", p.errors)
+	}
+
+	errorMsg := err.Error()
+	if !strings.Contains(errorMsg, "_body") {
+		t.Errorf("error should mention the field name '_body': %s", errorMsg)
+	}
+	if !strings.Contains(errorMsg, "records use ':'") || !strings.Contains(errorMsg, "Use:") {
+		t.Errorf("error should suggest using ':' syntax: %s", errorMsg)
+	}
+}
+
+// TestQuotedRecordKeys tests that record literals accept quoted string keys
+func TestQuotedRecordKeys(t *testing.T) {
+	input := `module test
+export func main() -> string =
+  let headers = {"X-Request-Id": "req_123", "X-RateLimit-Remaining": "99"} in
+  headers`
+
+	l := lexer.New(input, "<test>")
+	p := New(l)
+	file := p.Parse()
+
+	if len(p.errors) > 0 {
+		t.Fatalf("expected no errors for quoted record keys, got %d: %v", len(p.errors), p.errors)
+	}
+
+	if file == nil || file.File == nil {
+		t.Fatal("expected parsed file, got nil")
+	}
+
+	if len(file.File.Funcs) == 0 {
+		t.Fatal("expected at least one function")
+	}
+}
+
+// TestMixedRecordKeys tests records with both identifier and quoted string keys
+func TestMixedRecordKeys(t *testing.T) {
+	input := `module test
+export func main() -> string =
+  let r = {data: "content", "X-Custom": "value"} in
+  r.data`
+
+	l := lexer.New(input, "<test>")
+	p := New(l)
+	file := p.Parse()
+
+	if len(p.errors) > 0 {
+		t.Fatalf("expected no errors for mixed record keys, got %d: %v", len(p.errors), p.errors)
+	}
+
+	if file == nil || file.File == nil {
+		t.Fatal("expected parsed file, got nil")
+	}
+}
+
 // TestBackwardCompatibilityWithFix tests that old Fix field still works
 func TestBackwardCompatibilityWithFix(t *testing.T) {
 	testToken := lexer.Token{

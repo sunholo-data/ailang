@@ -214,11 +214,29 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 		}
 	}
 
+	// Detect {field = value} pattern (ML/Haskell/Python dict syntax)
+	// and suggest using ':' instead of '='
+	if p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.ASSIGN) {
+		fieldName := p.curToken.Literal
+		p.errors = append(p.errors, NewSuggestionError(
+			"PAR016",
+			p.curPos(),
+			p.curToken,
+			fmt.Sprintf("record field '%s' uses '=' but AILANG records use ':'", fieldName),
+			[]string{
+				fmt.Sprintf("Use: {%s: value} instead of {%s = value}", fieldName, fieldName),
+				"AILANG record syntax: {field1: value1, field2: value2}",
+			},
+			"https://ailang.sunholo.com/docs/reference/language-syntax",
+		))
+		return nil
+	}
+
 	// Peek ahead to determine if this is a record literal, record update, or a block
 	// Record literals: IDENT COLON ...
 	// Record updates: IDENT PIPE ...
 	// Blocks: anything else
-	isRecordLiteral := p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.COLON)
+	isRecordLiteral := (p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING)) && p.peekTokenIs(lexer.COLON)
 	isRecordUpdate := p.curTokenIs(lexer.IDENT) && p.peekTokenIs(lexer.PIPE)
 
 	if isRecordUpdate {
@@ -284,12 +302,12 @@ func (p *Parser) parseRecordLiteral() ast.Expr {
 				Pos: p.curPos(),
 			}
 
-			if !p.curTokenIs(lexer.IDENT) {
-				p.errors = append(p.errors, fmt.Errorf("expected field name, got %s", p.curToken.Type))
+			if p.curTokenIs(lexer.IDENT) || p.curTokenIs(lexer.STRING) {
+				field.Name = p.curToken.Literal
+			} else {
+				p.errors = append(p.errors, fmt.Errorf("expected field name (identifier or quoted string), got %s", p.curToken.Type))
 				return nil
 			}
-
-			field.Name = p.curToken.Literal
 
 			if !p.expectPeek(lexer.COLON) {
 				return nil
