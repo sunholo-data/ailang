@@ -36,25 +36,50 @@ type RouteEntry struct {
 	IsRaw      bool     // @raw: pass full HttpRequest record instead of parsed args
 	IsNowrap   bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding
+	ParamTypes []string // parameter type strings for zero-value padding
 }
 
-// extractParamNames populates ExportInfo.ParamNames from the parsed AST
-// for all exported functions. This enables named JSON parameter binding.
-func extractParamNames(modInfo *ModuleInfo, file *ast.File) {
+// extractParamInfo populates ExportInfo.ParamNames and ExportInfo.ParamTypes
+// from the parsed AST for all exported functions. This enables named JSON
+// parameter binding and zero-value padding for missing parameters.
+func extractParamInfo(modInfo *ModuleInfo, file *ast.File) {
 	for _, fn := range file.Funcs {
 		if !fn.IsExport {
 			continue
 		}
 		names := make([]string, len(fn.Params))
+		types := make([]string, len(fn.Params))
 		for i, p := range fn.Params {
 			names[i] = p.Name
+			types[i] = paramTypeToString(p.Type)
 		}
 		for i := range modInfo.Exports {
 			if modInfo.Exports[i].Name == fn.Name {
 				modInfo.Exports[i].ParamNames = names
+				modInfo.Exports[i].ParamTypes = types
 				break
 			}
 		}
+	}
+}
+
+// paramTypeToString converts an ast.Type to a simple type name string
+// used for zero-value padding of missing parameters.
+func paramTypeToString(t ast.Type) string {
+	if t == nil {
+		return "unknown"
+	}
+	switch v := t.(type) {
+	case *ast.SimpleType:
+		return v.Name
+	case *ast.ListType:
+		return "list"
+	case *ast.ArrayType:
+		return "array"
+	case *ast.RecordType:
+		return "record"
+	default:
+		return "unknown"
 	}
 }
 
@@ -118,6 +143,7 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					IsRaw:      exp.IsRaw,
 					IsNowrap:   exp.IsNowrap,
 					ParamNames: exp.ParamNames,
+					ParamTypes: exp.ParamTypes,
 				})
 			}
 		}
@@ -146,7 +172,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 				})
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames})
+			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		log.Printf("  Custom route: %s %s -> %s/%s", r.Method, r.Path, r.Module, r.Function)
@@ -158,6 +184,7 @@ type callOpts struct {
 	Raw        bool     // @raw: pass full HttpRequest record instead of parsed args
 	Nowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding
+	ParamTypes []string // parameter type strings for zero-value padding
 }
 
 // callFunction executes an AILANG function and writes the response.
@@ -222,7 +249,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 
 		var parseErr error
-		args, parseErr = parseArgsWithNames(body, opt.ParamNames)
+		args, parseErr = parseArgsWithNames(body, opt.ParamNames, opt.ParamTypes)
 		if parseErr != nil {
 			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,

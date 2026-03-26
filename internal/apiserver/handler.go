@@ -97,7 +97,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delegate to shared function caller with param names for named binding
-	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames})
+	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes})
 }
 
 // camelToSnake converts a camelCase string to snake_case.
@@ -117,6 +117,28 @@ func camelToSnake(s string) string {
 	return result.String()
 }
 
+// zeroValueForType returns the zero-value for a given AILANG type name.
+// Used to pad missing named parameters so functions receive typed defaults
+// instead of unit values that crash on type-specific operations.
+func zeroValueForType(typeName string) interface{} {
+	switch typeName {
+	case "string":
+		return ""
+	case "int":
+		return float64(0) // JSON numbers are float64
+	case "float":
+		return float64(0)
+	case "bool":
+		return false
+	case "list", "array":
+		return []interface{}{}
+	case "record":
+		return map[string]interface{}{}
+	default:
+		return nil // unknown types remain nil → unit (current behavior)
+	}
+}
+
 // parseNamedArgs maps JSON object keys to function parameter names and returns
 // positional args in parameter order. Returns nil if no parameters match.
 //
@@ -125,7 +147,10 @@ func camelToSnake(s string) string {
 //  2. Snake-case match: JSON key matches camelToSnake(paramName)
 //
 // Unmatched JSON keys are silently ignored (forward-compatible).
-func parseNamedArgs(body map[string]interface{}, paramNames []string) []interface{} {
+// Missing parameters are padded with type-appropriate zero-values when
+// paramTypes is available, enabling functions to validate inputs instead
+// of crashing on unit values.
+func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes []string) []interface{} {
 	if len(paramNames) == 0 {
 		return nil
 	}
@@ -147,6 +172,10 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string) []interfac
 				continue
 			}
 		}
+		// Pad missing param with type-appropriate zero-value
+		if i < len(paramTypes) {
+			args[i] = zeroValueForType(paramTypes[i])
+		}
 	}
 	if matched == 0 {
 		return nil // no matches, caller should fall back
@@ -157,10 +186,10 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string) []interfac
 // parseArgsWithNames tries named JSON parameter binding before falling back to parseArgs.
 //
 // Precedence:
-//  1. {"args": [...]} — positional (existing behavior)
+//  1. {"args": [...]} — positional (existing behavior, with zero-value padding)
 //  2. JSON object with keys matching paramNames — named binding
 //  3. Any other JSON value — single argument (existing behavior)
-func parseArgsWithNames(body []byte, paramNames []string) ([]interface{}, error) {
+func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string) ([]interface{}, error) {
 	if len(body) == 0 || len(paramNames) == 0 {
 		return parseArgs(body)
 	}
@@ -168,13 +197,24 @@ func parseArgsWithNames(body []byte, paramNames []string) ([]interface{}, error)
 	// Quick check: try structured {"args": [...]} first (backward compat)
 	var req FunctionCallRequest
 	if err := json.Unmarshal(body, &req); err == nil && req.Args != nil {
+		// Pad positional args if fewer than expected parameters
+		if len(req.Args) < len(paramNames) && len(paramTypes) > 0 {
+			padded := make([]interface{}, len(paramNames))
+			copy(padded, req.Args)
+			for i := len(req.Args); i < len(paramNames); i++ {
+				if i < len(paramTypes) {
+					padded[i] = zeroValueForType(paramTypes[i])
+				}
+			}
+			return padded, nil
+		}
 		return req.Args, nil
 	}
 
 	// Try named binding: parse as JSON object and match keys to param names
 	var obj map[string]interface{}
 	if err := json.Unmarshal(body, &obj); err == nil && len(obj) > 0 {
-		if named := parseNamedArgs(obj, paramNames); named != nil {
+		if named := parseNamedArgs(obj, paramNames, paramTypes); named != nil {
 			return named, nil
 		}
 	}

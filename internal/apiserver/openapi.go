@@ -203,6 +203,9 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			if len(export.ParamNames) > 0 {
 				operation["x-ailang-param-names"] = export.ParamNames
 			}
+			if len(export.ParamTypes) > 0 {
+				operation["x-ailang-param-types"] = export.ParamTypes
+			}
 
 			// Request body (only for methods that accept a body).
 			reqSchema := schema.RequestSchema(fs)

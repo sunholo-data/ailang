@@ -1,13 +1,14 @@
 package apiserver
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
 )
 
-func TestExtractParamNames(t *testing.T) {
+func TestExtractParamInfo(t *testing.T) {
 	modInfo := &ModuleInfo{
 		Path: "test/api",
 		Exports: []ExportInfo{
@@ -23,8 +24,8 @@ func TestExtractParamNames(t *testing.T) {
 				Name:     "parseFile",
 				IsExport: true,
 				Params: []*ast.Param{
-					{Name: "path"},
-					{Name: "outputFormat"},
+					{Name: "path", Type: &ast.SimpleType{Name: "string"}},
+					{Name: "outputFormat", Type: &ast.SimpleType{Name: "string"}},
 				},
 			},
 			{
@@ -36,8 +37,8 @@ func TestExtractParamNames(t *testing.T) {
 				Name:     "convert",
 				IsExport: true,
 				Params: []*ast.Param{
-					{Name: "input"},
-					{Name: "maxSize"},
+					{Name: "input", Type: &ast.SimpleType{Name: "string"}},
+					{Name: "maxSize", Type: &ast.SimpleType{Name: "int"}},
 				},
 			},
 			{
@@ -50,9 +51,9 @@ func TestExtractParamNames(t *testing.T) {
 		},
 	}
 
-	extractParamNames(modInfo, file)
+	extractParamInfo(modInfo, file)
 
-	// parseFile should have param names
+	// parseFile should have param names and types
 	if len(modInfo.Exports[0].ParamNames) != 2 {
 		t.Fatalf("expected 2 param names for parseFile, got %d", len(modInfo.Exports[0].ParamNames))
 	}
@@ -62,13 +63,25 @@ func TestExtractParamNames(t *testing.T) {
 	if modInfo.Exports[0].ParamNames[1] != "outputFormat" {
 		t.Errorf("expected second param 'outputFormat', got %q", modInfo.Exports[0].ParamNames[1])
 	}
+	if len(modInfo.Exports[0].ParamTypes) != 2 {
+		t.Fatalf("expected 2 param types for parseFile, got %d", len(modInfo.Exports[0].ParamTypes))
+	}
+	if modInfo.Exports[0].ParamTypes[0] != "string" {
+		t.Errorf("expected first param type 'string', got %q", modInfo.Exports[0].ParamTypes[0])
+	}
+	if modInfo.Exports[0].ParamTypes[1] != "string" {
+		t.Errorf("expected second param type 'string', got %q", modInfo.Exports[0].ParamTypes[1])
+	}
 
-	// health should have empty param names
+	// health should have empty param names and types
 	if len(modInfo.Exports[1].ParamNames) != 0 {
 		t.Errorf("expected 0 param names for health, got %d", len(modInfo.Exports[1].ParamNames))
 	}
+	if len(modInfo.Exports[1].ParamTypes) != 0 {
+		t.Errorf("expected 0 param types for health, got %d", len(modInfo.Exports[1].ParamTypes))
+	}
 
-	// convert should have param names
+	// convert should have param names and types
 	if len(modInfo.Exports[2].ParamNames) != 2 {
 		t.Fatalf("expected 2 param names for convert, got %d", len(modInfo.Exports[2].ParamNames))
 	}
@@ -77,6 +90,57 @@ func TestExtractParamNames(t *testing.T) {
 	}
 	if modInfo.Exports[2].ParamNames[1] != "maxSize" {
 		t.Errorf("expected second param 'maxSize', got %q", modInfo.Exports[2].ParamNames[1])
+	}
+	if modInfo.Exports[2].ParamTypes[0] != "string" {
+		t.Errorf("expected first param type 'string', got %q", modInfo.Exports[2].ParamTypes[0])
+	}
+	if modInfo.Exports[2].ParamTypes[1] != "int" {
+		t.Errorf("expected second param type 'int', got %q", modInfo.Exports[2].ParamTypes[1])
+	}
+}
+
+func TestParamTypeToString(t *testing.T) {
+	tests := []struct {
+		name string
+		typ  ast.Type
+		want string
+	}{
+		{"nil type", nil, "unknown"},
+		{"string", &ast.SimpleType{Name: "string"}, "string"},
+		{"int", &ast.SimpleType{Name: "int"}, "int"},
+		{"float", &ast.SimpleType{Name: "float"}, "float"},
+		{"bool", &ast.SimpleType{Name: "bool"}, "bool"},
+		{"list", &ast.ListType{}, "list"},
+		{"array", &ast.ArrayType{}, "array"},
+		{"record", &ast.RecordType{}, "record"},
+		{"func type", &ast.FuncType{}, "unknown"},
+		{"type var", &ast.TypeVar{Name: "a"}, "unknown"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := paramTypeToString(tt.typ)
+			if got != tt.want {
+				t.Errorf("paramTypeToString(%v) = %q, want %q", tt.typ, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractParamInfoNilType(t *testing.T) {
+	modInfo := &ModuleInfo{
+		Path:    "test/api",
+		Exports: []ExportInfo{{Name: "fn", Type: "a -> string", Arity: 1}},
+	}
+	file := &ast.File{
+		Funcs: []*ast.FuncDecl{{
+			Name:     "fn",
+			IsExport: true,
+			Params:   []*ast.Param{{Name: "x"}}, // no Type annotation
+		}},
+	}
+	extractParamInfo(modInfo, file)
+	if modInfo.Exports[0].ParamTypes[0] != "unknown" {
+		t.Errorf("expected 'unknown' for nil type, got %q", modInfo.Exports[0].ParamTypes[0])
 	}
 }
 
@@ -100,10 +164,11 @@ func TestCamelToSnake(t *testing.T) {
 
 func TestParseNamedArgs(t *testing.T) {
 	paramNames := []string{"path", "outputFormat", "maxSize"}
+	paramTypes := []string{"string", "string", "int"}
 
 	t.Run("exact match", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "outputFormat": "blocks", "maxSize": float64(100)}
-		args := parseNamedArgs(body, paramNames)
+		args := parseNamedArgs(body, paramNames, paramTypes)
 		if len(args) != 3 {
 			t.Fatalf("expected 3 args, got %d", len(args))
 		}
@@ -117,7 +182,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("snake_case match", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "output_format": "blocks"}
-		args := parseNamedArgs(body, paramNames)
+		args := parseNamedArgs(body, paramNames, paramTypes)
 		if args == nil {
 			t.Fatal("expected args, got nil")
 		}
@@ -128,29 +193,43 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("no match returns nil", func(t *testing.T) {
 		body := map[string]interface{}{"unknown": "val", "other": "val2"}
-		args := parseNamedArgs(body, paramNames)
+		args := parseNamedArgs(body, paramNames, paramTypes)
 		if args != nil {
 			t.Errorf("expected nil for no matching keys, got %v", args)
 		}
 	})
 
-	t.Run("partial match", func(t *testing.T) {
+	t.Run("partial match pads zero-values", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx"}
-		args := parseNamedArgs(body, paramNames)
+		args := parseNamedArgs(body, paramNames, paramTypes)
 		if args == nil {
 			t.Fatal("expected args for partial match, got nil")
 		}
 		if args[0] != "file.docx" {
 			t.Errorf("args[0] = %v, want 'file.docx'", args[0])
 		}
+		if args[1] != "" {
+			t.Errorf("args[1] = %v, want empty string for missing string param", args[1])
+		}
+		if args[2] != float64(0) {
+			t.Errorf("args[2] = %v, want 0 for missing int param", args[2])
+		}
+	})
+
+	t.Run("partial match without types falls back to nil", func(t *testing.T) {
+		body := map[string]interface{}{"path": "file.docx"}
+		args := parseNamedArgs(body, paramNames, nil)
+		if args == nil {
+			t.Fatal("expected args for partial match, got nil")
+		}
 		if args[1] != nil {
-			t.Errorf("args[1] = %v, want nil for unmatched param", args[1])
+			t.Errorf("args[1] = %v, want nil when no type info", args[1])
 		}
 	})
 
 	t.Run("empty param names", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx"}
-		args := parseNamedArgs(body, nil)
+		args := parseNamedArgs(body, nil, nil)
 		if args != nil {
 			t.Errorf("expected nil for empty param names, got %v", args)
 		}
@@ -158,7 +237,7 @@ func TestParseNamedArgs(t *testing.T) {
 
 	t.Run("extra keys ignored", func(t *testing.T) {
 		body := map[string]interface{}{"path": "file.docx", "extra_field": "ignored"}
-		args := parseNamedArgs(body, paramNames)
+		args := parseNamedArgs(body, paramNames, paramTypes)
 		if args == nil {
 			t.Fatal("expected args, got nil")
 		}
@@ -168,12 +247,38 @@ func TestParseNamedArgs(t *testing.T) {
 	})
 }
 
+func TestZeroValueForType(t *testing.T) {
+	tests := []struct {
+		typeName string
+		want     interface{}
+	}{
+		{"string", ""},
+		{"int", float64(0)},
+		{"float", float64(0)},
+		{"bool", false},
+		{"list", []interface{}{}},
+		{"array", []interface{}{}},
+		{"record", map[string]interface{}{}},
+		{"unknown", nil},
+		{"CustomType", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.typeName, func(t *testing.T) {
+			got := zeroValueForType(tt.typeName)
+			if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", tt.want) {
+				t.Errorf("zeroValueForType(%q) = %v (%T), want %v (%T)", tt.typeName, got, got, tt.want, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseArgsWithNames(t *testing.T) {
 	paramNames := []string{"path", "outputFormat"}
+	paramTypes := []string{"string", "string"}
 
 	t.Run("positional args take precedence", func(t *testing.T) {
 		body := []byte(`{"args": ["file.docx", "blocks"]}`)
-		args, err := parseArgsWithNames(body, paramNames)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -182,9 +287,31 @@ func TestParseArgsWithNames(t *testing.T) {
 		}
 	})
 
+	t.Run("positional args padded with zero-values", func(t *testing.T) {
+		paramNames3 := []string{"a", "b", "c"}
+		paramTypes3 := []string{"string", "int", "bool"}
+		body := []byte(`{"args": ["hello"]}`)
+		args, err := parseArgsWithNames(body, paramNames3, paramTypes3)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 3 {
+			t.Fatalf("expected 3 args (padded), got %d", len(args))
+		}
+		if args[0] != "hello" {
+			t.Errorf("args[0] = %v, want 'hello'", args[0])
+		}
+		if args[1] != float64(0) {
+			t.Errorf("args[1] = %v, want 0 for missing int param", args[1])
+		}
+		if args[2] != false {
+			t.Errorf("args[2] = %v, want false for missing bool param", args[2])
+		}
+	})
+
 	t.Run("named binding", func(t *testing.T) {
 		body := []byte(`{"path": "data/sample.docx", "output_format": "blocks"}`)
-		args, err := parseArgsWithNames(body, paramNames)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -201,7 +328,7 @@ func TestParseArgsWithNames(t *testing.T) {
 
 	t.Run("no param names falls back to parseArgs", func(t *testing.T) {
 		body := []byte(`{"path": "file.docx"}`)
-		args, err := parseArgsWithNames(body, nil)
+		args, err := parseArgsWithNames(body, nil, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -212,7 +339,7 @@ func TestParseArgsWithNames(t *testing.T) {
 	})
 
 	t.Run("empty body", func(t *testing.T) {
-		args, err := parseArgsWithNames(nil, paramNames)
+		args, err := parseArgsWithNames(nil, paramNames, paramTypes)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -223,7 +350,7 @@ func TestParseArgsWithNames(t *testing.T) {
 
 	t.Run("non-object JSON falls back", func(t *testing.T) {
 		body := []byte(`"just a string"`)
-		args, err := parseArgsWithNames(body, paramNames)
+		args, err := parseArgsWithNames(body, paramNames, paramTypes)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

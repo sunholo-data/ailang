@@ -164,6 +164,29 @@ curl -X POST http://localhost:8080/api/docparse/parseFile \
 
 **Precedence:** If the request body contains an `"args"` key with an array value, positional binding is used (backward compatible). Named binding only activates for plain JSON objects.
 
+**Zero-value padding for missing parameters:**
+
+When a named parameter is omitted from the JSON body, it receives a type-appropriate zero-value instead of crashing. This allows functions to validate inputs and return structured errors:
+
+| Parameter Type | Zero Value |
+|---------------|------------|
+| `string`      | `""`       |
+| `int`         | `0`        |
+| `float`       | `0.0`      |
+| `bool`        | `false`    |
+| `list`/`array`| `[]`       |
+| `record`      | `{}`       |
+
+```bash
+# Missing apiKey gets "" instead of unit — function can validate
+curl -X POST http://localhost:8080/api/docparse/parseFile \
+  -H "Content-Type: application/json" \
+  -d '{"path": "data/sample.docx"}'
+# Function receives: path="data/sample.docx", outputFormat=""
+```
+
+Positional `{"args": [...]}` with fewer elements than expected is also padded with zero-values for the remaining parameters.
+
 **No arguments (for nullary functions):**
 
 ```bash
