@@ -102,6 +102,23 @@ For each feature in sprint JSON:
 
 **HARD FAIL if fewer than 50% of acceptance criteria are met.**
 
+### Phase 3.5: Sprint Artifacts Verification
+
+If a sprint JSON exists (`.ailang/state/sprints/sprint_<id>.json`), verify:
+1. All milestones have `passes: true` (or `false` with explanation)
+2. All milestones have `completed` timestamps
+3. All milestones have `notes` with summaries
+4. Sprint `status` is `"completed"`
+5. Velocity metrics are populated
+
+If a sprint plan markdown exists, verify:
+1. All milestones marked with ✅ (not pending or in-progress)
+2. No placeholder text remaining
+
+**Scoring**: Deduct from Code Quality (Phase 4) — up to -5 for incomplete sprint artifacts.
+Sprint artifacts are optional (pre-sprint-system implementations won't have them), so missing
+artifacts are not penalized — only incomplete/inconsistent ones are.
+
 ### Phase 4: Design Fidelity Check (AI Judgment)
 
 Read the design doc and compare against the actual implementation:

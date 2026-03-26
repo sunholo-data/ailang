@@ -49,8 +49,11 @@ Start with 15, deduct for issues:
 | File exceeds 800 lines | -5 per file |
 | TODO/HACK/FIXME in new code | -1 per occurrence (max -5) |
 | Function exceeds 50 lines | -2 per function (max -5) |
+| Sprint JSON incomplete (missing passes/timestamps/notes) | -3 |
+| Sprint plan markdown has pending milestones | -2 |
 
 Minimum score: 0 (no negative scores).
+Sprint artifacts are optional — deductions only apply when they exist but are incomplete.
 
 ### 5. Documentation (15 points)
 

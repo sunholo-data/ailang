@@ -252,16 +252,13 @@ After Phase 1 initialization, choose between sequential or parallel execution ba
 2. **Implement** - Write code with DX awareness (helper functions, debug flags, better errors)
 3. **Write Tests** - TDD recommended for complex logic, comprehensive coverage required
 4. **Verify Quality** - Run `milestone_checkpoint.sh <milestone-name>` (tests + lint must pass)
-5. **Update Documentation**:
-   - Active changelog in `changelogs/` (what, LOC, key decisions) — find active file with `ls changelogs/ | grep current`
-   - Example files (REQUIRED for new language features):
-     - Create `examples/runnable/<feature>.ail` with comprehensive examples
-     - Add entry to `examples/manifest.json` (path, status, tags, description)
-     - Update statistics in manifest (total, working counts)
-     - Verify searchable: `ailang examples search "<feature>"`
-   - Sprint plan markdown (mark milestone as ✅)
-6. **Update Sprint JSON** ⚠️ **CRITICAL** - The checkpoint script reminds you!
-   - Update `passes: true/false` in `.ailang/state/sprints/sprint_<id>.json`
+5. **Write Documentation** (evaluator verifies completeness):
+   - CHANGELOG entry in `changelogs/` — find active file with `ls changelogs/ | grep current`
+   - Example files for new language features: `examples/runnable/<feature>.ail`
+   - Update `examples/manifest.json` if adding examples
+   - Mark milestone as ✅ in sprint plan markdown
+6. **Update Sprint JSON**:
+   - Set `passes: true/false` in `.ailang/state/sprints/sprint_<id>.json`
    - Set `completed: "<ISO timestamp>"`
    - Add `notes: "<summary of what was done>"`
 7. **DX Reflection** - Identify and implement quick wins (<15 min), defer larger improvements
@@ -521,17 +518,12 @@ Create `docs/sprint-retros/<sprint-id>-retro.md` with:
 
 ### Phase 4: Finalize Sprint
 
-1. **Final Testing** - Run `make test`, `make lint`, `make test-coverage-badge`
-2. **Documentation Review** - Verify CHANGELOG.md, example files, sprint plan complete
-3. **Example Manifest** - For new language features, verify `examples/manifest.json` updated
-4. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
-5. **Move Design Docs** - Run `finalize_sprint.sh <sprint-id> [version]` to:
-   - Move design docs from `planned/` to `implemented/<version>/`
-   - Update design doc status to IMPLEMENTED
-   - Update sprint JSON status to "completed"
-   - Update file paths in sprint JSON
-6. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
-7. **DX Impact Summary** - Document improvements made during sprint
+1. **Final Commit** - Git commit with sprint summary (milestones, LOC, velocity)
+2. **Summary Report** - Compare planned vs actual (LOC, time, velocity)
+3. **DX Impact Summary** - Document improvements made during sprint
+
+**Note:** Documentation verification, design doc moves, and quality checks are handled by the
+sprint-evaluator in Phase 5. The executor focuses on implementation — the evaluator judges it.
 
 ### Phase 5: Hand Off to sprint-evaluator
 
