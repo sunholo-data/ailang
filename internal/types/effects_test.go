@@ -424,6 +424,74 @@ func TestFormatEffectRow(t *testing.T) {
 	}
 }
 
+// TestSubsumeEffectRows_NoHierarchy is a regression test ensuring that no effect
+// implicitly absorbs or subsumes another. For example, declaring FS must NOT
+// satisfy an Env requirement. Each effect is an independent label — subsumption
+// is strict set inclusion only.
+//
+// Background: A local gcp_auth.ail declared ! {FS} while using getEnvOr (which
+// requires Env). The effect checker should reject this. This test guards against
+// any future introduction of an effect hierarchy.
+func TestSubsumeEffectRows_NoHierarchy(t *testing.T) {
+	// Every canonical effect that should be independent
+	independentEffects := []string{
+		"IO", "FS", "Net", "Clock", "Rand", "DB", "Trace", "Async", "Env",
+		"AI", "SharedMem", "SharedIndex", "Stream", "Process",
+	}
+
+	for _, declared := range independentEffects {
+		for _, required := range independentEffects {
+			if declared == required {
+				continue // Same effect trivially subsumes itself
+			}
+
+			t.Run(required+"_not_subsumed_by_"+declared, func(t *testing.T) {
+				reqRow, err := ElaborateEffectRow([]string{required})
+				if err != nil {
+					t.Fatalf("failed to create required row {%s}: %v", required, err)
+				}
+
+				declRow, err := ElaborateEffectRow([]string{declared})
+				if err != nil {
+					t.Fatalf("failed to create declared row {%s}: %v", declared, err)
+				}
+
+				if SubsumeEffectRows(reqRow, declRow) {
+					t.Errorf("{%s} should NOT be subsumed by {%s} — effects must be independent", required, declared)
+				}
+			})
+		}
+	}
+}
+
+// TestSubsumeEffectRows_FS_Does_Not_Cover_Env is a focused regression test for
+// the specific bug: declaring ! {FS} while calling Env-requiring functions.
+func TestSubsumeEffectRows_FS_Does_Not_Cover_Env(t *testing.T) {
+	envRow, err := ElaborateEffectRow([]string{"Env"})
+	if err != nil {
+		t.Fatalf("failed to create Env row: %v", err)
+	}
+
+	fsRow, err := ElaborateEffectRow([]string{"FS"})
+	if err != nil {
+		t.Fatalf("failed to create FS row: %v", err)
+	}
+
+	if SubsumeEffectRows(envRow, fsRow) {
+		t.Fatal("{Env} is subsumed by {FS} — this is a soundness hole! FS must not cover Env")
+	}
+
+	// But {Env} ⊆ {FS, Env} should be true
+	fsEnvRow, err := ElaborateEffectRow([]string{"FS", "Env"})
+	if err != nil {
+		t.Fatalf("failed to create FS+Env row: %v", err)
+	}
+
+	if !SubsumeEffectRows(envRow, fsEnvRow) {
+		t.Fatal("{Env} should be subsumed by {FS, Env}")
+	}
+}
+
 // Helper function to create int pointer
 func intPtr(i int) *int {
 	return &i
