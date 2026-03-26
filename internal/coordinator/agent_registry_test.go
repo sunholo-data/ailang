@@ -615,8 +615,9 @@ func TestAgentConfig_SubdirectoryField(t *testing.T) {
 
 	// Verify subdirectory produces correct workspace path
 	expectedPath := filepath.Join(agent.Workspace, agent.Subdirectory)
-	if expectedPath != "/tmp/ailang-packages/packages/auth" {
-		t.Errorf("expected path '/tmp/ailang-packages/packages/auth', got %q", expectedPath)
+	wantPath := filepath.Join("/tmp", "ailang-packages", "packages", "auth")
+	if expectedPath != wantPath {
+		t.Errorf("expected path %q, got %q", wantPath, expectedPath)
 	}
 }
 
