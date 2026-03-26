@@ -27,3 +27,7 @@ export func greet(name: string, greetingStyle: string) -> string {
 export func search(query: string) -> string {
   "Results for: " ++ toUpper(query)
 }
+
+-- Demo entrypoint for verify-examples
+export func main() -> string =
+  greet("World", "formal") ++ " | " ++ search("ailang")

@@ -112,6 +112,17 @@ func (h *WasmAIHandler) CallJson(input string, schema string) (string, error) {
 	return h.Call(input)
 }
 
+// CallImage is not supported in WASM — image generation requires server-side file I/O.
+func (h *WasmAIHandler) CallImage(prompt, outputPath, options string) (string, error) {
+	return "", fmt.Errorf("image generation not supported in WASM environment")
+}
+
+// CallImageBase64 delegates to the JS callback for image generation.
+// The JS host is responsible for returning JSON: {"base64": "...", "mime_type": "..."}
+func (h *WasmAIHandler) CallImageBase64(prompt, options string) (string, error) {
+	return h.Call(prompt)
+}
+
 // ailangValueToJS converts an AILANG eval.Value to a JS-compatible interface{}.
 func ailangValueToJS(v eval.Value) interface{} {
 	if v == nil {

@@ -8,8 +8,8 @@ import std/rand (uuid4)
 import std/io (println)
 
 export func main() -> () ! {IO, Rand} =
-  let id1 = uuid4()
-  let id2 = uuid4()
-  let _ = println("UUID 1: " ++ id1)
-  let _ = println("UUID 2: " ++ id2)
+  let id1 = uuid4() in
+  let id2 = uuid4() in
+  let _ = println("UUID 1: " ++ id1) in
+  let _ = println("UUID 2: " ++ id2) in
   println("Each call produces a unique RFC 4122 v4 UUID")
