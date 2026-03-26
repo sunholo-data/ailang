@@ -146,6 +146,24 @@ curl -X POST http://localhost:8080/api/api/greet/hello \
 # {"result":"Hello, Bob!","module":"api/greet","func":"hello","elapsed_ms":0}
 ```
 
+**Named parameters (agent-friendly):**
+
+For functions with known parameter names, you can send a flat JSON object with named fields instead of a positional `args` array. This is the recommended format for AI agents and programmatic callers:
+
+```bash
+# Given: export func parseFile(path: string, outputFormat: string) -> string
+curl -X POST http://localhost:8080/api/docparse/parseFile \
+  -H "Content-Type: application/json" \
+  -d '{"path": "data/sample.docx", "output_format": "blocks"}'
+```
+
+**Name matching rules:**
+- Exact match: `"path"` → `path` parameter
+- snake_case to camelCase: `"output_format"` → `outputFormat` parameter
+- Unknown fields are silently ignored (forward-compatible)
+
+**Precedence:** If the request body contains an `"args"` key with an array value, positional binding is used (backward compatible). Named binding only activates for plain JSON objects.
+
 **No arguments (for nullary functions):**
 
 ```bash
@@ -754,6 +772,38 @@ export func echo(req: {body: string, headers: Json, method: string, path: string
 - **A2A agent cards** — serve `/.well-known/agent.json` with a custom schema
 - **OpenID discovery documents** — `/.well-known/openid-configuration`
 - **REST endpoints** — where consumers expect a specific JSON schema without an envelope
+
+#### Custom Response Headers with `@nowrap`
+
+`@nowrap` functions can set custom HTTP headers by including a `_headers` field in the return record. The `_headers` field is extracted as HTTP headers and excluded from the JSON response body:
+
+```ailang
+@nowrap
+@route("POST", "/api/v1/parse")
+export func parseFile(path: string) -> {data: string, count: int, _headers: {string: string}} ! {IO}
+  let result = parse(path)
+  {
+    data = result.text,
+    count = result.elementCount,
+    _headers = {
+      "X-Request-Id" = generateId(),
+      "X-RateLimit-Remaining" = "99"
+    }
+  }
+```
+
+```bash
+curl -s -D- http://localhost:8080/api/v1/parse -d '{"path": "test.docx"}'
+# HTTP/1.1 200 OK
+# Content-Type: application/json
+# X-Request-Id: req_abc123
+# X-RateLimit-Remaining: 99
+# X-Elapsed-Ms: 42
+#
+# {"data": "parsed content", "count": 15}
+```
+
+> **Note:** The `_headers` convention is consistent with the existing `_body`/`_status`/`_headers` pattern used for [binary responses](#binary-response). For simple JSON responses that just need extra headers, `@nowrap` with `_headers` is more ergonomic than the full `_body` pattern.
 
 ---
 

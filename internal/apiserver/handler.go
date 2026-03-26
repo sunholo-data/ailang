@@ -75,15 +75,15 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate function exists in module
-	var found bool
+	// Validate function exists in module and get param names
+	var foundExport *ExportInfo
 	for i := range modInfo.Exports {
 		if modInfo.Exports[i].Name == funcName {
-			found = true
+			foundExport = &modInfo.Exports[i]
 			break
 		}
 	}
-	if !found {
+	if foundExport == nil {
 		available := make([]string, len(modInfo.Exports))
 		for i, e := range modInfo.Exports {
 			available[i] = e.Name
@@ -96,8 +96,91 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to shared function caller
-	s.callFunction(w, r, modulePath, funcName)
+	// Delegate to shared function caller with param names for named binding
+	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames})
+}
+
+// camelToSnake converts a camelCase string to snake_case.
+// e.g., "outputFormat" -> "output_format", "maxSize" -> "max_size"
+func camelToSnake(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				result.WriteByte('_')
+			}
+			result.WriteRune(r + ('a' - 'A'))
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
+}
+
+// parseNamedArgs maps JSON object keys to function parameter names and returns
+// positional args in parameter order. Returns nil if no parameters match.
+//
+// Matching rules:
+//  1. Exact match: JSON key matches param name exactly
+//  2. Snake-case match: JSON key matches camelToSnake(paramName)
+//
+// Unmatched JSON keys are silently ignored (forward-compatible).
+func parseNamedArgs(body map[string]interface{}, paramNames []string) []interface{} {
+	if len(paramNames) == 0 {
+		return nil
+	}
+	args := make([]interface{}, len(paramNames))
+	matched := 0
+	for i, name := range paramNames {
+		// Try exact match first
+		if val, ok := body[name]; ok {
+			args[i] = val
+			matched++
+			continue
+		}
+		// Try snake_case version of camelCase param name
+		snake := camelToSnake(name)
+		if snake != name {
+			if val, ok := body[snake]; ok {
+				args[i] = val
+				matched++
+				continue
+			}
+		}
+	}
+	if matched == 0 {
+		return nil // no matches, caller should fall back
+	}
+	return args
+}
+
+// parseArgsWithNames tries named JSON parameter binding before falling back to parseArgs.
+//
+// Precedence:
+//  1. {"args": [...]} — positional (existing behavior)
+//  2. JSON object with keys matching paramNames — named binding
+//  3. Any other JSON value — single argument (existing behavior)
+func parseArgsWithNames(body []byte, paramNames []string) ([]interface{}, error) {
+	if len(body) == 0 || len(paramNames) == 0 {
+		return parseArgs(body)
+	}
+
+	// Quick check: try structured {"args": [...]} first (backward compat)
+	var req FunctionCallRequest
+	if err := json.Unmarshal(body, &req); err == nil && req.Args != nil {
+		return req.Args, nil
+	}
+
+	// Try named binding: parse as JSON object and match keys to param names
+	var obj map[string]interface{}
+	if err := json.Unmarshal(body, &obj); err == nil && len(obj) > 0 {
+		if named := parseNamedArgs(obj, paramNames); named != nil {
+			return named, nil
+		}
+	}
+
+	// Fall back to single-arg parsing
+	return parseArgs(body)
 }
 
 // parseArgs extracts function arguments from the JSON body.

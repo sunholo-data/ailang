@@ -74,14 +74,15 @@ type ModuleInfo struct {
 
 // ExportInfo describes a single exported function from an AILANG module.
 type ExportInfo struct {
-	Name        string `json:"name"`
-	Type        string `json:"type"`                   // human-readable type signature
-	Pure        bool   `json:"pure"`                   // whether the function is pure
-	Arity       int    `json:"arity"`                  // number of parameters (-1 if not a function)
-	RouteMethod string `json:"route_method,omitempty"` // custom HTTP method from @route annotation
-	RoutePath   string `json:"route_path,omitempty"`   // custom URL path from @route annotation
-	IsRaw       bool   `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
-	IsNowrap    bool   `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`                   // human-readable type signature
+	Pure        bool     `json:"pure"`                   // whether the function is pure
+	Arity       int      `json:"arity"`                  // number of parameters (-1 if not a function)
+	ParamNames  []string `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
+	RouteMethod string   `json:"route_method,omitempty"` // custom HTTP method from @route annotation
+	RoutePath   string   `json:"route_path,omitempty"`   // custom URL path from @route annotation
+	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
+	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
 }
 
 // Config holds configuration for the API server.
@@ -283,8 +284,9 @@ func (s *Server) loadFile(path string) error {
 
 	modInfo := extractModuleInfo(result.Interface)
 
-	// Extract route annotations from AST
+	// Extract param names and route annotations from AST
 	if result.Artifacts.AST != nil {
+		extractParamNames(modInfo, result.Artifacts.AST)
 		extractRouteAnnotations(modInfo, result.Artifacts.AST)
 	}
 

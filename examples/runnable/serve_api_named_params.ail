@@ -1,0 +1,29 @@
+-- serve_api_named_params.ail - Named parameter binding for serve-api
+-- Demonstrates agent-friendly named JSON parameter binding.
+-- Run with: ailang serve-api examples/runnable/serve_api_named_params.ail
+--
+-- Call with named params (agent-friendly):
+--   curl -X POST http://localhost:8080/api/examples/runnable/serve_api_named_params/greet \
+--     -d '{"name": "Alice", "greeting_style": "formal"}'
+--
+-- Or positional (backward compatible):
+--   curl -X POST http://localhost:8080/api/examples/runnable/serve_api_named_params/greet \
+--     -d '{"args": ["Alice", "formal"]}'
+module examples/runnable/serve_api_named_params
+
+import std/string (toUpper)
+
+-- Named params: agents send {"name": "Alice", "greeting_style": "formal"}
+-- serve-api maps snake_case JSON keys to camelCase AILANG params automatically
+export func greet(name: string, greetingStyle: string) -> string {
+  match greetingStyle {
+    "formal" => "Good day, " ++ name ++ ".",
+    "casual" => "Hey " ++ name ++ "!",
+    _ => "Hello, " ++ name
+  }
+}
+
+-- Single param: agents send {"query": "search term"}
+export func search(query: string) -> string {
+  "Results for: " ++ toUpper(query)
+}

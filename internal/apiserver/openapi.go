@@ -200,11 +200,14 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			if export.RoutePath != "" {
 				operation["x-ailang-route"] = export.RouteMethod + " " + export.RoutePath
 			}
+			if len(export.ParamNames) > 0 {
+				operation["x-ailang-param-names"] = export.ParamNames
+			}
 
 			// Request body (only for methods that accept a body).
 			reqSchema := schema.RequestSchema(fs)
 			if fs.Arity > 0 && httpMethod != "get" && httpMethod != "head" {
-				operation["requestBody"] = map[string]any{
+				reqBody := map[string]any{
 					"required": true,
 					"content": map[string]any{
 						"application/json": map[string]any{
@@ -212,6 +215,14 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 						},
 					},
 				}
+				// Add description showing named parameter binding
+				if len(export.ParamNames) > 0 {
+					reqBody["description"] = fmt.Sprintf(
+						"Accepts named JSON: {%s} or positional: {\"args\": [...]}",
+						strings.Join(export.ParamNames, ", "),
+					)
+				}
+				operation["requestBody"] = reqBody
 			}
 
 			// Response.

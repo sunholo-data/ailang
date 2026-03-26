@@ -29,12 +29,33 @@ func goroutineID() int {
 
 // RouteEntry represents a custom route defined by a @route annotation.
 type RouteEntry struct {
-	Method   string // "GET", "POST", etc.
-	Path     string // "/general/v0/general"
-	Module   string // module path
-	Function string // function name
-	IsRaw    bool   // @raw: pass full HttpRequest record instead of parsed args
-	IsNowrap bool   // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	Method     string   // "GET", "POST", etc.
+	Path       string   // "/general/v0/general"
+	Module     string   // module path
+	Function   string   // function name
+	IsRaw      bool     // @raw: pass full HttpRequest record instead of parsed args
+	IsNowrap   bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	ParamNames []string // parameter names for named JSON binding
+}
+
+// extractParamNames populates ExportInfo.ParamNames from the parsed AST
+// for all exported functions. This enables named JSON parameter binding.
+func extractParamNames(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		if !fn.IsExport {
+			continue
+		}
+		names := make([]string, len(fn.Params))
+		for i, p := range fn.Params {
+			names[i] = p.Name
+		}
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name {
+				modInfo.Exports[i].ParamNames = names
+				break
+			}
+		}
+	}
 }
 
 // extractRouteAnnotations populates ExportInfo.RouteMethod/RoutePath from
@@ -90,12 +111,13 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 		for _, exp := range mod.Exports {
 			if exp.RoutePath != "" {
 				routes = append(routes, RouteEntry{
-					Method:   exp.RouteMethod,
-					Path:     exp.RoutePath,
-					Module:   mod.Path,
-					Function: exp.Name,
-					IsRaw:    exp.IsRaw,
-					IsNowrap: exp.IsNowrap,
+					Method:     exp.RouteMethod,
+					Path:       exp.RoutePath,
+					Module:     mod.Path,
+					Function:   exp.Name,
+					IsRaw:      exp.IsRaw,
+					IsNowrap:   exp.IsNowrap,
+					ParamNames: exp.ParamNames,
 				})
 			}
 		}
@@ -124,7 +146,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 				})
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap})
+			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		log.Printf("  Custom route: %s %s -> %s/%s", r.Method, r.Path, r.Module, r.Function)
@@ -133,8 +155,9 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 
 // callOpts controls per-route behavior for callFunction.
 type callOpts struct {
-	Raw    bool // @raw: pass full HttpRequest record instead of parsed args
-	Nowrap bool // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	Raw        bool     // @raw: pass full HttpRequest record instead of parsed args
+	Nowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	ParamNames []string // parameter names for named JSON binding
 }
 
 // callFunction executes an AILANG function and writes the response.
@@ -199,7 +222,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 
 		var parseErr error
-		args, parseErr = parseArgs(body)
+		args, parseErr = parseArgsWithNames(body, opt.ParamNames)
 		if parseErr != nil {
 			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
@@ -273,6 +296,21 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	if opt.Nowrap {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Elapsed-Ms", fmt.Sprintf("%d", elapsed))
+
+		// Extract _headers from Go result map and set as HTTP headers
+		if m, ok := goResult.(map[string]interface{}); ok {
+			if headersVal, ok := m["_headers"]; ok {
+				if headers, ok := headersVal.(map[string]interface{}); ok {
+					for k, v := range headers {
+						if sv, ok := v.(string); ok {
+							w.Header().Set(k, sv)
+						}
+					}
+				}
+				delete(m, "_headers")
+			}
+		}
+
 		w.WriteHeader(http.StatusOK)
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
