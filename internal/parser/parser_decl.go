@@ -34,10 +34,13 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	case "raw":
 		// @raw is a parameterless annotation — no arguments to parse
 		return &ast.Annotation{Name: "raw", Pos: pos}
+	case "nowrap":
+		// @nowrap is a parameterless annotation — skip FunctionCallResponse envelope
+		return &ast.Annotation{Name: "nowrap", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @raw", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), or @raw")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @raw, @nowrap", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, or @nowrap")
 		return nil
 	}
 }
