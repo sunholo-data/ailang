@@ -154,7 +154,7 @@ curl -X POST http://localhost:8080/api/api/handlers/getStatus
 
 ### JSON Response Format
 
-All function calls return:
+All function calls return a `FunctionCallResponse` envelope by default:
 
 ```json
 {
@@ -164,6 +164,8 @@ All function calls return:
   "elapsed_ms": 2
 }
 ```
+
+> To skip this envelope and return raw JSON, use the [`@nowrap` annotation](#nowrap--raw-json-output).
 
 On error:
 
@@ -333,6 +335,8 @@ Google's A2A protocol is enabled with the `--a2a` flag:
 - **Agent Card**: `GET /.well-known/agent.json` — lists all functions as skills
 - **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0 for function invocation
 
+> **Tip:** To serve a custom agent card (e.g., with additional metadata or a different schema), use `@nowrap @route("GET", "/.well-known/agent.json")` on a function that returns your card as a record. The `@nowrap` annotation ensures the output matches the A2A spec exactly, without the `FunctionCallResponse` envelope.
+
 Example A2A call:
 ```bash
 curl -X POST http://localhost:8080/a2a/ \
@@ -473,9 +477,10 @@ const callApi = async () => {
 
 ### TypeScript Types
 
-You can type the API response:
+You can type the default API response:
 
 ```typescript
+// Default FunctionCallResponse envelope
 interface ApiResponse {
   result: unknown
   module: string
@@ -483,6 +488,9 @@ interface ApiResponse {
   elapsed_ms: number
   error?: string
 }
+
+// For @nowrap routes, the response is the raw return value.
+// Check the X-Elapsed-Ms header for timing.
 ```
 
 ### Fetching Module Metadata
@@ -667,6 +675,15 @@ export pure func health() -> {status: string}
 
 Custom routes are registered before the auto-generated catch-all routes, so they take precedence. They appear with their custom paths in the OpenAPI spec and A2A Agent Card.
 
+### Route Annotations
+
+| Annotation | Purpose |
+|------------|---------|
+| `@route("METHOD", "/path")` | Custom URL path and HTTP method |
+| `@raw` | Receive full `HttpRequest` record (headers, body, method, query) instead of parsed args |
+| `@nowrap` | Return raw JSON instead of the `FunctionCallResponse` envelope |
+| `@verify(depth: N)` | Runtime contract validation |
+
 Multiple annotations can be combined:
 
 ```ailang
@@ -677,6 +694,66 @@ export func compute(x: int) -> int ! {}
 ```
 
 Supported HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS.
+
+### `@raw` — Raw HTTP Request Access
+
+Use `@raw` with `@route` to receive the full HTTP request context instead of parsed arguments. The function receives a record with `body`, `headers`, `method`, `path`, and `query` fields:
+
+```ailang
+import std/json (Json, getString)
+
+@raw
+@route("POST", "/webhooks/stripe")
+export func handle(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> string ! {IO}
+  let sig = getString(req.headers, "Stripe-Signature")
+  verifyAndProcess(req.body, sig)
+```
+
+Headers and query parameters are `Json` values — use `getString`, `getInt`, etc. to extract fields.
+
+### `@nowrap` — Raw JSON Output
+
+By default, every handler wraps its return value in a `FunctionCallResponse` envelope:
+
+```json
+{"result": ..., "module": "...", "func": "...", "elapsed_ms": 5}
+```
+
+Add `@nowrap` to skip the envelope and write the function's return value directly as pretty-printed JSON. Timing remains available via the `X-Elapsed-Ms` response header.
+
+```ailang
+@nowrap
+@route("GET", "/api/v1/formats")
+export pure func listFormats() -> [string]
+  ["docx", "pdf", "epub", "html"]
+```
+
+```bash
+curl http://localhost:8080/api/v1/formats
+# [
+#   "docx",
+#   "pdf",
+#   "epub",
+#   "html"
+# ]
+# (X-Elapsed-Ms: 0 in response headers)
+```
+
+`@nowrap` composes with `@raw` for full control over both input and output:
+
+```ailang
+@raw
+@nowrap
+@route("POST", "/api/v1/echo")
+export func echo(req: {body: string, headers: Json, method: string, path: string, query: Json}) -> {received: string} ! {IO}
+  {received = req.body}
+```
+
+**Use cases:**
+
+- **A2A agent cards** — serve `/.well-known/agent.json` with a custom schema
+- **OpenID discovery documents** — `/.well-known/openid-configuration`
+- **REST endpoints** — where consumers expect a specific JSON schema without an envelope
 
 ---
 
