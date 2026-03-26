@@ -34,6 +34,7 @@ type RouteEntry struct {
 	Module   string // module path
 	Function string // function name
 	IsRaw    bool   // @raw: pass full HttpRequest record instead of parsed args
+	IsNowrap bool   // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 }
 
 // extractRouteAnnotations populates ExportInfo.RouteMethod/RoutePath from
@@ -52,6 +53,7 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 		method := methodLit.Value.(string)
 		path := pathLit.Value.(string)
 		isRaw := fn.GetAnnotation("raw") != nil
+		isNowrap := fn.GetAnnotation("nowrap") != nil
 
 		// Find matching export and set route info
 		for i := range modInfo.Exports {
@@ -59,8 +61,16 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				modInfo.Exports[i].RouteMethod = method
 				modInfo.Exports[i].RoutePath = path
 				modInfo.Exports[i].IsRaw = isRaw
+				modInfo.Exports[i].IsNowrap = isNowrap
+				flags := ""
 				if isRaw {
-					log.Printf("    Route: %s %s -> %s (raw)", method, path, fn.Name)
+					flags += " raw"
+				}
+				if isNowrap {
+					flags += " nowrap"
+				}
+				if flags != "" {
+					log.Printf("    Route: %s %s -> %s (%s)", method, path, fn.Name, strings.TrimSpace(flags))
 				} else {
 					log.Printf("    Route: %s %s -> %s", method, path, fn.Name)
 				}
@@ -85,6 +95,7 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 					Module:   mod.Path,
 					Function: exp.Name,
 					IsRaw:    exp.IsRaw,
+					IsNowrap: exp.IsNowrap,
 				})
 			}
 		}
@@ -113,24 +124,33 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 				})
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function, r.IsRaw)
+			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		log.Printf("  Custom route: %s %s -> %s/%s", r.Method, r.Path, r.Module, r.Function)
 	}
 }
 
+// callOpts controls per-route behavior for callFunction.
+type callOpts struct {
+	Raw    bool // @raw: pass full HttpRequest record instead of parsed args
+	Nowrap bool // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+}
+
 // callFunction executes an AILANG function and writes the response.
 // Shared by both the catch-all handler and custom route handlers.
-func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string, isRaw ...bool) {
+func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath, funcName string, opts ...callOpts) {
 	if os.Getenv("DEBUG_CONCURRENCY") == "1" {
 		log.Printf("[CONCURRENCY] callFunction entered: %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
 	}
 	// Parse arguments based on content type
 	var args []interface{}
-	raw := len(isRaw) > 0 && isRaw[0]
+	var opt callOpts
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 
-	if raw {
+	if opt.Raw {
 		// @raw routes: pass full HttpRequest record instead of parsed args
 		body, err := readRequestBody(r, 1<<20) // 1MB limit
 		if err != nil {
@@ -237,7 +257,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
-	// Default: JSON-wrapped response
+	// Convert result to Go value
 	goResult, err := embed.ToGo(result)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
@@ -249,6 +269,18 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		return
 	}
 
+	// @nowrap: return raw JSON without FunctionCallResponse envelope
+	if opt.Nowrap {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Elapsed-Ms", fmt.Sprintf("%d", elapsed))
+		w.WriteHeader(http.StatusOK)
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(goResult)
+		return
+	}
+
+	// Default: JSON-wrapped response
 	writeJSON(w, http.StatusOK, FunctionCallResponse{
 		Module:    modulePath,
 		Func:      funcName,

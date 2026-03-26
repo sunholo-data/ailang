@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
@@ -134,6 +135,107 @@ func TestExtractRouteAnnotations_Raw(t *testing.T) {
 	}
 	if modInfo.Exports[1].IsRaw {
 		t.Error("expected handleNormal to have IsRaw=false")
+	}
+}
+
+func TestExtractRouteAnnotations_Nowrap(t *testing.T) {
+	modInfo := &ModuleInfo{
+		Path: "test/api",
+		Exports: []ExportInfo{
+			{Name: "agentCard", Type: "record -> record", Arity: 0},
+			{Name: "status", Type: "string -> string", Arity: 0},
+		},
+	}
+
+	file := &ast.File{
+		Funcs: []*ast.FuncDecl{
+			{
+				Name:     "agentCard",
+				IsExport: true,
+				Annotations: []*ast.Annotation{
+					{Name: "nowrap"},
+					{
+						Name: "route",
+						Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "GET"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/.well-known/agent.json"},
+						},
+					},
+				},
+			},
+			{
+				Name:     "status",
+				IsExport: true,
+				Annotations: []*ast.Annotation{
+					{
+						Name: "route",
+						Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "GET"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/status"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	extractRouteAnnotations(modInfo, file)
+
+	if !modInfo.Exports[0].IsNowrap {
+		t.Error("expected agentCard to have IsNowrap=true")
+	}
+	if modInfo.Exports[1].IsNowrap {
+		t.Error("expected status to have IsNowrap=false")
+	}
+}
+
+func TestNowrapResponse(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	// Call the "hello" function with nowrap option — should return raw JSON
+	req := httptest.NewRequest("POST", "/api/test/api/greet/hello", strings.NewReader(`{"args": ["World"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Call directly with nowrap
+	srv.callFunction(w, req, "test/api/greet", "hello", callOpts{Nowrap: true})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Response should be raw string, not wrapped in FunctionCallResponse
+	body := strings.TrimSpace(w.Body.String())
+	if body != `"Hello, World!"` {
+		t.Errorf("expected raw JSON string, got %s", body)
+	}
+
+	// Should not contain envelope fields
+	if strings.Contains(body, "module") || strings.Contains(body, "elapsed_ms") {
+		t.Errorf("expected no envelope, got %s", body)
+	}
+
+	// Should have timing header
+	if w.Header().Get("X-Elapsed-Ms") == "" {
+		t.Error("expected X-Elapsed-Ms header")
+	}
+}
+
+func TestNonNowrapResponse(t *testing.T) {
+	srv := testServer(t)
+	defer srv.Close()
+
+	// Call without nowrap — should return envelope
+	req := httptest.NewRequest("POST", "/api/test/api/greet/hello", strings.NewReader(`{"args": ["World"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.callFunction(w, req, "test/api/greet", "hello")
+
+	body := w.Body.String()
+	if !strings.Contains(body, `"module"`) || !strings.Contains(body, `"elapsed_ms"`) {
+		t.Errorf("expected FunctionCallResponse envelope, got %s", body)
 	}
 }
 

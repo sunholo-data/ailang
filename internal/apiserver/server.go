@@ -81,6 +81,7 @@ type ExportInfo struct {
 	RouteMethod string `json:"route_method,omitempty"` // custom HTTP method from @route annotation
 	RoutePath   string `json:"route_path,omitempty"`   // custom URL path from @route annotation
 	IsRaw       bool   `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
+	IsNowrap    bool   `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
 }
 
 // Config holds configuration for the API server.
