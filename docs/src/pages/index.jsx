@@ -858,7 +858,7 @@ function DemosShowcase() {
       <style>{`
         .demos-section {
           padding: 6rem 2rem;
-          background: linear-gradient(180deg, var(--ifm-background-color) 0%, #0f1419 100%);
+          background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-background-surface-color) 100%);
         }
 
         .demos-container {
@@ -876,12 +876,12 @@ function DemosShowcase() {
           font-weight: 800;
           font-size: clamp(2rem, 5vw, 3rem);
           margin-bottom: 1rem;
-          color: white;
+          color: var(--ifm-heading-color);
         }
 
         .demos-subtitle {
           font-size: 1.15rem;
-          color: rgba(255, 255, 255, 0.7);
+          color: var(--ifm-color-emphasis-700, rgba(255, 255, 255, 0.7));
           max-width: 600px;
           margin: 0 auto;
         }
@@ -894,10 +894,10 @@ function DemosShowcase() {
         }
 
         .demo-card {
-          background: rgba(255, 255, 255, 0.03);
+          background: var(--ifm-background-surface-color);
           border-radius: 16px;
           padding: 2rem;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid var(--ifm-color-emphasis-200);
           transition: all 0.3s ease;
           animation: fadeInUp 0.6s ease-out forwards;
           opacity: 0;
@@ -905,13 +905,14 @@ function DemosShowcase() {
           color: inherit;
           display: flex;
           flex-direction: column;
+          box-shadow: var(--card-shadow);
         }
 
         .demo-card:hover {
           transform: translateY(-8px);
           border-color: rgba(231, 60, 23, 0.4);
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          background: rgba(255, 255, 255, 0.06);
+          box-shadow: var(--card-shadow-hover);
+          background: var(--ifm-background-surface-color);
         }
 
         .demo-icon {
@@ -929,11 +930,11 @@ function DemosShowcase() {
           font-weight: 700;
           font-size: 1.25rem;
           margin-bottom: 0.75rem;
-          color: white;
+          color: var(--ifm-heading-color);
         }
 
         .demo-card-description {
-          color: rgba(255, 255, 255, 0.6);
+          color: var(--ifm-color-emphasis-700);
           line-height: 1.7;
           font-size: 0.95rem;
           margin: 0 0 1rem 0;
@@ -949,12 +950,12 @@ function DemosShowcase() {
 
         .demo-badge {
           padding: 0.2rem 0.6rem;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--ifm-color-emphasis-100);
+          border: 1px solid var(--ifm-color-emphasis-200);
           border-radius: 20px;
           font-size: 0.7rem;
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.5);
+          color: var(--ifm-color-emphasis-600);
           font-family: 'JetBrains Mono', monospace;
         }
 
@@ -964,7 +965,7 @@ function DemosShowcase() {
           gap: 0.4rem;
           font-weight: 600;
           font-size: 0.9rem;
-          color: #ff5a3c;
+          color: var(--ifm-color-primary);
           transition: gap 0.2s ease;
         }
 
@@ -984,7 +985,7 @@ function DemosShowcase() {
           background: rgba(231, 60, 23, 0.1);
           border: 1px solid rgba(231, 60, 23, 0.3);
           border-radius: 10px;
-          color: #ff5a3c;
+          color: var(--ifm-color-primary);
           font-family: 'Montserrat', sans-serif;
           font-weight: 600;
           font-size: 1rem;
@@ -996,7 +997,7 @@ function DemosShowcase() {
           background: rgba(231, 60, 23, 0.2);
           border-color: rgba(231, 60, 23, 0.5);
           transform: translateY(-2px);
-          color: #ff5a3c;
+          color: var(--ifm-color-primary);
           gap: 0.75rem;
         }
       `}</style>
