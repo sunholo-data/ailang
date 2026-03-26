@@ -6,16 +6,16 @@
 .PHONY: update-readme update-trace-baselines flag-broken freeze-stdlib verify-stdlib
 .PHONY: compile-examples-go
 
-# Example verification
+# Example verification (parallel by default, ~8s vs ~3min sequential)
 verify-examples: build ## Verify examples in examples/runnable/ (CI mode)
 	@echo "Verifying examples..."
-	@go run ./scripts/verify_examples.go --json > examples_report.json 2>&1 || true
-	@go run ./scripts/verify_examples.go --markdown > examples_status.md 2>&1 || true
+	@go run ./scripts/verify_examples.go --parallel 8 --json > examples_report.json 2>&1 || true
+	@go run ./scripts/verify_examples.go --parallel 8 --markdown > examples_status.md 2>&1 || true
 	@if [ -f examples_status.md ]; then cat examples_status.md; fi
 
 verify-examples-all: build ## Verify ALL examples with threshold gate (60%)
 	@echo "Verifying all examples with threshold gate..."
-	@go run ./scripts/verify_examples.go --all --threshold 60
+	@go run ./scripts/verify_examples.go --all --parallel 8 --threshold 60
 
 verify-examples-trace: build ## Verify examples with trace capture + determinism replay
 	@echo "Verifying examples with trace determinism..."

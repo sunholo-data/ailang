@@ -10,8 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sunholo/ailang/scripts/internal/reporttypes"
@@ -41,6 +43,15 @@ func main() {
 				fmt.Sscanf(os.Args[i+1], "%f", &threshold)
 				i++
 			}
+		case "--parallel", "-p":
+			if i+1 < len(os.Args) {
+				fmt.Sscanf(os.Args[i+1], "%d", &parallelism)
+				i++
+			} else {
+				parallelism = runtime.NumCPU()
+			}
+		case "--sequential":
+			parallelism = 1
 		}
 	}
 
@@ -66,7 +77,23 @@ var (
 	useAllExamples  = false
 	useTrace        = false
 	updateBaselines = false
+	parallelism     = 8 // max concurrent example runs
 )
+
+// ailangBinary returns the path to a pre-built ailang binary.
+// Falls back to "go run ./cmd/ailang" if no binary found.
+func ailangBinary() (cmd string, args []string, usesGoRun bool) {
+	// Check for bin/ailang (built by make build)
+	if _, err := os.Stat("bin/ailang"); err == nil {
+		return "bin/ailang", []string{"run"}, false
+	}
+	// Check for ./ailang
+	if _, err := os.Stat("ailang"); err == nil {
+		return "./ailang", []string{"run"}, false
+	}
+	// Fallback to go run
+	return "go", []string{"run", "./cmd/ailang", "run"}, true
+}
 
 const tracesDir = "examples/traces"
 
@@ -182,9 +209,9 @@ func runExample(filename string) reporttypes.ExampleResult {
 	}
 done:
 
-	// Build command with proper flag order: flags AFTER the run subcommand
-	// Correct: go run ./cmd/ailang run --caps IO --entry hello file.ail
-	args := []string{"run", "./cmd/ailang", "run"}
+	// Build command using pre-built binary when available (avoids go run overhead)
+	binCmd, baseArgs, _ := ailangBinary()
+	args := append([]string{}, baseArgs...)
 	if len(caps) > 0 {
 		args = append(args, "--caps", strings.Join(caps, ","))
 	}
@@ -201,7 +228,7 @@ done:
 	}
 	args = append(args, filename)
 
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(binCmd, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -550,6 +577,33 @@ func findAllExamplesLegacy() ([]string, error) {
 	return files, err
 }
 
+// runExamplesParallel runs examples concurrently with a semaphore.
+// Results are returned in the same order as files.
+func runExamplesParallel(files []string) []reporttypes.ExampleResult {
+	results := make([]reporttypes.ExampleResult, len(files))
+	if parallelism <= 1 {
+		// Sequential fallback
+		for i, file := range files {
+			results[i] = runExample(file)
+		}
+		return results
+	}
+
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
+	for i, file := range files {
+		wg.Add(1)
+		go func(idx int, f string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			results[idx] = runExample(f)
+			<-sem
+		}(i, file)
+	}
+	wg.Wait()
+	return results
+}
+
 func verifyExamplesPlain(threshold float64) {
 	files, err := findAllExamples()
 	if err != nil {
@@ -559,38 +613,36 @@ func verifyExamplesPlain(threshold float64) {
 
 	sort.Strings(files)
 
+	binCmd, _, _ := ailangBinary()
+	fmt.Printf("Verifying AILANG Examples (%d files, parallelism=%d, binary=%s)\n", len(files), parallelism, binCmd)
+	fmt.Println("=========================")
+
+	start := time.Now()
+	allResults := runExamplesParallel(files)
+	elapsed := time.Since(start)
+
 	passed := 0
 	failed := 0
 	skipped := 0
-	var allResults []reporttypes.ExampleResult
 
-	fmt.Println("Verifying AILANG Examples")
-	fmt.Println("=========================")
-
-	for _, file := range files {
-		// Show relative path from examples/ for better clarity
-		displayName := strings.TrimPrefix(file, "examples/")
-		fmt.Printf("Testing %s... ", displayName)
-
-		result := runExample(file)
-		allResults = append(allResults, result)
-
+	for i, result := range allResults {
+		displayName := strings.TrimPrefix(files[i], "examples/")
 		switch result.Status {
 		case "passed":
 			suffix := ""
 			if useTrace && result.TraceStatus != "" {
 				suffix = fmt.Sprintf(" [trace:%s]", result.TraceStatus)
 			}
-			fmt.Printf("✓ PASS (%.2fs)%s\n", result.Duration.Seconds(), suffix)
+			fmt.Printf("✓ %s (%.2fs)%s\n", displayName, result.Duration.Seconds(), suffix)
 			passed++
 		case "failed":
-			fmt.Printf("✗ FAIL (%.2fs)\n", result.Duration.Seconds())
+			fmt.Printf("✗ %s (%.2fs)\n", displayName, result.Duration.Seconds())
 			if result.Error != "" {
 				fmt.Printf("  Error: %s\n", strings.TrimSpace(result.Error))
 			}
 			failed++
 		case "skipped":
-			fmt.Printf("- SKIP\n")
+			fmt.Printf("- %s SKIP\n", displayName)
 			skipped++
 		}
 	}
@@ -601,7 +653,7 @@ func verifyExamplesPlain(threshold float64) {
 		passRate = float64(passed) / float64(total) * 100.0
 	}
 
-	fmt.Println("\nSummary:")
+	fmt.Printf("\nSummary (%.1fs wall time):\n", elapsed.Seconds())
 	fmt.Printf("  Total: %d\n", total)
 	fmt.Printf("  Passed: %d\n", passed)
 	fmt.Printf("  Failed: %d\n", failed)
@@ -648,10 +700,9 @@ func verifyExamplesJSON(threshold float64) {
 		Results:   []reporttypes.ExampleResult{},
 	}
 
-	for _, file := range files {
-		result := runExample(file)
-		// Use relative path from examples/ for cleaner output
-		result.File = strings.TrimPrefix(file, "examples/")
+	allResults := runExamplesParallel(files)
+	for i, result := range allResults {
+		result.File = strings.TrimPrefix(files[i], "examples/")
 		report.Results = append(report.Results, result)
 
 		switch result.Status {
@@ -703,13 +754,10 @@ func verifyExamplesMarkdown() {
 	sort.Strings(files)
 
 	var passed, failed, skipped []string
-	var allResults []reporttypes.ExampleResult
+	allResults := runExamplesParallel(files)
 
-	for _, file := range files {
-		// Use relative path from examples/ for better clarity
-		displayName := strings.TrimPrefix(file, "examples/")
-		result := runExample(file)
-		allResults = append(allResults, result)
+	for i, result := range allResults {
+		displayName := strings.TrimPrefix(files[i], "examples/")
 
 		switch result.Status {
 		case "passed":
