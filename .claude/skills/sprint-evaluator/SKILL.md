@@ -142,13 +142,25 @@ Report saved to `.ailang/state/evaluations/eval_<sprint-id>_round_<n>.json`
 
 ### Phase 7: Pass/Fail Decision
 
+**Determine execution mode** before acting:
+- **Local mode** (running in an interactive chat session): invoke skills directly
+- **Cloud/coordinator mode** (running via coordinator daemon): use inbox messages
+
 **On PASS (score >= 70, no hard fails):**
-1. Output markers with `EVALUATION_RESULT: pass`
-2. Coordinator triggers merge approval flow
-3. Post congratulatory summary with score breakdown
+1. Move design doc from `design_docs/planned/` to `design_docs/implemented/<version>/`
+2. Update design doc status from "Planned" to "Implemented"
+3. Output markers with `EVALUATION_RESULT: pass`
+4. Post congratulatory summary with score breakdown
 
 **On FAIL (score < 70 or hard fail, round < 3):**
+
+*Local mode — invoke sprint-executor directly:*
 1. Generate specific, actionable feedback (see [resources/feedback_templates.md](resources/feedback_templates.md))
+2. Invoke the `sprint-executor` skill with the evaluation report path and specific issues
+3. After executor completes, re-evaluate (increment round)
+
+*Cloud/coordinator mode — send inbox message:*
+1. Generate specific, actionable feedback
 2. Send feedback to sprint-executor inbox:
 
 ```bash
@@ -207,8 +219,41 @@ The evaluator receives an `implementation_complete` message:
 }
 ```
 
+## Execution Modes
+
+The evaluator operates in two modes depending on where it's running:
+
+### Local Mode (interactive chat session)
+When running in a user's local Claude Code session:
+- **On fail**: Invoke the `sprint-executor` skill directly to fix issues, then re-evaluate
+- **On pass**: Move design doc to `implemented/`, update status — no inbox needed
+- **Detection**: Default mode. No coordinator markers in the prompt.
+
+### Cloud/Coordinator Mode
+When invoked by the coordinator daemon or via agent inbox:
+- **On fail**: Send structured feedback message to `sprint-executor` inbox
+- **On pass**: Output `EVALUATION_RESULT: pass` markers for coordinator to act on
+- **Detection**: Prompt contains coordinator task reference or `implementation_complete` message
+
 ## Feedback Loop Architecture
 
+**Local mode:**
+```
+sprint-evaluator (Round 1)
+    ↓
+PASS? → move design doc to implemented/, done
+FAIL? → invoke sprint-executor skill with issues
+            ↓
+        sprint-evaluator (Round 2, same session)
+            ↓
+        PASS? → move design doc, done
+        FAIL? → invoke sprint-executor (Round 3)
+                    ↓
+                PASS? → move design doc, done
+                FAIL? → escalate to user for manual review
+```
+
+**Cloud/coordinator mode:**
 ```
 sprint-executor completes
         ↓

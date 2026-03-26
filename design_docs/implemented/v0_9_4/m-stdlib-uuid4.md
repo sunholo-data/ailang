@@ -1,6 +1,6 @@
 # M-STDLIB-UUID4: Add uuid4() to std/rand
 
-## Status: Planned
+## Status: Implemented
 ## Version: v0.9.4
 ## Priority: Nice-to-have (P3)
 ## Effort: Small (1-2 hours)

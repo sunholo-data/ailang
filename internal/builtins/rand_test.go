@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/effects"
@@ -226,5 +227,48 @@ func TestRandSeedImpl(t *testing.T) {
 
 	if v1.(*eval.IntValue).Value != v2.(*eval.IntValue).Value {
 		t.Error("randSeedImpl did not produce deterministic behavior")
+	}
+}
+
+func TestUuid4Format(t *testing.T) {
+	ctx := mockRandContext()
+	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+
+	for i := 0; i < 20; i++ {
+		result, err := uuid4Impl(ctx, []eval.Value{&eval.UnitValue{}})
+		if err != nil {
+			t.Fatalf("uuid4Impl failed: %v", err)
+		}
+		s := result.(*eval.StringValue).Value
+		if !uuidRegex.MatchString(s) {
+			t.Errorf("uuid4 output %q does not match UUID v4 format", s)
+		}
+	}
+}
+
+func TestUuid4Uniqueness(t *testing.T) {
+	ctx := mockRandContext()
+	seen := make(map[string]bool)
+
+	for i := 0; i < 100; i++ {
+		result, err := uuid4Impl(ctx, []eval.Value{&eval.UnitValue{}})
+		if err != nil {
+			t.Fatalf("uuid4Impl failed: %v", err)
+		}
+		s := result.(*eval.StringValue).Value
+		if seen[s] {
+			t.Errorf("uuid4 produced duplicate value: %s", s)
+		}
+		seen[s] = true
+	}
+}
+
+func TestUuid4RequiresCapability(t *testing.T) {
+	ctx := effects.NewEffContext([]string{})
+	ctx.Grant(effects.NewCapability("IO")) // Grant IO but NOT Rand
+
+	_, err := uuid4Impl(ctx, []eval.Value{&eval.UnitValue{}})
+	if err == nil {
+		t.Error("Expected error when Rand capability is missing")
 	}
 }
