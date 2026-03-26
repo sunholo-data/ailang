@@ -117,9 +117,11 @@ func (r *Resolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
 			if err != nil {
 				return nil, fmt.Errorf("EVA002: failed to evaluate LetRec in module %s: %w", ref.Module, err)
 			}
-			// Store all bindings in the memo
+			// Store all bindings in the memo AND evaluator env
+			// so subsequent Let/LetRec declarations can reference them
 			for name, val := range bindings {
 				r.memo[ref.Module][name] = val
+				evaluator.Env().Set(name, val)
 			}
 
 		case *core.Let:
@@ -128,6 +130,9 @@ func (r *Resolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) {
 				return nil, fmt.Errorf("EVA002: failed to evaluate Let in module %s: %w", ref.Module, err)
 			}
 			r.memo[ref.Module][d.Name] = val
+			// Accumulate in evaluator env so subsequent declarations
+			// can reference this binding (fixes inter-function refs in packages)
+			evaluator.Env().Set(d.Name, val)
 		}
 	}
 

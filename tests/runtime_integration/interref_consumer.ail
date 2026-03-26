@@ -1,0 +1,11 @@
+module tests/runtime_integration/interref_consumer
+
+import tests/runtime_integration/interref_helpers (scale)
+
+-- Consumer that imports a function which internally uses helper functions.
+-- Before M-PKG-INTERREF fix, this would fail with "undefined variable: double"
+-- because the resolver didn't accumulate Let bindings in the evaluator env.
+-- scale(5) = quadruple(5) + double(5) = 20 + 10 = 30
+export func main() -> int {
+  scale(5)
+}

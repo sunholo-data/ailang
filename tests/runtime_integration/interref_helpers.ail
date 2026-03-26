@@ -1,0 +1,16 @@
+module tests/runtime_integration/interref_helpers
+
+-- Helper function (not exported) — exercises sequential Let chain in resolver
+pure func double(x: int) -> int {
+  x + x
+}
+
+-- Another helper that calls the first helper
+pure func quadruple(x: int) -> int {
+  double(double(x))
+}
+
+-- Exported function that uses both helpers
+export pure func scale(x: int) -> int {
+  quadruple(x) + double(x)
+}

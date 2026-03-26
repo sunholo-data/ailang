@@ -249,3 +249,91 @@ export func main() -> int {
 		t.Errorf("expected 2 modules, got %d", len(result.Modules))
 	}
 }
+
+// TestInterFunctionReferences tests that a consumer module can import and compile
+// against a dependency module whose exported functions reference non-exported helpers.
+// This is a regression test for M-PKG-INTERREF: the resolver must accumulate Let
+// bindings in the evaluator env so sequential function declarations can reference
+// earlier ones when the module is evaluated on-demand.
+func TestInterFunctionReferences(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "ailang-interref-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	libDir := filepath.Join(tempDir, "lib")
+	if err := os.MkdirAll(libDir, 0755); err != nil {
+		t.Fatalf("failed to create lib dir: %v", err)
+	}
+
+	// Create lib/helpers.ail — module with non-exported helpers
+	helpersContent := `module lib/helpers
+
+pure func double(x: int) -> int {
+  x + x
+}
+
+pure func quadruple(x: int) -> int {
+  double(double(x))
+}
+
+export pure func scale(x: int) -> int {
+  quadruple(x) + double(x)
+}
+`
+	if err := os.WriteFile(filepath.Join(libDir, "helpers.ail"), []byte(helpersContent), 0644); err != nil {
+		t.Fatalf("failed to write helpers.ail: %v", err)
+	}
+
+	// Create consumer.ail — imports scale which depends on non-exported helpers
+	consumerContent := `module consumer
+
+import lib/helpers (scale)
+
+export func main() -> int {
+  scale(5)
+}
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "consumer.ail"), []byte(consumerContent), 0644); err != nil {
+		t.Fatalf("failed to write consumer.ail: %v", err)
+	}
+
+	originalDir, _ := os.Getwd()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	// Compile the consumer — this triggers loading lib/helpers as a dependency.
+	// Before the fix, this would succeed at compile time but fail at eval time
+	// with "undefined variable: double" inside the scale function.
+	src := Source{
+		Filename: "consumer.ail",
+	}
+	cfg := Config{
+		Mode: ModeCheck,
+	}
+
+	result, err := Run(cfg, src)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// Verify both modules compiled
+	if len(result.Modules) != 2 {
+		t.Errorf("expected 2 modules, got %d", len(result.Modules))
+	}
+
+	if _, ok := result.Modules["lib/helpers"]; !ok {
+		t.Error("lib/helpers module not found in result.Modules")
+	}
+
+	// Verify scale is exported
+	if result.Interface == nil {
+		t.Fatal("result.Interface is nil")
+	}
+	if _, ok := result.Interface.Exports["main"]; !ok {
+		t.Error("main not found in consumer exports")
+	}
+}
