@@ -216,3 +216,22 @@ func readAndPrint() -> () ! {IO, FS} {
   println(content)
 }
 ```
+
+### 6. Design for Verification
+Extract pure logic from effectful functions and add contracts:
+```ailang
+-- Pure core: Z3-verifiable
+export func applyDiscount(price: int, rate: int) -> int ! {}
+requires { price >= 0, rate >= 0, rate <= 100 }
+ensures { result >= 0 }
+{
+  price - price * rate / 100
+}
+
+-- Effectful shell: just IO
+export func main() -> () ! {IO} {
+  let total = applyDiscount(1000, 15);
+  println("Discounted: " ++ show(total))
+}
+```
+Run `ailang verify file.ail` to prove contracts. See `resources/z3_verification_patterns.md` for full patterns.

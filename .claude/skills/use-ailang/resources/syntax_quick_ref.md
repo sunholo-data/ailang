@@ -91,6 +91,14 @@ export func compute() -> int {
 - **Effect tracking**: `! {IO, FS, Clock, Net}` for side effects
 - **Numeric types**: `int`, `float` with conversions `intToFloat`, `floatToInt`
 
+### ✅ Contracts & Verification
+- **Preconditions**: `requires { x >= 0, y > 0 }`
+- **Postconditions**: `ensures { result >= 0 }` (`result` = return value)
+- **Bounded quantifiers**: `ensures { forall i: 0..n => pred }`
+- **Bounded recursion**: `@verify(depth: 5)` annotation
+- **Pure effect**: `! {}` marks function as Z3-eligible
+- **CLI**: `ailang verify file.ail`
+
 ### ✅ Imports
 - **Standard library**: `import std/io (println)` — bundled modules
 - **External packages**: `import pkg/sunholo/firestore/client (getDoc)` — from dependencies

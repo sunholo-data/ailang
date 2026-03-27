@@ -50,7 +50,9 @@
       "Skill(ailang:*)",
       "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)"
     ],
-    "additionalDirectories": []
+    "additionalDirectories": [
+      "/Users/mark/dev/sunholo/demos/streaming/gemini_live"
+    ]
   },
   "hooks": {
     "SessionStart": [

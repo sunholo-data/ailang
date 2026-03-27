@@ -16,6 +16,7 @@ AILANG is a pure functional programming language with Hindley-Milner type infere
 ailang run --caps IO --entry main solution.ail   # Run with effects
 ailang repl                                        # Interactive development
 ailang check solution.ail                          # Type-check only
+ailang verify solution.ail                         # Prove contracts with Z3
 ```
 
 ## When to Use This Skill
@@ -26,6 +27,8 @@ Invoke this skill when:
 - User wants to run AILANG programs
 - User asks about AILANG features or capabilities
 - User mentions AILANG version or syntax
+- User wants to add verification or contracts to AILANG code
+- User asks about Z3, SMT, or formal verification in AILANG
 
 ## Available Scripts
 
@@ -84,7 +87,15 @@ See [`resources/common_patterns.md`](resources/common_patterns.md) for:
 - Common mistakes and fixes
 - Best practices
 
-### 4. **Searchable Examples** (v0.6.2+)
+### 4. **Z3 Verification Patterns**
+See [`resources/z3_verification_patterns.md`](resources/z3_verification_patterns.md) for:
+- "Pure core, effectful shell" architecture
+- Writing contracts (`requires`/`ensures`)
+- The decidable fragment (what Z3 can and cannot verify)
+- Refactoring effectful code for verification
+- Running `ailang verify`
+
+### 5. **Searchable Examples** (v0.6.2+)
 Use CLI to find working AILANG patterns:
 ```bash
 ailang examples search "pattern matching"   # Search by content/tags
@@ -93,13 +104,13 @@ ailang examples list --tags recursion       # Filter by tag
 ailang examples tags                        # List all available tags
 ```
 
-### 5. **Dev Tools Reference** (v0.8.0+)
+### 6. **Dev Tools Reference** (v0.8.0+)
 Run `ailang devtools-prompt` for toolchain documentation covering:
 - Debugging with traces, replay, determinism verification
 - Agent chains, coordinator, messaging
 - Eval harness, telemetry, compilation
 
-### 6. **Full Documentation**
+### 7. **Full Documentation**
 - **Teaching prompt**: `ailang prompt` (language syntax)
 - **Dev tools prompt**: `ailang devtools-prompt` (toolchain usage)
 - **Website**: https://ailang.sunholo.com/
@@ -177,6 +188,12 @@ ailang run --caps IO,FS --entry main file.ail
 # Type-check without running
 ailang check file.ail
 
+# Verify contracts with Z3
+ailang verify file.ail
+ailang verify --verbose file.ail              # Show generated SMT-LIB
+ailang verify --json file.ail                 # Machine-readable output
+ailang verify --verify-recursive-depth 5 file.ail  # Bounded recursion depth
+
 # Watch for changes and auto-reload
 ailang watch file.ail
 
@@ -248,7 +265,8 @@ This skill loads information progressively:
 1. **Always loaded**: This SKILL.md file (YAML frontmatter + overview)
 2. **Load on demand**: `resources/syntax_quick_ref.md` (detailed syntax)
 3. **Load on demand**: `resources/common_patterns.md` (examples and patterns)
-4. **Execute as needed**: Scripts in `scripts/` directory
+4. **Load on demand**: `resources/z3_verification_patterns.md` (contracts and verification)
+5. **Execute as needed**: Scripts in `scripts/` directory
 
 This saves context tokens while providing access to comprehensive information when needed.
 
@@ -309,13 +327,23 @@ When user asks for AILANG code:
    Read `resources/common_patterns.md` for examples and best practices
 
 4. **Write code** following current syntax
+   - Prefer **pure functions** (`! {}`) for core logic — these are Z3-verifiable
+   - Keep effectful code (`! {IO}`) as thin wrappers around pure functions
 
-5. **Validate code** (optional):
+5. **Add contracts to pure functions** (if applicable):
+   Read `resources/z3_verification_patterns.md` for contract patterns
+
+6. **Verify contracts** (if contracts present):
+   ```bash
+   ailang verify solution.ail
+   ```
+
+7. **Validate code** (optional):
    ```bash
    .claude/skills/use-ailang/scripts/validate_code.sh solution.ail
    ```
 
-6. **Help user run** with correct CLI flags
+8. **Help user run** with correct CLI flags
 
 ## Notes
 
