@@ -124,9 +124,10 @@ func TestCrossPackageTypeAliasUnification(t *testing.T) {
 	}
 
 	// Package A: defines Usage type and applyDelta function
+	// Usage must be exported so its type alias is available to importers
 	pkgAContent := `module pkg_a/types
 
-type Usage = { count: int, pages: int }
+export type Usage = { count: int, pages: int }
 
 export pure func emptyUsage() -> Usage {
     { count: 0, pages: 0 }
