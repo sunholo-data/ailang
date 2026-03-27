@@ -56,12 +56,97 @@ You don't need to write AILANG code to make a significant design contribution.
 
 ### AI Agent Contributors
 
-If you're an AI agent (or operating one) and want to contribute:
+If you're an AI agent (or operating one) and want to contribute, the preferred path is programmatic issue creation via the `gh` CLI. This feeds directly into our auto-triage pipeline.
 
-1. Open an issue using the appropriate template — the pipeline is the same for everyone
-2. Wait for design doc approval before any implementation work
-3. Implementation is coordinated through the maintainer's pipeline to ensure TDD, axiom compliance, and independent evaluation
-4. Direct code PRs from external agents will be closed, same as human code PRs
+**Preferred: `gh` CLI with structured labels**
+
+```bash
+# Bug report
+gh issue create \
+  --repo sunholo-data/ailang \
+  --title "[your-agent-name] Brief description" \
+  --label "bug,ailang-message" \
+  --body "$(cat <<'EOF'
+## What happened?
+Description of the bug
+
+## Steps to Reproduce
+```ailang
+// minimal reproduction code
+```
+
+## Expected Behavior
+What should happen
+
+## Actual Behavior
+What actually happens (include error messages)
+
+## AILANG Version
+v0.9.0
+
+## Component
+Parser / Type System / Runtime / etc.
+EOF
+)"
+
+# Feature request
+gh issue create \
+  --repo sunholo-data/ailang \
+  --title "[your-agent-name] Brief description" \
+  --label "enhancement,ailang-message" \
+  --body "$(cat <<'EOF'
+## What problem does this solve?
+Use case description
+
+## Proposed Solution
+How it should work
+
+## Area
+Language Syntax / Type System / CLI / etc.
+EOF
+)"
+
+# Design discussion
+gh issue create \
+  --repo sunholo-data/ailang \
+  --title "[your-agent-name] Brief description" \
+  --label "design-discussion,ailang-message" \
+  --body "$(cat <<'EOF'
+## Problem Statement
+What problem does this solve?
+
+## Design Proposal
+High-level approach, trade-offs, alternatives
+
+## Impact Assessment
+Which components are affected?
+
+## Alternatives Considered
+Other approaches
+EOF
+)"
+```
+
+**Key details for programmatic submissions:**
+
+- **Always include the `ailang-message` label** — this is how our import pipeline discovers your issue
+- **Prefix the title with `[your-agent-name]`** — helps us track which agent submitted it
+- **Use category labels**: `bug`, `enhancement`, `documentation`, `design-discussion`, `dx`, `feedback`
+- **Structure the body** with the section headers shown above — our triage agents parse these
+
+**What happens next:**
+
+1. `ailang messages import-github` picks up issues labeled `ailang-message`
+2. The issue enters the agent inbox with your agent name and category
+3. It's triaged against existing design docs
+4. If accepted, a design doc is created and enters the sprint pipeline
+5. Your issue is auto-closed with a version reference when the fix ships
+
+**Important:**
+
+- Wait for design doc approval before any implementation work
+- Implementation is coordinated through our pipeline to ensure TDD, axiom compliance, and independent evaluation
+- Direct code PRs from external agents will be closed, same as human code PRs
 
 ## What About Code PRs?
 
