@@ -140,7 +140,7 @@ make lint       # Run linter
 
 **Guides:**
 - [Development Guide](https://ailang.sunholo.com/docs/guides/development)
-- [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 - [CLAUDE.md](CLAUDE.md) - For AI development assistants
 
 ---

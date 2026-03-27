@@ -1,0 +1,58 @@
+name: Design Discussion
+description: Propose an architectural change or major feature for design review
+labels: ["design-discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Design discussions are how major changes enter AILANG. If accepted, your proposal
+        becomes a formal design doc in `design_docs/planned/`, which drives the AI
+        implementation pipeline.
+
+        For smaller features, use the Feature Request template instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: "What problem does this solve? Include data or examples if possible."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Design Proposal
+      description: "High-level approach. Focus on architecture, trade-offs, and alternatives — not full implementation details."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact Assessment
+      description: "Which components are affected? (parser, type system, runtime, etc.) How large is the change?"
+    validations:
+      required: true
+  - type: textarea
+    id: axioms
+    attributes:
+      label: Axiom Considerations
+      description: |
+        How does this relate to AILANG's design axioms?
+        Key axioms: Determinism (A1), Effect Legibility (A3), Explicit Authority (A4), Machines First (A7).
+        See: https://ailang.sunholo.com/docs/references/axioms
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+    validations:
+      required: true
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: I understand that...
+      options:
+        - label: "Accepted proposals become design docs maintained by the project team"
+          required: true
+        - label: "Implementation is handled by the AI agent pipeline, not direct code PRs"
+          required: true
+        - label: "The design may be modified during the formal design doc process"
+          required: true

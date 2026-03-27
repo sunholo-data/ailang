@@ -1,0 +1,49 @@
+name: DX/UX Feedback
+description: Report developer experience or usability issues
+labels: ["dx", "feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DX and UX feedback is gold for AILANG. Error messages, CLI ergonomics,
+        REPL behavior, install experience, documentation clarity — all of it matters.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Error messages (confusing, unhelpful, or missing)
+        - CLI ergonomics (flags, output, workflow)
+        - REPL experience
+        - Install / setup experience
+        - Documentation findability
+        - Editor / IDE integration
+        - Build / test workflow
+        - AI agent integration (MCP tools, plugins)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: experience
+    attributes:
+      label: What happened?
+      description: "Describe the experience. What were you trying to do? What went wrong or felt awkward?"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What would be better?
+      description: "How should it work? What would a great experience look like?"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AILANG Version
+      placeholder: "v0.9.0 (or N/A)"
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: "Screenshots, terminal output, comparison to other tools, etc."

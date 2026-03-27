@@ -1,0 +1,42 @@
+name: Documentation Improvement
+description: Suggest or contribute documentation improvements
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Documentation improvements are one of the most valued contributions to AILANG.
+        You can also submit documentation PRs directly — they are always welcome.
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type of Improvement
+      options:
+        - Fix incorrect information
+        - Add missing documentation
+        - Improve clarity of existing docs
+        - Add example program
+        - Improve error messages
+        - Tutorial or guide
+        - API reference
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Where?
+      description: "URL, file path, or section name"
+      placeholder: "https://ailang.sunholo.com/docs/... or examples/..."
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What needs to change?
+    validations:
+      required: true
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested Content
+      description: "If you have specific text, code examples, or corrections"

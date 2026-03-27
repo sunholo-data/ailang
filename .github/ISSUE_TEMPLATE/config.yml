@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://ailang.sunholo.com/
+    about: Browse the AILANG documentation site
+  - name: Examples
+    url: https://ailang.sunholo.com/docs/examples
+    about: View working AILANG example programs
+  - name: Contributing Guide
+    url: https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md
+    about: Learn how AILANG's AI-first contribution model works
