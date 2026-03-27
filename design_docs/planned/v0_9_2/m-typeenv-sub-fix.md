@@ -1,13 +1,13 @@
 # M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports
 
-**Status**: In Progress (investigation complete, implementation blocked)
+**Status**: Planned (design decision made: Option A + Approach 4)
 **Target**: v0.9.2
 **Priority**: P0 (type safety hole — silently accepts invalid programs)
 **Estimated**: 2-3 days (revised from 4-6 hours after investigation)
 **Dependencies**: None
 **Author**: Mark + Claude
 **Created**: 2026-03-27
-**Last updated**: 2026-03-27
+**Last updated**: 2026-03-27 (design decision: Option A + Approach 4)
 **Triggered by**: device_auth.ail passing `decode(jsonValue)` (Json->string mismatch) without compile error
 
 ---
@@ -219,18 +219,102 @@ Both variables appear in their scheme's TypeVars. The substitution cannot distin
 
 ---
 
+## Design Decision: Option A + Approach 4 (Targeted Repair)
+
+### Precise Diagnosis (from expert review)
+
+This is not one bug but two:
+
+- **Bug A (escaping metavariables):** Unresolved inference vars escape into generalized schemes.
+  `inferLet` generalizes before the outer `SolveConstraints` runs, so vars like `a1` (which should
+  be `Json`) get quantified as if they were legitimate polymorphic vars.
+
+- **Bug B (non-alpha-safe quantified vars):** Quantified vars are represented as plain strings
+  (`a1`, `a2`, ...) with no global uniqueness. Any post-hoc substitution on the env is
+  capture-prone because different modules' schemes reuse the same names.
+
+**The key invariant that is violated:**
+> Env schemes must be closed under the current solve state before they become observable.
+
+### Chosen Approach
+
+**Ship: Option A + Approach 4 (targeted current-binding repair)**
+
+This is the combination that matches all evidence:
+- Approach 4 already fixed all 7 type safety tests in investigation
+- Approach 4 only failed because of name collisions in REPL/shared-layer case
+- Option A removes exactly that collision class
+
+**Phase 1: Alpha-rename quantified vars on scheme insertion**
+- On `ExtendScheme`/`BindScheme`, allocate globally unique IDs for all TypeVars/RowVars
+- Rename scheme body consistently
+- For v0.9.2: use unique textual prefix (e.g., `q$42$`, `rq$43$`) to avoid collision with
+  inference vars (which use `a{N}`, `e{N}`, `r{N}`)
+- Monomorphic schemes (no TypeVars) are no-ops
+
+**Phase 2: Targeted current-binding repair after outer solve**
+- After `InferWithConstraints` solves constraints, apply sub ONLY to bindings introduced
+  by the current declaration
+- Do NOT shield that declaration's quantified vars (they are the ones that were over-generalized)
+- After Option A, the sub cannot accidentally hit binders from unrelated schemes
+
+**Phase 3: Invariant assertions**
+- `assertNoEscapingMetaVars(scheme)` in debug/test builds after generalization
+- Turns silent soundness failure into hard internal error during development
+
+### Why other options were rejected
+
+| Option | Verdict | Reason |
+|--------|---------|--------|
+| **B (freshCounter range)** | Reject | Couples correctness to naming syntax; fragile under refactors; ages badly |
+| **C (env layering)** | Optional hardening | Reduces blast radius but doesn't fix core soundness issue |
+| **D (selective sub in inferLet)** | Reject as main fix | Attacks the symptom at wrong semantic boundary; over-constrains record/row types |
+
+### Why A + targeted repair preserves passing examples
+
+The failing "inferLet solveSub" attempt (Approach 3) broke examples because it substituted too
+much structure into parameter-side types BEFORE generalization. The targeted post-solve repair
+operates on the already-generalized/exported binding, not on intermediate body constraints. It
+fixes only the exported observable type.
+
+### Interface builder caution
+
+The interface builder must NOT independently re-generalize already-repaired schemes. It should
+consume repaired schemes directly, not re-run `generalizeType` on raw types that still contain
+unresolved vars. Verify this path during implementation.
+
+### Long-term direction (post v0.9.2)
+
+Separate type variable concepts in the representation:
+
+```go
+type TVarID uint64
+
+type TypeVar struct {
+    ID   TVarID
+    Kind TypeVarKind // Meta, Quant, RowMeta, RowQuant
+    Name string      // pretty-print hint only
+}
+```
+
+This makes the entire bug class structurally impossible:
+- Env stores schemes over QuantVars
+- Inference operates on MetaVars
+- Generalization converts unsolved MetaVars -> QuantVars
+- Instantiation replaces QuantVars with fresh MetaVars
+
 ## High-Impact Decisions
 
 | Decision | Why High Impact | Chosen By | Deadline | Change Cost |
 |----------|-----------------|-----------|----------|-------------|
-| Which solution approach (A/B/C/D) | Determines complexity and robustness | needs discussion | before sprint | medium |
-| Whether REPL path gets same fix as pipeline | REPL is used for WASM/stdlib loading | agent | sprint | low |
-| Whether to apply sub in inferLet OR in InferWithConstraints | Determines if fix is at generalization site or post-hoc | needs discussion | design | high |
+| Solution approach: A + Approach 4 | Fixes both bugs with bounded risk | expert review | 2026-03-27 | medium |
+| REPL path gets same fix as pipeline | REPL is used for WASM/stdlib loading | agent | sprint | low |
+| Apply sub in InferWithConstraints (not inferLet) | Post-solve repair on exported type, not body internals | expert review | 2026-03-27 | n/a |
 
 ### Design Freeze
 
-- [x] Fix location: inside `InferWithConstraints` and/or `inferLet`/`inferLetRec`
-- [ ] Solution approach: needs decision (recommend Option A)
+- [x] Fix location: inside `InferWithConstraints` (post-solve targeted repair)
+- [x] Solution approach: Option A + Approach 4
 
 ## Existing Test Coverage
 
@@ -267,36 +351,51 @@ Both variables appear in their scheme's TypeVars. The substitution cannot distin
 
 ## Implementation Plan
 
-**Phase 1: Core fix** (~1 day)
-- [ ] Implement chosen approach (A, B, C, or D)
-- [ ] Pass all 7 type safety tests
-- [ ] Pass `TestEmbeddedStdlibLoading` (REPL path)
-- [ ] Pass `make test`
+**Phase 1: Alpha-rename on scheme insertion** (~0.5 day)
+- [ ] Add global scheme var counter to `env.go` (package-level `atomic.Uint64` or similar)
+- [ ] Add `AlphaRenameScheme(scheme *Scheme) *Scheme` helper
+  - Allocate fresh globally unique IDs for all TypeVars and RowVars
+  - Use prefix like `q${globalID}$` to avoid collision with inference vars (`a{N}`)
+  - Build rename map, walk scheme Type consistently
+  - No-op for monomorphic schemes (empty TypeVars)
+- [ ] Call alpha-rename in `ExtendScheme` and `BindScheme`
+- [ ] Verify: `TestEmbeddedStdlibLoading` still passes (REPL path)
+- [ ] Verify: `make test` still passes (no regressions from renaming alone)
 
-**Phase 2: Regression verification** (~0.5 day)
+**Phase 2: Targeted current-binding repair** (~0.5 day)
+- [ ] In `InferWithConstraints` (typechecker_core.go), after outer `SolveConstraints`:
+  - Extract current declaration names from `expr` (`*core.Let` -> name, `*core.LetRec` -> names)
+  - For each name, look up scheme in `updatedEnv`
+  - Apply filtered sub (exclude effect/row vars) WITHOUT protecting quantified vars
+  - Write repaired scheme back
+- [ ] Verify: all 7 type safety tests pass
+- [ ] Verify: `TestEmbeddedStdlibLoading` still passes
+
+**Phase 3: Invariant assertions + regression check** (~0.5 day)
+- [ ] Add `assertNoEscapingMetaVars(scheme)` check in debug builds
+  - After generalization, before interface extraction
+  - Detects any unification var from current solve session in exported schemes
+- [ ] Verify interface builder consumes repaired schemes (not re-generalizing)
 - [ ] Pass all 152 examples (`make verify-examples`)
-- [ ] Manual check: `ailang check` on docparse device_auth.ail
-- [ ] Verify cross-package alias tests still pass
+- [ ] Full `make test`
 
-**Phase 3: Cleanup** (~0.5 day)
-- [ ] Remove `filterTypeVarSub` if unused
+**Phase 4: Cleanup** (~0.5 day)
+- [ ] Remove `filterTypeVarSub` function if unused
 - [ ] Remove any debug print statements
 - [ ] Update CHANGELOG.md
 - [ ] Move design doc to implemented/
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `internal/types/env.go` | New method(s) depending on approach |
-| `internal/types/typechecker_core.go` | Call site in InferWithConstraints |
-| `internal/types/typechecker_functions.go` | Possibly inferLet/inferLetRec (approach D) |
-| `internal/repl/module_registry_load.go` | Possibly env layering fix (approach C) |
-| `internal/pipeline/type_safety_test.go` | Already written, verify tests pass |
+| File | Change | LOC estimate |
+|------|--------|-------------|
+| `internal/types/env.go` | Alpha-rename on scheme insertion, global counter | ~50 |
+| `internal/types/typechecker_core.go` | Targeted repair after outer solve | ~25 |
+| `internal/pipeline/type_safety_test.go` | Already written, verify tests pass | ~0 |
 
 ## Non-Goals
 
-- **Rewriting TypeEnv** — The linked-list immutable env structure is fine
+- **Separating MetaVar/QuantVar in type representation** — Correct long-term fix but too large for v0.9.2
 - **Improving error messages** — The unification error is already informative enough
 - **Fixing unrelated type inference bugs** — Focus only on the ADT return type gap
 
@@ -304,9 +403,9 @@ Both variables appear in their scheme's TypeVars. The substitution cannot distin
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| Alpha-renaming adds allocation overhead | Low | Only rename schemes with TypeVars; monomorphic schemes are no-ops |
-| REPL env layering changes lookup semantics | Medium | Test all stdlib loading paths, verify export visibility |
-| Selective sub heuristic misses edge cases | Medium | Option D is a heuristic; prefer Option A for principled fix |
+| Alpha-renaming adds allocation overhead | Low | No-op for monomorphic schemes; only allocates for polymorphic |
+| Renamed vars break pretty-printing / error messages | Low | Keep `Name` field as display hint; rename only internal identity |
+| Interface builder re-generalizes repaired schemes | High | Audit interface builder path; it must consume repaired schemes directly |
 | Fix breaks Num/Fractional defaulting | High | Verified: defaulting happens in `defaultAmbiguitiesTopLevel` which already applies sub to constraints |
 
 ## Related Documents
@@ -318,4 +417,4 @@ Both variables appear in their scheme's TypeVars. The substitution cannot distin
 ---
 
 **Document created**: 2026-03-27
-**Last updated**: 2026-03-27
+**Last updated**: 2026-03-27 (design decision: Option A + Approach 4)
