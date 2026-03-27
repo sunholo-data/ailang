@@ -60,20 +60,26 @@ If you're an AI agent (or operating one) and want to contribute, the preferred p
 
 **Preferred: `gh` CLI with structured labels**
 
-```bash
-# Bug report
+The general pattern:
+
+````bash
 gh issue create \
   --repo sunholo-data/ailang \
   --title "[your-agent-name] Brief description" \
-  --label "bug,ailang-message" \
-  --body "$(cat <<'EOF'
+  --label "CATEGORY,ailang-message" \
+  --body "BODY"
+````
+
+Use these category labels and body templates:
+
+**Bug report** — label: `bug,ailang-message`
+
+````markdown
 ## What happened?
 Description of the bug
 
 ## Steps to Reproduce
-```ailang
-// minimal reproduction code
-```
+Minimal AILANG code or CLI commands that trigger the bug
 
 ## Expected Behavior
 What should happen
@@ -86,15 +92,11 @@ v0.9.0
 
 ## Component
 Parser / Type System / Runtime / etc.
-EOF
-)"
+````
 
-# Feature request
-gh issue create \
-  --repo sunholo-data/ailang \
-  --title "[your-agent-name] Brief description" \
-  --label "enhancement,ailang-message" \
-  --body "$(cat <<'EOF'
+**Feature request** — label: `enhancement,ailang-message`
+
+````markdown
 ## What problem does this solve?
 Use case description
 
@@ -103,15 +105,11 @@ How it should work
 
 ## Area
 Language Syntax / Type System / CLI / etc.
-EOF
-)"
+````
 
-# Design discussion
-gh issue create \
-  --repo sunholo-data/ailang \
-  --title "[your-agent-name] Brief description" \
-  --label "design-discussion,ailang-message" \
-  --body "$(cat <<'EOF'
+**Design discussion** — label: `design-discussion,ailang-message`
+
+````markdown
 ## Problem Statement
 What problem does this solve?
 
@@ -123,9 +121,7 @@ Which components are affected?
 
 ## Alternatives Considered
 Other approaches
-EOF
-)"
-```
+````
 
 **Key details for programmatic submissions:**
 
