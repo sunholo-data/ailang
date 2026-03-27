@@ -1,0 +1,215 @@
+-- Standard library: JWT (JSON Web Token) parsing and verification
+-- Pure functions for decoding, verifying RS256 signatures, and checking claims.
+-- Key fetching is the caller's responsibility (use std/net).
+
+module std/jwt
+
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+import std/json (Json, JString, JArray, JNumber, decode, get, getString, asString, asNumber)
+import std/bytes (fromBase64URL, toString, fromString)
+import std/crypto (rsaVerifyPKCS1v15)
+import std/string (split)
+import std/list (length)
+import std/math (floatToInt)
+
+-- ============================================================================
+-- JWT Decoding (pure parsing, no verification)
+-- ============================================================================
+
+-- Decode a JWT token into its three parts without verifying the signature.
+--
+-- Splits on '.', base64url-decodes header and payload, JSON-parses them.
+-- Returns a record with header (Json), payload (Json), signature (bytes),
+-- and signed (the raw "header.payload" string used as RSA input).
+--
+-- Args:
+--   token: string - The raw JWT string (header.payload.signature)
+--
+-- Returns:
+--   Result[{header: Json, payload: Json, signature: bytes, signed: string}, string]
+export pure func decodeJWT(token: string) -> Result[{header: Json, payload: Json, signature: bytes, signed: string}, string] = {
+  let parts = split(token, ".") in
+  if length(parts) != 3 then
+    Err("invalid JWT: expected 3 dot-separated segments")
+  else
+    match parts {
+      [headerB64, payloadB64, sigB64] =>
+        match decodeSegment(headerB64, "header") {
+          Err(e) => Err(e),
+          Ok(header) =>
+            match decodeSegment(payloadB64, "payload") {
+              Err(e) => Err(e),
+              Ok(payload) =>
+                match fromBase64URL(sigB64) {
+                  None => Err("invalid base64url in signature"),
+                  Some(sigBytes) =>
+                    Ok({
+                      header: header,
+                      payload: payload,
+                      signature: sigBytes,
+                      signed: headerB64 ++ "." ++ payloadB64
+                    })
+                }
+            }
+        },
+      _ => Err("invalid JWT: expected 3 dot-separated segments")
+    }
+}
+
+-- Helper: base64url-decode a segment and JSON-parse it
+pure func decodeSegment(b64: string, name: string) -> Result[Json, string] = {
+  match fromBase64URL(b64) {
+    None => Err("invalid base64url in " ++ name),
+    Some(rawBytes) =>
+      match decode(toString(rawBytes)) {
+        Err(e) => Err("invalid JSON in " ++ name ++ ": " ++ e),
+        Ok(json) => Ok(json)
+      }
+  }
+}
+
+-- ============================================================================
+-- RS256 Verification
+-- ============================================================================
+
+-- Verify an RS256-signed JWT against a PEM-encoded public key or certificate.
+--
+-- Decodes the JWT, checks that the algorithm is RS256, verifies the RSA-SHA256
+-- signature, and returns the payload claims on success.
+--
+-- Args:
+--   token: string - The raw JWT string
+--   publicKeyPEM: string - PEM-encoded RSA public key or X.509 certificate
+--
+-- Returns:
+--   Result[Json, string] - Payload claims (as Json) or error message
+export pure func verifyRS256(token: string, publicKeyPEM: string) -> Result[Json, string] = {
+  match decodeJWT(token) {
+    Err(e) => Err(e),
+    Ok(jwt) =>
+      match getString(jwt.header, "alg") {
+        None => Err("missing 'alg' in JWT header"),
+        Some(alg) =>
+          if alg != "RS256" then
+            Err("unsupported algorithm: " ++ alg ++ " (expected RS256)")
+          else {
+            let signedBytes = fromString(jwt.signed) in
+            match rsaVerifyPKCS1v15(signedBytes, jwt.signature, publicKeyPEM) {
+              Err(e) => Err("key error: " ++ e),
+              Ok(valid) =>
+                if valid then Ok(jwt.payload)
+                else Err("invalid signature")
+            }
+          }
+      }
+  }
+}
+
+-- ============================================================================
+-- Key Selection by Key ID (kid)
+-- ============================================================================
+
+-- Verify a JWT by selecting the signing key from a set of keys using the
+-- 'kid' (Key ID) header claim.
+--
+-- This is the pattern used by Firebase, Google, and most OAuth providers:
+-- they publish public keys indexed by key ID, and each JWT header contains
+-- a 'kid' field indicating which key signed it.
+--
+-- Args:
+--   token: string - The raw JWT string
+--   keys: Json - JObject mapping kid strings to PEM-encoded keys/certs
+--
+-- Returns:
+--   Result[Json, string] - Payload claims or error message
+export pure func verifyWithKid(token: string, keys: Json) -> Result[Json, string] = {
+  match decodeJWT(token) {
+    Err(e) => Err(e),
+    Ok(jwt) =>
+      match getString(jwt.header, "kid") {
+        None => Err("missing 'kid' in JWT header"),
+        Some(kid) =>
+          match get(keys, kid) {
+            None => Err("unknown kid: " ++ kid),
+            Some(keyJson) =>
+              match asString(keyJson) {
+                None => Err("key for kid '" ++ kid ++ "' is not a string"),
+                Some(pem) =>
+                  match getString(jwt.header, "alg") {
+                    None => Err("missing 'alg' in JWT header"),
+                    Some(alg) =>
+                      if alg != "RS256" then
+                        Err("unsupported algorithm: " ++ alg)
+                      else {
+                        let signedBytes = fromString(jwt.signed) in
+                        match rsaVerifyPKCS1v15(signedBytes, jwt.signature, pem) {
+                          Err(e) => Err("key error for kid " ++ kid ++ ": " ++ e),
+                          Ok(valid) =>
+                            if valid then Ok(jwt.payload)
+                            else Err("invalid signature for kid: " ++ kid)
+                        }
+                      }
+                  }
+              }
+          }
+      }
+  }
+}
+
+-- ============================================================================
+-- Claims Helpers
+-- ============================================================================
+
+-- Check if a JWT's exp claim has passed (token is expired).
+-- Takes the current Unix timestamp (caller provides).
+--
+-- Args:
+--   claims: Json - The JWT payload
+--   nowUnix: int - Current Unix timestamp in seconds
+--
+-- Returns:
+--   bool - true if expired (exp <= now), false if still valid
+export pure func isExpired(claims: Json, nowUnix: int) -> bool = {
+  match getClaimInt(claims, "exp") {
+    None => true,
+    Some(exp) => exp <= nowUnix
+  }
+}
+
+-- Check that the issuer matches an expected value.
+export pure func checkIssuer(claims: Json, expectedIss: string) -> bool = {
+  match getString(claims, "iss") {
+    None => false,
+    Some(iss) => iss == expectedIss
+  }
+}
+
+-- Check that the audience contains an expected value.
+-- Handles both string and array aud claims (per RFC 7519 §4.1.3).
+export pure func checkAudience(claims: Json, expectedAud: string) -> bool = {
+  match get(claims, "aud") {
+    Some(JString(aud)) => aud == expectedAud,
+    Some(JArray(auds)) => containsString(auds, expectedAud),
+    _ => false
+  }
+}
+
+-- ============================================================================
+-- Internal Helpers
+-- ============================================================================
+
+pure func containsString(xs: [Json], target: string) -> bool = {
+  match xs {
+    [] => false,
+    [JString(s), ...rest] => if s == target then true else containsString(rest, target),
+    [_, ...rest] => containsString(rest, target)
+  }
+}
+
+pure func getClaimInt(obj: Json, key: string) -> Option[int] = {
+  match get(obj, key) {
+    Some(JNumber(n)) => Some(floatToInt(n)),
+    _ => None
+  }
+}

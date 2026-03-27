@@ -29,6 +29,12 @@ export pure func toBase64(b: bytes) -> string { _bytes_to_base64(b) }
 -- Example: fromBase64("aGVsbG8=") returns Some(bytes)
 export pure func fromBase64(s: string) -> Option[bytes] { _bytes_from_base64(s) }
 
+-- Decode a base64url string (RFC 4648 §5, no padding) to bytes
+-- JWT tokens use base64url encoding for header and payload segments.
+-- Returns None if input is not valid base64url
+-- Example: fromBase64URL("SGVsbG8") returns Some(bytes for "Hello")
+export pure func fromBase64URL(s: string) -> Option[bytes] { _bytes_from_base64url(s) }
+
 -- Get the length of a byte slice (O(1))
 -- Returns raw byte count, not UTF-8 character count
 -- Example: length(fromString("hello")) returns 5

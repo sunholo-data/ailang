@@ -22,6 +22,7 @@ _bytes_concat : (bytes, bytes) -> bytes
 _bytes_concat_list : list[bytes] -> bytes
 _bytes_filename : bytes -> string
 _bytes_from_base64 : string -> Option[bytes]
+_bytes_from_base64url : string -> Option[bytes]
 _bytes_from_ints : list[int] -> bytes
 _bytes_from_string : string -> bytes
 _bytes_length : bytes -> int
@@ -33,6 +34,7 @@ _clock_now : () -> int ! {Clock}
 _clock_sleep : int -> () ! {Clock}
 _crypto_constanttimeequal : (string, string) -> bool
 _crypto_hmacsha256 : (string, string) -> string
+_crypto_rsa_verify_pkcs1v15 : (bytes, bytes, string) -> Result[bool, string]
 _crypto_sha256bytes : bytes -> string
 _crypto_sha256hex : string -> string
 _debug_check : (bool, string, string) -> () ! {Debug}

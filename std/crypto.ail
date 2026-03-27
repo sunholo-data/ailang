@@ -64,3 +64,32 @@ export pure func hmacSha256(message: string, key: string) -> string =
 --   let valid = constantTimeEqual(storedHash, computedHash)
 export pure func constantTimeEqual(a: string, b: string) -> bool =
   _crypto_constanttimeequal(a, b)
+
+-- RSA PKCS#1 v1.5 signature verification with SHA-256
+--
+-- Verifies that `signature` is a valid RSA-SHA256 signature of `message`
+-- using the given PEM-encoded public key or X.509 certificate.
+--
+-- Accepts PEM types: PUBLIC KEY (PKCS#8), RSA PUBLIC KEY (PKCS#1),
+-- CERTIFICATE (X.509 — extracts RSA public key).
+--
+-- Args:
+--   message: bytes - The original message that was signed
+--   signature: bytes - The RSA signature to verify
+--   publicKeyPEM: string - PEM-encoded public key or X.509 certificate
+--
+-- Returns:
+--   Result[bool, string] - Ok(true) if valid, Ok(false) if invalid, Err if key error
+--
+-- Example:
+--   match rsaVerifyPKCS1v15(msgBytes, sigBytes, pemKey) {
+--     Ok(true) => println("Valid"),
+--     Ok(false) => println("Invalid signature"),
+--     Err(e) => println("Key error: " ++ e)
+--   }
+export pure func rsaVerifyPKCS1v15(
+  message: bytes,
+  signature: bytes,
+  publicKeyPEM: string
+) -> Result[bool, string] =
+  _crypto_rsa_verify_pkcs1v15(message, signature, publicKeyPEM)

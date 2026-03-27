@@ -25,6 +25,7 @@ func init() {
 	registerBytesFromInts()
 	registerBytesFilename()
 	registerBytesMimeType()
+	registerBytesFromBase64URL()
 }
 
 // ============================================================================
@@ -245,6 +246,72 @@ func bytesFromBase64Impl(ctx *effects.EffContext, args []eval.Value) (eval.Value
 	}
 
 	// Return Some(decoded)
+	return &eval.TaggedValue{
+		ModulePath: "std/option",
+		TypeName:   "Option",
+		CtorName:   "Some",
+		Fields:     []eval.Value{&eval.BytesValue{Value: decoded}},
+	}, nil
+}
+
+// registerBytesFromBase64URL registers _bytes_from_base64url: string -> Option[bytes]
+// Decodes base64url (RFC 4648 §5) without padding — used by JWT tokens.
+func registerBytesFromBase64URL() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/bytes",
+		Name:    "_bytes_from_base64url",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeBytesFromBase64URLType,
+		Impl:    bytesFromBase64URLImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Decode a base64url string (no padding) to bytes",
+			LongDesc:    "Decodes a base64url encoded string (RFC 4648 §5, URL-safe alphabet, no padding) back to bytes. Returns None if the input is not valid base64url. JWT tokens use this encoding for header and payload segments.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "The base64url string to decode (no padding)"},
+			},
+			Returns: "Option[bytes]: Some(decoded) if valid, None if invalid base64url",
+			Examples: []Example{
+				{Code: `_bytes_from_base64url("SGVsbG8")`, Description: "Returns Some(bytes for 'Hello')"},
+				{Code: `_bytes_from_base64url("invalid!!!")`, Description: "Returns None"},
+			},
+			SeeAlso:   []string{"_bytes_from_base64", "_bytes_to_base64"},
+			Since:     "v0.9.5",
+			Stability: StabilityStable,
+			Tags:      []string{"bytes", "base64url", "jwt", "decoding", "option"},
+			Category:  "bytes",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _bytes_from_base64url: %v", err))
+	}
+}
+
+func makeBytesFromBase64URLType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(
+		T.App("Option", T.Bytes()),
+	).Build()
+}
+
+func bytesFromBase64URLImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	strVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_bytes_from_base64url: expected String, got %T", args[0])
+	}
+
+	decoded, err := base64.RawURLEncoding.DecodeString(strVal.Value)
+	if err != nil {
+		return &eval.TaggedValue{
+			ModulePath: "std/option",
+			TypeName:   "Option",
+			CtorName:   "None",
+			Fields:     []eval.Value{},
+		}, nil
+	}
+
 	return &eval.TaggedValue{
 		ModulePath: "std/option",
 		TypeName:   "Option",
