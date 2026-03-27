@@ -2,9 +2,13 @@ package gemini
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sunholo/ailang/internal/ai"
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -142,12 +146,23 @@ func (c *Client) NewHandler(model string, opts ...ai.HandlerOption) *ai.Handler 
 	return ai.NewHandler(c, model, opts...)
 }
 
-// getAccessToken retrieves an access token from gcloud ADC.
+// metadataClient is a short-timeout HTTP client for the GCE/Cloud Run metadata server.
+var metadataClient = &http.Client{Timeout: 2 * time.Second}
+
+// getAccessToken retrieves an access token for Vertex AI.
+// Tries: (1) GCE/Cloud Run metadata server, (2) gcloud CLI fallback.
 func getAccessToken() (string, error) {
+	// 1. Try metadata server (Cloud Run, GKE, GCE)
+	if token, err := getTokenFromMetadata(); err == nil && token != "" {
+		return token, nil
+	}
+
+	// 2. Fall back to gcloud CLI (local dev)
 	cmd := exec.Command("gcloud", "auth", "application-default", "print-access-token")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", ai.NewProviderError("gemini", 0,
+			"failed to get access token: metadata server unavailable and gcloud failed", err)
 	}
 
 	token := strings.TrimSpace(string(output))
@@ -158,12 +173,60 @@ func getAccessToken() (string, error) {
 	return token, nil
 }
 
-// getGCPProject gets the current GCP project ID from gcloud config.
+// getTokenFromMetadata fetches an access token from the GCE/Cloud Run metadata server.
+func getTokenFromMetadata() (string, error) {
+	req, err := http.NewRequest("GET",
+		"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+
+	resp, err := metadataClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", err
+	}
+	return tokenResp.AccessToken, nil
+}
+
+// getGCPProject gets the current GCP project ID.
+// Tries: (1) GOOGLE_CLOUD_PROJECT env var, (2) GCP_PROJECT env var,
+// (3) GCE/Cloud Run metadata server, (4) gcloud CLI fallback.
 func getGCPProject() (string, error) {
+	// 1. GOOGLE_CLOUD_PROJECT env var (set by Cloud Run, GKE, App Engine)
+	if project := os.Getenv("GOOGLE_CLOUD_PROJECT"); project != "" {
+		return project, nil
+	}
+
+	// 2. GCP_PROJECT env var (alternate convention)
+	if project := os.Getenv("GCP_PROJECT"); project != "" {
+		return project, nil
+	}
+
+	// 3. Metadata server (Cloud Run, GKE, GCE)
+	if project, err := getProjectFromMetadata(); err == nil && project != "" {
+		return project, nil
+	}
+
+	// 4. Fall back to gcloud CLI (local dev)
 	cmd := exec.Command("gcloud", "config", "get-value", "project")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", ai.NewProviderError("gemini", 0,
+			"no GCP project: set GOOGLE_CLOUD_PROJECT env var, or run 'gcloud config set project PROJECT'", err)
 	}
 
 	project := strings.TrimSpace(string(output))
@@ -172,4 +235,26 @@ func getGCPProject() (string, error) {
 	}
 
 	return project, nil
+}
+
+// getProjectFromMetadata fetches the project ID from the GCE/Cloud Run metadata server.
+func getProjectFromMetadata() (string, error) {
+	req, err := http.NewRequest("GET",
+		"http://metadata.google.internal/computeMetadata/v1/project/project-id", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+
+	resp, err := metadataClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(body)), nil
 }
