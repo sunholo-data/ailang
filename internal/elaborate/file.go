@@ -153,12 +153,27 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (*core.Program, error) {
 					if decl == nil {
 						continue
 					}
+					// Use the alias name if present, otherwise the original name.
+					// This prevents imported functions from overwriting local
+					// definitions with the same name (e.g., "import foo (bar as baz)"
+					// stores as "baz", not "bar").
+					bindName := sym
+					if imp.SymbolAliases != nil {
+						if alias, ok := imp.SymbolAliases[sym]; ok {
+							bindName = alias
+						}
+					}
 					// Convert imported func to FuncSig
 					// The GetExport already returns *ast.FuncDecl
 					sig := astFuncToSig(decl)
-					symbols[sym] = sig
-					// Mark as imported
-					imports[sym] = imp.Path + "/" + sym
+					// Don't overwrite local function definitions with imports.
+					// Local functions take precedence; the import is still
+					// accessible via globalEnv (VarGlobal) at elaboration time.
+					if _, isLocal := symbols[bindName]; !isLocal {
+						symbols[bindName] = sig
+					}
+					// Mark as imported using the bind name
+					imports[bindName] = imp.Path + "/" + sym
 				}
 			}
 		}
