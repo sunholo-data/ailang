@@ -47,6 +47,9 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 			if export.Arity < 0 {
 				continue
 			}
+			if !s.isExposed(export) {
+				continue
+			}
 
 			skillID := modPath + "." + export.Name
 			skillID = strings.ReplaceAll(skillID, "/", ".")

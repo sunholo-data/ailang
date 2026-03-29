@@ -96,6 +96,16 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if function is hidden from HTTP via @noexpose or --routes-only
+	if !s.isExposed(*foundExport) {
+		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
+			Module: modulePath,
+			Func:   funcName,
+			Error:  fmt.Sprintf("function %q not found in module %q", funcName, modulePath),
+		})
+		return
+	}
+
 	// Delegate to shared function caller with param names for named binding
 	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes})
 }

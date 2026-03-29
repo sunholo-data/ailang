@@ -30,6 +30,7 @@ func serveAPICommand(args []string) error {
 	maxUploadFlag := fs.Int64("max-upload-size", 0, "Maximum upload size in bytes (default: 50MB)")
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
+	routesOnlyFlag := fs.Bool("routes-only", false, "Only expose @route-annotated functions as HTTP endpoints")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
@@ -134,6 +135,7 @@ func serveAPICommand(args []string) error {
 		APIKeyHeader:  *apiKeyHeaderFlag,
 		APIKeyEnv:     *apiKeyEnvFlag,
 		LogLevel:      debugLogLevel,
+		RoutesOnly:    *routesOnlyFlag,
 	}
 
 	srv := apiserver.New(basePath, cfg)
@@ -235,6 +237,7 @@ func printServeAPIHelp() {
 	fmt.Println("  --max-upload-size N  Maximum file upload size in bytes (default: 50MB)")
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
+	fmt.Println("  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)")
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()
 	fmt.Println("Route annotations:")
@@ -249,6 +252,13 @@ func printServeAPIHelp() {
 	fmt.Println("    export func handle(req: {body: string, headers: Json, method: string}) -> string ! {IO}")
 	fmt.Println("  Headers/query are Json — use getString(req.headers, \"Stripe-Signature\")")
 	fmt.Println()
+	fmt.Println("  Use @noexpose to hide exported functions from HTTP (still importable by other modules):")
+	fmt.Println("    @noexpose")
+	fmt.Println("    export func generateApiKey(userId: string) -> string ! {IO}")
+	fmt.Println()
+	fmt.Println("  Use --routes-only to limit the API surface to @route-annotated functions only:")
+	fmt.Println("    ailang serve-api --routes-only ./api/")
+	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ailang serve-api api/handlers.ail")
 	fmt.Println("  ailang serve-api ./api/ --port 3000")
@@ -260,6 +270,7 @@ func printServeAPIHelp() {
 	fmt.Println("  ailang serve-api --mcp-http ./api/                   # HTTP + MCP at /mcp/")
 	fmt.Println("  ailang serve-api --a2a ./api/                        # HTTP + A2A protocol")
 	fmt.Println("  ailang serve-api --api-key-header x-api-key --api-key-env API_KEY ./api/")
+	fmt.Println("  ailang serve-api --routes-only ./api/                   # Only @route endpoints")
 	fmt.Println()
 	fmt.Println("Concurrency:")
 	fmt.Println("  serve-api handles concurrent requests safely (per-request evaluator isolation).")

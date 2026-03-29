@@ -178,6 +178,9 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 			if export.Arity < 0 {
 				continue
 			}
+			if !s.isExposed(export) {
+				continue
+			}
 
 			// Use custom route path if @route annotation present, else auto-route
 			pathKey := "/api/" + modPath + "/" + export.Name

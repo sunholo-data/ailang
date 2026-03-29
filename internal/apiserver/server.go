@@ -64,6 +64,7 @@ type Server struct {
 	apiKeyEnv     string              // env var containing expected API key
 	effCtx        *effects.EffContext // for Debug output collection
 	logLevel      int                 // minimum severity for Debug output
+	routesOnly    bool                // only expose @route-annotated functions
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -84,6 +85,7 @@ type ExportInfo struct {
 	RoutePath   string   `json:"route_path,omitempty"`   // custom URL path from @route annotation
 	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
 	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
+	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
 }
 
 // Config holds configuration for the API server.
@@ -101,6 +103,7 @@ type Config struct {
 	APIKeyHeader  string      // HTTP header for API key auth (empty = no auth)
 	APIKeyEnv     string      // env var containing expected API key
 	LogLevel      int         // minimum severity for Debug output (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR, 4=NONE)
+	RoutesOnly    bool        // only expose @route-annotated functions as HTTP endpoints
 }
 
 // New creates a new API server.
@@ -139,6 +142,7 @@ func New(basePath string, cfg Config) *Server {
 		apiKeyEnv:     cfg.APIKeyEnv,
 		effCtx:        storedEffCtx,
 		logLevel:      cfg.LogLevel,
+		routesOnly:    cfg.RoutesOnly,
 	}
 }
 
@@ -289,6 +293,7 @@ func (s *Server) loadFile(path string) error {
 	if result.Artifacts.AST != nil {
 		extractParamInfo(modInfo, result.Artifacts.AST)
 		extractRouteAnnotations(modInfo, result.Artifacts.AST)
+		extractNoExposeAnnotations(modInfo, result.Artifacts.AST)
 	}
 
 	// Derive module path from file path relative to basePath.
@@ -529,14 +534,29 @@ func (s *Server) printStartupBanner() {
 	log.Println("  Endpoints:")
 
 	s.mu.RLock()
+	exposed, filtered := 0, 0
 	for _, mod := range s.modules {
 		for _, exp := range mod.Exports {
-			if exp.Arity >= 0 {
+			if exp.Arity < 0 {
+				continue
+			}
+			if !s.isExposed(exp) {
+				filtered++
+				continue
+			}
+			exposed++
+			if exp.RoutePath != "" {
+				log.Printf("    %s %s", exp.RouteMethod, exp.RoutePath)
+			} else {
 				log.Printf("    POST /api/%s/%s", mod.Path, exp.Name)
 			}
 		}
 	}
 	s.mu.RUnlock()
+
+	if filtered > 0 {
+		log.Printf("  (%d endpoints exposed, %d filtered)", exposed, filtered)
+	}
 
 	log.Println()
 	log.Println("  Introspection:")

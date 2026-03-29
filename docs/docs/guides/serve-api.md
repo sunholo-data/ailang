@@ -422,6 +422,7 @@ Flags:
   --max-upload-size N  Maximum upload size in bytes (default: 50MB)
   --api-key-header H   HTTP header name for API key authentication
   --api-key-env VAR    Environment variable containing the expected API key
+  --routes-only        Only expose @route-annotated functions (skip auto-generated endpoints)
 
 Arguments:
   <path...>            One or more .ail files or directories
@@ -452,6 +453,9 @@ ailang serve-api --mcp ./api/
 
 # HTTP server + MCP endpoint at /mcp/
 ailang serve-api --mcp-http --cors ./api/
+
+# Only expose @route-annotated functions
+ailang serve-api --routes-only ./api/
 ```
 
 ### `ailang init web-app`
@@ -723,6 +727,7 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@route("METHOD", "/path")` | Custom URL path and HTTP method |
 | `@raw` | Receive full `HttpRequest` record (headers, body, method, query) instead of parsed args |
 | `@nowrap` | Return raw JSON instead of the `FunctionCallResponse` envelope |
+| `@noexpose` | Hide exported function from HTTP endpoints (still importable by other modules) |
 | `@verify(depth: N)` | Runtime contract validation |
 
 Multiple annotations can be combined:
@@ -827,6 +832,73 @@ curl -s -D- http://localhost:8080/api/v1/parse -d '{"path": "test.docx"}'
 ```
 
 > **Note:** The `_headers` convention is consistent with the existing `_body`/`_status`/`_headers` pattern used for [binary responses](#binary-response). For simple JSON responses that just need extra headers, `@nowrap` with `_headers` is more ergonomic than the full `_body` pattern.
+
+#### JSON Auto-Unwrap with `@nowrap`
+
+When a `@nowrap` function returns a string that is a valid JSON object or array (e.g., from `encode(jo(...))`), serve-api writes it as raw JSON instead of double-encoding it:
+
+```ailang
+@nowrap
+@route("GET", "/api/v1/health")
+export func health() -> string ! {}
+  encode(jo([kv("status", js("healthy"))]))
+```
+
+```bash
+curl http://localhost:8080/api/v1/health
+# {"status":"healthy"}     ← raw JSON, not "{\"status\":\"healthy\"}"
+```
+
+This only triggers for JSON objects (`{...}`) and arrays (`[...]`). Plain strings, numbers, and booleans are still JSON-encoded normally.
+
+---
+
+### `@noexpose` — Hide from HTTP Endpoints
+
+Use `@noexpose` on exported functions that should be importable by other modules but NOT accessible as HTTP endpoints:
+
+```ailang
+module billing/internal
+
+-- Public API endpoint
+@nowrap
+@route("GET", "/api/v1/usage")
+export func getUsage(userId: string) -> string ! {IO}
+  encode(jo([kv("requests", ji(lookupUsage(userId)))]))
+
+-- Exported for cross-module import, hidden from HTTP
+@noexpose
+export func generateApiKey(userId: string) -> string ! {IO}
+  apiKeyGenHexParts(userId, timestamp())
+
+-- Also hidden from HTTP
+@noexpose
+export func validateApiKey(key: string) -> bool ! {IO}
+  checkKeyInStore(key)
+```
+
+`@noexpose` functions:
+- Are **not** accessible via `POST /api/{module}/{function}`
+- Are **not** included in the OpenAPI spec or A2A Agent Card
+- Are still importable by other AILANG modules via `import`
+- If a function has both `@route` and `@noexpose`, the `@route` takes precedence (it remains exposed)
+
+---
+
+### `--routes-only` — Restrict to @route Endpoints
+
+Use `--routes-only` to limit the API surface to only `@route`-annotated functions, hiding all auto-generated endpoints:
+
+```bash
+ailang serve-api --routes-only ./api/
+```
+
+This is useful when your project has many exported functions for cross-module use but only a few intentional API endpoints. Without `--routes-only`, all exports become HTTP endpoints.
+
+`--routes-only` and `@noexpose` compose independently:
+- `--routes-only` hides **all** non-`@route` exports
+- `@noexpose` hides **specific** exports regardless of `--routes-only`
+- `@route` functions are always exposed
 
 ---
 

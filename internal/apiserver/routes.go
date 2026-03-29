@@ -108,6 +108,7 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				modInfo.Exports[i].RoutePath = path
 				modInfo.Exports[i].IsRaw = isRaw
 				modInfo.Exports[i].IsNowrap = isNowrap
+				modInfo.Exports[i].IsNoExpose = false // @route overrides @noexpose
 				flags := ""
 				if isRaw {
 					flags += " raw"
@@ -124,6 +125,47 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 			}
 		}
 	}
+}
+
+// extractNoExposeAnnotations marks exported functions with @noexpose as hidden
+// from HTTP endpoints. Functions with @route are never hidden (route overrides noexpose).
+func extractNoExposeAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		if fn.GetAnnotation("noexpose") == nil {
+			continue
+		}
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name && modInfo.Exports[i].RoutePath == "" {
+				modInfo.Exports[i].IsNoExpose = true
+				break
+			}
+		}
+	}
+}
+
+// isExposed returns true if the export should be visible as an HTTP endpoint,
+// considering the server's routesOnly setting and the export's annotations.
+func (s *Server) isExposed(exp ExportInfo) bool {
+	if exp.IsNoExpose {
+		return false
+	}
+	if s.routesOnly && exp.RoutePath == "" {
+		return false
+	}
+	return true
+}
+
+// isValidJSONObjectOrArray checks if a string is a valid JSON object ({...}) or array ([...]).
+// Only these compound types are unwrapped — bare strings, numbers, and booleans are NOT.
+func isValidJSONObjectOrArray(s string) bool {
+	s = strings.TrimSpace(s)
+	if len(s) < 2 {
+		return false
+	}
+	if s[0] != '{' && s[0] != '[' {
+		return false
+	}
+	return json.Valid([]byte(s))
 }
 
 // getCustomRoutes returns all custom routes from loaded modules.
@@ -339,6 +381,16 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 
 		w.WriteHeader(http.StatusOK)
+
+		// Auto-unwrap: if result is a string containing a valid JSON object or array,
+		// write it as raw bytes instead of double-encoding through json.Encoder.
+		// This handles the common pattern: encode(jo([...])) -> '{"key":"val"}'
+		if s, ok := goResult.(string); ok && isValidJSONObjectOrArray(s) {
+			_, _ = w.Write([]byte(s))
+			_, _ = w.Write([]byte("\n"))
+			return
+		}
+
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(goResult)
