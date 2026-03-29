@@ -20,7 +20,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N) or @route(\"METHOD\", \"/path\")")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, @nowrap, or @noexpose")
 		return nil
 	}
 
@@ -37,10 +37,13 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	case "nowrap":
 		// @nowrap is a parameterless annotation — skip FunctionCallResponse envelope
 		return &ast.Annotation{Name: "nowrap", Pos: pos}
+	case "noexpose":
+		// @noexpose is a parameterless annotation — hide from HTTP endpoints
+		return &ast.Annotation{Name: "noexpose", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @raw, @nowrap", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, or @nowrap")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @raw, @nowrap, @noexpose", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, @nowrap, or @noexpose")
 		return nil
 	}
 }

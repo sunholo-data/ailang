@@ -361,3 +361,115 @@ export func process(request: HttpRequest) -> string ! {} { request.body }`
 		t.Error("expected no @route annotation")
 	}
 }
+
+// TestNoexposeAnnotation_Basic tests @noexpose standalone.
+func TestNoexposeAnnotation_Basic(t *testing.T) {
+	input := `
+@noexpose
+export func internalHelper(x: int) -> int ! {} { x }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	if len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 function, got %d", len(file.Funcs))
+	}
+
+	fn := file.Funcs[0]
+	ann := fn.GetAnnotation("noexpose")
+	if ann == nil {
+		t.Fatal("expected @noexpose annotation")
+	}
+	if len(ann.Args) != 0 {
+		t.Errorf("expected @noexpose to have no args, got %d", len(ann.Args))
+	}
+}
+
+// TestNoexposeAnnotation_WithRoute tests @noexpose combined with @route.
+func TestNoexposeAnnotation_WithRoute(t *testing.T) {
+	input := `
+@noexpose
+@route("POST", "/internal/health")
+export func healthCheck(x: int) -> string ! {} { "ok" }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	if fn.GetAnnotation("noexpose") == nil {
+		t.Error("expected @noexpose annotation")
+	}
+	if fn.GetAnnotation("route") == nil {
+		t.Error("expected @route annotation")
+	}
+}
+
+// TestNowrapAnnotation_Basic tests @nowrap standalone.
+func TestNowrapAnnotation_Basic(t *testing.T) {
+	input := `
+@nowrap
+export func getData(x: int) -> string ! {} { "{\"key\": \"value\"}" }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	ann := fn.GetAnnotation("nowrap")
+	if ann == nil {
+		t.Fatal("expected @nowrap annotation")
+	}
+	if len(ann.Args) != 0 {
+		t.Errorf("expected @nowrap to have no args, got %d", len(ann.Args))
+	}
+}
+
+// TestNowrapAnnotation_WithRoute tests @nowrap combined with @route.
+func TestNowrapAnnotation_WithRoute(t *testing.T) {
+	input := `
+@nowrap
+@route("GET", "/api/data")
+export func apiData(x: int) -> string ! {} { "{}" }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	fn := file.Funcs[0]
+	if fn.GetAnnotation("nowrap") == nil {
+		t.Error("expected @nowrap annotation")
+	}
+	if fn.GetAnnotation("route") == nil {
+		t.Error("expected @route annotation")
+	}
+}
