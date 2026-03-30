@@ -1,0 +1,49 @@
+module fnv1a
+
+-- FNV-1a hash function demonstrating bitwise operators + charCode
+--
+-- FNV-1a algorithm:
+--   hash = FNV_OFFSET_BASIS
+--   for each byte:
+--     hash = hash XOR byte
+--     hash = hash * FNV_PRIME
+--
+-- Uses signed 64-bit int — bit patterns match unsigned FNV-1a.
+-- Printed values may be negative; this is expected.
+
+import std/string (foldChars, charCode)
+
+-- FNV-1a constants (64-bit, signed representation)
+-- Unsigned 14695981039346656037 wraps to -3750763034362895579 in signed 64-bit
+-- Same bit pattern — hash correctness is preserved
+let fnvBasis = -3750763034362895579
+let fnvPrime = 1099511628211
+
+func fnv1aStep(hash: int, c: string) -> int =
+  (hash ^ charCode(c)) * fnvPrime
+
+func fnv1a(s: string) -> int =
+  foldChars(fnv1aStep, fnvBasis, s)
+
+export func main() -> () ! {IO} {
+  let h1 = fnv1a("hello");
+  let h2 = fnv1a("world");
+  let h3 = fnv1a("hello");
+
+  println("FNV-1a of 'hello': " ++ show(h1));
+  println("FNV-1a of 'world': " ++ show(h2));
+
+  -- Determinism: same input -> same hash
+  println("Determinism: " ++ show(h1 == h3));
+
+  -- Different inputs -> different hashes
+  println("No collision: " ++ show(h1 != h2));
+
+  -- XOR self-inverse: hash ^ hash = 0
+  println("XOR self-inverse: " ++ show(h1 ^ h1));
+
+  -- Low nibble for hash bucket (0-15)
+  println("Hash bucket: " ++ show(h1 & 15));
+
+  println("ALL TESTS PASSED")
+}

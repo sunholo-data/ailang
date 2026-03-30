@@ -17,6 +17,7 @@ import (
 func init() {
 	registerStrFoldChars()
 	registerStrCharAt()
+	registerStrCharCode()
 }
 
 // ============================================================================
@@ -144,4 +145,54 @@ func strCharAtImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 		return nil, fmt.Errorf("_str_charAt: index %d out of bounds for string of length %d", idx, len(runes))
 	}
 	return &eval.StringValue{Value: string(runes[idx])}, nil
+}
+
+// ============================================================================
+// _str_charCode: Convert single-character string to Unicode code point (int)
+// ============================================================================
+
+func registerStrCharCode() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_charCode",
+		NumArgs: 1,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrCharCodeType,
+		Impl:    strCharCodeImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Get Unicode code point of a single-character string",
+			LongDesc:    "Returns the integer Unicode code point (0–1114111) of a single-character string. Errors if the string is empty or has more than one character. For ASCII, this is the byte value (e.g., charCode(\"a\") = 97).",
+			Params: []ParamDoc{
+				{Name: "c", Description: "A single-character string"},
+			},
+			Returns:   "Integer code point",
+			Examples:  []Example{{Code: `charCode("a")`, Description: "Returns 97"}},
+			Since:     "v0.11.0",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "character", "unicode", "ord", "codepoint"},
+			Category:  "string",
+			SeeAlso:   []string{"_str_charAt", "_str_foldChars"},
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_charCode: %v", err))
+	}
+}
+
+func makeStrCharCodeType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String()).Returns(T.Int()).Build()
+}
+
+func strCharCodeImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	str, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_charCode: expected string argument: %w", err)
+	}
+	runes := []rune(str)
+	if len(runes) != 1 {
+		return nil, fmt.Errorf("_str_charCode: expected single-character string, got %d characters", len(runes))
+	}
+	return &eval.IntValue{Value: int(runes[0])}, nil
 }

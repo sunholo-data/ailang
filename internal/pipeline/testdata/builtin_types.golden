@@ -144,6 +144,7 @@ _sharedmem_keys : () -> list[string] ! {SharedMem}
 _sharedmem_put : (string, bytes) -> () ! {SharedMem}
 _simhash : string -> int
 _str_charAt : (string, int) -> string
+_str_charCode : string -> int
 _str_chars : string -> list[string]
 _str_compare : (string, string) -> int
 _str_endsWith : (string, string) -> bool

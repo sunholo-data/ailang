@@ -99,3 +99,7 @@ export pure func foldChars(f: (a, string) -> a, acc: a, s: string) -> a = _str_f
 -- Note: O(n) rune conversion per call — use foldChars for sequential access
 -- Example: charAt("hello", 1) = "e"
 export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
+
+-- Get Unicode code point of a single-character string
+-- Example: charCode("a") = 97, charCode("🎉") = 127881
+export pure func charCode(c: string) -> int = _str_charCode(c)

@@ -288,6 +288,54 @@ func TestStrCharAtNonInt(t *testing.T) {
 }
 
 // ============================================================================
+// _str_charCode tests
+// ============================================================================
+
+func TestStrCharCode(t *testing.T) {
+	tests := []struct {
+		input string
+		want  int
+	}{
+		{"a", 97},
+		{"A", 65},
+		{"0", 48},
+		{" ", 32},
+		{"~", 126},
+		{"🎉", 127881},
+	}
+	for _, tt := range tests {
+		result, err := strCharCodeImpl(nil, []eval.Value{
+			&eval.StringValue{Value: tt.input},
+		})
+		if err != nil {
+			t.Fatalf("charCode(%q): unexpected error: %v", tt.input, err)
+		}
+		got := result.(*eval.IntValue).Value
+		if got != tt.want {
+			t.Errorf("charCode(%q) = %d, want %d", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestStrCharCodeMultiChar(t *testing.T) {
+	_, err := strCharCodeImpl(nil, []eval.Value{
+		&eval.StringValue{Value: "ab"},
+	})
+	if err == nil {
+		t.Fatal("expected error for multi-character string")
+	}
+}
+
+func TestStrCharCodeEmpty(t *testing.T) {
+	_, err := strCharCodeImpl(nil, []eval.Value{
+		&eval.StringValue{Value: ""},
+	})
+	if err == nil {
+		t.Fatal("expected error for empty string")
+	}
+}
+
+// ============================================================================
 // Benchmarks
 // ============================================================================
 

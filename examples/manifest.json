@@ -1021,6 +1021,19 @@
       "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
     },
     {
+      "path": "runnable/fnv1a.ail",
+      "status": "working",
+      "tags": [
+        "hash",
+        "bitwise",
+        "string",
+        "foldChars",
+        "charCode",
+        "benchmark"
+      ],
+      "description": "FNV-1a hash function using bitwise XOR, charCode, and foldChars — demonstrates character-level string processing and deterministic hashing"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [
