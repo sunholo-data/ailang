@@ -51,7 +51,8 @@
       "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)"
     ],
     "additionalDirectories": [
-      "/Users/mark/dev/sunholo/demos/streaming/gemini_live"
+      "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
+      "/Users/mark/dev/sunholo/ai-coding-lang-bench"
     ]
   },
   "hooks": {
