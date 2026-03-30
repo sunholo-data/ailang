@@ -162,6 +162,32 @@ Non-prefixed paths stay first so packages without module_prefix are unaffected.
 
 The "module not found" error already lists candidates. With the fix, it will show all 4 candidates tried, making it clear what paths were checked.
 
+### Fix 2: Bare intra-package imports via module_prefix
+
+**Problem**: When a consumed package's module has `import docparse/types/document` (a bare import, not `pkg/`-prefixed), the module loader resolves it against the consumer's working directory, not the package directory.
+
+**Root cause**: In `internal/loader/loader.go`, bare imports fall through to project-relative resolution (`filepath.Join(basePath, canonPath) + ".ail"`). The loader has no awareness of which package owns the `docparse` prefix.
+
+**Fix**:
+1. Add `modulePrefixMap` (prefix → pkgName) to `ModuleLoader`
+2. Pipeline passes the inverted `currentModulePrefixMap` via `SetModulePrefixMap()`
+3. In `Load()`, before project-relative fallback, check if the import's first segment matches a known prefix
+4. If it does, remap to canonical `pkg/` path and resolve via `PackageResolver`
+
+```go
+// In Load(), new branch before project-relative fallback:
+} else if ml.pkgLoader != nil && ml.modulePrefixMap != nil {
+    firstSeg := canonPath[:strings.Index(canonPath, "/")]
+    for prefix, pkgName := range ml.modulePrefixMap {
+        if firstSeg == prefix {
+            canonImport := pkgName + strings.TrimPrefix(canonPath, prefix)
+            resolvedPath, _ := ml.pkgLoader.ResolveImport(canonImport)
+            // ...
+        }
+    }
+}
+```
+
 ---
 
 ## Testing Plan
@@ -173,6 +199,11 @@ The "module not found" error already lists candidates. With the fix, it will sho
 3. **Prefix with src/**: File at `src/docparse/types/document.ail` — resolves via candidate 3
 4. **Self-reference with prefix**: Intra-package import with module_prefix works
 5. **Root module (core.ail)**: `pkg/vendor/name` still resolves to `core.ail` regardless of prefix
+
+### Unit Tests (`internal/loader/loader_test.go`)
+
+6. **Bare prefix import**: Bare `docparse/types/document` resolves via prefix map + PackageResolver
+7. **Non-matching fallback**: Bare import not matching any prefix falls through to project-relative
 
 ### Integration Test (`examples/` or `tests/`)
 
@@ -193,8 +224,11 @@ Create a minimal test package with `module_prefix` and verify round-trip:
 | File | Change |
 |------|--------|
 | `internal/pkg/loader.go` | Add prefix-based candidates to `ResolveImport()` |
-| `internal/pkg/loader_test.go` | Add tests for prefix resolution |
-| `CHANGELOG.md` | Document the fix |
+| `internal/pkg/loader_test.go` | Add tests for prefix resolution (4 tests) |
+| `internal/loader/loader.go` | Add `modulePrefixMap` field, `SetModulePrefixMap()`, prefix resolution in `Load()` |
+| `internal/loader/loader_test.go` | Add tests for bare prefix import resolution (2 tests) |
+| `internal/pipeline/pipeline_module.go` | Wire `currentModulePrefixMap` to module loader |
+| `CHANGELOG.md` | Document both fixes |
 
 ---
 

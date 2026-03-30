@@ -22,10 +22,11 @@ import (
 // ModuleLoader loads and caches modules
 type ModuleLoader struct {
 	cache            map[string]*LoadedModule
-	basePath         string          // Base directory for relative imports
-	strictSyntaxMode bool            // When true, syntactic sugar is not allowed
-	stdlibResolver   *StdlibResolver // Stdlib path resolver (initialized lazily)
-	pkgLoader        PackageResolver // Optional package loader for pkg/ imports
+	basePath         string            // Base directory for relative imports
+	strictSyntaxMode bool              // When true, syntactic sugar is not allowed
+	stdlibResolver   *StdlibResolver   // Stdlib path resolver (initialized lazily)
+	pkgLoader        PackageResolver   // Optional package loader for pkg/ imports
+	modulePrefixMap  map[string]string // module_prefix → package name (e.g., "docparse" → "sunholo/ailang_parse")
 }
 
 // PackageResolver resolves package imports to source file paths.
@@ -64,6 +65,17 @@ func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 // SetPackageResolver sets the resolver for pkg/ imports.
 func (ml *ModuleLoader) SetPackageResolver(resolver PackageResolver) {
 	ml.pkgLoader = resolver
+}
+
+// SetModulePrefixMap sets the module_prefix → package name mapping.
+// Input is pkgName → prefix (as built by the pipeline); this method inverts it
+// to prefix → pkgName for fast lookup during bare import resolution.
+// e.g., input {"sunholo/ailang_parse": "docparse"} → stored {"docparse": "sunholo/ailang_parse"}
+func (ml *ModuleLoader) SetModulePrefixMap(prefixMap map[string]string) {
+	ml.modulePrefixMap = make(map[string]string, len(prefixMap))
+	for pkgName, prefix := range prefixMap {
+		ml.modulePrefixMap[prefix] = pkgName
+	}
 }
 
 // ConfigureStdlibResolver configures the stdlib resolver with CLI flags
@@ -173,6 +185,35 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		// Absolute path
 		searchTrace = append(searchTrace, "absolute: "+canonPath)
 		fullPath = canonPath
+	} else if ml.pkgLoader != nil && ml.modulePrefixMap != nil {
+		// Try module_prefix resolution: bare imports like "docparse/types/document"
+		// may be intra-package imports where "docparse" is a module_prefix.
+		// Remap to canonical pkg/ path and resolve via the package loader.
+		resolved := false
+		firstSeg := canonPath
+		if idx := strings.Index(canonPath, "/"); idx >= 0 {
+			firstSeg = canonPath[:idx]
+		}
+		for prefix, pkgName := range ml.modulePrefixMap {
+			if firstSeg == prefix {
+				// Remap: "docparse/types/document" → "sunholo/ailang_parse/types/document"
+				canonImport := pkgName + strings.TrimPrefix(canonPath, prefix)
+				resolvedPath, err := ml.pkgLoader.ResolveImport(canonImport)
+				if err == nil {
+					fullPath = resolvedPath
+					searchTrace = append(searchTrace, "prefix("+prefix+"→"+pkgName+"): "+resolvedPath)
+					resolved = true
+					break
+				}
+				searchTrace = append(searchTrace, "prefix("+prefix+"→"+pkgName+"): failed: "+err.Error())
+			}
+		}
+		if !resolved {
+			// Fall through to project-relative
+			projPath := filepath.Join(ml.basePath, canonPath) + ".ail"
+			searchTrace = append(searchTrace, "project: "+projPath)
+			fullPath = projPath
+		}
 	} else {
 		// Project-relative - join with basePath for absolute resolution
 		projPath := filepath.Join(ml.basePath, canonPath) + ".ail"

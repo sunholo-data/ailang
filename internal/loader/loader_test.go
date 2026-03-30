@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -184,6 +185,80 @@ func TestCanonicalModuleID(t *testing.T) {
 				t.Errorf("CanonicalModuleID(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+// mockPkgResolver implements PackageResolver for testing prefix resolution.
+type mockPkgResolver struct {
+	files map[string]string // canonical import path → absolute file path
+}
+
+func (m *mockPkgResolver) ResolveImport(importPath string) (string, error) {
+	if path, ok := m.files[importPath]; ok {
+		return path, nil
+	}
+	return "", fmt.Errorf("not found: %s", importPath)
+}
+
+func TestLoad_ModulePrefixBareImport(t *testing.T) {
+	// Simulate: package sunholo/ailang_parse with module_prefix="docparse"
+	// A file inside the package has "import docparse/types/document"
+	// The loader should resolve this via the prefix map.
+	tmpDir := t.TempDir()
+
+	// Create the target file that the bare import should resolve to
+	docFile := filepath.Join(tmpDir, "docparse", "types", "document.ail")
+	os.MkdirAll(filepath.Dir(docFile), 0755)
+	os.WriteFile(docFile, []byte("module docparse/types/document\nexport func newDoc() = \"doc\"\n"), 0644)
+
+	ml := NewModuleLoader(t.TempDir()) // consumer's basePath (different dir)
+
+	resolver := &mockPkgResolver{
+		files: map[string]string{
+			"sunholo/ailang_parse/types/document": docFile,
+		},
+	}
+	ml.SetPackageResolver(resolver)
+	ml.SetModulePrefixMap(map[string]string{
+		"sunholo/ailang_parse": "docparse",
+	})
+
+	// Load bare import "docparse/types/document" — should resolve via prefix
+	loaded, err := ml.Load("docparse/types/document")
+	if err != nil {
+		t.Fatalf("expected prefix resolution to succeed, got: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("expected non-nil LoadedModule")
+	}
+	if _, ok := loaded.Exports["newDoc"]; !ok {
+		t.Error("expected 'newDoc' in exports")
+	}
+}
+
+func TestLoad_ModulePrefixFallsBackToProjectRelative(t *testing.T) {
+	// When prefix map is set but the import doesn't match any prefix,
+	// it should fall through to project-relative resolution.
+	tmpDir := t.TempDir()
+
+	// Create a project-relative file
+	localFile := filepath.Join(tmpDir, "utils", "helpers.ail")
+	os.MkdirAll(filepath.Dir(localFile), 0755)
+	os.WriteFile(localFile, []byte("module utils/helpers\nexport func help() = \"ok\"\n"), 0644)
+
+	ml := NewModuleLoader(tmpDir)
+	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{}})
+	ml.SetModulePrefixMap(map[string]string{
+		"sunholo/ailang_parse": "docparse",
+	})
+
+	// "utils/helpers" doesn't match "docparse" prefix — should fall through
+	loaded, err := ml.Load("utils/helpers")
+	if err != nil {
+		t.Fatalf("expected project-relative fallback, got: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("expected non-nil LoadedModule")
 	}
 }
 

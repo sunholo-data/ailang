@@ -86,6 +86,11 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// Wire up package loader if ailang.toml + ailang.lock exist
 	if pkgResolver := tryLoadPackageResolver("."); pkgResolver != nil {
 		modLoader.SetPackageResolver(pkgResolver)
+		// Pass module_prefix map so bare imports within packages resolve correctly
+		// e.g., "docparse/types/document" → "pkg/sunholo/ailang_parse/types/document"
+		if len(currentModulePrefixMap) > 0 {
+			modLoader.SetModulePrefixMap(currentModulePrefixMap)
+		}
 	}
 
 	modules, err := modLoader.LoadAll([]string{src.Filename})
