@@ -59,9 +59,14 @@ _float_to_int : float -> int
 _fs_appendFile : (string, string) -> () ! {FS}
 _fs_appendFileBytes : (string, bytes) -> () ! {FS}
 _fs_exists : string -> bool ! {FS}
+_fs_isDir : string -> bool ! {FS}
+_fs_isFile : string -> bool ! {FS}
 _fs_listDir : string -> list[string] ! {FS}
+_fs_mkdir : string -> () ! {FS}
+_fs_mkdirAll : string -> () ! {FS}
 _fs_readFile : string -> string ! {FS}
 _fs_readFileBytes : string -> Result[string, string] ! {FS}
+_fs_removeFile : string -> () ! {FS}
 _fs_writeFile : (string, string) -> () ! {FS}
 _fs_writeFileBytes : (string, bytes) -> () ! {FS}
 _game_delta_time : () -> float ! {Clock}
@@ -148,6 +153,7 @@ _str_foldChars : ((a, string) -> a, a, string) -> a
 _str_join : (list[string], string) -> string
 _str_len : string -> int
 _str_lower : string -> string
+_str_replace : (string, string, string) -> string
 _str_slice : (string, int, int) -> string
 _str_split : (string, string) -> list[string]
 _str_splitAny : (string, list[string]) -> list[string]

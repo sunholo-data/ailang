@@ -1,0 +1,31 @@
+-- directory_ops.ail - Demonstrates mkdir, mkdirAll, isDir, isFile, removeFile
+-- Shows filesystem directory operations with the FS effect
+module examples/runnable/directory_ops
+
+import std/fs (mkdir, mkdirAll, isDir, isFile, fileExists, writeFile, removeFile)
+import std/io (println)
+
+export func main() -> () ! {IO, FS} {
+  let base = "/tmp/ailang_dir_test";
+
+  -- Create nested directory tree (like mkdir -p)
+  let _ = mkdirAll(base ++ "/a/b/c");
+  println("Created: " ++ base ++ "/a/b/c");
+
+  -- Check directory vs file
+  let _ = println("isDir(base): " ++ show(isDir(base)));
+  let _ = println("isFile(base): " ++ show(isFile(base)));
+
+  -- Write a file and check again
+  let _ = writeFile(base ++ "/hello.txt", "Hello from AILANG!");
+  let _ = println("isFile(hello.txt): " ++ show(isFile(base ++ "/hello.txt")));
+  let _ = println("isDir(hello.txt): " ++ show(isDir(base ++ "/hello.txt")));
+
+  -- Check existence
+  let _ = println("exists(base): " ++ show(fileExists(base)));
+  let _ = println("exists(nope): " ++ show(fileExists(base ++ "/nope")));
+
+  -- Clean up file
+  let _ = removeFile(base ++ "/hello.txt");
+  println("Removed hello.txt, exists: " ++ show(fileExists(base ++ "/hello.txt")))
+}

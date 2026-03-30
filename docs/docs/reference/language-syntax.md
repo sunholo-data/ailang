@@ -282,7 +282,7 @@ ailang run --caps IO,FS,Clock,Net --entry processData demo.ail
 | Effect | Builtins | Description |
 |--------|----------|-------------|
 | **IO** | `println`, `print`, `readLine` | Console I/O |
-| **FS** | `readFile`, `writeFile`, `exists` | File system access |
+| **FS** | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile` | File system access |
 | **Clock** | `now`, `sleep` | Time operations (monotonic, deterministic mode available) |
 | **Net** | `httpGet`, `httpPost` | HTTP requests with security (DNS rebinding prevention, IP blocking) |
 

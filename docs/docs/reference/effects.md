@@ -93,7 +93,13 @@ func copyFile(src: string, dst: string) -> () ! {FS} {
 |----------|------|-------------|
 | `readFile` | `string -> string ! {FS}` | Read file contents |
 | `writeFile` | `(string, string) -> () ! {FS}` | Write content to file |
-| `exists` | `string -> bool ! {FS}` | Check if file exists |
+| `fileExists` | `string -> bool ! {FS}` | Check if file exists |
+| `listDir` | `string -> [string] ! {FS}` | List directory entries (sorted) |
+| `mkdir` | `string -> () ! {FS}` | Create a single directory |
+| `mkdirAll` | `string -> () ! {FS}` | Create directory tree (mkdir -p) |
+| `isDir` | `string -> bool ! {FS}` | Check if path is a directory |
+| `isFile` | `string -> bool ! {FS}` | Check if path is a regular file |
+| `removeFile` | `string -> () ! {FS}` | Remove file or empty directory |
 | `_zip_listEntries` | `string -> Result[List[string], string] ! {FS}` | List ZIP archive entries |
 | `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read text entry from ZIP |
 | `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read binary entry from ZIP (base64) |

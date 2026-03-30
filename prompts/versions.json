@@ -506,7 +506,7 @@
     },
     "v0.9.0": {
       "file": "prompts/v0.9.0.md",
-      "hash": "c712e687b72a775a9c992474c4e876e7fbf91ff9b8e24369cd84d8810f5ef922",
+      "hash": "1baeddb58d11775085e86d6132202460c03d27997c9ac590b23f1ae0d4fe12f2",
       "description": "Streaming v0.9.0 + registry workflow (search, install, publish, pkg-docs)",
       "created": "2026-03-08",
       "tags": [

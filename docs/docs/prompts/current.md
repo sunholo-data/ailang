@@ -451,7 +451,7 @@ export func main() -> () ! {IO} { println("hi") }
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile`, `_zip_*` | `std/fs`, `std/zip` |
+| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr` | `std/env` |
 | `AI` | `call`, `callJson`, `callJsonSimple` | `std/ai` |
@@ -504,7 +504,7 @@ func handleRequest(path: string) -> Response ! {Net} {
 **Common imports:**
 ```ailang
 import std/io (println, readLine)
-import std/fs (readFile, writeFile)
+import std/fs (readFile, writeFile, fileExists, listDir, mkdir, mkdirAll, isDir, isFile, removeFile)
 import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)

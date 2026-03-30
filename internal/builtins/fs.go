@@ -279,4 +279,161 @@ func registerFS() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to register _fs_listDir: %v", err))
 	}
+
+	// _fs_mkdir
+	implMkdir := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "mkdir", args)
+	}
+	typeMkdir := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_mkdir", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeMkdir, Impl: implMkdir,
+		Metadata: &BuiltinMetadata{
+			Description: "Create a single directory (parent must exist)",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Directory path to create"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_mkdir("/tmp/mydir")`, Description: "Creates /tmp/mydir directory"},
+			},
+			LongDesc:  "Creates a single directory. Parent directories must already exist. Use _fs_mkdirAll for recursive creation. Directory permissions: 0755. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_mkdirAll", "_fs_exists", "_fs_isDir"},
+			Since:     "v0.9.13",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "create", "mkdir"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_mkdir: %v", err))
+	}
+
+	// _fs_mkdirAll
+	implMkdirAll := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "mkdirAll", args)
+	}
+	typeMkdirAll := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_mkdirAll", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeMkdirAll, Impl: implMkdirAll,
+		Metadata: &BuiltinMetadata{
+			Description: "Create a directory and all parent directories (mkdir -p)",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Directory path to create (including parents)"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_mkdirAll("/tmp/a/b/c")`, Description: "Creates /tmp/a/b/c and any missing parents"},
+			},
+			LongDesc:  "Creates a directory tree recursively, like mkdir -p. No error if directory already exists. Directory permissions: 0755. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_mkdir", "_fs_exists", "_fs_isDir"},
+			Since:     "v0.9.13",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "create", "mkdir", "recursive"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_mkdirAll: %v", err))
+	}
+
+	// _fs_isDir
+	implIsDir := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "isDir", args)
+	}
+	typeIsDir := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Bool()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_isDir", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeIsDir, Impl: implIsDir,
+		Metadata: &BuiltinMetadata{
+			Description: "Check if path is a directory",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to check"},
+			},
+			Returns: "True if path exists and is a directory, false otherwise",
+			Examples: []Example{
+				{Code: `_fs_isDir("/tmp")`, Description: "Returns true"},
+				{Code: `_fs_isDir("/tmp/somefile.txt")`, Description: "Returns false (it's a file)"},
+			},
+			LongDesc:  "Returns false for non-existent paths (no error). Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_isFile", "_fs_exists"},
+			Since:     "v0.9.13",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "directory", "check", "stat"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_isDir: %v", err))
+	}
+
+	// _fs_isFile
+	implIsFile := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "isFile", args)
+	}
+	typeIsFile := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Bool()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_isFile", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeIsFile, Impl: implIsFile,
+		Metadata: &BuiltinMetadata{
+			Description: "Check if path is a regular file",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to check"},
+			},
+			Returns: "True if path exists and is a regular file, false otherwise",
+			Examples: []Example{
+				{Code: `_fs_isFile("config.yaml")`, Description: "Returns true if config.yaml is a file"},
+				{Code: `_fs_isFile("/tmp")`, Description: "Returns false (it's a directory)"},
+			},
+			LongDesc:  "Returns false for non-existent paths, directories, symlinks, etc. (no error). Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_isDir", "_fs_exists"},
+			Since:     "v0.9.13",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "check", "stat"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_isFile: %v", err))
+	}
+
+	// _fs_removeFile
+	implRemoveFile := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "FS", "removeFile", args)
+	}
+	typeRemoveFile := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.String()).Returns(T.Unit()).Effects("FS")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/fs", Name: "_fs_removeFile", NumArgs: 1, IsPure: false, Effect: "FS", Type: typeRemoveFile, Impl: implRemoveFile,
+		Metadata: &BuiltinMetadata{
+			Description: "Remove a file or empty directory",
+			Params: []ParamDoc{
+				{Name: "path", Description: "Path to remove"},
+			},
+			Returns: "Unit (no return value)",
+			Examples: []Example{
+				{Code: `_fs_removeFile("/tmp/old.txt")`, Description: "Deletes old.txt"},
+			},
+			LongDesc:  "Removes a single file or empty directory. Fails if directory is not empty. Respects AILANG_FS_SANDBOX.",
+			SeeAlso:   []string{"_fs_exists", "_fs_writeFile"},
+			Since:     "v0.9.13",
+			Stability: StabilityStable,
+			Tags:      []string{"fs", "file", "delete", "remove"},
+			Category:  "fs",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _fs_removeFile: %v", err))
+	}
 }

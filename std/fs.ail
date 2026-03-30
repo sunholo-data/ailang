@@ -66,3 +66,34 @@ export func fileExists(path: string) -> bool ! {FS} = _fs_exists(path)
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func listDir(path: string) -> [string] ! {FS} = _fs_listDir(path)
+
+-- Create a single directory (parent must exist)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0755 (owner: rwx, group: rx, others: rx)
+export func mkdir(path: string) -> () ! {FS} = _fs_mkdir(path)
+
+-- Create a directory and all parent directories (mkdir -p)
+-- No error if directory already exists
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+-- @permissions 0755 (owner: rwx, group: rx, others: rx)
+export func mkdirAll(path: string) -> () ! {FS} = _fs_mkdirAll(path)
+
+-- Check if path is a directory
+-- Returns false for non-existent paths (no error)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func isDir(path: string) -> bool ! {FS} = _fs_isDir(path)
+
+-- Check if path is a regular file
+-- Returns false for non-existent paths, directories, symlinks (no error)
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func isFile(path: string) -> bool ! {FS} = _fs_isFile(path)
+
+-- Remove a file or empty directory
+-- Fails if directory is not empty
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func removeFile(path: string) -> () ! {FS} = _fs_removeFile(path)
