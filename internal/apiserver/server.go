@@ -229,6 +229,14 @@ func (s *Server) LoadModules(paths []string) error {
 	s.mu.RUnlock()
 
 	for _, modPath := range modPaths {
+		// Skip eager loading for package dependency modules. These are
+		// already preloaded into the engine's loader cache by loadFile()
+		// via PreloadModule(). Re-running compileModule() for pkg/ paths
+		// can overwrite the preloaded cache entries with modules compiled
+		// from a different basePath, corrupting the canonical paths.
+		if strings.HasPrefix(modPath, "pkg/") {
+			continue
+		}
 		if err := s.engine.Load(modPath); err != nil {
 			log.Printf("  Warning: eager load failed for %s: %v", modPath, err)
 		}

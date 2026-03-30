@@ -737,3 +737,35 @@ func TestFindRouteByPath(t *testing.T) {
 		t.Errorf("expected nil for non-existent route, got %+v", route)
 	}
 }
+
+// TestRegisterCustomRoutes_NoDuplicatePanic verifies that duplicate route paths
+// from multiple modules don't panic Go 1.22+ ServeMux.
+func TestRegisterCustomRoutes_NoDuplicatePanic(t *testing.T) {
+	srv := &Server{
+		modules: map[string]*ModuleInfo{
+			"pkg/owner/repo/tools": {
+				Path: "pkg/owner/repo/tools",
+				Exports: []ExportInfo{
+					{Name: "list", RouteMethod: "GET", RoutePath: "/api/v1/tools"},
+				},
+			},
+			"local/tools": {
+				Path: "local/tools",
+				Exports: []ExportInfo{
+					{Name: "list", RouteMethod: "GET", RoutePath: "/api/v1/tools"},
+				},
+			},
+		},
+	}
+
+	mux := http.NewServeMux()
+	builtinPaths := map[string]bool{}
+
+	// Should not panic — duplicate route should be skipped
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("registerCustomRoutes panicked on duplicate route: %v", r)
+		}
+	}()
+	srv.registerCustomRoutes(mux, builtinPaths)
+}

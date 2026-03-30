@@ -225,9 +225,14 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 // (Go 1.22+ ServeMux panics on duplicate patterns).
 func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[string]bool) {
 	routes := s.getCustomRoutes()
+	registered := map[string]bool{} // track registered paths to avoid Go 1.22+ duplicate panics
 	for _, route := range routes {
 		if builtinPaths[route.Path] {
 			log.Printf("  WARNING: @route %s %s collides with built-in route, skipping (use built-in handler instead)", route.Method, route.Path)
+			continue
+		}
+		if registered[route.Path] {
+			log.Printf("  WARNING: @route %s %s already registered, skipping duplicate from %s", route.Method, route.Path, route.Module)
 			continue
 		}
 		r := route // capture for closure
@@ -242,6 +247,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
+		registered[route.Path] = true
 		log.Printf("  Custom route: %s %s -> %s/%s", r.Method, r.Path, r.Module, r.Function)
 	}
 }
