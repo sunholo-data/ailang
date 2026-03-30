@@ -11,6 +11,39 @@ import (
 
 // normalizeFuncCall handles function application
 func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error) {
+	// Check if this is the :: (cons) operator used as an expression.
+	// The parser desugars x :: xs to FuncCall{"::", [x, xs]}.
+	// If :: is registered in globalEnv (via AddBuiltinsToGlobalEnv), route
+	// it to the builtin via VarGlobal. Otherwise fall through to general path.
+	if ident, ok := app.Func.(*ast.Identifier); ok && ident.Name == "::" {
+		if ref, found := e.globalEnv["::"]; found {
+			var allBindings []binding
+			var atomicArgs []core.CoreExpr
+
+			for _, arg := range app.Args {
+				atomic, binds, err := e.normalizeToAtomic(arg)
+				if err != nil {
+					return nil, err
+				}
+				atomicArgs = append(atomicArgs, atomic)
+				allBindings = append(allBindings, binds...)
+			}
+
+			consRef := &core.VarGlobal{
+				CoreNode: e.makeNode(app.Position()),
+				Ref:      ref,
+			}
+
+			result := &core.App{
+				CoreNode: e.makeNode(app.Position()),
+				Func:     consRef,
+				Args:     atomicArgs,
+			}
+
+			return e.wrapWithBindings(result, allBindings), nil
+		}
+	}
+
 	// Check if this is a constructor call
 	if ident, ok := app.Func.(*ast.Identifier); ok {
 		if ctorInfo, isConstructor := e.constructors[ident.Name]; isConstructor {

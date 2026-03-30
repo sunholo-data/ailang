@@ -1,0 +1,81 @@
+// Cons (::) in expression position — building lists by prepending
+//
+// The :: operator prepends an element to a list. It is right-associative,
+// so `1 :: 2 :: 3 :: []` builds [1, 2, 3] from right to left.
+//
+// This complements :: in pattern position (see list_pattern_cons.ail).
+//
+// Expression syntax:
+//   x :: xs          -- prepend x to list xs
+//   1 :: 2 :: []     -- chained cons (right-associative)
+//
+// Type: (a, [a]) -> [a]
+
+module examples/runnable/cons_expression
+
+import std/io (println)
+
+// Basic prepend
+pure func prepend(x: int, xs: [int]) -> [int]
+  tests [
+    ((1, [2, 3]), [1, 2, 3]),
+    ((0, []), [0])
+  ]
+{
+  x :: xs
+}
+
+// Build a list with chained cons
+pure func buildList() -> [int]
+  tests [
+    ((), [1, 2, 3])
+  ]
+{
+  1 :: 2 :: 3 :: []
+}
+
+// Cons in conditional branches
+pure func maybeAdd(x: int, xs: [int]) -> [int]
+  tests [
+    ((5, [1, 2]), [5, 1, 2]),
+    ((-1, [1, 2]), [1, 2])
+  ]
+{
+  if x > 0 then x :: xs else xs
+}
+
+// Cons with match — deconstruct and reconstruct
+pure func duplicate_head(xs: [int]) -> [int]
+  tests [
+    ([1, 2, 3], [1, 1, 2, 3]),
+    ([], [])
+  ]
+{
+  match xs {
+    [] => [],
+    x :: rest => x :: x :: rest
+  }
+}
+
+// String list cons
+pure func greet(name: string) -> [string]
+  tests [
+    ("Alice", ["Hello", "Alice"])
+  ]
+{
+  "Hello" :: name :: []
+}
+
+export func main() -> () ! {IO} {
+  println("=== Cons (::) Expression Examples ===");
+  println("");
+
+  println("prepend(1, [2, 3]) = " ++ show(prepend(1, [2, 3])));
+  println("buildList() = " ++ show(buildList()));
+  println("maybeAdd(5, [1, 2]) = " ++ show(maybeAdd(5, [1, 2])));
+  println("maybeAdd(-1, [1, 2]) = " ++ show(maybeAdd(-1, [1, 2])));
+  println("duplicate_head([1, 2, 3]) = " ++ show(duplicate_head([1, 2, 3])));
+  println("greet(\"Alice\") = " ++ show(greet("Alice")));
+
+  ()
+}

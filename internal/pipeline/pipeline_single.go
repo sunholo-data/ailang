@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo/ailang/internal/elaborate"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo/ailang/internal/link"
 	"github.com/sunholo/ailang/internal/linked"
 	"github.com/sunholo/ailang/internal/parser"
 	"github.com/sunholo/ailang/internal/telemetry"
@@ -206,6 +207,19 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	typeChecker.EnableTraceDefaulting(cfg.TraceDefaulting)
 	if cfg.TrackInstantiations {
 		typeChecker.EnableInstantiationTracking()
+	}
+
+	// Register builtin global types so VarGlobal references (e.g., $builtin.::)
+	// resolve during type checking. The module pipeline does this via moduleImports,
+	// but runSingle needs it too for expressions using builtins like cons (::).
+	modLinker := link.NewModuleLinker(nil)
+	link.RegisterBuiltinModule(modLinker)
+	if builtinIface := modLinker.GetIface("$builtin"); builtinIface != nil {
+		for name, item := range builtinIface.Exports {
+			key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
+			typeChecker.SetGlobalType(key, item.Type)
+			typeChecker.SetGlobalType(name, item.Type)
+		}
 	}
 
 	// M-DX11: Set up debug sink if enabled

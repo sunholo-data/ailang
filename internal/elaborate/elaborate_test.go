@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/lexer"
 	"github.com/sunholo/ailang/internal/parser"
 )
@@ -63,6 +64,31 @@ func TestElaborateSimple(t *testing.T) {
 		{
 			name:        "curried function",
 			input:       `\x y. x + y`,
+			expectError: false,
+		},
+		{
+			name:        "cons expression basic",
+			input:       `1 :: [2, 3]`,
+			expectError: false,
+		},
+		{
+			name:        "cons expression chained",
+			input:       `1 :: 2 :: 3 :: []`,
+			expectError: false,
+		},
+		{
+			name:        "cons in let binding",
+			input:       `let xs = 1 :: [2, 3] in xs`,
+			expectError: false,
+		},
+		{
+			name:        "cons as function argument",
+			input:       `(\xs. xs)(1 :: [2, 3])`,
+			expectError: false,
+		},
+		{
+			name:        "cons in if branch",
+			input:       `if true then 1 :: [] else []`,
 			expectError: false,
 		},
 	}
@@ -354,6 +380,64 @@ func containsHelper(s, substr string) bool {
 		if s[i:i+len(substr)] == substr {
 			return true
 		}
+	}
+	return false
+}
+
+// TestConsExpressionElaboratesToVarGlobal verifies that :: in expression position
+// elaborates to a core.App with VarGlobal referencing the $builtin cons function
+// when builtins are registered in the global environment.
+func TestConsExpressionElaboratesToVarGlobal(t *testing.T) {
+	input := `1 :: [2, 3]`
+
+	l := lexer.New(input, "test.ail")
+	p := parser.New(l)
+	prog := p.Parse()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parse errors: %v", p.Errors())
+	}
+
+	elab := NewElaborator()
+	elab.AddBuiltinsToGlobalEnv() // Register :: in globalEnv
+	coreProg, err := elab.Elaborate(prog)
+	if err != nil {
+		t.Fatalf("elaboration error: %v", err)
+	}
+
+	// Walk the core tree to find VarGlobal with Name "::"
+	found := findVarGlobal(coreProg.Decls[0], "::")
+	if !found {
+		t.Errorf("expected VarGlobal with Name \"::\" in elaborated output, but not found")
+	}
+}
+
+// findVarGlobal recursively checks if any node in the Core tree is a VarGlobal with the given name
+func findVarGlobal(expr interface{}, name string) bool {
+	switch e := expr.(type) {
+	case *core.App:
+		if findVarGlobal(e.Func, name) {
+			return true
+		}
+		for _, arg := range e.Args {
+			if findVarGlobal(arg, name) {
+				return true
+			}
+		}
+	case *core.VarGlobal:
+		return e.Ref.Name == name
+	case *core.Let:
+		if findVarGlobal(e.Value, name) {
+			return true
+		}
+		return findVarGlobal(e.Body, name)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			if findVarGlobal(b.Value, name) {
+				return true
+			}
+		}
+		return findVarGlobal(e.Body, name)
 	}
 	return false
 }

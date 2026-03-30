@@ -662,6 +662,17 @@
       "skip_reason": "DO NOT UNCOMMENT - documents parser loop bug. See M-PARSER-LOOP design doc."
     },
     {
+      "path": "cons_expression.ail",
+      "status": "working",
+      "tags": [
+        "list",
+        "data-structures",
+        "cons",
+        "expression"
+      ],
+      "description": "Cons (::) in expression position — building lists by prepending"
+    },
+    {
       "path": "list_pattern_cons.ail",
       "status": "working",
       "tags": [

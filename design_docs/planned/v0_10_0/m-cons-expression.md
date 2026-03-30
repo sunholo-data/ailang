@@ -22,7 +22,7 @@
 | A6: Safe Concurrency | 0 | Immutable list construction |
 | A7: Machines First | +1 | AI agents already attempt `x :: xs` (ML/Haskell muscle memory); currently fails, wasting tokens on workarounds |
 | A8: Minimal Syntax | 0 | `::` token already exists; no new syntax, just enabling it in expression position |
-| A9: Cost Visibility | 0 | O(n) copy is the same cost as `[x] ++ xs` |
+| A9: Cost Visibility | 0 | `::` has the semantic meaning of prepend. In the current runtime, prepend may still lower to copy-backed list construction (same cost as `[x] ++ xs`). Runtime optimization of prepend cost is a separate concern. |
 | A10: Composability | +1 | Right-associative chaining `1 :: 2 :: 3 :: []` composes naturally |
 | A11: Structured Failure | 0 | Type errors remain typed |
 | A12: System Boundary | 0 | No boundary crossings |
@@ -89,6 +89,33 @@ Before implementation begins, these must be resolved:
 The parser already handles `::` correctly -- `parseConsExpression` desugars `x :: xs` to `FuncCall{Func: Identifier{"::"}, Args: [x, xs]}`. The problem is in the elaborator: `normalizeFuncCall` does not recognize `::` as a known function, so it falls through to local variable resolution, producing `core.Var{Name: "::"}` which is unresolvable.
 
 The fix: add a special case in `normalizeFuncCall` (or in `normalize` for identifiers) that recognizes `::` and emits a `core.App` calling the `::` builtin via `core.VarGlobal`.
+
+### Operator Identity
+
+In source, `::` is an **infix expression operator** (right-associative).
+In elaborated core, it lowers to the existing `std/list` cons builtin.
+It is **not** yet guaranteed to be usable as an ordinary first-class function value (e.g., `let f = (::)` or `map(::, xss)` are not required to work).
+
+**Associativity guarantee:**
+```
+1 :: 2 :: 3 :: []  ≡  1 :: (2 :: (3 :: []))
+```
+This is a parser-level guarantee and must be directly tested.
+
+### Expression Context Coverage
+
+The elaborator fix must handle `::` in **all** expression contexts, not only top-level `let` bindings. The parser produces the same `FuncCall{"::", ...}` shape in every position, but the implementer must verify:
+- Nested cons chains (`1 :: 2 :: 3 :: []`)
+- Cons inside lambdas (`\x -> x :: xs`)
+- Cons inside let-bindings (`let ys = x :: xs in ...`)
+- Cons as arguments to other functions (`f(x :: xs)`)
+- Cons under if/match branches (`if p then x :: xs else []`)
+
+If all of these go through the same `FuncCall{"::", ...}` parse path (expected), then the single elaborator patch is sufficient. If not, `::` should be treated as a reserved expression-form operator that elaborates uniformly to the `std/list` cons builtin regardless of parse path.
+
+### First-Class Function Access
+
+Users cannot currently write `std/list.::` or `let f = (::)` to obtain `::` as a first-class function value. This is a known limitation and is deferred to future work.
 
 ### Architecture
 
@@ -187,8 +214,12 @@ func duplicate_head(xs: [int]) -> [int] {
 
 - [ ] `1 :: [2, 3]` evaluates to `[1, 2, 3]`
 - [ ] `1 :: 2 :: 3 :: []` evaluates to `[1, 2, 3]` (right-associative)
+- [ ] `::` preserves right associativity in expression position
+- [ ] `x :: xs` works in all expression contexts (lambdas, let-bindings, function args, if/match branches), not only top-level lets
 - [ ] `f(x) :: map(f, rest)` works in recursive context
 - [ ] Type error on `1 :: 2` (second arg not a list)
+- [ ] REPL and file pipeline behave identically
+- [ ] Existing pattern `::` behavior is unchanged
 - [ ] All existing tests pass (`make test`)
 - [ ] `make verify-examples` passes
 - [ ] Documentation updated (CHANGELOG, example file)
@@ -203,6 +234,9 @@ func duplicate_head(xs: [int]) -> [int] {
 - End-to-end: `.ail` file with `::` expressions, checked via `ailang run`
 - Type checking: verify `(a, [a]) -> [a]` is inferred
 - Error case: second argument not a list
+- Right associativity: `1 :: 2 :: 3 :: []` parses as `1 :: (2 :: (3 :: []))`
+- Expression contexts: cons inside lambdas, let-bindings, function args, if/match branches
+- REPL parity: same results in REPL and file pipeline
 
 **Manual testing:**
 - REPL: `1 :: [2, 3]` in interactive mode
@@ -218,6 +252,9 @@ The following are intentionally left open for the implementer:
 ## Non-Goals
 
 **Not attempted in this feature:**
+- Changing list runtime representation to cons cells - Lists remain slice-backed; `::` is an ergonomic fix, not a runtime optimization
+- Guaranteeing O(1) prepend in the current evaluator - Prepend may still copy; runtime optimization is separate
+- Making `::` first-class for partial application - `let f = (::)` or `map(::, xss)` are deferred
 - Lazy cons / stream construction - Out of scope; AILANG lists are strict
 - `snoc` operator (append to end) - Different semantics, different design
 - Custom infix operator framework - `::` is special-cased, not a general mechanism
@@ -267,4 +304,4 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-03-30
-**Last updated**: 2026-03-30
+**Last updated**: 2026-03-30 (incorporated review feedback: cost semantics, operator identity, expression context coverage, associativity guarantee)
