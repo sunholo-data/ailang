@@ -75,18 +75,27 @@ func (pl *PackageLoader) ResolveImport(importPath string) (string, error) {
 		modulePath = parts[2] + ".ail"
 	}
 
-	// If package has module_prefix, also try prefix-based file names.
-	// The source file might declare "module docparse/services/api" (using the prefix)
-	// but we're importing "pkg/sunholo/docparse/services/api" (canonical path).
-	// The file on disk is named "services/api.ail" which matches either way,
-	// but we need to check it with the remapped module declaration for visibility.
+	// If package has module_prefix, also try prefix-based file paths.
+	// e.g., import "pkg/sunholo/ailang_parse/types/document" with module_prefix="docparse"
+	//   → parts[2] = "types/document" → modulePath = "types/document.ail"
+	//   → but the file is at "docparse/types/document.ail"
+	// Use MapImportToModulePath to construct the prefix-based path.
 	manifest, _ := pl.loadManifest(pkgName, pkgDir)
-	_ = manifest // used below for prefix-aware file lookup
 
 	// Try src/ subdirectory first, then root
 	candidates := []string{
 		filepath.Join(pkgDir, "src", modulePath),
 		filepath.Join(pkgDir, modulePath),
+	}
+
+	// Add prefix-based candidates if module_prefix is set
+	if manifest != nil && manifest.Package.ModulePrefix != "" && len(parts) == 3 {
+		remapped := manifest.MapImportToModulePath(importPath)
+		prefixModulePath := remapped + ".ail"
+		candidates = append(candidates,
+			filepath.Join(pkgDir, "src", prefixModulePath),
+			filepath.Join(pkgDir, prefixModulePath),
+		)
 	}
 
 	for _, candidate := range candidates {

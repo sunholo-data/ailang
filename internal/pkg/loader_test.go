@@ -42,6 +42,42 @@ modules = [` + exportsStr + `]
 	return dir
 }
 
+func setupTestPackageWithPrefix(t *testing.T, root, name, prefix string, exports []string, files map[string]string) string {
+	t.Helper()
+	dir := filepath.Join(root, strings.ReplaceAll(name, "/", "_"))
+	os.MkdirAll(filepath.Join(dir, "src"), 0755)
+
+	// Write manifest with module_prefix
+	exportsStr := ""
+	if len(exports) > 0 {
+		quoted := make([]string, len(exports))
+		for i, e := range exports {
+			quoted[i] = `"` + e + `"`
+		}
+		exportsStr = strings.Join(quoted, ", ")
+	}
+
+	manifest := `[package]
+name = "` + name + `"
+version = "0.1.0"
+edition = "1"
+module_prefix = "` + prefix + `"
+
+[exports]
+modules = [` + exportsStr + `]
+`
+	os.WriteFile(filepath.Join(dir, ManifestFile), []byte(manifest), 0644)
+
+	// Write source files
+	for path, content := range files {
+		fullPath := filepath.Join(dir, path)
+		os.MkdirAll(filepath.Dir(fullPath), 0755)
+		os.WriteFile(fullPath, []byte(content), 0644)
+	}
+
+	return dir
+}
+
 func TestPackageLoader_ResolveExportedModule(t *testing.T) {
 	root := t.TempDir()
 	libDir := setupTestPackage(t, root, "sunholo/json", []string{"sunholo/json/parser"}, map[string]string{
@@ -318,5 +354,137 @@ func TestPackageDir_RegistryBackwardCompat(t *testing.T) {
 	}
 	if !strings.HasSuffix(resolved, "util.ail") {
 		t.Errorf("expected .../util.ail, got %s", resolved)
+	}
+}
+
+func TestPackageLoader_ModulePrefixResolution(t *testing.T) {
+	// Package sunholo/ailang_parse with module_prefix="docparse"
+	// Files are at docparse/types/document.ail, not types/document.ail
+	root := t.TempDir()
+	libDir := setupTestPackageWithPrefix(t, root, "sunholo/ailang_parse", "docparse",
+		[]string{"docparse/types/document", "docparse/services/api"},
+		map[string]string{
+			"docparse/types/document.ail": "module docparse/types/document\n",
+			"docparse/services/api.ail":   "module docparse/services/api\n",
+		},
+	)
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/ailang_parse", Version: "0.8.0", ContentHash: "sha256:abc", Source: "path", Path: libDir},
+		},
+	}
+
+	loader := NewPackageLoader(lf, root)
+
+	// Should resolve via prefix-based candidate: docparse/types/document.ail
+	resolved, err := loader.ResolveImport("sunholo/ailang_parse/types/document")
+	if err != nil {
+		t.Fatalf("module_prefix resolution failed: %v", err)
+	}
+	wantSuffix := filepath.Join("docparse", "types", "document.ail")
+	if !strings.HasSuffix(resolved, wantSuffix) {
+		t.Errorf("resolved path = %q, want ...%s", resolved, wantSuffix)
+	}
+
+	// Second module too
+	resolved, err = loader.ResolveImport("sunholo/ailang_parse/services/api")
+	if err != nil {
+		t.Fatalf("module_prefix resolution failed for services/api: %v", err)
+	}
+	wantSuffix = filepath.Join("docparse", "services", "api.ail")
+	if !strings.HasSuffix(resolved, wantSuffix) {
+		t.Errorf("resolved path = %q, want ...%s", resolved, wantSuffix)
+	}
+}
+
+func TestPackageLoader_ModulePrefixWithSrcDir(t *testing.T) {
+	// Files under src/docparse/... should also be found
+	root := t.TempDir()
+	libDir := setupTestPackageWithPrefix(t, root, "sunholo/ailang_parse", "docparse",
+		[]string{"docparse/types/document"},
+		map[string]string{
+			"src/docparse/types/document.ail": "module docparse/types/document\n",
+		},
+	)
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/ailang_parse", Version: "0.8.0", ContentHash: "sha256:abc", Source: "path", Path: libDir},
+		},
+	}
+
+	loader := NewPackageLoader(lf, root)
+
+	resolved, err := loader.ResolveImport("sunholo/ailang_parse/types/document")
+	if err != nil {
+		t.Fatalf("module_prefix with src/ resolution failed: %v", err)
+	}
+	wantSuffix := filepath.Join("src", "docparse", "types", "document.ail")
+	if !strings.HasSuffix(resolved, wantSuffix) {
+		t.Errorf("resolved path = %q, want ...%s", resolved, wantSuffix)
+	}
+}
+
+func TestPackageLoader_NoPrefixUnchanged(t *testing.T) {
+	// Package WITHOUT module_prefix should work exactly as before
+	root := t.TempDir()
+	libDir := setupTestPackage(t, root, "sunholo/utils",
+		[]string{"sunholo/utils/strings"},
+		map[string]string{
+			"strings.ail": "module sunholo/utils/strings\n",
+		},
+	)
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/utils", Version: "0.1.0", ContentHash: "sha256:abc", Source: "path", Path: libDir},
+		},
+	}
+
+	loader := NewPackageLoader(lf, root)
+
+	resolved, err := loader.ResolveImport("sunholo/utils/strings")
+	if err != nil {
+		t.Fatalf("no-prefix resolution should still work: %v", err)
+	}
+	if !strings.HasSuffix(resolved, "strings.ail") {
+		t.Errorf("resolved path = %q, want .../strings.ail", resolved)
+	}
+}
+
+func TestPackageLoader_CoreModuleIgnoresPrefix(t *testing.T) {
+	// Root module (vendor/name with no submodule) should resolve to core.ail
+	// regardless of module_prefix
+	root := t.TempDir()
+	libDir := setupTestPackageWithPrefix(t, root, "sunholo/ailang_parse", "docparse",
+		[]string{},
+		map[string]string{
+			"core.ail": "module sunholo/ailang_parse\n",
+		},
+	)
+
+	lf := &LockFile{
+		Schema:  LockFileSchema,
+		Version: "1.0.0",
+		Packages: []LockedPackage{
+			{Name: "sunholo/ailang_parse", Version: "0.8.0", ContentHash: "sha256:abc", Source: "path", Path: libDir},
+		},
+	}
+
+	loader := NewPackageLoader(lf, root)
+
+	resolved, err := loader.ResolveImport("sunholo/ailang_parse")
+	if err != nil {
+		t.Fatalf("core.ail resolution should work with module_prefix: %v", err)
+	}
+	if !strings.HasSuffix(resolved, "core.ail") {
+		t.Errorf("resolved path = %q, want .../core.ail", resolved)
 	}
 }
