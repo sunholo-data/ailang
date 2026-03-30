@@ -1,0 +1,86 @@
+{
+  "sprint_id": "M-EVAL-XLANG",
+  "status": "in_progress",
+  "created": "2026-03-30T10:24:39Z",
+  "design_doc": "design_docs/planned/v0_11_0/m-eval-cross-language-benchmark.md",
+  "sprint_plan": "design_docs/planned/v0_11_0/m-eval-cross-language-benchmark-sprint-plan.md",
+  "github_issues": [],
+  "velocity": {
+    "target_loc_per_day": 400,
+    "estimated_total_loc": 1575,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1_BITWISE_FORK",
+      "description": "Add bitwise operator builtins (xor, bitAnd, bitOr, shiftLeft, shiftRight, bitwiseNot) and fork ai-coding-lang-bench with AILANG config",
+      "estimated_loc": 575,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Bitwise XOR, AND, OR, NOT, shift builtins pass unit tests",
+        "Operators parse correctly with C/Go precedence (precedence_test.go)",
+        "FNV-1a hash function compiles and runs in AILANG",
+        "make test and make lint clean",
+        "Fork exists with AILANG language entry",
+        "extra_prompt contains current ailang prompt output",
+        "Wrapper script makes ./minigit executable with AILANG backend"
+      ],
+      "passes": true,
+      "started": "2026-03-30T10:30:00Z",
+      "completed": "2026-03-30T16:30:00Z",
+      "notes": "Bitwise operators fully implemented across 15+ files (~567 LOC) with C-standard precedence bands. charCode builtin added for FNV-1a hash. Fork at sunholo-data/ai-coding-lang-bench with 4 AILANG prompt strategy variants (zero-shot, cli, spec, guided). Wrapper script pattern documented in extra_prompt — Claude Code creates it during each trial."
+    },
+    {
+      "id": "M2_TRACK_A_RUN",
+      "description": "Run 20 mini-git trials with AILANG via the forked benchmark, collect per-trial metrics",
+      "estimated_loc": 100,
+      "dependencies": ["M1_BITWISE_FORK"],
+      "acceptance_criteria": [
+        "20 v1 trials completed with metrics (time, cost, LOC, pass/fail per test)",
+        "Results directly comparable to published Ruby/Python/JS/Go/Rust/Haskell data",
+        "Raw data saved for reproducibility",
+        "Summary table of AILANG vs top-5 languages"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Even 0% pass rate is valid — failure analysis drives gap design docs"
+    },
+    {
+      "id": "M3_TRACK_B",
+      "description": "Adapt leetgptsolver LeetCode problems to our eval harness format and run with AILANG across 3 models x 4 prompt strategies",
+      "estimated_loc": 400,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Problem adapter converts LeetCode problems to AILANG eval format",
+        "Exclusion list documented with reasons (e.g., requires mutable hash map)",
+        "At least 40 problems pass filtering (expressible in AILANG)",
+        "All 4 prompt strategies tested across 3 models",
+        "Results comparable to published Python/Java/Rust/Elixir pass rates"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Uses their problem dataset with our eval harness since LeetCode judge can't run AILANG"
+    },
+    {
+      "id": "M4_ANALYSIS",
+      "description": "Analyze cross-track results, identify failure modes, create design docs for every identified gap",
+      "estimated_loc": 500,
+      "dependencies": ["M2_TRACK_A_RUN", "M3_TRACK_B"],
+      "acceptance_criteria": [
+        "Pass rate comparison table: AILANG vs 5+ other languages",
+        "Cost comparison table: AILANG vs published data",
+        "Failure mode taxonomy with counts and examples",
+        "Design doc created for each major gap category (minimum 2, expected 3-5)",
+        "Each gap design doc includes concrete examples from benchmark failures",
+        "Top-3 recommendations for improving AILANG AI-friendliness",
+        "CHANGELOG.md updated with results summary"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": "Gap design docs are the primary deliverable — benchmarks exist to identify them"
+    }
+  ]
+}
