@@ -460,9 +460,11 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 		// Load the module
 		module, err := ml.Load(path)
 		if err != nil {
-			// Include search trace in error
-			return fmt.Errorf("failed to load %s (search trace: %v): %w",
-				path, searchTrace, err)
+			// Search trace is internal debugging info — only show with DEBUG_LOADER=1
+			if os.Getenv("DEBUG_LOADER") == "1" {
+				fmt.Fprintf(os.Stderr, "[debug-loader] search trace: %v\n", searchTrace)
+			}
+			return fmt.Errorf("failed to load %s: %w", path, err)
 		}
 		// Store with canonical ID (module.Path), not input path
 		modules[module.Path] = module

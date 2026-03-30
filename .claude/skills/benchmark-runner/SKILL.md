@@ -1,3 +1,8 @@
+---
+name: benchmark-runner
+description: Run ai-coding-lang-bench benchmark trials against AILANG, monitor active sessions, analyze results (cost/tokens/time/pass-rate), compare prompt strategies, and identify language gaps. Use when user says "run benchmark", "benchmark AILANG", "run trials", "analyze results", "find gaps", "monitor benchmark", or "compare prompt strategies".
+---
+
 # Benchmark Runner
 
 Run the ai-coding-lang-bench benchmark against AILANG, monitor sessions, analyze results, and identify language gaps.

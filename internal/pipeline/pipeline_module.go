@@ -438,8 +438,8 @@ func validateModulePath(mod *loader.LoadedModule, modID string, cfg *Config) err
 		return nil
 	}
 
-	// Strict mode: emit error with suggestions
-	return fmt.Errorf("MOD010: module declaration '%s' doesn't match canonical path '%s'\nSuggestions:\n  1. Rename module to: module %s\n  2. Move file to: %s.ail\n  3. For temp/scratch files: use --relax-modules or AILANG_RELAX_MODULES=1",
+	// Strict mode: lead with actionable fix, no search trace noise
+	return fmt.Errorf("Error MOD010: module '%s' doesn't match file path '%s'.\n  Fix: use --relax-modules flag or set AILANG_RELAX_MODULES=1\n  Alt: rename module declaration to: module %s\n  Alt: move file to: %s.ail",
 		mod.File.Module.Path, canonicalID, canonicalID, mod.File.Module.Path)
 }
 
