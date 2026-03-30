@@ -280,6 +280,49 @@ func (s *Server) loadFile(path string) error {
 		for modPath, loaded := range result.Modules {
 			s.engine.PreloadModule(modPath, loaded)
 		}
+
+		// Discover @route annotations in package dependencies.
+		// Without this, only local modules are scanned for routes — package
+		// modules with @route annotations are preloaded for execution but
+		// their routes are never registered as HTTP endpoints.
+		for modPath, loaded := range result.Modules {
+			if loaded.Iface == nil || loaded.File == nil {
+				continue
+			}
+			// Skip stdlib modules (no routes) and already-registered modules.
+			if strings.HasPrefix(modPath, "std/") {
+				continue
+			}
+			s.mu.RLock()
+			_, exists := s.modules[modPath]
+			s.mu.RUnlock()
+			if exists {
+				continue
+			}
+
+			depInfo := extractModuleInfo(loaded.Iface)
+			extractParamInfo(depInfo, loaded.File)
+			extractRouteAnnotations(depInfo, loaded.File)
+			extractNoExposeAnnotations(depInfo, loaded.File)
+
+			// Only register if the module has routed exports.
+			hasRoutes := false
+			for _, exp := range depInfo.Exports {
+				if exp.RoutePath != "" {
+					hasRoutes = true
+					break
+				}
+			}
+			if !hasRoutes {
+				continue
+			}
+
+			depInfo.Path = modPath
+			s.mu.Lock()
+			s.modules[modPath] = depInfo
+			s.mu.Unlock()
+			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", modPath, len(depInfo.Exports))
+		}
 	}
 
 	// Extract module interface

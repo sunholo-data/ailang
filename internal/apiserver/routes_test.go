@@ -577,3 +577,114 @@ func TestBuildHttpRequestRecord_EmptyBody(t *testing.T) {
 		t.Errorf("expected empty query JObject, got %d elements", len(list.Elements))
 	}
 }
+
+// TestPackageDependencyRouteDiscovery verifies that @route annotations in
+// package dependency modules are discovered and registered by serve-api.
+// This simulates the new code path in loadFile() that scans result.Modules.
+func TestPackageDependencyRouteDiscovery(t *testing.T) {
+	// Build a ModuleInfo as if it came from a package dependency's Iface
+	depInfo := &ModuleInfo{
+		Path: "pkg/sunholo/ailang_parse/services/tools",
+		Exports: []ExportInfo{
+			{Name: "toolDefinitions", Type: "HttpRequest -> string", Arity: 1},
+			{Name: "internalHelper", Type: "int -> int", Arity: 1},
+		},
+	}
+
+	// Build an AST with @route annotations (simulating what the parser produces)
+	depFile := &ast.File{
+		Funcs: []*ast.FuncDecl{
+			{
+				Name:     "toolDefinitions",
+				IsExport: true,
+				Annotations: []*ast.Annotation{
+					{
+						Name: "route",
+						Args: []ast.Expr{
+							&ast.Literal{Kind: ast.StringLit, Value: "GET"},
+							&ast.Literal{Kind: ast.StringLit, Value: "/api/v1/tools"},
+						},
+					},
+				},
+			},
+			{
+				Name:     "internalHelper",
+				IsExport: true,
+				// No @route annotation
+			},
+		},
+	}
+
+	// Run the same extraction pipeline as loadFile()
+	extractParamInfo(depInfo, depFile)
+	extractRouteAnnotations(depInfo, depFile)
+	extractNoExposeAnnotations(depInfo, depFile)
+
+	// Verify route was discovered
+	found := false
+	for _, exp := range depInfo.Exports {
+		if exp.Name == "toolDefinitions" {
+			if exp.RoutePath != "/api/v1/tools" {
+				t.Errorf("expected RoutePath /api/v1/tools, got %q", exp.RoutePath)
+			}
+			if exp.RouteMethod != "GET" {
+				t.Errorf("expected RouteMethod GET, got %q", exp.RouteMethod)
+			}
+			found = true
+		}
+		if exp.Name == "internalHelper" && exp.RoutePath != "" {
+			t.Errorf("internalHelper should not have a route, got %q", exp.RoutePath)
+		}
+	}
+	if !found {
+		t.Fatal("toolDefinitions export not found")
+	}
+
+	// Verify that only modules with routes would be registered (the hasRoutes check)
+	hasRoutes := false
+	for _, exp := range depInfo.Exports {
+		if exp.RoutePath != "" {
+			hasRoutes = true
+			break
+		}
+	}
+	if !hasRoutes {
+		t.Fatal("expected hasRoutes to be true for dependency with @route annotations")
+	}
+}
+
+// TestPackageDependencyWithoutRoutes verifies that package dependencies WITHOUT
+// @route annotations are not registered as serve-api modules.
+func TestPackageDependencyWithoutRoutes(t *testing.T) {
+	depInfo := &ModuleInfo{
+		Path: "pkg/sunholo/utils/helpers",
+		Exports: []ExportInfo{
+			{Name: "formatDate", Type: "string -> string", Arity: 1},
+		},
+	}
+
+	depFile := &ast.File{
+		Funcs: []*ast.FuncDecl{
+			{
+				Name:     "formatDate",
+				IsExport: true,
+				// No annotations
+			},
+		},
+	}
+
+	extractParamInfo(depInfo, depFile)
+	extractRouteAnnotations(depInfo, depFile)
+	extractNoExposeAnnotations(depInfo, depFile)
+
+	hasRoutes := false
+	for _, exp := range depInfo.Exports {
+		if exp.RoutePath != "" {
+			hasRoutes = true
+			break
+		}
+	}
+	if hasRoutes {
+		t.Fatal("expected hasRoutes to be false for dependency without @route annotations")
+	}
+}
