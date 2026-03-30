@@ -76,6 +76,7 @@ _get_header : (a, string) -> Option[string]
 _hamming_distance : (int, int) -> int
 _has_header : (a, string) -> bool
 _int_to_float : int -> float
+_io_exit : int -> () ! {IO}
 _io_print : string -> () ! {IO}
 _io_println : string -> () ! {IO}
 _io_readLine : () -> string ! {IO}
