@@ -20,3 +20,7 @@ export func readLine() -> string ! {IO} = _io_readLine()
 -- Enables piping binary data to external tools
 -- Example: ailang run ... | afplay -f LEI16 -r 24000 -c 1 -
 export func writeBytes(data: bytes) -> () ! {IO} = _io_writeBytes(data)
+
+-- exit: Terminate process with explicit exit code
+-- Code after exit() is unreachable. OS typically takes code & 0xFF.
+export func exit(code: int) -> () ! {IO} = _io_exit(code)

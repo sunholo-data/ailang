@@ -381,6 +381,13 @@ export func main() -> () ! {IO} {
   println("Hello, World!")
 }
 
+-- Exit with explicit code (for CLI tools)
+import std/io (println, exit)
+export func main() -> () ! {IO} {
+  println("error: invalid argument");
+  exit(1)
+}
+
 -- Main with file system access
 export func main() -> () ! {IO, FS} {
   let content = readFile("data.txt");
@@ -429,6 +436,7 @@ func loop() -> () ! {IO} {
 | Read from stdin | `! {IO}` (use `readLine()` from `std/io`) |
 | AI calls | `! {AI}` |
 | Run external commands | `! {Process}` or `! {IO, Process}` |
+| Exit with code | `! {IO}` (use `exit(code)` from `std/io`) |
 | Full program | `! {IO, FS, Net}` as needed |
 
 **Effect errors and how to fix:**
@@ -450,7 +458,7 @@ export func main() -> () ! {IO} { println("hi") }
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
-| `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
+| `IO` | `print`, `println`, `readLine`, `exit` | `std/io` (print is builtin) |
 | `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr` | `std/env` |

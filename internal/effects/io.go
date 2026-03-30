@@ -14,6 +14,7 @@ func init() {
 	RegisterOp("IO", "println", ioPrintln)
 	RegisterOp("IO", "readLine", ioReadLine)
 	RegisterOp("IO", "writeBytes", ioWriteBytes)
+	RegisterOp("IO", "exit", ioExit)
 }
 
 // ioPrint implements IO.print(s: String) -> ()
@@ -113,6 +114,31 @@ func ioReadLine(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 	line = strings.TrimSuffix(line, "\r")
 
 	return &eval.StringValue{Value: line}, nil
+}
+
+// ioExit implements IO.exit(code: Int) -> ()
+//
+// Terminates the AILANG process with the given exit code.
+// Uses a sentinel panic (EvalExitCode) that propagates up to the runtime,
+// which catches it, flushes telemetry, and calls os.Exit(code).
+//
+// Parameters:
+//   - ctx: Effect context (capability check already done by Call())
+//   - args: [IntValue] - the exit code (0-255 typical, OS takes code & 0xFF)
+//
+// Returns:
+//   - Never returns — panics with EvalExitCode sentinel
+func ioExit(_ *EffContext, args []eval.Value) (eval.Value, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("exit: expected 1 argument, got %d", len(args))
+	}
+
+	intVal, ok := args[0].(*eval.IntValue)
+	if !ok {
+		return nil, fmt.Errorf("exit: expected Int, got %T", args[0])
+	}
+
+	panic(&eval.EvalExitCode{Code: intVal.Value})
 }
 
 // ioWriteBytes implements IO.writeBytes(data: Bytes) -> ()

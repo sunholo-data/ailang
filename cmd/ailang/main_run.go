@@ -512,7 +512,25 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				noprint:           noprint,
 				maxRecursionDepth: maxRecursionDepth,
 			}
-			execErr := executeModuleEntrypoint(rt, execParams)
+			// Catch EvalExitCode sentinel panic from exit() builtin.
+			// Wraps execution so we can flush telemetry before os.Exit(code).
+			var exitCode *int
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						if ec, ok := r.(*eval.EvalExitCode); ok {
+							exitCode = &ec.Code
+							return
+						}
+						panic(r) // re-panic for non-exit panics
+					}
+				}()
+				execErr := executeModuleEntrypoint(rt, execParams)
+				if execErr != nil {
+					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
+					os.Exit(1)
+				}
+			}()
 
 			// Flush Debug ghost effect output to stderr
 			flushDebugOutput(effCtx)
@@ -523,9 +541,9 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				effCtx.Trace.RecordModuleEnd(moduleName, durationNS)
 			}
 
-			if execErr != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
-				os.Exit(1)
+			// If exit() was called, flush is done above, now exit with requested code
+			if exitCode != nil {
+				os.Exit(*exitCode)
 			}
 
 			// M-DX25: Print budget report after successful execution

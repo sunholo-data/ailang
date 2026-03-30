@@ -18,6 +18,21 @@
       }
     },
     {
+      "path": "exit_code.ail",
+      "status": "working",
+      "tags": [
+        "io",
+        "exit",
+        "cli",
+        "process"
+      ],
+      "description": "Process exit with explicit exit code",
+      "expected": {
+        "stdout": "Exiting with code 42\n",
+        "exit_code": 42
+      }
+    },
+    {
       "path": "simple.ail",
       "status": "working",
       "tags": [

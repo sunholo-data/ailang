@@ -424,6 +424,120 @@ func TestSetupNetHandler(t *testing.T) {
 
 // TestCLI_NetAllowHTTPFlag_Exists is a regression test ensuring the
 // --net-allow-http flag is recognized by the CLI (not just documented).
+// buildAilang builds the ailang binary once per test run and returns its path.
+// Uses a compiled binary instead of "go run" so exit codes propagate correctly.
+func buildAilang(t *testing.T) string {
+	t.Helper()
+	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Failed to get project root: %v", err)
+	}
+	binPath := filepath.Join(t.TempDir(), "ailang")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ailang")
+	cmd.Dir = projectRoot
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to build ailang: %v\n%s", err, out)
+	}
+	return binPath
+}
+
+// runAilangBin runs a pre-built ailang binary and returns stdout, stderr, exit code.
+func runAilangBin(t *testing.T, binPath string, args ...string) (stdout, stderr string, exitCode int) {
+	t.Helper()
+	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("Failed to get project root: %v", err)
+	}
+	cmd := exec.Command(binPath, args...)
+	cmd.Dir = projectRoot
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	stdout = outBuf.String()
+	stderr = errBuf.String()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			t.Fatalf("Failed to run ailang: %v", err)
+		}
+	}
+	return stdout, stderr, exitCode
+}
+
+func TestCLI_Exit_Code0(t *testing.T) {
+	bin := buildAilang(t)
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_exit0.ail")
+	os.WriteFile(testFile, []byte(`module test_exit0
+import std/io (exit)
+export func main() -> () ! {IO} = exit(0)
+`), 0644)
+
+	_, _, exitCode := runAilangBin(t, bin, "run", "--caps", "IO", "--quiet", testFile)
+	if exitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", exitCode)
+	}
+}
+
+func TestCLI_Exit_Code1(t *testing.T) {
+	bin := buildAilang(t)
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_exit1.ail")
+	os.WriteFile(testFile, []byte(`module test_exit1
+import std/io (exit)
+export func main() -> () ! {IO} = exit(1)
+`), 0644)
+
+	_, _, exitCode := runAilangBin(t, bin, "run", "--caps", "IO", "--quiet", testFile)
+	if exitCode != 1 {
+		t.Errorf("Expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestCLI_Exit_Code42(t *testing.T) {
+	bin := buildAilang(t)
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_exit42.ail")
+	os.WriteFile(testFile, []byte(`module test_exit42
+import std/io (println, exit)
+export func main() -> () ! {IO} =
+  let _ = println("before exit") in
+  exit(42)
+`), 0644)
+
+	stdout, stderr, exitCode := runAilangBin(t, bin, "run", "--caps", "IO", "--quiet", testFile)
+	if exitCode != 42 {
+		t.Errorf("Expected exit code 42, got %d. Stderr: %s", exitCode, stderr)
+	}
+	if !strings.Contains(stdout, "before exit") {
+		t.Errorf("Expected output before exit, got stdout: %s", stdout)
+	}
+}
+
+func TestCLI_Exit_OutputFlushed(t *testing.T) {
+	bin := buildAilang(t)
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test_exit_flush.ail")
+	os.WriteFile(testFile, []byte(`module test_exit_flush
+import std/io (println, exit)
+export func main() -> () ! {IO} =
+  let _ = println("line1") in
+  let _ = println("line2") in
+  exit(0)
+`), 0644)
+
+	stdout, _, exitCode := runAilangBin(t, bin, "run", "--caps", "IO", "--quiet", testFile)
+	if exitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", exitCode)
+	}
+	if !strings.Contains(stdout, "line1") || !strings.Contains(stdout, "line2") {
+		t.Errorf("Expected both lines flushed before exit, got: %s", stdout)
+	}
+}
+
 func TestCLI_NetAllowHTTPFlag_Exists(t *testing.T) {
 	// Create a minimal .ail file that uses Net effect
 	tmpDir := t.TempDir()

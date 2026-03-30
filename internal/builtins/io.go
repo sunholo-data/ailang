@@ -121,6 +121,39 @@ func registerIO() {
 		panic(fmt.Sprintf("failed to register _io_readLine: %v", err))
 	}
 
+	// _io_exit — terminate process with exit code
+	impl5 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		return effects.Call(ctx, "IO", "exit", args)
+	}
+	type5 := func() types.Type {
+		T := types.NewBuilder()
+		return T.Func(T.Int()).Returns(T.Unit()).Effects("IO")
+	}
+	err = RegisterEffectBuiltin(BuiltinSpec{
+		Module: "std/io", Name: "_io_exit", NumArgs: 1, IsPure: false, Effect: "IO", Type: type5, Impl: impl5,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Terminate the process with an explicit exit code",
+			LongDesc:    "Terminates the AILANG process with the given exit code. Uses a sentinel panic that the runtime catches after flushing telemetry. Code after exit() is unreachable.",
+			Params: []ParamDoc{
+				{Name: "code", Description: "Exit code (0 = success, non-zero = failure)"},
+			},
+			Returns: "Unit (never actually returns — process terminates)",
+			Examples: []Example{
+				{Code: `_io_exit(0)`, Description: "Exit successfully"},
+				{Code: `_io_exit(1)`, Description: "Exit with error"},
+			},
+			SeeAlso:   []string{"_io_println"},
+			Since:     "v0.10.0",
+			Stability: StabilityStable,
+			Tags:      []string{"io", "exit", "process", "cli"},
+			Category:  "io",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _io_exit: %v", err))
+	}
+
 	// _io_writeBytes — write raw bytes to stdout
 	impl4 := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		return effects.Call(ctx, "IO", "writeBytes", args)
