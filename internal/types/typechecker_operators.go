@@ -276,6 +276,20 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 		})
 		resultType = TBool
 
+	case "&", "^", "<<", ">>":
+		// Bitwise operators — int only
+		ctx.addConstraint(TypeEq{
+			Left:  getType(leftNode),
+			Right: TInt,
+			Path:  []string{"bitwise op at " + binop.Span().String()},
+		})
+		ctx.addConstraint(TypeEq{
+			Left:  getType(rightNode),
+			Right: TInt,
+			Path:  []string{"bitwise op at " + binop.Span().String()},
+		})
+		resultType = TInt
+
 	default:
 		return nil, ctx.env, fmt.Errorf("unknown binary operator: %s", binop.Op)
 	}
@@ -326,6 +340,15 @@ func (tc *CoreTypeChecker) inferUnOp(ctx *InferenceContext, unop *core.UnOp) (*t
 			Path:  []string{"not at " + unop.Span().String()},
 		})
 		resultType = TBool
+
+	case "~":
+		// Bitwise NOT — int only
+		ctx.addConstraint(TypeEq{
+			Left:  getType(operandNode),
+			Right: TInt,
+			Path:  []string{"bitwise not at " + unop.Span().String()},
+		})
+		resultType = TInt
 
 	default:
 		return nil, ctx.env, fmt.Errorf("unknown unary operator: %s", unop.Op)

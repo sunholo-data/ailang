@@ -558,6 +558,44 @@ func (e *SimpleEvaluator) evalBinOp(op string, left, right Value) (Value, error)
 		}
 		return nil, fmt.Errorf("%% expects numeric operands")
 
+	case "&":
+		if l, ok := left.(*IntValue); ok {
+			if r, ok := right.(*IntValue); ok {
+				return &IntValue{Value: l.Value & r.Value}, nil
+			}
+		}
+		return nil, fmt.Errorf("'&' requires int operands")
+
+	case "^":
+		if l, ok := left.(*IntValue); ok {
+			if r, ok := right.(*IntValue); ok {
+				return &IntValue{Value: l.Value ^ r.Value}, nil
+			}
+		}
+		return nil, fmt.Errorf("'^' requires int operands")
+
+	case "<<":
+		if l, ok := left.(*IntValue); ok {
+			if r, ok := right.(*IntValue); ok {
+				if r.Value < 0 {
+					return nil, fmt.Errorf("negative shift amount: %d", r.Value)
+				}
+				return &IntValue{Value: l.Value << uint(r.Value)}, nil
+			}
+		}
+		return nil, fmt.Errorf("'<<' requires int operands")
+
+	case ">>":
+		if l, ok := left.(*IntValue); ok {
+			if r, ok := right.(*IntValue); ok {
+				if r.Value < 0 {
+					return nil, fmt.Errorf("negative shift amount: %d", r.Value)
+				}
+				return &IntValue{Value: l.Value >> uint(r.Value)}, nil
+			}
+		}
+		return nil, fmt.Errorf("'>>' requires int operands")
+
 	default:
 		return nil, fmt.Errorf("unknown operator: %s", op)
 	}
@@ -581,6 +619,13 @@ func (e *SimpleEvaluator) evalUnOp(op string, operand Value) (Value, error) {
 			return &BoolValue{Value: !v.Value}, nil
 		default:
 			return nil, fmt.Errorf("! expects boolean operand")
+		}
+	case "~":
+		switch v := operand.(type) {
+		case *IntValue:
+			return &IntValue{Value: ^v.Value}, nil
+		default:
+			return nil, fmt.Errorf("~ expects int operand")
 		}
 	default:
 		return nil, fmt.Errorf("unknown unary operator: %s", op)

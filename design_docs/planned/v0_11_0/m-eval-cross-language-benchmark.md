@@ -130,17 +130,19 @@ Recent research shows AI code generation performance varies significantly by pro
 ## Problem Statement
 
 **Current State:**
-- AILANG has 47 internal benchmarks, all single-file, all measuring AILANG in isolation
-- No cross-language comparison exists — we cannot answer "how does AILANG compare to Python for AI code generation?"
+- AILANG has 51 internal benchmarks and 611+ eval results across 6 models — but all measure AILANG in isolation
+- No **independent, third-party** cross-language comparison exists
+- Our internal benchmarks show AILANG outperforms Python on our own eval suite — but this is self-reported data
 - Published research shows niche languages suffer 30–50% accuracy drops vs mainstream languages
 - AILANG has zero training data in any model, placing it in the "niche language" category by data volume
-- Without measurement, AILANG's core thesis (machine-first design > training data volume) is unproven
+- Without independent measurement, AILANG's core thesis (machine-first design > training data volume) is unproven
 
 **Impact:**
-- AILANG adoption depends on demonstrating that AI agents can write correct AILANG code
-- Academic credibility requires published cross-language comparisons
-- Users choosing between AILANG and Python need data, not assertions
-- If AILANG performs poorly, we need to know *which* constructs cause failures so we can improve prompts/stdlib
+- AILANG adoption depends on **independently verifiable** evidence that AI agents can write correct AILANG code
+- Academic credibility requires comparison using established, third-party benchmark suites — not self-reported results
+- Users choosing between AILANG and Python need apples-to-apples data from the same benchmark infrastructure
+- If AILANG performs poorly on independent benchmarks, we need to know *which* constructs cause failures so we can improve prompts/stdlib
+- Several high-quality benchmark suites already exist and accept new languages — we should join them, not build our own
 
 ---
 
@@ -184,72 +186,107 @@ Before implementation begins, these must be resolved:
 
 ## Solution Design
 
-### Overview
+### Overview: Add AILANG to Existing Third-Party Benchmarks
+
+The approach is to **integrate AILANG into established, independent benchmark suites** — not to create our own problems. This gives credible, third-party-comparable results using their infrastructure, their problems, and their scoring methodology.
 
 Three benchmark tracks, ordered by feasibility and value:
 
-1. **Track A: Mini-Git Benchmark** (adapt `ai-coding-lang-bench`) — measures agentic coding with tool use
-2. **Track B: Algorithmic Benchmark** (adapt `leetgptsolver`) — measures pure code generation accuracy
-3. **Track C: AutoCodeBench Integration** (future) — adds AILANG to the 20-language standardized suite
+1. **Track A: ai-coding-lang-bench** (fork, add AILANG as 16th language) — agentic mini-git task
+2. **Track B: leetgptsolver** (fork, add AILANG as 5th language) — 100 LeetCode problems
+3. **Track C: AutoCodeBench** (add AILANG to Docker sandbox) — 3,920 problems, 20→21 languages
 
-### Track A: Mini-Git Benchmark (Primary)
+### Track A: ai-coding-lang-bench (Primary)
 
-Fork `github.com/mame/ai-coding-lang-bench` and add AILANG as a language.
+**Repo**: `github.com/mame/ai-coding-lang-bench`
 
-**What we need:**
-1. AILANG implementation of the mini-git spec (reference implementation)
-2. Test suite adapted for AILANG (the original uses language-specific test runners)
-3. Benchmark runner configuration for AILANG
-4. AILANG language spec file for the agent prompt
+Fork the repo and add AILANG as a 16th language configuration. The benchmark's infrastructure handles everything: it gives Claude Code a spec + language context, lets the agent write code, runs the test suite, and records time/cost/pass-rate.
 
-**Approach:**
-- The benchmark gives Claude Code a spec file and says "implement this, make the tests pass"
-- For AILANG, we provide `ailang prompt` output as additional context in the spec
-- Run 20 trials, measure time, cost, LOC, pass rate
-- Compare directly against the 15 existing language results
+**Integration details** (confirmed via repo analysis):
 
-**Key challenge**: The mini-git task requires filesystem I/O, hashing, and string manipulation. AILANG needs:
-- `fs` effect for file operations (available via stdlib)
-- String builtins: `split`, `join`, `replace`, `trim`, `starts_with` (mostly available)
-- Hash function (may need a simple builtin or use existing `crypto` stdlib if available)
+Adding AILANG requires just one entry in the `LANGUAGES` hash in `benchmark.rb`:
+```ruby
+'ailang' => { exts: %w[ail], version_cmd: 'ailang --version', extra_prompt: '<ailang prompt output>' }
+```
 
-### Track B: Algorithmic Benchmark
+The benchmark runner creates a fresh directory, copies spec + test files, and invokes Claude Code (`claude -p`) with a prompt like "Implement minigit using {Language}". Tests are **language-agnostic** — they just call `./minigit` and check output via bash scripts.
 
-Adapt the LeetCode methodology for AILANG-compatible problems.
+**What we contribute:**
+1. One entry in `LANGUAGES` hash with `extra_prompt` containing `ailang prompt` output
+2. AILANG must be installed on the benchmark machine (add to `extra_path` if needed)
+3. Solution must produce a `./minigit` executable (shebang script or compiled binary)
+4. Optionally: submit upstream PR to add AILANG to the official repo
 
-**What we need:**
-1. Select 30–50 problems from the whisk dataset that are expressible in AILANG
-2. Write AILANG test harnesses for each problem
-3. Use the `leetgptsolver` tool pattern: prompt model → extract code → run tests → pass/fail
-4. Test across 3+ models
+**What their infra provides:**
+- Mini-git spec (MiniHash = custom FNV-1a variant, v1: init/add/commit/log, v2: +status/diff/checkout/reset)
+- Language-agnostic test suite (11 tests v1, 30 tests v2)
+- Trial runner (20 trials per language, records time/cost/LOC/pass-fail)
+- Metrics collection (wall-clock time, API cost, tokens, LOC)
 
-**Problem selection criteria:**
-- Must be expressible with AILANG's current type system and builtins
-- Avoid problems requiring: mutable data structures (graphs with cycles), complex I/O, external libraries
-- Good candidates: recursion, list processing, string manipulation, math, tree traversal, dynamic programming
+**AILANG capability gaps identified:**
+- **Bitwise XOR**: MiniHash requires 64-bit unsigned XOR and multiply. AILANG has NO bitwise operators (`^` is not supported). This is a **blocking gap** — needs a builtin or stdlib addition.
+- **64-bit unsigned integers**: AILANG uses signed `int`. Need unsigned 64-bit arithmetic with mod 2^64 overflow behavior.
+- **Executable output**: `./minigit` must be executable. Options: (a) shebang `#!/usr/bin/env ailang run --caps IO,FS --entry main` or (b) compile to Go binary via `ailang compile --emit-go`.
+- **SHA-256 available**: `std/crypto` has `sha256hex` but MiniHash spec uses custom FNV-1a, not SHA-256.
 
-**AILANG context strategy options:**
+**Result**: Directly comparable to their published 15-language results (Ruby, Python, JS, Go, Rust, Haskell, etc.)
 
-| Strategy | Description | Pros | Cons |
-|----------|-------------|------|------|
-| Zero-shot | No AILANG context, just "write in AILANG" | Fair baseline | Will fail — models don't know AILANG |
-| Spec-prompted | Provide `ailang prompt` output as system prompt | Realistic for users | Large prompt, higher cost |
-| Few-shot | Provide 3–5 solved examples | Best accuracy likely | Biases toward example patterns |
-| Spec + few-shot | Both spec and examples | Most context | Highest token cost |
+### Track B: leetgptsolver (Secondary)
 
-**Recommended**: Run all 4 strategies to measure the *information value* of each. This directly measures how much AILANG's machine-readable spec helps models.
+**Repo**: `github.com/whisk/leetgptsolver`
 
-### Track C: AutoCodeBench Integration (Future)
+**Important finding**: leetgptsolver submits code to LeetCode's online judge, which does NOT support AILANG. We **cannot use their execution infrastructure directly**.
 
-**Scope**: Add AILANG to the Tencent Docker sandbox as a 21st language.
+**Revised approach**: Use their **problem dataset** with our own eval infrastructure:
+1. Download their 100 LeetCode problems from HuggingFace (`whiskwhite/leetcode-complete`)
+2. Use their problem descriptions as prompts (same problems, same difficulty)
+3. Ask models to generate AILANG solutions (with prompt strategy variants)
+4. Evaluate locally using `ailang run` with expected-output matching (our existing eval harness)
+5. Compare our AILANG pass rates against their published Python/Java/Rust/Elixir results
 
-**Requirements:**
-- Install AILANG runtime in `hunyuansandbox/multi-language-sandbox` container
-- Map AILANG to sandbox language identifier in `call_sandbox.py`
-- Generate AILANG variants of benchmark problems (using AutoCodeGen pipeline)
-- Submit results to leaderboard
+**What we reuse from their work:**
+- Problem selection (100 problems, Oct 2025–Feb 2026, likely unseen by models)
+- Problem descriptions and test cases
+- Published baseline results for Python/Java/Rust/Elixir across 5 models
 
-**This is a significant effort** (custom Docker image, problem translation) and is deferred to after Tracks A and B produce initial results.
+**What we build:**
+1. Problem adapter: convert LeetCode problem JSON → AILANG eval harness format (our existing `benchmarks/*.yml`)
+2. Test case extraction: map LeetCode expected outputs to `expected_stdout`
+3. AILANG-specific system prompt with `ailang prompt` output
+
+**Key challenge**: LeetCode problems assume mutable data structures and imperative patterns. Some problems may be inexpressible in pure functional AILANG:
+- Filter to problems expressible with immutable lists/trees/recursion
+- Report which problems were excluded and why (this itself is useful gap data)
+- The exclusion list is itself a valuable finding — it quantifies AILANG's expressiveness gap
+
+**AILANG context strategies** (run all to measure information value):
+
+| Strategy | Description | Measures |
+|----------|-------------|----------|
+| Zero-shot | Just "write in AILANG" | Baseline — how much models already "know" |
+| Spec-prompted | Provide `ailang prompt` as system context | Value of AILANG's machine-readable spec |
+| Few-shot | Provide 3–5 solved examples from existing eval suite | Value of examples over documentation |
+| Spec + few-shot | Both spec and examples | Maximum context, upper bound on performance |
+
+**Result**: Directly comparable to their published Python/Java/Rust/Elixir results across 5 models.
+
+### Track C: AutoCodeBench (Future)
+
+**Repo**: `github.com/Tencent-Hunyuan/AutoCodeBenchmark`
+**Docker**: `hunyuansandbox/multi-language-sandbox`
+
+Add AILANG to the Tencent Docker sandbox as a 21st language.
+
+**Important finding**: The sandbox is a **pre-built opaque Docker image** with no extension mechanism — no plugin system, no volume mounts for custom runtimes, no source code in the repo.
+
+**Options to add AILANG:**
+1. **Custom Docker image**: `FROM hunyuansandbox/multi-language-sandbox:v2`, install AILANG runtime, configure internal dispatcher
+2. **Shell wrapper trick**: Use `"lang": "shell"` and have shell scripts invoke `ailang` — avoids image rebuild
+3. **Build own sandbox**: Implement the same HTTP API (`POST /submit`) backed by `ailang run` — most control
+
+The evaluation pipeline sends `func_code` (solution) and `main_code` (test harness) to the sandbox, which combines and runs them. Results include `exec_outcome: "PASSED"` or failure info. Translation templates in `AutoCodeGen/templates/translate_templates/` convert problems from source languages to target languages.
+
+**Deferred** to after Tracks A and B produce initial results. The shell wrapper approach (option 2) is the fastest path.
 
 ### Architecture
 
@@ -257,146 +294,154 @@ Adapt the LeetCode methodology for AILANG-compatible problems.
 benchmarks/
   cross-language/
     README.md                    # Overview and reproduction instructions
-    mini-git/                    # Track A
-      spec/                      # Git spec files (from upstream)
-      ailang/                    # AILANG-specific test suite and config
-      results/                   # Raw results per language
-      report.md                  # Generated comparison report
-    algorithmic/                 # Track B
-      problems/                  # Problem definitions with test cases
-        001_two_sum.ail
-        002_fibonacci.ail
-        ...
-      harness/                   # Test runner and result collector
-      prompts/                   # System prompts for each strategy
-      results/                   # Raw results per model × strategy
-      report.md                  # Generated comparison report
+    forks/                       # Git submodules or fork references
+      ai-coding-lang-bench/      # Track A fork (submodule)
+      leetgptsolver/             # Track B fork (submodule)
+    ailang-configs/              # AILANG-specific additions to each benchmark
+      lang-bench/                # Language config, context file for Track A
+      leetgptsolver/             # Language adapter, prompt config for Track B
+    results/                     # Raw results from benchmark runs
+      track-a/                   # Mini-git trial results
+      track-b/                   # LeetCode eval results
     analysis/                    # Cross-track analysis
       comparison.md              # AILANG vs other languages summary
       failure_modes.md           # Top failure patterns
+      gap_design_docs/           # Design docs for identified gaps
 ```
-
-**Components:**
-1. **Benchmark Runner** (`benchmarks/cross-language/run.sh`): Orchestrates trials, collects metrics
-2. **Result Collector** (`benchmarks/cross-language/collect.py`): Aggregates raw results into comparison tables
-3. **Failure Analyzer** (`benchmarks/cross-language/analyze_failures.py`): Categorizes why models fail on AILANG
 
 ### Implementation Plan
 
-**Phase 1: Mini-Git Benchmark (Track A)** (~3 days)
-- [ ] Fork `mame/ai-coding-lang-bench` or extract spec/test framework
-- [ ] Write AILANG reference implementation of mini-git
-- [ ] Adapt test suite for AILANG
-- [ ] Create AILANG spec file with `ailang prompt` context
-- [ ] Run 20 trials with Claude Code (Opus 4.6)
-- [ ] Compare against published results for other 15 languages
+**Phase 1: Fork & Integrate (Track A — ai-coding-lang-bench)** (~2 days)
+- [ ] Fork `mame/ai-coding-lang-bench`
+- [ ] Study existing language configs (Ruby, Python, etc.) to understand the pattern
+- [ ] Add AILANG language config following the same pattern
+- [ ] Create AILANG context file with `ailang prompt` output
+- [ ] Verify AILANG test runner works with the mini-git test suite
+- [ ] Audit missing builtins (SHA-1 hash, any others)
 
-**Phase 2: Algorithmic Benchmark (Track B)** (~5 days)
-- [ ] Select 30–50 LeetCode-style problems compatible with AILANG
-- [ ] Write AILANG test harnesses for each problem
-- [ ] Implement benchmark runner (prompt model → extract code → evaluate)
-- [ ] Run across 3 models × 4 prompt strategies × 30 problems
-- [ ] Analyze results: pass rates, failure modes, token costs
+**Phase 2: Run Track A Trials** (~1 day)
+- [ ] Run 20 trials with Claude Code (matching their methodology)
+- [ ] Collect time, cost, LOC, pass/fail per trial
+- [ ] Compare against published results for 15 existing languages
 
-**Phase 3: Analysis and Reporting** (~2 days)
+**Phase 3: Fork & Integrate (Track B — leetgptsolver)** (~2 days)
+- [ ] Fork `whisk/leetgptsolver`
+- [ ] Study language adapter pattern
+- [ ] Add AILANG language support (compile/run commands, prompt template)
+- [ ] Filter LeetCode problems to those expressible in AILANG (document exclusions)
+- [ ] Run across available models with all 4 prompt strategies
+
+**Phase 4: Analysis and Gap Design Docs** (~2 days)
 - [ ] Cross-track comparison: where does AILANG land relative to other languages?
-- [ ] Failure mode taxonomy: syntax errors, type errors, missing builtins, wrong algorithms
-- [ ] Recommendations: what AILANG improvements would most help AI code generation?
-- [ ] Write up results for blog/documentation
+- [ ] Failure mode taxonomy: syntax errors, type errors, missing builtins, wrong patterns
+- [ ] Create design doc for each major gap category (minimum 2, expected 3–5)
+- [ ] Each gap design doc includes concrete examples from benchmark failures
+- [ ] Top-3 recommendations for improving AILANG AI-friendliness
+- [ ] CHANGELOG.md updated with results summary
 
 ### Files to Modify/Create
 
 **New files:**
 - `benchmarks/cross-language/README.md` — Reproduction instructions (~50 LOC)
-- `benchmarks/cross-language/mini-git/ailang/` — Reference impl + tests (~300 LOC)
-- `benchmarks/cross-language/algorithmic/problems/*.ail` — 30–50 problem files (~1500 LOC)
-- `benchmarks/cross-language/algorithmic/harness/run.sh` — Benchmark orchestrator (~100 LOC)
-- `benchmarks/cross-language/algorithmic/prompts/` — System prompt variants (~200 LOC)
+- `benchmarks/cross-language/ailang-configs/lang-bench/` — AILANG config for Track A (~100 LOC)
+- `benchmarks/cross-language/ailang-configs/leetgptsolver/` — AILANG adapter for Track B (~150 LOC)
+- `benchmarks/cross-language/analysis/` — Results analysis and gap design docs
 
 **Modified files:**
 - `CHANGELOG.md` — Document benchmark results
 - `docs/` — Add cross-language benchmark guide
 
+**External (in forks):**
+- Track A fork: Add AILANG language directory following upstream pattern
+- Track B fork: Add AILANG language adapter following upstream pattern
+
 ---
 
 ## Examples
 
-### Example 1: Mini-Git AILANG Trial
+### Example 1: Track A — Adding AILANG to ai-coding-lang-bench
 
-The agent receives this prompt:
+The upstream repo has per-language directories. We add an `ailang/` directory following the same pattern:
+
 ```
-Read the SPEC file and implement a simplified Git in AILANG.
-Make all tests pass. You can also read the AILANG language reference
-below for syntax guidance.
-
-[contents of ailang prompt output]
-```
-
-Expected AILANG output (reference implementation sketch):
-```ailang
-module minigit
-
-import fs from "std/fs"
-import crypto from "std/crypto"
-
-@effect(fs)
-export func init(path: String) -> Result(String, String) =
-  let git_dir = path ++ "/.git"
-  let _ = fs.mkdir(git_dir)
-  let _ = fs.mkdir(git_dir ++ "/objects")
-  let _ = fs.mkdir(git_dir ++ "/refs")
-  let _ = fs.write(git_dir ++ "/HEAD", "ref: refs/heads/main\n")
-  Ok("Initialized empty repository")
+ai-coding-lang-bench/
+  ruby/
+    config.json        # Language-specific settings
+    LANGUAGE.md        # Language context for Claude Code
+  python/
+    config.json
+    LANGUAGE.md
+  ailang/              # ← We add this
+    config.json        # AILANG compile/run commands
+    LANGUAGE.md        # Contains `ailang prompt` output + AILANG-specific hints
 ```
 
-### Example 2: Algorithmic Problem (Two Sum)
+The AILANG context file (`LANGUAGE.md`) would include:
+```markdown
+# AILANG Language Reference
+[output of `ailang prompt`]
 
-**Problem file** (`benchmarks/cross-language/algorithmic/problems/001_two_sum.ail`):
-```ailang
-module two_sum_test
+## Running AILANG
+ailang run --caps IO,FS --entry main solution.ail
 
-// Problem: Given a list of integers and a target, return indices of
-// two numbers that add up to the target.
-// Constraint: Exactly one solution exists.
-
-// MODEL GENERATES THIS FUNCTION:
-// func twoSum(nums: [Int], target: Int) -> (Int, Int)
-
-// Test harness:
-export func main() -> String =
-  let r1 = twoSum([2, 7, 11, 15], 9)
-  let r2 = twoSum([3, 2, 4], 6)
-  let r3 = twoSum([3, 3], 6)
-  assert(r1 == (0, 1), "test1")
-  assert(r2 == (1, 2), "test2")
-  assert(r3 == (0, 1), "test3")
-  "ALL TESTS PASSED"
+## Key Differences from Python
+- No loops — use recursion
+- All side effects declared in function signatures
+- Pattern matching instead of if/elif chains
 ```
 
-### Example 3: Results Comparison Table (Expected Output)
+Claude Code then implements mini-git in AILANG, just as it does for Ruby/Python/Go.
 
-| Language | Pass@1 (30 problems) | Avg Cost | Avg Time | vs Python Delta |
-|----------|---------------------|----------|----------|-----------------|
-| Python | 87% | $0.02 | 3.2s | baseline |
-| Ruby | 83% | $0.02 | 3.0s | -4pp |
-| JavaScript | 80% | $0.02 | 3.5s | -7pp |
-| Go | 77% | $0.03 | 4.1s | -10pp |
-| Rust | 70% | $0.04 | 5.8s | -17pp |
-| **AILANG (spec-prompted)** | **???** | **???** | **???** | **???** |
-| **AILANG (zero-shot)** | **???** | **???** | **???** | **???** |
-| Elixir | 52% | $0.03 | 4.5s | -35pp |
+### Example 2: Track B — Adding AILANG to leetgptsolver
+
+The upstream tool has language adapters. We add AILANG:
+
+```python
+# In leetgptsolver's language config
+"ailang": {
+    "extension": ".ail",
+    "compile_cmd": "ailang check {file}",
+    "run_cmd": "ailang run --caps IO --entry main {file}",
+    "system_prompt": "You are writing AILANG code. {ailang_prompt_content}",
+}
+```
+
+The tool then sends LeetCode problems to models, asking for AILANG solutions, and runs them against LeetCode test cases.
+
+### Example 3: Expected Results Comparison Table
+
+**Track A (Mini-Git) — AILANG vs published results:**
+
+| Language | Time | Cost | Pass Rate | vs Python |
+|----------|------|------|-----------|-----------|
+| Ruby | 73.1s | $0.36 | 40/40 | baseline |
+| Python | 74.6s | $0.38 | 40/40 | +2% cost |
+| JavaScript | 81.1s | $0.39 | 40/40 | +8% cost |
+| Go | 101.6s | $0.50 | 40/40 | +32% cost |
+| Rust | 113.7s | $0.54 | 38/40 | +42% cost |
+| **AILANG** | **???** | **???** | **???** | **???** |
+| Haskell | 174.0s | $0.74 | 39/40 | +95% cost |
+
+**Track B (LeetCode) — AILANG vs published results:**
+
+| Model | Python | Java | Rust | Elixir | **AILANG** |
+|-------|--------|------|------|--------|------------|
+| Gemini 3 Flash | 84% | 93% | 78% | 83% | **???** |
+| GPT-5 Mini | 93% | 94% | 80% | 63% | **???** |
+| Grok | 73% | 65% | 65% | 30% | **???** |
 
 ---
 
 ## Success Criteria
 
-- [ ] Mini-git benchmark runs 20 trials with AILANG, produces time/cost/pass-rate data
-- [ ] Algorithmic benchmark runs 30+ problems across 3+ models with AILANG
-- [ ] Results compared against at least 5 other languages from published data
+- [ ] AILANG added to `ai-coding-lang-bench` fork, 20 mini-git trials completed
+- [ ] AILANG added to `leetgptsolver` fork, LeetCode problems run across 3+ models
+- [ ] Results directly comparable to published data for 5+ other languages (same infra, same scoring)
 - [ ] Failure mode analysis identifies top-3 reasons models fail on AILANG
-- [ ] All benchmark code is reproducible (README with exact reproduction steps)
+- [ ] Gap design doc created for each major failure category (minimum 2, expected 3–5)
+- [ ] All work is in forks with READMEs — anyone can reproduce our results
 - [ ] CHANGELOG.md updated with results summary
-- [ ] Results inform concrete recommendations for AILANG prompt/stdlib improvements
+- [ ] Upstream PRs submitted to add AILANG to both benchmark repos (stretch goal)
 
 ---
 
@@ -434,10 +479,10 @@ The following are intentionally left open for the implementer:
 
 ## Non-Goals
 
+- **Creating our own benchmark problems** — we use existing third-party suites for independent credibility
+- **Re-running other languages ourselves** — we compare AILANG results against already-published data
 - **Modifying AILANG syntax based on results** — that's a separate design doc triggered by findings
 - **Fine-tuning models on AILANG** — we measure existing model capabilities
-- **Upstream contributions to AutoCodeBench** — future work after initial results
-- **Comprehensive 20-language comparison** — we compare against published data, not re-running all languages
 - **Competing with HumanEval/MBPP** — those benchmarks are already saturated; we focus on newer methodologies
 
 ---
@@ -445,18 +490,21 @@ The following are intentionally left open for the implementer:
 ## Timeline
 
 **Week 1** (~15 hours):
-- Phase 1: Mini-git benchmark adaptation and 20-trial run
-- Initial results comparison
+- Fork repos, study existing language config patterns
+- Add AILANG to ai-coding-lang-bench (Track A)
+- Run 20 mini-git trials, collect initial results
 
-**Week 2** (~20 hours):
-- Phase 2: Algorithmic benchmark problem selection and harness
-- Multi-model, multi-strategy runs
+**Week 2** (~15 hours):
+- Add AILANG to leetgptsolver (Track B)
+- Run LeetCode problems across models with prompt strategies
+- Collect cross-language comparison data
 
 **Week 3** (~10 hours):
-- Phase 3: Analysis, failure taxonomy, recommendations
-- Documentation and blog draft
+- Analysis: failure taxonomy, gap identification
+- Create design docs for each gap category
+- Write up results, submit upstream PRs
 
-**Total: ~45 hours across 3 weeks**
+**Total: ~40 hours across 3 weeks**
 
 ---
 
@@ -465,11 +513,14 @@ The following are intentionally left open for the implementer:
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | Models produce zero correct AILANG (no training data) | High | Use spec-prompted and few-shot strategies; measure improvement over zero-shot |
-| Mini-git task exceeds AILANG's current stdlib | Med | Audit required builtins before starting; add missing builtins if trivial |
+| **Missing bitwise ops for Track A MiniHash** | **High** | **Add XOR/bitwise builtins before Track A, or substitute sha256hex** |
+| **Track B can't use LeetCode judge** | **Med** | **Use their problems with our eval harness — same problems, local execution** |
+| Track C Docker sandbox is opaque | Med | Use shell wrapper approach or defer to later phase |
 | API costs for 600+ model calls | Med | Start with 5 trials, scale to 20 only for promising configurations |
 | Results are embarrassingly bad | Med | This is still valuable data — identifies exactly what to fix. Frame as "gap analysis" |
 | Upstream benchmark repos change or disappear | Low | Fork/vendor the specific commits we use |
 | AILANG compilation errors dominate failures (not generation quality) | Med | Separate "compiles but wrong" from "doesn't compile" in failure taxonomy |
+| LeetCode problems require mutable state / imperative patterns | Med | Document exclusions as expressiveness gap data; filter to functional-friendly subset |
 
 ---
 
@@ -512,4 +563,4 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-03-30
-**Last updated**: 2026-03-30
+**Last updated**: 2026-03-30 (revised: pivot from "create own problems" to "add AILANG to existing third-party benchmarks")

@@ -205,6 +205,10 @@ _zip_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool
+bitwiseAnd_Int : (int, int) -> int
+bitwiseNot_Int : int -> int
+bitwiseOr_Int : (int, int) -> int
+bitwiseXor_Int : (int, int) -> int
 concat_List : (list[a], list[a]) -> list[a]
 concat_String : (string, string) -> string
 div_Float : (float, float) -> float
@@ -240,6 +244,8 @@ neg_Float : float -> float
 neg_Int : int -> int
 not_Bool : bool -> bool
 or_Bool : (bool, bool) -> bool
+shiftLeft_Int : (int, int) -> int
+shiftRight_Int : (int, int) -> int
 show : α -> string
 sub_Float : (float, float) -> float
 sub_Int : (int, int) -> int

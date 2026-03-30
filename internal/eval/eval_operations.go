@@ -299,6 +299,14 @@ func (e *CoreEvaluator) evalIntrinsic(intrinsic *core.Intrinsic) (Value, error) 
 				op = "&&"
 			case core.OpOr:
 				op = "||"
+			case core.OpBitwiseAnd:
+				op = "&"
+			case core.OpBitwiseXor:
+				op = "^"
+			case core.OpShiftLeft:
+				op = "<<"
+			case core.OpShiftRight:
+				op = ">>"
 			default:
 				return nil, fmt.Errorf("unknown intrinsic operation: %v", intrinsic.Op)
 			}
@@ -313,6 +321,8 @@ func (e *CoreEvaluator) evalIntrinsic(intrinsic *core.Intrinsic) (Value, error) 
 				op = "not"
 			case core.OpNeg:
 				op = "-"
+			case core.OpBitwiseNot:
+				op = "~"
 			default:
 				return nil, fmt.Errorf("unknown unary intrinsic: %v", intrinsic.Op)
 			}
@@ -471,6 +481,20 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 					return &BoolValue{Value: lInt.Value <= rInt.Value}, nil
 				case ">=":
 					return &BoolValue{Value: lInt.Value >= rInt.Value}, nil
+				case "&":
+					return &IntValue{Value: lInt.Value & rInt.Value}, nil
+				case "^":
+					return &IntValue{Value: lInt.Value ^ rInt.Value}, nil
+				case "<<":
+					if rInt.Value < 0 {
+						return nil, fmt.Errorf("negative shift amount: %d", rInt.Value)
+					}
+					return &IntValue{Value: lInt.Value << uint(rInt.Value)}, nil
+				case ">>":
+					if rInt.Value < 0 {
+						return nil, fmt.Errorf("negative shift amount: %d", rInt.Value)
+					}
+					return &IntValue{Value: lInt.Value >> uint(rInt.Value)}, nil
 				}
 			}
 		}
@@ -557,6 +581,12 @@ func applyUnOp(op string, operand Value) (Value, error) {
 		if v, ok := operand.(*BoolValue); ok {
 			return &BoolValue{Value: !v.Value}, nil
 		}
+
+	case "~":
+		if v, ok := operand.(*IntValue); ok {
+			return &IntValue{Value: ^v.Value}, nil
+		}
+		return nil, fmt.Errorf("'~' requires int operand, got %T", operand)
 	}
 
 	return nil, fmt.Errorf("cannot apply unary operator %s to %T", op, operand)

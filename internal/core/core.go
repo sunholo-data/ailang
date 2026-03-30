@@ -305,6 +305,13 @@ const (
 	OpOr     // for || boolean or
 	OpNot    // for unary not
 	OpNeg    // for unary negation
+
+	// Bitwise operators
+	OpBitwiseAnd // for & bitwise AND
+	OpBitwiseXor // for ^ bitwise XOR
+	OpBitwiseNot // for ~ bitwise NOT (unary)
+	OpShiftLeft  // for << left shift
+	OpShiftRight // for >> right shift
 )
 
 // Intrinsic represents a built-in operation that will be lowered
@@ -320,6 +327,8 @@ func (i *Intrinsic) String() string {
 		OpAdd: "+", OpSub: "-", OpMul: "*", OpDiv: "/", OpMod: "%",
 		OpEq: "==", OpNe: "!=", OpLt: "<", OpLe: "<=", OpGt: ">", OpGe: ">=",
 		OpConcat: "++", OpAnd: "&&", OpOr: "||", OpNot: "not", OpNeg: "-",
+		OpBitwiseAnd: "&", OpBitwiseXor: "^", OpBitwiseNot: "~",
+		OpShiftLeft: "<<", OpShiftRight: ">>",
 	}
 	if len(i.Args) == 1 {
 		return fmt.Sprintf("%s%s", opStr[i.Op], i.Args[0])

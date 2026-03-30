@@ -34,22 +34,26 @@ type (
 	infixParseFn  func(ast.Expr) ast.Expr
 )
 
-// Precedence levels - spec compliant ordering
+// Precedence levels — C-standard dedicated bands.
+// These MUST match the values returned by token.Precedence().
 const (
-	LOWEST      int = iota
-	LAMBDA          // \x. (lowest precedence)
-	LogicalOr       // ||
-	LogicalAnd      // &&
-	EQUALS          // ==, !=
-	LESSGREATER     // >, <, >=, <=
-	CONS            // :: (list cons - right associative)
-	APPEND          // ++
-	SUM             // +, -
-	PRODUCT         // *, /, %
-	PREFIX          // -x, !x (unary)
-	CALL            // f(x) (application)
-	DotAccess       // r.field (field access - highest)
-	HIGHEST
+	LOWEST      = 0
+	LAMBDA      = 1  // \x. (lowest precedence)
+	LogicalOr   = 2  // ||
+	LogicalAnd  = 3  // &&
+	BitwiseXor  = 5  // ^   (4 reserved for future bitwise OR |)
+	BitwiseAnd  = 6  // &
+	EQUALS      = 7  // ==, !=
+	LESSGREATER = 8  // >, <, >=, <=
+	SHIFT       = 9  // <<, >>
+	CONS        = 10 // :: (list cons - right associative)
+	APPEND      = 11 // ++
+	SUM         = 12 // +, -
+	PRODUCT     = 13 // *, /, %
+	PREFIX      = 14 // -x, !x, ~x (unary)
+	CALL        = 15 // f(x) (application)
+	DotAccess   = 16 // r.field (field access - highest)
+	HIGHEST     = 17
 )
 
 // New creates a new Parser
@@ -76,6 +80,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(lexer.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(lexer.NOT, p.parsePrefixExpression)
 	p.registerPrefix(lexer.BANG, p.parsePrefixExpression)
+	p.registerPrefix(lexer.TILDE, p.parsePrefixExpression)
 	p.registerPrefix(lexer.IF, p.parseIfExpression)
 	p.registerPrefix(lexer.LET, p.parseLetExpression)
 	p.registerPrefix(lexer.LETREC, p.parseLetRecExpression)
@@ -101,7 +106,11 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.AND, p.parseInfixExpression)
 	p.registerInfix(lexer.OR, p.parseInfixExpression)
 	p.registerInfix(lexer.APPEND, p.parseInfixExpression)
-	p.registerInfix(lexer.DCOLON, p.parseConsExpression) // S-CONS: :: sugar
+	p.registerInfix(lexer.AMPERSAND, p.parseInfixExpression) // bitwise AND
+	p.registerInfix(lexer.CARET, p.parseInfixExpression)     // bitwise XOR
+	p.registerInfix(lexer.SHL, p.parseInfixExpression)       // left shift
+	p.registerInfix(lexer.SHR, p.parseInfixExpression)       // right shift
+	p.registerInfix(lexer.DCOLON, p.parseConsExpression)     // S-CONS: :: sugar
 	p.registerInfix(lexer.LPAREN, p.parseCallExpression)
 	p.registerInfix(lexer.UNIT, p.parseZeroArgCall) // S-CALL0: f() sugar (expression context)
 	p.registerInfix(lexer.DOT, p.parseRecordAccess)

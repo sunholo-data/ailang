@@ -42,6 +42,13 @@ var OperatorTable = map[core.IntrinsicOp]OpMapping{
 	// Unary operations
 	core.OpNot: {Builtin: "not", Types: []string{"Bool"}},
 	core.OpNeg: {Builtin: "neg", Types: []string{"Int", "Float"}},
+
+	// Bitwise operations (int only)
+	core.OpBitwiseAnd: {Builtin: "bitwiseAnd", Types: []string{"Int"}},
+	core.OpBitwiseXor: {Builtin: "bitwiseXor", Types: []string{"Int"}},
+	core.OpBitwiseNot: {Builtin: "bitwiseNot", Types: []string{"Int"}},
+	core.OpShiftLeft:  {Builtin: "shiftLeft", Types: []string{"Int"}},
+	core.OpShiftRight: {Builtin: "shiftRight", Types: []string{"Int"}},
 }
 
 // GetBuiltinName returns the monomorphic builtin name for an operator and type
@@ -74,6 +81,8 @@ func GetOpSymbol(op core.IntrinsicOp) string {
 		core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*", core.OpDiv: "/", core.OpMod: "%",
 		core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||", core.OpNot: "not", core.OpNeg: "-",
+		core.OpBitwiseAnd: "&", core.OpBitwiseXor: "^", core.OpBitwiseNot: "~",
+		core.OpShiftLeft: "<<", core.OpShiftRight: ">>",
 	}
 	if sym, ok := symbols[op]; ok {
 		return sym
@@ -103,7 +112,7 @@ func GetAllBuiltinNames() []string {
 func IsOperatorTableComplete() error {
 	// Check that all operators from 0 to OpNeg are mapped
 	// This assumes operators are defined contiguously
-	for op := core.IntrinsicOp(0); op <= core.OpNeg; op++ {
+	for op := core.IntrinsicOp(0); op <= core.OpShiftRight; op++ {
 		if _, ok := OperatorTable[op]; !ok {
 			return fmt.Errorf("operator %v has no mapping in OperatorTable", op)
 		}
@@ -148,6 +157,10 @@ func GetBuiltinType(name string) string {
 	case "not":
 		return "Bool -> Bool"
 	case "neg":
+		return fmt.Sprintf("%s -> %s", typ, typ)
+	case "bitwiseAnd", "bitwiseXor", "shiftLeft", "shiftRight":
+		return fmt.Sprintf("%s -> %s -> %s", typ, typ, typ)
+	case "bitwiseNot":
 		return fmt.Sprintf("%s -> %s", typ, typ)
 	default:
 		return "?"

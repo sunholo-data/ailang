@@ -26,6 +26,7 @@ func init() {
 	registerLogic()
 	registerConversions()
 	registerTrigonometry()
+	registerBitwise()
 }
 
 // ============================================================================

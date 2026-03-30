@@ -90,6 +90,13 @@ const (
 	DCOLON    // ::
 	BACKSLASH // \
 
+	// Bitwise operators
+	AMPERSAND // & (bitwise AND)
+	CARET     // ^ (bitwise XOR)
+	TILDE     // ~ (bitwise NOT)
+	SHL       // << (left shift)
+	SHR       // >> (right shift)
+
 	// Delimiters
 	LPAREN    // (
 	RPAREN    // )
@@ -201,6 +208,12 @@ var tokens = map[TokenType]string{
 	COLON:     ":",
 	DCOLON:    "::",
 	BACKSLASH: "\\",
+
+	AMPERSAND: "&",
+	CARET:     "^",
+	TILDE:     "~",
+	SHL:       "<<",
+	SHR:       ">>",
 
 	LPAREN:    "(",
 	RPAREN:    ")",
@@ -357,7 +370,8 @@ func (t Token) IsOperator() bool {
 		EQ, NEQ, LT, GT, LTE, GTE,
 		AND, OR, NOT,
 		APPEND, CONS, COMPOSE,
-		PIPE:
+		PIPE,
+		AMPERSAND, CARET, TILDE, SHL, SHR:
 		return true
 	}
 	return false
@@ -379,7 +393,25 @@ func (t Token) IsKeyword() bool {
 	return false
 }
 
-// Precedence returns the precedence of an operator - spec compliant ordering
+// Precedence returns the precedence of an operator.
+// Follows C-standard dedicated precedence bands (tightest at top):
+//
+//	DOT_ACCESS   .                   (16)
+//	CALL         f(x)                (15)
+//	PREFIX       -, not, ~           (14)
+//	PRODUCT      *, /, %             (13)
+//	SUM          +, -                (12)
+//	APPEND       ++                  (11)
+//	CONS         ::                  (10)
+//	SHIFT        <<, >>              (9)
+//	LESSGREATER  <, >, <=, >=        (8)
+//	EQUALS       ==, !=              (7)
+//	BITWISE_AND  &                   (6)
+//	BITWISE_XOR  ^                   (5)
+//	(BITWISE_OR  |  — reserved, not an operator; use bitwiseOr())
+//	LOGICAL_AND  &&                  (3)
+//	LOGICAL_OR   ||                  (2)
+//	LAMBDA       \                   (1)
 func (t Token) Precedence() int {
 	switch t.Type {
 	case BACKSLASH:
@@ -388,24 +420,30 @@ func (t Token) Precedence() int {
 		return 2 // LOGICAL_OR
 	case AND:
 		return 3 // LOGICAL_AND
+	case CARET:
+		return 5 // BITWISE_XOR
+	case AMPERSAND:
+		return 6 // BITWISE_AND
 	case EQ, NEQ:
-		return 4 // EQUALS
+		return 7 // EQUALS
 	case LT, GT, LTE, GTE:
-		return 5 // LESSGREATER
+		return 8 // LESSGREATER
+	case SHL, SHR:
+		return 9 // SHIFT
 	case DCOLON:
-		return 6 // CONS (:: list cons - right associative, S-CONS sugar)
+		return 10 // CONS (:: list cons - right associative)
 	case APPEND:
-		return 7 // APPEND (++ string concatenation)
+		return 11 // APPEND (++ concatenation)
 	case PLUS, MINUS:
-		return 8 // SUM
+		return 12 // SUM
 	case STAR, SLASH, PERCENT:
-		return 9 // PRODUCT
-	case NOT:
-		return 10 // PREFIX (unary operators)
+		return 13 // PRODUCT
+	case NOT, TILDE:
+		return 14 // PREFIX (unary operators: not, ~)
 	case LPAREN, UNIT:
-		return 11 // CALL (function application) - UNIT handles f() sugar
+		return 15 // CALL (function application) - UNIT handles f() sugar
 	case DOT:
-		return 12 // DOT_ACCESS (field access - highest)
+		return 16 // DOT_ACCESS (field access - highest)
 	default:
 		return 0
 	}

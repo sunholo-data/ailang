@@ -158,6 +158,8 @@ func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core
 			core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*", core.OpDiv: "/", core.OpMod: "%",
 			core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 			core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||",
+			core.OpBitwiseAnd: "&", core.OpBitwiseXor: "^",
+			core.OpShiftLeft: "<<", core.OpShiftRight: ">>",
 		}[intrinsic.Op]
 
 		binop := &core.BinOp{
@@ -173,6 +175,7 @@ func (tc *CoreTypeChecker) inferIntrinsic(ctx *InferenceContext, intrinsic *core
 	if len(intrinsic.Args) == 1 {
 		opStr := map[core.IntrinsicOp]string{
 			core.OpNot: "not", core.OpNeg: "-",
+			core.OpBitwiseNot: "~",
 		}[intrinsic.Op]
 
 		unop := &core.UnOp{

@@ -156,6 +156,14 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		op = core.OpAnd
 	case "||":
 		op = core.OpOr
+	case "&":
+		op = core.OpBitwiseAnd
+	case "^":
+		op = core.OpBitwiseXor
+	case "<<":
+		op = core.OpShiftLeft
+	case ">>":
+		op = core.OpShiftRight
 	default:
 		// For compatibility, still create BinOp for unknown operators
 		result := &core.BinOp{
@@ -192,6 +200,8 @@ func (e *Elaborator) normalizeUnaryOp(unop *ast.UnaryOp) (core.CoreExpr, error) 
 		op = core.OpNeg
 	case "not":
 		op = core.OpNot
+	case "~":
+		op = core.OpBitwiseNot
 	default:
 		// For compatibility, still create UnOp for unknown operators
 		result := &core.UnOp{

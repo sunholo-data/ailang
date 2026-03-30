@@ -15,8 +15,11 @@ func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 		core.OpEq: "=", core.OpNe: "distinct",
 		core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpAnd: "and", core.OpOr: "or", core.OpNot: "not",
-		core.OpNeg:    "-",
-		core.OpConcat: "str.++",
+		core.OpNeg:        "-",
+		core.OpConcat:     "str.++",
+		core.OpBitwiseAnd: "bvand", core.OpBitwiseXor: "bvxor",
+		core.OpBitwiseNot: "bvnot",
+		core.OpShiftLeft:  "bvshl", core.OpShiftRight: "bvashr",
 	}
 	smtOp, ok := opMap[intr.Op]
 	if !ok {
@@ -32,6 +35,8 @@ func encodeBinOp(bop *core.BinOp) (string, error) {
 		"==": "=", "!=": "distinct",
 		"<": "<", "<=": "<=", ">": ">", ">=": ">=",
 		"&&": "and", "||": "or",
+		"&": "bvand", "^": "bvxor",
+		"<<": "bvshl", ">>": "bvashr",
 	}
 	smtOp, ok := opMap[bop.Op]
 	if !ok {

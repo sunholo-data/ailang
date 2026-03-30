@@ -626,6 +626,8 @@ func CreateTypeMismatchError(op core.IntrinsicOp, leftType, rightType types.Type
 		core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*", core.OpDiv: "/", core.OpMod: "%",
 		core.OpEq: "==", core.OpNe: "!=", core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpConcat: "++", core.OpAnd: "&&", core.OpOr: "||", core.OpNot: "not", core.OpNeg: "-",
+		core.OpBitwiseAnd: "&", core.OpBitwiseXor: "^", core.OpBitwiseNot: "~",
+		core.OpShiftLeft: "<<", core.OpShiftRight: ">>",
 	}[op]
 
 	// For now, return a simple error

@@ -222,6 +222,9 @@ func (v *validator) exprKind(expr core.CoreExpr) string {
 			core.OpLt: "OpLt", core.OpLe: "OpLe", core.OpGt: "OpGt", core.OpGe: "OpGe",
 			core.OpConcat: "OpConcat", core.OpAnd: "OpAnd", core.OpOr: "OpOr",
 			core.OpNot: "OpNot", core.OpNeg: "OpNeg",
+			core.OpBitwiseAnd: "OpBitwiseAnd", core.OpBitwiseXor: "OpBitwiseXor",
+			core.OpBitwiseNot: "OpBitwiseNot",
+			core.OpShiftLeft:  "OpShiftLeft", core.OpShiftRight: "OpShiftRight",
 		}
 		return fmt.Sprintf("Intrinsic(%s)", opStr[e.Op])
 

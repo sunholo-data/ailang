@@ -1008,6 +1008,19 @@
       "description": "Comprehensive polymorphic ADT examples: Result, Either, mapResult, bindResult, Option integration"
     },
     {
+      "path": "runnable/bitwise.ail",
+      "status": "working",
+      "tags": [
+        "bitwise",
+        "operators",
+        "math",
+        "int",
+        "xor",
+        "shift"
+      ],
+      "description": "Bitwise operators: AND (&), XOR (^), NOT (~), shift left (<<), shift right (>>), XOR encryption pattern, nibble extraction"
+    },
+    {
       "path": "test_cli_io.ail",
       "status": "working",
       "tags": [

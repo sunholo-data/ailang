@@ -48,13 +48,26 @@ func TestOperatorPrecedence(t *testing.T) {
 		{"complex_logical_1", "a && b || c && d", "((a && b) || (c && d))"}, // && binds tighter
 		{"complex_logical_2", "a || b && c || d", "((a || (b && c)) || d)"},
 
-		// String concatenation (same as addition)
+		// String concatenation (between shift and additive)
 		{"concat_vs_compare", `"a" ++ "b" == "c"`, `((a ++ b) == c)`}, // Strings show without quotes in paren form
 
 		// Mixed precedence chains
 		{"mixed_1", "1 + 2 * 3 < 4 + 5", "((1 + (2 * 3)) < (4 + 5))"},
 		{"mixed_2", "x < y && a + b > c", "((x < y) && ((a + b) > c))"},
 		{"mixed_3", "a * b + c * d == e", "(((a * b) + (c * d)) == e)"},
+
+		// Bitwise operator precedence (C-standard bands)
+		// & and ^ are BELOW comparison (C convention)
+		{"bitand_vs_eq", "8 & 3 == 0", "(8 & (3 == 0))"},             // C: & below ==
+		{"bitxor_vs_eq", "a ^ b == c", "(a ^ (b == c))"},             // C: ^ below ==
+		{"bitand_vs_xor", "a & b ^ c", "((a & b) ^ c)"},              // & binds tighter than ^
+		{"shift_vs_add", "1 << 2 + 1", "(1 << (2 + 1))"},             // << below +
+		{"shift_vs_multiply", "1 << 2 * 3", "(1 << (2 * 3))"},        // << below *
+		{"not_vs_add", "~1 + 2", "((~1) + 2)"},                       // ~ is prefix, tightest
+		{"bitand_vs_logical", "x & y && z", "((x & y) && z)"},        // & above &&
+		{"bitxor_vs_logical", "x ^ y && z", "((x ^ y) && z)"},        // ^ above &&
+		{"shift_vs_compare", "a << 2 < b", "((a << 2) < b)"},         // << above <
+		{"compound_bitwise", "a & b ^ c & d", "((a & b) ^ (c & d))"}, // & tighter than ^
 	}
 
 	for _, tt := range tests {
@@ -83,6 +96,11 @@ func TestUnaryPrecedence(t *testing.T) {
 		// Unary in complex expressions
 		{"unary_in_arith", "1 + -2 * 3", "(1 + ((-2) * 3))"},
 		{"not_in_logical", "!x || y && !z", "((!x) || (y && (!z)))"},
+
+		// Bitwise NOT as prefix
+		{"tilde_vs_add", "~x + 1", "((~x) + 1)"},
+		{"tilde_vs_multiply", "~x * 2", "((~x) * 2)"},
+		{"tilde_vs_bitand", "~x & y", "((~x) & y)"},
 	}
 
 	for _, tt := range tests {
@@ -113,26 +131,32 @@ func TestPrecedenceWithGrouping(t *testing.T) {
 }
 
 // TestPrecedenceTable validates the complete precedence table
+// Uses C-standard dedicated precedence bands (loosest to tightest):
+//
+//	||  &&  ^  &  ==/<  <</>>  ++  +/-  */%
 func TestPrecedenceTable(t *testing.T) {
 	// Generate all pairwise operator precedence tests
 	operators := []struct {
 		op         string
-		precedence int // Lower number = lower precedence
+		precedence int // Lower number = lower precedence (looser binding)
 	}{
 		{"||", 1},
 		{"&&", 2},
-		{"==", 3},
-		{"!=", 3},
-		{"<", 3},
-		{"<=", 3},
-		{">", 3},
-		{">=", 3},
-		{"++", 4}, // String concat, same as addition
-		{"+", 4},
-		{"-", 4},
-		{"*", 5},
-		{"/", 5},
-		{"%", 5},
+		{"^", 3}, // bitwise XOR
+		{"&", 4}, // bitwise AND
+		{"==", 5},
+		{"!=", 5},
+		{"<", 6},
+		{"<=", 6},
+		{">", 6},
+		{">=", 6},
+		{"<<", 7}, // shift
+		{">>", 7},
+		{"+", 8},
+		{"-", 8},
+		{"*", 9},
+		{"/", 9},
+		{"%", 9},
 	}
 
 	// Test that operators with different precedence parse correctly
@@ -148,10 +172,6 @@ func TestPrecedenceTable(t *testing.T) {
 				expected := fmt.Sprintf("(a %s (b %s c))", op1.op, op2.op)
 
 				t.Run(fmt.Sprintf("%s_vs_%s", op1.op, op2.op), func(t *testing.T) {
-					// Skip string concat tests with non-string operators for now
-					if op1.op == "++" || op2.op == "++" {
-						t.Skip("String concat tests skipped")
-					}
 					assertPrecedence(t, input, expected)
 				})
 			}
@@ -176,6 +196,11 @@ func TestAssociativity(t *testing.T) {
 		{"or_assoc", "||", "((a || b) || c)", true},
 		{"equal_assoc", "==", "((a == b) == c)", true},
 		{"less_assoc", "<", "((a < b) < c)", true},
+		// Bitwise operators are left-associative
+		{"bitand_assoc", "&", "((a & b) & c)", true},
+		{"bitxor_assoc", "^", "((a ^ b) ^ c)", true},
+		{"shl_assoc", "<<", "((a << b) << c)", true},
+		{"shr_assoc", ">>", "((a >> b) >> c)", true},
 	}
 
 	for _, tt := range tests {

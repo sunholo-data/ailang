@@ -140,6 +140,10 @@ func (l *Lexer) NextToken() Token {
 			ch := l.ch
 			l.readChar()
 			tok = NewToken(LARROW, string(ch)+string(l.ch), line, column, l.file)
+		} else if l.peekChar() == '<' {
+			ch := l.ch
+			l.readChar()
+			tok = NewToken(SHL, string(ch)+string(l.ch), line, column, l.file)
 		} else {
 			tok = NewToken(LT, string(l.ch), line, column, l.file)
 		}
@@ -148,6 +152,10 @@ func (l *Lexer) NextToken() Token {
 			ch := l.ch
 			l.readChar()
 			tok = NewToken(GTE, string(ch)+string(l.ch), line, column, l.file)
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			tok = NewToken(SHR, string(ch)+string(l.ch), line, column, l.file)
 		} else {
 			tok = NewToken(GT, string(l.ch), line, column, l.file)
 		}
@@ -157,7 +165,7 @@ func (l *Lexer) NextToken() Token {
 			l.readChar()
 			tok = NewToken(AND, string(ch)+string(l.ch), line, column, l.file)
 		} else {
-			tok = NewToken(ILLEGAL, string(l.ch), line, column, l.file)
+			tok = NewToken(AMPERSAND, string(l.ch), line, column, l.file)
 		}
 	case '|':
 		if l.peekChar() == '|' {
@@ -219,6 +227,10 @@ func (l *Lexer) NextToken() Token {
 		tok = NewToken(DOLLAR, string(l.ch), line, column, l.file)
 	case '#':
 		tok = NewToken(HASH, string(l.ch), line, column, l.file)
+	case '^':
+		tok = NewToken(CARET, string(l.ch), line, column, l.file)
+	case '~':
+		tok = NewToken(TILDE, string(l.ch), line, column, l.file)
 	case '\\':
 		tok = NewToken(BACKSLASH, string(l.ch), line, column, l.file)
 	case '"':
