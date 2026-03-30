@@ -688,3 +688,52 @@ func TestPackageDependencyWithoutRoutes(t *testing.T) {
 		t.Fatal("expected hasRoutes to be false for dependency without @route annotations")
 	}
 }
+
+// TestFindRouteByPath verifies that findRouteByPath locates custom routes
+// from package modules registered in s.modules.
+func TestFindRouteByPath(t *testing.T) {
+	srv := &Server{
+		modules: map[string]*ModuleInfo{
+			"pkg/sunholo/ailang_parse/services/tools": {
+				Path: "pkg/sunholo/ailang_parse/services/tools",
+				Exports: []ExportInfo{
+					{
+						Name:        "toolDefinitions",
+						Type:        "HttpRequest -> string",
+						Arity:       1,
+						RouteMethod: "GET",
+						RoutePath:   "/api/v1/tools",
+						IsNowrap:    true,
+					},
+				},
+			},
+			"local/api": {
+				Path: "local/api",
+				Exports: []ExportInfo{
+					{Name: "health", Type: "string", Arity: 0},
+				},
+			},
+		},
+	}
+
+	// Should find the package module's route
+	route := srv.findRouteByPath("/api/v1/tools")
+	if route == nil {
+		t.Fatal("expected to find route for /api/v1/tools")
+	}
+	if route.Module != "pkg/sunholo/ailang_parse/services/tools" {
+		t.Errorf("expected module pkg/sunholo/ailang_parse/services/tools, got %q", route.Module)
+	}
+	if route.Function != "toolDefinitions" {
+		t.Errorf("expected function toolDefinitions, got %q", route.Function)
+	}
+	if !route.IsNowrap {
+		t.Error("expected IsNowrap to be true")
+	}
+
+	// Should not find non-existent route
+	route = srv.findRouteByPath("/api/v1/nonexistent")
+	if route != nil {
+		t.Errorf("expected nil for non-existent route, got %+v", route)
+	}
+}

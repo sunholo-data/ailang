@@ -114,11 +114,12 @@ func (e *Engine) Load(modulePath string) error {
 		return nil // Already loaded
 	}
 
-	// Compile module through pipeline first (applies OpLowering)
+	// Compile module through pipeline first (applies OpLowering).
+	// compileModule may fail for package dependencies whose files aren't
+	// at basePath/modulePath.ail. Fall through to LoadAndEvaluate which
+	// checks the loader cache where serve-api preloads transitive modules.
 	if !e.compiled[modulePath] {
-		if err := e.compileModule(modulePath); err != nil {
-			return err
-		}
+		_ = e.compileModule(modulePath)
 	}
 
 	_, err := e.runtime.LoadAndEvaluate(modulePath)
@@ -197,10 +198,11 @@ func (e *Engine) Call(modulePath, funcName string, args ...interface{}) (eval.Va
 		inst = e.runtime.GetInstance(modulePath)
 		if inst == nil {
 			if !alreadyCompiled {
-				if err := e.compileModule(modulePath); err != nil {
-					e.mu.Unlock()
-					return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
-				}
+				// compileModule may fail for package dependencies whose
+				// files aren't at basePath/modulePath.ail. Fall through
+				// to LoadAndEvaluate which checks the loader cache where
+				// serve-api preloads transitive package modules.
+				_ = e.compileModule(modulePath)
 			}
 
 			var err error
@@ -273,10 +275,11 @@ func (e *Engine) CallPreserveFloats(modulePath, funcName string, args ...interfa
 		inst = e.runtime.GetInstance(modulePath)
 		if inst == nil {
 			if !alreadyCompiled {
-				if err := e.compileModule(modulePath); err != nil {
-					e.mu.Unlock()
-					return nil, fmt.Errorf("failed to compile module %s: %w", modulePath, err)
-				}
+				// compileModule may fail for package dependencies whose
+				// files aren't at basePath/modulePath.ail. Fall through
+				// to LoadAndEvaluate which checks the loader cache where
+				// serve-api preloads transitive package modules.
+				_ = e.compileModule(modulePath)
 			}
 
 			var err error

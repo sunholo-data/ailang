@@ -67,6 +67,20 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	if !ok {
+		// Fallback: check if the URL matches a custom @route from a package
+		// module. Package modules use paths like "pkg/owner/repo/mod" which
+		// don't match the URL-based module/function parsing above.
+		if route := s.findRouteByPath(r.URL.Path); route != nil {
+			if r.Method == route.Method || r.Method == "OPTIONS" {
+				s.callFunction(w, r, route.Module, route.Function, callOpts{
+					Raw:        route.IsRaw,
+					Nowrap:     route.IsNowrap,
+					ParamNames: route.ParamNames,
+					ParamTypes: route.ParamTypes,
+				})
+				return
+			}
+		}
 		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
 			Module: modulePath,
 			Func:   funcName,

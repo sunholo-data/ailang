@@ -168,6 +168,31 @@ func isValidJSONObjectOrArray(s string) bool {
 	return json.Valid([]byte(s))
 }
 
+// findRouteByPath finds a custom route matching the given URL path.
+// Used as a fallback in the catch-all handler for package module routes.
+func (s *Server) findRouteByPath(urlPath string) *RouteEntry {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, mod := range s.modules {
+		for _, exp := range mod.Exports {
+			if exp.RoutePath == urlPath {
+				return &RouteEntry{
+					Method:     exp.RouteMethod,
+					Path:       exp.RoutePath,
+					Module:     mod.Path,
+					Function:   exp.Name,
+					IsRaw:      exp.IsRaw,
+					IsNowrap:   exp.IsNowrap,
+					ParamNames: exp.ParamNames,
+					ParamTypes: exp.ParamTypes,
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // getCustomRoutes returns all custom routes from loaded modules.
 func (s *Server) getCustomRoutes() []RouteEntry {
 	s.mu.RLock()
