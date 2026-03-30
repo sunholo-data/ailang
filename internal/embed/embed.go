@@ -115,11 +115,16 @@ func (e *Engine) Load(modulePath string) error {
 	}
 
 	// Compile module through pipeline first (applies OpLowering).
-	// compileModule may fail for package dependencies whose files aren't
-	// at basePath/modulePath.ail. Fall through to LoadAndEvaluate which
-	// checks the loader cache where serve-api preloads transitive modules.
+	// For local modules this resolves imports and applies transforms.
+	// For package modules (pkg/...), compileModule will fail because the
+	// file isn't at basePath/modulePath.ail — that's expected; serve-api
+	// preloads them via PreloadModule so LoadAndEvaluate finds them in cache.
 	if !e.compiled[modulePath] {
-		_ = e.compileModule(modulePath)
+		if err := e.compileModule(modulePath); err != nil {
+			// If the module was preloaded by serve-api (or similar),
+			// LoadAndEvaluate will find it in the loader cache.
+			// If not, LoadAndEvaluate will fail with a clear error.
+		}
 	}
 
 	_, err := e.runtime.LoadAndEvaluate(modulePath)

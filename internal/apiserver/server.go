@@ -287,6 +287,15 @@ func (s *Server) loadFile(path string) error {
 	if result.Modules != nil {
 		for modPath, loaded := range result.Modules {
 			s.engine.PreloadModule(modPath, loaded)
+			// Also preload under the declared module path (loaded.Path) when it
+			// differs from the resolved key. This happens with module_prefix
+			// aliasing: e.g. the map key is "pkg/sunholo/ailang_parse/types/document"
+			// but loaded.Path (and import statements) use "docparse/types/document".
+			// Without this, LoadAndEvaluate's recursive import resolution fails
+			// because it looks up imports by declared path, not resolved key.
+			if loaded.Path != "" && loaded.Path != modPath {
+				s.engine.PreloadModule(loaded.Path, loaded)
+			}
 		}
 
 		// Discover @route annotations in package dependencies.
