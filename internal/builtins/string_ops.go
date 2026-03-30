@@ -661,3 +661,65 @@ func strSplitAnyImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, erro
 	}
 	return &eval.ListValue{Elements: result}, nil
 }
+
+// ============================================================================
+// String Replace (M-DX-UTF8)
+// ============================================================================
+
+// registerStringReplace registers the _str_replace builtin
+func registerStringReplace() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_replace",
+		NumArgs: 3,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrReplaceType,
+		Impl:    strReplaceImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Replace all occurrences of a substring with a replacement",
+			LongDesc:    "Returns a new string with all non-overlapping occurrences of old replaced by new. If old is empty, inserts new between each character and at the start and end.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to search in"},
+				{Name: "old", Description: "Substring to find and replace"},
+				{Name: "new", Description: "Replacement substring"},
+			},
+			Returns: "New string with all occurrences replaced",
+			Examples: []Example{
+				{Code: `_str_replace("hello world", "world", "AILANG")`, Description: `Returns "hello AILANG"`},
+				{Code: `_str_replace("aaa", "a", "bb")`, Description: `Returns "bbbbbb"`},
+				{Code: `_str_replace("hello", "xyz", "abc")`, Description: `Returns "hello" (no match)`},
+			},
+			SeeAlso:   []string{"_str_find", "_str_slice", "_str_split"},
+			Since:     "v0.9.5",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "replace", "substitute", "text"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_replace: %v", err))
+	}
+}
+
+func makeStrReplaceType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String(), T.String()).Returns(T.String()).Build()
+}
+
+func strReplaceImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_replace: arg 0 - %w", err)
+	}
+	old, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_replace: arg 1 - %w", err)
+	}
+	newStr, err := SafeAsString(args[2])
+	if err != nil {
+		return nil, fmt.Errorf("_str_replace: arg 2 - %w", err)
+	}
+	return &eval.StringValue{Value: strings.ReplaceAll(s, old, newStr)}, nil
+}

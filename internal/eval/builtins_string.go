@@ -179,6 +179,16 @@ func registerStringPrimitiveBuiltins() {
 		},
 	}
 
+	// _str_replace: replace all occurrences of a substring
+	Builtins["_str_replace"] = &BuiltinFunc{
+		Name:    "_str_replace",
+		NumArgs: 3,
+		IsPure:  true,
+		Impl: func(s *StringValue, old *StringValue, newStr *StringValue) (*StringValue, error) {
+			return &StringValue{Value: strings.ReplaceAll(s.Value, old.Value, newStr.Value)}, nil
+		},
+	}
+
 	// _str_trim: Unicode-aware whitespace trimming
 	Builtins["_str_trim"] = &BuiltinFunc{
 		Name:    "_str_trim",

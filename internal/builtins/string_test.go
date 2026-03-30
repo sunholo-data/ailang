@@ -462,3 +462,199 @@ func TestStringReverseIdempotent(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// UTF-8 Regression Tests (M-DX-UTF8)
+// ============================================================================
+
+// TestStrFindUTF8 verifies find() returns rune (character) index, not byte offset.
+// Regression test for: DocParse bug where find() returned byte offset causing
+// substring() to lose characters on multi-byte UTF-8 strings.
+func TestStrFindUTF8(t *testing.T) {
+	tests := []struct {
+		name     string
+		haystack string
+		needle   string
+		want     int
+	}{
+		{"ASCII only", "hello world", "world", 6},
+		{"ASCII not found", "hello", "xyz", -1},
+		{"2-byte char before match", "café world", "world", 5},
+		{"multiple 2-byte chars", "über café world", "world", 10},
+		{"3-byte char (emoji)", "hello 🎉 world", "world", 8},
+		{"4-byte char before match", "𝄞 music", "music", 2},
+		{"needle is multi-byte", "find the é", "é", 9},
+		{"empty needle", "café", "", 0},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{
+				&eval.StringValue{Value: tt.haystack},
+				&eval.StringValue{Value: tt.needle},
+			}
+			result, err := strFindImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strFindImpl() error: %v", err)
+			}
+			intVal, ok := result.(*eval.IntValue)
+			if !ok {
+				t.Fatalf("expected *eval.IntValue, got %T", result)
+			}
+			if intVal.Value != tt.want {
+				t.Errorf("find(%q, %q) = %d, want %d (byte offset would be %d)",
+					tt.haystack, tt.needle, intVal.Value, tt.want,
+					len(tt.haystack[:indexOf(tt.haystack, tt.needle)]))
+			}
+		})
+	}
+}
+
+// indexOf is a test helper — returns byte index for error messages
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return 0
+}
+
+// TestStrFindSubstringCompose verifies find() + substring() compose correctly on UTF-8.
+// This is the exact pattern that was broken: substring(s, find(s, needle), length(s))
+func TestStrFindSubstringCompose(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		needle   string
+		wantTail string
+	}{
+		{"ASCII", "hello world", "world", "world"},
+		{"2-byte é", "café world", "world", "world"},
+		{"2-byte ü", "über world", "world", "world"},
+		{"emoji before", "🎉 party time", "party", "party time"},
+		{"mixed multi-byte", "résumé cover", "cover", "cover"},
+		{"docparse repro", "ç\n\nText", "\n\n", "\n\nText"},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Step 1: find(input, needle) -> pos
+			findArgs := []eval.Value{
+				&eval.StringValue{Value: tt.input},
+				&eval.StringValue{Value: tt.needle},
+			}
+			posResult, err := strFindImpl(ctx.EffContext, findArgs)
+			if err != nil {
+				t.Fatalf("strFindImpl() error: %v", err)
+			}
+			pos := posResult.(*eval.IntValue).Value
+
+			// Step 2: length(input) -> len
+			lenArgs := []eval.Value{&eval.StringValue{Value: tt.input}}
+			lenResult, err := strLenImpl(ctx.EffContext, lenArgs)
+			if err != nil {
+				t.Fatalf("strLenImpl() error: %v", err)
+			}
+			strLen := lenResult.(*eval.IntValue).Value
+
+			// Step 3: substring(input, pos, len) -> tail
+			sliceArgs := []eval.Value{
+				&eval.StringValue{Value: tt.input},
+				&eval.IntValue{Value: pos},
+				&eval.IntValue{Value: strLen},
+			}
+			sliceResult, err := strSliceImpl(ctx.EffContext, sliceArgs)
+			if err != nil {
+				t.Fatalf("strSliceImpl() error: %v", err)
+			}
+			got := sliceResult.(*eval.StringValue).Value
+
+			if got != tt.wantTail {
+				t.Errorf("substring(%q, find(%q, %q), length(%q)) = %q, want %q (pos=%d, len=%d)",
+					tt.input, tt.input, tt.needle, tt.input, got, tt.wantTail, pos, strLen)
+			}
+		})
+	}
+}
+
+// TestStrReplace tests the _str_replace builtin
+func TestStrReplace(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		old    string
+		newStr string
+		want   string
+	}{
+		{"basic replace", "hello world", "world", "AILANG", "hello AILANG"},
+		{"replace all occurrences", "aaa", "a", "bb", "bbbbbb"},
+		{"no match", "hello", "xyz", "abc", "hello"},
+		{"empty old (insert between chars)", "hi", "", "x", "xhxix"},
+		{"replace to empty (delete)", "hello world", " world", "", "hello"},
+		{"UTF-8 replace", "café", "é", "e", "cafe"},
+		{"emoji replace", "hello 🎉", "🎉", "world", "hello world"},
+		{"empty input", "", "a", "b", ""},
+		{"same old and new", "hello", "l", "l", "hello"},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{
+				&eval.StringValue{Value: tt.input},
+				&eval.StringValue{Value: tt.old},
+				&eval.StringValue{Value: tt.newStr},
+			}
+			result, err := strReplaceImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strReplaceImpl() error: %v", err)
+			}
+			strVal, ok := result.(*eval.StringValue)
+			if !ok {
+				t.Fatalf("expected *eval.StringValue, got %T", result)
+			}
+			if strVal.Value != tt.want {
+				t.Errorf("replace(%q, %q, %q) = %q, want %q",
+					tt.input, tt.old, tt.newStr, strVal.Value, tt.want)
+			}
+		})
+	}
+}
+
+// TestStrLenUTF8 verifies length() returns character count, not byte count
+func TestStrLenUTF8(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  int
+	}{
+		{"ASCII", "hello", 5},
+		{"2-byte chars", "café", 4},   // é is 2 bytes but 1 char
+		{"emoji", "🎉", 1},             // 4 bytes but 1 char
+		{"mixed", "hello 🎉 café", 12}, // 12 chars, 16 bytes
+		{"empty", "", 0},
+	}
+
+	ctx := testctx.NewMockEffContext()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []eval.Value{&eval.StringValue{Value: tt.input}}
+			result, err := strLenImpl(ctx.EffContext, args)
+			if err != nil {
+				t.Fatalf("strLenImpl() error: %v", err)
+			}
+			intVal := result.(*eval.IntValue)
+			if intVal.Value != tt.want {
+				t.Errorf("length(%q) = %d, want %d (byte length would be %d)",
+					tt.input, intVal.Value, tt.want, len(tt.input))
+			}
+		})
+	}
+}

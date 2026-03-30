@@ -33,6 +33,7 @@ func init() {
 	registerStrJoin()
 	registerStrWords()
 	registerStrSplitAny()
+	registerStringReplace()
 }
 
 // ============================================================================
@@ -248,8 +249,13 @@ func strFindImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if err != nil {
 		return nil, fmt.Errorf("_str_find: arg 1 - %w", err)
 	}
-	idx := strings.Index(haystack, needle)
-	return &eval.IntValue{Value: idx}, nil
+	byteIdx := strings.Index(haystack, needle)
+	if byteIdx == -1 {
+		return &eval.IntValue{Value: -1}, nil
+	}
+	// Convert byte offset to rune (character) index for UTF-8 correctness
+	runeIdx := utf8.RuneCountInString(haystack[:byteIdx])
+	return &eval.IntValue{Value: runeIdx}, nil
 }
 
 // registerStringSlice registers the _str_slice builtin

@@ -24,6 +24,10 @@ export pure func find(hay: string, needle: string) -> int { _str_find(hay, needl
 -- returns true if hay contains needle
 export pure func contains(hay: string, needle: string) -> bool { find(hay, needle) >= 0 }
 
+-- replace: Replace all occurrences of old with new
+-- Example: replace("hello world", "world", "universe") => "hello universe"
+export pure func replace(s: string, old: string, new: string) -> string { _str_replace(s, old, new) }
+
 -- startsWith: Check if string starts with prefix
 -- Example: startsWith("hello world", "hello") => true
 export pure func startsWith(s: string, prefix: string) -> bool { _str_startsWith(s, prefix) }

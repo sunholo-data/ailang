@@ -44,7 +44,8 @@ func registerStringCodegenSpecs() {
 		StdlibName: "toLower",
 	})
 	setSpec("_str_len", &GoCodegenSpec{
-		Inline:     `int64(len({{arg0}}.(string)))`,
+		Inline:     `int64(utf8.RuneCountInString({{arg0}}.(string)))`,
+		Imports:    []string{"unicode/utf8"},
 		StdlibName: "length",
 	})
 	setSpec("_str_compare", &GoCodegenSpec{
@@ -53,8 +54,15 @@ func registerStringCodegenSpecs() {
 		StdlibName: "compare",
 	})
 	setSpec("_str_find", &GoCodegenSpec{
-		Inline:     `int64(strings.Index({{arg0}}.(string), {{arg1}}.(string)))`,
-		Imports:    []string{"strings"},
+		Helper: &GoHelperSpec{
+			FuncName:  "FindRune",
+			Signature: "func FindRune(s interface{}, sub interface{}) interface{}",
+			Body: `str := s.(string)
+	byteIdx := strings.Index(str, sub.(string))
+	if byteIdx == -1 { return int64(-1) }
+	return int64(utf8.RuneCountInString(str[:byteIdx]))`,
+		},
+		Imports:    []string{"strings", "unicode/utf8"},
 		StdlibName: "find",
 	})
 	setSpec("_str_eq", &GoCodegenSpec{
@@ -64,13 +72,14 @@ func registerStringCodegenSpecs() {
 		Helper: &GoHelperSpec{
 			FuncName:  "Substring",
 			Signature: "func Substring(s interface{}, start interface{}, end interface{}) interface{}",
-			Body: `str := s.(string)
+			Body: `runes := []rune(s.(string))
+	length := len(runes)
 	st := int(toInt64(start))
 	en := int(toInt64(end))
 	if st < 0 { st = 0 }
-	if en > len(str) { en = len(str) }
+	if en > length { en = length }
 	if st > en { return "" }
-	return str[st:en]`,
+	return string(runes[st:en])`,
 		},
 		StdlibName: "substring",
 	})
@@ -167,6 +176,11 @@ func registerStringCodegenSpecs() {
 		Inline:     `strings.Contains({{arg0}}.(string), {{arg1}}.(string))`,
 		Imports:    []string{"strings"},
 		StdlibName: "contains",
+	})
+	registerIfMissing("_str_replace", 3, true, &GoCodegenSpec{
+		Inline:     `strings.ReplaceAll({{arg0}}.(string), {{arg1}}.(string), {{arg2}}.(string))`,
+		Imports:    []string{"strings"},
+		StdlibName: "replace",
 	})
 	registerIfMissing("_str_repeat", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{

@@ -1,0 +1,42 @@
+module examples/string_replace
+
+import std/string (replace, find, substring, length, contains)
+
+-- Demonstrate replace() builtin and UTF-8 string correctness
+
+-- Basic replacement
+pure func basicReplace() -> string =
+  replace("hello world", "world", "AILANG")
+
+-- Replace all occurrences
+pure func replaceAll() -> string =
+  replace("banana", "a", "o")
+
+-- Delete by replacing with empty string
+pure func deleteSubstring() -> string =
+  replace("hello world", " world", "")
+
+-- UTF-8 safe: replace accented characters
+pure func utf8Replace() -> string =
+  replace("café résumé", "é", "e")
+
+-- Compose find + substring correctly on multi-byte strings
+pure func utf8FindSubstring() -> string =
+  let s = "café world" in
+  let pos = find(s, "world") in
+  substring(s, pos, length(s))
+
+-- Chain replacements
+pure func chainReplace(s: string) -> string =
+  let step1 = replace(s, "\n", " ") in
+  let step2 = replace(step1, "\t", " ") in
+  replace(step2, "  ", " ")
+
+export func main() -> () ! {IO} {
+  println("replace basic:    " ++ basicReplace());
+  println("replace all:      " ++ replaceAll());
+  println("delete substr:    " ++ deleteSubstring());
+  println("UTF-8 replace:    " ++ utf8Replace());
+  println("UTF-8 find+sub:   " ++ utf8FindSubstring());
+  println("chain replace:    " ++ chainReplace("hello\tworld\n\nfoo  bar"))
+}
