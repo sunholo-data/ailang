@@ -20,6 +20,7 @@ func init() {
 	registerArrayLength()
 	registerArrayFromList()
 	registerArrayToList()
+	registerArrayAppend()
 }
 
 // ============================================================================
@@ -431,4 +432,54 @@ func arrayToListImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 	elements := make([]eval.Value, len(arr.Elements))
 	copy(elements, arr.Elements)
 	return &eval.ListValue{Elements: elements}, nil
+}
+
+// registerArrayAppend registers the array_append builtin
+// Returns new array with element added at end. O(n) due to copy.
+func registerArrayAppend() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/array",
+		Name:    "_array_append",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeArrayAppendType,
+		Impl:    arrayAppendImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Append element to end of array (returns new array)",
+			LongDesc:    "Returns a new array with the element added at the end. O(n) due to copy. For bulk building, prefer fromList over repeated append.",
+			Params: []ParamDoc{
+				{Name: "arr", Description: "Array to append to"},
+				{Name: "val", Description: "Element to append"},
+			},
+			Returns:   "New array with element added at end",
+			Since:     "v0.11.0",
+			Stability: StabilityExperimental,
+			Tags:      []string{"array", "append", "grow", "immutable"},
+			Category:  "array",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register array_append: %v", err))
+	}
+}
+
+// Type: forall a. (Array[a], a) -> Array[a]
+func makeArrayAppendType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	arrayA := &types.TArray{Element: a}
+	return T.Func(arrayA, a).Returns(arrayA).Build()
+}
+
+func arrayAppendImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	arr, ok := args[0].(*eval.ArrayValue)
+	if !ok {
+		return nil, fmt.Errorf("array_append: expected Array, got %T", args[0])
+	}
+	newVal := args[1]
+	elements := make([]eval.Value, len(arr.Elements)+1)
+	copy(elements, arr.Elements)
+	elements[len(arr.Elements)] = newVal
+	return &eval.ArrayValue{Elements: elements}, nil
 }

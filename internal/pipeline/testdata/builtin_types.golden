@@ -11,6 +11,7 @@ _ai_call_image : (string, string, string) -> string ! {AI}
 _ai_call_image_base64 : (string, string) -> string ! {AI}
 _ai_call_json : (string, string) -> string ! {AI}
 _ai_call_json_simple : string -> string ! {AI}
+_array_append : (Array[a], a) -> Array[a]
 _array_empty : () -> Array[a]
 _array_from_list : list[a] -> Array[a]
 _array_get : (Array[a], int) -> a

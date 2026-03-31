@@ -77,3 +77,10 @@ export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
 export pure func set[a](arr: Array[a], idx: int, val: a) -> Array[a] {
   _array_set(arr, idx, val)
 }
+
+-- Append element to end of array, returning NEW array. O(n) due to copy.
+-- Original array is unchanged (immutable semantics).
+-- TIP: For bulk building, prefer fromList over repeated append.
+export pure func append[a](arr: Array[a], val: a) -> Array[a] {
+  _array_append(arr, val)
+}
