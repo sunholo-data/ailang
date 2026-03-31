@@ -2,7 +2,7 @@
 --
 -- Maps provide O(1) key-value lookup. Build with fromList, query with lookup.
 
-module map_basic
+module examples/runnable/map_basic
 import std/io (println)
 import std/map as M
 import std/string (intToStr)

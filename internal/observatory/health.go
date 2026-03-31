@@ -2,7 +2,6 @@ package observatory
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 )
@@ -67,9 +66,6 @@ func CheckHealth(dbPath string) {
 		log.Printf("Observatory: %dMB (warn threshold: 200MB)", totalMB)
 
 	default:
-		// Log size for visibility but don't warn
-		if totalMB > 0 {
-			fmt.Fprintf(os.Stderr, "Observatory: %dMB\n", totalMB)
-		}
+		// Size is healthy, no output needed
 	}
 }
