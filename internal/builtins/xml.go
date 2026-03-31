@@ -23,6 +23,7 @@ const (
 func init() {
 	registerXmlParse()
 	registerXmlParseElements()
+	// registerXmlParseFold is in xml_fold.go init()
 	registerXmlParseWithLimit()
 	registerXmlGetText()
 	registerXmlGetAttr()

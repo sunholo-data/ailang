@@ -1,0 +1,27 @@
+-- XML fold: process elements one-at-a-time without building a list
+-- Demonstrates parseFold for memory-efficient XML processing
+--
+-- Usage: ailang run --entry main examples/runnable/xml_fold.ail
+module examples/runnable/xml_fold
+
+import std/result (Result, Ok, Err)
+import std/xml (parseFold, getText)
+
+-- Count elements and collect text using fold (O(1) memory per element)
+export func main() -> int ! {IO} {
+  let xml = "<catalog><book><title>AILANG Guide</title></book><book><title>Functional Design</title></book><book><title>AI Patterns</title></book></catalog>";
+
+  -- Fold: count matching elements
+  match parseFold(xml, "book", 0, \count _node. count + 1) {
+    Ok(n) => println("Book count: " ++ show(n)),
+    Err(msg) => println("Error: " ++ msg)
+  };
+
+  -- Fold: collect titles into a list
+  match parseFold(xml, "title", [], \acc node. acc ++ [getText(node)]) {
+    Ok(titles) => println("Titles: " ++ show(titles)),
+    Err(msg) => println("Error: " ++ msg)
+  };
+
+  0
+}

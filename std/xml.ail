@@ -8,7 +8,7 @@
 -- Security: 256 depth limit, 50MB input size limit.
 --
 -- Usage:
---   import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag,
+--   import std/xml (parse, parseFold, findAll, findFirst, getText, getAttr, getChildren, getTag,
 --                   serialize, escapeXml, xmlElement, xmlText, xmlComment)
 --   match parse("<root><item id='1'>Hello</item></root>") {
 --     Ok(doc) => println(getText(doc)),
@@ -67,6 +67,14 @@ export pure func findAllAttrs(node: XmlNode, tag: string, attr: string) -> List[
 -- Stream-parse: extract up to N elements matching a tag without building full tree
 -- Memory: O(largest element) instead of O(entire document). For large XLSX/XML files.
 export pure func parseElements(xml: string, tag: string, maxResults: int) -> Result[List[XmlNode], string] = _xml_parseElements(xml, tag, maxResults)
+
+-- Fold over XML elements matching a tag. Calls handler for each match
+-- with an accumulator, returning the final accumulated value.
+-- Memory: O(largest element + accumulator), not O(all matched elements).
+--
+-- COST MODEL:
+--   parseFold(xml, tag, init, f)  O(n) scan, O(1) memory per element
+export pure func parseFold[a](xml: string, tag: string, init: a, f: (a, XmlNode) -> a) -> Result[a, string] = _xml_parseFold(xml, tag, init, f)
 
 -- Parse with node count limit — returns Err if tree exceeds maxNodes
 -- Safety valve for large documents that might exhaust memory

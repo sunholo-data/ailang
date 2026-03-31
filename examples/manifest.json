@@ -1378,6 +1378,18 @@
       "description": "XML parsing with std/xml builtins: parse XML strings, query elements, extract text and attributes"
     },
     {
+      "path": "runnable/xml_fold.ail",
+      "status": "working",
+      "tags": ["stdlib", "xml", "fold", "streaming", "performance", "std/xml"],
+      "description": "XML fold: process elements one-at-a-time via parseFold without building a result list"
+    },
+    {
+      "path": "runnable/zip_xml_fold.ail",
+      "status": "working",
+      "tags": ["stdlib", "xml", "zip", "fold", "streaming", "performance", "std/zip", "std/xml"],
+      "description": "Streaming ZIP+XML fold: extract shared strings from XLSX-like ZIP without OOM"
+    },
+    {
       "path": "runnable/effectful_list.ail",
       "status": "working",
       "tags": ["effects", "higher-order", "std/list", "mapE", "filterE", "foldlE", "flatMapE", "forEachE", "flatMap"],
@@ -1552,6 +1564,18 @@
         "bounded-quantifiers"
       ],
       "description": "Bounded quantifier verification — forall i: lo..hi => P(i) in ensures clauses, encoded to Z3 bounded quantifiers"
+    },
+    {
+      "path": "runnable/map_basic.ail",
+      "status": "working",
+      "tags": [
+        "map",
+        "hashmap",
+        "std-map",
+        "data-structures",
+        "option"
+      ],
+      "description": "Hash map operations: fromList, lookup (Option), member, size, keys, insert, remove"
     }
   ],
   "statistics": {

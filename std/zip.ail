@@ -1,13 +1,14 @@
--- std/zip - ZIP archive reading and writing
+-- std/zip - ZIP archive reading, writing, and streaming
 --
 -- Read and write entries in ZIP archives (including .docx, .xlsx, .pptx).
+-- Stream XML entries via fold for memory-efficient processing (v0.11.0).
 --
 -- Requires: FS capability (--caps FS)
 --
 -- Security: Path traversal rejected, 10K entry limit, 100MB decompressed size limit.
 --
 -- Usage:
---   import std/zip (listEntries, readEntry, readEntryBytes, createArchive, createArchiveWithBytes)
+--   import std/zip (listEntries, readEntry, readEntryBytes, scanFold, createArchive)
 --   match listEntries("archive.zip") {
 --     Ok(entries) => println(show(entries)),
 --     Err(msg) => println(msg)
@@ -16,6 +17,7 @@
 module std/zip
 
 import std/result (Result)
+import std/xml (XmlNode)
 
 -- List all entry paths in a ZIP archive
 -- Returns Ok([string]) with entry names, or Err(message)
@@ -34,6 +36,20 @@ export func readEntry(path: string, entry: string) -> Result[string, string] ! {
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func readEntryBytes(path: string, entry: string) -> Result[string, string] ! {FS} = _zip_readEntryBytes(path, entry)
+
+-- M-STREAMING-ZIP-XML: Streaming ZIP+XML fold
+
+-- Stream a ZIP entry through an XML parser, folding over matching elements.
+-- The decompressed XML is never held entirely in memory.
+-- Memory: O(largest element + accumulator), not O(entire decompressed entry).
+--
+-- COST MODEL:
+--   scanFold(path, entry, tag, init, f)  O(n) scan, O(1) memory per element
+--   Peak memory: ~4 KB XML buffer + accumulator size
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func scanFold[a](path: string, entry: string, tag: string,
+                        init: a, f: (a, XmlNode) -> a) -> Result[a, string] ! {FS} = _zip_xml_scanFold(path, entry, tag, init, f)
 
 -- M-DOCPARSE-DX M4: ZIP write capabilities
 

@@ -1,0 +1,35 @@
+-- Streaming ZIP+XML fold: process XML inside ZIP without OOM
+-- Demonstrates scanFold for XLSX-style shared string extraction
+--
+-- Usage: ailang run --caps IO,FS --entry main examples/runnable/zip_xml_fold.ail
+module examples/runnable/zip_xml_fold
+
+import std/result (Result, Ok, Err)
+import std/list (length)
+import std/zip (scanFold, createArchive)
+import std/xml (getText)
+
+-- Create a test ZIP with XML, then stream-fold over it
+export func main() -> int ! {IO, FS} {
+  -- Build a small "XLSX-like" ZIP with shared strings
+  let entries = [
+    {name: "xl/sharedStrings.xml",
+     content: "<sst><si><t>Hello</t></si><si><t>World</t></si><si><t>AILANG</t></si></sst>"}
+  ];
+
+  match createArchive("/tmp/test_fold.zip", entries) {
+    Err(msg) => { println("Create error: " ++ msg); 1 },
+    Ok(_) => {
+      -- Stream-fold: extract shared strings without loading full XML
+      match scanFold("/tmp/test_fold.zip", "xl/sharedStrings.xml", "si",
+                     [], \acc node. acc ++ [getText(node)]) {
+        Ok(strings) => {
+          println("Shared strings: " ++ show(strings));
+          println("Count: " ++ show(length(strings)));
+          0
+        },
+        Err(msg) => { println("Fold error: " ++ msg); 1 }
+      }
+    }
+  }
+}
