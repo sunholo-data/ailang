@@ -338,3 +338,140 @@ func TestClient_WithOptions(t *testing.T) {
 		t.Errorf("location = %q, want %q", client.location, "us-central1")
 	}
 }
+
+func TestBuildParts_FileUri(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantLen    int
+		wantFile   bool   // expect fileData part
+		wantInline bool   // expect inlineData part
+		wantURI    string // expected fileUri
+		wantData   string // expected inline data
+		wantText   string // expected text part
+	}{
+		{
+			name:     "fileUri only",
+			input:    `{"mode":"multimodal","mimeType":"application/pdf","fileUri":"gs://bucket/doc.pdf","prompt":"Summarize"}`,
+			wantLen:  2,
+			wantFile: true,
+			wantURI:  "gs://bucket/doc.pdf",
+			wantText: "Summarize",
+		},
+		{
+			name:       "data only (existing behavior)",
+			input:      `{"mode":"multimodal","mimeType":"image/png","data":"iVBOR...","prompt":"Describe"}`,
+			wantLen:    2,
+			wantInline: true,
+			wantData:   "iVBOR...",
+			wantText:   "Describe",
+		},
+		{
+			name:     "both fileUri and data — fileUri wins",
+			input:    `{"mode":"multimodal","mimeType":"application/pdf","fileUri":"gs://bucket/doc.pdf","data":"base64stuff","prompt":"Read"}`,
+			wantLen:  2,
+			wantFile: true,
+			wantURI:  "gs://bucket/doc.pdf",
+			wantText: "Read",
+		},
+		{
+			name:     "fileUri with Files API URI",
+			input:    `{"mode":"multimodal","mimeType":"video/mp4","fileUri":"https://generativelanguage.googleapis.com/v1beta/files/abc123","prompt":"Analyze"}`,
+			wantLen:  2,
+			wantFile: true,
+			wantURI:  "https://generativelanguage.googleapis.com/v1beta/files/abc123",
+			wantText: "Analyze",
+		},
+		{
+			name:    "neither fileUri nor data — falls through to text",
+			input:   `{"mode":"multimodal","mimeType":"image/png"}`,
+			wantLen: 1,
+		},
+		{
+			name:     "fileUri without prompt — no text part",
+			input:    `{"mode":"multimodal","mimeType":"application/pdf","fileUri":"gs://bucket/doc.pdf"}`,
+			wantLen:  1,
+			wantFile: true,
+			wantURI:  "gs://bucket/doc.pdf",
+		},
+		{
+			name:     "fileUri with fileName fallback",
+			input:    `{"mode":"multimodal","mimeType":"application/pdf","fileUri":"gs://bucket/doc.pdf","fileName":"report.pdf"}`,
+			wantLen:  2,
+			wantFile: true,
+			wantURI:  "gs://bucket/doc.pdf",
+			wantText: "report.pdf",
+		},
+		{
+			name:    "plain text (no multimodal)",
+			input:   "Hello world",
+			wantLen: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := buildParts(tt.input)
+			if len(parts) != tt.wantLen {
+				t.Fatalf("len(parts) = %d, want %d", len(parts), tt.wantLen)
+			}
+
+			if tt.wantFile {
+				if parts[0].FileData == nil {
+					t.Fatal("parts[0].FileData is nil, want non-nil")
+				}
+				if parts[0].FileData.FileUri != tt.wantURI {
+					t.Errorf("FileUri = %q, want %q", parts[0].FileData.FileUri, tt.wantURI)
+				}
+				if parts[0].InlineData != nil {
+					t.Error("parts[0].InlineData should be nil when FileData is set")
+				}
+			}
+
+			if tt.wantInline {
+				if parts[0].InlineData == nil {
+					t.Fatal("parts[0].InlineData is nil, want non-nil")
+				}
+				if parts[0].InlineData.Data != tt.wantData {
+					t.Errorf("Data = %q, want %q", parts[0].InlineData.Data, tt.wantData)
+				}
+				if parts[0].FileData != nil {
+					t.Error("parts[0].FileData should be nil when InlineData is set")
+				}
+			}
+
+			if tt.wantText != "" && len(parts) > 1 {
+				if parts[1].Text != tt.wantText {
+					t.Errorf("Text = %q, want %q", parts[1].Text, tt.wantText)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildParts_FileData_JSONMarshal(t *testing.T) {
+	parts := buildParts(`{"mode":"multimodal","mimeType":"application/pdf","fileUri":"gs://bucket/doc.pdf","prompt":"Summarize"}`)
+
+	// Marshal the part to verify correct JSON field names for Gemini API
+	data, err := json.Marshal(parts[0])
+	if err != nil {
+		t.Fatalf("json.Marshal error = %v", err)
+	}
+
+	var raw map[string]interface{}
+	json.Unmarshal(data, &raw)
+
+	fd, ok := raw["fileData"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected fileData key in JSON, got keys: %v", raw)
+	}
+	if fd["mimeType"] != "application/pdf" {
+		t.Errorf("fileData.mimeType = %v, want application/pdf", fd["mimeType"])
+	}
+	if fd["fileUri"] != "gs://bucket/doc.pdf" {
+		t.Errorf("fileData.fileUri = %v, want gs://bucket/doc.pdf", fd["fileUri"])
+	}
+	if _, hasInline := raw["inlineData"]; hasInline {
+		t.Error("expected no inlineData key in JSON when fileData is set")
+	}
+}

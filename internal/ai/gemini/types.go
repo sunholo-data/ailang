@@ -17,16 +17,23 @@ type content struct {
 	Parts []part `json:"parts"`
 }
 
-// part represents a content part (text, inline_data, etc).
+// part represents a content part (text, inline_data, file_data, etc).
 type part struct {
 	Text       string      `json:"text,omitempty"`
 	InlineData *inlineData `json:"inlineData,omitempty"` // For multimodal (images, PDFs, etc.)
+	FileData   *fileData   `json:"fileData,omitempty"`   // For file URI references (GCS, Files API)
 }
 
 // inlineData represents inline binary data for multimodal requests.
 type inlineData struct {
 	MimeType string `json:"mimeType"` // e.g., "application/pdf", "image/png"
 	Data     string `json:"data"`     // Base64-encoded content
+}
+
+// fileData represents a reference to a file stored externally (GCS, Gemini Files API).
+type fileData struct {
+	MimeType string `json:"mimeType"` // e.g., "application/pdf", "image/png"
+	FileUri  string `json:"fileUri"`  // gs://bucket/file.pdf or Files API URI
 }
 
 // generationConfig represents generation parameters.

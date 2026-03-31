@@ -163,13 +163,29 @@ func buildParts(userPrompt string) []part {
 	// Try to parse as multimodal JSON
 	var obj map[string]string
 	if err := json.Unmarshal([]byte(userPrompt), &obj); err == nil {
-		if obj["mode"] == "multimodal" && obj["data"] != "" && obj["mimeType"] != "" {
-			parts := []part{
-				{InlineData: &inlineData{
-					MimeType: obj["mimeType"],
-					Data:     obj["data"],
-				}},
+		if obj["mode"] == "multimodal" && obj["mimeType"] != "" {
+			var parts []part
+
+			// fileUri takes precedence over data (avoids redundant base64 for large files)
+			if obj["fileUri"] != "" {
+				parts = []part{
+					{FileData: &fileData{
+						MimeType: obj["mimeType"],
+						FileUri:  obj["fileUri"],
+					}},
+				}
+			} else if obj["data"] != "" {
+				parts = []part{
+					{InlineData: &inlineData{
+						MimeType: obj["mimeType"],
+						Data:     obj["data"],
+					}},
+				}
+			} else {
+				// Neither fileUri nor data — fall through to plain text
+				return []part{{Text: userPrompt}}
 			}
+
 			// Add text prompt if present
 			prompt := obj["prompt"]
 			if prompt == "" {

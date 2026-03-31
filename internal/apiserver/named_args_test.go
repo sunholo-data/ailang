@@ -348,7 +348,9 @@ func TestParseArgsWithNames(t *testing.T) {
 		}
 	})
 
-	t.Run("non-object JSON falls back", func(t *testing.T) {
+	t.Run("non-object JSON falls back to single arg", func(t *testing.T) {
+		// A raw string body is passed through as a single argument
+		// (zero-value padding only applies to JSON object bodies)
 		body := []byte(`"just a string"`)
 		args, err := parseArgsWithNames(body, paramNames, paramTypes)
 		if err != nil {
@@ -356,6 +358,90 @@ func TestParseArgsWithNames(t *testing.T) {
 		}
 		if len(args) != 1 || args[0] != "just a string" {
 			t.Errorf("expected single string arg, got %v", args)
+		}
+	})
+}
+
+func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
+	t.Run("single string param with empty body object", func(t *testing.T) {
+		// POST {} to func foo(apiKey: string) should get "" not a Record
+		body := []byte(`{}`)
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(args))
+		}
+		if args[0] != "" {
+			t.Errorf("args[0] = %v (%T), want empty string", args[0], args[0])
+		}
+	})
+
+	t.Run("single string param with non-matching keys", func(t *testing.T) {
+		// POST {"foo":"bar"} to func foo(apiKey: string) should get ""
+		body := []byte(`{"foo":"bar"}`)
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(args))
+		}
+		if args[0] != "" {
+			t.Errorf("args[0] = %v (%T), want empty string", args[0], args[0])
+		}
+	})
+
+	t.Run("multi param with non-matching keys", func(t *testing.T) {
+		// POST {"x":"y"} to func bar(name: string, count: int) should get ["", 0]
+		body := []byte(`{"x":"y"}`)
+		args, err := parseArgsWithNames(body, []string{"name", "count"}, []string{"string", "int"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 2 {
+			t.Fatalf("expected 2 args, got %d", len(args))
+		}
+		if args[0] != "" {
+			t.Errorf("args[0] = %v, want empty string", args[0])
+		}
+		if args[1] != float64(0) {
+			t.Errorf("args[1] = %v, want 0", args[1])
+		}
+	})
+
+	t.Run("no params — raw passthrough preserved", func(t *testing.T) {
+		// func noParams() with POST {"key":"val"} — should get raw object
+		body := []byte(`{"key":"val"}`)
+		args, err := parseArgsWithNames(body, nil, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 1 {
+			t.Fatalf("expected 1 arg (raw passthrough), got %d", len(args))
+		}
+		m, ok := args[0].(map[string]interface{})
+		if !ok {
+			t.Fatalf("args[0] type = %T, want map[string]interface{}", args[0])
+		}
+		if m["key"] != "val" {
+			t.Errorf("args[0][key] = %v, want val", m["key"])
+		}
+	})
+
+	t.Run("matching key still works", func(t *testing.T) {
+		// POST {"apiKey":"secret"} to func foo(apiKey: string) — should get "secret"
+		body := []byte(`{"apiKey":"secret"}`)
+		args, err := parseArgsWithNames(body, []string{"apiKey"}, []string{"string"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 1 {
+			t.Fatalf("expected 1 arg, got %d", len(args))
+		}
+		if args[0] != "secret" {
+			t.Errorf("args[0] = %v, want 'secret'", args[0])
 		}
 	})
 }

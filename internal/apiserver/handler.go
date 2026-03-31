@@ -237,13 +237,28 @@ func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string) (
 
 	// Try named binding: parse as JSON object and match keys to param names
 	var obj map[string]interface{}
-	if err := json.Unmarshal(body, &obj); err == nil && len(obj) > 0 {
+	bodyIsObject := json.Unmarshal(body, &obj) == nil
+	if bodyIsObject && len(obj) > 0 {
 		if named := parseNamedArgs(obj, paramNames, paramTypes); named != nil {
 			return named, nil
 		}
 	}
 
-	// Fall back to single-arg parsing
+	// If body is a JSON object but no keys matched declared params,
+	// return zero-value-padded args instead of passing the raw object as a
+	// single argument (which would give e.g. a Record to a string param).
+	// Non-object bodies (strings, numbers, arrays) still fall through to parseArgs.
+	if bodyIsObject && len(paramNames) > 0 && len(paramTypes) > 0 {
+		args := make([]interface{}, len(paramNames))
+		for i := range paramNames {
+			if i < len(paramTypes) {
+				args[i] = zeroValueForType(paramTypes[i])
+			}
+		}
+		return args, nil
+	}
+
+	// Fall back to single-arg parsing (non-object body or no declared params)
 	return parseArgs(body)
 }
 
