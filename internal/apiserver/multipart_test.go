@@ -5,7 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -14,15 +14,15 @@ import (
 func TestWriteTempFile(t *testing.T) {
 	data := []byte("hello world")
 
-	t.Run("preserves extension", func(t *testing.T) {
+	t.Run("preserves original filename", func(t *testing.T) {
 		path, err := writeTempFile(data, "report.docx")
 		if err != nil {
 			t.Fatalf("writeTempFile: %v", err)
 		}
-		defer os.Remove(path)
+		defer os.RemoveAll(filepath.Dir(path))
 
-		if !strings.HasSuffix(path, ".docx") {
-			t.Errorf("expected .docx extension, got %q", path)
+		if filepath.Base(path) != "report.docx" {
+			t.Errorf("expected filename report.docx, got %q", filepath.Base(path))
 		}
 		contents, err := os.ReadFile(path)
 		if err != nil {
@@ -33,15 +33,15 @@ func TestWriteTempFile(t *testing.T) {
 		}
 	})
 
-	t.Run("no extension", func(t *testing.T) {
-		path, err := writeTempFile(data, "noext")
+	t.Run("no filename fallback", func(t *testing.T) {
+		path, err := writeTempFile(data, "")
 		if err != nil {
 			t.Fatalf("writeTempFile: %v", err)
 		}
-		defer os.Remove(path)
+		defer os.RemoveAll(filepath.Dir(path))
 
-		if strings.Contains(path, ".") && !strings.Contains(path, "ailang-upload-") {
-			t.Errorf("unexpected extension in %q", path)
+		if filepath.Base(path) != "upload" {
+			t.Errorf("expected fallback filename 'upload', got %q", filepath.Base(path))
 		}
 	})
 }
@@ -96,13 +96,13 @@ func TestParseMultipartArgsWithNames_FileToString(t *testing.T) {
 		t.Fatalf("expected 2 args, got %d", len(args))
 	}
 
-	// File field + string param → temp file path
+	// File field + string param → temp file path with original filename
 	path, ok := args[0].(string)
 	if !ok {
 		t.Fatalf("expected string for filepath arg, got %T", args[0])
 	}
-	if !strings.Contains(path, "ailang-upload-") {
-		t.Errorf("expected temp file path, got %q", path)
+	if filepath.Base(path) != "filepath.bin" {
+		t.Errorf("expected original filename filepath.bin, got %q", filepath.Base(path))
 	}
 	contents, err := os.ReadFile(path)
 	if err != nil {

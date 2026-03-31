@@ -543,21 +543,25 @@ func parseMultipartArgs(r *http.Request, maxSize int64) ([]interface{}, error) {
 	return args, nil
 }
 
-// writeTempFile writes data to a temp file preserving the original extension.
-// Returns the temp file path. Caller is responsible for cleanup.
+// writeTempFile writes data to a temp file preserving the original filename.
+// Creates a unique temp directory and writes the file with its original name,
+// so filepath.Base(path) returns the real filename (e.g. "report.docx").
+// Caller is responsible for cleanup (remove the parent directory).
 func writeTempFile(data []byte, originalFilename string) (string, error) {
-	ext := filepath.Ext(originalFilename)
-	pattern := "ailang-upload-*" + ext
-	f, err := os.CreateTemp("", pattern)
+	dir, err := os.MkdirTemp("", "ailang-upload-*")
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	if _, err := f.Write(data); err != nil {
-		os.Remove(f.Name())
+	name := originalFilename
+	if name == "" {
+		name = "upload"
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		os.RemoveAll(dir)
 		return "", err
 	}
-	return f.Name(), nil
+	return path, nil
 }
 
 // parseMultipartArgsWithNames maps multipart fields to function parameters by name.
@@ -629,10 +633,10 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 	return args, cleanup, nil
 }
 
-// removeTempFiles removes a list of temporary files, ignoring errors.
+// removeTempFiles removes temporary upload files and their parent directories.
 func removeTempFiles(paths []string) {
 	for _, p := range paths {
-		os.Remove(p)
+		os.RemoveAll(filepath.Dir(p))
 	}
 }
 
