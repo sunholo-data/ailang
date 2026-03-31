@@ -240,9 +240,19 @@ func parseModuleFile(filePath string) moduleDoc {
 		if match := exportFuncRe.FindStringSubmatch(trimmed); match != nil {
 			funcName := match[1]
 
-			// Extract full signature
+			// Join continuation lines for multi-line declarations
+			// (e.g., params spanning multiple lines)
+			fullLine := trimmed
+			for strings.Count(fullLine, "(") > strings.Count(fullLine, ")") {
+				if !scanner.Scan() {
+					break
+				}
+				fullLine += " " + strings.TrimSpace(scanner.Text())
+			}
+
+			// Extract full signature from joined line
 			sig := ""
-			if sigMatch := exportSigRe.FindString(trimmed); sigMatch != "" {
+			if sigMatch := exportSigRe.FindString(fullLine); sigMatch != "" {
 				sig = sigMatch
 			}
 
