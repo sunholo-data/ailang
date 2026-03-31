@@ -117,6 +117,27 @@ func (t *TArray) Substitute(subs map[string]Type) Type {
 	return &TArray{Element: t.Element.Substitute(subs)}
 }
 
+// TMap represents a map type Map[K, V] with O(1) lookup
+type TMap struct {
+	Key   Type
+	Value Type
+}
+
+func (t *TMap) String() string {
+	return fmt.Sprintf("Map[%s, %s]", t.Key.String(), t.Value.String())
+}
+
+func (t *TMap) Equals(other Type) bool {
+	if o, ok := other.(*TMap); ok {
+		return t.Key.Equals(o.Key) && t.Value.Equals(o.Value)
+	}
+	return false
+}
+
+func (t *TMap) Substitute(subs map[string]Type) Type {
+	return &TMap{Key: t.Key.Substitute(subs), Value: t.Value.Substitute(subs)}
+}
+
 // TTuple represents a tuple type
 type TTuple struct {
 	Elements []Type

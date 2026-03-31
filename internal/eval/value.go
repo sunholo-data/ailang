@@ -138,6 +138,114 @@ func (a *ArrayValue) Set(i int64, v Value) *ArrayValue {
 	return &ArrayValue{Elements: newElements}
 }
 
+// MapValue represents an immutable hash map with O(1) lookup (copy-on-write)
+type MapValue struct {
+	Entries map[string]*MapEntry // canonical key -> entry
+}
+
+// MapEntry stores the original key and value for a map entry
+type MapEntry struct {
+	Key   Value
+	Value Value
+}
+
+func (m *MapValue) Type() string { return "map" }
+
+func (m *MapValue) String() string {
+	if len(m.Entries) == 0 {
+		return "Map{}"
+	}
+	// Deterministic sorted output (Axiom A1)
+	keys := make([]string, 0, len(m.Entries))
+	for k := range m.Entries {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	b.WriteString("Map{")
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		entry := m.Entries[k]
+		b.WriteString(entry.Key.String())
+		b.WriteString(": ")
+		b.WriteString(entry.Value.String())
+	}
+	b.WriteByte('}')
+	return b.String()
+}
+
+// MapKey returns a canonical, collision-free string key for Go map lookup.
+// Distinct from String() which is for display only.
+// Supported key types: int, string, bool. Returns error for unsupported types.
+func MapKey(v Value) (string, error) {
+	switch k := v.(type) {
+	case *IntValue:
+		return fmt.Sprintf("i:%d", k.Value), nil
+	case *StringValue:
+		return "s:" + k.Value, nil
+	case *BoolValue:
+		if k.Value {
+			return "b:true", nil
+		}
+		return "b:false", nil
+	default:
+		return "", fmt.Errorf("unsupported map key type: %T (only int, string, bool supported)", v)
+	}
+}
+
+// Lookup returns the value for a key, or (nil, false) if not found. O(1).
+func (m *MapValue) Lookup(key Value) (Value, bool) {
+	k, err := MapKey(key)
+	if err != nil {
+		return nil, false
+	}
+	entry, ok := m.Entries[k]
+	if !ok {
+		return nil, false
+	}
+	return entry.Value, true
+}
+
+// Insert returns a new map with the key-value pair added/updated. O(n) copy-on-write.
+func (m *MapValue) Insert(key, val Value) (*MapValue, error) {
+	k, err := MapKey(key)
+	if err != nil {
+		return nil, err
+	}
+	newEntries := make(map[string]*MapEntry, len(m.Entries)+1)
+	for ek, ev := range m.Entries {
+		newEntries[ek] = ev
+	}
+	newEntries[k] = &MapEntry{Key: key, Value: val}
+	return &MapValue{Entries: newEntries}, nil
+}
+
+// Remove returns a new map without the given key. O(n) copy-on-write.
+func (m *MapValue) Remove(key Value) *MapValue {
+	k, err := MapKey(key)
+	if err != nil {
+		return m
+	}
+	if _, ok := m.Entries[k]; !ok {
+		return m // key not present, return unchanged
+	}
+	newEntries := make(map[string]*MapEntry, len(m.Entries))
+	for ek, ev := range m.Entries {
+		if ek != k {
+			newEntries[ek] = ev
+		}
+	}
+	return &MapValue{Entries: newEntries}
+}
+
+// Size returns the number of entries. O(1).
+func (m *MapValue) Size() int {
+	return len(m.Entries)
+}
+
 // TupleValue represents a tuple of values
 type TupleValue struct {
 	Elements []Value

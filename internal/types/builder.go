@@ -94,6 +94,11 @@ func (b *Builder) List(elem Type) Type {
 	}
 }
 
+// Map creates a map type: Map[K, V]
+func (b *Builder) Map(key, val Type) Type {
+	return &TMap{Key: key, Value: val}
+}
+
 // Record builders
 
 // FieldSpec represents a record field specification

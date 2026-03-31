@@ -118,6 +118,32 @@ func (u *Unifier) unifyArrays(t1 *TArray, t2 Type, sub Substitution) (Substituti
 	return nil, fmt.Errorf("cannot unify array type with %T", t2)
 }
 
+// unifyMaps unifies two map types
+func (u *Unifier) unifyMaps(t1 *TMap, t2 Type, sub Substitution) (Substitution, error) {
+	if t2Map, ok := t2.(*TMap); ok {
+		sub, err := u.Unify(t1.Key, t2Map.Key, sub)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unify map key types: %w", err)
+		}
+		return u.Unify(t1.Value, t2Map.Value, sub)
+	}
+	// Special case: TMap can unify with TApp("Map", [k, v])
+	if t2App, ok := t2.(*TApp); ok {
+		h2, a2 := decomposeApp(t2App)
+		if headCon, ok := h2.(*TCon); ok && headCon.Name == "Map" && len(a2) == 2 {
+			sub, err := u.Unify(t1.Key, a2[0], sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify map key types: %w", err)
+			}
+			return u.Unify(t1.Value, a2[1], sub)
+		}
+	}
+	if t2Var, ok := t2.(*TVar2); ok {
+		return u.Unify(t2Var, t1, sub)
+	}
+	return nil, fmt.Errorf("cannot unify map type with %T", t2)
+}
+
 // unifyTuples unifies two tuple types
 func (u *Unifier) unifyTuples(t1 *TTuple, t2 Type, sub Substitution) (Substitution, error) {
 	if t2Tuple, ok := t2.(*TTuple); ok {
@@ -181,6 +207,17 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		if headCon, ok := h1.(*TCon); ok && headCon.Name == "Array" && len(a1) == 1 {
 			// TApp("Array", a) ~ TArray{Element: a}
 			return u.Unify(a1[0], t2Array.Element, sub)
+		}
+	}
+	// Special case: TApp("Map", [k, v]) can unify with TMap{Key: k, Value: v}
+	if t2Map, ok := t2.(*TMap); ok {
+		h1, a1 := decomposeApp(t1)
+		if headCon, ok := h1.(*TCon); ok && headCon.Name == "Map" && len(a1) == 2 {
+			sub, err := u.Unify(a1[0], t2Map.Key, sub)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unify map key types: %w", err)
+			}
+			return u.Unify(a1[1], t2Map.Value, sub)
 		}
 	}
 	if t2Var, ok := t2.(*TVar2); ok {

@@ -471,6 +471,8 @@ func GetKind(t Type) Kind {
 		return Star
 	case *TArray:
 		return Star
+	case *TMap:
+		return Star
 	case *TTuple:
 		return Star
 	default:

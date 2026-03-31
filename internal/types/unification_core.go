@@ -215,6 +215,9 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TArray:
 		return u.unifyArrays(t1, t2, sub)
 
+	case *TMap:
+		return u.unifyMaps(t1, t2, sub)
+
 	case *TTuple:
 		return u.unifyTuples(t1, t2, sub)
 
@@ -287,6 +290,11 @@ func propagateTypeNameWithVisited(t1, t2 Type, visited map[Type]bool) {
 	case *TArray:
 		if typ2, ok := t2.(*TArray); ok {
 			propagateTypeNameWithVisited(typ1.Element, typ2.Element, visited)
+		}
+	case *TMap:
+		if typ2, ok := t2.(*TMap); ok {
+			propagateTypeNameWithVisited(typ1.Key, typ2.Key, visited)
+			propagateTypeNameWithVisited(typ1.Value, typ2.Value, visited)
 		}
 	case *TTuple:
 		if typ2, ok := t2.(*TTuple); ok {

@@ -60,6 +60,11 @@ func NormalizeTypeName(t Type) string {
 		elemType := NormalizeTypeName(typ.Element)
 		return fmt.Sprintf("Array<%s>", elemType)
 
+	case *TMap:
+		keyType := NormalizeTypeName(typ.Key)
+		valType := NormalizeTypeName(typ.Value)
+		return fmt.Sprintf("Map<%s,%s>", keyType, valType)
+
 	case *TTuple:
 		// Canonical tuple format: Tuple<T1,T2,...>
 		// Decision: Always use "Tuple", never "Pair" for consistency
@@ -238,6 +243,8 @@ func IsGroundType(t Type) bool {
 		return IsGroundType(typ.Element)
 	case *TArray:
 		return IsGroundType(typ.Element)
+	case *TMap:
+		return IsGroundType(typ.Key) && IsGroundType(typ.Value)
 	case *TTuple:
 		for _, elem := range typ.Elements {
 			if !IsGroundType(elem) {

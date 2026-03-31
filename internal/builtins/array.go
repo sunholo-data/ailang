@@ -13,6 +13,7 @@ import (
 
 func init() {
 	registerArrayMake()
+	registerArrayEmpty()
 	registerArrayGet()
 	registerArrayUnsafeGet()
 	registerArraySet()
@@ -24,6 +25,46 @@ func init() {
 // ============================================================================
 // Array Operations
 // ============================================================================
+
+// registerArrayEmpty registers the array_empty builtin
+// Creates a zero-length array with no default value needed
+func registerArrayEmpty() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/array",
+		Name:    "_array_empty",
+		NumArgs: 1, // S-CALL0: zero-arg builtins take unit parameter
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeArrayEmptyType,
+		Impl:    arrayEmptyImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Create an empty array",
+			LongDesc:    "Creates a new empty array with zero elements. O(1).",
+			Params:      []ParamDoc{},
+			Returns:     "Empty array",
+			Since:       "v0.11.0",
+			Stability:   StabilityExperimental,
+			Tags:        []string{"array", "create", "empty"},
+			Category:    "array",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register array_empty: %v", err))
+	}
+}
+
+// Type: forall a. (()) -> Array[a]  (S-CALL0: takes unit parameter)
+func makeArrayEmptyType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	arrayA := &types.TArray{Element: a}
+	return T.Func(T.Unit()).Returns(arrayA).Build()
+}
+
+func arrayEmptyImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	// args[0] is unit — ignore it
+	return &eval.ArrayValue{Elements: []eval.Value{}}, nil
+}
 
 // registerArrayMake registers the array_make builtin
 // Creates an array of given size with all elements set to default value

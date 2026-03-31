@@ -73,6 +73,16 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		visited[t] = result
 		return result
 
+	case *TMap:
+		key := safeSubstitute(typ.Key, sub, visited)
+		val := safeSubstitute(typ.Value, sub, visited)
+		if key == typ.Key && val == typ.Value {
+			return t
+		}
+		result := &TMap{Key: key, Value: val}
+		visited[t] = result
+		return result
+
 	case *TTuple:
 		changed := false
 		elems := make([]Type, len(typ.Elements))

@@ -234,6 +234,9 @@ func collectFreeTypeVars(t Type, free map[string]bool) {
 		collectFreeTypeVars(t.Element, free)
 	case *TArray:
 		collectFreeTypeVars(t.Element, free)
+	case *TMap:
+		collectFreeTypeVars(t.Key, free)
+		collectFreeTypeVars(t.Value, free)
 	case *TTuple:
 		for _, e := range t.Elements {
 			collectFreeTypeVars(e, free)

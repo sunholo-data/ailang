@@ -11,6 +11,7 @@ _ai_call_image : (string, string, string) -> string ! {AI}
 _ai_call_image_base64 : (string, string) -> string ! {AI}
 _ai_call_json : (string, string) -> string ! {AI}
 _ai_call_json_simple : string -> string ! {AI}
+_array_empty : () -> Array[a]
 _array_from_list : list[a] -> Array[a]
 _array_get : (Array[a], int) -> a
 _array_length : Array[a] -> int
@@ -102,6 +103,16 @@ _list_take : (int, list[a]) -> list[a]
 _list_takeFlatMap : (Int, a -> list[b], list[a]) -> list[b]
 _list_takeMap : (Int, a -> b, list[a]) -> list[b]
 _list_union : (list[a], list[a]) -> list[a]
+_map_empty : () -> Map[k, v]
+_map_from_list : list[(k, v)] -> Map[k, v]
+_map_insert : (Map[k, v], k, v) -> Map[k, v]
+_map_keys : Map[k, v] -> list[k]
+_map_lookup : (Map[k, v], k) -> Option[v]
+_map_member : (Map[k, v], k) -> bool
+_map_remove : (Map[k, v], k) -> Map[k, v]
+_map_size : Map[k, v] -> int
+_map_to_list : Map[k, v] -> list[(k, v)]
+_map_values : Map[k, v] -> list[v]
 _math_E : () -> float
 _math_PI : () -> float
 _math_abs_Float : float -> float
@@ -196,6 +207,7 @@ _xml_getTag : XmlNode -> string
 _xml_getText : XmlNode -> string
 _xml_parse : string -> Result[XmlNode, string]
 _xml_parseElements : (string, string, int) -> Result[list[XmlNode], string]
+_xml_parseFold : (string, string, a, (a, XmlNode) -> a) -> Result[a, string]
 _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
@@ -204,6 +216,7 @@ _zip_createArchiveWithBytes : (string, list[{data: string, name: string}]) -> Re
 _zip_listEntries : string -> Result[list[string], string] ! {FS}
 _zip_readEntry : (string, string) -> Result[string, string] ! {FS}
 _zip_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
+_zip_xml_scanFold : (string, string, string, a, (a, XmlNode) -> a) -> Result[a, string] ! {FS}
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool

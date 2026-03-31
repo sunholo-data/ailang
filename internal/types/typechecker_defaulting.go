@@ -321,6 +321,9 @@ func collectFreeVarsWithVisited(t Type, vars map[string]bool, visited map[Type]b
 		collectFreeVarsWithVisited(typ.Element, vars, visited)
 	case *TArray:
 		collectFreeVarsWithVisited(typ.Element, vars, visited)
+	case *TMap:
+		collectFreeVarsWithVisited(typ.Key, vars, visited)
+		collectFreeVarsWithVisited(typ.Value, vars, visited)
 	case *TTuple:
 		for _, elem := range typ.Elements {
 			collectFreeVarsWithVisited(elem, vars, visited)

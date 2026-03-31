@@ -26,6 +26,11 @@ import std/list (map as listMap, foldl as listFoldl, filter as listFilter)
 
 -- Array creation
 
+-- Create empty array with zero elements. O(1).
+export pure func empty[a]() -> Array[a] {
+  _array_empty()
+}
+
 -- Create array of given size, all elements initialized to default. O(n).
 export pure func make[a](size: int, default: a) -> Array[a] {
   _array_make(size, default)

@@ -119,6 +119,9 @@ func (v *TypeVisitor) children(t types.Type) []types.Type {
 	case *types.TArray:
 		return []types.Type{typ.Element}
 
+	case *types.TMap:
+		return []types.Type{typ.Key, typ.Value}
+
 	case *types.TTuple:
 		return typ.Elements
 

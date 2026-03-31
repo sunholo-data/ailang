@@ -69,6 +69,13 @@ func safeEqualsWithVisited(t1, t2 Type, visited map[typePair]bool) bool {
 		}
 		return false
 
+	case *TMap:
+		if typ2, ok := t2.(*TMap); ok {
+			return safeEqualsWithVisited(typ1.Key, typ2.Key, visited) &&
+				safeEqualsWithVisited(typ1.Value, typ2.Value, visited)
+		}
+		return false
+
 	case *TTuple:
 		if typ2, ok := t2.(*TTuple); ok {
 			if len(typ1.Elements) != len(typ2.Elements) {

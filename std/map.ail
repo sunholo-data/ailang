@@ -1,0 +1,80 @@
+-- std/map - Hash maps with O(1) lookup
+--
+-- Maps provide O(1) key-value lookup backed by Go hashmaps.
+-- Keys must be comparable types (int, string, bool).
+-- All operations are pure and return new maps (immutable).
+--
+-- USAGE PATTERN: Build once with fromList, then many lookups.
+-- Avoid repeated insert() in loops — use fromList for bulk construction.
+
+module std/map
+import std/option (Option, Some, None)
+
+-- INDEXING: Keys are hashed internally via canonical encoding (not String())
+-- IMMUTABILITY: All operations return new maps (copy-on-write)
+--
+-- COST MODEL:
+--   empty()          O(1)       - creates empty map
+--   insert(m, k, v)  O(n)       - copy-on-write (immutable semantics)
+--   lookup(m, k)     O(1)       - hash lookup, returns Option[v]
+--   member(m, k)     O(1)       - key existence check
+--   remove(m, k)     O(n)       - copy-on-write (immutable semantics)
+--   size(m)          O(1)       - stored metadata
+--   keys(m)          O(n log n) - sorted for determinism (A1)
+--   values(m)        O(n log n) - sorted by key for determinism
+--   fromList(pairs)  O(n)       - bulk construction (mutable internally)
+--   toList(m)        O(n log n) - sorted pairs for determinism
+-- ============================================================================
+
+-- Create empty map. O(1).
+export pure func empty[k, v]() -> Map[k, v] {
+  _map_empty()
+}
+
+-- Insert key-value pair, returning NEW map. O(n) copy-on-write.
+-- Original map is unchanged (immutable semantics).
+-- TIP: For bulk building, prefer fromList over repeated insert.
+export pure func insert[k, v](m: Map[k, v], key: k, val: v) -> Map[k, v] {
+  _map_insert(m, key, val)
+}
+
+-- Look up key, returning Some(value) if found, None otherwise. O(1).
+export pure func lookup[k, v](m: Map[k, v], key: k) -> Option[v] {
+  _map_lookup(m, key)
+}
+
+-- Check if key exists in map. O(1).
+export pure func member[k, v](m: Map[k, v], key: k) -> bool {
+  _map_member(m, key)
+}
+
+-- Remove key from map, returning NEW map. O(n) copy-on-write.
+export pure func remove[k, v](m: Map[k, v], key: k) -> Map[k, v] {
+  _map_remove(m, key)
+}
+
+-- Get number of entries. O(1).
+export pure func size[k, v](m: Map[k, v]) -> int {
+  _map_size(m)
+}
+
+-- Get all keys as sorted list (deterministic, A1). O(n log n).
+export pure func keys[k, v](m: Map[k, v]) -> [k] {
+  _map_keys(m)
+}
+
+-- Get all values as list sorted by key (deterministic, A1). O(n log n).
+export pure func values[k, v](m: Map[k, v]) -> [v] {
+  _map_values(m)
+}
+
+-- Build map from list of (key, value) tuples. O(n).
+-- This is the intended bulk construction path.
+export pure func fromList[k, v](pairs: [(k, v)]) -> Map[k, v] {
+  _map_from_list(pairs)
+}
+
+-- Convert map to sorted list of (key, value) tuples (deterministic, A1). O(n log n).
+export pure func toList[k, v](m: Map[k, v]) -> [(k, v)] {
+  _map_to_list(m)
+}

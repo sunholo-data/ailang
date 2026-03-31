@@ -11,6 +11,7 @@ const (
 	HeadBool
 	HeadList
 	HeadArray
+	HeadMap
 	HeadRecord
 	HeadFunc
 	HeadUnit
@@ -57,6 +58,10 @@ func Head(t Type) TypeHead {
 		// TArray is the dedicated array type (O(1) indexed)
 		return HeadArray
 
+	case *TMap:
+		// TMap is the dedicated map type (O(1) lookup)
+		return HeadMap
+
 	case *TApp:
 		// Check if it's a list type application
 		// DX-17: Canonical form is lowercase "list" (from T.List())
@@ -97,6 +102,8 @@ func (th TypeHead) String() string {
 		return "List"
 	case HeadArray:
 		return "Array"
+	case HeadMap:
+		return "Map"
 	case HeadRecord:
 		return "Record"
 	case HeadFunc:

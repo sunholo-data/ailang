@@ -600,6 +600,9 @@ func collectTConNames(t types.Type, names map[string]bool) {
 		collectTConNames(ty.Element, names)
 	case *types.TArray:
 		collectTConNames(ty.Element, names)
+	case *types.TMap:
+		collectTConNames(ty.Key, names)
+		collectTConNames(ty.Value, names)
 	case *types.TTuple:
 		for _, e := range ty.Elements {
 			collectTConNames(e, names)

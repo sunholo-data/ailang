@@ -67,6 +67,10 @@ func (u *Unifier) occursWithVisited(varName string, t Type, varKind Kind, visite
 	case *TArray:
 		return u.occursWithVisited(varName, t.Element, varKind, visited)
 
+	case *TMap:
+		return u.occursWithVisited(varName, t.Key, varKind, visited) ||
+			u.occursWithVisited(varName, t.Value, varKind, visited)
+
 	case *TTuple:
 		for _, elem := range t.Elements {
 			if u.occursWithVisited(varName, elem, varKind, visited) {

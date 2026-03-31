@@ -104,6 +104,33 @@ func copyFile(src: string, dst: string) -> () ! {FS} {
 | `_zip_readEntry` | `(string, string) -> Result[string, string] ! {FS}` | Read text entry from ZIP |
 | `_zip_readEntryBytes` | `(string, string) -> Result[string, string] ! {FS}` | Read binary entry from ZIP (base64) |
 
+#### FS Sandbox
+
+Restrict all FS operations to a directory by setting the `AILANG_FS_SANDBOX` environment variable:
+
+```bash
+AILANG_FS_SANDBOX=/tmp/sandbox ailang run --caps FS --entry main program.ail
+```
+
+When set, all file paths are resolved relative to the sandbox root:
+
+```typescript
+-- With AILANG_FS_SANDBOX=/tmp/sandbox:
+readFile("data.txt")       -- reads /tmp/sandbox/data.txt
+writeFile("out.txt", s)    -- writes /tmp/sandbox/out.txt
+listDir("subdir")          -- lists /tmp/sandbox/subdir
+```
+
+This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
+
+If unset (the default), paths resolve normally from the process working directory.
+
+:::tip Use Cases
+- **Eval benchmarks**: isolate generated code to a temp directory
+- **Agent workspaces**: confine AI agents to their workspace
+- **Untrusted code**: prevent access to files outside the sandbox
+:::
+
 ### Clock Effect
 
 Time operations with deterministic mode support.

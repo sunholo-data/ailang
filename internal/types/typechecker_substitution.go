@@ -150,6 +150,10 @@ func (tc *CoreTypeChecker) propagateTypeNameRecursively(t Type, fieldSigToTypeNa
 	case *TArray:
 		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
 
+	case *TMap:
+		tc.propagateTypeNameRecursively(typ.Key, fieldSigToTypeName, nodeID)
+		tc.propagateTypeNameRecursively(typ.Value, fieldSigToTypeName, nodeID)
+
 	case *TTuple:
 		for _, elem := range typ.Elements {
 			tc.propagateTypeNameRecursively(elem, fieldSigToTypeName, nodeID)

@@ -72,6 +72,11 @@ func safeTypeStringWithDepth(t Type, depth int, visited map[Type]bool) string {
 		elem := safeTypeStringWithDepth(typ.Element, depth+1, visited)
 		return fmt.Sprintf("Array[%s]", elem)
 
+	case *TMap:
+		key := safeTypeStringWithDepth(typ.Key, depth+1, visited)
+		val := safeTypeStringWithDepth(typ.Value, depth+1, visited)
+		return fmt.Sprintf("Map[%s, %s]", key, val)
+
 	case *TTuple:
 		elems := make([]string, len(typ.Elements))
 		for i, e := range typ.Elements {

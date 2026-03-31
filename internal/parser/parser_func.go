@@ -73,7 +73,8 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 				Pos:  p.curPos(),
 			},
 		}
-		p.nextToken() // consume UNIT
+		// Stay AT the UNIT token (don't advance) — matches non-generic branch convention.
+		// The return type check (peekTokenIs(ARROW)) expects curToken to be the last param token.
 	} else if hasTypeParams && p.curTokenIs(lexer.LPAREN) {
 		// Generic function with parameters: func name[T](x: T)
 		// Already at LPAREN after parseTypeParams()

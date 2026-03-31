@@ -1,0 +1,33 @@
+-- map_basic.ail - Demonstrates std/map hash map operations
+--
+-- Maps provide O(1) key-value lookup. Build with fromList, query with lookup.
+
+module map_basic
+import std/io (println)
+import std/map as M
+import std/string (intToStr)
+import std/option (Option, Some, None)
+
+export func main() -> () ! {IO} {
+  -- Build a map from a list of tuples
+  let colors = M.fromList([("red", "#FF0000"), ("green", "#00FF00"), ("blue", "#0000FF")]);
+
+  -- Lookup returns Option
+  let red = M.lookup(colors, "red");
+  println("red = " ++ match red { Some(v) => v, None => "not found" });
+
+  -- Member check
+  let hasGreen = M.member(colors, "green");
+  println("has green? " ++ if hasGreen then "true" else "false");
+
+  -- Size
+  println("map size: " ++ intToStr(M.size(colors)));
+
+  -- Insert returns a new map
+  let colors2 = M.insert(colors, "yellow", "#FFFF00");
+  println("after insert, size: " ++ intToStr(M.size(colors2)));
+
+  -- Remove
+  let colors3 = M.remove(colors2, "red");
+  println("after remove red, size: " ++ intToStr(M.size(colors3)))
+}
