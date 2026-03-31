@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -299,8 +300,12 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			})
 			return
 		}
+		var cleanup func()
 		var parseErr error
-		args, parseErr = parseMultipartArgs(r, maxSize)
+		args, cleanup, parseErr = parseMultipartArgsWithNames(r, maxSize, opt.ParamNames, opt.ParamTypes)
+		if cleanup != nil {
+			defer cleanup()
+		}
 		if parseErr != nil {
 			writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
 				Module: modulePath,
@@ -536,6 +541,99 @@ func parseMultipartArgs(r *http.Request, maxSize int64) ([]interface{}, error) {
 	}
 
 	return args, nil
+}
+
+// writeTempFile writes data to a temp file preserving the original extension.
+// Returns the temp file path. Caller is responsible for cleanup.
+func writeTempFile(data []byte, originalFilename string) (string, error) {
+	ext := filepath.Ext(originalFilename)
+	pattern := "ailang-upload-*" + ext
+	f, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if _, err := f.Write(data); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
+}
+
+// parseMultipartArgsWithNames maps multipart fields to function parameters by name.
+// File fields become *eval.BytesValue or temp file paths (if target param is string).
+// Non-file fields become strings. Unmatched params get zero-values.
+// Returns args, a cleanup function for temp files, and any error.
+// Falls back to positional parseMultipartArgs when no paramNames are provided.
+func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []string, paramTypes []string) ([]interface{}, func(), error) {
+	if r.MultipartForm == nil || len(paramNames) == 0 {
+		args, err := parseMultipartArgs(r, maxSize)
+		return args, func() {}, err
+	}
+
+	args := make([]interface{}, len(paramNames))
+	var tempFiles []string
+
+	for i, name := range paramNames {
+		paramType := ""
+		if i < len(paramTypes) {
+			paramType = paramTypes[i]
+		}
+
+		// Check file fields first
+		if fileHeaders, ok := r.MultipartForm.File[name]; ok && len(fileHeaders) > 0 {
+			fh := fileHeaders[0]
+			f, err := fh.Open()
+			if err != nil {
+				removeTempFiles(tempFiles)
+				return nil, nil, fmt.Errorf("failed to open uploaded file %q: %w", fh.Filename, err)
+			}
+			data, err := io.ReadAll(io.LimitReader(f, maxSize))
+			f.Close()
+			if err != nil {
+				removeTempFiles(tempFiles)
+				return nil, nil, fmt.Errorf("failed to read uploaded file %q: %w", fh.Filename, err)
+			}
+
+			if paramType == "string" {
+				tmpPath, err := writeTempFile(data, fh.Filename)
+				if err != nil {
+					removeTempFiles(tempFiles)
+					return nil, nil, fmt.Errorf("failed to write temp file: %w", err)
+				}
+				tempFiles = append(tempFiles, tmpPath)
+				args[i] = tmpPath
+			} else {
+				args[i] = &eval.BytesValue{
+					Value:    data,
+					Filename: fh.Filename,
+					MimeType: fh.Header.Get("Content-Type"),
+				}
+			}
+			continue
+		}
+
+		// Check non-file form fields
+		if values, ok := r.MultipartForm.Value[name]; ok && len(values) > 0 {
+			args[i] = values[0]
+			continue
+		}
+
+		// No match — zero-value pad
+		args[i] = zeroValueForType(paramType)
+	}
+
+	cleanup := func() {
+		removeTempFiles(tempFiles)
+	}
+	return args, cleanup, nil
+}
+
+// removeTempFiles removes a list of temporary files, ignoring errors.
+func removeTempFiles(paths []string) {
+	for _, p := range paths {
+		os.Remove(p)
+	}
 }
 
 // buildHttpRequestRecord constructs a map representing an HttpRequest record

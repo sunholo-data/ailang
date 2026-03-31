@@ -1,0 +1,275 @@
+package apiserver
+
+import (
+	"bytes"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/sunholo/ailang/internal/eval"
+)
+
+func TestWriteTempFile(t *testing.T) {
+	data := []byte("hello world")
+
+	t.Run("preserves extension", func(t *testing.T) {
+		path, err := writeTempFile(data, "report.docx")
+		if err != nil {
+			t.Fatalf("writeTempFile: %v", err)
+		}
+		defer os.Remove(path)
+
+		if !strings.HasSuffix(path, ".docx") {
+			t.Errorf("expected .docx extension, got %q", path)
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(contents) != "hello world" {
+			t.Errorf("expected %q, got %q", "hello world", string(contents))
+		}
+	})
+
+	t.Run("no extension", func(t *testing.T) {
+		path, err := writeTempFile(data, "noext")
+		if err != nil {
+			t.Fatalf("writeTempFile: %v", err)
+		}
+		defer os.Remove(path)
+
+		if strings.Contains(path, ".") && !strings.Contains(path, "ailang-upload-") {
+			t.Errorf("unexpected extension in %q", path)
+		}
+	})
+}
+
+// makeMultipartRequest builds an *http.Request with multipart/form-data fields.
+func makeMultipartRequest(t *testing.T, files map[string][]byte, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	for name, data := range files {
+		part, err := w.CreateFormFile(name, name+".bin")
+		if err != nil {
+			t.Fatalf("CreateFormFile: %v", err)
+		}
+		part.Write(data)
+	}
+	for name, val := range fields {
+		if err := w.WriteField(name, val); err != nil {
+			t.Fatalf("WriteField: %v", err)
+		}
+	}
+	w.Close()
+
+	req, err := http.NewRequest("POST", "/test", &buf)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	if err := req.ParseMultipartForm(32 << 20); err != nil {
+		t.Fatalf("ParseMultipartForm: %v", err)
+	}
+	return req
+}
+
+func TestParseMultipartArgsWithNames_FileToString(t *testing.T) {
+	req := makeMultipartRequest(t,
+		map[string][]byte{"filepath": []byte("PDF content")},
+		map[string]string{"format": "markdown"},
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"filepath", "format"},
+		[]string{"string", "string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+
+	// File field + string param → temp file path
+	path, ok := args[0].(string)
+	if !ok {
+		t.Fatalf("expected string for filepath arg, got %T", args[0])
+	}
+	if !strings.Contains(path, "ailang-upload-") {
+		t.Errorf("expected temp file path, got %q", path)
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", path, err)
+	}
+	if string(contents) != "PDF content" {
+		t.Errorf("temp file content = %q, want %q", string(contents), "PDF content")
+	}
+
+	// Non-file field → string
+	if args[1] != "markdown" {
+		t.Errorf("format = %q, want %q", args[1], "markdown")
+	}
+}
+
+func TestParseMultipartArgsWithNames_FileToBytes(t *testing.T) {
+	req := makeMultipartRequest(t,
+		map[string][]byte{"data": []byte("raw binary")},
+		map[string]string{"format": "png"},
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"data", "format"},
+		[]string{"bytes", "string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+
+	// File field + bytes param → BytesValue
+	bv, ok := args[0].(*eval.BytesValue)
+	if !ok {
+		t.Fatalf("expected *eval.BytesValue for data arg, got %T", args[0])
+	}
+	if string(bv.Value) != "raw binary" {
+		t.Errorf("BytesValue.Value = %q, want %q", string(bv.Value), "raw binary")
+	}
+
+	if args[1] != "png" {
+		t.Errorf("format = %q, want %q", args[1], "png")
+	}
+}
+
+func TestParseMultipartArgsWithNames_UnmatchedParams(t *testing.T) {
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("data")},
+		nil,
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"file", "apiKey"},
+		[]string{"bytes", "string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+
+	// Matched file field
+	if _, ok := args[0].(*eval.BytesValue); !ok {
+		t.Fatalf("expected *eval.BytesValue, got %T", args[0])
+	}
+
+	// Unmatched string param → zero-value ""
+	if args[1] != "" {
+		t.Errorf("unmatched apiKey = %v, want empty string", args[1])
+	}
+}
+
+func TestParseMultipartArgsWithNames_NoParamNames_Fallback(t *testing.T) {
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("data")},
+		map[string]string{"key": "val"},
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20, nil, nil)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	// Falls back to positional — should have at least 1 arg
+	if len(args) == 0 {
+		t.Fatal("expected positional fallback to return args")
+	}
+
+	// One of the args should be a BytesValue (from the file field)
+	foundBytes := false
+	for _, a := range args {
+		if _, ok := a.(*eval.BytesValue); ok {
+			foundBytes = true
+		}
+	}
+	if !foundBytes {
+		t.Error("positional fallback should return BytesValue for file fields")
+	}
+}
+
+func TestParseMultipartArgsWithNames_CleanupRemovesTempFiles(t *testing.T) {
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("temp data")},
+		nil,
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"file"},
+		[]string{"string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+
+	path := args[0].(string)
+	// File should exist before cleanup
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("temp file should exist before cleanup: %v", err)
+	}
+
+	cleanup()
+
+	// File should be gone after cleanup
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("temp file should be removed after cleanup, got err: %v", err)
+	}
+}
+
+func TestParseMultipartArgsWithNames_NamedOrdering(t *testing.T) {
+	// Verify args are in param declaration order, not map iteration order
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("content")},
+		map[string]string{"apiKey": "key123", "format": "md"},
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"format", "file", "apiKey"},
+		[]string{"string", "bytes", "string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 3 {
+		t.Fatalf("expected 3 args, got %d", len(args))
+	}
+
+	// args[0] = format (non-file field, string)
+	if args[0] != "md" {
+		t.Errorf("args[0] (format) = %v, want %q", args[0], "md")
+	}
+
+	// args[1] = file (file field, bytes type → BytesValue)
+	if _, ok := args[1].(*eval.BytesValue); !ok {
+		t.Errorf("args[1] (file) = %T, want *eval.BytesValue", args[1])
+	}
+
+	// args[2] = apiKey (non-file field, string)
+	if args[2] != "key123" {
+		t.Errorf("args[2] (apiKey) = %v, want %q", args[2], "key123")
+	}
+}
