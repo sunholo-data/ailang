@@ -243,9 +243,11 @@ func pkgLockCommand(args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
+	fmt.Printf("Resolving dependencies in %s\n", cwd)
+
 	manifest, err := pkg.LoadManifest(cwd)
 	if err != nil {
-		return fmt.Errorf("no ailang.toml found: %w\nRun 'ailang init package' first", err)
+		return fmt.Errorf("no ailang.toml found in %s: %w\nRun 'ailang init package' first", cwd, err)
 	}
 
 	if len(manifest.Dependencies) == 0 {
