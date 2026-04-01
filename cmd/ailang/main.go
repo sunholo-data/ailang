@@ -354,6 +354,12 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "unpublish":
+		if err := pkgUnpublishCommand(flag.Args()[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 	case "pkg-docs":
 		if err := pkgDocsCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

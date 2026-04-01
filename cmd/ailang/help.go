@@ -120,6 +120,7 @@ func printHelp() {
 	fmt.Printf("  %s          Search registry by keyword or tag\n", cyan("search [query] [--tag TAG]"))
 	fmt.Printf("  %s  Install package (omit version for latest)\n", cyan("install <vendor/name[@version]>"))
 	fmt.Printf("  %s                    Publish current package to registry\n", cyan("publish [--dry-run]"))
+	fmt.Printf("  %s  Remove a package version from registry\n", cyan("unpublish <vendor/name@ver>"))
 	fmt.Printf("  %s       Display package AGENT.md (AI usage guide)\n", cyan("pkg-docs <vendor/name>"))
 	fmt.Printf("  %s  Create ailang.toml for a new package\n", cyan("init package --name <v/n>"))
 	fmt.Printf("  %s              Add dependency (--path, --git, or --registry)\n", cyan("add [flags]"))
