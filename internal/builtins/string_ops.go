@@ -143,6 +143,16 @@ func stringToFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, 
 	}
 
 	// Try to parse as float64
+	// Reject strings with underscores: Go's ParseFloat silently accepts them
+	// as digit separators (e.g., "1_000" → 1000.0), which violates user expectations.
+	if strings.ContainsRune(strVal.Value, '_') {
+		return &eval.TaggedValue{
+			ModulePath: "std/option",
+			TypeName:   "Option",
+			CtorName:   "None",
+			Fields:     []eval.Value{},
+		}, nil
+	}
 	f, err := strconv.ParseFloat(strVal.Value, 64)
 	if err != nil {
 		// Return None

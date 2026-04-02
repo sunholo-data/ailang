@@ -563,8 +563,10 @@ func (s *Server) handleOutliersAnalysis(w http.ResponseWriter, r *http.Request) 
 	// Parse optional parameters
 	threshold := 2.0
 	if thresholdParam := q.Get("threshold"); thresholdParam != "" {
-		if t, err := strconv.ParseFloat(thresholdParam, 64); err == nil && t > 0 {
-			threshold = t
+		if !strings.ContainsRune(thresholdParam, '_') {
+			if t, err := strconv.ParseFloat(thresholdParam, 64); err == nil && t > 0 {
+				threshold = t
+			}
 		}
 	}
 

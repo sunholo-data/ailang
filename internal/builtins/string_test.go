@@ -115,6 +115,11 @@ func TestStringToFloat(t *testing.T) {
 		{"multiple dots", "3.14.15", false, 0},
 		{"invalid scientific", "1e", false, 0},
 		{"text mixed with number", "abc123.45", false, 0},
+		// Underscore rejection: Go's ParseFloat silently accepts underscores as
+		// digit separators (e.g., "1_000" → 1000.0). AILANG must reject these.
+		{"underscore digits", "1_000", false, 0},
+		{"underscore period-like", "2026_04", false, 0},
+		{"underscore decimal", "3_14.15", false, 0},
 	}
 
 	ctx := testctx.NewMockEffContext()

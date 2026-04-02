@@ -232,6 +232,8 @@ func registerStringCodegenSpecs() {
 			FuncName:  "StringToFloat",
 			Signature: "func StringToFloat(s interface{}) interface{}",
 			Body: `str := strings.TrimSpace(s.(string))
+	// Reject underscores: Go's ParseFloat silently accepts them as digit separators
+	if strings.Contains(str, "_") { return NewOptionNone() }
 	f, err := strconv.ParseFloat(str, 64)
 	if err != nil { return NewOptionNone() }
 	return NewOptionSome(f)`,
