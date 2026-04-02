@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -374,6 +375,66 @@ func TestParseQueryArgs_StringValues(t *testing.T) {
 	}
 	if record["flag"] != true {
 		t.Errorf("expected true, got %v (%T)", record["flag"], record["flag"])
+	}
+}
+
+// TestParseQueryArgs_UnderscoreStaysString verifies that strings with underscores
+// between digits (e.g., "2026_04") are NOT parsed as numbers.
+// Regression: Go's strconv.ParseFloat treats underscores as digit separators,
+// so "2026_04" became float64(202604), which then became IntValue(202604),
+// causing concat_String failures when building Firestore paths.
+func TestParseQueryArgs_UnderscoreStaysString(t *testing.T) {
+	query := url.Values{"args": {"test-user", "2026_04"}}
+	args := parseQueryArgs(query)
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+	// "2026_04" must stay a string, NOT become float64(202604)
+	s, ok := args[1].(string)
+	if !ok {
+		t.Fatalf("expected string for '2026_04', got %T (%v)", args[1], args[1])
+	}
+	if s != "2026_04" {
+		t.Errorf("expected '2026_04', got %q", s)
+	}
+}
+
+// TestTryParseJSON_NumericEdgeCases tests the looksNumeric guard.
+func TestTryParseJSON_NumericEdgeCases(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantType string // "float64", "string", "bool"
+	}{
+		{"42", "float64"},
+		{"-7", "float64"},
+		{"3.14", "float64"},
+		{"1e5", "float64"},
+		{"true", "bool"},
+		{"false", "bool"},
+		{"hello", "string"},
+		{"2026_04", "string"},   // underscore between digits
+		{"1_000_000", "string"}, // Go numeric literal with separators
+		{"test_123", "string"},  // mixed alpha and underscore
+		{"_leading", "string"},  // leading underscore
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := tryParseJSON(tt.input)
+			var gotType string
+			switch got.(type) {
+			case float64:
+				gotType = "float64"
+			case bool:
+				gotType = "bool"
+			case string:
+				gotType = "string"
+			default:
+				gotType = fmt.Sprintf("%T", got)
+			}
+			if gotType != tt.wantType {
+				t.Errorf("tryParseJSON(%q) type = %s, want %s (value: %v)", tt.input, gotType, tt.wantType, got)
+			}
+		})
 	}
 }
 

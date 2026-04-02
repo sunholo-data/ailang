@@ -327,13 +327,19 @@ func parseQueryArgs(query url.Values) []interface{} {
 // tryParseJSON attempts to parse a string as a JSON value (number, bool, null).
 // Falls back to returning the string as-is.
 func tryParseJSON(s string) interface{} {
-	// Try integer
-	if i, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return float64(i) // JSON numbers are float64
-	}
-	// Try float
-	if f, err := strconv.ParseFloat(s, 64); err == nil {
-		return f
+	// Only try numeric parsing if the string looks like a plain number.
+	// Go's strconv.ParseFloat accepts underscores as digit separators
+	// (e.g., "2026_04" → 202604.0), which silently corrupts string args
+	// that happen to contain underscores between digits.
+	if looksNumeric(s) {
+		// Try integer
+		if i, err := strconv.ParseInt(s, 10, 64); err == nil {
+			return float64(i) // JSON numbers are float64
+		}
+		// Try float
+		if f, err := strconv.ParseFloat(s, 64); err == nil {
+			return f
+		}
 	}
 	// Try bool
 	if b, err := strconv.ParseBool(s); err == nil {
@@ -348,6 +354,32 @@ func tryParseJSON(s string) interface{} {
 		}
 	}
 	return s
+}
+
+// looksNumeric returns true if s looks like a plain JSON number
+// (digits, optional leading minus, optional decimal point, optional exponent).
+// Rejects strings with underscores, letters (other than e/E for exponent), etc.
+func looksNumeric(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for i, c := range s {
+		switch {
+		case c >= '0' && c <= '9':
+			continue
+		case c == '-' && i == 0:
+			continue
+		case c == '+' && i > 0:
+			continue
+		case c == '.':
+			continue
+		case (c == 'e' || c == 'E') && i > 0:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // writeJSON writes a JSON response with the given status code.
