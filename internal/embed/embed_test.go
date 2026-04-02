@@ -375,3 +375,63 @@ func TestEngineClosedError(t *testing.T) {
 		t.Error("Eval on closed engine should error")
 	}
 }
+
+// TestFromGoWholeFloatBecomesInt verifies that FromGo converts whole-number
+// float64 values (as produced by JSON decoding) to IntValue, not FloatValue.
+// This is critical for serve-api route handlers where HTTP JSON args like
+// {"count": 100} arrive as float64(100) from Go's json.Unmarshal.
+// Regression: CallPreserveFloats kept them as FloatValue, breaking int-typed
+// record fields in cross-package function calls.
+func TestFromGoWholeFloatBecomesInt(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    float64
+		wantType string
+	}{
+		{"whole number 100.0", 100.0, "int"},
+		{"whole number 0.0", 0.0, "int"},
+		{"whole number -42.0", -42.0, "int"},
+		{"fractional 3.14", 3.14, "float"},
+		{"fractional 0.5", 0.5, "float"},
+		{"large whole 1e10", 1e10, "int"},
+		// Beyond safe range, should stay float
+		{"beyond safe 1e16", 1e16, "float"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FromGo(tt.input)
+			if err != nil {
+				t.Fatalf("FromGo(%v) error: %v", tt.input, err)
+			}
+			if got.Type() != tt.wantType {
+				t.Errorf("FromGo(%v).Type() = %q, want %q (value: %s)",
+					tt.input, got.Type(), tt.wantType, got.String())
+			}
+		})
+	}
+}
+
+// TestFromGoPreserveFloatsKeepsFloat verifies that FromGoPreserveFloats
+// retains FloatValue for all float64 inputs, even whole numbers.
+func TestFromGoPreserveFloatsKeepsFloat(t *testing.T) {
+	tests := []struct {
+		name  string
+		input float64
+	}{
+		{"whole number 100.0", 100.0},
+		{"zero 0.0", 0.0},
+		{"fractional 3.14", 3.14},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FromGoPreserveFloats(tt.input)
+			if err != nil {
+				t.Fatalf("FromGoPreserveFloats(%v) error: %v", tt.input, err)
+			}
+			if got.Type() != "float" {
+				t.Errorf("FromGoPreserveFloats(%v).Type() = %q, want %q",
+					tt.input, got.Type(), "float")
+			}
+		})
+	}
+}

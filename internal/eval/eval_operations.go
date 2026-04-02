@@ -2,9 +2,14 @@ package eval
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/sunholo/ailang/internal/core"
 )
+
+// debugEvalApp enables debug output for function application when DEBUG_EVAL_APP=1
+var debugEvalApp = os.Getenv("DEBUG_EVAL_APP") == "1"
 
 // evalCoreApp evaluates function application
 func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
@@ -33,6 +38,17 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 	}
 
 	// Apply function
+	if debugEvalApp {
+		funcDesc := fmt.Sprintf("%T", fnVal)
+		if bf, ok := fnVal.(*BuiltinFunction); ok {
+			funcDesc = fmt.Sprintf("Builtin(%s)", bf.Name)
+		}
+		argStrs := make([]string, len(args))
+		for i, a := range args {
+			argStrs[i] = fmt.Sprintf("%T(%s)", a, a.String())
+		}
+		log.Printf("[DEBUG_EVAL_APP] Apply %s to %v", funcDesc, argStrs)
+	}
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
 		// Recursion depth guard
@@ -208,10 +224,25 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			e.effContext = oldEffContext
 		}
 
+		if debugEvalApp {
+			if result != nil {
+				log.Printf("[DEBUG_EVAL_APP] FunctionValue returned %T(%s)", result, result.String())
+			} else {
+				log.Printf("[DEBUG_EVAL_APP] FunctionValue returned nil, err=%v", err)
+			}
+		}
 		return result, err
 
 	case *BuiltinFunction:
-		return fn.Fn(args)
+		result, err := fn.Fn(args)
+		if debugEvalApp {
+			if result != nil {
+				log.Printf("[DEBUG_EVAL_APP] Builtin(%s) returned %T(%s)", fn.Name, result, result.String())
+			} else {
+				log.Printf("[DEBUG_EVAL_APP] Builtin(%s) returned nil, err=%v", fn.Name, err)
+			}
+		}
+		return result, err
 
 	case *ConstructorClosure:
 		// ADT constructor application - creates a TaggedValue

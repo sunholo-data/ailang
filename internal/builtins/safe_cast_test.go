@@ -1,6 +1,7 @@
 package builtins
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -309,6 +310,114 @@ func TestSafeAsList(t *testing.T) {
 				if len(got) != tt.wantLen {
 					t.Errorf("SafeAsList() len = %d, want %d", len(got), tt.wantLen)
 				}
+			}
+		})
+	}
+}
+
+// TestErrorMessagesShowAILANGTypes verifies that type mismatch errors show
+// AILANG type names (int, float, string) not Go internals (*eval.IntValue).
+// Regression: before this fix, errors showed "got *eval.IntValue" which
+// confused users who don't know Go.
+func TestErrorMessagesShowAILANGTypes(t *testing.T) {
+	tests := []struct {
+		name         string
+		fn           func(eval.Value) error
+		value        eval.Value
+		wantType     string // AILANG type name in error
+		wantNoGoType string // must NOT appear in error
+	}{
+		{
+			name:         "int passed to SafeAsString shows 'int' not '*eval.IntValue'",
+			fn:           func(v eval.Value) error { _, err := SafeAsString(v); return err },
+			value:        &eval.IntValue{Value: 42},
+			wantType:     "int",
+			wantNoGoType: "*eval.IntValue",
+		},
+		{
+			name:         "float passed to SafeAsString shows 'float' not '*eval.FloatValue'",
+			fn:           func(v eval.Value) error { _, err := SafeAsString(v); return err },
+			value:        &eval.FloatValue{Value: 3.14},
+			wantType:     "float",
+			wantNoGoType: "*eval.FloatValue",
+		},
+		{
+			name:         "string passed to SafeAsInt shows 'string' not '*eval.StringValue'",
+			fn:           func(v eval.Value) error { _, err := SafeAsInt(v); return err },
+			value:        &eval.StringValue{Value: "42"},
+			wantType:     "string",
+			wantNoGoType: "*eval.StringValue",
+		},
+		{
+			name:         "int passed to SafeAsFloat shows 'int' not '*eval.IntValue'",
+			fn:           func(v eval.Value) error { _, err := SafeAsFloat(v); return err },
+			value:        &eval.IntValue{Value: 3},
+			wantType:     "int",
+			wantNoGoType: "*eval.IntValue",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.fn(tt.value)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			msg := err.Error()
+			if !strings.Contains(msg, tt.wantType) {
+				t.Errorf("error %q should contain AILANG type %q", msg, tt.wantType)
+			}
+			if strings.Contains(msg, tt.wantNoGoType) {
+				t.Errorf("error %q should NOT contain Go type %q", msg, tt.wantNoGoType)
+			}
+		})
+	}
+}
+
+// TestConversionHintsInErrors verifies that type mismatch errors include
+// helpful conversion suggestions.
+func TestConversionHintsInErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		fn       func(eval.Value) error
+		value    eval.Value
+		wantHint string
+	}{
+		{
+			name:     "int to string suggests intToStr",
+			fn:       func(v eval.Value) error { _, err := SafeAsString(v); return err },
+			value:    &eval.IntValue{Value: 42},
+			wantHint: "intToStr()",
+		},
+		{
+			name:     "float to string suggests floatToStr",
+			fn:       func(v eval.Value) error { _, err := SafeAsString(v); return err },
+			value:    &eval.FloatValue{Value: 3.14},
+			wantHint: "floatToStr()",
+		},
+		{
+			name:     "float to int suggests floatToInt",
+			fn:       func(v eval.Value) error { _, err := SafeAsInt(v); return err },
+			value:    &eval.FloatValue{Value: 3.14},
+			wantHint: "floatToInt()",
+		},
+		{
+			name:     "int to float suggests intToFloat",
+			fn:       func(v eval.Value) error { _, err := SafeAsFloat(v); return err },
+			value:    &eval.IntValue{Value: 3},
+			wantHint: "intToFloat()",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.fn(tt.value)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			msg := err.Error()
+			if !strings.Contains(msg, tt.wantHint) {
+				t.Errorf("error %q should contain hint %q", msg, tt.wantHint)
 			}
 		})
 	}

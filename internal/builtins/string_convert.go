@@ -21,7 +21,7 @@ func registerStringConversions() {
 	floatToStrImpl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		f, ok := args[0].(*eval.FloatValue)
 		if !ok {
-			return nil, fmt.Errorf("floatToStr: expected FloatValue for arg 0, got %T", args[0])
+			return nil, fmt.Errorf("floatToStr: expected float, got %s", ailangTypeName(args[0], "float"))
 		}
 		// Use %g for compact representation (no trailing zeros)
 		s := strconv.FormatFloat(f.Value, 'g', -1, 64)
@@ -65,7 +65,7 @@ func registerStringConversions() {
 	intToStrImpl := func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 		i, ok := args[0].(*eval.IntValue)
 		if !ok {
-			return nil, fmt.Errorf("intToStr: expected IntValue for arg 0, got %T", args[0])
+			return nil, fmt.Errorf("intToStr: expected int, got %s", ailangTypeName(args[0], "int"))
 		}
 		s := strconv.Itoa(i.Value)
 		return &eval.StringValue{Value: s}, nil

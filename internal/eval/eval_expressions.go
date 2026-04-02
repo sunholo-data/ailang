@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/types"
@@ -109,6 +110,11 @@ func (e *CoreEvaluator) evalCoreVarGlobal(v *core.VarGlobal) (Value, error) {
 	val, err := e.resolver.ResolveValue(v.Ref)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve global %s.%s: %w", v.Ref.Module, v.Ref.Name, err)
+	}
+
+	// DEBUG: trace global resolution (set DEBUG_EVAL_APP=1)
+	if debugEvalApp {
+		log.Printf("[DEBUG_EVAL_APP] VarGlobal %s.%s → %T", v.Ref.Module, v.Ref.Name, val)
 	}
 
 	return val, nil

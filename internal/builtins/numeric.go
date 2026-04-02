@@ -41,7 +41,7 @@ func makeIntToFloatType() types.Type {
 func intToFloatImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	intVal, ok := args[0].(*eval.IntValue)
 	if !ok {
-		return nil, fmt.Errorf("_int_to_float: expected Int, got %T", args[0])
+		return nil, fmt.Errorf("intToFloat: expected int, got %s", ailangTypeName(args[0], "int"))
 	}
 	return &eval.FloatValue{Value: float64(intVal.Value)}, nil
 }
@@ -72,7 +72,7 @@ func makeFloatToIntType() types.Type {
 func floatToIntImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
 	floatVal, ok := args[0].(*eval.FloatValue)
 	if !ok {
-		return nil, fmt.Errorf("_float_to_int: expected Float, got %T", args[0])
+		return nil, fmt.Errorf("floatToInt: expected float, got %s", ailangTypeName(args[0], "float"))
 	}
 	return &eval.IntValue{Value: int(floatVal.Value)}, nil
 }

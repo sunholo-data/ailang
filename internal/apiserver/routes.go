@@ -347,22 +347,25 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	defer s.flushDebugOutput()
 
 	// Call AILANG function
+	// Use Call (not CallPreserveFloats) so JSON-decoded whole numbers (float64)
+	// are converted to IntValue when they fit. CallPreserveFloats kept them as
+	// FloatValue, which broke int-typed record fields from cross-package calls.
 	debugConc := os.Getenv("DEBUG_CONCURRENCY") == "1"
 	if debugConc {
-		log.Printf("[CONCURRENCY] calling engine.CallPreserveFloats %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
+		log.Printf("[CONCURRENCY] calling engine.Call %s/%s (goroutine %d)", modulePath, funcName, goroutineID())
 	}
 	start := time.Now()
-	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
+	result, callErr := s.engine.Call(modulePath, funcName, args...)
 	elapsed := time.Since(start).Milliseconds()
 	if debugConc {
-		log.Printf("[CONCURRENCY] engine.CallPreserveFloats returned %s/%s (goroutine %d, err=%v, %dms)", modulePath, funcName, goroutineID(), callErr, elapsed)
+		log.Printf("[CONCURRENCY] engine.Call returned %s/%s (goroutine %d, err=%v, %dms)", modulePath, funcName, goroutineID(), callErr, elapsed)
 	}
 
 	// Fix: zero-arg functions in AILANG internally compile to take a unit parameter.
 	// If the call fails with "expects 1 arguments, got 0", retry with a unit arg.
 	if callErr != nil && len(args) == 0 && strings.Contains(callErr.Error(), "expects 1 arguments, got 0") {
 		start = time.Now()
-		result, callErr = s.engine.CallPreserveFloats(modulePath, funcName, nil)
+		result, callErr = s.engine.Call(modulePath, funcName, nil)
 		elapsed = time.Since(start).Milliseconds()
 	}
 
