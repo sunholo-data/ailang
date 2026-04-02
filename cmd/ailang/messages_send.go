@@ -88,6 +88,11 @@ func runMessagesSend(args []string) {
 	}
 	syncToGitHub := *github || knownGitHubTypes[category]
 
+	// For bug reports, auto-append binary version and MD5 for reproducibility
+	if category == messaging.CategoryBug {
+		payload = appendBinaryInfo(payload)
+	}
+
 	msg := &messaging.InboxMessage{
 		FromAgent:     *from,
 		ToInbox:       inbox,
@@ -413,6 +418,45 @@ func filterSourceFiles(output string) []string {
 		}
 	}
 	return result
+}
+
+// appendBinaryInfo appends ailang binary version and MD5 hash to a bug report payload.
+// This ensures every bug report includes the exact binary used, preventing
+// "works on my machine" debugging sessions.
+func appendBinaryInfo(payload string) string {
+	var info []string
+
+	// Get version
+	info = append(info, fmt.Sprintf("ailang version: %s", Version))
+
+	// Get binary MD5
+	exe, err := os.Executable()
+	if err == nil {
+		md5out, err := exec.Command("md5", "-q", exe).Output()
+		if err != nil {
+			// Try md5sum (Linux)
+			md5out, err = exec.Command("md5sum", exe).Output()
+		}
+		if err == nil {
+			hash := strings.TrimSpace(string(md5out))
+			// md5sum outputs "hash  filename", take just the hash
+			if parts := strings.Fields(hash); len(parts) > 0 {
+				hash = parts[0]
+			}
+			info = append(info, fmt.Sprintf("binary md5: %s", hash))
+			info = append(info, fmt.Sprintf("binary path: %s", exe))
+		}
+	}
+
+	// Get git commit if available
+	if Commit != "" {
+		info = append(info, fmt.Sprintf("git commit: %s", Commit))
+	}
+
+	if len(info) > 0 {
+		return payload + "\n\n---\nBinary info (auto-attached):\n" + strings.Join(info, "\n")
+	}
+	return payload
 }
 
 // isSourceFile returns true for files that are meaningful for code context embedding.
