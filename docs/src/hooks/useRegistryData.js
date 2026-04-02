@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const REGISTRY_API = typeof window !== 'undefined'
-  ? (window.__AILANG_REGISTRY_API || 'https://ailang-registry-validator-mdpoxgrptq-ew.a.run.app')
+  ? (window.__AILANG_REGISTRY_VALIDATOR || window.__AILANG_REGISTRY_API || 'https://registry.ailang.sunholo.com')
   : '';
 
 const CACHE_PREFIX = 'ailang_registry_';

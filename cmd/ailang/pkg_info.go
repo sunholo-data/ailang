@@ -10,17 +10,23 @@ import (
 	"time"
 )
 
-const defaultRegistryAPI = "https://ailang-registry-validator-mdpoxgrptq-ew.a.run.app"
+// DefaultValidatorURL is the default AILANG registry validator (Cloud Run service).
+const DefaultValidatorURL = "https://registry.ailang.sunholo.com"
 
-func registryAPIURL() string {
+// registryValidatorURL returns the registry validator URL.
+// Checks AILANG_REGISTRY_VALIDATOR first, then AILANG_REGISTRY_API (deprecated alias), then default.
+func registryValidatorURL() string {
+	if url := os.Getenv("AILANG_REGISTRY_VALIDATOR"); url != "" {
+		return strings.TrimRight(url, "/")
+	}
 	if url := os.Getenv("AILANG_REGISTRY_API"); url != "" {
 		return strings.TrimRight(url, "/")
 	}
-	return defaultRegistryAPI
+	return DefaultValidatorURL
 }
 
 func registryAPIGet(path string) ([]byte, error) {
-	url := registryAPIURL() + path
+	url := registryValidatorURL() + path
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(url) //nolint:gosec // URL from trusted source
 	if err != nil {

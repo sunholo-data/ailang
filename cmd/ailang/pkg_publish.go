@@ -99,10 +99,7 @@ func pkgPublishCommand(args []string) error {
 	}
 
 	// Upload to validator
-	validatorURL := os.Getenv("AILANG_REGISTRY_VALIDATOR")
-	if validatorURL == "" {
-		return fmt.Errorf("AILANG_REGISTRY_VALIDATOR not set\nSet the Cloud Run validator URL: export AILANG_REGISTRY_VALIDATOR=https://ailang-registry-validator-XXXX.run.app")
-	}
+	validatorURL := registryValidatorURL()
 
 	fmt.Printf("  Uploading to %s...\n", validatorURL)
 

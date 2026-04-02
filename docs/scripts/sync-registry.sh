@@ -13,7 +13,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-REGISTRY_API="${AILANG_REGISTRY_API:-https://ailang-registry-validator-mdpoxgrptq-ew.a.run.app}"
+REGISTRY_API="${AILANG_REGISTRY_VALIDATOR:-${AILANG_REGISTRY_API:-https://registry.ailang.sunholo.com}}"
 REGISTRY_GCS="${AILANG_REGISTRY:-https://storage.googleapis.com/ailang-registry}"
 DOCS_DIR="docs"
 STATIC_DIR="$DOCS_DIR/static/registry"

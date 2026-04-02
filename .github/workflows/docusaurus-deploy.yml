@@ -19,6 +19,10 @@ on:
       # Web assets (REPL component, etc.)
       - 'web/**'
 
+  # Rebuild daily to pick up newly published packages in the registry
+  schedule:
+    - cron: '0 6 * * *'  # 06:00 UTC daily
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 

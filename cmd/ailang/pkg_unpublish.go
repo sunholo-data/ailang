@@ -34,7 +34,7 @@ func pkgUnpublishCommand(args []string) error {
 		fmt.Println("  --force    Skip confirmation prompt")
 		fmt.Println()
 		fmt.Println("Environment:")
-		fmt.Println("  AILANG_REGISTRY_VALIDATOR  Validator service URL (required)")
+		fmt.Println("  AILANG_REGISTRY_VALIDATOR  Validator service URL (has default, overridable)")
 		fmt.Println("  AILANG_REGISTRY_API_KEY    API key for authentication (required)")
 		return nil
 	}
@@ -70,10 +70,7 @@ func pkgUnpublishCommand(args []string) error {
 	}
 
 	// Call validator
-	validatorURL := os.Getenv("AILANG_REGISTRY_VALIDATOR")
-	if validatorURL == "" {
-		return fmt.Errorf("AILANG_REGISTRY_VALIDATOR not set\nSet the Cloud Run validator URL: export AILANG_REGISTRY_VALIDATOR=https://ailang-registry-validator-XXXX.run.app")
-	}
+	validatorURL := registryValidatorURL()
 
 	apiKey := os.Getenv("AILANG_REGISTRY_API_KEY")
 	if apiKey == "" {
