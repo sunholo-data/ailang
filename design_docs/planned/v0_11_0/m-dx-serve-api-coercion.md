@@ -182,7 +182,36 @@ export func handleGetEntitlements(principalId: string, period: string) -> Result
 concat_String: arg 1 - expected string, got int. Use intToStr() to convert int to string
 ```
 
-### Example 2: The Diamond Dependency Pattern
+### Example 2: parseCatalog Returns Empty in Webhook Handler
+
+**Reported**: Same debugging session as Example 1. May be resolved by underscore fix (9fa0aa4f) — **needs re-verification**.
+
+**AILANG code (webhook_handler.ail):**
+```ailang
+import pkg/sunholo/config/loader (optionalEnv)
+import pkg/sunholo/billing_entitlements/plan (Plan, parseCatalog)
+
+@route("POST", "/billing/webhooks/stripe")
+export func handleStripeWebhook(...) -> Result[string, string] ! {Net, FS, Env} =
+  let catalog = parseCatalog(optionalEnv("BILLING_PLAN_CATALOG", "[]"))
+  -- catalog is [] when it should contain plan entries
+```
+
+**Expected:** `catalog` contains parsed plan entries from env var JSON.
+
+**Actual (serve-api, webhook handler only):** `catalog` is `[]` (empty list).
+
+**Analysis:**
+- `parseCatalog` is pure (no module-level state, no init dependency) — defined in `plan.ail:85-92`
+- Same call pattern works in `entitlements_handler.ail:29`
+- `optionalEnv` reads from `EnvSnapshot` (shared via Fork shallow copy) — env var availability is NOT the issue
+- Likely mechanism: closure environment corruption in Fork context. `parseCatalog` internally calls `decode`, `asArray`, `map` from std imports. If the closure's captured env chain is corrupted (same root cause as Example 1), these resolve incorrectly, causing match to fall through to `Err(_) => []` or `None => []`
+- **Alternative**: the underscore fix (9fa0aa4f) may have indirectly resolved this if the symptom was misattributed during the same debugging session. The underscore bug affected `tryParseJSON` in route arg parsing, not env var reading — but if the reporter was testing both issues simultaneously, the symptoms may have been conflated
+
+**Status**: **NOT REPRODUCIBLE** (verified 2026-04-02 with binary 0bd0ec18).
+Tested with two handlers sharing `parseCatalog` from `pkg/sunholo/billing_entitlements/plan`, both reading `BILLING_PLAN_CATALOG` env var via `optionalEnv`. Sequential and concurrent (20 parallel requests) — all returned `catalogSize: "2"` correctly. Likely was symptom conflation during original debug session, or resolved by underscore fix (9fa0aa4f).
+
+### Example 3: The Diamond Dependency Pattern
 
 ```
 entitlements_handler.ail
@@ -200,6 +229,7 @@ entitlements_handler.ail
 - [ ] `billing_service_api@0.5.4` /billing/me/entitlements returns correct JSON in serve-api
 - [ ] No `concat_String` type mismatch errors with diamond dependency patterns
 - [ ] Integration test in CI that exercises serve-api + cross-package intToStr
+- [x] Verify parseCatalog returns non-empty in webhook handler post 9fa0aa4f — **PASSED** (2026-04-02, 20 concurrent requests, binary 0bd0ec18)
 - [ ] `--debug-eval` flag available for serve-api troubleshooting
 - [ ] All existing tests passing
 - [ ] Design doc moved to implemented/
@@ -213,10 +243,12 @@ entitlements_handler.ail
 **Integration tests:**
 - New: serve-api handler calling intToStr through cross-package dependency
 - New: serve-api handler with diamond dependency pattern (two packages sharing a transitive dep)
+- New: serve-api handler calling parseCatalog through cross-package dependency (pure function with std/json + std/option + std/list imports in closure)
 
 **Manual testing:**
 - Run `billing_service_api@0.5.4` through serve-api
 - Hit /billing/me/entitlements with real Firestore data (not fallback)
+- Hit /billing/webhooks/stripe and verify parseCatalog returns non-empty (post 9fa0aa4f rebuild)
 
 ## Deferred Decisions
 

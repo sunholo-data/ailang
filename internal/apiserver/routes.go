@@ -388,6 +388,34 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
+	// Check if result is a Result.Err — map to non-200 HTTP status.
+	// Must inspect the raw eval.Value BEFORE ToGo conversion so we can
+	// extract _status from RecordValue fields with proper typing.
+	if errStatus, errPayload, isErr := resultErrStatus(result); isErr {
+		goErr, convErr := embed.ToGo(errPayload)
+		if convErr != nil {
+			goErr = fmt.Sprintf("result conversion failed: %v", convErr)
+		}
+
+		if opt.Nowrap {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Elapsed-Ms", fmt.Sprintf("%d", elapsed))
+			w.WriteHeader(errStatus)
+			enc := json.NewEncoder(w)
+			enc.SetIndent("", "  ")
+			_ = enc.Encode(goErr)
+			return
+		}
+
+		writeJSON(w, errStatus, FunctionCallResponse{
+			Module:    modulePath,
+			Func:      funcName,
+			Error:     fmt.Sprintf("%v", goErr),
+			ElapsedMs: elapsed,
+		})
+		return
+	}
+
 	// Convert result to Go value
 	goResult, err := embed.ToGo(result)
 	if err != nil {
@@ -398,6 +426,20 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 			ElapsedMs: elapsed,
 		})
 		return
+	}
+
+	// Unwrap Result.Ok — return the inner value, not the Ok wrapper.
+	if tagged, ok := result.(*eval.TaggedValue); ok && tagged.CtorName == "Ok" {
+		goResult, err = embed.ToGo(tagged.Fields[0])
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, FunctionCallResponse{
+				Module:    modulePath,
+				Func:      funcName,
+				Error:     fmt.Sprintf("result conversion failed: %v", err),
+				ElapsedMs: elapsed,
+			})
+			return
+		}
 	}
 
 	// @nowrap: return raw JSON without FunctionCallResponse envelope
@@ -443,6 +485,44 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		Result:    goResult,
 		ElapsedMs: elapsed,
 	})
+}
+
+// resultErrStatus checks if a value is a Result.Err variant and returns the
+// HTTP status code and error payload. If the Err payload is a record containing
+// a _status field, that value is used as the HTTP status code and stripped from
+// the payload. Otherwise the default status is 400 (Bad Request).
+func resultErrStatus(v eval.Value) (status int, payload eval.Value, isErr bool) {
+	tagged, ok := v.(*eval.TaggedValue)
+	if !ok || tagged.CtorName != "Err" {
+		return 0, nil, false
+	}
+
+	// Err() with no fields — return 400 with empty error
+	if len(tagged.Fields) == 0 {
+		return http.StatusBadRequest, &eval.StringValue{Value: "error"}, true
+	}
+
+	payload = tagged.Fields[0]
+	status = http.StatusBadRequest
+
+	// If Err payload is a record with _status, extract and strip it
+	if rec, ok := payload.(*eval.RecordValue); ok {
+		if statusVal, ok := rec.Fields["_status"]; ok {
+			if iv, ok := statusVal.(*eval.IntValue); ok {
+				status = iv.Value
+			}
+			// Strip _status from payload — it's metadata, not response content
+			stripped := &eval.RecordValue{Fields: make(map[string]eval.Value, len(rec.Fields)-1)}
+			for k, v := range rec.Fields {
+				if k != "_status" {
+					stripped.Fields[k] = v
+				}
+			}
+			payload = stripped
+		}
+	}
+
+	return status, payload, true
 }
 
 // writeRawResponse writes a raw HTTP response from a record with _body, _status, _headers fields.
