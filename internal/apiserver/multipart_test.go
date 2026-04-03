@@ -238,6 +238,133 @@ func TestParseMultipartArgsWithNames_CleanupRemovesTempFiles(t *testing.T) {
 	}
 }
 
+func TestParseMultipartArgsWithNames_MismatchedFieldName(t *testing.T) {
+	// Reproduces the P0 bug: curl -F 'file=@doc.docx' with param named 'filepath'
+	// Field name "file" doesn't match param name "filepath", but the file should
+	// still be assigned to the unmatched string param via pass 2 fallback.
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("document content")},
+		nil,
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"filepath"},
+		[]string{"string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 1 {
+		t.Fatalf("expected 1 arg, got %d", len(args))
+	}
+
+	// File should be saved to temp and path returned (not empty string)
+	path, ok := args[0].(string)
+	if !ok {
+		t.Fatalf("expected string for filepath arg, got %T", args[0])
+	}
+	if path == "" {
+		t.Fatal("filepath arg is empty — file upload was silently dropped")
+	}
+
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", path, err)
+	}
+	if string(contents) != "document content" {
+		t.Errorf("temp file content = %q, want %q", string(contents), "document content")
+	}
+}
+
+func TestParseMultipartArgsWithNames_MismatchedFieldName_Bytes(t *testing.T) {
+	// Same mismatch but with a bytes-typed param
+	req := makeMultipartRequest(t,
+		map[string][]byte{"upload": []byte("binary data")},
+		nil,
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"data"},
+		[]string{"bytes"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 1 {
+		t.Fatalf("expected 1 arg, got %d", len(args))
+	}
+
+	bv, ok := args[0].(*eval.BytesValue)
+	if !ok {
+		t.Fatalf("expected *eval.BytesValue, got %T", args[0])
+	}
+	if string(bv.Value) != "binary data" {
+		t.Errorf("BytesValue.Value = %q, want %q", string(bv.Value), "binary data")
+	}
+}
+
+func TestParseMultipartArgsWithNames_MismatchedWithExtraFields(t *testing.T) {
+	// File with mismatched name + a matched non-file field
+	req := makeMultipartRequest(t,
+		map[string][]byte{"file": []byte("doc content")},
+		map[string]string{"format": "markdown"},
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"filepath", "format"},
+		[]string{"string", "string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+
+	// filepath should get the unmatched file
+	path, ok := args[0].(string)
+	if !ok || path == "" {
+		t.Fatalf("filepath arg should be a non-empty temp path, got %v (%T)", args[0], args[0])
+	}
+
+	// format should get the matched form field
+	if args[1] != "markdown" {
+		t.Errorf("format = %v, want %q", args[1], "markdown")
+	}
+}
+
+func TestParseMultipartArgsWithNames_ExactMatchTakesPriority(t *testing.T) {
+	// When field name matches exactly, it should be used even if there are other unmatched files
+	req := makeMultipartRequest(t,
+		map[string][]byte{"filepath": []byte("exact match")},
+		nil,
+	)
+
+	args, cleanup, err := parseMultipartArgsWithNames(req, 32<<20,
+		[]string{"filepath"},
+		[]string{"string"},
+	)
+	if err != nil {
+		t.Fatalf("parseMultipartArgsWithNames: %v", err)
+	}
+	defer cleanup()
+
+	path, ok := args[0].(string)
+	if !ok || path == "" {
+		t.Fatalf("expected non-empty string, got %v (%T)", args[0], args[0])
+	}
+	contents, _ := os.ReadFile(path)
+	if string(contents) != "exact match" {
+		t.Errorf("content = %q, want %q", string(contents), "exact match")
+	}
+}
+
 func TestParseMultipartArgsWithNames_NamedOrdering(t *testing.T) {
 	// Verify args are in param declaration order, not map iteration order
 	req := makeMultipartRequest(t,

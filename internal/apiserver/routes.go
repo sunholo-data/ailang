@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -660,7 +661,9 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 
 	args := make([]interface{}, len(paramNames))
 	var tempFiles []string
+	matchedFiles := map[string]bool{} // track which multipart file fields were consumed
 
+	// Pass 1: exact name matching (field name == param name)
 	for i, name := range paramNames {
 		paramType := ""
 		if i < len(paramTypes) {
@@ -670,17 +673,12 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 		// Check file fields first
 		if fileHeaders, ok := r.MultipartForm.File[name]; ok && len(fileHeaders) > 0 {
 			fh := fileHeaders[0]
-			f, err := fh.Open()
+			data, err := readMultipartFile(fh, maxSize)
 			if err != nil {
 				removeTempFiles(tempFiles)
-				return nil, nil, fmt.Errorf("failed to open uploaded file %q: %w", fh.Filename, err)
+				return nil, nil, err
 			}
-			data, err := io.ReadAll(io.LimitReader(f, maxSize))
-			f.Close()
-			if err != nil {
-				removeTempFiles(tempFiles)
-				return nil, nil, fmt.Errorf("failed to read uploaded file %q: %w", fh.Filename, err)
-			}
+			matchedFiles[name] = true
 
 			if paramType == "string" {
 				tmpPath, err := writeTempFile(data, fh.Filename)
@@ -706,14 +704,86 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 			continue
 		}
 
-		// No match — zero-value pad
-		args[i] = zeroValueForType(paramType)
+		// Not matched yet — leave nil for now (filled in pass 2 or zero-padded)
+	}
+
+	// Pass 2: assign unmatched file uploads to unmatched file-accepting params.
+	// This handles curl -F 'file=@doc.docx' when the param is named 'filepath'.
+	var unmatchedFiles []*multipart.FileHeader
+	for fieldName, fileHeaders := range r.MultipartForm.File {
+		if !matchedFiles[fieldName] && len(fileHeaders) > 0 {
+			unmatchedFiles = append(unmatchedFiles, fileHeaders[0])
+		}
+	}
+
+	if len(unmatchedFiles) > 0 {
+		fileIdx := 0
+		for i := range paramNames {
+			if args[i] != nil || fileIdx >= len(unmatchedFiles) {
+				continue
+			}
+			paramType := ""
+			if i < len(paramTypes) {
+				paramType = paramTypes[i]
+			}
+			// Only assign to string or bytes params that weren't matched in pass 1
+			if paramType == "string" || paramType == "bytes" || paramType == "" {
+				fh := unmatchedFiles[fileIdx]
+				data, err := readMultipartFile(fh, maxSize)
+				if err != nil {
+					removeTempFiles(tempFiles)
+					return nil, nil, err
+				}
+				fileIdx++
+
+				if paramType == "string" {
+					tmpPath, err := writeTempFile(data, fh.Filename)
+					if err != nil {
+						removeTempFiles(tempFiles)
+						return nil, nil, fmt.Errorf("failed to write temp file: %w", err)
+					}
+					tempFiles = append(tempFiles, tmpPath)
+					args[i] = tmpPath
+				} else {
+					args[i] = &eval.BytesValue{
+						Value:    data,
+						Filename: fh.Filename,
+						MimeType: fh.Header.Get("Content-Type"),
+					}
+				}
+			}
+		}
+	}
+
+	// Pass 3: zero-value pad any remaining unmatched params
+	for i := range args {
+		if args[i] == nil {
+			paramType := ""
+			if i < len(paramTypes) {
+				paramType = paramTypes[i]
+			}
+			args[i] = zeroValueForType(paramType)
+		}
 	}
 
 	cleanup := func() {
 		removeTempFiles(tempFiles)
 	}
 	return args, cleanup, nil
+}
+
+// readMultipartFile opens and reads a multipart file header, respecting the size limit.
+func readMultipartFile(fh *multipart.FileHeader, maxSize int64) ([]byte, error) {
+	f, err := fh.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open uploaded file %q: %w", fh.Filename, err)
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, maxSize))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read uploaded file %q: %w", fh.Filename, err)
+	}
+	return data, nil
 }
 
 // removeTempFiles removes temporary upload files and their parent directories.
