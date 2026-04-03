@@ -1,0 +1,11 @@
+-- fib30.ail — Phase 2A benchmark: pure recursive Fibonacci
+-- Tests: function call overhead, recursion
+-- Expected: fib(30) = 832040
+
+module benchmarks/runtime/fib30
+
+export pure func fib(n: int) -> int =
+  if n <= 1 then n
+  else fib(n - 1) + fib(n - 2)
+
+export pure func main() -> int = fib(30)

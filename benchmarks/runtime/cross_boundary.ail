@@ -1,0 +1,25 @@
+-- cross_boundary.ail — Phase 2A benchmark: pure/effectful boundary cost
+-- Tests: pure computation calling effectful helper repeatedly
+-- Simulates the VM↔evaluator boundary that would exist in bytecode architecture
+-- Expected: sum computed purely, with IO effect at boundary
+
+module benchmarks/runtime/cross_boundary
+
+import std/io (println)
+
+-- Pure computation that would run in VM
+pure func compute(n: int) -> int =
+  if n <= 1 then 1
+  else compute(n - 1) + compute(n - 2)
+
+-- Effectful wrapper that crosses the boundary
+func runWithLog(i: int, acc: int) -> int ! {IO} =
+  if i <= 0 then acc
+  else
+    let result = compute(15) in
+    runWithLog(i - 1, acc + result)
+
+export func main() -> int ! {IO} =
+  let total = runWithLog(100, 0) in
+  let _ = println("Total: " ++ show(total)) in
+  total

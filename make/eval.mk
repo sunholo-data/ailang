@@ -6,6 +6,7 @@
 .PHONY: eval-to-design eval-prompt-ab eval-prompt-list eval-prompt-hash
 .PHONY: eval-baseline eval-diff eval-summary eval-matrix
 .PHONY: eval-auto-improve eval-auto-improve-apply
+.PHONY: bench-phase2a bench-phase2a-quick
 
 # Basic eval commands
 eval: build ## Run a single benchmark (mock mode)
@@ -111,3 +112,17 @@ eval-auto-improve-apply: ## Automated fix implementation (apply mode)
 	else \
 		./tools/eval_auto_improve.sh --apply; \
 	fi
+
+# Phase 2A: Evaluator vs Native Go runtime benchmarks
+bench-phase2a: ## Run Phase 2A benchmarks (evaluator vs native Go, -count=3)
+	@echo "Phase 2A: Evaluator Performance Benchmarks"
+	@echo "==========================================="
+	@echo "Running native Go baselines + AILANG evaluator benchmarks..."
+	@echo "Startup time EXCLUDED — measures evaluation only."
+	@echo ""
+	go test -run='^$$' -bench='Benchmark(Native|Eval)_' -benchmem -count=3 \
+		./internal/eval/ -timeout=600s
+
+bench-phase2a-quick: ## Run Phase 2A benchmarks (quick, -count=1)
+	go test -run='^$$' -bench='Benchmark(Native|Eval)_' -benchmem -count=1 \
+		./internal/eval/ -timeout=600s

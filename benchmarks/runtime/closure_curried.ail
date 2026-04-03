@@ -1,0 +1,30 @@
+-- closure_curried.ail — Phase 2A benchmark: closure creation/call overhead
+-- Tests: curried functions, partial application, higher-order functions
+-- Expected: apply a chain of curried transformations to a list
+
+module benchmarks/runtime/closure_curried
+
+import std/list (map, foldl)
+
+-- Curried add: returns a closure
+pure func add(x: int) -> (int) -> int = \y. x + y
+
+-- Curried multiply: returns a closure
+pure func mul(x: int) -> (int) -> int = \y. x * y
+
+-- Compose two functions
+pure func compose(f: (int) -> int, g: (int) -> int) -> (int) -> int =
+  \x. f(g(x))
+
+-- Build list [1..n]
+pure func buildList(n: int, acc: [int]) -> [int] =
+  if n <= 0 then acc
+  else buildList(n - 1, n :: acc)
+
+export pure func main() -> int =
+  let xs = buildList(1000, []) in
+  -- Create a composed transformation: (x * 3) + 7
+  let transform = compose(add(7), mul(3)) in
+  -- Apply to each element and sum
+  let transformed = map(transform, xs) in
+  foldl(\acc x. acc + x, 0, transformed)

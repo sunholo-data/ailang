@@ -1,0 +1,31 @@
+-- pattern_match.ail — Phase 2A benchmark: ADT pattern match dispatch
+-- Tests: ADT construction, nested pattern matching, recursion
+-- Expected: sum of a complete binary tree
+
+module benchmarks/runtime/pattern_match
+
+type Tree = Leaf(int) | Node(Tree, int, Tree)
+
+-- Sum all values in a tree
+pure func treeSum(t: Tree) -> int =
+  match t {
+    Leaf(v) => v,
+    Node(l, v, r) => treeSum(l) + v + treeSum(r)
+  }
+
+-- Count nodes in a tree
+pure func treeCount(t: Tree) -> int =
+  match t {
+    Leaf(_) => 1,
+    Node(l, _, r) => 1 + treeCount(l) + treeCount(r)
+  }
+
+-- Build a complete binary tree of depth d
+-- Each node value = depth * 100 + position indicator
+pure func buildTree(depth: int, seed: int) -> Tree =
+  if depth <= 0 then Leaf(seed)
+  else Node(buildTree(depth - 1, seed * 2), seed, buildTree(depth - 1, seed * 2 + 1))
+
+export pure func main() -> int =
+  let tree = buildTree(12, 1) in
+  treeSum(tree) + treeCount(tree)

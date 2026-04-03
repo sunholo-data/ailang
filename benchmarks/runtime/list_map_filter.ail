@@ -1,0 +1,18 @@
+-- list_map_filter.ail — Phase 2A benchmark: collection throughput
+-- Tests: list construction, map, filter, fold over 10K elements
+-- Expected: sum of squares of evens from 1..10000
+
+module benchmarks/runtime/list_map_filter
+
+import std/list (map, filter, foldl)
+
+-- Build a list [1..n] recursively (tail-recursive via accumulator)
+pure func buildList(n: int, acc: [int]) -> [int] =
+  if n <= 0 then acc
+  else buildList(n - 1, n :: acc)
+
+export pure func main() -> int =
+  let xs = buildList(5000, []) in
+  let evens = filter(\x. x % 2 == 0, xs) in
+  let squared = map(\x. x * x, evens) in
+  foldl(\acc x. acc + x, 0, squared)

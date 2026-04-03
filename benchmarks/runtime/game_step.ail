@@ -1,0 +1,53 @@
+-- game_step.ail — Phase 2A benchmark: latency-sensitive frame update
+-- Tests: record update, arithmetic, conditional logic per frame
+-- Simulates a game loop step function called at 60fps (16ms budget)
+-- Expected: run 1000 frame steps and return final state
+
+module benchmarks/runtime/game_step
+
+type Entity = Entity(int, int, int, int)  -- x, y, vx, vy
+
+-- Update a single entity position
+pure func stepEntity(e: Entity) -> Entity =
+  match e {
+    Entity(x, y, vx, vy) =>
+      let nx = x + vx in
+      let ny = y + vy in
+      -- Bounce off walls (0..800 x 0..600)
+      let nvx = if nx < 0 || nx > 800 then 0 - vx else vx in
+      let nvy = if ny < 0 || ny > 600 then 0 - vy else vy in
+      let fx = if nx < 0 then 0 else if nx > 800 then 800 else nx in
+      let fy = if ny < 0 then 0 else if ny > 600 then 600 else ny in
+      Entity(fx, fy, nvx, nvy)
+  }
+
+-- Build list of entities
+pure func buildEntities(n: int, acc: [Entity]) -> [Entity] =
+  if n <= 0 then acc
+  else
+    let e = Entity(n * 10 % 800, n * 7 % 600, (n % 5) - 2, (n % 3) - 1) in
+    buildEntities(n - 1, e :: acc)
+
+-- Step all entities
+pure func stepAll(entities: [Entity]) -> [Entity] =
+  match entities {
+    [] => [],
+    e :: rest => stepEntity(e) :: stepAll(rest)
+  }
+
+-- Run N frames
+pure func runFrames(n: int, entities: [Entity]) -> [Entity] =
+  if n <= 0 then entities
+  else runFrames(n - 1, stepAll(entities))
+
+-- Sum all x positions (for verification)
+pure func sumX(entities: [Entity]) -> int =
+  match entities {
+    [] => 0,
+    Entity(x, _, _, _) :: rest => x + sumX(rest)
+  }
+
+export pure func main() -> int =
+  let entities = buildEntities(50, []) in
+  let final = runFrames(200, entities) in
+  sumX(final)
