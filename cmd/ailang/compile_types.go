@@ -251,22 +251,22 @@ func expandFilenames(args []string) []string {
 		}
 
 		if info.IsDir() {
-			// Expand directory to all .ail files
-			entries, err := os.ReadDir(arg)
+			// Expand directory recursively to all .ail files
+			var ailFiles []string
+			err := filepath.WalkDir(arg, func(path string, d os.DirEntry, err error) error {
+				if err != nil {
+					return nil // skip unreadable dirs
+				}
+				if !d.IsDir() && strings.HasSuffix(d.Name(), ".ail") {
+					ailFiles = append(ailFiles, path)
+				}
+				return nil
+			})
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: cannot read directory '%s': %v\n", yellow("Warning"), arg, err)
+				fmt.Fprintf(os.Stderr, "%s: cannot walk directory '%s': %v\n", yellow("Warning"), arg, err)
 				continue
 			}
 
-			var ailFiles []string
-			for _, entry := range entries {
-				if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".ail") {
-					ailFiles = append(ailFiles, filepath.Join(arg, entry.Name()))
-				}
-			}
-
-			// Sort for deterministic order
-			// (os.ReadDir returns sorted entries, but be explicit)
 			result = append(result, ailFiles...)
 
 			if len(ailFiles) > 0 {

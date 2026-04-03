@@ -169,13 +169,24 @@ func lowerLambda(e *core.Lambda, cti types.CoreTypeInfo) stmt.Expr {
 }
 
 func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
-	// Check for special operators.
+	// Check for cons operator in both saturated and curried forms.
+	// Saturated: App(VarGlobal("::"), [head, tail])
 	if vg, ok := e.Func.(*core.VarGlobal); ok && vg.Ref.Name == "::" {
-		// Cons operator: head :: tail → Cons{Head, Tail}
 		if len(e.Args) == 2 {
 			return stmt.Cons{
 				Head: lowerExpr(e.Args[0], cti),
 				Tail: lowerExpr(e.Args[1], cti),
+			}
+		}
+	}
+	// Curried: App(App(VarGlobal("::"), [head]), [tail])
+	if innerApp, ok := e.Func.(*core.App); ok {
+		if vg, ok := innerApp.Func.(*core.VarGlobal); ok && vg.Ref.Name == "::" {
+			if len(innerApp.Args) == 1 && len(e.Args) == 1 {
+				return stmt.Cons{
+					Head: lowerExpr(innerApp.Args[0], cti),
+					Tail: lowerExpr(e.Args[0], cti),
+				}
 			}
 		}
 	}

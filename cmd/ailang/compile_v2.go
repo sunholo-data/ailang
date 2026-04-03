@@ -112,6 +112,9 @@ func compileV2(
 	// Deduplicate imports.
 	prog.Imports = deduplicateImports(prog.Imports)
 
+	// Qualify intra-module function references (VarRef → GlobalRef).
+	lower.QualifyFuncRefs(prog)
+
 	fmt.Printf("%s Lowered %d type(s), %d function(s)\n",
 		cyan("→"), len(prog.TypeDecls), len(prog.FuncDecls))
 

@@ -105,3 +105,11 @@ func (InterfaceType) resolvedType() {}
 func (InterfaceType) GoString() string {
 	return "interface{}"
 }
+
+// MapType represents a map[string]interface{} (AILANG's Map type).
+type MapType struct{}
+
+func (MapType) resolvedType() {}
+func (MapType) GoString() string {
+	return "map[string]interface{}"
+}

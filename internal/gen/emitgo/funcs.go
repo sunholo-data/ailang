@@ -101,13 +101,26 @@ func (e *emitter) emitStmt(s stmt.Stmt) {
 
 func (e *emitter) emitVarDecl(vd stmt.VarDecl) {
 	e.writeIndent()
-	if vd.Type != nil {
+	// When the value is an IIFE (IfExpr, RecordUpdate), the return type is
+	// interface{} which can't be assigned to a concrete type. Use := instead.
+	useShortDecl := isIIFEExpr(vd.Value)
+	if vd.Type != nil && !useShortDecl {
 		e.writef("var %s %s = ", sanitizeGoIdent(vd.Name), vd.Type.GoString())
 	} else {
 		e.writef("%s := ", sanitizeGoIdent(vd.Name))
 	}
 	e.emitExpr(vd.Value)
 	e.writef("\n")
+}
+
+// isIIFEExpr returns true if the expression will be emitted as an IIFE
+// that returns interface{}, causing type mismatch with concrete var types.
+func isIIFEExpr(e stmt.Expr) bool {
+	switch e.(type) {
+	case stmt.IfExpr, stmt.RecordUpdate:
+		return true
+	}
+	return false
 }
 
 func (e *emitter) emitIfStmt(s stmt.IfStmt) {

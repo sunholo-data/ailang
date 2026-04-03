@@ -248,9 +248,6 @@ func collectImports(prog *stmt.Program) []stmt.ImportSpec {
 					needs["strings"] = true
 					needs["fmt"] = true
 				}
-				if strings.HasPrefix(e.Name, "_list_") {
-					// Lists use slices — no import needed.
-				}
 			case stmt.LitString:
 				// String literals may need fmt for formatting.
 			}
@@ -262,6 +259,202 @@ func collectImports(prog *stmt.Program) []stmt.ImportSpec {
 		imports = append(imports, stmt.ImportSpec{Path: path})
 	}
 	return imports
+}
+
+// QualifyFuncRefs rewrites VarRef nodes that reference top-level functions
+// to use the full module-prefixed name that matches the Go function definition.
+// Core IR uses bare Var references for same-module calls; we rewrite those to
+// include the module__name prefix (matching what funcName() produces in the emitter).
+func QualifyFuncRefs(prog *stmt.Program) {
+	// Build a map from bare function name → full Go function name.
+	// This matches the naming logic in emitgo.funcName().
+	funcFullName := make(map[string]string)
+	for _, fd := range prog.FuncDecls {
+		fullName := fd.Name
+		if fd.Module != "" {
+			fullName = sanitizeModName(fd.Module) + "__" + fd.Name
+		}
+		if fd.Exported {
+			fullName = capitalizeFirst(fullName)
+		}
+		funcFullName[fd.Name] = fullName
+	}
+
+	// Rewrite VarRef names that match function names (but not local vars).
+	for i := range prog.FuncDecls {
+		fd := &prog.FuncDecls[i]
+		locals := make(map[string]bool)
+		for _, p := range fd.Params {
+			locals[p.Name] = true
+		}
+		collectLocals(fd.Body, locals)
+
+		fd.Body = rewriteStmts(fd.Body, funcFullName, locals)
+		fd.Return = rewriteExpr(fd.Return, funcFullName, locals)
+	}
+}
+
+func sanitizeModName(name string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(name, "/", "_"), "-", "_")
+}
+
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func collectLocals(stmts []stmt.Stmt, locals map[string]bool) {
+	for _, s := range stmts {
+		switch s := s.(type) {
+		case stmt.VarDecl:
+			locals[s.Name] = true
+		case stmt.AssignStmt:
+			locals[s.Name] = true
+		case stmt.IfStmt:
+			collectLocals(s.Then, locals)
+			collectLocals(s.Else, locals)
+		case stmt.SwitchStmt:
+			for _, c := range s.Cases {
+				for _, b := range c.Bindings {
+					locals[b.Name] = true
+				}
+				collectLocals(c.Body, locals)
+			}
+			collectLocals(s.Default, locals)
+		}
+	}
+}
+
+func rewriteStmts(stmts []stmt.Stmt, funcModule map[string]string, locals map[string]bool) []stmt.Stmt {
+	result := make([]stmt.Stmt, len(stmts))
+	for i, s := range stmts {
+		result[i] = rewriteStmt(s, funcModule, locals)
+	}
+	return result
+}
+
+func rewriteStmt(s stmt.Stmt, funcModule map[string]string, locals map[string]bool) stmt.Stmt {
+	switch s := s.(type) {
+	case stmt.VarDecl:
+		s.Value = rewriteExpr(s.Value, funcModule, locals)
+		return s
+	case stmt.AssignStmt:
+		s.Value = rewriteExpr(s.Value, funcModule, locals)
+		return s
+	case stmt.ReturnStmt:
+		s.Value = rewriteExpr(s.Value, funcModule, locals)
+		return s
+	case stmt.ExprStmt:
+		s.Value = rewriteExpr(s.Value, funcModule, locals)
+		return s
+	case stmt.IfStmt:
+		s.Cond = rewriteExpr(s.Cond, funcModule, locals)
+		s.Then = rewriteStmts(s.Then, funcModule, locals)
+		s.Else = rewriteStmts(s.Else, funcModule, locals)
+		return s
+	case stmt.SwitchStmt:
+		s.Scrutinee = rewriteExpr(s.Scrutinee, funcModule, locals)
+		for i := range s.Cases {
+			s.Cases[i].Body = rewriteStmts(s.Cases[i].Body, funcModule, locals)
+		}
+		s.Default = rewriteStmts(s.Default, funcModule, locals)
+		return s
+	}
+	return s
+}
+
+func rewriteExpr(e stmt.Expr, funcModule map[string]string, locals map[string]bool) stmt.Expr {
+	if e == nil {
+		return nil
+	}
+	switch ex := e.(type) {
+	case stmt.VarRef:
+		// Only rewrite if name matches a function AND is not a local variable.
+		if fullName, ok := funcModule[ex.Name]; ok && !locals[ex.Name] {
+			return stmt.VarRef{Name: fullName}
+		}
+		return ex
+	case stmt.BinOp:
+		ex.Left = rewriteExpr(ex.Left, funcModule, locals)
+		ex.Right = rewriteExpr(ex.Right, funcModule, locals)
+		return ex
+	case stmt.UnOp:
+		ex.Operand = rewriteExpr(ex.Operand, funcModule, locals)
+		return ex
+	case stmt.Call:
+		ex.Func = rewriteExpr(ex.Func, funcModule, locals)
+		for i := range ex.Args {
+			ex.Args[i] = rewriteExpr(ex.Args[i], funcModule, locals)
+		}
+		return ex
+	case stmt.FieldAccess:
+		ex.Record = rewriteExpr(ex.Record, funcModule, locals)
+		return ex
+	case stmt.RecordLit:
+		for i := range ex.Fields {
+			ex.Fields[i].Value = rewriteExpr(ex.Fields[i].Value, funcModule, locals)
+		}
+		return ex
+	case stmt.RecordUpdate:
+		ex.Base = rewriteExpr(ex.Base, funcModule, locals)
+		for i := range ex.Fields {
+			ex.Fields[i].Value = rewriteExpr(ex.Fields[i].Value, funcModule, locals)
+		}
+		return ex
+	case stmt.ListLit:
+		for i := range ex.Elems {
+			ex.Elems[i] = rewriteExpr(ex.Elems[i], funcModule, locals)
+		}
+		return ex
+	case stmt.ArrayLit:
+		for i := range ex.Elems {
+			ex.Elems[i] = rewriteExpr(ex.Elems[i], funcModule, locals)
+		}
+		return ex
+	case stmt.TupleLit:
+		for i := range ex.Elems {
+			ex.Elems[i] = rewriteExpr(ex.Elems[i], funcModule, locals)
+		}
+		return ex
+	case stmt.Cons:
+		ex.Head = rewriteExpr(ex.Head, funcModule, locals)
+		ex.Tail = rewriteExpr(ex.Tail, funcModule, locals)
+		return ex
+	case stmt.ADTConstructor:
+		for i := range ex.Args {
+			ex.Args[i] = rewriteExpr(ex.Args[i], funcModule, locals)
+		}
+		return ex
+	case stmt.Lambda:
+		// Lambda introduces new locals — don't rewrite those.
+		innerLocals := make(map[string]bool)
+		for k, v := range locals {
+			innerLocals[k] = v
+		}
+		for _, p := range ex.Params {
+			innerLocals[p.Name] = true
+		}
+		collectLocals(ex.Body, innerLocals)
+		ex.Body = rewriteStmts(ex.Body, funcModule, innerLocals)
+		ex.Return = rewriteExpr(ex.Return, funcModule, innerLocals)
+		return ex
+	case stmt.TypeAssert:
+		ex.Value = rewriteExpr(ex.Value, funcModule, locals)
+		return ex
+	case stmt.IfExpr:
+		ex.Cond = rewriteExpr(ex.Cond, funcModule, locals)
+		ex.Then = rewriteExpr(ex.Then, funcModule, locals)
+		ex.Else = rewriteExpr(ex.Else, funcModule, locals)
+		return ex
+	case stmt.BuiltinCall:
+		for i := range ex.Args {
+			ex.Args[i] = rewriteExpr(ex.Args[i], funcModule, locals)
+		}
+		return ex
+	}
+	return e
 }
 
 // walkExprsInFunc visits all expressions in a function declaration.

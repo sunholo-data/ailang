@@ -34,13 +34,17 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 	for {
 		switch c := cur.(type) {
 		case *core.Let:
-			// Flatten: var name = value
+			// The value may itself be a let-chain (e.g., Let _tmp = ... in expr).
+			// We need to flatten those inner lets as statements first, then assign
+			// the final expression as the value of the outer VarDecl.
+			innerStmts, innerExpr := flattenValue(c.Value, cti)
+			stmts = append(stmts, innerStmts...)
+
 			varType := resolveVarType(c, cti)
-			value := lowerExpr(c.Value, cti)
 			stmts = append(stmts, stmt.VarDecl{
 				Name:  c.Name,
 				Type:  varType,
-				Value: value,
+				Value: innerExpr,
 			})
 			cur = c.Body
 			continue
@@ -124,6 +128,54 @@ func resolveBindingType(b core.RecBinding, cti types.CoreTypeInfo) stmt.Resolved
 		}
 	}
 	return nil
+}
+
+// flattenValue flattens a Core expression that appears as the RHS of a Let binding.
+// If the value is itself a let-chain, we extract its inner statements and return
+// only the final expression as the value. This ensures variables are declared
+// in the correct order.
+func flattenValue(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Expr) {
+	if e == nil {
+		return nil, stmt.LitUnit{}
+	}
+	switch c := e.(type) {
+	case *core.Let:
+		var stmts []stmt.Stmt
+		cur := e
+		for {
+			let, ok := cur.(*core.Let)
+			if !ok {
+				break
+			}
+			// Recursively flatten the inner value too.
+			innerStmts, innerExpr := flattenValue(let.Value, cti)
+			stmts = append(stmts, innerStmts...)
+			varType := resolveVarType(let, cti)
+			stmts = append(stmts, stmt.VarDecl{
+				Name:  let.Name,
+				Type:  varType,
+				Value: innerExpr,
+			})
+			cur = let.Body
+		}
+		// The final expression is the body of the innermost Let.
+		return stmts, lowerExpr(cur, cti)
+	case *core.LetRec:
+		var stmts []stmt.Stmt
+		for _, b := range c.Bindings {
+			varType := resolveBindingType(b, cti)
+			value := lowerExpr(b.Value, cti)
+			stmts = append(stmts, stmt.VarDecl{
+				Name:  b.Name,
+				Type:  varType,
+				Value: value,
+			})
+		}
+		bodyExpr := lowerExpr(c.Body, cti)
+		return stmts, bodyExpr
+	default:
+		return nil, lowerExpr(e, cti)
+	}
 }
 
 // isSimpleExpr checks if a Core expression can be lowered to a single

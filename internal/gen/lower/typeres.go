@@ -116,6 +116,11 @@ func projectTCon(t *types.TCon) stmt.ResolvedType {
 	case "bytes":
 		// bytes → []byte in Go, but for Statement IR treat as SliceType of int.
 		return stmt.SliceType{Elem: stmt.PrimitiveType{Kind: stmt.PrimInt}}
+	case "list", "List":
+		// Bare "list" without type argument → []interface{}
+		return stmt.SliceType{Elem: stmt.InterfaceType{}}
+	case "Map":
+		return stmt.MapType{}
 	default:
 		// User-defined ADT or opaque type. ADTs use pointer semantics.
 		return stmt.NamedType{Name: t.Name, Pointer: true}
@@ -131,16 +136,20 @@ func projectTApp(t *types.TApp, depth int) stmt.ResolvedType {
 	}
 
 	switch conName {
-	case "list":
+	case "list", "List":
 		// list[T] → SliceType
 		if len(t.Args) == 1 {
 			return stmt.SliceType{Elem: projectType(t.Args[0], depth+1)}
 		}
+		return stmt.SliceType{Elem: stmt.InterfaceType{}}
 	case "Array":
 		// Array[T] → SliceType
 		if len(t.Args) == 1 {
 			return stmt.SliceType{Elem: projectType(t.Args[0], depth+1)}
 		}
+		return stmt.SliceType{Elem: stmt.InterfaceType{}}
+	case "Map":
+		return stmt.MapType{}
 	}
 
 	// Generic ADT application (e.g., Option[int], Result[string, Error]).
@@ -197,7 +206,7 @@ func projectASTType(t ast.Type, depth int) stmt.ResolvedType {
 		return stmt.TupleType{Elems: elems}
 
 	case *ast.TypeApp:
-		return projectSimpleType(t.Constructor)
+		return projectTypeApp(t, depth)
 
 	case *ast.RecordType:
 		// Structural record in AST — no name available.
@@ -220,8 +229,33 @@ func projectSimpleType(name string) stmt.ResolvedType {
 		return stmt.PrimitiveType{Kind: stmt.PrimString}
 	case "()", "unit":
 		return stmt.PrimitiveType{Kind: stmt.PrimUnit}
+	case "list", "List":
+		return stmt.SliceType{Elem: stmt.InterfaceType{}}
+	case "bytes", "Bytes":
+		return stmt.SliceType{Elem: stmt.PrimitiveType{Kind: stmt.PrimInt}}
+	case "Map":
+		// Map type from std/map → map[string]interface{} in Go
+		return stmt.MapType{}
 	default:
 		return stmt.NamedType{Name: name, Pointer: true}
+	}
+}
+
+// projectTypeApp handles AST type applications like List String, Option Int, etc.
+func projectTypeApp(t *ast.TypeApp, depth int) stmt.ResolvedType {
+	switch t.Constructor {
+	case "list", "List":
+		elem := stmt.ResolvedType(stmt.InterfaceType{})
+		if len(t.Args) > 0 {
+			elem = projectASTType(t.Args[0], depth+1)
+		}
+		return stmt.SliceType{Elem: elem}
+	case "Option":
+		// Option[T] → *T or interface{} (erased)
+		return stmt.InterfaceType{}
+	default:
+		// Named generic type — ignore type args, use the constructor name.
+		return stmt.NamedType{Name: t.Constructor, Pointer: true}
 	}
 }
 
