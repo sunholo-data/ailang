@@ -1045,6 +1045,51 @@ Output shows goroutine ID at each stage:
 
 ---
 
+## Error Handling with Result Types (v0.11.0+)
+
+Functions that return `Result[T, E]` types get automatic HTTP status code mapping:
+
+| Return value | HTTP status | Body |
+|---|---|---|
+| `Ok(value)` | 200 | The inner value (unwrapped) |
+| `Err("message")` | 400 | `{"error": "message", ...}` |
+| `Err({_status: 404, message: "not found"})` | 404 | `{"error": {"message": "not found"}, ...}` |
+| Non-Result types | 200 | The value as-is |
+
+### Default behavior
+
+When a function returns `Err(value)`, the HTTP status defaults to **400 Bad Request**. The error payload is included in the response body.
+
+### Custom status codes
+
+To control the HTTP status code, return `Err` with a record containing a `_status` field:
+
+```ailang
+@route("GET", "/users/:id")
+export func getUser(id: string) -> Result[string, {_status: int, message: string}] ! {Net, FS} =
+  match findUser(id) with
+  | Some(user) -> Ok(encode(userToJson(user)))
+  | None -> Err({_status: 404, message: "user not found"})
+```
+
+The `_status` field is extracted for the HTTP status and stripped from the response body, following the same convention as `@raw` responses.
+
+### With @nowrap
+
+`@nowrap` endpoints also respect Result error status codes. The error payload is written directly without the `FunctionCallResponse` envelope:
+
+```bash
+# Err("amount must be positive") with @nowrap
+HTTP/1.1 400 Bad Request
+"amount must be positive"
+```
+
+### Result.Ok unwrapping
+
+`Ok(value)` responses are automatically unwrapped — the inner value is returned directly, not wrapped in a `{"__tag": "Ok", ...}` structure.
+
+---
+
 ## Relationship to Go Interop
 
 `serve-api` builds on the [Go Interop embed API](./go-interop.md):
@@ -1054,7 +1099,7 @@ Output shows goroutine ID at each stage:
 | Setup effort | Write Go code | Zero (CLI command) |
 | Customization | Full control | Convention-based |
 | Performance | Best | Good (HTTP overhead) |
-| Error handling | Custom Go logic | Generic JSON errors |
+| Error handling | Custom Go logic | Result type → HTTP status codes |
 | Effects | Can provide handlers | Pure functions only |
 | Use case | Production apps | Dev tools, prototyping, demos |
 
