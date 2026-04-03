@@ -1,0 +1,17 @@
+module test/adt_simple
+
+type Color = Red | Green | Blue
+
+type Option = Some(int) | None
+
+export func isRed(c: Color) -> bool =
+  match c {
+    Red => true,
+    _ => false
+  }
+
+export func unwrapOr(opt: Option, default: int) -> int =
+  match opt {
+    Some(x) => x,
+    None => default
+  }

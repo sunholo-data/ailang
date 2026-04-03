@@ -1,0 +1,13 @@
+module test/tuples
+
+export func pair(x: int, y: int) -> (int, int) = (x, y)
+
+export func swap(p: (int, int)) -> (int, int) =
+  match p {
+    (a, b) => (b, a)
+  }
+
+export func fst(p: (int, string)) -> int =
+  match p {
+    (x, _) => x
+  }

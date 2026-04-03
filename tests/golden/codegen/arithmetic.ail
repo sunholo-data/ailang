@@ -1,0 +1,7 @@
+module test/arithmetic
+
+export func addInts(x: int, y: int) -> int = x + y
+export func mulFloats(x: float, y: float) -> float = x * y
+export func negate(x: int) -> int = 0 - x
+export func comparison(x: int, y: int) -> bool = x > y
+export func logical(a: bool, b: bool) -> bool = a && b

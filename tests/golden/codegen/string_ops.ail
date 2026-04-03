@@ -1,0 +1,5 @@
+module test/string_ops
+
+export func greet(name: string) -> string = "Hello, " ++ name
+
+export func isEmpty(s: string) -> bool = s == ""

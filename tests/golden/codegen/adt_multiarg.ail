@@ -1,0 +1,13 @@
+module test/adt_multiarg
+
+type Shape =
+  | Circle(float)
+  | Rectangle(float, float)
+  | Point
+
+export func area(s: Shape) -> float =
+  match s {
+    Circle(r) => 3.14159 * r * r,
+    Rectangle(w, h) => w * h,
+    Point => 0.0
+  }

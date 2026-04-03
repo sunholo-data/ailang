@@ -1,0 +1,12 @@
+module test/let_bindings
+
+export func nested(x: int) -> int =
+  let a = x + 1 in
+  let b = a * 2 in
+  let c = b + a in
+  c
+
+export func withRebind(x: int) -> int =
+  let a = x + 1 in
+  let b = a * 2 in
+  a + b

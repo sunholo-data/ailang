@@ -1,0 +1,10 @@
+module test/records
+
+type Position = {x: int, y: int}
+
+export func origin() -> Position = {x: 0, y: 0}
+
+export func getX(p: Position) -> int = p.x
+
+export func moveRight(p: Position, dx: int) -> Position =
+  {p | x: p.x + dx}

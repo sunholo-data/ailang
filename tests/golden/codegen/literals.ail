@@ -1,0 +1,7 @@
+module test/literals
+
+export func intLit() -> int = 42
+export func floatLit() -> float = 3.14
+export func boolLit() -> bool = true
+export func stringLit() -> string = "hello"
+export func unitLit() -> unit = ()

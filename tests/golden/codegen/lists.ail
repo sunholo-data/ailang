@@ -1,0 +1,13 @@
+module test/lists
+
+export func empty() -> [int] = []
+
+export func singleton(x: int) -> [int] = [x]
+
+export func prepend(x: int, xs: [int]) -> [int] = x :: xs
+
+export func sumList(xs: [int]) -> int =
+  match xs {
+    [] => 0,
+    head :: tail => head + sumList(tail)
+  }

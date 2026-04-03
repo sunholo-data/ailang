@@ -1,0 +1,19 @@
+module test/match_patterns
+
+type Expr =
+  | Num(int)
+  | Add(Expr, Expr)
+  | Neg(Expr)
+
+export func eval(e: Expr) -> int =
+  match e {
+    Num(n) => n,
+    Add(a, b) => eval(a) + eval(b),
+    Neg(inner) => 0 - eval(inner)
+  }
+
+export func isZero(e: Expr) -> bool =
+  match e {
+    Num(0) => true,
+    _ => false
+  }

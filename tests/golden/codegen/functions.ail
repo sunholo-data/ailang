@@ -1,0 +1,14 @@
+module test/functions
+
+export func identity(x: int) -> int = x
+
+export func apply(f: (int) -> int, x: int) -> int = f(x)
+
+export func factorial(n: int) -> int =
+  if n <= 1 then 1
+  else n * factorial(n - 1)
+
+export func compose(x: int) -> int =
+  let doubled = x * 2 in
+  let incremented = doubled + 1 in
+  incremented
