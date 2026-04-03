@@ -13,6 +13,17 @@ import (
 // String builtin functions for AILANG
 // These provide UTF-8 aware string operations
 
+// isASCII returns true if every byte in s is < 128 (pure ASCII).
+// When true, byte indices == rune indices, so rune conversion can be skipped.
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 128 {
+			return false
+		}
+	}
+	return true
+}
+
 func init() {
 	registerStringLen()
 	registerStringCompare()
@@ -34,6 +45,10 @@ func init() {
 	registerStrWords()
 	registerStrSplitAny()
 	registerStringReplace()
+	registerStringReplaceMany()
+	registerStringFoldSlices()
+	registerStringMapSlicesJoin()
+	registerStringStartsWithIC()
 }
 
 // ============================================================================
@@ -253,6 +268,10 @@ func strFindImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if byteIdx == -1 {
 		return &eval.IntValue{Value: -1}, nil
 	}
+	// ASCII fast path: byte offset == rune offset when string is pure ASCII
+	if isASCII(haystack) {
+		return &eval.IntValue{Value: byteIdx}, nil
+	}
 	// Convert byte offset to rune (character) index for UTF-8 correctness
 	runeIdx := utf8.RuneCountInString(haystack[:byteIdx])
 	return &eval.IntValue{Value: runeIdx}, nil
@@ -312,10 +331,25 @@ func strSliceImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error
 		return nil, fmt.Errorf("_str_slice: arg 2 - %w", err)
 	}
 
+	// ASCII fast path: byte index == rune index, no []rune conversion needed
+	if isASCII(str) {
+		length := len(str)
+		if start < 0 {
+			start = 0
+		}
+		if end > length {
+			end = length
+		}
+		if start > end {
+			start = end
+		}
+		return &eval.StringValue{Value: str[start:end]}, nil
+	}
+
+	// Unicode slow path: convert to runes for correct character indexing
 	runes := []rune(str)
 	length := len(runes)
 
-	// Clamp indices
 	if start < 0 {
 		start = 0
 	}

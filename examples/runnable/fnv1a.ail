@@ -1,4 +1,4 @@
-module fnv1a
+module examples/runnable/fnv1a
 
 -- FNV-1a hash function demonstrating bitwise operators + charCode
 --

@@ -1,4 +1,4 @@
-module bitwise
+module examples/runnable/bitwise
 
 -- Bitwise AND, XOR, shift operators
 -- Operators: & (AND), ^ (XOR), << (left shift), >> (right shift), ~ (NOT)

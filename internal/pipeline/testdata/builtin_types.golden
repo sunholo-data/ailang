@@ -160,18 +160,23 @@ _str_charAt : (string, int) -> string
 _str_charCode : string -> int
 _str_chars : string -> list[string]
 _str_compare : (string, string) -> int
+_str_decodeQP : string -> string
 _str_endsWith : (string, string) -> bool
 _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
 _str_foldChars : ((a, string) -> a, a, string) -> a
+_str_foldSlices : (string, string, a, (a, string) -> a) -> a
 _str_join : (list[string], string) -> string
 _str_len : string -> int
 _str_lower : string -> string
+_str_mapSlicesJoin : (string, string, string -> string) -> string
 _str_replace : (string, string, string) -> string
+_str_replaceMany : (string, list[(string, string)]) -> string
 _str_slice : (string, int, int) -> string
 _str_split : (string, string) -> list[string]
 _str_splitAny : (string, list[string]) -> list[string]
 _str_startsWith : (string, string) -> bool
+_str_startsWithIC : (string, string) -> bool
 _str_trim : string -> string
 _str_upper : string -> string
 _str_words : string -> list[string]

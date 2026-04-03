@@ -103,3 +103,41 @@ export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
 -- Get Unicode code point of a single-character string
 -- Example: charCode("a") = 97, charCode("🎉") = 127881
 export pure func charCode(c: string) -> int = _str_charCode(c)
+
+-- ============================================================================
+-- Encoding (v0.11.0 / M-STD-STRING-PERF)
+-- ============================================================================
+
+-- foldSlices: Fold over split segments without materializing a list
+-- Equivalent to foldl(f, acc, split(s, delim)) but O(n) memory.
+-- No intermediate list allocated — segments are slices from the source string.
+-- Example: foldSlices("a,b,c", ",", 0, \acc s -> acc + length(s)) = 3
+export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a
+  = _str_foldSlices(s, delim, acc, f)
+
+-- mapSlicesJoin: Split, transform each segment, and join results in O(n)
+-- Equivalent to join("", map(f, split(s, delim))) but uses a strings.Builder.
+-- No intermediate list, no O(n^2) accumulator concatenation.
+-- This is the recommended pattern for any split->transform->concatenate workflow.
+-- Example: mapSlicesJoin("a,b,c", ",", toUpper) = "ABC"
+export pure func mapSlicesJoin(s: string, delim: string, f: (string) -> string) -> string
+  = _str_mapSlicesJoin(s, delim, f)
+
+-- replaceMany: Replace multiple patterns in a single pass
+-- Uses Go's strings.NewReplacer (Aho-Corasick) for O(n) single-scan replacement.
+-- Much faster than calling replace() N times sequentially.
+-- Example: replaceMany("a&amp;b&lt;c", [("&amp;", "&"), ("&lt;", "<")]) = "a&b<c"
+export pure func replaceMany(s: string, replacements: [(string, string)]) -> string
+  = _str_replaceMany(s, replacements)
+
+-- decodeQuotedPrintable: Decode RFC 2045 §6.7 quoted-printable encoding
+-- Single-pass O(n) native Go implementation — no interpreter overhead.
+-- =XX hex escapes decoded, soft line breaks (=\r\n) removed,
+-- invalid sequences passed through unchanged.
+-- Example: decodeQuotedPrintable("hello=20world") = "hello world"
+export pure func decodeQuotedPrintable(s: string) -> string = _str_decodeQP(s)
+
+-- startsWithIgnoreCase: Case-insensitive prefix check
+-- Uses Unicode-aware case folding (handles ß ↔ SS, etc.)
+-- Example: startsWithIgnoreCase("Content-Type", "content-type") = true
+export pure func startsWithIgnoreCase(s: string, prefix: string) -> bool = _str_startsWithIC(s, prefix)

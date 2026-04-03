@@ -733,3 +733,351 @@ func strReplaceImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error
 	}
 	return &eval.StringValue{Value: strings.ReplaceAll(s, old, newStr)}, nil
 }
+
+// ============================================================================
+// Multi-Pattern Replace (M-STD-STRING-PERF)
+// ============================================================================
+
+// registerStringReplaceMany registers the _str_replaceMany builtin
+func registerStringReplaceMany() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_replaceMany",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrReplaceManyType,
+		Impl:    strReplaceManyImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Replace multiple patterns in a single pass",
+			LongDesc:    "Replaces all occurrences of multiple patterns simultaneously using Go's strings.NewReplacer (Aho-Corasick internally). Much faster than calling replace() N times sequentially, as it scans the input string only once.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to perform replacements on"},
+				{Name: "replacements", Description: "List of (old, new) tuples specifying replacements"},
+			},
+			Returns: "String with all replacements applied in a single pass",
+			Examples: []Example{
+				{Code: `_str_replaceMany("a&amp;b&lt;c", [("&amp;", "&"), ("&lt;", "<")])`, Description: `Returns "a&b<c"`},
+			},
+			SeeAlso:   []string{"_str_replace"},
+			Since:     "v0.11.0",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "replace", "multi", "batch", "performance"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_replaceMany: %v", err))
+	}
+}
+
+func makeStrReplaceManyType() types.Type {
+	T := types.NewBuilder()
+	pair := &types.TTuple{Elements: []types.Type{T.String(), T.String()}}
+	list := T.List(pair)
+	return T.Func(T.String(), list).Returns(T.String()).Build()
+}
+
+func strReplaceManyImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_replaceMany: arg 0 - %w", err)
+	}
+
+	listVal, ok := args[1].(*eval.ListValue)
+	if !ok {
+		return nil, fmt.Errorf("_str_replaceMany: expected List for arg 1, got %T", args[1])
+	}
+
+	if len(listVal.Elements) == 0 {
+		return &eval.StringValue{Value: s}, nil
+	}
+
+	oldNew := make([]string, 0, len(listVal.Elements)*2)
+	for i, elem := range listVal.Elements {
+		tuple, ok := elem.(*eval.TupleValue)
+		if !ok {
+			return nil, fmt.Errorf("_str_replaceMany: element %d: expected tuple, got %T", i, elem)
+		}
+		if len(tuple.Elements) != 2 {
+			return nil, fmt.Errorf("_str_replaceMany: element %d: expected 2-element tuple, got %d", i, len(tuple.Elements))
+		}
+		old, err := SafeAsString(tuple.Elements[0])
+		if err != nil {
+			return nil, fmt.Errorf("_str_replaceMany: element %d, first: %w", i, err)
+		}
+		newStr, err := SafeAsString(tuple.Elements[1])
+		if err != nil {
+			return nil, fmt.Errorf("_str_replaceMany: element %d, second: %w", i, err)
+		}
+		oldNew = append(oldNew, old, newStr)
+	}
+
+	replacer := strings.NewReplacer(oldNew...)
+	return &eval.StringValue{Value: replacer.Replace(s)}, nil
+}
+
+// ============================================================================
+// Split-Transform-Join Without List Materialization (M-STD-STRING-PERF)
+// ============================================================================
+
+// registerStringFoldSlices registers the _str_foldSlices builtin
+func registerStringFoldSlices() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_foldSlices",
+		NumArgs: 4,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrFoldSlicesType,
+		Impl:    strFoldSlicesImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Fold over split segments without materializing a list",
+			LongDesc:    "Iterates over segments of a string split by a delimiter, calling a callback for each segment with an accumulator. Unlike split()+foldl(), this never allocates an intermediate list — segments are Go string slices from the source.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to split and fold over"},
+				{Name: "delim", Description: "Delimiter to split on"},
+				{Name: "acc", Description: "Initial accumulator value"},
+				{Name: "f", Description: "Callback: (accumulator, segment) -> new accumulator"},
+			},
+			Returns:   "Final accumulator value after processing all segments",
+			SeeAlso:   []string{"_str_mapSlicesJoin", "_str_split", "_list_foldl"},
+			Since:     "v0.11.0",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "split", "fold", "performance", "streaming"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_foldSlices: %v", err))
+	}
+}
+
+// Type: forall a. (string, string, a, (a, string) -> a) -> a
+func makeStrFoldSlicesType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	str := T.String()
+	fn := T.Func(a, str).Returns(a).Build()
+	return T.Func(str, str, a, fn).Returns(a).Build()
+}
+
+func strFoldSlicesImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_foldSlices: arg 0 - %w", err)
+	}
+	delim, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_foldSlices: arg 1 - %w", err)
+	}
+	acc := args[2]
+	fn := args[3]
+
+	if ctx == nil || ctx.FnCallerN == nil {
+		return nil, fmt.Errorf("_str_foldSlices: FnCallerN not set (evaluator not wired)")
+	}
+
+	if delim == "" {
+		// Empty delimiter: fold over each character (like foldChars but with string segments)
+		for _, r := range s {
+			segVal := &eval.StringValue{Value: string(r)}
+			acc, err = ctx.FnCallerN(fn, []eval.Value{acc, segVal})
+			if err != nil {
+				return nil, fmt.Errorf("_str_foldSlices: callback error: %w", err)
+			}
+		}
+		return acc, nil
+	}
+
+	for {
+		idx := strings.Index(s, delim)
+		var segment string
+		if idx == -1 {
+			segment = s
+		} else {
+			segment = s[:idx]
+		}
+
+		segVal := &eval.StringValue{Value: segment}
+		acc, err = ctx.FnCallerN(fn, []eval.Value{acc, segVal})
+		if err != nil {
+			return nil, fmt.Errorf("_str_foldSlices: callback error: %w", err)
+		}
+
+		if idx == -1 {
+			break
+		}
+		s = s[idx+len(delim):]
+	}
+	return acc, nil
+}
+
+// registerStringMapSlicesJoin registers the _str_mapSlicesJoin builtin
+func registerStringMapSlicesJoin() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_mapSlicesJoin",
+		NumArgs: 3,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrMapSlicesJoinType,
+		Impl:    strMapSlicesJoinImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Split, transform each segment, and join results in O(n)",
+			LongDesc:    "Equivalent to join(\"\", map(f, split(s, delim))) but uses a strings.Builder internally for O(n) total allocation instead of O(n^2) from accumulator concatenation. No intermediate list is created.",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to split and transform"},
+				{Name: "delim", Description: "Delimiter to split on"},
+				{Name: "f", Description: "Transform callback: (segment) -> transformed string"},
+			},
+			Returns:   "Concatenation of all transformed segments",
+			SeeAlso:   []string{"_str_foldSlices", "_str_split", "_str_join"},
+			Since:     "v0.11.0",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "split", "map", "join", "performance", "streaming"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_mapSlicesJoin: %v", err))
+	}
+}
+
+// Type: (string, string, (string) -> string) -> string
+func makeStrMapSlicesJoinType() types.Type {
+	T := types.NewBuilder()
+	str := T.String()
+	fn := T.Func(str).Returns(str).Build()
+	return T.Func(str, str, fn).Returns(str).Build()
+}
+
+func strMapSlicesJoinImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_mapSlicesJoin: arg 0 - %w", err)
+	}
+	delim, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_mapSlicesJoin: arg 1 - %w", err)
+	}
+	fn := args[2]
+
+	if ctx == nil || ctx.FnCallerN == nil {
+		return nil, fmt.Errorf("_str_mapSlicesJoin: FnCallerN not set (evaluator not wired)")
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(s)) // pre-allocate: output usually similar size to input
+
+	if delim == "" {
+		// Empty delimiter: transform each character
+		for _, r := range s {
+			segVal := &eval.StringValue{Value: string(r)}
+			result, callErr := ctx.FnCallerN(fn, []eval.Value{segVal})
+			if callErr != nil {
+				return nil, fmt.Errorf("_str_mapSlicesJoin: callback error: %w", callErr)
+			}
+			resultStr, strErr := SafeAsString(result)
+			if strErr != nil {
+				return nil, fmt.Errorf("_str_mapSlicesJoin: callback must return string: %w", strErr)
+			}
+			builder.WriteString(resultStr)
+		}
+		return &eval.StringValue{Value: builder.String()}, nil
+	}
+
+	for {
+		idx := strings.Index(s, delim)
+		var segment string
+		if idx == -1 {
+			segment = s
+		} else {
+			segment = s[:idx]
+		}
+
+		segVal := &eval.StringValue{Value: segment}
+		result, callErr := ctx.FnCallerN(fn, []eval.Value{segVal})
+		if callErr != nil {
+			return nil, fmt.Errorf("_str_mapSlicesJoin: callback error: %w", callErr)
+		}
+		resultStr, strErr := SafeAsString(result)
+		if strErr != nil {
+			return nil, fmt.Errorf("_str_mapSlicesJoin: callback must return string: %w", strErr)
+		}
+		builder.WriteString(resultStr)
+
+		if idx == -1 {
+			break
+		}
+		s = s[idx+len(delim):]
+	}
+
+	return &eval.StringValue{Value: builder.String()}, nil
+}
+
+// ============================================================================
+// Case-Insensitive String Matching (M-STD-STRING-PERF M5)
+// ============================================================================
+
+// registerStringStartsWithIC registers the _str_startsWithIC builtin
+func registerStringStartsWithIC() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_str_startsWithIC",
+		NumArgs: 2,
+		IsPure:  true,
+		Effect:  "",
+		Type:    makeStrStartsWithICType,
+		Impl:    strStartsWithICImpl,
+
+		Metadata: &BuiltinMetadata{
+			Description: "Check if a string starts with a given prefix (case-insensitive)",
+			LongDesc:    "Case-insensitive prefix check using strings.EqualFold on the prefix-length slice of the input. Handles Unicode case folding correctly (e.g., German ß ↔ SS).",
+			Params: []ParamDoc{
+				{Name: "s", Description: "String to check"},
+				{Name: "prefix", Description: "Prefix to look for (case-insensitive)"},
+			},
+			Returns: "true if s starts with prefix ignoring case, false otherwise",
+			Examples: []Example{
+				{Code: `_str_startsWithIC("Hello World", "hello")`, Description: "Returns true"},
+				{Code: `_str_startsWithIC("Content-Type", "content-type")`, Description: "Returns true"},
+				{Code: `_str_startsWithIC("abc", "ABCD")`, Description: "Returns false (prefix longer than string)"},
+			},
+			SeeAlso:   []string{"_str_startsWith", "_str_endsWith", "_str_find"},
+			Since:     "v0.11.0",
+			Stability: StabilityStable,
+			Tags:      []string{"string", "prefix", "search", "match", "case-insensitive"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _str_startsWithIC: %v", err))
+	}
+}
+
+func makeStrStartsWithICType() types.Type {
+	T := types.NewBuilder()
+	return T.Func(T.String(), T.String()).Returns(T.Bool()).Build()
+}
+
+func strStartsWithICImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	s, err := SafeAsString(args[0])
+	if err != nil {
+		return nil, fmt.Errorf("_str_startsWithIC: arg 0 - %w", err)
+	}
+	prefix, err := SafeAsString(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_str_startsWithIC: arg 1 - %w", err)
+	}
+
+	if len(prefix) > len(s) {
+		return &eval.BoolValue{Value: false}, nil
+	}
+
+	// Use EqualFold on the prefix-length slice for correct Unicode case folding
+	return &eval.BoolValue{Value: strings.EqualFold(s[:len(prefix)], prefix)}, nil
+}
