@@ -114,6 +114,7 @@ func (IfStmt) stmt() {}
 // SwitchStmt dispatches on a value (used for ADT tag matching).
 type SwitchStmt struct {
 	Scrutinee Expr
+	ADTName   string // The ADT type name (e.g., "Color") — helps emitters generate typed constants
 	Cases     []SwitchCase
 	Default   []Stmt // may be empty; if non-empty, must end in panic or return
 }

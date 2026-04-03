@@ -28,6 +28,8 @@ func compileCommand() {
 	valueThresholdFlag := fs.Int("value-threshold", 4, "Max fields for value-type records (0 = all pointers, v0.5.9 behavior)")
 	// M-CODEGEN-COMPILE-GATE: Verify generated Go code compiles
 	noVerifyGoFlag := fs.Bool("no-verify-go", false, "Skip go build verification of generated code")
+	// M-CODEGEN-IR: Statement IR pipeline (new architecture)
+	emitGoV2Flag := fs.Bool("emit-go-v2", false, "Use Statement IR pipeline (new codegen architecture)")
 
 	// Help flag
 	helpFlag := fs.Bool("help", false, "Show help for compile command")
@@ -55,8 +57,8 @@ func compileCommand() {
 	filenames := expandFilenames(fs.Args())
 
 	// Validate flags
-	if !*emitGoFlag {
-		fmt.Fprintf(os.Stderr, "%s: --emit-go is required (other backends not yet supported)\n", red("Error"))
+	if !*emitGoFlag && !*emitGoV2Flag {
+		fmt.Fprintf(os.Stderr, "%s: --emit-go or --emit-go-v2 is required\n", red("Error"))
 		os.Exit(1)
 	}
 
@@ -206,6 +208,12 @@ func compileCommand() {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot create output directory '%s': %v\n", red("Error"), outDir, err)
 		os.Exit(1)
+	}
+
+	// M-CODEGEN-IR: Statement IR pipeline (v2)
+	if *emitGoV2Flag {
+		compileV2(allCoreDecls, allTypeDecls, filenames, pkgName, outDir, !*noVerifyGoFlag, relaxModulesEffective)
+		return
 	}
 
 	// M-DX12: Track ADT types used in list fields for converter generation
