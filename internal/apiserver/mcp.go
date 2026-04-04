@@ -42,61 +42,77 @@ func NewMCPServer(srv *Server) *MCPServer {
 // HTTP handler, OpenAPI spec, and A2A agent card.
 func (ms *MCPServer) registerTools() {
 	modules := ms.server.GetModules()
-	registered := make(map[string]bool) // dedup by export identity (name+type)
+	// Two-pass dedup: collect candidates first, then register.
+	// When a module is loaded both directly and as a package dependency,
+	// the same function appears under two module paths. We dedup by
+	// name+type and deterministically prefer the entry with a doc comment
+	// (or shorter tool name as tiebreaker).
+	type toolCandidate struct {
+		modPath  string
+		export   ExportInfo
+		toolName string
+	}
+	best := make(map[string]toolCandidate) // dedupKey -> best candidate
 
 	for modPath, modInfo := range modules {
 		for _, export := range modInfo.Exports {
 			if export.Arity < 0 {
-				continue // skip non-function exports
+				continue
 			}
 			if !ms.server.isExposed(export) {
-				continue // respect --routes-only and @noexpose
+				continue
 			}
-			// In MCP context with --routes-only, also exclude functions that
-			// have no doc comment and no @route — these are internal helpers
-			// (xmlEscape, docxNs, etc.) that pollute agent tool lists.
 			if ms.server.routesOnly && export.RoutePath == "" && export.DocComment == "" {
 				continue
 			}
 
-			// Deduplicate: when a module is loaded both directly and as a
-			// package dependency, the same function appears under two module
-			// paths. Dedup by function name + type signature (the true identity).
 			dedupKey := export.Name + "|" + export.Type
-			if registered[dedupKey] {
-				continue
-			}
-			registered[dedupKey] = true
-
 			toolName := portableToolName(modPath, export.Name)
+			candidate := toolCandidate{modPath, export, toolName}
 
-			// Use doc comment as description if available, fall back to type signature.
-			desc := export.DocComment
-			if desc == "" {
-				desc = export.Name
-				if export.Type != "" {
-					desc = fmt.Sprintf("%s(%s)", export.Name, export.Type)
+			if existing, ok := best[dedupKey]; ok {
+				// Prefer: (1) has doc comment, (2) shorter tool name.
+				existHasDoc := existing.export.DocComment != ""
+				newHasDoc := export.DocComment != ""
+				if newHasDoc && !existHasDoc {
+					best[dedupKey] = candidate
+				} else if newHasDoc == existHasDoc && len(toolName) < len(existing.toolName) {
+					best[dedupKey] = candidate
 				}
-				if export.Pure {
-					desc += " [pure]"
-				}
+			} else {
+				best[dedupKey] = candidate
 			}
-
-			inputSchema := buildNamedInputSchema(export)
-
-			// Capture loop variables for closure.
-			capturedMod := modPath
-			capturedFunc := export.Name
-
-			tool := &mcp.Tool{
-				Name:        toolName,
-				Description: desc,
-				InputSchema: inputSchema,
-			}
-
-			capturedParamNames := export.ParamNames
-			ms.mcpServer.AddTool(tool, ms.makeToolHandler(capturedMod, capturedFunc, capturedParamNames))
 		}
+	}
+
+	for _, c := range best {
+		export := c.export
+		toolName := c.toolName
+
+		desc := export.DocComment
+		if desc == "" {
+			desc = export.Name
+			if export.Type != "" {
+				desc = fmt.Sprintf("%s(%s)", export.Name, export.Type)
+			}
+			if export.Pure {
+				desc += " [pure]"
+			}
+		}
+
+		inputSchema := buildNamedInputSchema(export)
+
+		capturedMod := c.modPath
+		capturedFunc := export.Name
+
+		tool := &mcp.Tool{
+			Name:        toolName,
+			Description: desc,
+			InputSchema: inputSchema,
+		}
+
+		capturedParamNames := export.ParamNames
+		ms.mcpServer.AddTool(tool, ms.makeToolHandler(capturedMod, capturedFunc, capturedParamNames))
 	}
 }
 
