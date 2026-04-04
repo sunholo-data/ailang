@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -432,7 +433,11 @@ func buildAilang(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("Failed to get project root: %v", err)
 	}
-	binPath := filepath.Join(t.TempDir(), "ailang")
+	binName := "ailang"
+	if runtime.GOOS == "windows" {
+		binName = "ailang.exe"
+	}
+	binPath := filepath.Join(t.TempDir(), binName)
 	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/ailang")
 	cmd.Dir = projectRoot
 	out, err := cmd.CombinedOutput()

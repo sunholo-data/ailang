@@ -367,7 +367,15 @@ ailang serve-api --mcp-http ./api/
 # MCP endpoint at POST /mcp/
 ```
 
-Each exported AILANG function becomes an MCP tool with proper JSON Schema for arguments. Module metadata is available as an MCP resource at `ailang://meta/modules`.
+Each exported AILANG function becomes an MCP tool. Module metadata is available as an MCP resource at `ailang://meta/modules`.
+
+**MCP tool quality features:**
+
+- **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
+- **Doc comment descriptions** — `--` comment lines immediately above a function are used as the MCP tool description. Functions without doc comments fall back to the type signature.
+- **Portable tool names** — Package-loaded modules get portable names like `docparse.services.parseCsv` (machine-specific absolute paths are stripped).
+- **Filtering** — `--routes-only` and `@noexpose` are respected in MCP `tools/list`, consistent with HTTP and OpenAPI. With `--routes-only`, undocumented non-route helpers are also auto-excluded from MCP.
+- **Backward compatible** — Tool handlers accept both named parameters (`{"filepath": "doc.pdf"}`) and legacy positional format (`{"args": ["doc.pdf"]}`).
 
 ### A2A (Agent-to-Agent Protocol)
 
