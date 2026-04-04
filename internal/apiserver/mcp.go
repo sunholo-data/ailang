@@ -42,6 +42,7 @@ func NewMCPServer(srv *Server) *MCPServer {
 // HTTP handler, OpenAPI spec, and A2A agent card.
 func (ms *MCPServer) registerTools() {
 	modules := ms.server.GetModules()
+	registered := make(map[string]bool) // dedup by portable tool name
 
 	for modPath, modInfo := range modules {
 		for _, export := range modInfo.Exports {
@@ -59,6 +60,14 @@ func (ms *MCPServer) registerTools() {
 			}
 
 			toolName := portableToolName(modPath, export.Name)
+
+			// Deduplicate: when a module is loaded both directly and as a
+			// package dependency, the same function gets two module paths
+			// that map to the same portable tool name. Skip duplicates.
+			if registered[toolName] {
+				continue
+			}
+			registered[toolName] = true
 
 			// Use doc comment as description if available, fall back to type signature.
 			desc := export.DocComment
