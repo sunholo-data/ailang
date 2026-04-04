@@ -1,6 +1,6 @@
 # M-MCP-QUALITY: MCP Server Quality & @route Header Access
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.11.0
 **Priority**: P0 (High — MCP tools unusable by AI agents in current state)
 **Estimated**: 3-4 days
