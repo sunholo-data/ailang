@@ -765,6 +765,28 @@ export func handle(req: {body: string, headers: Json, method: string, path: stri
 
 Headers and query parameters are `Json` values — use `getString`, `getInt`, etc. to extract fields.
 
+### Request Headers in `@route` (without `@raw`)
+
+If you need HTTP request headers but want to keep normal argument parsing (including multipart file uploads), declare a `_headers` parameter instead of switching to `@raw`:
+
+```ailang
+import std/json (Json, getString)
+
+@route("POST", "/api/v1/secure-parse")
+export func secureParse(content: string, _headers: Json) -> string ! {IO} =
+  let apiKey = getString(_headers, "x-api-key") in
+  if apiKey == "" then "error: missing x-api-key header"
+  else "authenticated: " ++ content
+```
+
+The `_headers` parameter receives all HTTP request headers as a `Json` value. Other parameters are parsed normally from the request body (JSON or multipart). This is useful for:
+
+- **API key authentication** — read `Authorization` or custom auth headers
+- **Unstructured API compatibility** — multipart file upload + `unstructured-api-key` header
+- **Content negotiation** — read `Accept` header to choose response format
+
+> **Note:** The `_headers` name is a convention (matching the response `_headers` pattern). Only parameters named exactly `_headers` are injected with request headers.
+
 ### `@nowrap` — Raw JSON Output
 
 By default, every handler wraps its return value in a `FunctionCallResponse` envelope:
