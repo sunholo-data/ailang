@@ -311,8 +311,16 @@ func (s *Server) loadFile(path string) error {
 			if strings.HasPrefix(modPath, "std/") {
 				continue
 			}
+			// Skip if this resolved path OR the module's declared name is
+			// already registered. This prevents duplicates when a module is
+			// loaded both directly (declared path like "docparse/services")
+			// and as a package dependency (resolved path like
+			// "pkg/sunholo/ailang-parse/docparse/services").
 			s.mu.RLock()
 			_, exists := s.modules[modPath]
+			if !exists && loaded.Iface != nil && loaded.Iface.Module != "" {
+				_, exists = s.modules[loaded.Iface.Module]
+			}
 			s.mu.RUnlock()
 			if exists {
 				continue
