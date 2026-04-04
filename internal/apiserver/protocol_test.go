@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/sunholo/ailang/internal/apiserver/schema"
 )
 
 // --- OpenAPI Tests ---
@@ -404,44 +402,7 @@ func TestA2ATextPartArgParsing(t *testing.T) {
 }
 
 // --- MCP Input Schema Tests ---
-
-func TestBuildMCPInputSchema(t *testing.T) {
-	t.Run("zero arity", func(t *testing.T) {
-		fs := &schema.FunctionSchema{Arity: 0}
-		s := buildMCPInputSchema(fs)
-
-		if s["type"] != "object" {
-			t.Errorf("expected type 'object', got %v", s["type"])
-		}
-		props := s["properties"].(map[string]any)
-		if len(props) != 0 {
-			t.Errorf("expected empty properties, got %v", props)
-		}
-	})
-
-	t.Run("with parameters", func(t *testing.T) {
-		fs := schema.FromTypeString("int -> string -> bool")
-		s := buildMCPInputSchema(fs)
-
-		if s["type"] != "object" {
-			t.Errorf("expected type 'object', got %v", s["type"])
-		}
-
-		required, ok := s["required"].([]string)
-		if !ok || len(required) != 1 || required[0] != "args" {
-			t.Errorf("expected required=[args], got %v", s["required"])
-		}
-
-		props := s["properties"].(map[string]any)
-		argsSchema := props["args"].(map[string]any)
-		if argsSchema["type"] != "array" {
-			t.Errorf("expected args type 'array', got %v", argsSchema["type"])
-		}
-		if argsSchema["minItems"] != 2 {
-			t.Errorf("expected minItems 2, got %v", argsSchema["minItems"])
-		}
-	})
-}
+// Named parameter schema tests are in mcp_schema_test.go.
 
 // --- Interactive Docs Tests ---
 

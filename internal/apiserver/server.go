@@ -86,6 +86,7 @@ type ExportInfo struct {
 	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
 	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
 	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
+	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 }
 
 // Config holds configuration for the API server.
@@ -349,11 +350,12 @@ func (s *Server) loadFile(path string) error {
 
 	modInfo := extractModuleInfo(result.Interface)
 
-	// Extract param names and route annotations from AST
+	// Extract param names, route annotations, and doc comments from AST
 	if result.Artifacts.AST != nil {
 		extractParamInfo(modInfo, result.Artifacts.AST)
 		extractRouteAnnotations(modInfo, result.Artifacts.AST)
 		extractNoExposeAnnotations(modInfo, result.Artifacts.AST)
+		extractDocComments(modInfo, result.Artifacts.AST, absPath)
 	}
 
 	// Derive module path from file path relative to basePath.

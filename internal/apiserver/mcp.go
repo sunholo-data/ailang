@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo/ailang/internal/apiserver/schema"
@@ -39,6 +38,8 @@ func NewMCPServer(srv *Server) *MCPServer {
 }
 
 // registerTools registers each exported function as an MCP tool.
+// Respects isExposed() filtering (--routes-only, @noexpose) consistent with
+// HTTP handler, OpenAPI spec, and A2A agent card.
 func (ms *MCPServer) registerTools() {
 	modules := ms.server.GetModules()
 
@@ -47,21 +48,25 @@ func (ms *MCPServer) registerTools() {
 			if export.Arity < 0 {
 				continue // skip non-function exports
 			}
-
-			toolName := modPath + "." + export.Name
-			// Replace path separators with dots for valid tool names.
-			toolName = strings.ReplaceAll(toolName, "/", ".")
-
-			desc := export.Name
-			if export.Type != "" {
-				desc = fmt.Sprintf("%s(%s)", export.Name, export.Type)
-			}
-			if export.Pure {
-				desc += " [pure]"
+			if !ms.server.isExposed(export) {
+				continue // respect --routes-only and @noexpose
 			}
 
-			fs := schema.FromTypeString(export.Type)
-			inputSchema := buildMCPInputSchema(fs)
+			toolName := portableToolName(modPath, export.Name)
+
+			// Use doc comment as description if available, fall back to type signature.
+			desc := export.DocComment
+			if desc == "" {
+				desc = export.Name
+				if export.Type != "" {
+					desc = fmt.Sprintf("%s(%s)", export.Name, export.Type)
+				}
+				if export.Pure {
+					desc += " [pure]"
+				}
+			}
+
+			inputSchema := buildNamedInputSchema(export)
 
 			// Capture loop variables for closure.
 			capturedMod := modPath
@@ -73,23 +78,33 @@ func (ms *MCPServer) registerTools() {
 				InputSchema: inputSchema,
 			}
 
-			ms.mcpServer.AddTool(tool, ms.makeToolHandler(capturedMod, capturedFunc))
+			capturedParamNames := export.ParamNames
+			ms.mcpServer.AddTool(tool, ms.makeToolHandler(capturedMod, capturedFunc, capturedParamNames))
 		}
 	}
 }
 
 // makeToolHandler creates a ToolHandler that calls the AILANG function.
-func (ms *MCPServer) makeToolHandler(modulePath, funcName string) mcp.ToolHandler {
+// Accepts both named parameters ({"filepath": "x"}) and legacy positional
+// format ({"args": ["x"]}) for backward compatibility.
+func (ms *MCPServer) makeToolHandler(modulePath, funcName string, paramNames []string) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// Extract args from the request arguments (json.RawMessage).
 		var args []any
 
 		if len(req.Params.Arguments) > 0 {
 			var argMap map[string]any
 			if err := json.Unmarshal(req.Params.Arguments, &argMap); err == nil {
+				// Try legacy "args" array first for backward compat.
 				if argsRaw, ok := argMap["args"]; ok {
 					if argsSlice, ok := argsRaw.([]any); ok {
 						args = argsSlice
+					}
+				}
+				// If no "args" key and we have param names, resolve named params.
+				if len(args) == 0 && len(paramNames) > 0 {
+					args = make([]any, len(paramNames))
+					for i, name := range paramNames {
+						args[i] = argMap[name]
 					}
 				}
 			}
@@ -157,16 +172,39 @@ func (ms *MCPServer) HTTPHandler() http.Handler {
 	)
 }
 
-// buildMCPInputSchema creates a JSON Schema map for MCP tool input from a FunctionSchema.
-// The MCP SDK accepts any JSON-serializable value for InputSchema.
-func buildMCPInputSchema(fs *schema.FunctionSchema) map[string]any {
-	if fs.Arity == 0 {
+// buildNamedInputSchema creates a JSON Schema with named parameters from ExportInfo.
+// Uses ParamNames and ParamTypes when available; falls back to positional args array.
+func buildNamedInputSchema(export ExportInfo) map[string]any {
+	if export.Arity <= 0 {
 		return map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},
 		}
 	}
 
+	// If we have named parameters, build a proper named schema.
+	if len(export.ParamNames) > 0 {
+		props := map[string]any{}
+		required := make([]string, 0, len(export.ParamNames))
+		for i, name := range export.ParamNames {
+			prop := map[string]any{
+				"type": "string", // default
+			}
+			if i < len(export.ParamTypes) {
+				prop["type"] = ailangTypeToJSONSchema(export.ParamTypes[i])
+			}
+			props[name] = prop
+			required = append(required, name)
+		}
+		return map[string]any{
+			"type":       "object",
+			"properties": props,
+			"required":   required,
+		}
+	}
+
+	// Fallback: positional args array (no param names available).
+	fs := schema.FromTypeString(export.Type)
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -178,6 +216,28 @@ func buildMCPInputSchema(fs *schema.FunctionSchema) map[string]any {
 			},
 		},
 		"required": []string{"args"},
+	}
+}
+
+// ailangTypeToJSONSchema maps AILANG type strings to JSON Schema type strings.
+func ailangTypeToJSONSchema(ailangType string) string {
+	switch ailangType {
+	case "string":
+		return "string"
+	case "int":
+		return "integer"
+	case "float":
+		return "number"
+	case "bool":
+		return "boolean"
+	case "Json", "record":
+		return "object"
+	case "list", "array":
+		return "array"
+	case "bytes":
+		return "string" // base64 or file path
+	default:
+		return "string"
 	}
 }
 

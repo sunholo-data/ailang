@@ -129,6 +129,68 @@ func extractRouteAnnotations(modInfo *ModuleInfo, file *ast.File) {
 	}
 }
 
+// extractDocComments reads the source file and extracts -- comment lines
+// immediately preceding each exported function declaration. The collected
+// comment text (with leading "-- " stripped) is stored in ExportInfo.DocComment.
+func extractDocComments(modInfo *ModuleInfo, file *ast.File, filePath string) {
+	src, err := os.ReadFile(filePath)
+	if err != nil {
+		return // best-effort: no source = no doc comments
+	}
+	lines := strings.Split(string(src), "\n")
+
+	for _, fn := range file.Funcs {
+		if !fn.IsExport {
+			continue
+		}
+		// fn.Pos.Line is 1-based. Scan backwards from the line before the func.
+		funcLine := fn.Pos.Line - 1 // convert to 0-based index
+		if funcLine <= 0 || funcLine > len(lines) {
+			continue
+		}
+
+		// Skip annotation lines (@route, @raw, etc.) above the func
+		scanLine := funcLine - 1
+		for scanLine >= 0 {
+			trimmed := strings.TrimSpace(lines[scanLine])
+			if strings.HasPrefix(trimmed, "@") {
+				scanLine--
+				continue
+			}
+			break
+		}
+
+		// Collect consecutive -- comment lines
+		var commentLines []string
+		for scanLine >= 0 {
+			trimmed := strings.TrimSpace(lines[scanLine])
+			if strings.HasPrefix(trimmed, "--") {
+				// Strip "-- " or "--" prefix
+				text := strings.TrimPrefix(trimmed, "-- ")
+				if text == trimmed {
+					text = strings.TrimPrefix(trimmed, "--")
+				}
+				commentLines = append([]string{text}, commentLines...)
+				scanLine--
+			} else {
+				break
+			}
+		}
+
+		if len(commentLines) == 0 {
+			continue
+		}
+
+		doc := strings.Join(commentLines, "\n")
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name {
+				modInfo.Exports[i].DocComment = doc
+				break
+			}
+		}
+	}
+}
+
 // extractNoExposeAnnotations marks exported functions with @noexpose as hidden
 // from HTTP endpoints. Functions with @route are never hidden (route overrides noexpose).
 func extractNoExposeAnnotations(modInfo *ModuleInfo, file *ast.File) {
@@ -709,10 +771,15 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 
 	// Pass 2: assign unmatched file uploads to unmatched file-accepting params.
 	// This handles curl -F 'file=@doc.docx' when the param is named 'filepath'.
-	var unmatchedFiles []*multipart.FileHeader
+	// A warning is logged so server operators can see the fallback was used.
+	type unmatchedFile struct {
+		fieldName string
+		header    *multipart.FileHeader
+	}
+	var unmatchedFiles []unmatchedFile
 	for fieldName, fileHeaders := range r.MultipartForm.File {
 		if !matchedFiles[fieldName] && len(fileHeaders) > 0 {
-			unmatchedFiles = append(unmatchedFiles, fileHeaders[0])
+			unmatchedFiles = append(unmatchedFiles, unmatchedFile{fieldName, fileHeaders[0]})
 		}
 	}
 
@@ -728,8 +795,9 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 			}
 			// Only assign to string or bytes params that weren't matched in pass 1
 			if paramType == "string" || paramType == "bytes" || paramType == "" {
-				fh := unmatchedFiles[fileIdx]
-				data, err := readMultipartFile(fh, maxSize)
+				uf := unmatchedFiles[fileIdx]
+				log.Printf("  WARNING: multipart field %q does not match param %q — assigning by position (use -F '%s=@file' for exact match)", uf.fieldName, paramNames[i], paramNames[i])
+				data, err := readMultipartFile(uf.header, maxSize)
 				if err != nil {
 					removeTempFiles(tempFiles)
 					return nil, nil, err
@@ -737,7 +805,7 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 				fileIdx++
 
 				if paramType == "string" {
-					tmpPath, err := writeTempFile(data, fh.Filename)
+					tmpPath, err := writeTempFile(data, uf.header.Filename)
 					if err != nil {
 						removeTempFiles(tempFiles)
 						return nil, nil, fmt.Errorf("failed to write temp file: %w", err)
@@ -747,8 +815,8 @@ func parseMultipartArgsWithNames(r *http.Request, maxSize int64, paramNames []st
 				} else {
 					args[i] = &eval.BytesValue{
 						Value:    data,
-						Filename: fh.Filename,
-						MimeType: fh.Header.Get("Content-Type"),
+						Filename: uf.header.Filename,
+						MimeType: uf.header.Header.Get("Content-Type"),
 					}
 				}
 			}
