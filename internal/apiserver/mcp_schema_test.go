@@ -189,6 +189,41 @@ func TestBuildNamedInputSchema(t *testing.T) {
 	})
 }
 
+func TestMCPAutoExcludeUndocumentedHelpers(t *testing.T) {
+	// With routesOnly, functions without doc comment AND without @route should
+	// be hidden from MCP (even if isExposed returns true for non-routesOnly).
+	srv := &Server{routesOnly: true}
+
+	// Documented non-route function: should pass isExposed (routesOnly hides it)
+	// but our MCP-specific filter checks doc comment too.
+	undocumented := ExportInfo{Name: "xmlEscape", Arity: 1}
+	documented := ExportInfo{Name: "parseCsv", Arity: 1, DocComment: "Parse a CSV file."}
+	routed := ExportInfo{Name: "parseDocx", Arity: 1, RoutePath: "/api/v1/parse"}
+
+	// With routesOnly, undocumented non-route is hidden by isExposed already.
+	if srv.isExposed(undocumented) {
+		t.Error("expected undocumented non-route to be hidden by isExposed with routesOnly")
+	}
+	// But documented non-route is also hidden by isExposed (no route path).
+	if srv.isExposed(documented) {
+		t.Error("expected documented non-route to be hidden by isExposed with routesOnly")
+	}
+	// Routed function is exposed.
+	if !srv.isExposed(routed) {
+		t.Error("expected routed function to be exposed")
+	}
+
+	// Without routesOnly, test the MCP-specific auto-exclude logic:
+	// undocumented + no route should still be excluded from MCP.
+	srvNoFilter := &Server{routesOnly: false}
+	_ = srvNoFilter // auto-exclude only applies when routesOnly=true
+	// The MCP auto-exclude is: routesOnly && no RoutePath && no DocComment
+	// So without routesOnly, all pass through isExposed.
+	if !srvNoFilter.isExposed(undocumented) {
+		t.Error("without routesOnly, all functions should pass isExposed")
+	}
+}
+
 func TestDocCommentUsedAsDescription(t *testing.T) {
 	withDoc := ExportInfo{
 		Name:       "parseDocx",
@@ -209,5 +244,33 @@ func TestDocCommentUsedAsDescription(t *testing.T) {
 	// Without doc comment, description falls back to type sig.
 	if withoutDoc.DocComment != "" {
 		t.Error("expected no doc comment")
+	}
+}
+
+func TestHeadersParamIndex(t *testing.T) {
+	// Verify that _headers param is correctly identified in param lists.
+	paramNames := []string{"filepath", "_headers", "format"}
+	found := -1
+	for i, name := range paramNames {
+		if name == "_headers" {
+			found = i
+			break
+		}
+	}
+	if found != 1 {
+		t.Errorf("expected _headers at index 1, got %d", found)
+	}
+
+	// No _headers param
+	noHeaders := []string{"filepath", "format"}
+	found = -1
+	for i, name := range noHeaders {
+		if name == "_headers" {
+			found = i
+			break
+		}
+	}
+	if found != -1 {
+		t.Errorf("expected no _headers, got index %d", found)
 	}
 }

@@ -51,6 +51,12 @@ func (ms *MCPServer) registerTools() {
 			if !ms.server.isExposed(export) {
 				continue // respect --routes-only and @noexpose
 			}
+			// In MCP context with --routes-only, also exclude functions that
+			// have no doc comment and no @route — these are internal helpers
+			// (xmlEscape, docxNs, etc.) that pollute agent tool lists.
+			if ms.server.routesOnly && export.RoutePath == "" && export.DocComment == "" {
+				continue
+			}
 
 			toolName := portableToolName(modPath, export.Name)
 

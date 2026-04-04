@@ -401,6 +401,17 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		}
 	}
 
+	// Inject request headers for @route handlers declaring a _headers parameter.
+	// This allows @route functions to access HTTP headers (e.g., auth tokens)
+	// without switching to @raw (which loses multipart parsing).
+	if !opt.Raw && len(opt.ParamNames) > 0 {
+		for i, name := range opt.ParamNames {
+			if name == "_headers" && i < len(args) {
+				args[i] = stringMapToJObject(r.Header)
+			}
+		}
+	}
+
 	// Fall back to query parameters when body args are empty (e.g., GET requests)
 	if len(args) == 0 && len(r.URL.Query()) > 0 {
 		args = parseQueryArgs(r.URL.Query())
