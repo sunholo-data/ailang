@@ -28,4 +28,10 @@ The parser has a hardcoded switch on annotation names. If a new annotation isn't
 
 ## Endpoint Filtering
 
-`isExposed()` in `routes.go` is the single filtering point. All endpoint enumeration (handler dispatch, OpenAPI spec, A2A agent card, startup banner) must use it.
+`isExposed()` in `routes.go` is the single filtering point. All endpoint enumeration (handler dispatch, OpenAPI spec, A2A agent card, MCP tools/list, startup banner) must use it.
+
+MCP has an additional auto-exclude: when `--routes-only`, functions with no `@route` AND no doc comment are hidden from MCP `tools/list` (catches internal helpers).
+
+## Request Headers in @route
+
+`@route` handlers can declare a `_headers: Json` parameter to receive HTTP request headers without `@raw`. The injection happens in `callFunction()` after argument parsing. Only the exact name `_headers` triggers injection.
