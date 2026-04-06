@@ -1,22 +1,22 @@
 {
   "current": {
-    "version": "v0.10.5",
-    "timestamp": "2026-04-06T17:22:47Z",
+    "version": "v0.10.6",
+    "timestamp": "2026-04-06T18:25:01Z",
     "lines": {
-      "go_production": 232769,
+      "go_production": 232771,
       "go_test": 144381,
-      "go_total": 377150,
+      "go_total": 377152,
       "ailang_examples": 20250,
       "ailang_stdlib": 3644,
       "typescript": 24938,
       "shell": 17916,
-      "documentation": 508391,
+      "documentation": 508401,
       "design_docs": 298578,
       "website_docs": 32203,
       "prompts": 62867,
-      "changelogs": 11976,
+      "changelogs": 11986,
       "claude_skills": 43362,
-      "implementation_total": 440254
+      "implementation_total": 440256
     },
     "files": {
       "go": 1252,
@@ -29,11 +29,11 @@
       "documentation": 1209
     },
     "tokens": {
-      "total_characters": 29822334,
-      "estimated_tokens": 7455583
+      "total_characters": 29822927,
+      "estimated_tokens": 7455731
     },
     "git": {
-      "commits": 2395,
+      "commits": 2397,
       "contributors": 7
     }
   },
@@ -707,7 +707,45 @@
         "commits": 2395,
         "contributors": 7
       }
+    },
+    {
+      "version": "v0.10.6",
+      "timestamp": "2026-04-06T18:25:01Z",
+      "lines": {
+        "go_production": 232771,
+        "go_test": 144381,
+        "go_total": 377152,
+        "ailang_examples": 20250,
+        "ailang_stdlib": 3644,
+        "typescript": 24938,
+        "shell": 17916,
+        "documentation": 508401,
+        "design_docs": 298578,
+        "website_docs": 32203,
+        "prompts": 62867,
+        "changelogs": 11986,
+        "claude_skills": 43362,
+        "implementation_total": 440256
+      },
+      "files": {
+        "go": 1252,
+        "ailang": 411,
+        "stdlib": 31,
+        "typescript": 96,
+        "shell": 140,
+        "design_docs": 854,
+        "claude_skills": 206,
+        "documentation": 1209
+      },
+      "tokens": {
+        "total_characters": 29822927,
+        "estimated_tokens": 7455731
+      },
+      "git": {
+        "commits": 2397,
+        "contributors": 7
+      }
     }
   ],
-  "lastUpdated": "2026-04-06T17:22:47Z"
+  "lastUpdated": "2026-04-06T18:25:01Z"
 }
