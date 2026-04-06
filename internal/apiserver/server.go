@@ -299,28 +299,33 @@ func (s *Server) loadFile(path string) error {
 			}
 		}
 
-		// Discover @route annotations in package dependencies.
-		// Without this, only local modules are scanned for routes — package
-		// modules with @route annotations are preloaded for execution but
-		// their routes are never registered as HTTP endpoints.
+		// Discover @route annotations in LOCAL dependencies only.
+		// External packages are preloaded for execution but their routes
+		// are NOT registered — only the project's own modules contribute
+		// HTTP endpoints and MCP tools. This prevents imported packages
+		// from polluting the route list when the importing project has its
+		// own @route functions for the same functionality.
 		for modPath, loaded := range result.Modules {
 			if loaded.Iface == nil || loaded.File == nil {
 				continue
 			}
-			// Skip stdlib modules (no routes) and already-registered modules.
-			if strings.HasPrefix(modPath, "std/") {
+			// Skip stdlib and external packages — only local deps get routes.
+			// External packages may appear under pkg/ paths OR under aliased
+			// paths (via module_prefix). Check if the .ail file exists locally.
+			if strings.HasPrefix(modPath, "std/") || strings.HasPrefix(modPath, "pkg/") {
 				continue
 			}
-			// Check both the resolved key and normalized relative path.
-			// The resolved key may be a canonical filesystem path (e.g.,
-			// "Users/mark/dev/project/docparse/services/mcp_tools") while
-			// the module was already loaded as "docparse/services/mcp_tools".
-			// Normalize by stripping the basePath prefix (without leading /).
+			localFile := filepath.Join(s.basePath, filepath.FromSlash(modPath)+".ail")
+			if _, err := os.Stat(localFile); err != nil {
+				continue // not a local file — must be from a package
+			}
+			// Normalize canonical filesystem paths to relative module paths.
 			normalizedPath := modPath
 			trimmedBase := strings.TrimPrefix(s.basePath, "/")
 			if trimmedBase != "" && strings.HasPrefix(modPath, trimmedBase+"/") {
 				normalizedPath = strings.TrimPrefix(modPath, trimmedBase+"/")
 			}
+			// Skip already-registered modules.
 			s.mu.RLock()
 			_, existsByKey := s.modules[modPath]
 			_, existsByNorm := s.modules[normalizedPath]
@@ -346,9 +351,6 @@ func (s *Server) loadFile(path string) error {
 				continue
 			}
 
-			// Prefer the normalized path as key to avoid filesystem
-			// paths (e.g., "Users/mark/.../docparse/services/mcp_tools")
-			// from leaking into the module map and MCP tool names.
 			regPath := normalizedPath
 			depInfo.Path = regPath
 			s.mu.Lock()
