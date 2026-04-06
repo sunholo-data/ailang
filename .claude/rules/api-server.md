@@ -28,9 +28,7 @@ The parser has a hardcoded switch on annotation names. If a new annotation isn't
 
 ## Endpoint Filtering
 
-`isExposed()` in `routes.go` is the single filtering point. All endpoint enumeration (handler dispatch, OpenAPI spec, A2A agent card, MCP tools/list, startup banner) must use it.
-
-MCP has an additional auto-exclude: when `--routes-only`, functions with no `@route` AND no doc comment are hidden from MCP `tools/list` (catches internal helpers).
+`isExposed()` in `routes.go` is the single filtering point. All endpoint enumeration (handler dispatch, OpenAPI spec, A2A agent card, MCP tools/list, startup banner) must use it. No additional filtering logic should be added in individual consumers.
 
 ## Request Headers in @route
 

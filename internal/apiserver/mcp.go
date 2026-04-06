@@ -62,9 +62,6 @@ func (ms *MCPServer) registerTools() {
 			if !ms.server.isExposed(export) {
 				continue
 			}
-			if ms.server.routesOnly && export.RoutePath == "" && export.DocComment == "" {
-				continue
-			}
 
 			dedupKey := export.Name + "|" + export.Type
 			toolName := portableToolName(modPath, export.Name)

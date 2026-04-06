@@ -311,10 +311,21 @@ func (s *Server) loadFile(path string) error {
 			if strings.HasPrefix(modPath, "std/") {
 				continue
 			}
+			// Check both the resolved key and normalized relative path.
+			// The resolved key may be a canonical filesystem path (e.g.,
+			// "Users/mark/dev/project/docparse/services/mcp_tools") while
+			// the module was already loaded as "docparse/services/mcp_tools".
+			// Normalize by stripping the basePath prefix (without leading /).
+			normalizedPath := modPath
+			trimmedBase := strings.TrimPrefix(s.basePath, "/")
+			if trimmedBase != "" && strings.HasPrefix(modPath, trimmedBase+"/") {
+				normalizedPath = strings.TrimPrefix(modPath, trimmedBase+"/")
+			}
 			s.mu.RLock()
-			_, exists := s.modules[modPath]
+			_, existsByKey := s.modules[modPath]
+			_, existsByNorm := s.modules[normalizedPath]
 			s.mu.RUnlock()
-			if exists {
+			if existsByKey || existsByNorm {
 				continue
 			}
 
@@ -335,11 +346,15 @@ func (s *Server) loadFile(path string) error {
 				continue
 			}
 
-			depInfo.Path = modPath
+			// Prefer the normalized path as key to avoid filesystem
+			// paths (e.g., "Users/mark/.../docparse/services/mcp_tools")
+			// from leaking into the module map and MCP tool names.
+			regPath := normalizedPath
+			depInfo.Path = regPath
 			s.mu.Lock()
-			s.modules[modPath] = depInfo
+			s.modules[regPath] = depInfo
 			s.mu.Unlock()
-			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", modPath, len(depInfo.Exports))
+			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", regPath, len(depInfo.Exports))
 		}
 	}
 
