@@ -1,22 +1,22 @@
 {
   "current": {
-    "version": "v0.10.9",
-    "timestamp": "2026-04-07T14:18:18Z",
+    "version": "v0.10.10",
+    "timestamp": "2026-04-07T14:34:19Z",
     "lines": {
-      "go_production": 233019,
-      "go_test": 144633,
-      "go_total": 377652,
+      "go_production": 233086,
+      "go_test": 144657,
+      "go_total": 377743,
       "ailang_examples": 20250,
       "ailang_stdlib": 3644,
       "typescript": 24938,
       "shell": 17916,
-      "documentation": 508504,
+      "documentation": 508521,
       "design_docs": 298578,
       "website_docs": 32233,
       "prompts": 62869,
-      "changelogs": 12044,
+      "changelogs": 12061,
       "claude_skills": 43373,
-      "implementation_total": 440756
+      "implementation_total": 440847
     },
     "files": {
       "go": 1253,
@@ -29,11 +29,11 @@
       "documentation": 1209
     },
     "tokens": {
-      "total_characters": 29846119,
-      "estimated_tokens": 7461529
+      "total_characters": 29850363,
+      "estimated_tokens": 7462590
     },
     "git": {
-      "commits": 2403,
+      "commits": 2405,
       "contributors": 7
     }
   },
@@ -859,7 +859,45 @@
         "commits": 2403,
         "contributors": 7
       }
+    },
+    {
+      "version": "v0.10.10",
+      "timestamp": "2026-04-07T14:34:19Z",
+      "lines": {
+        "go_production": 233086,
+        "go_test": 144657,
+        "go_total": 377743,
+        "ailang_examples": 20250,
+        "ailang_stdlib": 3644,
+        "typescript": 24938,
+        "shell": 17916,
+        "documentation": 508521,
+        "design_docs": 298578,
+        "website_docs": 32233,
+        "prompts": 62869,
+        "changelogs": 12061,
+        "claude_skills": 43373,
+        "implementation_total": 440847
+      },
+      "files": {
+        "go": 1253,
+        "ailang": 411,
+        "stdlib": 31,
+        "typescript": 96,
+        "shell": 140,
+        "design_docs": 854,
+        "claude_skills": 206,
+        "documentation": 1209
+      },
+      "tokens": {
+        "total_characters": 29850363,
+        "estimated_tokens": 7462590
+      },
+      "git": {
+        "commits": 2405,
+        "contributors": 7
+      }
     }
   ],
-  "lastUpdated": "2026-04-07T14:18:18Z"
+  "lastUpdated": "2026-04-07T14:34:19Z"
 }
