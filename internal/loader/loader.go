@@ -241,6 +241,14 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	p := parser.New(l)
 	p.SetStrictSyntaxMode(ml.strictSyntaxMode)
 	file := p.ParseFile()
+	// Record the resolved source path on the AST so downstream consumers
+	// (e.g., apiserver route filtering, MOD011 collision detection) can
+	// distinguish "same file loaded under two canonical IDs" from "two
+	// different files claiming the same module header". The parser itself
+	// doesn't set this field.
+	if file != nil {
+		file.Path = fullPath
+	}
 	if len(p.Errors()) > 0 {
 		// Format each error individually to preserve custom .Error() methods
 		// (e.g., ParserError with suggestions)

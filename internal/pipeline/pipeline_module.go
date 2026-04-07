@@ -402,23 +402,36 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	return result, nil
 }
 
-// detectModulePathCollisions returns an error (MOD011) if two different source
-// files declare the same `module X` header.
+// detectModulePathCollisions returns an error (MOD011) if two *different*
+// source files declare the same `module X` header.
 //
 // Runtime dispatch in serve-api and elsewhere looks up functions by the
-// declared module path. If two files claim the same path, whichever one wins
-// the loader cache silently shadows the other. This is a hard error.
+// declared module path. If two different files claim the same path, whichever
+// one wins the loader cache silently shadows the other — a silent footgun.
 //
-// Modules without a `module` header, or those loaded from the same file,
-// are not collisions.
+// The SAME file loaded under two canonical IDs is NOT a collision. This
+// happens routinely with `module_prefix`-aliased packages: e.g. the package
+// file at `~/.ailang/pkg/.../services/csv_parser.ail` can be loaded under
+// both `pkg/sunholo/ailang_parse/services/csv_parser` (direct pkg/ import)
+// and `docparse/services/csv_parser` (alias import resolved via
+// module_prefix). Both entries point to the same physical file.
+//
+// We distinguish the two cases by comparing the module's resolved disk path
+// (absolute filesystem path after symlinks are followed), which is populated
+// by the loader at parse time.
 func detectModulePathCollisions(modules map[string]*loader.LoadedModule) error {
+	// Step 1: dedupe entries that point to the same physical file. Two
+	// canonical IDs backed by the same `filepath.EvalSymlinks(absPath)`
+	// represent the same source — keep only the lexically smallest canonical
+	// ID for each physical file, so error messages remain deterministic.
 	type entry struct {
 		canonicalID string
-		filePath    string
+		filePath    string // resolved absolute path (may be "" if unavailable)
+		declared    string
 	}
-	declaredBy := make(map[string]entry) // declared module path -> first claimant
+	byFile := make(map[string]entry) // resolvedFilePath -> best entry
+	var unresolved []entry           // entries where we couldn't determine a disk path
 
-	// Iterate in a deterministic order so the error message is stable across runs.
 	canonicalIDs := make([]string, 0, len(modules))
 	for id := range modules {
 		canonicalIDs = append(canonicalIDs, id)
@@ -434,12 +447,46 @@ func detectModulePathCollisions(modules map[string]*loader.LoadedModule) error {
 		if declared == "" {
 			continue
 		}
-		filePath := mod.File.Path
-		if existing, seen := declaredBy[declared]; seen {
-			// Same source file loaded twice is not a collision.
-			if existing.filePath == filePath && filePath != "" {
-				continue
+
+		// Resolve to an absolute, symlink-free path so that two different
+		// spellings of the same file are treated as identical.
+		resolved := ""
+		if mod.File.Path != "" {
+			if abs, err := filepath.Abs(mod.File.Path); err == nil {
+				if eval, err := filepath.EvalSymlinks(abs); err == nil {
+					resolved = eval
+				} else {
+					resolved = abs
+				}
 			}
+		}
+
+		e := entry{canonicalID: canonicalID, filePath: resolved, declared: declared}
+		if resolved == "" {
+			// Without a resolvable disk path we can't safely dedupe,
+			// so keep the entry around for downstream comparison by
+			// canonical ID.
+			unresolved = append(unresolved, e)
+			continue
+		}
+		if _, seen := byFile[resolved]; !seen {
+			byFile[resolved] = e // first (lexically smallest) canonical ID wins
+		}
+	}
+
+	// Step 2: check for two *different* files claiming the same declared
+	// module path. Iterate in sorted order for stable error messages.
+	declaredBy := make(map[string]entry) // declared path -> first claimant
+
+	// Resolved entries first, in deterministic order.
+	resolvedPaths := make([]string, 0, len(byFile))
+	for p := range byFile {
+		resolvedPaths = append(resolvedPaths, p)
+	}
+	sort.Strings(resolvedPaths)
+
+	checkCollision := func(e entry) error {
+		if existing, seen := declaredBy[e.declared]; seen {
 			return fmt.Errorf(
 				"Error MOD011: module %q is declared in two different files:\n"+
 					"  1. %s (canonical: %s)\n"+
@@ -447,9 +494,21 @@ func detectModulePathCollisions(modules map[string]*loader.LoadedModule) error {
 					"  Fix: rename one of the module declarations so each module path is unique.\n"+
 					"  Note: this commonly happens when a local file and a `module_prefix`-aliased\n"+
 					"  package file claim the same namespace — runtime dispatch would be ambiguous.",
-				declared, existing.filePath, existing.canonicalID, filePath, canonicalID)
+				e.declared, existing.filePath, existing.canonicalID, e.filePath, e.canonicalID)
 		}
-		declaredBy[declared] = entry{canonicalID: canonicalID, filePath: filePath}
+		declaredBy[e.declared] = e
+		return nil
+	}
+
+	for _, p := range resolvedPaths {
+		if err := checkCollision(byFile[p]); err != nil {
+			return err
+		}
+	}
+	for _, e := range unresolved {
+		if err := checkCollision(e); err != nil {
+			return err
+		}
 	}
 	return nil
 }

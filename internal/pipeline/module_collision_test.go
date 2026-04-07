@@ -1,6 +1,8 @@
 package pipeline
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,17 +25,30 @@ func makeLoadedModule(canonicalID, filePath, declared string) *loader.LoadedModu
 	}
 }
 
+// writeTempFile creates a real file on disk so the collision detector can
+// resolve it via filepath.EvalSymlinks. Returns the absolute path.
+func writeTempFile(t *testing.T, dir, name, body string) string {
+	t.Helper()
+	full := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return full
+}
+
 func TestDetectModulePathCollisions_NoCollision(t *testing.T) {
+	dir := t.TempDir()
+	fileA := writeTempFile(t, dir, "a.ail", "")
+	fileB := writeTempFile(t, dir, "b.ail", "")
 	mods := map[string]*loader.LoadedModule{
 		"docparse/services/mcp_tools": makeLoadedModule(
-			"docparse/services/mcp_tools",
-			"/project/docparse/services/mcp_tools.ail",
-			"docparse/services/mcp_tools",
+			"docparse/services/mcp_tools", fileA, "docparse/services/mcp_tools",
 		),
 		"docparse/services/auth": makeLoadedModule(
-			"docparse/services/auth",
-			"/project/docparse/services/auth.ail",
-			"docparse/services/auth",
+			"docparse/services/auth", fileB, "docparse/services/auth",
 		),
 	}
 	if err := detectModulePathCollisions(mods); err != nil {
@@ -41,38 +56,40 @@ func TestDetectModulePathCollisions_NoCollision(t *testing.T) {
 	}
 }
 
-func TestDetectModulePathCollisions_SameFileTwice(t *testing.T) {
-	// The same source file may legitimately appear under two canonical IDs
-	// (e.g., absolute path + module_prefix-resolved path). Not a collision.
+func TestDetectModulePathCollisions_SameFileTwoCanonicalIDs(t *testing.T) {
+	// The SAME physical file loaded under two canonical IDs (e.g. via
+	// module_prefix aliasing) is NOT a collision. This is the docparse
+	// regression case: one file, two canonical paths.
+	dir := t.TempDir()
+	shared := writeTempFile(t, dir, "services/csv_parser.ail", "")
 	mods := map[string]*loader.LoadedModule{
-		"Users/dev/docparse/services/mcp_tools": makeLoadedModule(
-			"Users/dev/docparse/services/mcp_tools",
-			"/Users/dev/docparse/services/mcp_tools.ail",
-			"docparse/services/mcp_tools",
+		"pkg/sunholo/ailang_parse/services/csv_parser": makeLoadedModule(
+			"pkg/sunholo/ailang_parse/services/csv_parser", shared,
+			"docparse/services/csv_parser",
 		),
-		"docparse/services/mcp_tools": makeLoadedModule(
-			"docparse/services/mcp_tools",
-			"/Users/dev/docparse/services/mcp_tools.ail",
-			"docparse/services/mcp_tools",
+		"docparse/services/csv_parser": makeLoadedModule(
+			"docparse/services/csv_parser", shared,
+			"docparse/services/csv_parser",
 		),
 	}
 	if err := detectModulePathCollisions(mods); err != nil {
-		t.Fatalf("same-file re-loading should not be a collision: %v", err)
+		t.Fatalf("same-file aliasing should not be a collision: %v", err)
 	}
 }
 
-func TestDetectModulePathCollisions_LocalVsPackage(t *testing.T) {
-	// Two different files both declaring the same module header — this is
-	// the docparse footgun. Must error.
+func TestDetectModulePathCollisions_TwoDifferentFiles(t *testing.T) {
+	// Two different files both declaring the same module header — the
+	// original docparse footgun. Must error.
+	dir := t.TempDir()
+	localFile := writeTempFile(t, dir, "local/mcp_tools.ail", "")
+	pkgFile := writeTempFile(t, dir, "pkg/mcp_tools.ail", "")
 	mods := map[string]*loader.LoadedModule{
-		"Users/dev/docparse/services/mcp_tools": makeLoadedModule(
-			"Users/dev/docparse/services/mcp_tools",
-			"/Users/dev/docparse/services/mcp_tools.ail",
+		"local/services/mcp_tools": makeLoadedModule(
+			"local/services/mcp_tools", localFile,
 			"docparse/services/mcp_tools",
 		),
 		"pkg/sunholo/ailang_parse/services/mcp_tools": makeLoadedModule(
-			"pkg/sunholo/ailang_parse/services/mcp_tools",
-			"/home/.ailang/pkg/sunholo/ailang_parse/docparse/services/mcp_tools.ail",
+			"pkg/sunholo/ailang_parse/services/mcp_tools", pkgFile,
 			"docparse/services/mcp_tools",
 		),
 	}
@@ -87,20 +104,21 @@ func TestDetectModulePathCollisions_LocalVsPackage(t *testing.T) {
 	if !strings.Contains(msg, "docparse/services/mcp_tools") {
 		t.Errorf("error should include the colliding module path: %s", msg)
 	}
-	if !strings.Contains(msg, "/Users/dev/docparse/services/mcp_tools.ail") {
+	if !strings.Contains(msg, localFile) {
 		t.Errorf("error should include the first file path: %s", msg)
 	}
-	if !strings.Contains(msg, "/home/.ailang/pkg/sunholo/ailang_parse/docparse/services/mcp_tools.ail") {
+	if !strings.Contains(msg, pkgFile) {
 		t.Errorf("error should include the second file path: %s", msg)
 	}
 }
 
 func TestDetectModulePathCollisions_NoModuleHeader(t *testing.T) {
-	// A module without a `module` header (unusual but possible) should not
-	// trip the check.
+	dir := t.TempDir()
+	fileA := writeTempFile(t, dir, "a.ail", "")
+	fileB := writeTempFile(t, dir, "b.ail", "")
 	mods := map[string]*loader.LoadedModule{
-		"a": makeLoadedModule("a", "/a.ail", ""),
-		"b": makeLoadedModule("b", "/b.ail", ""),
+		"a": makeLoadedModule("a", fileA, ""),
+		"b": makeLoadedModule("b", fileB, ""),
 	}
 	if err := detectModulePathCollisions(mods); err != nil {
 		t.Fatalf("header-less modules should not collide: %v", err)
@@ -108,18 +126,16 @@ func TestDetectModulePathCollisions_NoModuleHeader(t *testing.T) {
 }
 
 func TestDetectModulePathCollisions_DeterministicOrder(t *testing.T) {
-	// The error message must be stable across runs regardless of Go map order.
-	// Run the collision detection many times and assert the same error text.
+	// Error message must be stable regardless of Go map iteration order.
+	dir := t.TempDir()
+	fileA := writeTempFile(t, dir, "aaa.ail", "")
+	fileZ := writeTempFile(t, dir, "zzz.ail", "")
 	mods := map[string]*loader.LoadedModule{
 		"zzz/later/claimant": makeLoadedModule(
-			"zzz/later/claimant",
-			"/zzz.ail",
-			"shared/path",
+			"zzz/later/claimant", fileZ, "shared/path",
 		),
 		"aaa/earlier/claimant": makeLoadedModule(
-			"aaa/earlier/claimant",
-			"/aaa.ail",
-			"shared/path",
+			"aaa/earlier/claimant", fileA, "shared/path",
 		),
 	}
 	var first string
@@ -136,12 +152,20 @@ func TestDetectModulePathCollisions_DeterministicOrder(t *testing.T) {
 			t.Fatalf("non-deterministic error message:\n  run 0: %s\n  run %d: %s", first, i, err.Error())
 		}
 	}
-	// aaa should be the first claimant (lexical order), zzz the second.
-	if !strings.Contains(first, "/aaa.ail") || !strings.Contains(first, "/zzz.ail") {
+	if !strings.Contains(first, fileA) || !strings.Contains(first, fileZ) {
 		t.Errorf("error missing expected file paths: %s", first)
 	}
-	// aaa should come before zzz in the message.
-	if strings.Index(first, "/aaa.ail") > strings.Index(first, "/zzz.ail") {
-		t.Errorf("expected aaa to be listed before zzz: %s", first)
+}
+
+func TestDetectModulePathCollisions_EmptyFilePathFallback(t *testing.T) {
+	// When file paths are empty (e.g., synthetic test modules or loader bugs),
+	// fall back to comparing by canonical ID — distinct canonical IDs with
+	// empty paths declaring the same module still get flagged.
+	mods := map[string]*loader.LoadedModule{
+		"x": makeLoadedModule("x", "", "shared"),
+		"y": makeLoadedModule("y", "", "shared"),
+	}
+	if err := detectModulePathCollisions(mods); err == nil {
+		t.Fatal("expected collision when two empty-path modules share a declared name")
 	}
 }
