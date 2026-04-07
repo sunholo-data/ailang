@@ -1,55 +1,105 @@
 package apiserver
 
 import (
+	"strings"
 	"testing"
 )
 
-func TestPortableToolName(t *testing.T) {
+func TestMCPToolName(t *testing.T) {
 	tests := []struct {
-		name     string
-		modPath  string
-		funcName string
-		want     string
+		name       string
+		modPath    string
+		funcName   string
+		override   string
+		preferBare bool
+		want       string
 	}{
 		{
-			name:     "simple relative path",
-			modPath:  "docparse/services",
-			funcName: "parseCsv",
-			want:     "docparse.services.parseCsv",
+			name:       "bare name when unique",
+			modPath:    "docparse/services/mcp_tools",
+			funcName:   "mcpParse",
+			preferBare: true,
+			want:       "mcpParse",
 		},
 		{
-			name:     "single module",
-			modPath:  "main",
-			funcName: "hello",
-			want:     "main.hello",
+			name:       "collision falls back to last segment + funcName",
+			modPath:    "docparse/services",
+			funcName:   "parseCsv",
+			preferBare: false,
+			want:       "services_parseCsv",
 		},
 		{
-			name:     "pkg path strips org and repo",
-			modPath:  "pkg/sunholo/ailang-parse/docparse/services/samples",
-			funcName: "sampleResolvePath",
-			want:     "docparse.services.samples.sampleResolvePath",
+			name:       "dots and slashes sanitized to underscores",
+			modPath:    "pkg/sunholo/ailang-parse/docparse/services/samples",
+			funcName:   "sampleResolvePath",
+			preferBare: false,
+			want:       "samples_sampleResolvePath",
 		},
 		{
-			name:     "absolute path strips machine prefix",
-			modPath:  "Users/mark/dev/sunholo/ailang-parse/docparse/services",
-			funcName: "parseDocx",
-			want:     "ailang-parse.docparse.services.parseDocx",
+			name:       "author override honored verbatim",
+			modPath:    "docparse/services/mcp_tools",
+			funcName:   "mcpParse",
+			override:   "parse",
+			preferBare: true,
+			want:       "parse",
 		},
 		{
-			name:     "dotted path preserved",
-			modPath:  "mylib/utils",
-			funcName: "format",
-			want:     "mylib.utils.format",
+			name:       "long name truncated with hash suffix",
+			modPath:    "very/deep/module/path/with/many/segments/that/keeps/going",
+			funcName:   "thisIsAReallyLongFunctionNameThatExceedsTheSixtyFourCharLimitEasily",
+			preferBare: true,
+			// Length must be exactly 64.
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := portableToolName(tt.modPath, tt.funcName)
-			if got != tt.want {
-				t.Errorf("portableToolName(%q, %q) = %q, want %q", tt.modPath, tt.funcName, got, tt.want)
+			got := mcpToolName(tt.modPath, tt.funcName, tt.override, tt.preferBare)
+			if tt.want != "" && got != tt.want {
+				t.Errorf("mcpToolName(%q, %q, %q, %v) = %q, want %q", tt.modPath, tt.funcName, tt.override, tt.preferBare, got, tt.want)
+			}
+			if !mcpToolNameRegex.MatchString(got) {
+				t.Errorf("generated name %q does not match MCP regex %s", got, mcpToolNameRegex.String())
+			}
+			if len(got) > 64 {
+				t.Errorf("generated name %q exceeds 64 chars (%d)", got, len(got))
 			}
 		})
+	}
+}
+
+func TestValidateMCPName(t *testing.T) {
+	valid := []string{"parse", "mcpParse", "services_parseCsv", "a-b-c", "A1_b2", strings.Repeat("a", 64)}
+	invalid := []string{"", "has.dot", "has/slash", "has space", "has!bang", strings.Repeat("a", 65)}
+
+	for _, n := range valid {
+		if err := validateMCPName(n); err != nil {
+			t.Errorf("validateMCPName(%q) returned error: %v", n, err)
+		}
+	}
+	for _, n := range invalid {
+		if err := validateMCPName(n); err == nil {
+			t.Errorf("validateMCPName(%q) should have returned an error", n)
+		}
+	}
+}
+
+func TestSanitizeMCPName(t *testing.T) {
+	cases := map[string]string{
+		"foo":        "foo",
+		"foo.bar":    "foo_bar",
+		"foo/bar":    "foo_bar",
+		"foo bar!":   "foo_bar_",
+		"":           "_",
+		"a-b_c":      "a-b_c",
+		"x.y/z.w":    "x_y_z_w",
+		"docparse.s": "docparse_s",
+		"unicode-é":  "unicode-_",
+	}
+	for in, want := range cases {
+		if got := sanitizeMCPName(in); got != want {
+			t.Errorf("sanitizeMCPName(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

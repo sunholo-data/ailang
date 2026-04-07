@@ -473,3 +473,58 @@ export func apiData(x: int) -> string ! {} { "{}" }`
 		t.Error("expected @route annotation")
 	}
 }
+
+// TestMCPNameAnnotation tests @mcp_name("toolName") parsing.
+func TestMCPNameAnnotation(t *testing.T) {
+	input := `
+@mcp_name("parse")
+@route("POST", "/api/v1/parse")
+export func mcpParse(content: string) -> string ! {} { content }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	file := p.ParseFile()
+
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			t.Errorf("parser error: %v", err)
+		}
+		t.FailNow()
+	}
+
+	if len(file.Funcs) != 1 {
+		t.Fatalf("expected 1 function, got %d", len(file.Funcs))
+	}
+	fn := file.Funcs[0]
+
+	ann := fn.GetAnnotation("mcp_name")
+	if ann == nil {
+		t.Fatal("expected @mcp_name annotation")
+	}
+	if len(ann.Args) != 1 {
+		t.Fatalf("expected 1 arg, got %d", len(ann.Args))
+	}
+	lit, ok := ann.Args[0].(*ast.Literal)
+	if !ok || lit.Kind != ast.StringLit {
+		t.Fatal("expected string literal arg")
+	}
+	if lit.Value.(string) != "parse" {
+		t.Errorf("expected mcp_name 'parse', got %q", lit.Value)
+	}
+}
+
+// TestMCPNameAnnotation_RequiresStringArg tests parser error on missing arg.
+func TestMCPNameAnnotation_RequiresStringArg(t *testing.T) {
+	input := `
+@mcp_name()
+export func parse(content: string) -> string ! {} { content }`
+
+	l := lexer.New(input, "test.ail")
+	p := New(l)
+	_ = p.ParseFile()
+
+	if len(p.Errors()) == 0 {
+		t.Error("expected parser error for @mcp_name() with no argument")
+	}
+	_ = strings.Contains // keep import used
+}

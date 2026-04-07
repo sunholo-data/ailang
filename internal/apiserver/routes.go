@@ -191,6 +191,29 @@ func extractDocComments(modInfo *ModuleInfo, file *ast.File, filePath string) {
 	}
 }
 
+// extractMCPNameAnnotations populates ExportInfo.MCPName from @mcp_name("name")
+// annotations found in the parsed AST. Author-supplied names override AILANG's
+// auto-generated MCP tool names.
+func extractMCPNameAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	for _, fn := range file.Funcs {
+		ann := fn.GetAnnotation("mcp_name")
+		if ann == nil || len(ann.Args) < 1 {
+			continue
+		}
+		nameLit, ok := ann.Args[0].(*ast.Literal)
+		if !ok || nameLit.Kind != ast.StringLit {
+			continue
+		}
+		mcpName := nameLit.Value.(string)
+		for i := range modInfo.Exports {
+			if modInfo.Exports[i].Name == fn.Name {
+				modInfo.Exports[i].MCPName = mcpName
+				break
+			}
+		}
+	}
+}
+
 // extractNoExposeAnnotations marks exported functions with @noexpose as hidden
 // from HTTP endpoints. Functions with @route are never hidden (route overrides noexpose).
 func extractNoExposeAnnotations(modInfo *ModuleInfo, file *ast.File) {

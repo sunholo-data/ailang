@@ -20,7 +20,7 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	if !p.curTokenIs(lexer.IDENT) {
 		p.report("PAR_INVALID_ATTRIBUTE",
 			fmt.Sprintf("expected annotation name after '@', got '%s'", p.curToken.Literal),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, @nowrap, or @noexpose")
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, or @noexpose")
 		return nil
 	}
 
@@ -31,6 +31,8 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return p.parseVerifyAnnotation(pos)
 	case "route":
 		return p.parseRouteAnnotation(pos)
+	case "mcp_name":
+		return p.parseMCPNameAnnotation(pos)
 	case "raw":
 		// @raw is a parameterless annotation — no arguments to parse
 		return &ast.Annotation{Name: "raw", Pos: pos}
@@ -42,8 +44,8 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 		return &ast.Annotation{Name: "noexpose", Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @raw, @nowrap, @noexpose", name),
-			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @raw, @nowrap, or @noexpose")
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @raw, @nowrap, @noexpose", name),
+			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @raw, @nowrap, or @noexpose")
 		return nil
 	}
 }
@@ -167,6 +169,37 @@ func (p *Parser) parseRouteAnnotation(pos ast.Pos) *ast.Annotation {
 		Args: []ast.Expr{
 			&ast.Literal{Kind: ast.StringLit, Value: method, Pos: pos},
 			&ast.Literal{Kind: ast.StringLit, Value: path, Pos: pos},
+		},
+		Pos: pos,
+	}
+}
+
+// parseMCPNameAnnotation parses @mcp_name("toolName") into an Annotation.
+// Expects the parser to be AT the 'mcp_name' identifier.
+func (p *Parser) parseMCPNameAnnotation(pos ast.Pos) *ast.Annotation {
+	// Consume 'mcp_name', expect '('
+	if !p.expectPeek(lexer.LPAREN) {
+		return nil
+	}
+
+	// Expect string literal for tool name
+	if !p.expectPeek(lexer.STRING) {
+		p.report("PAR_MCP_NAME_ARG",
+			"@mcp_name expects a string literal",
+			"Use @mcp_name(\"toolName\")")
+		return nil
+	}
+	toolName := p.curToken.Literal
+
+	// Expect ')'
+	if !p.expectPeek(lexer.RPAREN) {
+		return nil
+	}
+
+	return &ast.Annotation{
+		Name: "mcp_name",
+		Args: []ast.Expr{
+			&ast.Literal{Kind: ast.StringLit, Value: toolName, Pos: pos},
 		},
 		Pos: pos,
 	}

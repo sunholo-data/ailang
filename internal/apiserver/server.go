@@ -86,6 +86,7 @@ type ExportInfo struct {
 	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
 	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
 	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
+	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
 	DocComment  string   `json:"doc_comment,omitempty"`  // doc comment (-- lines) preceding the function
 }
 
@@ -338,6 +339,7 @@ func (s *Server) loadFile(path string) error {
 			extractParamInfo(depInfo, loaded.File)
 			extractRouteAnnotations(depInfo, loaded.File)
 			extractNoExposeAnnotations(depInfo, loaded.File)
+			extractMCPNameAnnotations(depInfo, loaded.File)
 
 			// Only register if the module has routed exports.
 			hasRoutes := false
@@ -372,6 +374,7 @@ func (s *Server) loadFile(path string) error {
 		extractParamInfo(modInfo, result.Artifacts.AST)
 		extractRouteAnnotations(modInfo, result.Artifacts.AST)
 		extractNoExposeAnnotations(modInfo, result.Artifacts.AST)
+		extractMCPNameAnnotations(modInfo, result.Artifacts.AST)
 		extractDocComments(modInfo, result.Artifacts.AST, absPath)
 	}
 

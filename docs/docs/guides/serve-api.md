@@ -373,7 +373,7 @@ Each exported AILANG function becomes an MCP tool. Module metadata is available 
 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
 - **Doc comment descriptions** — `--` comment lines immediately above a function are used as the MCP tool description. Functions without doc comments fall back to the type signature.
-- **Portable tool names** — Package-loaded modules get portable names like `docparse.services.parseCsv` (machine-specific absolute paths are stripped).
+- **MCP-compliant tool names** — All names match the strict regex `^[a-zA-Z0-9_-]{1,64}$` required by Claude Desktop and most current MCP clients. Resolution order: (1) `@mcp_name("name")` author override, (2) bare function name when globally unique (e.g. `mcpParse`), (3) `<lastModuleSegment>_<funcName>` fallback for collisions (e.g. `services_parseCsv`), (4) deterministic hash suffix when truncated to 64 chars. Use `@mcp_name("parse")` to control the exact tool name surfaced to MCP clients.
 - **Filtering** — `--routes-only` and `@noexpose` are respected in MCP `tools/list`, consistent with HTTP and OpenAPI. With `--routes-only`, undocumented non-route helpers are also auto-excluded from MCP.
 - **Backward compatible** — Tool handlers accept both named parameters (`{"filepath": "doc.pdf"}`) and legacy positional format (`{"args": ["doc.pdf"]}`).
 
@@ -736,6 +736,7 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@raw` | Receive full `HttpRequest` record (headers, body, method, query) instead of parsed args |
 | `@nowrap` | Return raw JSON instead of the `FunctionCallResponse` envelope |
 | `@noexpose` | Hide exported function from HTTP endpoints (still importable by other modules) |
+| `@mcp_name("name")` | Override the auto-generated MCP tool name for this function |
 | `@verify(depth: N)` | Runtime contract validation |
 
 Multiple annotations can be combined:
@@ -912,6 +913,35 @@ export func validateApiKey(key: string) -> bool ! {IO}
 - Are **not** included in the OpenAPI spec or A2A Agent Card
 - Are still importable by other AILANG modules via `import`
 - If a function has both `@route` and `@noexpose`, the `@route` takes precedence (it remains exposed)
+
+---
+
+### `@mcp_name` — Override the MCP Tool Name
+
+Claude Desktop and most MCP clients enforce a strict tool name regex: `^[a-zA-Z0-9_-]{1,64}$` — no dots, no slashes, max 64 characters. AILANG generates compliant names automatically, but you can override the auto-generated name with `@mcp_name("name")`:
+
+```ailang
+module docparse/services/mcp_tools
+
+-- Parse a document and return structured content.
+@mcp_name("parse")
+@route("POST", "/api/v1/mcp/parse")
+export func mcpParse(content: string) -> string ! {IO}
+  parseDocument(content)
+```
+
+Without `@mcp_name`, AILANG uses the following resolution order:
+
+1. **Bare function name** if globally unique among all exposed exports — e.g. `mcpParse`.
+2. **`<lastModuleSegment>_<funcName>`** when the bare name collides — e.g. `services_parseCsv`.
+3. **64-char truncation with deterministic hash** for very long names.
+
+Use `@mcp_name` when:
+- You want a short, branded name regardless of module structure (e.g. `parse` instead of `mcp_tools_mcpParse`).
+- Two different modules export functions with the same name and you want an unambiguous label.
+- You're integrating with an MCP client that expects a specific tool name.
+
+The name you provide must already match `^[a-zA-Z0-9_-]{1,64}$`. Invalid `@mcp_name` values are logged at startup and the affected tool is skipped.
 
 ---
 

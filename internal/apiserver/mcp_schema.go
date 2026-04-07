@@ -1,63 +1,108 @@
 package apiserver
 
-import "strings"
+import (
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
+	"regexp"
+	"strings"
+)
 
-// portableToolName creates a machine-portable MCP tool name from a module path
-// and function name. Strips machine-specific prefixes (absolute paths, pkg/ dirs)
-// to produce names like "docparse.services.parseCsv" instead of
-// "Users.mark.dev.sunholo.ailang-parse.docparse.services.parseCsv".
-func portableToolName(modPath, funcName string) string {
-	// Clean the path and convert separators to dots.
-	name := strings.ReplaceAll(modPath, "/", ".")
+// mcpToolNameRegex is the strict regex enforced by Claude Desktop and most
+// current MCP clients: alphanumeric, underscore, hyphen, 1-64 chars.
+// SEP-986 would relax this to allow dots/slashes, but it isn't ratified yet.
+var mcpToolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
 
-	// Strip leading dots (from leading slashes).
-	name = strings.TrimLeft(name, ".")
-
-	// If this looks like an absolute path (contains machine-specific segments),
-	// find the package root. Heuristic: look for common package markers.
-	// Packages loaded from pkg/ directories have paths like:
-	//   pkg/sunholo/ailang-parse/docparse/services/samples
-	// We want: docparse.services.samples
-	if idx := strings.Index(name, "pkg."); idx >= 0 {
-		// Skip "pkg.<org>.<repo>." prefix (3 segments after pkg.)
-		after := name[idx+len("pkg."):]
-		parts := strings.SplitN(after, ".", 3)
-		if len(parts) >= 3 {
-			// parts[0] = org, parts[1] = repo, parts[2] = rest
-			name = parts[2]
-		} else if len(parts) == 2 {
-			name = parts[1]
-		}
-	} else if looksLikeAbsolutePath(name) {
-		// Absolute path converted to dots, e.g.:
-		//   "Users.mark.dev.sunholo.ailang-parse.docparse.services"
-		// Heuristic: find the first segment containing a hyphen (likely a repo/project
-		// name like "ailang-parse") and keep from there. If no hyphen segment, keep
-		// the last 3 segments as a reasonable default.
-		parts := strings.Split(name, ".")
-		for i, p := range parts {
-			if strings.Contains(p, "-") {
-				name = strings.Join(parts[i:], ".")
-				break
-			}
-		}
+// mcpToolName generates an MCP-compliant tool name for an exported function.
+//
+// Resolution order:
+//  1. Author override via @mcp_name("name") — must already be valid; caller
+//     should validate via validateMCPName before reaching this point.
+//  2. Bare function name — when preferBare is true (funcName is globally
+//     unique among exposed exports).
+//  3. Sanitized fallback — last meaningful module segment + "_" + funcName,
+//     with dots/slashes/illegal chars replaced by underscores.
+//
+// All non-override outputs are guaranteed to match mcpToolNameRegex by
+// construction (sanitize + truncateWithHash).
+func mcpToolName(modPath, funcName, override string, preferBare bool) string {
+	if override != "" {
+		return override
 	}
-
-	if name == "" {
-		name = modPath
+	if preferBare {
+		bare := sanitizeMCPName(funcName)
+		return truncateWithHash(bare, modPath, funcName)
 	}
-
-	return name + "." + funcName
+	prefix := lastMeaningfulSegment(modPath)
+	combined := funcName
+	if prefix != "" {
+		combined = prefix + "_" + funcName
+	}
+	return truncateWithHash(sanitizeMCPName(combined), modPath, funcName)
 }
 
-// looksLikeAbsolutePath returns true if the dot-separated name appears to
-// originate from an absolute filesystem path (starts with Users, home, etc.).
-func looksLikeAbsolutePath(name string) bool {
-	first := name
-	if idx := strings.Index(name, "."); idx > 0 {
-		first = name[:idx]
+// sanitizeMCPName replaces any character not in [a-zA-Z0-9_-] with '_'.
+// Empty input becomes "_" so the result always satisfies the min-length rule.
+func sanitizeMCPName(s string) string {
+	if s == "" {
+		return "_"
 	}
-	lower := strings.ToLower(first)
-	return lower == "users" || lower == "home" || lower == "tmp" ||
-		lower == "var" || lower == "opt"
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '_', r == '-':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	out := b.String()
+	if out == "" {
+		return "_"
+	}
+	return out
+}
+
+// truncateWithHash enforces the 64-character limit. If name fits, it's returned
+// unchanged. Otherwise, name is truncated to 56 chars and a 7-char deterministic
+// hash of (modPath + "." + funcName) is appended after a single underscore,
+// preserving uniqueness across modules with shared prefixes.
+func truncateWithHash(name, modPath, funcName string) string {
+	if len(name) <= 64 {
+		return name
+	}
+	sum := sha1.Sum([]byte(modPath + "." + funcName))
+	hash := hex.EncodeToString(sum[:])[:7]
+	return name[:56] + "_" + hash
+}
+
+// lastMeaningfulSegment returns the last path segment of modPath, ignoring
+// empty segments and treating both '/' and '.' as separators. Used as a
+// disambiguation prefix when bare function names collide.
+func lastMeaningfulSegment(modPath string) string {
+	cleaned := strings.ReplaceAll(modPath, "/", ".")
+	cleaned = strings.Trim(cleaned, ".")
+	if cleaned == "" {
+		return ""
+	}
+	parts := strings.Split(cleaned, ".")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] != "" {
+			return parts[i]
+		}
+	}
+	return ""
+}
+
+// validateMCPName returns an error if name does not match the MCP tool name
+// regex. Used to vet author-supplied @mcp_name values at registration time.
+func validateMCPName(name string) error {
+	if !mcpToolNameRegex.MatchString(name) {
+		return fmt.Errorf("MCP tool name %q is invalid: must match %s", name, mcpToolNameRegex.String())
+	}
+	return nil
 }

@@ -40,17 +40,21 @@ func NewMCPServer(srv *Server) *MCPServer {
 // registerTools registers each exported function as an MCP tool.
 // Respects isExposed() filtering (--routes-only, @noexpose) consistent with
 // HTTP handler, OpenAPI spec, and A2A agent card.
+//
+// Tool name generation is layered:
+//  1. @mcp_name("name") author override (validated; invalid names are a hard error).
+//  2. Bare function name when globally unique among exposed exports.
+//  3. Sanitized "<lastSegment>_<funcName>" fallback for collisions.
+//  4. Truncated to 64 chars with deterministic hash suffix if needed.
+//
+// All names are validated against the strict MCP regex
+// `^[a-zA-Z0-9_-]{1,64}$` (Claude Desktop compatible).
 func (ms *MCPServer) registerTools() {
 	modules := ms.server.GetModules()
-	// Two-pass dedup: collect candidates first, then register.
-	// When a module is loaded both directly and as a package dependency,
-	// the same function appears under two module paths. We dedup by
-	// name+type and deterministically prefer the entry with a doc comment
-	// (or shorter tool name as tiebreaker).
+	// Phase 1: dedup by name+type across modules (handles package-loaded duplicates).
 	type toolCandidate struct {
-		modPath  string
-		export   ExportInfo
-		toolName string
+		modPath string
+		export  ExportInfo
 	}
 	best := make(map[string]toolCandidate) // dedupKey -> best candidate
 
@@ -64,17 +68,23 @@ func (ms *MCPServer) registerTools() {
 			}
 
 			dedupKey := export.Name + "|" + export.Type
-			toolName := portableToolName(modPath, export.Name)
-			candidate := toolCandidate{modPath, export, toolName}
+			candidate := toolCandidate{modPath, export}
 
 			if existing, ok := best[dedupKey]; ok {
-				// Prefer: (1) has doc comment, (2) shorter tool name.
-				existHasDoc := existing.export.DocComment != ""
-				newHasDoc := export.DocComment != ""
-				if newHasDoc && !existHasDoc {
+				// Prefer: (1) has @mcp_name override, (2) has doc comment,
+				// (3) shorter module path (more likely to be the local file).
+				existHasOverride := existing.export.MCPName != ""
+				newHasOverride := export.MCPName != ""
+				if newHasOverride && !existHasOverride {
 					best[dedupKey] = candidate
-				} else if newHasDoc == existHasDoc && len(toolName) < len(existing.toolName) {
-					best[dedupKey] = candidate
+				} else if newHasOverride == existHasOverride {
+					existHasDoc := existing.export.DocComment != ""
+					newHasDoc := export.DocComment != ""
+					if newHasDoc && !existHasDoc {
+						best[dedupKey] = candidate
+					} else if newHasDoc == existHasDoc && len(modPath) < len(existing.modPath) {
+						best[dedupKey] = candidate
+					}
 				}
 			} else {
 				best[dedupKey] = candidate
@@ -82,9 +92,49 @@ func (ms *MCPServer) registerTools() {
 		}
 	}
 
+	// Phase 2: count function-name occurrences across the dedup'd candidate set
+	// to decide which functions can use the bare name.
+	funcNameCount := make(map[string]int, len(best))
+	for _, c := range best {
+		funcNameCount[c.export.Name]++
+	}
+
+	// Phase 3: register tools with MCP-compliant names.
+	usedNames := make(map[string]bool, len(best)) // catch any residual collisions
 	for _, c := range best {
 		export := c.export
-		toolName := c.toolName
+
+		// Resolve the tool name.
+		var toolName string
+		if export.MCPName != "" {
+			if err := validateMCPName(export.MCPName); err != nil {
+				// Hard failure: author-supplied names that violate the regex
+				// are a configuration bug — surface immediately.
+				log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
+				continue
+			}
+			toolName = export.MCPName
+		} else {
+			preferBare := funcNameCount[export.Name] == 1
+			toolName = mcpToolName(c.modPath, export.Name, "", preferBare)
+		}
+
+		// Defensive check: regex compliance for everything we emit.
+		if err := validateMCPName(toolName); err != nil {
+			log.Printf("  ERROR: generated MCP tool name failed validation for %s/%s: %v", c.modPath, export.Name, err)
+			continue
+		}
+
+		// Residual collision: two different (modPath, funcName) pairs produced
+		// the same final name. Append a deterministic hash suffix to disambiguate.
+		if usedNames[toolName] {
+			toolName = truncateWithHash(toolName+"_x", c.modPath, export.Name)
+			// Loop until unique (extremely unlikely to iterate more than once).
+			for usedNames[toolName] {
+				toolName = truncateWithHash(toolName+"_x", c.modPath+"x", export.Name)
+			}
+		}
+		usedNames[toolName] = true
 
 		desc := export.DocComment
 		if desc == "" {
