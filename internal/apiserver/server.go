@@ -306,19 +306,40 @@ func (s *Server) loadFile(path string) error {
 		// HTTP endpoints and MCP tools. This prevents imported packages
 		// from polluting the route list when the importing project has its
 		// own @route functions for the same functionality.
+		//
+		// The reliable signal is the FILE's absolute path: if the file lives
+		// under s.basePath on disk, it's the user's source; otherwise it
+		// came from a package cache (~/.ailang/pkg/...) or stdlib. Module
+		// paths alone are NOT reliable because `module_prefix` aliasing lets
+		// a package declare the same namespace as the local project
+		// (e.g. both `docparse/services/mcp_tools`). String-prefix and
+		// os.Stat checks can be fooled by these collisions.
+		absBase, absBaseErr := filepath.Abs(s.basePath)
+		if absBaseErr != nil {
+			absBase = s.basePath
+		}
+		absBase = filepath.Clean(absBase) + string(filepath.Separator)
+
 		for modPath, loaded := range result.Modules {
 			if loaded.Iface == nil || loaded.File == nil {
 				continue
 			}
-			// Skip stdlib and external packages — only local deps get routes.
-			// External packages may appear under pkg/ paths OR under aliased
-			// paths (via module_prefix). Check if the .ail file exists locally.
-			if strings.HasPrefix(modPath, "std/") || strings.HasPrefix(modPath, "pkg/") {
+			// Authoritative check: is this file actually under basePath on disk?
+			filePath := loaded.File.Path
+			if filePath == "" {
+				continue // no source path → cannot be a local file
+			}
+			absFile, err := filepath.Abs(filePath)
+			if err != nil {
 				continue
 			}
-			localFile := filepath.Join(s.basePath, filepath.FromSlash(modPath)+".ail")
-			if _, err := os.Stat(localFile); err != nil {
-				continue // not a local file — must be from a package
+			absFile = filepath.Clean(absFile)
+			if !strings.HasPrefix(absFile+string(filepath.Separator), absBase) &&
+				absFile != strings.TrimSuffix(absBase, string(filepath.Separator)) {
+				if os.Getenv("DEBUG_APISERVER_ROUTES") == "1" {
+					log.Printf("  [route-filter] skipping %s: %s not under %s", modPath, absFile, absBase)
+				}
+				continue
 			}
 			// Normalize canonical filesystem paths to relative module paths.
 			normalizedPath := modPath
