@@ -1,22 +1,22 @@
 {
   "current": {
-    "version": "v0.10.6",
-    "timestamp": "2026-04-06T18:25:01Z",
+    "version": "v0.10.7",
+    "timestamp": "2026-04-07T10:26:52Z",
     "lines": {
-      "go_production": 232771,
-      "go_test": 144381,
-      "go_total": 377152,
+      "go_production": 232925,
+      "go_test": 144486,
+      "go_total": 377411,
       "ailang_examples": 20250,
       "ailang_stdlib": 3644,
       "typescript": 24938,
       "shell": 17916,
-      "documentation": 508401,
+      "documentation": 508468,
       "design_docs": 298578,
-      "website_docs": 32203,
-      "prompts": 62867,
-      "changelogs": 11986,
-      "claude_skills": 43362,
-      "implementation_total": 440256
+      "website_docs": 32233,
+      "prompts": 62869,
+      "changelogs": 12008,
+      "claude_skills": 43373,
+      "implementation_total": 440515
     },
     "files": {
       "go": 1252,
@@ -29,11 +29,11 @@
       "documentation": 1209
     },
     "tokens": {
-      "total_characters": 29822927,
-      "estimated_tokens": 7455731
+      "total_characters": 29835551,
+      "estimated_tokens": 7458887
     },
     "git": {
-      "commits": 2397,
+      "commits": 2399,
       "contributors": 7
     }
   },
@@ -745,7 +745,45 @@
         "commits": 2397,
         "contributors": 7
       }
+    },
+    {
+      "version": "v0.10.7",
+      "timestamp": "2026-04-07T10:26:52Z",
+      "lines": {
+        "go_production": 232925,
+        "go_test": 144486,
+        "go_total": 377411,
+        "ailang_examples": 20250,
+        "ailang_stdlib": 3644,
+        "typescript": 24938,
+        "shell": 17916,
+        "documentation": 508468,
+        "design_docs": 298578,
+        "website_docs": 32233,
+        "prompts": 62869,
+        "changelogs": 12008,
+        "claude_skills": 43373,
+        "implementation_total": 440515
+      },
+      "files": {
+        "go": 1252,
+        "ailang": 411,
+        "stdlib": 31,
+        "typescript": 96,
+        "shell": 140,
+        "design_docs": 854,
+        "claude_skills": 206,
+        "documentation": 1209
+      },
+      "tokens": {
+        "total_characters": 29835551,
+        "estimated_tokens": 7458887
+      },
+      "git": {
+        "commits": 2399,
+        "contributors": 7
+      }
     }
   ],
-  "lastUpdated": "2026-04-06T18:25:01Z"
+  "lastUpdated": "2026-04-07T10:26:52Z"
 }
