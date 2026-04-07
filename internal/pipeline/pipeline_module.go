@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -106,6 +107,26 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	loadSpan.SetAttributes(attribute.Int("modules.count", len(modules)))
 	loadSpan.End()
 	result.PhaseTimings["load"] = time.Since(start).Milliseconds()
+
+	// MOD011: Detect module path collisions.
+	//
+	// Two different source files must not declare the same `module X` header.
+	// If they do, runtime dispatch (`callFunction("X", "f", ...)`) is ambiguous
+	// — whichever one wins the loader cache silently shadows the other.
+	//
+	// This happens in practice with `module_prefix`-enabled packages: a local
+	// file at `docparse/services/mcp_tools.ail` and a package file at
+	// `sunholo/ailang_parse/services/mcp_tools.ail` (which uses
+	// `module_prefix = "docparse"`) can both declare
+	// `module docparse/services/mcp_tools`. v0.10.8 fixed route *registration*
+	// in this case, but function *dispatch* still went to whichever module
+	// was preloaded last — a silent footgun.
+	//
+	// Fail loudly per the "no silent fallbacks" principle.
+	if err := detectModulePathCollisions(modules); err != nil {
+		pipelineSpan.RecordError(err)
+		return result, err
+	}
 
 	// Phase 2: Topological sort
 	start = time.Now()
@@ -379,6 +400,58 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	result.DictReg = cfg.DictReg
 
 	return result, nil
+}
+
+// detectModulePathCollisions returns an error (MOD011) if two different source
+// files declare the same `module X` header.
+//
+// Runtime dispatch in serve-api and elsewhere looks up functions by the
+// declared module path. If two files claim the same path, whichever one wins
+// the loader cache silently shadows the other. This is a hard error.
+//
+// Modules without a `module` header, or those loaded from the same file,
+// are not collisions.
+func detectModulePathCollisions(modules map[string]*loader.LoadedModule) error {
+	type entry struct {
+		canonicalID string
+		filePath    string
+	}
+	declaredBy := make(map[string]entry) // declared module path -> first claimant
+
+	// Iterate in a deterministic order so the error message is stable across runs.
+	canonicalIDs := make([]string, 0, len(modules))
+	for id := range modules {
+		canonicalIDs = append(canonicalIDs, id)
+	}
+	sort.Strings(canonicalIDs)
+
+	for _, canonicalID := range canonicalIDs {
+		mod := modules[canonicalID]
+		if mod == nil || mod.File == nil || mod.File.Module == nil {
+			continue
+		}
+		declared := mod.File.Module.Path
+		if declared == "" {
+			continue
+		}
+		filePath := mod.File.Path
+		if existing, seen := declaredBy[declared]; seen {
+			// Same source file loaded twice is not a collision.
+			if existing.filePath == filePath && filePath != "" {
+				continue
+			}
+			return fmt.Errorf(
+				"Error MOD011: module %q is declared in two different files:\n"+
+					"  1. %s (canonical: %s)\n"+
+					"  2. %s (canonical: %s)\n"+
+					"  Fix: rename one of the module declarations so each module path is unique.\n"+
+					"  Note: this commonly happens when a local file and a `module_prefix`-aliased\n"+
+					"  package file claim the same namespace — runtime dispatch would be ambiguous.",
+				declared, existing.filePath, existing.canonicalID, filePath, canonicalID)
+		}
+		declaredBy[declared] = entry{canonicalID: canonicalID, filePath: filePath}
+	}
+	return nil
 }
 
 // validateModulePath validates that the module declaration matches the canonical path (MOD010).
