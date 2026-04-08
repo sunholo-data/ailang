@@ -11,19 +11,28 @@ import (
 // recursion limit so divergence behavior is consistent (§3.6).
 const DefaultMaxStack = 1000
 
-// VMError is a runtime error from the VM. It carries the source line of the
-// faulting instruction (when available) and the instruction itself for debug.
+// VMError is a runtime error from the VM. It carries the source location of
+// the faulting instruction (when available) and the instruction itself for
+// debug.
 type VMError struct {
 	Msg      string
 	Func     string
+	File     string
 	Line     int
 	IP       int
 	OpString string
 }
 
 func (e *VMError) Error() string {
-	if e.Line > 0 {
-		return fmt.Sprintf("vm: %s (in %s at line %d, ip %d, op %s)", e.Msg, e.Func, e.Line, e.IP, e.OpString)
+	loc := ""
+	switch {
+	case e.File != "" && e.Line > 0:
+		loc = fmt.Sprintf("%s:%d", e.File, e.Line)
+	case e.Line > 0:
+		loc = fmt.Sprintf("line %d", e.Line)
+	}
+	if loc != "" {
+		return fmt.Sprintf("vm: %s (in %s at %s, ip %d, op %s)", e.Msg, e.Func, loc, e.IP, e.OpString)
 	}
 	return fmt.Sprintf("vm: %s (in %s at ip %d, op %s)", e.Msg, e.Func, e.IP, e.OpString)
 }
@@ -444,6 +453,7 @@ func (vm *VM) errAt(frame *Frame, msg string, inst bytecode.Instruction) *VMErro
 	return &VMError{
 		Msg:      msg,
 		Func:     frame.Proto.Name,
+		File:     frame.Proto.File,
 		Line:     line,
 		IP:       frame.IP,
 		OpString: inst.Op().String(),

@@ -104,6 +104,10 @@ func runCommand() {
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 
+	// M-BYTECODE-VM Phase 2D: bytecode VM execution path
+	bytecodeFlag := fs.Bool("bytecode", false, "Run via the bytecode VM instead of the evaluator (Phase 2D)")
+	strictBytecodeFlag := fs.Bool("strict-bytecode", false, "With --bytecode: fail instead of falling back to the evaluator")
+
 	// Parse from os.Args[2:] (everything after "run")
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -133,6 +137,22 @@ func runCommand() {
 	}
 
 	filename := fs.Arg(0)
+
+	// M-BYTECODE-VM Phase 2D: bytecode VM execution path
+	if *bytecodeFlag {
+		ok, fbErr := tryRunBytecode(filename, *entryFlag, *relaxModulesFlag, *quietFlag)
+		if ok {
+			return
+		}
+		if *strictBytecodeFlag {
+			fmt.Fprintf(os.Stderr, "%s: bytecode execution failed: %v\n", red("Error"), fbErr)
+			os.Exit(1)
+		}
+		if !*quietFlag {
+			fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), fbErr)
+		}
+		// Fall through to the evaluator path below.
+	}
 
 	// Extract program arguments (everything after the filename)
 	// e.g., "ailang run program.ail arg1 arg2" -> programArgs = ["arg1", "arg2"]

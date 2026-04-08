@@ -127,6 +127,12 @@ type funcCompiler struct {
 	locals      *scopeStack // named local → register
 	recordTypes map[string]recordTypeInfo
 	adtTypes    map[string]adtTypeInfo
+
+	// currentLine is the source line of the statement currently being
+	// compiled. emit() snapshots this into proto.LineInfo for every
+	// instruction it appends, so VM runtime errors can report a source
+	// location. Zero means "no line info available".
+	currentLine int
 }
 
 func newFuncCompiler(img *bytecode.BytecodeImage, proto *bytecode.FuncPrototype, funcIdx map[string]int) *funcCompiler {
@@ -141,6 +147,12 @@ func newFuncCompiler(img *bytecode.BytecodeImage, proto *bytecode.FuncPrototype,
 
 // compile lowers a single FuncDecl into the funcCompiler's prototype.
 func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
+	// Seed source-location info from the FuncDecl. Statements override the
+	// line on entry; if a statement has no line of its own, the function's
+	// declaration line is the best fallback.
+	fc.proto.File = fd.File
+	fc.currentLine = fd.Line
+
 	// Parameters occupy r0..r(N-1). They are pinned for the function's lifetime.
 	for _, p := range fd.Params {
 		r, err := fc.regs.allocPinned()
@@ -178,9 +190,12 @@ func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
 	return nil
 }
 
-// emit appends an instruction to the current prototype.
+// emit appends an instruction to the current prototype. It also pushes the
+// current source line into proto.LineInfo so the slot stays in lockstep with
+// Instructions (Image.Validate enforces equal lengths).
 func (fc *funcCompiler) emit(inst bytecode.Instruction) {
 	fc.proto.Instructions = append(fc.proto.Instructions, inst)
+	fc.proto.LineInfo = append(fc.proto.LineInfo, fc.currentLine)
 }
 
 // addLocalConst registers a Value in the image constant pool and returns the

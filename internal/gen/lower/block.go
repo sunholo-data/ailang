@@ -41,23 +41,31 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 			stmts = append(stmts, innerStmts...)
 
 			varType := resolveVarType(c, cti)
+			_, line := spanOf(c)
 			stmts = append(stmts, stmt.VarDecl{
 				Name:  c.Name,
 				Type:  varType,
 				Value: innerExpr,
+				Line:  line,
 			})
 			cur = c.Body
 			continue
 
 		case *core.LetRec:
 			// Flatten recursive bindings.
+			_, line := spanOf(c)
 			for _, b := range c.Bindings {
 				varType := resolveBindingType(b, cti)
 				value := lowerExpr(b.Value, cti)
+				bLine := line
+				if _, l := spanOf(b.Value); l > 0 {
+					bLine = l
+				}
 				stmts = append(stmts, stmt.VarDecl{
 					Name:  b.Name,
 					Type:  varType,
 					Value: value,
+					Line:  bLine,
 				})
 			}
 			cur = c.Body
@@ -79,18 +87,20 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 			thenStmts, thenRet := FlattenBlock(c.Then, cti)
 			elseStmts, elseRet := FlattenBlock(c.Else, cti)
 
+			_, line := spanOf(c)
 			// Append return statements to each branch.
 			if thenRet != nil {
-				thenStmts = append(thenStmts, stmt.ReturnStmt{Value: thenRet})
+				thenStmts = append(thenStmts, stmt.ReturnStmt{Value: thenRet, Line: line})
 			}
 			if elseRet != nil {
-				elseStmts = append(elseStmts, stmt.ReturnStmt{Value: elseRet})
+				elseStmts = append(elseStmts, stmt.ReturnStmt{Value: elseRet, Line: line})
 			}
 
 			stmts = append(stmts, stmt.IfStmt{
 				Cond: lowerExpr(c.Cond, cti),
 				Then: thenStmts,
 				Else: elseStmts,
+				Line: line,
 			})
 			// After an if-with-returns, the return expression is nil
 			// (both branches return).

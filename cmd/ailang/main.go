@@ -270,6 +270,9 @@ func main() {
 	case "compile":
 		compileCommand()
 
+	case "disasm":
+		disasmCommand()
+
 	case "editor":
 		editorCommand()
 

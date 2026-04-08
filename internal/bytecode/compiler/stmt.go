@@ -14,6 +14,16 @@ import (
 // terminating OpReturn. Control-flow statements (IfStmt, SwitchStmt) arrive in
 // later milestones.
 func (fc *funcCompiler) compileStmt(s stmt.Stmt) error {
+	// Snapshot the statement's source line so emit() can stamp it onto every
+	// instruction this statement produces. We restore the previous line on
+	// exit so nested constructs (e.g. an IfStmt body) inherit the enclosing
+	// line if their own statements happen to have no Line set.
+	prevLine := fc.currentLine
+	if l := stmtLine(s); l > 0 {
+		fc.currentLine = l
+	}
+	defer func() { fc.currentLine = prevLine }()
+
 	switch s := s.(type) {
 	case stmt.VarDecl:
 		return fc.compileVarDecl(s)
@@ -29,6 +39,25 @@ func (fc *funcCompiler) compileStmt(s stmt.Stmt) error {
 		return fc.compileSwitch(s)
 	}
 	return fmt.Errorf("compiler: unsupported statement %T", s)
+}
+
+// stmtLine returns the source line attached to a statement, or 0 if none.
+func stmtLine(s stmt.Stmt) int {
+	switch s := s.(type) {
+	case stmt.VarDecl:
+		return s.Line
+	case stmt.AssignStmt:
+		return s.Line
+	case stmt.ReturnStmt:
+		return s.Line
+	case stmt.ExprStmt:
+		return s.Line
+	case stmt.IfStmt:
+		return s.Line
+	case stmt.SwitchStmt:
+		return s.Line
+	}
+	return 0
 }
 
 func (fc *funcCompiler) compileVarDecl(s stmt.VarDecl) error {

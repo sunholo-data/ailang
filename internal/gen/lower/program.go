@@ -193,18 +193,22 @@ func bindingToFuncDecl(
 		// Top-level value binding (not a function). Lower as a 0-arg function.
 		retType := resolveExprType(value, cti)
 		body, retExpr := FlattenBlock(value, cti)
+		file, line := spanOf(value)
 		return &stmt.FuncDecl{
 			Name:       name,
 			ReturnType: retType,
 			Body:       body,
 			Return:     retExpr,
 			Exported:   exported,
+			File:       file,
+			Line:       line,
 		}
 	}
 
 	params := lowerParams(lam, cti)
 	retType := resolveReturnType(lam, cti)
 	body, retExpr := FlattenBlock(lam.Body, cti)
+	file, line := spanOf(lam)
 
 	return &stmt.FuncDecl{
 		Name:       name,
@@ -213,7 +217,25 @@ func bindingToFuncDecl(
 		Body:       body,
 		Return:     retExpr,
 		Exported:   exported,
+		File:       file,
+		Line:       line,
 	}
+}
+
+// spanOf returns the source file and line of a Core expression. Prefers the
+// original surface span (what users see) over the desugared Core span. Returns
+// ("", 0) when no position info is available.
+func spanOf(e core.CoreExpr) (string, int) {
+	if e == nil {
+		return "", 0
+	}
+	if p := e.OriginalSpan(); p.Line > 0 {
+		return p.File, p.Line
+	}
+	if p := e.Span(); p.Line > 0 {
+		return p.File, p.Line
+	}
+	return "", 0
 }
 
 // lowerParams extracts parameter types from a Lambda's type info.

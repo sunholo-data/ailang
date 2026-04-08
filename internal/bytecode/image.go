@@ -53,6 +53,11 @@ type FuncPrototype struct {
 	// source locations to runtime errors. Length should equal len(Instructions);
 	// a zero entry means "no source line available".
 	LineInfo []int
+
+	// File is the source file the function was compiled from. Used together
+	// with LineInfo to format runtime errors as `<file>:<line>`. Empty when
+	// the file is unknown (e.g. hand-built test prototypes).
+	File string
 }
 
 // ProtoName implements FuncPrototypeRef.

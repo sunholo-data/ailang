@@ -72,6 +72,8 @@ type FuncDecl struct {
 	Return     Expr         // Final return expression
 	Exported   bool         // Whether this function is public
 	Module     string       // Source module name
+	File       string       // Source file path (for diagnostics; optional)
+	Line       int          // Source line of the func declaration (for diagnostics; 0 = unknown)
 }
 
 // Param is a function parameter.
@@ -98,6 +100,7 @@ type VarDecl struct {
 	Name  string
 	Type  ResolvedType // may be nil if type is inferred
 	Value Expr
+	Line  int // source line (0 = unknown)
 }
 
 func (VarDecl) stmt() {}
@@ -107,6 +110,7 @@ type IfStmt struct {
 	Cond Expr
 	Then []Stmt
 	Else []Stmt // may be empty or contain another IfStmt for else-if chains
+	Line int    // source line (0 = unknown)
 }
 
 func (IfStmt) stmt() {}
@@ -117,6 +121,7 @@ type SwitchStmt struct {
 	ADTName   string // The ADT type name (e.g., "Color") — helps emitters generate typed constants
 	Cases     []SwitchCase
 	Default   []Stmt // may be empty; if non-empty, must end in panic or return
+	Line      int    // source line (0 = unknown)
 }
 
 func (SwitchStmt) stmt() {}
@@ -139,6 +144,7 @@ type Binding struct {
 type AssignStmt struct {
 	Name  string
 	Value Expr
+	Line  int // source line (0 = unknown)
 }
 
 func (AssignStmt) stmt() {}
@@ -146,6 +152,7 @@ func (AssignStmt) stmt() {}
 // ReturnStmt returns a value from a function.
 type ReturnStmt struct {
 	Value Expr
+	Line  int // source line (0 = unknown)
 }
 
 func (ReturnStmt) stmt() {}
@@ -153,6 +160,7 @@ func (ReturnStmt) stmt() {}
 // ExprStmt wraps an expression used as a statement (e.g., function call for side effects).
 type ExprStmt struct {
 	Value Expr
+	Line  int // source line (0 = unknown)
 }
 
 func (ExprStmt) stmt() {}
