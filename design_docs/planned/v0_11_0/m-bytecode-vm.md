@@ -1,6 +1,6 @@
 # M-BYTECODE-VM: Bytecode Virtual Machine from Statement IR
 
-**Status**: Planned (Awaiting Phase 2A Benchmarks)
+**Status**: Phase 2A COMPLETE (gate passed). Phase 2B COMPLETE (2026-04-08, fib(25) acceptance gate passed). Phase 2C (compiler) ready to start.
 **Target**: v0.11.0+
 **Priority**: P1 (Strategic — implements the chosen compilation architecture)
 **Created**: 2026-04-03
@@ -18,7 +18,7 @@
 
 **Key difference from M-PERF4**: M-PERF4 proposed compiling Core AST directly to bytecode (bypassing any IR). This design compiles **Statement IR** to bytecode, reusing all lowering passes already built. The Statement IR is the single compilation boundary — bytecode is just another emitter.
 
-**Gate**: Phase 2A benchmarks must complete before implementation begins. If the evaluator already meets target workloads, defer this work.
+**Gate**: ✅ **PASSED** (2026-04-03). Phase 2A benchmarks confirmed the evaluator exceeds the 10x native-Go threshold on all 7 workloads, most by 3-5 orders of magnitude (fib30: ~6,900x, map/filter: ~191,000x, closures: ~441,000x, game step: ~127,000x / 149x over 16ms frame budget). This is a "miss across the board" result — bytecode VM is required with **higher priority**. See [phase2a-results.md](phase2a-results.md).
 
 **Core principle**: The VM is not a new semantic layer; it is an execution projection over Statement IR with evaluator-checked equivalence.
 
@@ -701,22 +701,38 @@ ailang bench game_step.ail --max-latency 16ms  # 60 FPS = 16.67ms per frame
 
 ## 10. Implementation Plan
 
-### Phase 2A: Benchmarks (1 week)
+### Phase 2A: Benchmarks (1 week) — ✅ COMPLETE (2026-04-03)
 
-- [ ] Create benchmark suite for evaluator (fib, list ops, pattern match, real workloads)
-- [ ] Run benchmarks, record baselines
-- [ ] Compare against native Go equivalents
-- [ ] Decision: proceed with bytecode or ship embedded evaluator
+- [x] Create benchmark suite for evaluator (fib, list ops, pattern match, real workloads)
+- [x] Run benchmarks, record baselines
+- [x] Compare against native Go equivalents
+- [x] Decision: proceed with bytecode or ship embedded evaluator → **BUILD BYTECODE VM (high priority)**
 
-### Phase 2B: Bytecode Foundation (2 weeks)
+Results: all 7 workloads failed the 10x threshold. See [phase2a-results.md](phase2a-results.md).
 
-- [ ] `internal/bytecode/opcode.go` — Instruction encoding + opcodes
-- [ ] `internal/bytecode/image.go` — BytecodeImage, FuncPrototype, constant pool
-- [ ] `internal/vm/value.go` — NaN-boxed Value type
-- [ ] `internal/vm/vm.go` — Core dispatch loop (registers, frames, jumps, calls, returns)
-- [ ] `internal/vm/vm_test.go` — Hand-assembled bytecode tests for each opcode
+### Phase 2B: Bytecode Foundation (2 weeks) — ✅ COMPLETE (2026-04-08)
 
-**Acceptance**: Hand-written bytecode for `fib(25)` runs and produces correct result.
+**Sprint plan**: [m-phase2b-bytecode-foundation-sprint-plan.md](m-phase2b-bytecode-foundation-sprint-plan.md)
+
+- [x] `internal/bytecode/opcode.go` — Instruction encoding + 32 opcodes
+- [x] `internal/bytecode/image.go` — BytecodeImage, FuncPrototype, constant pool, Validate()
+- [x] `internal/bytecode/value.go` — Tagged-struct Value type (NaN-boxing deferred to Phase 2D per §3.2)
+- [x] `internal/vm/frame.go` — Call frame + tail-call frame reuse
+- [x] `internal/vm/vm.go` — Core dispatch loop (all 30 non-trap opcodes)
+- [x] `internal/vm/vm_test.go` — Per-opcode-group hand-assembled tests
+- [x] `internal/vm/vm_fib_test.go` — Acceptance gate: hand-written `fib(25) = 75025`
+
+**Acceptance**: ✅ Hand-written bytecode for `fib(25)` returns 75025. Tail-call accumulator form runs 10,000 iterations under MaxStack=5 (TCO verified).
+
+**Total LOC**: 2,988 (1,552 production + 1,436 tests). Within the §12 budget (~2,650-3,500).
+
+**Deviations from §11 layout**:
+- `Value` is in `internal/bytecode/value.go` (not `internal/vm/value.go`). This preserves §11's import direction (`vm → bytecode`, never reverse) while letting bytecode's constant pool hold typed values directly. `internal/runtime/` was rejected as a host because it already imports the evaluator.
+
+**Phase 2B notes**:
+- BUILTIN_CALL, BUILTIN_TRAP, EFFECT_TRAP are wired as opcodes but return clear "not implemented in Phase 2B" errors. They will be implemented in Phase 2C/2E.
+- Closure captures use Lua-style pseudo-MOVE instructions following CLOSURE; the dispatcher reads `NumCaptures` from the inner prototype to know how many to consume.
+- LOAD_CONST's `Bx` indexes a prototype-local constant table (a slice of pool indices), not the image pool directly. Two-level indirection keeps prototypes small and centralizes dedup.
 
 ### Phase 2C: Statement IR Compiler (2 weeks)
 
