@@ -113,6 +113,17 @@ func New(basePath string, cfg Config) *Server {
 	if cfg.Port == "" {
 		cfg.Port = "8080"
 	}
+	// Normalize basePath: absolute + symlink-resolved. The dep-discovery
+	// loop in loadFile compares loader-resolved file paths against this
+	// basePath; without consistent normalization, macOS temp paths
+	// (/var/folders → /private/var/folders) break the prefix check and
+	// either silently drop local files or register them under wrong keys.
+	if abs, err := filepath.Abs(basePath); err == nil {
+		basePath = abs
+	}
+	if resolved, err := filepath.EvalSymlinks(basePath); err == nil {
+		basePath = resolved
+	}
 	eng := embed.New(basePath)
 	// Guard against Go's typed-nil interface gotcha: a *EffContext(nil) stored
 	// in interface{} is != nil but causes a nil pointer dereference.
@@ -264,6 +275,11 @@ func (s *Server) loadFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", path, err)
 	}
+	// Resolve symlinks so the entry-point comparison in the dep-discovery
+	// loop matches the loader's symlink-resolved file paths consistently.
+	if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
+		absPath = resolved
+	}
 
 	// Compile through pipeline to get interface info
 	cfg := pipeline.Config{
@@ -318,6 +334,15 @@ func (s *Server) loadFile(path string) error {
 		if absBaseErr != nil {
 			absBase = s.basePath
 		}
+		// Resolve symlinks in basePath so the under-basePath comparison
+		// below works on systems where TMPDIR or project paths route
+		// through a symlink (e.g. macOS `/var/folders` →
+		// `/private/var/folders`). Without this, the loader's
+		// EvalSymlinks-resolved file paths can fail the prefix check
+		// and dep-discovery silently registers nothing.
+		if resolved, err := filepath.EvalSymlinks(absBase); err == nil {
+			absBase = resolved
+		}
 		absBase = filepath.Clean(absBase) + string(filepath.Separator)
 
 		for modPath, loaded := range result.Modules {
@@ -333,6 +358,15 @@ func (s *Server) loadFile(path string) error {
 			if err != nil {
 				continue
 			}
+			// Resolve symlinks on absFile too so the prefix comparison
+			// against the EvalSymlinks-resolved absBase is consistent.
+			// On macOS, basePath may live under `/var/folders` (a symlink
+			// to `/private/var/folders`) while the loader's stored
+			// `file.Path` is the unresolved form — without resolving both
+			// sides, the prefix check below would falsely reject local files.
+			if resolved, err := filepath.EvalSymlinks(absFile); err == nil {
+				absFile = resolved
+			}
 			absFile = filepath.Clean(absFile)
 			if !strings.HasPrefix(absFile+string(filepath.Separator), absBase) &&
 				absFile != strings.TrimSuffix(absBase, string(filepath.Separator)) {
@@ -341,18 +375,36 @@ func (s *Server) loadFile(path string) error {
 				}
 				continue
 			}
-			// Normalize canonical filesystem paths to relative module paths.
-			normalizedPath := modPath
-			trimmedBase := strings.TrimPrefix(s.basePath, "/")
-			if trimmedBase != "" && strings.HasPrefix(modPath, trimmedBase+"/") {
-				normalizedPath = strings.TrimPrefix(modPath, trimmedBase+"/")
+			// MOD-CASCADE Fix 3: Skip the entry-point file. The main path
+			// below (`loadFile` itself) registers it under the canonical
+			// rel-path key. Re-registering it here under a (possibly
+			// different) canonical-ID-derived key produces a duplicate
+			// entry that doubles eager-load work.
+			if absFile == absPath {
+				continue
 			}
-			// Skip already-registered modules.
+			// MOD-CASCADE Fix 1: Use the SAME key derivation as the main
+			// path at lines 406-414 (`filepath.Rel(s.basePath, absPath)`)
+			// so dep-discovery and `loadFile` produce identical
+			// `s.modules` keys for the same file. Before v0.10.11, this
+			// loop used `strings.TrimPrefix(modPath, trimmedBase+"/")` on
+			// the pipeline canonical ID, which often produced a different
+			// string than the main path's `filepath.Rel` form — leading
+			// to two registrations of the same module under two keys, and
+			// the eager-load step compiling each module twice.
+			normalizedPath := strings.TrimSuffix(filepath.Base(absFile), ".ail")
+			if relPath, relErr := filepath.Rel(s.basePath, absFile); relErr == nil && !strings.HasPrefix(relPath, "..") {
+				normalizedPath = filepath.ToSlash(strings.TrimSuffix(relPath, ".ail"))
+			}
+
+			// MOD-CASCADE Fix 2: Existence check moved BEFORE the
+			// `extract*` calls. Repeat visits across the multi-file
+			// `LoadModules` pass are now O(map lookup) instead of
+			// O(parse + 4 AST traversals + log line).
 			s.mu.RLock()
-			_, existsByKey := s.modules[modPath]
-			_, existsByNorm := s.modules[normalizedPath]
+			_, exists := s.modules[normalizedPath]
 			s.mu.RUnlock()
-			if existsByKey || existsByNorm {
+			if exists {
 				continue
 			}
 
@@ -374,12 +426,11 @@ func (s *Server) loadFile(path string) error {
 				continue
 			}
 
-			regPath := normalizedPath
-			depInfo.Path = regPath
+			depInfo.Path = normalizedPath
 			s.mu.Lock()
-			s.modules[regPath] = depInfo
+			s.modules[normalizedPath] = depInfo
 			s.mu.Unlock()
-			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", regPath, len(depInfo.Exports))
+			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", normalizedPath, len(depInfo.Exports))
 		}
 	}
 
