@@ -99,16 +99,12 @@ func (fc *funcCompiler) compileBuiltinCall(e stmt.BuiltinCall) (uint8, error) {
 	}
 	if isPure {
 		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCall, dst, idx, uint8(n)))
-	} else {
-		// Effectful / not-yet-wired: emit a trap. The image needs an entry
-		// in the trap name table — for Phase 2C we just stash the name as a
-		// local constant and reference its index in Bx, with C=argc.
-		// Leaves a clear runtime error for users that hit it.
-		nameIdx, err := fc.addLocalConst(bytecode.NewString(e.Name))
-		if err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABx(bytecode.OpBuiltinTrap, dst, nameIdx))
+		return dst, nil
 	}
-	return dst, nil
+	// Effectful / not-yet-wired builtins cannot be executed by the VM. Returning
+	// a compile error here causes the enclosing proto to be tagged EvalOnly by
+	// compiler.go Phase 2, which in turn causes the bridge to dispatch the whole
+	// function through the evaluator at call time. That is the correct behavior
+	// until M-BYTECODE-2E wires effectful builtins natively into the VM.
+	return 0, fmt.Errorf("compiler: effectful builtin %q not yet wired (Phase 2E)", e.Name)
 }

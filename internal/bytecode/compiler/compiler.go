@@ -70,15 +70,24 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	}
 
 	// Phase 1: register every function so calls (M3) can resolve forward refs.
+	//
+	// funcIdx is keyed by the function's *canonical* name:
+	//   - bare `Name` for single-module programs (fd.Module == "")
+	//   - `Module + "." + Name` for multi-module programs
+	//
+	// This keying is what allows M-BYTECODE-MULTIMODULE to lower every
+	// reachable module's functions into a single bytecode image without
+	// bare-name collisions (e.g. two modules that both define `helper`).
 	funcIdx := make(map[string]int, len(prog.FuncDecls))
 	for i := range prog.FuncDecls {
 		fd := &prog.FuncDecls[i]
+		canonical := canonicalFuncName(fd.Module, fd.Name)
 		proto := &bytecode.FuncPrototype{
-			Name:      fd.Name,
+			Name:      canonical,
 			NumParams: uint8(len(fd.Params)),
 		}
 		idx := img.AddPrototype(proto)
-		funcIdx[fd.Name] = idx
+		funcIdx[canonical] = idx
 	}
 
 	// Phase 2: compile each function body. Per M-BYTECODE-2D M3, a per-function
@@ -92,7 +101,7 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// dispatches the call to the evaluator transparently.
 	for i := range prog.FuncDecls {
 		fd := &prog.FuncDecls[i]
-		proto := img.Prototypes[funcIdx[fd.Name]]
+		proto := img.Prototypes[funcIdx[canonicalFuncName(fd.Module, fd.Name)]]
 
 		if fd.LowerError != "" {
 			proto.EvalOnly = true
@@ -106,9 +115,40 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		protoCheckpoint := len(img.Prototypes)
 
 		fc := newFuncCompiler(img, proto, funcIdx)
+		fc.currentModule = fd.Module
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
-		if err := fc.compile(fd); err != nil {
+		compileErr := fc.compile(fd)
+
+		// After a successful compile, run per-proto structural validation on
+		// every prototype registered during this FuncDecl's compile — both
+		// the top-level proto AND any child lambdas appended to img.Prototypes
+		// between protoCheckpoint and the current end.
+		//
+		// M-BYTECODE-MULTIMODULE M1 uncovered that whole-image Validate() was
+		// masking register-allocation bugs in specific stdlib/docparse protos:
+		// a single bad proto would fail the entire image. By validating here,
+		// we can roll back just this FuncDecl's protos and tag the top-level
+		// one EvalOnly, matching the compile-error path.
+		//
+		// Note: lifted lambdas often live as child NestedProtos, so a parent
+		// function with a clean body can still have a buggy child — we must
+		// walk the appended range, not just the top-level proto.
+		if compileErr == nil {
+			topIdx := funcIdx[canonicalFuncName(fd.Module, fd.Name)]
+			if vErr := img.ValidatePrototype(topIdx); vErr != nil {
+				compileErr = vErr
+			} else {
+				for childIdx := protoCheckpoint; childIdx < len(img.Prototypes); childIdx++ {
+					if vErr := img.ValidatePrototype(childIdx); vErr != nil {
+						compileErr = vErr
+						break
+					}
+				}
+			}
+		}
+
+		if compileErr != nil {
 			// Roll back any orphan child lambdas the failed compile registered.
 			img.Prototypes = img.Prototypes[:protoCheckpoint]
 			// Reset any partial state on the failed prototype itself and tag
@@ -121,7 +161,7 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 			proto.NumRegs = 0
 			proto.NumCaptures = 0
 			proto.EvalOnly = true
-			proto.EvalReason = err.Error()
+			proto.EvalReason = compileErr.Error()
 		}
 	}
 
@@ -129,13 +169,15 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// back to the first function. Tests that don't care can ignore EntryPoint.
 	entry := -1
 	for i := range prog.FuncDecls {
-		if prog.FuncDecls[i].Exported {
-			entry = funcIdx[prog.FuncDecls[i].Name]
+		fd := &prog.FuncDecls[i]
+		if fd.Exported {
+			entry = funcIdx[canonicalFuncName(fd.Module, fd.Name)]
 			break
 		}
 	}
 	if entry == -1 && len(prog.FuncDecls) > 0 {
-		entry = funcIdx[prog.FuncDecls[0].Name]
+		fd := &prog.FuncDecls[0]
+		entry = funcIdx[canonicalFuncName(fd.Module, fd.Name)]
 	}
 	if entry >= 0 {
 		if err := img.SetEntryPoint(entry); err != nil {
@@ -154,17 +196,35 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 type funcCompiler struct {
 	img         *bytecode.BytecodeImage
 	proto       *bytecode.FuncPrototype
-	funcIdx     map[string]int // global function name → image prototype index
+	funcIdx     map[string]int // canonical function name → image prototype index
 	regs        *regAlloc
 	locals      *scopeStack // named local → register
 	recordTypes map[string]recordTypeInfo
 	adtTypes    map[string]adtTypeInfo
+
+	// currentModule is the module name of the function currently being
+	// compiled. Used to canonicalize bare VarRef lookups in funcIdx so that
+	// intra-module calls resolve to the right prototype in a multi-module
+	// image. Empty string means "single-module program" — bare names are
+	// the canonical keys.
+	currentModule string
 
 	// currentLine is the source line of the statement currently being
 	// compiled. emit() snapshots this into proto.LineInfo for every
 	// instruction it appends, so VM runtime errors can report a source
 	// location. Zero means "no line info available".
 	currentLine int
+}
+
+// canonicalFuncName returns the funcIdx key for a function. Single-module
+// programs (Module == "") use the bare name; multi-module programs use
+// "module/path.name". This must stay in lockstep with Phase 1 registration,
+// classifyCallee (call.go), and the expr.go funcIdx lookups.
+func canonicalFuncName(module, name string) string {
+	if module == "" {
+		return name
+	}
+	return module + "." + name
 }
 
 func newFuncCompiler(img *bytecode.BytecodeImage, proto *bytecode.FuncPrototype, funcIdx map[string]int) *funcCompiler {

@@ -169,32 +169,47 @@ func (img *BytecodeImage) SetEntryPoint(idx int) error {
 // a defensive check. It does not verify type correctness or semantic well-
 // formedness — that's the compiler's job.
 func (img *BytecodeImage) Validate() error {
-	for protoIdx, p := range img.Prototypes {
-		if p == nil {
-			return fmt.Errorf("bytecode: prototype %d is nil", protoIdx)
-		}
-		// EvalOnly stubs have no body — only the metadata callers need to push
-		// args correctly (Name, NumParams, File). Skip the body checks.
-		if p.EvalOnly {
-			if len(p.Instructions) != 0 || len(p.LineInfo) != 0 {
-				return fmt.Errorf("bytecode: proto %q (idx %d): EvalOnly stub must have empty Instructions and LineInfo", p.Name, protoIdx)
-			}
-			continue
-		}
-		if p.NumParams > p.NumRegs {
-			return fmt.Errorf("bytecode: proto %q (idx %d): NumParams=%d exceeds NumRegs=%d", p.Name, protoIdx, p.NumParams, p.NumRegs)
-		}
-		if p.LineInfo != nil && len(p.LineInfo) != len(p.Instructions) {
-			return fmt.Errorf("bytecode: proto %q (idx %d): LineInfo length %d != Instructions length %d", p.Name, protoIdx, len(p.LineInfo), len(p.Instructions))
-		}
-		for ip, inst := range p.Instructions {
-			if err := img.validateInstruction(p, protoIdx, ip, inst); err != nil {
-				return err
-			}
+	for protoIdx := range img.Prototypes {
+		if err := img.ValidatePrototype(protoIdx); err != nil {
+			return err
 		}
 	}
 	if img.EntryPoint >= 0 && img.EntryPoint >= len(img.Prototypes) {
 		return fmt.Errorf("bytecode: entry point %d out of range", img.EntryPoint)
+	}
+	return nil
+}
+
+// ValidatePrototype runs the structural checks from Validate against a single
+// prototype. The compiler uses this to validate per-function after lowering,
+// so a single buggy proto can be rolled back and tagged EvalOnly rather than
+// aborting the whole image (see compiler.go Phase 2).
+func (img *BytecodeImage) ValidatePrototype(protoIdx int) error {
+	if protoIdx < 0 || protoIdx >= len(img.Prototypes) {
+		return fmt.Errorf("bytecode: prototype index %d out of range [0,%d)", protoIdx, len(img.Prototypes))
+	}
+	p := img.Prototypes[protoIdx]
+	if p == nil {
+		return fmt.Errorf("bytecode: prototype %d is nil", protoIdx)
+	}
+	// EvalOnly stubs have no body — only the metadata callers need to push
+	// args correctly (Name, NumParams, File). Skip the body checks.
+	if p.EvalOnly {
+		if len(p.Instructions) != 0 || len(p.LineInfo) != 0 {
+			return fmt.Errorf("bytecode: proto %q (idx %d): EvalOnly stub must have empty Instructions and LineInfo", p.Name, protoIdx)
+		}
+		return nil
+	}
+	if p.NumParams > p.NumRegs {
+		return fmt.Errorf("bytecode: proto %q (idx %d): NumParams=%d exceeds NumRegs=%d", p.Name, protoIdx, p.NumParams, p.NumRegs)
+	}
+	if p.LineInfo != nil && len(p.LineInfo) != len(p.Instructions) {
+		return fmt.Errorf("bytecode: proto %q (idx %d): LineInfo length %d != Instructions length %d", p.Name, protoIdx, len(p.LineInfo), len(p.Instructions))
+	}
+	for ip, inst := range p.Instructions {
+		if err := img.validateInstruction(p, protoIdx, ip, inst); err != nil {
+			return err
+		}
 	}
 	return nil
 }

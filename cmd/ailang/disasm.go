@@ -6,12 +6,15 @@ import (
 	"os"
 	"strings"
 
+	"sort"
+
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/bytecode"
 	"github.com/sunholo/ailang/internal/bytecode/compiler"
 	"github.com/sunholo/ailang/internal/gen/lower"
 	"github.com/sunholo/ailang/internal/gen/stmt"
 	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo/ailang/internal/types"
 )
 
 // disasmCommand handles `ailang disasm <file.ail>` — runs the file through
@@ -94,7 +97,73 @@ func compileBytecodeFromResult(res pipeline.Result, pkgName string) (*bytecode.B
 		return nil, fmt.Errorf("compile from result: missing AST/Core artifacts")
 	}
 	prog := &stmt.Program{Package: pkgName}
+
+	// M-BYTECODE-MULTIMODULE M1: if the pipeline loaded additional modules
+	// (imports from the entry file), lower every reachable module and merge
+	// the results into a single stmt.Program. Each module's FuncDecls are
+	// tagged with its module path so the compiler can canonicalize funcIdx
+	// keys and cross-module GlobalRefs resolve without bridging.
+	//
+	// Ordering: modules are lowered in sorted path order so the resulting
+	// image is deterministic across runs. TypeDecls from every module are
+	// deduplicated by name (later modules lose the race — single-source-of
+	// -truth per name is the contract).
 	seenTypes := map[string]bool{}
+
+	if len(res.Modules) > 0 {
+		// Multi-module mode. Each LoadedModule already carries Core, CoreTI,
+		// and the surface AST. The entry module is included in res.Modules,
+		// so we do NOT additionally lower res.Artifacts.Core here (that would
+		// double-register its FuncDecls and fail funcIdx canonicalization).
+		modIDs := make([]string, 0, len(res.Modules))
+		for id := range res.Modules {
+			modIDs = append(modIDs, id)
+		}
+		sort.Strings(modIDs)
+
+		for _, modID := range modIDs {
+			mod := res.Modules[modID]
+			if mod == nil || mod.Core == nil || mod.File == nil {
+				continue
+			}
+			// TypeDecls: walk the module's AST and register each unique type
+			// declaration. Tag with the module name so cross-module ADT/record
+			// lookups (M3) can find the right entry.
+			for _, decl := range mod.File.Decls {
+				td, ok := decl.(*ast.TypeDecl)
+				if !ok {
+					continue
+				}
+				canonicalType := modID + "." + td.Name
+				if seenTypes[canonicalType] {
+					continue
+				}
+				seenTypes[canonicalType] = true
+				lowered := lower.LowerTypeDecl(td)
+				// Preserve the bare name for in-module lookups; M3 will add
+				// module-tagged lookups on top of this.
+				prog.TypeDecls = append(prog.TypeDecls, lowered)
+			}
+
+			// CoreTI is stored as interface{} in LoadedModule to avoid an
+			// import cycle; the pipeline always puts a types.CoreTypeInfo
+			// there, so the assertion is safe.
+			cti, _ := mod.CoreTI.(types.CoreTypeInfo)
+			modProg, err := lower.LowerProgram(mod.Core, cti, mod.File, pkgName)
+			if err != nil {
+				return nil, fmt.Errorf("lower module %s: %w", modID, err)
+			}
+			// Tag every FuncDecl with its source module so the compiler
+			// keys funcIdx by the canonical "module.name" form.
+			for i := range modProg.FuncDecls {
+				modProg.FuncDecls[i].Module = modID
+			}
+			prog.FuncDecls = append(prog.FuncDecls, modProg.FuncDecls...)
+		}
+		return compiler.Compile(prog)
+	}
+
+	// Single-file mode: no imported modules, lower the entry Core directly.
 	for _, decl := range res.Artifacts.AST.Decls {
 		td, ok := decl.(*ast.TypeDecl)
 		if !ok || seenTypes[td.Name] {

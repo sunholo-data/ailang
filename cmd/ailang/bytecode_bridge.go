@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/bytecode"
 	"github.com/sunholo/ailang/internal/eval"
@@ -48,10 +49,17 @@ func (b *bytecodeBridge) CallEvalFunc(name string, args []bytecode.Value) (bytec
 	if b == nil || b.inst == nil || b.evaluator == nil {
 		return bytecode.Value{}, fmt.Errorf("bridge not fully initialized")
 	}
-	// GetBinding (not GetExport) so we can call private functions too —
-	// the EvalOnly stub may be a helper that's only reachable from inside
-	// the module.
-	fnVal, err := b.inst.GetBinding(name)
+	// Canonical names ("module/path.name") may refer to functions in a
+	// different module than the entry instance. Resolve in this order:
+	//   1. Try the entry module's binding map with the full name (legacy).
+	//   2. If the name contains a "." split at the LAST dot and look up the
+	//      function in the named module's instance via the runtime.
+	//   3. Fall back to resolving the bare tail name in the entry instance.
+	//
+	// GetBinding (not GetExport) so we can call private functions too — the
+	// EvalOnly stub may be a helper that is only reachable from inside the
+	// module.
+	fnVal, err := b.resolveFunc(name)
 	if err != nil {
 		return bytecode.Value{}, fmt.Errorf("resolve %q: %w", name, err)
 	}
@@ -71,6 +79,38 @@ func (b *bytecodeBridge) CallEvalFunc(name string, args []bytecode.Value) (bytec
 	}
 
 	return evalValueToBytecode(result)
+}
+
+// resolveFunc walks the name resolution fallback chain described in
+// CallEvalFunc. Returns an error if no module instance in the runtime holds
+// the binding under any of the tried spellings.
+func (b *bytecodeBridge) resolveFunc(name string) (eval.Value, error) {
+	// 1. Entry instance, full name — handles the legacy bare-name case and
+	//    any function already bound under its canonical form.
+	if v, err := b.inst.GetBinding(name); err == nil {
+		return v, nil
+	}
+
+	// 2. Canonical "module/path.name" → look up that module's instance.
+	if dot := strings.LastIndex(name, "."); dot > 0 {
+		modPath := name[:dot]
+		bare := name[dot+1:]
+		if b.rt != nil {
+			if modInst := b.rt.GetInstance(modPath); modInst != nil {
+				if v, err := modInst.GetBinding(bare); err == nil {
+					return v, nil
+				}
+			}
+		}
+		// 3. Fall back to the bare tail name in the entry instance (e.g.
+		//    cross-module helper registered bare during Phase 1 compat).
+		if v, err := b.inst.GetBinding(bare); err == nil {
+			return v, nil
+		}
+		return nil, fmt.Errorf("binding not found in module %q or entry instance", modPath)
+	}
+
+	return nil, fmt.Errorf("binding %q not found in entry instance", name)
 }
 
 // --- Value conversion -------------------------------------------------------

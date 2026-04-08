@@ -2,7 +2,9 @@ package vm
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/sunholo/ailang/internal/bytecode"
 )
@@ -28,28 +30,100 @@ var BuiltinTable = []BuiltinFunc{
 }
 
 // builtinShow returns a string representation of any value. Matches the
-// evaluator's `_show` semantics for the value subset the corpus produces.
+// evaluator's `_show` semantics (see internal/builtins/show.go:showValue)
+// for every Value shape the VM can produce.
+//
+// M-BYTECODE-MULTIMODULE M1 exposed a pre-existing gap: compound shapes
+// (List/Tuple/Record/ADT) fell through to a "<TagName>" fallback. This
+// was masked before M1 because stdlib call sites were never lowered to
+// the VM path and went through the eval bridge instead. With M1 lowering
+// all reachable modules, this builtin must fully mirror the evaluator.
 func builtinShow(args []bytecode.Value) (bytecode.Value, error) {
 	if len(args) != 1 {
 		return bytecode.Value{}, fmt.Errorf("_show: expected 1 arg, got %d", len(args))
 	}
-	v := args[0]
+	return bytecode.NewString(showValue(args[0])), nil
+}
+
+// showValue is the recursive counterpart of internal/builtins/show.go:showValue
+// for bytecode.Value. Strings are rendered without quotes to match the
+// evaluator's user-facing `show` semantics (identity on strings).
+func showValue(v bytecode.Value) string {
 	switch v.Tag {
 	case bytecode.TagInt:
-		return bytecode.NewString(strconv.FormatInt(v.Int, 10)), nil
+		return strconv.FormatInt(v.Int, 10)
 	case bytecode.TagFloat:
-		return bytecode.NewString(strconv.FormatFloat(v.Flt, 'g', -1, 64)), nil
+		// Match evaluator's show: use 'f' so the decimal point is visible,
+		// and pad whole-number floats to `N.0` (e.g. 5 → "5.0"). See
+		// internal/builtins/show.go:showValue float case.
+		f := v.Flt
+		if f != f { // NaN
+			return "NaN"
+		}
+		if f > 0 && f*2 == f { // +Inf
+			return "Inf"
+		}
+		if f < 0 && f*2 == f { // -Inf
+			return "-Inf"
+		}
+		s := strconv.FormatFloat(f, 'f', -1, 64)
+		if !strings.Contains(s, ".") {
+			s += ".0"
+		}
+		return s
 	case bytecode.TagBool:
 		if v.Bool {
-			return bytecode.NewString("true"), nil
+			return "true"
 		}
-		return bytecode.NewString("false"), nil
+		return "false"
 	case bytecode.TagString:
-		return v, nil
+		return v.AsString()
 	case bytecode.TagUnit:
-		return bytecode.NewString("()"), nil
+		return "()"
+	case bytecode.TagList:
+		elems := v.AsList()
+		if len(elems) == 0 {
+			return "[]"
+		}
+		parts := make([]string, len(elems))
+		for i, e := range elems {
+			parts[i] = showValue(e)
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
+	case bytecode.TagTuple:
+		elems := v.AsTuple()
+		parts := make([]string, len(elems))
+		for i, e := range elems {
+			parts[i] = showValue(e)
+		}
+		return "(" + strings.Join(parts, ", ") + ")"
+	case bytecode.TagRecord:
+		fields := v.AsRecord()
+		if len(fields) == 0 {
+			return "{}"
+		}
+		// Sort field names for deterministic output, matching eval.
+		names := make([]string, len(fields))
+		vals := make(map[string]bytecode.Value, len(fields))
+		for i, f := range fields {
+			names[i] = f.Name
+			vals[f.Name] = f.Value
+		}
+		sort.Strings(names)
+		parts := make([]string, len(names))
+		for i, n := range names {
+			parts[i] = n + ": " + showValue(vals[n])
+		}
+		return "{" + strings.Join(parts, ", ") + "}"
+	case bytecode.TagADT:
+		// ADT tag is a per-type ordinal, not a constructor name — mapping
+		// back to a name requires the compiler's type table (§4.3), which
+		// the VM does not currently carry. Defer to Value.String() for the
+		// low-fidelity `<adt#N …>` rendering. Fixing this cleanly is M3
+		// scope (cross-module ADT/record merging).
+		return v.String()
 	default:
-		return bytecode.NewString(fmt.Sprintf("<%s>", v.Tag)), nil
+		return fmt.Sprintf("<%s>", v.Tag)
 	}
 }
 

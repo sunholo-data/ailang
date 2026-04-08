@@ -58,9 +58,16 @@ func (fc *funcCompiler) compileExpr(e stmt.Expr) (uint8, error) {
 	case stmt.GlobalRef:
 		// A bare GlobalRef is a first-class function reference. Materialize
 		// it as a closure value in a fresh register.
-		idx, ok := fc.funcIdx[e.Name]
+		canonical := canonicalFuncName(e.Module, e.Name)
+		idx, ok := fc.funcIdx[canonical]
 		if !ok {
-			return 0, fmt.Errorf("compiler: unknown global %q", e.Name)
+			// Fall back to bare name for compatibility with programs that
+			// registered prototypes without module prefixes.
+			if barIdx, barOk := fc.funcIdx[e.Name]; barOk {
+				idx = barIdx
+			} else {
+				return 0, fmt.Errorf("compiler: unknown global %q", canonical)
+			}
 		}
 		dst, err := fc.regs.allocTemp()
 		if err != nil {
@@ -185,7 +192,14 @@ func (fc *funcCompiler) compileVarRef(e stmt.VarRef) (uint8, error) {
 		return r, nil
 	}
 	// Fall back to a top-level function reference: materialize the closure.
-	if idx, ok := fc.funcIdx[e.Name]; ok {
+	// Try the current module first (multi-module image), then the bare
+	// name (single-module or cross-module helper registered bare).
+	canonical := canonicalFuncName(fc.currentModule, e.Name)
+	idx, ok := fc.funcIdx[canonical]
+	if !ok {
+		idx, ok = fc.funcIdx[e.Name]
+	}
+	if ok {
 		dst, err := fc.regs.allocTemp()
 		if err != nil {
 			return 0, err

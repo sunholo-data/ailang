@@ -70,6 +70,18 @@ const (
 
 // classifyCallee inspects the Call.Func expression and decides whether the
 // callee is a top-level prototype reference or a first-class value.
+//
+// Canonical-name resolution:
+//   - Local variable shadows always take precedence (handles `apply(f, x)`
+//     where f is a parameter holding a closure).
+//   - Bare VarRef (lowered from an intra-module core.Var) is looked up
+//     under the current function's module: canonical(currentModule, name).
+//     Fall back to bare `name` for single-module programs where
+//     currentModule is empty.
+//   - GlobalRef (lowered from a cross-module core.VarGlobal) is looked up
+//     under its explicit module: canonical(ex.Module, ex.Name).
+//
+// All of these keys must match what compiler.go Phase 1 registered.
 func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) {
 	switch ex := e.(type) {
 	case stmt.VarRef:
@@ -78,15 +90,30 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 		if _, ok := fc.locals.lookup(ex.Name); ok {
 			return calleeValue, ex.Name, nil
 		}
+		// Try the current module first so intra-module calls in a
+		// multi-module image hit the right prototype even when another
+		// module has a function of the same bare name.
+		canonical := canonicalFuncName(fc.currentModule, ex.Name)
+		if _, ok := fc.funcIdx[canonical]; ok {
+			return calleeTopLevel, canonical, nil
+		}
+		// Fall back to the bare name for single-module programs and for
+		// top-level helpers that were registered without a module prefix.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
 			return calleeTopLevel, ex.Name, nil
 		}
 		return 0, "", fmt.Errorf("compiler: call to unbound name %q", ex.Name)
 	case stmt.GlobalRef:
+		canonical := canonicalFuncName(ex.Module, ex.Name)
+		if _, ok := fc.funcIdx[canonical]; ok {
+			return calleeTopLevel, canonical, nil
+		}
+		// Some same-package GlobalRefs may have been registered with a
+		// bare name (e.g. when lower pass omits Module). Try that too.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
 			return calleeTopLevel, ex.Name, nil
 		}
-		return 0, "", fmt.Errorf("compiler: call to unknown global %q", ex.Name)
+		return 0, "", fmt.Errorf("compiler: call to unknown global %q", canonical)
 	}
 	// Lambda or other expressions: evaluate as a value.
 	return calleeValue, "", nil
