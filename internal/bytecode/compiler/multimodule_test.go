@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo/ailang/internal/bytecode"
 	"github.com/sunholo/ailang/internal/gen/stmt"
 )
 
@@ -59,10 +60,15 @@ func TestMultiModule_NameCollision(t *testing.T) {
 	}
 }
 
-// TestMultiModule_CrossModuleCall verifies that a GlobalRef call from one
-// module to a function in another module resolves correctly at compile
-// time and executes without bridging to the evaluator.
-func TestMultiModule_CrossModuleCall(t *testing.T) {
+// TestCrossModuleCall_ResolvesImportedFunc verifies that a GlobalRef call
+// from one module to an exported function in another module resolves to a
+// direct OpCall (no EvalOnly bridge). This is the core M2 acceptance test
+// for M-BYTECODE-MULTIMODULE — canonical name resolution across module
+// boundaries.
+//
+// Historical note: originally named TestMultiModule_CrossModuleCall during
+// M1 prototyping; renamed in M2 to match the sprint JSON criterion ID.
+func TestCrossModuleCall_ResolvesImportedFunc(t *testing.T) {
 	prog := &stmt.Program{
 		FuncDecls: []stmt.FuncDecl{
 			{
@@ -109,13 +115,47 @@ func TestMultiModule_CrossModuleCall(t *testing.T) {
 
 	// The lib/math.double prototype must also exist and not be EvalOnly.
 	var doubleFound bool
-	for _, p := range img.Prototypes {
+	var doubleIdx int
+	for i, p := range img.Prototypes {
 		if p.Name == "lib/math.double" && !p.EvalOnly {
 			doubleFound = true
+			doubleIdx = i
 		}
 	}
 	if !doubleFound {
 		t.Fatalf("double prototype missing or bridged")
+	}
+
+	// Walk main.run's instructions and confirm it materializes the callee
+	// via OpClosure pointing at lib/math.double, followed by OpCall/OpTailCall.
+	// This is what "direct OpCall, no EvalOnly bridge" means for the sprint
+	// criterion: the callee comes from the NestedProtos table, not from a
+	// runtime evaluator lookup.
+	var runP *bytecode.FuncPrototype
+	for i := range img.Prototypes {
+		if img.Prototypes[i].Name == "main.run" {
+			runP = img.Prototypes[i]
+			break
+		}
+	}
+	sawClosureToDouble := false
+	sawCall := false
+	for _, inst := range runP.Instructions {
+		op := inst.Op()
+		if op == bytecode.OpClosure {
+			if int(inst.Bx()) < len(runP.NestedProtos) && runP.NestedProtos[inst.Bx()] == doubleIdx {
+				sawClosureToDouble = true
+			}
+		}
+		if op == bytecode.OpCall || op == bytecode.OpTailCall {
+			sawCall = true
+		}
+	}
+	if !sawClosureToDouble {
+		t.Errorf("main.run did not emit OpClosure targeting lib/math.double")
+	}
+	if !sawCall {
+		t.Errorf("main.run did not emit OpCall/OpTailCall")
 	}
 }
 

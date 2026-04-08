@@ -153,10 +153,18 @@ func formatInstruction(inst Instruction, ip int, p *FuncPrototype, img *Bytecode
 		return base
 
 	case OpCall:
-		return fmt.Sprintf("CALL         r%d, args=%d, results=%d", inst.A(), inst.B(), inst.C())
+		base := fmt.Sprintf("CALL         r%d, args=%d, results=%d", inst.A(), inst.B(), inst.C())
+		if name := lookupCalleeName(p, img, ip, inst.A()); name != "" {
+			return fmt.Sprintf("%-30s ; %s", base, name)
+		}
+		return base
 
 	case OpTailCall:
-		return fmt.Sprintf("TAIL_CALL    r%d, args=%d", inst.A(), inst.B())
+		base := fmt.Sprintf("TAIL_CALL    r%d, args=%d", inst.A(), inst.B())
+		if name := lookupCalleeName(p, img, ip, inst.A()); name != "" {
+			return fmt.Sprintf("%-30s ; %s", base, name)
+		}
+		return base
 
 	case OpBuiltinCall:
 		return fmt.Sprintf("BUILTIN_CALL r%d, builtin#%d, argc=%d", inst.A(), inst.Bx(), inst.C())
@@ -187,6 +195,56 @@ func formatInstruction(inst Instruction, ip int, p *FuncPrototype, img *Bytecode
 		return fmt.Sprintf("%-12s r%d, r%d, r%d", op, inst.A(), inst.B(), inst.C())
 	}
 	return inst.String()
+}
+
+// lookupCalleeName scans backwards from a CALL/TAIL_CALL instruction to find
+// the most recent OpClosure that materialized the callee register, and returns
+// the canonical name of the nested prototype. Returns "" if no such CLOSURE is
+// found in the current prototype (e.g. first-class value calls or calls via
+// MOVE from a parameter/local).
+//
+// This makes CALL/TAIL_CALL disassembly self-describing even though the callee
+// is technically runtime-resolved: `CALL r12, args=2, results=1 ; std/io.println`.
+// Added for M-BYTECODE-MULTIMODULE M2 (acceptance criterion #4).
+func lookupCalleeName(p *FuncPrototype, img *BytecodeImage, callIP int, calleeReg uint8) string {
+	for j := callIP - 1; j >= 0; j-- {
+		prev := p.Instructions[j]
+		if prev.Op() != OpClosure {
+			// Any write to calleeReg from something other than OpClosure
+			// (OpMove, OpGetField, etc.) means the callee is a first-class
+			// value and we can't statically name it — give up.
+			if writesToReg(prev, calleeReg) {
+				return ""
+			}
+			continue
+		}
+		if prev.A() != calleeReg {
+			continue
+		}
+		if int(prev.Bx()) >= len(p.NestedProtos) {
+			return ""
+		}
+		tblIdx := p.NestedProtos[prev.Bx()]
+		if tblIdx < 0 || tblIdx >= len(img.Prototypes) {
+			return ""
+		}
+		return img.Prototypes[tblIdx].Name
+	}
+	return ""
+}
+
+// writesToReg reports whether inst writes its result to register r. Used by
+// lookupCalleeName to detect "the callee slot was overwritten by a non-closure
+// instruction" and stop the back-scan.
+func writesToReg(inst Instruction, r uint8) bool {
+	if inst.A() != r {
+		return false
+	}
+	switch inst.Op() {
+	case OpJump, OpJumpIfFalse, OpReturn, OpCall, OpTailCall:
+		return false
+	}
+	return true
 }
 
 // formatConstant produces a short representation of a constant pool entry,
