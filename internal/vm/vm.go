@@ -303,30 +303,29 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			frame.IP++
 
 		case bytecode.OpMakeRecord:
-			// Field names are stored in the prototype's Constants table at
-			// indices read from pseudo-LOAD_CONST instructions following.
-			// For Phase 2B simplicity we encode the field-name pool indices
-			// directly into the prototype's Constants slot at positions
-			// [B, B+C). Each constant must be a String value.
-			//
-			// Layout: register source range is [B, B+C), and the field-name
-			// constant pool indices are [B, B+C) as well — i.e. the same
-			// numeric range, but interpreted against Constants[]. The
-			// compiler must arrange this; the VM trusts it.
-			start, count := int(inst.B()), int(inst.C())
+			// Layout: A=dst register, B=value register base, C=field count.
+			// Field names are read from the C immediately following pseudo
+			// LOAD_CONST instructions, whose Bx field is the local constant
+			// index of the (string) field name. This mirrors the CLOSURE +
+			// pseudo-MOVE pattern used for captures.
+			valueBase, count := int(inst.B()), int(inst.C())
 			fields := make([]bytecode.RecordField, count)
 			for i := 0; i < count; i++ {
-				nameVal, ok := frame.Proto.LookupConstant(start+i, vm.Image)
+				nameInst := frame.Proto.Instructions[frame.IP+1+i]
+				if nameInst.Op() != bytecode.OpLoadConst {
+					return bytecode.Value{}, vm.errAt(frame, "MAKE_RECORD: expected pseudo-LOAD_CONST for field name", nameInst)
+				}
+				nameVal, ok := frame.Proto.LookupConstant(int(nameInst.Bx()), vm.Image)
 				if !ok || nameVal.Tag != bytecode.TagString {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("MAKE_RECORD: bad field-name constant at index %d", start+i), inst)
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("MAKE_RECORD: bad field-name constant at local index %d", nameInst.Bx()), nameInst)
 				}
 				fields[i] = bytecode.RecordField{
 					Name:  nameVal.AsString(),
-					Value: frame.Regs[start+i],
+					Value: frame.Regs[valueBase+i],
 				}
 			}
 			frame.Regs[inst.A()] = bytecode.NewRecord(fields)
-			frame.IP++
+			frame.IP += 1 + count
 
 		case bytecode.OpCons:
 			head := frame.Regs[inst.B()]
@@ -343,15 +342,29 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 
 		case bytecode.OpGetField:
 			rec := frame.Regs[inst.B()]
-			if rec.Tag != bytecode.TagRecord {
+			idx := int(inst.C())
+			switch rec.Tag {
+			case bytecode.TagRecord:
+				fields := rec.AsRecord()
+				if idx >= len(fields) {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("GET_FIELD: index %d exceeds field count %d", idx, len(fields)), inst)
+				}
+				frame.Regs[inst.A()] = fields[idx].Value
+			case bytecode.TagADT:
+				fields := rec.AsADT().Fields
+				if idx >= len(fields) {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("GET_FIELD: index %d exceeds ADT field count %d", idx, len(fields)), inst)
+				}
+				frame.Regs[inst.A()] = fields[idx]
+			case bytecode.TagTuple:
+				elems := rec.AsTuple()
+				if idx >= len(elems) {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("GET_FIELD: index %d exceeds tuple arity %d", idx, len(elems)), inst)
+				}
+				frame.Regs[inst.A()] = elems[idx]
+			default:
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("GET_FIELD on %s", rec.Tag), inst)
 			}
-			fields := rec.AsRecord()
-			idx := int(inst.C())
-			if idx >= len(fields) {
-				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("GET_FIELD: index %d exceeds field count %d", idx, len(fields)), inst)
-			}
-			frame.Regs[inst.A()] = fields[idx].Value
 			frame.IP++
 
 		case bytecode.OpGetIndex:
@@ -394,9 +407,25 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 		// --- Builtins / Effects (Phase 2C/2E stubs) ----------------------
 
 		case bytecode.OpBuiltinCall:
-			return bytecode.Value{}, vm.errAt(frame, "BUILTIN_CALL not implemented in Phase 2B", inst)
+			builtinIdx := int(inst.B())
+			argc := int(inst.C())
+			if builtinIdx >= len(BuiltinTable) {
+				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL: unknown builtin index %d", builtinIdx), inst)
+			}
+			argBase := int(inst.A()) + 1
+			args := frame.Regs[argBase : argBase+argc]
+			result, err := BuiltinTable[builtinIdx](args)
+			if err != nil {
+				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL: %v", err), inst)
+			}
+			frame.Regs[inst.A()] = result
+			frame.IP++
 		case bytecode.OpBuiltinTrap:
-			return bytecode.Value{}, vm.errAt(frame, "BUILTIN_TRAP not implemented in Phase 2B", inst)
+			name := "<unknown>"
+			if v, ok := frame.Proto.LookupConstant(int(inst.Bx()), vm.Image); ok && v.Tag == bytecode.TagString {
+				name = v.AsString()
+			}
+			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_TRAP: %s not yet wired (Phase 2E)", name), inst)
 		case bytecode.OpEffectTrap:
 			return bytecode.Value{}, vm.errAt(frame, "EFFECT_TRAP not implemented in Phase 2B", inst)
 

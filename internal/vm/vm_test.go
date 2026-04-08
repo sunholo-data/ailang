@@ -511,28 +511,20 @@ func TestVM_MakeRecordAndGetField(t *testing.T) {
 	// Record { x: 1, y: 2 }, get field index 1 (y, since fields sort alphabetically)
 	img := bytecode.NewImage()
 	p := &bytecode.FuncPrototype{Name: "rec", NumRegs: 4}
-	// Field-name constants must align with register positions used by MAKE_RECORD.
-	// MAKE_RECORD reads constants from local indices [B, B+C). For B=0, C=2 we
-	// need the prototype's local constants [0,1] to be the field name strings,
-	// and registers [0,1] to hold the field values.
-	addConstants(img, p, bytecode.NewString("x"), bytecode.NewString("y"))
+	// Local constants: 0="x", 1="y", 2=Int(1), 3=Int(2). Field names are
+	// referenced via pseudo-LOAD_CONST instructions following MAKE_RECORD.
+	addConstants(img, p,
+		bytecode.NewString("x"),
+		bytecode.NewString("y"),
+		bytecode.NewInt(1),
+		bytecode.NewInt(2),
+	)
 	p.Instructions = []bytecode.Instruction{
-		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 0), // r0 = "x" (will be overwritten as the value 1)
-	}
-	// Actually, let me redo this — MAKE_RECORD wants register values to be
-	// the field VALUES, but my constant pool has STRINGS. Need separate slots.
-	// Re-design: registers 0 and 1 hold the int values, separate from the
-	// constant pool's "x"/"y" entries. The compile-time constraint is that the
-	// local constant indices [B,B+C) must be the names, but the runtime uses
-	// register values for the actual data. These two must be kept in sync by
-	// the compiler. For this test we use B=0, C=2 with values in r0/r1 and
-	// names in local consts [0,1].
-	addConstants(img, p, bytecode.NewInt(1), bytecode.NewInt(2))
-	// Reset the instructions cleanly:
-	p.Instructions = []bytecode.Instruction{
-		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 2), // r0 = 1     (local const 2 = Int 1)
-		bytecode.EncodeABx(bytecode.OpLoadConst, 1, 3), // r1 = 2     (local const 3 = Int 2)
-		bytecode.EncodeABC(bytecode.OpMakeRecord, 2, 0, 2),
+		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 2),     // r0 = 1
+		bytecode.EncodeABx(bytecode.OpLoadConst, 1, 3),     // r1 = 2
+		bytecode.EncodeABC(bytecode.OpMakeRecord, 2, 0, 2), // r2 = {x:r0, y:r1}
+		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 0),     // pseudo: name "x"
+		bytecode.EncodeABx(bytecode.OpLoadConst, 0, 1),     // pseudo: name "y"
 		// GET_FIELD reads C as the sorted field index. "x" < "y", so x is 0, y is 1.
 		bytecode.EncodeABC(bytecode.OpGetField, 3, 2, 1), // r3 = rec.y = 2
 		bytecode.EncodeABC(bytecode.OpReturn, 3, 0, 0),
@@ -578,17 +570,18 @@ func TestVM_MakeADTAndGetTag(t *testing.T) {
 
 // --- Stub opcodes -----------------------------------------------------------
 
-func TestVM_BuiltinCall_NotImplemented(t *testing.T) {
+func TestVM_BuiltinCall_UnknownIndex(t *testing.T) {
+	// Index past end of BuiltinTable should produce a clear error.
 	img := bytecode.NewImage()
 	p := &bytecode.FuncPrototype{Name: "stub", NumRegs: 1}
 	p.Instructions = []bytecode.Instruction{
-		bytecode.EncodeABx(bytecode.OpBuiltinCall, 0, 0),
+		bytecode.EncodeABC(bytecode.OpBuiltinCall, 0, 250, 0),
 		bytecode.EncodeABC(bytecode.OpReturn, 0, 0, 0),
 	}
 	img.AddPrototype(p)
 	_ = img.SetEntryPoint(0)
 	_, err := NewVM(img).Run(p, nil)
-	if err == nil || !strings.Contains(err.Error(), "BUILTIN_CALL not implemented") {
+	if err == nil || !strings.Contains(err.Error(), "unknown builtin index") {
 		t.Errorf("got %v", err)
 	}
 }
