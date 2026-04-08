@@ -384,7 +384,21 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return false, fmt.Errorf("internal: bytecodeMode set but pipelineResult is nil")
 	}
 
-	img, err := compileBytecodeFromResult(*params.pipelineResult, params.iface.Module)
+	// Recover from lower/compile panics so they degrade to a normal compile
+	// error and let the caller fall back to the evaluator in non-strict mode.
+	// The lower pass still contains a few `panic(...)` fast-fails for shapes
+	// that haven't been bridged yet (e.g. non-tail-position match lowering);
+	// treating them as compile errors is the M3 contract.
+	var img *bytecode.BytecodeImage
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("compile panic: %v", r)
+			}
+		}()
+		img, err = compileBytecodeFromResult(*params.pipelineResult, params.iface.Module)
+	}()
 	if err != nil {
 		return false, fmt.Errorf("compile: %w", err)
 	}
@@ -453,9 +467,11 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 }
 
 // printVMResult mirrors the evaluator path's print policy for VM-side
-// results: skip Unit, honor --no-print, render with the bytecode value's
-// own String() (which produces evaluator-compatible spelling for Tier-1
-// shapes).
+// results: skip Unit, honor --no-print, and render the return value in
+// evaluator-compatible spelling. We route the VM value through the bridge
+// back to an eval.Value so that String() matches the tree-walking path
+// byte-for-byte — bytecode.Value.String() is debug-oriented (it prints
+// strings with Go %q quoting and would break parity tests).
 func printVMResult(v bytecode.Value, params moduleExecParams) {
 	if params.noprint {
 		return
@@ -463,9 +479,21 @@ func printVMResult(v bytecode.Value, params moduleExecParams) {
 	if v.Tag == bytecode.TagUnit {
 		return
 	}
-	if params.print {
-		fmt.Println(v.String())
+	if !params.print {
+		return
 	}
+	ev, err := bytecodeValueToEval(v)
+	if err != nil || ev == nil {
+		// Fall back to the bytecode value's own formatting for shapes
+		// the bridge doesn't know how to convert (currently none on
+		// the success path — all Tier-1 shapes round-trip).
+		fmt.Println(v.String())
+		return
+	}
+	if ev.Type() == "unit" {
+		return
+	}
+	fmt.Println(ev.String())
 }
 
 // decodeEntrypointArgs decodes JSON arguments based on function type signature
