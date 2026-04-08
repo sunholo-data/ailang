@@ -180,41 +180,71 @@ func extractBindings(pat *core.ConstructorPattern, cti types.CoreTypeInfo) []stm
 }
 
 // lowerIfChainMatch handles non-constructor patterns as an if-else chain.
+//
+// Bug A fix (M-LOWER-FIX): every arm — including the single-arm case and the
+// "last arm" of a multi-arm chain — must have its pattern bindings computed
+// and prepended. The previous version only ran lowerPatternBindings for
+// non-last arms, which caused single-arm tuple matches (`swap`, `fst`) and
+// last-arm list-cons matches (`sumList`) to reference unbound variables.
 func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	scrutinee := lowerExpr(m.Scrutinee, cti)
 
-	// Build if-else chain from bottom up.
-	// Last arm is the else branch (or default).
 	if len(m.Arms) == 0 {
 		return stmt.ExprStmt{Value: stmt.LitUnit{}}
 	}
 
-	// Process arms in reverse to build nested if-else.
-	var result stmt.Stmt
-
-	// Last arm is the default/else.
-	lastArm := m.Arms[len(m.Arms)-1]
-	lastStmts, lastRet := FlattenBlock(lastArm.Body, cti)
-	if lastRet != nil {
-		lastStmts = append(lastStmts, stmt.ReturnStmt{Value: lastRet})
+	// Build the body for one arm: bindings + (optionally) guard wrap + arm body.
+	armBody := func(arm core.MatchArm) []stmt.Stmt {
+		armStmts, armRet := FlattenBlock(arm.Body, cti)
+		if armRet != nil {
+			armStmts = append(armStmts, stmt.ReturnStmt{Value: armRet})
+		}
+		bindStmts := lowerPatternBindings(scrutinee, arm.Pattern, cti)
+		return append(bindStmts, armStmts...)
 	}
 
-	// If only one arm, it's just the body.
+	// Single-arm: emit bindings + body, no surrounding If.
 	if len(m.Arms) == 1 {
-		if len(lastStmts) == 1 {
-			return lastStmts[0]
+		body := armBody(m.Arms[0])
+		if len(body) == 1 {
+			return body[0]
 		}
-		// Wrap in if-true for consistency.
 		return stmt.IfStmt{
+			Cond: stmt.LitBool{Value: true},
+			Then: body,
+		}
+	}
+
+	// Multi-arm: build the chain from the last arm upward. Even the last arm
+	// gets its bindings computed; if its pattern is irrefutable (var/wildcard)
+	// it becomes a true default, otherwise it becomes a guarded If with the
+	// pattern's condition.
+	lastArm := m.Arms[len(m.Arms)-1]
+	lastStmts := armBody(lastArm)
+
+	var result stmt.Stmt
+	if isIrrefutablePattern(lastArm.Pattern) {
+		// True default — wrap in If{true} for shape consistency.
+		result = stmt.IfStmt{
 			Cond: stmt.LitBool{Value: true},
 			Then: lastStmts,
 		}
-	}
-
-	// Build from the bottom.
-	result = stmt.IfStmt{
-		Cond: stmt.LitBool{Value: true}, // default
-		Then: lastStmts,
+	} else {
+		// Refutable last arm — must check the pattern condition. If it
+		// fails, fall through to a unit ExprStmt (the match was inexhaustive
+		// at the source level; type checker should have flagged it).
+		cond := lowerPatternCond(scrutinee, lastArm.Pattern)
+		if lastArm.Guard != nil {
+			cond = stmt.BinOp{
+				Op:    stmt.OpAnd,
+				Left:  cond,
+				Right: lowerExpr(lastArm.Guard, cti),
+			}
+		}
+		result = stmt.IfStmt{
+			Cond: cond,
+			Then: lastStmts,
+		}
 	}
 
 	// Process remaining arms in reverse order.
@@ -222,16 +252,8 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 		arm := m.Arms[i]
 		cond := lowerPatternCond(scrutinee, arm.Pattern)
 
-		armStmts, armRet := FlattenBlock(arm.Body, cti)
-		if armRet != nil {
-			armStmts = append(armStmts, stmt.ReturnStmt{Value: armRet})
-		}
+		armStmts := armBody(arm)
 
-		// Add bindings for variable patterns.
-		bindStmts := lowerPatternBindings(scrutinee, arm.Pattern, cti)
-		armStmts = append(bindStmts, armStmts...)
-
-		// Add guard if present.
 		if arm.Guard != nil {
 			guard := lowerExpr(arm.Guard, cti)
 			cond = stmt.BinOp{Op: stmt.OpAnd, Left: cond, Right: guard}
@@ -245,6 +267,16 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	}
 
 	return result
+}
+
+// isIrrefutablePattern reports whether a pattern always matches and so can
+// safely serve as the default/else arm of an if-chain without a condition.
+func isIrrefutablePattern(p core.CorePattern) bool {
+	switch p.(type) {
+	case *core.VarPattern, *core.WildcardPattern:
+		return true
+	}
+	return false
 }
 
 // lowerPatternCond produces a boolean condition for matching a pattern.

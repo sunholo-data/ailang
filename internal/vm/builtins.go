@@ -20,10 +20,11 @@ type BuiltinFunc func(args []bytecode.Value) (bytecode.Value, error)
 // (`tests/golden/codegen/`). All other builtins lower to OpBuiltinTrap and
 // will be wired through the evaluator in Phase 2E.
 var BuiltinTable = []BuiltinFunc{
-	builtinShow,    // _show
-	builtinLen,     // _len
-	builtinListGet, // _list_get
-	builtinListTail,
+	builtinShow,         // _show
+	builtinLen,          // _len
+	builtinListGet,      // _list_get
+	builtinListTail,     // _list_tail
+	builtinConcatString, // _concat_String
 }
 
 // builtinShow returns a string representation of any value. Matches the
@@ -87,6 +88,22 @@ func builtinListGet(args []bytecode.Value) (bytecode.Value, error) {
 		return bytecode.Value{}, fmt.Errorf("_list_get: index %d out of range [0,%d)", i, len(elems))
 	}
 	return elems[i], nil
+}
+
+// builtinConcatString concatenates two strings. The lower pass intercepts
+// stdlib calls to `$builtin.concat_String` and routes them through this
+// dispatch entry; see internal/gen/lower/expr.go:lowerApp.
+func builtinConcatString(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("_concat_String: expected 2 args, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagString {
+		return bytecode.Value{}, fmt.Errorf("_concat_String: arg 0 must be string, got %s", args[0].Tag)
+	}
+	if args[1].Tag != bytecode.TagString {
+		return bytecode.Value{}, fmt.Errorf("_concat_String: arg 1 must be string, got %s", args[1].Tag)
+	}
+	return bytecode.NewString(args[0].AsString() + args[1].AsString()), nil
 }
 
 // builtinListTail returns the suffix of a list starting at index n.

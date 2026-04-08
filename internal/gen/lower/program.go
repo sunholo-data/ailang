@@ -124,40 +124,65 @@ func lowerFuncDecls(coreProg *core.Program, cti types.CoreTypeInfo) ([]stmt.Func
 	var result []stmt.FuncDecl
 
 	for _, decl := range coreProg.Decls {
-		fd, err := lowerTopLevelDecl(decl, coreProg.Meta, cti)
+		fds, err := lowerTopLevelDecl(decl, coreProg.Meta, cti)
 		if err != nil {
 			return nil, err
 		}
-		if fd != nil {
-			result = append(result, *fd)
-		}
+		result = append(result, fds...)
 	}
 
 	return result, nil
 }
 
-// lowerTopLevelDecl converts a single Core top-level expression into a FuncDecl.
-// Top-level Core expressions are Let bindings wrapping Lambdas.
+// lowerTopLevelDecl converts a single Core top-level expression into one or
+// more FuncDecls. Top-level Core expressions are typically Let bindings
+// wrapping Lambdas (non-recursive) or LetRec with one or more bindings
+// (recursive / mutually-recursive).
 func lowerTopLevelDecl(
 	e core.CoreExpr,
 	meta map[string]*core.DeclMeta,
 	cti types.CoreTypeInfo,
-) (*stmt.FuncDecl, error) {
-	// Top-level declarations are Let bindings: Let("funcName", Lambda(...), body)
-	let, ok := e.(*core.Let)
-	if !ok {
-		// Could be a top-level expression (e.g., in REPL). Skip.
-		return nil, nil
+) ([]stmt.FuncDecl, error) {
+	switch e := e.(type) {
+	case *core.Let:
+		fd := bindingToFuncDecl(e.Name, e.Value, meta, cti)
+		if fd == nil {
+			return nil, nil
+		}
+		return []stmt.FuncDecl{*fd}, nil
+
+	case *core.LetRec:
+		// Recursive (and mutually-recursive) top-level declarations.
+		// Each binding becomes its own FuncDecl. Recursive references
+		// inside the bodies are bare core.Vars and are rewritten to
+		// module-qualified names later by QualifyFuncRefs.
+		var result []stmt.FuncDecl
+		for _, b := range e.Bindings {
+			fd := bindingToFuncDecl(b.Name, b.Value, meta, cti)
+			if fd != nil {
+				result = append(result, *fd)
+			}
+		}
+		return result, nil
 	}
 
-	name := let.Name
+	// Some other top-level shape (REPL expression, etc.) — skip.
+	return nil, nil
+}
 
-	// Get metadata (export status, etc.).
+// bindingToFuncDecl turns a single (name, value) top-level binding into a
+// FuncDecl. The value is typically a Lambda (or DictAbs wrapping one); if it
+// is anything else, the binding is lowered as a nullary function returning
+// the value.
+func bindingToFuncDecl(
+	name string,
+	value core.CoreExpr,
+	meta map[string]*core.DeclMeta,
+	cti types.CoreTypeInfo,
+) *stmt.FuncDecl {
 	dm := meta[name]
 	exported := dm != nil && dm.IsExport
 
-	// The value should be a Lambda (or DictAbs wrapping a Lambda).
-	value := let.Value
 	// Unwrap DictAbs — erase dictionary abstraction.
 	if da, ok := value.(*core.DictAbs); ok {
 		value = da.Body
@@ -166,18 +191,17 @@ func lowerTopLevelDecl(
 	lam, ok := value.(*core.Lambda)
 	if !ok {
 		// Top-level value binding (not a function). Lower as a 0-arg function.
-		retType := resolveExprType(let.Value, cti)
-		body, retExpr := FlattenBlock(let.Value, cti)
+		retType := resolveExprType(value, cti)
+		body, retExpr := FlattenBlock(value, cti)
 		return &stmt.FuncDecl{
 			Name:       name,
 			ReturnType: retType,
 			Body:       body,
 			Return:     retExpr,
 			Exported:   exported,
-		}, nil
+		}
 	}
 
-	// Lower the lambda into a FuncDecl.
 	params := lowerParams(lam, cti)
 	retType := resolveReturnType(lam, cti)
 	body, retExpr := FlattenBlock(lam.Body, cti)
@@ -189,7 +213,7 @@ func lowerTopLevelDecl(
 		Body:       body,
 		Return:     retExpr,
 		Exported:   exported,
-	}, nil
+	}
 }
 
 // lowerParams extracts parameter types from a Lambda's type info.

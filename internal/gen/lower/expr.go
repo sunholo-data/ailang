@@ -191,6 +191,18 @@ func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
 		}
 	}
 
+	// Direct builtin calls: a $builtin.<name> reference becomes a BuiltinCall.
+	// This is required for the bytecode VM, which has no notion of stdlib
+	// globals — it dispatches builtins through its own table. The Go emitter
+	// is unaffected because it never inspects BuiltinCall vs Call indirection.
+	if vg, ok := e.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
+		args := make([]stmt.Expr, len(e.Args))
+		for i, a := range e.Args {
+			args[i] = lowerExpr(a, cti)
+		}
+		return stmt.BuiltinCall{Name: "_" + vg.Ref.Name, Args: args}
+	}
+
 	args := make([]stmt.Expr, len(e.Args))
 	for i, a := range e.Args {
 		args[i] = lowerExpr(a, cti)
@@ -453,9 +465,20 @@ func lowerDictApp(e *core.DictApp, cti types.CoreTypeInfo) stmt.Expr {
 }
 
 // lowerDictMethod resolves a known dictionary method to a concrete operation.
+//
+// Method names match the elaborator's canonical OperatorMethod() output in
+// internal/types/typechecker_operators.go: add, sub, mul, div, neg, eq, neq,
+// lt, lte, gt, gte. We accept the older alias names (negate, ne, le, ge) too
+// for safety against regressions in callers that haven't been updated.
+//
+// Fractional is handled as a Num superclass: Fractional[Float] inherits
+// add/sub/mul/neg from Num[Float], so we route those through the Num branch
+// even when className == "Fractional". This is required because the
+// elaborator picks "Fractional" as the most specific class for arithmetic on
+// Floats (see typechecker_operators.go:90-94).
 func lowerDictMethod(className, typeName, method string, args []stmt.Expr) stmt.Expr {
-	// Num methods → arithmetic operators.
-	if className == "Num" {
+	// Num + Fractional (Fractional inherits add/sub/mul/neg from Num).
+	if className == "Num" || className == "Fractional" {
 		switch method {
 		case "add":
 			if len(args) == 2 {
@@ -469,9 +492,26 @@ func lowerDictMethod(className, typeName, method string, args []stmt.Expr) stmt.
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpMul, Left: args[0], Right: args[1]}
 			}
-		case "negate":
+		case "div":
+			// Integer division for Num, real division for Fractional.
+			// Both lower to OpDiv; the operand type determines the semantics
+			// at the bytecode level.
+			if len(args) == 2 {
+				return stmt.BinOp{Op: stmt.OpDiv, Left: args[0], Right: args[1]}
+			}
+		case "neg", "negate":
 			if len(args) == 1 {
 				return stmt.UnOp{Op: stmt.OpNeg, Operand: args[0]}
+			}
+		}
+	}
+
+	// Fractional-only methods.
+	if className == "Fractional" {
+		switch method {
+		case "divide":
+			if len(args) == 2 {
+				return stmt.BinOp{Op: stmt.OpDiv, Left: args[0], Right: args[1]}
 			}
 		}
 	}
@@ -483,7 +523,7 @@ func lowerDictMethod(className, typeName, method string, args []stmt.Expr) stmt.
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpEq, Left: args[0], Right: args[1]}
 			}
-		case "ne":
+		case "neq", "ne":
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpNeq, Left: args[0], Right: args[1]}
 			}
@@ -497,7 +537,7 @@ func lowerDictMethod(className, typeName, method string, args []stmt.Expr) stmt.
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpLt, Left: args[0], Right: args[1]}
 			}
-		case "le":
+		case "lte", "le":
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpLte, Left: args[0], Right: args[1]}
 			}
@@ -505,7 +545,7 @@ func lowerDictMethod(className, typeName, method string, args []stmt.Expr) stmt.
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpGt, Left: args[0], Right: args[1]}
 			}
-		case "ge":
+		case "gte", "ge":
 			if len(args) == 2 {
 				return stmt.BinOp{Op: stmt.OpGte, Left: args[0], Right: args[1]}
 			}

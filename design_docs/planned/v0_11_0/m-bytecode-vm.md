@@ -1,6 +1,6 @@
 # M-BYTECODE-VM: Bytecode Virtual Machine from Statement IR
 
-**Status**: Phase 2A COMPLETE (gate passed). Phase 2B COMPLETE (2026-04-08, fib(25) acceptance gate passed). Phase 2C (compiler) ready to start.
+**Status**: Phase 2A COMPLETE. Phase 2B COMPLETE (2026-04-08, fib(25) gate passed). Phase 2C COMPLETE (2026-04-08, golden parity 33/0). Phase 2D (integration & polish) ready to start — unblocked by [M-LOWER-FIX](../implemented/v0_11_0/m-lower-fix.md) which resolved 4 lower-pass bugs surfaced by the Phase 2C parity gate.
 **Target**: v0.11.0+
 **Priority**: P1 (Strategic — implements the chosen compilation architecture)
 **Created**: 2026-04-03

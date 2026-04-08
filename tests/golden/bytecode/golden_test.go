@@ -68,7 +68,7 @@ func goldenSpecs() []goldenSpec {
 			file: "arithmetic.ail",
 			cases: []caseResult{
 				{fn: "addInts", args: []bytecode.Value{bytecode.NewInt(2), bytecode.NewInt(3)}, want: bytecode.NewInt(5)},
-				{fn: "mulFloats", args: []bytecode.Value{bytecode.NewFloat(2.5), bytecode.NewFloat(4.0)}, want: bytecode.NewFloat(10), xfailLower: "Float * lowers to BuiltinCall _Fractional_Float_mul (typeclass dispatch)"},
+				{fn: "mulFloats", args: []bytecode.Value{bytecode.NewFloat(2.5), bytecode.NewFloat(4.0)}, want: bytecode.NewFloat(10)},
 				{fn: "negate", args: []bytecode.Value{bytecode.NewInt(7)}, want: bytecode.NewInt(-7)},
 				{fn: "comparison", args: []bytecode.Value{bytecode.NewInt(5), bytecode.NewInt(3)}, want: bytecode.NewBool(true)},
 				{fn: "logical", args: []bytecode.Value{bytecode.NewBool(true), bytecode.NewBool(false)}, want: bytecode.NewBool(false)},
@@ -100,16 +100,19 @@ func goldenSpecs() []goldenSpec {
 			file: "functions.ail",
 			cases: []caseResult{
 				{fn: "identity", args: []bytecode.Value{bytecode.NewInt(42)}, want: bytecode.NewInt(42)},
-				{fn: "factorial", args: []bytecode.Value{bytecode.NewInt(5)}, want: bytecode.NewInt(120), xfailLower: "factorial dropped by lower pass (typeclass-resolved Int * Int + recursion)"},
-				{fn: "factorial", args: []bytecode.Value{bytecode.NewInt(0)}, want: bytecode.NewInt(1), xfailLower: "see above"},
+				{fn: "factorial", args: []bytecode.Value{bytecode.NewInt(5)}, want: bytecode.NewInt(120)},
+				{fn: "factorial", args: []bytecode.Value{bytecode.NewInt(0)}, want: bytecode.NewInt(1)},
 				{fn: "compose", args: []bytecode.Value{bytecode.NewInt(3)}, want: bytecode.NewInt(7)},
 			},
 		},
-		// string_ops.ail is currently *unlowerable*: the ++ operator lowers to
-		// a call to a stdlib global "concat_String" that the compiler cannot
-		// resolve in isolation. Disabled at the file level until M-LOWER-FIX
-		// land in Phase 2D.
-		// {file: "string_ops.ail", ...},
+		{
+			file: "string_ops.ail",
+			cases: []caseResult{
+				{fn: "greet", args: []bytecode.Value{bytecode.NewString("World")}, want: bytecode.NewString("Hello, World")},
+				{fn: "isEmpty", args: []bytecode.Value{bytecode.NewString("")}, want: bytecode.NewBool(true)},
+				{fn: "isEmpty", args: []bytecode.Value{bytecode.NewString("x")}, want: bytecode.NewBool(false)},
+			},
+		},
 		{
 			file: "lists.ail",
 			cases: []caseResult{
@@ -119,26 +122,22 @@ func goldenSpecs() []goldenSpec {
 					args: []bytecode.Value{bytecode.NewInt(0), bytecode.NewList([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2)})},
 					want: bytecode.NewList([]bytecode.Value{bytecode.NewInt(0), bytecode.NewInt(1), bytecode.NewInt(2)})},
 				{fn: "sumList",
-					args:       []bytecode.Value{bytecode.NewList([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2), bytecode.NewInt(3), bytecode.NewInt(4)})},
-					want:       bytecode.NewInt(10),
-					xfailLower: "Int + Int lowers via typeclass dispatch (see Phase 2D)"},
+					args: []bytecode.Value{bytecode.NewList([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2), bytecode.NewInt(3), bytecode.NewInt(4)})},
+					want: bytecode.NewInt(10)},
 			},
 		},
 		{
-			file:         "tuples.ail",
-			xfailCompile: "lower pass elides tuple pattern bindings — swap/fst reference unbound vars",
+			file: "tuples.ail",
 			cases: []caseResult{
 				{fn: "pair",
 					args: []bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2)},
 					want: bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2)})},
 				{fn: "swap",
-					args:       []bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2)})},
-					want:       bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(2), bytecode.NewInt(1)}),
-					xfailLower: "lower pass elides tuple pattern bindings — body references unbound a/b"},
+					args: []bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(1), bytecode.NewInt(2)})},
+					want: bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(2), bytecode.NewInt(1)})},
 				{fn: "fst",
-					args:       []bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(99), bytecode.NewString("ignored")})},
-					want:       bytecode.NewInt(99),
-					xfailLower: "lower pass elides tuple pattern bindings"},
+					args: []bytecode.Value{bytecode.NewTuple([]bytecode.Value{bytecode.NewInt(99), bytecode.NewString("ignored")})},
+					want: bytecode.NewInt(99)},
 			},
 		},
 		{
@@ -167,8 +166,13 @@ func goldenSpecs() []goldenSpec {
 		{
 			file: "match_patterns.ail",
 			cases: []caseResult{
-				{fn: "eval", xfailLower: "lower pass drops eval (recursive Int + ADT match)"},
-				{fn: "isZero", xfailLower: "lower pass drops isZero (literal pattern in match)"},
+				// eval/isZero are exercised structurally — value-level tests
+				// would need hand-built Expr ADT values (int-tagged), which
+				// is awkward without exposing the lower pass's tag mapping.
+				// Constructor matching is covered by collections_test.go
+				// in the compiler package.
+				{fn: "eval", skip: true},
+				{fn: "isZero", skip: true},
 			},
 		},
 	}
@@ -251,7 +255,11 @@ func tryCompileAILFile(name string) (*bytecode.BytecodeImage, error) {
 		return nil, err
 	}
 	prog.FuncDecls = append(prog.FuncDecls, fileProg.FuncDecls...)
-	lower.QualifyFuncRefs(prog)
+	// Note: we deliberately do NOT call lower.QualifyFuncRefs here. That helper
+	// rewrites bare function references for the Go emitter (which capitalizes
+	// exported names and prefixes with module). The bytecode compiler uses the
+	// original FuncDecl.Name for lookup, so any rewrite breaks recursive calls
+	// like `factorial(n - 1)` → `Factorial(...)`.
 	return compiler.Compile(prog)
 }
 
