@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo/ailang/internal/bytecode"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/iface"
@@ -16,6 +17,7 @@ import (
 	"github.com/sunholo/ailang/internal/runtime"
 	"github.com/sunholo/ailang/internal/runtime/argdecode"
 	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo/ailang/internal/vm"
 )
 
 // envFlags contains all environment-related command-line flags
@@ -218,6 +220,17 @@ type moduleExecParams struct {
 	print             bool
 	noprint           bool
 	maxRecursionDepth int
+
+	// M-BYTECODE-2D M3: bytecode VM dispatch path. When bytecodeMode is set,
+	// executeModuleEntrypoint compiles the entry function (and its module)
+	// to bytecode and runs it on the VM, with an evaluator-bridge for any
+	// function the compiler couldn't lower. pipelineResult must be non-nil
+	// in this mode — the bytecode compile reuses its AST/Core/CoreTI rather
+	// than re-running the pipeline.
+	bytecodeMode   bool
+	strictBytecode bool
+	quiet          bool
+	pipelineResult *pipeline.Result
 }
 
 // executeModuleEntrypoint loads a module, resolves the entrypoint, and executes it
@@ -319,6 +332,25 @@ func executeModuleEntrypoint(rt *runtime.ModuleRuntime, params moduleExecParams)
 		return err
 	}
 
+	// M-BYTECODE-2D M3: bytecode VM dispatch path. The bridge is wired in
+	// non-strict mode so that EvalOnly functions (effectful, polymorphic-
+	// dictionary, ADT-shaped) trap back to the evaluator transparently. In
+	// strict mode the bridge is intentionally NOT wired: any call into an
+	// EvalOnly stub becomes a hard VM error so the strict gate fails loudly.
+	if params.bytecodeMode {
+		ranOnVM, vmErr := tryRunEntryViaVM(rt, inst, params, entry, args)
+		if ranOnVM {
+			return nil
+		}
+		if params.strictBytecode {
+			return fmt.Errorf("bytecode execution failed: %w", vmErr)
+		}
+		if !params.quiet {
+			fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), vmErr)
+		}
+		// Fall through to evaluator path below.
+	}
+
 	// Call the entrypoint function
 	execResult, err := runtime.CallEntrypoint(rt, inst, entry, args)
 	if err != nil {
@@ -333,6 +365,107 @@ func executeModuleEntrypoint(rt *runtime.ModuleRuntime, params moduleExecParams)
 	}
 
 	return nil
+}
+
+// tryRunEntryViaVM compiles the entry module to bytecode (reusing the
+// pipeline result that the evaluator path already produced) and runs the
+// named entry function on the VM. Functions the compiler couldn't lower are
+// dispatched back to the evaluator through bytecodeBridge — that bridge
+// requires the module instance to already be evaluated, which is why this
+// helper runs *after* rt.LoadAndEvaluate.
+//
+// Returns (true, nil) on a successful VM run (result already printed).
+// Returns (false, err) when the bytecode path could not be used at all
+// (compile failure for the entry, missing prototype, unsupported arity).
+// Runtime VM errors that occur after dispatch starts are returned as
+// (false, err) too — the caller decides strict vs. fallback.
+func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, params moduleExecParams, entry string, args []eval.Value) (bool, error) {
+	if params.pipelineResult == nil {
+		return false, fmt.Errorf("internal: bytecodeMode set but pipelineResult is nil")
+	}
+
+	img, err := compileBytecodeFromResult(*params.pipelineResult, params.iface.Module)
+	if err != nil {
+		return false, fmt.Errorf("compile: %w", err)
+	}
+	if err := img.Validate(); err != nil {
+		return false, fmt.Errorf("validate: %w", err)
+	}
+
+	proto := findEntryProto(img, entry)
+	if proto == nil {
+		return false, fmt.Errorf("entry function %q not found in bytecode image", entry)
+	}
+
+	// Convert decoded args from eval.Value to bytecode.Value via the bridge.
+	bcArgs := make([]bytecode.Value, 0, len(args))
+	for i, a := range args {
+		bv, err := evalValueToBytecode(a)
+		if err != nil {
+			return false, fmt.Errorf("entry arg %d: %w", i, err)
+		}
+		bcArgs = append(bcArgs, bv)
+	}
+
+	// The lower pass synthesizes a Unit parameter for nullary functions so
+	// they round-trip through the call ABI. Pad if needed.
+	if proto.NumParams == 1 && len(bcArgs) == 0 {
+		bcArgs = []bytecode.Value{bytecode.Unit()}
+	}
+	if int(proto.NumParams) != len(bcArgs) {
+		return false, fmt.Errorf("entry %q expects %d args, got %d", entry, proto.NumParams, len(bcArgs))
+	}
+
+	if !params.quiet {
+		fmt.Fprintf(os.Stderr, "%s Running %s via bytecode VM\n", green("✓"), params.filename)
+	}
+
+	machine := vm.NewVM(img)
+	// Wire the eval bridge in non-strict mode so EvalOnly stubs trap back
+	// to the evaluator. In strict mode, leaving Interop nil makes any trap
+	// a loud VM error.
+	if !params.strictBytecode {
+		machine.Interop = newBytecodeBridge(rt, inst, rt.GetEvaluator())
+	}
+
+	// If the entry itself is EvalOnly we'd normally need a "calling driver"
+	// to invoke it. The bridge expects a CALL instruction, not a top-level
+	// run. Handle this directly: dispatch through the bridge ourselves.
+	if proto.EvalOnly {
+		if params.strictBytecode {
+			return false, fmt.Errorf("entry %q is evaluator-only (%s); strict mode disables bridge dispatch", entry, proto.EvalReason)
+		}
+		bridge := newBytecodeBridge(rt, inst, rt.GetEvaluator())
+		result, err := bridge.CallEvalFunc(entry, bcArgs)
+		if err != nil {
+			return false, fmt.Errorf("bridge dispatch %q: %w", entry, err)
+		}
+		printVMResult(result, params)
+		return true, nil
+	}
+
+	result, err := machine.Run(proto, bcArgs)
+	if err != nil {
+		return false, fmt.Errorf("vm: %w", err)
+	}
+	printVMResult(result, params)
+	return true, nil
+}
+
+// printVMResult mirrors the evaluator path's print policy for VM-side
+// results: skip Unit, honor --no-print, render with the bytecode value's
+// own String() (which produces evaluator-compatible spelling for Tier-1
+// shapes).
+func printVMResult(v bytecode.Value, params moduleExecParams) {
+	if params.noprint {
+		return
+	}
+	if v.Tag == bytecode.TagUnit {
+		return
+	}
+	if params.print {
+		fmt.Println(v.String())
+	}
 }
 
 // decodeEntrypointArgs decodes JSON arguments based on function type signature

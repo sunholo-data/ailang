@@ -57,9 +57,8 @@ func disasmCommand() {
 }
 
 // compileBytecodeFromFile is the shared "AILANG source → BytecodeImage"
-// helper used by `disasm` and (in M2) by `run --bytecode`. It mirrors
-// tests/golden/bytecode/golden_test.go::tryCompileAILFile so the CLI and
-// the parity gate stay in lockstep.
+// helper used by `disasm`. It mirrors tests/golden/bytecode/golden_test.go::
+// tryCompileAILFile so the CLI and the parity gate stay in lockstep.
 func compileBytecodeFromFile(filename string, relaxModules bool) (*bytecode.BytecodeImage, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -79,19 +78,32 @@ func compileBytecodeFromFile(filename string, relaxModules bool) (*bytecode.Byte
 		}
 		return nil, fmt.Errorf("pipeline errors:\n  %s", strings.Join(msgs, "\n  "))
 	}
-	prog := &stmt.Program{Package: "disasm"}
-	seenTypes := map[string]bool{}
-	if res.Artifacts.AST != nil {
-		for _, decl := range res.Artifacts.AST.Decls {
-			td, ok := decl.(*ast.TypeDecl)
-			if !ok || seenTypes[td.Name] {
-				continue
-			}
-			seenTypes[td.Name] = true
-			prog.TypeDecls = append(prog.TypeDecls, lower.LowerTypeDecl(td))
-		}
+	return compileBytecodeFromResult(res, "disasm")
+}
+
+// compileBytecodeFromResult lowers an already-typechecked pipeline result and
+// compiles it to a BytecodeImage. This is the shared back-half of the bytecode
+// compile pipeline used by both `ailang disasm` (which runs the pipeline
+// itself) and `ailang run --bytecode` (which reuses the pipeline result that
+// the evaluator path already produced, avoiding a double compile).
+//
+// pkgName is the package label stamped onto the resulting stmt.Program; it
+// affects only diagnostics and disassembly headers, not name resolution.
+func compileBytecodeFromResult(res pipeline.Result, pkgName string) (*bytecode.BytecodeImage, error) {
+	if res.Artifacts.Core == nil || res.Artifacts.AST == nil {
+		return nil, fmt.Errorf("compile from result: missing AST/Core artifacts")
 	}
-	fileProg, err := lower.LowerProgram(res.Artifacts.Core, res.Artifacts.CoreTI, res.Artifacts.AST, "disasm")
+	prog := &stmt.Program{Package: pkgName}
+	seenTypes := map[string]bool{}
+	for _, decl := range res.Artifacts.AST.Decls {
+		td, ok := decl.(*ast.TypeDecl)
+		if !ok || seenTypes[td.Name] {
+			continue
+		}
+		seenTypes[td.Name] = true
+		prog.TypeDecls = append(prog.TypeDecls, lower.LowerTypeDecl(td))
+	}
+	fileProg, err := lower.LowerProgram(res.Artifacts.Core, res.Artifacts.CoreTI, res.Artifacts.AST, pkgName)
 	if err != nil {
 		return nil, fmt.Errorf("lower: %w", err)
 	}
