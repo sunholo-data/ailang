@@ -50,7 +50,18 @@ func NewMCPServer(srv *Server) *MCPServer {
 // All names are validated against the strict MCP regex
 // `^[a-zA-Z0-9_-]{1,64}$` (Claude Desktop compatible).
 func (ms *MCPServer) registerTools() {
-	modules := ms.server.GetModules()
+	rawModules := ms.server.GetModules()
+	// Re-key by RelPath projection (info.Path) so tool name generation
+	// and engine dispatch use the URL-shaped module path. The map from
+	// GetModules() is keyed by PhysicalPath (the s.modules identity)
+	// which is unsuitable for both lastMeaningfulSegment heuristics and
+	// engine.Call.
+	modules := make(map[string]*ModuleInfo, len(rawModules))
+	for _, info := range rawModules {
+		if info != nil {
+			modules[info.Path] = info
+		}
+	}
 	// Phase 1: dedup by name+type across modules (handles package-loaded duplicates).
 	type toolCandidate struct {
 		modPath string

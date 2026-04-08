@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/embed"
 	"github.com/sunholo/ailang/internal/iface"
@@ -38,12 +39,23 @@ const DefaultMaxUploadSize = 50 << 20
 
 // Server is the API server that exposes AILANG functions as REST endpoints.
 type Server struct {
-	engine   *embed.Engine
-	modules  map[string]*ModuleInfo // module path → info
-	mu       sync.RWMutex
-	port     string
+	engine *embed.Engine
+	// modules is keyed by ModuleInfo.PhysicalPath (symlink-resolved absolute
+	// file path). M-SERVEAPI-UNIFY: this is the single source of truth — no
+	// other map or derivation writes to it. Every entry goes through
+	// registerModule.
+	modules map[string]*ModuleInfo
+	mu      sync.RWMutex
+	port    string
+	// basePath is the user-supplied project root. Stored as the caller
+	// passed it (for display / relative-path derivation convenience).
 	basePath string
-	cors     bool
+	// normalizedBasePath is basePath with filepath.Abs + filepath.EvalSymlinks
+	// applied, plus a trailing separator. Used by registerModule's
+	// under-basePath filter to compare against physical file paths.
+	// Computed once at New() to avoid per-call symlink resolution.
+	normalizedBasePath string
+	cors               bool
 
 	// Frontend proxy
 	frontendPath string // path to React project (optional)
@@ -68,9 +80,47 @@ type Server struct {
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
+//
+// M-SERVEAPI-UNIFY: ModuleInfo is the single source of truth for a local
+// module's identity and all its projections. It is keyed in s.modules by
+// PhysicalPath (symlink-resolved absolute file path) — NOT by the derived
+// `Path` field. Every projection consumer (HTTP routes, OpenAPI, MCP,
+// A2A, function dispatch) reads the field it needs from here, so drift
+// between projection key derivations is structurally impossible.
+//
+// Non-JSON fields (PhysicalPath, File, Iface) are not serialized in the
+// /modules endpoint response to keep the public API shape unchanged.
 type ModuleInfo struct {
+	// Path is the RelPath projection (forward-slash relative path with
+	// .ail stripped). Kept as the primary JSON field for backwards compat.
 	Path    string       `json:"path"`
 	Exports []ExportInfo `json:"exports"`
+
+	// M-SERVEAPI-UNIFY projection fields — populated once at registration
+	// by registerModule. Read-only after that.
+
+	// PhysicalPath is the symlink-resolved absolute file path. This is
+	// the module's *identity*: two ModuleInfo values with the same
+	// PhysicalPath refer to the same physical source file, regardless of
+	// how they were discovered. This is the key used in s.modules.
+	PhysicalPath string `json:"-"`
+
+	// CanonicalID is the pipeline's canonical module ID (used by loader
+	// cache and callFunction dispatch). Example: "docparse/services/mcp_tools".
+	CanonicalID string `json:"-"`
+
+	// DeclaredPath is the `module X` header as written in source. Used
+	// to resolve imports from other local modules. Usually matches
+	// CanonicalID; differs under `module_prefix` aliasing.
+	DeclaredPath string `json:"-"`
+
+	// File is the parsed AST for the source file. Used for doc comment
+	// extraction and by the extract* helpers during registration.
+	File *ast.File `json:"-"`
+
+	// Iface is the type-checked interface from the pipeline. Used by
+	// callFunction for signature lookup and by the MCP schema generator.
+	Iface *iface.Iface `json:"-"`
 }
 
 // ExportInfo describes a single exported function from an AILANG module.
@@ -113,17 +163,19 @@ func New(basePath string, cfg Config) *Server {
 	if cfg.Port == "" {
 		cfg.Port = "8080"
 	}
-	// Normalize basePath: absolute + symlink-resolved. The dep-discovery
-	// loop in loadFile compares loader-resolved file paths against this
-	// basePath; without consistent normalization, macOS temp paths
-	// (/var/folders → /private/var/folders) break the prefix check and
-	// either silently drop local files or register them under wrong keys.
+	// Normalize basePath: absolute + symlink-resolved. registerModule
+	// compares loader-resolved file paths against basePath to filter
+	// package files from local files. Without consistent normalization,
+	// macOS temp paths (/var/folders → /private/var/folders) break the
+	// prefix check and either silently drop local files or register them
+	// under wrong keys.
 	if abs, err := filepath.Abs(basePath); err == nil {
 		basePath = abs
 	}
 	if resolved, err := filepath.EvalSymlinks(basePath); err == nil {
 		basePath = resolved
 	}
+	normalizedBase := filepath.Clean(basePath) + string(filepath.Separator)
 	eng := embed.New(basePath)
 	// Guard against Go's typed-nil interface gotcha: a *EffContext(nil) stored
 	// in interface{} is != nil but causes a nil pointer dereference.
@@ -139,23 +191,24 @@ func New(basePath string, cfg Config) *Server {
 		maxUpload = DefaultMaxUploadSize
 	}
 	return &Server{
-		engine:        eng,
-		modules:       make(map[string]*ModuleInfo),
-		port:          cfg.Port,
-		basePath:      basePath,
-		cors:          cfg.CORS,
-		frontendPath:  cfg.FrontendPath,
-		staticPath:    cfg.StaticPath,
-		watch:         cfg.Watch,
-		mcpEnabled:    cfg.MCP,
-		mcpOnly:       cfg.MCPOnly,
-		a2aEnabled:    cfg.A2A,
-		maxUploadSize: maxUpload,
-		apiKeyHeader:  cfg.APIKeyHeader,
-		apiKeyEnv:     cfg.APIKeyEnv,
-		effCtx:        storedEffCtx,
-		logLevel:      cfg.LogLevel,
-		routesOnly:    cfg.RoutesOnly,
+		engine:             eng,
+		modules:            make(map[string]*ModuleInfo),
+		port:               cfg.Port,
+		basePath:           basePath,
+		normalizedBasePath: normalizedBase,
+		cors:               cfg.CORS,
+		frontendPath:       cfg.FrontendPath,
+		staticPath:         cfg.StaticPath,
+		watch:              cfg.Watch,
+		mcpEnabled:         cfg.MCP,
+		mcpOnly:            cfg.MCPOnly,
+		a2aEnabled:         cfg.A2A,
+		maxUploadSize:      maxUpload,
+		apiKeyHeader:       cfg.APIKeyHeader,
+		apiKeyEnv:          cfg.APIKeyEnv,
+		effCtx:             storedEffCtx,
+		logLevel:           cfg.LogLevel,
+		routesOnly:         cfg.RoutesOnly,
 	}
 }
 
@@ -213,6 +266,14 @@ func serverSeverityLevel(severity string) int {
 
 // LoadModules compiles and loads AILANG modules from the given paths.
 // Each path can be a .ail file or a directory (scanned recursively for .ail files).
+//
+// M-SERVEAPI-UNIFY: both directory and file paths route through the
+// unified loader. Directories go through LoadProject (project-wide
+// single pass); single files go through loadFile, which compiles the
+// file and registers every module from result.Modules via the SAME
+// registerModule write site. There is no longer a separate dep-discovery
+// loop — drift between projection key derivations is structurally
+// impossible.
 func (s *Server) LoadModules(paths []string) error {
 	for _, p := range paths {
 		info, err := os.Stat(p)
@@ -221,7 +282,7 @@ func (s *Server) LoadModules(paths []string) error {
 		}
 
 		if info.IsDir() {
-			if err := s.loadDirectory(p); err != nil {
+			if err := s.LoadProject(context.Background(), p); err != nil {
 				return err
 			}
 		} else {
@@ -234,18 +295,24 @@ func (s *Server) LoadModules(paths []string) error {
 	// Eagerly evaluate all loaded modules so they're fully initialized before
 	// any HTTP requests arrive. This prevents deadlocks where concurrent requests
 	// trigger lazy LoadAndEvaluate under the Engine's write lock.
+	//
+	// Iterate by CanonicalID (populated unconditionally by registerModule)
+	// because engine.Load expects canonical IDs, not the PhysicalPath keys.
 	s.mu.RLock()
 	modPaths := make([]string, 0, len(s.modules))
-	for modPath := range s.modules {
-		modPaths = append(modPaths, modPath)
+	for _, entry := range s.modules {
+		if entry == nil || entry.CanonicalID == "" {
+			continue
+		}
+		modPaths = append(modPaths, entry.CanonicalID)
 	}
 	s.mu.RUnlock()
 
 	for _, modPath := range modPaths {
 		// Skip eager loading for package dependency modules. These are
-		// already preloaded into the engine's loader cache by loadFile()
-		// via PreloadModule(). Re-running compileModule() for pkg/ paths
-		// can overwrite the preloaded cache entries with modules compiled
+		// already preloaded into the engine's loader cache via
+		// PreloadModule. Re-running compileModule() for pkg/ paths can
+		// overwrite the preloaded cache entries with modules compiled
 		// from a different basePath, corrupting the canonical paths.
 		if strings.HasPrefix(modPath, "pkg/") {
 			continue
@@ -258,37 +325,27 @@ func (s *Server) LoadModules(paths []string) error {
 	return nil
 }
 
-func (s *Server) loadDirectory(dir string) error {
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".ail") {
-			return s.loadFile(path)
-		}
-		return nil
-	})
-}
-
+// loadFile compiles a single .ail file and registers every module from
+// the resulting result.Modules via registerModule. Used for the
+// single-file form of LoadModules and for the watcher's reloadFile path.
+//
+// M-SERVEAPI-UNIFY: this is now a thin wrapper that mirrors LoadProject
+// for one file. There is no dep-discovery loop and no second key
+// derivation — registerModule is the SOLE write site to s.modules.
 func (s *Server) loadFile(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", path, err)
 	}
-	// Resolve symlinks so the entry-point comparison in the dep-discovery
-	// loop matches the loader's symlink-resolved file paths consistently.
 	if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
 		absPath = resolved
 	}
 
-	// Compile through pipeline to get interface info
 	cfg := pipeline.Config{
 		Mode:         pipeline.ModeCheck,
 		RelaxModules: true,
 	}
-	src := pipeline.Source{
-		Filename: absPath,
-	}
+	src := pipeline.Source{Filename: absPath}
 
 	result, err := pipeline.RunWithContext(context.Background(), cfg, src)
 	if err != nil {
@@ -298,186 +355,25 @@ func (s *Server) loadFile(path string) error {
 		return fmt.Errorf("compilation errors for %s: %v", path, result.Errors)
 	}
 
-	// Preload all transitively resolved modules into the runtime.
-	// Without this, transitive import chains (A → B → std/zip) fail because
-	// serve-api loads each file independently, unlike ailang run which preloads
-	// all modules from result.Modules.
+	// Preload every transitively resolved module into the runtime, then
+	// register every local one via registerModule. registerModule's
+	// under-basePath filter handles local-vs-package classification.
 	if result.Modules != nil {
-		for modPath, loaded := range result.Modules {
-			s.engine.PreloadModule(modPath, loaded)
-			// Also preload under the declared module path (loaded.Path) when it
-			// differs from the resolved key. This happens with module_prefix
-			// aliasing: e.g. the map key is "pkg/sunholo/ailang_parse/types/document"
-			// but loaded.Path (and import statements) use "docparse/types/document".
-			// Without this, LoadAndEvaluate's recursive import resolution fails
-			// because it looks up imports by declared path, not resolved key.
-			if loaded.Path != "" && loaded.Path != modPath {
+		for modID, loaded := range result.Modules {
+			s.engine.PreloadModule(modID, loaded)
+			// Aliasing: also preload under the declared module path when
+			// it differs from the resolved key (module_prefix support).
+			if loaded.Path != "" && loaded.Path != modID {
 				s.engine.PreloadModule(loaded.Path, loaded)
 			}
-		}
-
-		// Discover @route annotations in LOCAL dependencies only.
-		// External packages are preloaded for execution but their routes
-		// are NOT registered — only the project's own modules contribute
-		// HTTP endpoints and MCP tools. This prevents imported packages
-		// from polluting the route list when the importing project has its
-		// own @route functions for the same functionality.
-		//
-		// The reliable signal is the FILE's absolute path: if the file lives
-		// under s.basePath on disk, it's the user's source; otherwise it
-		// came from a package cache (~/.ailang/pkg/...) or stdlib. Module
-		// paths alone are NOT reliable because `module_prefix` aliasing lets
-		// a package declare the same namespace as the local project
-		// (e.g. both `docparse/services/mcp_tools`). String-prefix and
-		// os.Stat checks can be fooled by these collisions.
-		absBase, absBaseErr := filepath.Abs(s.basePath)
-		if absBaseErr != nil {
-			absBase = s.basePath
-		}
-		// Resolve symlinks in basePath so the under-basePath comparison
-		// below works on systems where TMPDIR or project paths route
-		// through a symlink (e.g. macOS `/var/folders` →
-		// `/private/var/folders`). Without this, the loader's
-		// EvalSymlinks-resolved file paths can fail the prefix check
-		// and dep-discovery silently registers nothing.
-		if resolved, err := filepath.EvalSymlinks(absBase); err == nil {
-			absBase = resolved
-		}
-		absBase = filepath.Clean(absBase) + string(filepath.Separator)
-
-		for modPath, loaded := range result.Modules {
-			if loaded.Iface == nil || loaded.File == nil {
-				continue
+			if _, _, regErr := s.registerModule(loaded); regErr != nil {
+				return regErr
 			}
-			// Authoritative check: is this file actually under basePath on disk?
-			filePath := loaded.File.Path
-			if filePath == "" {
-				continue // no source path → cannot be a local file
-			}
-			absFile, err := filepath.Abs(filePath)
-			if err != nil {
-				continue
-			}
-			// Resolve symlinks on absFile too so the prefix comparison
-			// against the EvalSymlinks-resolved absBase is consistent.
-			// On macOS, basePath may live under `/var/folders` (a symlink
-			// to `/private/var/folders`) while the loader's stored
-			// `file.Path` is the unresolved form — without resolving both
-			// sides, the prefix check below would falsely reject local files.
-			if resolved, err := filepath.EvalSymlinks(absFile); err == nil {
-				absFile = resolved
-			}
-			absFile = filepath.Clean(absFile)
-			if !strings.HasPrefix(absFile+string(filepath.Separator), absBase) &&
-				absFile != strings.TrimSuffix(absBase, string(filepath.Separator)) {
-				if os.Getenv("DEBUG_APISERVER_ROUTES") == "1" {
-					log.Printf("  [route-filter] skipping %s: %s not under %s", modPath, absFile, absBase)
-				}
-				continue
-			}
-			// MOD-CASCADE Fix 3: Skip the entry-point file. The main path
-			// below (`loadFile` itself) registers it under the canonical
-			// rel-path key. Re-registering it here under a (possibly
-			// different) canonical-ID-derived key produces a duplicate
-			// entry that doubles eager-load work.
-			if absFile == absPath {
-				continue
-			}
-			// MOD-CASCADE Fix 1: Use the SAME key derivation as the main
-			// path at lines 406-414 (`filepath.Rel(s.basePath, absPath)`)
-			// so dep-discovery and `loadFile` produce identical
-			// `s.modules` keys for the same file. Before v0.10.11, this
-			// loop used `strings.TrimPrefix(modPath, trimmedBase+"/")` on
-			// the pipeline canonical ID, which often produced a different
-			// string than the main path's `filepath.Rel` form — leading
-			// to two registrations of the same module under two keys, and
-			// the eager-load step compiling each module twice.
-			normalizedPath := strings.TrimSuffix(filepath.Base(absFile), ".ail")
-			if relPath, relErr := filepath.Rel(s.basePath, absFile); relErr == nil && !strings.HasPrefix(relPath, "..") {
-				normalizedPath = filepath.ToSlash(strings.TrimSuffix(relPath, ".ail"))
-			}
-
-			// MOD-CASCADE Fix 2: Existence check moved BEFORE the
-			// `extract*` calls. Repeat visits across the multi-file
-			// `LoadModules` pass are now O(map lookup) instead of
-			// O(parse + 4 AST traversals + log line).
-			s.mu.RLock()
-			_, exists := s.modules[normalizedPath]
-			s.mu.RUnlock()
-			if exists {
-				continue
-			}
-
-			depInfo := extractModuleInfo(loaded.Iface)
-			extractParamInfo(depInfo, loaded.File)
-			extractRouteAnnotations(depInfo, loaded.File)
-			extractNoExposeAnnotations(depInfo, loaded.File)
-			extractMCPNameAnnotations(depInfo, loaded.File)
-
-			// Only register if the module has routed exports.
-			hasRoutes := false
-			for _, exp := range depInfo.Exports {
-				if exp.RoutePath != "" {
-					hasRoutes = true
-					break
-				}
-			}
-			if !hasRoutes {
-				continue
-			}
-
-			depInfo.Path = normalizedPath
-			s.mu.Lock()
-			s.modules[normalizedPath] = depInfo
-			s.mu.Unlock()
-			log.Printf("  Loaded package module: %s (%d exports, routes discovered)", normalizedPath, len(depInfo.Exports))
 		}
 	}
 
-	// Extract module interface
-	if result.Interface == nil {
-		return fmt.Errorf("no module interface for %s", path)
-	}
-
-	modInfo := extractModuleInfo(result.Interface)
-
-	// Extract param names, route annotations, and doc comments from AST
-	if result.Artifacts.AST != nil {
-		extractParamInfo(modInfo, result.Artifacts.AST)
-		extractRouteAnnotations(modInfo, result.Artifacts.AST)
-		extractNoExposeAnnotations(modInfo, result.Artifacts.AST)
-		extractMCPNameAnnotations(modInfo, result.Artifacts.AST)
-		extractDocComments(modInfo, result.Artifacts.AST, absPath)
-	}
-
-	// Derive module path from file path relative to basePath.
-	// This is more reliable than using the pipeline's canonical path which
-	// may include filesystem prefixes (e.g., "var/folders/.../test/api/greet"
-	// instead of "test/api/greet").
-	modulePath := strings.TrimSuffix(filepath.Base(absPath), ".ail")
-
-	relPath, relErr := filepath.Rel(s.basePath, absPath)
-	if relErr == nil && !strings.HasPrefix(relPath, "..") {
-		// File is under basePath - use relative path as module path
-		modulePath = strings.TrimSuffix(relPath, ".ail")
-		// Convert OS path separators to forward slashes for URL routing
-		modulePath = filepath.ToSlash(modulePath)
-	}
-
-	modInfo.Path = modulePath
-
-	s.mu.Lock()
-	s.modules[modulePath] = modInfo
-	s.mu.Unlock()
-
-	// Don't eagerly load via engine.Load() - the engine will lazily compile
-	// and load the module on the first Call(). This avoids path resolution
-	// issues where pipeline canonical paths differ from engine basePath resolution.
-
-	// Track absolute path for file watching
+	// Track absolute path for file watching.
 	s.watchPaths = append(s.watchPaths, absPath)
-
-	log.Printf("  Loaded module: %s (%d exports)", modulePath, len(modInfo.Exports))
 	return nil
 }
 

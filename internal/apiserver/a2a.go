@@ -35,14 +35,21 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 	// Build skills list from loaded modules.
 	var skills []map[string]any
 
+	// Iterate over RelPath projections (info.Path), not the PhysicalPath
+	// keys, so the A2A skill IDs match the public URL shape.
+	modByRel := make(map[string]*ModuleInfo, len(s.modules))
 	modPaths := make([]string, 0, len(s.modules))
-	for k := range s.modules {
-		modPaths = append(modPaths, k)
+	for _, info := range s.modules {
+		if info == nil {
+			continue
+		}
+		modByRel[info.Path] = info
+		modPaths = append(modPaths, info.Path)
 	}
 	sort.Strings(modPaths)
 
 	for _, modPath := range modPaths {
-		modInfo := s.modules[modPath]
+		modInfo := modByRel[modPath]
 		for _, export := range modInfo.Exports {
 			if export.Arity < 0 {
 				continue
@@ -165,7 +172,7 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 
 	// Verify module and function exist.
 	s.mu.RLock()
-	modInfo, ok := s.modules[modulePath]
+	modInfo, ok := s.findModuleByRelPath(modulePath)
 	s.mu.RUnlock()
 	if !ok {
 		a2aError(w, req.ID, -32602, fmt.Sprintf("module %q not loaded", modulePath))

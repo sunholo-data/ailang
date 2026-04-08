@@ -160,15 +160,21 @@ func (s *Server) buildOpenAPISpec() map[string]any {
 
 	paths := make(map[string]any)
 
-	// Sort module paths for deterministic output.
+	// Sort module paths (RelPath projections) for deterministic output.
+	// s.modules is keyed by PhysicalPath; OpenAPI URLs use RelPath.
+	modByRel := make(map[string]*ModuleInfo, len(s.modules))
 	modPaths := make([]string, 0, len(s.modules))
-	for k := range s.modules {
-		modPaths = append(modPaths, k)
+	for _, info := range s.modules {
+		if info == nil {
+			continue
+		}
+		modByRel[info.Path] = info
+		modPaths = append(modPaths, info.Path)
 	}
 	sort.Strings(modPaths)
 
 	for _, modPath := range modPaths {
-		modInfo := s.modules[modPath]
+		modInfo := modByRel[modPath]
 		// Sort exports for deterministic output.
 		exports := make([]ExportInfo, len(modInfo.Exports))
 		copy(exports, modInfo.Exports)

@@ -61,9 +61,10 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	modulePath := path[:lastSlash]
 	funcName := path[lastSlash+1:]
 
-	// Validate module exists
+	// Validate module exists. s.modules is keyed by PhysicalPath; look
+	// up by the URL-shaped RelPath projection instead.
 	s.mu.RLock()
-	modInfo, ok := s.modules[modulePath]
+	modInfo, ok := s.findModuleByRelPath(modulePath)
 	s.mu.RUnlock()
 
 	if !ok {

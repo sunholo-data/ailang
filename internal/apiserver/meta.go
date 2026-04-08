@@ -52,7 +52,7 @@ func (s *Server) handleModuleDetail(w http.ResponseWriter, r *http.Request) {
 	path = strings.TrimSuffix(path, "/")
 
 	s.mu.RLock()
-	modInfo, ok := s.modules[path]
+	modInfo, ok := s.findModuleByRelPath(path)
 	s.mu.RUnlock()
 
 	if !ok {
