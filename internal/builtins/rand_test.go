@@ -263,6 +263,21 @@ func TestUuid4Uniqueness(t *testing.T) {
 	}
 }
 
+// TestCryptoSeed_NonDeterministic guards against the docparse cold-start
+// regression: prior to the fix, init() seeded math/rand with NewSource(0),
+// so independent processes produced identical rand_int sequences. This
+// caused API key collisions across Cloud Run cold starts. cryptoSeed() must
+// pull fresh entropy from crypto/rand on every call.
+func TestCryptoSeed_NonDeterministic(t *testing.T) {
+	seeds := make(map[int64]struct{}, 16)
+	for i := 0; i < 16; i++ {
+		seeds[cryptoSeed()] = struct{}{}
+	}
+	if len(seeds) < 15 {
+		t.Fatalf("cryptoSeed produced %d unique values out of 16 — entropy source is broken", len(seeds))
+	}
+}
+
 func TestUuid4RequiresCapability(t *testing.T) {
 	ctx := effects.NewEffContext([]string{})
 	ctx.Grant(effects.NewCapability("IO")) // Grant IO but NOT Rand

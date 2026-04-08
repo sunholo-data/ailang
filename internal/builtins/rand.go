@@ -2,6 +2,7 @@ package builtins
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/rand"
@@ -20,14 +21,29 @@ var (
 )
 
 func init() {
-	// Initialize with a default seed (can be overridden with SetRandSeed)
-	randSource = rand.New(rand.NewSource(0))
+	// SECURITY: Seed from crypto/rand on process start so independent
+	// processes (e.g. Cloud Run cold starts) do not produce identical
+	// sequences. Callers that need determinism must call SetRandSeed
+	// (or std/rand._rand_seed) explicitly.
+	randSource = rand.New(rand.NewSource(cryptoSeed()))
 
 	registerRandInt()
 	registerRandFloat()
 	registerRandBool()
 	registerRandSeed()
 	registerUuid4()
+}
+
+// cryptoSeed returns a non-deterministic int64 seed read from crypto/rand.
+// Falls back to a panic on entropy failure rather than silently using a
+// predictable value — Rand is used for security-sensitive code (API keys,
+// session tokens), so a silent fallback would be worse than crashing.
+func cryptoSeed() int64 {
+	var b [8]byte
+	if _, err := io.ReadFull(cryptorand.Reader, b[:]); err != nil {
+		panic("builtins/rand: failed to read entropy from crypto/rand: " + err.Error())
+	}
+	return int64(binary.LittleEndian.Uint64(b[:]))
 }
 
 // SetRandSeed sets the random seed for deterministic random generation.
