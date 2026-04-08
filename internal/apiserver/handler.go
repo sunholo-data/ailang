@@ -215,8 +215,24 @@ func parseNamedArgs(body map[string]interface{}, paramNames []string, paramTypes
 //  2. JSON object with keys matching paramNames — named binding
 //  3. Any other JSON value — single argument (existing behavior)
 func parseArgsWithNames(body []byte, paramNames []string, paramTypes []string) ([]interface{}, error) {
-	if len(body) == 0 || len(paramNames) == 0 {
+	if len(paramNames) == 0 {
 		return parseArgs(body)
+	}
+	if len(body) == 0 {
+		// Empty body + declared params → pad with type zero-values,
+		// matching the behavior of POST {} (UnmatchedKeysZeroValuePadding).
+		// This lets user code run its normal validation instead of
+		// crashing inside builtins on UnitValue or hitting arity errors.
+		if len(paramTypes) == 0 {
+			return parseArgs(body)
+		}
+		args := make([]interface{}, len(paramNames))
+		for i := range paramNames {
+			if i < len(paramTypes) {
+				args[i] = zeroValueForType(paramTypes[i])
+			}
+		}
+		return args, nil
 	}
 
 	// Quick check: try structured {"args": [...]} first (backward compat)

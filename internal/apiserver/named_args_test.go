@@ -338,13 +338,24 @@ func TestParseArgsWithNames(t *testing.T) {
 		}
 	})
 
-	t.Run("empty body", func(t *testing.T) {
+	t.Run("empty body pads with zero values", func(t *testing.T) {
+		// POST with no body to a handler declaring named params should
+		// behave identically to POST {} — each missing param gets its
+		// type's zero value, so user code runs its normal validation
+		// path instead of crashing inside builtins on UnitValue.
+		// Regression test for inbox msg_20260408_104901_78aa2a4f.
 		args, err := parseArgsWithNames(nil, paramNames, paramTypes)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(args) != 0 {
-			t.Errorf("expected 0 args for empty body, got %d", len(args))
+		if len(args) != len(paramNames) {
+			t.Fatalf("expected %d args for empty body, got %d", len(paramNames), len(args))
+		}
+		if args[0] != "" {
+			t.Errorf("args[0] = %v (%T), want empty string", args[0], args[0])
+		}
+		if args[1] != "" {
+			t.Errorf("args[1] = %v (%T), want empty string", args[1], args[1])
 		}
 	})
 
@@ -427,6 +438,37 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 		}
 		if m["key"] != "val" {
 			t.Errorf("args[0][key] = %v, want val", m["key"])
+		}
+	})
+
+	t.Run("empty body with multi-typed params", func(t *testing.T) {
+		// POST with no body to a 4-arg handler must zero-pad each param
+		// in declaration order. Covers the parseFileSecure symptom from
+		// inbox msg_20260408_104901_78aa2a4f ("function expects 4
+		// arguments, got 0").
+		args, err := parseArgsWithNames(
+			nil,
+			[]string{"name", "count", "active", "tags"},
+			[]string{"string", "int", "bool", "list"},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(args) != 4 {
+			t.Fatalf("expected 4 args, got %d", len(args))
+		}
+		if args[0] != "" {
+			t.Errorf("args[0] = %v (%T), want empty string", args[0], args[0])
+		}
+		if args[1] != float64(0) {
+			t.Errorf("args[1] = %v (%T), want 0", args[1], args[1])
+		}
+		if args[2] != false {
+			t.Errorf("args[2] = %v (%T), want false", args[2], args[2])
+		}
+		list, ok := args[3].([]interface{})
+		if !ok || len(list) != 0 {
+			t.Errorf("args[3] = %v (%T), want empty []interface{}", args[3], args[3])
 		}
 	})
 
