@@ -166,13 +166,22 @@ func goldenSpecs() []goldenSpec {
 		{
 			file: "match_patterns.ail",
 			cases: []caseResult{
-				// eval/isZero are exercised structurally — value-level tests
-				// would need hand-built Expr ADT values (int-tagged), which
-				// is awkward without exposing the lower pass's tag mapping.
-				// Constructor matching is covered by collections_test.go
-				// in the compiler package.
+				// eval needs recursive ADT construction; covered structurally.
 				{fn: "eval", skip: true},
-				{fn: "isZero", skip: true},
+				// isZero is the regression test for Bug A.2 (literal-in-
+				// constructor patterns). Tag ordinals follow declaration
+				// order: Num=0, Add=1, Neg=2. Before the M-LOWER-FIX
+				// follow-up, the lower pass dropped the literal `0` and
+				// matched any `Num(_)`, so isZero(Num(5)) returned true.
+				{fn: "isZero",
+					args: []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(0)})},
+					want: bytecode.NewBool(true)},
+				{fn: "isZero",
+					args: []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(5)})},
+					want: bytecode.NewBool(false)},
+				{fn: "isZero",
+					args: []bytecode.Value{bytecode.NewADT(2, []bytecode.Value{bytecode.NewADT(0, []bytecode.Value{bytecode.NewInt(0)})})},
+					want: bytecode.NewBool(false)},
 			},
 		},
 	}

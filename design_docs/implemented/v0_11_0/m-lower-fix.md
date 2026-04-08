@@ -93,18 +93,35 @@ original Bug C section is preserved unmodified above for the post-mortem.
 
 ### Open follow-ups (deferred to Phase 2D / future sprints)
 
-- **Bug A.2 (literal-in-constructor patterns)** is documented but unfixed.
-  `Num(0) => true` still matches any `Num`. Not in the parity gate (eval and
-  isZero are skip-compile-only) but real users would hit it. Should be
-  fixed before Phase 2D item #6 (full evaluator suite parity).
-- **`LowerMatchExpr`** is still the lossy fallback for non-tail-position
-  matches. The corpus doesn't exercise this path so we don't know for sure
-  it's broken, but the current code still drops bindings + extra arms in
-  the fall-through. Worth fixing or replacing with a panic when reached.
-- **`_dict_*` polymorphic-fallback BuiltinCalls** should probably be a hard
-  compile error in the bytecode compiler (not a runtime trap). This would
-  catch any future regression of Bug C-style "lower silently produced an
-  unresolvable name" before users hit it.
+All three follow-ups documented in the original Implementation Outcome
+were resolved in a small follow-up sprint (M-LOWER-FIX-2, 2026-04-08):
+
+- ✅ **Bug A.2 (literal-in-constructor patterns)** — `extractBindings` now
+  binds literal field positions to `_lit_<i>` temps and synthesizes an
+  equality guard. `lowerConstructorMatch` wraps the case body in
+  `IfStmt{Cond: guard, Then: body, Else: defaultBody}` so a guard miss
+  falls through to the inlined default. `isZero` is now value-tested in
+  the golden parity gate (Num(0)→true, Num(5)→false, Neg(Num(0))→false).
+  Parity gate: 33/0 → 36/0.
+- ✅ **`LowerMatchExpr` lossy fallback** — replaced with `panic` so any
+  future regression that hits the non-tail-position match path is loud
+  instead of silently producing wrong results.
+- ✅ **`_dict_*` / `_<Class>_*` hard compile error** — `compileBuiltinCall`
+  now rejects names matching the lower-pass dict-fallback shape (leading
+  `_` followed by an uppercase letter, OR `_dict_` prefix) with a clear
+  error pointing at `lowerDictMethod`. Effectful builtins (lowercase
+  names) still trap-at-runtime as before.
+
+Files changed in the follow-up:
+- `internal/gen/lower/match.go` — `extractBindingsAndGuards`,
+  `lowerLitPatternToExpr`, `lowerConstructorMatch` rewrite, `LowerMatchExpr`
+  panic.
+- `internal/gen/lower/lower_test.go` — `TestLowerMatchStmt_ConstructorWithLiteralArg`
+  regression test.
+- `internal/bytecode/compiler/builtins.go` — `isLowerPassDictFallback` +
+  hard error in `compileBuiltinCall`.
+- `tests/golden/bytecode/golden_test.go` — `isZero` un-skipped, value-tested
+  with hand-built ADT scrutinees.
 
 ---
 

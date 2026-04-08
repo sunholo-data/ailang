@@ -2,6 +2,8 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
+	"unicode"
 
 	"github.com/sunholo/ailang/internal/bytecode"
 	"github.com/sunholo/ailang/internal/gen/stmt"
@@ -34,12 +36,47 @@ var builtinIndex = func() map[string]uint8 {
 	return m
 }()
 
+// isLowerPassDictFallback reports whether name has the shape that the
+// lower pass uses when it FAILS to resolve a dictionary method. Two
+// patterns:
+//
+//   - `_dict_<method>` — produced by lowerDictApp when the dict is a
+//     polymorphic *core.Var (DictAbs param) that wasn't monomorphized.
+//   - `_<Class>_<Type>_<method>` (e.g., `_Fractional_Float_mul`) — produced
+//     by the lowerDictMethod fall-through when the (className, method)
+//     pair has no concrete BinOp/UnOp lowering. We detect this by the
+//     leading `_` followed by an UPPERCASE letter, which never occurs
+//     in legitimate pure builtins (`_show`, `_len`, `_list_*`,
+//     `_concat_String`).
+//
+// These names indicate a *lower-pass bug*, not a missing runtime feature.
+// Emitting `OpBuiltinTrap` for them would defer the failure to runtime
+// and mask the regression. We make them a compile error instead.
+func isLowerPassDictFallback(name string) bool {
+	if strings.HasPrefix(name, "_dict_") {
+		return true
+	}
+	if len(name) >= 2 && name[0] == '_' && unicode.IsUpper(rune(name[1])) {
+		return true
+	}
+	return false
+}
+
 // compileBuiltinCall lowers a stmt.BuiltinCall into either OpBuiltinCall
 // (for builtins listed in BuiltinTable) or OpBuiltinTrap (for any other
 // effectful/unsupported builtin — these will be wired through the
 // evaluator in Phase 2E).
 func (fc *funcCompiler) compileBuiltinCall(e stmt.BuiltinCall) (uint8, error) {
 	idx, isPure := builtinIndex[e.Name]
+	if !isPure && isLowerPassDictFallback(e.Name) {
+		return 0, fmt.Errorf(
+			"compiler: builtin %q is a lower-pass dict-resolution fallback, "+
+				"not a real builtin. This indicates that internal/gen/lower "+
+				"failed to resolve a typeclass method to a concrete operation. "+
+				"Add a branch to lowerDictMethod (or fix the upstream class "+
+				"resolution) instead of expecting this to trap at runtime",
+			e.Name)
+	}
 	n := len(e.Args)
 	if n > 255 {
 		return 0, fmt.Errorf("compiler: builtin %s has %d args, exceeds 255", e.Name, n)

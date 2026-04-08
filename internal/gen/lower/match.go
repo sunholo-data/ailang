@@ -32,16 +32,30 @@ func LowerMatchStmt(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 }
 
 // LowerMatchExpr converts a Core Match into a Statement IR expression.
-// For simple cases, returns an IfExpr. For complex cases, this is
-// harder — the caller should use FlattenBlock which handles Match
-// as a statement with returns in each branch.
+//
+// In practice this is only reachable for non-tail-position matches
+// (e.g. `1 + match x { ... }`). Tail-position matches are intercepted
+// by FlattenBlock and routed to LowerMatchStmt, which produces a
+// proper SwitchStmt or if-chain. The Phase 2C corpus does not exercise
+// non-tail-position matches.
+//
+// For the one supported shape — a 2-arm match where the first arm is a
+// LitPattern and both bodies are simple expressions — we emit an IfExpr.
+// Anything else PANICS rather than silently producing a lossy approximation
+// (the previous behavior was to return `lowerExpr(arms[0].Body)`, which
+// produced a wrong-but-running result for any match it didn't recognize).
+//
+// If you hit this panic, the right fix is usually to (a) refactor the
+// AILANG source so the match is in tail position, or (b) extend
+// FlattenBlock to bind the match's result into a temp via a hoisted
+// SwitchStmt and then reference that temp.
 func LowerMatchExpr(m *core.Match, cti types.CoreTypeInfo) stmt.Expr {
-	// For 2-arm matches with simple patterns, try to produce IfExpr.
+	// Supported shape: 2-arm lit-pattern match → IfExpr.
 	if len(m.Arms) == 2 {
 		first := m.Arms[0]
-		if _, ok := first.Pattern.(*core.LitPattern); ok {
+		if litPat, ok := first.Pattern.(*core.LitPattern); ok {
 			if isSimpleExpr(first.Body) && isSimpleExpr(m.Arms[1].Body) {
-				cond := lowerLitPatternCond(lowerExpr(m.Scrutinee, cti), first.Pattern.(*core.LitPattern))
+				cond := lowerLitPatternCond(lowerExpr(m.Scrutinee, cti), litPat)
 				return stmt.IfExpr{
 					Cond: cond,
 					Then: lowerExpr(first.Body, cti),
@@ -51,12 +65,13 @@ func LowerMatchExpr(m *core.Match, cti types.CoreTypeInfo) stmt.Expr {
 		}
 	}
 
-	// Complex match as expression — lower the first arm's body as default.
-	// This is a lossy approximation; the block lowerer handles it properly.
-	if len(m.Arms) > 0 {
-		return lowerExpr(m.Arms[0].Body, cti)
-	}
-	return stmt.LitUnit{}
+	panic(fmt.Sprintf(
+		"lower: LowerMatchExpr called on a non-tail-position match shape "+
+			"that has no IfExpr lowering (arms=%d). The previous lossy "+
+			"fallback (returning the first arm's body) was removed by "+
+			"M-LOWER-FIX follow-up. Refactor the source to put the match "+
+			"in tail position, or extend FlattenBlock to hoist it.",
+		len(m.Arms)))
 }
 
 func allConstructorPatterns(arms []core.MatchArm) bool {
@@ -74,6 +89,17 @@ func allConstructorPatterns(arms []core.MatchArm) bool {
 }
 
 // lowerConstructorMatch produces a SwitchStmt for ADT pattern matching.
+//
+// Bug A.2 fix (M-LOWER-FIX follow-up): when a constructor arm has literal
+// sub-patterns (e.g., `Num(0) => true`), `extractBindings` previously
+// silently dropped the literal value, so the switch matched any `Num(_)`.
+// We now bind each literal field to a temp and synthesize a guard
+// `_lit_<i> == <literal>`. If the guard fails inside the matched case, the
+// case body falls through to the *default* body inlined into the else
+// branch — the SwitchStmt itself has no per-case fall-through, so we
+// duplicate the default body. This is fine for the corpus (default bodies
+// are short like `return false`), and exhaustiveness checking guarantees a
+// default exists when literal sub-patterns are present.
 func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	scrutinee := lowerExpr(m.Scrutinee, cti)
 
@@ -85,43 +111,77 @@ func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 		}
 	}
 
-	var cases []stmt.SwitchCase
+	// First pass: collect the default body, if any. We need it before
+	// processing constructor arms with literal-sub-pattern guards.
 	var defaultBody []stmt.Stmt
-
 	for _, arm := range m.Arms {
-		switch pat := arm.Pattern.(type) {
-		case *core.ConstructorPattern:
-			bindings := extractBindings(pat, cti)
-			bodyStmts, retExpr := FlattenBlock(arm.Body, cti)
-			if retExpr != nil {
-				bodyStmts = append(bodyStmts, stmt.ReturnStmt{Value: retExpr})
-			}
-
-			// If there's a guard, wrap the body in an if.
-			if arm.Guard != nil {
-				guard := lowerExpr(arm.Guard, cti)
-				bodyStmts = []stmt.Stmt{
-					stmt.IfStmt{
-						Cond: guard,
-						Then: bodyStmts,
-					},
-				}
-			}
-
-			cases = append(cases, stmt.SwitchCase{
-				Tag:      pat.Name,
-				Bindings: bindings,
-				Body:     bodyStmts,
-			})
-
+		switch arm.Pattern.(type) {
 		case *core.WildcardPattern, *core.VarPattern:
-			// Default case.
 			bodyStmts, retExpr := FlattenBlock(arm.Body, cti)
 			if retExpr != nil {
 				bodyStmts = append(bodyStmts, stmt.ReturnStmt{Value: retExpr})
 			}
 			defaultBody = bodyStmts
 		}
+	}
+
+	var cases []stmt.SwitchCase
+
+	for _, arm := range m.Arms {
+		pat, ok := arm.Pattern.(*core.ConstructorPattern)
+		if !ok {
+			continue // var/wildcard already captured above
+		}
+		bindings, litGuards := extractBindingsAndGuards(pat)
+		bodyStmts, retExpr := FlattenBlock(arm.Body, cti)
+		if retExpr != nil {
+			bodyStmts = append(bodyStmts, stmt.ReturnStmt{Value: retExpr})
+		}
+
+		// Combine literal-sub-pattern guards with the explicit `if` guard.
+		var combinedGuard stmt.Expr
+		for _, g := range litGuards {
+			if combinedGuard == nil {
+				combinedGuard = g
+			} else {
+				combinedGuard = stmt.BinOp{Op: stmt.OpAnd, Left: combinedGuard, Right: g}
+			}
+		}
+		if arm.Guard != nil {
+			armGuard := lowerExpr(arm.Guard, cti)
+			if combinedGuard == nil {
+				combinedGuard = armGuard
+			} else {
+				combinedGuard = stmt.BinOp{Op: stmt.OpAnd, Left: combinedGuard, Right: armGuard}
+			}
+		}
+
+		if combinedGuard != nil {
+			// Wrap the body in an `if guard then body else <default>`.
+			// The else branch is the duplicated default body so the switch
+			// case still produces a value when the literal/explicit guard
+			// fails. Without the duplication the case would silently exit
+			// the switch and skip the default — this was Bug A.2.
+			ifStmt := stmt.IfStmt{
+				Cond: combinedGuard,
+				Then: bodyStmts,
+				Else: defaultBody, // may be nil if no default; see below
+			}
+			if len(litGuards) > 0 && len(defaultBody) == 0 {
+				panic(fmt.Sprintf(
+					"lower: constructor pattern %s has literal sub-arguments "+
+						"but no wildcard/var default arm — match is non-exhaustive "+
+						"and exhaustiveness checking should have rejected it",
+					pat.Name))
+			}
+			bodyStmts = []stmt.Stmt{ifStmt}
+		}
+
+		cases = append(cases, stmt.SwitchCase{
+			Tag:      pat.Name,
+			Bindings: bindings,
+			Body:     bodyStmts,
+		})
 	}
 
 	return stmt.SwitchStmt{
@@ -150,9 +210,24 @@ func extractADTName(t types.Type) string {
 	return ""
 }
 
-// extractBindings creates Binding entries for constructor pattern fields.
-func extractBindings(pat *core.ConstructorPattern, cti types.CoreTypeInfo) []stmt.Binding {
+// extractBindingsAndGuards creates Binding entries for constructor pattern
+// fields and synthesizes guard expressions for any literal sub-patterns
+// (Bug A.2 fix). Returns (bindings, extra guards).
+//
+// For each field of the constructor:
+//
+//   - Var pattern (`Foo(x)`): bind `x` to the field. No guard.
+//   - Wildcard (`Foo(_)`): skip — no binding, no guard.
+//   - Literal (`Foo(0)`): bind to a temp `_lit_<i>` AND emit a guard
+//     `_lit_<i> == <literal>`. The guard is AND-combined into the case
+//     body's outer `if` so the case fires only on a value match. This
+//     fixes the silent-success bug where `Num(0) => true` matched
+//     `Num(_)`.
+//   - Nested pattern (`Foo(Some(x))`): bind to a temp `_pat_<i>` for
+//     downstream destructuring (currently unsupported beyond binding).
+func extractBindingsAndGuards(pat *core.ConstructorPattern) ([]stmt.Binding, []stmt.Expr) {
 	var bindings []stmt.Binding
+	var guards []stmt.Expr
 	for i, arg := range pat.Args {
 		switch a := arg.(type) {
 		case *core.VarPattern:
@@ -166,6 +241,18 @@ func extractBindings(pat *core.ConstructorPattern, cti types.CoreTypeInfo) []stm
 			})
 		case *core.WildcardPattern:
 			continue
+		case *core.LitPattern:
+			tmpName := fmt.Sprintf("_lit_%d", i)
+			bindings = append(bindings, stmt.Binding{
+				Name:       tmpName,
+				FieldIndex: i,
+				Type:       stmt.InterfaceType{},
+			})
+			guards = append(guards, stmt.BinOp{
+				Op:    stmt.OpEq,
+				Left:  stmt.VarRef{Name: tmpName},
+				Right: lowerLitPatternToExpr(a),
+			})
 		default:
 			// Nested patterns (e.g., Some(Some(x))) — bind to a temp.
 			tmpName := fmt.Sprintf("_pat_%d", i)
@@ -176,7 +263,27 @@ func extractBindings(pat *core.ConstructorPattern, cti types.CoreTypeInfo) []stm
 			})
 		}
 	}
-	return bindings
+	return bindings, guards
+}
+
+// lowerLitPatternToExpr converts a LitPattern's value to the matching
+// stmt.Expr literal node. Used by extractBindingsAndGuards to build
+// equality guards for literal sub-patterns.
+func lowerLitPatternToExpr(p *core.LitPattern) stmt.Expr {
+	switch v := p.Value.(type) {
+	case int64:
+		return stmt.LitInt{Value: v}
+	case int:
+		return stmt.LitInt{Value: int64(v)}
+	case float64:
+		return stmt.LitFloat{Value: v}
+	case bool:
+		return stmt.LitBool{Value: v}
+	case string:
+		return stmt.LitString{Value: v}
+	default:
+		return stmt.LitUnit{}
+	}
 }
 
 // lowerIfChainMatch handles non-constructor patterns as an if-else chain.
