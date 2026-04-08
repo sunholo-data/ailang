@@ -124,7 +124,7 @@ func lowerFuncDecls(coreProg *core.Program, cti types.CoreTypeInfo) ([]stmt.Func
 	var result []stmt.FuncDecl
 
 	for _, decl := range coreProg.Decls {
-		fds, err := lowerTopLevelDecl(decl, coreProg.Meta, cti)
+		fds, err := lowerTopLevelDeclSafe(decl, coreProg.Meta, cti)
 		if err != nil {
 			return nil, err
 		}
@@ -133,6 +133,103 @@ func lowerFuncDecls(coreProg *core.Program, cti types.CoreTypeInfo) ([]stmt.Func
 
 	return result, nil
 }
+
+// lowerTopLevelDeclSafe wraps lowerTopLevelDecl with a panic recovery so a
+// single function that trips a lower-pass fast-fail (e.g. non-tail-position
+// match lowering) is degraded to an EvalOnly stub instead of aborting the
+// entire image compile. This is the M-BYTECODE-BATCH mechanism that lets
+// --bytecode --batch run on real-world programs where a minority of
+// functions use shapes the lower pass can't emit yet. At call time, the
+// bridge dispatches these stubs to the evaluator.
+//
+// The recovered declaration is returned with at least a best-effort name
+// (harvested from the Core binding), zero params, and LowerError set to the
+// panic reason. The compiler phase inspects LowerError and marks the proto
+// EvalOnly accordingly.
+func lowerTopLevelDeclSafe(
+	e core.CoreExpr,
+	meta map[string]*core.DeclMeta,
+	cti types.CoreTypeInfo,
+) (result []stmt.FuncDecl, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Extract any names we can identify for the offending
+			// declaration so the EvalOnly stubs can still be resolved by
+			// the bridge at call time. For LetRec we may emit multiple
+			// stubs; for a plain Let we emit one.
+			stubs := makeEvalOnlyStubs(e, fmt.Sprintf("lower panic: %v", r))
+			if len(stubs) == 0 {
+				err = fmt.Errorf("lower: %v", r)
+				return
+			}
+			result = stubs
+			err = nil
+		}
+	}()
+	return lowerTopLevelDecl(e, meta, cti)
+}
+
+// makeEvalOnlyStubs emits placeholder FuncDecls for the names exposed by a
+// top-level Core binding whose body failed to lower. The stubs carry no
+// body — only Name, Params (for arity), Exported, and LowerError — which
+// is enough for the compiler phase to tag them EvalOnly and for the bridge
+// to dispatch calls through the evaluator. Parameter arity is preserved
+// from the Core Lambda so that call-site arity checks in the VM runner
+// accept the right number of arguments before delegating to the bridge.
+func makeEvalOnlyStubs(e core.CoreExpr, reason string) []stmt.FuncDecl {
+	switch e := e.(type) {
+	case *core.Let:
+		return []stmt.FuncDecl{makeStub(e.Name, e.Value, reason)}
+	case *core.LetRec:
+		stubs := make([]stmt.FuncDecl, 0, len(e.Bindings))
+		for _, b := range e.Bindings {
+			stubs = append(stubs, makeStub(b.Name, b.Value, reason))
+		}
+		return stubs
+	}
+	return nil
+}
+
+// makeStub builds an EvalOnly placeholder FuncDecl with the right arity.
+// It sniffs the Core binding value for a Lambda to recover parameter
+// names; everything else is ignored because the body never runs.
+func makeStub(name string, value core.CoreExpr, reason string) stmt.FuncDecl {
+	params := coreLambdaParams(value)
+	stubParams := make([]stmt.Param, len(params))
+	for i, p := range params {
+		stubParams[i] = stmt.Param{Name: p, Type: placeholderType}
+	}
+	return stmt.FuncDecl{
+		Name:       name,
+		Params:     stubParams,
+		ReturnType: placeholderType,
+		Exported:   true,
+		LowerError: reason,
+	}
+}
+
+// coreLambdaParams peels outer Lambda / DictAbs wrappers to find the
+// user-visible parameter list. Returns nil for nullary or non-lambda
+// bindings — the Compile phase handles zero-arg stubs fine.
+func coreLambdaParams(e core.CoreExpr) []string {
+	for {
+		switch v := e.(type) {
+		case *core.Lambda:
+			return v.Params
+		case *core.DictAbs:
+			// Dictionary abstraction wraps the user lambda. Dict params
+			// are synthetic and invisible at the call boundary; unwrap.
+			e = v.Body
+			continue
+		}
+		return nil
+	}
+}
+
+// placeholderType is used for stub param/return types so validate.go
+// doesn't reject the stub. The stub never reaches the emitter, so the
+// actual type content is irrelevant — any non-nil ResolvedType works.
+var placeholderType stmt.ResolvedType = stmt.PrimitiveType{Kind: stmt.PrimUnit}
 
 // lowerTopLevelDecl converts a single Core top-level expression into one or
 // more FuncDecls. Top-level Core expressions are typically Let bindings

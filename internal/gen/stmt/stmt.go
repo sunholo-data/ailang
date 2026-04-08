@@ -74,6 +74,14 @@ type FuncDecl struct {
 	Module     string       // Source module name
 	File       string       // Source file path (for diagnostics; optional)
 	Line       int          // Source line of the func declaration (for diagnostics; 0 = unknown)
+
+	// LowerError is non-empty when the lower pass caught a panic or error
+	// while lowering this function's body. The bytecode compiler will skip
+	// normal compilation of such functions and mark the prototype as
+	// EvalOnly with this reason, so the bridge dispatches the call to the
+	// evaluator at runtime. Body/Return may be empty or partial in this
+	// case — consumers should not traverse them.
+	LowerError string
 }
 
 // Param is a function parameter.

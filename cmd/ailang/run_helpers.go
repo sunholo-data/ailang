@@ -442,19 +442,24 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		machine.Interop = newBytecodeBridge(rt, inst, rt.GetEvaluator())
 	}
 
-	// If the entry itself is EvalOnly we'd normally need a "calling driver"
-	// to invoke it. The bridge expects a CALL instruction, not a top-level
-	// run. Handle this directly: dispatch through the bridge ourselves.
+	// If the entry itself is EvalOnly the VM adds nothing on top of the
+	// evaluator — dispatch through runtime.CallEntrypoint directly so we
+	// get the normal per-request evaluator fork, global resolver setup and
+	// goroutine-evaluator registration. Going through bridge.CallEvalFunc
+	// here (which was the original fallback) skips those steps and
+	// subtly breaks effects that depend on resolver/fork state — e.g.
+	// Process subprocess stdout ordering.
 	if proto.EvalOnly {
 		if params.strictBytecode {
 			return false, fmt.Errorf("entry %q is evaluator-only (%s); strict mode disables bridge dispatch", entry, proto.EvalReason)
 		}
-		bridge := newBytecodeBridge(rt, inst, rt.GetEvaluator())
-		result, err := bridge.CallEvalFunc(entry, bcArgs)
+		result, err := runtime.CallEntrypoint(rt, inst, entry, args)
 		if err != nil {
-			return false, fmt.Errorf("bridge dispatch %q: %w", entry, err)
+			return false, fmt.Errorf("eval-only entry %q: %w", entry, err)
 		}
-		printVMResult(result, params)
+		if !params.noprint && params.print && result != nil && result.Type() != "unit" {
+			fmt.Println(result.String())
+		}
 		return true, nil
 	}
 
@@ -543,7 +548,7 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	processTimeout string, processAllowlist string, processMaxOutput int64,
 	aiStub bool, aiModel string,
 	allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string,
-	filename string) error {
+	filename string, bytecodeMode bool, strictBytecode bool) error {
 
 	// Fresh runtime per input — prevents state leaks between batch items
 	rt := runtime.NewModuleRuntime(".")
@@ -601,6 +606,12 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 	}
 
 	// Execute module entrypoint
+	// M-BYTECODE-BATCH: thread --bytecode / --strict-bytecode and the
+	// precompiled pipeline result through so each batch item runs on the
+	// VM path (via tryRunEntryViaVM). The BytecodeImage is currently
+	// recompiled per item because compileBytecodeFromResult is cheap
+	// relative to per-item runtime setup; a shared-image optimization is
+	// tracked for a follow-up.
 	execParams := moduleExecParams{
 		filename:          filename,
 		iface:             result.Interface,
@@ -610,6 +621,10 @@ func executeBatchItem(ctx context.Context, result pipeline.Result, input string,
 		print:             printResult,
 		noprint:           noprint,
 		maxRecursionDepth: maxRecursionDepth,
+		bytecodeMode:      bytecodeMode,
+		strictBytecode:    strictBytecode,
+		quiet:             quiet,
+		pipelineResult:    &result,
 	}
 	return executeModuleEntrypoint(rt, execParams)
 }

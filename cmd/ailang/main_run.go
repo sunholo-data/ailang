@@ -385,7 +385,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 					streamAllowHTTP, streamAllowDomains, streamAllowLocalhost,
 					processTimeout, processAllowlist, processMaxOutput,
 					aiStub, aiModel, allowEnv, allowEnvFile, env, envSnapshot, writeEnvSnapshot,
-					filename)
+					filename, bytecodeMode, strictBytecode)
 				if batchErr != nil {
 					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), batchErr)
 					batchErrors++

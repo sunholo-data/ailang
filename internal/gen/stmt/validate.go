@@ -28,6 +28,13 @@ func validateFunc(fd *FuncDecl) error {
 	if fd.Name == "" {
 		return fmt.Errorf("has empty name")
 	}
+	// EvalOnly stubs produced by lower-pass panic recovery carry only a
+	// name + LowerError; they deliberately skip type/body validation
+	// because the compiler will tag them EvalOnly and never emit bytecode
+	// for them. Calls at runtime go through the bridge to the evaluator.
+	if fd.LowerError != "" {
+		return nil
+	}
 	if fd.ReturnType == nil {
 		return fmt.Errorf("has nil return type")
 	}

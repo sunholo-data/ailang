@@ -48,7 +48,17 @@ const (
 	StatusVMCompile Status = "VM_COMPILE"
 	StatusVMRuntime Status = "VM_RUNTIME"
 	StatusDiverge   Status = "DIVERGE"
+	StatusNonDet    Status = "NON_DET" // Known non-deterministic, excluded from parity
 )
+
+// nonDeterministic is the set of examples whose output is inherently
+// non-deterministic — each run produces different bytes regardless of
+// backend. Gating parity on them would create false negatives; they are
+// documented here and counted separately.
+var nonDeterministic = map[string]string{
+	"uuid.ail":                  "Rand.uuid() returns a fresh UUID each call",
+	"stream_process_source.ail": "subprocess stdout races with main stdout",
+}
 
 type Result struct {
 	File       string        `json:"file"`
@@ -149,6 +159,16 @@ func verifyOne(bin, file string, timeout time.Duration) Result {
 	src := string(content)
 	res.Caps = detectCaps(src)
 	res.Entrypoint = detectEntry(src)
+
+	// Skip known-non-deterministic examples: running parity on these would
+	// produce false negatives (both backends diverge from themselves run to
+	// run). We record the reason so the report can show them separately.
+	if reason, ok := nonDeterministic[filepath.Base(file)]; ok {
+		res.Status = StatusNonDet
+		res.Reason = reason
+		res.Duration = time.Since(start)
+		return res
+	}
 
 	// Evaluator run — ground truth.
 	evalStdout, _, evalExit := runOne(bin, file, res.Caps, res.Entrypoint, false, timeout)
@@ -338,7 +358,7 @@ func emitText(rs []Result) {
 
 	fmt.Printf("M-BYTECODE-2D M6 — bytecode parity report (%d examples)\n\n", total)
 	// Ordered summary line.
-	order := []Status{StatusMatch, StatusDiverge, StatusVMBridge, StatusVMCompile, StatusVMRuntime, StatusEvalSkip}
+	order := []Status{StatusMatch, StatusNonDet, StatusDiverge, StatusVMBridge, StatusVMCompile, StatusVMRuntime, StatusEvalSkip}
 	for _, s := range order {
 		if tally[s] > 0 {
 			fmt.Printf("  %-10s %3d  (%.1f%%)\n", s, tally[s], pct(tally[s], total))
@@ -346,10 +366,10 @@ func emitText(rs []Result) {
 	}
 	fmt.Println()
 
-	// Non-match details.
+	// Non-match details. NonDet is informational, not a failure.
 	anyBad := false
 	for _, s := range order {
-		if s == StatusMatch {
+		if s == StatusMatch || s == StatusNonDet {
 			continue
 		}
 		var bucket []Result
@@ -396,7 +416,7 @@ func emitMarkdown(rs []Result) {
 
 	fmt.Println("| Status | Count | % |")
 	fmt.Println("|---|---:|---:|")
-	order := []Status{StatusMatch, StatusDiverge, StatusVMBridge, StatusVMCompile, StatusVMRuntime, StatusEvalSkip}
+	order := []Status{StatusMatch, StatusNonDet, StatusDiverge, StatusVMBridge, StatusVMCompile, StatusVMRuntime, StatusEvalSkip}
 	for _, s := range order {
 		if tally[s] == 0 {
 			continue

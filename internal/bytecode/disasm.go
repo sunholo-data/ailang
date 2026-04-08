@@ -41,8 +41,24 @@ func Disassemble(img *BytecodeImage) string {
 		}
 	}
 
+	// Counts for the summary header so it's easy to see at a glance how many
+	// functions are running on the VM vs bridged back to the evaluator.
+	evalOnly := 0
+	for _, p := range img.Prototypes {
+		if p.EvalOnly {
+			evalOnly++
+		}
+	}
+	if evalOnly > 0 {
+		fmt.Fprintf(&b, "EvalOnly:   %d / %d\n", evalOnly, len(img.Prototypes))
+	}
+
 	for i, p := range img.Prototypes {
-		fmt.Fprintf(&b, "\n--- Prototype %d: %s ---\n", i, p.Name)
+		if p.EvalOnly {
+			fmt.Fprintf(&b, "\n--- Prototype %d: %s [EvalOnly: %s] ---\n", i, p.Name, p.EvalReason)
+		} else {
+			fmt.Fprintf(&b, "\n--- Prototype %d: %s ---\n", i, p.Name)
+		}
 		writePrototype(&b, p, img)
 	}
 	return b.String()

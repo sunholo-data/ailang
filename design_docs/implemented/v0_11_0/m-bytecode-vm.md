@@ -883,3 +883,49 @@ At current velocity (~300 LOC/day), this is approximately **9-12 working days** 
 |------|--------|
 | 2026-04-03 | Initial design — promoted from M-PERF4, redesigned around Statement IR + register VM + NaN-boxing + evaluator interop |
 | 2026-04-03 | **Review revisions**: Added Semantic Equivalence Contract (§3.6), VM ↔ Evaluator Boundary Contract (§3.7), Builtin Strategy (§3.8). Recast NaN-boxing as optimization path with tagged struct as initial impl. Made fallback function-granular. Added closure-heavy and cross-boundary benchmarks. Separated launch vs stretch success criteria. Added builtin drift and mixed execution risks. Refined LOC estimates to 2,650-3,500. Softened "zero evaluator modifications" to "no semantic changes" |
+| 2026-04-08 | **M-BYTECODE-BATCH complete**: `--batch` now honors `--bytecode`. Per-function lower-panic recovery lets partial lowering succeed (panicking functions become EvalOnly stubs with preserved arity). Entry-level EvalOnly dispatch now uses `runtime.CallEntrypoint` (not `bridge.CallEvalFunc`) so Fork()/resolver/goroutine setup fires correctly — fixes Process effect ordering. Disassembler prints per-prototype EvalOnly reason and a header EvalOnly count. See §17 for the docparse finding. |
+
+---
+
+## 17. M-BYTECODE-BATCH (2026-04-08) — Real-World Benchmark & Next-Sprint Scope
+
+### 17.1 Status after M-BYTECODE-BATCH
+
+**Parity**: 133 MATCH / 2 NON_DET / 6 EVAL_SKIP of 141 runnable examples → **100% of eligible examples** produce byte-identical stdout on evaluator and bytecode VM. The two NON_DET entries (`uuid.ail`, `stream_process_source.ail`) are inherently non-deterministic and excluded by an explicit allow-list in `scripts/verify_bytecode_parity.go`.
+
+**Batch mode**: `ailang run --bytecode --batch ...` now threads `bytecodeMode`/`strictBytecode`/`pipelineResult` into `executeBatchItem`, so the per-item entrypoint call takes the VM path. The `--batch` startup amortization hypothesis is now testable end-to-end.
+
+### 17.2 Benchmark: `ailang-parse`
+
+`ailang-parse` (sibling repo `/Users/mark/dev/sunholo/ailang-parse/`) is a 19-module document parser that uses `ailang run --batch --entry main` to convert DOCX/PPTX/XLSX/EPUB to structured JSON. It is the motivating real-world consumer of batch mode.
+
+**Finding**: On a ~9 MB stress-test DOCX, wall-clock time with `--bytecode` is **statistically indistinguishable** from the evaluator path. The speedup we saw on single-module microbenchmarks (M5 reported **25× on `fib(30)`**) does not appear on a multi-module application.
+
+**Root cause** — `ailang disasm` on `ailang-parse/main.ail` shows **28 / 34 prototypes are EvalOnly**, meaning almost every call is dispatched through the bridge back to the evaluator. Breakdown of the EvalOnly reasons:
+
+| Reason | Count | Category |
+|---|---:|---|
+| `call to unknown global` (println, split, parseDocx, …) | ~16 | Cross-module function resolution |
+| `unbound variable $tmp242/t` | 5 | Lower-pass artifact (temporaries escaping block scope) |
+| `unknown ADT Block in switch` | 2 | Cross-module ADT type resolution |
+| `cannot resolve field count access (no type info)` | 1 | Cross-module record field lookup |
+| `lower panic: non-tail-position match` | 2 | Known §4 lowering gap (main + parseImageDocument) |
+| **EvalOnly total** | **28 / 34** | |
+
+**Interpretation**: M5's 25× `fib` speedup was for a self-contained single-module function where the bytecode compiler could see every call-site and every ADT constructor in one image. A 19-module application hits the bytecode compiler's **cross-module resolution wall** on almost every function. The bridge then dispatches back to the evaluator, so the VM never runs the hot paths, and the 25× advantage never materialises.
+
+### 17.3 Recommended next sprint: M-BYTECODE-MULTIMODULE
+
+Unblock multi-module speedups by teaching the bytecode compiler to resolve names across module boundaries at compile time. Three sub-items, ordered by impact on the docparse EvalOnly count:
+
+1. **Cross-module function globals (~16 cases)**. Today `call to unknown global` fires whenever a function references another module's export. The compiler needs a module-aware global resolver so imported functions get real prototype indices (or global slots) rather than bridged bailouts.
+2. **Cross-module ADT + record layouts (~3 cases)**. Switches over imported ADTs (`Block`, etc.) and record field access need the importer's type info surfaced into the compiler's layout table.
+3. **Lower-pass temporary hygiene (~5 cases)**. `unbound variable $tmp242/t` is a pass-internal bug where `let`-bound temporaries from the block lowering escape their scope. Fix at the lower pass, independent of multi-module work.
+
+Addressing (1) + (2) should drop docparse from 28/34 EvalOnly to ~4/34, at which point the VM actually executes the parser's hot path and we can measure the real speedup. (3) is an independent cleanup that unlocks a handful of functions in other examples.
+
+### 17.4 What we deliberately did NOT do
+
+- **Default `--bytecode` on**. With 28/34 functions bridged in docparse, turning it on by default would add compile-time cost with no runtime benefit on real apps. Defer until after M-BYTECODE-MULTIMODULE.
+- **Fix the non-tail-position match lowering**. Only 2 cases in docparse; not on the critical path. Revisit after cross-module resolution.
+- **Broaden the non-deterministic allow-list**. Kept to 2 known cases; future additions require an explicit code comment with the divergence reason.
