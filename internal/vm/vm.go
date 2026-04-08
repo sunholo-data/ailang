@@ -48,6 +48,13 @@ type VM struct {
 	// Stack tracks the active frames for overflow detection. The currently
 	// executing frame is the top; entries below it are paused callers.
 	Stack []*Frame
+
+	// Interop is the optional bridge to the tree-walking evaluator. Set by
+	// the CLI when running a mixed-mode program: when OpCall/OpTailCall hits
+	// a callee whose prototype is marked EvalOnly, the VM hands the call to
+	// Interop instead of pushing a new frame. If Interop is nil, the VM
+	// returns an explicit error instead of silently mis-running the function.
+	Interop EvalInterop
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -211,6 +218,26 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
 			}
+			// EvalOnly stub: dispatch through the evaluator interop bridge.
+			// No new frame is pushed; the result is written into the callee's
+			// register slot (matching the convention OpReturn uses) and the
+			// caller's IP advances past the CALL.
+			if calleeProto.EvalOnly {
+				if vm.Interop == nil {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s is evaluator-only (%s) but no interop bridge is wired", calleeProto.Name, calleeProto.EvalReason), inst)
+				}
+				args := make([]bytecode.Value, argCount)
+				for i := 0; i < argCount; i++ {
+					args[i] = frame.Regs[int(inst.A())+1+i]
+				}
+				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
+				if err != nil {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL via eval interop: %v", err), inst)
+				}
+				frame.Regs[inst.A()] = result
+				frame.IP++
+				continue
+			}
 			if len(vm.Stack) >= vm.MaxStack {
 				return bytecode.Value{}, ErrStackOverflow
 			}
@@ -241,6 +268,32 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			argCount := int(inst.B())
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
+			}
+			// EvalOnly stub in tail position: bridge to the evaluator and
+			// then return the result through the current frame, just as if
+			// the function had run inline.
+			if calleeProto.EvalOnly {
+				if vm.Interop == nil {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s is evaluator-only (%s) but no interop bridge is wired", calleeProto.Name, calleeProto.EvalReason), inst)
+				}
+				args := make([]bytecode.Value, argCount)
+				for i := 0; i < argCount; i++ {
+					args[i] = frame.Regs[int(inst.A())+1+i]
+				}
+				result, err := vm.Interop.CallEvalFunc(calleeProto.Name, args)
+				if err != nil {
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL via eval interop: %v", err), inst)
+				}
+				// Pop the current frame and write the result to the caller's
+				// return register, mirroring OpReturn's path.
+				vm.Stack = vm.Stack[:len(vm.Stack)-1]
+				caller := frame.Caller
+				if caller == nil {
+					return result, nil
+				}
+				caller.Regs[frame.ReturnReg] = result
+				frame = caller
+				continue
 			}
 			// Stash args BEFORE we resize the register slab — they live in
 			// the current frame's registers and will be overwritten by reuseFor.

@@ -81,15 +81,36 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		funcIdx[fd.Name] = idx
 	}
 
-	// Phase 2: compile each function body.
+	// Phase 2: compile each function body. Per M-BYTECODE-2D M3, a per-function
+	// compile failure does NOT abort the whole image — instead the prototype is
+	// marked EvalOnly so the VM dispatches it through the evaluator at call
+	// time. Other functions can keep referencing it via OpClosure/NestedProtos.
 	for i := range prog.FuncDecls {
 		fd := &prog.FuncDecls[i]
 		proto := img.Prototypes[funcIdx[fd.Name]]
+
+		// Snapshot the prototype-table length so we can roll back any partial
+		// child lambda prototypes appended by a failed compile. (Constants are
+		// dedup-shared and harmless to leave behind as orphans.)
+		protoCheckpoint := len(img.Prototypes)
+
 		fc := newFuncCompiler(img, proto, funcIdx)
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
 		if err := fc.compile(fd); err != nil {
-			return nil, fmt.Errorf("compiling %s: %w", fd.Name, err)
+			// Roll back any orphan child lambdas the failed compile registered.
+			img.Prototypes = img.Prototypes[:protoCheckpoint]
+			// Reset any partial state on the failed prototype itself and tag
+			// it as an evaluator-only stub. Name, NumParams and File stay
+			// intact so the bridge can still resolve and call it.
+			proto.Instructions = nil
+			proto.LineInfo = nil
+			proto.Constants = nil
+			proto.NestedProtos = nil
+			proto.NumRegs = 0
+			proto.NumCaptures = 0
+			proto.EvalOnly = true
+			proto.EvalReason = err.Error()
 		}
 	}
 

@@ -58,6 +58,21 @@ type FuncPrototype struct {
 	// with LineInfo to format runtime errors as `<file>:<line>`. Empty when
 	// the file is unknown (e.g. hand-built test prototypes).
 	File string
+
+	// EvalOnly marks this prototype as a stub: the function exists in the
+	// program but the bytecode compiler couldn't compile it (or chose not to)
+	// and the VM must trap to the evaluator via VM.Interop on every call.
+	//
+	// When true, Instructions and LineInfo are nil and NumRegs is zero. The
+	// VM checks this flag inside OpCall/OpTailCall before pushing a frame.
+	// Other prototypes may still hold OpClosure references to this prototype
+	// via NestedProtos — that is the whole point of M-BYTECODE-2D M3.
+	EvalOnly bool
+
+	// EvalReason is a human-readable explanation of why the function was
+	// marked EvalOnly (typically the compile error). Used in error messages
+	// and in `ailang disasm` output. Only meaningful when EvalOnly is true.
+	EvalReason string
 }
 
 // ProtoName implements FuncPrototypeRef.
@@ -157,6 +172,14 @@ func (img *BytecodeImage) Validate() error {
 	for protoIdx, p := range img.Prototypes {
 		if p == nil {
 			return fmt.Errorf("bytecode: prototype %d is nil", protoIdx)
+		}
+		// EvalOnly stubs have no body — only the metadata callers need to push
+		// args correctly (Name, NumParams, File). Skip the body checks.
+		if p.EvalOnly {
+			if len(p.Instructions) != 0 || len(p.LineInfo) != 0 {
+				return fmt.Errorf("bytecode: proto %q (idx %d): EvalOnly stub must have empty Instructions and LineInfo", p.Name, protoIdx)
+			}
+			continue
 		}
 		if p.NumParams > p.NumRegs {
 			return fmt.Errorf("bytecode: proto %q (idx %d): NumParams=%d exceeds NumRegs=%d", p.Name, protoIdx, p.NumParams, p.NumRegs)
