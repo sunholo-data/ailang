@@ -27,6 +27,33 @@ var BuiltinTable = []BuiltinFunc{
 	builtinListGet,      // _list_get
 	builtinListTail,     // _list_tail
 	builtinConcatString, // _concat_String
+	builtinRecordGet,    // _record_get
+}
+
+// builtinRecordGet returns the value of the named field in a record. Used as
+// a fallback for FieldAccess when the bytecode compiler could not resolve
+// the field's static index at compile time (e.g. row-polymorphic records
+// whose full field set wasn't known). The record carries its field names
+// at runtime, so a linear scan gives us the answer.
+//
+// Added for M-BYTECODE-MULTIMODULE M3.
+func builtinRecordGet(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("_record_get: expected 2 args, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagRecord {
+		return bytecode.Value{}, fmt.Errorf("_record_get: arg 0 must be record, got %s", args[0].Tag)
+	}
+	if args[1].Tag != bytecode.TagString {
+		return bytecode.Value{}, fmt.Errorf("_record_get: arg 1 must be string, got %s", args[1].Tag)
+	}
+	name := args[1].AsString()
+	for _, f := range args[0].AsRecord() {
+		if f.Name == name {
+			return f.Value, nil
+		}
+	}
+	return bytecode.Value{}, fmt.Errorf("_record_get: field %q not found", name)
 }
 
 // builtinShow returns a string representation of any value. Matches the

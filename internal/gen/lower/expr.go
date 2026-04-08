@@ -2,6 +2,7 @@ package lower
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo/ailang/internal/core"
 	"github.com/sunholo/ailang/internal/gen/stmt"
@@ -26,6 +27,16 @@ func lowerExpr(e core.CoreExpr, cti types.CoreTypeInfo) stmt.Expr {
 		return stmt.VarRef{Name: e.Name}
 
 	case *core.VarGlobal:
+		// Nullary ADT constructors are elaborated as a bare VarGlobal to
+		// `$adt.make_TypeName_Tag`. Lower them directly to ADTConstructor so
+		// the bytecode compiler can emit OpMakeADT with the correct tag
+		// ordinal (see internal/bytecode/compiler/collections.go:compileADTConstructor).
+		// See M-BYTECODE-MULTIMODULE M3.
+		if e.Ref.Module == "$adt" {
+			if typ, tag, ok := parseADTFactoryName(e.Ref.Name); ok {
+				return stmt.ADTConstructor{TypeName: typ, Tag: tag}
+			}
+		}
 		return stmt.GlobalRef{Module: e.Ref.Module, Name: e.Ref.Name}
 
 	case *core.Lit:
@@ -58,9 +69,14 @@ func lowerExpr(e core.CoreExpr, cti types.CoreTypeInfo) stmt.Expr {
 		return lowerRecord(e, cti)
 
 	case *core.RecordAccess:
+		// M-BYTECODE-MULTIMODULE M3: resolve the field set at lower time
+		// using the record's inferred type, so anonymous/row-polymorphic
+		// records can be compiled to OpGetField without needing an explicit
+		// TypeDecl in the compiler's recordTypes table.
 		return stmt.FieldAccess{
-			Record: lowerExpr(e.Record, cti),
-			Field:  e.Field,
+			Record:      lowerExpr(e.Record, cti),
+			Field:       e.Field,
+			KnownFields: recordFieldSet(cti, e.Record),
 		}
 
 	case *core.RecordUpdate:
@@ -191,6 +207,18 @@ func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
 		}
 	}
 
+	// Saturated ADT constructor calls: $adt.make_Type_Tag(args...) →
+	// stmt.ADTConstructor{TypeName, Tag, Args}. M-BYTECODE-MULTIMODULE M3.
+	if vg, ok := e.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$adt" {
+		if typ, tag, ok := parseADTFactoryName(vg.Ref.Name); ok {
+			args := make([]stmt.Expr, len(e.Args))
+			for i, a := range e.Args {
+				args[i] = lowerExpr(a, cti)
+			}
+			return stmt.ADTConstructor{TypeName: typ, Tag: tag, Args: args}
+		}
+	}
+
 	// Direct builtin calls: a $builtin.<name> reference becomes a BuiltinCall.
 	// This is required for the bytecode VM, which has no notion of stdlib
 	// globals — it dispatches builtins through its own table. The Go emitter
@@ -211,6 +239,77 @@ func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
 		Func: lowerExpr(e.Func, cti),
 		Args: args,
 	}
+}
+
+// recordFieldSet extracts the sorted field names of the record type
+// associated with e, or nil if e's type cannot be resolved to a concrete
+// record. Used to populate stmt.FieldAccess.KnownFields so the bytecode
+// compiler can index anonymous records without needing a TypeDecl.
+func recordFieldSet(cti types.CoreTypeInfo, e core.CoreExpr) []string {
+	if e == nil {
+		return nil
+	}
+	t, ok := cti.GetForExpr(e)
+	if !ok || t == nil {
+		return nil
+	}
+	// Strip through scheme/polymorphic wrappers if any; the typechecker
+	// stores principal types post-defaulting, so a TRecord/TRecord2 is
+	// the common case.
+	var fields []string
+	switch rt := t.(type) {
+	case *types.TRecord:
+		if rt == nil {
+			return nil
+		}
+		for name := range rt.Fields {
+			fields = append(fields, name)
+		}
+	case *types.TRecord2:
+		if rt == nil || rt.Row == nil {
+			return nil
+		}
+		for name := range rt.Row.Labels {
+			fields = append(fields, name)
+		}
+	default:
+		return nil
+	}
+	sort.Strings(fields)
+	return fields
+}
+
+// parseADTFactoryName splits a `$adt.make_Type_Tag` factory name into its
+// (TypeName, CtorName) components. The elaborator builds these names with
+// `fmt.Sprintf("make_%s_%s", TypeName, CtorName)` in
+// internal/elaborate/expr_calls.go, so they always start with "make_" and
+// contain exactly one underscore as a separator when both names are plain
+// identifiers. We split on the LAST underscore because type names may
+// themselves contain underscores (user-defined ADTs), while constructor
+// names are single identifiers by the parser's rules.
+//
+// Returns (typeName, ctorName, ok). If the string doesn't match the
+// expected shape, returns ok=false and callers fall through to the
+// generic GlobalRef path (which will fail loudly in the compiler — the
+// correct behavior, since an unrecognized $adt ref is a bug upstream).
+func parseADTFactoryName(name string) (string, string, bool) {
+	const prefix = "make_"
+	if len(name) <= len(prefix) || name[:len(prefix)] != prefix {
+		return "", "", false
+	}
+	rest := name[len(prefix):]
+	// Find the LAST underscore so multi-word type names still round-trip.
+	lastUS := -1
+	for i := len(rest) - 1; i >= 0; i-- {
+		if rest[i] == '_' {
+			lastUS = i
+			break
+		}
+	}
+	if lastUS <= 0 || lastUS == len(rest)-1 {
+		return "", "", false
+	}
+	return rest[:lastUS], rest[lastUS+1:], true
 }
 
 func lowerBinOp(e *core.BinOp, cti types.CoreTypeInfo) stmt.Expr {

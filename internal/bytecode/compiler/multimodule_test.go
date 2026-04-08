@@ -246,3 +246,161 @@ func TestMultiModule_UnknownGlobalStillBridges(t *testing.T) {
 		t.Fatalf("expected EvalReason mentioning 'unknown global', got %q", ran.reason)
 	}
 }
+
+// TestCrossModuleADT_Constructor verifies that ADT constructor calls
+// (which the elaborator lowers to $adt.make_Type_Tag globals) compile
+// directly to OpMakeADT via the lower-pass stmt.ADTConstructor rewrite,
+// rather than bridging to the evaluator.
+//
+// M-BYTECODE-MULTIMODULE M3.
+func TestCrossModuleADT_Constructor(t *testing.T) {
+	prog := &stmt.Program{
+		TypeDecls: []stmt.TypeDecl{
+			{
+				Name: "Option",
+				Kind: stmt.ADTDecl{
+					Variants: []stmt.ADTVariant{
+						{Tag: "Some", Fields: []stmt.ResolvedType{stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+						{Tag: "None"},
+					},
+				},
+			},
+		},
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "main",
+				Name:   "wrap",
+				Return: stmt.ADTConstructor{
+					TypeName: "Option",
+					Tag:      "Some",
+					Args:     []stmt.Expr{stmt.LitInt{Value: 42}},
+				},
+				Exported: true,
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var p *bytecode.FuncPrototype
+	for i := range img.Prototypes {
+		if img.Prototypes[i].Name == "main.wrap" {
+			p = img.Prototypes[i]
+			break
+		}
+	}
+	if p == nil {
+		t.Fatalf("main.wrap prototype not found")
+	}
+	if p.EvalOnly {
+		t.Fatalf("wrap was bridged: %s", p.EvalReason)
+	}
+	sawMakeADT := false
+	for _, inst := range p.Instructions {
+		if inst.Op() == bytecode.OpMakeADT {
+			sawMakeADT = true
+			if int(inst.B()) != 0 { // Some = variant 0
+				t.Errorf("MakeADT tag = %d, want 0 (Some)", inst.B())
+			}
+		}
+	}
+	if !sawMakeADT {
+		t.Errorf("main.wrap did not emit OpMakeADT")
+	}
+}
+
+// TestCrossModuleRecord_FieldAccess verifies that FieldAccess on a record
+// with a known field set (populated by the lower pass via CoreTypeInfo)
+// compiles to a direct OpGetField with the correct sorted index.
+//
+// M-BYTECODE-MULTIMODULE M3.
+func TestCrossModuleRecord_FieldAccess(t *testing.T) {
+	prog := &stmt.Program{
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "main",
+				Name:   "getY",
+				Params: []stmt.Param{{Name: "p", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+				Return: stmt.FieldAccess{
+					Record:      stmt.VarRef{Name: "p"},
+					Field:       "y",
+					KnownFields: []string{"x", "y", "z"},
+				},
+				Exported: true,
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var p *bytecode.FuncPrototype
+	for i := range img.Prototypes {
+		if img.Prototypes[i].Name == "main.getY" {
+			p = img.Prototypes[i]
+			break
+		}
+	}
+	if p == nil || p.EvalOnly {
+		t.Fatalf("getY not compiled or bridged")
+	}
+	sawGetField := false
+	for _, inst := range p.Instructions {
+		if inst.Op() == bytecode.OpGetField {
+			sawGetField = true
+			if int(inst.C()) != 1 { // y is at sorted index 1 (x,y,z)
+				t.Errorf("GetField index = %d, want 1", inst.C())
+			}
+		}
+	}
+	if !sawGetField {
+		t.Errorf("getY did not emit OpGetField")
+	}
+}
+
+// TestCrossModuleRecord_FieldAccessByName verifies that FieldAccess WITHOUT
+// KnownFields falls back to the _record_get builtin (OpBuiltinCall), so
+// row-polymorphic records still compile to bytecode instead of bridging.
+//
+// M-BYTECODE-MULTIMODULE M3.
+func TestCrossModuleRecord_FieldAccessByName(t *testing.T) {
+	prog := &stmt.Program{
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "main",
+				Name:   "getStyle",
+				Params: []stmt.Param{{Name: "t", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+				Return: stmt.FieldAccess{
+					Record: stmt.VarRef{Name: "t"},
+					Field:  "style",
+					// KnownFields deliberately empty — row-polymorphic case.
+				},
+				Exported: true,
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	var p *bytecode.FuncPrototype
+	for i := range img.Prototypes {
+		if img.Prototypes[i].Name == "main.getStyle" {
+			p = img.Prototypes[i]
+			break
+		}
+	}
+	if p == nil || p.EvalOnly {
+		t.Fatalf("getStyle not compiled or bridged: %v", p)
+	}
+	sawBuiltinCall := false
+	for _, inst := range p.Instructions {
+		if inst.Op() == bytecode.OpBuiltinCall {
+			sawBuiltinCall = true
+		}
+	}
+	if !sawBuiltinCall {
+		t.Errorf("getStyle did not fall back to _record_get builtin")
+	}
+}

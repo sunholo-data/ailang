@@ -26,6 +26,7 @@ var BuiltinTable = []string{
 	"_list_get",
 	"_list_tail",
 	"_concat_String",
+	"_record_get",
 }
 
 var builtinIndex = func() map[string]uint8 {

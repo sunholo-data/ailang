@@ -194,13 +194,17 @@ func (fc *funcCompiler) compileFieldAccess(e stmt.FieldAccess) (uint8, error) {
 		if n, perr := strconv.Atoi(e.Field[1:]); perr == nil {
 			idx = n
 		} else {
-			idx = fc.lookupFieldIndex(e.Record, e.Field)
+			idx = fc.lookupFieldIndex(e.Record, e.Field, e.KnownFields)
 		}
 	} else {
-		idx = fc.lookupFieldIndex(e.Record, e.Field)
+		idx = fc.lookupFieldIndex(e.Record, e.Field, e.KnownFields)
 	}
 	if idx < 0 {
-		return 0, fmt.Errorf("compiler: cannot resolve field %q access (no type info)", e.Field)
+		// Static field index resolution failed — fall back to runtime name
+		// lookup via the _record_get builtin. This handles row-polymorphic
+		// records and anonymous records whose full field set wasn't known
+		// at lower time (M-BYTECODE-MULTIMODULE M3).
+		return fc.compileFieldAccessByName(rec, e.Field)
 	}
 	if idx > 255 {
 		return 0, fmt.Errorf("compiler: field index %d exceeds 255", idx)
@@ -217,14 +221,56 @@ func (fc *funcCompiler) compileFieldAccess(e stmt.FieldAccess) (uint8, error) {
 	return dst, nil
 }
 
+// compileFieldAccessByName emits an OpBuiltinCall to _record_get with the
+// record (already materialized in recReg) and the field name as a string
+// constant. Used when static field index resolution fails.
+func (fc *funcCompiler) compileFieldAccessByName(recReg uint8, field string) (uint8, error) {
+	builtinIdx, ok := builtinIndex["_record_get"]
+	if !ok {
+		return 0, fmt.Errorf("compiler: _record_get builtin missing from BuiltinTable")
+	}
+	// Allocate a contiguous [dst, rec, name] block. We can't reuse recReg
+	// directly because it may not be adjacent to the name register.
+	block, err := fc.regs.allocContig(3)
+	if err != nil {
+		return 0, err
+	}
+	// Copy rec into block+1.
+	fc.emit(bytecode.EncodeABC(bytecode.OpMove, block+1, recReg, 0))
+	if !fc.isPinned(recReg) {
+		fc.regs.freeTemp(recReg)
+	}
+	// Load field name constant into block+2.
+	nameIdx, err := fc.addLocalConst(bytecode.NewString(field))
+	if err != nil {
+		return 0, err
+	}
+	fc.emit(bytecode.EncodeABx(bytecode.OpLoadConst, block+2, nameIdx))
+	// BUILTIN_CALL dst=block, idx=_record_get, argc=2.
+	fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCall, block, builtinIdx, 2))
+	// Free the two arg slots; result lives in `block`.
+	fc.regs.freeContig(block+1, 2)
+	return block, nil
+}
+
 // lookupFieldIndex resolves a field access to its alphabetical index in the
 // record's sorted field list.
 //
-// Resolution strategy: walk known recordTypes; if any has the field, return
-// its index. (For Phase 2C, the corpus has at most one record type per program
-// so this is unambiguous. A real type-based resolution would consult the
-// expression's ResolvedType.)
-func (fc *funcCompiler) lookupFieldIndex(_ stmt.Expr, name string) int {
+// Resolution strategy (M-BYTECODE-MULTIMODULE M3):
+//  1. Prefer the lower-pass hint (knownFields) if populated — this comes from
+//     the record expression's inferred type and works for anonymous /
+//     row-polymorphic records that never produced an explicit TypeDecl.
+//  2. Fall back to walking recordTypes — handles named record decls and the
+//     Phase 2C golden corpus.
+func (fc *funcCompiler) lookupFieldIndex(_ stmt.Expr, name string, knownFields []string) int {
+	if len(knownFields) > 0 {
+		for i, f := range knownFields {
+			if f == name {
+				return i
+			}
+		}
+		return -1
+	}
 	for _, info := range fc.recordTypes {
 		if i := info.fieldIndex(name); i >= 0 {
 			return i

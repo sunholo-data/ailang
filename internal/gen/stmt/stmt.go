@@ -272,9 +272,17 @@ type Call struct {
 func (Call) expr() {}
 
 // FieldAccess accesses a field of a record.
+//
+// KnownFields, when non-empty, lists the record's full field set (in
+// lexicographic order) as inferred by the type checker. The bytecode
+// compiler uses this to resolve the GET_FIELD index for anonymous /
+// row-polymorphic records that never produced an explicit TypeDecl.
+// Empty means "no type info available — fall back to recordTypes lookup".
+// Added for M-BYTECODE-MULTIMODULE M3.
 type FieldAccess struct {
-	Record Expr
-	Field  string
+	Record      Expr
+	Field       string
+	KnownFields []string
 }
 
 func (FieldAccess) expr() {}
