@@ -408,20 +408,39 @@ func lowerPatternCond(scrutinee stmt.Expr, pat core.CorePattern) stmt.Expr {
 		return stmt.LitBool{Value: true}
 
 	case *core.ListPattern:
-		// List pattern — check length.
+		// List pattern — check length + tag checks for constructor sub-patterns.
+		lenExpr := stmt.BuiltinCall{Name: "_len", Args: []stmt.Expr{scrutinee}}
+		var cond stmt.Expr
 		if len(p.Elements) == 0 && p.Tail == nil {
 			// Match empty list.
-			return stmt.BinOp{
+			cond = stmt.BinOp{
 				Op:    stmt.OpEq,
-				Left:  stmt.BuiltinCall{Name: "_len", Args: []stmt.Expr{scrutinee}},
+				Left:  lenExpr,
 				Right: stmt.LitInt{Value: 0},
 			}
+		} else {
+			cond = stmt.BinOp{
+				Op:    stmt.OpGte,
+				Left:  lenExpr,
+				Right: stmt.LitInt{Value: int64(len(p.Elements))},
+			}
 		}
-		return stmt.BinOp{
-			Op:    stmt.OpGte,
-			Left:  stmt.BuiltinCall{Name: "_len", Args: []stmt.Expr{scrutinee}},
-			Right: stmt.LitInt{Value: int64(len(p.Elements))},
+		// Tag checks for constructor sub-patterns at each index.
+		for i, elem := range p.Elements {
+			if cp, ok := elem.(*core.ConstructorPattern); ok {
+				head := stmt.BuiltinCall{
+					Name: "_list_get",
+					Args: []stmt.Expr{scrutinee, stmt.LitInt{Value: int64(i)}},
+				}
+				tagEq := stmt.BinOp{
+					Op:    stmt.OpEq,
+					Left:  stmt.FieldAccess{Record: head, Field: "Tag"},
+					Right: stmt.LitString{Value: cp.Name},
+				}
+				cond = stmt.BinOp{Op: stmt.OpAnd, Left: cond, Right: tagEq}
+			}
 		}
+		return cond
 
 	case *core.RecordPattern:
 		// Record patterns — always match (fields are accessed by name).
@@ -481,14 +500,31 @@ func lowerPatternBindings(scrutinee stmt.Expr, pat core.CorePattern, cti types.C
 	case *core.ListPattern:
 		var stmts []stmt.Stmt
 		for i, elem := range p.Elements {
-			if vp, ok := elem.(*core.VarPattern); ok && vp.Name != "_" {
-				stmts = append(stmts, stmt.VarDecl{
-					Name: vp.Name,
-					Value: stmt.BuiltinCall{
-						Name: "_list_get",
-						Args: []stmt.Expr{scrutinee, stmt.LitInt{Value: int64(i)}},
-					},
-				})
+			headExpr := stmt.BuiltinCall{
+				Name: "_list_get",
+				Args: []stmt.Expr{scrutinee, stmt.LitInt{Value: int64(i)}},
+			}
+			switch ep := elem.(type) {
+			case *core.VarPattern:
+				if ep.Name == "_" {
+					continue
+				}
+				stmts = append(stmts, stmt.VarDecl{Name: ep.Name, Value: headExpr})
+			case *core.ConstructorPattern:
+				// Bind head to a temp, then field-access each var sub-arg.
+				headName := fmt.Sprintf("_head_%d", i)
+				stmts = append(stmts, stmt.VarDecl{Name: headName, Value: headExpr})
+				for j, arg := range ep.Args {
+					if vp, ok := arg.(*core.VarPattern); ok && vp.Name != "_" {
+						stmts = append(stmts, stmt.VarDecl{
+							Name: vp.Name,
+							Value: stmt.FieldAccess{
+								Record: stmt.VarRef{Name: headName},
+								Field:  fmt.Sprintf("_%d", j),
+							},
+						})
+					}
+				}
 			}
 		}
 		if p.Tail != nil {
