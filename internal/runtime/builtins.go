@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	goruntime "runtime"
-	"strings"
 	"sync"
+	"sync/atomic"
 
+	"github.com/petermattis/goid"
 	"github.com/sunholo/ailang/internal/builtins"
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
@@ -39,6 +39,11 @@ type BuiltinRegistry struct {
 	// use the forked evaluator's EffContext (with correct FnCaller binding)
 	// instead of the shared evaluator's.
 	goroutineEvals sync.Map // map[int64]*eval.CoreEvaluator
+
+	// goroutineEvalCount tracks how many forked evaluators are active.
+	// When 0 (the common case for CLI/REPL), getEffContext skips the
+	// sync.Map lookup entirely — no goroutine ID extraction needed.
+	goroutineEvalCount atomic.Int64
 }
 
 // NewBuiltinRegistry creates a new builtin registry with all stdlib functions registered
@@ -86,7 +91,7 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 			Name: name,
 			Fn: func(args []eval.Value) (eval.Value, error) {
 				if debugConcurrencyBuiltins {
-					log.Printf("[BUILTIN] %s enter (goroutine %d)", builtinSpec.Name, builtinGoroutineID())
+					log.Printf("[BUILTIN] %s enter (goroutine %d)", builtinSpec.Name, goid.Get())
 				}
 				ctx := br.getEffContext()
 				if ctx == nil && !builtinSpec.IsPure {
@@ -102,7 +107,7 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 
 				result, err := builtinSpec.Impl(ctx, args)
 				if debugConcurrencyBuiltins {
-					log.Printf("[BUILTIN] %s done (goroutine %d, err=%v)", builtinSpec.Name, builtinGoroutineID(), err)
+					log.Printf("[BUILTIN] %s done (goroutine %d, err=%v)", builtinSpec.Name, goid.Get(), err)
 				}
 				return result, err
 			},
@@ -114,23 +119,14 @@ func (br *BuiltinRegistry) registerFromSpecRegistry() {
 // Builtins will use this evaluator's EffContext instead of the shared one.
 // Must be paired with ClearGoroutineEvaluator when the request completes.
 func (br *BuiltinRegistry) SetGoroutineEvaluator(e *eval.CoreEvaluator) {
-	br.goroutineEvals.Store(builtinGoroutineID(), e)
+	br.goroutineEvals.Store(goid.Get(), e)
+	br.goroutineEvalCount.Add(1)
 }
 
 // ClearGoroutineEvaluator removes the goroutine-local evaluator override.
 func (br *BuiltinRegistry) ClearGoroutineEvaluator() {
-	br.goroutineEvals.Delete(builtinGoroutineID())
-}
-
-// builtinGoroutineID returns the current goroutine ID.
-func builtinGoroutineID() int64 {
-	var buf [64]byte
-	n := goruntime.Stack(buf[:], false)
-	s := string(buf[:n])
-	s = strings.TrimPrefix(s, "goroutine ")
-	var id int64
-	fmt.Sscanf(s, "%d", &id)
-	return id
+	br.goroutineEvals.Delete(goid.Get())
+	br.goroutineEvalCount.Add(-1)
 }
 
 // getEffContext retrieves the EffContext for the current goroutine.
@@ -142,10 +138,14 @@ func builtinGoroutineID() int64 {
 // M-ITERATIVE-LIST: If no EffContext exists but evaluator is available,
 // creates a minimal default EffContext with FnCaller/FnCallerN wired.
 func (br *BuiltinRegistry) getEffContext() *effects.EffContext {
-	// Check goroutine-local evaluator first (concurrent serve-api requests)
+	// Fast path: no forked evaluators registered (CLI, REPL, single-goroutine).
+	// Skips goid.Get() and sync.Map lookup entirely.
 	evaluator := br.evaluator
-	if goroutineEval, ok := br.goroutineEvals.Load(builtinGoroutineID()); ok {
-		evaluator = goroutineEval.(*eval.CoreEvaluator)
+	if br.goroutineEvalCount.Load() > 0 {
+		// Slow path: concurrent serve-api — look up per-goroutine evaluator
+		if goroutineEval, ok := br.goroutineEvals.Load(goid.Get()); ok {
+			evaluator = goroutineEval.(*eval.CoreEvaluator)
+		}
 	}
 
 	if evaluator == nil {
