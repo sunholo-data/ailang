@@ -1,5 +1,5 @@
 ---
-name: AILANG Release Manager
+name: release-manager
 description: Create new AILANG releases with version bumps, changelog updates, git tags, and CI/CD verification. Use when user says "ready to release", "create release", mentions version numbers, or wants to publish a new version.
 ---
 
@@ -11,13 +11,13 @@ Create a complete AILANG release with version bump, changelog update, git tag, a
 
 **The changelog is split into themed files in `changelogs/`:**
 - Root `CHANGELOG.md` is an index file with links to archives
-- Active changelog entries go in the file matching the current major.minor version (e.g., `changelogs/v0.9-current.md`)
+- Active changelog entries go in the file matching the current major.minor version (e.g., `changelogs/v0.10-current.md`)
 - When releasing a new major version, create a new `changelogs/vX.Y-<theme>.md` file
 - All changelog files are indexed by `ailang docs search`
 
 **To find the active changelog file:**
 ```bash
-ls changelogs/ | grep current  # Currently: v0.9-current.md
+ls changelogs/ | grep current  # Currently: v0.10-current.md
 ```
 
 **When writing changelog entries**, write to the active `changelogs/v*.*.current.md` file, NOT root `CHANGELOG.md`.
@@ -228,7 +228,7 @@ Broadcast release notification with changelog to all projects.
 
 **If docs are missing:**
 - Read each missing doc to understand the feature
-- Add appropriate entry to `changelogs/v0.9-current.md` under the version header
+- Add appropriate entry to `changelogs/v0.10-current.md` under the version header
 - Include: problem, solution, files changed, design doc link
 
 ### 3. Update Version in Documentation
@@ -239,7 +239,7 @@ Broadcast release notification with changelog to all projects.
 ```
 
 **Also update these files manually:**
-- **changelogs/v0.9-current.md**: Change `## [Unreleased]` to `## [vX.X.X] - YYYY-MM-DD`
+- **changelogs/v0.10-current.md**: Change `## [Unreleased]` to `## [vX.X.X] - YYYY-MM-DD`
 - **Note:** Root `CHANGELOG.md` is now an index file linking to themed archives in `changelogs/`
 - **std/VERSION**: Change to `vX.X.X` (used by stdlib resolver for version checking)
 

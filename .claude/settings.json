@@ -48,11 +48,13 @@
       "Bash(.claude/skills/cli-doc-maintainer/scripts/:*)",
       "Skill(cli-doc-maintainer)",
       "Skill(ailang:*)",
-      "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)"
+      "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)",
+      "Bash(/Users/mark/go/bin/ailang disasm:*)"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
-      "/Users/mark/dev/sunholo/ai-coding-lang-bench"
+      "/Users/mark/dev/sunholo/ai-coding-lang-bench",
+      "/Users/mark/dev/sunholo/ailang-parse"
     ]
   },
   "hooks": {
