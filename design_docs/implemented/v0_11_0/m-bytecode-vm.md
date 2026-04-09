@@ -1080,9 +1080,50 @@ Notable: `__stringToInt` and `__stringToFloat` return `Option` ADT values direct
 - `BUILTIN_CALL_HOF` opcodes emitted: 6 (in docparse disassembly)
 - Parity: **129 MATCH** / 2 NON_DET / 6 EVAL_SKIP / 4 DIFFER — no regressions
 
+**Benchmark (10MB DOCX, best-of-3 wall-clock)**:
+
+| Backend | Wall-clock |
+|---|---|
+| Evaluator | 2.21s |
+| Bytecode VM | 2.22s |
+| **Speedup** | **~1.0×** |
+
+**Progress**: VM overhead eliminated. Previous sprint (§18.6) showed VM 0.26s slower than eval (2.62s vs 2.36s, ~0.9×). With HOF builtins wired, the gap is closed — VM matches eval at ~2.2s. Both backends are now I/O-bound; further speedup requires reducing the 157 remaining EvalOnly prototypes (lambda compilation, effectful builtins).
+
 **EvalOnly target miss**: The design doc estimated ≤90 EvalOnly (assuming ~82 cascade unblocks from 6 HOF builtins). Actual reduction was only 6 (163→157). Root cause: the remaining 157 EvalOnly prototypes are primarily lambda bodies with **unbound variable** errors (the compiler cannot resolve local function references within lambda closures) and **unknown ADT** errors in switch expressions. These are separate compiler limitations unrelated to HOF dispatch. The HOF infrastructure itself works correctly — all 6 builtins compile to native `OpBuiltinCallHOF` and invoke callbacks via `CallClosure`.
 
-### 18.8 Next Steps
+### 18.8 Reproducing the 10MB DOCX Benchmark
+
+```bash
+# Prerequisites: ailang installed, ailang-parse repo cloned alongside ailang
+cd /path/to/ailang-parse
+
+# Evaluator (best-of-3)
+for i in 1 2 3; do
+  TMPOUT=$(mktemp -d)
+  DOCPARSE_OUTPUT_DIR="$TMPOUT" /usr/bin/time ailang run \
+    --entry main --caps IO,FS,Env \
+    docparse/main.ail data/test_files/stress/docx_10mb.docx 2>&1 | grep real
+  rm -rf "$TMPOUT"
+done
+
+# Bytecode VM (best-of-3)
+for i in 1 2 3; do
+  TMPOUT=$(mktemp -d)
+  DOCPARSE_OUTPUT_DIR="$TMPOUT" /usr/bin/time ailang run \
+    --entry main --caps IO,FS,Env --bytecode \
+    docparse/main.ail data/test_files/stress/docx_10mb.docx 2>&1 | grep real
+  rm -rf "$TMPOUT"
+done
+
+# EvalOnly count
+ailang disasm docparse/main.ail 2>&1 | grep "EvalOnly:"
+
+# BUILTIN_CALL_HOF count
+ailang disasm docparse/main.ail 2>&1 | grep -c "BUILTIN_CALL_HOF"
+```
+
+### 18.9 Next Steps
 
 1. **Lambda compilation** — Fix unbound-variable resolution in lambda bodies (would eliminate ~100+ EvalOnly prototypes across docparse)
 2. **Effectful builtins** — `OpEffectCall` opcode with capability validation for IO/FS/Net (~45 builtins)
