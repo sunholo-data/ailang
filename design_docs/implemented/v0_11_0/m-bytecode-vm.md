@@ -1016,11 +1016,44 @@ Wired 4 pure builtins to the VM's `OpBuiltinCall` dispatch:
 
 **Parity**: 129 MATCH / 2 NON_DET / 4 DIFFER / 6 EVAL_SKIP — no regressions.
 
-### 18.6 Next Steps
+### 18.6 M-BYTECODE-STDLIB-BUILTINS Results (2026-04-09)
 
-The path to measurable speedup on docparse requires wiring the **stdlib string and list HOF builtins** that dominate the parsing logic:
+Wired **55 pure builtins** to the VM's `OpBuiltinCall` dispatch across three categories:
 
-1. **High-impact pure builtins** (~30 builtins): `__str_split`, `__str_join`, `__str_trim`, `__str_find`, `__str_slice`, `__str_replace`, `__str_startsWith`, `__str_endsWith`, `__str_lower`, `__str_upper`, `__str_len`, `__str_compare`, `__str_eq`, `__list_map`, `__list_filter`, `__list_foldl`, `__list_member`, `__list_dedup`, `__list_difference`, `__list_intersect`, `__list_union`, `__json_encode`, `__json_decode`, `__stringToInt`, `__stringToFloat`, `__string_intToStr`, `__string_floatToStr`, `__math_*` functions.
-2. **Effectful builtins** (~40 builtins): IO, FS, Net, XML, Bytes, Zip — these require capability checking in the VM, not just pure dispatch. Consider a `OpEffectCall` opcode that validates capabilities before executing.
-3. **Investigate DIFFER regressions** — 4 DIFFER files remain from pre-existing issues.
-4. **Re-benchmark after stdlib wiring** — With string/list HOFs compiled, docparse's parsing core should see real speedup on CPU-bound sections.
+**M1: String builtins (26)**
+`__str_len`, `__str_compare`, `__str_eq`, `__str_find`, `__str_slice`, `__str_trim`, `__str_upper`, `__str_lower`, `__str_split`, `__str_chars`, `__str_startsWith`, `__str_endsWith`, `__str_join`, `__str_words`, `__str_splitAny`, `__str_replace`, `__str_replaceMany`, `__str_startsWithIC`, `__str_charAt`, `__str_charCode`, `__str_decodeQP`, `__escapeXml`, `__string_intToStr`, `__string_floatToStr`, `__stringToInt`, `__stringToFloat`
+
+**M2: Math + conversion builtins (23)**
+`__math_sin`, `__math_cos`, `__math_tan`, `__math_asin`, `__math_acos`, `__math_atan`, `__math_atan2`, `__math_sqrt`, `__math_pow`, `__math_exp`, `__math_log`, `__math_log10`, `__math_floor`, `__math_ceil`, `__math_round`, `__math_abs_Float`, `__math_abs_Int`, `__math_PI`, `__math_E`, `_floatToInt`, `_mod_Int`, `__float_to_int`, `__int_to_float`
+
+**M3: List builtins (6)**
+`__list_nth`, `__list_member`, `__list_dedup`, `__list_difference`, `__list_intersect`, `__list_union`
+
+**EvalOnly reduction**: 220 → 163 / 1130 prototypes (**-57**, -26%).
+
+Notable: `__stringToInt` and `__stringToFloat` return `Option` ADT values directly from the VM using `bytecode.NewADT(tag, fields)` — the first builtins to create ADT values natively in the VM without going through the eval bridge.
+
+**Remaining 163 EvalOnly are all irreducible without new VM infrastructure:**
+- **Effectful** (IO/FS/Net/AI/Clock/Env): ~45 — require `OpEffectCall` with capability validation
+- **HOF** (map/filter/foldl/foldChars/foldSlices/mapSlicesJoin): 6 — need VM callback mechanism for closures
+- **Missing VM types** (Map/Bytes/XML/JSON/Zip): ~30 — need TagMap, TagBytes, etc.
+- **Cascade** (unbound due to upstream EvalOnly): ~82
+
+**Benchmark (10MB DOCX, best-of-3 wall-clock)**:
+
+| Backend | Wall-clock |
+|---|---|
+| Evaluator | 2.36s |
+| Bytecode VM | 2.62s |
+| **Speedup** | **~0.9×** |
+
+**Why still ~0.9×**: Despite wiring all pure builtins, docparse's hot parsing loops use HOF builtins (`map`, `filter`, `foldl`, `foldChars`, `mapSlicesJoin`) extensively. These cannot be wired without a VM callback mechanism to invoke closures from within `BuiltinFunc`. The remaining effectful builtins (IO, FS) dominate the I/O path. Measurable speedup requires either (a) an `OpBuiltinCallHOF` opcode that can call back into the VM, or (b) inlining HOF patterns into bytecode at compile time.
+
+**Parity**: 129 MATCH / 2 NON_DET / 4 DIVERGE / 6 EVAL_SKIP — **no regressions**.
+
+### 18.7 Next Steps
+
+1. **HOF builtins in VM** — Design `OpBuiltinCallHOF` or compile-time HOF inlining for map/filter/foldl (6 builtins, ~82 cascade unblocks)
+2. **Effectful builtins** — `OpEffectCall` opcode with capability validation for IO/FS/Net (~45 builtins)
+3. **New VM value types** — TagMap, TagBytes for map/bytes builtins (~20 builtins)
+4. **Investigate DIVERGE** — 4 pre-existing DIVERGE files remain

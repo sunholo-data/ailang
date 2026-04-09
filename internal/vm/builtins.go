@@ -32,6 +32,64 @@ var BuiltinTable = []BuiltinFunc{
 	builtinIntToFloat,   // _intToFloat
 	builtinListLength,   // __list_length
 	builtinConcatList,   // _concat_List
+	// M-BYTECODE-STDLIB-BUILTINS M1: string builtins
+	builtinStrLen,           // __str_len
+	builtinStrCompare,       // __str_compare
+	builtinStrEq,            // __str_eq
+	builtinStrFind,          // __str_find
+	builtinStrSlice,         // __str_slice
+	builtinStrTrim,          // __str_trim
+	builtinStrUpper,         // __str_upper
+	builtinStrLower,         // __str_lower
+	builtinStrSplit,         // __str_split
+	builtinStrChars,         // __str_chars
+	builtinStrStartsWith,    // __str_startsWith
+	builtinStrEndsWith,      // __str_endsWith
+	builtinStrJoin,          // __str_join
+	builtinStrWords,         // __str_words
+	builtinStrSplitAny,      // __str_splitAny
+	builtinStrReplace,       // __str_replace
+	builtinStrReplaceMany,   // __str_replaceMany
+	builtinStrStartsWithIC,  // __str_startsWithIC
+	builtinStrCharAt,        // __str_charAt
+	builtinStrCharCode,      // __str_charCode
+	builtinStrDecodeQP,      // __str_decodeQP
+	builtinEscapeXml,        // __escapeXml
+	builtinStringIntToStr,   // __string_intToStr
+	builtinStringFloatToStr, // __string_floatToStr
+	builtinStringToInt,      // __stringToInt
+	builtinStringToFloat,    // __stringToFloat
+	// M-BYTECODE-STDLIB-BUILTINS M2: math + conversion builtins
+	builtinMathSin,      // __math_sin
+	builtinMathCos,      // __math_cos
+	builtinMathTan,      // __math_tan
+	builtinMathAsin,     // __math_asin
+	builtinMathAcos,     // __math_acos
+	builtinMathAtan,     // __math_atan
+	builtinMathAtan2,    // __math_atan2
+	builtinMathSqrt,     // __math_sqrt
+	builtinMathPow,      // __math_pow
+	builtinMathExp,      // __math_exp
+	builtinMathLog,      // __math_log
+	builtinMathLog10,    // __math_log10
+	builtinMathFloor,    // __math_floor
+	builtinMathCeil,     // __math_ceil
+	builtinMathRound,    // __math_round
+	builtinMathAbsFloat, // __math_abs_Float
+	builtinMathAbsInt,   // __math_abs_Int
+	builtinMathPI,       // __math_PI
+	builtinMathE,        // __math_E
+	builtinFloatToInt,   // _floatToInt
+	builtinModInt,       // _mod_Int
+	builtinFloatToInt2,  // __float_to_int
+	builtinIntToFloat2,  // __int_to_float
+	// M-BYTECODE-STDLIB-BUILTINS M3: list builtins
+	builtinListNth,        // __list_nth
+	builtinListMember,     // __list_member
+	builtinListDedup,      // __list_dedup
+	builtinListDifference, // __list_difference
+	builtinListIntersect,  // __list_intersect
+	builtinListUnion,      // __list_union
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
