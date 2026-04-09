@@ -89,6 +89,10 @@ var BuiltinTable = []string{
 	"__list_difference",
 	"__list_intersect",
 	"__list_union",
+	// M-BYTECODE-PURE-EFFECTS M1: JSON builtins
+	"__json_encode",
+	"__json_decode",
+	"__json_repair",
 }
 
 var builtinIndex = func() map[string]uint8 {

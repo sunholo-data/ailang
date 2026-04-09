@@ -113,6 +113,10 @@ var BuiltinTable = []BuiltinFunc{
 	builtinListDifference, // __list_difference
 	builtinListIntersect,  // __list_intersect
 	builtinListUnion,      // __list_union
+	// M-BYTECODE-PURE-EFFECTS M1: JSON builtins
+	builtinJsonEncode, // __json_encode
+	builtinJsonDecode, // __json_decode
+	builtinJsonRepair, // __json_repair
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
