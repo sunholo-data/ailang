@@ -18,7 +18,7 @@ func findProjectRoot() string {
 	}
 
 	// Walk up looking for std/ directory
-	for dir != "/" && dir != "." {
+	for dir != filepath.Dir(dir) && dir != "." {
 		stdPath := filepath.Join(dir, "std")
 		if info, err := os.Stat(stdPath); err == nil && info.IsDir() {
 			return dir

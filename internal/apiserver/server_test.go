@@ -43,7 +43,7 @@ export pure func add(x: int, y: int) -> int =
 		// Try to find stdlib relative to test
 		cwd, _ := os.Getwd()
 		// Walk up to find project root
-		for dir := cwd; dir != "/"; dir = filepath.Dir(dir) {
+		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
 			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
 				stdlibPath = dir
 				break

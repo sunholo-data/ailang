@@ -217,7 +217,7 @@ func getGitRepoName() string {
 	}
 
 	// Walk up to find .git directory
-	for dir := cwd; dir != "/" && dir != "."; {
+	for dir := cwd; dir != filepath.Dir(dir) && dir != "."; {
 		if _, err := os.Stat(dir + "/.git"); err == nil {
 			// Found git root - return the directory name
 			return filepath.Base(dir)

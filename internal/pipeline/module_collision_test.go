@@ -26,7 +26,8 @@ func makeLoadedModule(canonicalID, filePath, declared string) *loader.LoadedModu
 }
 
 // writeTempFile creates a real file on disk so the collision detector can
-// resolve it via filepath.EvalSymlinks. Returns the absolute path.
+// resolve it via filepath.EvalSymlinks. Returns the resolved absolute path
+// (matching what detectModulePathCollisions will compute internally).
 func writeTempFile(t *testing.T, dir, name, body string) string {
 	t.Helper()
 	full := filepath.Join(dir, name)
@@ -36,7 +37,18 @@ func writeTempFile(t *testing.T, dir, name, body string) string {
 	if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return full
+	// Resolve the same way detectModulePathCollisions does (Abs + EvalSymlinks)
+	// so that assertions on error messages match on all platforms (Windows
+	// EvalSymlinks can change casing or resolve 8.3 short names).
+	abs, err := filepath.Abs(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resolved
 }
 
 func TestDetectModulePathCollisions_NoCollision(t *testing.T) {
