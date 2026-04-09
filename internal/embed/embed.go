@@ -26,10 +26,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
-	"strings"
 	"sync"
 
+	"github.com/petermattis/goid"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/pipeline"
@@ -39,13 +38,7 @@ import (
 var debugConcurrency = os.Getenv("DEBUG_CONCURRENCY") == "1"
 
 func embedGoroutineID() int {
-	var buf [64]byte
-	n := goruntime.Stack(buf[:], false)
-	s := string(buf[:n])
-	s = strings.TrimPrefix(s, "goroutine ")
-	var id int
-	fmt.Sscanf(s, "%d", &id)
-	return id
+	return int(goid.Get())
 }
 
 // Engine manages AILANG module compilation and execution.

@@ -9,24 +9,19 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/petermattis/goid"
 	"github.com/sunholo/ailang/internal/ast"
 	"github.com/sunholo/ailang/internal/embed"
 	"github.com/sunholo/ailang/internal/eval"
 )
 
-// goroutineID extracts the goroutine ID for debug logging.
+// goroutineID returns the current goroutine ID for debug logging.
+// Uses goid package (~3ns) instead of runtime.Stack (~500ns).
 func goroutineID() int {
-	var buf [64]byte
-	n := runtime.Stack(buf[:], false)
-	s := string(buf[:n])
-	s = strings.TrimPrefix(s, "goroutine ")
-	var id int
-	fmt.Sscanf(s, "%d", &id)
-	return id
+	return int(goid.Get())
 }
 
 // RouteEntry represents a custom route defined by a @route annotation.

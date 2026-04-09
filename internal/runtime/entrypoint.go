@@ -4,25 +4,18 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
-	"strings"
 
+	"github.com/petermattis/goid"
 	"github.com/sunholo/ailang/internal/eval"
 )
 
 // debugConcurrency enables concurrency tracing via DEBUG_CONCURRENCY=1
 var debugConcurrency = os.Getenv("DEBUG_CONCURRENCY") == "1"
 
-// goroutineID extracts the goroutine ID for debug logging
+// goroutineID returns the current goroutine ID for debug logging.
+// Uses goid package (~3ns) instead of runtime.Stack (~500ns).
 func goroutineID() int {
-	var buf [64]byte
-	n := runtime.Stack(buf[:], false)
-	s := string(buf[:n])
-	// "goroutine 123 [..."
-	s = strings.TrimPrefix(s, "goroutine ")
-	var id int
-	fmt.Sscanf(s, "%d", &id)
-	return id
+	return int(goid.Get())
 }
 
 // Suppress unused import warning
