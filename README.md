@@ -5,7 +5,7 @@
 # AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-161%20passing%201%20failing-green.svg)
+![Examples](https://img.shields.io/badge/examples-161%20passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 **161/162 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
