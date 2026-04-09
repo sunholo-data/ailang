@@ -85,6 +85,43 @@ func (vm *VM) Run(proto *bytecode.FuncPrototype, args []bytecode.Value) (bytecod
 	return vm.run(frame)
 }
 
+// CallClosure invokes a closure value with the given arguments and returns
+// the result. Used by HOF builtins to call their function arguments.
+// This pushes a new frame onto the VM stack, runs it, and returns.
+func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error) {
+	if closure.Tag != bytecode.TagClosure {
+		return bytecode.Value{}, fmt.Errorf("CallClosure: expected closure, got %s", closure.Tag)
+	}
+	c := closure.AsClosure()
+	proto, ok := c.Proto.(*bytecode.FuncPrototype)
+	if !ok {
+		return bytecode.Value{}, fmt.Errorf("CallClosure: non-FuncPrototype")
+	}
+	if int(proto.NumParams) != len(args) {
+		return bytecode.Value{}, fmt.Errorf("CallClosure: %s expects %d args, got %d",
+			proto.Name, proto.NumParams, len(args))
+	}
+	if proto.EvalOnly {
+		if vm.Interop == nil {
+			return bytecode.Value{}, fmt.Errorf("CallClosure: %s is evaluator-only (%s) but no interop bridge",
+				proto.Name, proto.EvalReason)
+		}
+		return vm.Interop.CallEvalFunc(proto.Name, args)
+	}
+	if len(vm.Stack) >= vm.MaxStack {
+		return bytecode.Value{}, ErrStackOverflow
+	}
+	// Push frame with Caller=nil so OpReturn returns the value directly
+	// to vm.run, which returns it to us.
+	frame := newFrame(proto, 0, nil)
+	copy(frame.Regs, args)
+	for i, cap := range c.Captures {
+		frame.Regs[int(proto.NumParams)+i] = cap
+	}
+	vm.Stack = append(vm.Stack, frame)
+	return vm.run(frame)
+}
+
 // run is the dispatch loop. It executes from the given frame until a
 // top-level RETURN unwinds the stack to nothing, then returns the result.
 func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
@@ -482,6 +519,21 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			}
 			frame.Regs[inst.A()] = result
 			frame.IP++
+		case bytecode.OpBuiltinCallHOF:
+			hofIdx := int(inst.B())
+			argc := int(inst.C())
+			if hofIdx >= len(HOFBuiltinTable) {
+				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL_HOF: unknown HOF builtin index %d", hofIdx), inst)
+			}
+			argBase := int(inst.A()) + 1
+			args := frame.Regs[argBase : argBase+argc]
+			result, err := HOFBuiltinTable[hofIdx](vm, args)
+			if err != nil {
+				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_CALL_HOF: %v", err), inst)
+			}
+			frame.Regs[inst.A()] = result
+			frame.IP++
+
 		case bytecode.OpBuiltinTrap:
 			name := "<unknown>"
 			if v, ok := frame.Proto.LookupConstant(int(inst.Bx()), vm.Image); ok && v.Tag == bytecode.TagString {

@@ -1,6 +1,6 @@
 # AILANG Changelog
 
-For the latest version, see [changelogs/v0.9-current.md](changelogs/v0.9-current.md).
+For the latest version, see [changelogs/v0.10-current.md](changelogs/v0.10-current.md).
 
 ## Changelog Archives
 
@@ -8,7 +8,8 @@ The full changelog has been split into themed files for searchability and readab
 
 | File | Versions | Theme |
 |------|----------|-------|
-| [v0.9-current.md](changelogs/v0.9-current.md) | v0.9.0+ | Cloud Integration, Pub/Sub |
+| [v0.10-current.md](changelogs/v0.10-current.md) | v0.10.0+ | Bytecode VM & Runtime |
+| [v0.9-cloud-pubsub.md](changelogs/v0.9-cloud-pubsub.md) | v0.9.0–v0.9.12 | Cloud Integration & Pub/Sub |
 | [v0.8-cloud-features.md](changelogs/v0.8-cloud-features.md) | v0.8.0–v0.8.1.1 | Cloud Features & Advanced Coordinator |
 | [v0.7-observatory.md](changelogs/v0.7-observatory.md) | v0.7.0–v0.7.3 | Observatory, Chains & Dashboard |
 | [v0.6-coordinator.md](changelogs/v0.6-coordinator.md) | v0.6.0–v0.6.2 | Coordinator Daemon & Agents |

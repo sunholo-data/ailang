@@ -99,6 +99,27 @@ var builtinIndex = func() map[string]uint8 {
 	return m
 }()
 
+// HOFBuiltinTable lists builtins that take closure arguments. These are
+// dispatched via OpBuiltinCallHOF, which passes the VM as a ClosureCaller
+// so the builtin can invoke its closure arguments.
+// Order MUST match vm.HOFBuiltinTable.
+var HOFBuiltinTable = []string{
+	"__list_map",
+	"__list_filter",
+	"__list_foldl",
+	"__str_foldChars",
+	"__str_foldSlices",
+	"__str_mapSlicesJoin",
+}
+
+var hofBuiltinIndex = func() map[string]uint8 {
+	m := make(map[string]uint8, len(HOFBuiltinTable))
+	for i, name := range HOFBuiltinTable {
+		m[name] = uint8(i)
+	}
+	return m
+}()
+
 // isLowerPassDictFallback reports whether name has the shape that the
 // lower pass uses when it FAILS to resolve a dictionary method. Two
 // patterns:
@@ -162,6 +183,11 @@ func (fc *funcCompiler) compileBuiltinCall(e stmt.BuiltinCall) (uint8, error) {
 	}
 	if isPure {
 		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCall, dst, idx, uint8(n)))
+		return dst, nil
+	}
+	// Check if it's a HOF builtin (takes closure arguments).
+	if hofIdx, isHOF := hofBuiltinIndex[e.Name]; isHOF {
+		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCallHOF, dst, hofIdx, uint8(n)))
 		return dst, nil
 	}
 	// Effectful / not-yet-wired builtins cannot be executed by the VM. Returning

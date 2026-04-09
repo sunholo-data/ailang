@@ -1051,9 +1051,40 @@ Notable: `__stringToInt` and `__stringToFloat` return `Option` ADT values direct
 
 **Parity**: 129 MATCH / 2 NON_DET / 4 DIVERGE / 6 EVAL_SKIP — **no regressions**.
 
-### 18.7 Next Steps
+### 18.7 M-BYTECODE-HOF-BUILTINS Results (2026-04-09)
 
-1. **HOF builtins in VM** — Design `OpBuiltinCallHOF` or compile-time HOF inlining for map/filter/foldl (6 builtins, ~82 cascade unblocks)
+**Sprint**: `M-BYTECODE-HOF-BUILTINS` — Wire 6 higher-order function builtins to the VM.
+
+**Infrastructure added (M1)**:
+- New opcode: `OpBuiltinCallHOF` (disassembles as `BUILTIN_CALL_HOF`)
+- `ClosureCaller` interface and `HOFBuiltinFunc` type in `internal/vm/builtins.go`
+- `VM.CallClosure()` method: handles both compiled closures (`TagClosure`) and EvalOnly fallback
+- `HOFBuiltinTable` in both compiler (`internal/bytecode/compiler/builtins.go`) and VM
+- `compileBuiltinCall` emits `OpBuiltinCallHOF` for builtins in `HOFBuiltinTable`
+- Opcode count: 32 → 33
+
+**6 HOF builtins wired (M2)**:
+| Builtin | Signature | Implementation |
+|---------|-----------|----------------|
+| `__list_map` | `(a -> b, [a]) -> [b]` | Iterate list, CallClosure per element |
+| `__list_filter` | `(a -> bool, [a]) -> [a]` | Iterate list, keep if callback returns true |
+| `__list_foldl` | `((b, a) -> b, b, [a]) -> b` | Left fold with accumulator |
+| `__str_foldChars` | `((a, string) -> a, a, string) -> a` | Fold over Unicode chars |
+| `__str_foldSlices` | `(string, string, a, (a, string) -> a) -> a` | Split then fold |
+| `__str_mapSlicesJoin` | `(string, string, (string) -> string) -> string` | Split, map, rejoin |
+
+**Tests**: 22 unit tests in `internal/vm/builtins_hof_test.go` covering edge cases (empty lists, single elements, nested closures, Unicode).
+
+**Benchmark (M3)**:
+- EvalOnly: **157 / 1130** (down from 163, -3.7%)
+- `BUILTIN_CALL_HOF` opcodes emitted: 6 (in docparse disassembly)
+- Parity: **129 MATCH** / 2 NON_DET / 6 EVAL_SKIP / 4 DIFFER — no regressions
+
+**EvalOnly target miss**: The design doc estimated ≤90 EvalOnly (assuming ~82 cascade unblocks from 6 HOF builtins). Actual reduction was only 6 (163→157). Root cause: the remaining 157 EvalOnly prototypes are primarily lambda bodies with **unbound variable** errors (the compiler cannot resolve local function references within lambda closures) and **unknown ADT** errors in switch expressions. These are separate compiler limitations unrelated to HOF dispatch. The HOF infrastructure itself works correctly — all 6 builtins compile to native `OpBuiltinCallHOF` and invoke callbacks via `CallClosure`.
+
+### 18.8 Next Steps
+
+1. **Lambda compilation** — Fix unbound-variable resolution in lambda bodies (would eliminate ~100+ EvalOnly prototypes across docparse)
 2. **Effectful builtins** — `OpEffectCall` opcode with capability validation for IO/FS/Net (~45 builtins)
 3. **New VM value types** — TagMap, TagBytes for map/bytes builtins (~20 builtins)
 4. **Investigate DIVERGE** — 4 pre-existing DIVERGE files remain

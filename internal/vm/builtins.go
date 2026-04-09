@@ -14,6 +14,29 @@ import (
 // value or an error.
 type BuiltinFunc func(args []bytecode.Value) (bytecode.Value, error)
 
+// ClosureCaller is the minimal interface a HOF builtin needs to invoke
+// closure arguments. Implemented by *VM. Keeps HOF builtins decoupled
+// from VM internals.
+type ClosureCaller interface {
+	CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error)
+}
+
+// HOFBuiltinFunc is a higher-order builtin that can call VM closures.
+// Used by OpBuiltinCallHOF dispatch.
+type HOFBuiltinFunc func(caller ClosureCaller, args []bytecode.Value) (bytecode.Value, error)
+
+// HOFBuiltinTable is the VM-side dispatch table for OpBuiltinCallHOF.
+// The order MUST match compiler.HOFBuiltinTable — both lists are
+// validated at startup by validateBuiltinTables.
+var HOFBuiltinTable = []HOFBuiltinFunc{
+	hofBuiltinListMap,          // __list_map
+	hofBuiltinListFilter,       // __list_filter
+	hofBuiltinListFoldl,        // __list_foldl
+	hofBuiltinStrFoldChars,     // __str_foldChars
+	hofBuiltinStrFoldSlices,    // __str_foldSlices
+	hofBuiltinStrMapSlicesJoin, // __str_mapSlicesJoin
+}
+
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order
 // MUST match compiler.BuiltinTable — both lists are validated at startup
 // by validateBuiltinTables (called from the VM constructor in tests).

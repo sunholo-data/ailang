@@ -88,6 +88,9 @@ const (
 	// Note: encoding uses ABx + a following ABC pseudo-op
 	// is avoided here. C is read from a second instruction
 	// word — see the assembler in vm/assemble.go (M4).
+	OpBuiltinCallHOF // R[A] = HOFBuiltinTable[B](vm, R[A+1..A+C])          (ABC)
+	// Like OpBuiltinCall but passes VM as ClosureCaller so the
+	// builtin can invoke closure arguments via VM.CallClosure.
 	OpBuiltinTrap // R[A] = evaluator.CallBuiltin(Bx, R[A+1..A+C])          (Phase 2C/2E)
 	OpEffectTrap  // yield to evaluator for effect Bx, arg in R[A]          (Phase 2E)
 
@@ -160,6 +163,8 @@ func (op OpCode) String() string {
 		return "GET_TAG"
 	case OpBuiltinCall:
 		return "BUILTIN_CALL"
+	case OpBuiltinCallHOF:
+		return "BUILTIN_CALL_HOF"
 	case OpBuiltinTrap:
 		return "BUILTIN_TRAP"
 	case OpEffectTrap:
