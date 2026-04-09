@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	rpprof "runtime/pprof"
+
 	"github.com/sunholo/ailang/internal/effects"
 	"github.com/sunholo/ailang/internal/eval"
 	"github.com/sunholo/ailang/internal/pipeline"
@@ -104,6 +106,9 @@ func runCommand() {
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 
+	// CPU profiling
+	cpuprofileFlag := fs.String("cpuprofile", "", "Write CPU profile to file (Go pprof format)")
+
 	// M-BYTECODE-VM Phase 2D: bytecode VM execution path
 	bytecodeFlag := fs.Bool("bytecode", false, "Run via the bytecode VM instead of the evaluator (Phase 2D)")
 	strictBytecodeFlag := fs.Bool("strict-bytecode", false, "With --bytecode: fail instead of falling back to the evaluator")
@@ -112,6 +117,21 @@ func runCommand() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Start CPU profiling if requested
+	if *cpuprofileFlag != "" {
+		f, err := os.Create(*cpuprofileFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating CPU profile: %v\n", err)
+			os.Exit(1)
+		}
+		rpprof.StartCPUProfile(f)
+		defer func() {
+			rpprof.StopCPUProfile()
+			f.Close()
+			fmt.Fprintf(os.Stderr, "CPU profile written to %s\n", *cpuprofileFlag)
+		}()
 	}
 
 	// Set log level filter for Debug ghost effect output
