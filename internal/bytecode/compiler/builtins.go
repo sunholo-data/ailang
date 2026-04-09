@@ -93,6 +93,23 @@ var BuiltinTable = []string{
 	"__json_encode",
 	"__json_decode",
 	"__json_repair",
+	// M-BYTECODE-XML-BUILTINS: XML builtins
+	"__xmlElement",
+	"__xmlText",
+	"__xmlComment",
+	"__xml_getText",
+	"__xml_getTag",
+	"__xml_serialize",
+	"__xml_serializeWithDecl",
+	"__xml_parse",
+	"__xml_parseElements",
+	"__xml_parseWithLimit",
+	"__xml_findAll",
+	"__xml_findFirst",
+	"__xml_getAttr",
+	"__xml_getChildren",
+	"__xml_findAllTexts",
+	"__xml_findAllAttrs",
 }
 
 var builtinIndex = func() map[string]uint8 {
@@ -114,6 +131,7 @@ var HOFBuiltinTable = []string{
 	"__str_foldChars",
 	"__str_foldSlices",
 	"__str_mapSlicesJoin",
+	"__xml_parseFold",
 }
 
 var hofBuiltinIndex = func() map[string]uint8 {

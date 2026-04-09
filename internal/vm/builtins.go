@@ -35,6 +35,7 @@ var HOFBuiltinTable = []HOFBuiltinFunc{
 	hofBuiltinStrFoldChars,     // __str_foldChars
 	hofBuiltinStrFoldSlices,    // __str_foldSlices
 	hofBuiltinStrMapSlicesJoin, // __str_mapSlicesJoin
+	hofBuiltinXmlParseFold,     // __xml_parseFold
 }
 
 // BuiltinTable is the VM-side dispatch table for OpBuiltinCall. The order
@@ -117,6 +118,23 @@ var BuiltinTable = []BuiltinFunc{
 	builtinJsonEncode, // __json_encode
 	builtinJsonDecode, // __json_decode
 	builtinJsonRepair, // __json_repair
+	// M-BYTECODE-XML-BUILTINS: XML builtins
+	builtinXmlElement,           // __xmlElement
+	builtinXmlText,              // __xmlText
+	builtinXmlComment,           // __xmlComment
+	builtinXmlGetText,           // __xml_getText
+	builtinXmlGetTag,            // __xml_getTag
+	builtinXmlSerialize,         // __xml_serialize
+	builtinXmlSerializeWithDecl, // __xml_serializeWithDecl
+	builtinXmlParse,             // __xml_parse
+	builtinXmlParseElements,     // __xml_parseElements
+	builtinXmlParseWithLimit,    // __xml_parseWithLimit
+	builtinXmlFindAll,           // __xml_findAll
+	builtinXmlFindFirst,         // __xml_findFirst
+	builtinXmlGetAttr,           // __xml_getAttr
+	builtinXmlGetChildren,       // __xml_getChildren
+	builtinXmlFindAllTexts,      // __xml_findAllTexts
+	builtinXmlFindAllAttrs,      // __xml_findAllAttrs
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
