@@ -1148,6 +1148,51 @@ HTTP/1.1 400 Bad Request
 
 `Ok(value)` responses are automatically unwrapped — the inner value is returned directly, not wrapped in a `{"__tag": "Ok", ...}` structure.
 
+### Router error envelope
+
+Router-layer errors (requests that fail **before** your AILANG code runs) return a typed envelope in the `error_detail` field alongside the existing flat `error` string. AI agents and SDKs should prefer matching on `error_detail.code` rather than parsing the human-readable `error` message.
+
+**Shape:**
+
+```json
+{
+  "error": "No route registered for POST /api/v1/auth/device/token",
+  "error_detail": {
+    "code": "ROUTE_NOT_FOUND",
+    "message": "No route registered for POST /api/v1/auth/device/token",
+    "retryable": false,
+    "suggested_fix": "Did you mean POST /api/v1/auth/device/poll?",
+    "available_routes": [
+      "POST /api/v1/auth/device",
+      "POST /api/v1/auth/device/poll",
+      "POST /api/v1/auth/device/approve"
+    ]
+  },
+  "module": "",
+  "func": "",
+  "elapsed_ms": 0
+}
+```
+
+**Backward compatibility:** the flat `error` field is always populated and mirrors `error_detail.message`, so existing clients that parse the top-level `error` string keep working unchanged. New clients should match on `error_detail.code`.
+
+**Router error codes:**
+
+| Code | HTTP | Meaning |
+|------|------|---------|
+| `ROUTE_NOT_FOUND` | 404 | Request path didn't match any registered `@route` on a route-driven server. Includes `suggested_fix` when a close match exists and a bounded `available_routes` list. |
+| `MODULE_NOT_LOADED` | 404 | Legacy `/api/{module}/{func}` dispatch on a no-`@route` server: the parsed module isn't loaded. Preserves historical message text. |
+| `FUNCTION_NOT_FOUND` | 404 | Module is loaded but the requested function doesn't exist, OR the function is hidden via `@noexpose` / `--routes-only`. Intentionally indistinguishable so `@noexpose` reveals nothing to external callers. |
+| `METHOD_NOT_ALLOWED` | 405 | Request method doesn't match the `@route` method, or isn't `POST`/`GET` for the catch-all dispatch handler. |
+
+**Which code fires when:**
+
+1. If the server has **any** `@route` registered and no route matches → `ROUTE_NOT_FOUND`. This is the common case for route-driven deployments and is what AI agents see when they typo a URL.
+2. If the server has **zero** `@route`s registered AND the parsed `{module}/{func}` module isn't loaded → `MODULE_NOT_LOADED`. Legacy dispatch-only servers keep their historical error text.
+3. Module loaded, function missing (or hidden) → `FUNCTION_NOT_FOUND`.
+
+**Runtime errors** (panics, `Result.Err`, coercion failures) use a **different** envelope path — see the "Error Handling with Result Types" section above. The router envelope only covers errors from the dispatch layer, before your function runs.
+
 ---
 
 ## Relationship to Go Interop

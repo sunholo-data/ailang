@@ -18,21 +18,28 @@ type FunctionCallRequest struct {
 }
 
 // FunctionCallResponse is the JSON response from a function call.
+//
+// For error responses, the flat `Error` field is preserved for backward
+// compatibility, and new clients should prefer the structured `ErrorDetail`
+// envelope which carries a stable error code and optional did-you-mean hints.
+// The flat `Error` string always mirrors `ErrorDetail.Message` when both are set.
 type FunctionCallResponse struct {
-	Result    interface{} `json:"result,omitempty"`
-	Error     string      `json:"error,omitempty"`
-	Module    string      `json:"module"`
-	Func      string      `json:"func"`
-	ElapsedMs int64       `json:"elapsed_ms"`
+	Result      interface{}        `json:"result,omitempty"`
+	Error       string             `json:"error,omitempty"`
+	ErrorDetail *RouterErrorDetail `json:"error_detail,omitempty"`
+	Module      string             `json:"module"`
+	Func        string             `json:"func"`
+	ElapsedMs   int64              `json:"elapsed_ms"`
 }
 
 // handleFunctionCall is the generic handler for calling any AILANG exported function.
 // URL pattern: POST /api/{modulePath}/{functionName}
 func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" && r.Method != "GET" {
-		writeJSON(w, http.StatusMethodNotAllowed, FunctionCallResponse{
-			Error: "use GET with query params or POST with JSON body to call functions",
-		})
+		writeRouterError(w, http.StatusMethodNotAllowed,
+			ErrCodeMethodNotAllowed,
+			"use GET with query params or POST with JSON body to call functions",
+			"", nil)
 		return
 	}
 
@@ -43,18 +50,17 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	path = strings.TrimSuffix(path, "/")
 
 	if path == "" || strings.HasPrefix(path, "_") {
-		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
-			Error: "not found",
-		})
+		writeRouterError(w, http.StatusNotFound, ErrCodeRouteNotFound, "not found", "", nil)
 		return
 	}
 
 	// Split into module path and function name (last segment is function)
 	lastSlash := strings.LastIndex(path, "/")
 	if lastSlash < 0 {
-		writeJSON(w, http.StatusBadRequest, FunctionCallResponse{
-			Error: "invalid path: expected /api/{module}/{function}",
-		})
+		writeRouterError(w, http.StatusBadRequest,
+			ErrCodeRouteNotFound,
+			"invalid path: expected /api/{module}/{function}",
+			"", nil)
 		return
 	}
 
@@ -68,7 +74,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	if !ok {
-		// Fallback: check if the URL matches a custom @route from a package
+		// Fallback 1: check if the URL matches a custom @route from a package
 		// module. Package modules use paths like "pkg/owner/repo/mod" which
 		// don't match the URL-based module/function parsing above.
 		if route := s.findRouteByPath(r.URL.Path); route != nil {
@@ -82,11 +88,30 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
-			Module: modulePath,
-			Func:   funcName,
-			Error:  fmt.Sprintf("module %q not loaded", modulePath),
-		})
+
+		// 3-way discrimination for the 404 response:
+		//
+		//   Case A: server has @routes registered and none matched.
+		//     → ROUTE_NOT_FOUND with did-you-mean suggestions. This is the
+		//       common case for route-driven deployments (e.g. docparse).
+		//
+		//   Case C: server has zero @routes (legacy module/func-only server)
+		//       AND the parsed modulePath doesn't resolve.
+		//     → MODULE_NOT_LOADED. Preserves historical behavior for non-
+		//       @route deployments that dispatch via /api/{module}/{func}.
+		customRoutes := s.getCustomRoutes()
+		if len(customRoutes) > 0 {
+			suggestedFix, available := suggestRoutes(r.Method, r.URL.Path, customRoutes)
+			msg := fmt.Sprintf("No route registered for %s %s", r.Method, r.URL.Path)
+			writeRouterError(w, http.StatusNotFound, ErrCodeRouteNotFound, msg, suggestedFix, available)
+			return
+		}
+		// Case C: legacy module/func dispatch on a no-@route server.
+		writeRouterErrorWithDispatch(w, http.StatusNotFound,
+			ErrCodeModuleNotLoaded,
+			fmt.Sprintf("module %q not loaded", modulePath),
+			"Ensure the module is reachable from an --entry file or passed via --load",
+			modulePath, funcName)
 		return
 	}
 
@@ -99,25 +124,27 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if foundExport == nil {
-		available := make([]string, len(modInfo.Exports))
+		exports := make([]string, len(modInfo.Exports))
 		for i, e := range modInfo.Exports {
-			available[i] = e.Name
+			exports[i] = e.Name
 		}
-		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
-			Module: modulePath,
-			Func:   funcName,
-			Error:  fmt.Sprintf("function %q not found in module %q (available: %v)", funcName, modulePath, available),
-		})
+		writeRouterErrorWithDispatch(w, http.StatusNotFound,
+			ErrCodeFunctionNotFound,
+			fmt.Sprintf("function %q not found in module %q (available: %v)", funcName, modulePath, exports),
+			"",
+			modulePath, funcName)
 		return
 	}
 
-	// Check if function is hidden from HTTP via @noexpose or --routes-only
+	// Check if function is hidden from HTTP via @noexpose or --routes-only.
+	// Intentionally use the same FUNCTION_NOT_FOUND code so @noexpose stays
+	// indistinguishable from a genuinely missing function.
 	if !s.isExposed(*foundExport) {
-		writeJSON(w, http.StatusNotFound, FunctionCallResponse{
-			Module: modulePath,
-			Func:   funcName,
-			Error:  fmt.Sprintf("function %q not found in module %q", funcName, modulePath),
-		})
+		writeRouterErrorWithDispatch(w, http.StatusNotFound,
+			ErrCodeFunctionNotFound,
+			fmt.Sprintf("function %q not found in module %q", funcName, modulePath),
+			"",
+			modulePath, funcName)
 		return
 	}
 

@@ -326,9 +326,11 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 		handler := func(w http.ResponseWriter, req *http.Request) {
 			// Enforce HTTP method
 			if req.Method != r.Method && req.Method != "OPTIONS" {
-				writeJSON(w, http.StatusMethodNotAllowed, FunctionCallResponse{
-					Error: fmt.Sprintf("this endpoint only accepts %s requests", r.Method),
-				})
+				writeRouterError(w, http.StatusMethodNotAllowed,
+					ErrCodeMethodNotAllowed,
+					fmt.Sprintf("this endpoint only accepts %s requests", r.Method),
+					fmt.Sprintf("Use %s instead of %s", r.Method, req.Method),
+					nil)
 				return
 			}
 			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes})
