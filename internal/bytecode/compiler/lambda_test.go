@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/bytecode"
@@ -174,5 +175,177 @@ func TestCompile_Lambda_PassedToHigherOrder(t *testing.T) {
 	got := runProgram(t, prog, "caller", []bytecode.Value{bytecode.NewInt(7)})
 	if got.Int != 107 {
 		t.Errorf("got %d, want 107", got.Int)
+	}
+}
+
+// --- Multi-module lambda resolution -----------------------------------------
+
+// TestLambda_MultiModule_SameModuleCall verifies that a lambda body can call
+// a function defined in the same module when module prefixes are used.
+// This was broken: compileLambda did not propagate currentModule to the inner
+// funcCompiler, so canonicalFuncName("", "helper") missed "mymod.helper".
+func TestLambda_MultiModule_SameModuleCall(t *testing.T) {
+	// mymod.helper(x) = x * 2
+	// mymod.caller() = let f = \y. helper(y) in f(21)  → 42
+	prog := &stmt.Program{
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "mymod",
+				Name:   "helper",
+				Params: []stmt.Param{{Name: "x", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+				Return: stmt.BinOp{Op: stmt.OpMul, Left: stmt.VarRef{Name: "x"}, Right: stmt.LitInt{Value: 2}},
+			},
+			{
+				Module:   "mymod",
+				Name:     "caller",
+				Exported: true,
+				Body: []stmt.Stmt{
+					stmt.VarDecl{
+						Name: "f",
+						Value: stmt.Lambda{
+							Params: []stmt.Param{{Name: "y"}},
+							Return: stmt.Call{
+								Func: stmt.VarRef{Name: "helper"},
+								Args: []stmt.Expr{stmt.VarRef{Name: "y"}},
+							},
+						},
+					},
+				},
+				Return: stmt.Call{Func: stmt.VarRef{Name: "f"}, Args: []stmt.Expr{stmt.LitInt{Value: 21}}},
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	// Verify the lambda is NOT EvalOnly.
+	for _, p := range img.Prototypes {
+		if strings.Contains(p.Name, "lambda") && p.EvalOnly {
+			t.Fatalf("lambda was bridged to evaluator: %s", p.EvalReason)
+		}
+	}
+	got := runProgram(t, prog, "mymod.caller", nil)
+	if got.Int != 42 {
+		t.Errorf("got %d, want 42", got.Int)
+	}
+}
+
+// TestLambda_MultiModule_NestedLambda verifies that nested lambdas (lambda
+// inside lambda) both inherit currentModule for name resolution.
+func TestLambda_MultiModule_NestedLambda(t *testing.T) {
+	// mymod.double(x) = x * 2
+	// mymod.caller() = let f = \y. let g = \z. double(z) in g(y) in f(21) → 42
+	prog := &stmt.Program{
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "mymod",
+				Name:   "double",
+				Params: []stmt.Param{{Name: "x", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+				Return: stmt.BinOp{Op: stmt.OpMul, Left: stmt.VarRef{Name: "x"}, Right: stmt.LitInt{Value: 2}},
+			},
+			{
+				Module:   "mymod",
+				Name:     "caller",
+				Exported: true,
+				Body: []stmt.Stmt{
+					stmt.VarDecl{
+						Name: "f",
+						Value: stmt.Lambda{
+							Params: []stmt.Param{{Name: "y"}},
+							Body: []stmt.Stmt{
+								stmt.VarDecl{
+									Name: "g",
+									Value: stmt.Lambda{
+										Params: []stmt.Param{{Name: "z"}},
+										Return: stmt.Call{
+											Func: stmt.VarRef{Name: "double"},
+											Args: []stmt.Expr{stmt.VarRef{Name: "z"}},
+										},
+									},
+								},
+							},
+							Return: stmt.Call{Func: stmt.VarRef{Name: "g"}, Args: []stmt.Expr{stmt.VarRef{Name: "y"}}},
+						},
+					},
+				},
+				Return: stmt.Call{Func: stmt.VarRef{Name: "f"}, Args: []stmt.Expr{stmt.LitInt{Value: 21}}},
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	// Verify NO lambda is EvalOnly.
+	for _, p := range img.Prototypes {
+		if strings.Contains(p.Name, "lambda") && p.EvalOnly {
+			t.Fatalf("lambda was bridged: %s — reason: %s", p.Name, p.EvalReason)
+		}
+	}
+	got := runProgram(t, prog, "mymod.caller", nil)
+	if got.Int != 42 {
+		t.Errorf("got %d, want 42", got.Int)
+	}
+}
+
+// TestLambda_MultiModule_VarRef verifies that a lambda in a multi-module
+// image can reference a same-module function as a value (VarRef, not call).
+func TestLambda_MultiModule_VarRef(t *testing.T) {
+	// mymod.inc(x) = x + 1
+	// mymod.apply(f, x) = f(x)
+	// mymod.caller() = let mk = \y. apply(inc, y) in mk(41) → 42
+	prog := &stmt.Program{
+		FuncDecls: []stmt.FuncDecl{
+			{
+				Module: "mymod",
+				Name:   "inc",
+				Params: []stmt.Param{{Name: "x", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}}},
+				Return: stmt.BinOp{Op: stmt.OpAdd, Left: stmt.VarRef{Name: "x"}, Right: stmt.LitInt{Value: 1}},
+			},
+			{
+				Module: "mymod",
+				Name:   "apply",
+				Params: []stmt.Param{
+					{Name: "f", Type: stmt.FuncType{}},
+					{Name: "x", Type: stmt.PrimitiveType{Kind: stmt.PrimInt}},
+				},
+				Return: stmt.Call{Func: stmt.VarRef{Name: "f"}, Args: []stmt.Expr{stmt.VarRef{Name: "x"}}},
+			},
+			{
+				Module:   "mymod",
+				Name:     "caller",
+				Exported: true,
+				Body: []stmt.Stmt{
+					stmt.VarDecl{
+						Name: "mk",
+						Value: stmt.Lambda{
+							Params: []stmt.Param{{Name: "y"}},
+							Return: stmt.Call{
+								Func: stmt.VarRef{Name: "apply"},
+								Args: []stmt.Expr{
+									stmt.VarRef{Name: "inc"},
+									stmt.VarRef{Name: "y"},
+								},
+							},
+						},
+					},
+				},
+				Return: stmt.Call{Func: stmt.VarRef{Name: "mk"}, Args: []stmt.Expr{stmt.LitInt{Value: 41}}},
+			},
+		},
+	}
+	img, err := Compile(prog)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	for _, p := range img.Prototypes {
+		if strings.Contains(p.Name, "lambda") && p.EvalOnly {
+			t.Fatalf("lambda was bridged: %s — reason: %s", p.Name, p.EvalReason)
+		}
+	}
+	got := runProgram(t, prog, "mymod.caller", nil)
+	if got.Int != 42 {
+		t.Errorf("got %d, want 42", got.Int)
 	}
 }

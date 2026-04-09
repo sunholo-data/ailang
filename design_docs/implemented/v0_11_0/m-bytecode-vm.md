@@ -1123,9 +1123,44 @@ ailang disasm docparse/main.ail 2>&1 | grep "EvalOnly:"
 ailang disasm docparse/main.ail 2>&1 | grep -c "BUILTIN_CALL_HOF"
 ```
 
-### 18.9 Next Steps
+### 18.9 M-BYTECODE-LAMBDA-RESOLUTION Results (2026-04-09)
 
-1. **Lambda compilation** — Fix unbound-variable resolution in lambda bodies (would eliminate ~100+ EvalOnly prototypes across docparse)
-2. **Effectful builtins** — `OpEffectCall` opcode with capability validation for IO/FS/Net (~45 builtins)
-3. **New VM value types** — TagMap, TagBytes for map/bytes builtins (~20 builtins)
-4. **Investigate DIVERGE** — 4 pre-existing DIVERGE files remain
+**Sprint**: `M-BYTECODE-LAMBDA-RESOLUTION` — Fix lambda body name resolution in multi-module bytecode images.
+
+**Root cause**: `compileLambda` in `internal/bytecode/compiler/lambda.go:51` created a child `funcCompiler` without propagating `currentModule`. Lambda bodies used `canonicalFuncName("", name)` which returned bare names, missing the `"module.name"` entries in `funcIdx`.
+
+**Fix**: One line — `inner.currentModule = fc.currentModule` (after line 52).
+
+**Tests**: 3 new tests in `lambda_test.go`:
+- `TestLambda_MultiModule_SameModuleCall` — lambda calls same-module function
+- `TestLambda_MultiModule_NestedLambda` — nested lambda references same-module function
+- `TestLambda_MultiModule_VarRef` — lambda references same-module function as value
+
+**EvalOnly reduction**: **157 → 92 / 1204** prototypes (**-41%**, -65 prototypes). Total prototypes grew from 1130→1204 because previously-failing lambdas now compile into their own prototypes.
+
+**Remaining 92 EvalOnly breakdown:**
+| Category | Count | Next step |
+|---|---|---|
+| Effectful builtins (IO/FS/Net/AI/XML/ZIP/etc.) | 73 | `OpEffectCall` with capability validation |
+| Register overflow (NumRegs exceeded) | 11 | Register spilling or function splitting |
+| Unknown ADT in switch | 2 | ADT resolution with module context |
+| Unbound variable (std/net) | 2 | std/net helper resolution |
+
+**Benchmark (10MB DOCX, best-of-3 wall-clock)**:
+
+| Backend | Wall-clock | CPU time |
+|---|---|---|
+| Evaluator | 3.82s | 3.01s |
+| Bytecode VM | 3.78s | 3.03s |
+| **Speedup** | **~1.01×** | — |
+
+**Note**: Absolute wall-clock times vary with system load (previous session showed ~2.2s for both; this session shows ~3.8s). CPU time is consistent at ~3.0s. The key metric is that VM matches or slightly beats eval — no overhead penalty.
+
+**Parity**: **129 MATCH** / 2 NON_DET / 6 EVAL_SKIP / 4 DIFFER — no regressions.
+
+### 18.10 Next Steps
+
+1. **Effectful builtins** — `OpEffectCall` opcode with capability validation for IO/FS/Net/XML/ZIP (~73 builtins, the entire remaining docparse EvalOnly set)
+2. **Register spilling** — Handle functions exceeding 256 registers (11 EvalOnly prototypes)
+3. **New VM value types** — TagMap, TagBytes for map/bytes builtins (~10 of the 73 effectful)
+4. **Investigate DIVERGE** — 4 pre-existing DIVERGE parity files remain
