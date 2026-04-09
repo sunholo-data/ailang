@@ -80,6 +80,14 @@ var (
 	parallelism     = 8 // max concurrent example runs
 )
 
+// skippedExamples lists files that are intentionally excluded from
+// verify-examples because they exercise behavior that cannot succeed
+// under a generic runner (e.g. deliberate non-zero process exit).
+// Paths are relative to the repo root.
+var skippedExamples = map[string]string{
+	"examples/runnable/exit_code.ail": "intentionally exits with non-zero code (42) to demo std/io exit()",
+}
+
 // ailangBinary returns the path to a pre-built ailang binary.
 // Falls back to "go run ./cmd/ailang" if no binary found.
 func ailangBinary() (cmd string, args []string, usesGoRun bool) {
@@ -106,6 +114,14 @@ func runExample(filename string) reporttypes.ExampleResult {
 	// Skip non-.ail files
 	if !strings.HasSuffix(filename, ".ail") {
 		result.Status = "skipped"
+		result.Duration = time.Since(start)
+		return result
+	}
+
+	// Skip files on the explicit exclusion list (e.g. intentional non-zero exits).
+	if reason, ok := skippedExamples[filepath.ToSlash(filename)]; ok {
+		result.Status = "skipped"
+		result.Error = reason
 		result.Duration = time.Since(start)
 		return result
 	}
