@@ -228,12 +228,13 @@ func canonicalFuncName(module, name string) string {
 }
 
 func newFuncCompiler(img *bytecode.BytecodeImage, proto *bytecode.FuncPrototype, funcIdx map[string]int) *funcCompiler {
+	alloc := newRegAlloc()
 	return &funcCompiler{
 		img:     img,
 		proto:   proto,
 		funcIdx: funcIdx,
-		regs:    newRegAlloc(),
-		locals:  newScopeStack(),
+		regs:    alloc,
+		locals:  newScopeStack(alloc),
 	}
 }
 

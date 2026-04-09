@@ -106,7 +106,7 @@ func (fc *funcCompiler) compileExprToFresh(e stmt.Expr) (uint8, error) {
 // must not be passed to regs.freeTemp.
 func (fc *funcCompiler) isPinned(r uint8) bool {
 	for _, frame := range fc.locals.frames {
-		for _, reg := range frame {
+		for _, reg := range frame.names {
 			if reg == r {
 				return true
 			}

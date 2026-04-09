@@ -134,6 +134,27 @@ func TestValidate_RegisterOverflow(t *testing.T) {
 	}
 }
 
+func TestValidate_GetFieldIndexNotRegister(t *testing.T) {
+	// Regression: OpGetField C operand is a sorted field index, not a register.
+	// The validator previously checked C as a register, which incorrectly
+	// rejected functions where the field index exceeded NumRegs.
+	img := NewImage()
+	p := &FuncPrototype{
+		Name:    "fieldAccess",
+		NumRegs: 2, // r0=param, r1=result
+		Instructions: []Instruction{
+			// GET_FIELD r1, r0, fieldIndex=5  (field index 5 > NumRegs 2 is OK)
+			EncodeABC(OpGetField, 1, 0, 5),
+			EncodeABC(OpReturn, 1, 0, 0),
+		},
+		LineInfo: []int{1, 1},
+	}
+	img.AddPrototype(p)
+	if err := img.Validate(); err != nil {
+		t.Errorf("OpGetField with high field index should be valid, got: %v", err)
+	}
+}
+
 func TestValidate_BadConstantIndex(t *testing.T) {
 	img := NewImage()
 	p := &FuncPrototype{

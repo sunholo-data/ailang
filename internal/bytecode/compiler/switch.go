@@ -67,6 +67,7 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 		fc.regs.freeTemp(cmpReg)
 
 		// Inside the case: extract bindings via GET_FIELD, scoped to this case.
+		// Using bindScoped so registers are recycled when the scope pops.
 		fc.locals.push()
 		for _, b := range c.Bindings {
 			if b.FieldIndex > 255 {
@@ -79,7 +80,7 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 				return err
 			}
 			fc.emit(bytecode.EncodeABC(bytecode.OpGetField, bindReg, scrutReg, uint8(b.FieldIndex)))
-			fc.locals.bind(b.Name, bindReg)
+			fc.locals.bindScoped(b.Name, bindReg)
 		}
 		// Compile the case body.
 		for _, bs := range c.Body {

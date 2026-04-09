@@ -69,8 +69,10 @@ func (fc *funcCompiler) compileVarDecl(s stmt.VarDecl) error {
 	if err != nil {
 		return err
 	}
-	// Promote the temp to a pinned local. The free list never sees it again.
-	fc.locals.bind(s.Name, src)
+	// Use bindScoped so the register is recycled when the enclosing scope pops.
+	// Root-scope bindings (function-level lets) are never popped, so they stay
+	// pinned for the function's lifetime — matching the previous behavior.
+	fc.locals.bindScoped(s.Name, src)
 	return nil
 }
 

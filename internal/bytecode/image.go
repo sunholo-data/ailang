@@ -280,7 +280,7 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 			return err
 		}
 		return checkReg(inst.B(), "src")
-	case OpAdd, OpSub, OpMul, OpDiv, OpMod, OpEq, OpLt, OpLe, OpConcat, OpCons, OpGetIndex, OpGetField:
+	case OpAdd, OpSub, OpMul, OpDiv, OpMod, OpEq, OpLt, OpLe, OpConcat, OpCons, OpGetIndex:
 		if err := checkReg(inst.A(), "dest"); err != nil {
 			return err
 		}
@@ -288,6 +288,12 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 			return err
 		}
 		return checkReg(inst.C(), "rhs")
+	case OpGetField:
+		// A=dest register, B=record register, C=sorted field index (NOT a register).
+		if err := checkReg(inst.A(), "dest"); err != nil {
+			return err
+		}
+		return checkReg(inst.B(), "record")
 	case OpJump:
 		return checkJump(inst.SBx())
 	case OpJumpIfFalse:
