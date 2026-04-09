@@ -24,9 +24,16 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 	scrutIsTemp := !fc.isPinned(scrutReg)
 
 	// Get the ADT info to translate tag names to ordinals.
-	info, ok := fc.adtTypes[s.ADTName]
+	adtName := s.ADTName
+	info, ok := fc.adtTypes[adtName]
+	if !ok && adtName == "" {
+		// The lower pass couldn't determine the ADT type (e.g., unresolved type
+		// variable). Infer from the case constructor tags by scanning adtTypes
+		// for a type that contains all tags used in the switch.
+		adtName, info, ok = fc.inferADTFromCases(s.Cases)
+	}
 	if !ok {
-		return fmt.Errorf("compiler: unknown ADT %q in switch", s.ADTName)
+		return fmt.Errorf("compiler: unknown ADT %q in switch", adtName)
 	}
 
 	// Compute the tag once.
@@ -120,4 +127,27 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 		fc.regs.freeTemp(scrutReg)
 	}
 	return nil
+}
+
+// inferADTFromCases scans the registered ADT types to find one whose tag set
+// contains all constructor tags used in the switch cases. Returns the ADT name,
+// info, and true if found. This is a fallback for when the lower pass couldn't
+// determine the ADT type (e.g., unresolved type variable in scrutinee).
+func (fc *funcCompiler) inferADTFromCases(cases []stmt.SwitchCase) (string, adtTypeInfo, bool) {
+	if len(cases) == 0 {
+		return "", adtTypeInfo{}, false
+	}
+	for name, info := range fc.adtTypes {
+		allMatch := true
+		for _, c := range cases {
+			if _, ok := info.tagOrdinal[c.Tag]; !ok {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			return name, info, true
+		}
+	}
+	return "", adtTypeInfo{}, false
 }
