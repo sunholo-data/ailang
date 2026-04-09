@@ -621,3 +621,155 @@ func TestLowerProgram_Simple(t *testing.T) {
 		t.Errorf("expected return type int64, got %s", fd.ReturnType.GoString())
 	}
 }
+
+// TestLower_PreservesTmpBindings — M4_LOWER_TMP_SCOPE regression test.
+//
+// Reproduces the "$tmpN / user-var unbound" bug observed in docparse/main.ail:
+// when a Let's VALUE is an If (or Match) whose branches contain their own
+// Let-chains, the inner bindings were silently dropped by lowerLetExpr. The
+// fix teaches flattenValue to hoist If/Match branches into IfStmt/SwitchStmt
+// with a temp variable, preserving the inner bindings as proper statements.
+//
+// Shape of the failing input:
+//
+//	let combinedBlocks =
+//	  if cond then
+//	    let inner = 42 in inner
+//	  else
+//	    0
+//	in combinedBlocks
+//
+// Before the fix, the VarDecl for `inner` was dropped and `combinedBlocks`
+// would reference an undeclared variable via an IfExpr whose Then collapsed
+// to just `inner`. After the fix, the resulting statement sequence must
+// bind `inner` before it is used.
+func TestLower_PreservesTmpBindings(t *testing.T) {
+	cti := makeCTI(map[uint64]types.Type{
+		1:  types.TInt, // outer Let type
+		2:  types.TBool,
+		3:  types.TInt, // inner Let type
+		4:  types.TInt,
+		5:  types.TInt,
+		6:  types.TInt,
+		10: types.TInt,
+	})
+
+	// Core:
+	//   Let combinedBlocks = If(cond, Let(inner = 42 in inner), 0)
+	//       in combinedBlocks
+	innerLet := &core.Let{
+		CoreNode: core.CoreNode{NodeID: 3},
+		Name:     "inner",
+		Value:    litInt(4, 42),
+		Body:     coreVar(5, "inner"),
+	}
+	ifExpr := &core.If{
+		CoreNode: core.CoreNode{NodeID: 10},
+		Cond:     litBool(2, true),
+		Then:     innerLet,
+		Else:     litInt(6, 0),
+	}
+	outerLet := &core.Let{
+		CoreNode: core.CoreNode{NodeID: 1},
+		Name:     "combinedBlocks",
+		Value:    ifExpr,
+		Body:     coreVar(11, "combinedBlocks"),
+	}
+
+	stmts, ret := FlattenBlock(outerLet, cti)
+
+	// Collect every variable name that is declared or assigned anywhere
+	// in the emitted statement sequence (including inside IfStmt branches).
+	declared := map[string]bool{}
+	var collectDecls func(ss []stmt.Stmt)
+	collectDecls = func(ss []stmt.Stmt) {
+		for _, s := range ss {
+			switch s := s.(type) {
+			case stmt.VarDecl:
+				declared[s.Name] = true
+			case stmt.AssignStmt:
+				declared[s.Name] = true
+			case stmt.IfStmt:
+				collectDecls(s.Then)
+				collectDecls(s.Else)
+			case stmt.SwitchStmt:
+				for _, c := range s.Cases {
+					collectDecls(c.Body)
+				}
+				collectDecls(s.Default)
+			}
+		}
+	}
+	collectDecls(stmts)
+
+	// Collect every variable name REFERENCED in the emitted statements/return.
+	referenced := map[string]bool{}
+	var collectRefsExpr func(e stmt.Expr)
+	var collectRefsStmts func(ss []stmt.Stmt)
+	collectRefsExpr = func(e stmt.Expr) {
+		switch e := e.(type) {
+		case stmt.VarRef:
+			referenced[e.Name] = true
+		case stmt.BinOp:
+			collectRefsExpr(e.Left)
+			collectRefsExpr(e.Right)
+		case stmt.UnOp:
+			collectRefsExpr(e.Operand)
+		case stmt.IfExpr:
+			collectRefsExpr(e.Cond)
+			collectRefsExpr(e.Then)
+			collectRefsExpr(e.Else)
+		case stmt.Call:
+			collectRefsExpr(e.Func)
+			for _, a := range e.Args {
+				collectRefsExpr(a)
+			}
+		}
+	}
+	collectRefsStmts = func(ss []stmt.Stmt) {
+		for _, s := range ss {
+			switch s := s.(type) {
+			case stmt.VarDecl:
+				collectRefsExpr(s.Value)
+			case stmt.AssignStmt:
+				collectRefsExpr(s.Value)
+			case stmt.ExprStmt:
+				collectRefsExpr(s.Value)
+			case stmt.ReturnStmt:
+				collectRefsExpr(s.Value)
+			case stmt.IfStmt:
+				collectRefsExpr(s.Cond)
+				collectRefsStmts(s.Then)
+				collectRefsStmts(s.Else)
+			case stmt.SwitchStmt:
+				collectRefsExpr(s.Scrutinee)
+				for _, c := range s.Cases {
+					collectRefsStmts(c.Body)
+				}
+				collectRefsStmts(s.Default)
+			}
+		}
+	}
+	collectRefsStmts(stmts)
+	if ret != nil {
+		collectRefsExpr(ret)
+	}
+
+	// The critical assertion: every referenced variable must have a
+	// corresponding declaration somewhere. Before the fix, `inner` is
+	// referenced but never declared because lowerLetExpr dropped it.
+	for name := range referenced {
+		if !declared[name] {
+			t.Errorf("variable %q referenced but never declared; "+
+				"stmts=%#v ret=%#v", name, stmts, ret)
+		}
+	}
+
+	// Targeted check: `inner` must be declared. Without this guardrail
+	// the loop above could be bypassed if the lowering accidentally
+	// rewrote the reference to something else.
+	if !declared["inner"] {
+		t.Errorf("expected `inner` to be declared in lowered statements; "+
+			"got stmts=%#v ret=%#v", stmts, ret)
+	}
+}
