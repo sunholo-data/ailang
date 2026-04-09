@@ -991,10 +991,36 @@ Regression test: `TestLowerMatchStmt_ConsConstructorHead` in `internal/gen/lower
 
 **Parity**: 129 MATCH / 2 NON_DET / 4 DIFFER / 6 EVAL_SKIP of 141 runnable examples. The 4 DIFFER are pre-existing issues in `list_patterns.ail`, `pattern_sugar.ail`, `recursion_quicksort.ail`, and `string_parsing.ail` (not introduced by this sprint).
 
-### 18.5 Next Steps
+### 18.5 M-BYTECODE-PHASE2E Results (2026-04-09)
 
-To achieve measurable speedup on real-world workloads:
+Wired 4 pure builtins to the VM's `OpBuiltinCall` dispatch:
 
-1. **Phase 2E builtins** — Wire `_not_Bool`, `_concat_List`, `_intToFloat`, `__list_length` to VM opcodes. This alone should drop EvalOnly from 247 to ~3, unblocking VM execution of all hot paths.
-2. **Investigate DIFFER regressions** — The 4 DIFFER files (down from 133 MATCH baseline to 129 MATCH) may indicate pre-existing VM output differences worth investigating.
-3. **Re-benchmark after Phase 2E** — With full VM execution on docparse, measure actual speedup on the 10MB DOCX. Expect significant improvement on compute-heavy parsing paths, though I/O will remain a floor.
+| Builtin | Handler | Lines |
+|---|---|---|
+| `_not_Bool` | `builtinNotBool` — `!args[0].Bool` | 7 |
+| `_intToFloat` | `builtinIntToFloat` — `float64(args[0].Int)` | 7 |
+| `__list_length` | `builtinListLength` — `len(args[0].AsList())` | 7 |
+| `_concat_List` | `builtinConcatList` — allocate + copy both lists | 12 |
+
+**EvalOnly reduction**: 247 → 220 / 1129 prototypes (-27). The 4 target builtins are fully eliminated. The remaining 220 are caused by ~126 other unwired builtins (string ops, IO, FS, XML, JSON, Map, etc.) which are truly effectful and require the eval bridge.
+
+**Benchmark (10MB DOCX)**:
+
+| Backend | Best-of-3 wall-clock |
+|---|---|
+| Evaluator | 3.78s |
+| Bytecode VM | 3.79s |
+| **Speedup** | **~1.0×** |
+
+**Why still ~1.0×**: The docparse workload is I/O-dominated (DOCX extraction, JSON serialization). With 220/1129 prototypes still bridged (string manipulation, XML parsing, file I/O), the VM cannot execute the actual parsing hot paths. Wiring the 4 pure builtins cleared specific compute paths but those paths are not the bottleneck.
+
+**Parity**: 129 MATCH / 2 NON_DET / 4 DIFFER / 6 EVAL_SKIP — no regressions.
+
+### 18.6 Next Steps
+
+The path to measurable speedup on docparse requires wiring the **stdlib string and list HOF builtins** that dominate the parsing logic:
+
+1. **High-impact pure builtins** (~30 builtins): `__str_split`, `__str_join`, `__str_trim`, `__str_find`, `__str_slice`, `__str_replace`, `__str_startsWith`, `__str_endsWith`, `__str_lower`, `__str_upper`, `__str_len`, `__str_compare`, `__str_eq`, `__list_map`, `__list_filter`, `__list_foldl`, `__list_member`, `__list_dedup`, `__list_difference`, `__list_intersect`, `__list_union`, `__json_encode`, `__json_decode`, `__stringToInt`, `__stringToFloat`, `__string_intToStr`, `__string_floatToStr`, `__math_*` functions.
+2. **Effectful builtins** (~40 builtins): IO, FS, Net, XML, Bytes, Zip — these require capability checking in the VM, not just pure dispatch. Consider a `OpEffectCall` opcode that validates capabilities before executing.
+3. **Investigate DIFFER regressions** — 4 DIFFER files remain from pre-existing issues.
+4. **Re-benchmark after stdlib wiring** — With string/list HOFs compiled, docparse's parsing core should see real speedup on CPU-bound sections.

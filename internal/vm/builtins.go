@@ -28,6 +28,10 @@ var BuiltinTable = []BuiltinFunc{
 	builtinListTail,     // _list_tail
 	builtinConcatString, // _concat_String
 	builtinRecordGet,    // _record_get
+	builtinNotBool,      // _not_Bool
+	builtinIntToFloat,   // _intToFloat
+	builtinListLength,   // __list_length
+	builtinConcatList,   // _concat_List
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -230,4 +234,58 @@ func builtinListTail(args []bytecode.Value) (bytecode.Value, error) {
 	tail := make([]bytecode.Value, len(elems)-n)
 	copy(tail, elems[n:])
 	return bytecode.NewList(tail), nil
+}
+
+// builtinNotBool returns the boolean negation of its argument.
+func builtinNotBool(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 1 {
+		return bytecode.Value{}, fmt.Errorf("_not_Bool: expected 1 arg, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagBool {
+		return bytecode.Value{}, fmt.Errorf("_not_Bool: arg must be bool, got %s", args[0].Tag)
+	}
+	return bytecode.NewBool(!args[0].Bool), nil
+}
+
+// builtinIntToFloat converts an integer to a float.
+func builtinIntToFloat(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 1 {
+		return bytecode.Value{}, fmt.Errorf("_intToFloat: expected 1 arg, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagInt {
+		return bytecode.Value{}, fmt.Errorf("_intToFloat: arg must be int, got %s", args[0].Tag)
+	}
+	return bytecode.NewFloat(float64(args[0].Int)), nil
+}
+
+// builtinListLength returns the length of a list as an integer.
+// This is the stdlib alias `__list_length`; distinct from `_len` which
+// also handles tuples and strings.
+func builtinListLength(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 1 {
+		return bytecode.Value{}, fmt.Errorf("__list_length: expected 1 arg, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagList {
+		return bytecode.Value{}, fmt.Errorf("__list_length: arg must be list, got %s", args[0].Tag)
+	}
+	return bytecode.NewInt(int64(len(args[0].AsList()))), nil
+}
+
+// builtinConcatList concatenates two lists into a new list.
+func builtinConcatList(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("_concat_List: expected 2 args, got %d", len(args))
+	}
+	if args[0].Tag != bytecode.TagList {
+		return bytecode.Value{}, fmt.Errorf("_concat_List: arg 0 must be list, got %s", args[0].Tag)
+	}
+	if args[1].Tag != bytecode.TagList {
+		return bytecode.Value{}, fmt.Errorf("_concat_List: arg 1 must be list, got %s", args[1].Tag)
+	}
+	a := args[0].AsList()
+	b := args[1].AsList()
+	result := make([]bytecode.Value, len(a)+len(b))
+	copy(result, a)
+	copy(result[len(a):], b)
+	return bytecode.NewList(result), nil
 }
