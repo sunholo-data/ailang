@@ -75,6 +75,43 @@ AI judgment comparing implementation against design doc intent:
 | 1-3 | Major architectural divergence from design |
 | 0 | Implementation bears little resemblance to design |
 
+### 7. Performance Verification (conditional — perf sprints only)
+
+**Applies when:** Design doc or sprint JSON contains performance goals (keywords: "performance", "speedup", "latency", "benchmark", "CPU profile", or `performance_goals` field in sprint JSON).
+
+**When not a perf sprint:** Skip entirely, no points added or deducted.
+
+**When it IS a perf sprint:** This becomes a **HARD FAIL** category (10 bonus points available).
+
+| Score | Condition |
+|-------|-----------|
+| 10 | Before AND after CPU profiles captured; targeted bottleneck confirmed eliminated in profile |
+| 7 | Before/after wall-clock benchmarks with improvement shown, but no CPU profile |
+| 3 | Only after benchmarks (no baseline comparison) |
+| 0 | **HARD FAIL** — Performance sprint with no profiling data at all |
+
+**What counts as valid profile data:**
+- `ailang run -cpuprofile` before and after optimization
+- `go tool pprof -top -cum` output showing the targeted function's CPU% change
+- Wall-clock benchmarks on the motivating use case (e.g., docparse EPUB)
+
+**How to run (for AILANG):**
+```bash
+# Before (on baseline branch):
+ailang run -cpuprofile /tmp/before.prof -caps IO,FS,Env <benchmark_file>
+go tool pprof -top -cum /tmp/before.prof | head -20
+
+# After (on implementation branch):
+ailang run -cpuprofile /tmp/after.prof -caps IO,FS,Env <benchmark_file>
+go tool pprof -top -cum /tmp/after.prof | head -20
+```
+
+**Why hard fail?** M-BYTECODE-XML-BUILTINS wired 17 builtins for 0% speedup because
+nobody profiled WHERE CPU time was spent. The real bottleneck (runtime.Stack at 42%)
+was completely unrelated. Without before/after profiling, performance sprints can
+deliver zero value while appearing successful on structural metrics (EvalOnly counts,
+test pass rates).
+
 ## Hard Fail Conditions Summary
 
 These cause automatic rejection regardless of total score:
@@ -82,6 +119,7 @@ These cause automatic rejection regardless of total score:
 1. **Tests broken** — `make test` fails
 2. **Less than 50% acceptance criteria met** — Core requirements unmet
 3. **No commits on implementation branch** — Nothing was implemented
+4. **Performance sprint with no profiling data** — Cannot verify optimization worked
 
 ## Score Interpretation
 

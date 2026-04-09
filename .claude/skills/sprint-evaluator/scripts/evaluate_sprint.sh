@@ -93,6 +93,50 @@ if command -v go >/dev/null 2>&1; then
 fi
 echo "Coverage: $COVERAGE_PCT"
 
+# --- Performance Profiling (for perf sprints) ---
+echo ""
+echo "── Checking Performance Profiling ──────────────────────────────"
+IS_PERF_SPRINT=false
+HAS_PROFILE_DATA=false
+
+# Detect performance sprint from design doc keywords
+DESIGN_DOC=$(jq -r '.design_doc // ""' "$SPRINT_FILE" 2>/dev/null || echo "")
+if [ -n "$DESIGN_DOC" ] && [ -f "$DESIGN_DOC" ]; then
+    if grep -qi 'performance\|speedup\|bottleneck\|cpu.*profile\|benchmark.*result\|latency.*target' "$DESIGN_DOC"; then
+        IS_PERF_SPRINT=true
+    fi
+fi
+# Also check sprint ID for perf indicators
+if echo "$SPRINT_ID" | grep -qi 'PERF'; then
+    IS_PERF_SPRINT=true
+fi
+
+if [ "$IS_PERF_SPRINT" = true ]; then
+    echo "⚡ Performance sprint detected"
+
+    # Check for profile references in recent commits
+    PROFILE_COMMITS=$(git log --oneline -20 --grep="profile\|benchmark.*result\|speedup\|cpu.*%" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$PROFILE_COMMITS" -gt 0 ]; then
+        HAS_PROFILE_DATA=true
+        echo "✅ Found $PROFILE_COMMITS commits with profiling/benchmark data"
+    fi
+
+    # Check for benchmark results in changelog
+    CHANGELOG_FILE=$(ls changelogs/*current* 2>/dev/null | head -1)
+    if [ -n "$CHANGELOG_FILE" ] && grep -qi 'before.*after\|speedup\|benchmark.*result' "$CHANGELOG_FILE" 2>/dev/null; then
+        HAS_PROFILE_DATA=true
+        echo "✅ Benchmark before/after results found in changelog"
+    fi
+
+    if [ "$HAS_PROFILE_DATA" = false ]; then
+        echo "❌ HARD FAIL: Performance sprint with no profiling/benchmark data"
+        echo "   Run: ailang run -cpuprofile /tmp/before.prof <benchmark_file>"
+        echo "   Then: go tool pprof -top -cum /tmp/before.prof | head -20"
+    fi
+else
+    echo "ℹ️  Not a performance sprint, skipping profiling check"
+fi
+
 # --- TODO/HACK/FIXME in new code ---
 echo ""
 echo "── Checking for TODO/HACK/FIXME ─────────────────────────────"
@@ -115,6 +159,9 @@ echo "  Lint clean:     $([ "$LINT_CLEAN" = true ] && echo "✅ YES" || echo "�
 echo "  File sizes OK:  $([ "$FILE_SIZES_OK" = true ] && echo "✅ YES" || echo "⚠️  NO")"
 echo "  Coverage:       $COVERAGE_PCT"
 echo "  TODO/HACK count: $TODO_COUNT"
+if [ "$IS_PERF_SPRINT" = true ]; then
+echo "  Perf profiling: $([ "$HAS_PROFILE_DATA" = true ] && echo "✅ YES" || echo "❌ NO (HARD FAIL)")"
+fi
 echo ""
 
 # Output JSON for skill parsing
@@ -129,10 +176,13 @@ cat <<EOF
     "lint_clean": $LINT_CLEAN,
     "file_sizes_ok": $FILE_SIZES_OK,
     "coverage_pct": "$COVERAGE_PCT",
-    "todo_hack_count": $TODO_COUNT
+    "todo_hack_count": $TODO_COUNT,
+    "is_perf_sprint": $IS_PERF_SPRINT,
+    "has_profile_data": $HAS_PROFILE_DATA
   },
   "hard_fails": {
-    "tests_broken": $([ "$TESTS_PASS" = false ] && echo "true" || echo "false")
+    "tests_broken": $([ "$TESTS_PASS" = false ] && echo "true" || echo "false"),
+    "perf_no_profile": $([ "$IS_PERF_SPRINT" = true ] && [ "$HAS_PROFILE_DATA" = false ] && echo "true" || echo "false")
   }
 }
 EOF
