@@ -21,13 +21,28 @@ The cache **infrastructure** is fully implemented:
 
 The cache correctly identifies unchanged modules (4/4 HIT on repeat run of invoice.ail) but cannot skip compilation because `types.Type` is a Go interface with ~15 concrete implementations (`TCon`, `TVar2`, `TFunc2`, `TList`, `TRecord`, `TRecord2`, `TApp`, `Row`, `RowVar`, etc.) that have no JSON marshal/unmarshal support and can't be gob-encoded without registering every concrete type.
 
-**Current state (measured v0.9.3):**
+**Current state (measured v0.9.3, simple programs):**
 
 | Run | Cache | Compile Time | Notes |
 |-----|-------|-------------|-------|
 | Cold | 4 MISS | 15ms | Full compilation + cache write |
 | Warm | 4 HIT | 17ms | Full compilation (skip not implemented) |
 | Target | 4 HIT | <1ms | Load cached artifacts, skip compilation |
+
+**Docparse benchmark (measured v0.10.15, after M-PERF-DOCPARSE):**
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Total modules | 58 | std/*, pkg/*, docparse/* |
+| Cache HITs | 27 | All still recompile — skip not implemented |
+| Cache MISSes | 30 | Source/dep changes |
+| Type checking CPU | 30% (~500ms) | After deferred CoreTI substitution optimization |
+| Alice EPUB batch | 1,670ms | Target: ≤1,000ms with this feature |
+| Moby Dick batch | 2,350ms | Target: ≤1,800ms |
+
+Skipping compilation for the 27 cache-hit modules would save ~230ms (27/58 × 500ms),
+bringing Alice EPUB to ~1.4s. Combined with skipping elaboration (~100ms saved),
+target of ≤1.0s may be achievable.
 
 ## Goals
 
@@ -128,9 +143,10 @@ if entry, ok := cacheStore.Lookup(modID, cacheKey); ok {
 
 ## Related Documents
 
-- [M-PERF6 Implementation](../../implemented/v0_9_3/m-perf6-compilation-performance.md) — Cache infrastructure (Phase 1)
+- [M-PERF6 Implementation](../../implemented/v0_9_2/m-perf6-compilation-performance.md) — Cache infrastructure (Phase 1)
+- [M-PERF-DOCPARSE](m-perf-docparse.md) — Deferred CoreTI substitution + GOGC tuning (prerequisite, done)
+- [M-PERF-GOROUTINE-ID](m-perf-goroutine-id.md) — Eliminated runtime.Stack() bottleneck (prerequisite, done)
 - [M-PERF3: Performance Quick Wins](../../implemented/v0_8_1/m-perf3-performance-quick-wins.md) — Original perf design
-- [M-PERF5: Data-Intensive Workloads](../v0_9_2/m-perf5-data-intensive-workloads.md) — Bulk ops
 
 ## Future Work
 
@@ -141,4 +157,4 @@ if entry, ok := cacheStore.Lookup(modID, cacheKey); ok {
 ---
 
 **Document created**: 2026-03-16
-**Last updated**: 2026-03-16
+**Last updated**: 2026-04-10 (updated with M-PERF-DOCPARSE profiling data)
