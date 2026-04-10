@@ -509,10 +509,12 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			// M-PERF6B: Don't auto-enable on GOOGLE_CLOUD_PROJECT alone — that
 			// env var is used for GCP auth, not tracing. Auto-trace without an
 			// exporter creates ~2.7M objects (21% of allocations) that go nowhere.
-			if emitTrace == "" && telemetry.IsEnabled() {
+			// AILANG_NO_TRACE=1 disables all tracing regardless of OTEL config.
+			noTrace := os.Getenv("AILANG_NO_TRACE") == "1"
+			if !noTrace && emitTrace == "" && telemetry.IsEnabled() {
 				emitTrace = "auto"
 			}
-			if emitTrace != "" {
+			if !noTrace && emitTrace != "" {
 				effCtx.Trace = ailtrace.NewCollector()
 				if strings.Contains(emitTrace, "jsonl") {
 					effCtx.IOWriter = os.Stderr // Program output to stderr so stdout is pure JSONL
