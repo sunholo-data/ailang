@@ -1,10 +1,11 @@
 # M-INCREMENTAL-TYPECHECK: Compilation Skip via Artifact Serialization
 
-**Status**: Planned (Phase 2 — cache infrastructure implemented in M-PERF6)
-**Target**: v0.9.4+
-**Priority**: P2 (Medium — blocked on types.Type JSON serialization)
-**Estimated**: 2-3 days
-**Dependencies**: M-PERF6 Phase 1 (implemented), types.Type JSON marshaling
+**Status**: Implemented (2026-04-10)
+**Target**: v0.10.x
+**Priority**: P2 (Medium)
+**Estimated**: 2-3 days (completed in 1 day)
+**Dependencies**: M-PERF6 Phase 1 (implemented), types.Type JSON marshaling (implemented)
+**Commits**: 7c4ff925 (M1), d96de92f (M2), 4f91d27e (M3)
 
 ## What Already Exists (from M-PERF6)
 
