@@ -5,6 +5,37 @@ func ApplySubstitution(sub Substitution, t Type) Type {
 	if len(sub) == 0 {
 		return t
 	}
+	// M-PERF-DOCPARSE: Fast path for leaf types — avoid pooled visited map allocation.
+	// TCon never changes. TVar/TVar2 that resolve to a non-variable type can skip
+	// the visited map. These are the most common types in CoreTI.
+	switch typ := t.(type) {
+	case *TCon:
+		return t
+	case *TVar:
+		if newType, ok := sub[typ.Name]; ok {
+			// Follow substitution chains (α→β→int) until we hit a non-variable or dead end
+			result := followVarChain(newType, sub)
+			// If result is a complex type, fall through to full path for recursive substitution
+			if isLeafType(result) {
+				return result
+			}
+		} else {
+			return t
+		}
+	case *TVar2:
+		if newType, ok := sub[typ.Name]; ok {
+			result := followVarChain(newType, sub)
+			if isLeafType(result) {
+				return result
+			}
+		} else {
+			return t
+		}
+	case *RowVar:
+		if _, ok := sub[typ.Name]; !ok {
+			return t
+		}
+	}
 	visited := getTypeTypeMap()
 	defer putTypeTypeMap(visited)
 	return safeSubstitute(t, sub, visited)
@@ -265,4 +296,33 @@ func ComposeSubstitutions(s1, s2 Substitution) Substitution {
 	}
 
 	return result
+}
+
+// followVarChain follows substitution chains (α→β→int) until hitting a non-variable or dead end.
+// M-PERF-DOCPARSE: Used by the fast path to resolve type variables without allocating a visited map.
+func followVarChain(t Type, sub Substitution) Type {
+	for {
+		switch tv := t.(type) {
+		case *TVar:
+			if next, ok := sub[tv.Name]; ok {
+				t = next
+				continue
+			}
+		case *TVar2:
+			if next, ok := sub[tv.Name]; ok {
+				t = next
+				continue
+			}
+		}
+		return t
+	}
+}
+
+// isLeafType returns true for types that don't contain subtypes needing recursive substitution.
+func isLeafType(t Type) bool {
+	switch t.(type) {
+	case *TVar, *TVar2, *RowVar, *TCon:
+		return true
+	}
+	return false
 }

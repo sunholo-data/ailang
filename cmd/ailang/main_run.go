@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"runtime/debug"
 	rpprof "runtime/pprof"
 
 	"github.com/sunholo/ailang/internal/effects"
@@ -180,6 +181,14 @@ func runCommand() {
 }
 
 func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
+	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
+	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
+	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
+	// Only applies when GOGC is not already set by the user.
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(500)
+	}
+
 	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
 	ctx := context.Background()
 	shutdownTelemetry, err := telemetry.Init(ctx, "ailang-run")
