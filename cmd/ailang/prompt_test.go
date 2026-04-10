@@ -223,9 +223,10 @@ func TestPromptCommand_Piping(t *testing.T) {
 		t.Error("No output to stdout")
 	}
 
-	// Should not have error output
-	if stderr.Len() > 0 {
-		t.Errorf("Unexpected stderr output: %s", stderr.String())
+	// Should not have error output (ignore Observatory background log messages)
+	stderrStr := stderr.String()
+	if stderrStr != "" && !strings.Contains(stderrStr, "Observatory:") {
+		t.Errorf("Unexpected stderr output: %s", stderrStr)
 	}
 }
 
