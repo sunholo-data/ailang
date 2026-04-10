@@ -35,8 +35,11 @@ make check-file-sizes     # Fails if >800 lines
 | `DEBUG_CODEGEN=1` | Record type fallback warnings |
 | `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling |
 | `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing with goroutine IDs |
+| `AILANG_NO_TRACE=1` | Disable all tracing (~2x faster, no observability) |
 | `--timeout 30s` | Compilation timeout with stack dump (CLI flag) |
 | `--debug-compile` | Phase timing breakdown (CLI flag) |
+| `-cpuprofile FILE` | Write Go CPU profile (CLI flag) |
+| `-memprofile FILE` | Write memory allocation profile (CLI flag) |
 
 **Full guide**: See `docs/docs/guides/debugging.md`
 

@@ -108,6 +108,7 @@ ailang run: examples/runnable/factorial.ail (2.065ms)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
+| `AILANG_NO_TRACE=1` | **Disable all tracing** (overrides everything below) | `1` |
 | `GOOGLE_CLOUD_PROJECT` | GCP project for Cloud Trace | `my-project` |
 | `OTLP_GOOGLE_CLOUD_PROJECT` | Telemetry-specific GCP project (takes precedence) | `telemetry-project` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | `http://localhost:4318` |
@@ -118,6 +119,27 @@ ailang run: examples/runnable/factorial.ail (2.065ms)
 2. `GOOGLE_CLOUD_PROJECT` (fallback)
 
 This matches the [Gemini CLI telemetry convention](https://geminicli.com/docs/cli/telemetry/).
+
+### Performance vs Observability Trade-off
+
+Tracing adds approximately **2x overhead** to execution time due to `.String()` serialization
+of function arguments at every call site. For data-intensive workloads:
+
+```bash
+# Maximum performance (no tracing)
+AILANG_NO_TRACE=1 ailang run --caps IO,FS program.ail
+
+# With tracing (for debugging/observability)
+ailang run --caps IO,FS program.ail
+```
+
+| Benchmark | No Trace | With Trace | Overhead |
+|-----------|----------|------------|----------|
+| Alice EPUB (185KB) | 1.4s | 2.5s | ~1.8x |
+| Moby Dick EPUB (797KB) | 3.0s | 6.8s | ~2.3x |
+
+Auto-trace enables when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `AILANG_NO_TRACE=1`
+overrides this, disabling trace collection entirely.
 
 ## Instrumented Components
 

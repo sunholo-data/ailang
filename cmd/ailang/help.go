@@ -252,6 +252,7 @@ func printHelp() {
 	fmt.Println("Configuration:")
 	fmt.Println("  AILANG_FS_SANDBOX=<dir>             Restrict FS operations to directory (sandbox)")
 	fmt.Println("  AILANG_RELAX_MODULES=1              Allow module path mismatch (prototyping)")
+	fmt.Println("  AILANG_NO_TRACE=1                   Disable all tracing (2x faster, no observability)")
 	fmt.Println("  AILANG_PARENT_TASK_ID=<id>          Set parent task for trace hierarchy")
 	fmt.Println("  OTEL_EXPORTER_OTLP_ENDPOINT=<url>   Enable OTLP telemetry export")
 	fmt.Println("  GOOGLE_CLOUD_PROJECT=<id>           Enable GCP Cloud Trace")

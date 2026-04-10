@@ -163,6 +163,13 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `--debug-types` | Type inference debug output | Type mismatch errors |
 | `--debug-types --node N` | Filter to specific node ID | Investigating specific node |
 | `--trace` | Execution tracing | Runtime debugging |
+| `-cpuprofile FILE` | Write Go CPU profile | Performance profiling |
+| `-memprofile FILE` | Write Go memory allocation profile | Allocation profiling |
+
+:::tip Performance
+Tracing adds ~2x overhead. For production workloads, disable with `AILANG_NO_TRACE=1`.
+See [Telemetry: Performance Trade-off](/docs/guides/telemetry#performance-vs-observability-trade-off).
+:::
 
 ## CLI Debug Flags
 
