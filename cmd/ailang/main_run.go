@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -441,6 +442,10 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			effCtx := effects.NewEffContext(programArgs)
 			grantCapabilities(effCtx, caps)
 
+			// M-PERF6B: Buffer stdout writes to reduce syscall overhead from println
+			stdoutBuf := bufio.NewWriterSize(os.Stdout, 64*1024) // 64KB buffer
+			effCtx.IOWriter = stdoutBuf
+
 			// OTEL: Wire Go context and span wrapper for effect tracing
 			effCtx.GoCtx = ctx
 			effCtx.SpanWrapper = telemetry.NewEffectSpanWrapper()
@@ -570,10 +575,14 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				}()
 				execErr := executeModuleEntrypoint(rt, execParams)
 				if execErr != nil {
+					stdoutBuf.Flush() // M-PERF6B: flush before exit
 					fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), execErr)
 					os.Exit(1)
 				}
 			}()
+
+			// M-PERF6B: Flush buffered stdout before any post-execution output
+			stdoutBuf.Flush()
 
 			// Flush Debug ghost effect output to stderr
 			flushDebugOutput(effCtx)
