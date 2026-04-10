@@ -47,11 +47,27 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 	// Apply to resolved constraints
 	tc.applySubstitutionToResolvedConstraints(sub)
 
-	// M-FIX-FLOAT-OP: Apply substitution to CoreTI
-	// This ensures operator lowering sees the correct types after defaulting
-	tc.applySubstitutionToCoreTI(sub)
+	// M-PERF-DOCPARSE: Defer CoreTI substitution — accumulate and apply once via FinalizeSubstitutions().
+	// Previously called applySubstitutionToCoreTI(sub) here, which iterated ALL CoreTI entries
+	// at every generalization boundary: O(N*M) where N=nodes, M=let-bindings. Now O(N) total.
+	if len(sub) > 0 {
+		if tc.pendingCoreTISub == nil {
+			tc.pendingCoreTISub = make(Substitution)
+		}
+		tc.pendingCoreTISub = ComposeSubstitutions(tc.pendingCoreTISub, sub)
+	}
 
 	return newMonotype, newConstraints, newTypedNode, newEnvEntry
+}
+
+// FinalizeSubstitutions applies all accumulated defaulting substitutions to CoreTI
+// in a single pass. Must be called after type inference completes, before operator lowering.
+// M-PERF-DOCPARSE: This replaces per-let-binding CoreTI traversals with one final pass.
+func (tc *CoreTypeChecker) FinalizeSubstitutions() {
+	if len(tc.pendingCoreTISub) > 0 {
+		tc.applySubstitutionToCoreTI(tc.pendingCoreTISub)
+		tc.pendingCoreTISub = nil
+	}
 }
 
 // applySubstitutionToCoreTI updates all types in CoreTI with the substitution

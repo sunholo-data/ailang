@@ -258,6 +258,10 @@ func typeCheckAndLowerModule(
 		}
 	}
 
+	// M-PERF-DOCPARSE: Apply all deferred CoreTI substitutions in one pass
+	// Must happen before FillOperatorMethods which reads CoreTI for operator resolution
+	typeChecker.FinalizeSubstitutions()
+
 	// Fill operator methods (resolve operators to type class methods)
 	// This populates the Method field in resolved constraints before lowering
 	for _, decl := range unit.Core.Decls {

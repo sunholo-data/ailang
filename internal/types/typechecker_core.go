@@ -85,6 +85,10 @@ type CoreTypeChecker struct {
 	paramTypeAnnots map[uint64][]Type
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
+	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
+	// applied once at the end via FinalizeSubstitutions(). Eliminates O(N*M) overhead
+	// where N=CoreTI entries and M=let-bindings.
+	pendingCoreTISub Substitution
 }
 
 // Instantiation records a polymorphic type instantiation for debugging
