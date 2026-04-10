@@ -29,6 +29,13 @@ type TraceEvent struct {
 	TimestampNS int64     `json:"timestamp_ns"`
 	Depth       int       `json:"depth,omitempty"`
 
+	// OTEL-compatible span identifiers (M-WASM-TRACE).
+	// TraceID is consistent across all events in one execution.
+	// SpanID/ParentSpanID form a parent-child tree for distributed tracing.
+	TraceID      string `json:"trace_id,omitempty"`
+	SpanID       string `json:"span_id,omitempty"`
+	ParentSpanID string `json:"parent_span_id,omitempty"`
+
 	// Event-specific payload (exactly one is non-nil per event)
 	Module   *ModuleEvent   `json:"module,omitempty"`
 	Function *FunctionEvent `json:"function,omitempty"`

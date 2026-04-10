@@ -515,6 +515,9 @@ func main() {
 	js.Global().Set("ailangSetAIHandler", js.FuncOf(setAIHandler))
 	js.Global().Set("ailangGrantCapability", js.FuncOf(grantCapability))
 
+	// Register trace handler (M-WASM-TRACE)
+	js.Global().Set("ailangSetTraceHandler", js.FuncOf(setTraceHandler))
+
 	// Register async evaluation functions (for effects that use Promises)
 	js.Global().Set("ailangEvalAsync", js.FuncOf(evalAsync))
 	js.Global().Set("ailangCallAsync", js.FuncOf(callAsync))

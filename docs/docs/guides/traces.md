@@ -283,6 +283,61 @@ Program traces (this guide) capture what happens **inside** AILANG code. Agent t
 
 For agent-level tracing, see the [Telemetry & Tracing](telemetry.md) and [Coordinator](coordinator.md) guides.
 
+## WASM Trace Streaming
+
+Trace events can be streamed to JavaScript in real-time when running AILANG in WASM mode. This enables browser-based trace visualization, debugging panels, and observability dashboards.
+
+### Setting Up a Trace Handler
+
+```javascript
+// Register a callback that receives trace events as they occur
+ailangSetTraceHandler((event) => {
+  console.log(event.event, event.function?.name || event.effect?.op_name);
+  // event.trace_id   — consistent across all events in one execution
+  // event.span_id    — unique span identifier (W3C compatible)
+  // event.parent_span_id — parent span for tree construction
+});
+
+// Run AILANG code — events stream to handler in real-time
+ailangEval('import std/trace (spanStart, spanEnd, event)\nspanStart("demo")');
+
+// Unregister handler
+ailangSetTraceHandler(null);
+```
+
+### Custom Spans from AILANG Code
+
+The `std/trace` module lets AILANG programs emit custom spans and events:
+
+```ailang
+import std/trace (spanStart, spanEnd, event)
+
+func fetchData(url: string) -> string ! {Trace, Net} {
+    spanStart("fetchData");
+    event("url", url);
+    let result = perform Net.httpGet(url);
+    spanEnd("fetchData");
+    result
+}
+```
+
+### OTEL Forwarding
+
+Trace events include W3C-compatible span IDs, enabling forwarding to Cloud Trace or any OTEL collector:
+
+```javascript
+ailangSetTraceHandler((event) => {
+  if (event.span_id) {
+    otelExporter.addSpan({
+      traceId: event.trace_id,
+      spanId: event.span_id,
+      parentSpanId: event.parent_span_id,
+      name: event.function?.name || event.event,
+    });
+  }
+});
+```
+
 ## Known Limitations
 
 - **Non-module files**: Traces currently require module files (`module` declaration + `--entry main`). Single-expression files are not yet supported

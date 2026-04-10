@@ -1,0 +1,31 @@
+-- std/trace - Custom trace span and event emission
+--
+-- Lets AILANG code emit custom spans and events into the trace stream.
+-- Works with --emit-trace jsonl on CLI and ailangSetTraceHandler in WASM.
+--
+-- Requires: Trace capability (--caps Trace)
+--
+-- Usage:
+--   import std/trace (spanStart, spanEnd, event)
+--
+--   func fetchPricing(id: string) -> Price ! {Trace, Net} {
+--       spanStart("fetchPricing");
+--       event("input", id);
+--       let result = perform Net.httpGet("https://api.example.com/price/" ++ id);
+--       spanEnd("fetchPricing");
+--       parsePricing(result)
+--   }
+
+module std/trace
+
+-- spanStart: Begin a named trace span.
+-- Must be paired with a matching spanEnd call.
+export func spanStart(name: string) -> () ! {Trace} = _trace_span_start(name)
+
+-- spanEnd: End a named trace span.
+-- Must be paired with a preceding spanStart call.
+export func spanEnd(name: string) -> () ! {Trace} = _trace_span_end(name)
+
+-- event: Emit a named trace event with data payload.
+-- Appears as an effect event in the trace stream.
+export func event(name: string, data: string) -> () ! {Trace} = _trace_event(name, data)

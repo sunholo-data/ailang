@@ -199,6 +199,9 @@ _string_floatToStr : float -> string
 _string_intToStr : int -> string
 _string_reverse : string -> string
 _trace_check : string -> bool
+_trace_event : (string, string) -> () ! {Trace}
+_trace_span_end : string -> () ! {Trace}
+_trace_span_start : string -> () ! {Trace}
 _uuid4 : () -> string ! {Rand}
 _xmlComment : string -> XmlNode
 _xmlElement : (string, list[{name: string, value: string}], list[XmlNode]) -> XmlNode
