@@ -108,8 +108,9 @@ func runCommand() {
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 
-	// CPU profiling
+	// CPU/memory profiling
 	cpuprofileFlag := fs.String("cpuprofile", "", "Write CPU profile to file (Go pprof format)")
+	memprofileFlag := fs.String("memprofile", "", "Write memory allocation profile to file (Go pprof format)")
 
 	// M-BYTECODE-VM Phase 2D: bytecode VM execution path
 	bytecodeFlag := fs.Bool("bytecode", false, "Run via the bytecode VM instead of the evaluator (Phase 2D)")
@@ -133,6 +134,24 @@ func runCommand() {
 			rpprof.StopCPUProfile()
 			f.Close()
 			fmt.Fprintf(os.Stderr, "CPU profile written to %s\n", *cpuprofileFlag)
+		}()
+	}
+
+	// M-PERF6B: Write memory allocation profile at exit
+	if *memprofileFlag != "" {
+		defer func() {
+			f, err := os.Create(*memprofileFlag)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating memory profile: %v\n", err)
+				return
+			}
+			defer f.Close()
+			debug.FreeOSMemory() // get up-to-date GC stats
+			if err := rpprof.WriteHeapProfile(f); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing memory profile: %v\n", err)
+				return
+			}
+			fmt.Fprintf(os.Stderr, "Memory profile written to %s\n", *memprofileFlag)
 		}()
 	}
 
@@ -486,8 +505,11 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			}
 
 			// M-TRACE-EXPORT: Enable semantic execution trace collection
-			// Auto-enable when OTEL is configured (zero extra flags needed)
-			if emitTrace == "" && (telemetry.IsGoogleCloudEnabled() || telemetry.IsEnabled()) {
+			// Auto-enable only when an OTEL exporter endpoint is configured.
+			// M-PERF6B: Don't auto-enable on GOOGLE_CLOUD_PROJECT alone — that
+			// env var is used for GCP auth, not tracing. Auto-trace without an
+			// exporter creates ~2.7M objects (21% of allocations) that go nowhere.
+			if emitTrace == "" && telemetry.IsEnabled() {
 				emitTrace = "auto"
 			}
 			if emitTrace != "" {
