@@ -210,8 +210,25 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			moduleCacheKey = ModuleCacheKey(cacheKeyVersion, sourceContent, depDigests)
 			if entry, ok := cacheStore.Lookup(string(modID), moduleCacheKey); ok {
 				cacheHits++
+				// M-INCREMENTAL-TYPECHECK: Try to load cached artifacts and skip compilation
+				if cached, loadErr := cacheStore.LoadArtifacts(string(modID)); loadErr == nil {
+					if cfg.DebugCompile {
+						fmt.Fprintf(os.Stderr, "[CACHE] %s: SKIP (cached %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+					}
+					unit.Core = cached.Core
+					unit.CoreTI = cached.CoreTI
+					unit.Iface = cached.Iface
+					unit.Constructors = cached.Constructors
+					// Register interface with linker so downstream modules can resolve imports
+					if unit.Iface != nil {
+						modLinker.RegisterIface(unit.Iface)
+					}
+					compiledUnits[string(modID)] = unit
+					continue
+				}
+				// Fall through to normal compilation if load fails
 				if cfg.DebugCompile {
-					fmt.Fprintf(os.Stderr, "[CACHE] %s: HIT (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
+					fmt.Fprintf(os.Stderr, "[CACHE] %s: HIT but load failed, recompiling (compiled %s ago)\n", modID, time.Since(entry.Timestamp).Truncate(time.Second))
 				}
 			} else {
 				cacheMisses++
@@ -289,6 +306,13 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 				IfaceJSON:     ifaceJSON,
 				CompileTimeMs: 0, // TODO: per-module timing
 				Timestamp:     time.Now(),
+			})
+			// M-INCREMENTAL-TYPECHECK: Store full compiled artifacts for skip on next run
+			_ = cacheStore.StoreArtifacts(string(modID), &CachedModule{
+				Core:         unit.Core,
+				CoreTI:       unit.CoreTI,
+				Iface:        unit.Iface,
+				Constructors: unit.Constructors,
 			})
 		}
 
