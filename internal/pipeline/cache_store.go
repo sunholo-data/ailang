@@ -131,12 +131,13 @@ func (cs *CacheStore) StoreArtifacts(moduleID string, cm *CachedModule) error {
 		return err
 	}
 
-	// 2. JSON-encode CoreTypeInfo
-	ctiData, err := types.MarshalCoreTypeInfo(cm.CoreTI)
-	if err != nil {
-		return fmt.Errorf("marshal CoreTypeInfo for %s: %w", moduleID, err)
+	// 2. Gob-encode CoreTypeInfo (M-PERF6B: replaced JSON for 3-5x faster deserialization)
+	var ctiBuf bytes.Buffer
+	ctiEnc := gob.NewEncoder(&ctiBuf)
+	if err := ctiEnc.Encode(cm.CoreTI); err != nil {
+		return fmt.Errorf("gob encode CoreTypeInfo for %s: %w", moduleID, err)
 	}
-	if err := os.WriteFile(filepath.Join(modDir, "coretypeinfo.json"), ctiData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(modDir, "coretypeinfo.gob"), ctiBuf.Bytes(), 0644); err != nil {
 		return err
 	}
 
@@ -176,14 +177,15 @@ func (cs *CacheStore) LoadArtifacts(moduleID string) (*CachedModule, error) {
 		return nil, fmt.Errorf("gob decode core.Program for %s: %w", moduleID, err)
 	}
 
-	// 2. JSON-decode CoreTypeInfo
-	ctiData, err := os.ReadFile(filepath.Join(modDir, "coretypeinfo.json"))
+	// 2. Gob-decode CoreTypeInfo (M-PERF6B: replaced JSON for 3-5x faster deserialization)
+	ctiData, err := os.ReadFile(filepath.Join(modDir, "coretypeinfo.gob"))
 	if err != nil {
-		return nil, fmt.Errorf("read coretypeinfo.json for %s: %w", moduleID, err)
+		return nil, fmt.Errorf("read coretypeinfo.gob for %s: %w", moduleID, err)
 	}
-	cti, err := types.UnmarshalCoreTypeInfo(ctiData)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal CoreTypeInfo for %s: %w", moduleID, err)
+	var cti types.CoreTypeInfo
+	ctiDec := gob.NewDecoder(bytes.NewReader(ctiData))
+	if err := ctiDec.Decode(&cti); err != nil {
+		return nil, fmt.Errorf("gob decode CoreTypeInfo for %s: %w", moduleID, err)
 	}
 
 	// 3. JSON-decode Iface
