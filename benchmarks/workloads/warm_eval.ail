@@ -1,0 +1,15 @@
+-- warm_eval.ail — Latency budget workload: warm evaluator (pure compute)
+-- Exercises: evaluator hot loop, closures, integer arithmetic
+-- fib(24) = 46368 — enough recursion to dominate startup, well under the 10s budget.
+module benchmarks/workloads/warm_eval
+
+import std/io (println)
+
+pure func fib(n: int) -> int =
+  if n <= 1 then n
+  else fib(n - 1) + fib(n - 2)
+
+export func main() -> () ! {IO} = {
+  let result = fib(24);
+  println("fib(24) = " ++ show(result))
+}

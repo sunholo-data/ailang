@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-04-11T22:21:39Z",
+  "ailang_version": "AILANG v0.11.1-1-gc08191df-dirty",
+  "git_commit": "c08191df-dirty",
+  "hardware": {
+    "cpu": "Apple M2",
+    "os": "Darwin",
+    "arch": "arm64",
+    "go": "go1.24.11"
+  },
+  "config": {
+    "runs": 5,
+    "trace": "off",
+    "warmup_discarded": true
+  },
+  "workloads": {
+    "cold_hello": {
+      "runs_ms": [
+        366,
+        419,
+        354,
+        437,
+        392
+      ],
+      "p50_ms": 392,
+      "p95_ms": 437,
+      "min_ms": 354,
+      "max_ms": 437
+    },
+    "warm_eval": {
+      "runs_ms": [
+        1057,
+        995,
+        1022,
+        1124,
+        973
+      ],
+      "p50_ms": 1022,
+      "p95_ms": 1124,
+      "min_ms": 973,
+      "max_ms": 1124
+    },
+    "typecheck_heavy": {
+      "runs_ms": [
+        386,
+        362,
+        431,
+        391,
+        372
+      ],
+      "p50_ms": 386,
+      "p95_ms": 431,
+      "min_ms": 362,
+      "max_ms": 431
+    },
+    "effect_roundtrip": {
+      "runs_ms": [
+        592,
+        408,
+        446,
+        384,
+        408
+      ],
+      "p50_ms": 408,
+      "p95_ms": 592,
+      "min_ms": 384,
+      "max_ms": 592
+    },
+    "list_small": {
+      "runs_ms": [
+        348,
+        389,
+        406,
+        461,
+        418
+      ],
+      "p50_ms": 406,
+      "p95_ms": 461,
+      "min_ms": 348,
+      "max_ms": 461
+    },
+    "list_large": {
+      "runs_ms": [
+        733,
+        558,
+        595,
+        571,
+        536
+      ],
+      "p50_ms": 571,
+      "p95_ms": 733,
+      "min_ms": 536,
+      "max_ms": 733
+    }
+  }
+}

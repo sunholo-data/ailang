@@ -202,9 +202,18 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 					depDigests[imp] = cu.Iface.Digest
 				}
 			}
-			// Read source from disk for content hash
+			// Read source from disk for content hash.
+			// mod.Path is the canonical module identity (e.g. "benchmarks/workloads/warm_eval");
+			// the actual disk path lives on mod.File.Path. Using mod.Path here caused
+			// os.ReadFile to fail silently, leaving sourceContent="" so every module that
+			// shared the same imports collided on the same cache key — edits to .ail files
+			// were ignored after the first compile.
 			sourceContent := ""
-			if srcBytes, err := os.ReadFile(mod.Path); err == nil {
+			srcPath := mod.Path
+			if mod.File != nil && mod.File.Path != "" {
+				srcPath = mod.File.Path
+			}
+			if srcBytes, err := os.ReadFile(srcPath); err == nil {
 				sourceContent = string(srcBytes)
 			}
 			moduleCacheKey = ModuleCacheKey(cacheKeyVersion, sourceContent, depDigests)

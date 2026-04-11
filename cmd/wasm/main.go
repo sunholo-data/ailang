@@ -22,20 +22,25 @@ var (
 
 // WasmREPL wraps the REPL for browser use
 type WasmREPL struct {
-	repl     *repl.REPL
-	registry *repl.ModuleRegistry
-	output   *bytes.Buffer
+	repl         *repl.REPL
+	registry     *repl.ModuleRegistry
+	output       *bytes.Buffer
+	stdlibLoaded []string          // modules that loaded successfully
+	stdlibFailed map[string]string // module name -> last load error
 }
 
 // loadEmbeddedStdlib loads all stdlib modules from the embedded filesystem
 // into the module registry. This enables imports like `import std/list` in browser.
 // Uses multi-pass loading to handle dependencies: modules that fail are retried
 // until all succeed or no more progress can be made.
-func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
+//
+// Returns (loadedNames, failedNameToError, topLevelError). topLevelError is only
+// non-nil for catastrophic failures (e.g. embedded FS unreadable).
+func loadEmbeddedStdlib(registry *repl.ModuleRegistry) ([]string, map[string]string, error) {
 	// Read all .ail files from embedded std/ directory
 	entries, err := std.FS.ReadDir(".")
 	if err != nil {
-		return fmt.Errorf("failed to read embedded stdlib: %w", err)
+		return nil, nil, fmt.Errorf("failed to read embedded stdlib: %w", err)
 	}
 
 	// Collect all module sources
@@ -61,6 +66,13 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 		pending = append(pending, moduleSource{name: moduleName, content: string(content)})
 	}
 
+	// Track per-module last error so we can expose diagnostics to JS.
+	// Without this, silent failures in stdlib loading are invisible to the
+	// browser-side debugging and produce mysterious "undefined global variable"
+	// errors when user code imports a module that failed to load.
+	lastErrors := make(map[string]string)
+	var loaded []string
+
 	// Multi-pass loading: retry failed modules until no progress
 	const maxPasses = 5
 	for pass := 0; pass < maxPasses && len(pending) > 0; pass++ {
@@ -71,6 +83,8 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
+						msg := fmt.Sprintf("panic: %v", r)
+						lastErrors[mod.name] = msg
 						if console := js.Global().Get("console"); !console.IsUndefined() {
 							console.Call("warn", fmt.Sprintf("Panic loading %s: %v", mod.name, r))
 						}
@@ -80,18 +94,26 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 				_, err := registry.LoadModule(mod.name, mod.content)
 				if err != nil {
 					// Module failed - might need dependencies loaded first
+					lastErrors[mod.name] = err.Error()
 					stillPending = append(stillPending, mod)
+				} else {
+					delete(lastErrors, mod.name)
+					loaded = append(loaded, mod.name)
 				}
 			}()
 		}
 
 		// Check if we made progress
 		if len(stillPending) == len(pending) {
-			// No progress made - remaining modules have unresolvable issues
-			// Log warning but don't fail
+			// No progress made - remaining modules have unresolvable issues.
+			// Log per-module errors to console so browser devtools can surface them.
 			if console := js.Global().Get("console"); !console.IsUndefined() {
 				for _, mod := range stillPending {
-					console.Call("warn", "Failed to load stdlib module: "+mod.name)
+					msg := lastErrors[mod.name]
+					if msg == "" {
+						msg = "(no error captured)"
+					}
+					console.Call("error", fmt.Sprintf("Failed to load stdlib module %s: %s", mod.name, msg))
 				}
 			}
 			break
@@ -100,7 +122,7 @@ func loadEmbeddedStdlib(registry *repl.ModuleRegistry) error {
 		pending = stillPending
 	}
 
-	return nil
+	return loaded, lastErrors, nil
 }
 
 // NewWasmREPL creates a new browser-ready REPL
@@ -116,7 +138,8 @@ func NewWasmREPL() *WasmREPL {
 	registry.SetEffContext(replInstance.GetEffContext())
 
 	// Load embedded stdlib modules (enables import std/list, std/json, etc.)
-	if err := loadEmbeddedStdlib(registry); err != nil {
+	loaded, failed, err := loadEmbeddedStdlib(registry)
+	if err != nil {
 		// Log error but continue - REPL can still work without stdlib
 		if console := js.Global().Get("console"); !console.IsUndefined() {
 			console.Call("warn", "Failed to load embedded stdlib: "+err.Error())
@@ -124,9 +147,11 @@ func NewWasmREPL() *WasmREPL {
 	}
 
 	w := &WasmREPL{
-		repl:     replInstance,
-		registry: registry,
-		output:   &bytes.Buffer{},
+		repl:         replInstance,
+		registry:     registry,
+		output:       &bytes.Buffer{},
+		stdlibLoaded: loaded,
+		stdlibFailed: failed,
 	}
 
 	// Auto-import prelude for numeric defaults (just like CLI REPL)
@@ -165,11 +190,14 @@ func (w *WasmREPL) Reset() string {
 	w.registry.SetEffContext(w.repl.GetEffContext())
 
 	// Reload embedded stdlib modules
-	if err := loadEmbeddedStdlib(w.registry); err != nil {
+	loaded, failed, err := loadEmbeddedStdlib(w.registry)
+	if err != nil {
 		if console := js.Global().Get("console"); !console.IsUndefined() {
 			console.Call("warn", "Failed to reload stdlib after reset: "+err.Error())
 		}
 	}
+	w.stdlibLoaded = loaded
+	w.stdlibFailed = failed
 
 	// Re-import prelude for numeric defaults
 	discardBuf := &bytes.Buffer{}
@@ -283,6 +311,31 @@ func listModules(this js.Value, args []js.Value) interface{} {
 		jsModules[i] = mod
 	}
 	return jsModules
+}
+
+// stdlibStatus returns diagnostic info about embedded stdlib loading.
+// JavaScript: ailangStdlibStatus() -> {loaded: string[], failed: {name, error}[]}
+//
+// This surfaces silent stdlib load failures so that callers can diagnose
+// "undefined global variable: X from std/Y" errors originating from a
+// partially-loaded stdlib (e.g. a module that silently failed multi-pass
+// loading because of a dependency or codegen issue).
+func stdlibStatus(this js.Value, args []js.Value) interface{} {
+	loaded := make([]interface{}, len(replInstance.stdlibLoaded))
+	for i, name := range replInstance.stdlibLoaded {
+		loaded[i] = name
+	}
+	failed := make([]interface{}, 0, len(replInstance.stdlibFailed))
+	for name, errMsg := range replInstance.stdlibFailed {
+		failed = append(failed, map[string]interface{}{
+			"name":  name,
+			"error": errMsg,
+		})
+	}
+	return map[string]interface{}{
+		"loaded": loaded,
+		"failed": failed,
+	}
 }
 
 // callExport calls a function from a loaded module with arguments
@@ -508,6 +561,7 @@ func main() {
 	js.Global().Set("ailangVersion", js.FuncOf(getVersion))
 	js.Global().Set("ailangLoadModule", js.FuncOf(loadModule))
 	js.Global().Set("ailangListModules", js.FuncOf(listModules))
+	js.Global().Set("ailangStdlibStatus", js.FuncOf(stdlibStatus))
 	js.Global().Set("ailangCall", js.FuncOf(callExport))
 
 	// Register effect handler functions (M-WASM-EFFECTS)

@@ -1,0 +1,78 @@
+-- typecheck_heavy.ail — Latency budget workload: type checker + elaborator load
+-- Exercises: Hindley-Milner inference, ADT constructors, exhaustive pattern matching,
+-- polymorphic data types. Runtime work is intentionally cheap — the goal is to
+-- push load into the elaborator/typechecker phases.
+module benchmarks/workloads/typecheck_heavy
+
+import std/io (println)
+
+-- A small set of interconnected ADTs that force the typechecker
+-- to resolve several parameter instantiations.
+type Shape =
+    | Circle(float)
+    | Square(float)
+    | Rectangle(float, float)
+    | Triangle(float, float, float)
+
+type Expr =
+    | Num(float)
+    | Add(Expr, Expr)
+    | Mul(Expr, Expr)
+    | Neg(Expr)
+
+-- Polymorphic containers force generic instantiation across call sites.
+type Pair[a, b] = Pair(a, b)
+type Result[a] = Ok(a) | Err(string)
+
+-- Shape area — exercises float ops and exhaustive matching.
+pure func area(s: Shape) -> float =
+  match s {
+    Circle(r) => 3.14159 * r * r,
+    Square(a) => a * a,
+    Rectangle(w, h) => w * h,
+    Triangle(a, b, c) => (a + b + c) / 2.0
+  }
+
+-- Expression evaluator — exercises recursive ADTs.
+pure func evalExpr(e: Expr) -> float =
+  match e {
+    Num(n) => n,
+    Add(l, r) => evalExpr(l) + evalExpr(r),
+    Mul(l, r) => evalExpr(l) * evalExpr(r),
+    Neg(x) => 0.0 - evalExpr(x)
+  }
+
+-- Polymorphic pair projection — exercises generic inference.
+pure func firstOf[a, b](p: Pair[a, b]) -> a =
+  match p { Pair(x, _) => x }
+
+pure func secondOf[a, b](p: Pair[a, b]) -> b =
+  match p { Pair(_, y) => y }
+
+-- Result unwrap — exercises generic instantiation at two call sites below.
+pure func unwrapOr[a](r: Result[a], fallback: a) -> a =
+  match r {
+    Ok(v) => v,
+    Err(_) => fallback
+  }
+
+pure func safeDivide(a: float, b: float) -> Result[float] =
+  if b == 0.0 then Err("division by zero")
+  else Ok(a / b)
+
+export func main() -> () ! {IO} = {
+  let shapes = [Circle(1.0), Square(2.0), Rectangle(3.0, 4.0), Triangle(3.0, 4.0, 5.0)];
+  let areas = [area(Circle(1.0)), area(Square(2.0)), area(Rectangle(3.0, 4.0))];
+  let expr = Add(Mul(Num(2.0), Num(3.0)), Neg(Num(1.0)));
+  let pInt = Pair(42, "answer");
+  let pStr = Pair("left", 99);
+  let divOk = safeDivide(10.0, 2.0);
+  let divBad = safeDivide(1.0, 0.0);
+  let _ = println("shapes: " ++ show(shapes));
+  let _ = println("areas: " ++ show(areas));
+  let _ = println("expr = " ++ show(evalExpr(expr)));
+  let _ = println("pInt first = " ++ show(firstOf(pInt)));
+  let _ = println("pStr second = " ++ show(secondOf(pStr)));
+  let _ = println("divOk = " ++ show(unwrapOr(divOk, 0.0)));
+  println("divBad = " ++ show(unwrapOr(divBad, -1.0)))
+}

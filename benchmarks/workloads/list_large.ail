@@ -1,0 +1,26 @@
+-- list_large.ail — Latency budget workload: data-intensive list pipeline
+-- Exercises: std/list map + filter + foldl over 5,000 integers
+-- This is the regression canary — the original M-PERF6B tracing bug doubled
+-- latency on workloads like this one. Every evaluator step in the pipeline
+-- was 2x slower with tracing on, so a large-enough list makes the hot-loop
+-- regression visible in p95.
+--
+-- Size is capped at 5000 to stay under AILANG's default 10k recursion depth
+-- during the tail-recursive buildList phase. 5k is 10x larger than list_small,
+-- enough spread to distinguish constant overhead from per-step cost.
+--
+-- Returns the sum of squares of even integers in [1..5000].
+module benchmarks/workloads/list_large
+
+import std/list (map, filter, foldl)
+
+-- Build [1..n] tail-recursively via accumulator.
+pure func buildList(n: int, acc: [int]) -> [int] =
+  if n <= 0 then acc
+  else buildList(n - 1, n :: acc)
+
+export pure func main() -> int =
+  let xs = buildList(5000, []) in
+  let evens = filter(\x. x % 2 == 0, xs) in
+  let squared = map(\x. x * x, evens) in
+  foldl(\acc x. acc + x, 0, squared)

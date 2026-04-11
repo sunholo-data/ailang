@@ -6,7 +6,7 @@
 .PHONY: eval-to-design eval-prompt-ab eval-prompt-list eval-prompt-hash
 .PHONY: eval-baseline eval-diff eval-summary eval-matrix
 .PHONY: eval-auto-improve eval-auto-improve-apply
-.PHONY: bench-phase2a bench-phase2a-quick
+.PHONY: bench-phase2a bench-phase2a-quick bench-workloads bench-workloads-quick
 
 # Basic eval commands
 eval: build ## Run a single benchmark (mock mode)
@@ -126,3 +126,13 @@ bench-phase2a: ## Run Phase 2A benchmarks (evaluator vs native Go, -count=3)
 bench-phase2a-quick: ## Run Phase 2A benchmarks (quick, -count=1)
 	go test -run='^$$' -bench='Benchmark(Native|Eval)_' -benchmem -count=1 \
 		./internal/eval/ -timeout=600s
+
+# M-LAT-BUDGET: Latency-budget canonical workload baselines.
+# Runs benchmarks/workloads/*.ail end-to-end with AILANG_NO_TRACE=1 and writes
+# benchmarks/latency_budgets.json. The on-disk JSON is the input to bench-check
+# (regression gate, deferred to M-LAT-BUDGET Phase 4).
+bench-workloads: ## Capture latency-budget baseline (5 runs each, all workloads)
+	@./tools/bench_workloads.sh
+
+bench-workloads-quick: ## Quick latency-budget smoke test (3 runs, no file write)
+	@./tools/bench_workloads.sh --runs 3 --no-write

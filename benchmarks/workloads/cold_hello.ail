@@ -1,0 +1,9 @@
+-- cold_hello.ail — Latency budget workload: cold-start baseline
+-- Exercises: parser + elaborator + type checker + evaluator + IO effect
+-- No meaningful work; p95 here measures the startup floor.
+module benchmarks/workloads/cold_hello
+
+import std/io (println)
+
+export func main() -> () ! {IO} =
+  println("Hello from the cold-start workload.")

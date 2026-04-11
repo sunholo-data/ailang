@@ -236,21 +236,39 @@ Expected outcomes:
 
 ## Directory Structure
 
+`benchmarks/` houses **three sibling suites** that measure different things and
+should not be conflated:
+
 ```
 benchmarks/
   README.md              # This file
-  fizzbuzz.yml           # Control flow benchmark
-  json_parse.yml         # Data parsing benchmark
-  pipeline.yml           # IO + lists benchmark
-  cli_args.yml           # IO + FS benchmark
-  adt_option.yml         # Algebraic types benchmark
+  *.yml                  # AI eval specs (suite 1) — measure code-gen quality
+  cross-language/        #   ↳ shared specs run against AILANG and Python
+  runtime/               # Runtime micro-benchmarks (suite 2) — measure interpreter cost
+  workloads/             # Latency-budget canonical workloads (suite 3) — measure user-visible p95
 
-eval_results/            # Output directory (git-ignored)
+eval_results/            # AI-eval output (git-ignored)
   .gitignore
   *.json                 # Individual run results
   summary.csv            # Aggregated results
   leaderboard.md         # Human-readable report
 ```
+
+| Suite | Question it answers | Measured by | Owner |
+|-------|---------------------|-------------|-------|
+| `*.yml` AI evals | "How well do AI models generate AILANG?" | `ailang eval-suite` | M-EVAL |
+| `runtime/*.ail` | "Did this commit slow down a specific evaluator path?" | `make bench` (Go benchmarks) | perf-reviewer skill |
+| `workloads/*.ail` | "Did this release blow the latency budget on realistic user workloads?" | `tools/bench_workloads.sh` | M-LAT-BUDGET |
+
+The three suites are deliberately separate. AI evals stress code-gen quality
+(can the model write the program at all?). Runtime micro-benchmarks isolate
+single hot-loop interpreter changes. Latency-budget workloads run end-to-end
+programs that mirror real user shapes — they are the only suite whose p95 is
+treated as a release-gating SLO.
+
+See [`workloads/README.md`](workloads/README.md) for the canonical workload
+catalog and the latency-budget process.
+
 
 ## Cost Estimates
 

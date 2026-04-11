@@ -1,0 +1,18 @@
+-- effect_roundtrip.ail — Latency budget workload: IO effect dispatch
+-- Exercises: effect system, capability checks, IO effect handler dispatch.
+-- Performs 50 println round-trips inside a recursive effectful loop.
+-- Each iteration forces an effect-dispatch through the runtime.
+module benchmarks/workloads/effect_roundtrip
+
+import std/io (println)
+
+-- Recursively print n lines. Each call goes through the IO effect handler.
+func loop(n: int) -> () ! {IO} =
+  if n <= 0 then ()
+  else {
+    let _ = println("tick " ++ show(n));
+    loop(n - 1)
+  }
+
+export func main() -> () ! {IO} =
+  loop(50)

@@ -1,0 +1,20 @@
+-- list_small.ail — Latency budget workload: small list pipeline
+-- Exercises: std/list map + filter + foldl over 500 integers
+-- Returns sum of squares of even integers in [1..500].
+--
+-- Companion to list_large.ail; together they distinguish fixed startup cost
+-- from per-element cost (10x size ratio).
+module benchmarks/workloads/list_small
+
+import std/list (map, filter, foldl)
+
+-- Build [1..n] tail-recursively via accumulator.
+pure func buildList(n: int, acc: [int]) -> [int] =
+  if n <= 0 then acc
+  else buildList(n - 1, n :: acc)
+
+export pure func main() -> int =
+  let xs = buildList(500, []) in
+  let evens = filter(\x. x % 2 == 0, xs) in
+  let squared = map(\x. x * x, evens) in
+  foldl(\acc x. acc + x, 0, squared)
