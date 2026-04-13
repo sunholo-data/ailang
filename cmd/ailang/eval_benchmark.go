@@ -350,69 +350,62 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 	}
 
 	// Generate prompt
+	// PromptForLanguage() handles both AILANG and Python correctly:
+	// - AILANG: teaching prompt (1600 lines) + "## Task" + benchmark task
+	// - Python: prompts/python.md guidelines + "## Task" + benchmark task
 	var prompt string
 	var actualPromptVersion string
-	if promptVersion != "" {
-		// Explicit version specified via --prompt-version flag
+
+	if promptVersion != "" && lang != "python" {
+		// Explicit version specified via --prompt-version flag (AILANG only)
+		loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
+		if err != nil {
+			return false, fmt.Errorf("failed to create prompt loader: %w", err)
+		}
+		customPrompt, err := loader.LoadPrompt(promptVersion)
+		if err != nil {
+			return false, fmt.Errorf("failed to load prompt version: %w", err)
+		}
+		prompt = customPrompt
+		actualPromptVersion = promptVersion
+		// Append task description from spec
+		taskDesc := spec.TaskPrompt
+		if taskDesc == "" {
+			taskDesc = spec.Prompt
+		}
+		if taskDesc != "" {
+			langName := lang
+			if lang == "python" {
+				langName = "Python 3"
+			} else if lang == "ailang" {
+				langName = "AILANG"
+			}
+			prompt = prompt + "\n\n## Task\n\n" + strings.ReplaceAll(taskDesc, "<LANG>", langName)
+		}
+	} else {
+		// Use PromptForLanguage() which correctly composes base + task for all languages
+		prompt = spec.PromptForLanguage(lang)
 		if lang == "python" {
-			// Python always uses prompts/python.md (not versioned)
-			pythonPromptData, err := os.ReadFile("prompts/python.md")
-			if err != nil {
-				return false, fmt.Errorf("failed to load Python prompt: %w", err)
-			}
-			prompt = string(pythonPromptData)
 			actualPromptVersion = "python"
-			if spec.TaskPrompt != "" {
-				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
-			}
-		} else {
-			// AILANG uses versioned prompts from prompts/versions.json
+		} else if prompt == "" {
+			// No prompt from spec, fall back to active version from registry
 			loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
 			if err != nil {
 				return false, fmt.Errorf("failed to create prompt loader: %w", err)
 			}
-			customPrompt, err := loader.LoadPrompt(promptVersion)
+			activePrompt, err := loader.GetActivePrompt()
 			if err != nil {
-				return false, fmt.Errorf("failed to load prompt version: %w", err)
+				return false, fmt.Errorf("failed to load active prompt: %w", err)
 			}
-			prompt = customPrompt
-			actualPromptVersion = promptVersion
-			if spec.TaskPrompt != "" {
-				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			prompt = activePrompt
+			actualPromptVersion = loader.GetActiveVersionID()
+			// Append task description from spec
+			taskDesc := spec.TaskPrompt
+			if taskDesc == "" {
+				taskDesc = spec.Prompt
 			}
-		}
-	} else {
-		// No explicit prompt version specified
-		if lang == "python" {
-			// Python always uses prompts/python.md (not versioned)
-			pythonPromptData, err := os.ReadFile("prompts/python.md")
-			if err != nil {
-				return false, fmt.Errorf("failed to load Python prompt: %w", err)
-			}
-			prompt = string(pythonPromptData)
-			actualPromptVersion = "python"
-			if spec.TaskPrompt != "" {
-				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
-			}
-		} else {
-			// AILANG: Try spec.PromptFiles first, then fall back to active version from registry
-			prompt = spec.PromptForLanguage(lang)
-			if prompt == "" {
-				// No prompt in spec, use active version from registry
-				loader, err := eval_harness.NewPromptLoader("prompts/versions.json")
-				if err != nil {
-					return false, fmt.Errorf("failed to create prompt loader: %w", err)
-				}
-				activePrompt, err := loader.GetActivePrompt()
-				if err != nil {
-					return false, fmt.Errorf("failed to load active prompt: %w", err)
-				}
-				prompt = activePrompt
-				// Track the actual version used from registry
-				actualPromptVersion = loader.GetActiveVersionID()
-			}
-			if spec.TaskPrompt != "" {
-				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			if taskDesc != "" {
+				prompt = prompt + "\n\n## Task\n\n" + strings.ReplaceAll(taskDesc, "<LANG>", "AILANG")
 			}
 		}
 	}

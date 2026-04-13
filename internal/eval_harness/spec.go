@@ -87,7 +87,10 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 			taskDescription = s.Prompt
 		}
 	} else {
-		// For other languages, use the original logic
+		// For other languages (e.g. Python): use language guidelines as base,
+		// and the benchmark's prompt field as the task description.
+		// This mirrors the AILANG path: base_prompt + "## Task" + task.
+
 		// Load language-specific prompt file if available
 		if s.PromptFiles != nil {
 			if promptFile, ok := s.PromptFiles[lang]; ok {
@@ -98,17 +101,17 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 			}
 		}
 
-		// If no language-specific prompt file, use inline prompt or default
+		// If no language-specific prompt file, use default guidelines
 		if basePrompt == "" {
-			if s.Prompt != "" {
-				basePrompt = s.Prompt
-			} else {
-				basePrompt = getDefaultPrompt(lang)
-			}
+			basePrompt = getDefaultPrompt(lang)
 		}
 
-		// For non-AILANG, task_prompt is appended separately
-		taskDescription = s.TaskPrompt
+		// The inline prompt field is the task description (same as AILANG path)
+		if s.TaskPrompt != "" {
+			taskDescription = s.TaskPrompt
+		} else if s.Prompt != "" {
+			taskDescription = s.Prompt
+		}
 	}
 
 	// Build full prompt

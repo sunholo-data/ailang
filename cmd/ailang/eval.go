@@ -123,8 +123,12 @@ func runEval() {
 		if customPrompt != "" {
 			// Use custom prompt + task-specific portion
 			prompt = customPrompt
-			if spec.TaskPrompt != "" {
-				prompt = prompt + "\n\n## Task\n\n" + spec.TaskPrompt
+			taskDesc := spec.TaskPrompt
+			if taskDesc == "" {
+				taskDesc = spec.Prompt
+			}
+			if taskDesc != "" {
+				prompt = prompt + "\n\n## Task\n\n" + taskDesc
 			}
 		} else {
 			prompt = spec.PromptForLanguage(lang)

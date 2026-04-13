@@ -97,11 +97,23 @@ func TestPromptForLanguage(t *testing.T) {
 		Prompt: "Write code in <LANG> that prints hello",
 	}
 
-	// Test Python - uses inline prompt directly
+	// Test Python - should use guidelines as base + task appended
 	pythonResult := spec.PromptForLanguage("python")
-	expectedPython := "Write code in Python 3 that prints hello"
-	if pythonResult != expectedPython {
-		t.Errorf("PromptForLanguage(python) = %s, want %s", pythonResult, expectedPython)
+
+	// Python result should contain the default guidelines
+	if !containsSubstring(pythonResult, "expert Python programmer") {
+		t.Errorf("PromptForLanguage(python) should contain Python guidelines, got: %s", pythonResult[:min(100, len(pythonResult))])
+	}
+
+	// Python result should contain the task with <LANG> replaced
+	if !containsSubstring(pythonResult, "## Task") {
+		t.Errorf("PromptForLanguage(python) should contain '## Task' section")
+	}
+	if !containsSubstring(pythonResult, "prints hello") {
+		t.Errorf("PromptForLanguage(python) should contain task description 'prints hello'")
+	}
+	if !containsSubstring(pythonResult, "Python 3") {
+		t.Errorf("PromptForLanguage(python) should replace <LANG> with 'Python 3'")
 	}
 
 	// Test AILANG - should always include teaching prompt with task appended
