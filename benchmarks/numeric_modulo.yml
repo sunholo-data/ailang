@@ -3,5 +3,5 @@ languages: ["python", "ailang"]
 entrypoint: "main"
 caps: ["IO"]
 prompt: |
-  Write a <LANG> program that prints the remainder of 5 divided by 3.
+  Write a <LANG> program that prints the remainder of 17 divided by 5.
 expected_stdout: "2"

@@ -11,13 +11,13 @@ task_prompt: |
   1. Implement `pipe(f, g)` - returns a function that computes g(f(x)) (apply f first, then g)
   2. Implement `subtract(x, y)` - returns x - y
   3. Implement `negate(x)` - returns -x
-  4. Create `sub3 = subtract(_, 3)` using partial application (or lambda) - subtracts 3 from input
-  5. Create `triple = multiply(3, _)` using partial application (or lambda)
-  6. Create `sub3_then_triple = pipe(sub3, triple)` - subtract 3 first, then triple
-  7. Apply the piped function to 7
+  4. Create `sub4 = subtract(_, 4)` using partial application (or lambda) - subtracts 4 from input
+  5. Create `double = multiply(2, _)` using partial application (or lambda)
+  6. Create `sub4_then_double = pipe(sub4, double)` - subtract 4 first, then double
+  7. Apply the piped function to 11
   8. Print the result: "Result: {value}"
 
-  Expected computation: (7 - 3) * 3 = 12
+  Expected computation: (11 - 4) * 2 = 14
 
   Requirements:
   - Use first-class functions
@@ -26,4 +26,4 @@ task_prompt: |
 
   Output only the code, no explanations.
 expected_stdout: |
-  Result: 12
+  Result: 14

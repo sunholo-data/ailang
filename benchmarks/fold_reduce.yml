@@ -13,9 +13,9 @@ task_prompt: |
      - Returns the result of folding the function over the list from left to right
 
   2. Uses foldl to compute:
-     - Sum of [1, 2, 3, 4, 5] using addition
-     - Product of [1, 2, 3, 4, 5] using multiplication
-     - Maximum of [3, 1, 4, 1, 5, 9, 2, 6]
+     - Sum of [2, 4, 6, 8, 10] using addition
+     - Product of [2, 4, 6, 8, 10] using multiplication
+     - Maximum of [7, 2, 8, 3, 11, 5, 1]
 
   3. Prints three lines:
      - Sum: {value}
@@ -23,12 +23,12 @@ task_prompt: |
      - Max: {value}
 
   Expected:
-  - Sum: 1+2+3+4+5 = 15
-  - Product: 1*2*3*4*5 = 120
-  - Max of [3,1,4,1,5,9,2,6] = 9
+  - Sum: 2+4+6+8+10 = 30
+  - Product: 2*4*6*8*10 = 3840
+  - Max of [7,2,8,3,11,5,1] = 11
 
   Output only the code, no explanations.
 expected_stdout: |
-  Sum: 15
-  Product: 120
-  Max: 9
+  Sum: 30
+  Product: 3840
+  Max: 11
