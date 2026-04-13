@@ -1,5 +1,5 @@
 ---
-name: AILANG Code Writing
+name: use-ailang
 description: Write and run AILANG code with correct syntax. Use when user asks to write AILANG programs, fix AILANG syntax errors, run AILANG code, or needs help with AILANG syntax. Includes version checking, syntax validation, and common patterns.
 ---
 

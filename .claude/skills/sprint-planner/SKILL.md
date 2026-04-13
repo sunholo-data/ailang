@@ -1,11 +1,22 @@
 ---
-name: AILANG Sprint Planner
+name: sprint-planner
 description: Analyze design docs, calculate velocity from recent work, and create realistic sprint plans with day-by-day breakdowns. Use when user asks to "plan sprint", "create sprint plan", or wants to estimate development timeline.
 ---
 
 # AILANG Sprint Planner
 
 Create comprehensive, data-driven sprint plans by analyzing design documentation, current implementation status, and recent velocity.
+
+## Current State
+
+- **Branch**: !'git branch --show-current'
+- **Current version**: !'cat std/VERSION'
+- **Active sprints**: !'ls .ailang/state/sprints/ 2>/dev/null | head -5 || echo "none"'
+- **Planned design docs**: !'ls design_docs/planned/ 2>/dev/null | head -10'
+- **Recent velocity (7d)**: !'git diff --stat $(git log --since="7 days ago" --format=%H | tail -1) HEAD 2>/dev/null | tail -1 || echo "no recent commits"'
+- **Unread messages**: !'ailang messages list --unread --compact 2>/dev/null | head -5 || echo "none"'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 

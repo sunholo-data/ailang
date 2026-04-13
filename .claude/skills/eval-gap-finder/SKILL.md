@@ -1,5 +1,5 @@
 ---
-name: Eval Gap Finder
+name: eval-gap-finder
 description: Find AILANG vs Python eval gaps and improve prompts/language. Use when user says 'find eval gaps', 'analyze benchmark failures', 'close Python-AILANG gap', or after running evals.
 ---
 

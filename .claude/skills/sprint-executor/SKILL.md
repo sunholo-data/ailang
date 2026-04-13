@@ -1,11 +1,22 @@
 ---
-name: AILANG Sprint Executor
+name: sprint-executor
 description: Execute approved sprint plans with test-driven development, continuous linting, progress tracking, and pause points. Supports parallel milestone execution via Task sub-agents. Use when user says "execute sprint", "start sprint", or wants to implement an approved sprint plan.
 ---
 
 # AILANG Sprint Executor
 
 Execute an approved sprint plan with continuous progress tracking, testing, and documentation updates. Supports **parallel execution** of independent milestones using Task sub-agents for faster sprints.
+
+## Current State
+
+- **Branch**: !'git branch --show-current'
+- **Working directory**: !'git status --short | head -5'
+- **Active sprints**: !'ls .ailang/state/sprints/ 2>/dev/null | head -5 || echo "none"'
+- **Sprint progress**: !'for f in .ailang/state/sprints/sprint_*.json; do [ -f "$f" ] && echo "$(basename $f): status=$(jq -r .status $f 2>/dev/null), features=$(jq "[.features[] | select(.passes==true)] | length" $f 2>/dev/null)/$(jq ".features | length" $f 2>/dev/null)"; done 2>/dev/null || echo "no sprint files"'
+- **Tests**: !'make test 2>&1 | tail -1'
+- **Uncommitted changes**: !'git diff --stat HEAD 2>/dev/null | tail -1 || echo "clean"'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 

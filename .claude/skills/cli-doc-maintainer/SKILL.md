@@ -1,5 +1,5 @@
 ---
-name: CLI Documentation Maintainer
+name: cli-doc-maintainer
 description: Maintain AILANG CLI help as single source of truth. Use when: adding new commands, adding environment variables, updating command behavior, auditing CLI documentation, ensuring help.go matches codebase implementation, improving CLI discoverability for AIs.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Test Coverage Guardian
+name: test-coverage-guardian
 description: Analyze test coverage, identify gaps, detect dead code, and improve test quality. Use when user asks to check coverage, review tests, find untested code, or improve test robustness.
 ---
 

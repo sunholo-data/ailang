@@ -1,5 +1,5 @@
 ---
-name: Agent Inbox
+name: agent-inbox
 description: Check and process messages from autonomous AILANG agents. Use when starting a session, after agent handoffs, or when checking for completion notifications.
 ---
 

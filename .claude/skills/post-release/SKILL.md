@@ -1,11 +1,22 @@
 ---
-name: AILANG Post-Release Tasks
+name: post-release
 description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 46-benchmark suite (medium/hard/stretch) + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
 
 Run post-release tasks for an AILANG release: evaluation baselines, dashboard updates, and documentation.
+
+## Current State
+
+- **Current version**: !'cat std/VERSION'
+- **Latest tag**: !'git describe --tags --abbrev=0 2>/dev/null || echo "no tags"'
+- **GitHub release**: !'gh release list --limit 3 2>/dev/null | head -3 || echo "gh not available"'
+- **Existing baselines**: !'ls eval_results/baselines/ 2>/dev/null | tail -5 || echo "none"'
+- **Dashboard version**: !'jq -r .version docs/static/benchmarks/latest.json 2>/dev/null || echo "not found"'
+- **Active changelog**: !'ls changelogs/ | grep current 2>/dev/null'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 

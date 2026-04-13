@@ -1,5 +1,5 @@
 ---
-name: Prompt Manager
+name: prompt-manager
 description: Optimize and manage AILANG teaching prompts for maximum conciseness and accuracy. Use when user asks to create/update prompts, optimize prompt length, or verify prompt accuracy.
 ---
 

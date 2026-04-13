@@ -1,5 +1,5 @@
 ---
-name: Gemini CLI Helper
+name: gemini-cli-helper
 description: Run Gemini CLI commands from Claude with correct Node version. Use when user asks to run Gemini CLI, test Gemini traces, or debug Gemini telemetry.
 ---
 

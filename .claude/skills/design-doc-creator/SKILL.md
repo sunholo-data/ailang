@@ -7,6 +7,15 @@ description: Create AILANG design documents in the correct format and location. 
 
 Create well-structured design documents for AILANG features following the project's conventions.
 
+## Current State
+
+- **Current version**: !'cat std/VERSION'
+- **Planned docs**: !'ls design_docs/planned/ 2>/dev/null | head -10'
+- **Recent implemented docs**: !'ls design_docs/implemented/ 2>/dev/null | tail -3'
+- **Active changelog**: !'ls changelogs/ | grep current 2>/dev/null'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
+
 ## Quick Start
 
 **Most common usage:**

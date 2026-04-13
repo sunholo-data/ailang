@@ -1,5 +1,5 @@
 ---
-name: Eval Analyzer
+name: eval-analyzer
 description: Identify AILANG language gaps from agent struggles, analyze eval baselines, and generate actionable insights. PRIMARY PURPOSE is finding what stdlib/prompt improvements would help agents succeed. Use when analyzing eval results, checking benchmarks, or investigating failures.
 ---
 

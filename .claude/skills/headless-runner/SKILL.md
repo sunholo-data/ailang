@@ -1,5 +1,5 @@
 ---
-name: Headless Runner
+name: headless-runner
 description: Run Claude Code in headless/programmatic mode for automation, CI/CD, and agent workflows. Use when user asks about headless mode, programmatic execution, scripting Claude, or automating Claude workflows.
 ---
 

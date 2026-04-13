@@ -1,5 +1,5 @@
 ---
-name: Codebase Organizer
+name: codebase-organizer
 description: Monitor and refactor large files into smaller, AI-friendly modules. Use when user asks to check file sizes, split large files, or organize the codebase. Ensures tests pass before and after refactoring.
 ---
 

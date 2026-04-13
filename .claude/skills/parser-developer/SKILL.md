@@ -1,5 +1,5 @@
 ---
-name: Parser Developer
+name: parser-developer
 description: Guides AILANG parser development with conventions and patterns. Use when user wants to modify parser, understand parser architecture, or debug parser issues. Saves 30% of development time by preventing token position bugs.
 ---
 

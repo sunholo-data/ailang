@@ -1,11 +1,21 @@
 ---
-name: AILANG Sprint Evaluator
+name: sprint-evaluator
 description: Evaluate sprint implementations against design docs and acceptance criteria. Runs after sprint-executor to assess quality with concrete scoring rubric (100 points, 70 to pass). Provides actionable feedback loop on failure. Use when user says "evaluate sprint", "review implementation", "assess sprint quality", or automatically via coordinator after sprint execution.
 ---
 
 # AILANG Sprint Evaluator
 
 Independently evaluate a completed sprint implementation against its design doc, acceptance criteria, and quality standards. Based on the [generator-evaluator architecture](https://www.anthropic.com/engineering/harness-design-long-running-apps) — separating the agent doing the work from the agent judging it.
+
+## Current State
+
+- **Branch**: !'git branch --show-current'
+- **Active sprints**: !'ls .ailang/state/sprints/ 2>/dev/null | head -5 || echo "none"'
+- **Existing evaluations**: !'ls .ailang/state/evaluations/ 2>/dev/null | head -5 || echo "none"'
+- **Test status**: !'make test 2>&1 | tail -1'
+- **Lint status**: !'make lint 2>&1 | tail -1'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 

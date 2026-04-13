@@ -1,5 +1,5 @@
 ---
-name: Trace Debugger
+name: trace-debugger
 description: Debug performance issues and understand code flow using AILANG telemetry traces. Use when user asks to debug slow compilation, analyze benchmarks, find bottlenecks, investigate hangs, or understand system behavior.
 ---
 

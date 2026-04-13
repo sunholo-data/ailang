@@ -1,5 +1,5 @@
 ---
-name: Cloud Environment Setup
+name: cloud-setup
 description: Set up Claude Code cloud/mobile environments for AILANG development. Use when starting a new cloud session, when tools are missing (Go, make, gh), or when user says "setup cloud", "setup environment", or mentions mobile Claude Code.
 ---
 

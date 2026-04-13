@@ -1,5 +1,5 @@
 ---
-name: Builtin Developer
+name: builtin-developer
 description: Guides development of AILANG builtin functions. Use when user wants to add a builtin function, register new builtins, or understand the builtin system. Reduces development time from 7.5h to 2.5h (-67%).
 ---
 

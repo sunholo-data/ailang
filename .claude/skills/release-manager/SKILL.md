@@ -7,6 +7,18 @@ description: Create new AILANG releases with version bumps, changelog updates, g
 
 Create a complete AILANG release with version bump, changelog update, git tag, and CI/CD verification.
 
+## Current State
+
+- **Current version**: !'cat std/VERSION'
+- **Branch**: !'git branch --show-current'
+- **Latest tag**: !'git describe --tags --abbrev=0 2>/dev/null || echo "no tags"'
+- **Working directory**: !'git status --short | head -5'
+- **Recent commits since last tag**: !'git log $(git describe --tags --abbrev=0 2>/dev/null)..HEAD --oneline 2>/dev/null | head -10'
+- **GitHub auth**: !'gh auth status 2>&1 | grep "Logged in" | head -1'
+- **Active changelog**: !'ls changelogs/ | grep current 2>/dev/null'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
+
 ## Changelog Architecture
 
 **The changelog is split into themed files in `changelogs/`:**

@@ -1,11 +1,20 @@
 ---
-name: GitHub Issue Triage
+name: github-issue-triage
 description: Monitor and triage GitHub issues against design docs and implementation status. Use when user asks to "check issues", "triage issues", "sync issues", "what issues are open", or wants to ensure issues are up-to-date with development progress.
 ---
 
 # GitHub Issue Triage
 
 **Monitor open GitHub issues, match them to design docs, identify closable issues, and keep the issue tracker synchronized with actual development progress.**
+
+## Current State
+
+- **GitHub auth**: !'gh auth status 2>&1 | grep "Logged in" | head -1'
+- **Open issues**: !'gh issue list --state open --limit 10 2>/dev/null || echo "gh not available"'
+- **Recent closed**: !'gh issue list --state closed --limit 3 2>/dev/null || echo "none"'
+- **Current version**: !'cat std/VERSION'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 

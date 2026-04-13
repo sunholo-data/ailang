@@ -1,5 +1,5 @@
 ---
-name: Perf Reviewer
+name: perf-reviewer
 description: Review code for performance issues and run benchmarks. Use when user asks to analyze performance, compare AILANG vs Python vs Go, run benchmarks, or review code for optimization opportunities.
 ---
 

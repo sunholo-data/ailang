@@ -1,5 +1,5 @@
 ---
-name: Model Manager
+name: model-manager
 description: Test, validate, and add new AI models to the eval suite. Use when user asks to add new models, test model access, check pricing, or update models.yml.
 ---
 

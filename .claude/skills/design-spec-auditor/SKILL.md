@@ -1,11 +1,20 @@
 ---
-name: Design Spec Auditor
+name: design-spec-auditor
 description: Verify code implementation aligns with design specifications. Use after implementing features, during code reviews, or when refactoring to ensure architectural compliance. Compares design docs with actual code.
 ---
 
 # Design Spec Auditor
 
 Verify that code implementations match their design specifications and identify inconsistencies.
+
+## Current State
+
+- **Planned design docs**: !'ls design_docs/planned/ 2>/dev/null | head -10'
+- **Implemented design docs**: !'ls design_docs/implemented/ 2>/dev/null | tail -5'
+- **Branch**: !'git branch --show-current'
+- **Recent changes**: !'git log --oneline -5'
+
+> **Use the data above first.** Only re-run these commands manually if the injected context is empty or you need to refresh after making changes.
 
 ## Quick Start
 
