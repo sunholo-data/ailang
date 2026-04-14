@@ -67,7 +67,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			firstArgs := args[:len(fn.Params)]
 			restArgs := args[len(fn.Params):]
 
-			newEnv := fn.Env.Clone()
+			newEnv := fn.Env.NewChildEnvironment()
 			for i, param := range fn.Params {
 				newEnv.Set(param, firstArgs[i])
 			}
@@ -123,7 +123,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		}
 
 		// Create new environment with parameters bound
-		newEnv := fn.Env.Clone()
+		newEnv := fn.Env.NewChildEnvironment()
 		for i, param := range fn.Params {
 			newEnv.Set(param, args[i])
 		}
@@ -654,7 +654,7 @@ func (e *CoreEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, e
 		firstArgs := args[:len(fn.Params)]
 		restArgs := args[len(fn.Params):]
 
-		newEnv := fn.Env.Clone()
+		newEnv := fn.Env.NewChildEnvironment()
 		for i, param := range fn.Params {
 			newEnv.Set(param, firstArgs[i])
 		}
@@ -685,7 +685,7 @@ func (e *CoreEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, e
 	}
 
 	// Exact match — evaluate directly
-	newEnv := fn.Env.Clone()
+	newEnv := fn.Env.NewChildEnvironment()
 	for i, param := range fn.Params {
 		newEnv.Set(param, args[i])
 	}

@@ -247,8 +247,12 @@ func (e *CoreEvaluator) CallFunction(fn *FunctionValue, args []Value) (Value, er
 		return nil, fmt.Errorf("function expects %d arguments, got %d", len(fn.Params), len(args))
 	}
 
-	// Create new environment with parameters bound
-	newEnv := fn.Env.Clone()
+	// Create new environment with parameters bound.
+	// M-PERF6 Phase 4a: Use NewChildEnvironment (O(1)) instead of Clone (O(n)).
+	// Params go into an empty child scope; lookups for captured names traverse
+	// the parent chain. Semantically equivalent to Clone+Set because AILANG
+	// never mutates existing bindings in the defining environment.
+	newEnv := fn.Env.NewChildEnvironment()
 	for i, param := range fn.Params {
 		newEnv.Set(param, args[i])
 	}
