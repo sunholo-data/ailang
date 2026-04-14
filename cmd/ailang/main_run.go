@@ -105,6 +105,10 @@ func runCommand() {
 	// Semantic trace export flag (M-TRACE-EXPORT)
 	emitTraceFlag := fs.String("emit-trace", "", "Export semantic execution trace (jsonl, otel, jsonl,otel, auto)")
 
+	// Tracing tier flag (M-OBS-TRACE-TRIAGE). Wins over AILANG_TRACE env
+	// and AILANG_NO_TRACE=1 legacy alias. Values: off|standard|deep.
+	traceTierFlag := fs.String("trace-tier", "", "Tracing tier (off|standard|deep). Overrides AILANG_TRACE env var.")
+
 	// Memory limit flag (M-EVAL-BOUNDED-PIPELINE)
 	maxMemoryFlag := fs.String("max-memory", "", "Memory limit (e.g., 256MB, 1GB). Triggers aggressive GC near limit.")
 
@@ -197,10 +201,10 @@ func runCommand() {
 		}
 	}
 
-	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
+	runFile(filename, programArgs, *traceFlag, *seedFlag, *virtualTime, *jsonFlag, *compactFlag, *quietFlag, *binopShimFlag, *failOnShimFlag, *requireLoweringFlag, *trackInstantiationsFlag, *noMonoFlag, *debugCompileFlag, *strictSyntaxFlagRun, *entryFlag, *argsJSONFlag, *printFlag, *noPrintFlag, *batchFlag, *capsFlag, *maxRecursionDepthFlag, *stdlibPathFlag, *traceLoaderFlag, *strictVersionFlag, *allowEnvFlag, *allowEnvFileFlag, *envFlag, *envSnapshotFlag, *writeEnvSnapshotFlag, *aiStubFlag, *aiModelFlag, *debugFlag, *relaxModulesFlag, *debugTypesFlag, *debugTypesNodeFlag, *noBudgetsFlag, *budgetReportFlag, *verifyContractsFlag, *emitTraceFlag, *traceTierFlag, *netAllowHTTPFlag, *netAllowDomainsFlag, *netAllowLocalhostFlag, *netAllowMetadataFlag, *streamAllowHTTPFlag, *streamAllowDomainsFlag, *streamAllowLocalhostFlag, *processTimeoutFlag, *processAllowlistFlag, *processMaxOutputFlag, *releaseFlag, *bytecodeFlag, *strictBytecodeFlag)
 }
 
-func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
+func runFile(filename string, programArgs []string, trace bool, seed int, virtualTime bool, jsonOutput bool, compact bool, quiet bool, binopShim bool, failOnShim bool, requireLowering bool, trackInstantiations bool, noMono bool, debugCompile bool, strictSyntax bool, entry string, argsJSON string, print bool, noprint bool, batch bool, caps string, maxRecursionDepth int, stdlibPath string, traceLoader bool, strictVersion bool, allowEnv string, allowEnvFile string, env string, envSnapshot string, writeEnvSnapshot string, aiStub bool, aiModel string, debugEffect bool, relaxModules bool, debugTypes bool, debugTypesNode uint64, noBudgets bool, budgetReport string, verifyContracts bool, emitTrace string, traceTier string, netAllowHTTP bool, netAllowDomains string, netAllowLocalhost bool, netAllowMetadata bool, streamAllowHTTP bool, streamAllowDomains string, streamAllowLocalhost bool, processTimeout string, processAllowlist string, processMaxOutput int64, release bool, bytecodeMode bool, strictBytecode bool) {
 	// M-PERF-DOCPARSE: Reduce GC pressure for batch/CLI workloads.
 	// Default GOGC=100 triggers GC when heap doubles — too aggressive for short-lived CLI runs.
 	// GOGC=500 allows heap to grow 6x before GC, trading ~50MB extra memory for 25%+ speedup.
@@ -510,7 +514,20 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 			// env var is used for GCP auth, not tracing. Auto-trace without an
 			// exporter creates ~2.7M objects (21% of allocations) that go nowhere.
 			// AILANG_NO_TRACE=1 disables all tracing regardless of OTEL config.
-			noTrace := os.Getenv("AILANG_NO_TRACE") == "1"
+			//
+			// M-OBS-TRACE-TRIAGE: --trace-tier CLI flag / AILANG_TRACE env var
+			// control the granularity of emitted spans:
+			//   off      — nothing is emitted (same as AILANG_NO_TRACE=1)
+			//   standard — module/effect(top-level)/compile/task-linked spans
+			//   deep     — everything, including per-call eval.function.* spans
+			// Precedence: --trace-tier > AILANG_TRACE > AILANG_NO_TRACE=1 > standard.
+			traceOpts := ailtrace.DefaultTracingOptions()
+			if tier, err := ailtrace.ResolveTier(traceTier); err == nil {
+				traceOpts.Tier = tier
+			} else if !quiet {
+				fmt.Fprintf(os.Stderr, "%s: %v (using standard)\n", red("Warning"), err)
+			}
+			noTrace := traceOpts.Tier == ailtrace.TierOff
 			if !noTrace && emitTrace == "" && telemetry.IsEnabled() {
 				emitTrace = "auto"
 			}
@@ -521,6 +538,13 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				}
 				if !quiet && emitTrace != "auto" {
 					fmt.Fprintf(os.Stderr, "Trace collection enabled (%s)\n", emitTrace)
+				}
+				if !quiet && emitTrace == "auto" {
+					if traceOpts.Tier == ailtrace.TierDeep {
+						fmt.Fprintln(os.Stderr, "Trace: deep (per-call function + effect spans)")
+					} else {
+						fmt.Fprintln(os.Stderr, "Trace: standard (set AILANG_TRACE=deep or --trace-tier deep for per-call spans)")
+					}
 				}
 			}
 
@@ -652,7 +676,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 				// Phase 2: OTEL span emission
 				if (strings.Contains(emitTrace, "otel") || emitTrace == "auto") && len(events) > 0 {
 					evalTracer := otel.Tracer("ailang.eval")
-					if err := ailtrace.EmitOTELSpans(ctx, evalTracer, events, effCtx.Trace.BaseTime()); err != nil {
+					if err := ailtrace.EmitOTELSpansWithOptions(ctx, evalTracer, events, effCtx.Trace.BaseTime(), traceOpts); err != nil {
 						fmt.Fprintf(os.Stderr, "%s: OTEL trace emission: %v\n", red("Error"), err)
 					}
 				}
