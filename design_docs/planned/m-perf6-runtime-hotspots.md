@@ -336,6 +336,31 @@ sentinel-fold pattern. Consider implementing as part of that sprint if timing al
 - Fresh CPU profile on current post-M1 state to find the real hotspot at 408s
 - Re-evaluate whether M2 (FallbackResolver cache) is worth ~11% of 408s, or pivot to xlsx_parser-level optimization (batched cell parsing, string-table memoization, `parseFoldChildren` from Phase 4d)
 
+#### Phase 4a Post-M1 CPU Profile (2026-04-14, `AILANG_NO_TRACE=1`)
+
+Ran `ailang run -cpuprofile ... docparse/main.ail poi_many_merges.xlsx` with M1 installed. Total: 417.31s real, 389.40s sampled. **The hotspot distribution changed dramatically:**
+
+| Function | Flat | Cum | Notes |
+|----------|------|-----|-------|
+| `FallbackResolver.ResolveValue` | **64.52%** | 67.87% | ← new dominant hotspot, 5.6× larger than projected |
+| `evalCoreApp` / `evalCore` / `evalCoreLet` / `evalCoreMatch` | ~12% each cum | — | expected evaluator dispatch |
+| `runtime.gcBgMarkWorker` | — | 9.84% | was dominant; now moderate |
+| `listConcatImpl` | — | 6.64% | list ops |
+| `runtime.mallocgc` | 0.12% | 6.38% | was 21.7% |
+| `runtime.madvise` | **3.72%** | 3.72% | **was 51.2%** — M1 effect |
+| `Environment.Clone` | — | — | **gone from top 30** — M1 eliminated it |
+
+**M1 effect on allocation pressure:** The original profile showed `madvise`+`mallocgc`+`memclrNoHeapPointers` totalling **90%** of runtime as cumulative GC cost. Post-M1: `madvise` is 3.72%, `mallocgc` is 6.38% cum. **M1 crushed GC pressure from ~90% → ~10%** — the headline win was hidden by the larger FallbackResolver hotspot.
+
+**FallbackResolver root cause (identified):** `eval_operations.go:160` (and two siblings at 81, 641) wraps `e.resolver` in a new `FallbackResolver` on every cross-module function application. Even with pop-on-return restoring `oldResolver`, each ResolveValue traverses a chain whose depth = cross-module call-stack depth. On `map(\cell. parseXlsxCell(cell, ss), cells)` over 140K cells, every builtin lookup and module reference walks this chain. The `f.Primary.ResolveValue(ref)` call in `eval_evaluator.go:25` is the hot line — interface-method dispatch + error-interface boxing at scale.
+
+**Revised M2 strategy:** The original plan ("per-closure resolution cache") is sound but the simpler fix may dominate:
+1. **Avoid chain growth:** in `eval_operations.go:160`, if `e.resolver` is already a `FallbackResolver` whose `Secondary == fn.Resolver`, skip the re-wrap entirely.
+2. **Concrete type dispatch:** replace the `GlobalResolver` interface field in the hot path with a concrete struct and direct call to `moduleGlobalResolver.ResolveValue` (which itself is only 330ms cum — the terminal resolver is cheap; the chain is expensive).
+3. **Per-closure cache:** still valuable for builtins resolved hundreds of thousands of times.
+
+Any one of these likely saves >50s on this workload. All three together could plausibly bring `poi_many_merges.xlsx` from 408s to the 250–300s range — still far from 1.5s (which requires xlsx_parser-level work), but a significant step.
+
 ## Deferred Decisions
 
 The following are intentionally left open for the implementer:
