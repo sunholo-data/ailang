@@ -80,6 +80,12 @@ func isEntryPathTraversal(name string) bool {
 	if strings.Contains(name, "..") {
 		return true
 	}
+	// Cross-platform absolute-path check: tar entry names use forward slashes
+	// by convention. filepath.IsAbs on Windows requires a drive letter and
+	// would miss "/tmp/foo", so check for leading / or \ explicitly.
+	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, `\`) {
+		return true
+	}
 	if filepath.IsAbs(name) {
 		return true
 	}

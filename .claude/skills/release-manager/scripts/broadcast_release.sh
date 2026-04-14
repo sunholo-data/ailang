@@ -37,16 +37,32 @@ if [[ ! "$VERSION" =~ ^v ]]; then
     VERSION="v$VERSION"
 fi
 
-CHANGELOG_FILE="CHANGELOG.md"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+# Resolve active changelog. Root CHANGELOG.md is an index — themed entries live
+# in changelogs/v*.*-current.md (or archived files). Search both, in order.
+CHANGELOG_FILE=""
+for candidate in changelogs/v*-current.md changelogs/*.md CHANGELOG.md; do
+    if [ -f "$candidate" ] && grep -q "^## \[$VERSION\]" "$candidate" 2>/dev/null; then
+        CHANGELOG_FILE="$candidate"
+        break
+    fi
+done
+
+if [ -z "$CHANGELOG_FILE" ]; then
+    # Fall back to root so downstream "no entry" warning still fires with context
+    CHANGELOG_FILE="CHANGELOG.md"
+fi
+
 if [ ! -f "$CHANGELOG_FILE" ]; then
-    echo "Error: $CHANGELOG_FILE not found in $PROJECT_ROOT"
+    echo "Error: no changelog file found in $PROJECT_ROOT"
     exit 1
 fi
+
+echo "Using changelog file: $CHANGELOG_FILE"
 
 echo "Extracting changelog for $VERSION..."
 
