@@ -314,6 +314,28 @@ sentinel-fold pattern. Consider implementing as part of that sprint if timing al
 - [ ] `make test`, `make verify-examples` pass
 - [ ] Property test: pure-closure elision produces identical traces to non-elided version on 1000 random inputs
 
+#### Phase 4a Results (measured 2026-04-14, commit 5798cd5d)
+
+**The original 5.27s baseline for `poi_many_merges.xlsx` in the table above was stale / machine-specific — it does NOT match current reality.** Fresh A/B measurements on the same file on this machine (macOS arm64, AILANG_NO_TRACE=1):
+
+| Benchmark | File | Pre-M1 | Post-M1 | Delta |
+|-----------|------|--------|---------|-------|
+| poi_many_merges.xlsx | 829KB, 50K rows | **425.45s** | **408.78s** | **-3.9%** |
+| gutenberg_alice.epub | 185KB | — | 1.98s | ✅ meets ≤2s target |
+| gutenberg_moby_dick.epub | 797KB | — | 2.75s | ✅ meets ≤3s target |
+
+**What this means:**
+- M1 (universal `Clone` → `NewChildEnvironment` swap) delivered a real but modest ~4% win on XLSX, not the ~14% projected from the old 5.27s profile
+- The 1.5s hard target is **not achievable** from evaluator-level optimizations alone (we are ~270× off)
+- DocParse EPUB benchmarks meet their targets — no regression
+- The dominant XLSX cost is almost certainly in the **xlsx_parser itself** (parsing 140K cells via `map(parseXlsxCell, cells)`), not in `Environment.Clone`
+
+**Simplified M1 implementation:** The universal `Clone` → `NewChildEnvironment` swap turned out to be strictly safe in AILANG semantics — params write only to the new child scope, lookups traverse the parent chain, and AILANG never mutates existing bindings in a shared parent env. The design-doc `PureCapture` flag was dropped as unnecessary (saved ~150 LOC).
+
+**Next steps:**
+- Fresh CPU profile on current post-M1 state to find the real hotspot at 408s
+- Re-evaluate whether M2 (FallbackResolver cache) is worth ~11% of 408s, or pivot to xlsx_parser-level optimization (batched cell parsing, string-table memoization, `parseFoldChildren` from Phase 4d)
+
 ## Deferred Decisions
 
 The following are intentionally left open for the implementer:
