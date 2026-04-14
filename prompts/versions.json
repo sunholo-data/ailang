@@ -515,9 +515,20 @@
         "streaming"
       ],
       "notes": "M-ASYNC-IO Phase 1+2: (1) Multi-source multiplexing (selectEvents, sourceOfConn, asyncReadStdinLines), (2) Subprocess stdout streaming (asyncExecProcess with SourceBytes events), (3) Correct StreamEvent ADT (11 variants including SourceText, SourceBytes), (4) Fixed return types to StreamErrorKind. All v0.8.2 features included."
+    },
+    "v0.11.4": {
+      "file": "prompts/v0.11.4.md",
+      "hash": "32b87ec74be06723505f69c4937bc8b280940dcde085872a94f554fe689212da",
+      "description": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas",
+      "created": "2026-04-14",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas"
     }
   },
-  "active": "v0.9.0",
+  "active": "v0.11.4",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
