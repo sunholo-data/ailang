@@ -142,7 +142,7 @@
         "tests",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: Factorial with inline tests/properties. DO NOT RUN - causes infinite loop",
       "requires": [
         "func",
         "tests",
@@ -170,7 +170,7 @@
         "concurrency",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: CSP-based concurrent pipeline. DO NOT RUN - causes infinite loop",
       "requires": [
         "channels",
         "spawn",
@@ -188,7 +188,7 @@
         "effects",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
+      "description": "⚠️ VISION ONLY: Web API with SQL quasiquotes. DO NOT RUN - causes infinite loop",
       "requires": [
         "quasiquotes",
         "http-effects",
@@ -205,7 +205,7 @@
         "introspection",
         "future"
       ],
-      "description": "\u26a0\ufe0f VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
+      "description": "⚠️ VISION ONLY: AI agent integration demo. Uses unsupported syntax.",
       "requires": [
         "effects",
         "introspection",
@@ -1360,7 +1360,8 @@
       ],
       "description": "ZIP archive reading with std/zip builtins: list entries, read text/binary content",
       "run_flags": [
-        "--caps", "IO,FS"
+        "--caps",
+        "IO,FS"
       ]
     },
     {
@@ -1380,73 +1381,161 @@
     {
       "path": "runnable/xml_fold.ail",
       "status": "working",
-      "tags": ["stdlib", "xml", "fold", "streaming", "performance", "std/xml"],
+      "tags": [
+        "stdlib",
+        "xml",
+        "fold",
+        "streaming",
+        "performance",
+        "std/xml"
+      ],
       "description": "XML fold: process elements one-at-a-time via parseFold without building a result list"
     },
     {
       "path": "runnable/zip_xml_fold.ail",
       "status": "working",
-      "tags": ["stdlib", "xml", "zip", "fold", "streaming", "performance", "std/zip", "std/xml"],
+      "tags": [
+        "stdlib",
+        "xml",
+        "zip",
+        "fold",
+        "streaming",
+        "performance",
+        "std/zip",
+        "std/xml"
+      ],
       "description": "Streaming ZIP+XML fold: extract shared strings from XLSX-like ZIP without OOM"
     },
     {
       "path": "runnable/effectful_list.ail",
       "status": "working",
-      "tags": ["effects", "higher-order", "std/list", "mapE", "filterE", "foldlE", "flatMapE", "forEachE", "flatMap"],
+      "tags": [
+        "effects",
+        "higher-order",
+        "std/list",
+        "mapE",
+        "filterE",
+        "foldlE",
+        "flatMapE",
+        "forEachE",
+        "flatMap"
+      ],
       "description": "Effectful list combinators smoke test: mapE, filterE, foldlE, flatMapE, forEachE, and pure flatMap"
     },
     {
       "path": "runnable/effectful_list_t1_mapE_basic.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T1: mapE basic type inference"
     },
     {
       "path": "runnable/effectful_list_t2_filterE_bool.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T2: filterE infers predicate returns bool"
     },
     {
       "path": "runnable/effectful_list_t3_foldlE_acc.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T3: foldlE accumulator type inference"
     },
     {
       "path": "runnable/effectful_list_t4_flatMapE_expand.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T4: flatMapE list expansion"
     },
     {
       "path": "runnable/effectful_list_t5_forEachE_unit.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T5: forEachE returns unit"
     },
     {
       "path": "runnable/effectful_list_t6_pure_flatMap.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T6: pure flatMap (no effects)"
     },
     {
       "path": "runnable/effectful_list_t7_chain_combinators.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list"
+      ],
       "description": "Type inference regression T7: chaining multiple effectful combinators"
     },
     {
       "path": "runnable/effectful_list_t8_string_list.ail",
       "status": "working",
-      "tags": ["types", "type-inference", "effects", "higher-order", "regression", "std/list", "std/string"],
+      "tags": [
+        "types",
+        "type-inference",
+        "effects",
+        "higher-order",
+        "regression",
+        "std/list",
+        "std/string"
+      ],
       "description": "Type inference regression T8: effectful combinators on string lists"
     },
     {
       "path": "runnable/process_demo.ail",
       "status": "working",
-      "tags": ["effects", "process", "exec", "std/process", "security"],
+      "tags": [
+        "effects",
+        "process",
+        "exec",
+        "std/process",
+        "security"
+      ],
       "description": "External command execution with Process effect: exec, error handling, completion semantics",
       "expected": {
         "stdout": "=== Echo test ===\nstdout: hello from AILANG\n\n=== Non-zero exit ===\nexitCode: 1\n=== NotFound test ===\nnot found: nonexistent_cmd_xyz\n=== Stderr test ===\nstderr: stderr_msg\n\nDone!\n",
@@ -1456,7 +1545,13 @@
     {
       "path": "runnable/stream_multi_source.ail",
       "status": "working",
-      "tags": ["stream", "async", "stdin", "multiplexer", "M-ASYNC-IO"],
+      "tags": [
+        "stream",
+        "async",
+        "stdin",
+        "multiplexer",
+        "M-ASYNC-IO"
+      ],
       "description": "Multi-source event multiplexing: stdin + selectEvents (M-ASYNC-IO)",
       "expected": {
         "stdin": "hello from stdin",
@@ -1467,7 +1562,13 @@
     {
       "path": "runnable/stream_process_source.ail",
       "status": "working",
-      "tags": ["stream", "async", "process", "subprocess", "M-ASYNC-IO"],
+      "tags": [
+        "stream",
+        "async",
+        "process",
+        "subprocess",
+        "M-ASYNC-IO"
+      ],
       "description": "Subprocess stdout as SourceBytes events via asyncExecProcess (M-ASYNC-IO Phase 2)",
       "expected": {
         "stdout": "[echo] hello from subprocess\ndone\n",
@@ -1477,7 +1578,13 @@
     {
       "path": "runnable/process_stdin_write.ail",
       "status": "working",
-      "tags": ["process", "stdin", "pipe", "subprocess", "M-ASYNC-IO"],
+      "tags": [
+        "process",
+        "stdin",
+        "pipe",
+        "subprocess",
+        "M-ASYNC-IO"
+      ],
       "description": "Write data to subprocess stdin via spawnProcess + writeProcessStdin (M-ASYNC-IO Phase 3)",
       "expected": {
         "stdout": "hello from AILANG\nstreaming to subprocess\ndone!\nwrote line 1\nwrote line 2\nwrote line 3\n",
@@ -1576,6 +1683,25 @@
         "option"
       ],
       "description": "Hash map operations: fromList, lookup (Option), member, size, keys, insert, remove"
+    },
+    {
+      "path": "runnable/tar_gzip_reader.ail",
+      "status": "working",
+      "tags": [
+        "stdlib",
+        "tar",
+        "gzip",
+        "fs",
+        "effects",
+        "result",
+        "std/tar",
+        "std/gzip"
+      ],
+      "description": "Read entries from a .tar.gz bundle and demonstrate tarbomb defence (std/tar + std/gzip)",
+      "run_flags": [
+        "--caps",
+        "IO,FS"
+      ]
     }
   ],
   "statistics": {

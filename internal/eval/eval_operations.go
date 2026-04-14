@@ -75,8 +75,9 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 			oldEnv := e.env
 			e.env = newEnv
 			// M-DX-XPKG-RESOLVE: fallback resolver for curry body
+			// M-PERF6-PHASE4 M2a: skip re-wrap if chain already covers fn.Resolver
 			var oldResolver GlobalResolver
-			if fn.Resolver != nil && fn.Resolver != e.resolver {
+			if fn.Resolver != nil && !resolverCovers(e.resolver, fn.Resolver) {
 				oldResolver = e.resolver
 				e.resolver = &FallbackResolver{
 					Primary:   e.resolver,
@@ -154,8 +155,9 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App) (Value, error) {
 		// resolver first (for builtins/effect context), then falls back to the
 		// function's defining module resolver (for constructors like Some/None
 		// that the caller might not have in scope).
+		// M-PERF6-PHASE4 M2a: skip re-wrap if chain already covers fn.Resolver
 		var oldResolver GlobalResolver
-		if fn.Resolver != nil && fn.Resolver != e.resolver {
+		if fn.Resolver != nil && !resolverCovers(e.resolver, fn.Resolver) {
 			oldResolver = e.resolver
 			e.resolver = &FallbackResolver{
 				Primary:   e.resolver,
@@ -635,8 +637,9 @@ func applyUnOp(op string, operand Value) (Value, error) {
 // Used by the auto-curry path when intermediate results need further application.
 func (e *CoreEvaluator) applyFunction(fn *FunctionValue, args []Value) (Value, error) {
 	// M-DX-XPKG-RESOLVE: fallback resolver for function's defining module
+	// M-PERF6-PHASE4 M2a: skip re-wrap if chain already covers fn.Resolver
 	var oldResolver GlobalResolver
-	if fn.Resolver != nil && fn.Resolver != e.resolver {
+	if fn.Resolver != nil && !resolverCovers(e.resolver, fn.Resolver) {
 		oldResolver = e.resolver
 		e.resolver = &FallbackResolver{
 			Primary:   e.resolver,

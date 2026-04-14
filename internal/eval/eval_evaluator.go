@@ -31,6 +31,22 @@ func (f *FallbackResolver) ResolveValue(ref core.GlobalRef) (Value, error) {
 	return f.Secondary.ResolveValue(ref)
 }
 
+// resolverCovers reports whether the given resolver chain already reaches `target`
+// as either a Primary or Secondary at any depth. Used by function-application sites
+// (M-PERF6-PHASE4 M2a) to skip re-wrapping in a new FallbackResolver when the chain
+// already has a path to the callee's defining resolver — prevents O(depth) growth
+// on tight-loop cross-module calls like `map(\cell. parseXlsxCell(cell, ss), cells)`.
+func resolverCovers(chain GlobalResolver, target GlobalResolver) bool {
+	if chain == target {
+		return true
+	}
+	fr, ok := chain.(*FallbackResolver)
+	if !ok {
+		return false
+	}
+	return resolverCovers(fr.Primary, target) || resolverCovers(fr.Secondary, target)
+}
+
 // BudgetEnforcer is implemented by effect contexts that support budget enforcement
 // This interface avoids import cycles between eval and effects packages
 type BudgetEnforcer interface {

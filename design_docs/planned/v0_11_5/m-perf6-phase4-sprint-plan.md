@@ -136,8 +136,9 @@ Evaluator/core changes are higher-risk than type-checker changes. Budgeting 2-3 
 - [x] Zero regressions on DocParse Alice (1.98s ≤ 2s target) / Moby Dick (2.75s ≤ 3s target)
 - [x] `make test` passes, `make verify-examples` 161/161 passes
 - [x] M1 A/B on `poi_many_merges.xlsx`: 425.45s → 408.78s (**-3.9%**) — modest but real
-- [ ] CHANGELOG v0.11.5 Performance entry (M1 shipped, M2 tbd)
-- [ ] Fresh CPU profile on post-M1 state to decide: M2 (resolver cache) vs pivot to xlsx_parser-level work
+- [x] Fresh CPU profile identified `FallbackResolver.ResolveValue` at 64.52% flat as the new bottleneck
+- [x] M2a implemented: `resolverCovers` chain-growth guard (5-LOC), brought 408.78s → **64.46s** (**6.5× from M2a alone, 6.6× total vs baseline**)
+- [x] CHANGELOG v0.11.5 Performance entries (M1 + M2a)
 - [ ] Message `e234c455` acked
 - [ ] v0.11.5 released
 

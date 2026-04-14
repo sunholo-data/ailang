@@ -361,6 +361,26 @@ Ran `ailang run -cpuprofile ... docparse/main.ail poi_many_merges.xlsx` with M1 
 
 Any one of these likely saves >50s on this workload. All three together could plausibly bring `poi_many_merges.xlsx` from 408s to the 250–300s range — still far from 1.5s (which requires xlsx_parser-level work), but a significant step.
 
+#### Phase 4a M2a Results (2026-04-14)
+
+Implemented option #1 (chain-growth guard) — a 5-line change adding `resolverCovers(chain, target)` helper that walks the existing chain once and skips the re-wrap if `target` is already reachable. Applied at all 3 function-application sites.
+
+| Metric | Pre-M1 | Post-M1 | Post-M2a | M2a delta | Total |
+|--------|--------|---------|----------|-----------|-------|
+| poi_many_merges.xlsx | 425.45s | 408.78s | **64.46s** | **-344s (6.3×)** | **6.6×** |
+| FallbackResolver.ResolveValue flat | — | 64.52% | <1% (out of top 15) | — | — |
+| Alice EPUB | — | 1.98s | 1.98s | 0 | meets target |
+| Moby Dick EPUB | — | 2.75s | 2.75s | 0 | meets target |
+
+The post-M2a hotspot distribution is dominated by GC (`gcDrain` 41% cum, `gcBgMarkWorker` 30% cum) and `listConcatImpl` (13.46% cum). At 64s total, these absolute costs are ~26s and ~9s respectively — much smaller than what M2a removed.
+
+**Original M2 design (per-closure resolution cache) is now deferred** — the chain-growth guard solved 99% of the FallbackResolver problem at 5% of the LOC cost. A cache would save further microseconds per lookup but the headroom is small.
+
+**Next obvious targets if more XLSX speedup is wanted:**
+- `listConcatImpl` 13% cum (~9s) — likely related to building the cell list before mapping
+- GC pressure 41% cum — would benefit from value pooling for primitive types or reduced allocation in `evalCore` dispatch
+- xlsx_parser-level: batched cell parsing, sharedStrings lookup memoization (unrelated to evaluator)
+
 ## Deferred Decisions
 
 The following are intentionally left open for the implementer:
