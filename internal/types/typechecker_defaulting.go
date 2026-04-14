@@ -211,17 +211,29 @@ func (tc *CoreTypeChecker) pickDefault(classes map[string]bool) (Type, error) {
 	// Handle defaulting based on remaining primary constraints
 	switch {
 	case len(primary) == 0:
-		// Only neutral constraints present (Eq, Ord, Show)
-		// Default to Int for Ord/Eq/Show when no numeric context
-		// This handles comparisons like `x > y` where x, y are already Int
-		if classes["Ord"] || classes["Eq"] {
-			return &TCon{Name: "int"}, nil
-		}
-		// For Show-only, also default to Int
-		if classes["Show"] {
-			return &TCon{Name: "int"}, nil
-		}
-		return nil, fmt.Errorf("ambiguous type requires annotation")
+		// Only neutral constraints present (Eq, Ord, Show).
+		//
+		// DO NOT default these to Int at generalization boundaries — doing so
+		// silently monomorphizes polymorphic comparison/equality lambdas.
+		//
+		// Example of what this used to break:
+		//   let max = \x. \y. if x > y then x else y in max(3.14)(2.71)
+		// Forcing α→Int inside the let would lower `>` to gt_Int, crashing at
+		// runtime with a Float argument.
+		//
+		// Instead, return (nil, nil) to signal "no default available". The
+		// caller (defaultAmbiguities) will skip this var, leaving the Ord/Eq
+		// constraint unsolved so let-generalization can quantify α and the
+		// call site can pick the right dictionary (gt_Int / gt_Float /
+		// gt_String). At the top level, defaultAmbiguitiesTopLevel only
+		// targets Num/Fractional (see isDefaultableClass), so Ord-only vars
+		// naturally stay polymorphic there too.
+		//
+		// Regression: M-POLY-ORD / v0.11.4. Bug introduced in 85d47647
+		// (v0.2.0 work), silently monomorphizing polymorphic comparison
+		// lambdas across Float / String. See
+		// design_docs/planned/v0_11_4/m-poly-ord-defaulting-regression.md.
+		return nil, nil
 
 	case len(primary) == 1 && primary[0] == "Num":
 		// Pure Num constraint (possibly with neutral constraints like Eq, Ord)

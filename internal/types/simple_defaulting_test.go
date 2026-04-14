@@ -4,6 +4,79 @@ import (
 	"testing"
 )
 
+// TestPickDefault_OrdOnly_NotDefaulted is a regression test for M-POLY-ORD M2.
+//
+// Before the fix, pickDefault({Ord}) returned TInt, silently monomorphizing
+// polymorphic comparison lambdas like `\x.\y. if x>y then x else y` to
+// `Int -> Int -> Int`, which crashed at runtime when called with Float or
+// String arguments.
+//
+// After the fix, pickDefault returns (nil, nil) for Ord-only / Eq-only /
+// Show-only constraint sets — no default, no error — so let-generalization
+// can quantify the type variable and the call site picks the right dictionary.
+func TestPickDefault_OrdOnly_NotDefaulted(t *testing.T) {
+	tc := NewCoreTypeChecker()
+	tc.instanceEnv = LoadBuiltinInstances()
+
+	cases := []struct {
+		name    string
+		classes map[string]bool
+	}{
+		{"ord only", map[string]bool{"Ord": true}},
+		{"eq only", map[string]bool{"Eq": true}},
+		{"show only", map[string]bool{"Show": true}},
+		{"ord and eq", map[string]bool{"Ord": true, "Eq": true}},
+		{"ord eq show", map[string]bool{"Ord": true, "Eq": true, "Show": true}},
+	}
+
+	for _, tc2 := range cases {
+		t.Run(tc2.name, func(t *testing.T) {
+			defaultType, err := tc.pickDefault(tc2.classes)
+			if err != nil {
+				t.Fatalf("pickDefault(%v) returned error %v; expected (nil, nil) so generalization can quantify", tc2.classes, err)
+			}
+			if defaultType != nil {
+				t.Errorf("pickDefault(%v) returned default %v; expected nil — defaulting Ord/Eq/Show monomorphizes polymorphic comparison lambdas", tc2.classes, defaultType)
+			}
+		})
+	}
+}
+
+// TestPickDefault_NumStillDefaults verifies that the Ord/Eq/Show fix did not
+// break Num/Fractional defaulting, which is required for numeric literals to
+// pick a concrete type at the top level.
+func TestPickDefault_NumStillDefaults(t *testing.T) {
+	tc := NewCoreTypeChecker()
+	tc.instanceEnv = LoadBuiltinInstances()
+
+	// Num alone → Int
+	defaultType, err := tc.pickDefault(map[string]bool{"Num": true})
+	if err != nil {
+		t.Fatalf("pickDefault({Num}) error: %v", err)
+	}
+	if defaultType == nil {
+		t.Fatal("pickDefault({Num}) returned nil; expected Int")
+	}
+
+	// Num + Ord → Int (Ord is neutral, Num drives the choice)
+	defaultType, err = tc.pickDefault(map[string]bool{"Num": true, "Ord": true})
+	if err != nil {
+		t.Fatalf("pickDefault({Num,Ord}) error: %v", err)
+	}
+	if defaultType == nil {
+		t.Fatal("pickDefault({Num,Ord}) returned nil; expected Int (Ord is neutral)")
+	}
+
+	// Fractional → Float
+	defaultType, err = tc.pickDefault(map[string]bool{"Fractional": true})
+	if err != nil {
+		t.Fatalf("pickDefault({Fractional}) error: %v", err)
+	}
+	if defaultType == nil {
+		t.Fatal("pickDefault({Fractional}) returned nil; expected Float")
+	}
+}
+
 // TestDefaulting_SimpleConstraints tests the core defaulting algorithm
 func TestDefaulting_SimpleConstraints(t *testing.T) {
 	tc := NewCoreTypeChecker()
