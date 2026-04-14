@@ -1,0 +1,29 @@
+-- short_circuit_and.ail — Regression test for msg ce6e078e.
+--
+-- Before v0.11.3, `&&` did NOT short-circuit: the RHS was always evaluated,
+-- so guarded string indexing like `i > 0 && charAt(s, i-1) == "\\"` would
+-- panic with "index -1 out of bounds" when i==0.
+--
+-- As of v0.11.3, `&&` desugars to `if a then b else false` at elaboration
+-- time, so the RHS is only evaluated when the LHS is true.
+
+module examples/short_circuit_and
+
+import std/io (println)
+import std/string (charAt)
+
+export func guarded(s: string, i: int) -> bool =
+  -- If && did NOT short-circuit, charAt(s, -1) would panic when i==0.
+  i > 0 && charAt(s, i - 1) == "x"
+
+export func main() -> () ! {IO} = {
+  -- i=0: LHS false, RHS must NOT execute. Expected: false, no panic.
+  let r0 = guarded("abc", 0);
+  -- i=1: LHS true, RHS executes. charAt("abc", 0) == "a", not "x". Expected: false.
+  let r1 = guarded("abc", 1);
+  -- i=1, s[0] == "x": LHS true, RHS true. Expected: true.
+  let r2 = guarded("xbc", 1);
+  println("guarded(\"abc\", 0) = " ++ (if r0 then "true" else "false"));
+  println("guarded(\"abc\", 1) = " ++ (if r1 then "true" else "false"));
+  println("guarded(\"xbc\", 1) = " ++ (if r2 then "true" else "false"))
+}

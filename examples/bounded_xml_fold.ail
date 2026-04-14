@@ -1,0 +1,21 @@
+-- bounded_xml_fold.ail — parseFoldStep: early-terminating XML fold.
+--
+-- Demonstrates extracting a bounded prefix from an XML stream without
+-- scanning the remainder. Handler returns FoldStep[a] = Continue(a) | Stop(a).
+
+module examples/bounded_xml_fold
+
+import std/io (println)
+import std/xml (parseFoldStep, getText)
+import std/iter (FoldStep, Continue, Stop)
+import std/result (Result)
+
+-- Fold first 2 <row> texts; stop without visiting row3.
+export func main() -> () ! {IO} = {
+  let xml = "<root><row>A</row><row>B</row><row>C</row></root>";
+  let r = parseFoldStep(xml, "row", 0, \count _node. if count + 1 >= 2 then Stop(count + 1) else Continue(count + 1));
+  match r {
+    Ok(n) => println("visited " ++ show(n) ++ " rows before Stop"),
+    Err(msg) => println("error: " ++ msg)
+  }
+}

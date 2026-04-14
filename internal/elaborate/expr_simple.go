@@ -114,6 +114,13 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 
 // normalizeBinaryOp handles binary operations with ANF transformation
 func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, error) {
+	// Short-circuit operators desugar to core.If so downstream phases
+	// (evaluator, bytecode VM, SMT) inherit laziness from If lowering.
+	// See design_docs/planned/v0_11_3/m-eval-short-circuit-bool.md.
+	if binop.Op == "&&" || binop.Op == "||" {
+		return e.normalizeShortCircuit(binop)
+	}
+
 	// Normalize operands to atomic values
 	left, leftBinds, err := e.normalizeToAtomic(binop.Left)
 	if err != nil {
@@ -152,10 +159,6 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 		op = core.OpGe
 	case "++":
 		op = core.OpConcat
-	case "&&":
-		op = core.OpAnd
-	case "||":
-		op = core.OpOr
 	case "&":
 		op = core.OpBitwiseAnd
 	case "^":
@@ -184,6 +187,56 @@ func (e *Elaborator) normalizeBinaryOp(binop *ast.BinaryOp) (core.CoreExpr, erro
 
 	// Wrap with let bindings from normalization
 	return e.wrapWithBindings(result, append(leftBinds, rightBinds...)), nil
+}
+
+// normalizeShortCircuit desugars `a && b` and `a || b` into core.If so that
+// the right operand is only evaluated when needed:
+//
+//	a && b  =>  if a then b else false
+//	a || b  =>  if a then true else b
+//
+// The LHS is normalized to atomic (ANF) so any complex subexpressions run
+// exactly once before the branch. The RHS is normalized *without* forcing it
+// to atomic — any let-bindings it would emit stay inside the lazy branch.
+func (e *Elaborator) normalizeShortCircuit(binop *ast.BinaryOp) (core.CoreExpr, error) {
+	left, leftBinds, err := e.normalizeToAtomic(binop.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	right, err := e.normalize(binop.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	node := e.makeNode(binop.Position())
+	boolLit := func(v bool) core.CoreExpr {
+		return &core.Lit{
+			CoreNode: e.makeNode(binop.Position()),
+			Kind:     core.BoolLit,
+			Value:    v,
+		}
+	}
+
+	var thenBranch, elseBranch core.CoreExpr
+	switch binop.Op {
+	case "&&":
+		thenBranch = right
+		elseBranch = boolLit(false)
+	case "||":
+		thenBranch = boolLit(true)
+		elseBranch = right
+	default:
+		return nil, fmt.Errorf("normalizeShortCircuit called with non-short-circuit op %q", binop.Op)
+	}
+
+	result := &core.If{
+		CoreNode: node,
+		Cond:     left,
+		Then:     thenBranch,
+		Else:     elseBranch,
+	}
+	return e.wrapWithBindings(result, leftBinds), nil
 }
 
 // normalizeUnaryOp handles unary operations

@@ -1,10 +1,12 @@
 # M-PERF6: Runtime Performance Hotspots
 
 **Status**: Planned
-**Target**: v0.10.x
+**Target**: v0.11.3 — v0.12.x
 **Priority**: P1 (Medium — improves DocParse and all I/O-heavy workloads)
-**Estimated**: 2-3 days
+**Estimated**: 2-3 days (Phases 1-3) + 1-2 days (Phase 4, closure hotspots)
 **Dependencies**: M-INCREMENTAL-TYPECHECK (implemented), M-PERF-DOCPARSE (implemented)
+**Additional Reports**:
+- ailang-parse msg `e234c455` (2026-04-10) — XLSX 10-50x slower than competitors; CPU profile identifies closure env cloning and FallbackResolver as top hotspots on tight-loop `map` over 140K cells. **See new Phase 4 below.**
 
 ## Axiom Compliance
 
@@ -197,6 +199,121 @@ go tool pprof -top -alloc_objects /tmp/docparse_alice.mem
 - Allocation profile before/after Phase 3
 - Wall clock: Alice EPUB, Moby Dick EPUB, 10MB DOCX
 
+### Phase 4: Closure / Environment Hotspots on Tight-Loop `map`
+
+**Added 2026-04-14 in response to msg `e234c455` (ailang-parse XLSX perf).**
+
+**Problem:** `map(\cell. parseXlsxCell(cell, ss), cells)` over 140K elements dominates
+XLSX parsing at 5.27s (vs Kreuzberg 82ms, Pandoc 1.68s — 10-50x slower). CPU profile
+on `poi_many_merges.xlsx` (829KB, 50K rows, 140K cells):
+
+| Function | Flat | Cum | Category |
+|----------|------|-----|----------|
+| `runtime.madvise` | — | 51.2% | GC thrashing |
+| `runtime.memclrNoHeapPointers` | — | 17.1% | Zeroing new allocations |
+| `runtime.mallocgc` | — | 21.7% | Allocation pressure |
+| `FallbackResolver.ResolveValue` | 11.5% | 14.8% | Per-cell name resolution |
+| `Environment.Clone` | 0.2% | 13.9% | Env clone per closure invocation |
+| `listMapImpl` | — | 13.1% | New cons cell per element |
+
+**Root cause:** The idiomatic `map(\cell. f(cell), cells)` pattern allocates:
+- 140K closure captures + **140K environment clones**
+- 140K new list nodes (cons cells)
+- ~1.4M total allocations → GC dominates at **51% of runtime**
+
+This is not an XLSX-specific problem — it affects **all tight-loop code** including
+Phases 1-3 DocParse benchmarks. Phase 4 is the highest-ROI remaining perf win after
+Phases 1-3 land.
+
+**Fix, in priority order (P0 → P3):**
+
+#### Phase 4a (P0): Pure-closure `Environment.Clone` elision
+
+**Hypothesis:** When `map`/`filter`/`fold`/`foldr` invokes a closure that is
+(a) pure (no effects declared) and (b) captures only immutable bindings, cloning the
+environment per call is wasted work. The captured bindings cannot be shadowed or
+mutated inside the body.
+
+**Strategy:**
+- At closure construction time, compute a `pureCapture` flag: effects-empty row type AND
+  only-immutable-capture (the Core elaborator already knows both)
+- In `evalCoreApp`'s closure path, skip `Environment.Clone` when `pureCapture == true`
+  AND no shadowing binding is introduced in the body
+- Fall back to cloning if the body does introduce a shadow (rare for one-liner lambdas)
+
+**Expected win:** ~14% cumulative CPU saved on tight-loop `map`. Likely larger in
+practice because reduced allocation pressure compounds with GC relief.
+
+**Files:**
+- `internal/eval/eval_core.go` — closure construction + application paths (~60 LOC)
+- `internal/core/core.go` — add `PureCapture bool` to `Lam` / `Closure` (~10 LOC)
+- `internal/elaborate/*` — set `PureCapture` at elaboration time (~30 LOC)
+- Tests: effect-trace must match unoptimized version exactly
+
+**Risk:** Medium. Environment-sharing bugs in closures are historically nasty. Mitigate
+with: (i) the `PureCapture` flag is opt-in; (ii) comprehensive property-based tests
+comparing cloned vs shared semantics on random pure programs.
+
+#### Phase 4b (P1): FallbackResolver fast path for local bindings
+
+**Hypothesis:** `FallbackResolver.ResolveValue` at 11.5% flat on hot loops suggests
+name resolution is going through a generic slow path even when the binding is known
+to be local at compile time. The elaborator already resolves most names; anything
+reaching `FallbackResolver` is either a builtin or a cross-module reference.
+
+**Strategy:**
+- Audit what reaches `FallbackResolver.ResolveValue` during `map(\x. f(x), xs)` — which
+  names are not pre-resolved?
+- Likely candidates: `f` (user-defined function from another module), builtin names
+- Add a monomorphized fast path: cache the resolved `Value` on first lookup, reuse
+  on subsequent invocations when the closure is called repeatedly
+
+**Files:**
+- `internal/eval/resolver.go` (or equivalent) — per-closure resolution cache (~50 LOC)
+
+**Risk:** Low. Cache is closure-scoped; invalidation is automatic (GC'd with closure).
+
+#### Phase 4c (P2): In-place list map for single-reference inputs
+
+**Hypothesis:** `listMapImpl` allocates a new cons cell per element. When the input
+list is single-referenced (not aliased), cons cells can be mutated in place.
+
+**Strategy:**
+- Reference-count or ownership-track `ListValue`; if refcount == 1 on entry to
+  `listMapImpl`, reuse head pointers
+- Fall back to allocation when refcount > 1
+
+**Note:** This is significantly more invasive than 4a/4b. Defer pending data from
+4a/4b — they may already close the gap to target perf.
+
+**Files:** `internal/eval/list.go`, `internal/builtins/list.go` (~100 LOC)
+
+**Risk:** High. Refcounting/ownership tracking in Go is unusual; easy to introduce
+aliasing bugs. Consider deferring unless 4a+4b are insufficient.
+
+#### Phase 4d (P3): `parseFoldChildren` builtin
+
+**Hypothesis:** Current XLSX code does `parseElements(xml, "row", 5000)` → materializes
+list of 5000 XmlNodes → `map` over the list. The intermediate list is pure waste.
+
+**Strategy:** Add `parseFoldChildren(xml, parentTag, childTag, init, f)` that folds
+directly over child elements of a parent without materializing the list.
+
+**Overlap with M-PARSEFOLD-EARLY-TERMINATION:** This is a natural extension of the
+sentinel-fold pattern. Consider implementing as part of that sprint if timing aligns.
+
+**Files:** `internal/builtins/xml.go` (~50 LOC), examples, tests
+
+**Risk:** Low. Straightforward extension of existing XML fold builtins.
+
+#### Phase 4 Success Criteria
+
+- [ ] `poi_many_merges.xlsx` (829KB, 50K rows): ≤1.5s (from 5.27s, ~3.5x improvement)
+- [ ] CPU profile on same workload: `madvise` < 20% (from 51%), `Environment.Clone` cum < 3% (from 13.9%)
+- [ ] No regression on DocParse benchmarks (Alice EPUB, Moby Dick, 10MB DOCX)
+- [ ] `make test`, `make verify-examples` pass
+- [ ] Property test: pure-closure elision produces identical traces to non-elided version on 1000 random inputs
+
 ## Deferred Decisions
 
 The following are intentionally left open for the implementer:
@@ -267,4 +384,4 @@ Top by cumulative time:
 ---
 
 **Document created**: 2026-04-10
-**Last updated**: 2026-04-10
+**Last updated**: 2026-04-14 (added Phase 4: closure/env hotspots from XLSX perf msg e234c455)

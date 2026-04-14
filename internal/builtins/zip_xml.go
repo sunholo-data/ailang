@@ -22,6 +22,118 @@ import (
 
 func init() {
 	registerZipXmlScanFold()
+	registerZipXmlScanFoldStep()
+}
+
+// ============================================================================
+// _zip_xml_scanFoldStep: Streaming ZIP+XML fold with early termination
+// ============================================================================
+
+func registerZipXmlScanFoldStep() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/zip",
+		Name:    "_zip_xml_scanFoldStep",
+		NumArgs: 5,
+		IsPure:  false,
+		Effect:  "FS",
+		Type:    makeZipXmlScanFoldStepType,
+		Impl:    zipXmlScanFoldStepImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Streaming ZIP+XML fold with bounded prefix (handler returns FoldStep[a])",
+			LongDesc:    "Like _zip_xml_scanFold, but the handler returns FoldStep[a] = Continue(a) | Stop(a). Returning Stop(acc') closes the stream and halts without reading the rest of the entry — essential for extracting a small prefix from a large XLSX sheet.",
+			Params: []ParamDoc{
+				{Name: "zipPath", Description: "Path to the ZIP archive"},
+				{Name: "entryName", Description: "Name of the XML entry within the archive"},
+				{Name: "tagName", Description: "XML tag name to match"},
+				{Name: "init", Description: "Initial accumulator value"},
+				{Name: "handler", Description: "Fold function: (acc, XmlNode) -> FoldStep[acc]"},
+			},
+			Returns:   "Result[a, string] - Ok(final accumulator) or Err(message)",
+			SeeAlso:   []string{"_zip_xml_scanFold", "_xml_parseFoldStep"},
+			Since:     "v0.11.3",
+			Stability: StabilityStable,
+			Tags:      []string{"zip", "xml", "fold", "streaming", "bounded"},
+			Category:  "zip",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _zip_xml_scanFoldStep: %v", err))
+	}
+}
+
+func makeZipXmlScanFoldStepType() types.Type {
+	T := types.NewBuilder()
+	a := T.Var("a")
+	xmlNodeType := T.Con("XmlNode")
+	stepType := T.App("FoldStep", a)
+	fn := T.Func(a, xmlNodeType).Returns(stepType).Build()
+	return T.Func(T.String(), T.String(), T.String(), a, fn).Returns(
+		T.App("Result", a, T.String()),
+	).Effects("FS")
+}
+
+func zipXmlScanFoldStepImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	pathVal, ok := args[0].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_xml_scanFoldStep: expected String for zipPath, got %T", args[0])
+	}
+	entryVal, ok := args[1].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_xml_scanFoldStep: expected String for entryName, got %T", args[1])
+	}
+	tagVal, ok := args[2].(*eval.StringValue)
+	if !ok {
+		return nil, fmt.Errorf("_zip_xml_scanFoldStep: expected String for tagName, got %T", args[2])
+	}
+	acc := args[3]
+	handler := args[4]
+
+	if ctx == nil || ctx.FnCallerN == nil {
+		return nil, fmt.Errorf("_zip_xml_scanFoldStep: FnCallerN not set (evaluator not wired)")
+	}
+
+	entryName := entryVal.Value
+	if strings.Contains(entryName, "..") {
+		return zipMakeErr(fmt.Sprintf("path traversal rejected: %s", entryName)), nil
+	}
+
+	zipPath := pathVal.Value
+	if ctx.Env.Sandbox != "" {
+		zipPath = filepath.Join(ctx.Env.Sandbox, zipPath)
+	}
+
+	archive, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return zipMakeErr(fmt.Sprintf("cannot open ZIP: %v", err)), nil
+	}
+	defer archive.Close()
+
+	var entry *zip.File
+	for _, f := range archive.File {
+		if f.Name == entryName {
+			entry = f
+			break
+		}
+	}
+	if entry == nil {
+		return zipMakeErr(fmt.Sprintf("entry not found: %s", entryName)), nil
+	}
+
+	rc, err := entry.Open()
+	if err != nil {
+		return zipMakeErr(fmt.Sprintf("cannot read entry: %v", err)), nil
+	}
+	defer rc.Close()
+
+	decoder := xml.NewDecoder(rc)
+
+	finalAcc, _, foldErr := scanForElementsFoldStepInner(decoder, tagVal.Value, acc, func(node eval.Value, currentAcc eval.Value) (eval.Value, error) {
+		return ctx.FnCallerN(handler, []eval.Value{currentAcc, node})
+	})
+	if foldErr != nil {
+		return zipMakeErr(fmt.Sprintf("fold handler error: %v", foldErr)), nil
+	}
+	return zipMakeOk(finalAcc), nil
 }
 
 // ============================================================================

@@ -217,6 +217,7 @@ _xml_getText : XmlNode -> string
 _xml_parse : string -> Result[XmlNode, string]
 _xml_parseElements : (string, string, int) -> Result[list[XmlNode], string]
 _xml_parseFold : (string, string, a, (a, XmlNode) -> a) -> Result[a, string]
+_xml_parseFoldStep : (string, string, a, (a, XmlNode) -> FoldStep[a]) -> Result[a, string]
 _xml_parseWithLimit : (string, int) -> Result[XmlNode, string]
 _xml_serialize : XmlNode -> string
 _xml_serializeWithDecl : XmlNode -> string
@@ -226,6 +227,7 @@ _zip_listEntries : string -> Result[list[string], string] ! {FS}
 _zip_readEntry : (string, string) -> Result[string, string] ! {FS}
 _zip_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
 _zip_xml_scanFold : (string, string, string, a, (a, XmlNode) -> a) -> Result[a, string] ! {FS}
+_zip_xml_scanFoldStep : (string, string, string, a, (a, XmlNode) -> FoldStep[a]) -> Result[a, string] ! {FS}
 add_Float : (float, float) -> float
 add_Int : (int, int) -> int
 and_Bool : (bool, bool) -> bool

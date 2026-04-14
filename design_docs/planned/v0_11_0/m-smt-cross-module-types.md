@@ -7,6 +7,9 @@
 **Dependencies**: M-SMT-FRAGMENT-EXPANSION (Phase A-E, complete), M-SMT-V2 (complete)
 **Parent**: [design_docs/implemented/v0_8_0/m-smt-fragment-expansion.md](design_docs/implemented/v0_8_0/m-smt-fragment-expansion.md)
 **Bug Report**: Regression from commit 8216408c (cross-module ADT discovery)
+**Additional Reports**:
+- ailang-parse msg `12839c7e` (2026-03-19) — field-name collision (Issue 6)
+- ailang-parse msg `ce6e078e` (2026-04-14) — tex_parser.ail: 18/19 `ensures` clauses SKIPPED with "cross-module types not yet supported (Block ADT)" or "string operations not encodable (trim/toLower)". Confirms real-world DX impact: headline Z3 verification story does not apply to realistic multi-module parser code. Also surfaced a new gap — see **Issue 7** below.
 
 ## Axiom Compliance
 
@@ -134,6 +137,32 @@ When two record types in the same module share a field name (e.g., `applicable` 
 This is perfectly valid AILANG — same-named fields on different record types is standard. The fix is to qualify field accessor names with the record type name: `CheckResult_applicable` and `MetaAccum_applicable`.
 
 **Confirmed impact**: `evalComputeScore` in docparse `eval.ail` fails due to this. Workaround: rename one field (e.g., `MetaAccum.applicableCount`), but the encoder should handle this.
+
+### Issue 7: String Builtins Not Encodable (`trim`, `toLower`, etc.)
+
+**Severity**: Medium (blocks contracts on all text-processing code)
+
+**Bug report**: ailang-parse msg `ce6e078e` (2026-04-14)
+
+Functions whose `ensures` clauses reference `trim`, `toLower`, `toUpper`, `split`,
+`charAt`, or similar `std/string` builtins are currently reported as SKIPPED with
+"string operations not encodable" rather than verified or failed.
+
+This is orthogonal to the cross-module ADT work but was surfaced by the same
+real-world usage (tex_parser.ail). Text-processing code — which is a large fraction of
+AILANG programs writing parsers/transformers — cannot currently benefit from Z3
+verification.
+
+**Scope clarification for this doc:** this issue is acknowledged here for visibility
+but the fix belongs in a separate design doc (candidate: `m-smt-string-theory.md`
+under v0.12.x). Z3's SMT-LIB theory of strings supports concat, substring, length,
+indexing — enough to encode `charAt`, `length`, `substring`, and `++`. `trim`/`toLower`
+require custom axioms or conservative over-approximation (`trim(s).length ≤ s.length`).
+
+**Tracking:** Add a `@skip-reason` tag surfacing *which* builtin is unencodable, so
+users can narrow contracts or refactor rather than guessing. This is a small,
+independent improvement and SHOULD ship as part of this sprint's documentation
+phase.
 
 **Impact:**
 - Any project using cross-module record type aliases and ADTs cannot verify contracts
@@ -480,4 +509,19 @@ The following are intentionally left open for the implementer:
 ---
 
 **Document created**: 2026-03-12
-**Last updated**: 2026-03-12
+**Last updated**: 2026-04-14 (added Issue 7: string builtins not encodable; referenced msg ce6e078e)
+
+## Documentation Action (interim, before full fix)
+
+Until Phases 2–3 ship, **users need clear visibility into what Z3 *can* and *cannot*
+verify today**, because the headline verification story currently over-promises relative
+to what works on realistic multi-module code.
+
+**Required (can ship immediately, ~1 hour):**
+- [ ] Update `docs/docs/guides/verification/` with a "Current Limitations" section citing:
+  cross-module ADT types, recursive ADTs, string builtins (trim/toLower), field
+  collisions — each with a one-line example and expected SKIP message
+- [ ] `ailang verify --verbose` must print the exact reason for each SKIP (which type,
+  which builtin) — not just "not yet supported"
+- [ ] Teaching prompt / `ailang prompt` should mention the limitation when the user
+  asks about contracts on parser/string-processing code

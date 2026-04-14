@@ -19,6 +19,7 @@ module std/xml
 
 import std/result (Result)
 import std/option (Option)
+import std/iter (FoldStep, Continue, Stop)
 
 -- XmlNode ADT — represents an XML document tree.
 -- Constructors match the Go builtins in internal/builtins/xml.go.
@@ -75,6 +76,16 @@ export pure func parseElements(xml: string, tag: string, maxResults: int) -> Res
 -- COST MODEL:
 --   parseFold(xml, tag, init, f)  O(n) scan, O(1) memory per element
 export pure func parseFold[a](xml: string, tag: string, init: a, f: (a, XmlNode) -> a) -> Result[a, string] = _xml_parseFold(xml, tag, init, f)
+
+-- Bounded variant of parseFold: handler returns FoldStep[a] = Continue(a) | Stop(a).
+-- Stop(acc') halts the scan immediately without parsing the rest of the input.
+-- Critical when extracting a bounded prefix from a large XML document (e.g.
+-- "first 5000 rows of a 50K-row sharedStrings.xml").
+--
+-- COST MODEL:
+--   parseFoldStep(xml, tag, init, f)  O(prefix), early-terminating
+export pure func parseFoldStep[a](xml: string, tag: string, init: a, f: (a, XmlNode) -> FoldStep[a]) -> Result[a, string] =
+  _xml_parseFoldStep(xml, tag, init, f)
 
 -- Parse with node count limit — returns Err if tree exceeds maxNodes
 -- Safety valve for large documents that might exhaust memory

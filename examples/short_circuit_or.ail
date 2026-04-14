@@ -1,0 +1,24 @@
+-- short_circuit_or.ail — Dual of short_circuit_and.ail.
+--
+-- `||` desugars to `if a then true else b`, so the RHS is only evaluated
+-- when the LHS is false. This lets us use `||` as a safe fallback guard
+-- without triggering the expensive/dangerous branch unnecessarily.
+
+module examples/short_circuit_or
+
+import std/io (println)
+import std/string (charAt)
+
+-- Returns true if s is empty, OR if its first char is "x".
+-- If `||` did not short-circuit, charAt("", 0) would panic.
+export func emptyOrStartsWithX(s: string) -> bool =
+  s == "" || charAt(s, 0) == "x"
+
+export func main() -> () ! {IO} = {
+  let r0 = emptyOrStartsWithX("");      -- LHS true, RHS skipped → true
+  let r1 = emptyOrStartsWithX("xyz");   -- LHS false, RHS evaluated → true
+  let r2 = emptyOrStartsWithX("abc");   -- LHS false, RHS evaluated → false
+  println("emptyOrStartsWithX(\"\") = " ++ (if r0 then "true" else "false"));
+  println("emptyOrStartsWithX(\"xyz\") = " ++ (if r1 then "true" else "false"));
+  println("emptyOrStartsWithX(\"abc\") = " ++ (if r2 then "true" else "false"))
+}

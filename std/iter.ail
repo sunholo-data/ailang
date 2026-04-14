@@ -1,0 +1,39 @@
+-- std/iter — Iteration control primitives.
+--
+-- FoldStep[a] lets handlers passed to bounded folds signal early termination.
+-- A handler returning Stop(acc') ends the fold immediately with acc'; a handler
+-- returning Continue(acc') updates the accumulator and keeps going.
+--
+-- Used by parseFoldStep / zipXmlScanFoldStep in std/xml and std/zip for
+-- bounded-prefix scans over large XML streams (e.g. "extract first N rows
+-- out of 50K without scanning the rest").
+--
+-- Usage:
+--   import std/iter (FoldStep, Continue, Stop)
+--   import std/xml (parseFoldStep)
+--   parseFoldStep(xml, "row", [], \acc, node.
+--     if length(acc) >= 5000 then Stop(acc) else Continue(acc ++ [getText(node)])
+--   )
+
+module std/iter
+
+-- Signal for bounded fold handlers.
+-- Continue(a): keep folding with the new accumulator
+-- Stop(a):     end the fold immediately, returning this accumulator
+export type FoldStep[a] =
+  | Continue(a)
+  | Stop(a)
+
+-- isStop: true if the FoldStep is Stop(_).
+export pure func isStop[a](s: FoldStep[a]) -> bool =
+  match s {
+    Stop(_)     => true,
+    Continue(_) => false
+  }
+
+-- fromFoldStep: extract the inner accumulator regardless of constructor.
+export pure func fromFoldStep[a](s: FoldStep[a]) -> a =
+  match s {
+    Stop(x)     => x,
+    Continue(x) => x
+  }

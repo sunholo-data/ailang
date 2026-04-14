@@ -401,8 +401,15 @@ func (e *CoreEvaluator) applyBinOp(op string, left, right Value) (Value, error) 
 		return &StringValue{Value: lStr.Value + rStr.Value}, nil
 	}
 
-	// Special case: boolean operators don't use type classes
+	// Special case: boolean operators don't use type classes.
+	// As of v0.11.3, && and || are desugared to core.If at elaboration time
+	// (see internal/elaborate/expr_simple.go normalizeShortCircuit), so this
+	// branch should be unreachable. DEBUG_STRICT=1 panics to catch regressions;
+	// otherwise we fall back to eager evaluation for backward compatibility.
 	if op == "&&" || op == "||" {
+		if os.Getenv("DEBUG_STRICT") == "1" {
+			panic(fmt.Sprintf("applyBinOp reached %q branch — short-circuit desugar in elaborate should have emitted core.If. Regression?", op))
+		}
 		lBool, lOk := left.(*BoolValue)
 		rBool, rOk := right.(*BoolValue)
 		if !lOk || !rOk {
