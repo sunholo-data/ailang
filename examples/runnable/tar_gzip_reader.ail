@@ -1,0 +1,42 @@
+-- std/tar + std/gzip demo: arxiv-style .tar.gz bundle walkthrough
+--
+-- Demonstrates:
+--   1. readFromGzip — pull one entry from a .tar.gz without a temp file
+--   2. extractAll   — extract a whole .tar archive into a sandbox dir
+--   3. Tarbomb defence — extractAll refuses ../ entries
+--
+-- Requires: IO + FS capabilities. Expects a fixture at /tmp/tar_smoke/paper.tar.gz
+-- and /tmp/tar_smoke/evil.tar to exist. The test harness builds these from Go.
+--
+-- Usage: ailang run -caps IO,FS --entry main examples/runnable/tar_gzip_reader.ail
+
+module examples/runnable/tar_gzip_reader
+
+import std/io (println)
+import std/result (Result)
+import std/tar (readFromGzip, extractAll)
+
+export func main() -> int ! {IO, FS} {
+  -- Demo 1: read main.tex directly from a .tar.gz source bundle
+  println("== readFromGzip(paper.tar.gz, main.tex) ==");
+  let read_result = readFromGzip("/tmp/tar_smoke/paper.tar.gz", "main.tex") in
+  let _ = match read_result {
+    Ok(tex) => println(tex),
+    Err(msg) => println("read failed: " ++ msg)
+  } in
+
+  -- Demo 2: tarbomb defence — extractAll refuses "../" entries
+  println("");
+  println("== extractAll(evil.tar) — expect rejection ==");
+  let extract_result = extractAll("/tmp/tar_smoke/evil.tar", "/tmp/tar_smoke/extracted") in
+  match extract_result {
+    Ok(_) => {
+      println("SECURITY FAILURE: tarbomb was extracted");
+      1
+    },
+    Err(msg) => {
+      println("tarbomb blocked: " ++ msg);
+      0
+    }
+  }
+}

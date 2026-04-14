@@ -75,6 +75,9 @@ _game_delta_time : () -> float ! {Clock}
 _game_frame_count : () -> int ! {Clock}
 _game_total_time : () -> float ! {Clock}
 _get_header : (a, string) -> Option[string]
+_gzip_compress : (string, int) -> Result[string, string]
+_gzip_decompress : string -> Result[string, string]
+_gzip_decompressFile : string -> Result[string, string] ! {FS}
 _hamming_distance : (int, int) -> int
 _has_header : (a, string) -> bool
 _int_to_float : int -> float
@@ -198,6 +201,12 @@ _stringToInt : string -> Option[int]
 _string_floatToStr : float -> string
 _string_intToStr : int -> string
 _string_reverse : string -> string
+_tar_extractAll : (string, string) -> Result[list[string], string] ! {FS}
+_tar_listEntries : string -> Result[list[{isDir: bool, name: string, size: int}], string] ! {FS}
+_tar_readEntry : (string, string) -> Result[string, string] ! {FS}
+_tar_readEntryBytes : (string, string) -> Result[string, string] ! {FS}
+_tar_readFromGzip : (string, string) -> Result[string, string] ! {FS}
+_tar_readFromGzipBytes : (string, string) -> Result[string, string] ! {FS}
 _trace_check : string -> bool
 _trace_event : (string, string) -> () ! {Trace}
 _trace_span_end : string -> () ! {Trace}

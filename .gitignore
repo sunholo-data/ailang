@@ -67,3 +67,4 @@ ui/.env.local
 code-harness-skills/
 # Stray compiled binary (build output lands in repo root)
 /registry-validator
+.claude/scheduled_tasks.lock

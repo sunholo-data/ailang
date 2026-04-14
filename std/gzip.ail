@@ -1,0 +1,33 @@
+-- std/gzip - gzip compression and decompression
+--
+-- All binary data crosses the AILANG boundary as base64-encoded strings,
+-- mirroring std/zip.readEntryBytes. Use std/bytes primitives to convert
+-- between base64 strings, raw bytes, and UTF-8 text.
+--
+-- Security: decompressed output is capped at 100MB (matches std/zip).
+--
+-- Usage:
+--   import std/gzip (decompress, compress, decompressFile)
+--   match decompressFile("data.txt.gz") {
+--     Ok(b64) => println(b64),
+--     Err(msg) => println(msg)
+--   }
+
+module std/gzip
+
+import std/result (Result)
+
+-- Decompress a base64-encoded gzip stream.
+-- Returns Ok(base64 of decompressed bytes) or Err(message).
+-- Rejects streams whose decompressed size exceeds 100MB.
+export pure func decompress(input: string) -> Result[string, string] = _gzip_decompress(input)
+
+-- Gzip-compress base64-encoded bytes at the given level.
+-- Level: 0 (no compression) to 9 (best). Use -1 for default (level 6).
+-- Returns Ok(base64 of gzipped bytes) or Err(message).
+export pure func compress(input: string, level: int) -> Result[string, string] = _gzip_compress(input, level)
+
+-- Decompress a .gz file from disk, returning its contents as a base64 string.
+-- @requires FS capability
+-- @sandbox Respects AILANG_FS_SANDBOX
+export func decompressFile(path: string) -> Result[string, string] ! {FS} = _gzip_decompressFile(path)
