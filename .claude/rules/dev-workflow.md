@@ -35,7 +35,10 @@ make check-file-sizes     # Fails if >800 lines
 | `DEBUG_CODEGEN=1` | Record type fallback warnings |
 | `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling |
 | `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing with goroutine IDs |
-| `AILANG_NO_TRACE=1` | Disable all tracing (~2x faster, no observability) |
+| `AILANG_TRACE=off\|standard\|deep` | Tracing tier (v0.12.0+). Default: `standard`. `deep` = per-call spans (~2x overhead) |
+| `AILANG_TRACE_MAX_SPANS=N` | Per-trace span budget (default 500). Overflow emits `trace.truncated` rollup |
+| `AILANG_NO_TRACE=1` | Back-compat alias for `AILANG_TRACE=off` |
+| `--trace-tier off\|standard\|deep` | Tracing tier CLI flag (overrides env) |
 | `--timeout 30s` | Compilation timeout with stack dump (CLI flag) |
 | `--debug-compile` | Phase timing breakdown (CLI flag) |
 | `-cpuprofile FILE` | Write Go CPU profile (CLI flag) |

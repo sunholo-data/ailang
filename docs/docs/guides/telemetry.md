@@ -104,11 +104,46 @@ ailang run: examples/runnable/factorial.ail (2.065ms)
   └─ compile.modules (859µs)
 ```
 
+## Tracing tiers
+
+As of v0.12.0 (`M-OBS-TRACE-TRIAGE`), tracing has three tiers. The default is
+`standard`, which emits module/top-level-effect/contract/budget/error spans
+but **not** per-call `eval.function.*` or nested `eval.effect.*` spans. Per-call
+tracing is opt-in via `deep`.
+
+| Tier | Emits | When to use |
+|---|---|---|
+| `off` | Nothing (same as `AILANG_NO_TRACE=1`) | CI, perf benchmarks |
+| `standard` ✅ | `eval.module.*`, top-level `eval.effect.*` (Depth≤1), `compile.*`, `coordinator.*`, `effect.*`, task/chain-linked spans | Normal dev with observability on |
+| `deep` | standard + per-call `eval.function.*` + nested `eval.effect.*` (args/results serialized in full) | Profiling hot paths, AI training data capture |
+
+Precedence: `--trace-tier` CLI flag > `AILANG_TRACE` env > `AILANG_NO_TRACE=1` legacy alias > default (`standard`).
+
+```bash
+# Default — standard tier, no per-call spans
+ailang run --caps IO program.ail
+
+# Per-call tracing for this one run (CLI flag wins)
+ailang run --caps IO --trace-tier deep program.ail
+
+# Per-call tracing for the whole shell
+export AILANG_TRACE=deep
+
+# Disable tracing entirely (legacy)
+AILANG_NO_TRACE=1 ailang run --caps IO program.ail
+
+# Per-trace span budget (default 500). Exceeding emits one
+# `trace.truncated` rollup span with dropped_count attribute.
+AILANG_TRACE_MAX_SPANS=1000 ailang run --caps IO program.ail
+```
+
 ## Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `AILANG_NO_TRACE=1` | **Disable all tracing** (overrides everything below) | `1` |
+| `AILANG_TRACE` | Tracing tier (`off`, `standard`, `deep`) | `deep` |
+| `AILANG_TRACE_MAX_SPANS` | Per-trace span budget (0 = unlimited) | `500` |
+| `AILANG_NO_TRACE=1` | Legacy alias for `AILANG_TRACE=off` | `1` |
 | `GOOGLE_CLOUD_PROJECT` | GCP project for Cloud Trace | `my-project` |
 | `OTLP_GOOGLE_CLOUD_PROJECT` | Telemetry-specific GCP project (takes precedence) | `telemetry-project` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | `http://localhost:4318` |

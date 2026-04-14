@@ -1,6 +1,7 @@
 ---
-status: Planned
-target: v0.11.4
+status: IMPLEMENTED
+target: v0.12.0
+implemented: 2026-04-14
 priority: P1
 estimated: 1-2 days (~300 LOC + docs)
 dependencies: None

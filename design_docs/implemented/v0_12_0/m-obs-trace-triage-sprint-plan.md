@@ -1,9 +1,10 @@
 ---
-status: Proposed
+status: IMPLEMENTED
 sprint_id: M-OBS-TRACE-TRIAGE
-target: v0.11.5 (or v0.11.4 if still open)
+target: v0.12.0
+implemented: 2026-04-14
 estimated: 2 days (~340 LOC + docs)
-design_doc: design_docs/planned/v0_11_4/m-obs-trace-triage.md
+design_doc: design_docs/implemented/v0_12_0/m-obs-trace-triage.md
 dependencies: None
 risk_level: low
 ---

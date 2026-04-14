@@ -162,15 +162,18 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `--debug-compile` | Show compilation phases/timing (see also [Telemetry](/docs/guides/telemetry)) | Performance issues |
 | `--debug-types` | Type inference debug output | Type mismatch errors |
 | `--debug-types --node N` | Filter to specific node ID | Investigating specific node |
-| `--trace` | Execution tracing | Runtime debugging |
+| `--trace` | Type-defaulting tracing | Type inference debugging |
+| `--trace-tier` | Tracing tier: `off`, `standard`, `deep` (v0.12.0+) | Observability control |
 | `-cpuprofile FILE` | Write Go CPU profile | Performance profiling |
 | `-memprofile FILE` | Write Go memory allocation profile | Allocation profiling |
 
 :::tip Performance
-Tracing adds ~2x overhead on average and up to ~6× on data-intensive list
-pipelines. For production workloads — and **always** for benchmark
-measurements — disable with `AILANG_NO_TRACE=1`.
-See [Telemetry: Performance Trade-off](/docs/guides/telemetry#performance-vs-observability-trade-off).
+Function-level tracing (tier `deep`) adds ~2x overhead on average and up to ~6×
+on data-intensive list pipelines. As of v0.12.0 the **default is `standard`**,
+which skips per-call spans. For benchmark measurements, disable tracing entirely
+with `AILANG_NO_TRACE=1` (legacy) or `--trace-tier off`. Opt into per-call spans
+explicitly with `--trace-tier deep` or `AILANG_TRACE=deep` when you need them.
+See [Telemetry: Tracing tiers](/docs/guides/telemetry#tracing-tiers).
 :::
 
 ### Latency Budget Workloads
