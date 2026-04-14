@@ -50,6 +50,32 @@ func TestModuleCacheKey_DepOrderIndependent(t *testing.T) {
 	}
 }
 
+// TestModuleCacheKey_CommitChange verifies that changing the compiler-identity
+// component (e.g. the build commit) invalidates the cache key.
+//
+// Regression test for M-POLY-ORD M1: callers used to pass the format constant
+// "v1" as compilerVersion, so rebuilding ailang did not invalidate cache.
+// Now pipeline_module.go threads internal/version.Commit here.
+func TestModuleCacheKey_CommitChange(t *testing.T) {
+	src := "let max = \\x.\\y. if x > y then x else y"
+	deps := map[string]string{"std/list": "abc123"}
+
+	keyOldCommit := ModuleCacheKey("commit-aaaaaa", src, deps)
+	keyNewCommit := ModuleCacheKey("commit-bbbbbb", src, deps)
+
+	if keyOldCommit == keyNewCommit {
+		t.Errorf("changing compiler commit must invalidate cache key: got %s == %s",
+			keyOldCommit, keyNewCommit)
+	}
+
+	// And the same commit should be stable.
+	keyOldCommit2 := ModuleCacheKey("commit-aaaaaa", src, deps)
+	if keyOldCommit != keyOldCommit2 {
+		t.Errorf("same commit should produce same key: got %s != %s",
+			keyOldCommit, keyOldCommit2)
+	}
+}
+
 func TestModuleCacheKey_NoDeps(t *testing.T) {
 	key := ModuleCacheKey("v0.9.3", "let x = 1", nil)
 	if key == "" {

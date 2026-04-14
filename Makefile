@@ -39,7 +39,7 @@ GOFMT := $(GOCMD) fmt
 GOVET := $(GOCMD) vet
 
 # Build flags
-LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
+LDFLAGS := -ldflags "-X github.com/sunholo/ailang/internal/version.Version=$(VERSION) -X github.com/sunholo/ailang/internal/version.Commit=$(COMMIT) -X github.com/sunholo/ailang/internal/version.BuildTime=$(BUILD_TIME)"
 
 # Colors and symbols (for pretty output)
 GREEN := \033[0;32m

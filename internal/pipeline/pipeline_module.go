@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo/ailang/internal/loader"
 	"github.com/sunholo/ailang/internal/telemetry"
 	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo/ailang/internal/version"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -216,7 +217,11 @@ func runModuleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 			if srcBytes, err := os.ReadFile(srcPath); err == nil {
 				sourceContent = string(srcBytes)
 			}
-			moduleCacheKey = ModuleCacheKey(cacheKeyVersion, sourceContent, depDigests)
+			// Use build commit (from internal/version) as the compiler-identity component
+			// of the cache key. Rebuilding `ailang` at a new commit invalidates cache,
+			// so bugfixes to elaboration / type-checking / op-lowering take effect without
+			// a manual cache nuke. The source hash and dep digests still catch edits.
+			moduleCacheKey = ModuleCacheKey(version.Commit, sourceContent, depDigests)
 			if entry, ok := cacheStore.Lookup(string(modID), moduleCacheKey); ok {
 				cacheHits++
 				// M-INCREMENTAL-TYPECHECK: Try to load cached artifacts and skip compilation

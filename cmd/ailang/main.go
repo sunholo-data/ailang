@@ -13,16 +13,18 @@ import (
 	"github.com/sunholo/ailang/internal/observatory"
 	"github.com/sunholo/ailang/internal/prompt"
 	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo/ailang/internal/version"
 )
 
 //go:embed all:prompts
 var embeddedPrompts embed.FS
 
+// Version, Commit, and BuildTime are aliased from internal/version for
+// backward compatibility with existing callers in this package.
 var (
-	// Version info - set by ldflags during build
-	Version   = "dev"
-	Commit    = "unknown"
-	BuildTime = "unknown"
+	Version   = version.Version
+	Commit    = version.Commit
+	BuildTime = version.BuildTime
 
 	// Color output
 	green   = color.New(color.FgGreen).SprintFunc()

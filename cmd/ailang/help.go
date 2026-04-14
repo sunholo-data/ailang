@@ -59,7 +59,7 @@ func checkStaleBinary() {
 
 func printVersion() {
 	fmt.Printf("AILANG %s\n", bold(Version))
-	if Commit != "unknown" {
+	if Commit != "" && Commit != "dev" && Commit != "unknown" {
 		// Show short hash on main line, full hash on next
 		short := Commit
 		if len(Commit) > 7 {

@@ -14,7 +14,11 @@ const cacheKeyVersion = "v1"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:
-//   - Compiler cache version (invalidates on format changes)
+//   - Cache format version (cacheKeyVersion, bumped on format changes)
+//   - Compiler identity (typically the build commit from internal/version.Commit) —
+//     this invalidates cache on every rebuild, so bugfixes to elaboration,
+//     type-checking, or op-lowering take effect without manual cache nukes.
+//     For tests, any stable string works.
 //   - Module source content hash
 //   - Sorted dependency interface digests (invalidates when any dep changes)
 //
