@@ -518,7 +518,7 @@
     },
     "v0.11.4": {
       "file": "prompts/v0.11.4.md",
-      "hash": "32b87ec74be06723505f69c4937bc8b280940dcde085872a94f554fe689212da",
+      "hash": "bf4846759323f89fd8a19717fd9322c501110195b84ccfde7fb56749830e5acd",
       "description": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas",
       "created": "2026-04-14",
       "tags": [
