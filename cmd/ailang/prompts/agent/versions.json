@@ -13,7 +13,7 @@
     },
     "v0.9.0": {
       "file": "prompts/agent/v0.9.0.md",
-      "hash": "4b8102bf390c4e4b581acc34a9747a386935e258550936737bf88b67a3765f3c",
+      "hash": "11aa0f566d6f60b2012a5c3221dfde23a113f58cb62c11500c8d9c1659dbb000",
       "description": "Fix Stream capability: correct function names (transmit, onEvent, selectEvents, asyncExecProcess)",
       "created": "2026-03-08",
       "tags": [
