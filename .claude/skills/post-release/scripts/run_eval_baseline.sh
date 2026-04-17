@@ -3,9 +3,10 @@
 
 set -euo pipefail
 
-# Agent benchmarks list (46 benchmarks as of v0.4.8)
+# Agent benchmarks list (46 benchmarks as of v0.12.0)
 # This MUST be kept in sync with benchmarks/ directory
-AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_person,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_traffic_light,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
+# Apr 2026: fixed records_person→records_book, state_machine_traffic_light→state_machine_elevator
+AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_book,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_elevator,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
 
 # Validation mode: check configuration without running full eval
 if [[ "${1:-}" == "--validate" ]]; then

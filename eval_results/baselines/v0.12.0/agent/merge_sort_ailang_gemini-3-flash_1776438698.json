@@ -1,0 +1,33 @@
+{
+  "id": "merge_sort",
+  "lang": "ailang",
+  "model": "gemini-3-flash",
+  "executor": "gemini",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: executor \"gemini\" produced non-agentic result: 1 turns, 0 tool calls. This looks like 0-shot generation, not agent mode. Check that the CLI is configured for agentic coding (tool use, file editing). Model: gemini-3-flash-preview",
+  "expected_stdout": "[3, 9, 10, 27, 38, 43, 82]\n",
+  "timestamp": "2026-04-17T17:11:38.264414+02:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "caps": [
+    "IO"
+  ],
+  "verify_ok": false,
+  "verify_verified": 0,
+  "verify_counterexample": 0,
+  "verify_skipped": 0,
+  "verify_errors": 0,
+  "eval_mode": "agent"
+}

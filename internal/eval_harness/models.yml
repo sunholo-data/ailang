@@ -318,7 +318,7 @@ models:
     api_name: "gemini-2.5-pro"
     provider: "google"
     description: "Gemini 2.5 Pro with thinking"
-    env_var: "GOOGLE_API_KEY"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-pro"  # Pass to -m flag
     max_output_tokens: 65536   # 65K max output (API limit)
@@ -337,7 +337,7 @@ models:
     api_name: "gemini-2.5-flash"
     provider: "google"
     description: "Gemini 2.5 Flash - fast and efficient"
-    env_var: "GOOGLE_API_KEY"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-flash"  # Pass to -m flag
     max_output_tokens: 65536   # 65K max output (API limit)
@@ -356,7 +356,7 @@ models:
     api_name: "gemini-3-flash-preview"
     provider: "google"
     description: "Gemini 3 Flash - 3x faster than 2.5 Pro, outperforms it"
-    env_var: "GOOGLE_API_KEY"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-flash-preview"  # Pass to -m flag
     max_output_tokens: 65536   # 65K max output (model limit)
@@ -378,7 +378,7 @@ models:
     api_name: "gemini-3-pro-preview"
     provider: "google"
     description: "Gemini 3 Pro Preview with advanced reasoning"
-    env_var: "GOOGLE_API_KEY"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-pro-preview"  # Pass to -m flag
     max_output_tokens: 65536   # 65K max output (same as Gemini 3 Flash)
@@ -399,7 +399,7 @@ models:
     api_name: "gemini-3.1-pro-preview"
     provider: "google"
     description: "Gemini 3.1 Pro - 2x reasoning over 3 Pro, beats Opus 4.6"
-    env_var: "GOOGLE_API_KEY"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3.1-pro-preview"  # Pass to -m flag
     max_output_tokens: 65536   # 65K max output
@@ -550,7 +550,7 @@ extended_suite:
   - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
-  - "gemini-3-pro"     # Google previous generation
+  - "gemini-3-flash"   # Google fast + cheap (Dec 2025) - replaces retired gemini-3-pro-preview
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
@@ -585,7 +585,7 @@ local_models:
 # - claude-opus-4-6   # Superseded by claude-opus-4-7 (Apr 2026)
 # - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
-# - gemini-3-pro      # Superseded by gemini-3-1-pro in benchmark/extended suites
+# - gemini-3-pro      # RETIRED - gemini-3-pro-preview returns 404 from Vertex (Apr 2026). Use gemini-3-1-pro instead.
 
 # Agent CLI support for agent-based evaluation
 # - agent_cli: "claude" = Supports Claude Code CLI

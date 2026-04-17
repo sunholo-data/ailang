@@ -73,8 +73,13 @@ export OPENAI_API_KEY="sk-..."
 # Anthropic (recommended)
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# Google
-export GOOGLE_API_KEY="..."
+# Google (Gemini) — the eval harness uses Vertex AI Application Default Credentials.
+# Authenticate once with gcloud; GOOGLE_API_KEY is NOT used by `ailang eval`.
+gcloud auth application-default login
+gcloud config set project <your-gcp-project>
+
+# (GOOGLE_API_KEY is only honored by the in-language AI builtin / serve-api,
+# which supports AI Studio as an alternative to Vertex. Leave it unset for eval.)
 ```
 
 ### 2. List Available Models

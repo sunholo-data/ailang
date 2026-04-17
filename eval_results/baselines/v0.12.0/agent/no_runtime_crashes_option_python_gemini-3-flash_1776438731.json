@@ -1,0 +1,33 @@
+{
+  "id": "no_runtime_crashes_option",
+  "lang": "python",
+  "model": "gemini-3-flash",
+  "executor": "gemini",
+  "seed": 42,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "total_tokens": 0,
+  "cost_usd": 0,
+  "compile_ok": false,
+  "runtime_ok": false,
+  "stdout_ok": false,
+  "duration_ms": 0,
+  "compile_ms": 0,
+  "execute_ms": 0,
+  "error_category": "api_error",
+  "stderr": "API Error: executor \"gemini\" failed for model \"gemini-3-flash-preview\": exit status 1\nstderr: Creating GCP exporters with projectId: ailang-dev using ADC\nYOLO mode is enabled. All tool calls will be automatically approved.\nLoaded cached credentials.\nYOLO mode is enabled. All tool calls will be automatically approved.\nLoading extension: ailang\nServer 'ailang-tools' supports tool updates. Listening for changes...\nServer 'chrome-devtools' supports tool updates. Listening for changes...\nSkill conflict detected: \"adk-scaffold\" from \"/Users/mark/.agents/skills/adk-scaffold/SKILL.md\" is overriding the same skill from \"/Users/mark/.gemini/skills/adk-scaffold/SKILL.md\".Skill conflict detected: \"adk-eval-guide\" from \"/Users/mark/.agents/skills/adk-eval-guide/SKILL.md\" is overriding the same skill from \"/Users/mark/.gemini/skills/adk-eval-guide/SKILL.md\".Skill conflict detected: \"adk-dev-guide\" from \"/Users/mark/.agents/skills/adk-dev-guide/SKILL.md\" is overriding the same skill from \"/Users/mark/.gemini/skills/adk-dev-guide/SKILL.md\".Skill conflict detected: \"adk-deploy-guide\" from \"/Users/mark/.agents/skills/adk-deploy-guide/SKILL.md\" is overriding the same skill from \"/Users/mark/.gemini/skills/adk-deploy-guide/SKILL.md\".Skill conflict detected: \"adk-cheatsheet\" from \"/Users/mark/.agents/skills/adk-cheatsheet/SKILL.md\" is overriding the same skill from \"/Users/mark/.gemini/skills/adk-cheatsheet/SKILL.md\".Error when talking to Gemini API Full report available at: /var/folders/kv/nxj052r50g7813x2blwc74jw0000gn/T/gemini-client-error-Turn.run-sendMessageStream-2026-04-17T15-12-11-343Z.json TerminalQuotaError: You have exhausted your capacity on this model. Your quota will reset after 23h28m11s.\n    at classifyGoogleError (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/utils/googleQuotaErrors.js:214:28)\n    at retryWithBackoff (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/utils/retry.js:151:37)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async GeminiChat.makeApiCallAndProcessStream (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/core/geminiChat.js:444:32)\n    at async GeminiChat.streamWithRetries (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/core/geminiChat.js:265:40)\n    at async Turn.run (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/core/turn.js:67:30)\n    at async GeminiClient.processTurn (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/core/client.js:475:26)\n    at async GeminiClient.sendMessageStream (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/core/client.js:575:20)\n    at async file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/dist/src/nonInteractiveCli.js:195:34\n    at async main (file:///Users/mark/.nvm/versions/node/v22.20.0/lib/node_modules/@google/gemini-cli/dist/src/gemini.js:497:9) {\n  cause: {\n    code: 429,\n    message: 'You have exhausted your capacity on this model. Your quota will reset after 23h28m11s.',\n    details: [ [Object], [Object] ]\n  },\n  retryDelayMs: 84491693.71710101\n}\n",
+  "expected_stdout": "Last starts with: c\nEmpty list\n",
+  "timestamp": "2026-04-17T17:12:11.385277+02:00",
+  "first_attempt_ok": false,
+  "repair_used": false,
+  "repair_ok": false,
+  "caps": [
+    "IO"
+  ],
+  "verify_ok": false,
+  "verify_verified": 0,
+  "verify_counterexample": 0,
+  "verify_skipped": 0,
+  "verify_errors": 0,
+  "eval_mode": "agent"
+}
