@@ -291,6 +291,28 @@ models:
       API name uses no date suffix: "claude-opus-4-6" (not dated variant).
       Agent eval support: ✅ Fully supported via Claude Code CLI.
 
+  claude-opus-4-7:
+    api_name: "claude-opus-4-7"
+    provider: "anthropic"
+    description: "Claude Opus 4.7 - flagship model (April 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"  # Supports Claude Code CLI for agent evals
+    agent_model_name: "opus"  # Pass to --agent-model flag
+    max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
+    pricing:
+      input_per_1k: 0.005   # $5.00 per million = $0.005 per 1K (unchanged from 4.6)
+      output_per_1k: 0.025  # $25.00 per million = $0.025 per 1K (unchanged from 4.6)
+    notes: |
+      Anthropic's flagship Opus model (April 16, 2026).
+      Narrowly retook lead for most powerful generally available LLM.
+      Same per-token pricing as Opus 4.6 ($5/$25 per 1M).
+      ⚠️ New tokenizer can produce 1.0–1.35x more tokens for same input —
+      real bill per request may rise ~0–35% even though rate card is unchanged.
+      Prompt caching: up to 90% savings. Batch: 50% off.
+      US-only inference available at 1.1x pricing.
+      API name uses no date suffix: "claude-opus-4-7".
+      Agent eval support: ✅ Fully supported via Claude Code CLI.
+
   # Google Gemini 2.5 Pro (released March 2025)
   gemini-2-5-pro:
     api_name: "gemini-2.5-pro"
@@ -525,7 +547,7 @@ benchmark_suite:
 extended_suite:
   - "gpt5-4"           # OpenAI flagship (Mar 2026)
   - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
-  - "claude-opus-4-6"  # Anthropic most capable (Feb 2026)
+  - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
   - "gemini-3-pro"     # Google previous generation
@@ -559,7 +581,8 @@ local_models:
 # - gpt5-mini         # Cheaper but slower than gpt5-1-instant
 # - gpt5-2-instant    # Fast variant of GPT-5.2
 # - codex-mini-latest # Cheap coding model (use for simple tasks)
-# - claude-opus-4-5   # Superseded by claude-opus-4-6 (Feb 2026)
+# - claude-opus-4-5   # Superseded by claude-opus-4-7 (Apr 2026)
+# - claude-opus-4-6   # Superseded by claude-opus-4-7 (Apr 2026)
 # - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
 # - gemini-3-pro      # Superseded by gemini-3-1-pro in benchmark/extended suites
