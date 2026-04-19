@@ -35,6 +35,7 @@ func GenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, synta
 	// Replace placeholders
 	template = strings.ReplaceAll(template, "{{CAPS}}", strings.Join(spec.Caps, ","))
 	template = strings.ReplaceAll(template, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
+	template = strings.ReplaceAll(template, "{{PYTHON_VERSION}}", DetectedPythonVersion())
 
 	return template
 }
@@ -135,7 +136,9 @@ func loadAILANGPrompt() (string, error) {
 	return activePrompt, nil
 }
 
-// loadPythonPrompt loads the Python teaching prompt
+// loadPythonPrompt loads the Python teaching prompt and substitutes the
+// runtime version placeholder so the prompt advertises the same Python
+// version that the grader will actually invoke.
 func loadPythonPrompt() (string, error) {
 	// Python prompt is in prompts/ (same location as AILANG prompts)
 	pythonPromptPath := "prompts/python.md"
@@ -144,7 +147,7 @@ func loadPythonPrompt() (string, error) {
 		return "", fmt.Errorf("failed to read python prompt: %w", err)
 	}
 
-	return string(data), nil
+	return strings.ReplaceAll(string(data), "{{PYTHON_VERSION}}", DetectedPythonVersion()), nil
 }
 
 // PrepareWorkspaceWithSyntax creates workspace files with full AILANG syntax reference
@@ -285,8 +288,8 @@ func getDefaultPythonTemplate() string {
 
 1. Read README.md to understand the problem and expected output
 2. Read syntax_reference.md for Python syntax guidance
-3. Write your solution in solution.py
-4. Test: Run 'python3 solution.py'
+3. Write your solution in solution.py (target Python {{PYTHON_VERSION}})
+4. Test: Run 'uv run --python {{PYTHON_VERSION}} solution.py'
 5. Compare output with expected output from README.md
 6. If output doesn't match, iterate and fix
 7. Repeat steps 4-6 until output matches exactly
@@ -313,8 +316,9 @@ You have access to:
 ## Tips
 
 - Start simple: Get basic structure working first
-- Test frequently with 'python3 solution.py'
-- Use Python 3 standard library - no external packages needed
+- Test frequently with 'uv run --python {{PYTHON_VERSION}} solution.py'
+- Runtime is pinned to **Python {{PYTHON_VERSION}}** via uv — features up to {{PYTHON_VERSION}} (match/case, unions, PEP 695 type statement) are fair game; anything newer will SyntaxError
+- Use the Python standard library - no external packages needed
 - Follow PEP 8 style guidelines
 - Use type hints for clarity
 - Handle edge cases explicitly
@@ -484,6 +488,7 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CAPS}}", strings.Join(spec.Caps, ","))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
+	taskPrompt = strings.ReplaceAll(taskPrompt, "{{PYTHON_VERSION}}", DetectedPythonVersion())
 
 	// Resolve condition: use explicit condition if set, otherwise fall back to legacy Verify flag
 	// cond was already set to config.Condition at function start

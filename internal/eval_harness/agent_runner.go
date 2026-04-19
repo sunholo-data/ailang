@@ -451,8 +451,16 @@ func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspa
 
 	// Run solution based on language
 	if language == "python" {
-		// Run Python solution
-		cmd := exec.Command(resolvePythonBin(), solutionPath)
+		// Run Python solution via uv with the pinned runtime.
+		cmd, uvErr := newPythonCommand(solutionPath)
+		if uvErr != nil {
+			return ValidationResult{
+				CompileOk: false,
+				RuntimeOk: false,
+				StdoutOk:  false,
+				Stderr:    uvErr.Error(),
+			}
+		}
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return ValidationResult{

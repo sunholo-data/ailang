@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -245,9 +244,18 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 	return runAILANGSolution(string(solutionContent), spec)
 }
 
-// runPythonSolution executes and validates a Python solution
+// runPythonSolution executes and validates a Python solution using the
+// uv-managed pinned Python runtime.
 func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResult {
-	cmd := exec.Command(resolvePythonBin(), solutionPath)
+	cmd, uvErr := newPythonCommand(solutionPath)
+	if uvErr != nil {
+		return ValidationResult{
+			CompileOk: false,
+			RuntimeOk: false,
+			StdoutOk:  false,
+			Stderr:    uvErr.Error(),
+		}
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return ValidationResult{

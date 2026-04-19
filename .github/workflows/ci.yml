@@ -19,7 +19,15 @@ jobs:
       with:
         go-version: '1.24'
         cache: true
-    
+
+    # uv pins the Python runtime for eval-harness tests (and the weekly eval
+    # job). The harness invokes `uv run --python <PinnedPythonVersion>` so the
+    # version is guaranteed across every runner regardless of what system
+    # Python is installed. Update PinnedPythonVersion in
+    # internal/eval_harness/python.go if the target moves.
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v4
+
     - name: Install dependencies
       run: make deps
 

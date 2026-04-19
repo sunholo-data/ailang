@@ -101,6 +101,18 @@ gcloud config set project YOUR_PROJECT_ID
 export GOOGLE_API_KEY="..."
 ```
 
+### Python runtime (for cross-language benchmarks)
+
+Python-targeted benchmarks run against a **pinned Python version** managed by [`uv`](https://docs.astral.sh/uv/). This means every machine — laptop, CI runner, contributor fork — executes the exact same interpreter, and the prompt can truthfully advertise the target version to the model (avoiding "the model wrote 3.10 `match/case` but the grader runs 3.9" failures).
+
+- **Pinned version**: **Python 3.12** (defined by `PinnedPythonVersion` in `internal/eval_harness/python.go`).
+- **Invocation**: the harness spawns `uv run --python 3.12 solution.py`. `uv` downloads and caches the pinned CPython on first use — no system Python required.
+- **Missing `uv` fails loudly.** If `uv` is not on PATH the harness returns a clear error for every Python benchmark rather than silently falling back to a system `python3`. Override for local debugging with `AILANG_UV=/path/to/uv`.
+- **CI**: both `.github/workflows/ci.yml` and `.github/workflows/eval-weekly.yml` use `astral-sh/setup-uv@v4`.
+- **Local setup**: install uv once. On macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh`. First Python benchmark on a fresh machine pays a ~2s CPython download; everything after that is cached.
+
+The pinned version is also injected into the Python teaching prompt (`prompts/python.md`) and task template via the `{{PYTHON_VERSION}}` placeholder, so the model sees the same version string the grader will execute.
+
 ## <Icon name="code" inline /> Commands Overview
 
 ### Standard Eval (0-shot API)

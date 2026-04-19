@@ -40,12 +40,12 @@ Expected output:
 ## Available Tools
 
 You have access to standard Python tools:
-- **Run code:** `python3 solution.py`
-- **Check syntax:** `python3 -m py_compile solution.py`
+- **Run code:** `uv run --python {{PYTHON_VERSION}} solution.py` (this is exactly what the grader invokes). Plain `python3 solution.py` may hit a different interpreter — prefer the uv form when testing.
+- **Check syntax:** `uv run --python {{PYTHON_VERSION}} -m py_compile solution.py`
 
 ## Tips
 
 - Standard library is available
-- Python 3.x syntax
+- **The Python runtime is pinned at {{PYTHON_VERSION}} via uv.** You can freely use features up to and including {{PYTHON_VERSION}} (e.g. `match`/`case`, `X | Y` unions, `type` statement). Features newer than {{PYTHON_VERSION}} will SyntaxError.
 
 Good luck!

@@ -54,7 +54,7 @@ func TestGenerateAgentPrompt(t *testing.T) {
 	pythonSections := []string{
 		"Python benchmark",
 		"solution.py",
-		"python3 solution.py",
+		"uv run --python " + PinnedPythonVersion() + " solution.py",
 	}
 
 	for _, section := range pythonSections {
