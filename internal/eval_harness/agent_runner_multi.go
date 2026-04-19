@@ -247,7 +247,7 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 
 // runPythonSolution executes and validates a Python solution
 func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResult {
-	cmd := exec.Command("python3", solutionPath)
+	cmd := exec.Command(resolvePythonBin(), solutionPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return ValidationResult{

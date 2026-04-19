@@ -452,7 +452,7 @@ func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspa
 	// Run solution based on language
 	if language == "python" {
 		// Run Python solution
-		cmd := exec.Command("python3", solutionPath)
+		cmd := exec.Command(resolvePythonBin(), solutionPath)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return ValidationResult{

@@ -19,6 +19,18 @@ import (
 // This prevents infinite loop bugs from generating gigabyte-sized JSON files
 const MaxOutputSize = 1 * 1024 * 1024 // 1 MB
 
+// resolvePythonBin returns "python3" when available, else "python".
+// Windows runners typically ship only python.exe.
+func resolvePythonBin() string {
+	if _, err := exec.LookPath("python3"); err == nil {
+		return "python3"
+	}
+	if _, err := exec.LookPath("python"); err == nil {
+		return "python"
+	}
+	return "python3"
+}
+
 // LimitedWriter wraps an io.Writer and limits the total bytes written
 // Once the limit is reached, subsequent writes are discarded and a truncation message is appended
 type LimitedWriter struct {
@@ -147,7 +159,7 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 		return nil, fmt.Errorf("failed to write code: %w", err)
 	}
 
-	// Build command args: python3 solution.py [cli_args...]
+	// Build command args: python solution.py [cli_args...]
 	cmdArgs := []string{tmpFile}
 	if r.spec != nil {
 		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
@@ -155,7 +167,7 @@ func (r *PythonRunner) Run(code string, timeout time.Duration) (*RunResult, erro
 
 	// Execute with timeout
 	start := time.Now()
-	cmd := exec.Command("python3", cmdArgs...)
+	cmd := exec.Command(resolvePythonBin(), cmdArgs...)
 	cmd.Dir = tmpDir // Run from workspace for relative file paths
 
 	// Pipe stdin if spec provides it
