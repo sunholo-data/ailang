@@ -18,6 +18,14 @@ const (
 	STRING // "abc"
 	CHAR   // 'a'
 
+	// String interpolation (M1_LEXER_INTERP, v0.12.1)
+	// "prefix${expr}suffix" tokenizes to:
+	//   STRING_PART("prefix"), INTERP_START, <expr tokens>, INTERP_END, STRING_PART("suffix")
+	// Plain strings without `${` continue to emit a single STRING token.
+	STRING_PART  // partial string literal (before/after/between `${...}`)
+	INTERP_START // the `${` marker opening an interpolation
+	INTERP_END   // the matching `}` closing an interpolation
+
 	// Keywords
 	FUNC
 	PURE
@@ -135,11 +143,14 @@ var tokens = map[TokenType]string{
 	EOF:     "EOF",
 	COMMENT: "COMMENT",
 
-	IDENT:  "IDENT",
-	INT:    "INT",
-	FLOAT:  "FLOAT",
-	STRING: "STRING",
-	CHAR:   "CHAR",
+	IDENT:        "IDENT",
+	INT:          "INT",
+	FLOAT:        "FLOAT",
+	STRING:       "STRING",
+	CHAR:         "CHAR",
+	STRING_PART:  "STRING_PART",
+	INTERP_START: "INTERP_START",
+	INTERP_END:   "INTERP_END",
 
 	FUNC:       "func",
 	PURE:       "pure",

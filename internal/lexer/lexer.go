@@ -16,6 +16,11 @@ type Lexer struct {
 	line         int
 	column       int
 	file         string
+	// tokenQueue buffers tokens produced by string interpolation (M1_LEXER_INTERP).
+	// When `"...${expr}..."` is encountered, readStringOrInterp emits the whole
+	// token sequence (STRING_PART / INTERP_START / expr-tokens / INTERP_END / ...)
+	// into this queue; NextToken drains the queue before advancing the main lexer.
+	tokenQueue []Token
 }
 
 // New creates a new Lexer with normalized input.
@@ -67,6 +72,13 @@ func (l *Lexer) peekChar() rune {
 
 // NextToken returns the next token
 func (l *Lexer) NextToken() Token {
+	// Drain queued tokens (produced by string interpolation) first.
+	if len(l.tokenQueue) > 0 {
+		tok := l.tokenQueue[0]
+		l.tokenQueue = l.tokenQueue[1:]
+		return tok
+	}
+
 	var tok Token
 
 	l.skipWhitespace()
@@ -238,12 +250,10 @@ func (l *Lexer) NextToken() Token {
 		if l.checkQuasiquotePrefix() {
 			return l.readQuasiquote(line, column)
 		}
-		tok.Type = STRING
-		tok.Literal = l.readString()
-		tok.Line = line
-		tok.Column = column
-		tok.File = l.file
-		return tok
+		// readStringOrInterp returns either a single STRING token (no `${` found,
+		// regression-safe) or drops a STRING_PART/INTERP_START/... sequence into
+		// the token queue and returns the first of those tokens.
+		return l.readStringOrInterp(line, column)
 	case '\'':
 		tok.Type = CHAR
 		tok.Literal = l.readCharLiteral()
@@ -296,36 +306,162 @@ func (l *Lexer) skipComment() {
 	}
 }
 
-// readString reads a string literal
-func (l *Lexer) readString() string {
-	var out strings.Builder
+// readStringOrInterp reads a string literal with optional `${expr}` interpolation.
+//
+// Behaviour:
+//   - No `${` in the string → emits a single STRING token (byte-for-byte compatible
+//     with the old readString path; zero regression).
+//   - `${expr}` found → emits the token sequence
+//     STRING_PART(prefix) INTERP_START <expr tokens> INTERP_END STRING_PART(next) ...
+//     where `<expr tokens>` come from a sub-lexer invoked on the expression source.
+//   - `\${literal}` → literal `${` stays inside a STRING; no interpolation triggered.
+//
+// The first token is returned directly; any additional tokens are appended to
+// l.tokenQueue and drained by subsequent NextToken calls.
+func (l *Lexer) readStringOrInterp(line, column int) Token {
 	l.readChar() // skip opening quote
+
+	// Always buffer the full token sequence first, then decide whether to emit
+	// a single STRING token (no interpolation) or the STRING_PART/INTERP_* stream.
+	var segment strings.Builder
+	var out []Token
+	sawInterp := false
+
+	// partLine/partColumn track where the current segment started so that
+	// STRING_PART tokens carry the position of their opening quote / closing `}`.
+	partLine, partColumn := line, column
+
+	flushPart := func() {
+		out = append(out, NewToken(STRING_PART, segment.String(), partLine, partColumn, l.file))
+		segment.Reset()
+	}
 
 	for l.ch != '"' && l.ch != 0 {
 		if l.ch == '\\' {
 			l.readChar()
 			switch l.ch {
 			case 'n':
-				out.WriteRune('\n')
+				segment.WriteRune('\n')
 			case 't':
-				out.WriteRune('\t')
+				segment.WriteRune('\t')
 			case 'r':
-				out.WriteRune('\r')
+				segment.WriteRune('\r')
 			case '\\':
-				out.WriteRune('\\')
+				segment.WriteRune('\\')
 			case '"':
-				out.WriteRune('"')
+				segment.WriteRune('"')
+			case '$':
+				// `\$` → literal `$`. Subsequent `{` is not interpreted as interpolation.
+				segment.WriteRune('$')
 			default:
+				segment.WriteRune(l.ch)
+			}
+			l.readChar()
+			continue
+		}
+		if l.ch == '$' && l.peekChar() == '{' {
+			// Interpolation start: flush the accumulated literal as a STRING_PART.
+			sawInterp = true
+			flushPart()
+			interpLine, interpColumn := l.line, l.column
+			l.readChar() // consume '$'
+			l.readChar() // consume '{'
+			out = append(out, NewToken(INTERP_START, "${", interpLine, interpColumn, l.file))
+
+			// Collect expression source up to the matching `}` (balanced braces).
+			exprSrc, exprLine, exprColumn, ok := l.readInterpolationExpr()
+			if !ok {
+				// Unterminated `${...` — emit an ILLEGAL token and bail so the
+				// parser surfaces a clear error rather than getting silent garbage.
+				out = append(out, NewToken(ILLEGAL, "unterminated ${...} in string literal", interpLine, interpColumn, l.file))
+				break
+			}
+
+			// Tokenize the expression source via a sub-lexer, preserving line/column.
+			sub := New(exprSrc, l.file)
+			sub.line = exprLine
+			sub.column = exprColumn - 1 // readChar increments column before use
+			for {
+				tok := sub.NextToken()
+				if tok.Type == EOF {
+					break
+				}
+				out = append(out, tok)
+			}
+			out = append(out, NewToken(INTERP_END, "}", l.line, l.column, l.file))
+			partLine, partColumn = l.line, l.column
+			continue
+		}
+		segment.WriteRune(l.ch)
+		l.readChar()
+	}
+
+	l.readChar() // skip closing quote (safe even at EOF)
+
+	if !sawInterp {
+		// No interpolation → emit a single STRING token, byte-identical to legacy path.
+		return NewToken(STRING, segment.String(), line, column, l.file)
+	}
+
+	// Trailing STRING_PART captures what follows the last `}` (may be empty).
+	flushPart()
+
+	// Return the first token; queue the rest.
+	first := out[0]
+	l.tokenQueue = append(l.tokenQueue, out[1:]...)
+	return first
+}
+
+// readInterpolationExpr consumes characters up to (but not including) the matching
+// `}` of a `${...}` interpolation. Brace depth is tracked so nested `{}` inside
+// the expression do not prematurely close the interpolation.
+//
+// Returns the expression source text, the starting line/column for sub-lexer
+// positioning, and ok=false if EOF is reached before the closing `}`.
+// On success, l.ch is the closing `}` at return time; readInterpolationExpr
+// advances past it before returning.
+func (l *Lexer) readInterpolationExpr() (src string, line, column int, ok bool) {
+	line = l.line
+	column = l.column
+	var out strings.Builder
+	depth := 0
+	for l.ch != 0 {
+		switch l.ch {
+		case '{':
+			depth++
+			out.WriteRune(l.ch)
+		case '}':
+			if depth == 0 {
+				l.readChar() // consume the closing `}`
+				return out.String(), line, column, true
+			}
+			depth--
+			out.WriteRune(l.ch)
+		case '"':
+			// Nested string literal inside an interpolation — copy verbatim
+			// (including its own interior) so sub-lexer can re-tokenize it.
+			out.WriteRune(l.ch)
+			l.readChar()
+			for l.ch != 0 && l.ch != '"' {
+				if l.ch == '\\' {
+					out.WriteRune(l.ch)
+					l.readChar()
+					if l.ch == 0 {
+						break
+					}
+				}
+				out.WriteRune(l.ch)
+				l.readChar()
+			}
+			if l.ch == '"' {
 				out.WriteRune(l.ch)
 			}
-		} else {
+		default:
 			out.WriteRune(l.ch)
 		}
 		l.readChar()
 	}
-
-	l.readChar() // skip closing quote
-	return out.String()
+	return "", line, column, false
 }
 
 // readChar reads a character literal
