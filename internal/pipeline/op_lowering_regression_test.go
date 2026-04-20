@@ -9,18 +9,15 @@ import (
 )
 
 // TestConcatOperator_TypeGuidedLowering verifies that the ++ operator
-// correctly uses type-guided lowering without ANF guessing
+// correctly uses type-guided lowering without ANF guessing.
+// M-CONCAT-DISAMBIG Phase 2: `++` is list-only; string heads now error in the
+// type checker before reaching lowering.
 func TestConcatOperator_TypeGuidedLowering(t *testing.T) {
 	tests := []struct {
 		name            string
 		inferredType    types.Type
 		expectedBuiltin string
 	}{
-		{
-			name:            "string concatenation",
-			inferredType:    types.TString,
-			expectedBuiltin: "concat_String",
-		},
 		{
 			name: "list concatenation",
 			inferredType: &types.TApp{
@@ -143,8 +140,8 @@ func TestOpLowering_FallbackPath(t *testing.T) {
 		t.Fatalf("Expected VarGlobal for builtin, got %T", app.Func)
 	}
 
-	// Default for ++ is concat_String (backward compatibility)
-	if builtinRef.Ref.Name != "concat_String" {
-		t.Errorf("Expected concat_String (default), got %s", builtinRef.Ref.Name)
+	// M-CONCAT-DISAMBIG Phase 2: default for ++ is concat_List (lists only).
+	if builtinRef.Ref.Name != "concat_List" {
+		t.Errorf("Expected concat_List (default), got %s", builtinRef.Ref.Name)
 	}
 }

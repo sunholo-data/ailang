@@ -59,3 +59,24 @@ export func flatten[a](xss: [[a]]) -> [a] {
 		t.Errorf("polymorphic list ++ must type-check, got: %v", err)
 	}
 }
+
+// TestStdlibConcatSignature verifies that a `[string] -> string` concat-shape
+// function type-checks. This mirrors `std/string.concat` and locks in the
+// positive-path contract that complements the string-`++` error: users
+// switching from `++` to `concat([...])` must find a working stdlib shape.
+func TestStdlibConcatSignature(t *testing.T) {
+	code := `
+module test/concat_stdlib
+
+export pure func concat(xs: [string]) -> string = _str_join(xs, "")
+
+export pure func use() -> string {
+  concat(["hello", " ", "world"])
+}
+`
+
+	err := typeCheckCode(t, code)
+	if err != nil {
+		t.Errorf("concat([string]) -> string should type-check, got: %v", err)
+	}
+}

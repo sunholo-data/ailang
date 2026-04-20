@@ -371,8 +371,9 @@ func TestOpLowering_ContractExpressions_DoesNotMutateOriginal(t *testing.T) {
 }
 
 // TestOpLowering_Concat tests that concat operations are correctly
-// lowered to concat_String or concat_List based on operand types.
-// This locks in the behavior for the ++ operator.
+// lowered to concat_List. `++` is list-only post M-CONCAT-DISAMBIG Phase 2;
+// string concatenation now goes through interpolation or the concat()/join()
+// stdlib calls (direct FuncCall, not Intrinsic).
 func TestOpLowering_Concat(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -380,18 +381,6 @@ func TestOpLowering_Concat(t *testing.T) {
 		rightArg        core.CoreExpr
 		expectedBuiltin string
 	}{
-		{
-			name: "string concatenation",
-			leftArg: &core.Var{
-				CoreNode: core.CoreNode{NodeID: 1},
-				Name:     "$tmp1",
-			},
-			rightArg: &core.Var{
-				CoreNode: core.CoreNode{NodeID: 2},
-				Name:     "$tmp2",
-			},
-			expectedBuiltin: "concat_String",
-		},
 		{
 			name: "list concatenation",
 			leftArg: &core.Var{
@@ -419,20 +408,13 @@ func TestOpLowering_Concat(t *testing.T) {
 			typeEnv := types.NewTypeEnv()
 			coreTI := types.NewCoreTypeInfo()
 
-			// Populate CoreTI with the type of the concat intrinsic
-			// The type of ++ depends on what it's concatenating
-			if tt.expectedBuiltin == "concat_String" {
-				// For string concatenation, the intrinsic returns string
-				coreTI.Set(intrinsic.ID(), types.TString)
-			} else {
-				// For list concatenation, the intrinsic returns list[int]
-				// DX-17: canonical form is lowercase "list"
-				listType := &types.TApp{
-					Constructor: &types.TCon{Name: "list"},
-					Args:        []types.Type{types.TInt},
-				}
-				coreTI.Set(intrinsic.ID(), listType)
+			// For list concatenation, the intrinsic returns list[int]
+			// DX-17: canonical form is lowercase "list"
+			listType := &types.TApp{
+				Constructor: &types.TCon{Name: "list"},
+				Args:        []types.Type{types.TInt},
 			}
+			coreTI.Set(intrinsic.ID(), listType)
 
 			lowerer := NewOpLowerer(typeEnv, coreTI)
 
