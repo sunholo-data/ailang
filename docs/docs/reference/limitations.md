@@ -102,7 +102,7 @@ match 5 {
 
 ### String Interpolation
 
-**Status**: Not implemented — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-string-interpolation.md)
+**Status**: Not implemented — planned for v0.13.0 as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concat-disambiguation.md)
 
 AILANG requires explicit concatenation:
 

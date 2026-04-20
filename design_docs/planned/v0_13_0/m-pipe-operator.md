@@ -402,7 +402,7 @@ The arg-splicing approach (Option C from feedback) is the most likely path since
 
 - [M-EFFECTFUL-LIST-COMBINATORS](m-effectful-list-combinators.md) — pipe composes with `mapE` etc. via lambda wrappers
 - [M-CALL-SUGAR-OPTIONAL](../v0_8_0/m-call-sugar-optional.md) — related syntax change for function calls
-- [M-STRING-INTERPOLATION](../v0_8_0/m-string-interpolation.md) — another DX syntax improvement
+- [M-CONCAT-DISAMBIG](m-concat-disambiguation.md) — string interpolation is absorbed into Phase 1 of this doc
 
 ## References
 

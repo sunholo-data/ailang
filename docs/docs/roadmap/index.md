@@ -88,7 +88,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-SMT-CROSS-MODULE-TYPES: Z3 Cross-Module Type Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-smt-cross-module-types.md)
 - [Sprint Plan: M-SMT-FRAGMENT-EXPANSION-V2 — Z3 Verification Phase 2](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-smt-fragment-expansion-v2-sprint-plan.md)
 - [M-SMT-FRAGMENT-EXPANSION-V2: Z3 Verification Phase 2](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-smt-fragment-expansion-v2.md)
-- [M-STRING-INTERP: String Interpolation Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-string-interpolation.md)
+- [M-CONCAT-DISAMBIG: String Interpolation + `++` List-Only (v0.13.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concat-disambiguation.md)
 - [M-TASK-GRAPH-SPANS-UNIFICATION: Fix TaskHierarchyGraph Filtering](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-task-graph-spans-unification.md)
 - [M-UI-REFACTOR: Refactor UI Folder for AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-ui-refactor-ai-friendly.md)
 - [Sprint Plan: M-UI-REFACTOR - AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_10_0/m-ui-refactor-sprint-plan.md)

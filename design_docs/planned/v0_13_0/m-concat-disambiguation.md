@@ -6,7 +6,7 @@
 **Estimated Time**: 14-19 hours (Phase 1: 6-8h, Phase 2: 8-11h including migration sweeps)
 **Dependencies**: None (M-STRING-INTERP is absorbed into Phase 1)
 **Bug History**: v0.3.16, v0.5.8, v0.6.1, v0.7.0 — four separate fix cycles across every layer
-**Supersedes**: [m-string-interpolation.md](../v0_11_0/m-string-interpolation.md)
+**Supersedes**: `m-string-interpolation.md` (absorbed into Phase 1; original doc removed 2026-04-20)
 
 > **Re-commissioned 2026-04-17 (v0.12.0 post-release review)**: v0.12.0 eval results show the unification ambiguity is still a leading compile-error driver even with the newest frontier models. See "v0.12.0 Eval Update" below.
 
@@ -788,9 +788,9 @@ but is mostly mechanical. Could be parallelized or automated with a migration sc
 - [concat-operator-type-inference-bug.md](../../implemented/v0_7_0/concat-operator-type-inference-bug.md) — v0.7.0 inference fix
 - [m-dx-agent-eval-gaps.md](../v0_11_0/m-dx-agent-eval-gaps.md) — v0.9.0 eval gap analysis (100% failure evidence)
 - [m-dx-package-dogfooding.md](../../planned/v1_0_0/m-dx-package-dogfooding.md) — Dogfooding friction report
-- [m-string-interpolation.md](../v0_11_0/m-string-interpolation.md) — Original string interpolation doc (superseded by Phase 1)
+- `m-string-interpolation.md` — Original string interpolation design doc (fully absorbed into Phase 1 of this doc; removed 2026-04-20)
 
 ---
 
 **Document created**: 2026-03-30
-**Last updated**: 2026-03-30
+**Last updated**: 2026-04-20 (consolidated m-string-interpolation.md into this doc; sprint plan authored)
