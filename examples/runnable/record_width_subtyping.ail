@@ -27,7 +27,7 @@ pure func getName(person: {name: string | r}) -> string = person.name
 
 -- Multiple required fields with row variable
 pure func getFullName(person: {first: string, last: string | r}) -> string =
-  person.first ++ " " ++ person.last
+  "${person.first} ${person.last}"
 
 -- =======================
 -- SUGAR SYNTAX: { ... }
@@ -41,7 +41,7 @@ pure func getEmail(user: {email: string, ...}) -> string = user.email
 
 -- Multiple fields with ellipsis
 pure func formatUser(user: {name: string, age: int, ...}) -> string =
-  user.name ++ " (age " ++ show(user.age) ++ ")"
+  "${user.name} (age ${show(user.age)})"
 
 -- =======================
 -- GENERIC FIELD EXTRACTORS
@@ -65,37 +65,37 @@ func main() -> unit ! {IO} = {
 
   -- Exact record: only accepts {name: string}
   let alice = getNameExact({name: "Alice"});
-  println("Exact record: " ++ alice);
+  println("Exact record: ${alice}");
 
   -- Open record with | r: accepts extra fields
   let bob = getName({name: "Bob", age: 30});
-  println("Open record (| r): " ++ bob);
+  println("Open record (| r): ${bob}");
 
   -- Even more extra fields
   let charlie = getName({name: "Charlie", age: 25, city: "NYC", active: true});
-  println("Open record with extras: " ++ charlie);
+  println("Open record with extras: ${charlie}");
 
   -- Multiple required fields
   let fullName = getFullName({first: "John", last: "Doe", email: "john@example.com"});
-  println("Full name: " ++ fullName);
+  println("Full name: ${fullName}");
 
   -- Ellipsis syntax
   let email = getEmail({email: "test@example.com", name: "Test", id: 123});
-  println("Email: " ++ email);
+  println("Email: ${email}");
 
   -- Multiple fields with ellipsis
   let formatted = formatUser({name: "Eve", age: 28, role: "admin", active: true});
-  println("Formatted: " ++ formatted);
+  println("Formatted: ${formatted}");
 
   -- Generic extractors work on any record with required fields
   let userId = getId({id: 1, name: "User"});
   let productId = getId({id: 100, name: "Widget", price: 29.99});
-  println("User ID: " ++ show(userId));
-  println("Product ID: " ++ show(productId));
+  println("User ID: ${show(userId)}");
+  println("Product ID: ${show(productId)}");
 
   -- Extensible configurations
   let host = getHost({host: "localhost", port: 8080, ssl: true, maxRetries: 30});
-  println("Host: " ++ host);
+  println("Host: ${host}");
 
   println("");
   println("All examples passed!");

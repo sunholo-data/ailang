@@ -62,32 +62,32 @@ export func main() -> () ! {IO} {
 
   -- Basic usage
   println("Basic usage:");
-  println("  chars(\"hello\") = " ++ show(chars("hello")));
-  println("  chars(\"abc\") = " ++ show(chars("abc")));
+  println("  chars(\"hello\") = ${show(chars("hello"))}");
+  println("  chars(\"abc\") = ${show(chars("abc"))}");
   println("");
 
   -- Unicode handling
   println("Unicode handling:");
-  println("  chars(\"cafe\") = " ++ show(chars("cafe")));
-  println("  charCount(\"hello\") = " ++ show(charCount("hello")));
+  println("  chars(\"cafe\") = ${show(chars("cafe"))}");
+  println("  charCount(\"hello\") = ${show(charCount("hello"))}");
   println("");
 
   -- Character processing
   println("Character processing:");
-  println("  countVowels(\"hello\") = " ++ show(countVowels("hello")));
-  println("  countVowels(\"aeiou\") = " ++ show(countVowels("aeiou")));
+  println("  countVowels(\"hello\") = ${show(countVowels("hello"))}");
+  println("  countVowels(\"aeiou\") = ${show(countVowels("aeiou"))}");
   println("");
 
   -- Palindrome check
   println("Palindrome check:");
-  println("  isPalindrome(\"racecar\") = " ++ show(isPalindrome("racecar")));
-  println("  isPalindrome(\"hello\") = " ++ show(isPalindrome("hello")));
+  println("  isPalindrome(\"racecar\") = ${show(isPalindrome("racecar"))}");
+  println("  isPalindrome(\"hello\") = ${show(isPalindrome("hello"))}");
   println("");
 
   -- First/last character
   println("First/last character:");
-  println("  firstChar(\"hello\") = " ++ show(firstChar("hello")));
-  println("  lastChar(\"hello\") = " ++ show(lastChar("hello")));
-  println("  firstChar(\"\") = " ++ show(firstChar("")));
+  println("  firstChar(\"hello\") = ${show(firstChar("hello"))}");
+  println("  lastChar(\"hello\") = ${show(lastChar("hello"))}");
+  println("  firstChar(\"\") = ${show(firstChar(""))}");
   ()
 }

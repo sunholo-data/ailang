@@ -30,8 +30,8 @@ task_prompt: |
   5. Implement `showExpr(expr)` to convert AST to readable string:
      - Const(n) -> just the number as string
      - Var(name) -> just the variable name
-     - Add(a, b) -> "(" ++ showExpr(a) ++ " + " ++ showExpr(b) ++ ")"
-     - Mul(a, b) -> "(" ++ showExpr(a) ++ " * " ++ showExpr(b) ++ ")"
+     - Add(a, b) -> "(${showExpr(a)} + ${showExpr(b)})"
+     - Mul(a, b) -> "(${showExpr(a)} * ${showExpr(b)})"
 
   6. Print the simplified derivative using showExpr
 

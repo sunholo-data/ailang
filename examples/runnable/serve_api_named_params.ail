@@ -17,17 +17,17 @@ import std/string (toUpper)
 -- serve-api maps snake_case JSON keys to camelCase AILANG params automatically
 export func greet(name: string, greetingStyle: string) -> string {
   match greetingStyle {
-    "formal" => "Good day, " ++ name ++ ".",
-    "casual" => "Hey " ++ name ++ "!",
-    _ => "Hello, " ++ name
+    "formal" => "Good day, ${name}.",
+    "casual" => "Hey ${name}!",
+    _ => "Hello, ${name}"
   }
 }
 
 -- Single param: agents send {"query": "search term"}
 export func search(query: string) -> string {
-  "Results for: " ++ toUpper(query)
+  "Results for: ${toUpper(query)}"
 }
 
 -- Demo entrypoint for verify-examples
 export func main() -> string =
-  greet("World", "formal") ++ " | " ++ search("ailang")
+  "${greet("World", "formal")} | ${search("ailang")}"

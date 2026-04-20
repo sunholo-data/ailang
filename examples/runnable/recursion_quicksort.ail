@@ -27,9 +27,9 @@ export func main() -> () ! {IO} {
 
   -- Using custom quicksort
   let qs = quicksort(input);
-  println("Quicksort: " ++ show(qs));
+  println("Quicksort: ${show(qs)}");
 
   -- Using std/list sortBy (merge sort)
   let ms = sortBy(cmpInt, input);
-  println("sortBy:    " ++ show(ms))
+  println("sortBy:    ${show(ms)}")
 }

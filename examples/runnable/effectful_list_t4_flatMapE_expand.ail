@@ -8,8 +8,8 @@ import std/list (flatMapE)
 
 export func main() -> () ! {IO} {
   let result = flatMapE(\x. {
-    println("  expand " ++ show(x));
+    println("  expand ${show(x)}");
     [x, x * x]
   }, [2, 3, 4]);
-  println("T4 flatMapE: " ++ show(result))
+  println("T4 flatMapE: ${show(result)}")
 }

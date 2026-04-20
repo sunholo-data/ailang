@@ -12,7 +12,7 @@ export func safeConcat(a: string, b: string) -> string ! {}
 requires { strLength(a) >= 0, strLength(b) >= 0 }
 ensures { strLength(result) >= strLength(a) }
 {
-  a ++ b
+  "${a}${b}"
 }
 
 -- String equality is reflexive (trivially provable)

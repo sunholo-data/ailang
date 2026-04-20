@@ -52,7 +52,7 @@ The REPL auto-imports `std/prelude` on startup, providing:
 λ> 3.14 * 2.0
 6.28 :: Float
 
-λ> "Hello " ++ "AILANG!"
+λ> "Hello AILANG!"
 Hello AILANG! :: String
 
 λ> [1, 2, 3]

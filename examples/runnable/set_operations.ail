@@ -5,9 +5,9 @@ module examples/runnable/set_operations
 import std/list (member, dedup, intersect, union, difference)
 
 export func main() -> () ! {IO} =
-  let _ = println("member(3, [1,2,3]) = " ++ show(member(3, [1, 2, 3]))) in
-  let _ = println("member(4, [1,2,3]) = " ++ show(member(4, [1, 2, 3]))) in
-  let _ = println("dedup([1,2,1,3,2]) = " ++ show(dedup([1, 2, 1, 3, 2]))) in
-  let _ = println("intersect([1,2,3], [2,3,4]) = " ++ show(intersect([1, 2, 3], [2, 3, 4]))) in
-  let _ = println("union([1,2], [2,3]) = " ++ show(union([1, 2], [2, 3]))) in
-  println("difference([1,2,3], [2]) = " ++ show(difference([1, 2, 3], [2])))
+  let _ = println("member(3, [1,2,3]) = ${show(member(3, [1, 2, 3]))}") in
+  let _ = println("member(4, [1,2,3]) = ${show(member(4, [1, 2, 3]))}") in
+  let _ = println("dedup([1,2,1,3,2]) = ${show(dedup([1, 2, 1, 3, 2]))}") in
+  let _ = println("intersect([1,2,3], [2,3,4]) = ${show(intersect([1, 2, 3], [2, 3, 4]))}") in
+  let _ = println("union([1,2], [2,3]) = ${show(union([1, 2], [2, 3]))}") in
+  println("difference([1,2,3], [2]) = ${show(difference([1, 2, 3], [2]))}")

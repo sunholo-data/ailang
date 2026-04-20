@@ -13,14 +13,14 @@ export func main() -> int ! {IO} {
 
   -- Fold: count matching elements
   match parseFold(xml, "book", 0, \count _node. count + 1) {
-    Ok(n) => println("Book count: " ++ show(n)),
-    Err(msg) => println("Error: " ++ msg)
+    Ok(n) => println("Book count: ${show(n)}"),
+    Err(msg) => println("Error: ${msg}")
   };
 
   -- Fold: collect titles into a list
   match parseFold(xml, "title", [], \acc node. acc ++ [getText(node)]) {
-    Ok(titles) => println("Titles: " ++ show(titles)),
-    Err(msg) => println("Error: " ++ msg)
+    Ok(titles) => println("Titles: ${show(titles)}"),
+    Err(msg) => println("Error: ${msg}")
   };
 
   0

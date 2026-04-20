@@ -29,7 +29,7 @@ pure func setCell(grid: Array[int], x: int, y: int, value: int) -> Array[int] {
 -- Print row helper
 pure func rowToString(grid: Array[int], y: int, x: int) -> string {
   if x >= WIDTH then ""
-  else show(getCell(grid, x, y)) ++ " " ++ rowToString(grid, y, x + 1)
+  else "${show(getCell(grid, x, y))} ${rowToString(grid, y, x + 1)}"
 }
 
 export func main() -> () ! {IO} =
@@ -46,16 +46,16 @@ export func main() -> () ! {IO} =
   let empty = getCell(grid3, 1, 1) in
   {
     print("=== 2D Grid Example ===");
-    print("Grid size: " ++ show(WIDTH) ++ "x" ++ show(HEIGHT));
+    print("Grid size: ${show(WIDTH)}x${show(HEIGHT)}");
     print("");
     print("=== Cell Values ===");
-    print("Top-left (0,0): " ++ show(topLeft));
-    print("Middle (2,1): " ++ show(middle));
-    print("Bottom-right (4,2): " ++ show(bottomRight));
-    print("Empty cell (1,1): " ++ show(empty));
+    print("Top-left (0,0): ${show(topLeft)}");
+    print("Middle (2,1): ${show(middle)}");
+    print("Bottom-right (4,2): ${show(bottomRight)}");
+    print("Empty cell (1,1): ${show(empty)}");
     print("");
     print("=== Grid Layout ===");
-    print("Row 0: " ++ rowToString(grid3, 0, 0));
-    print("Row 1: " ++ rowToString(grid3, 1, 0));
-    print("Row 2: " ++ rowToString(grid3, 2, 0))
+    print("Row 0: ${rowToString(grid3, 0, 0)}");
+    print("Row 1: ${rowToString(grid3, 1, 0)}");
+    print("Row 2: ${rowToString(grid3, 2, 0)}")
   }

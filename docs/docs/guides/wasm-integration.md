@@ -694,7 +694,7 @@ module demo
 import std/ai as AI
 
 export func greet(name: string) -> () ! {IO} =
-    println("Hello, " ++ name ++ "!")
+    println("Hello, ${name}!")
 
 export func ask(question: string) -> string ! {AI} =
     AI.call(question)

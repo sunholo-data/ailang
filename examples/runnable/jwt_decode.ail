@@ -14,14 +14,14 @@ export func main() -> () ! {IO} = {
   -- Payload: {"sub":"1234567890","name":"Test User","iss":"https://example.com","aud":"my-app","exp":9999999999,"iat":1516239022}
   let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImlzcyI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJhdWQiOiJteS1hcHAiLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTUxNjIzOTAyMn0.fake-signature-not-verified";
   match decodeJWT(token) {
-    Err(e) => println("Decode error: " ++ e),
+    Err(e) => println("Decode error: ${e}"),
     Ok(jwt) => {
       println("JWT decoded successfully!");
-      println("Subject: " ++ show(getString(jwt.payload, "sub")));
-      println("Name: " ++ show(getString(jwt.payload, "name")));
-      println("Expired at 1700000000: " ++ show(isExpired(jwt.payload, 1700000000)));
-      println("Issuer matches: " ++ show(checkIssuer(jwt.payload, "https://example.com")));
-      println("Audience matches: " ++ show(checkAudience(jwt.payload, "my-app")))
+      println("Subject: ${show(getString(jwt.payload, "sub"))}");
+      println("Name: ${show(getString(jwt.payload, "name"))}");
+      println("Expired at 1700000000: ${show(isExpired(jwt.payload, 1700000000))}");
+      println("Issuer matches: ${show(checkIssuer(jwt.payload, "https://example.com"))}");
+      println("Audience matches: ${show(checkAudience(jwt.payload, "my-app"))}")
     }
   }
 }

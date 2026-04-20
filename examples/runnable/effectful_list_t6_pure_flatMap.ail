@@ -8,9 +8,9 @@ import std/list (flatMap)
 
 export func main() -> () ! {IO} {
   let pairs = flatMap(\x. [x, x * 10], [1, 2, 3]);
-  println("T6 flatMap: " ++ show(pairs));
+  println("T6 flatMap: ${show(pairs)}");
 
   -- Nested flatMap: cartesian-like expansion
   let nested = flatMap(\x. flatMap(\y. [x + y], [100, 200]), [1, 2]);
-  println("T6 nested: " ++ show(nested))
+  println("T6 nested: ${show(nested)}")
 }

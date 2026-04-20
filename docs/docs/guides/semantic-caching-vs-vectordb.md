@@ -63,12 +63,12 @@ ailang messages list --similar-to MSG_ID
 ```ailang
 -- Cache expensive tool results with SimHash key
 func cached_git_diff(commit: string) -> string ! {IO, SharedMem, SharedIndex} {
-  let key = "tool:git_diff:" ++ commit;
+  let key = "tool:git_diff:${commit}";
   match load_frame(key) {
     Some(frame) => _bytes_to_string(frame.opaque),
     None => {
-      let result = _shell("git diff " ++ commit);
-      let _ = store_frame(key, make_frame_at(key, "git diff " ++ commit, _bytes_from_string(result), _clock_now(())));
+      let result = _shell("git diff ${commit}");
+      let _ = store_frame(key, make_frame_at(key, "git diff ${commit}", _bytes_from_string(result), _clock_now(())));
       result
     }
   }
@@ -160,8 +160,8 @@ func store_with_provenance(key: string, content: string, source_hash: string)
 ```ailang
 -- Store successful trajectory keyed by problem signature
 let problem_sig = _simhash("type error on line 42 in parser.go");
-let _ = store_frame("trajectory:" ++ show(problem_sig), make_frame_at(
-  "trajectory:" ++ show(problem_sig),
+let _ = store_frame("trajectory:${show(problem_sig)}", make_frame_at(
+  "trajectory:${show(problem_sig)}",
   "Fix: check for nil pointer before dereferencing",
   _bytes_from_string(patch_content),
   _clock_now(())
@@ -181,8 +181,8 @@ let candidates = _sharedindex_find_simhash("trajectory", problem_sig, 3, 100, tr
 ```ailang
 -- Compress trace to summary frame
 let trace_summary = summarize_trace(full_trace);  -- AI call or heuristic
-let _ = store_frame("trace:" ++ trace_id, make_frame_at(
-  "trace:" ++ trace_id,
+let _ = store_frame("trace:${trace_id}", make_frame_at(
+  "trace:${trace_id}",
   trace_summary,
   _bytes_from_string(full_trace),  -- Original in opaque
   _clock_now(())
@@ -202,9 +202,9 @@ let _ = store_frame("trace:" ++ trace_id, make_frame_at(
 
 ```ailang
 -- Atomic claim with CAS
-match update_frame("claim:" ++ issue_sig, \frame.
+match update_frame("claim:${issue_sig}", \frame.
   if frame.content == "unclaimed" then
-    {frame | content: "claimed:" ++ agent_id}
+    {frame | content: "claimed:${agent_id}"}
   else
     frame  -- Already claimed, no change
 ) {

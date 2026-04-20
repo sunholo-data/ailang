@@ -9,8 +9,8 @@ export func main() -> () ! {IO} =
   let x = 10 in
   let addX = \y. x + y in
   let _ = println("Basic closure (x = 10):") in
-  let _ = println("  addX(5) = " ++ show(addX(5))) in
-  let _ = println("  addX(20) = " ++ show(addX(20))) in
+  let _ = println("  addX(5) = ${show(addX(5))}") in
+  let _ = println("  addX(20) = ${show(addX(20))}") in
 
   -- Closure factory - function that returns a function
   let makeAdder = \n. \x. n + x in
@@ -18,8 +18,8 @@ export func main() -> () ! {IO} =
   let add100 = makeAdder(100) in
   let _ = println("") in
   let _ = println("Closure factory (makeAdder):") in
-  let _ = println("  add5(3) = " ++ show(add5(3))) in
-  let _ = println("  add100(3) = " ++ show(add100(3))) in
+  let _ = println("  add5(3) = ${show(add5(3))}") in
+  let _ = println("  add100(3) = ${show(add100(3))}") in
 
   -- Multiple variables captured
   let a = 2 in
@@ -27,8 +27,8 @@ export func main() -> () ! {IO} =
   let compute = \x. a * x + b in
   let _ = println("") in
   let _ = println("Multiple variables captured (a=2, b=3):") in
-  let _ = println("  compute(5) = " ++ show(compute(5))) in
-  let _ = println("  compute(10) = " ++ show(compute(10))) in
+  let _ = println("  compute(5) = ${show(compute(5))}") in
+  let _ = println("  compute(10) = ${show(compute(10))}") in
 
   -- Nested closures
   let makeMultiplier = \factor. \x. factor * x in
@@ -36,5 +36,5 @@ export func main() -> () ! {IO} =
   let triple = makeMultiplier(3) in
   let _ = println("") in
   let _ = println("Nested closures (makeMultiplier):") in
-  let _ = println("  double(7) = " ++ show(double(7))) in
-  println("  triple(7) = " ++ show(triple(7)))
+  let _ = println("  double(7) = ${show(double(7))}") in
+  println("  triple(7) = ${show(triple(7))}")

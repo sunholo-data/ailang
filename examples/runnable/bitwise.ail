@@ -6,19 +6,19 @@ module examples/runnable/bitwise
 func hasFlag(flags: int, flag: int) -> bool = (flags & flag) != 0
 
 export func main() -> () ! {IO} {
-  println("AND:  12 & 10  = " ++ show(12 & 10));
-  println("XOR:  12 ^ 10  = " ++ show(12 ^ 10));
-  println("SHL:  1 << 4   = " ++ show(1 << 4));
-  println("SHR:  16 >> 2  = " ++ show(16 >> 2));
-  println("NOT:  ~0       = " ++ show(~0));
-  println("(255 & 15) ^ 3 = " ++ show((255 & 15) ^ 3));
+  println("AND:  12 & 10  = ${show(12 & 10)}");
+  println("XOR:  12 ^ 10  = ${show(12 ^ 10)}");
+  println("SHL:  1 << 4   = ${show(1 << 4)}");
+  println("SHR:  16 >> 2  = ${show(16 >> 2)}");
+  println("NOT:  ~0       = ${show(~0)}");
+  println("(255 & 15) ^ 3 = ${show((255 & 15) ^ 3)}");
 
   -- XOR self-inverse property (encryption)
-  println("XOR encrypt: " ++ show(42 ^ 137) ++ " -> decrypt: " ++ show((42 ^ 137) ^ 137));
+  println("XOR encrypt: ${show(42 ^ 137)} -> decrypt: ${show((42 ^ 137) ^ 137)}");
 
   -- Bit extraction: nibbles from 255
-  println("low nibble of 255:  " ++ show(255 & 15));
-  println("high nibble of 255: " ++ show((255 >> 4) & 15));
+  println("low nibble of 255:  ${show(255 & 15)}");
+  println("high nibble of 255: ${show((255 >> 4) & 15)}");
 
   println("ALL TESTS PASSED")
 }

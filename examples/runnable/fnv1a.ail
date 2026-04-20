@@ -30,20 +30,20 @@ export func main() -> () ! {IO} {
   let h2 = fnv1a("world");
   let h3 = fnv1a("hello");
 
-  println("FNV-1a of 'hello': " ++ show(h1));
-  println("FNV-1a of 'world': " ++ show(h2));
+  println("FNV-1a of 'hello': ${show(h1)}");
+  println("FNV-1a of 'world': ${show(h2)}");
 
   -- Determinism: same input -> same hash
-  println("Determinism: " ++ show(h1 == h3));
+  println("Determinism: ${show(h1 == h3)}");
 
   -- Different inputs -> different hashes
-  println("No collision: " ++ show(h1 != h2));
+  println("No collision: ${show(h1 != h2)}");
 
   -- XOR self-inverse: hash ^ hash = 0
-  println("XOR self-inverse: " ++ show(h1 ^ h1));
+  println("XOR self-inverse: ${show(h1 ^ h1)}");
 
   -- Low nibble for hash bucket (0-15)
-  println("Hash bucket: " ++ show(h1 & 15));
+  println("Hash bucket: ${show(h1 & 15)}");
 
   println("ALL TESTS PASSED")
 }

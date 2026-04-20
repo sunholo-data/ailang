@@ -10,7 +10,7 @@ import std/io (println)
 func loop(n: int) -> () ! {IO} =
   if n <= 0 then ()
   else {
-    let _ = println("tick " ++ show(n));
+    let _ = println("tick ${show(n)}");
     loop(n - 1)
   }
 

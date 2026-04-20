@@ -40,11 +40,11 @@ let result = apply_twice(double)(3)
 -- Print results using show() builtin
 export func main() -> () ! {IO} = {
   println("=== Debug Types Demo ===");
-  println("add_ints: " ++ show(add_ints));
-  println("add_floats: " ++ show(add_floats));
-  println("compare_nums: " ++ show(compare_nums));
-  println("check_equal: " ++ show(check_equal));
-  println("int_result: " ++ show(int_result));
-  println("str_result: " ++ str_result);
-  println("apply_twice(double)(3): " ++ show(result))
+  println("add_ints: ${show(add_ints)}");
+  println("add_floats: ${show(add_floats)}");
+  println("compare_nums: ${show(compare_nums)}");
+  println("check_equal: ${show(check_equal)}");
+  println("int_result: ${show(int_result)}");
+  println("str_result: ${str_result}");
+  println("apply_twice(double)(3): ${show(result)}")
 }

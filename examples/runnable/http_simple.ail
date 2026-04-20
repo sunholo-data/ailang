@@ -11,8 +11,8 @@ export func main() -> () ! {IO, Net} {
   let url = "https://httpbin.org/get";
 
   -- Simple GET request (returns body string)
-  println("Fetching: " ++ url);
+  println("Fetching: ${url}");
 
   let response = httpGet(url);
-  println("Response length: " ++ show(length(response)) ++ " bytes")
+  println("Response length: ${show(length(response))} bytes")
 }

@@ -20,38 +20,38 @@ pure func angleToPoint(x: float, y: float) -> float =
 export func main() -> () ! {IO} {
     {
         println("=== Mathematical Constants ===");
-        println("PI = " ++ show(PI()));
-        println("E  = " ++ show(E()));
+        println("PI = ${show(PI())}");
+        println("E  = ${show(E())}");
         println("");
         println("=== Trigonometric Functions ===");
-        println("sin(PI/4) = " ++ show(sin(PI() / 4.0)));
-        println("cos(PI/4) = " ++ show(cos(PI() / 4.0)));
-        println("tan(PI/4) = " ++ show(tan(PI() / 4.0)));
+        println("sin(PI/4) = ${show(sin(PI() / 4.0))}");
+        println("cos(PI/4) = ${show(cos(PI() / 4.0))}");
+        println("tan(PI/4) = ${show(tan(PI() / 4.0))}");
         println("");
         println("=== Point on Circle ===");
-        println("x = 10*cos(PI/4) = " ++ show(10.0 * cos(PI() / 4.0)));
-        println("y = 10*sin(PI/4) = " ++ show(10.0 * sin(PI() / 4.0)));
+        println("x = 10*cos(PI/4) = ${show(10.0 * cos(PI() / 4.0))}");
+        println("y = 10*sin(PI/4) = ${show(10.0 * sin(PI() / 4.0))}");
         println("");
         println("=== Distance Calculation ===");
-        println("distance(0,0,3,4) = " ++ show(distance(0.0, 0.0, 3.0, 4.0)));
+        println("distance(0,0,3,4) = ${show(distance(0.0, 0.0, 3.0, 4.0))}");
         println("");
         println("=== Angle Calculation ===");
-        println("atan2(1,1) = " ++ show(angleToPoint(1.0, 1.0)) ++ " radians");
+        println("atan2(1,1) = ${show(angleToPoint(1.0, 1.0))} radians");
         println("");
         println("=== Powers and Logarithms ===");
-        println("pow(2,10) = " ++ show(pow(2.0, 10.0)));
-        println("sqrt(2) = " ++ show(sqrt(2.0)));
-        println("exp(1) = " ++ show(exp(1.0)));
-        println("log(e) = " ++ show(log(E())));
+        println("pow(2,10) = ${show(pow(2.0, 10.0))}");
+        println("sqrt(2) = ${show(sqrt(2.0))}");
+        println("exp(1) = ${show(exp(1.0))}");
+        println("log(e) = ${show(log(E()))}");
         println("");
         println("=== Rounding Functions ===");
-        println("floor(3.7) = " ++ show(floor(3.7)));
-        println("ceil(3.2) = " ++ show(ceil(3.2)));
-        println("round(3.5) = " ++ show(round(3.5)));
+        println("floor(3.7) = ${show(floor(3.7))}");
+        println("ceil(3.2) = ${show(ceil(3.2))}");
+        println("round(3.5) = ${show(round(3.5))}");
         println("");
         println("=== Absolute Value ===");
-        println("abs_Float(-3.14) = " ++ show(abs_Float(0.0 - 3.14)));
-        println("abs_Int(-42) = " ++ show(abs_Int(0 - 42)));
+        println("abs_Float(-3.14) = ${show(abs_Float(0.0 - 3.14))}");
+        println("abs_Int(-42) = ${show(abs_Int(0 - 42))}");
         println("Done!")
     }
 }

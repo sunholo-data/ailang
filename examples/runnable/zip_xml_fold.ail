@@ -18,17 +18,17 @@ export func main() -> int ! {IO, FS} {
   ];
 
   match createArchive("/tmp/test_fold.zip", entries) {
-    Err(msg) => { println("Create error: " ++ msg); 1 },
+    Err(msg) => { println("Create error: ${msg}"); 1 },
     Ok(_) => {
       -- Stream-fold: extract shared strings without loading full XML
       match scanFold("/tmp/test_fold.zip", "xl/sharedStrings.xml", "si",
                      [], \acc node. acc ++ [getText(node)]) {
         Ok(strings) => {
-          println("Shared strings: " ++ show(strings));
-          println("Count: " ++ show(length(strings)));
+          println("Shared strings: ${show(strings)}");
+          println("Count: ${show(length(strings))}");
           0
         },
-        Err(msg) => { println("Fold error: " ++ msg); 1 }
+        Err(msg) => { println("Fold error: ${msg}"); 1 }
       }
     }
   }

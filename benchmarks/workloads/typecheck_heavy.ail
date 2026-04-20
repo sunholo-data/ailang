@@ -68,11 +68,11 @@ export func main() -> () ! {IO} = {
   let pStr = Pair("left", 99);
   let divOk = safeDivide(10.0, 2.0);
   let divBad = safeDivide(1.0, 0.0);
-  let _ = println("shapes: " ++ show(shapes));
-  let _ = println("areas: " ++ show(areas));
-  let _ = println("expr = " ++ show(evalExpr(expr)));
-  let _ = println("pInt first = " ++ show(firstOf(pInt)));
-  let _ = println("pStr second = " ++ show(secondOf(pStr)));
-  let _ = println("divOk = " ++ show(unwrapOr(divOk, 0.0)));
-  println("divBad = " ++ show(unwrapOr(divBad, -1.0)))
+  let _ = println("shapes: ${show(shapes)}");
+  let _ = println("areas: ${show(areas)}");
+  let _ = println("expr = ${show(evalExpr(expr))}");
+  let _ = println("pInt first = ${show(firstOf(pInt))}");
+  let _ = println("pStr second = ${show(secondOf(pStr))}");
+  let _ = println("divOk = ${show(unwrapOr(divOk, 0.0))}");
+  println("divBad = ${show(unwrapOr(divBad, -1.0))}")
 }

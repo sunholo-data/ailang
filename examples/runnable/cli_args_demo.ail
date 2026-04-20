@@ -8,7 +8,7 @@ import std/io (println)
 import std/list (length)
 
 -- Helper: Format greeting
-func greet(name: string) -> string = "Hello, " ++ name ++ "!"
+func greet(name: string) -> string = "Hello, ${name}!"
 
 -- Entry point
 export func main() -> () ! {IO, Env} {
@@ -30,9 +30,9 @@ export func main() -> () ! {IO, Env} {
       println(greet(second))
     }
     first :: rest => {
-      println("Received " ++ show(count) ++ " arguments:");
+      println("Received ${show(count)} arguments:");
       println(greet(first));
-      println("...and " ++ show(length(rest)) ++ " more")
+      println("...and ${show(length(rest))} more")
     }
   }
 }

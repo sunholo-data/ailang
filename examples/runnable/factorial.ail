@@ -19,7 +19,7 @@ export func main() -> () ! {IO} {
   println("Factorial with inline tests");
   println("Use `ailang test examples/factorial.ail` to run tests");
   println("");
-  println("factorial(0) = " ++ show(factorial(0)));
-  println("factorial(5) = " ++ show(factorial(5)));
-  println("factorial(10) = " ++ show(factorial(10)))
+  println("factorial(0) = ${show(factorial(0))}");
+  println("factorial(5) = ${show(factorial(5))}");
+  println("factorial(10) = ${show(factorial(10))}")
 }

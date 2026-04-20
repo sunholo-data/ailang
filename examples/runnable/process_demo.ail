@@ -10,14 +10,14 @@ export func main() -> () ! {IO, Process} {
   -- 1. Simple command: echo
   println("=== Echo test ===");
   match exec("echo", ["hello", "from", "AILANG"]) {
-    Ok(out) => println("stdout: " ++ toString(out.stdout)),
+    Ok(out) => println("stdout: ${toString(out.stdout)}"),
     Err(_)  => println("error!")
   };
 
   -- 2. Non-zero exit is Ok (completion semantics)
   println("=== Non-zero exit ===");
   match exec("false", []) {
-    Ok(out) => println("exitCode: " ++ show(out.exitCode)),
+    Ok(out) => println("exitCode: ${show(out.exitCode)}"),
     Err(_)  => println("unexpected error")
   };
 
@@ -25,14 +25,14 @@ export func main() -> () ! {IO, Process} {
   println("=== NotFound test ===");
   match exec("nonexistent_cmd_xyz", []) {
     Ok(_)               => println("unexpected success"),
-    Err(NotFound(cmd))  => println("not found: " ++ cmd),
+    Err(NotFound(cmd))  => println("not found: ${cmd}"),
     Err(_)              => println("other error")
   };
 
   -- 4. Stderr capture
   println("=== Stderr test ===");
   match exec("sh", ["-c", "echo stderr_msg >&2"]) {
-    Ok(out) => println("stderr: " ++ toString(out.stderr)),
+    Ok(out) => println("stderr: ${toString(out.stderr)}"),
     Err(_)  => println("error!")
   };
 

@@ -23,11 +23,11 @@ import std/bytes (toString)
 export func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
     SourceBytes(source, data) => {
-      _io_println("[" ++ source ++ "] " ++ toString(data));
+      _io_println("[${source}] ${toString(data)}");
       true
     },
     SourceText(source, text) => {
-      _io_println("[" ++ source ++ "] " ++ text);
+      _io_println("[${source}] ${text}");
       false
     },
     _ => true

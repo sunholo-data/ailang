@@ -12,19 +12,19 @@ export func main() -> () ! {IO} {
   -- nth: Get element at index (0-based)
   println("=== nth function ===");
   match nth(nums, 0) {
-    Some(x) => println("nth(nums, 0) = " ++ show(x)),
+    Some(x) => println("nth(nums, 0) = ${show(x)}"),
     None => println("nth(nums, 0) = None")
   };
   match nth(nums, 2) {
-    Some(x) => println("nth(nums, 2) = " ++ show(x)),
+    Some(x) => println("nth(nums, 2) = ${show(x)}"),
     None => println("nth(nums, 2) = None")
   };
   match nth(nums, 10) {
-    Some(x) => println("nth(nums, 10) = " ++ show(x)),
+    Some(x) => println("nth(nums, 10) = ${show(x)}"),
     None => println("nth(nums, 10) = None (out of bounds)")
   };
   match nth(nums, -1) {
-    Some(x) => println("nth(nums, -1) = " ++ show(x)),
+    Some(x) => println("nth(nums, -1) = ${show(x)}"),
     None => println("nth(nums, -1) = None (negative index)")
   };
 
@@ -32,12 +32,12 @@ export func main() -> () ! {IO} {
   println("");
   println("=== last function ===");
   match last(nums) {
-    Some(x) => println("last(nums) = " ++ show(x)),
+    Some(x) => println("last(nums) = ${show(x)}"),
     None => println("last(nums) = None")
   };
   let emptyList: [int] = [];
   match last(emptyList) {
-    Some(x) => println("last([]) = " ++ show(x)),
+    Some(x) => println("last([]) = ${show(x)}"),
     None => println("last([]) = None (empty list)")
   };
 
@@ -45,21 +45,21 @@ export func main() -> () ! {IO} {
   println("");
   println("=== any function ===");
   let hasEven = any(\x. x % 2 == 0, nums);
-  println("any(isEven, nums) = " ++ show(hasEven));
+  println("any(isEven, nums) = ${show(hasEven)}");
   let hasNegative = any(\x. x < 0, nums);
-  println("any(isNegative, nums) = " ++ show(hasNegative));
+  println("any(isNegative, nums) = ${show(hasNegative)}");
   let hasGreaterThan45 = any(\x. x > 45, nums);
-  println("any(>45, nums) = " ++ show(hasGreaterThan45));
+  println("any(>45, nums) = ${show(hasGreaterThan45)}");
 
   -- findIndex: Find index of first matching element
   println("");
   println("=== findIndex function ===");
   match findIndex(\x. x > 25, nums) {
-    Some(i) => println("findIndex(>25, nums) = " ++ show(i)),
+    Some(i) => println("findIndex(>25, nums) = ${show(i)}"),
     None => println("findIndex(>25, nums) = None")
   };
   match findIndex(\x. x > 100, nums) {
-    Some(i) => println("findIndex(>100, nums) = " ++ show(i)),
+    Some(i) => println("findIndex(>100, nums) = ${show(i)}"),
     None => println("findIndex(>100, nums) = None (not found)")
   }
 }

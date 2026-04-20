@@ -32,7 +32,7 @@ func main() -> string ! {IO, SharedIndex} {
   in let query_hash = _simhash("What color is the sky?")
   in let results = _sharedindex_find_simhash("beliefs", query_hash, 3, 100, true)
 
-  in "Found " ++ intToStr(_array_length(results)) ++ " results"
+  in "Found ${intToStr(_array_length(results))} results"
 }
 ```
 
@@ -134,7 +134,7 @@ module test_embedding
 
 func main() -> string ! {IO} {
   let emb = _ollama_embed("embeddinggemma", "Hello world")
-  in "Got " ++ intToStr(_array_length(emb)) ++ "-dimensional embedding"
+  in "Got ${intToStr(_array_length(emb))}-dimensional embedding"
 }
 ```
 
@@ -181,7 +181,7 @@ func print_results(results: list[{key: string, score: float, version: int, times
   match results {
     [] => _io_println("No results"),
     [first, ...rest] =>
-      let _ = _io_println(first.key ++ " (score: " ++ floatToStr(first.score) ++ ")")
+      let _ = _io_println("${first.key} (score: ${floatToStr(first.score)})")
       in print_results(rest)
   }
 }

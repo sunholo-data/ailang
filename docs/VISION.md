@@ -238,7 +238,7 @@ func verifyRefactor(original, refactored) =
   let refactoredEffects = reflectEffect(refactored) in
   if originalEffects == refactoredEffects
   then checkBehavioralEquivalence(normalize(original), normalize(refactored))
-  else Err("Effects changed: " ++ show(refactoredEffects))
+  else Err("Effects changed: ${show(refactoredEffects)}")
 ```
 
 **Result:** Agent B rejects the refactoring (FS write effect added). Agent A must either:

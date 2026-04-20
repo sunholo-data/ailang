@@ -56,7 +56,7 @@ export func add(x: int, y: int) -> int {
 
 -- Function with effects
 export func greet(name: string) -> () ! {IO} {
-  println("Hello, " ++ name ++ "!")
+  println("Hello, ${name}!")
 }
 
 -- Recursive function
@@ -268,7 +268,7 @@ export func processData() -> () ! {IO, FS, Clock, Net} {
   let timestamp = now();
 
   writeFile("output.txt", response);
-  println("Done at " ++ show(timestamp))
+  println("Done at ${show(timestamp)}")
 }
 ```
 
@@ -360,7 +360,7 @@ export func add(x: int, y: int) -> int ! {}
 -- Type class instances (REPL only currently)
 let sum = 1 + 2 + 3             -- Works: 6
 let calc = 10 * 5 - 20 / 4      -- Works: 45
-let greeting = "hello" ++ " world"  -- Works: "hello world"
+let greeting = "hello ${place}"     -- Interpolation: "hello world" (++ is list-only)
 
 -- Type-level operations
 let eq1 = 42 == 42              -- true

@@ -19,9 +19,9 @@ pure func processLine(line: string) -> string =
 pure func buildInput(n: int, acc: [string]) -> [string] =
   if n <= 0 then acc
   else
-    let line = if n % 3 == 0 then "X-Custom-Header: value" ++ show(n)
+    let line = if n % 3 == 0 then "X-Custom-Header: value${show(n)}"
                else if n % 3 == 1 then "Content-Type : text/plain"
-               else "some plain text line " ++ show(n) in
+               else "some plain text line ${show(n)}" in
     buildInput(n - 1, line :: acc)
 
 export pure func main() -> int =

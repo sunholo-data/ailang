@@ -169,7 +169,7 @@ import std/string (length as strlen, substring)
 export pure func truncate(text: string, maxLen: int) -> string =
   if maxLen == 0 || strlen(text) <= maxLen
   then text
-  else substring(text, 0, maxLen) ++ "..."
+  else "${substring(text, 0, maxLen)}..."
 
 export pure func countWords(text: string) -> int =
   length(split(text, " "))

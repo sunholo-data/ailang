@@ -8,17 +8,17 @@ import std/list (mapE, filterE, foldlE)
 
 export func main() -> () ! {IO} {
   -- Step 1: mapE doubles each element
-  let doubled = mapE(\x. { println("  double " ++ show(x)); x * 2 }, [1, 2, 3, 4, 5]);
-  println("T7 doubled: " ++ show(doubled));
+  let doubled = mapE(\x. { println("  double ${show(x)}"); x * 2 }, [1, 2, 3, 4, 5]);
+  println("T7 doubled: ${show(doubled)}");
 
   -- Step 2: filterE keeps only > 4
-  let big = filterE(\x. { println("  filter " ++ show(x)); x > 4 }, doubled);
-  println("T7 filtered: " ++ show(big));
+  let big = filterE(\x. { println("  filter ${show(x)}"); x > 4 }, doubled);
+  println("T7 filtered: ${show(big)}");
 
   -- Step 3: foldlE sums the remaining
   let total = foldlE(func(acc: int, x: int) -> int ! {IO} {
-    println("  fold " ++ show(acc) ++ "+" ++ show(x));
+    println("  fold ${show(acc)}+${show(x)}");
     acc + x
   }, 0, big);
-  println("T7 total: " ++ show(total))
+  println("T7 total: ${show(total)}")
 }

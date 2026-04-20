@@ -9,6 +9,6 @@ export func main() -> () ! {IO, Net} {
   _io_println("Calling httpbin.org API for testing...");
   let response = httpGet("https://httpbin.org/get");
   _io_println("Response from API:");
-  _io_println("Length: " ++ show(_str_len(response)) ++ " bytes");
+  _io_println("Length: ${show(_str_len(response))} bytes");
   _io_println("Success!")
 }

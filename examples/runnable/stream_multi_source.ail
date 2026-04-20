@@ -24,11 +24,11 @@ import std/result (Result, Ok, Err)
 export func multiHandler(event: StreamEvent) -> bool ! {IO} {
   match event {
     SourceText(source, text) => {
-      _io_println("stdin: " ++ text);
+      _io_println("stdin: ${text}");
       false
     },
     Message(msg) => {
-      _io_println("ws: " ++ msg);
+      _io_println("ws: ${msg}");
       true
     },
     Closed(code, reason) => {

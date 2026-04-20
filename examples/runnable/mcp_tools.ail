@@ -24,7 +24,7 @@ export func secureParse(content: string, _headers: Json) -> string ! {IO} =
   let apiKey = getString(_headers, "x-api-key") in
   let wordCount = intToStr(length(split(content, " "))) in
   if apiKey == "" then "error: missing x-api-key header"
-  else "parsed " ++ wordCount ++ " words (authenticated)"
+  else "parsed ${wordCount} words (authenticated)"
 
 -- Internal helper hidden from MCP/HTTP via @noexpose.
 @noexpose
@@ -34,4 +34,4 @@ export func escapeXml(s: string) -> string {
 
 -- Demo entrypoint for verify-examples
 export func main() -> string ! {IO} =
-  "MCP tools example: " ++ intToStr(parseDocument("hello world test"))
+  "MCP tools example: ${intToStr(parseDocument("hello world test"))}"

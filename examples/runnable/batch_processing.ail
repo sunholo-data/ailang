@@ -31,7 +31,7 @@ export func main() -> () ! {IO, Env} {
     [] => println("No input file provided")
     [file] => {
       let kind = classify(file);
-      println("Processing: " ++ file ++ " (type: " ++ kind ++ ", " ++ show(length(file)) ++ " chars)")
+      println("Processing: ${file} (type: ${kind}, ${show(length(file))} chars)")
     }
     _ => println("Expected single file argument in batch mode")
   }

@@ -70,12 +70,12 @@ export func main() -> () ! {IO} {
   println("=== Cons (::) Expression Examples ===");
   println("");
 
-  println("prepend(1, [2, 3]) = " ++ show(prepend(1, [2, 3])));
-  println("buildList() = " ++ show(buildList()));
-  println("maybeAdd(5, [1, 2]) = " ++ show(maybeAdd(5, [1, 2])));
-  println("maybeAdd(-1, [1, 2]) = " ++ show(maybeAdd(-1, [1, 2])));
-  println("duplicate_head([1, 2, 3]) = " ++ show(duplicate_head([1, 2, 3])));
-  println("greet(\"Alice\") = " ++ show(greet("Alice")));
+  println("prepend(1, [2, 3]) = ${show(prepend(1, [2, 3]))}");
+  println("buildList() = ${show(buildList())}");
+  println("maybeAdd(5, [1, 2]) = ${show(maybeAdd(5, [1, 2]))}");
+  println("maybeAdd(-1, [1, 2]) = ${show(maybeAdd(-1, [1, 2]))}");
+  println("duplicate_head([1, 2, 3]) = ${show(duplicate_head([1, 2, 3]))}");
+  println("greet(\"Alice\") = ${show(greet("Alice"))}");
 
   ()
 }

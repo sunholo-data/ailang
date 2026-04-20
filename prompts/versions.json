@@ -46,7 +46,7 @@
     },
     "v0.3.8": {
       "file": "prompts/v0.3.8.md",
-      "hash": "91fed29dd5b991549cddd7a492b1afe790eb0a74c8da9bf29dcb46c2546a9665",
+      "hash": "3bf1c73ba66890722c7d2195bef16095f4924dda2635aa8ca980eea800293eb1",
       "description": "v0.3.8 prompt with auto-import std/prelude, record updates, and multi-line ADTs",
       "created": "2025-10-15",
       "tags": [
@@ -99,7 +99,7 @@
     },
     "v0.2.0": {
       "file": "prompts/v0.2.0.md",
-      "hash": "PLACEHOLDER",
+      "hash": "bbe1ef0f9029c2f6ff246d3a56bbdf67ec28ee587e8e22f93bfae918463076ce",
       "description": "Teaching prompt for v0.2.0 with module runtime and effect system",
       "created": "2025-09-28",
       "tags": [
@@ -109,7 +109,7 @@
     },
     "python": {
       "file": "prompts/python.md",
-      "hash": "PLACEHOLDER",
+      "hash": "5b3a94db986ef1506b241a3dad6afebb1100f86fc1f04319bb27da23774e6536",
       "description": "Python language teaching prompt (control/reference)",
       "created": "2025-10-05",
       "tags": [
@@ -165,7 +165,7 @@
     },
     "v0.3.20": {
       "file": "prompts/v0.3.20.md",
-      "hash": "a49dadd4264a07a1c70bcb8ffd03680313e6a8f7289eff06716b74ff3d41b48b",
+      "hash": "8fa43b45ebaf3b9d1fedd8db7cdc88ba7916c474a04fcc2721da332693b27291",
       "description": "Add property-based testing syntax (test/property keywords) from M-TESTING",
       "created": "2025-10-26",
       "tags": [
@@ -463,7 +463,7 @@
     },
     "v0.7.4-compact": {
       "file": "prompts/v0.7.4-compact.md",
-      "hash": "PLACEHOLDER",
+      "hash": "73c2335bac2d8ad8519ceca6124acb7db4f71e9725d72da4efff926186bcd02e",
       "description": "Token-efficient compact syntax reference (~15KB vs ~49KB full prompt)",
       "created": "2026-02-13",
       "tags": [
@@ -528,7 +528,7 @@
     },
     "v0.12.1": {
       "file": "prompts/v0.12.1.md",
-      "hash": "a6ec20b23c453ba69b7dcbd3612b8a4b47f581e62d3823ee01bfea194bec8507",
+      "hash": "15655485d4ab78751a7c72d09e3ce280405dbde73e3a7c58d23d4ba889377ad5",
       "description": "Add string interpolation \"${expr}\" as preferred string-building syntax (M-CONCAT-DISAMBIG Phase 1)",
       "created": "2026-04-20",
       "tags": [

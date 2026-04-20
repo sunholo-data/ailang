@@ -36,6 +36,6 @@ export func main() -> () ! {IO} {
   let result1 = factorial(5);
   let result2 = factorialTail(10, 1);
 
-  println("factorial(5) = " ++ show(result1));
-  println("factorialTail(10, 1) = " ++ show(result2))
+  println("factorial(5) = ${show(result1)}");
+  println("factorialTail(10, 1) = ${show(result2)}")
 }

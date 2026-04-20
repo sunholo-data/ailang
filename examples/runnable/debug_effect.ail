@@ -26,7 +26,7 @@ type Entity = { id: int, name: string, health: int }
 -- Update an entity's health with debug tracing
 -- Note: No ! {Debug} needed — ghost effect is invisible
 func damage(e: Entity, amount: int) -> Entity {
-    Debug.log("Damaging entity " ++ show(e.id) ++ " by " ++ show(amount));
+    Debug.log("Damaging entity ${show(e.id)} by ${show(amount)}");
     Debug.check(amount >= 0, "damage amount must be non-negative");
 
     let new_health = e.health - amount;
@@ -37,7 +37,7 @@ func damage(e: Entity, amount: int) -> Entity {
 
 -- Heal an entity with debug tracing
 func heal(e: Entity, amount: int) -> Entity {
-    Debug.log("Healing entity " ++ show(e.id) ++ " by " ++ show(amount));
+    Debug.log("Healing entity ${show(e.id)} by ${show(amount)}");
     Debug.check(amount >= 0, "heal amount must be non-negative");
 
     let new_health = e.health + amount;
@@ -52,7 +52,7 @@ func process_entities(entities: [Entity]) -> [Entity] {
     match entities {
         [] => [],
         e :: rest => {
-            Debug.log("Processing: " ++ e.name);
+            Debug.log("Processing: ${e.name}");
             let updated = damage(e, 10);
             updated :: process_entities(rest)
         }
@@ -75,7 +75,7 @@ export func main() -> () ! {IO} {
     let damaged_hero = damage(hero, 25);
     let healed_hero = heal(damaged_hero, 10);
 
-    println("Hero health: " ++ show(healed_hero.health));
+    println("Hero health: ${show(healed_hero.health)}");
 
     -- Process multiple entities
     let entities = [hero, monster];

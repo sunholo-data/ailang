@@ -122,12 +122,12 @@ type Option[a] = Some(a) | None
 export func main() -> () ! {IO} {
   let x: Option[int] = Some(42);
   match x {
-    Some(v) => println("Got: " ++ show(v)),
+    Some(v) => println("Got: ${show(v)}"),
     None => println("Nothing")
   };
   let y: Option[int] = None;
   match y {
-    Some(v) => println("Got: " ++ show(v)),
+    Some(v) => println("Got: ${show(v)}"),
     None => println("Empty")
   }
 }

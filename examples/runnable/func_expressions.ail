@@ -25,7 +25,7 @@ export func main() -> () ! {IO} =
   let _ = println(show(apply(triple)(4))) in
 
   -- Anonymous function with effects
-  let greet = \name. println("Hello, " ++ name ++ "!") in
+  let greet = \name. println("Hello, ${name}!") in
   let _ = greet("AILANG") in
 
   -- Nested anonymous functions (currying)

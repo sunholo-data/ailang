@@ -117,7 +117,7 @@ func generate_map(seed: int) -> Map ! {RNG} {
 ```ailang
 func update_entity(e: Entity) -> Entity ! {Debug} {
     Debug.assert(e.health >= 0, "health must be non-negative")
-    Debug.log("updating entity " ++ show(e.id))
+    Debug.log("updating entity ${show(e.id)}")
     ...
 }
 

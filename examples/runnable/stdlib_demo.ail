@@ -7,5 +7,5 @@ import std/option (Some, getOrElse)
 
 export func main() -> () ! {IO} {
   let s = toUpper("hello");
-  println("Result: " ++ s)
+  println("Result: ${s}")
 }

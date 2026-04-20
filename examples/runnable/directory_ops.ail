@@ -9,23 +9,23 @@ export func main() -> () ! {IO, FS} {
   let base = "/tmp/ailang_dir_test";
 
   -- Create nested directory tree (like mkdir -p)
-  let _ = mkdirAll(base ++ "/a/b/c");
-  println("Created: " ++ base ++ "/a/b/c");
+  let _ = mkdirAll("${base}/a/b/c");
+  println("Created: ${base}/a/b/c");
 
   -- Check directory vs file
-  let _ = println("isDir(base): " ++ show(isDir(base)));
-  let _ = println("isFile(base): " ++ show(isFile(base)));
+  let _ = println("isDir(base): ${show(isDir(base))}");
+  let _ = println("isFile(base): ${show(isFile(base))}");
 
   -- Write a file and check again
-  let _ = writeFile(base ++ "/hello.txt", "Hello from AILANG!");
-  let _ = println("isFile(hello.txt): " ++ show(isFile(base ++ "/hello.txt")));
-  let _ = println("isDir(hello.txt): " ++ show(isDir(base ++ "/hello.txt")));
+  let _ = writeFile("${base}/hello.txt", "Hello from AILANG!");
+  let _ = println("isFile(hello.txt): ${show(isFile("${base}/hello.txt"))}");
+  let _ = println("isDir(hello.txt): ${show(isDir("${base}/hello.txt"))}");
 
   -- Check existence
-  let _ = println("exists(base): " ++ show(fileExists(base)));
-  let _ = println("exists(nope): " ++ show(fileExists(base ++ "/nope")));
+  let _ = println("exists(base): ${show(fileExists(base))}");
+  let _ = println("exists(nope): ${show(fileExists("${base}/nope"))}");
 
   -- Clean up file
-  let _ = removeFile(base ++ "/hello.txt");
-  println("Removed hello.txt, exists: " ++ show(fileExists(base ++ "/hello.txt")))
+  let _ = removeFile("${base}/hello.txt");
+  println("Removed hello.txt, exists: ${show(fileExists("${base}/hello.txt"))}")
 }

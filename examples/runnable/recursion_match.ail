@@ -45,18 +45,18 @@ export func main() -> () ! {IO} {
   println("=== Recursion with Match Expressions ===");
 
   -- Test count
-  println("count(10) = " ++ show(count(10)));
-  println("count(100) = " ++ show(count(100)));
+  println("count(10) = ${show(count(10))}");
+  println("count(100) = ${show(count(100))}");
 
   -- Test sum
-  println("sum(10) = " ++ show(sum(10)));
-  println("sum(100) = " ++ show(sum(100)));
+  println("sum(10) = ${show(sum(10))}");
+  println("sum(100) = ${show(sum(100))}");
 
   -- Test factorial
-  println("factorial(5) = " ++ show(factorial(5)));
-  println("factorial(10) = " ++ show(factorial(10)));
+  println("factorial(5) = ${show(factorial(5))}");
+  println("factorial(10) = ${show(factorial(10))}");
 
   -- Test fibonacci (small values due to exponential complexity)
-  println("fib(10) = " ++ show(fib(10)));
-  println("fib(15) = " ++ show(fib(15)))
+  println("fib(10) = ${show(fib(10))}");
+  println("fib(15) = ${show(fib(15))}")
 }

@@ -57,11 +57,11 @@ func logAndReturn(c: Color) -> string ! {IO} =
 
 func main() -> () ! {IO} = {
     let info = colorInfo(Red);
-    println("Color: " ++ info.name ++ ", Hex: " ++ info.hex);
+    println("Color: ${info.name}, Hex: ${info.hex}");
 
     let loc = locationInfo(Home);
-    println("Location: " ++ loc.name);
+    println("Location: ${loc.name}");
 
     let result = logAndReturn(Green);
-    println("Result: " ++ result)
+    println("Result: ${result}")
 }

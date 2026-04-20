@@ -77,7 +77,7 @@ func store_if_novel(ns: string, content: string, payload: bytes) -> bool ! {Shar
   match similar {
     [] => {
       -- No similar content found, store new frame
-      let key = ns ++ ":" ++ _uuid(());
+      let key = "${ns}:${_uuid(())}";
       let frame = make_frame_at(key, content, payload, _clock_now(()));
       let _ = store_frame(key, frame);
       let _ = _sharedindex_upsert(ns, key, hash, 1, _clock_now(()));
@@ -96,7 +96,7 @@ Multiple agents refine a shared plan using CAS:
 import std/sem (update_frame, UpdateResult)
 
 func refine_plan(goal_id: string, refiner: sem_frame -> sem_frame) -> sem_frame ! {SharedMem} {
-  let key = "plan:" ++ goal_id;
+  let key = "plan:${goal_id}";
 
   -- Retry loop for CAS conflicts
   letrec attempt = \retries.
@@ -392,7 +392,7 @@ func cached_ai_call(prompt: string) -> string ! {AI, SharedMem, SharedIndex} {
 
 func call_and_cache(prompt: string, hash: int) -> string ! {AI, SharedMem, SharedIndex} {
   let response = call(prompt);
-  let key = "ai-cache:" ++ show(hash);
+  let key = "ai-cache:${show(hash)}";
   let frame = make_frame_at(key, prompt, _bytes_from_string(response), _clock_now(()));
   let _ = store_frame(key, frame);
   let _ = _sharedindex_upsert("ai-cache", key, hash, 1, _clock_now(()));
@@ -410,7 +410,7 @@ import std/sem (make_frame_at, update_frame, load_frame, UpdateResult)
 type Belief = { assertion: string, confidence: float, evidence: [string] }
 
 func add_evidence(belief_id: string, new_evidence: string) -> Belief ! {SharedMem} {
-  let key = "belief:" ++ belief_id;
+  let key = "belief:${belief_id}";
 
   match update_frame(key, \frame.
     let belief = decode_belief(frame.opaque);
@@ -444,21 +444,21 @@ module example/debug_retrieval
 
 func traced_search(query: string) -> [string] ! {IO, SharedMem, SharedIndex} {
   -- Log query
-  let _ = print("SEARCH: " ++ query);
+  let _ = print("SEARCH: ${query}");
 
   -- Tier 1: SimHash
   let hash = _simhash(query);
-  let _ = print("SimHash: " ++ show(hash));
+  let _ = print("SimHash: ${show(hash)}");
 
   let tier1 = _sharedindex_find_simhash("docs", hash, 10, 100, true);
-  let _ = print("Tier1 results: " ++ show(length(tier1)));
+  let _ = print("Tier1 results: ${show(length(tier1))}");
 
   -- Tier 2: Neural (if Tier 1 sparse)
   if length(tier1) < 3 then {
     let emb = _ollama_embed("embeddinggemma", query);
     let _ = print("Falling back to neural search");
     let tier2 = _sharedindex_find_by_embedding("docs", emb, 10, 100, true);
-    let _ = print("Tier2 results: " ++ show(length(tier2)));
+    let _ = print("Tier2 results: ${show(length(tier2))}");
     map(\r. r.key, tier2)
   } else {
     map(\r. r.key, tier1)

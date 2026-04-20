@@ -12,23 +12,23 @@ export func main() -> () ! {IO, FS} =
   -- Parse then serialize back
   let serialized = match parse(xml) {
     Ok(node) => serialize(node),
-    Err(msg) => "PARSE ERROR: " ++ msg
+    Err(msg) => "PARSE ERROR: ${msg}"
   } in
-  let _ = println("Serialized: " ++ serialized) in
+  let _ = println("Serialized: ${serialized}") in
 
   -- Serialize with XML declaration
   let withDecl = match parse(xml) {
     Ok(node) => serializeWithDecl(node),
-    Err(msg) => "PARSE ERROR: " ++ msg
+    Err(msg) => "PARSE ERROR: ${msg}"
   } in
-  let _ = println("With decl: " ++ withDecl) in
+  let _ = println("With decl: ${withDecl}") in
 
   -- Roundtrip: parse(serialize(tree)) should produce same output
   let roundtrip = match parse(serialized) {
     Ok(node2) => serialize(node2),
-    Err(msg) => "ROUNDTRIP FAILED: " ++ msg
+    Err(msg) => "ROUNDTRIP FAILED: ${msg}"
   } in
-  let _ = println("Roundtrip match: " ++ show(serialized == roundtrip)) in
+  let _ = println("Roundtrip match: ${show(serialized == roundtrip)}") in
 
   -- Create ZIP archive with XML content
   let zipResult = match createArchive("/tmp/ailang_xml_zip_demo.zip", [
@@ -36,19 +36,19 @@ export func main() -> () ! {IO, FS} =
     {name: "README.txt", content: "AILANG XML+ZIP roundtrip demo"}
   ]) {
     Ok(u) => "ZIP created",
-    Err(msg) => "ZIP error: " ++ msg
+    Err(msg) => "ZIP error: ${msg}"
   } in
   let _ = println(zipResult) in
 
   -- List entries
   let entryList = match listEntries("/tmp/ailang_xml_zip_demo.zip") {
     Ok(entries) => show(entries),
-    Err(msg) => "List error: " ++ msg
+    Err(msg) => "List error: ${msg}"
   } in
-  let _ = println("Entries: " ++ entryList) in
+  let _ = println("Entries: ${entryList}") in
 
   -- Read back and verify
   match readEntry("/tmp/ailang_xml_zip_demo.zip", "catalog.xml") {
-    Ok(content) => println("Content matches: " ++ show(content == serialized)),
-    Err(msg) => println("Read error: " ++ msg)
+    Ok(content) => println("Content matches: ${show(content == serialized)}"),
+    Err(msg) => println("Read error: ${msg}")
   }

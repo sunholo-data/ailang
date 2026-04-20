@@ -93,9 +93,9 @@ pure func describe(list: List[int]) -> string
 {
   match list {
     [] => "empty",
-    x :: [] => "singleton: " ++ show(x),            // Sugar
-    ::(x, ::(y, [])) => "pair: " ++ show(x) ++ ", " ++ show(y),  // Canonical
-    x :: y :: rest => "many: starts with " ++ show(x) ++ ", " ++ show(y),  // Sugar
+    x :: [] => "singleton: ${show(x)}",            // Sugar
+    ::(x, ::(y, [])) => "pair: ${show(x)}, ${show(y)}",  // Canonical
+    x :: y :: rest => "many: starts with ${show(x)}, ${show(y)}",  // Sugar
     _ => "other"
   }
 }
@@ -150,31 +150,31 @@ export func main() -> () ! {IO} {
   let single = [42];
 
   // Test head and tail
-  println("head([1,2,3,4,5]) = " ++ show(head(nums)));
-  println("tail([1,2,3,4,5]) = " ++ show(tail(nums)));
+  println("head([1,2,3,4,5]) = ${show(head(nums))}");
+  println("tail([1,2,3,4,5]) = ${show(tail(nums))}");
   println("");
 
   // Test right-associativity
-  println("sumFirstTwo([1,2,3,4,5]) = " ++ show(sumFirstTwo(nums)));
-  println("sumThree([1,2,3,4,5]) = " ++ show(sumThree(nums)));
+  println("sumFirstTwo([1,2,3,4,5]) = ${show(sumFirstTwo(nums))}");
+  println("sumThree([1,2,3,4,5]) = ${show(sumThree(nums))}");
   println("");
 
   // Test describe with mixed forms
-  println("describe([]) = " ++ describe(empty));
-  println("describe([42]) = " ++ describe(single));
-  println("describe([1,2]) = " ++ describe([1, 2]));
-  println("describe([1,2,3,4,5]) = " ++ describe(nums));
+  println("describe([]) = ${describe(empty)}");
+  println("describe([42]) = ${describe(single)}");
+  println("describe([1,2]) = ${describe([1, 2])}");
+  println("describe([1,2,3,4,5]) = ${describe(nums)}");
   println("");
 
   // Test recursive functions
-  println("sum([1,2,3,4,5]) = " ++ show(sum(nums)));
-  println("length([1,2,3,4,5]) = " ++ show(length(nums)));
+  println("sum([1,2,3,4,5]) = ${show(sum(nums))}");
+  println("length([1,2,3,4,5]) = ${show(length(nums))}");
   println("");
 
   // Test with tuples
   let kvs = [("a", 1), ("b", 2), ("c", 3)];
   let pair = firstPair(kvs);
-  println("firstPair([(\"a\",1),...]) = " ++ show(pair));
+  println("firstPair([(\"a\",1),...]) = ${show(pair)}");
   println("");
 
   println("✓ All examples complete!");

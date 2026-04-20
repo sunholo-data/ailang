@@ -22,7 +22,7 @@ export func main() -> int ! {IO, FS} {
   let read_result = readFromGzip("/tmp/tar_smoke/paper.tar.gz", "main.tex") in
   let _ = match read_result {
     Ok(tex) => println(tex),
-    Err(msg) => println("read failed: " ++ msg)
+    Err(msg) => println("read failed: ${msg}")
   } in
 
   -- Demo 2: tarbomb defence — extractAll refuses "../" entries
@@ -35,7 +35,7 @@ export func main() -> int ! {IO, FS} {
       1
     },
     Err(msg) => {
-      println("tarbomb blocked: " ++ msg);
+      println("tarbomb blocked: ${msg}");
       0
     }
   }

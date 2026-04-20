@@ -16,11 +16,11 @@ export func main() -> () ! {AI, IO} {
 
   -- callJson: provider enforces the schema, returns raw JSON string
   let jsonStr = callJson("Return a person with name Alice and age 30", schema);
-  println("Schema-enforced JSON: " ++ jsonStr);
+  println("Schema-enforced JSON: ${jsonStr}");
 
   -- Parse and inspect the result
   match decode(jsonStr) {
     Ok(json) => println("Valid JSON received from provider")
-    Err(msg) => println("Parse error: " ++ msg)
+    Err(msg) => println("Parse error: ${msg}")
   }
 }

@@ -5,4 +5,4 @@ module examples/runnable/type_inference
 export func main() -> () ! {IO} =
   let double = \x. x * 2 in
   let result = double(21) in
-  println("Type inference: " ++ show(result))
+  println("Type inference: ${show(result)}")

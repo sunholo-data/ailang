@@ -32,6 +32,6 @@ export func stateThreading(initial: int) -> int {
 }
 
 export func main() -> () ! {IO} {
-  println("Simple nested: " ++ show(simpleNested(Some(5))));
-  println("State threading: " ++ show(stateThreading(0)))
+  println("Simple nested: ${show(simpleNested(Some(5)))}");
+  println("State threading: ${show(stateThreading(0))}")
 }

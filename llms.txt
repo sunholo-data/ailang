@@ -9,191 +9,75 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 # README
 
-# 🧠 AILANG: The Deterministic Language for AI Coders
+<p align="center">
+  <img src="docs/static/img/ailang-logo.svg" alt="AILANG Logo" width="128" height="128">
+</p>
 
-![CI](https://github.com/sunholo-data/ailang/workflows/CI/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-39.1%25-orange.svg)
-![Go Version](https://img.shields.io/badge/go-%3E%3D1.22-blue.svg)
+# AILANG: The Deterministic Language for AI Coders
+
+<!-- EXAMPLES_STATUS_START -->
+![Examples](https://img.shields.io/badge/examples-162%20passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-AILANG is a purely functional, effect-typed language designed as a **deterministic execution and evaluation substrate** for AI-generated code. Unlike human-oriented languages built around IDEs, concurrency, and sugar, AILANG's design goal is **machine decidability, semantic transparency, and compositional determinism**.
+**162/163 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
+<!-- EXAMPLES_STATUS_END -->
 
-AILANG exists to ensure that when AI systems improve themselves, the improvement is real.
+AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
----
-
-## 🧩 Core Philosophy
-
-**For humans, a language is a tool for expression.**
-**For AIs, it's a substrate for reasoning.**
-
-AILANG minimizes ambiguity and maximizes predictability. Every construct — type, effect, or expression — has **deterministic semantics** that can be reflected, verified, and serialized.
-
-## What AILANG Is (and Is Not)
-
-AILANG is **not** an autonomous agent framework.
-AILANG is **not** a productivity language for humans.
-
-AILANG **is**:
-- A deterministic semantic substrate for AI-generated programs
-- An evaluation harness where reasoning, testing, and execution align
-- A language where programs can be safely re-written, re-run, and compared by machines
-
-Autonomous agents, self-training loops, and reflective rewriting are **enabled by AILANG’s guarantees**, not embedded as opaque runtime behavior.
-
-Further reading on answering common misconceptions:
-- AILANG is not another AI framework.
-- AILANG is not trying to be a "better python"
-- AILANG as a Semantic Control Surface
-
-Read more about [AILANG vs Agents](docs/docs/guides/ailang-vs-agents.mdx) concepts.
-
-## 🏗️ Architecture
-
-AILANG is built in layers, from stable foundations to cutting-edge features:
-
-**Stable Core:**
-- Pure functional semantics with algebraic data types (ADTs)
-- Hindley-Milner type inference with row polymorphism
-- Effect system with capability-based security (IO, FS, Net, Clock)
-- Deterministic evaluator with explicit effect tracking
-
-**In Development:**
-- Reflection & meta-programming (typed quasiquotes, structural type classes — design complete, implementation in progress)
-- Deterministic tooling (normalize, suggest-imports, trace export)
-- Schema registry for machine-readable type definitions
-
-For detailed architecture documentation, see [docs/architecture/](docs/architecture/)
-
-
-## 🔮 Vision & Roadmap
-
-AILANG aims to be the first language optimized for autonomous AI code synthesis. Our roadmap focuses on:
-- **Deterministic tooling** - Canonical formatting, import suggestion, trace export
-- **Reflection & meta-programming** - Typed quasiquotes, structural type classes
-- **Schema registry** - Machine-readable type/effect definitions
-- **Cognitive autonomy** - Full round-trip reasoning with machine-verifiable self-modification loops
-
-For detailed roadmap and design philosophy, see:
-- [VISION.md](docs/VISION.md) - Long-term vision and design principles
-- [CHANGELOG.md](CHANGELOG.md) - Completed features and upcoming releases
-
----
-
-## 💡 Why AILANG Works Better for AIs
-
-| Human Need | Human Feature | AI Equivalent in AILANG |
-|-----------|---------------|------------------------|
-| IDE assistance | LSP / autocompletion | Deterministic type/query API |
-| Asynchronous code | Threads / goroutines | Static task DAGs with effects |
-| Code reuse | Inheritance / traits | Structural reflection & records |
-| Debugging | Interactive debugger | Replayable evaluation trace |
-| Logging | `print` / `console` | `--emit-trace jsonl` structured logs |
-| Macros | text substitution | Typed quasiquotes (semantic macros - (planned - v0.6+) |
-
----
-
-## 🔁 Why AILANG Has No Loops (and Never Will)
-
-AILANG intentionally omits `for`, `while`, and other open-ended loop constructs.
-This isn't a missing feature — it's a design decision rooted in **determinism and compositional reasoning**.
-
-### 🧠 For Humans, Loops Express Control. For AIs, Loops Obscure Structure.
-
-Traditional loops compress time into mutable state:
-
-```python
-sum = 0
-for i in range(0, 10):
-    sum = sum + i
-```
-
-This is compact for humans but **semantically opaque** for machines:
-the iteration count, state shape, and termination guarantee are **implicit**.
-
-AILANG replaces this with **total, analyzable recursion**:
-
-```ailang
-foldl(range(0, 10), 0, \acc, i. acc + i)
-```
-
-or **pattern matching**:
-
-```ailang
-func sum(list: List[Int]) -> Int {
-  match list {
-    [] => 0,
-    [x, ...xs] => x + sum(xs)
-  }
-}
-```
-
-Every iteration is a **pure function over data, not time** —
-which makes it statically decidable, effect-safe, and perfectly compositional.
-
-### ⚙️ The Deterministic Iteration Principle
-
-| Goal | Imperative Loops | AILANG Alternative |
-|------|-----------------|-------------------|
-| Repeat a computation | `for` / `while` | `map`, `fold`, `filter`, `rec` |
-| Aggregate results | mutable accumulator | `foldl` / `foldr` |
-| Early termination | `break` | `foldWhile` / `find` |
-| Parallel evaluation | scheduler threads | static task DAGs |
-| Verification | undecidable | total + effect-typed |
-
-### 🧩 Benefits
-
-- **Deterministic semantics**: iteration defined by data, not by time
-- **Static totality**: no halting ambiguity
-- **Composable reasoning**: works algebraically with higher-order functions
-- **Easier optimization**: map/fold can fuse or parallelize safely
-- **Simpler runtime**: no mutable counters or loop scopes
-
-**No hidden state. No implicit time. Fully analyzable by both compiler and AI.**
-
-For the formal rationale and algebraic laws, see the [Why No Loops?](https://ailang.sunholo.com/docs/reference/no-loops) documentation.
+**[Documentation](https://ailang.sunholo.com/)** | **[Examples](https://ailang.sunholo.com/docs/examples)** | **[Live Demos](https://www.sunholo.com/ailang-demos/)** | **[Vision](https://ailang.sunholo.com/docs/vision)** | **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)**
 
 ---
 
 ## Quick Start
 
-### Installation for AI Agents (Recommended)
+AILANG is designed to be used by AI agents. The easiest way to get started is via your agent's plugin/extension system.
 
-AILANG is designed to be used with AI coding agents. Install via your agent's extension/plugin system:
+### With Claude Code
 
-**Claude Code:**
 ```
 /plugin marketplace add sunholo-data/ailang_bootstrap
 /plugin install ailang
 ```
 
-**Gemini CLI:**
+### With Gemini CLI
+
 ```bash
 gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git
 ```
 
-These plugins provide:
-- AILANG binary (auto-installed)
-- MCP tools for type-checking and running code
-- Custom slash commands (`/ailang:prompt`, `/ailang:run`, etc.)
-- Teaching prompts and coding challenges
-- Full stdlib documentation via `ailang builtins list --verbose`
+### What the Plugin Provides
 
-### Manual Installation
+- **AILANG binary** - Auto-installed for your platform
+- **MCP tools** - `ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_builtins`
+- **Slash commands** - `/ailang:prompt`, `/ailang:new`, `/ailang:run`, `/ailang:challenge`
+- **Teaching prompts** - Current syntax rules loaded automatically
 
-For standalone CLI usage or development:
+Once installed, just ask your agent to write AILANG code - it handles the rest.
+
+See [ailang_bootstrap](https://github.com/sunholo-data/ailang_bootstrap) for details.
+
+### Quick Install
+
+```bash
+curl -fsSL https://ailang.sunholo.com/install.sh | bash
+```
+
+Detects your OS/architecture automatically. Pin a version with `VERSION=v0.9.0` before the curl.
+
+<details>
+<summary>Click to expand manual installation instructions</summary>
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-arm64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.arm64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-darwin-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/darwin.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # Linux
-curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-linux-amd64.tar.gz | tar -xz
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/linux.x64.ailang.tar.gz | tar -xz
 sudo mv ailang /usr/local/bin/
 
 # From source
@@ -204,73 +88,34 @@ cd ailang && make install
 ailang --version
 ```
 
-For detailed instructions, see the [Getting Started Guide](https://ailang.sunholo.com/docs/guides/getting-started).
+</details>
 
-### MCP Server (For Custom Integrations)
+For complete setup instructions, see the [Getting Started Guide](https://ailang.sunholo.com/docs/guides/getting-started).
 
-If you want to integrate AILANG tools into other AI systems via [Model Context Protocol](https://modelcontextprotocol.io/):
-
-```bash
-# Clone the bootstrap repo
-git clone https://github.com/sunholo-data/ailang_bootstrap.git
-cd ailang_bootstrap/mcp-server
-
-# Install dependencies and start server
-npm install
-npm start
-```
-
-Configure in your MCP client's `settings.json`:
-```json
-{
-  "mcpServers": {
-    "ailang-tools": {
-      "command": "node",
-      "args": ["/path/to/ailang_bootstrap/mcp-server/server.js"]
-    }
-  }
-}
-```
-
-**Available MCP Tools:**
-| Tool | Description |
-|------|-------------|
-| `ailang_prompt` | Get teaching prompt (SOURCE OF TRUTH for syntax) |
-| `ailang_check` | Type-check a file |
-| `ailang_run` | Run with capabilities |
-| `ailang_builtins` | Full stdlib docs with examples |
-| `ailang_eval` | Evaluate expression in REPL |
-
-### Hello World (Module Execution)
+### Hello World
 
 ```ailang
--- examples/demos/hello_io.ail
-module examples/demos/hello_io
+module examples/hello
 
 import std/io (println)
 
 export func main() -> () ! {IO} {
-  println("Hello from AILANG v0.3.14!")
+  println("Hello from AILANG!")
 }
 ```
 
 ```bash
-ailang run --caps IO examples/demos/hello_io.ail
-# Output: Hello from AILANG v0.3.14!
+ailang run --caps IO examples/hello.ail
+# Output: Hello from AILANG!
 ```
 
 ### Interactive REPL
-
-The REPL features full type inference and deterministic evaluation:
 
 ```bash
 ailang repl
 
 λ> 1 + 2
 3 :: Int
-
-λ> "Hello " ++ "World"
-Hello World :: String
 
 λ> let double = \x. x * 2 in double(21)
 42 :: Int
@@ -281,207 +126,59 @@ Hello World :: String
 λ> :quit
 ```
 
-**REPL Commands**: `:help`, `:type <expr>`, `:instances`, `:import <module>`, `:history`, `:clear`
-
-See [REPL Commands](docs/reference/repl-commands.md) for full reference.
-
-### Property-Based Testing
-
-AILANG includes QuickCheck-style property-based testing for deterministic validation:
-
-```ailang
-// Unit tests
-test "addition works" = 1 + 1 == 2
-
-// Property tests (100 random cases)
-property "addition commutes" (x: int, y: int) =
-  x + y == y + x
-
-property "list reversal" (xs: list(int)) =
-  reverse(reverse(xs)) == xs
-```
-
-Run tests:
-```bash
-ailang test examples/testing_basic.ail
-```
-
-Output:
-```
-→ Running tests in examples/testing_basic.ail
-
-Test Results
-Module: All Tests
-
-Tests:
-  ✓ addition works
-
-Properties:
-  ✓ addition commutes (100 cases)
-  ✓ list reversal (100 cases)
-
-✓ All tests passed
-
-3 tests: 3 passed, 0 failed, 0 skipped (0.3s)
-```
-
-**Features**:
-- **Automatic shrinking**: When a property fails, finds minimal counterexample
-- **Configurable generation**: Control ranges, sizes, and random seeds
-- **CI/CD integration**: JSON output, exit codes, GitHub Actions examples
-- **Type-aware generators**: Built-in support for all AILANG types
-
-**Examples**:
-- [Basic testing examples](examples/testing_basic.ail) - Unit tests and simple properties
-- [Advanced testing examples](examples/testing_advanced.ail) - ADTs, trees, algebraic laws
-
-**Documentation**:
-- [Testing Guide](docs/TESTING.md) - Complete user documentation
-- [AI Testing Guide](prompts/testing_guide_ai.md) - Property patterns for AI agents
-
 ---
 
-## What AILANG Can Do (Implementation Status)
+## Key Features
 
-### ✅ Core Language
+- **Pure functional** - Lambda calculus, closures, pattern matching, ADTs
+- **Type inference** - Hindley-Milner with row polymorphism
+- **Effect system** - Capability-based security (IO, FS, Net, Clock, AI)
+- **Deterministic** - Replayable execution, structured traces
+- **AI-first** - Designed for machine reasoning, not human convenience
 
-- **Pure functional programming** - Lambda calculus, closures, recursion
-- **Hindley-Milner type inference** - Row polymorphism, let-polymorphism
-- **Built-in type class instances** - `Num`, `Eq`, `Ord`, `Show` (structural reflection planned for future release)
-- **Algebraic effects** - Capability-based security (IO, FS, Clock, Net)
-- **Pattern matching** - ADTs with exhaustiveness checking
-- **Module system** - Runtime execution, cross-module imports
-- **Block expressions** - `{ e1; e2; e3 }` for sequencing
-- **JSON support** - Parsing (`std/json.decode`), encoding (`std/json.encode`)
-
-### ✅ Development Tools
-
-- **M-EVAL** - AI code generation benchmarks (multi-model support)
-- **M-EVAL-LOOP v2.0** - Native Go eval tools with 90%+ test coverage
-- **Structured error reporting** - JSON schemas for deterministic diagnostics
-- **Effect system runtime** - Hermetic testing with `MockEffContext`
-
-## AILANG as an Evaluation Harness
-
-AILANG is intentionally designed to host AI evaluation loops:
-- Deterministic execution
-- Replayable traces
-- Property-based testing
-- Comparable outputs across models
-
-M-EVAL is not a benchmark bolted onto the language — it is evidence that the language semantics are stable enough to reason about AI performance itself.
-
-### 🔜 In Development
-
-See [design documents](design_docs/planned/) for upcoming features and development roadmap.
-
-See **[Full Implementation Status](https://ailang.sunholo.com/docs/examples#implementation-status)** for detailed breakdown with auto-updated table of all examples.
-
----
-
-## 🔗 Go Interop (v0.5.x)
-
-AILANG can compile to Go for game development and performance-critical applications:
-
-```bash
-# Generate Go code from AILANG
-ailang compile --emit-go --package-name game world.ail
-```
-
-**Features:**
-- Type generation (records → Go structs)
-- Extern function stubs (implement in Go)
-- Deterministic output (fixed seeds)
-
-**ABI Stability (v0.5.x):** The Go interop ABI is "stable preview":
-- Primitive type mapping is stable
-- Record/struct generation is stable
-- Breaking changes announced in CHANGELOG
-- Full stability guaranteed in v0.6.0
-
-📖 See **[Go Interop Guide](docs/docs/guides/go-interop.md)** for complete documentation.
-
----
-
-## Documentation
-
-📖 **[Complete Documentation](https://ailang.sunholo.com/)** - Visit our full documentation site
-
-**Quick Links:**
-- **[Vision](https://ailang.sunholo.com/docs/vision)** - Why AILANG exists and what makes it different
-- **[Examples](https://ailang.sunholo.com/docs/examples)** - Interactive code examples with explanations
-- **[Getting Started](https://ailang.sunholo.com/docs/guides/getting-started)** - Installation and tutorial
-- **[Language Reference](https://ailang.sunholo.com/docs/reference/language-syntax)** - Complete syntax guide
-- **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)** - AI code generation metrics (49% improvement)
+Learn more: [Why AILANG?](https://ailang.sunholo.com/docs/vision) | [No Loops Design](https://ailang.sunholo.com/docs/reference/no-loops) | [Go Interop](https://ailang.sunholo.com/docs/guides/go-interop)
 
 ---
 
 ## Development
 
-**Quick commands:**
 ```bash
-make install              # Build and install
-make test                 # Run all tests
-make repl                 # Start REPL
-make run FILE=<file>      # Run example file
+make install    # Build and install
+make test       # Run all tests
+make repl       # Start REPL
+make lint       # Run linter
 ```
 
-**For detailed workflows and contribution guidelines:**
+**Guides:**
 - [Development Guide](https://ailang.sunholo.com/docs/guides/development)
-- [CONTRIBUTING.md](docs/CONTRIBUTING.md)
-- [CLAUDE.md](CLAUDE.md) - Instructions for AI development assistants
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [CLAUDE.md](CLAUDE.md) - For AI development assistants
 
 ---
 
-### Project Structure
+## Project Structure
 
 ```
 ailang/
-├── cmd/ailang/         # CLI entry point
-├── internal/           # Core implementation
-│   ├── repl/           # Interactive REPL
-│   ├── lexer/          # Tokenizer
-│   ├── parser/         # Parser
-│   ├── types/          # Type system
-│   ├── eval/           # Evaluator
-│   ├── effects/        # Effect system runtime
-│   ├── builtins/       # Builtin registry
-│   └── eval_harness/   # AI evaluation framework
-├── stdlib/             # Standard library
-├── examples/           # Example programs
-├── docs/               # Documentation
-└── design_docs/        # Design documents
+├── cmd/ailang/     # CLI
+├── internal/       # Compiler (lexer, parser, types, eval, effects)
+├── stdlib/         # Standard library (std/io, std/fs, std/json, std/zip, std/xml, etc.)
+├── examples/       # Example programs (97 files)
+├── docs/           # Documentation website source
+└── design_docs/    # Design documents
 ```
 
 ---
 
-## Contributing
+## License
 
-AILANG is an experimental language in active development. Contributions are welcome! Please see the [Development Guide](https://ailang.sunholo.com/docs/guides/development) for guidelines.
+Apache 2.0 - See [LICENSE](LICENSE)
 
----
-
-## ⚖️ License & Philosophy
-
-AILANG is **open infrastructure for Cognitive DevOps** — systems that write, test, and deploy themselves deterministically.
-
-**Our design north star: build languages AIs enjoy using.**
-
-Apache 2.0 - See [LICENSE](LICENSE) for details.
+AILANG draws inspiration from Haskell, OCaml, Rust, and Idris/Agda.
 
 ---
 
-## Acknowledgments
-
-AILANG draws inspiration from:
-- **Haskell** (type system, purity)
-- **OCaml** (module system, effects)
-- **Rust** (capability-based security)
-- **Idris/Agda** (reflection and metaprogramming)
-
----
-
-*For AI agents: This is a deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. The REPL is fully functional. Module execution works with capability-based security. See [CLAUDE.md](CLAUDE.md) and [Complete Documentation](https://ailang.sunholo.com/) for exact capabilities.*
+*For AI agents: Deterministic functional language with Hindley-Milner type inference, algebraic effects, and explicit effect tracking. See [CLAUDE.md](CLAUDE.md) and [Documentation](https://ailang.sunholo.com/) for capabilities.*
 
 ---
 
@@ -497,38 +194,64 @@ sidebar_label: WASM Integration
 
 AILANG can run entirely in the browser using WebAssembly, enabling interactive demonstrations and online playgrounds without requiring server-side execution.
 
+:::tip See WASM in Action
+All AILANG browser demos run on WebAssembly — try them live:
+- **[DocParse](https://www.sunholo.com/ailang-demos/docparse.html)** — Parse DOCX, PPTX, XLSX, PDF entirely in-browser
+- **[Document Extractor](https://www.sunholo.com/ailang-demos/extractor.html)** — AI-powered extraction using WASM modules
+- **[All 9 Demos](https://www.sunholo.com/ailang-demos/)** — Full demo gallery
+:::
+
 ## Overview
 
 The AILANG WebAssembly build provides:
 
 - **Full Language Support**: Complete AILANG interpreter compiled to WASM
+- **Standard Library Included**: All 20 stdlib modules (`std/list`, `std/json`, etc.) embedded and auto-loaded
 - **Client-Side Execution**: No server needed after initial load
-- **Small Bundle Size**: ~5.7MB uncompressed (~1-2MB with gzip)
+- **Small Bundle Size**: ~33MB uncompressed (~7MB with gzip)
 - **React Integration**: Ready-made component for easy integration
 - **Offline Capable**: Works offline after first load
 
 ## Quick Start
 
-### 1. Build WASM Binary
+### Option 1: From Release (Recommended)
+
+Download the pre-built WASM bundle from the latest release. All three files are version-matched and built from the same commit:
+
+```bash
+# Download and extract — includes ailang.wasm, wasm_exec.js, ailang-repl.js
+curl -L https://github.com/sunholo-data/ailang/releases/latest/download/ailang-wasm.tar.gz | tar -xz
+```
+
+The archive contains:
+
+| File | Size | Description |
+|------|------|-------------|
+| `ailang.wasm` | ~33MB | Compiled WASM binary with embedded stdlib |
+| `wasm_exec.js` | ~17KB | Go WASM runtime (version-matched to build toolchain) |
+| `ailang-repl.js` | ~5KB | JavaScript wrapper class (`AilangREPL`) |
+
+### Option 2: Build from Source
 
 ```bash
 cd ailang
 make build-wasm
+
+# Copy wasm_exec.js from your Go installation
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" .
 ```
 
-This produces `bin/ailang.wasm`.
+This produces `bin/ailang.wasm`. You'll also need [ailang-repl.js](https://github.com/sunholo-data/ailang/blob/main/web/ailang-repl.js) from the `web/` directory.
 
-### 2. Integration Options
+### Integration Options
 
 #### Option A: Docusaurus (Recommended)
 
 1. Copy assets:
 ```bash
-cp bin/ailang.wasm docs/static/wasm/
-# Download Go's WASM support file (more reliable than GOROOT path)
-curl -sL -o docs/static/wasm/wasm_exec.js \
-  https://raw.githubusercontent.com/golang/go/go1.22.0/misc/wasm/wasm_exec.js
-cp web/ailang-repl.js docs/src/components/
+cp ailang.wasm docs/static/wasm/
+cp wasm_exec.js docs/static/wasm/
+cp ailang-repl.js docs/src/components/
 cp web/AilangRepl.jsx docs/src/components/
 ```
 
@@ -690,6 +413,515 @@ repl.onReady(() => {
 });
 ```
 
+##### `getVersion()`
+
+Get version information.
+
+```javascript
+const version = repl.getVersion();
+// Returns: "v0.7.2" (or null if not ready)
+```
+
+**Returns:** Version string or `null`
+
+##### `getVersionInfo()`
+
+Get detailed version information.
+
+```javascript
+const info = repl.getVersionInfo();
+// Returns: { version: "v0.7.2", buildTime: "2026-02-06T...", platform: "js/wasm" }
+```
+
+**Returns:** Object with `version`, `buildTime`, `platform` fields, or `null`
+
+##### `needsContinuation(line)`
+
+Check if a line needs continuation (for multi-line input UIs).
+
+```javascript
+repl.needsContinuation('let x = 5 in');  // true
+repl.needsContinuation('1 + 2');          // false
+```
+
+**Returns:** `boolean`
+
+### Module Loading API (v0.7.1+)
+
+The WASM REPL supports loading complete AILANG modules, enabling complex browser-based demos with multiple function definitions.
+
+:::tip Why Module Loading?
+The REPL evaluates expressions line-by-line, so function definitions like `let add = \x. \y. x + y` don't persist in scope for subsequent calls. The Module Loading API solves this by compiling entire modules and storing their exports for later use.
+:::
+
+##### `loadModule(name, code)`
+
+Load an AILANG module into the registry.
+
+```javascript
+const result = repl.loadModule('math', `
+let add: Int -> Int -> Int = \\x. \\y. x + y
+let mul: Int -> Int -> Int = \\x. \\y. x * y
+`);
+
+if (result.success) {
+  console.log('Exports:', result.exports);
+  // Exports: ["add", "mul"]
+} else {
+  console.error('Error:', result.error);
+}
+```
+
+**Parameters:**
+- `name` (string): Module name (e.g., `"math"`, `"invoice_processor"`)
+- `code` (string): AILANG source code
+
+**Returns:** Object with:
+- `success` (boolean): Whether loading succeeded
+- `exports` (string[]): List of exported function names (on success)
+- `error` (string): Error message (on failure)
+
+:::warning Type Annotations Required
+For functions with numeric operations, you must include explicit type annotations:
+```javascript
+// ✅ Works
+let add: Int -> Int -> Int = \\x. \\y. x + y
+
+// ❌ Fails with "ambiguous type variable"
+let add = \\x. \\y. x + y
+```
+:::
+
+:::info Export Behavior (v0.7.1.2+)
+Modules can use explicit exports or export all bindings:
+
+**Explicit exports** (recommended for libraries):
+```javascript
+// Only public_func is exported, private_func is hidden
+repl.loadModule('mylib', `
+module mylib
+export pure func public_func(x: int) -> int = x * 2
+pure func private_func(x: int) -> int = x * 3
+`);
+// result.exports: ["public_func"]
+```
+
+**Implicit exports** (for REPL-style code):
+```javascript
+// All top-level bindings are exported
+repl.loadModule('utils', `
+let double: Int -> Int = \\x. x * 2
+let triple: Int -> Int = \\x. x * 3
+`);
+// result.exports: ["double", "triple"]
+```
+:::
+
+##### `listModules()` (v0.7.1+)
+
+List all loaded modules.
+
+```javascript
+const modules = repl.listModules();
+// Returns: ["math", "utils"]
+```
+
+**Returns:** Array of module names
+
+##### `importModule(moduleName)` (v0.7.1+)
+
+Import a module's exports into the REPL environment.
+
+```javascript
+repl.importModule('math');
+// Now you can use: repl.eval('add(2)(3)')
+```
+
+**Parameters:**
+- `moduleName` (string): Name of a loaded module
+
+**Returns:** Import result message
+
+##### `call(moduleName, funcName, ...args)`
+
+Call a function from a loaded module. This is a convenience method that:
+1. Looks up the function from the module registry
+2. Converts JavaScript arguments to AILANG values
+3. Invokes the function directly (no eval)
+
+```javascript
+// Load a module
+repl.loadModule('math', `
+let add: Int -> Int -> Int = \\x. \\y. x + y
+let greet = \\name. "Hello, " <> name
+`);
+
+// Call functions
+const sum = repl.call('math', 'add', 2, 3);
+if (sum.success) {
+  console.log(sum.result); // "5 :: Int"
+}
+
+const greeting = repl.call('math', 'greet', 'World');
+if (greeting.success) {
+  console.log(greeting.result); // "\"Hello, World\" :: String"
+}
+```
+
+**Parameters:**
+- `moduleName` (string): Module containing the function
+- `funcName` (string): Function to call
+- `...args` (any): Arguments (converted to AILANG values)
+
+**Returns:** Object with:
+- `success` (boolean): Whether the call succeeded
+- `result` (string): Result with value and type (on success)
+- `error` (string): Error message (on failure)
+
+**Supported argument types:**
+| JavaScript Type | AILANG Syntax |
+|-----------------|---------------|
+| `number` | `42` or `3.14` |
+| `string` | `"text"` |
+| `boolean` | `true` / `false` |
+| `array` | `[1, 2, 3]` |
+
+### Module Loading Example
+
+Here's a complete example building an invoice processor demo:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice Processor Demo</title>
+  <script src="wasm_exec.js"></script>
+  <script src="ailang-repl.js"></script>
+</head>
+<body>
+  <script>
+    const repl = new AilangREPL();
+
+    repl.init('/wasm/ailang.wasm').then(() => {
+      // Load the invoice processor module
+      const result = repl.loadModule('invoice', `
+-- Invoice processing functions
+let calculateTotal: Int -> Float -> Float = \\quantity. \\unitPrice.
+  int_to_float(quantity) * unitPrice
+
+let applyDiscount: Float -> Float -> Float = \\total. \\discountPercent.
+  total * (1.0 - discountPercent / 100.0)
+
+let formatCurrency: Float -> String = \\amount.
+  "$" <> float_to_string(amount)
+      `);
+
+      if (!result.success) {
+        console.error('Failed to load module:', result.error);
+        return;
+      }
+
+      console.log('Loaded exports:', result.exports);
+      // ["calculateTotal", "applyDiscount", "formatCurrency"]
+
+      // Process an invoice
+      const subtotal = repl.call('invoice', 'calculateTotal', 5, 19.99);
+      if (subtotal.success) {
+        console.log('Subtotal:', subtotal.result);
+        // "99.95 :: Float"
+      }
+
+      const total = repl.call('invoice', 'applyDiscount', 99.95, 10);
+      if (total.success) {
+        console.log('After 10% discount:', total.result);
+        // "89.955 :: Float"
+      }
+
+      // Or use eval directly after importing
+      repl.importModule('invoice');
+      const formatted = repl.eval('formatCurrency(89.95)');
+      console.log('Formatted:', formatted);
+      // "\"$89.95\" :: String"
+    });
+  </script>
+</body>
+</html>
+```
+
+### Effect Handlers API (v0.7.1+)
+
+The WASM REPL supports configuring AILANG's algebraic effect system from JavaScript. This enables browser-based programs to use effects like AI, IO, Net, FS, and more by providing JavaScript callback implementations.
+
+:::tip Why Effect Handlers?
+AILANG tracks side effects in the type system. A function declared as `func ask(q: string) -> string ! {AI}` requires the `AI` capability to run. In the CLI, capabilities are granted via `--caps`. In the browser, you provide JavaScript implementations for each effect operation.
+:::
+
+#### Low-Level Globals
+
+These functions are registered on the global `window` object when the WASM module loads:
+
+| Global Function | Purpose |
+|----------------|---------|
+| `ailangSetEffectHandler(name, ops)` | Override any effect with JS callbacks |
+| `ailangSetAIHandler(fn)` | Convenience wrapper for AI effect |
+| `ailangGrantCapability(name)` | Grant a capability without a handler |
+| `ailangEvalAsync(expr)` | Evaluate with async effect support |
+| `ailangCallAsync(mod, fn, ...args)` | Call module function with async effects |
+
+#### `AilangREPL` Wrapper Methods
+
+The `AilangREPL` class wraps all low-level globals with error handling:
+
+```javascript
+const repl = new AilangREPL();
+await repl.init('/wasm/ailang.wasm');
+
+// Register effect handlers
+repl.setEffectHandler('IO', 'print', (msg) => { output.textContent += msg; });
+repl.setAIHandler(async (input) => { /* call LLM API */ });
+repl.grantCapability('IO');
+
+// Async evaluation (returns Promise)
+const result = await repl.evalAsync('perform IO.print("hello")');
+const output = await repl.callAsync('demo', 'processData', 'input');
+```
+
+:::info Wrapper vs Low-Level API
+The wrapper methods (`repl.setEffectHandler()`) provide error handling and readiness checks. The low-level globals (`ailangSetEffectHandler()`) are called directly on `window` and skip these checks. For most use cases, prefer the wrapper methods.
+:::
+
+#### `ailangSetEffectHandler(effectName, handlers)`
+
+Override any effect's operations with JavaScript callbacks. Auto-grants the named capability.
+
+```javascript
+// IO effect — route print/println to DOM
+ailangSetEffectHandler("IO", {
+  print:    (msg) => { output.textContent += msg; },
+  println:  (msg) => { output.textContent += msg + '\n'; },
+  readLine: ()    => prompt("Enter input:")
+});
+
+// Net effect — use browser fetch
+ailangSetEffectHandler("Net", {
+  httpRequest: async (method, url, headers, body) => {
+    const resp = await fetch(url, {
+      method,
+      headers: JSON.parse(headers),
+      body
+    });
+    return JSON.stringify({
+      status: resp.status,
+      body: await resp.text(),
+      ok: resp.ok
+    });
+  }
+});
+
+// Clock effect — use JS Date
+ailangSetEffectHandler("Clock", {
+  now:   () => Date.now(),
+  sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
+});
+```
+
+**Parameters:**
+- `effectName` (string): Effect name matching the AILANG capability (e.g., `"IO"`, `"AI"`, `"Net"`)
+- `handlers` (object): Map of operation names to JS functions
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+**Supported handler return types:**
+- Synchronous values (string, number, boolean, null)
+- Promises (resolved value is converted to AILANG)
+
+#### `ailangSetAIHandler(callback)`
+
+Convenience wrapper for the AI effect. Sets both the effect handler and the dedicated `AIHandler` on the effect context. This is the recommended way to enable `std/ai.call()` in the browser.
+
+```javascript
+// Connect to Gemini Flash API
+ailangSetAIHandler(async function(input) {
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: input }] }]
+      })
+    }
+  );
+  const data = await resp.json();
+  return data.candidates[0].content.parts[0].text;
+});
+```
+
+**Parameters:**
+- `callback` (function): JS function that takes a string and returns a string (or Promise\<string\>)
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+:::info Auto-Grant
+`ailangSetAIHandler` automatically grants the `AI` capability and registers the handler in the effect registry. You don't need to call `ailangGrantCapability("AI")` separately.
+:::
+
+#### `ailangGrantCapability(name)`
+
+Grant a named capability without providing a handler. Useful when the effect operations are already registered (e.g., built-in effects that work in WASM).
+
+```javascript
+ailangGrantCapability("IO");
+ailangGrantCapability("Debug");
+```
+
+**Parameters:**
+- `name` (string): Capability name
+
+**Returns:** `{ success: true }` or `{ success: false, error: "..." }`
+
+#### Valid Capabilities
+
+| Capability | Description | Common Operations |
+|------------|-------------|-------------------|
+| `IO` | Console/display I/O | `print`, `println`, `readLine` |
+| `FS` | File system access | `readFile`, `writeFile`, `exists` |
+| `Net` | Network requests | `httpGet`, `httpPost`, `httpRequest` |
+| `AI` | AI model completion | `complete` |
+| `Clock` | Time operations | `now`, `sleep` |
+
+#### `ailangEvalAsync(expression)`
+
+Evaluate an AILANG expression asynchronously. Returns a JavaScript Promise. **Required when the expression may trigger effect handlers that return Promises** (e.g., AI calls, network requests).
+
+```javascript
+// Sync handler — ailangEval() works fine
+ailangSetAIHandler((input) => "mock: " + input);
+const result = repl.eval('import std/ai as AI in AI.call("hello")');
+
+// Async handler — MUST use ailangEvalAsync
+ailangSetAIHandler(async (input) => {
+  const resp = await fetch('/api/ai', { method: 'POST', body: input });
+  return await resp.text();
+});
+const result = await ailangEvalAsync('import std/ai as AI in AI.call("hello")');
+```
+
+**Parameters:**
+- `expression` (string): AILANG expression or REPL command
+
+**Returns:** Promise\<string\> — resolves with result string, rejects on error
+
+#### `ailangCallAsync(moduleName, funcName, ...args)`
+
+Call a module export asynchronously. Returns a JavaScript Promise. Same as `repl.call()` but supports async effect handlers.
+
+```javascript
+// Load a module that uses AI
+repl.loadModule('demo', `
+module demo
+import std/ai as AI
+
+export func askAI(question: string) -> string ! {AI} =
+    AI.call(question)
+`);
+
+// Call with async AI handler
+ailangSetAIHandler(async (input) => {
+  // ... fetch from LLM API
+  return "AI response";
+});
+
+const result = await ailangCallAsync('demo', 'askAI', 'What is 2+2?');
+// result: { success: true, result: '"AI response" :: String' }
+```
+
+**Parameters:**
+- `moduleName` (string): Module containing the function
+- `funcName` (string): Function to call
+- `...args` (any): Arguments (number, string, boolean)
+
+**Returns:** `Promise<{ success, result?, error? }>`
+
+### Effect Handler Example
+
+Complete example using AI and IO effects in the browser:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AILANG Effects Demo</title>
+  <script src="wasm_exec.js"></script>
+  <script src="ailang-repl.js"></script>
+</head>
+<body>
+  <div id="output"></div>
+
+  <script>
+    const repl = new AilangREPL();
+    const output = document.getElementById('output');
+
+    repl.init('/wasm/ailang.wasm').then(async () => {
+      // Set up IO effect — route output to DOM
+      ailangSetEffectHandler("IO", {
+        print:   (msg) => { output.textContent += msg; },
+        println: (msg) => { output.textContent += msg + '\n'; }
+      });
+
+      // Set up AI effect — mock handler for demo
+      ailangSetAIHandler((input) => {
+        return "The answer is 42";
+      });
+
+      // Load a module that uses both effects
+      repl.loadModule('demo', `
+module demo
+import std/ai as AI
+
+export func greet(name: string) -> () ! {IO} =
+    println("Hello, ${name}!")
+
+export func ask(question: string) -> string ! {AI} =
+    AI.call(question)
+      `);
+
+      // Call IO function (sync is fine for sync handlers)
+      repl.call('demo', 'greet', 'World');
+      // DOM shows: "Hello, World!"
+
+      // Call AI function
+      const answer = await ailangCallAsync('demo', 'ask', 'What is the meaning of life?');
+      console.log(answer.result);
+      // '"The answer is 42" :: String'
+    });
+  </script>
+</body>
+</html>
+```
+
+### Complete Method Reference
+
+| Method | Returns | Since | Description |
+|--------|---------|-------|-------------|
+| `init(wasmPath)` | `Promise<this>` | v0.7.0 | Initialize WASM module |
+| `eval(input)` | `string` | v0.7.0 | Evaluate expression |
+| `command(cmd)` | `string` | v0.7.0 | Execute REPL command |
+| `reset()` | `string` | v0.7.0 | Reset environment + reload stdlib |
+| `getVersion()` | `string` or `null` | v0.7.0 | Get version string |
+| `getVersionInfo()` | `Object` or `null` | v0.7.0 | Get version, buildTime, platform |
+| `needsContinuation(line)` | `boolean` | v0.7.0 | Check if line needs more input |
+| `onReady(callback)` | `void` | v0.7.0 | Register ready callback |
+| `loadModule(name, code)` | `{success, exports?, error?}` | v0.7.1 | Compile and register module |
+| `listModules()` | `string[]` | v0.7.1 | List loaded module names |
+| `call(mod, func, ...args)` | `{success, result?, error?}` | v0.7.1 | Call module export |
+| `importModule(name)` | `string` | v0.7.1 | Import into REPL env |
+| `setEffectHandler(cap, op, fn)` | `{success, error?}` | v0.7.2 | Register effect handler |
+| `setAIHandler(fn)` | `{success, error?}` | v0.7.2 | Register AI handler |
+| `grantCapability(cap)` | `{success, error?}` | v0.7.2 | Grant effect capability |
+| `evalAsync(input)` | `Promise<string>` | v0.7.2 | Async eval (for effects) |
+| `callAsync(mod, func, ...args)` | `Promise<{success, result?, error?}>` | v0.7.2 | Async call (for effects) |
+
 ## REPL Commands
 
 The WebAssembly REPL supports the same commands as the CLI:
@@ -711,9 +943,19 @@ The browser version has these limitations compared to the CLI:
 | Type inference | Yes | Yes |
 | Pattern matching | Yes | Yes |
 | Type classes | Yes | Yes |
-| File I/O (`FS` effect) | Yes | No |
-| Module imports | Yes | No |
+| Module loading | Yes | Yes (v0.7.1+) |
+| Standard library | Yes | Yes (v0.7.1+)* |
+| Explicit exports | Yes | Yes (v0.7.1.2+) |
+| Effect handlers | Yes (`--caps`) | Yes (v0.7.1+, via JS callbacks) |
+| AI effect (`std/ai`) | Yes | Yes (v0.7.1+, via `ailangSetAIHandler`) |
+| IO effect (print/read) | Yes (terminal) | Yes (v0.7.1+, via JS callbacks) |
+| Net effect (HTTP) | Yes | Via JS callbacks (CORS applies) |
+| FS effect (files) | Yes (filesystem) | Via JS callbacks (localStorage/IndexedDB) |
+| Async evaluation | N/A | Yes (v0.7.1+, `ailangEvalAsync`) |
+| Custom file imports | Yes | No (use `loadModule()`) |
 | History persistence | Yes | No |
+
+\* The standard library (20 modules including `std/list`, `std/json`, `std/string`) is embedded in the WASM binary and auto-loaded on init. Use `importModule('std/list')` to bring stdlib exports into scope. Custom user file imports require `loadModule()` instead.
 
 ## Deployment
 
@@ -757,18 +999,22 @@ WASM benefits from HTTP/2 multiplexing for faster loading.
 
 ### GitHub Actions
 
-WASM is automatically built and released:
+The release workflow automatically builds and bundles the WASM archive with all dependencies:
 
 ```yaml
 # .github/workflows/release.yml (excerpt)
 - name: Build WASM binary
   run: make build-wasm
 
-- name: Create Release
-  uses: softprops/action-gh-release@v2
-  with:
-    files: bin/ailang-wasm.tar.gz
+- name: Bundle WASM archive with JS dependencies
+  run: |
+    # Get version-matched wasm_exec.js from Go toolchain
+    cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" bin/
+    cp web/ailang-repl.js bin/
+    cd bin && tar -czf ailang-wasm.tar.gz ailang.wasm wasm_exec.js ailang-repl.js
 ```
+
+The archive is verified (size checks for all 3 files) and attached to the GitHub Release as `ailang-wasm.tar.gz`.
 
 ### Docusaurus Deployment
 
@@ -824,6 +1070,60 @@ repl.init('/wasm/ailang.wasm').then(() => {
    <link rel="preload" href="/wasm/ailang.wasm" as="fetch" crossorigin>
    ```
 
+### Effects Don't Work
+
+**Solutions**:
+1. Grant the capability first: `repl.grantCapability('IO')`
+2. Register handlers: `repl.setEffectHandler('IO', 'print', fn)`
+3. Use async methods if handlers return Promises: `await repl.evalAsync(...)`
+4. Check that `ailangSetAIHandler` was called before `AI.call()` — it auto-grants the AI capability
+
+### "undefined global variable: X from std/Y"
+
+**Cause**: Module's stdlib import failed during initialization.
+
+**Solution**: Check browser console for warnings during stdlib loading. Try `repl.reset()` to reload the standard library.
+
+### Module Loading Errors
+
+#### "ambiguous type variable α with classes [Num]"
+
+**Cause**: Functions with numeric operations need explicit type annotations.
+
+**Solution**: Add type annotations to function definitions:
+```javascript
+// ❌ Fails
+let add = \\x. \\y. x + y
+
+// ✅ Works
+let add: Int -> Int -> Int = \\x. \\y. x + y
+```
+
+#### "module X not loaded (use loadModule first)"
+
+**Cause**: Trying to call or import a module that hasn't been loaded.
+
+**Solution**: Load the module before using it:
+```javascript
+// First load
+repl.loadModule('mymodule', code);
+// Then import or call
+repl.importModule('mymodule');
+```
+
+#### "parse error" or "type error" from loadModule
+
+**Cause**: Invalid AILANG syntax or type errors in module code.
+
+**Solution**: Check the error message and fix the module code:
+```javascript
+const result = repl.loadModule('test', badCode);
+if (!result.success) {
+  console.error('Module error:', result.error);
+  // e.g., "parse error: expected expression at line 3"
+}
+```
+
 ## Examples
 
 See:
@@ -839,39 +1139,246 @@ See:
 
 ---
 
-# AI Teaching Prompt (Latest: v0.5.11)
+# Reference: reserved-keywords.md
 
-# AILANG v0.5.11 - AI Teaching Prompt
+# Reserved Keywords Reference
+
+This document lists all 43 reserved keywords in AILANG. These words cannot be used as variable or function names.
+
+## Complete Keyword List
+
+### Control Flow (7 keywords)
+- `if` - Conditional expression: `if condition then a else b`
+- `then` - True branch of if expression
+- `else` - False branch of if expression
+- `match` - Pattern matching: `match expr { pat1 => e1, pat2 => e2 }`
+- `with` - Pattern guard in match (future feature)
+- `select` - CSP channel selection (future feature)
+- `timeout` - Timeout on channel operation (future feature)
+
+### Function & Binding (5 keywords)
+- `func` - Function definition: `func name(args) -> type { body }`
+- `pure` - Pure (effect-free) function marker: `pure func`
+- `let` - Variable binding: `let x = expr; body`
+- `letrec` - Recursive binding: `letrec f = expr in body`
+- `in` - Scope terminator for let/letrec expressions
+
+### Type System (6 keywords)
+- `type` - Type/ADT definition: `type Tree = | Leaf | Node`
+- `class` - Type class definition (future feature)
+- `instance` - Type class instance (future feature)
+- `forall` - Universal type quantification: `forall[T]`
+- `exists` - Existential type quantification (parser keyword)
+- `deriving` - Type class derivation: `deriving (Show, Eq)`
+
+### Module System (4 keywords)
+- `module` - Module declaration: `module path/to/module`
+- `import` - Import declaration: `import std/list (map, filter)`
+- `export` - Mark definition as public: `export func foo`
+- `extern` - Interop with Go: `extern func name(args) -> type`
+
+### Testing (4 keywords)
+- `test` - Single test: `test "description" { ... }`
+- `tests` - Test block (contextual keyword)
+- `property` - Property-based test (contextual keyword)
+- `properties` - Property test block (contextual keyword)
+- `assert` - Test assertion: `assert(condition, "message")`
+
+### Verification (3 keywords)
+- `requires` - Precondition (M-VERIFY feature)
+- `ensures` - Postcondition (M-VERIFY feature)
+- `invariant` - Loop invariant (M-VERIFY feature)
+
+### Concurrency (4 keywords)
+- `spawn` - Create goroutine (future feature)
+- `parallel` - Run in parallel (future feature)
+- `channel` - Channel type: `channel[T]`
+- `send` - Send to channel (future feature)
+- `recv` - Receive from channel (future feature)
+
+### Boolean & Logic (3 keywords)
+- `true` - Boolean true value
+- `false` - Boolean false value
+- `and` - Logical AND: `a and b`
+- `or` - Logical OR: `a or b`
+- `not` - Logical NOT: `not x`
+
+---
+
+## Contextual Keywords
+
+These keywords can **sometimes** be used as identifiers in specific contexts, but we **recommend avoiding them**:
+
+| Keyword | Context | Description |
+|---------|---------|-------------|
+| `test` | After `func` keyword | `func test` declares a test, not a function named "test" |
+| `tests` | At statement level | Introduces a tests block, not a variable |
+| `property` | After `func` keyword | Similar to `test` |
+| `properties` | At statement level | Introduces a properties block |
+
+**Why avoid them?** Even though contextual parsing allows them in certain positions, using them as identifiers makes code confusing for readers.
+
+**Example of confusion:**
+```ailang
+-- Confusing - does this declare a test or function?
+func test() -> int = 42
+
+-- Clear - avoid the keyword
+func runTest() -> int = 42
+```
+
+---
+
+## Common Mistakes
+
+### Mistake 1: Using `exists` as Variable Name
+
+```ailang
+-- ❌ WRONG - 'exists' is reserved
+let exists = fileExists(path);
+-- Error: PAR_UNEXPECTED_TOKEN: expected next token to be IDENT, got exists instead
+```
+
+**Fix: Use alternative name**
+```ailang
+-- ✅ CORRECT
+let found = fileExists(path);
+let doesExist = fileExists(path);
+let fileIsPresent = fileExists(path);
+```
+
+**Why is `exists` reserved?**
+- Used for existential type quantification (future feature)
+- Placeholder in parser for when existential types are implemented
+- Similar to `forall` for universal types
+
+### Mistake 2: Using Contextual Keywords
+
+```ailang
+-- ⚠️ CONFUSING - 'test' is contextual
+func test(x: int) -> int = x + 1
+
+-- ✅ BETTER - Avoid the keyword
+func addOne(x: int) -> int = x + 1
+```
+
+### Mistake 3: Using Control Flow Keywords as Names
+
+```ailang
+-- ❌ WRONG
+let if = 5;
+let match = "pattern";
+
+-- ✅ CORRECT
+let condition = 5;
+let pattern = "pattern";
+```
+
+---
+
+## Discovering Undefined Keywords
+
+If you get an error like:
+
+```
+PAR_UNEXPECTED_TOKEN: expected next token to be IDENT, got SOMEWORD instead
+```
+
+1. Check if `SOMEWORD` is in the keywords list above
+2. If yes, use a different variable name
+3. If no, the error is likely a different parse issue - check your syntax
+
+---
+
+## Why These Keywords Exist
+
+### Already Implemented
+- **Control Flow:** `if`, `then`, `else`, `match` - Core language features
+- **Functions:** `func`, `let`, `pure` - Definition syntax
+- **Types:** `type`, `forall` - Type system
+- **Modules:** `module`, `import`, `export` - Module system
+- **Testing:** `test`, `assert` - Built-in testing
+- **Boolean:** `true`, `false`, `not`, `and`, `or` - Logic operators
+
+### Reserved for Future Features
+- **Concurrency:** `spawn`, `parallel`, `channel`, `send`, `recv` - Static task graphs (v0.4.0+)
+- **Type Classes:** `class`, `instance`, `deriving` - Structural reflection (v0.4.0+)
+- **Verification:** `requires`, `ensures`, `invariant` - Contract system (M-VERIFY)
+- **Channels:** `select`, `timeout` - CSP operations (future)
+- **Existentials:** `exists` - Existential type quantification
+
+---
+
+## Related Resources
+
+- [Module System Guide](../../guides/modules.md) - How imports work
+- [Pattern Matching](../../guides/pattern-matching.md) - Using `match` expressions
+- [Type System](../../guides/types.md) - Type declarations with `type`
+- [Function Definitions](../../guides/functions.md) - Creating functions with `func`
+
+---
+
+## See Also
+
+- **Teaching Prompt:** Run `ailang prompt` to see complete syntax reference
+- **Error Messages:** Run `ailang check file.ail` for detailed parse errors
+- **Interactive Testing:** Use `ailang repl` to experiment with keywords
+
+---
+
+# AI Teaching Prompt (Latest: v0.12.1)
+
+# AILANG v0.11.4 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
+
+**⚠️ AILANG is NOT Python!** Do not use Python syntax like `def`, `for`, `while`, `class`, or `if x:`. See "What AILANG Does NOT Have" below.
 
 ## Required Program Structure
 
 ```ailang
-module benchmark/solution
-
-import std/io (println)
+module myproject/mymodule
 
 export func main() -> () ! {IO} {
-  print(show(42))  -- print expects string, use show() for numbers
+  println(show(42))  -- println is in prelude, no import needed!
 }
 ```
 
 **Rules:**
-1. First line: `module benchmark/solution`
-2. Use `print(show(value))` for numbers, `print(str)` for strings
+1. First line MUST be `module path/name` matching the file path
+2. Use `println(show(value))` for numbers, `println(str)` for strings. **Prefer `show` over `intToStr`/`floatToStr`** — `show` works on ALL types
 3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
 4. No loops - use recursion
 
-## CLI Exploration
+## println vs print
+
+| Function | Import Required? | Behavior |
+|----------|-----------------|----------|
+| `println` | NO (prelude) | WITH newline |
+| `print` | YES (`import std/io (print)`) | NO newline |
+
+```ailang
+-- println works without import (prelude provides it)
+println("A"); println("B")  -- Output: A\nB\n
+
+-- print requires import for no-newline output
+import std/io (print)
+print("A"); print("B")      -- Output: AB
+```
+
+**Use `println` for most output.** Use `print` ONLY when building output on one line.
+
+## CLI Exploration (USE THIS!)
+
+**Before writing helper functions, check if the stdlib already has what you need:**
 
 ```bash
-ailang --help                   # all ailang abilities
-ailang docs --list              # List stdlib modules
-ailang docs std/io              # Show module exports
-ailang builtins list            # All 72 builtins
-ailang builtins show _ai_call   # Detailed documentation
+ailang docs --list              # List all stdlib modules
+ailang docs std/string          # Show ALL exports with signatures
+ailang docs std/list            # Show list operations
+ailang builtins list            # All registered builtins
 ailang check file.ail           # Type-check without running
+ailang examples search "recursion"  # Find working code examples
 ```
 
 ## Quick Reference Examples
@@ -879,14 +1386,26 @@ ailang check file.ail           # Type-check without running
 **Print calculation:**
 ```ailang
 module benchmark/solution
-export func main() -> () ! {IO} = print(show(5 % 3))
+import std/io (println)
+export func main() -> () ! {IO} = println(show(5 % 3))
+```
+
+**If-then-else (NO braces!):**
+```ailang
+module benchmark/solution
+import std/io (println)
+export func main() -> () ! {IO} {
+  let x = 10;
+  let msg = if x > 0 then "positive" else "not positive";
+  println(msg)
+}
 ```
 
 **HTTP GET:**
 ```ailang
 module benchmark/solution
 import std/net (httpGet)
-export func main() -> () ! {IO, Net} = print(httpGet("https://example.com"))
+export func main() -> () ! {IO, Net} = println(httpGet("https://example.com"))
 ```
 
 **HTTP POST with JSON:**
@@ -896,7 +1415,7 @@ import std/net (httpPost)
 import std/json (encode, jo, kv, js, jnum)
 export func main() -> () ! {IO, Net} {
   let data = encode(jo([kv("message", js("hello")), kv("count", jnum(42.0))]));
-  print(httpPost("https://httpbin.org/post", data))
+  println(httpPost("https://httpbin.org/post", data))
 }
 ```
 
@@ -910,11 +1429,50 @@ export func filter(people: [{name: string, age: int}], minAge: int) -> [{name: s
   }
 ```
 
+**Record update (immutable):**
+```ailang
+module benchmark/solution
+export func main() -> () ! {IO} {
+  let person = {name: "Alice", age: 30, city: "NYC"};
+  let older = {person | age: person.age + 1};         -- Update one field
+  let moved = {older | city: "SF"};                   -- Chain updates
+  println("${person.name}, ${show(person.age)}, ${person.city}");
+  println("${older.name}, ${show(older.age)}, ${older.city}");
+  println("${moved.name}, ${show(moved.age)}, ${moved.city}")
+}
+```
+
+**Open records (width subtyping):**
+```ailang
+module benchmark/solution
+
+-- EXACT record: only accepts {name: string}, rejects extra fields
+pure func getNameExact(p: {name: string}) -> string = p.name
+
+-- OPEN record with | r: accepts extra fields
+pure func getName(p: {name: string | r}) -> string = p.name
+
+-- OPEN record with ... sugar (equivalent to | r with fresh variable)
+pure func getEmail(u: {email: string, ...}) -> string = u.email
+
+export func main() -> () ! {IO} {
+  -- Exact: only works with exact shape
+  println(getNameExact({name: "Alice"}));
+
+  -- Open: accepts any record with at least name field
+  println(getName({name: "Bob", age: 30}));
+  println(getName({name: "Charlie", age: 25, city: "NYC"}));
+
+  -- Ellipsis sugar: same behavior
+  println(getEmail({email: "test@example.com", name: "Test", id: 123}))
+}
+```
+
 **AI effect (call LLM):**
 ```ailang
 module benchmark/solution
-import std/ai (call)
-export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
+import std/ai (call, callJson, callJsonSimple)
+export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 ```
 
 ## What AILANG Does NOT Have
@@ -927,8 +1485,15 @@ export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
 | `list.map()` | `map(f, list)` |
 | `import "std/io"` | `import std/io (println)` |
 | `{"key": "val"}` | `jo([kv("key", js("val"))])` |
-| `f(a, b)` for curried | `f(a)(b)` - curried calls chain |
+| `f(a)(b)` for multi-arg func | `f(a, b)` - multi-arg funcs use commas |
+| `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
+| `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
+| `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
+| nested `func f(...) =` | Use `let f = \x. body` for nested functions |
+| `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
+| `concat(a, b)` for strings | `"${a}${b}"` interpolation — `++` is list-only in v0.13.0+ |
+| `concat(a, b)` for lists | `a ++ b` |
 
 ## Let Bindings: Block Style vs Expression Style
 
@@ -939,73 +1504,153 @@ export func main() -> () ! {IO, AI} = print(call("What is 2+2?"))
 export func main() -> () ! {IO} {
   let x = 1;
   let y = 2;
-  print(show(x + y))
+  println(show(x + y))
 }
 
 -- Expression style: equals + in
 export func main() -> () ! {IO} =
   let x = 1 in
   let y = 2 in
-  print(show(x + y))
+  println(show(x + y))
 
 -- WRONG: Using `in` inside `{ }` block causes scope errors
 export func main() -> () ! {IO} {
   let x = 1 in   -- DON'T use `in` inside blocks!
   let y = 2;     -- ERROR: x out of scope
-  print(show(x + y))
+  println(show(x + y))
 }
 ```
 
 **Simple rule: See `{` -> use `;`. See `=` -> use `in`.**
 
-## Curried Functions (CRITICAL)
+## Function Calls: Multi-arg vs Curried (CRITICAL)
 
-AILANG functions are **curried**. Multi-arg lambdas must be called with chained applications:
+**Two styles with DIFFERENT call syntax:**
 
 ```ailang
--- Define curried function
-let add = \x. \y. x + y
+-- MULTI-ARG FUNC: Call with commas f(a, b)
+func add(a: int, b: int) -> int = a + b
+let result = add(3, 4)      -- CORRECT: 7
+-- let bad = add(3)(4)      -- WRONG: arity mismatch!
 
--- CORRECT: Chain calls
-let result = add(3)(4)  -- Returns 7
-
--- WRONG: Don't use tuple-style
-let result = add(3, 4)  -- ERROR: arity mismatch!
+-- CURRIED LAMBDA: Call with chained f(a)(b)
+let addC = \a. \b. a + b
+let result = addC(3)(4)     -- CORRECT: 7
+let add10 = addC(10)        -- Partial application!
+-- let bad = addC(3, 4)     -- WRONG: arity mismatch!
 ```
 
-**Higher-order example (compose, foldl):**
+**Rule: Match call style to definition style:**
+| Definition | Call Style | Partial App? |
+|------------|------------|--------------|
+| `func f(a, b) = ...` | `f(a, b)` | No |
+| `let f = \a. \b. ...` | `f(a)(b)` | Yes |
+
+**Higher-order with curried lambdas:**
 ```ailang
 module benchmark/solution
+import std/io (println)
 
 export func main() -> () ! {IO} {
-  -- WRONG: let compose = ... in   (don't use "in" in { } blocks!)
-  -- RIGHT: let compose = ...;
   let compose = \f. \g. \x. f(g(x));
   let double = \x. x * 2;
   let addOne = \x. x + 1;
-  -- WRONG: compose(addOne, double)   (arity mismatch!)
-  -- RIGHT: compose(addOne)(double)   (chain curried calls)
-  let doubleThenAdd = compose(addOne)(double);
-  print(show(doubleThenAdd(5)))
+  let doubleThenAdd = compose(addOne)(double);  -- Curried: chain calls
+  println(show(doubleThenAdd(5)))
 }
 ```
 
-**Curried foldl (block style):**
+**Using std/list foldl (IMPORTANT - use inline func syntax!):**
+```ailang
+module benchmark/solution
+import std/io (println)
+import std/list (foldl)
+
+-- std/list foldl signature: foldl(f: (acc, elem) -> acc, initial, list)
+-- RECOMMENDED: Use inline func syntax for reliable type inference
+
+export func main() -> () ! {IO} {
+  -- MOST RELIABLE: inline func with explicit types
+  let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1,2,3,4,5]);
+  println(show(sum))
+}
+```
+
+**foldl syntax options:**
+```ailang
+-- RECOMMENDED: space-separated multi-param lambda (concise)
+foldl(\acc x. acc + x, 0, xs)
+
+-- VERBOSE: inline func with explicit types (also works)
+foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
+
+-- WRONG: curried lambda (arity mismatch error!)
+foldl(\acc. \x. acc + x, 0, xs)
+```
+
+**Sorting with sortBy:**
+```ailang
+import std/list (sortBy)
+
+-- Comparator returns: negative if a < b, 0 if equal, positive if a > b
+func cmpInt(a: int, b: int) -> int = a - b
+
+let sorted = sortBy(cmpInt, [3, 1, 4, 1, 5])  -- [1, 1, 3, 4, 5]
+
+-- Reverse sort: swap arguments
+func cmpDesc(a: int, b: int) -> int = b - a
+let descending = sortBy(cmpDesc, [3, 1, 4])   -- [4, 3, 1]
+```
+
+## Recursive Lambdas (letrec)
+
+**Use `letrec` when a lambda needs to call itself:**
+
 ```ailang
 module benchmark/solution
 
--- Define curried foldl
-func foldl(f: int -> int -> int, acc: int, xs: [int]) -> int =
-  match xs {
-    [] => acc,
-    x :: rest => foldl(f, f(acc)(x), rest)  -- f(acc)(x) chains the curried call
-  }
-
 export func main() -> () ! {IO} {
-  let add = \a. \b. a + b;           -- Semicolons in block!
-  let sum = foldl(add, 0, [1,2,3,4,5]);
-  print(show(sum))
+  -- WRONG: `let` for self-referential lambda
+  -- let factorial = \n. if n <= 1 then 1 else n * factorial(n - 1);  -- ERROR: undefined 'factorial'
+
+  -- RIGHT: use `letrec` for recursive lambdas
+  letrec factorial = \n. if n <= 1 then 1 else n * factorial(n - 1);
+  println(show(factorial(5)))  -- 120
 }
+```
+
+**When to use `letrec` vs `func`:**
+| Case | Use |
+|------|-----|
+| Top-level recursive function | `func f(...) = ...` (preferred) |
+| Recursive lambda inside block | `letrec f = \x. ... f(...)` |
+| Non-recursive lambda | `let f = \x. ...` |
+
+**Mutual recursion also works:**
+```ailang
+letrec isEven = \n. if n == 0 then true else isOdd(n - 1);
+letrec isOdd = \n. if n == 0 then false else isEven(n - 1);
+println(show(isEven(4)))  -- true
+```
+
+## Type Annotations for Higher-Order Functions
+
+**Annotate function types with parentheses around arrow types:**
+
+```ailang
+-- Single-argument function type
+let double: int -> int = \x. x * 2
+
+-- Higher-order: function taking a function
+let apply: (int -> int) -> int -> int = \f. \x. f(x)
+
+-- Multiple function parameters
+let compose: (int -> int) -> (int -> int) -> int -> int = \f. \g. \x. f(g(x))
+```
+
+**Type annotation on multi-arg named function:**
+```ailang
+func twice(f: int -> int, x: int) -> int = f(f(x))
 ```
 
 ## Syntax Reference
@@ -1017,42 +1662,165 @@ export func main() -> () ! {IO} {
 | Import alias | `import std/list as L` |
 | Function | `export func name(x: int) -> int ! {IO} { body }` |
 | Lambda | `\x. x * 2` |
+| Recursive lambda | `letrec f = \x. ... f(x) ...` |
 | Pattern match | `match x { 0 => a, n => b }` (use `=>`, commas between arms) |
 | ADT | `type Tree = Leaf(int) \| Node(Tree, int, Tree)` |
+| ADT with Eq | `type Color = Red \| Green \| Blue deriving (Eq)` |
 | Record | `{name: "A", age: 30}` |
 | Record update | `{base \| field: val}` |
+| Open record type | `{name: string \| r}` or `{name: string, ...}` |
 | List cons | `x :: xs` or `::(x, xs)` |
 | Array literal | `#[1, 2, 3]` |
 | Effect | `! {IO, FS, Net}` after return type |
 
 ## Effects (Side Effects Must Be Declared)
 
-Every function performing I/O must declare effects:
+**Every function performing I/O must declare effects in the signature!**
 
 ```ailang
--- Pure (no effects)
-func add(x: int, y: int) -> int = x + y
+-- Pure (no effects) - use `pure func` or omit effect annotation
+pure func add(x: int, y: int) -> int = x + y
 
--- IO effect
-func greet(name: string) -> () ! {IO} = print("Hello " ++ name)
+-- IO effect - for print/println/readLine
+func greet(name: string) -> () ! {IO} = println("Hello ${name}")
+
+-- Single effect with return value
+func ask(prompt: string) -> string ! {IO} {
+  println(prompt);
+  readLine()
+}
 
 -- Multiple effects
 func process(path: string) -> () ! {IO, FS} {
   let content = readFile(path);
-  print(content)
+  println(content)
 }
+
+-- Main function typically needs effects
+export func main() -> () ! {IO} {
+  println("Hello, World!")
+}
+
+-- Exit with explicit code (for CLI tools)
+import std/io (println, exit)
+export func main() -> () ! {IO} {
+  println("error: invalid argument");
+  exit(1)
+}
+
+-- Main with file system access
+export func main() -> () ! {IO, FS} {
+  let content = readFile("data.txt");
+  println(content)
+}
+
+-- Main with network
+export func main() -> () ! {IO, Net} {
+  let body = httpGet("https://example.com");
+  println(body)
+}
+
+-- Main with CLI arguments (getArgs returns [string], needs Env)
+-- Run: ailang run --caps IO,FS,Env --entry main program.ail -- arg1 arg2
+export func main() -> () ! {IO, FS, Env} {
+  let args = getArgs();
+  match args {
+    filename :: _ => {
+      let content = readFile(filename);
+      println(content)
+    },
+    _ => println("Usage: program <filename>")
+  }
+}
+
+-- Reading lines from stdin (readLine reads one line, returns "" at EOF)
+-- Run: printf "hello\nworld\n" | ailang run --caps IO --entry main program.ail
+func loop() -> () ! {IO} {
+  let line = readLine();
+  if line == "" then ()
+  else {
+    println("Got: ${line}");
+    loop()
+  }
+}
+```
+
+**Common effect combinations:**
+| Task | Required Effects |
+|------|------------------|
+| Print output | `! {IO}` |
+| Read files | `! {FS}` (add IO if also printing) |
+| HTTP requests | `! {Net}` (add IO if also printing) |
+| Environment vars | `! {Env}` |
+| CLI arguments | `! {Env}` (use `getArgs()` from `std/env`) |
+| Read from stdin | `! {IO}` (use `readLine()` from `std/io`) |
+| AI calls | `! {AI}` |
+| Run external commands | `! {Process}` or `! {IO, Process}` |
+| Exit with code | `! {IO}` (use `exit(code)` from `std/io`) |
+| Full program | `! {IO, FS, Net}` as needed |
+
+**Effect errors and how to fix:**
+```
+Error: Effect checking failed for function 'main'
+  Function uses effects not declared in signature
+  Missing effects: IO
+```
+
+**Fix:** Add the missing effect to your function signature:
+```ailang
+-- WRONG: missing IO effect
+export func main() -> () { println("hi") }
+
+-- CORRECT: declare IO effect
+export func main() -> () ! {IO} { println("hi") }
+```
 ```
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
-| `IO` | `print`, `println`, `readLine` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile` | `std/fs` |
+| `IO` | `print`, `println`, `readLine`, `exit` | `std/io` (print is builtin) |
+| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
-| `Env` | `getEnv`, `getEnvOr` | `std/env` |
-| `AI` | `call` | `std/ai` |
+| `Env` | `getArgs`, `getEnv`, `getEnvOr` | `std/env` |
+| `AI` | `call`, `callJson`, `callJsonSimple` | `std/ai` |
 | `Debug` | `log`, `check` | `std/debug` |
+| `Process` | `exec` | `std/process` |
 | `SharedMem` | `_sharedmem_get`, `_sharedmem_put`, `_sharedmem_cas` | builtins |
 | `SharedIndex` | `_sharedindex_upsert`, `_sharedindex_find_simhash` | builtins |
+
+### Debug Effect — True Ghost Effect for Logging
+
+**Debug is a ghost effect** — fully invisible to callers, zero-cost in release mode. Use `Debug` instead of `IO` (println) for logging in packages. No effect declarations, no --caps, no config needed:
+
+```ailang
+import std/debug (log, check)
+
+-- No ! {Debug} needed — ghost effect is invisible to callers
+func process(data: string) -> string ! {Net} {
+  log("processing: ${data}");
+  check(length(data) > 0, "data must not be empty");
+  httpGet("https://example.com/${data}")
+}
+```
+
+Or use the `sunholo/logging` package for structured JSON logging:
+```ailang
+import pkg/sunholo/logging/logger (info, warn, infoWith)
+import std/json (kv, js, jnum)
+
+func handleRequest(path: string) -> Response ! {Net} {
+  infoWith("Request", [kv("path", js(path))]);
+  httpGet("https://api.example.com${path}")
+}
+```
+
+**Key rules:**
+- **Ghost effect**: No `! {Debug}` in signatures, no `[effects].max`, no `--caps Debug` needed
+- **Write-only**: `log` and `check` write to host context; AILANG code cannot read it
+- **Assertions don't throw**: `check(false, msg)` records failure but continues
+- **Release mode erases**: `--release` flag removes all Debug calls (zero cost)
+- **Log level filtering**: `--log-level warn` suppresses INFO/DEBUG output
+- **Output**: Debug logs printed to stderr as structured JSON after execution
 
 ## Standard Library
 
@@ -1064,14 +1832,170 @@ func process(path: string) -> () ! {IO, FS} {
 **Common imports:**
 ```ailang
 import std/io (println, readLine)
-import std/fs (readFile, writeFile)
+import std/fs (readFile, writeFile, fileExists, listDir, mkdir, mkdirAll, isDir, isFile, removeFile)
+import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
-import std/json (encode, decode)
-import std/list (map, filter, foldl, length, concat)
-import std/string (split, trim, stringToInt)  -- stringToInt returns Option[int]!
-import std/ai (call)
+import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
+import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty)
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, nth, last, any, findIndex, flatMap, zipWith, mapE, filterE, foldlE, flatMapE, forEachE)
+import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
+import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
+import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+import std/bytes (fromString, toString, toBase64, fromBase64, length, slice)
+import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
+import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
+import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
+import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
 ```
+
+**List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
+- `map(f, xs)` - Apply function to each element
+- `filter(p, xs)` - Keep elements matching predicate
+- `foldl(f, acc, xs)` - Left fold (use `func(acc: T, x: U) -> T { ... }` for f)
+- `foldr(f, acc, xs)` - Right fold
+- `length(xs)` - List length
+- `head(xs) -> Option[a]` - First element (None if empty)
+- `tail(xs)` - All elements except first
+- `reverse(xs)` - Reverse a list
+- `concat(xs, ys)` - Concatenate two lists
+- `zip(xs, ys)` - Pair elements from two lists
+- `sortBy(cmp, xs)` - Sort with comparator
+- `take(n, xs)` - Take first n elements
+- `drop(n, xs)` - Drop first n elements
+- `nth(xs, idx) -> Option[a]` - Get element at index (0-based), None if out of bounds
+- `last(xs) -> Option[a]` - Get last element, None if empty
+- `any(p, xs) -> bool` - Check if any element satisfies predicate
+- `findIndex(p, xs) -> Option[int]` - Find index of first matching element
+- `flatMap(f, xs)` - Apply f to each element, flatten results (pure)
+- `zipWith(f, xs, ys)` - Combine two lists element-wise with function f
+
+**Effectful list combinators** (v0.7.3) — use these instead of hand-rolling recursive traversals:
+- `mapE(f, xs)` - Effectful map: apply effectful function to each element
+- `filterE(p, xs)` - Effectful filter: keep elements matching effectful predicate
+- `foldlE(f, acc, xs)` - Effectful left fold
+- `flatMapE(f, xs)` - Effectful flatMap: apply f, flatten results
+- `forEachE(f, xs)` - Effectful forEach: apply f for side-effects, discard results
+
+All effectful combinators are **effect-polymorphic** — they work with any effect (`IO`, `FS`, `AI`, etc.) and guarantee **left-to-right evaluation order**.
+
+**Prefer `map`/`filter`/`foldl` over manual recursion:**
+```ailang
+import std/list (map, filter, foldl, mapE, filterE, foldlE)
+
+-- Pure: use map/filter/foldl
+let doubled = map(\x. x * 2, [1, 2, 3])  -- [2, 4, 6]
+let evens = filter(\x. x % 2 == 0, [1, 2, 3, 4])  -- [2, 4]
+let sum = foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])  -- 6
+
+-- Effectful: use mapE/filterE/foldlE (replaces hand-rolled recursion!)
+let results = mapE(\x. { println("processing ${show(x)}"); x * 2 }, [1, 2, 3]);
+let checked = filterE(\x. { println("checking ${show(x)}"); x > 2 }, [1, 2, 3, 4]);
+let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
+```
+
+**Note on foldlE:** The callback must use `func(acc: T, x: U) -> T ! {Effect} { ... }` syntax (not curried `\acc. \x.`).
+
+**String functions** (std/string) — run `ailang docs std/string` for full list:
+- `length(s) -> int` - String length
+- `contains(hay, needle) -> bool` - Check if string contains substring
+- `startsWith(s, prefix) -> bool` - Check if string starts with prefix
+- `endsWith(s, suffix) -> bool` - Check if string ends with suffix
+- `find(hay, needle) -> int` - Index of substring, or -1 if not found
+- `substring(s, start, end) -> string` - Extract substring
+- `split(s, delim) -> [string]` - Split string by delimiter
+- `chars(s) -> [string]` - Convert string to list of single-character strings (Unicode-aware)
+- `trim(s) -> string` - Trim whitespace
+- `toUpper(s) -> string` / `toLower(s) -> string` - Case conversion
+- `stringToInt(s) -> Option[int]` - Parse integer
+- `stringToFloat(s) -> Option[float]` - Parse float
+- `intToStr(n) -> string` - Convert int to string (prefer `show` for simple cases)
+- `floatToStr(f) -> string` - Convert float to string (prefer `show` for simple cases)
+- `join(delim, xs) -> string` - Join list of strings with delimiter
+- `repeat(s, n) -> string` - Repeat string n times
+
+**Math functions** (std/math):
+- `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
+- `intToFloat(x) -> float` - Convert int to float
+- `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
+- `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
+
+**Bytes functions** (std/bytes) — pure binary data operations:
+- `fromString(s) -> bytes` - UTF-8 encode string to bytes
+- `toString(b) -> string` - Decode bytes to UTF-8 string
+- `toBase64(b) -> string` - Base64 encode
+- `fromBase64(s) -> Option[bytes]` - Base64 decode (None if invalid)
+- `length(b) -> int` - Byte length
+- `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
+
+**Streaming functions** (std/stream) — requires `--caps Stream`:
+
+*WebSocket & SSE:*
+- `connect(url, config) -> Result[StreamConn, StreamErrorKind] ! {Stream}` - Open WebSocket
+- `transmit(conn, msg) -> Result[unit, StreamErrorKind] ! {Stream}` - Send text message
+- `transmitBinary(conn, data) -> Result[unit, StreamErrorKind] ! {Stream}` - Send binary bytes
+- `onEvent(conn, handler) -> unit ! {Stream}` - Register event handler (handler: `StreamEvent -> bool`)
+- `runEventLoop(conn) -> unit ! {Stream}` - Block until handler returns false
+- `disconnect(conn) -> unit ! {Stream}` - Close connection
+- `sseConnect(url, config) -> Result[StreamConn, StreamErrorKind] ! {Stream}` - Open SSE (GET)
+- `ssePost(url, body, config) -> Result[StreamConn, StreamErrorKind] ! {Stream}` - POST then stream SSE
+- `withStream(url, handler) -> Result[StreamConn, StreamErrorKind] ! {Stream}` - Full WebSocket lifecycle
+- `withSSE(url, handler) -> Result[StreamConn, StreamErrorKind] ! {Stream}` - Full SSE lifecycle
+- Config: `{headers: [{name: string, value: string}]}` — use `{headers: []}` for no custom headers
+
+*Multi-source multiplexing (v0.9.0):*
+- `sourceOfConn(conn, name, priority) -> StreamSource ! {Stream}` - Wrap connection as named source
+- `asyncReadStdinLines(name, priority) -> StreamSource ! {Stream}` - Stdin line reader source
+- `asyncExecProcess(cmd, args, name, priority, chunkSize) -> StreamSource ! {Stream}` - Subprocess stdout as byte chunks (requires `--caps Stream,Process`)
+- `selectEvents(sources, handler) -> unit ! {Stream}` - Priority-ordered multi-source event loop
+
+*Subprocess stdin writing (v0.9.0 Phase 3):*
+- `spawnProcess(cmd, args) -> ProcessHandle ! {Process}` - Spawn subprocess with writable stdin pipe
+- `writeProcessStdin(handle, data) -> Result[(), string] ! {Process}` - Write bytes to subprocess stdin
+- `closeProcessStdin(handle) -> () ! {Process}` - Close stdin pipe (signals EOF, subprocess exits)
+
+*Event types (StreamEvent ADT):*
+`Message(string)`, `Binary(string)`, `Opened(string)`, `Closed(int, string)`, `StreamError(StreamErrorKind)`, `Ping(string)`, `SSEData(string, string)`, `SourceText(string, string)`, `SourceBytes(string, bytes)`
+
+*Multi-source example:*
+```ailang
+import std/stream (asyncReadStdinLines, asyncExecProcess, selectEvents,
+                   StreamEvent, SourceText, SourceBytes)
+import std/bytes (toString)
+
+export func main() -> unit ! {Stream, Process, IO} {
+  let proc = asyncExecProcess("echo", ["hello"], "echo", 5, 4096);
+  let stdin = asyncReadStdinLines("stdin", 10);
+  selectEvents([proc, stdin], \event. match event {
+    SourceBytes(src, data) => { println("[${src}] ${toString(data)}"); true },
+    SourceText(src, text)  => { println("[${src}] ${text}"); false },
+    _ => true
+  })
+}
+```
+
+*Subprocess stdin writing example (v0.9.0 Phase 3):*
+```ailang
+import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
+import std/bytes (fromString)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {Process, IO} {
+  let handle = spawnProcess("cat", []);
+  match writeProcessStdin(handle, fromString("hello\n")) {
+    Ok(_) => println("wrote line"),
+    Err(e) => println("write error: ${e}")
+  };
+  closeProcessStdin(handle)
+}
+```
+
+- `spawnProcess` spawns subprocess with writable stdin; stdout/stderr discarded
+- `writeProcessStdin` writes bytes (non-blocking, 256-slot buffer with backpressure)
+- `closeProcessStdin` signals EOF — subprocess sees end-of-input and exits
+- Requires `--caps Process` (NOT Stream — stdin writing uses Process effect only)
 
 ## String Parsing (Returns Option)
 
@@ -1083,8 +2007,8 @@ import std/string (stringToInt)
 
 export func main() -> () ! {IO} {
   match stringToInt("42") {
-    Some(n) => print("Parsed: " ++ show(n)),
-    None => print("Invalid number")
+    Some(n) => println("Parsed: ${show(n)}"),
+    None => println("Invalid number")
   }
 }
 ```
@@ -1097,7 +2021,7 @@ import std/string (stringToInt)
 
 -- Pure function (no effects)
 pure func formatMessage(name: string, count: int) -> string =
-  "User " ++ name ++ " has " ++ show(count) ++ " items"
+  "User ${name} has ${show(count)} items"
 
 -- FS effect only
 func readCount(filename: string) -> int ! {FS} {
@@ -1112,9 +2036,180 @@ func readCount(filename: string) -> int ! {FS} {
 export func main() -> () ! {IO, FS} {
   let count = readCount("data.txt");
   let msg = formatMessage("Alice", count);
-  print(msg)
+  println(msg)
 }
 ```
+
+## Constructing Option Values
+
+To RETURN an Option from a function, use `Some(value)` or `None`:
+
+```ailang
+module benchmark/solution
+import std/option (Option, Some, None)  -- REQUIRED for constructing Option
+
+-- Return Some(value) for success, None for failure
+pure func safeDivide(a: int, b: int) -> Option[int] =
+  if b == 0 then None else Some(a / b)
+
+-- Return Option from validation
+pure func validateAge(age: int) -> Option[int] =
+  if age >= 0 && age <= 150 then Some(age) else None
+```
+
+## Error Handling with Result Type
+
+Use the polymorphic `Result[a]` type for error handling:
+
+```ailang
+module benchmark/solution
+import std/string (stringToInt)
+
+-- Polymorphic Result type - works with any success type!
+-- Ok(a) takes the polymorphic type, Err(string) is always a string
+type Result[a] = Ok(a) | Err(string)
+
+-- Parse integer, returning Result
+pure func parseIntResult(s: string) -> Result[int] =
+  match stringToInt(s) {
+    Some(n) => Ok(n),
+    None => Err("Invalid integer")
+  }
+
+-- Safe division
+pure func divSafe(a: int, b: int) -> Result[int] =
+  if b == 0 then Err("Division by zero") else Ok(a / b)
+
+-- Chain results: parse then divide
+pure func parseAndDivide(s: string, divisor: int) -> Result[int] =
+  match parseIntResult(s) {
+    Ok(n) => divSafe(n, divisor),
+    Err(msg) => Err(msg)
+  }
+
+-- Format Result for output
+pure func showResult(r: Result[int]) -> string =
+  match r {
+    Ok(v) => "Result: ${show(v)}",
+    Err(msg) => "Error: ${msg}"
+  }
+
+export func main() -> () ! {IO} {
+  println(showResult(parseAndDivide("10", 2)));   -- Result: 5
+  println(showResult(parseAndDivide("10", 0)));   -- Error: Division by zero
+  println(showResult(parseAndDivide("abc", 2)))   -- Error: Invalid integer
+}
+```
+
+**Polymorphic ADTs with mixed field types:**
+```ailang
+-- Ok(a) uses the type parameter, Err(string) uses a concrete type
+type Result[a] = Ok(a) | Err(string)
+
+-- This works correctly:
+-- Ok  : forall a. a -> Result[a]      (polymorphic field)
+-- Err : forall a. string -> Result[a] (concrete field)
+
+-- Both constructors can be used with any Result[a] type:
+let r1: Result[int] = Ok(42)
+let r2: Result[int] = Err("failed")
+let r3: Result[string] = Ok("hello")
+let r4: Result[string] = Err("also failed")
+```
+
+## Number Conversions (std/math)
+
+```ailang
+module benchmark/solution
+import std/math (floatToInt, intToFloat, round)
+import std/io (println)
+
+export func main() -> () ! {IO} {
+  let f = 3.7;
+  let i = floatToInt(f);      -- 3 (truncates toward zero)
+  let r = floatToInt(round(f)); -- 4 (round first, then convert)
+  let back = intToFloat(i);   -- 3.0
+  println(show(i));
+  println(show(r))
+}
+```
+
+## Character Processing
+
+Use `chars(s)` to convert a string to a list of single-character strings:
+
+```ailang
+module benchmark/solution
+import std/string (chars)
+import std/list (filter, length)
+
+-- Count vowels in a string
+pure func countVowels(s: string) -> int {
+  let cs = chars(s);
+  let vowels = filter(func(c: string) -> bool {
+    c == "a" || c == "e" || c == "i" || c == "o" || c == "u"
+  }, cs);
+  length(vowels)
+}
+
+export func main() -> () ! {IO} {
+  println(show(countVowels("hello")))  -- 2
+}
+```
+
+**Note:** `chars` is Unicode-aware - emoji and accented characters are handled correctly.
+
+## High-Performance String Builtins (v0.10.4)
+
+For email/HTML/CSV-style processing where naive accumulation is O(n²),
+prefer these single-pass O(n) builtins from `std/string`:
+
+| Function | Use case |
+|----------|----------|
+| `decodeQuotedPrintable(s)` | RFC 2045 §6.7 decode (`=20` → space, soft-line-breaks) |
+| `replaceMany(s, pairs)` | Multi-pattern replace, e.g. HTML entity decode in one pass |
+| `foldSlices(s, delim, acc, f)` | Fold over `split(s, delim)` without allocating the list |
+| `mapSlicesJoin(s, delim, f)` | `split → map → join` in O(n), no intermediate list |
+| `startsWithIgnoreCase(s, p)` | Case-insensitive prefix check (header parsing) |
+
+```ailang
+import std/string (replaceMany, foldSlices, mapSlicesJoin)
+
+-- Decode 23 HTML entities in one pass
+let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
+
+-- Sum line lengths without materializing the list of lines
+let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
+
+-- Uppercase each CSV field
+let upper = mapSlicesJoin(csv, ",", \field. toUpper(field))
+```
+
+`substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
+(common for headers, JSON, XML).
+
+## Polymorphic Comparison Lambdas (v0.11.4)
+
+Let-bound lambdas using only `<`/`>`/`<=`/`>=`/`==`/`!=` are now properly
+polymorphic — they no longer monomorphize to `Int`. This works:
+
+```ailang
+let max = \x. \y. if x > y then x else y in {
+  let a = max(3.14)(2.71);   -- Float
+  let b = max(10)(20);        -- Int
+  let c = max("foo")("bar");  -- String
+  ...
+}
+```
+
+Before v0.11.4, calling `max(3.14)(2.71)` crashed with `gt_Int: expected
+IntValue, got *eval.FloatValue` because the lambda was prematurely defaulted
+to `Int`. The constraint is now preserved through generalization, so the
+correct dictionary (`gt_Int` / `gt_Float` / `gt_String`) is selected at
+each call site.
+
+`Num`/`Fractional` defaulting is unchanged — only `Ord`-only / `Eq`-only /
+`Show`-only constraints stay polymorphic.
 
 ## Operators
 
@@ -1122,31 +2217,274 @@ export func main() -> () ! {IO, FS} {
 |------|-----------|
 | Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical | `&&`, `\|\|`, `!` |
-| String | `++` (concatenation) |
-| List | `::` (cons/prepend) |
+| Logical | `&&`, `\|\|`, `not` |
+| Bitwise | `&` (AND), `^` (XOR), `~` (NOT), `<<` (shift left), `>>` (shift right) |
+| List | `++` (concatenation, list-only); `::` (cons/prepend) |
+| String | `"${expr}"` interpolation; `concat([parts])`; `join(sep, parts)` |
+
+**Bitwise operators** (int only, C-standard precedence bands):
+```ailang
+-- AND, XOR, shifts, complement
+println(show(12 & 10))   -- 8
+println(show(12 ^ 10))   -- 6
+println(show(1 << 4))    -- 16
+println(show(16 >> 2))   -- 4
+println(show(~0))         -- -1
+
+-- XOR is self-inverse (encryption pattern)
+let encrypted = 42 ^ 137
+let decrypted = encrypted ^ 137  -- 42
+
+-- Note: bitwise OR (|) is not an operator (conflicts with ADT syntax).
+-- Use bitwiseOr(a, b) from std/math instead.
+```
+
+**Bitwise precedence** (loosest → tightest): `|| && ^ & == < << + *`
+- `&` and `^` bind LOOSER than `==` (C convention: use parens in `(x & mask) == 0`)
+- `<<`/`>>` bind LOOSER than `+` (C convention: use parens in `1 << (n + 1)`)
+- `~` is prefix (same level as unary `-`)
+
+**Signed hash semantics**: AILANG integers are signed 64-bit values. Bitwise and shift operations act on the 64-bit bit pattern. Hash functions may print negative int results even when the underlying bit pattern matches unsigned reference implementations.
+
+## Boolean Operations
+
+**Boolean operators:**
+```ailang
+-- AND: &&
+if x > 0 && y > 0 then "both positive" else "no"
+
+-- OR: ||
+if x == 0 || y == 0 then "has zero" else "no"
+
+-- NOT: both `not` and `!` work
+if not isEmpty(list) then process(list) else []
+if !done then retry() else finish()
+```
+
+**Short-circuit evaluation (v0.11.3):** `&&` and `||` are lazy — the RHS is NOT
+evaluated when the LHS determines the result. This makes guarded expressions safe:
+
+```ailang
+-- SAFE: charAt(s, i-1) is only called when i > 0
+if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
+
+-- SAFE: lookup never runs when key is missing
+if member(key, m) && lookup(key, m) == target then "match" else "no"
+
+-- || short-circuits: the RHS effect runs only if LHS is false
+if cached || expensiveFetch() then "ok" else "fail"
+```
+
+`&&` and `||` desugar to `if`: `a && b` → `if a then b else false`,
+`a || b` → `if a then true else b`. Both are equivalent to nested `if` but
+much more readable.
+
+## String Interpolation (v0.12.1+, PREFERRED)
+
+**Use `"${expr}"` for building strings with embedded values. This is the preferred, idiomatic form.**
+
+```ailang
+-- Basic substitution: any expression inside ${...}
+let name = "Alice" in
+let age = 30 in
+println("Hello, ${name}! You are ${age} years old.")
+-- → Hello, Alice! You are 30 years old.
+
+-- Arithmetic and function calls inside ${...}
+println("Next year: ${age + 1}, square: ${age * age}")
+println("First letter: ${substring(name, 0, 1)}")
+
+-- Nested braces work (record literals, field access, let-blocks)
+println("Point: ${show({x: 1, y: 2}.x)}")
+println("Squared: ${let sq = age * age in sq}")
+
+-- Escape with backslash to get a literal ${
+println("Use \${var} to interpolate.")
+-- → Use ${var} to interpolate.
+```
+
+**How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
+`show_String` is identity, so string-typed values are spliced without quoting. Any `Show`-able type
+works automatically (int, float, bool, records, ADTs).
+
+## String and List Concatenation
+
+**`++` is for lists only (v0.13.0+). For strings, use `"${...}"` interpolation,
+`concat([parts])` from `std/string`, or `join(sep, parts)`.**
+
+```ailang
+-- Strings: use interpolation
+let msg = "Count: ${length(items)}"
+let greeting = "Hello ${name}"
+
+-- Strings: concat a list of parts
+import std/string (concat)
+let s = concat(["Hello", " ", "World"])
+
+-- Lists: ++ concatenates
+let combined = [1, 2] ++ [3, 4]            -- [1, 2, 3, 4]
+```
 
 ## Pattern Matching
 
+**CRITICAL: When a match arm needs multiple let bindings, wrap in `{ }`:**
+
 ```ailang
--- On lists
+-- WRONG: multiple lets without braces causes parse error
+match queue {
+  [] => result,
+  node :: rest =>
+    let x = process(node);
+    let y = update(x);        -- ERROR: expected => got let
+    recurse(rest, y)
+}
+
+-- CORRECT: wrap multiple lets in { }
+match queue {
+  [] => result,
+  node :: rest => {
+    let x = process(node);
+    let y = update(x);
+    recurse(rest, y)
+  }
+}
+```
+
+**On lists:**
+```ailang
 match xs {
   [] => 0,
   x :: rest => x + sum(rest)
 }
+```
 
--- On ADTs
+**On ADTs:**
+```ailang
 match tree {
   Leaf(n) => n,
   Node(l, v, r) => countNodes(l) + 1 + countNodes(r)
 }
+```
 
--- On Option
+**On Option:**
+```ailang
 match result {
   Some(x) => x,
   None => defaultValue
 }
 ```
+
+**On Records (destructuring):**
+```ailang
+match person {
+  {name, age} => "${name} is ${show(age)}"
+}
+
+-- Record with renaming
+match config {
+  {host, port: p} => "${host}:${show(p)}"
+}
+
+-- Nested record patterns
+match data {
+  {user: {email: e}} => e
+}
+```
+
+**Record pattern syntax:**
+- `{name}` - shorthand, binds field "name" to variable "name"
+- `{name: n}` - renaming, binds field "name" to variable "n"
+- `{name, age}` - multiple fields
+- `{user: {name}}` - nested records
+- `{name, ...}` - rest pattern (matches some fields, ignores others)
+
+## Deriving Eq for ADT Types
+
+Use `deriving (Eq)` to auto-generate `==` and `!=` for ADT types:
+
+```ailang
+module benchmark/solution
+
+-- Enum-style ADT with derived equality
+type Color = Red | Green | Blue deriving (Eq)
+
+-- ADT with fields also works
+type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
+
+export func main() -> () ! {IO} {
+  let sameColor = Red == Red;           -- true
+  let diffColor = Red != Blue;          -- true
+  let sameShape = Circle(5) == Circle(5);     -- true
+  let diffShape = Circle(5) != Rectangle(5, 10);  -- true
+  print("Color test: ${show(sameColor)}");
+  print("Shape test: ${show(sameShape)}")
+}
+```
+
+**Note:** Derived equality compares by constructor and field values (structural equality).
+
+## Newtype Record Access (v0.8.2)
+
+Single-constructor ADTs wrapping a record support direct field access:
+
+```ailang
+type Item = Item({name: string, value: int})
+
+let item = Item({name: "hello", value: 42})
+let n = item.name    -- "hello" (auto-unwraps the ADT wrapper)
+
+-- Works with map too:
+import std/list (map)
+let items = [Item({name: "a", value: 1}), Item({name: "b", value: 2})]
+let names = map(\t. t.name, items)  -- ["a", "b"]
+```
+
+**Note:** This only works for single-constructor ADTs with exactly one record field. For multi-constructor ADTs, use pattern matching to access fields.
+
+## Polymorphic ADTs with Mixed Field Types
+
+ADT constructors can mix polymorphic and concrete field types:
+
+```ailang
+module benchmark/solution
+import std/string (stringToInt)
+
+-- Result type: Ok uses type parameter, Err always takes string
+type Result[a] = Ok(a) | Err(string)
+
+-- Either type: both sides polymorphic
+type Either[a, b] = Left(a) | Right(b)
+
+-- Validation: success is polymorphic, errors are string list
+type Validation[a] = Valid(a) | Invalid([string])
+
+-- Usage examples
+pure func safeDivide(a: int, b: int) -> Result[int] =
+  if b == 0 then Err("division by zero") else Ok(a / b)
+
+pure func parsePositive(s: string) -> Result[int] =
+  match stringToInt(s) {
+    Some(n) => if n > 0 then Ok(n) else Err("must be positive"),
+    None => Err("not a number")
+  }
+
+export func main() -> () ! {IO} {
+  let r1 = safeDivide(10, 2);  -- Ok(5)
+  let r2 = safeDivide(10, 0);  -- Err("division by zero")
+
+  match r1 {
+    Ok(v) => println("Got: ${show(v)}"),
+    Err(msg) => println("Error: ${msg}")
+  };
+
+  match r2 {
+    Ok(v) => println("Got: ${show(v)}"),
+    Err(msg) => println("Error: ${msg}")
+  }
+}
+```
+
+**Key pattern:** When a constructor has a concrete type like `Err(string)`, that type is preserved regardless of the ADT's type parameter. This enables idiomatic error handling where errors are always strings but success values can be any type.
 
 **Option type with findFirst and mapOption:**
 ```ailang
@@ -1178,7 +2516,7 @@ export func main() -> () ! {IO} {
   let nums = [1, 3, 4, 7, 8];
   let found = findFirst(isEven, nums);
   let doubled = mapOption(double, found);
-  print(match doubled { Some(v) => "Found: " ++ show(v), None => "Not found" })
+  print(match doubled { Some(v) => "Found: ${show(v)}", None => "Not found" })
 }
 ```
 
@@ -1201,9 +2539,9 @@ func transition(state: State, event: Event) -> State =
 
 func showState(s: State) -> string =
   match s {
-    Green(t) => "GREEN(" ++ show(t) ++ ")",
-    Yellow(t) => "YELLOW(" ++ show(t) ++ ")",
-    Red(t) => "RED(" ++ show(t) ++ ")"
+    Green(t) => "GREEN(${show(t)})",
+    Yellow(t) => "YELLOW(${show(t)})",
+    Red(t) => "RED(${show(t)})"
   }
 
 export func main() -> () ! {IO} {
@@ -1218,13 +2556,31 @@ export func main() -> () ! {IO} {
 
 ## JSON
 
+**Common JSON imports (use all you need):**
+```ailang
+-- For building JSON
+import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
+
+-- For parsing JSON
+import std/json (decode, get, getString, getInt, getArray, asString, asNumber, asArray)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+```
+
 **Build and encode JSON:**
 ```ailang
-import std/json (encode, jo, ja, kv, js, jnum)
+import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
--- Build JSON object
-let json = encode(jo([kv("name", js("Alice")), kv("age", jnum(30.0))]))
--- Result: "{\"name\":\"Alice\",\"age\":30}"
+-- JSON constructors: js(string), jnum(float), jb(bool), jn() for null
+-- jo([kv(k,v)...]) for objects, ja([...]) for arrays
+
+-- Build JSON object with all types
+let json = encode(jo([
+  kv("name", js("Alice")),
+  kv("age", jnum(30.0)),
+  kv("active", jb(true))
+]))
+-- Result: "{\"name\":\"Alice\",\"age\":30,\"active\":true}"
 
 -- Build JSON array
 let arr = encode(ja([jnum(1.0), jnum(2.0), jnum(3.0)]))
@@ -1238,8 +2594,43 @@ import std/json (decode, Json, JObject, JString)
 let result = decode("{\"name\":\"Alice\"}");
 match result {
   Ok(json) => print(show(json)),
-  Err(msg) => print("Parse error: " ++ msg)
+  Err(msg) => print("Parse error: ${msg}")
 }
+```
+
+**Parse JSON array directly (IMPORTANT - use asArray!):**
+```ailang
+module benchmark/solution
+import std/json (decode, asArray, getString)
+import std/option (Some, None)
+import std/result (Ok, Err)
+
+-- When decode returns an array, use asArray to convert it
+export func main() -> () ! {IO} {
+  let json = "[{\"name\":\"Alice\"},{\"name\":\"Bob\"}]";
+  match decode(json) {
+    Ok(parsed) => match asArray(parsed) {
+      Some(items) => {
+        -- items is now [Json], iterate with recursion
+        printNames(items)
+      },
+      None => println("Not an array")
+    },
+    Err(e) => println("Parse error: ${e}")
+  }
+}
+
+func printNames(items: [Json]) -> () ! {IO} =
+  match items {
+    [] => (),
+    item :: rest => {
+      match getString(item, "name") {
+        Some(name) => println(name),
+        None => ()
+      };
+      printNames(rest)
+    }
+  }
 ```
 
 **Access JSON values (IMPORTANT for parsing tasks):**
@@ -1253,7 +2644,7 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
     -- get(obj, key) -> Option[Json]
     match get(obj, "name") {
       Some(j) => match asString(j) {
-        Some(name) => print("Name: " ++ name),
+        Some(name) => print("Name: ${name}"),
         None => print("name is not a string")
       },
       None => print("no name field")
@@ -1261,63 +2652,454 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
     -- asNumber returns Option[float]
     match get(obj, "age") {
       Some(j) => match asNumber(j) {
-        Some(age) => print("Age: " ++ show(age)),
+        Some(age) => print("Age: ${show(age)}"),
         None => print("age is not a number")
       },
       None => print("no age field")
     }
   },
-  Err(msg) => print("Parse error: " ++ msg)
+  Err(msg) => print("Parse error: ${msg}")
 }
 ```
 
+**JSON convenience functions (RECOMMENDED for parsing):**
+
+Use these to reduce nested Option matching from 4 levels to 2:
+
+```ailang
+import std/json (decode, getString, getNumber, getInt, getBool, getArray, getObject)
+import std/string (intToStr)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+-- Extract string field with single match
+func getName(obj: Json) -> string =
+  match getString(obj, "name") {
+    Some(name) => name,
+    None => "unknown"
+  }
+
+-- Extract int field (JSON numbers are floats, getInt truncates)
+func getAge(obj: Json) -> int =
+  match getInt(obj, "age") {
+    Some(age) => age,
+    None => 0
+  }
+
+-- Full example
+export func main() -> () ! {IO} =
+  match decode("{\"name\":\"Alice\",\"age\":30}") {
+    Ok(obj) => print("${getName(obj)} is ${intToStr(getAge(obj))}"),
+    Err(e) => print("Error: ${e}")
+  }
+```
+
 **JSON accessor functions:**
-- `get(obj, key)` -> `Option[Json]` - Get value by key
-- `has(obj, key)` -> `bool` - Check if key exists
-- `getOr(obj, key, default)` -> `Json` - Get with fallback
-- `asString(j)` -> `Option[string]` - Extract string
-- `asNumber(j)` -> `Option[float]` - Extract number
-- `asBool(j)` -> `Option[bool]` - Extract boolean
-- `asArray(j)` -> `Option[List[Json]]` - Extract array
-- `asObject(j)` -> `Option[List[{key: string, value: Json}]]` - Extract object
+- `getString(obj, key)` -> `Option[string]` - Get string value directly
+- `getNumber(obj, key)` -> `Option[float]` - Get float value directly
+- `getInt(obj, key)` -> `Option[int]` - Get int value (truncates float)
+- `getBool(obj, key)` -> `Option[bool]` - Get boolean value directly
+- `getArray(obj, key)` -> `Option[List[Json]]` - Get array value by key
+- `getObject(obj, key)` -> `Option[Json]` - Get nested object directly
+- `asString(j)` -> `Option[string]` - Convert Json to string
+- `asNumber(j)` -> `Option[float]` - Convert Json to number
+- `asBool(j)` -> `Option[bool]` - Convert Json to bool
+- `asArray(j)` -> `Option[List[Json]]` - Convert Json to array (USE THIS for top-level arrays!)
+
+**JSON array type extraction:**
+
+Extract typed arrays from JSON with two variants: permissive (skip non-matching) and strict (fail on mismatch).
+
+```ailang
+import std/json (decode, getArray, filterStrings, allStrings, getStringArrayOrEmpty)
+import std/option (Some, None)
+import std/result (Ok, Err)
+
+-- Permissive: filterStrings skips non-strings
+let mixed = [JString("a"), JNumber(1.0), JString("b")];
+filterStrings(mixed)  -- ["a", "b"]
+
+-- Strict: allStrings fails if ANY element is not a string
+allStrings(mixed)               -- None (has JNumber)
+allStrings([JString("a"), JString("b")])  -- Some(["a", "b"])
+
+-- Convenience wrappers for common patterns:
+match decode("{\"tags\": [\"a\", \"b\"]}") {
+  Ok(obj) => {
+    -- getStringArrayOrEmpty: returns [] if missing or invalid
+    let tags = getStringArrayOrEmpty(obj, "tags");  -- ["a", "b"]
+    let missing = getStringArrayOrEmpty(obj, "nope");  -- []
+    print("Got ${show(length(tags))} tags")
+  },
+  Err(e) => print("Error: ${e}")
+}
+```
 
 ## HTTP Requests
 
-**Simple GET/POST:**
+**Simple GET/POST** (return body string directly):
 ```ailang
 import std/net (httpGet, httpPost)
-let body = httpGet("https://example.com")
-let resp = httpPost("https://api.example.com", jsonData)
+let body = httpGet("https://example.com")       -- returns string
+let resp = httpPost("https://api.example.com", jsonData)  -- returns string
 ```
 
-**Advanced with headers:**
+**Advanced with headers** (returns `Result[HttpResponse, NetError]`):
 ```ailang
 import std/net (httpRequest)
+import std/json (decode)
+-- httpRequest returns Result[HttpResponse, NetError]
+-- HttpResponse = {status: int, headers: List[...], body: string, ok: bool}
+-- IMPORTANT: Ok(resp) captures the FULL HttpResponse record
+-- Use resp.body to get the body string, NOT resp directly
 let headers = [{name: "Authorization", value: "Bearer token"}];
 match httpRequest("POST", url, headers, body) {
-  Ok(resp) => print(resp.body),
-  Err(Transport(msg)) => print("Error: " ++ msg),
-  Err(_) => print("Other error")
+  Ok(resp) => decode(resp.body),          -- resp.body is the string
+  Err(Transport(msg)) => Err("Error: ${msg}"),
+  Err(_) => Err("Other error")
 }
 ```
 
 ## AI Effect
 
-Call external LLMs with a string->string interface:
+Call external LLMs with string->string or structured JSON interfaces:
 
 ```ailang
-import std/ai (call)
+import std/ai (call, callJson, callJsonSimple)
+import std/json (decode)
+import std/result (Result, Ok, Err)
 
+-- Unstructured: string -> string
 func ask_ai(question: string) -> string ! {AI} = call(question)
+
+-- Structured JSON (no schema): provider returns valid JSON
+func ask_json(prompt: string) -> string ! {AI} = callJsonSimple(prompt)
+
+-- Structured JSON (schema-enforced): provider validates against schema
+func ask_person(prompt: string) -> string ! {AI} =
+  callJson(prompt, "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}")
+```
+
+**Parse JSON responses** with `std/json.decode`:
+```ailang
+let raw = callJsonSimple("Return a JSON array");
+match decode(raw) {
+  Ok(json) => println("Valid JSON!")
+  Err(msg) => println("Parse error: ${msg}")
+}
 ```
 
 **Run with providers:**
 ```bash
 ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main file.ail  # Anthropic
 ailang run --caps IO,AI --ai gpt5-mini --entry main file.ail         # OpenAI
-ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google (uses ADC)
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail  # Google
+ailang run --caps IO,AI --ai ollama:llama3 --entry main file.ail     # Ollama (local)
 ailang run --caps IO,AI --ai-stub --entry main file.ail              # Testing stub
 ```
+
+**Authentication setup (required before using `--ai`):**
+
+| Provider | Env Variable | How to get it |
+|----------|-------------|---------------|
+| Anthropic (`claude-*`) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/ |
+| OpenAI (`gpt-*`) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Ollama (`ollama:*`) | None needed | Local server at http://localhost:11434 |
+
+**Google Gemini (`gemini-*`) has two auth options:**
+
+Option 1 — API Key (AI Studio, simplest for getting started):
+```bash
+export GOOGLE_API_KEY=AIza...
+# Get one at: https://aistudio.google.com/apikey
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+Option 2 — Application Default Credentials (Vertex AI, for GCP projects):
+```bash
+# One-time setup:
+gcloud auth application-default login
+
+# IMPORTANT: GOOGLE_API_KEY must be UNSET for Vertex AI to be used.
+# AILANG checks GOOGLE_API_KEY first — if set, it always uses AI Studio.
+unset GOOGLE_API_KEY
+ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+**Gemini auth selection logic:**
+```
+GOOGLE_API_KEY is set (non-empty)  →  AI Studio (API key auth)
+GOOGLE_API_KEY is unset or empty   →  Vertex AI (ADC via gcloud)
+```
+
+**Common gotcha:** If `GOOGLE_API_KEY` is in your shell profile for other tools,
+AILANG will always use AI Studio even if you want Vertex AI. Fix:
+```bash
+# Unset just for this command:
+GOOGLE_API_KEY= ailang run --caps IO,AI --ai gemini-2-5-flash --entry main file.ail
+```
+
+**Quick test that auth works:**
+```bash
+# Test with stub (no auth needed):
+ailang run --caps IO,AI --ai-stub --entry main file.ail
+
+# Then swap --ai-stub for --ai <model> once env vars are set.
+```
+
+## ZIP Archives (std/zip)
+
+Read ZIP archives (including .docx, .xlsx, .pptx files). Requires `FS` effect:
+
+```ailang
+module benchmark/solution
+import std/result (Result, Ok, Err)
+
+-- List entries in a ZIP archive
+func listEntries(path: string) -> Result[List[string], string] ! {FS} =
+  _zip_listEntries(path)
+
+-- Read text content (UTF-8) from a ZIP entry
+func readText(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _zip_readEntry(path, entry)
+
+-- Read binary content as base64
+func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} =
+  _zip_readEntryBytes(path, entry)
+
+export func main() -> () ! {IO, FS} {
+  match _zip_listEntries("document.docx") {
+    Ok(entries) => println("Found ${show(length(entries))} entries"),
+    Err(msg) => println("Error: ${msg}")
+  }
+}
+```
+
+Run: `ailang run --entry main --caps IO,FS file.ail`
+
+## Tar + Gzip (std/tar, std/gzip) — v0.12.0+
+
+Native reading of `.tar`, `.tar.gz`, and raw gzip streams. No shell-out, no temp files. Matches `std/zip` conventions: binary data crosses as base64.
+
+```ailang
+import std/tar (readFromGzip, extractAll)
+import std/gzip (decompress, decompressFile)
+
+-- Pull one file straight from a .tar.gz (primary use: arXiv bundles)
+match readFromGzip("paper.tar.gz", "main.tex") {
+  Ok(tex) => println(tex),
+  Err(msg) => println("read failed: ${msg}")
+}
+
+-- Safe extraction: rejects ../ entries, symlinks, absolute paths
+match extractAll("archive.tar", "./dest") {
+  Ok(paths) => println("wrote ${show(length(paths))} files"),
+  Err(msg) => println("blocked: ${msg}")
+}
+```
+
+- `std/gzip`: `decompress(b64)`, `compress(b64, level)` — **pure**; `decompressFile(path) ! {FS}`
+- `std/tar`: `listEntries`, `readEntry`, `readEntryBytes`, `extractAll`, `readFromGzip`, `readFromGzipBytes` — all `! {FS}`
+- Caps: 10K entries, 100MB decompressed per entry (bomb defence). Respects `AILANG_FS_SANDBOX`.
+
+## XML Parsing (std/xml)
+
+Parse and query XML documents. **Pure functions** (no effect needed):
+
+```ailang
+module benchmark/solution
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+
+export func main() -> () ! {IO} {
+  let xml = "<root><item id=\"1\">Hello</item><item id=\"2\">World</item></root>";
+  match _xml_parse(xml) {
+    Ok(doc) => {
+      -- Find all <item> elements
+      let items = _xml_findAll(doc, "item");
+      -- Get text content
+      let text = _xml_getText(doc);
+      -- Find first match
+      match _xml_findFirst(doc, "item") {
+        Some(item) => {
+          println("Tag: ${_xml_getTag(item)}");
+          println("Text: ${_xml_getText(item)}");
+          match _xml_getAttr(item, "id") {
+            Some(id) => println("ID: ${id}"),
+            None => ()
+          }
+        },
+        None => println("No items found")
+      }
+    },
+    Err(msg) => println("Parse error: ${msg}")
+  }
+}
+```
+
+**XML builtins (all pure):**
+| Function | Type | Description |
+|----------|------|-------------|
+| `_xml_parse` | `string -> Result[XmlNode, string]` | Parse XML string |
+| `_xml_findAll` | `(XmlNode, string) -> [XmlNode]` | Find all elements by tag |
+| `_xml_findFirst` | `(XmlNode, string) -> Option[XmlNode]` | Find first element by tag |
+| `_xml_getText` | `XmlNode -> string` | Extract text content |
+| `_xml_getAttr` | `(XmlNode, string) -> Option[string]` | Get attribute value |
+| `_xml_getChildren` | `XmlNode -> [XmlNode]` | Get child nodes |
+| `_xml_getTag` | `XmlNode -> string` | Get tag name (empty for non-Element) |
+
+**Combine ZIP + XML to parse .docx files:**
+```ailang
+-- Read XML from inside a .docx (which is a ZIP archive)
+match _zip_readEntry("report.docx", "word/document.xml") {
+  Ok(xml) => match _xml_parse(xml) {
+    Ok(doc) => {
+      let paragraphs = _xml_findAll(doc, "w:p");
+      println("Found ${show(length(paragraphs))} paragraphs")
+    },
+    Err(e) => println("XML error: ${e}")
+  },
+  Err(e) => println("ZIP error: ${e}")
+}
+```
+
+## Streaming XML / Bounded Folds (v0.10.1, v0.11.3)
+
+For large XML (multi-MB) inside ZIP archives, `parseFold` and `scanFold`
+fold over `<tag>` elements **without materializing the whole document**:
+
+```ailang
+import std/xml (parseFold, getText, getAttr)
+import std/zip (scanFold)
+import std/iter (FoldStep, Continue, Stop)
+import std/option (Some, None)
+
+-- Pure: fold over rows in an XML string
+let total = parseFold(xml, "row", 0, \acc node.
+  acc + 1
+)
+
+-- Effectful: fold over rows directly from a ZIP entry (never materializes XML)
+let count = scanFold("data.xlsx", "xl/sharedStrings.xml", "si", 0,
+  \acc node. acc + 1
+)
+```
+
+**Bounded prefix scans (v0.11.3):** When you only need the first N rows of a
+50K-row sheet, return `Stop(acc)` to halt the scan immediately:
+
+```ailang
+import std/xml (parseFoldStep)
+import std/iter (FoldStep, Continue, Stop)
+
+-- Take first 5000 rows then stop — the rest of the document isn't scanned
+let first5k = parseFoldStep(xml, "row", [], \acc node.
+  if length(acc) >= 5000
+    then Stop(acc)
+    else Continue(acc ++ [getText(node)])
+)
+```
+
+`parseFoldStep` and `scanFoldStep` mirror `parseFold`/`scanFold` but the
+handler returns `FoldStep[a] = Continue(a) | Stop(a)`. Use them whenever
+the document is much larger than what you need.
+
+## Maps (std/map, v0.10.1)
+
+`Map[k, v]` — immutable hash map, O(1) lookup, copy-on-write inserts:
+
+```ailang
+import std/map as M
+
+let m0 = M.empty()
+let m1 = M.insert(m0, "alice", 30)
+let m2 = M.insert(m1, "bob", 25)
+
+match M.lookup(m2, "alice") {
+  Some(age) => println(show(age)),  -- 30
+  None      => println("missing")
+}
+
+println(show(M.size(m2)))          -- 2
+println(show(M.member(m2, "bob")))  -- true
+
+-- Iteration is sorted (deterministic)
+let xs = M.toList(m2)               -- [("alice", 30), ("bob", 25)]
+let m3 = M.fromList([("c", 1), ("d", 2)])
+```
+
+Builtins: `empty`, `insert`, `lookup`, `member`, `remove`, `size`,
+`keys`, `values`, `fromList`, `toList`. Keys can be int/string/bool —
+keys use canonical encoding internally.
+
+## JWT Verification (std/jwt, v0.10.0)
+
+Pure JWT parsing and RS256 signature verification (e.g., Firebase ID tokens):
+
+```ailang
+import std/jwt (decodeJWT, verifyRS256, verifyWithKid, isExpired, checkIssuer)
+
+-- Decode without verification (for inspection)
+match decodeJWT(token) {
+  Ok({header, payload, signature}) => println(payload),
+  Err(msg) => println("decode failed: ${msg}")
+}
+
+-- Verify RS256 signature against a PEM public key
+match verifyRS256(token, pemPublicKey) {
+  Ok(claims) => if isExpired(claims, nowUnix) then "expired" else "valid",
+  Err(msg)   => "invalid: ${msg}"
+}
+
+-- Firebase/OAuth pattern: select key by 'kid' header
+verifyWithKid(token, \kid. lookupKey(kid, jwks))
+```
+
+Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
+`std/crypto`, plus `fromBase64URL` in `std/bytes` (RFC 4648 §5, no padding).
+JWT functions are pure — fetch keys yourself via `std/net`.
+
+## Custom Tracing (std/trace, v0.11.1)
+
+Emit OTEL-compatible spans and events from AILANG code. Requires `Trace` effect:
+
+```ailang
+import std/trace (spanStart, spanEnd, event)
+
+export func processBatch(items: [Item]) -> int ! {Trace, IO} {
+  spanStart("batch.process");
+  event("batch.size", show(length(items)));
+  let n = doWork(items);
+  spanEnd("batch.process");
+  n
+}
+```
+
+Run: `ailang run --caps IO,Trace --emit-trace jsonl --entry main file.ail`
+
+In WASM, register a JS callback via `ailangSetTraceHandler` to receive
+events live (function_enter/exit, effect, contract_check, budget_delta).
+
+## Process Exit (v0.10.1)
+
+`exit(code: int) -> ()` in `std/io` terminates the process with a specific
+exit code. Required for CLI tools that need to signal failure:
+
+```ailang
+import std/io (println, exit)
+
+export func main() -> () ! {IO} {
+  match validate(args) {
+    Ok(())   => println("ok"),
+    Err(msg) => {
+      println("error: ${msg}");
+      exit(1)
+    }
+  }
+}
+```
+
+Telemetry/traces are flushed before the process exits.
 
 ## Arrays (O(1) indexed access)
 
@@ -1328,153 +3110,6 @@ let arr = #[10, 20, 30]           -- Array literal
 let val = A.get(arr, 0)           -- O(1) access: 10
 let safe = A.getOpt(arr, 99)      -- None (out of bounds)
 let arr2 = A.set(arr, 0, 99)      -- O(n) copy: #[99, 20, 30]
-```
-
-## Semantic Caching Doctrine (SharedMem + SharedIndex)
-
-AILANG programs should treat `SharedMem` + `SharedIndex` as the primary persistent working memory for agents.
-
-### When to Store
-
-Cache any expensive or repeatable computation (LLM calls, parsing, summarizing, planning, search) as a `sem_frame`:
-
-```ailang
-import std/sem (make_frame_at, store_frame, load_frame)
-
--- After expensive computation, cache it
-let frame = make_frame_at("plan:" ++ goal_id, plan_text, plan_bytes, timestamp);
-let _ = store_frame("plan:" ++ goal_id, frame)
-```
-
-### When to Retrieve
-
-Use `SharedIndex` for meaning-based retrieval. Do NOT guess keys or enumerate all keys unless implementing maintenance tooling:
-
-```ailang
--- Find similar content by SimHash (fast, deterministic)
-let results = _sharedindex_find_simhash("beliefs", query_hash, 5, 100, true)
-
--- Find by neural embedding (semantic similarity via Ollama)
-let query_emb = _ollama_embed("embeddinggemma", query_text);
-let results = _sharedindex_find_by_embedding("beliefs", query_emb, 5, 100, true)
-```
-
-### How to Evolve State
-
-Use `update_frame` with CAS for conflict-free multi-agent updates:
-
-```ailang
-import std/sem (update_frame, UpdateResult)
-
-match update_frame("plan:" ++ goal_id, \frame. refine_plan(frame)) {
-  Updated(new_frame) => continue_with(new_frame),
-  Conflict(current) => retry_with_backoff(current),
-  Missing => create_initial_plan()
-}
-```
-
-### How to Debug
-
-Enable tracing to see all SharedMem/SharedIndex operations:
-
-```bash
-ailang run --caps IO,SharedMem,SharedIndex --trace-sharedmem --entry main file.ail
-```
-
-### Namespace Conventions
-
-Organize frames by domain using namespace prefixes:
-
-| Prefix | Purpose |
-|--------|---------|
-| `plan:` | Planning state, goals, strategies |
-| `belief:` | Agent beliefs, world model |
-| `doc:` | Document summaries, parsed content |
-| `cache:` | Expensive computation results |
-| `session:` | Per-session temporary state |
-
-### Two-Tier Search
-
-| Tier | Method | Use Case | Speed |
-|------|--------|----------|-------|
-| **Tier 1** | SimHash | Near-duplicates, typo tolerance | ~1ms |
-| **Tier 2** | Neural embedding | Semantic similarity, paraphrases | ~160ms |
-
-**Canonical pattern:**
-```ailang
--- Check for exact/near match first (fast)
-let simhash = _simhash(query_text);
-let near_matches = _sharedindex_find_simhash("cache", simhash, 1, 50, true);
-
-match near_matches {
-  [] => {
-    -- No near match: compute fresh, store result
-    let result = expensive_computation(query_text);
-    let frame = make_frame_at("cache:" ++ query_id, query_text, result, now());
-    let _ = store_frame("cache:" ++ query_id, frame);
-    result
-  },
-  [hit, ..._] => {
-    -- Found cached result
-    match load_frame(hit.key) {
-      Some(frame) => frame.opaque,
-      None => expensive_computation(query_text)  -- Race: deleted between search and load
-    }
-  }
-}
-```
-
-### Embeddings Doctrine
-
-If AI/Embedding capability is available (Ollama + EmbeddingGemma), use it to make semantic caching robust to paraphrase.
-
-**When to compute embeddings:**
-- Compute embeddings for frames that represent durable knowledge: document summaries, plans, policies, entity facts, extracted structured state.
-- Avoid embedding ephemeral "chatty" content. Prefer stable canonical text.
-
-**What to embed:**
-- Embed the frame's `content`, not the full `opaque` payload.
-- `content` should be short, canonical, and discriminative (1-3 sentences plus key identifiers/constraints).
-
-**How to retrieve (hybrid pattern):**
-```ailang
--- 1. SimHash candidates (fast, bounded)
-let hash = _simhash(query);
-let candidates = _sharedindex_find_simhash("beliefs", hash, 100, 1000, true);
-
--- 2. Embed query once
-let qemb = _ollama_embed("embeddinggemma", query);
-
--- 3. Rerank with embedding search
-let results = _sharedindex_find_by_embedding("beliefs", qemb, 5, 100, true);
-```
-
-**How to store with embeddings:**
-```ailang
-import std/sem (make_frame_at, store_frame, with_embedding)
-
--- Compute embedding at store time (expensive, do once)
-let emb_floats = _ollama_embed("embeddinggemma", content);
-let emb_bytes = _embedding_encode(emb_floats);
-let frame = with_embedding(make_frame_at(key, content, payload, ts), emb_bytes, 768);
-let _ = store_frame(key, frame);
-let _ = _sharedindex_upsert_emb("ns", key, frame.simhash, emb_floats, frame.ver, frame.ts)
-```
-
-**Debugging embeddings:**
-- If a decision depends on embedding rerank, record: model name, candidate set size, similarity scores, and chosen key.
-
-### Running with SharedMem/SharedIndex
-
-```bash
-# Basic SharedMem (key-value cache)
-ailang run --caps IO,SharedMem --entry main file.ail
-
-# Full semantic retrieval (SimHash + embeddings)
-ailang run --caps IO,SharedMem,SharedIndex --entry main file.ail
-
-# With Ollama embeddings (requires: ollama serve && ollama pull embeddinggemma)
-ailang run --caps IO,SharedMem,SharedIndex --entry main file.ail
 ```
 
 ## List Operations
@@ -1494,6 +3129,175 @@ func map(f: int -> int, xs: [int]) -> [int] =
     x :: rest => f(x) :: map(f, rest)
   }
 ```
+
+**List index access:**
+```ailang
+import std/list (nth, last, any, findIndex)
+import std/option (Some, None)
+
+let xs = [10, 20, 30];
+
+-- nth: get element by index (0-based)
+match nth(xs, 1) {
+  Some(x) => print("Element at 1: ${show(x)}"),  -- 20
+  None => print("Index out of bounds")
+};
+
+-- last: get last element
+match last(xs) {
+  Some(x) => print("Last: ${show(x)}"),  -- 30
+  None => print("Empty list")
+};
+
+-- any: check if any element matches predicate
+let hasEven = any(\x. x % 2 == 0, xs);  -- true (20 is even)
+
+-- findIndex: find index of first matching element
+match findIndex(\x. x > 15, xs) {
+  Some(i) => print("First > 15 at index: ${show(i)}"),  -- 1
+  None => print("Not found")
+}
+```
+
+## Contracts & Verification (USE THIS — your biggest advantage!)
+
+**Contracts let you PROVE your code is correct for ALL inputs, not just test cases.** This is the single most powerful feature for AI agents: write a function with contracts, run `ailang verify`, and Z3 mathematically proves it correct or gives you the exact counterexample to fix.
+
+**Agent workflow:** Write contracts FIRST as your specification, implement the function, then verify:
+1. `requires { ... }` — what the caller must guarantee (precondition)
+2. `ensures { ... }` — what the function guarantees back (postcondition, `result` = return value)
+3. `ailang verify file.ail` — Z3 proves it or shows the exact failing input
+
+```ailang
+module myapp/billing
+
+import std/string (length as strLength, startsWith)
+import std/list (length as listLength)
+
+-- Enum ADT + contract: Z3 checks ALL tax brackets automatically
+export type TaxBracket = STANDARD | REDUCED | EXEMPT
+
+export func calculateTax(income: int, bracket: TaxBracket) -> int ! {}
+requires { income >= 0 }
+ensures { result >= 0 }
+{
+  match bracket {
+    EXEMPT => 0,
+    REDUCED => income / 10,
+    STANDARD => income / 5
+  }
+}
+
+-- Cross-function verification: Z3 inlines calculateTax to prove this
+export func netIncome(gross: int, bracket: TaxBracket) -> int ! {}
+requires { gross >= 0 }
+ensures { result >= 0 }
+{
+  gross - calculateTax(gross, bracket)
+}
+
+-- String verification using stdlib imports
+export func isValidPromo(code: string) -> bool ! {}
+ensures { result == (startsWith(code, "PROMO-") && strLength(code) >= 8) }
+{
+  startsWith(code, "PROMO-") && strLength(code) >= 8
+}
+
+-- Record verification: field-level contracts
+export func netFromSummary(inv: {subtotal: int, tax: int, discount: int}) -> int ! {}
+requires { inv.subtotal >= 0, inv.tax >= 0, inv.discount >= 0, inv.discount <= inv.subtotal }
+ensures { result >= 0 }
+{
+  inv.subtotal - inv.discount + inv.tax
+}
+
+-- List verification using stdlib
+export func addItem(price: int, items: [int]) -> int ! {}
+ensures { result == listLength(items) + 1 }
+{
+  listLength(price :: items)
+}
+```
+
+**Verify with Z3** (proves contracts correct for ALL inputs at compile time):
+```bash
+ailang verify file.ail              # Prove contracts for all functions
+ailang verify --verbose file.ail    # Show generated SMT-LIB
+ailang verify --json file.ail       # Machine-readable output
+ailang verify --strict file.ail     # Exit 1 if any function can't be verified
+```
+
+**Example output** — Z3 proves 5 functions and catches a bug in the 6th:
+```
+  ✓ VERIFIED calculateTax    6ms
+  ✓ VERIFIED netIncome        8ms     # cross-function: inlines calculateTax
+  ✓ VERIFIED isValidPromo     5ms     # string theory
+  ✓ VERIFIED netFromSummary   7ms     # record fields
+  ✓ VERIFIED addItem          5ms     # list/sequence theory
+  ✗ VIOLATION brokenDiscount
+    Counterexample:
+      price: Int = 0
+      discount: Int = 1
+```
+
+When Z3 finds a violation, it gives you the EXACT inputs that break the contract. Fix the function, re-verify — no guessing.
+
+**Runtime contract checking** (alternative to static verification):
+```bash
+ailang run --verify-contracts --caps IO --entry main file.ail
+```
+
+**What can be verified** (decidable fragment):
+- Types: `int`, `bool`, `string`, enum ADT, record, `[int]` lists
+- Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`), bitwise (`&`, `^`, `~`, `<<`, `>>`)
+- `if`/`else`, `let` bindings, `match` on enums/ADTs
+- String ops (use `std/string`): `length`, `startsWith`, `endsWith`, `find`, `substring`, `contains`; `concat` (list of strings); `"${expr}"` interpolation
+- List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
+- Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
+- Cross-function calls: Z3 inlines callees to reason about full call chains
+- Must be pure: `! {}` (no effects), non-recursive, non-higher-order
+
+**What gets skipped:** Recursive functions, higher-order functions, effectful functions, float parameters.
+
+**Rules:**
+- `requires { expr }` — precondition; `ensures { expr }` — postcondition
+- `result` refers to the return value (only in `ensures`)
+- Contracts go BETWEEN the effect annotation `! {}` and the function body `{ ... }`
+- Use stdlib imports in contracts (`std/string`, `std/list`) — Z3 resolves them natively
+- For list `head`/`nth` in contracts, use builtins `_list_head`/`_list_nth` (stdlib versions return `Option`)
+- Install Z3: `brew install z3` (macOS) or `apt install z3` (Linux)
+
+### Structure Code for Z3 Verification
+
+**Whenever possible, structure your code so Z3 can verify it.** This means preferring the decidable fragment (pure, non-recursive, non-higher-order) for core logic, even when the outer program uses effects and recursion.
+
+**Pattern: Pure core + effectful shell.** Extract pure computation into small, contract-bearing functions. Wrap them in effectful entry points:
+
+```ailang
+-- GOOD: Z3 can verify the pure core
+pure func applyDiscount(price: int, pct: int) -> int ! {}
+requires { price >= 0, pct >= 0, pct <= 100 }
+ensures { result >= 0, result <= price }
+{
+  price - (price * pct) / 100
+}
+
+-- Effectful shell just calls the verified core
+export func main() -> () ! {IO} {
+  let finalPrice = applyDiscount(1000, 15);
+  println(show(finalPrice))
+}
+```
+
+**Guidelines:**
+- **Split logic from effects** — Keep arithmetic, validation, and decision logic in pure `! {}` functions with contracts. Push IO/Net/FS to the outer layer.
+- **Prefer enums over strings for decisions** — `match bracket { STANDARD => ..., REDUCED => ... }` is fully decidable; string parsing is not.
+- **Use `int` over `float` where possible** — Integer arithmetic is fully decidable in Z3; floats are not verifiable.
+- **Keep verified functions non-recursive** — If you need recursion, have the recursive function call a pure verified helper for its core logic.
+- **Add contracts to ALL pure functions** — Even simple ones. `ensures { result >= 0 }` catches edge cases you won't think to test.
+- **Decompose complex logic into small verifiable pieces** — Instead of one 20-line function, write 3-4 small functions each with tight contracts. Z3 inlines across calls automatically.
+
+**Think of it this way:** Every function you can mark `! {}` with a contract is a function that is *mathematically proven correct* — not just tested. Maximize the surface area of verified code.
 
 ## Testing
 
@@ -1529,6 +3333,96 @@ export func main() -> () ! {IO} = print("Hello")
 
 Run: `ailang run --entry main --caps IO myapp/main.ail`
 
+## Reserved Keywords
+
+AILANG reserves 43 keywords. You **cannot** use these as variable or function names.
+
+| Category | Keywords |
+|----------|----------|
+| Control Flow | `if`, `then`, `else`, `match`, `with`, `select`, `timeout` |
+| Definitions | `func`, `pure`, `let`, `letrec`, `in` |
+| Type System | `type`, `class`, `instance`, `forall`, `exists`, `deriving` |
+| Modules | `module`, `import`, `export`, `extern` |
+| Testing | `test`, `tests`, `property`, `properties`, `assert` |
+| Verification | `requires`, `ensures`, `invariant` |
+| Concurrency | `spawn`, `parallel`, `channel`, `send`, `recv` |
+| Boolean | `true`, `false`, `and`, `or`, `not` |
+
+**Common mistake:**
+```ailang
+-- WRONG: 'exists' is reserved (for existential types)
+let exists = fileExists(path)
+
+-- CORRECT: use alternative name
+let found = fileExists(path)
+```
+
+## External Package Imports
+
+Use `pkg/` prefix for external packages:
+
+```ailang
+import std/io (println)                            -- Stdlib (bundled)
+import myproject/utils (helper)                    -- Local module
+import pkg/sunholo/gcp-auth/token (getAccessToken) -- External package
+import pkg/sunholo/auth/keys (validateKeyHash)      -- External package
+```
+
+### Registry Workflow (recommended)
+
+```bash
+ailang search "auth"                        # Discover packages by keyword
+ailang search --tag gcp                     # Filter by tag
+ailang install sunholo/auth@0.1.0           # Download, verify hash, add to ailang.toml
+ailang pkg-docs sunholo/auth                # Read AGENT.md (structured AI usage guide)
+```
+
+Search results include `ai_summary`, `tags`, and `effects` per package — use effects to know what capabilities (`IO`, `Net`, `FS`, etc.) a dependency requires.
+
+### Alternative: Git or path dependencies
+
+```bash
+ailang add --git https://github.com/sunholo-data/ailang-packages --subdir packages/auth --tag v0.1.0
+ailang add --path ../ailang-packages/packages/auth   # Local development
+ailang lock                                          # Resolve and lock all deps
+```
+
+### Publishing
+
+```bash
+ailang init package --name myorg/mylib      # Create ailang.toml with exports, effects, metadata
+ailang publish --dry-run                    # Preview: compile check, effect validation, contract verification
+ailang publish                              # Upload to registry (immutable — versions cannot be overwritten)
+```
+
+Include an `AGENT.md` in your package root for AI agent consumers — it's served via `ailang pkg-docs` and indexed in registry search results.
+
+**Available packages**: `sunholo/gcp-auth` (OAuth2), `sunholo/auth` (API keys), `sunholo/http-helpers` (request builders), `sunholo/logging` (JSON logs), `sunholo/config` (env loading), `sunholo/testing-utils` (assertions).
+
+## Module Import Rules
+
+**Imports are NOT transitive.** When module A imports module B, A does **not** get B's imports.
+
+```ailang
+-- Module B
+module myapp/db
+import std/fs (readFile)
+export func loadConfig() -> string ! {FS} = readFile("config.json")
+
+-- Module A - WRONG: std/fs not available just because B uses it
+module myapp/main
+import myapp/db (loadConfig)
+let data = readFile("other.txt")  -- ERROR: module std/fs not imported
+
+-- Module A - CORRECT: explicitly import what you use
+module myapp/main
+import std/fs (readFile)
+import myapp/db (loadConfig)
+let data = readFile("other.txt")  -- Works!
+```
+
+**Rule: Import everything you directly use in your module.**
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -1539,7 +3433,12 @@ Run: `ailang run --entry main --caps IO myapp/main.ail`
 | `for x in xs` | Use recursion or `map`/`filter` |
 | Missing `! {IO}` | Add effect to signature |
 | `let x = 1; let y = 2` at top level | Wrap in `{ }` block |
-| `match x { ... }` inside block | Extract to helper function (parser bug) |
+| Multiple lets in match arm without `{ }` | Wrap in `{ }` block (see Pattern Matching) |
+| `module benchmark/myname` | Use exactly `module benchmark/solution` |
+| Using reserved keyword as name | See Reserved Keywords section above |
+| Expecting transitive imports | Each module must import what it uses directly |
+| No output from println | Check: `--caps IO` flag present AND before filename, effect sig is `! {IO}` not `IO[Unit]` |
+| `let x = e` then `println(x)` in `{ }` | Use semicolons: `let x = e; println(x)` — or use `let x = e in println(x)` without braces |
 
 ## Running Programs
 
@@ -1553,6 +3452,23 @@ ailang repl                                           # Interactive REPL
 ```
 
 **Flags must come BEFORE the filename!**
+
+### FS Sandbox
+
+Restrict all file system operations to a directory with `AILANG_FS_SANDBOX`:
+
+```bash
+AILANG_FS_SANDBOX=/tmp/work ailang run --entry main --caps IO,FS file.ail
+```
+
+When set, all paths are resolved relative to the sandbox root:
+- `readFile("data.txt")` reads `/tmp/work/data.txt`
+- `writeFile("out.txt", s)` writes `/tmp/work/out.txt`
+- `_zip_listEntries("archive.zip")` opens `/tmp/work/archive.zip`
+
+Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
+
+If unset (default), paths resolve normally from the process working directory.
 
 ---
 

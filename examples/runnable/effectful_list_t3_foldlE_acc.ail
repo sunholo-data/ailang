@@ -8,8 +8,8 @@ import std/list (foldlE)
 
 export func main() -> () ! {IO} {
   let result = foldlE(func(acc: string, x: int) -> string ! {IO} {
-    println("  acc=" ++ show(acc));
-    acc ++ show(x) ++ " "
+    println("  acc=${show(acc)}");
+    "${acc}${show(x)} "
   }, "", [1, 2, 3]);
-  println("T3 foldlE: [" ++ result ++ "]")
+  println("T3 foldlE: [${result}]")
 }

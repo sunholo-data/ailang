@@ -44,20 +44,20 @@ func main() -> unit ! {IO} =
 
   let _ = match ok_result {
     Ok(_) => println("getOk() returned: Ok"),
-    Err(msg) => println("getOk() returned: Err(" ++ msg ++ ")")
+    Err(msg) => println("getOk() returned: Err(${msg})")
   } in
 
   let _ = match err_result {
     Ok(_) => println("getErr() returned: Ok"),
-    Err(msg) => println("getErr() returned: Err(" ++ msg ++ ")")
+    Err(msg) => println("getErr() returned: Err(${msg})")
   } in
 
   let _ = match div1 {
     Ok(_) => println("divide(10, 2) returned: Ok"),
-    Err(msg) => println("divide(10, 2) returned: Err(" ++ msg ++ ")")
+    Err(msg) => println("divide(10, 2) returned: Err(${msg})")
   } in
 
   match div2 {
     Ok(_) => println("divide(10, 0) returned: Ok"),
-    Err(msg) => println("divide(10, 0) returned: Err(" ++ msg ++ ")")
+    Err(msg) => println("divide(10, 0) returned: Err(${msg})")
   }

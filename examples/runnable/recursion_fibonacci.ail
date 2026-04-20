@@ -38,6 +38,6 @@ export func main() -> () ! {IO} {
   let result1 = fib(10);
   let result2 = fibTail(10, 0, 1);
 
-  println("fib(10) = " ++ show(result1));
-  println("fibTail(10, 0, 1) = " ++ show(result2))
+  println("fib(10) = ${show(result1)}");
+  println("fibTail(10, 0, 1) = ${show(result2)}")
 }

@@ -7,6 +7,6 @@ import std/io (println)
 import std/list (filterE)
 
 export func main() -> () ! {IO} {
-  let result = filterE(\x. { println("  check " ++ show(x)); x > 2 }, [1, 2, 3, 4, 5]);
-  println("T2 filterE: " ++ show(result))
+  let result = filterE(\x. { println("  check ${show(x)}"); x > 2 }, [1, 2, 3, 4, 5]);
+  println("T2 filterE: ${show(result)}")
 }

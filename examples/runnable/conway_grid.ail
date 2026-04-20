@@ -98,13 +98,13 @@ pure func cellChar(cell: Cell) -> string {
 -- Display a row of the grid
 pure func showRow(grid: Array[Cell], y: int, x: int, acc: string) -> string {
     if x >= gridSize() then acc
-    else showRow(grid, y, x + 1, acc ++ cellChar(getCell(grid, x, y)))
+    else showRow(grid, y, x + 1, "${acc}${cellChar(getCell(grid, x, y))}")
 }
 
 -- Display entire grid as string
 pure func showGrid(grid: Array[Cell], y: int, acc: string) -> string {
     if y >= gridSize() then acc
-    else showGrid(grid, y + 1, acc ++ showRow(grid, y, 0, "") ++ "\n")
+    else showGrid(grid, y + 1, "${acc}${showRow(grid, y, 0, "")}\n")
 }
 
 -- Compute next cell state

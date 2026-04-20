@@ -11,5 +11,5 @@ pure func fib(n: int) -> int =
 
 export func main() -> () ! {IO} = {
   let result = fib(24);
-  println("fib(24) = " ++ show(result))
+  println("fib(24) = ${show(result)}")
 }

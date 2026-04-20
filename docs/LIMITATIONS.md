@@ -448,26 +448,22 @@ let result = flatMap(\item. [processItem(item)], myList)
 
 ### String Interpolation
 
-**Status**: Not implemented
-**Since**: v0.1.0
-**Affects**: String construction
+**Status**: ✅ **Resolved in v0.12.1** ([M-CONCAT-DISAMBIG](implemented/v0_13_0/m-concat-disambiguation.md) Phase 1)
+**Since**: v0.12.1
 
-**Problem**:
-AILANG requires explicit concatenation:
+Double-quoted strings now accept `${expr}` substitution; the parser desugars
+interpolations to a `concat_String` chain with auto-`show()` wrapping.
 
 ```ailang
--- ❌ No string interpolation:
--- let msg = "Value: ${x}"  -- Not supported
+-- ✅ Interpolation (preferred):
+let msg = "Value: ${x}"
 
--- ✅ Use concatenation:
-let msg = "Value: " ++ show(x)
+-- ✅ Stdlib concat (for list-of-strings):
+let msg = concat(["Value: ", show(x)])
 ```
 
-**Workaround**:
-Use `++` (string concatenation) and `show()` (value-to-string conversion).
-
-**Future**:
-String interpolation is planned for v0.4.0+
+**v0.13.0 breaking change**: `++` is now **list-only**. `"a" ++ "b"` is a
+compile-time type error; migrate to `"${a}${b}"` or `concat([a, b])`.
 
 ---
 

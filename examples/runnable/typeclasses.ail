@@ -90,11 +90,11 @@ show("Hello, AILANG!")
 -- =======================
 
 -- Concat operator
-"Hello, " ++ "World!"
+"Hello, World!"
 -- Output: "Hello, World!"
 
 -- Building messages
-"The answer is " ++ show(42)
+"The answer is ${show(42)}"
 -- Output: "The answer is 42"
 
 -- =======================
@@ -103,12 +103,12 @@ show("Hello, AILANG!")
 
 -- Identity function is polymorphic
 let id = \x. x in
-show(id(42)) ++ ", " ++ show(id("hello"))
+"${show(id(42))}, ${show(id("hello"))}"
 -- Output: "42, hello"
 
 -- Generic comparison
 let equals = \x. \y. x == y in
-show(equals(1)(1)) ++ ", " ++ show(equals("a")("b"))
+"${show(equals(1)(1))}, ${show(equals("a")("b"))}"
 -- Output: "true, false"
 
 -- =======================
@@ -117,10 +117,10 @@ show(equals(1)(1)) ++ ", " ++ show(equals("a")("b"))
 
 -- Combining multiple type classes
 let result = if 10 > 5 then 42 else 0 in
-show(result) ++ " is the answer"
+"${show(result)} is the answer"
 -- Output: "42 is the answer"
 
 -- Numeric polymorphism
 let double = \x. x * 2 in
-show(double(21)) ++ ", " ++ show(double(3.14))
+"${show(double(21))}, ${show(double(3.14))}"
 -- Output: "42, 6.28"

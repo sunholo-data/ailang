@@ -177,7 +177,7 @@ export func countLines(content: string) -> int {
 
 export func main() -> () ! {IO, FS} {
   let content = readFile("data.txt");
-  println("Lines: " ++ show(countLines(content)))
+  println("Lines: ${show(countLines(content))}")
 }
 ```
 
@@ -288,7 +288,7 @@ Try some expressions:
 λ> 1 + 2
 3 :: Int
 
-λ> "Hello " ++ "World"
+λ> "Hello World"
 Hello World :: String
 
 λ> let double = \x. x * 2 in double(21)

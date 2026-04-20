@@ -60,7 +60,7 @@ import std/result (Result, Ok, Err)
 
 export func main() -> () ! {IO} = {
   match decodeJWT("not-a-jwt") {
-    Err(e) => println("Error: " ++ e),
+    Err(e) => println("Error: ${e}"),
     Ok(_) => println("BUG: should not succeed")
   }
 }

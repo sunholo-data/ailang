@@ -7,21 +7,21 @@ import std/crypto (sha256Hex, hmacSha256, constantTimeEqual)
 export func main() -> () ! {IO} = {
   -- SHA-256 hashing
   let hash = sha256Hex("hello") in
-  println("sha256('hello') = " ++ hash);
+  println("sha256('hello') = ${hash}");
 
   -- Hash an API key before storage
   let keyHash = sha256Hex("dp_a1b2c3d4e5f6g7h8") in
-  println("API key hash = " ++ keyHash);
+  println("API key hash = ${keyHash}");
 
   -- HMAC-SHA256 for message signing
   let signature = hmacSha256("payment:100:USD", "webhook-secret") in
-  println("HMAC signature = " ++ signature);
+  println("HMAC signature = ${signature}");
 
   -- Constant-time comparison (prevents timing attacks)
   let valid = constantTimeEqual(sha256Hex("my-secret"), sha256Hex("my-secret")) in
-  println("Key valid = " ++ show(valid));
+  println("Key valid = ${show(valid)}");
 
   -- Invalid key check
   let invalid = constantTimeEqual(sha256Hex("my-secret"), sha256Hex("wrong-key")) in
-  println("Wrong key valid = " ++ show(invalid))
+  println("Wrong key valid = ${show(invalid)}")
 }

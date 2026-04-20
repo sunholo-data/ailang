@@ -79,7 +79,7 @@ Side effects are the #1 source of bugs in production systems. AILANG makes them 
 let processFile: string -> ! {FS, IO} string =
   \path.
     let content = readFile(path)
-    let _ = print("Processing: " ++ path)
+    let _ = print("Processing: ${path}")
     transform(content)
 ```
 

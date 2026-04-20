@@ -28,7 +28,7 @@ type Either[a, b] = Left(a) | Right(b)
 pure func parseIntResult(s: string) -> Result[int] =
   match stringToInt(s) {
     Some(n) => Ok(n),
-    None => Err("Invalid integer: " ++ s)
+    None => Err("Invalid integer: ${s}")
   }
 
 -- Map over a Result - transform the success value
@@ -69,8 +69,8 @@ pure func partitionEither[a, b](e: Either[a, b]) -> string =
 -- Helper to show result
 pure func showResult(r: Result[int]) -> string =
   match r {
-    Ok(n) => "Ok(" ++ intToStr(n) ++ ")",
-    Err(e) => "Err(" ++ e ++ ")"
+    Ok(n) => "Ok(${intToStr(n)})",
+    Err(e) => "Err(${e})"
   }
 
 -- Main: demonstrate polymorphic ADT usage
@@ -80,29 +80,29 @@ export func main() -> string ! {IO} {
   let invalid = parseIntResult("not a number");
 
   -- Show results
-  let line1 = "Parse '42': " ++ showResult(valid);
-  let line2 = "Parse 'not a number': " ++ showResult(invalid);
+  let line1 = "Parse '42': ${showResult(valid)}";
+  let line2 = "Parse 'not a number': ${showResult(invalid)}";
 
   -- Use mapResult to transform success values
   let doubled = mapResult(\x. x * 2, valid);
-  let line3 = "Double valid: " ++ showResult(doubled);
+  let line3 = "Double valid: ${showResult(doubled)}";
 
   -- Chain operations with bindResult
   let chained = bindResult(\x. if x > 0 then Ok(x * 10) else Err("non-positive"), valid);
-  let line4 = "Chain valid: " ++ showResult(chained);
+  let line4 = "Chain valid: ${showResult(chained)}";
 
   -- Get value or default
   let valOrDefault = getOrElseResult(invalid, -1);
-  let line5 = "Invalid or default: " ++ intToStr(valOrDefault);
+  let line5 = "Invalid or default: ${intToStr(valOrDefault)}";
 
   -- Option to Result conversion
   let fromOption = optionToResult(Some(100), "missing");
-  let line6 = "Option to Result: " ++ showResult(fromOption);
+  let line6 = "Option to Result: ${showResult(fromOption)}";
 
   -- Either example
   let leftVal: Either[int, string] = Left(42);
   let rightVal: Either[int, string] = Right("hello");
-  let line7 = "Either Left: " ++ partitionEither(leftVal) ++ ", Right: " ++ partitionEither(rightVal);
+  let line7 = "Either Left: ${partitionEither(leftVal)}, Right: ${partitionEither(rightVal)}";
 
-  line1 ++ "\n" ++ line2 ++ "\n" ++ line3 ++ "\n" ++ line4 ++ "\n" ++ line5 ++ "\n" ++ line6 ++ "\n" ++ line7
+  "${line1}\n${line2}\n${line3}\n${line4}\n${line5}\n${line6}\n${line7}"
 }

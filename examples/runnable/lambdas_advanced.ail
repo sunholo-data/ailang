@@ -10,8 +10,8 @@ export func main() -> () ! {IO} =
   let sub = \x. \y. x - y in
   let flippedSub = flip(sub) in
   let _ = println("Flip function (reverse arguments):") in
-  let _ = println("  sub(10)(3) = " ++ show(sub(10)(3))) in
-  let _ = println("  flip(sub)(10)(3) = " ++ show(flippedSub(10)(3))) in
+  let _ = println("  sub(10)(3) = ${show(sub(10)(3))}") in
+  let _ = println("  flip(sub)(10)(3) = ${show(flippedSub(10)(3))}") in
 
   -- Church encoding - representing numbers as functions
   let zero = \f. \x. x in
@@ -23,23 +23,23 @@ export func main() -> () ! {IO} =
   let churchToInt = \n. n(\x. x + 1)(0) in
   let _ = println("") in
   let _ = println("Church numerals:") in
-  let _ = println("  churchToInt(zero) = " ++ show(churchToInt(zero))) in
-  let _ = println("  churchToInt(one) = " ++ show(churchToInt(one))) in
-  let _ = println("  churchToInt(two) = " ++ show(churchToInt(two))) in
-  let _ = println("  churchToInt(three) = " ++ show(churchToInt(three))) in
+  let _ = println("  churchToInt(zero) = ${show(churchToInt(zero))}") in
+  let _ = println("  churchToInt(one) = ${show(churchToInt(one))}") in
+  let _ = println("  churchToInt(two) = ${show(churchToInt(two))}") in
+  let _ = println("  churchToInt(three) = ${show(churchToInt(three))}") in
 
   -- Continuation-passing style
   let addCPS = \x. \y. \k. k(x + y) in
   let id = \x. x in
   let _ = println("") in
   let _ = println("Continuation-passing style:") in
-  let _ = println("  addCPS(3)(4)(id) = " ++ show(addCPS(3)(4)(id))) in
+  let _ = println("  addCPS(3)(4)(id) = ${show(addCPS(3)(4)(id))}") in
 
   -- Combinator: K combinator (constant function)
   let K = \x. \y. x in
   let _ = println("") in
   let _ = println("K combinator (returns first arg):") in
-  let _ = println("  K(42)(99) = " ++ show(K(42)(99))) in
+  let _ = println("  K(42)(99) = ${show(K(42)(99))}") in
 
   -- Combinator: S combinator
   let S = \x. \y. \z. x(z)(y(z)) in
@@ -47,4 +47,4 @@ export func main() -> () ! {IO} =
   let double = \n. n * 2 in
   let _ = println("") in
   let _ = println("S combinator:") in
-  println("  S(+)(double)(5) = " ++ show(S(\a. \b. a + b)(double)(5)))
+  println("  S(+)(double)(5) = ${show(S(\a. \b. a + b)(double)(5))}")

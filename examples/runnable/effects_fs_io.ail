@@ -15,13 +15,13 @@ export func main() -> () ! {IO, FS} {
   writeFile(path, content);
 
   -- Print confirmation (IO effect)
-  println("Wrote: " ++ content);
+  println("Wrote: ${content}");
 
   -- Check if file exists (FS effect)
   let fileOk = fileExists(path);
-  println("File exists: " ++ show(fileOk));
+  println("File exists: ${show(fileOk)}");
 
   -- Read it back (FS effect)
   let readBack = readFile(path);
-  println("Read back: " ++ readBack)
+  println("Read back: ${readBack}")
 }

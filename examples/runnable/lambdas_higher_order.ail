@@ -11,7 +11,7 @@ export func main() -> () ! {IO} =
   let addOne = \x. x + 1 in
   let doubleThenAddOne = compose(addOne)(double) in
   let _ = println("Function composition:") in
-  let _ = println("  doubleThenAddOne(5) = " ++ show(doubleThenAddOne(5))) in
+  let _ = println("  doubleThenAddOne(5) = ${show(doubleThenAddOne(5))}") in
   let _ = println("  (first double, then add one)") in
 
   -- Map-like function over a pair
@@ -20,7 +20,7 @@ export func main() -> () ! {IO} =
   let result = applyToBoth(square)(3)(4) in
   let _ = println("") in
   let _ = println("Apply function to both values:") in
-  let _ = println("  applyToBoth(square)(3)(4) = " ++ show(result)) in
+  let _ = println("  applyToBoth(square)(3)(4) = ${show(result)}") in
 
   -- Function that returns a function
   let makeOperation = \op. \x. \y. op(x)(y) in
@@ -30,8 +30,8 @@ export func main() -> () ! {IO} =
   let multiplier = makeOperation(multiply) in
   let _ = println("") in
   let _ = println("Function returning function:") in
-  let _ = println("  adder(5)(3) = " ++ show(adder(5)(3))) in
-  let _ = println("  multiplier(5)(3) = " ++ show(multiplier(5)(3))) in
+  let _ = println("  adder(5)(3) = ${show(adder(5)(3))}") in
+  let _ = println("  multiplier(5)(3) = ${show(multiplier(5)(3))}") in
 
   -- Applying a function twice
   let twice = \f. \x. f(f(x)) in
@@ -39,5 +39,5 @@ export func main() -> () ! {IO} =
   let quadruple = twice(double) in
   let _ = println("") in
   let _ = println("Applying function twice:") in
-  let _ = println("  twice(increment)(5) = " ++ show(twice(increment)(5))) in
-  println("  quadruple(5) = " ++ show(quadruple(5)))
+  let _ = println("  twice(increment)(5) = ${show(twice(increment)(5))}") in
+  println("  quadruple(5) = ${show(quadruple(5))}")

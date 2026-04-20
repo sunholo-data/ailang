@@ -30,13 +30,13 @@ func getScore(obj: Json) -> float =
 
 -- Format person info
 func formatPerson(obj: Json) -> string =
-  getName(obj) ++ " (age " ++ intToStr(getAge(obj)) ++ ", score " ++ floatToStr(getScore(obj)) ++ ")"
+  "${getName(obj)} (age ${intToStr(getAge(obj))}, score ${floatToStr(getScore(obj))})"
 
 -- Parse and format JSON person
 func parsePerson(jsonStr: string) -> string =
   match decode(jsonStr) {
     Ok(obj) => formatPerson(obj),
-    Err(e) => "Parse error: " ++ e
+    Err(e) => "Parse error: ${e}"
   }
 
 -- Entry point - just call parsePerson directly

@@ -17,16 +17,16 @@ export func main() -> () ! {IO} {
 
       -- Extract name field using getString (combines get + asString)
       match getString(obj, "name") {
-        Some(name) => println("Name: " ++ name),
+        Some(name) => println("Name: ${name}"),
         None => println("Name not found or not a string")
       };
 
       -- Extract version using getNumber
       match getNumber(obj, "version") {
-        Some(ver) => println("Version: " ++ show(ver)),
+        Some(ver) => println("Version: ${show(ver)}"),
         None => println("Version not found or not a number")
       }
     },
-    Err(e) => println("Parse error: " ++ e)
+    Err(e) => println("Parse error: ${e}")
   }
 }

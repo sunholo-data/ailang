@@ -1,6 +1,6 @@
 # M-CONCAT-DISAMBIG: Eliminate `++` Operator Ambiguity Once and For All
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.13.0 (re-dated 2026-04-17 after v0.12.0 eval data re-confirmed the problem)
 **Priority**: P1 (High) — still driving compile_error failures in v0.12.0 baseline
 **Estimated Time**: 14-19 hours (Phase 1: 6-8h, Phase 2: 8-11h including migration sweeps)

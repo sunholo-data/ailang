@@ -38,8 +38,8 @@ export func main() -> () ! {IO} {
   let even17 = isEven(17);
   let odd17 = isOdd(17);
 
-  println("isEven(42) = " ++ show(even42));
-  println("isOdd(42) = " ++ show(odd42));
-  println("isEven(17) = " ++ show(even17));
-  println("isOdd(17) = " ++ show(odd17))
+  println("isEven(42) = ${show(even42)}");
+  println("isOdd(42) = ${show(odd42)}");
+  println("isEven(17) = ${show(even17)}");
+  println("isOdd(17) = ${show(odd17)}")
 }

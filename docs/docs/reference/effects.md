@@ -62,7 +62,7 @@ import std/io (println, print, readLine)
 
 func greet(name: string) -> () ! {IO} {
   print("Hello, ");
-  println(name ++ "!")
+  println("${name}!")
 }
 ```
 
@@ -142,7 +142,7 @@ func timedOperation() -> int ! {Clock, IO} {
   let start = now();
   sleep(1000);  -- Sleep 1 second
   let end = now();
-  println("Elapsed: " ++ show(end - start) ++ "ms");
+  println("Elapsed: ${show(end - start)}ms");
   end - start
 }
 ```
@@ -185,7 +185,7 @@ import std/json (decode)
 func fetchJson(url: string) -> Result[Json, string] ! {Net} =
   match httpRequest("GET", url, [], "") {
     Ok(resp) => decode(resp.body),   -- resp.body is the body string
-    Err(Transport(msg)) => Err("network error: " ++ msg),
+    Err(Transport(msg)) => Err("network error: ${msg}"),
     Err(_) => Err("request failed")
   }
 ```
@@ -238,12 +238,12 @@ import std/bytes (toString)
 func runCommand(cmd: string, args: [string]) -> () ! {IO, Process} {
   match exec(cmd, args) {
     Ok(out) => {
-      println("stdout: " ++ toString(out.stdout));
-      println("exit code: " ++ show(out.exitCode))
+      println("stdout: ${toString(out.stdout)}");
+      println("exit code: ${show(out.exitCode)}")
     },
-    Err(NotFound(cmd))  => println("not found: " ++ cmd),
-    Err(NotAllowed(cmd)) => println("blocked: " ++ cmd),
-    Err(Timeout(ms))    => println("timed out after " ++ show(ms) ++ "ms"),
+    Err(NotFound(cmd))  => println("not found: ${cmd}"),
+    Err(NotAllowed(cmd)) => println("blocked: ${cmd}"),
+    Err(Timeout(ms))    => println("timed out after ${show(ms)}ms"),
     Err(_)              => println("other error")
   }
 }
@@ -296,7 +296,7 @@ import std/result (Result, Ok, Err)
 func main() -> unit ! {Stream, IO} {
   let stdin = asyncReadStdinLines("stdin", 10);
   selectEvents([stdin], \event. match event {
-    SourceText(source, text) => { println("[" ++ source ++ "] " ++ text); true },
+    SourceText(source, text) => { println("[${source}] ${text}"); true },
     _ => true
   })
 }
@@ -514,10 +514,10 @@ pure func calculateTax(amount: float) -> float {
 
 -- Effectful boundary
 func processInvoice(id: string) -> () ! {IO, FS} {
-  let data = readFile("invoices/" ++ id ++ ".json");
+  let data = readFile("invoices/${id}.json");
   let amount = parseAmount(data);
   let tax = calculateTax(amount);  -- Pure!
-  println("Tax: " ++ show(tax))
+  println("Tax: ${show(tax)}")
 }
 ```
 

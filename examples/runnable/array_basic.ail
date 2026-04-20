@@ -31,7 +31,7 @@ let safeNeg = A.getOpt(numbers, -1)    -- None (negative index)
 -- Helper to show Option values
 pure func showOpt(opt: Option[int]) -> string {
   match opt {
-    Some(x) => "Some(" ++ show(x) ++ ")"
+    Some(x) => "Some(${show(x)})"
     None => "None"
   }
 }
@@ -50,23 +50,23 @@ let zerosLen = A.length(zeros)
 
 export func main() -> () ! {IO} = {
   print("=== Array Basics (0-based indexing) ===");
-  print("Length: " ++ show(len));
-  print("numbers[0] (first): " ++ show(first));
-  print("numbers[2] (third): " ++ show(third));
-  print("numbers[4] (last):  " ++ show(last));
+  print("Length: ${show(len)}");
+  print("numbers[0] (first): ${show(first)}");
+  print("numbers[2] (third): ${show(third)}");
+  print("numbers[4] (last):  ${show(last)}");
   print("");
   print("=== Safe Access with getOpt ===");
-  print("getOpt(numbers, 0):  " ++ showOpt(safeFirst));
-  print("getOpt(numbers, 99): " ++ showOpt(safeBeyond));
-  print("getOpt(numbers, -1): " ++ showOpt(safeNeg));
+  print("getOpt(numbers, 0):  ${showOpt(safeFirst)}");
+  print("getOpt(numbers, 99): ${showOpt(safeBeyond)}");
+  print("getOpt(numbers, -1): ${showOpt(safeNeg)}");
   print("");
   print("=== Immutable Update (O(n) copy) ===");
-  print("Original[2]: " ++ show(originalVal));
-  print("Modified[2]: " ++ show(modifiedVal));
+  print("Original[2]: ${show(originalVal)}");
+  print("Modified[2]: ${show(modifiedVal)}");
   print("");
   print("=== Conversions (O(n)) ===");
-  print("As list: " ++ show(asList));
+  print("As list: ${show(asList)}");
   print("");
   print("=== Array.make ===");
-  print("Zeros length: " ++ show(zerosLen))
+  print("Zeros length: ${show(zerosLen)}")
 }

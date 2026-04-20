@@ -102,7 +102,7 @@ match 5 {
 
 ### String Interpolation
 
-**Status**: ✅ **Implemented in v0.12.1** as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concat-disambiguation.md).
+**Status**: ✅ **Implemented in v0.12.1** as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md). Phase 2 (restricting `++` to lists only) shipped in **v0.13.0**.
 
 Double-quoted strings accept `${expr}` substitution. The parser desugars
 interpolations to `concat_String(..., show(expr), ...)` chains; `show_String`

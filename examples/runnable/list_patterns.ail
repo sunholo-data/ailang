@@ -6,19 +6,19 @@ import std/option (Some, None)
 
 export func main() -> () ! {IO} =
   let xs = [10, 20, 30] in
-  let _ = println("LEN=" ++ show(length(xs))) in
+  let _ = println("LEN=${show(length(xs))}") in
   let _ = match head(xs) {
-    Some(h) => println("HEAD=" ++ show(h)),
+    Some(h) => println("HEAD=${show(h)}"),
     None => println("HEAD=None")
   } in
   let _ = match last(xs) {
-    Some(l) => println("LAST=" ++ show(l)),
+    Some(l) => println("LAST=${show(l)}"),
     None => println("LAST=None")
   } in
   let _ = match nth(xs, 1) {
-    Some(n) => println("NTH(1)=" ++ show(n)),
+    Some(n) => println("NTH(1)=${show(n)}"),
     None => println("NTH(1)=None")
   } in
-  let _ = println("ANY(>15)=" ++ show(any(\x. x > 15, xs))) in
-  let _ = println("TLEN=" ++ show(length(tail(xs)))) in
+  let _ = println("ANY(>15)=${show(any(\x. x > 15, xs))}") in
+  let _ = println("TLEN=${show(length(tail(xs)))}") in
   ()

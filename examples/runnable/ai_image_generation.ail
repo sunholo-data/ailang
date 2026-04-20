@@ -29,7 +29,7 @@ export func main() -> string ! {AI, FS, IO} =
     "/tmp/ailang_demo_image.png",
     "{}"
   ) in
-  let _ = println("   Saved to: " ++ path) in
+  let _ = println("   Saved to: ${path}") in
 
   -- Generate with base64 output
   let _ = println("") in

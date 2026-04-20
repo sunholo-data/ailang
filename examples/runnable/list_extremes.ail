@@ -8,39 +8,39 @@ import std/option (Option, Some, None)
 pure func showOptInt(o: Option[int]) -> string =
   match o {
     None => "None",
-    Some(x) => "Some(" ++ show(x) ++ ")"
+    Some(x) => "Some(${show(x)})"
   }
 
 -- Helper to show Option[float]
 pure func showOptFloat(o: Option[float]) -> string =
   match o {
     None => "None",
-    Some(x) => "Some(" ++ show(x) ++ ")"
+    Some(x) => "Some(${show(x)})"
   }
 
 -- Helper to show Option[string]
 pure func showOptString(o: Option[string]) -> string =
   match o {
     None => "None",
-    Some(x) => "Some(\"" ++ x ++ "\")"
+    Some(x) => "Some(\"${x}\")"
   }
 
 export func main() -> () ! {IO} =
   let _ = println("=== Testing maximumInt/minimumInt ===") in
-  let _ = println("maximumInt([3, 1, 4, 1, 5]) = " ++ showOptInt(maximumInt([3, 1, 4, 1, 5]))) in
-  let _ = println("minimumInt([3, 1, 4, 1, 5]) = " ++ showOptInt(minimumInt([3, 1, 4, 1, 5]))) in
-  let _ = println("maximumInt([]) = " ++ showOptInt(maximumInt([]))) in
-  let _ = println("minimumInt([]) = " ++ showOptInt(minimumInt([]))) in
-  let _ = println("maximumInt([42]) = " ++ showOptInt(maximumInt([42]))) in
-  let _ = println("maximumInt([-5, -2, -8]) = " ++ showOptInt(maximumInt([-5, -2, -8]))) in
-  let _ = println("minimumInt([-5, -2, -8]) = " ++ showOptInt(minimumInt([-5, -2, -8]))) in
+  let _ = println("maximumInt([3, 1, 4, 1, 5]) = ${showOptInt(maximumInt([3, 1, 4, 1, 5]))}") in
+  let _ = println("minimumInt([3, 1, 4, 1, 5]) = ${showOptInt(minimumInt([3, 1, 4, 1, 5]))}") in
+  let _ = println("maximumInt([]) = ${showOptInt(maximumInt([]))}") in
+  let _ = println("minimumInt([]) = ${showOptInt(minimumInt([]))}") in
+  let _ = println("maximumInt([42]) = ${showOptInt(maximumInt([42]))}") in
+  let _ = println("maximumInt([-5, -2, -8]) = ${showOptInt(maximumInt([-5, -2, -8]))}") in
+  let _ = println("minimumInt([-5, -2, -8]) = ${showOptInt(minimumInt([-5, -2, -8]))}") in
 
   let _ = println("\n=== Testing maximumFloat/minimumFloat ===") in
-  let _ = println("maximumFloat([1.5, 2.5, 0.5]) = " ++ showOptFloat(maximumFloat([1.5, 2.5, 0.5]))) in
-  let _ = println("minimumFloat([1.5, 2.5, 0.5]) = " ++ showOptFloat(minimumFloat([1.5, 2.5, 0.5]))) in
+  let _ = println("maximumFloat([1.5, 2.5, 0.5]) = ${showOptFloat(maximumFloat([1.5, 2.5, 0.5]))}") in
+  let _ = println("minimumFloat([1.5, 2.5, 0.5]) = ${showOptFloat(minimumFloat([1.5, 2.5, 0.5]))}") in
 
   let _ = println("\n=== Testing maximumString/minimumString ===") in
-  let _ = println("maximumString([\"apple\", \"cherry\", \"banana\"]) = " ++ showOptString(maximumString(["apple", "cherry", "banana"]))) in
-  let _ = println("minimumString([\"apple\", \"cherry\", \"banana\"]) = " ++ showOptString(minimumString(["apple", "cherry", "banana"]))) in
+  let _ = println("maximumString([\"apple\", \"cherry\", \"banana\"]) = ${showOptString(maximumString(["apple", "cherry", "banana"]))}") in
+  let _ = println("minimumString([\"apple\", \"cherry\", \"banana\"]) = ${showOptString(minimumString(["apple", "cherry", "banana"]))}") in
 
   println("\nAll tests passed!")

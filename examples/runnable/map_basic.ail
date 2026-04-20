@@ -14,20 +14,22 @@ export func main() -> () ! {IO} {
 
   -- Lookup returns Option
   let red = M.lookup(colors, "red");
-  println("red = " ++ match red { Some(v) => v, None => "not found" });
+  let redStr = match red { Some(v) => v, None => "not found" };
+  println("red = ${redStr}");
 
   -- Member check
   let hasGreen = M.member(colors, "green");
-  println("has green? " ++ if hasGreen then "true" else "false");
+  let hasGreenStr = if hasGreen then "true" else "false";
+  println("has green? ${hasGreenStr}");
 
   -- Size
-  println("map size: " ++ intToStr(M.size(colors)));
+  println("map size: ${intToStr(M.size(colors))}");
 
   -- Insert returns a new map
   let colors2 = M.insert(colors, "yellow", "#FFFF00");
-  println("after insert, size: " ++ intToStr(M.size(colors2)));
+  println("after insert, size: ${intToStr(M.size(colors2))}");
 
   -- Remove
   let colors3 = M.remove(colors2, "red");
-  println("after remove red, size: " ++ intToStr(M.size(colors3)))
+  println("after remove red, size: ${intToStr(M.size(colors3))}")
 }

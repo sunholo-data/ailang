@@ -80,14 +80,14 @@ module api/greet
 import std/json (encode, jo, kv, js)
 
 export pure func hello(name: string) -> string =
-  "Hello, " ++ name ++ "!"
+  "Hello, ${name}!"
 
 export pure func farewell(name: string) -> string =
-  "Goodbye, " ++ name ++ ". Until next time!"
+  "Goodbye, ${name}. Until next time!"
 
 export pure func welcome(name: string) -> string =
   encode(jo([
-    kv("message", js("Welcome, " ++ name ++ "!")),
+    kv("message", js("Welcome, ${name}!")),
     kv("name", js(name))
   ]))
 ```
@@ -600,16 +600,16 @@ export pure func add(x: int, y: int) -> int = x + y
 
 -- IO effect: requires --caps IO
 export func greet(name: string) -> string ! {IO} =
-  "Hello, " ++ name ++ "!"
+  "Hello, ${name}!"
 
 -- AI effect: requires --caps AI plus --ai MODEL
 export func summarize(text: string) -> string ! {AI} =
-  ai_call("Summarize this: " ++ text)
+  ai_call("Summarize this: ${text}")
 
 -- Multiple effects: requires --caps IO,Net
 export func fetchAndLog(url: string) -> string ! {IO, Net} {
   let body = http_get(url);
-  println("Fetched: " ++ url);
+  println("Fetched: ${url}");
   body
 }
 ```
@@ -777,7 +777,7 @@ import std/json (Json, getString)
 export func secureParse(content: string, _headers: Json) -> string ! {IO} =
   let apiKey = getString(_headers, "x-api-key") in
   if apiKey == "" then "error: missing x-api-key header"
-  else "authenticated: " ++ content
+  else "authenticated: ${content}"
 ```
 
 The `_headers` parameter receives all HTTP request headers as a `Json` value. Other parameters are parsed normally from the request body (JSON or multipart). This is useful for:

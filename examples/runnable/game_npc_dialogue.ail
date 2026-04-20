@@ -17,9 +17,7 @@ import std/io (println)
 
 -- Build dialogue prompt for an NPC
 func make_prompt(npc_name: string, role: string, personality: string, topic: string) -> string =
-    "You are " ++ npc_name ++ ", a " ++ role ++ " in a fantasy RPG. " ++
-    "Personality: " ++ personality ++ ". " ++
-    "Generate ONE short line of dialogue (1-2 sentences) about: " ++ topic
+    "You are ${npc_name}, a ${role} in a fantasy RPG. Personality: ${personality}. Generate ONE short line of dialogue (1-2 sentences) about: ${topic}"
 
 -- Generate NPC dialogue using AI
 func ask_npc(npc_name: string, role: string, personality: string, topic: string) -> string ! {AI} =
@@ -35,19 +33,19 @@ export func main() -> () ! {IO, AI} {
     println("[At the Forge]");
     println("Player: Can you forge me an enchanted sword?");
     let blacksmith_says = ask_npc("Grimnar", "blacksmith", "gruff but kind, speaks tersely", "forging an enchanted sword") in
-    println("Grimnar: " ++ blacksmith_says);
+    println("Grimnar: ${blacksmith_says}");
     println("");
 
     -- Innkeeper dialogue
     println("[At the Tavern]");
     println("Player: What do you know about the dragon?");
     let innkeeper_says = ask_npc("Mira", "innkeeper", "cheerful and gossipy, knows secrets", "rumors about the dragon") in
-    println("Mira: " ++ innkeeper_says);
+    println("Mira: ${innkeeper_says}");
     println("");
 
     -- Guard dialogue
     println("[At the Town Gates]");
     println("Player: I need to enter the restricted district.");
     let guard_says = ask_npc("Captain Aldric", "guard captain", "stern and formal", "denying entry to restricted area") in
-    println("Captain Aldric: " ++ guard_says)
+    println("Captain Aldric: ${guard_says}")
 }

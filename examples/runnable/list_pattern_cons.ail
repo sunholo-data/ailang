@@ -55,9 +55,9 @@ pure func describe(xs: List[int]) -> string
 {
   match xs {
     [] => "empty list",
-    ::(x, []) => "singleton: " ++ show(x),
-    ::(x, ::(y, [])) => "pair: " ++ show(x) ++ ", " ++ show(y),
-    ::(x, rest) => "list starting with " ++ show(x)
+    ::(x, []) => "singleton: ${show(x)}",
+    ::(x, ::(y, [])) => "pair: ${show(x)}, ${show(y)}",
+    ::(x, rest) => "list starting with ${show(x)}"
   }
 }
 
@@ -99,28 +99,28 @@ export func main() -> () ! {IO} {
 
   // Test sum
   let nums = [1, 2, 3, 4, 5];
-  println("sum([1, 2, 3, 4, 5]) = " ++ show(sum(nums)));
+  println("sum([1, 2, 3, 4, 5]) = ${show(sum(nums))}");
 
   // Test length
-  println("length([1, 2, 3, 4, 5]) = " ++ show(length(nums)));
+  println("length([1, 2, 3, 4, 5]) = ${show(length(nums))}");
 
   // Test describe
   println("");
-  println("describe([]) = " ++ describe([]));
-  println("describe([42]) = " ++ describe([42]));
-  println("describe([1, 2]) = " ++ describe([1, 2]));
-  println("describe([1, 2, 3]) = " ++ describe([1, 2, 3]));
+  println("describe([]) = ${describe([])}");
+  println("describe([42]) = ${describe([42])}");
+  println("describe([1, 2]) = ${describe([1, 2])}");
+  println("describe([1, 2, 3]) = ${describe([1, 2, 3])}");
 
   // Test secondElement
   println("");
-  println("secondElement([1, 2, 3]) = " ++ show(secondElement([1, 2, 3])));
-  println("secondElement([1]) = " ++ show(secondElement([1])));
+  println("secondElement([1, 2, 3]) = ${show(secondElement([1, 2, 3]))}");
+  println("secondElement([1]) = ${show(secondElement([1]))}");
 
   // Test firstKey and firstValue
   println("");
   let kvs = [("a", 1), ("b", 2), ("c", 3)];
-  println("firstKey([(\"a\", 1), ...]) = " ++ firstKey(kvs));
-  println("firstValue([(\"a\", 1), ...]) = " ++ show(firstValue(kvs)));
+  println("firstKey([(\"a\", 1), ...]) = ${firstKey(kvs)}");
+  println("firstValue([(\"a\", 1), ...]) = ${show(firstValue(kvs))}");
 
   ()
 }

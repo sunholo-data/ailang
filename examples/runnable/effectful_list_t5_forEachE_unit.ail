@@ -8,6 +8,6 @@ import std/list (forEachE)
 
 export func main() -> () ! {IO} {
   println("T5 forEachE order:");
-  forEachE(\x. println("  " ++ show(x)), [10, 20, 30]);
+  forEachE(\x. println("  ${show(x)}"), [10, 20, 30]);
   println("T5 done")
 }

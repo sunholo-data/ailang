@@ -19,7 +19,7 @@ import std/debug (log, check)
 -- import pkg/sunholo/logging/logger (info, warn, infoWith)
 
 func processData(x: int) -> int {
-  log("processing " ++ show(x));     -- ghost: invisible to callers
+  log("processing ${show(x)}");     -- ghost: invisible to callers
   check(x > 0, "x must be positive"); -- recorded, doesn't throw
   x * 2
 }

@@ -15,7 +15,7 @@ export func main() -> () ! {IO} =
   let _ = println(repeat("x", -1)) in      -- ""
 
   -- Border drawing example
-  let border = "+" ++ repeat("-", 20) ++ "+" in
+  let border = "+${repeat("-", 20)}+" in
   let _ = println(border) in               -- "+--------------------+"
 
   println("All tests passed!")

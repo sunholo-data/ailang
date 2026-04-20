@@ -13,15 +13,15 @@ import std/result (Result, Ok, Err)
 export func main() -> () ! {AI, IO} {
   -- 1. Basic string call (existing behavior)
   let raw = call("Return JSON");
-  println("Raw AI response: " ++ raw);
+  println("Raw AI response: ${raw}");
 
   -- 2. callJsonSimple: returns raw JSON string
   let jsonStr = callJsonSimple("Return a JSON object");
-  println("JSON string: " ++ jsonStr);
+  println("JSON string: ${jsonStr}");
 
   -- 3. Parse the JSON string
   match decode(jsonStr) {
     Ok(json) => println("Parsed valid JSON!")
-    Err(msg) => println("Parse error: " ++ msg)
+    Err(msg) => println("Parse error: ${msg}")
   }
 }

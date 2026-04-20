@@ -73,7 +73,7 @@ ensures { result == (strLength(s) > 0) }
 export func prefixedLength(prefix: string, body: string) -> int ! {}
 ensures { result >= strLength(prefix) }
 {
-  strLength(prefix ++ body)
+  strLength("${prefix}${body}")
 }
 
 -- ============================================================================

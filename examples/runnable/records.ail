@@ -24,7 +24,7 @@ person.name
 
 -- Multiple field access
 let user = {id: 123, email: "test@example.com"} in
-show(user.id) ++ " - " ++ user.email
+"${show(user.id)} - ${user.email}"
 -- Output: "123 - test@example.com"
 
 -- =======================
@@ -98,7 +98,7 @@ ops.double(21)
 -- See examples/runnable/record_patterns.ail for comprehensive examples
 let person = {name: "Alice", age: 30} in
 match person {
-  {name, age} => name ++ " is " ++ show(age)
+  {name, age} => "${name} is ${show(age)}"
 }
 -- Output: "Alice is 30"
 
@@ -122,7 +122,7 @@ let config = {
     logging: true
   }
 } in
-config.app.name ++ " v" ++ config.app.version
+"${config.app.name} v${config.app.version}"
 -- Output: "MyApp v1.0.0"
 
 -- Building a result from record fields

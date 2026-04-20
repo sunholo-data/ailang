@@ -334,7 +334,7 @@ func parseConfig() -> Result[Config, string] ! {FS} {
   let content = readFile("config.json")
   match decode(content) {
     Ok(json) => extractConfig(json),
-    Err(e) => Err("Invalid JSON: " ++ e)
+    Err(e) => Err("Invalid JSON: ${e}")
   }
 }
 ```

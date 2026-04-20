@@ -244,7 +244,7 @@ import std/io (println, print, readLine)
 func main() -> () ! {IO} {
   print("Enter name: ");
   let name = readLine();
-  println("Hello, " ++ name ++ "!")
+  println("Hello, ${name}!")
 }
 ```
 
@@ -278,7 +278,7 @@ func main() -> () ! {IO} {
   let evens = filter(\x. x % 2 == 0, doubled);
   let sum = fold(\acc x. acc + x, 0, evens);
 
-  println("Sum of doubled evens: " ++ show(sum))
+  println("Sum of doubled evens: ${show(sum)}")
 }
 ```
 

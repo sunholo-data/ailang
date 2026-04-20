@@ -76,7 +76,7 @@ test "name" = expression
 ```ailang
 // Basic assertions
 test "integers equal" = 42 == 42
-test "strings concat" = "hello" ++ " world" == "hello world"
+test "strings concat" = "hello world" == "hello world"
 test "lists append" = [1, 2] ++ [3] == [1, 2, 3]
 
 // Function tests

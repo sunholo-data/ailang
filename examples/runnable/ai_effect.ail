@@ -28,5 +28,5 @@ import std/io (println)
 export func main() -> () ! {IO, AI} {
     println("Asking AI: What is the capital of France?");
     let response = call("What is the capital of France? Reply in one word.");
-    println("AI says: " ++ response)
+    println("AI says: ${response}")
 }

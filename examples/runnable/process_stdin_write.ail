@@ -18,17 +18,17 @@ export func main() -> () ! {Process, IO} {
   -- Write three lines to cat's stdin
   match writeProcessStdin(handle, fromString("hello from AILANG\n")) {
     Ok(_) => _io_println("wrote line 1"),
-    Err(e) => _io_println("write error: " ++ e)
+    Err(e) => _io_println("write error: ${e}")
   };
 
   match writeProcessStdin(handle, fromString("streaming to subprocess\n")) {
     Ok(_) => _io_println("wrote line 2"),
-    Err(e) => _io_println("write error: " ++ e)
+    Err(e) => _io_println("write error: ${e}")
   };
 
   match writeProcessStdin(handle, fromString("done!\n")) {
     Ok(_) => _io_println("wrote line 3"),
-    Err(e) => _io_println("write error: " ++ e)
+    Err(e) => _io_println("write error: ${e}")
   };
 
   -- Close stdin — cat will echo all lines and exit

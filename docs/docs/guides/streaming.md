@@ -29,7 +29,7 @@ export func main() -> unit ! {Stream, IO} {
   match connect("wss://echo.websocket.org", {headers: []}) {
     Ok(conn) => {
       onEvent(conn, \event. match event {
-        Message(msg) => { println("Received: " ++ msg); false },
+        Message(msg) => { println("Received: ${msg}"); false },
         Closed(code, reason) => false,
         StreamError(err) => false,
         _ => true
@@ -73,10 +73,10 @@ The handler function receives `StreamEvent` and returns `bool`:
 ```typescript
 func myHandler(event: StreamEvent) -> bool ! {IO} {
   match event {
-    Message(text)      => { println("Text: " ++ text); true },
+    Message(text)      => { println("Text: ${text}"); true },
     Binary(data)       => { println("Binary frame received"); true },
-    Opened(url)        => { println("Connected to " ++ url); true },
-    Closed(code, reason) => { println("Closed: " ++ reason); false },
+    Opened(url)        => { println("Connected to ${url}"); true },
+    Closed(code, reason) => { println("Closed: ${reason}"); false },
     StreamError(err)   => { println("Error"); false },
     Ping(data)         => true,
     _                  => true
@@ -90,7 +90,7 @@ Custom headers for authentication:
 
 ```typescript
 let config = {headers: [
-  {name: "Authorization", value: "Bearer " ++ token},
+  {name: "Authorization", value: "Bearer ${token}"},
   {name: "X-Custom", value: "value"}
 ]};
 match connect("wss://api.example.com/ws", config) {
@@ -122,7 +122,7 @@ import std/stream (ssePost, onEvent, runEventLoop, disconnect,
 func handleSSE(event: StreamEvent) -> bool ! {IO} {
   match event {
     SSEData(eventType, data) => {
-      println("[" ++ eventType ++ "] " ++ data);
+      println("[${eventType}] ${data}");
       true
     },
     Closed(_, _) => false,
@@ -139,7 +139,7 @@ Claude, OpenAI, and Gemini all use POST+SSE:
 ```typescript
 let body = "{\"model\": \"claude-sonnet-4-5-20250514\", \"messages\": [...]}";
 let config = {headers: [
-  {name: "Authorization", value: "Bearer " ++ apiKey},
+  {name: "Authorization", value: "Bearer ${apiKey}"},
   {name: "Content-Type", value: "application/json"},
   {name: "anthropic-version", value: "2023-06-01"}
 ]};
@@ -199,8 +199,8 @@ import std/result (Ok, Err)
 
 func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
-    SourceText(source, text) => { println("[" ++ source ++ "] " ++ text); true },
-    Message(msg)             => { println("[ws] " ++ msg); true },
+    SourceText(source, text) => { println("[${source}] ${text}"); true },
+    Message(msg)             => { println("[ws] ${msg}"); true },
     Closed(_, _)             => false,
     StreamError(_)           => false,
     _                        => true
@@ -231,11 +231,11 @@ import std/bytes (toString, toBase64)
 func handler(event: StreamEvent) -> bool ! {IO} {
   match event {
     SourceBytes(source, data) => {
-      println("[" ++ source ++ "] " ++ toString(data));
+      println("[${source}] ${toString(data)}");
       true
     },
     SourceText(source, text) => {
-      println("[" ++ source ++ "] " ++ text);
+      println("[${source}] ${text}");
       false
     },
     _ => true
@@ -291,12 +291,12 @@ export func main() -> () ! {Process, IO} {
   -- Write three lines to cat's stdin
   match writeProcessStdin(handle, fromString("hello from AILANG\n")) {
     Ok(_) => println("wrote line 1"),
-    Err(e) => println("write error: " ++ e)
+    Err(e) => println("write error: ${e}")
   };
 
   match writeProcessStdin(handle, fromString("streaming to subprocess\n")) {
     Ok(_) => println("wrote line 2"),
-    Err(e) => println("write error: " ++ e)
+    Err(e) => println("write error: ${e}")
   };
 
   -- Close stdin — cat will echo all lines and exit
