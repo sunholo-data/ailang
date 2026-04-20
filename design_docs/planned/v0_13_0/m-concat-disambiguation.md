@@ -1,12 +1,14 @@
 # M-CONCAT-DISAMBIG: Eliminate `++` Operator Ambiguity Once and For All
 
 **Status**: Planned
-**Target**: v0.10.1
-**Priority**: P1 (High) — 100% AI agent failure rate on affected benchmarks
+**Target**: v0.13.0 (re-dated 2026-04-17 after v0.12.0 eval data re-confirmed the problem)
+**Priority**: P1 (High) — still driving compile_error failures in v0.12.0 baseline
 **Estimated Time**: 14-19 hours (Phase 1: 6-8h, Phase 2: 8-11h including migration sweeps)
 **Dependencies**: None (M-STRING-INTERP is absorbed into Phase 1)
 **Bug History**: v0.3.16, v0.5.8, v0.6.1, v0.7.0 — four separate fix cycles across every layer
 **Supersedes**: [m-string-interpolation.md](../v0_11_0/m-string-interpolation.md)
+
+> **Re-commissioned 2026-04-17 (v0.12.0 post-release review)**: v0.12.0 eval results show the unification ambiguity is still a leading compile-error driver even with the newest frontier models. See "v0.12.0 Eval Update" below.
 
 ## AI-First Alignment Check
 
@@ -50,6 +52,26 @@ From the teaching prompt (v0.4.10+):
 > "**NO `++` for lists** → Use `concat` from std/list"
 
 When you need a bold warning in the teaching prompt to fight your own syntax, the language design is wrong.
+
+### v0.12.0 Eval Update (2026-04-17)
+
+Re-analysing the v0.12.0 baseline (`eval_results/baselines/v0.12.0/summary.jsonl`, 408 runs,
+6 frontier models, prompt `v0.11.4`) shows the ambiguity has **not** been resolved by prompt work:
+
+| Benchmark | AILANG failures | Error signature |
+|-----------|-----------------|-----------------|
+| `type_unify` | 5/8 models | `cannot unify type constructor string with *types.TList`, `cannot unify list[(string, Type)] with string` |
+| `config_file_parser` | 3/8 models | `compile_error` (runtime + codegen fallout from same list/string heuristic) |
+
+The exact compile_error traces confirm step 5 of the type-checker heuristic is still guessing
+wrong on polymorphic list code (`TVar ++ TVar` defaulting to string when the unifier later
+learns the operand is a list). Every affected model used `++` on lists in the generated code
+despite the `v0.11.4` prompt warning.
+
+**Implication for scheduling**: frontier model upgrades (Sonnet 4.6, Opus 4.7, GPT-5.4,
+Gemini-3.1 Pro) did not make this go away. This is a language defect, not a prompt defect,
+and a prompt patch in v0.13.0 cannot close the gap — the ambiguity must be removed at the
+type-checker / grammar layer.
 
 ### Eval Data: 338 String Uses vs 17 List Uses
 

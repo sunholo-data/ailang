@@ -71,21 +71,9 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/cloud_setup.sh"
           },
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 5
           }
         ]
       }
@@ -95,21 +83,9 @@
         "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 3,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 3
           }
         ]
       }
@@ -128,21 +104,9 @@
         "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 3,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 3
           }
         ]
       }
@@ -152,21 +116,9 @@
         "matcher": "Bash|Edit|Write|Read|Agent|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 3,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 3
           }
         ]
       }
@@ -175,21 +127,9 @@
       {
         "hooks": [
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 5
           }
         ]
       }
@@ -198,21 +138,9 @@
       {
         "hooks": [
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 5
           }
         ]
       }
@@ -226,21 +154,9 @@
             "timeout": 15
           },
           {
-            "type": "http",
-            "url": "http://127.0.0.1:1957/api/hooks/claude",
-            "timeout": 5,
-            "headers": {
-              "X-Ailang-Task-Id": "${AILANG_TASK_ID}",
-              "X-Ailang-Chain-Id": "${AILANG_CHAIN_ID}",
-              "X-Ailang-Stage-Id": "${AILANG_STAGE_ID}",
-              "X-Ailang-Message-Id": "${AILANG_MESSAGE_ID}"
-            },
-            "allowedEnvVars": [
-              "AILANG_TASK_ID",
-              "AILANG_CHAIN_ID",
-              "AILANG_STAGE_ID",
-              "AILANG_MESSAGE_ID"
-            ]
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/hooks/coordinator_hook.sh",
+            "timeout": 5
           }
         ]
       }
