@@ -203,10 +203,10 @@ type ValidationResult = Valid(string) | Invalid(string)
 export func processJson(jsonStr: string) -> string {
   match decode(jsonStr) {
     Ok(json) => match getString(json, "name") {
-      Some(name) => "found: " ++ name,
+      Some(name) => "found: ${name}",
       None => "no name field"
     },
-    Err(msg) => "parse error: " ++ msg
+    Err(msg) => "parse error: ${msg}"
   }
 }
 
@@ -222,7 +222,7 @@ export func simpleCheck(jsonStr: string) -> string {
 export func extractJson(jsonStr: string) -> string {
   match decode(jsonStr) {
     Ok(json) => "got json",
-    Err(msg) => "error: " ++ msg
+    Err(msg) => "error: ${msg}"
   }
 }
 
@@ -233,7 +233,7 @@ export func callOnExtracted(jsonStr: string) -> string {
       Some(s) => s,
       None => "no name"
     },
-    Err(msg) => "error: " ++ msg
+    Err(msg) => "error: ${msg}"
   }
 }
 
@@ -241,7 +241,7 @@ export func callOnExtracted(jsonStr: string) -> string {
 export func encodeExtracted(jsonStr: string) -> string {
   match decode(jsonStr) {
     Ok(json) => encode(json),
-    Err(msg) => "error: " ++ msg
+    Err(msg) => "error: ${msg}"
   }
 }
 
@@ -252,7 +252,7 @@ export func useGet(jsonStr: string) -> string {
       Some(val) => "found",
       None => "not found"
     },
-    Err(msg) => "error: " ++ msg
+    Err(msg) => "error: ${msg}"
   }
 }
 

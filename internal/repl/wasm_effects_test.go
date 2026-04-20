@@ -220,7 +220,7 @@ import std/string (intToStr)
 
 export func formatQty(qty: int) -> string =
     let f = Math.intToFloat(qty)
-    in intToStr(qty) ++ " units = " ++ intToStr(qty)
+    in "${intToStr(qty)} units = ${intToStr(qty)}"
 `
 	exports, err := reg.LoadModule("test/invoice", code)
 	if err != nil {

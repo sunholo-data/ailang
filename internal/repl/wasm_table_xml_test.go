@@ -73,7 +73,7 @@ export pure func parseTableCells(xml: string) -> string {
       let texts = map(getCellText, cells);
       join("|", texts)
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -83,9 +83,9 @@ export pure func countRowsAndCells(xml: string) -> string {
     Ok(root) => {
       let rows = findAll(root, "w:tr");
       let cells = findAll(root, "w:tc");
-      show(listLength(rows)) ++ "rows," ++ show(listLength(cells)) ++ "cells"
+      "${show(listLength(rows))}rows,${show(listLength(cells))}cells"
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -96,7 +96,7 @@ export pure func directTextExtract(xml: string) -> string {
       let textElems = findAll(root, "w:t");
       join("|", map(getText, textElems))
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 `
@@ -180,9 +180,9 @@ export pure func findAllBody(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       let results = findAll(root, "w:body");
-      "findAll:w:body=" ++ show(listLength(results))
+      "findAll:w:body=${show(listLength(results))}"
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -191,11 +191,11 @@ export pure func findFirstBody(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       match findFirst(root, "w:body") {
-        Some(body) => "findFirst:w:body=Some(" ++ getTag(body) ++ ")",
+        Some(body) => "findFirst:w:body=Some(${getTag(body)})",
         None => "findFirst:w:body=None"
       }
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -204,11 +204,11 @@ export pure func findFirstTable(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       match findFirst(root, "w:tbl") {
-        Some(tbl) => "findFirst:w:tbl=Some(" ++ getTag(tbl) ++ ")",
+        Some(tbl) => "findFirst:w:tbl=Some(${getTag(tbl)})",
         None => "findFirst:w:tbl=None"
       }
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -217,9 +217,9 @@ export pure func findAllTable(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       let results = findAll(root, "w:tbl");
-      "findAll:w:tbl=" ++ show(listLength(results))
+      "findAll:w:tbl=${show(listLength(results))}"
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -228,11 +228,11 @@ export pure func findFirstRow(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       match findFirst(root, "w:tr") {
-        Some(tr) => "findFirst:w:tr=Some(" ++ getTag(tr) ++ ")",
+        Some(tr) => "findFirst:w:tr=Some(${getTag(tr)})",
         None => "findFirst:w:tr=None"
       }
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -241,9 +241,9 @@ export pure func findAllRows(xml: string) -> string {
   match parse(xml) {
     Ok(root) => {
       let results = findAll(root, "w:tr");
-      "findAll:w:tr=" ++ show(listLength(results))
+      "findAll:w:tr=${show(listLength(results))}"
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 
@@ -256,13 +256,13 @@ export pure func findFirstCell(xml: string) -> string {
           let textElems = findAll(tc, "w:t");
           match textElems {
             [] => "findFirst:w:tc=Some(empty)",
-            t :: _ => "findFirst:w:tc=Some(" ++ getText(t) ++ ")"
+            t :: _ => "findFirst:w:tc=Some(${getText(t)})"
           }
         },
         None => "findFirst:w:tc=None"
       }
     },
-    Err(e) => "ERROR:" ++ e
+    Err(e) => "ERROR:${e}"
   }
 }
 `

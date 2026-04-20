@@ -67,12 +67,24 @@ export pure func intToStr(n: int) -> string { _string_intToStr(n) }
 -- Uses Go's strings.Join for O(n) single-allocation performance
 export pure func join(delimiter: string, xs: [string]) -> string = _str_join(xs, delimiter)
 
+-- concat: Concatenate a list of strings with no separator.
+-- O(n) single-allocation via strings.Builder under the hood.
+-- concat(["a", "b", "c"]) == "abc"
+-- Prefer "${...}" interpolation for mixed-type building; prefer concat/join for list-driven building.
+export pure func concat(xs: [string]) -> string = _str_join(xs, "")
+
 -- repeat: Repeat a string n times
--- Complexity: O(n) concatenations - acceptable for typical use (n < 1000)
+-- Complexity: O(n) single allocation via _str_join.
 -- repeat("ab", 3) = "ababab"
 -- repeat("x", 0) = ""
 export pure func repeat(s: string, n: int) -> string {
-  if n <= 0 then "" else s ++ repeat(s, n - 1)
+  if n <= 0 then "" else _str_join(_repeat_list(s, n), "")
+}
+
+-- Internal helper: build [s, s, ..., s] (n times).
+-- Not exported; used by repeat/. Keep the strings.Builder in _str_join doing the heavy lifting.
+pure func _repeat_list(s: string, n: int) -> [string] {
+  if n <= 0 then [] else s :: _repeat_list(s, n - 1)
 }
 
 -- M-DOCPARSE-DX M3: String splitting

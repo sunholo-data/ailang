@@ -32,8 +32,8 @@ var OperatorTable = map[core.IntrinsicOp]OpMapping{
 	core.OpGt: {Builtin: "gt", Types: []string{"Int", "Float", "String"}},
 	core.OpGe: {Builtin: "ge", Types: []string{"Int", "Float", "String"}},
 
-	// String and List operations
-	core.OpConcat: {Builtin: "concat", Types: []string{"String", "List"}},
+	// List concatenation (M-CONCAT-DISAMBIG Phase 2: lists only)
+	core.OpConcat: {Builtin: "concat", Types: []string{"List"}},
 
 	// Boolean operations (short-circuit, handled specially)
 	core.OpAnd: {Builtin: "and", Types: []string{"Bool"}},
@@ -151,7 +151,7 @@ func GetBuiltinType(name string) string {
 	case "eq", "ne", "lt", "le", "gt", "ge":
 		return fmt.Sprintf("%s -> %s -> Bool", typ, typ)
 	case "concat":
-		return "String -> String -> String"
+		return "[a] -> [a] -> [a]"
 	case "and", "or":
 		return "Bool -> Bool -> Bool"
 	case "not":

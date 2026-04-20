@@ -11,12 +11,12 @@ export type ApiResponse = {
 }
 
 export pure func hello(name: string) -> string =
-  "Hello, " ++ name ++ "!"
+  "Hello, ${name}!"
 
 export pure func greet(name: string) -> ApiResponse = {
   status: 200,
   body: encode(jo([
-    kv("message", js("Hello, " ++ name ++ "!")),
+    kv("message", js("Hello, ${name}!")),
     kv("name", js(name))
   ]))
 }

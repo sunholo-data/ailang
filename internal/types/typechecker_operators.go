@@ -102,123 +102,31 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 		})
 
 	case "++":
-		// Concatenation: works for both strings and lists
+		// M-CONCAT-DISAMBIG Phase 2 (v0.13.0): `++` is for lists only.
+		// Strings build via `"${expr}"` interpolation, `concat([parts])`, or
+		// `join(sep, parts)`. Mixing string and `++` gets a helpful error.
 		leftType := getType(leftNode)
 		rightType := getType(rightNode)
 
-		// Check type patterns
-		_, leftIsList := leftType.(*TList)
-		_, rightIsList := rightType.(*TList)
-
-		// Check if both are strings (TCon "String"/"string" or TString)
-		leftIsString := false
-		rightIsString := false
-
-		if leftType == TString {
-			leftIsString = true
-		} else if leftCon, ok := leftType.(*TCon); ok && (leftCon.Name == "String" || leftCon.Name == "string") {
-			leftIsString = true
+		if isStringTypeHead(leftType) || isStringTypeHead(rightType) {
+			return nil, ctx.env, fmt.Errorf(
+				"++ operator at %s: `++` is for lists only. "+
+					"For strings use \"${expr}\" interpolation, concat([parts]), or join(sep, parts).",
+				binop.Span())
 		}
 
-		if rightType == TString {
-			rightIsString = true
-		} else if rightCon, ok := rightType.(*TCon); ok && (rightCon.Name == "String" || rightCon.Name == "string") {
-			rightIsString = true
-		}
-
-		// DEBUG output (commented out - pollutes output)
-		//fmt.Printf("DEBUG ++ operator: left=%T(%v), right=%T(%v)\n", leftType, leftType, rightType, rightType)
-		//fmt.Printf("  leftIsList=%v, rightIsList=%v, leftIsString=%v, rightIsString=%v\n", leftIsList, rightIsList, leftIsString, rightIsString)
-
-		// Decision tree (principled):
-		// 1. Check for incompatible concrete types (string + list) → error
-		// 2. If both/either are concrete lists → list concat
-		// 3. Else if both/either are concrete strings → string concat
-		// 4. Else if expected type from context is known → use that
-		// 5. Else → default to string concat (fallback until full expected-type threading)
-
-		// Check for incompatible concrete types
-		if (leftIsString && rightIsList) || (leftIsList && rightIsString) {
-			return nil, ctx.env, fmt.Errorf("++ operator at %s: cannot concatenate string and list", binop.Span())
-		}
-
-		if leftIsList || rightIsList {
-			// At least one is definitely a list → list concat
-			elemType := ctx.freshTypeVar()
-
-			ctx.addConstraint(TypeEq{
-				Left:  leftType,
-				Right: &TList{Element: elemType},
-				Path:  []string{"list concat left at " + binop.Span().String()},
-			})
-			ctx.addConstraint(TypeEq{
-				Left:  rightType,
-				Right: &TList{Element: elemType},
-				Path:  []string{"list concat right at " + binop.Span().String()},
-			})
-
-			resultType = &TList{Element: elemType}
-		} else if leftIsString || rightIsString {
-			// At least one is a concrete string → string concat
-			// The type variable (if any) will be unified with String
-			ctx.addConstraint(TypeEq{
-				Left:  leftType,
-				Right: TString,
-				Path:  []string{"string concat left at " + binop.Span().String()},
-			})
-			ctx.addConstraint(TypeEq{
-				Left:  rightType,
-				Right: TString,
-				Path:  []string{"string concat right at " + binop.Span().String()},
-			})
-			resultType = TString
-		} else if ctx.expectedType != nil {
-			// Use context to resolve ambiguity
-			if *ctx.expectedType == TString {
-				// Expected type is string → force string concat
-				ctx.addConstraint(TypeEq{
-					Left:  leftType,
-					Right: TString,
-					Path:  []string{"string concat left (from context) at " + binop.Span().String()},
-				})
-				ctx.addConstraint(TypeEq{
-					Left:  rightType,
-					Right: TString,
-					Path:  []string{"string concat right (from context) at " + binop.Span().String()},
-				})
-				resultType = TString
-			} else if listType, ok := (*ctx.expectedType).(*TList); ok {
-				// Expected type is list → force list concat
-				ctx.addConstraint(TypeEq{
-					Left:  leftType,
-					Right: listType,
-					Path:  []string{"list concat left (from context) at " + binop.Span().String()},
-				})
-				ctx.addConstraint(TypeEq{
-					Left:  rightType,
-					Right: listType,
-					Path:  []string{"list concat right (from context) at " + binop.Span().String()},
-				})
-				resultType = listType
-			} else {
-				// Expected type exists but isn't string or list → error
-				return nil, ctx.env, fmt.Errorf("++ operator at %s: expected string or list type, got %s", binop.Span(), *ctx.expectedType)
-			}
-		} else {
-			// No concrete info, no context → default to string concat
-			// TODO(v0.4.5): This should be an ambiguity error once we have full expected-type threading
-			ctx.addConstraint(TypeEq{
-				Left:  leftType,
-				Right: TString,
-				Path:  []string{"string concat (default) at " + binop.Span().String()},
-			})
-			ctx.addConstraint(TypeEq{
-				Left:  rightType,
-				Right: TString,
-				Path:  []string{"string concat (default) at " + binop.Span().String()},
-			})
-			resultType = TString
-		}
+		elemType := ctx.freshTypeVar()
+		ctx.addConstraint(TypeEq{
+			Left:  leftType,
+			Right: &TList{Element: elemType},
+			Path:  []string{"list concat left at " + binop.Span().String()},
+		})
+		ctx.addConstraint(TypeEq{
+			Left:  rightType,
+			Right: &TList{Element: elemType},
+			Path:  []string{"list concat right at " + binop.Span().String()},
+		})
+		resultType = &TList{Element: elemType}
 
 	case "<", ">", "<=", ">=":
 		// Comparison operators - require Ord constraint
@@ -608,4 +516,16 @@ func intrinsicOpToString(op core.IntrinsicOp) string {
 	default:
 		return ""
 	}
+}
+
+// isStringTypeHead reports whether t is the concrete `string` type.
+// Used by the `++` operator to reject string operands (M-CONCAT-DISAMBIG Phase 2).
+func isStringTypeHead(t Type) bool {
+	if t == TString {
+		return true
+	}
+	if con, ok := t.(*TCon); ok {
+		return con.Name == "String" || con.Name == "string"
+	}
+	return false
 }

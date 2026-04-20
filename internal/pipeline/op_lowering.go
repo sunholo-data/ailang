@@ -509,9 +509,8 @@ func getDefaultTypeSuffix(op core.IntrinsicOp) string {
 	case core.OpNot:
 		return "Bool"
 	case core.OpConcat:
-		// Default to String for backward compatibility
-		// (List concatenation is less common in fallback scenarios)
-		return "String"
+		// M-CONCAT-DISAMBIG Phase 2: `++` is lists only.
+		return "List"
 	default:
 		// Most operators default to Int
 		return "Int"

@@ -70,7 +70,7 @@ export pure func getFieldOrFail(jsonStr: string, key: string) -> string =
       if isSome(val) then getOrElse(val, "")
       else "MISSING"
     },
-    Err(e) => "ERROR: " ++ e
+    Err(e) => "ERROR: ${e}"
   }
 
 -- Pattern 4: Direct getString in match arm (cross-module pattern match)

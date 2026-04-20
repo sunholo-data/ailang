@@ -27,7 +27,7 @@ func testServer(t *testing.T) *Server {
 	modContent := `module test/api/greet
 
 export pure func hello(name: string) -> string =
-  "Hello, " ++ name ++ "!"
+  "Hello, ${name}!"
 
 export pure func add(x: int, y: int) -> int =
   x + y

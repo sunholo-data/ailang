@@ -37,7 +37,7 @@ export func main() -> () ! {IO} {
   println("");
 
   let cells = testCells();
-  println("Input cells: " ++ intToStr(length(cells)));
+  println("Input cells: ${intToStr(length(cells))}");
 
   -- Use a fixed "now" timestamp for deterministic testing
   -- Jan 21, 2024 00:00:00 UTC
@@ -48,10 +48,10 @@ export func main() -> () ! {IO} {
 
   println("");
   println("--- Grid Statistics ---");
-  println("Weeks: " ++ intToStr(length(result.weeks)));
-  println("Month labels: " ++ intToStr(length(result.monthLabels)));
-  println("Total tasks: " ++ intToStr(result.totalTasks));
-  println("Date range: " ++ result.startDate ++ " to " ++ result.endDate);
+  println("Weeks: ${intToStr(length(result.weeks))}");
+  println("Month labels: ${intToStr(length(result.monthLabels))}");
+  println("Total tasks: ${intToStr(result.totalTasks)}");
+  println("Date range: ${result.startDate} to ${result.endDate}");
 
   println("");
   println("--- Week Structure ---");
@@ -59,11 +59,11 @@ export func main() -> () ! {IO} {
   match result.weeks {
     [] => println("No weeks!"),
     [firstWeek, ..._] => {
-      println("First week has " ++ intToStr(length(firstWeek)) ++ " days");
+      println("First week has ${intToStr(length(firstWeek))} days");
       match firstWeek {
         [] => println("  Empty week!"),
         [day1, ..._] => {
-          println("  Day 1: " ++ day1.date ++ " (weekday " ++ intToStr(day1.dayOfWeek) ++ ")");
+          println("  Day 1: ${day1.date} (weekday ${intToStr(day1.dayOfWeek)})");
           ()
         }
       }

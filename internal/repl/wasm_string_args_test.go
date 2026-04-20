@@ -43,14 +43,14 @@ export func processInvoice(jsonStr: string) -> string {
       },
       None => "no vendor"
     },
-    Err(msg) => "parse error: " ++ msg
+    Err(msg) => "parse error: ${msg}"
   }
 }
 
 export func roundTrip(jsonStr: string) -> string {
   match decode(jsonStr) {
     Ok(json) => encode(json),
-    Err(msg) => "error: " ++ msg
+    Err(msg) => "error: ${msg}"
   }
 }
 `
