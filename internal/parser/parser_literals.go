@@ -53,6 +53,83 @@ func (p *Parser) parseStringLiteral() ast.Expr {
 	}
 }
 
+// parseInterpolatedString desugars an interpolated string literal
+// (a token sequence STRING_PART, INTERP_START, expr, INTERP_END, STRING_PART, ...)
+// into a chain of `concat_String` calls with each interpolated expression wrapped
+// in `show(...)`. Empty STRING_PART segments at the head or tail are elided so
+// `"${x}"` desugars to `show(x)` instead of `concat_String(concat_String("", show(x)), "")`.
+//
+// M2_PARSER_TYPECHECK_INTERP: Phase 1 of M-CONCAT-DISAMBIG. Evaluator and
+// codegen see only existing nodes (FuncCall, Literal), so no runtime changes are required.
+func (p *Parser) parseInterpolatedString() ast.Expr {
+	startPos := p.curPos()
+
+	// Collect the ordered segments: alternating string literal parts and
+	// interpolated expressions (wrapped in show()).
+	parts := []ast.Expr{}
+
+	// Current token is the first STRING_PART.
+	if lit := p.curToken.Literal; lit != "" {
+		parts = append(parts, &ast.Literal{
+			Kind:  ast.StringLit,
+			Value: lit,
+			Pos:   p.curPos(),
+		})
+	}
+
+	for p.peekTokenIs(lexer.INTERP_START) {
+		p.nextToken() // consume STRING_PART → INTERP_START
+		p.nextToken() // move past INTERP_START to start of expression
+
+		expr := p.parseExpression(LOWEST)
+		if expr == nil {
+			return nil
+		}
+
+		// Wrap in show(expr). The Show class dispatches to the right instance
+		// at elaboration time (show_Int, show_String≡id, etc.), so string-typed
+		// expressions incur no runtime cost beyond the dictionary lookup.
+		showCall := &ast.FuncCall{
+			Func: &ast.Identifier{Name: "show", Pos: expr.Position()},
+			Args: []ast.Expr{expr},
+			Pos:  expr.Position(),
+		}
+		parts = append(parts, showCall)
+
+		if !p.expectPeek(lexer.INTERP_END) {
+			return nil
+		}
+		if !p.expectPeek(lexer.STRING_PART) {
+			return nil
+		}
+		if lit := p.curToken.Literal; lit != "" {
+			parts = append(parts, &ast.Literal{
+				Kind:  ast.StringLit,
+				Value: lit,
+				Pos:   p.curPos(),
+			})
+		}
+	}
+
+	// Fold into a left-associative chain of concat_String(a, b).
+	// Invariant: parts has at least one element (a `${x}` alone still yields show(x)).
+	if len(parts) == 0 {
+		// Pathological case: both surrounding STRING_PARTs were empty and no
+		// interpolation occurred — emit an empty string literal.
+		return &ast.Literal{Kind: ast.StringLit, Value: "", Pos: startPos}
+	}
+
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result = &ast.FuncCall{
+			Func: &ast.Identifier{Name: "concat_String", Pos: result.Position()},
+			Args: []ast.Expr{result, parts[i]},
+			Pos:  result.Position(),
+		}
+	}
+	return result
+}
+
 func (p *Parser) parseCharLiteral() ast.Expr {
 	return &ast.Literal{
 		Kind:  ast.StringLit, // Treat chars as single-char strings for now
