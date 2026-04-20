@@ -102,17 +102,23 @@ match 5 {
 
 ### String Interpolation
 
-**Status**: Not implemented — planned for v0.13.0 as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concat-disambiguation.md)
+**Status**: ✅ **Implemented in v0.12.1** as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-concat-disambiguation.md).
 
-AILANG requires explicit concatenation:
+Double-quoted strings accept `${expr}` substitution. The parser desugars
+interpolations to `concat_String(..., show(expr), ...)` chains; `show_String`
+is identity so string-typed values are not double-quoted.
 
 ```ailang
--- No string interpolation:
--- let msg = "Value: ${x}"  -- Not supported
-
--- Use concatenation:
-let msg = "Value: " ++ show(x)
+let name = "Alice" in
+let age  = 30 in
+println("Hello, ${name}! Next year you will be ${age + 1}.")
+-- → Hello, Alice! Next year you will be 31.
 ```
+
+Supports nested braces (`${compute({a: 1}.a)}`), escape sequences (`\${literal}`
+→ literal `${literal}`), and arbitrary expressions inside `${...}`. `"..." ++
+show(x)` concatenation still works but is discouraged; Phase 2 of
+M-CONCAT-DISAMBIG (v0.13.0) will restrict `++` to lists only.
 
 ---
 

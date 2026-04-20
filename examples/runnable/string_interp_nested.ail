@@ -1,0 +1,32 @@
+-- String interpolation with nested expressions and function calls.
+--
+-- The parser counts braces inside `${...}` so record literals, function
+-- calls, and let-blocks embed cleanly without any escaping.
+
+module examples/runnable/string_interp_nested
+
+pure func describe(n: int) -> string {
+  if n == 0 then "zero"
+  else if n > 0 then "positive"
+  else "negative"
+}
+
+export func main() -> () ! {IO} {
+  let x = 42 in
+
+  -- Function call inside interpolation
+  let _ = println("The number ${x} is ${describe(x)}.") in
+
+  -- Record literal + field access — braces nest correctly
+  let _ = println("Point: ${show({x: x, y: x * 2}.x)}.") in
+
+  -- Let-block inside interpolation (compute then splice)
+  let _ = println("Square: ${let sq = x * x in sq}.") in
+
+  -- Building a multi-line report via successive interpolations
+  let header = "=== Report ===" in
+  let body   = "Value: ${x}" in
+  let footer = "---" in
+  let _ = println("${header}\n${body}\n${footer}") in
+  ()
+}

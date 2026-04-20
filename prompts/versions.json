@@ -522,13 +522,24 @@
       "description": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas",
       "created": "2026-04-14",
       "tags": [
-        "production",
-        "latest"
+        "production"
       ],
       "notes": "Add v0.10.x + v0.11.x: short-circuit semantics, Map/iter/jwt/trace stdlib, parseFoldStep, bitwise ops, new string builtins, exit(), polymorphic comparison lambdas"
+    },
+    "v0.12.1": {
+      "file": "prompts/v0.12.1.md",
+      "hash": "a6ec20b23c453ba69b7dcbd3612b8a4b47f581e62d3823ee01bfea194bec8507",
+      "description": "Add string interpolation \"${expr}\" as preferred string-building syntax (M-CONCAT-DISAMBIG Phase 1)",
+      "created": "2026-04-20",
+      "tags": [
+        "production",
+        "latest",
+        "string-interpolation"
+      ],
+      "notes": "M-CONCAT-DISAMBIG Phase 1: Introduces \"${expr}\" interpolation as the idiomatic way to build strings. Desugars to concat_String(..., show(expr), ...) chains via Show type-class dispatch (show_String is identity). Supports nested braces, arbitrary expressions, and \\${ escape. ++ still works for strings today but will be restricted to lists only in v0.13.0 (Phase 2)."
     }
   },
-  "active": "v0.11.4",
+  "active": "v0.12.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

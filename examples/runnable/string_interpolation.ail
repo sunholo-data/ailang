@@ -1,0 +1,30 @@
+-- String interpolation (v0.12.1+)
+-- Inline `${expr}` substitution inside double-quoted strings.
+--
+-- Desugars to `concat_String(..., show(expr), ...)`. The Show type-class
+-- dispatches to `show_String` (identity) for strings, `show_Int` for ints,
+-- and so on — no double-quoting, no runtime surprises.
+
+module examples/runnable/string_interpolation
+
+export func main() -> () ! {IO} {
+  let name = "Alice" in
+  let age = 30 in
+  let pi = 3.14 in
+
+  -- Simple variable substitution
+  let _ = println("Hello, ${name}!") in
+
+  -- Multiple interpolations + mixed types
+  let _ = println("${name} is ${age} years old (approx. ${pi} decades).") in
+
+  -- Arithmetic inside `${...}` — any expression works
+  let _ = println("Next year ${name} will be ${age + 1}.") in
+
+  -- No interpolation needed → plain string literal
+  let _ = println("(this line has no interpolation)") in
+
+  -- Escaped `\${` → literal `${...}` with no interpolation
+  let _ = println("Use \${var} syntax to interpolate values.") in
+  ()
+}
