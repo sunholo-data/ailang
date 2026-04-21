@@ -11,7 +11,6 @@
 **164/165 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
 <!-- EXAMPLES_STATUS_END -->
 
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sunholo-data_ailang)
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
 [![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
 
