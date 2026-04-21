@@ -109,7 +109,7 @@
     },
     "python": {
       "file": "prompts/python.md",
-      "hash": "5b3a94db986ef1506b241a3dad6afebb1100f86fc1f04319bb27da23774e6536",
+      "hash": "35a20894dd56c21739f41773fed077231c2afdf71331598feda4f3a159bb7cea",
       "description": "Python language teaching prompt (control/reference)",
       "created": "2025-10-05",
       "tags": [
