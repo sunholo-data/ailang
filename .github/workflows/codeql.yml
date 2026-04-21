@@ -1,0 +1,62 @@
+# CodeQL — GitHub's native SAST. Catches taint-flow and API-misuse bugs
+# that SonarCloud's surface-level pattern lint misses (e.g. path-traversal
+# reaching a file open, user input reaching exec, SSRF). Results land in
+# the GitHub Security tab alongside Scorecard SARIF.
+#
+# We already have SonarCloud on every push/PR inside ci.yml; CodeQL
+# complements it with deeper semantic analysis and is the scanner that
+# OpenSSF Scorecard's SAST check looks for by default.
+name: CodeQL
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  schedule:
+    # Re-scan weekly even on quiet branches so the advisory database
+    # updates surface latent issues in unchanged code.
+    - cron: '17 6 * * 2'  # Tuesday 06:17 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Go
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to upload SARIF to the Security tab.
+      security-events: write
+      # Required for manual build steps on private repos (no-op here, safe).
+      actions: read
+      packages: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Single-language matrix for now. Add 'javascript' if/when we
+        # want CodeQL to scan the dashboard (ui/ and docs/); currently
+        # those are excluded from Sonar too — iteration-heavy dashboards
+        # aren't where the security surface lives.
+        language: [go]
+        build-mode: [autobuild]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended adds taint rules that security-and-quality
+          # replaces with style noise; we want the taint rules, not the
+          # style noise (Sonar already owns style).
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
