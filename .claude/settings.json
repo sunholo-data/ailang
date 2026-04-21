@@ -50,7 +50,9 @@
       "Skill(ailang:*)",
       "Bash(.claude/skills/docs-sync/scripts/check_versions.sh)",
       "Bash(/Users/mark/go/bin/ailang disasm:*)",
-      "WebFetch(domain:arxiv.org)"
+      "WebFetch(domain:arxiv.org)",
+      "Bash(.claude/skills/sonarcloud-triage/scripts/:*)",
+      "Skill(sonarcloud-triage)"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
