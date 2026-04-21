@@ -14,6 +14,10 @@
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
 [![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=sqale_rating)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sunholo-data/ailang)](https://goreportcard.com/report/github.com/sunholo-data/ailang)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sunholo-data/ailang/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang)
+
+> **Third-party verification.** AILANG is written autonomously by AI agents via its own [coordinator](https://ailang.sunholo.com/docs/guides/coordinator). The badges above are independent static-analysis and supply-chain scores — not self-reported. Live correctness signal: the [benchmark dashboard](https://ailang.sunholo.com/docs/benchmarks/performance) runs 33 benchmarks across 8 frontier models on every release.
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
