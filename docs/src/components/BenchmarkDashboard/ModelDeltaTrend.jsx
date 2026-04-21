@@ -1,6 +1,7 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
+import { useEvents, annotationColor } from './useEvents';
 
 function formatModelName(name) {
   // Check most specific patterns first
@@ -31,11 +32,6 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-// Annotations for significant benchmark suite changes
-const VERSION_ANNOTATIONS = [
-  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
-];
-
 // Color palette for models (distinct colors)
 const MODEL_COLORS = {
   'gpt5-1': '#FF6B6B',
@@ -48,11 +44,26 @@ const MODEL_COLORS = {
   'gemini-3-pro': '#8E44AD',
 };
 
-export default function ModelDeltaTrend({ history }) {
+export default function ModelDeltaTrend({ history, events, selectedTier }) {
+  // ModelDeltaTrend shows the per-model AILANG−Python gap; taxonomy-only
+  // events don't shift that curve (they only change which benchmarks bin
+  // where), so filter them out — otherwise the chart is noisy.
+  const annotations = useEvents(events, {
+    kinds: ['benchmark_add', 'benchmark_remove', 'prompt'],
+    selectedTier,
+  });
+
+  // Tier-scoped source: when a tier is selected read the per-tier snapshot
+  // so the gap updates when the user flips between Core/Stretch.
+  const tierScopedStats = (entry) => {
+    if (selectedTier) return entry.tiers?.[selectedTier]?.modelStats || null;
+    return entry.modelStats || null;
+  };
+
   // Filter out entries with invalid timestamps or no model data
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
-    return date.getFullYear() > 2000 && h.modelStats;
+    return date.getFullYear() > 2000 && tierScopedStats(h);
   });
 
   // Sort history by timestamp (oldest first for proper trend display)
@@ -62,27 +73,38 @@ export default function ModelDeltaTrend({ history }) {
     return dateA - dateB;
   });
 
-  // Get list of all models that appear in history
+  // Get list of all models that appear in history (tier-scoped)
   const allModels = new Set();
   sortedHistory.forEach(entry => {
-    if (entry.modelStats) {
-      Object.keys(entry.modelStats).forEach(model => allModels.add(model));
+    const ms = tierScopedStats(entry);
+    if (ms) {
+      Object.keys(ms).forEach(model => allModels.add(model));
     }
   });
 
-  // Transform history data for recharts - calculate delta (AILANG - Python)
+  // Transform history data for recharts - calculate delta (AILANG - Python).
+  // Same api-error gate as PerModelTrend: if either side's run is dominated
+  // by infra failures, omit the point so the delta doesn't spike spuriously.
   const chartData = sortedHistory.map(baseline => {
     const point = {
       version: formatVersion(baseline.version),
       date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : '',
     };
 
-    // Add delta for each model
-    if (baseline.modelStats) {
-      Object.entries(baseline.modelStats).forEach(([modelName, langStats]) => {
+    const ms = tierScopedStats(baseline);
+    if (ms) {
+      Object.entries(ms).forEach(([modelName, langStats]) => {
         if (langStats?.ailang && langStats?.python) {
-          const ailangRate = (langStats.ailang?.successRate || 0) * 100;
-          const pythonRate = (langStats.python?.successRate || 0) * 100;
+          const ail = langStats.ailang;
+          const py = langStats.python;
+          const ailGated = (ail.totalRuns || 0) > 0 && (ail.apiErrorCount || 0) / ail.totalRuns >= 0.5;
+          const pyGated = (py.totalRuns || 0) > 0 && (py.apiErrorCount || 0) / py.totalRuns >= 0.5;
+          if (ailGated || pyGated) {
+            point[modelName] = null;
+            return;
+          }
+          const ailangRate = (ail.successRate || 0) * 100;
+          const pythonRate = (py.successRate || 0) * 100;
           const delta = ailangRate - pythonRate;
           point[modelName] = parseFloat(delta.toFixed(1));
         }
@@ -121,7 +143,12 @@ export default function ModelDeltaTrend({ history }) {
 
   return (
     <div className={styles.chartContainer}>
-      <div className={styles.chartTitle}>AILANG vs Python Gap by Model</div>
+      <div className={styles.chartTitle}>
+        AILANG vs Python Gap by Model
+        {selectedTier && <span style={{ fontWeight: 400, color: 'var(--ifm-color-emphasis-600)', fontSize: '0.85em' }}>
+          {' '}({selectedTier} tier)
+        </span>}
+      </div>
       <div className={styles.chartSubtitle}>
         Positive = AILANG performs better · Negative = Python performs better
       </div>
@@ -142,16 +169,17 @@ export default function ModelDeltaTrend({ history }) {
             label={{ value: 'Gap (AILANG - Python) %', angle: -90, position: 'insideLeft' }}
           />
           <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" strokeWidth={1} />
-          {VERSION_ANNOTATIONS.map(ann => {
+          {annotations.map(ann => {
             const formattedVersion = formatVersion(ann.version);
             const exists = chartData.some(d => d.version === formattedVersion);
+            const color = annotationColor(ann);
             return exists ? (
               <ReferenceLine
-                key={ann.version}
+                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
                 x={formattedVersion}
-                stroke={ann.color}
+                stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
               />
             ) : null;
           })}

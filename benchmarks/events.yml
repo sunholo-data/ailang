@@ -1,0 +1,35 @@
+# Suite-change events for the benchmark dashboard.
+#
+# Each entry becomes a dashed ReferenceLine on the time-series charts
+# (PerModelTrend, ModelDeltaTrend, SuccessTrend) at its `version` tick.
+# The dashboard uses these to explain discontinuities — e.g. a jump after
+# "+5 contract benchmarks" is not a regression, it's a suite change.
+#
+# Fields:
+#   version       — string, matches History[*].version (e.g. "v0.9.1.1")
+#   label         — short human-readable annotation shown on the chart
+#   kind          — one of: benchmark_add | benchmark_remove | taxonomy | prompt
+#   color         — optional hex; defaults to gray if omitted
+#   affects_tiers — optional; if set, the annotation only renders when one
+#                   of these tiers is selected (hides noise on Core toggle
+#                   when the change only touched Stretch)
+#
+# Convention: when a release changes the benchmark set, taxonomy, or
+# prompt, append an entry here as part of the release PR. See
+# benchmarks/CURATION.md §5 for the workflow.
+
+- version: v0.9.1.1
+  label: "+5 contract benchmarks"
+  kind: benchmark_add
+  color: "#888888"
+
+- version: v0.14.0
+  label: "Tier + tag taxonomy"
+  kind: taxonomy
+  color: "#E67E22"
+
+- version: v0.14.0
+  label: "+2 stretch/vision benchmarks"
+  kind: benchmark_add
+  color: "#888888"
+  affects_tiers: [stretch, vision]

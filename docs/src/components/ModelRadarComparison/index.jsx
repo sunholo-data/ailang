@@ -95,6 +95,18 @@ export default function ModelRadarComparison() {
     const ailangCostPer1000 = ailangSuccessCount > 0 ? (ailangEstimatedCost / ailangSuccessCount) * 1000 : 0;
     const pythonCostPer1000 = pythonSuccessCount > 0 ? (pythonEstimatedCost / pythonSuccessCount) * 1000 : 0;
 
+    // Reliability (M-DASH-V2): per-language uptime = 1 - api_error_rate.
+    // api errors = provider quota / auth / 5xx, NOT code quality.
+    const rel = modelData.reliability || {};
+    const ailangRuns = ailangData.totalRuns || 0;
+    const pythonRuns = pythonData.totalRuns || 0;
+    const ailangUptime = ailangRuns > 0
+      ? (1 - ((rel.ailangApiError || 0) / ailangRuns)) * 100
+      : 100;
+    const pythonUptime = pythonRuns > 0
+      ? (1 - ((rel.pythonApiError || 0) / pythonRuns)) * 100
+      : 100;
+
     return {
       model: formatModelName(model),
       // AILANG metrics
@@ -109,6 +121,9 @@ export default function ModelRadarComparison() {
       // Cost efficiency per language (cost per 1000 successful runs in dollars)
       'AILANG Cost ($)': ailangCostPer1000,
       'Python Cost ($)': pythonCostPer1000,
+      // Reliability per language (infra uptime, not code quality)
+      'AILANG Uptime': ailangUptime,
+      'Python Uptime': pythonUptime,
     };
   });
 
@@ -223,6 +238,44 @@ export default function ModelRadarComparison() {
           </ResponsiveContainer>
           <div className={styles.chartNote}>
             <strong>Red = success gap, Blue = token delta.</strong> Success gap shows Python success - AILANG success (positive = AILANG behind). Token delta shows token savings (positive = AILANG uses fewer tokens than Python). Goal: minimize red, maximize blue. The <strong style={{color: '#10B981'}}>green dashed line</strong> at 0% marks parity with Python.
+          </div>
+        </div>
+
+        {/* Chart 4: API Reliability (M-DASH-V2) */}
+        <div className={styles.chartCard}>
+          <h3>API Reliability</h3>
+          <p className={styles.subtitle}>Infra uptime per language (quota/auth/5xx, not code quality)</p>
+          <ResponsiveContainer width="100%" height={350}>
+            <RadarChart data={radarData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="model" />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} />
+              <Tooltip formatter={formatTooltip} />
+              <Legend />
+              <Radar
+                name="AILANG Uptime (%)"
+                dataKey="AILANG Uptime"
+                stroke="#8B5CF6"
+                fill="#8B5CF6"
+                fillOpacity={0.3}
+                strokeWidth={3}
+              />
+              <Radar
+                name="Python Uptime (%)"
+                dataKey="Python Uptime"
+                stroke="#10B981"
+                fill="#10B981"
+                fillOpacity={0.25}
+                strokeWidth={2}
+                strokeDasharray="5 5"
+              />
+            </RadarChart>
+          </ResponsiveContainer>
+          <div className={styles.chartNote}>
+            <strong>100% = no API errors.</strong> A pulled-in spoke means the provider
+            returned quota/auth/5xx errors — NOT that the model produced bad code. Useful
+            for spotting provider-side issues (e.g. Gemini free-tier quota) that would
+            otherwise masquerade as code quality failures.
           </div>
         </div>
 

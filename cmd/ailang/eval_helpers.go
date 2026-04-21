@@ -36,6 +36,9 @@ func discoverBenchmarks() []string {
 		if entry.IsDir() {
 			continue
 		}
+		if isBenchmarkMetaFile(entry.Name()) {
+			continue
+		}
 		if strings.HasSuffix(entry.Name(), ".yml") || strings.HasSuffix(entry.Name(), ".yaml") {
 			// Remove extension to get benchmark ID
 			name := strings.TrimSuffix(entry.Name(), ".yml")
@@ -44,6 +47,17 @@ func discoverBenchmarks() []string {
 		}
 	}
 	return benchmarks
+}
+
+// isBenchmarkMetaFile reports whether a YAML under benchmarks/ is a
+// non-spec meta-file (suite-change log, etc.) that the benchmark scanner
+// must skip. Keep this list short — prefer renaming over growing it.
+func isBenchmarkMetaFile(name string) bool {
+	switch name {
+	case "events.yml":
+		return true
+	}
+	return false
 }
 
 // parseTierList splits a comma-separated --tier argument and validates each entry

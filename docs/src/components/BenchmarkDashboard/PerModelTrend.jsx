@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
+import { useEvents, annotationColor } from './useEvents';
 
 function formatModelName(name) {
   // Check most specific patterns first
@@ -31,11 +32,6 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-// Annotations for significant benchmark suite changes
-const VERSION_ANNOTATIONS = [
-  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
-];
-
 // Color palette for models (distinct colors)
 const MODEL_COLORS = {
   'gpt5-1': '#FF6B6B',
@@ -48,13 +44,22 @@ const MODEL_COLORS = {
   'gemini-3-pro': '#8E44AD',
 };
 
-export default function PerModelTrend({ history }) {
+export default function PerModelTrend({ history, events, selectedTier }) {
   const [selectedLanguage, setSelectedLanguage] = useState('ailang');
+  const annotations = useEvents(events, { selectedTier });
+
+  // When a tier is selected, read history[i].tiers[t].modelStats instead of
+  // the all-tier history[i].modelStats. Historic baselines without tier
+  // data simply drop out of the view (connectNulls bridges the gap).
+  const tierScopedStats = (entry) => {
+    if (selectedTier) return entry.tiers?.[selectedTier]?.modelStats || null;
+    return entry.modelStats || null;
+  };
 
   // Filter out entries with invalid timestamps or no model data
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
-    return date.getFullYear() > 2000 && h.modelStats;
+    return date.getFullYear() > 2000 && tierScopedStats(h);
   });
 
   // Sort history by timestamp (oldest first for proper trend display)
@@ -64,38 +69,61 @@ export default function PerModelTrend({ history }) {
     return dateA - dateB;
   });
 
-  // Get list of all models that appear in history
+  // Get list of all models that appear in history (tier-scoped)
   const allModels = new Set();
   sortedHistory.forEach(entry => {
-    if (entry.modelStats) {
-      Object.keys(entry.modelStats).forEach(model => allModels.add(model));
+    const ms = tierScopedStats(entry);
+    if (ms) {
+      Object.keys(ms).forEach(model => allModels.add(model));
     }
   });
 
-  // Transform history data for recharts
+  // Track api-error gate metadata per (version, model) so the tooltip can
+  // explain why a dot is missing. Key: `${version}|${model}`.
+  const apiErrorMeta = {};
+
+  // Transform history data for recharts. Apply API-error 0% gate: if ≥50%
+  // of a model's runs on this baseline were api_error, null out the point
+  // instead of plotting a misleading 0% (OpenAI key revoked, quota hit, etc).
   const chartData = sortedHistory.map(baseline => {
+    const versionLabel = formatVersion(baseline.version);
     const point = {
-      version: formatVersion(baseline.version),
+      version: versionLabel,
       date: baseline.timestamp ? new Date(baseline.timestamp).toLocaleDateString() : '',
     };
 
-    // Add data for each model
-    if (baseline.modelStats) {
-      Object.entries(baseline.modelStats).forEach(([modelName, langStats]) => {
-        if (langStats[selectedLanguage]) {
-          const successRate = langStats[selectedLanguage].successRate * 100;
-          point[modelName] = parseFloat(successRate.toFixed(1));
+    const ms = tierScopedStats(baseline);
+    if (ms) {
+      Object.entries(ms).forEach(([modelName, langStats]) => {
+        const lang = langStats?.[selectedLanguage];
+        if (!lang) return;
+
+        const total = lang.totalRuns || 0;
+        const apiErrors = lang.apiErrorCount || 0;
+        const gated = total > 0 && apiErrors / total >= 0.5;
+
+        if (gated) {
+          apiErrorMeta[`${versionLabel}|${modelName}`] = { apiErrors, total };
+          point[modelName] = null;
+          return;
         }
+
+        const successRate = lang.successRate * 100;
+        point[modelName] = parseFloat(successRate.toFixed(1));
       });
     }
 
     return point;
   });
 
-  // Custom tooltip
+  // Custom tooltip — shows API-error gate info for models with null points
+  // on this baseline (infra failures, not code-quality 0%s).
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const gatedHere = Array.from(allModels)
+        .map((m) => ({ model: m, meta: apiErrorMeta[`${label}|${m}`] }))
+        .filter((r) => r.meta);
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
@@ -106,6 +134,18 @@ export default function PerModelTrend({ history }) {
               {formatModelName(entry.name)}: {entry.value}%
             </p>
           ))}
+          {gatedHere.length > 0 && (
+            <>
+              <p className={styles.tooltipRuns} style={{marginTop: '8px', fontSize: '11px', color: '#666'}}>
+                API-error gate (omitted from chart):
+              </p>
+              {gatedHere.map(({ model, meta }) => (
+                <p key={model} className={styles.tooltipValue} style={{fontSize: '11px', color: '#666'}}>
+                  {formatModelName(model)}: — (API errors: {meta.apiErrors}/{meta.total})
+                </p>
+              ))}
+            </>
+          )}
         </div>
       );
     }
@@ -115,7 +155,12 @@ export default function PerModelTrend({ history }) {
   return (
     <div className={styles.chartContainer}>
       <div className={styles.chartHeader}>
-        <div className={styles.chartTitle}>Success Rate by Model Over Time</div>
+        <div className={styles.chartTitle}>
+          Success Rate by Model Over Time
+          {selectedTier && <span style={{ fontWeight: 400, color: 'var(--ifm-color-emphasis-600)', fontSize: '0.85em' }}>
+            {' '}({selectedTier} tier)
+          </span>}
+        </div>
         <div className={styles.languageToggle}>
           <button
             className={selectedLanguage === 'ailang' ? styles.toggleActive : styles.toggleInactive}
@@ -154,16 +199,17 @@ export default function PerModelTrend({ history }) {
             iconType="circle"
             formatter={(value) => formatModelName(value)}
           />
-          {VERSION_ANNOTATIONS.map(ann => {
+          {annotations.map(ann => {
             const formattedVersion = formatVersion(ann.version);
             const exists = chartData.some(d => d.version === formattedVersion);
+            const color = annotationColor(ann);
             return exists ? (
               <ReferenceLine
-                key={ann.version}
+                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
                 x={formattedVersion}
-                stroke={ann.color}
+                stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
               />
             ) : null;
           })}

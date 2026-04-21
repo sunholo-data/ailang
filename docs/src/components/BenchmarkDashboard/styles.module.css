@@ -1650,3 +1650,132 @@
   margin-top: 0.25rem;
   font-weight: 500;
 }
+
+.tierToggleDisabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Reliability Card (M-DASH-V2) */
+.reliabilityCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.875rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-left: 3px solid var(--ifm-color-success);
+  border-radius: 8px;
+}
+
+.reliabilityCardWarn {
+  border-left-color: var(--ifm-color-warning, #e67e22);
+  background: color-mix(in oklab, var(--ifm-color-warning, #e67e22) 8%, var(--ifm-color-emphasis-100));
+}
+
+.reliabilityHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reliabilityIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ifm-color-warning, #e67e22);
+}
+
+.reliabilityCard:not(.reliabilityCardWarn) .reliabilityIcon {
+  color: var(--ifm-color-success);
+}
+
+.reliabilityBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.reliabilityTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.reliabilityRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.reliabilityValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-900);
+}
+
+.reliabilitySub {
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.reliabilityToggle {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-emphasis-800);
+  cursor: pointer;
+}
+
+.reliabilityToggle:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.reliabilityDetail {
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  padding-top: 0.75rem;
+}
+
+.reliabilityTable {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+
+.reliabilityTable th,
+.reliabilityTable td {
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+}
+
+.reliabilityTable th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-600);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.reliabilityTable tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--ifm-color-emphasis-100);
+}
+
+.reliabilityPct {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.reliabilityHint {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0;
+  font-style: italic;
+}

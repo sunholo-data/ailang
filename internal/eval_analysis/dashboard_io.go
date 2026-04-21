@@ -81,6 +81,21 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 		}
 	}
 
+	// Per-(model, lang) api_error counts so historical entries carry the
+	// same apiErrorCount field PerModelTrend uses to gate 0% dots on the
+	// current baseline. Without this, pre-M-DASH-V2 baselines where every
+	// run failed with err 429/quota showed up as real code-quality 0%s.
+	apiErrorByModelLang := map[string]map[string]int{}
+	for _, r := range results {
+		if r.ErrorCategory != "api_error" {
+			continue
+		}
+		if apiErrorByModelLang[r.Model] == nil {
+			apiErrorByModelLang[r.Model] = map[string]int{}
+		}
+		apiErrorByModelLang[r.Model][r.Lang]++
+	}
+
 	// Build per-model stats (for trend charts)
 	modelStats := make(map[string]interface{})
 	for modelName, modelData := range matrix.Models {
@@ -88,11 +103,15 @@ func buildHistoryEntryFromMatrix(matrix *PerformanceMatrix, results []*Benchmark
 			modelLangStats := make(map[string]interface{})
 			for lang, langData := range modelData.Languages {
 				if langData.TotalRuns > 0 {
-					modelLangStats[lang] = map[string]interface{}{
+					entry := map[string]interface{}{
 						"successRate": langData.SuccessRate,
 						"totalRuns":   langData.TotalRuns,
 						"avgTokens":   langData.AvgTokens,
 					}
+					if n := apiErrorByModelLang[modelName][lang]; n > 0 {
+						entry["apiErrorCount"] = n
+					}
+					modelLangStats[lang] = entry
 				}
 			}
 			if len(modelLangStats) > 0 {

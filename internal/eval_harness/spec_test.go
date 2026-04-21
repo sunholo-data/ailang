@@ -292,8 +292,16 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	}
 
 	tierCounts := map[string]int{}
+	benchCount := 0
 	for _, path := range matches {
 		base := filepath.Base(path)
+		// Skip non-spec meta-files (suite-change log, etc.). See
+		// isBenchmarkMetaFile in cmd/ailang/eval_helpers.go for the
+		// canonical list — keep them in sync.
+		if base == "events.yml" {
+			continue
+		}
+		benchCount++
 		spec, err := LoadSpec(path)
 		if err != nil {
 			t.Errorf("%s: LoadSpec failed: %v", base, err)
@@ -329,5 +337,5 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	}
 	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d (total %d)",
 		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["vision"],
-		len(matches))
+		benchCount)
 }

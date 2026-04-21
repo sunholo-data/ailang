@@ -224,22 +224,87 @@ type TierAggregate struct {
 	AILANGSuccessRate float64 `json:"ailang_success_rate"`
 	PythonSuccessRate float64 `json:"python_success_rate"`
 	BenchmarkCount    int     `json:"benchmark_count"` // unique benchmark IDs in this tier
+
+	// M-DASH-V2: per-tier × per-model breakdown so charts can filter
+	// time-series data to this tier. Outer key is model name, inner key is
+	// language. Nil when the tier has no runs.
+	ModelStats map[string]map[string]*ModelDimensionStats `json:"model_stats,omitempty"`
+
+	// M-DASH-V2: API reliability per tier. Splits by language so dashboards
+	// can show "how many gemini-3-1-pro AILANG runs on core tier returned
+	// api_error?" separately from Python.
+	APIErrorCount  int `json:"api_error_count"`
+	AILANGAPIError int `json:"ailang_api_error"`
+	PythonAPIError int `json:"python_api_error"`
+
+	// M-DASH-V2: refusal count per tier (RefusalDetected at load time).
+	RefusalCount int `json:"refusal_count"`
+
+	// M-DASH-V2: self-repair efficacy and cost for this tier. RepairDelta =
+	// final pass rate − first-attempt pass rate; answers "does self-repair
+	// help more on hard tiers?". AvgCostUSD split by language lets callers
+	// tell whether stretch is 3× pricier on AILANG specifically.
+	AILANGRepairDelta float64 `json:"ailang_repair_delta"`
+	PythonRepairDelta float64 `json:"python_repair_delta"`
+	AILANGAvgCostUSD  float64 `json:"ailang_avg_cost_usd"`
+	PythonAvgCostUSD  float64 `json:"python_avg_cost_usd"`
+}
+
+// ModelDimensionStats is the per-(model, language) cross-section used in
+// both TierAggregate.ModelStats and TagAggregate.ModelStats. Shape matches
+// what the time-series chart reads from history.modelStats[model][lang]
+// so the frontend can swap data sources cleanly.
+type ModelDimensionStats struct {
+	SuccessRate   float64 `json:"successRate"`
+	TotalRuns     int     `json:"totalRuns"`
+	AvgTokens     float64 `json:"avgTokens"`
+	APIErrorCount int     `json:"apiErrorCount,omitempty"`
+	RefusalCount  int     `json:"refusalCount,omitempty"`
+}
+
+// TierHistoryPoint is a per-tier snapshot inside a single history entry.
+// Lets PerModelTrend filter the time series to e.g. just the Core tier so
+// the chart updates when TierToggle changes — not just the hero row.
+type TierHistoryPoint struct {
+	AILANGSuccessRate float64                                    `json:"ailang_success_rate"`
+	PythonSuccessRate float64                                    `json:"python_success_rate"`
+	AILANGRuns        int                                        `json:"ailang_runs"`
+	PythonRuns        int                                        `json:"python_runs"`
+	BenchmarkCount    int                                        `json:"benchmark_count"`
+	ModelStats        map[string]map[string]*ModelDimensionStats `json:"modelStats,omitempty"`
+}
+
+// SuiteEvent is a timeline annotation (benchmark additions, taxonomy
+// changes, etc.) loaded from benchmarks/events.yml. Rendered as a dashed
+// ReferenceLine on every time-series chart.
+type SuiteEvent struct {
+	Version      string   `json:"version" yaml:"version"`
+	Label        string   `json:"label" yaml:"label"`
+	Kind         string   `json:"kind" yaml:"kind"` // "benchmark_add" | "benchmark_remove" | "taxonomy" | "prompt"
+	Color        string   `json:"color,omitempty" yaml:"color,omitempty"`
+	AffectsTiers []string `json:"affects_tiers,omitempty" yaml:"affects_tiers,omitempty"` // if set, event only renders when one of these tiers is selected
 }
 
 // DashboardJSON represents the structure of docs/static/benchmarks/latest.json
 // This is the single source of truth for the dashboard frontend
 type DashboardJSON struct {
-	Version     string                   `json:"version"`
-	Timestamp   string                   `json:"timestamp"`
-	TotalRuns   int                      `json:"totalRuns"`
-	Aggregates  map[string]interface{}   `json:"aggregates"`
-	Tiers       map[string]TierAggregate `json:"tiers,omitempty"` // Per-tier aggregates: smoke/core/stretch/vision
+	Version    string                   `json:"version"`
+	Timestamp  string                   `json:"timestamp"`
+	TotalRuns  int                      `json:"totalRuns"`
+	Aggregates map[string]interface{}   `json:"aggregates"`
+	Tiers      map[string]TierAggregate `json:"tiers,omitempty"` // Per-tier aggregates: smoke/core/stretch/vision
+	// M-DASH-V2: per-tag aggregates (12 canonical tags) with per-model
+	// cross-sections so the dashboard can narrow the charts to a tag.
+	Tags        map[string]*TagAggregate `json:"tags,omitempty"`
 	Models      map[string]interface{}   `json:"models"`
 	AgentModels map[string]interface{}   `json:"agentModels,omitempty"` // Agent-only models (separate from standard)
 	Benchmarks  map[string]interface{}   `json:"benchmarks"`
 	Languages   map[string]interface{}   `json:"languages"` // map[language]->stats
 	Executors   map[string]interface{}   `json:"executors"` // map[executor]->agent stats (claude, gemini)
 	History     []HistoryEntry           `json:"history"`
+	// M-DASH-V2: suite-change annotations rendered as ReferenceLine on every
+	// time-series chart. Sourced from benchmarks/events.yml.
+	Events []SuiteEvent `json:"events,omitempty"`
 }
 
 // HistoryEntry represents a single version's data in the history array
@@ -252,6 +317,10 @@ type HistoryEntry struct {
 	Languages     string                 `json:"languages"`
 	LanguageStats map[string]interface{} `json:"languageStats,omitempty"`
 	ModelStats    map[string]interface{} `json:"modelStats,omitempty"` // Per-model, per-language stats for trend charts
+	// M-DASH-V2: per-tier snapshots. Lets the time-series chart filter to
+	// one tier retroactively (pre-v0.14.0 baselines use the CURRENT tier
+	// mapping — docs describe this as an approximation).
+	Tiers map[string]*TierHistoryPoint `json:"tiers,omitempty"`
 }
 
 // Validate checks if a DashboardJSON structure is valid

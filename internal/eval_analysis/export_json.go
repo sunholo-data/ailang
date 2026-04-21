@@ -70,6 +70,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	}
 	sort.Strings(agentBenchmarkList)
 
+	// Compute reliability counters (api-error + refusal) across standard
+	// results so the dashboard can render an API Reliability card and
+	// distinguish infra-failure 0% dips from real code-quality 0%s
+	// (M-DASH-V2).
+	reliability := computeReliability(standardResults)
+
 	// Convert aggregates to camelCase for JavaScript
 	aggregatesJS := map[string]interface{}{
 		"zeroShotSuccess":   matrix.Aggregates.ZeroShotSuccess,
@@ -86,6 +92,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"agentTotalTokens": agentTotalTokens,
 		"avgAgentCost":     avgAgentCost,
 		"agentBenchmarks":  agentBenchmarkList, // Sorted list of benchmark IDs for fair comparison
+		// API reliability + refusal (M-DASH-V2). Keys are camelCase.
+		"apiErrorCount": reliability.APIErrorCount,
+		"apiErrorRate":  reliability.APIErrorRate,
+		"refusalCount":  reliability.RefusalCount,
+		"refusalRate":   reliability.RefusalRate,
 	}
 
 	// Group results by benchmark ID and language for code samples and stats
@@ -298,6 +309,19 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				"avgCost":     agentStats.totalCost / float64(agentStats.runs),
 			}
 		}
+		// M-DASH-V2: attach per-model reliability counters so the dashboard
+		// can tooltip the API Reliability card ("gemini-3-1-pro: 13/33").
+		if rel, ok := reliability.PerModel[name]; ok {
+			modelData["reliability"] = map[string]interface{}{
+				"apiErrorCount":  rel.APIErrorCount,
+				"apiErrorRate":   rel.APIErrorRate,
+				"refusalCount":   rel.RefusalCount,
+				"refusalRate":    rel.RefusalRate,
+				"totalRuns":      rel.TotalRuns,
+				"ailangApiError": rel.AILANGAPIError,
+				"pythonApiError": rel.PythonAPIError,
+			}
+		}
 		modelsJS[name] = modelData
 	}
 
@@ -318,144 +342,11 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		}
 	}
 
-	// Calculate per-executor agent statistics (claude, gemini, etc.)
-	type executorAgentStats struct {
-		runs        int
-		success     int
-		totalTurns  int
-		totalTokens int
-		totalCost   float64
-	}
-	type executorLangAgentStats struct {
-		runs         int
-		success      int
-		turns        int
-		tokens       int
-		cost         float64
-		successTurns int
-		successCount int
-		failureTurns int
-		failureCount int
-	}
-	perExecutorStats := make(map[string]*executorAgentStats)
-	perExecutorLangStats := make(map[string]map[string]*executorLangAgentStats) // executor -> lang -> stats
-	perExecutorModelStats := make(map[string]map[string]*executorAgentStats)    // executor -> model -> stats
-
-	for _, r := range agentResults {
-		executor := r.Executor
-		if executor == "" {
-			executor = "unknown"
-		}
-
-		// Per-executor totals
-		if perExecutorStats[executor] == nil {
-			perExecutorStats[executor] = &executorAgentStats{}
-		}
-		es := perExecutorStats[executor]
-		es.runs++
-		if r.StdoutOk {
-			es.success++
-		}
-		es.totalTurns += r.AgentTurns
-		es.totalTokens += r.TotalTokens
-		es.totalCost += r.CostUSD
-
-		// Per-executor per-model stats
-		if perExecutorModelStats[executor] == nil {
-			perExecutorModelStats[executor] = make(map[string]*executorAgentStats)
-		}
-		if perExecutorModelStats[executor][r.Model] == nil {
-			perExecutorModelStats[executor][r.Model] = &executorAgentStats{}
-		}
-		ms := perExecutorModelStats[executor][r.Model]
-		ms.runs++
-		if r.StdoutOk {
-			ms.success++
-		}
-		ms.totalTurns += r.AgentTurns
-		ms.totalTokens += r.TotalTokens
-		ms.totalCost += r.CostUSD
-
-		// Per-executor per-language stats
-		if perExecutorLangStats[executor] == nil {
-			perExecutorLangStats[executor] = make(map[string]*executorLangAgentStats)
-		}
-		if perExecutorLangStats[executor][r.Lang] == nil {
-			perExecutorLangStats[executor][r.Lang] = &executorLangAgentStats{}
-		}
-		ls := perExecutorLangStats[executor][r.Lang]
-		ls.runs++
-		ls.turns += r.AgentTurns
-		ls.tokens += r.TotalTokens
-		ls.cost += r.CostUSD
-		if r.StdoutOk {
-			ls.success++
-			ls.successTurns += r.AgentTurns
-			ls.successCount++
-		} else {
-			ls.failureTurns += r.AgentTurns
-			ls.failureCount++
-		}
-	}
-
-	// Build executors map for JSON output
-	executorsJS := make(map[string]interface{})
-	for executor, es := range perExecutorStats {
-		if es.runs == 0 {
-			continue
-		}
-		execData := map[string]interface{}{
-			"runs":        es.runs,
-			"successRate": float64(es.success) / float64(es.runs),
-			"avgTurns":    float64(es.totalTurns) / float64(es.runs),
-			"avgTokens":   float64(es.totalTokens) / float64(es.runs),
-			"avgCost":     es.totalCost / float64(es.runs),
-			"totalCost":   es.totalCost,
-		}
-
-		// Add per-language breakdown
-		if langMap, ok := perExecutorLangStats[executor]; ok {
-			langBreakdown := make(map[string]interface{})
-			for lang, ls := range langMap {
-				if ls.runs == 0 {
-					continue
-				}
-				langEntry := map[string]interface{}{
-					"runs":        ls.runs,
-					"successRate": float64(ls.success) / float64(ls.runs),
-					"avgTurns":    float64(ls.turns) / float64(ls.runs),
-					"avgTokens":   float64(ls.tokens) / float64(ls.runs),
-					"avgCost":     ls.cost / float64(ls.runs),
-				}
-				if ls.successCount > 0 {
-					langEntry["avgTurnsSuccess"] = float64(ls.successTurns) / float64(ls.successCount)
-				}
-				if ls.failureCount > 0 {
-					langEntry["avgTurnsFailure"] = float64(ls.failureTurns) / float64(ls.failureCount)
-				}
-				langBreakdown[lang] = langEntry
-			}
-			execData["languages"] = langBreakdown
-		}
-		// Add per-model breakdown within this executor
-		if modelMap, ok := perExecutorModelStats[executor]; ok {
-			modelBreakdown := make(map[string]interface{})
-			for model, ms := range modelMap {
-				if ms.runs == 0 {
-					continue
-				}
-				modelBreakdown[model] = map[string]interface{}{
-					"runs":        ms.runs,
-					"successRate": float64(ms.success) / float64(ms.runs),
-					"avgTurns":    float64(ms.totalTurns) / float64(ms.runs),
-					"avgTokens":   float64(ms.totalTokens) / float64(ms.runs),
-					"avgCost":     ms.totalCost / float64(ms.runs),
-				}
-			}
-			execData["models"] = modelBreakdown
-		}
-		executorsJS[executor] = execData
-	}
+	// Per-executor agent aggregates (claude, gemini, etc.) — extracted to
+	// export_json_executors.go to keep this file under the 800-line soft
+	// limit. perExecutorLangStats is consumed by the language loop below to
+	// attach agent_*_<executor> fields per language.
+	executorsJS, perExecutorLangStats, executorList := buildExecutorAggregates(agentResults)
 
 	// Process historical baselines to build complete history with per-model stats
 	// Load results for each baseline and generate matrix to get modelStats
@@ -497,6 +388,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				histEntry := buildHistoryEntryFromMatrix(baselineMatrix, baseline.Results)
 				// Preserve the original baseline timestamp (don't use current time)
 				histEntry.Timestamp = baseline.Timestamp.Format(time.RFC3339)
+				// M-DASH-V2: attach per-tier snapshots using the CURRENT
+				// tier mapping (documented approximation for pre-v0.14.0
+				// baselines) so PerModelTrend can filter the time series
+				// by tier retroactively.
+				if tp := buildHistoricalTierPoints(baseline.Results, benchmarkTier); len(tp) > 0 {
+					histEntry.Tiers = tp
+				}
 				// Merge this entry into the dashboard history
 				mergeHistory(dashboard, histEntry)
 			}
@@ -505,6 +403,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	// Build history entry for current version from matrix (only standard results for historical comparison)
 	newHistoryEntry := buildHistoryEntryFromMatrix(matrix, standardResults)
+	if tp := buildHistoricalTierPoints(standardResults, benchmarkTier); len(tp) > 0 {
+		newHistoryEntry.Tiers = tp
+	}
 
 	// Merge with existing history (preserves old entries, updates if version exists)
 	mergeHistory(dashboard, newHistoryEntry)
@@ -728,75 +629,28 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 		// Add per-executor agent breakdown for this language
 		for executor, langMap := range perExecutorLangStats {
-			if ls, ok := langMap[lang]; ok && ls.runs > 0 {
-				langData["agent_success_rate_"+executor] = float64(ls.success) / float64(ls.runs)
-				langData["agent_avg_turns_"+executor] = float64(ls.turns) / float64(ls.runs)
-				langData["agent_avg_tokens_"+executor] = float64(ls.tokens) / float64(ls.runs)
-				langData["agent_avg_cost_"+executor] = ls.cost / float64(ls.runs)
-				langData["agent_runs_"+executor] = ls.runs
+			if ls, ok := langMap[lang]; ok && ls.Runs > 0 {
+				langData["agent_success_rate_"+executor] = float64(ls.Success) / float64(ls.Runs)
+				langData["agent_avg_turns_"+executor] = float64(ls.Turns) / float64(ls.Runs)
+				langData["agent_avg_tokens_"+executor] = float64(ls.Tokens) / float64(ls.Runs)
+				langData["agent_avg_cost_"+executor] = ls.Cost / float64(ls.Runs)
+				langData["agent_runs_"+executor] = ls.Runs
 			}
 		}
 
 		languagesMap[lang] = langData
 	}
 
-	// Build sorted executor list for frontend
-	executorList := make([]string, 0, len(perExecutorStats))
-	for executor := range perExecutorStats {
-		executorList = append(executorList, executor)
-	}
-	sort.Strings(executorList)
 	aggregatesJS["agentExecutors"] = executorList
 
-	// Per-tier aggregates (M-EVAL-SUITE-PREP M6). Group results by tier
-	// (resolved from benchmarkTier built above) and compute AILANG vs
-	// Python pass rates per tier. The Core tier pass rate is the
-	// dashboard headline metric.
-	type tierAcc struct {
-		ailangRuns, ailangPass int
-		pythonRuns, pythonPass int
-		benchIDs               map[string]bool
-	}
-	tierAccs := make(map[string]*tierAcc)
-	for _, r := range standardResults {
-		tier := benchmarkTier[r.ID]
-		if tier == "" {
-			continue // benchmark without a YAML tier is not binned
-		}
-		acc, ok := tierAccs[tier]
-		if !ok {
-			acc = &tierAcc{benchIDs: make(map[string]bool)}
-			tierAccs[tier] = acc
-		}
-		acc.benchIDs[r.ID] = true
-		switch r.Lang {
-		case "ailang":
-			acc.ailangRuns++
-			if r.StdoutOk {
-				acc.ailangPass++
-			}
-		case "python":
-			acc.pythonRuns++
-			if r.StdoutOk {
-				acc.pythonPass++
-			}
-		}
-	}
-	tiersJS := make(map[string]TierAggregate, len(tierAccs))
-	for tier, acc := range tierAccs {
-		agg := TierAggregate{
-			TotalRuns:      acc.ailangRuns + acc.pythonRuns,
-			AILANGRuns:     acc.ailangRuns,
-			PythonRuns:     acc.pythonRuns,
-			BenchmarkCount: len(acc.benchIDs),
-		}
-		if acc.ailangRuns > 0 {
-			agg.AILANGSuccessRate = float64(acc.ailangPass) / float64(acc.ailangRuns)
-		}
-		if acc.pythonRuns > 0 {
-			agg.PythonSuccessRate = float64(acc.pythonPass) / float64(acc.pythonRuns)
-		}
-		tiersJS[tier] = agg
+	// Tier/tag aggregates + suite-change events (M-EVAL-SUITE-PREP M6 +
+	// M-DASH-V2). Extracted to sibling file because the main exporter is
+	// already past the 800-line soft limit.
+	tiersJS := buildTierAggregates(standardResults, benchmarkTier)
+	tagsJS := buildTagAggregates(standardResults)
+	suiteEvents, err := LoadSuiteEvents("benchmarks/events.yml")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: load events.yml: %v\n", err)
 	}
 
 	// Update dashboard with current version data
@@ -805,11 +659,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.TotalRuns = matrix.TotalRuns
 	dashboard.Aggregates = aggregatesJS
 	dashboard.Tiers = tiersJS
+	dashboard.Tags = tagsJS
 	dashboard.Models = modelsJS
 	dashboard.AgentModels = agentModelsJS
 	dashboard.Benchmarks = benchmarksJS
 	dashboard.Languages = languagesMap
 	dashboard.Executors = executorsJS
+	dashboard.Events = suiteEvents
 
 	// Write atomically
 	if err := writeJSONAtomic(outputPath, dashboard); err != nil {

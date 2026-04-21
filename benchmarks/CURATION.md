@@ -185,3 +185,70 @@ baselines remain reproducible.
 
 See [docs/docs/guides/evaluation/README.mdx](../docs/docs/guides/evaluation/README.mdx)
 for the human-facing evaluation guide and the tier structure section.
+
+---
+
+## 8. Suite-change events (`events.yml`)
+
+Every time the benchmark set changes in a way that moves the dashboard
+time-series, record the event in [`events.yml`](events.yml). These events
+render as dashed `ReferenceLine` annotations on the per-model trend,
+per-model delta, and overall success charts so readers can see *why* a
+number jumped between two releases.
+
+**What counts as an event:**
+
+| Kind               | When to record                                                      |
+|--------------------|---------------------------------------------------------------------|
+| `benchmark_add`    | One or more new benchmarks landed in a release                      |
+| `benchmark_remove` | A benchmark was retired or moved to `benchmarks/retired/`           |
+| `taxonomy`         | Tier mapping shifted, tag list changed, or tier thresholds moved    |
+| `prompt`           | The system prompt or `ailang prompt` output materially changed      |
+
+Everything else — parser/stdlib changes that affect success rate, model
+additions, infra upgrades — is **not** an event. Those show up in the
+numbers themselves; events only exist for *suite* changes that the reader
+would otherwise mistake for a language-level regression.
+
+**Schema** (see [`internal/eval_analysis/types.go`](../internal/eval_analysis/types.go) `SuiteEvent`):
+
+```yaml
+- version: v0.14.0           # required — when this change shipped
+  label: "Tier + tag taxonomy" # required — short string drawn on the chart
+  kind: taxonomy             # required — one of the kinds above
+  color: "#E67E22"           # optional — overrides annotationColor() default
+  affects_tiers: [stretch]   # optional — when set, only render when tier selected
+```
+
+**When `affects_tiers` is set**, the event is hidden unless the dashboard's
+TierToggle matches. Use this for changes that only move *one* tier's numbers
+(e.g. a +2 stretch-tier addition should not decorate the Core chart).
+
+**Authoring workflow** (part of the release checklist):
+
+1. While preparing the release, open `benchmarks/events.yml`.
+2. Append any events that describe suite changes in this release — check the
+   `git diff` of `benchmarks/*.yml` to catch adds/removes.
+3. Use the earliest version the change was visible in (usually the release
+   version being prepared).
+4. Run `ailang eval-report <baseline_dir> <version> --format=json` and
+   verify the new entries appear under `.events[]` of `latest.json`.
+5. Commit the YAML change as part of the release; the `post-release`
+   skill does not auto-populate this file.
+
+**Example workflow** — adding two stretch benchmarks in v0.14.0:
+
+```yaml
+- version: v0.14.0
+  label: "+2 stretch/vision benchmarks"
+  kind: benchmark_add
+  affects_tiers: [stretch, vision]   # hidden when Core is selected
+```
+
+The dashboard will now show a dashed line at v0.14.0 on every time-series
+chart when Stretch or Vision is the active tier, and no line when Core is
+active — avoiding a visual distraction that doesn't match the data.
+
+**Rule of thumb**: if a reader asks "why did the number jump here?" and the
+answer is "we changed the benchmark set," an event entry belongs there.
+

@@ -8,6 +8,12 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.14.0
+
+- [M-BENCHMARK-SUITE-TIERS: Restructure the Eval Suite into Smoke / Core / Stretch Tiers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_0/m-benchmark-suite-tiers.md)
+- [M-EVAL-CATEGORY-ANALYSIS: Per-Category Benchmark Analysis & Curation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_0/m-eval-category-analysis.md)
+- [Sprint Plan: M-EVAL-SUITE-PREP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_0/m-eval-suite-prep-sprint-plan.md)
+
 ## v0.13.0
 
 - [M-CONCAT-DISAMBIG Sprint Handover](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambig-handover.md)
@@ -877,4 +883,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 654 design documents across 71 versions.*
+*Generated at build time. 657 design documents across 72 versions.*

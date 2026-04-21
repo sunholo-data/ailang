@@ -16,6 +16,13 @@ type TagAggregate struct {
 	PythonPass  int     `json:"python_pass"`
 	PythonTotal int     `json:"python_total"`
 	Delta       float64 `json:"delta"` // ailangRate - pythonRate
+	// M-DASH-V2: unique benchmark IDs carrying this tag (useful for the
+	// UI "N benchmarks in tag" chip).
+	BenchmarkCount int `json:"benchmark_count,omitempty"`
+	// M-DASH-V2: per-model cross-section so the dashboard can render
+	// per-model bars filtered to this tag. Outer key is model name,
+	// inner key is language.
+	ModelStats map[string]map[string]*ModelDimensionStats `json:"model_stats,omitempty"`
 }
 
 // TagReport is the output of GroupByTags: a sorted tag list plus the

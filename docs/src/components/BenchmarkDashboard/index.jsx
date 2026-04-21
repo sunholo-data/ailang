@@ -11,6 +11,8 @@ import ModelDeltaTrend from './ModelDeltaTrend';
 import RadarCharts from './RadarCharts';
 import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
+import TagFilter from './TagFilter';
+import ReliabilityCard from './ReliabilityCard';
 import styles from './styles.module.css';
 
 // Tier order + labels for the M6 toggle. Core is the headline tier
@@ -30,11 +32,94 @@ const TIER_BLURBS = {
   vision: 'Aspirational — type-directed synthesis',
 };
 
+// weightedAvgTokens rolls up per-model avgTokens (from ModelDimensionStats)
+// into a single language-wide number, weighted by totalRuns.
+function weightedAvgTokens(tierModels, lang) {
+  if (!tierModels) return 0;
+  let totalTokens = 0;
+  let totalRuns = 0;
+  for (const name of Object.keys(tierModels)) {
+    const stats = tierModels[name]?.languages?.[lang];
+    if (!stats?.totalRuns) continue;
+    totalTokens += (stats.avgTokens || 0) * stats.totalRuns;
+    totalRuns += stats.totalRuns;
+  }
+  return totalRuns > 0 ? totalTokens / totalRuns : 0;
+}
+
+// buildTierScopedLanguages produces the languages block LanguageChart reads
+// when a tier is active. Uses tier aggregates for pass rate and derives
+// avg_tokens from the tier's per-model cross-section.
+function buildTierScopedLanguages(activeTier, tierModels) {
+  return {
+    ailang: {
+      success_rate: activeTier.ailang_success_rate,
+      total_runs: activeTier.ailang_runs,
+      avg_tokens: weightedAvgTokens(tierModels, 'ailang'),
+    },
+    python: {
+      success_rate: activeTier.python_success_rate,
+      total_runs: activeTier.python_runs,
+      avg_tokens: weightedAvgTokens(tierModels, 'python'),
+    },
+  };
+}
+
+// buildTagScopedLanguages is the tag twin of buildTierScopedLanguages. Tag
+// aggregates carry pass/total counts (not pre-divided rates) so we compute
+// the rate here before handing the shape to LanguageChart.
+function buildTagScopedLanguages(activeTag, tagModels) {
+  const rate = (pass, total) => (total > 0 ? pass / total : 0);
+  return {
+    ailang: {
+      success_rate: rate(activeTag.ailang_pass, activeTag.ailang_total),
+      total_runs: activeTag.ailang_total,
+      avg_tokens: weightedAvgTokens(tagModels, 'ailang'),
+    },
+    python: {
+      success_rate: rate(activeTag.python_pass, activeTag.python_total),
+      total_runs: activeTag.python_total,
+      avg_tokens: weightedAvgTokens(tagModels, 'python'),
+    },
+  };
+}
+
+// buildTierScopedModels reshapes `tiers[t].model_stats[model][lang]` into the
+// shape ModelChart/ModelTokenChart/ModelComparisonTable expect:
+// `{ totalRuns, languages: { ailang: {successRate,...}, python: {...} } }`.
+// Keeps per-model reliability metadata from the original `models` block so
+// ReliabilityCard can still find api-error counts when a tier is active.
+function buildTierScopedModels(tierModelStats, fallbackModels) {
+  if (!tierModelStats) return null;
+  const out = {};
+  for (const [name, langs] of Object.entries(tierModelStats)) {
+    if (!langs) continue;
+    const ail = langs.ailang;
+    const py = langs.python;
+    const totalRuns = (ail?.totalRuns || 0) + (py?.totalRuns || 0);
+    out[name] = {
+      totalRuns,
+      languages: {
+        ...(ail ? { ailang: ail } : {}),
+        ...(py ? { python: py } : {}),
+      },
+      // Preserve reliability + aggregates from the global models block.
+      // Tier-scoped reliability lives under activeTier.{api_error_count,...}
+      // but per-model cost per tier is not available — the global totalCostUSD
+      // is a close-enough proxy for ModelTokenChart's cost bar.
+      reliability: fallbackModels?.[name]?.reliability,
+      aggregates: fallbackModels?.[name]?.aggregates,
+    };
+  }
+  return out;
+}
+
 export default function BenchmarkDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTier, setSelectedTier] = useState(null); // null = all tiers
+  const [selectedTag, setSelectedTag] = useState(null);   // null = all tags
 
   useEffect(() => {
     // Fetch benchmark data
@@ -90,7 +175,7 @@ export default function BenchmarkDashboard() {
     );
   }
 
-  const { aggregates, models, benchmarks, version, totalRuns, history, languages, tiers } = data;
+  const { aggregates, models, benchmarks, version, totalRuns, history, languages, tiers, events, tags } = data;
 
   // Use AILANG-specific metrics for the dashboard
   const ailangStats = languages?.ailang || aggregates;
@@ -108,13 +193,41 @@ export default function BenchmarkDashboard() {
   const tierAilangRuns = activeTier ? activeTier.ailang_runs : ailangRuns;
   const tierBenchCount = activeTier ? activeTier.benchmark_count : Object.keys(benchmarks || {}).length;
 
-  // Filter benchmarks to the selected tier. The per-benchmark `tier`
-  // field is written by ExportBenchmarkJSON from the YAML spec.
-  const filteredBenchmarks = selectedTier && benchmarks
-    ? Object.fromEntries(
-        Object.entries(benchmarks).filter(([, b]) => b?.tier === selectedTier)
-      )
-    : benchmarks;
+  // Filter benchmarks to the selected tier + tag. The per-benchmark `tier`
+  // field is written by ExportBenchmarkJSON from the YAML spec; `tags` is
+  // a string array from the same source.
+  let filteredBenchmarks = benchmarks;
+  if (selectedTier && filteredBenchmarks) {
+    filteredBenchmarks = Object.fromEntries(
+      Object.entries(filteredBenchmarks).filter(([, b]) => b?.tier === selectedTier)
+    );
+  }
+  if (selectedTag && filteredBenchmarks) {
+    filteredBenchmarks = Object.fromEntries(
+      Object.entries(filteredBenchmarks).filter(([, b]) => Array.isArray(b?.tags) && b.tags.includes(selectedTag))
+    );
+  }
+
+  // Tier/tag-scoped model stats for downstream bar charts. When a tier is
+  // selected, prefer tiers[t].model_stats; when a tag is active (and no
+  // tier), prefer tags[t].model_stats. Both share the ModelDimensionStats
+  // shape so buildTierScopedModels works for either.
+  const activeTag = !activeTier && selectedTag ? tags?.[selectedTag] : null;
+  const tierModels = activeTier?.model_stats
+    ? buildTierScopedModels(activeTier.model_stats, models)
+    : null;
+  const tagModels = activeTag?.model_stats
+    ? buildTierScopedModels(activeTag.model_stats, models)
+    : null;
+  const scopedModels = tierModels || tagModels || models;
+  let scopedLanguages;
+  if (activeTier) {
+    scopedLanguages = buildTierScopedLanguages(activeTier, tierModels);
+  } else if (activeTag) {
+    scopedLanguages = buildTagScopedLanguages(activeTag, tagModels);
+  } else {
+    scopedLanguages = languages;
+  }
 
   // Calculate deltas vs Python baseline (tier-aware)
   const successDelta = (ailangSuccess - tierPythonSuccess) * 100;
@@ -152,9 +265,21 @@ export default function BenchmarkDashboard() {
         <TierToggle
           tiers={tiers}
           selected={selectedTier}
-          onSelect={setSelectedTier}
+          onSelect={(t) => {
+            setSelectedTier(t);
+            // Tier selection hides TagFilter; clear any stale tag so the
+            // gallery doesn't secretly keep filtering by it.
+            if (t) setSelectedTag(null);
+          }}
         />
       )}
+
+      {/* API Reliability Card (M-DASH-V2) */}
+      <ReliabilityCard
+        aggregates={aggregates}
+        models={models}
+        activeTier={activeTier ? { ...activeTier, label: TIER_LABELS[selectedTier] } : null}
+      />
 
       {/* Hero Metrics */}
       <div className={styles.heroSection}>
@@ -196,7 +321,7 @@ export default function BenchmarkDashboard() {
           <p className={styles.sectionSubtitle}>
             Track how each AI model's performance evolves across AILANG versions
           </p>
-          <PerModelTrend history={history} />
+          <PerModelTrend history={history} events={events} selectedTier={selectedTier} />
         </div>
       )}
 
@@ -207,38 +332,77 @@ export default function BenchmarkDashboard() {
           <p className={styles.sectionSubtitle}>
             Positive values indicate AILANG outperforms Python for that model
           </p>
-          <ModelDeltaTrend history={history} />
+          <ModelDeltaTrend history={history} events={events} selectedTier={selectedTier} />
+        </div>
+      )}
+
+      {/* Mid-page scope controls (M-DASH-V2): both filters live here, next
+          to the sections they affect. The tier row mirrors the top toggle
+          (same `selectedTier` state) so the user can rescope without
+          scrolling up. TagFilter greys out while a tier is selected. */}
+      {((tiers && Object.keys(tiers).length > 0) || (tags && Object.keys(tags).length > 0)) && (
+        <div className={styles.section}>
+          {tiers && Object.keys(tiers).length > 0 && (
+            <TierToggle
+              tiers={tiers}
+              selected={selectedTier}
+              onSelect={(t) => {
+                setSelectedTier(t);
+                if (t) setSelectedTag(null);
+              }}
+            />
+          )}
+          {tags && Object.keys(tags).length > 0 && (
+            <TagFilter
+              tags={tags}
+              selected={selectedTag}
+              onSelect={setSelectedTag}
+              disabled={Boolean(selectedTier)}
+            />
+          )}
         </div>
       )}
 
       {/* Model Performance Chart */}
-      {models && Object.keys(models).length > 0 && (
+      {scopedModels && Object.keys(scopedModels).length > 0 && (
         <div className={styles.section}>
-          <h3>Model Performance Comparison</h3>
-          <ModelChart models={models} />
-          <ModelComparisonTable models={models} />
+          <h3>
+            Model Performance Comparison
+            {activeTier && <span className={styles.tierHeadline}> — {TIER_LABELS[selectedTier]} tier</span>}
+            {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
+          </h3>
+          <ModelChart models={scopedModels} />
+          <ModelComparisonTable models={scopedModels} />
         </div>
       )}
 
       {/* Language Comparison Chart */}
-      {languages && Object.keys(languages).length > 1 && (
+      {scopedLanguages && Object.keys(scopedLanguages).length > 1 && (
         <div className={styles.section}>
-          <h3>AILANG vs Python Performance</h3>
+          <h3>
+            AILANG vs Python Performance
+            {activeTier && <span className={styles.tierHeadline}> — {TIER_LABELS[selectedTier]} tier</span>}
+            {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
+          </h3>
           <p className={styles.sectionSubtitle}>
             Direct comparison of AI code generation success rates and efficiency
           </p>
-          <LanguageChart languages={languages} />
+          <LanguageChart languages={scopedLanguages} />
         </div>
       )}
 
       {/* Model Token Usage Chart */}
-      {models && Object.keys(models).length > 0 && (
+      {scopedModels && Object.keys(scopedModels).length > 0 && (
         <div className={styles.section}>
-          <h3>Token Usage & Cost by Model</h3>
+          <h3>
+            Token Usage & Cost by Model
+            {activeTier && <span className={styles.tierHeadline}> — {TIER_LABELS[selectedTier]} tier</span>}
+            {activeTag && <span className={styles.tierHeadline}> — tagged {selectedTag}</span>}
+          </h3>
           <p className={styles.sectionSubtitle}>
             Average output tokens and cost per benchmark run (excludes reasoning tokens for GPT-5)
           </p>
-          <ModelTokenChart models={models} />
+          <ModelTokenChart models={scopedModels} />
         </div>
       )}
 
@@ -262,18 +426,20 @@ export default function BenchmarkDashboard() {
       {history && history.length > 1 && (
         <div className={styles.section}>
           <h3>Success Rate Over Time</h3>
-          <SuccessTrend history={history} languages={languages} />
+          <SuccessTrend history={history} languages={languages} events={events} selectedTier={selectedTier} />
         </div>
       )}
 
-      {/* Benchmark Gallery (filtered by selected tier when active) */}
+      {/* Benchmark Gallery (filtered by selected tier + tag when active) */}
       {filteredBenchmarks && Object.keys(filteredBenchmarks).length > 0 && (
         <div className={styles.section}>
           <h3>
             Benchmark Results
-            {activeTier && (
+            {(activeTier || selectedTag) && (
               <span className={styles.tierHeadline}>
-                {' '}— showing {Object.keys(filteredBenchmarks).length} {TIER_LABELS[selectedTier]} benchmarks
+                {' '}— showing {Object.keys(filteredBenchmarks).length} benchmarks
+                {activeTier && ` in ${TIER_LABELS[selectedTier]}`}
+                {selectedTag && ` tagged ${selectedTag}`}
               </span>
             )}
           </h3>

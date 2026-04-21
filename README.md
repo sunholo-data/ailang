@@ -11,6 +11,10 @@
 **164/165 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
 <!-- EXAMPLES_STATUS_END -->
 
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sunholo-data_ailang)
+[![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
+
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
 **[Documentation](https://ailang.sunholo.com/)** | **[Examples](https://ailang.sunholo.com/docs/examples)** | **[Live Demos](https://www.sunholo.com/ailang-demos/)** | **[Vision](https://ailang.sunholo.com/docs/vision)** | **[Benchmarks](https://ailang.sunholo.com/docs/benchmarks/performance)**

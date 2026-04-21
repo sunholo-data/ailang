@@ -23,9 +23,9 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
-## Planned for v0.14.0
+## Planned for v0.13.1
 
-- [Sprint Plan: M-EVAL-SUITE-PREP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_14_0/m-eval-suite-prep-sprint-plan.md)
+- [M-SONAR-GATE-CLEANUP: Drive SonarCloud Quality Gate to PASS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_1/m-sonar-gate-cleanup.md)
 
 ## Planned for v0.13.0
 
@@ -38,7 +38,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-ARCH3: Task Classification Consolidation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch3-task-classification.md)
 - [M-ARCH4: Executor Stream Processor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch4-executor-stream-processor.md)
 - [M-ARCH5: Error Handling Strategy](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-arch5-error-handling-strategy.md)
-- [M-BENCHMARK-SUITE-TIERS: Restructure the Eval Suite into Smoke / Core / Stretch Tiers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-benchmark-suite-tiers.md)
 - [M-BUG-LETREC-SINGLE-CALL: Letrec with Single Recursive Call Fails](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-bug-letrec-single-call.md)
 - [M-BYTECODE-VM-PARITY-BUGS — Remaining VM/Eval Divergences](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-bytecode-vm-parity-bugs.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-call-sugar-optional.md)
@@ -68,7 +67,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
 - [Sprint Plan: M-EVAL-BOUNDED-PIPELINE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-bounded-pipeline-sprint-plan.md)
 - [M-EVAL-BOUNDED-PIPELINE: Fused Bounded Combinators + Memory Ceiling](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-bounded-pipeline.md)
-- [M-EVAL-CATEGORY-ANALYSIS: Per-Category Benchmark Analysis & Curation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-category-analysis.md)
 - [M-EVAL-EXPAND: Expanding the AILANG Eval Bench (Harnesses, Languages, Open-Source Models)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-expand-harnesses-languages.md)
 - [M-EVAL-LAZY-PIPELINE: Lazy List Pipelines to Fix OOM on Large Documents](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-eval-lazy-pipeline.md)
 - [M-EXEC-HIERARCHY-REFACTOR: Executive Hierarchy Graph Visualization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-exec-hierarchy-refactor.md)
@@ -114,4 +112,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 79 planned features across 4 upcoming versions.*
+*Generated at build time. 77 planned features across 4 upcoming versions.*

@@ -1,13 +1,10 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
+import { useEvents, annotationColor } from './useEvents';
 
-// Annotations for significant benchmark suite changes
-const VERSION_ANNOTATIONS = [
-  { version: 'v0.9.1.1', label: '+5 contract benchmarks', color: '#888' },
-];
-
-export default function SuccessTrend({ history, languages }) {
+export default function SuccessTrend({ history, languages, events, selectedTier }) {
+  const annotations = useEvents(events, { selectedTier });
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
@@ -21,7 +18,9 @@ export default function SuccessTrend({ history, languages }) {
     return dateA - dateB;
   });
 
-  // Transform history data for recharts
+  // Transform history data for recharts. When selectedTier is set, prefer
+  // the tier-scoped snapshot (baseline.tiers[t]) so this chart updates
+  // alongside TierToggle instead of showing all-tier numbers.
   const chartData = sortedHistory.map((baseline, index) => {
     const langs = baseline.languages || '';
     const isLatest = index === sortedHistory.length - 1;
@@ -29,8 +28,12 @@ export default function SuccessTrend({ history, languages }) {
     let ailangRate = 0;
     let pythonRate = 0;
 
-    // Check if this baseline has per-language stats (new format)
-    if (baseline.languageStats) {
+    const tierSnap = selectedTier ? baseline.tiers?.[selectedTier] : null;
+
+    if (tierSnap) {
+      ailangRate = (tierSnap.ailang_success_rate || 0) * 100;
+      pythonRate = (tierSnap.python_success_rate || 0) * 100;
+    } else if (baseline.languageStats) {
       ailangRate = (baseline.languageStats.ailang?.success_rate || 0) * 100;
       pythonRate = (baseline.languageStats.python?.success_rate || 0) * 100;
     } else if (isLatest && languages) {
@@ -38,18 +41,14 @@ export default function SuccessTrend({ history, languages }) {
       ailangRate = (languages.ailang?.success_rate || 0) * 100;
       pythonRate = (languages.python?.success_rate || 0) * 100;
     } else if (langs === 'ailang') {
-      // AILANG-only baseline
       const combinedRate = (baseline.successRate || 0) * 100;
       ailangRate = combinedRate;
       pythonRate = 0;
     } else if (langs === 'python') {
-      // Python-only baseline
       const combinedRate = (baseline.successRate || 0) * 100;
       ailangRate = 0;
       pythonRate = combinedRate;
     } else {
-      // Both languages - use combined rate for both (legacy behavior)
-      // This shouldn't happen with new export format
       const combinedRate = (baseline.successRate || 0) * 100;
       ailangRate = combinedRate;
       pythonRate = combinedRate;
@@ -111,16 +110,17 @@ export default function SuccessTrend({ history, languages }) {
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
           />
-          {VERSION_ANNOTATIONS.map(ann => {
+          {annotations.map(ann => {
             const formattedVersion = formatVersion(ann.version);
             const exists = chartData.some(d => d.version === formattedVersion);
+            const color = annotationColor(ann);
             return exists ? (
               <ReferenceLine
-                key={ann.version}
+                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
                 x={formattedVersion}
-                stroke={ann.color}
+                stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: ann.color, fontSize: 11 }}
+                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
               />
             ) : null;
           })}

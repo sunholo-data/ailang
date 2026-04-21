@@ -136,6 +136,17 @@ func LoadBaseline(dir string) (*Baseline, error) {
 
 	baseline.Results = results
 
+	// If baseline.json was missing or carried a zero timestamp (true for
+	// every pre-M-EVAL-SUITE-PREP baseline that only has result JSONs),
+	// fall back to the newest result's timestamp. Without this the history
+	// entry gets serialised as "0001-01-01T00:00:00Z" and PerModelTrend's
+	// `date.getFullYear() > 2000` filter silently drops the version from
+	// the line chart — regression noticed when the recursive hasJSONFiles
+	// fix started picking up these older baselines.
+	if baseline.Timestamp.IsZero() && len(results) > 0 {
+		baseline.Timestamp = results[0].Timestamp
+	}
+
 	// Recalculate stats from loaded results (in case metadata is stale)
 	baseline.TotalBenchmarks = len(results)
 	baseline.SuccessCount = 0
@@ -256,12 +267,17 @@ func fileExists(path string) bool {
 }
 
 func hasJSONFiles(dir string) bool {
-	pattern := filepath.Join(dir, "*.json")
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return false
-	}
-	return len(matches) > 0
+	found := false
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".json" && filepath.Base(path) != "baseline.json" {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // LoadLatestResultsPerModel aggregates results from multiple baselines,
