@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.9.0) - auto-synced from source
+description: The active AILANG teaching prompt (v0.12.1) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.9.0.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.12.1.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.9.0.md -->
-<!-- Active Version: v0.9.0 -->
+<!-- Source: prompts/v0.12.1.md -->
+<!-- Active Version: v0.12.1 -->
 
-# AILANG v0.8.2 - AI Teaching Prompt
+# AILANG v0.11.4 - AI Teaching Prompt
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -173,7 +173,8 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `\(a, b). body` pair syntax | Use `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
 | `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
-| `concat(a, b)` | `a ++ b` - use `++` for string/list concatenation |
+| `concat(a, b)` for strings | `"${a}${b}"` interpolation — `++` is list-only in v0.13.0+ |
+| `concat(a, b)` for lists | `a ++ b` |
 
 ## Let Bindings: Block Style vs Expression Style
 
@@ -839,6 +840,58 @@ export func main() -> () ! {IO} {
 
 **Note:** `chars` is Unicode-aware - emoji and accented characters are handled correctly.
 
+## High-Performance String Builtins (v0.10.4)
+
+For email/HTML/CSV-style processing where naive accumulation is O(n²),
+prefer these single-pass O(n) builtins from `std/string`:
+
+| Function | Use case |
+|----------|----------|
+| `decodeQuotedPrintable(s)` | RFC 2045 §6.7 decode (`=20` → space, soft-line-breaks) |
+| `replaceMany(s, pairs)` | Multi-pattern replace, e.g. HTML entity decode in one pass |
+| `foldSlices(s, delim, acc, f)` | Fold over `split(s, delim)` without allocating the list |
+| `mapSlicesJoin(s, delim, f)` | `split → map → join` in O(n), no intermediate list |
+| `startsWithIgnoreCase(s, p)` | Case-insensitive prefix check (header parsing) |
+
+```ailang
+import std/string (replaceMany, foldSlices, mapSlicesJoin)
+
+-- Decode 23 HTML entities in one pass
+let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
+
+-- Sum line lengths without materializing the list of lines
+let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
+
+-- Uppercase each CSV field
+let upper = mapSlicesJoin(csv, ",", \field. toUpper(field))
+```
+
+`substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
+(common for headers, JSON, XML).
+
+## Polymorphic Comparison Lambdas (v0.11.4)
+
+Let-bound lambdas using only `<`/`>`/`<=`/`>=`/`==`/`!=` are now properly
+polymorphic — they no longer monomorphize to `Int`. This works:
+
+```ailang
+let max = \x. \y. if x > y then x else y in {
+  let a = max(3.14)(2.71);   -- Float
+  let b = max(10)(20);        -- Int
+  let c = max("foo")("bar");  -- String
+  ...
+}
+```
+
+Before v0.11.4, calling `max(3.14)(2.71)` crashed with `gt_Int: expected
+IntValue, got *eval.FloatValue` because the lambda was prematurely defaulted
+to `Int`. The constraint is now preserved through generalization, so the
+correct dictionary (`gt_Int` / `gt_Float` / `gt_String`) is selected at
+each call site.
+
+`Num`/`Fractional` defaulting is unchanged — only `Ord`-only / `Eq`-only /
+`Show`-only constraints stay polymorphic.
+
 ## Operators
 
 | Type | Operators |
@@ -846,8 +899,33 @@ export func main() -> () ! {IO} {
 | Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical | `&&`, `\|\|`, `not` |
-| String/List | `++` (concatenation) |
-| List | `::` (cons/prepend) |
+| Bitwise | `&` (AND), `^` (XOR), `~` (NOT), `<<` (shift left), `>>` (shift right) |
+| List | `++` (concatenation, list-only); `::` (cons/prepend) |
+| String | `"${expr}"` interpolation; `concat([parts])`; `join(sep, parts)` |
+
+**Bitwise operators** (int only, C-standard precedence bands):
+```ailang
+-- AND, XOR, shifts, complement
+println(show(12 & 10))   -- 8
+println(show(12 ^ 10))   -- 6
+println(show(1 << 4))    -- 16
+println(show(16 >> 2))   -- 4
+println(show(~0))         -- -1
+
+-- XOR is self-inverse (encryption pattern)
+let encrypted = 42 ^ 137
+let decrypted = encrypted ^ 137  -- 42
+
+-- Note: bitwise OR (|) is not an operator (conflicts with ADT syntax).
+-- Use bitwiseOr(a, b) from std/math instead.
+```
+
+**Bitwise precedence** (loosest → tightest): `|| && ^ & == < << + *`
+- `&` and `^` bind LOOSER than `==` (C convention: use parens in `(x & mask) == 0`)
+- `<<`/`>>` bind LOOSER than `+` (C convention: use parens in `1 << (n + 1)`)
+- `~` is prefix (same level as unary `-`)
+
+**Signed hash semantics**: AILANG integers are signed 64-bit values. Bitwise and shift operations act on the 64-bit bit pattern. Hash functions may print negative int results even when the underlying bit pattern matches unsigned reference implementations.
 
 ## Boolean Operations
 
@@ -864,19 +942,68 @@ if not isEmpty(list) then process(list) else []
 if !done then retry() else finish()
 ```
 
-## String and List Concatenation
-
-**Use `++` for concatenation (NOT `concat()`):**
+**Short-circuit evaluation (v0.11.3):** `&&` and `||` are lazy — the RHS is NOT
+evaluated when the LHS determines the result. This makes guarded expressions safe:
 
 ```ailang
--- String concatenation
-let greeting = "Hello World"   -- "Hello World"
+-- SAFE: charAt(s, i-1) is only called when i > 0
+if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
 
--- List concatenation
+-- SAFE: lookup never runs when key is missing
+if member(key, m) && lookup(key, m) == target then "match" else "no"
+
+-- || short-circuits: the RHS effect runs only if LHS is false
+if cached || expensiveFetch() then "ok" else "fail"
+```
+
+`&&` and `||` desugar to `if`: `a && b` → `if a then b else false`,
+`a || b` → `if a then true else b`. Both are equivalent to nested `if` but
+much more readable.
+
+## String Interpolation (v0.12.1+, PREFERRED)
+
+**Use `"${expr}"` for building strings with embedded values. This is the preferred, idiomatic form.**
+
+```ailang
+-- Basic substitution: any expression inside ${...}
+let name = "Alice" in
+let age = 30 in
+println("Hello, ${name}! You are ${age} years old.")
+-- → Hello, Alice! You are 30 years old.
+
+-- Arithmetic and function calls inside ${...}
+println("Next year: ${age + 1}, square: ${age * age}")
+println("First letter: ${substring(name, 0, 1)}")
+
+-- Nested braces work (record literals, field access, let-blocks)
+println("Point: ${show({x: 1, y: 2}.x)}")
+println("Squared: ${let sq = age * age in sq}")
+
+-- Escape with backslash to get a literal ${
+println("Use \${var} to interpolate.")
+-- → Use ${var} to interpolate.
+```
+
+**How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
+`show_String` is identity, so string-typed values are spliced without quoting. Any `Show`-able type
+works automatically (int, float, bool, records, ADTs).
+
+## String and List Concatenation
+
+**`++` is for lists only (v0.13.0+). For strings, use `"${...}"` interpolation,
+`concat([parts])` from `std/string`, or `join(sep, parts)`.**
+
+```ailang
+-- Strings: use interpolation
+let msg = "Count: ${length(items)}"
+let greeting = "Hello ${name}"
+
+-- Strings: concat a list of parts
+import std/string (concat)
+let s = concat(["Hello", " ", "World"])
+
+-- Lists: ++ concatenates
 let combined = [1, 2] ++ [3, 4]            -- [1, 2, 3, 4]
-
--- Mixed in expressions
-let msg = "Count: ${show(length(items))}"
 ```
 
 ## Pattern Matching
@@ -1431,6 +1558,31 @@ export func main() -> () ! {IO, FS} {
 
 Run: `ailang run --entry main --caps IO,FS file.ail`
 
+## Tar + Gzip (std/tar, std/gzip) — v0.12.0+
+
+Native reading of `.tar`, `.tar.gz`, and raw gzip streams. No shell-out, no temp files. Matches `std/zip` conventions: binary data crosses as base64.
+
+```ailang
+import std/tar (readFromGzip, extractAll)
+import std/gzip (decompress, decompressFile)
+
+-- Pull one file straight from a .tar.gz (primary use: arXiv bundles)
+match readFromGzip("paper.tar.gz", "main.tex") {
+  Ok(tex) => println(tex),
+  Err(msg) => println("read failed: ${msg}")
+}
+
+-- Safe extraction: rejects ../ entries, symlinks, absolute paths
+match extractAll("archive.tar", "./dest") {
+  Ok(paths) => println("wrote ${show(length(paths))} files"),
+  Err(msg) => println("blocked: ${msg}")
+}
+```
+
+- `std/gzip`: `decompress(b64)`, `compress(b64, level)` — **pure**; `decompressFile(path) ! {FS}`
+- `std/tar`: `listEntries`, `readEntry`, `readEntryBytes`, `extractAll`, `readFromGzip`, `readFromGzipBytes` — all `! {FS}`
+- Caps: 10K entries, 100MB decompressed per entry (bomb defence). Respects `AILANG_FS_SANDBOX`.
+
 ## XML Parsing (std/xml)
 
 Parse and query XML documents. **Pure functions** (no effect needed):
@@ -1491,6 +1643,144 @@ match _zip_readEntry("report.docx", "word/document.xml") {
   Err(e) => println("ZIP error: ${e}")
 }
 ```
+
+## Streaming XML / Bounded Folds (v0.10.1, v0.11.3)
+
+For large XML (multi-MB) inside ZIP archives, `parseFold` and `scanFold`
+fold over `<tag>` elements **without materializing the whole document**:
+
+```ailang
+import std/xml (parseFold, getText, getAttr)
+import std/zip (scanFold)
+import std/iter (FoldStep, Continue, Stop)
+import std/option (Some, None)
+
+-- Pure: fold over rows in an XML string
+let total = parseFold(xml, "row", 0, \acc node.
+  acc + 1
+)
+
+-- Effectful: fold over rows directly from a ZIP entry (never materializes XML)
+let count = scanFold("data.xlsx", "xl/sharedStrings.xml", "si", 0,
+  \acc node. acc + 1
+)
+```
+
+**Bounded prefix scans (v0.11.3):** When you only need the first N rows of a
+50K-row sheet, return `Stop(acc)` to halt the scan immediately:
+
+```ailang
+import std/xml (parseFoldStep)
+import std/iter (FoldStep, Continue, Stop)
+
+-- Take first 5000 rows then stop — the rest of the document isn't scanned
+let first5k = parseFoldStep(xml, "row", [], \acc node.
+  if length(acc) >= 5000
+    then Stop(acc)
+    else Continue(acc ++ [getText(node)])
+)
+```
+
+`parseFoldStep` and `scanFoldStep` mirror `parseFold`/`scanFold` but the
+handler returns `FoldStep[a] = Continue(a) | Stop(a)`. Use them whenever
+the document is much larger than what you need.
+
+## Maps (std/map, v0.10.1)
+
+`Map[k, v]` — immutable hash map, O(1) lookup, copy-on-write inserts:
+
+```ailang
+import std/map as M
+
+let m0 = M.empty()
+let m1 = M.insert(m0, "alice", 30)
+let m2 = M.insert(m1, "bob", 25)
+
+match M.lookup(m2, "alice") {
+  Some(age) => println(show(age)),  -- 30
+  None      => println("missing")
+}
+
+println(show(M.size(m2)))          -- 2
+println(show(M.member(m2, "bob")))  -- true
+
+-- Iteration is sorted (deterministic)
+let xs = M.toList(m2)               -- [("alice", 30), ("bob", 25)]
+let m3 = M.fromList([("c", 1), ("d", 2)])
+```
+
+Builtins: `empty`, `insert`, `lookup`, `member`, `remove`, `size`,
+`keys`, `values`, `fromList`, `toList`. Keys can be int/string/bool —
+keys use canonical encoding internally.
+
+## JWT Verification (std/jwt, v0.10.0)
+
+Pure JWT parsing and RS256 signature verification (e.g., Firebase ID tokens):
+
+```ailang
+import std/jwt (decodeJWT, verifyRS256, verifyWithKid, isExpired, checkIssuer)
+
+-- Decode without verification (for inspection)
+match decodeJWT(token) {
+  Ok({header, payload, signature}) => println(payload),
+  Err(msg) => println("decode failed: ${msg}")
+}
+
+-- Verify RS256 signature against a PEM public key
+match verifyRS256(token, pemPublicKey) {
+  Ok(claims) => if isExpired(claims, nowUnix) then "expired" else "valid",
+  Err(msg)   => "invalid: ${msg}"
+}
+
+-- Firebase/OAuth pattern: select key by 'kid' header
+verifyWithKid(token, \kid. lookupKey(kid, jwks))
+```
+
+Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
+`std/crypto`, plus `fromBase64URL` in `std/bytes` (RFC 4648 §5, no padding).
+JWT functions are pure — fetch keys yourself via `std/net`.
+
+## Custom Tracing (std/trace, v0.11.1)
+
+Emit OTEL-compatible spans and events from AILANG code. Requires `Trace` effect:
+
+```ailang
+import std/trace (spanStart, spanEnd, event)
+
+export func processBatch(items: [Item]) -> int ! {Trace, IO} {
+  spanStart("batch.process");
+  event("batch.size", show(length(items)));
+  let n = doWork(items);
+  spanEnd("batch.process");
+  n
+}
+```
+
+Run: `ailang run --caps IO,Trace --emit-trace jsonl --entry main file.ail`
+
+In WASM, register a JS callback via `ailangSetTraceHandler` to receive
+events live (function_enter/exit, effect, contract_check, budget_delta).
+
+## Process Exit (v0.10.1)
+
+`exit(code: int) -> ()` in `std/io` terminates the process with a specific
+exit code. Required for CLI tools that need to signal failure:
+
+```ailang
+import std/io (println, exit)
+
+export func main() -> () ! {IO} {
+  match validate(args) {
+    Ok(())   => println("ok"),
+    Err(msg) => {
+      println("error: ${msg}");
+      exit(1)
+    }
+  }
+}
+```
+
+Telemetry/traces are flushed before the process exits.
 
 ## Arrays (O(1) indexed access)
 
@@ -1640,9 +1930,9 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 
 **What can be verified** (decidable fragment):
 - Types: `int`, `bool`, `string`, enum ADT, record, `[int]` lists
-- Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`)
+- Arithmetic (`+`, `-`, `*`, `/`), comparison (`>=`, `<=`, `==`, `!=`), logical (`&&`, `||`), bitwise (`&`, `^`, `~`, `<<`, `>>`)
 - `if`/`else`, `let` bindings, `match` on enums/ADTs
-- String ops (use `std/string`): `length`, `startsWith`, `endsWith`, `find`, `substring`, `contains`, concat (`++`)
+- String ops (use `std/string`): `length`, `startsWith`, `endsWith`, `find`, `substring`, `contains`; `concat` (list of strings); `"${expr}"` interpolation
 - List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
 - Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
 - Cross-function calls: Z3 inlines callees to reason about full call chains
@@ -1843,3 +2133,20 @@ ailang repl                                           # Interactive REPL
 ```
 
 **Flags must come BEFORE the filename!**
+
+### FS Sandbox
+
+Restrict all file system operations to a directory with `AILANG_FS_SANDBOX`:
+
+```bash
+AILANG_FS_SANDBOX=/tmp/work ailang run --entry main --caps IO,FS file.ail
+```
+
+When set, all paths are resolved relative to the sandbox root:
+- `readFile("data.txt")` reads `/tmp/work/data.txt`
+- `writeFile("out.txt", s)` writes `/tmp/work/out.txt`
+- `_zip_listEntries("archive.zip")` opens `/tmp/work/archive.zip`
+
+Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
+
+If unset (default), paths resolve normally from the process working directory.

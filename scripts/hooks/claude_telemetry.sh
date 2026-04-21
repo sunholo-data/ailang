@@ -21,7 +21,8 @@
 # Environment:
 #   AILANG_OBSERVATORY_URL - Observatory endpoint (default: http://localhost:1957)
 
-set -euo pipefail
+set -u
+trap 'exit 0' ERR
 
 # Configuration
 OBSERVATORY_URL="${AILANG_OBSERVATORY_URL:-http://localhost:1957}"
