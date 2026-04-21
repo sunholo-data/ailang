@@ -7,19 +7,16 @@ on:
     branches: [ main, dev ]
   workflow_dispatch:
 
-# Least-privilege default. The `test` job overrides to `contents: write`
-# because it auto-commits updated README badges + example status on dev
-# pushes (see git-auto-commit-action below). The `dependency-submission`
-# job also overrides — it submits the dependency graph back to GitHub.
+# Least-privilege default. The `dependency-submission` job overrides
+# to `contents: write` because it submits the dependency graph back
+# to GitHub; every other job runs read-only.
 permissions:
   contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
+
     steps:
     - uses: actions/checkout@v6
       with:
@@ -180,29 +177,6 @@ jobs:
       run: |
         make verify-examples-trace > trace_output.txt 2>&1 || true
         cat trace_output.txt
-
-    - name: Update example status and coverage in README
-      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      run: |
-        # Use the Makefile which handles module paths correctly
-        make update-readme
-
-        # Use COVERAGE from GITHUB_ENV (set in "Generate test coverage" step)
-        # and COVERAGE_COLOR also from env
-
-        # Update the coverage badge in README
-        sed -i "s|!\[Coverage\](https://img.shields.io/badge/coverage-[0-9.]*%25-[a-z]*.svg)|![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COVERAGE_COLOR}.svg)|g" README.md
-
-        echo "Updated coverage badge to ${COVERAGE}% with color ${COVERAGE_COLOR}"
-    
-    - name: Commit README and docs updates
-      if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      uses: stefanzweifel/git-auto-commit-action@v7
-      with:
-        commit_message: 'Update example verification status and coverage [skip ci]'
-        file_pattern: 'README.md docs/docs/examples.mdx'
-        commit_user_name: github-actions[bot]
-        commit_user_email: github-actions[bot]@users.noreply.github.com
 
   build:
     runs-on: ubuntu-latest
