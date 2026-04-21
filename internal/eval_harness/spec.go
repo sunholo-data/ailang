@@ -2,11 +2,16 @@ package eval_harness
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	promptpkg "github.com/sunholo/ailang/internal/prompt"
 	"gopkg.in/yaml.v3"
 )
+
+// unknownTagWarner is the writer used for unknown-tag warnings.
+// Package-level so tests can capture warnings by swapping it.
+var unknownTagWarner io.Writer = os.Stderr
 
 // BenchmarkSpec defines a single benchmark task
 type BenchmarkSpec struct {
@@ -29,6 +34,55 @@ type BenchmarkSpec struct {
 	Stdin      string            `yaml:"stdin,omitempty"`       // Stdin data to pipe to the program
 	CliArgs    []string          `yaml:"cli_args,omitempty"`    // CLI arguments to pass after the script
 	InputFiles map[string]string `yaml:"input_files,omitempty"` // Files to create in workspace: {filename: content}
+
+	// Eval suite classification (M-EVAL-SUITE-PREP, v0.14.0)
+	Tier string   `yaml:"tier,omitempty"` // One of: smoke|core|stretch|vision. Missing defaults to "core".
+	Tags []string `yaml:"tags,omitempty"` // 1-3 tags from ValidTagTaxonomy. May be empty during migration.
+}
+
+// ValidTiers lists the allowed values for BenchmarkSpec.Tier.
+// Tier structure is defined in design_docs/planned/v0_13_0/m-benchmark-suite-tiers.md.
+var ValidTiers = []string{"smoke", "core", "stretch", "vision"}
+
+// ValidTagTaxonomy lists the 12-tag taxonomy for BenchmarkSpec.Tags.
+// Tag definitions are in design_docs/planned/v0_13_0/m-eval-category-analysis.md §Component 1.
+var ValidTagTaxonomy = []string{
+	"adt_pattern_match", // ADT construction + pattern matching
+	"recursion",         // Recursive algorithms, tree traversal
+	"effects_io",        // IO, FS, environment effects
+	"contracts",         // requires/ensures, invariant checking
+	"data_transform",    // JSON, CSV, config parsing/encoding
+	"records",           // Record creation, update, access
+	"functional",        // HOFs, fold, pipeline, lambda
+	"type_safety",       // Type-level correctness, unification
+	"string_algo",       // String processing, encoding
+	"state_machine",     // Stateful computation, threading
+	"algorithmic",       // General algorithms, sorting, search
+	"error_handling",    // Option types, Result, error recovery
+}
+
+// defaultTier is returned when a benchmark YAML omits the tier field.
+// Back-compat per m-benchmark-suite-tiers.md §Implementation Plan Phase 1.
+const defaultTier = "core"
+
+// isValidTier reports whether t is one of ValidTiers.
+func isValidTier(t string) bool {
+	for _, v := range ValidTiers {
+		if v == t {
+			return true
+		}
+	}
+	return false
+}
+
+// isKnownTag reports whether tag is in ValidTagTaxonomy.
+func isKnownTag(tag string) bool {
+	for _, v := range ValidTagTaxonomy {
+		if v == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadSpec loads a benchmark spec from a YAML file
@@ -49,6 +103,21 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 	}
 	if len(spec.Languages) == 0 {
 		return nil, fmt.Errorf("spec missing required field: languages")
+	}
+
+	// Tier + Tags validation (M-EVAL-SUITE-PREP)
+	if spec.Tier == "" {
+		spec.Tier = defaultTier
+	} else if !isValidTier(spec.Tier) {
+		return nil, fmt.Errorf("spec %q: invalid tier %q (must be one of %v)", spec.ID, spec.Tier, ValidTiers)
+	}
+	if len(spec.Tags) > 3 {
+		return nil, fmt.Errorf("spec %q: too many tags (%d); max 3 per benchmark", spec.ID, len(spec.Tags))
+	}
+	for _, tag := range spec.Tags {
+		if !isKnownTag(tag) {
+			fmt.Fprintf(unknownTagWarner, "warning: benchmark %q uses unknown tag %q (not in ValidTagTaxonomy)\n", spec.ID, tag)
+		}
 	}
 
 	// No backward compatibility - benchmarks must use prompt_files

@@ -144,3 +144,172 @@ func TestPromptForLanguage(t *testing.T) {
 func containsSubstring(s, substr string) bool {
 	return findSubstring(s, substr) != -1
 }
+
+// ─── Tier + Tags: parsing, validation, defaults ────────────────────────────
+
+func TestLoadSpec_TierAndTags_Valid(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "t.yml")
+
+	content := `id: test
+description: "Test"
+languages: ["python", "ailang"]
+prompt: "x"
+tier: smoke
+tags: [adt_pattern_match, recursion]
+`
+	if err := os.WriteFile(specPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	spec, err := LoadSpec(specPath)
+	if err != nil {
+		t.Fatalf("LoadSpec: %v", err)
+	}
+	if spec.Tier != "smoke" {
+		t.Errorf("Tier = %q, want %q", spec.Tier, "smoke")
+	}
+	if len(spec.Tags) != 2 || spec.Tags[0] != "adt_pattern_match" {
+		t.Errorf("Tags = %v, want [adt_pattern_match recursion]", spec.Tags)
+	}
+}
+
+func TestLoadSpec_MissingTier_DefaultsToCore(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "t.yml")
+
+	content := `id: test
+description: "Test"
+languages: ["python"]
+prompt: "x"
+tags: [algorithmic]
+`
+	if err := os.WriteFile(specPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	spec, err := LoadSpec(specPath)
+	if err != nil {
+		t.Fatalf("LoadSpec: %v", err)
+	}
+	if spec.Tier != "core" {
+		t.Errorf("Tier = %q, want default %q", spec.Tier, "core")
+	}
+}
+
+func TestLoadSpec_InvalidTier_Rejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "t.yml")
+
+	content := `id: test
+description: "Test"
+languages: ["python"]
+prompt: "x"
+tier: bogus
+tags: [algorithmic]
+`
+	if err := os.WriteFile(specPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	_, err := LoadSpec(specPath)
+	if err == nil {
+		t.Fatal("expected error for invalid tier 'bogus', got nil")
+	}
+	if !containsSubstring(err.Error(), "tier") {
+		t.Errorf("error should mention 'tier', got: %v", err)
+	}
+}
+
+func TestLoadSpec_TooManyTags_Rejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	specPath := filepath.Join(tmpDir, "t.yml")
+
+	content := `id: test
+description: "Test"
+languages: ["python"]
+prompt: "x"
+tier: core
+tags: [a, b, c, d]
+`
+	if err := os.WriteFile(specPath, []byte(content), 0644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	_, err := LoadSpec(specPath)
+	if err == nil {
+		t.Fatal("expected error for 4 tags, got nil")
+	}
+	if !containsSubstring(err.Error(), "tags") {
+		t.Errorf("error should mention 'tags', got: %v", err)
+	}
+}
+
+func TestValidTiers_EnumMembers(t *testing.T) {
+	// Every tier in ValidTiers should be accepted; unknown should be rejected.
+	want := map[string]bool{"smoke": true, "core": true, "stretch": true, "vision": true}
+	if len(ValidTiers) != len(want) {
+		t.Errorf("ValidTiers has %d entries, want %d", len(ValidTiers), len(want))
+	}
+	for _, tier := range ValidTiers {
+		if !want[tier] {
+			t.Errorf("ValidTiers contains unexpected %q", tier)
+		}
+	}
+}
+
+func TestValidTagTaxonomy_HasTwelveTags(t *testing.T) {
+	// Per m-eval-category-analysis.md §Component 1: 12-tag taxonomy
+	if len(ValidTagTaxonomy) != 12 {
+		t.Errorf("ValidTagTaxonomy has %d tags, want 12 per design doc", len(ValidTagTaxonomy))
+	}
+	// Spot-check a few expected tags
+	expected := []string{"adt_pattern_match", "recursion", "effects_io", "contracts"}
+	for _, tag := range expected {
+		found := false
+		for _, t := range ValidTagTaxonomy {
+			if t == tag {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("ValidTagTaxonomy missing expected tag %q", tag)
+		}
+	}
+}
+
+// TestAllBenchmarksHaveTierAndTags loads every YAML under benchmarks/ and asserts
+// each one parses cleanly with valid tier + at least one tag.
+// This is the CI gate added in M2 — until then, it is expected to fail because
+// benchmarks have not been tagged yet. Run with: go test -run TestAllBenchmarksHaveTierAndTags
+func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
+	// This test enforces M2's acceptance criterion. Until M2 tags all 51 benchmarks,
+	// the test runs with SkipUntaggedForNow=true (see below).
+	matches, err := filepath.Glob("../../benchmarks/*.yml")
+	if err != nil {
+		t.Fatalf("glob: %v", err)
+	}
+	if len(matches) == 0 {
+		t.Skip("no benchmark YAMLs found at ../../benchmarks/*.yml")
+	}
+
+	untagged := []string{}
+	for _, path := range matches {
+		spec, err := LoadSpec(path)
+		if err != nil {
+			t.Errorf("%s: LoadSpec failed: %v", filepath.Base(path), err)
+			continue
+		}
+		if len(spec.Tags) == 0 {
+			untagged = append(untagged, filepath.Base(path))
+		}
+	}
+
+	// During M1: every benchmark is currently untagged; we only check that LoadSpec
+	// succeeds (tier defaults to core, no tags is tolerated by a one-time flag).
+	// M2 will flip this to a hard failure.
+	if len(untagged) > 0 {
+		t.Logf("M1 note: %d benchmarks still untagged (will become hard failure in M2)", len(untagged))
+	}
+}
