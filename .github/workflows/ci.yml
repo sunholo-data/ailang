@@ -133,7 +133,7 @@ jobs:
     # continue-on-error keeps CI green if the secret is missing or the scan
     # service has a hiccup — Sonar is a reporting layer, not a gate.
     - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@v5
+      uses: SonarSource/sonarqube-scan-action@v7
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

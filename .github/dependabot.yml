@@ -1,0 +1,69 @@
+version: 2
+updates:
+  # Go modules — shipped binary. Group patches so PRs don't fragment.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      otel:
+        patterns:
+          - "go.opentelemetry.io/*"
+      grpc-protobuf:
+        patterns:
+          - "google.golang.org/grpc*"
+          - "google.golang.org/protobuf*"
+      patches:
+        update-types:
+          - patch
+
+  # GitHub Actions — keep our workflow actions pinned to current patched majors.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Docusaurus build dependencies. Dev tooling, not shipped — allow Dependabot
+  # to batch these into weekly grouped PRs so they don't drown us in alerts.
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      docusaurus:
+        patterns:
+          - "@docusaurus/*"
+      all-patches:
+        update-types:
+          - patch
+
+  # Control-plane / collab-hub UI. Shipped React app.
+  - package-ecosystem: npm
+    directory: /ui
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-*"
+          - "@types/react*"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+      all-patches:
+        update-types:
+          - patch
