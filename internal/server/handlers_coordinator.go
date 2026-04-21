@@ -304,7 +304,7 @@ func (s *Server) handleCoordinatorTaskEvents(w http.ResponseWriter, r *http.Requ
 
 	// Debug logging
 	log.Printf("[DEBUG] Server received task event: type=%s task=%s (wsClients=%d)",
-		streamType, req.TaskID, s.wsServer.GetConnectionCount())
+		coordinator.SanitizeLog(streamType), coordinator.SanitizeLog(req.TaskID), s.wsServer.GetConnectionCount())
 
 	// Broadcast to all WebSocket clients
 	s.wsServer.BroadcastTaskEvent(event)
