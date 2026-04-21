@@ -339,10 +339,10 @@ ailang eval-matrix eval_results/baselines/v0.3.16 0.3.16 | head -60
 ```
 
 **Look for:**
-- Overall success rate (target: >60%)
-- AILANG vs Python gap (current: ~54%)
-- Model performance variance
-- Top error codes
+- Core tier pass rate (the headline metric in v0.14.0+)
+- AILANG vs Python gap on Core specifically — not on the full suite
+- Model performance variance within dev_models vs extended_suite
+- Top error codes and top refused benchmarks (see `DetectRefusal`)
 
 ### Step 2: Identify Problem Areas
 
@@ -372,25 +372,37 @@ jq -s 'map(select(.lang == "ailang")) |
   eval_results/baselines/v0.3.20/summary.jsonl
 
 # Dev models only (useful for prompt testing)
-jq -s 'map(select(.lang == "ailang" and
-  (.model == "gpt5-mini" or .model == "claude-haiku-4-5" or .model == "gemini-2-5-flash"))) |
-  {total: length, success: (map(select(.stdout_ok == true)) | length),
-   rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
-  eval_results/baselines/v0.3.20/summary.jsonl
+# Dev models are sourced from internal/eval_harness/models.yml — DO NOT hardcode.
+DEV_MODELS_JQ=$(. .claude/skills/_shared/scripts/eval_lib.sh && \
+  dev_models_csv | awk -F, '{for(i=1;i<=NF;i++) printf "\"%s\"%s", $i, (i<NF?",":"")}')
+jq -s --argjson devs "[$DEV_MODELS_JQ]" \
+  'map(select(.lang == "ailang" and (.model as $m | $devs | index($m)))) |
+   {total: length, success: (map(select(.stdout_ok == true)) | length),
+    rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
+  eval_results/baselines/$VERSION/summary.jsonl
 
 # Check specific benchmark across all models
 jq -s 'map(select(.benchmark == "explicit_state_threading" and .lang == "ailang")) |
   map({model, success: .stdout_ok, error: .error_category})' \
-  eval_results/baselines/v0.3.20/summary.jsonl
+  eval_results/baselines/$VERSION/summary.jsonl
 
-# Compare two versions (dev models AILANG-only)
-jq -s 'map(select(.lang == "ailang" and
-  (.model == "gpt5-mini" or .model == "claude-haiku-4-5" or .model == "gemini-2-5-flash"))) |
-  {total: length, success: (map(select(.stdout_ok == true)) | length),
-   rate: ((map(select(.stdout_ok == true)) | length) * 100.0 / length)}' \
-  eval_results/baselines/v0.3.20/summary.jsonl \
-  eval_results/baselines/v0.3.21/summary.jsonl
 ```
+
+**For tier/tag aggregates, prefer the CLI** — `summary.jsonl` rows have no `tier` or
+`tags` fields, so jq alone can't filter by tier. Use one of these instead:
+
+```bash
+# Per-tier pass rate (headline Core number + stretch/vision breakdown)
+jq '.tiers' eval_results/baselines/$VERSION/latest.json  # dashboard JSON
+
+# Tier-aware analysis surface (v0.14.0+)
+ailang eval-matrix --by-tags          # pass rate grouped by the 12-tag taxonomy
+ailang eval-matrix --show-saturated   # benchmarks where all langs ≥ 95% (demote candidates)
+ailang eval-matrix --ailang-wins      # benchmarks where AILANG ≥ Python by ≥ 10pp (keep)
+```
+
+For more tier/tag jq recipes see [`resources/jq_queries.md`](resources/jq_queries.md) —
+the "Tier- and tag-aware queries (v0.14.0+)" section.
 
 **For more jq patterns**, see [`resources/jq_queries.md`](resources/jq_queries.md)
 
@@ -428,15 +440,38 @@ Based on the data, identify:
 
 ## Key Metrics to Track
 
-1. **Overall Success Rate**: AILANG vs Python gap (target: reduce below 50%)
+1. **Core-tier pass rate** (v0.14.0+ headline metric) — the AILANG vs Python comparison
+   is computed on the Core tier only. Don't average the full suite; it mixes smoke (trivial),
+   vision (research-grade) and Core (real signal) and the number becomes meaningless.
 2. **Error Code Distribution**:
-   - PAR_001 (parse errors) - indicates prompt/syntax issues
-   - WRONG_LANG - models writing Python instead of AILANG
-   - IMPERATIVE - models using imperative patterns
-3. **Model Performance**: Which models work best with AILANG
-4. **Benchmark-Level**: Which benchmarks consistently fail
-5. **Cost Efficiency**: Success rate per dollar spent
-6. **Repair Success**: Is self-repair helping? (currently low)
+   - PAR_001 (parse errors) — prompt/syntax issues
+   - WRONG_LANG — models writing Python instead of AILANG
+   - IMPERATIVE — models using imperative patterns
+   - **Refusals** — use `DetectRefusal` (`internal/eval_analysis/refusal.go`); important to
+     distinguish "the model refused" from "the model attempted but failed"
+3. **Per-tag gaps** — run `ailang eval-matrix --by-tags` to see which areas of the 12-tag
+   taxonomy we're losing in. Target the largest negative gaps first.
+4. **Saturated benchmarks** — `--show-saturated` shows benchmarks where *every* language
+   passes consistently. These add no signal; demote or rotate out.
+5. **AILANG-only wins** — `--ailang-wins` shows benchmarks where AILANG beats Python. Keep
+   these as the "why AILANG" evidence set even if other metrics shift.
+6. **Cost Efficiency** — success rate per dollar spent (separate dev vs extended models).
+7. **Repair Success** — is agent mode's self-repair helping? (track delta: first-attempt vs final).
+
+## Benchmark Rotation Philosophy
+
+The eval suite is **curated, not accumulated**. The goal is high-signal benchmarks — ones
+that tell us something about relative performance across AILANG, Python, and agent harnesses.
+When reviewing a baseline, we ask three questions in order:
+
+1. **Is a benchmark saturated across all langs?** (`--show-saturated`) → demote or retire.
+2. **Is a benchmark an AILANG-only win?** (`--ailang-wins`) → keep as a value proxy, even
+   if the Python rate changes later.
+3. **Is a tag under-covered?** (`--by-tags` with low benchmark counts) → add targeted benchmarks.
+
+Time-series continuity matters less than relative signal. Keeping a saturated benchmark
+purely for regression defense has a cost (noise, runtime, agent budget) — do it sparingly,
+and only where a past bug could plausibly regress.
 
 ## Common Issues
 

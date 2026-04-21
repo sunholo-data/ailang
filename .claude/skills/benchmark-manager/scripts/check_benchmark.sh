@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/../../_shared/scripts/eval_lib.sh"
+
 BENCHMARK_FILE="${1:-}"
 
 if [[ -z "$BENCHMARK_FILE" ]]; then
@@ -23,8 +27,8 @@ WARNINGS=0
 echo "Checking: $BENCHMARK_FILE"
 echo ""
 
-# Check for required fields
-REQUIRED_FIELDS=("id" "description" "languages" "entrypoint" "caps" "expected_stdout")
+# Check for required fields (v0.14.0+: tier and tags are required by LoadSpec)
+REQUIRED_FIELDS=("id" "description" "languages" "entrypoint" "caps" "expected_stdout" "tags")
 
 for field in "${REQUIRED_FIELDS[@]}"; do
     if ! grep -q "^${field}:" "$BENCHMARK_FILE"; then
@@ -32,6 +36,69 @@ for field in "${REQUIRED_FIELDS[@]}"; do
         ((ERRORS++))
     fi
 done
+
+# Tier is optional (defaults to "core") but warn if missing
+if ! grep -q "^tier:" "$BENCHMARK_FILE"; then
+    echo "WARNING: No tier field — will default to 'core'"
+    echo "  -> Valid tiers: smoke, core, stretch, vision"
+    echo "  -> See benchmarks/CURATION.md for tier definitions"
+    ((WARNINGS++))
+else
+    TIER=$(grep "^tier:" "$BENCHMARK_FILE" | head -1 | sed 's/tier:[[:space:]]*//' | tr -d '"' | tr -d "'" | tr -d '[:space:]')
+    case "$TIER" in
+        smoke|core|stretch|vision) ;;
+        *)
+            echo "ERROR: Invalid tier '$TIER' — must be one of: smoke, core, stretch, vision"
+            ((ERRORS++))
+            ;;
+    esac
+fi
+
+# Validate tags against the canonical 12-tag taxonomy (spec.go ValidTagTaxonomy).
+# Supports both flow style `tags: [a, b, c]` and block style (`- a` on each line).
+# Max 3 tags per benchmark.
+if grep -q "^tags:" "$BENCHMARK_FILE"; then
+    TAGS_LINE=$(grep -m1 "^tags:" "$BENCHMARK_FILE")
+    TAGS_CSV=""
+    if [[ "$TAGS_LINE" =~ \[(.*)\] ]]; then
+        # Flow style: tags: [foo, bar, baz]
+        TAGS_CSV=$(echo "${BASH_REMATCH[1]}" | tr -d '[:space:]"'\''')
+    else
+        # Block style
+        TAGS_RAW=$(awk '
+            /^tags:/ {in_block=1; next}
+            in_block && /^[[:space:]]*-/ {
+                s=$0
+                sub(/^[[:space:]]*-[[:space:]]*/, "", s)
+                sub(/#.*$/, "", s)
+                gsub(/"/, "", s)
+                gsub(/\047/, "", s)
+                gsub(/[[:space:]]+$/, "", s)
+                if (s != "") print s
+                next
+            }
+            in_block && /^[^[:space:]-]/ {in_block=0}
+        ' "$BENCHMARK_FILE")
+        TAGS_CSV=$(echo "$TAGS_RAW" | paste -sd ',' -)
+    fi
+
+    if [[ -z "$TAGS_CSV" ]]; then
+        echo "ERROR: tags field is present but has no entries"
+        ((ERRORS++))
+    else
+        TAG_COUNT=$(echo "$TAGS_CSV" | tr ',' '\n' | grep -c .)
+        if [[ "$TAG_COUNT" -gt 3 ]]; then
+            echo "ERROR: too many tags ($TAG_COUNT) — maximum is 3 per benchmark"
+            ((ERRORS++))
+        fi
+        if ! validate_tags "$TAGS_CSV" 2>/dev/null; then
+            echo "ERROR: non-canonical tag(s) in: $TAGS_CSV"
+            echo "  -> Canonical tags: $(canonical_tags_csv)"
+            echo "  -> See benchmarks/CURATION.md for tag definitions"
+            ((ERRORS++))
+        fi
+    fi
+fi
 
 # Check for prompt vs task_prompt
 if grep -q "^prompt:" "$BENCHMARK_FILE"; then

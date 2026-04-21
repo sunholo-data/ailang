@@ -4,23 +4,29 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/../../_shared/scripts/eval_lib.sh"
+
 BENCHMARK_ID="${1:-}"
 MODEL="${2:-claude-haiku-4-5}"
 
 if [[ -z "$BENCHMARK_ID" ]]; then
+    DEV_MODELS="$(dev_models_csv || true)"
     echo "Usage: test_benchmark.sh <benchmark_id> [model]"
     echo ""
     echo "Arguments:"
     echo "  benchmark_id  The benchmark ID (e.g., json_parse)"
     echo "  model         Model to test with (default: claude-haiku-4-5)"
     echo ""
-    echo "Available models (from models.yml):"
-    echo "  - claude-haiku-4-5 (cheap, fast - good for debugging)"
-    echo "  - claude-sonnet-4-5"
-    echo "  - gpt5-mini (cheap)"
-    echo "  - gpt5"
-    echo "  - gemini-2-5-flash (cheap)"
-    echo "  - gemini-2-5-pro"
+    echo "Recommended models for debugging (dev tier — cheap/fast):"
+    if [[ -n "$DEV_MODELS" ]]; then
+        echo "  $DEV_MODELS"
+    else
+        echo "  (could not resolve dev_models from internal/eval_harness/models.yml)"
+    fi
+    echo ""
+    echo "Full model list: see internal/eval_harness/models.yml"
     exit 1
 fi
 

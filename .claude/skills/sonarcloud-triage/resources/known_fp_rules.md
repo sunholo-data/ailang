@@ -1,0 +1,38 @@
+# Known false-positive / safe rules
+
+Standing decisions per SonarCloud rule for `sunholo-data_ailang`. The `Comment` column
+is the **exact text to paste** when marking the rule via `mark_safe.sh` or `mark_fp.sh` —
+it becomes the audit-trail entry on SonarCloud, so reviewers later understand why.
+
+Add to this list whenever a new rule is triaged. Never bulk-mark a rule that isn't
+listed here (or listed as `Review required`).
+
+## Hotspots — bulk via `mark_safe.sh RULE_KEY "comment"`
+
+| Rule | Scope | Verdict | Comment |
+|------|-------|---------|---------|
+| `go:S2245` | `internal/observatory/seed.go` (math/rand) | **Safe** | Deterministic seeding for reproducible benchmarks; crypto/rand would break reproducibility. |
+| `go:S4036` | `cmd/ailang/` (exec from PATH) | **Safe** | Running known dev tools (git/go/ailang) from PATH is standard for a developer CLI. |
+| `go:S1313` | `internal/apiserver/`, `internal/effects/stream_context.go` | **Safe** | Localhost / example IP constants, not secrets. |
+| `typescript:S5852` | `ui/src/.../evolutionTreeUtils.ts`, `smartLabel.ts` | **Safe** | ReDoS bounded by internal event-label inputs; never receives user content. |
+| `typescript:S2245` | `ui/src/.../useEventQueue.ts` | **Safe** | Math.random used for UI jitter/debounce, not security-sensitive. |
+| `go:S4507` | `cmd/ailang/main_run.go:154` | **Safe** | Opt-in CLI flag for pprof; standard Go CLI debug feature pattern. |
+| `go:S5445` | `internal/coordinator/worktree.go:49`, `cmd/ailang/eval_suite.go:535` | **Safe** | Intentional shared workspace paths; coordinator runs in single-tenant contexts. |
+| `go:S2077` | `internal/observatory/`, `internal/messaging/inbox.go`, `internal/coordinator/store_sqlite.go` | **Review required** | Likely dynamic table/column names with whitelisted values — spot-check before bulk-marking. |
+
+## Issues — per-issue via `mark_fp.sh ISSUE_KEY "comment"`
+
+| Rule | File:line | Verdict | Comment |
+|------|-----------|---------|---------|
+| `gosecurity:S6096` | `internal/builtins/tar.go:472,476,484` | **False Positive** | Guarded by isEntryPathTraversal + filepath.Rel containment check at lines 458-468; analyzer doesn't follow the guard. |
+| `go:S5542` | `internal/builtins/crypto_rsa.go:89` | **False Positive** | PKCS1v15 used for signature verification only (required for RS256 JWT interop), not encryption. |
+
+## Workflow note
+
+For hotspots: `mark_safe.sh` paginates the first 500 TO_REVIEW hotspots and filters
+client-side by rule, so if a rule has >500 pending hotspots rerun the script until
+its count reaches zero.
+
+For issues: `fetch_issues.sh` prints the issue key in the last column. Pass that
+key to `mark_fp.sh`. The comment is added first (for audit trail), then the
+transition is applied.

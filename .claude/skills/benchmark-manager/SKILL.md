@@ -94,7 +94,10 @@ Validates a benchmark YAML file for common issues.
 
 **Checks for:**
 - Using `prompt:` instead of `task_prompt:` (warning)
-- Missing required fields
+- Missing required fields (including `tags` — enforced by LoadSpec in v0.14.0+)
+- Invalid `tier` (must be smoke / core / stretch / vision; missing = warning, defaults to core)
+- Non-canonical tags (validated against the 12-tag taxonomy in `internal/eval_harness/spec.go`)
+- `tags` list length > 3 (hard limit from LoadSpec)
 - Invalid capability names
 - Syntax errors in YAML
 
@@ -123,6 +126,8 @@ entrypoint: "main"            # Function to call
 caps: ["IO"]                  # Required capabilities
 difficulty: "easy|medium|hard"
 expected_gain: "low|medium|high"
+tier: core                    # smoke | core | stretch | vision  (v0.14.0+; defaults to core)
+tags: [type_safety, functional]   # 1-3 tags from the 12-tag canonical taxonomy
 task_prompt: |                # ALWAYS use task_prompt, not prompt!
   Write a program in <LANG> that:
   1. Does something
@@ -132,6 +137,23 @@ task_prompt: |                # ALWAYS use task_prompt, not prompt!
 expected_stdout: |            # Exact expected output
   expected output here
 ```
+
+### Tier + Tags (v0.14.0+)
+
+Every benchmark has a **tier** (execution budget) and up to **3 tags** (capability classification).
+`LoadSpec` rejects benchmarks that violate the taxonomy, so these are not optional for new benchmarks.
+
+**Tiers:**
+- `smoke` — sanity checks; should never fail. Run in PR CI.
+- `core` — headline metric. The "AILANG vs Python" rate is computed from Core.
+- `stretch` — harder benchmarks; mixed pass/fail expected.
+- `vision` — research-grade; expect low AILANG pass rate. Only runs with `--full`.
+
+**Canonical tags (12):** `adt_pattern_match`, `algorithmic`, `contracts`, `data_transform`, `effects_io`,
+`error_handling`, `functional`, `records`, `recursion`, `state_machine`, `string_algo`, `type_safety`.
+
+**Governance:** pick tier/tags to match *how the benchmark will be used for rotation* — see
+`benchmarks/CURATION.md` for the promotion/demotion workflow.
 
 ### Capability Names
 
@@ -166,6 +188,8 @@ entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
 expected_gain: "medium"
+tier: core
+tags: [functional, data_transform]    # pick 1-3 canonical tags
 task_prompt: |
   Write a program in <LANG> that:
   1. Clear description of task
@@ -176,6 +200,20 @@ task_prompt: |
 expected_stdout: |
   exact expected output
 ```
+
+### Step 2b: Rotation Mindset
+
+AILANG's benchmark suite is **curated, not accumulated** — we demote saturated benchmarks
+and promote ones that reveal real gaps. Before adding, check where you'll sit in rotation:
+
+```bash
+ailang eval-matrix --show-saturated     # Python ≥ 95% AND AILANG ≥ 95% — demote candidates
+ailang eval-matrix --ailang-wins        # AILANG ≥ Python by ≥ 10pp — keep as value evidence
+ailang eval-matrix --by-tags            # gap distribution across the 12-tag taxonomy
+```
+
+A good new benchmark: (a) lives in an under-covered tag, (b) isn't already saturated by other
+languages, and (c) has a clear expected gap (AILANG wins or AILANG loses but we can fix it).
 
 ### Step 3: Validate and Test
 

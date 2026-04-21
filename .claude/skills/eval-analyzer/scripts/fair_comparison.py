@@ -7,8 +7,45 @@ Use --v1 and --v2 to specify custom versions.
 
 import json
 import argparse
+import re
 from pathlib import Path
 from collections import defaultdict
+
+
+def _find_repo_root(start: Path) -> Path | None:
+    """Walk up looking for AILANG repo markers."""
+    for d in [start, *start.parents]:
+        if (d / "go.mod").exists() and (d / "internal/eval_harness").exists():
+            return d
+    return None
+
+
+def resolve_dev_models() -> list[str]:
+    """Read dev_models from internal/eval_harness/models.yml — single source of truth.
+
+    Falls back to an empty list if the file is missing; callers must either
+    accept --models explicitly or fail loudly. No hardcoded defaults.
+    """
+    root = _find_repo_root(Path(__file__).resolve())
+    if root is None:
+        return []
+    yml = root / "internal/eval_harness/models.yml"
+    if not yml.exists():
+        return []
+    models: list[str] = []
+    in_block = False
+    for line in yml.read_text().splitlines():
+        if line.startswith("dev_models:"):
+            in_block = True
+            continue
+        if in_block:
+            m = re.match(r"\s*-\s*\"?([^\"#\s]+)\"?", line)
+            if m:
+                models.append(m.group(1))
+            elif line.strip() and not line.startswith(" "):
+                break  # next top-level key
+    return models
+
 
 def load_results(results_dir):
     """Load result files from standard/ subdirectory"""
@@ -45,8 +82,14 @@ def get_latest_baselines(baselines_dir="eval_results/baselines", n=2):
 
     return baseline_dirs[:n]
 
-def compare_versions(v1_dir, v2_dir, dev_models=['gpt5-mini', 'claude-haiku-4-5', 'gemini-2-5-flash']):
+def compare_versions(v1_dir, v2_dir, dev_models=None):
     """Compare two versions with fair filtering (dev models, AILANG, deduplicated)"""
+    if dev_models is None:
+        dev_models = resolve_dev_models()
+    if not dev_models:
+        raise RuntimeError(
+            "No dev_models resolved — pass --models or run from inside the AILANG repo"
+        )
 
     v1_name = Path(v1_dir).name
     v2_name = Path(v2_dir).name
@@ -173,14 +216,19 @@ Examples:
                         default='eval_results/baselines',
                         help='Directory containing baseline subdirectories (default: eval_results/baselines)')
     parser.add_argument('--models',
-                        help='Comma-separated list of models to compare (default: gpt5-mini,claude-haiku-4-5,gemini-2-5-flash)')
+                        help='Comma-separated model list. Default: dev_models from internal/eval_harness/models.yml')
 
     args = parser.parse_args()
 
-    # Parse dev models
-    dev_models = ['gpt5-mini', 'claude-haiku-4-5', 'gemini-2-5-flash']
+    # Resolve dev models — prefer --models, else read models.yml (single source of truth)
     if args.models:
         dev_models = [m.strip() for m in args.models.split(',')]
+    else:
+        dev_models = resolve_dev_models()
+        if not dev_models:
+            print("Error: could not resolve dev_models from internal/eval_harness/models.yml")
+            print("Pass --models explicitly, or run from inside the AILANG repo.")
+            return
 
     # Determine which versions to compare
     if args.v1 and args.v2:

@@ -1,17 +1,40 @@
 #!/usr/bin/env bash
 # run_gap_analysis.sh - Full gap analysis workflow
 #
-# Usage: ./run_gap_analysis.sh [eval_dir]
-# Example: ./run_gap_analysis.sh eval_results/baselines/v0.6.5
+# Usage:
+#   ./run_gap_analysis.sh [eval_dir] [--tier <tier>]
 #
-# If no eval_dir provided, runs fresh evals with dev models first.
+# Examples:
+#   ./run_gap_analysis.sh eval_results/baselines/v0.14.0
+#   ./run_gap_analysis.sh                              # fresh eval, core tier (default)
+#   ./run_gap_analysis.sh --tier smoke                 # fresh eval, smoke tier only
 #
-# Output: Complete gap analysis with actionable recommendations
+# Tiers (v0.14.0+):
+#   smoke   — sanity checks, should never fail
+#   core    — headline metric; where gap analysis should focus (default)
+#   stretch — hard benchmarks, mix of pass/fail expected
+#   vision  — research-grade, expect low AILANG pass rate
+#
+# Dev models are read from internal/eval_harness/models.yml — no hardcoded list.
+#
+# Output: gap analysis prioritised by tier, grouped by tags, with rotation hints.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EVAL_DIR="${1:-}"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/../../_shared/scripts/eval_lib.sh"
+
+EVAL_DIR=""
+TIER="core"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --tier) TIER="$2"; shift 2 ;;
+        --tier=*) TIER="${1#*=}"; shift ;;
+        -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+        *) EVAL_DIR="$1"; shift ;;
+    esac
+done
 
 echo "=============================================="
 echo "    AILANG Eval Gap Analysis"
@@ -27,8 +50,13 @@ if [[ -z "$EVAL_DIR" ]]; then
     EVAL_DIR="eval_results/gap-analysis-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$EVAL_DIR"
 
-    echo "Running evals with dev models (gemini-3-flash, claude-haiku-4-5)..."
-    ailang eval-suite --models gemini-3-flash,claude-haiku-4-5 --output "$EVAL_DIR"
+    DEV_MODELS="$(dev_models_csv)"
+    if [[ -z "$DEV_MODELS" ]]; then
+        echo "Error: could not resolve dev_models from internal/eval_harness/models.yml"
+        exit 1
+    fi
+    echo "Running evals with dev models ($DEV_MODELS) at tier=$TIER..."
+    ailang eval-suite --models "$DEV_MODELS" --tier "$TIER" --output "$EVAL_DIR"
     echo ""
 fi
 
@@ -151,7 +179,12 @@ echo "3. If example fails, check if it's a language limitation:"
 echo "   - Create design doc: design_docs/planned/vX_Y_Z/m-<feature>.md"
 echo "   - Add workaround to prompt with note"
 echo ""
-echo "4. After prompt updates, re-run evals to verify improvement:"
-echo "   ailang eval-suite --models gemini-3-flash,claude-haiku-4-5"
+echo "4. After prompt updates, re-run evals at the same tier to verify improvement:"
+echo "   (. .claude/skills/_shared/scripts/eval_lib.sh && ailang eval-suite --models \"\$(dev_models_csv)\" --tier $TIER)"
 echo ""
-echo "Done! Gap analysis complete."
+echo "5. Before adding benchmarks, inspect rotation candidates:"
+echo "   ailang eval-matrix --show-saturated   # demote candidates"
+echo "   ailang eval-matrix --ailang-wins      # keep / promote candidates"
+echo "   ailang eval-matrix --by-tags          # gap distribution across 12-tag taxonomy"
+echo ""
+echo "Done! Gap analysis complete (tier=$TIER)."
