@@ -257,7 +257,16 @@ jobs:
     name: Create GitHub Release
     needs: [build-release, build-wasm, build-bootstrap-content, build-examples]
     runs-on: ubuntu-latest
-    
+    # id-token: write is required for cosign keyless signing — the job
+    # requests an OIDC token from GitHub which Sigstore's Fulcio CA uses
+    # to issue a short-lived signing cert bound to this workflow's
+    # identity (sunholo-data/ailang/.github/workflows/release.yml).
+    # No long-lived keys are stored; the chain terminates at Sigstore's
+    # public transparency log (Rekor).
+    permissions:
+      contents: write
+      id-token: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
@@ -293,6 +302,33 @@ jobs:
         done
         echo "::group::SHA256SUMS"
         cat SHA256SUMS
+        echo "::endgroup::"
+
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3.7.0
+      with:
+        cosign-release: 'v2.4.1'
+
+    - name: Sign artifacts (cosign keyless)
+      # Keyless signing via the workflow's OIDC identity.
+      # - `--yes` bypasses the interactive confirmation prompt (required in CI).
+      # - The short-lived cert is logged to Rekor, the public transparency log,
+      #   so a verifier can later prove the signature was issued by a specific
+      #   workflow run in THIS repo — not just "some github action, somewhere".
+      # Both SHA256SUMS and each archive get signed so verifiers can choose
+      # either the summary file or the per-archive route.
+      run: |
+        set -euo pipefail
+        cd artifacts-flat
+        for f in *.tar.gz *.zip SHA256SUMS; do
+          echo "Signing $f..."
+          cosign sign-blob --yes \
+            --output-signature "$f.sig" \
+            --output-certificate "$f.pem" \
+            "$f"
+        done
+        echo "::group::Signature artifacts"
+        ls -la *.sig *.pem
         echo "::endgroup::"
 
     - name: Get version
@@ -353,3 +389,5 @@ jobs:
           artifacts/**/*.zip
           artifacts-flat/SHA256SUMS
           artifacts-flat/*.sha256
+          artifacts-flat/*.sig
+          artifacts-flat/*.pem
