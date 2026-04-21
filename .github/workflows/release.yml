@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 
@@ -91,7 +91,7 @@ jobs:
         echo "::endgroup::"
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ailang-wasm
         path: bin/ailang-wasm.tar.gz
@@ -101,10 +101,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 
@@ -115,7 +115,7 @@ jobs:
       run: make bootstrap-content
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: bootstrap-content
         path: bin/bootstrap-content.tar.gz
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Create examples.zip
       run: |
@@ -137,7 +137,7 @@ jobs:
         ls -lh examples.zip
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: examples
         path: examples.zip
@@ -173,10 +173,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 
@@ -210,14 +210,14 @@ jobs:
 
     - name: Upload artifact (Unix)
       if: matrix.os != 'windows-latest'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.tar.gz
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.zip
@@ -228,7 +228,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout default branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: dev
         fetch-depth: 0  # Need full history for stats
@@ -260,10 +260,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: ./artifacts
 
@@ -314,7 +314,7 @@ jobs:
         echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
 
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         name: AILANG ${{ steps.get_version.outputs.VERSION }}
         body_path: changelog.md
