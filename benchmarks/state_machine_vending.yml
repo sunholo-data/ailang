@@ -1,0 +1,80 @@
+id: state_machine_vending
+description: "Vending machine state machine returning Result<NewState, Error> for invalid transitions"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+timeout: 120
+tier: core
+tags: [state_machine, error_handling, adt_pattern_match]
+task_prompt: |
+  Implement a vending machine state machine in <LANG>. Every transition must return a
+  tagged Result — either Ok(newState) or Err(reason) — so that invalid transitions
+  surface as explicit errors rather than exceptions or silent no-ops.
+
+  **State (3 variants)**:
+  - `Idle` — no credit
+  - `HasCredit(cents)` — credit accumulated, awaiting selection
+  - `Dispensing(change)` — dispensing an item, carrying the change to return
+
+  **Event (3 variants)**:
+  - `Insert(cents)` — insert coins (positive integer)
+  - `Select(code)` — select an item by code: 1 = cola (125), 2 = chips (75), 3 = water (100)
+  - `DispenseDone` — item fully dispensed
+
+  **Transition function `step(state, event) -> Result<State, String>`**:
+
+  | State \ Event  | Insert(n)                  | Select(code)                                | DispenseDone         |
+  |----------------|----------------------------|---------------------------------------------|----------------------|
+  | Idle           | Ok(HasCredit(n))           | Err("no_credit")                            | Err("not_dispensing")|
+  | HasCredit(c)   | Ok(HasCredit(c + n))       | see rules below                             | Err("not_dispensing")|
+  | Dispensing(ch) | Err("busy")                | Err("busy")                                 | Ok(Idle)             |
+
+  **Select rules when in `HasCredit(c)`**:
+  - If code is not 1, 2, or 3 → `Err("unknown_item")`
+  - Else if c < price(code) → `Err("insufficient_funds")` (stay in HasCredit)
+  - Else → `Ok(Dispensing(c - price(code)))`
+
+  **Printing**: after each transition, print exactly one line:
+  - On `Ok(state)`:
+    - `Idle` → `ok: IDLE`
+    - `HasCredit(n)` → `ok: CREDIT(n)`
+    - `Dispensing(ch)` → `ok: DISPENSING(ch)`
+  - On `Err(reason)` → `err: <reason>`
+
+  **Simulation**: start from `Idle`, apply this sequence of events (print after each,
+  and thread the state forward — on `Err`, keep the previous state):
+
+  1. `Insert(50)`
+  2. `Select(1)`
+  3. `Insert(100)`
+  4. `Select(1)`
+  5. `Insert(50)`
+  6. `DispenseDone`
+  7. `Select(2)`
+  8. `Insert(100)`
+  9. `Select(2)`
+  10. `DispenseDone`
+
+  Output exactly 10 lines.
+
+  **Requirements**:
+  - Use algebraic data types / tagged unions for State, Event, and Result — no raw
+    strings or dicts for state.
+  - Pattern match exhaustively on (state, event) — do NOT use nested if/else on
+    string tags.
+  - Errors must be values returned via `Err(...)`, not thrown exceptions.
+  - Output only the code, no explanations.
+
+expected_stdout: |
+  ok: CREDIT(50)
+  err: insufficient_funds
+  ok: CREDIT(150)
+  ok: DISPENSING(25)
+  err: busy
+  ok: IDLE
+  err: no_credit
+  ok: CREDIT(100)
+  ok: DISPENSING(25)
+  ok: IDLE
