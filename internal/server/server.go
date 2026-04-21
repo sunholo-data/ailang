@@ -81,13 +81,13 @@ import (
 	"time"
 
 	firebase "firebase.google.com/go/v4"
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/observatory"
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/server/auth"
-	"github.com/sunholo/ailang/internal/telemetry"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/server/auth"
+	"github.com/sunholo-data/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/websocket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

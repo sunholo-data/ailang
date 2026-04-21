@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // encodeApp handles function application.

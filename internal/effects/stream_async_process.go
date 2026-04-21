@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // StreamAsyncExecProcess spawns a subprocess and delivers its stdout as SourceBytes events.

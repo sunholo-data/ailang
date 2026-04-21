@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

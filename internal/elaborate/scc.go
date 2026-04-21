@@ -2,7 +2,7 @@
 package elaborate
 
 import (
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // FuncSig represents a function signature for call graph analysis

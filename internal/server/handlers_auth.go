@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/server/auth"
+	"github.com/sunholo-data/ailang/internal/server/auth"
 )
 
 // AuthContextKey is used to store user context in HTTP requests.

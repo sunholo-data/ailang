@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 
 	"github.com/petermattis/goid"
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 var debugConcurrencyBuiltins = os.Getenv("DEBUG_CONCURRENCY") == "1"

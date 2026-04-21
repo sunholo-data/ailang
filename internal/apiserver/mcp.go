@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/sunholo/ailang/internal/apiserver/schema"
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/apiserver/schema"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // MCPServer wraps an apiserver.Server to expose its functions as MCP tools.

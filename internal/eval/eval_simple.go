@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // SimpleEvaluator for basic testing

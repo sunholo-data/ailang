@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // ErrNoAIHandler is returned when AI.call is invoked without a configured handler

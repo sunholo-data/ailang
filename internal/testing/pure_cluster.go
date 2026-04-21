@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // PureCluster represents a set of pure functions that can be tested together.

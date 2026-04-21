@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // M-BYTECODE-STDLIB-BUILTINS M1: Pure string builtins wired to VM OpBuiltinCall.

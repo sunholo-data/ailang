@@ -1,6 +1,6 @@
 package block
 
-import "github.com/sunholo/ailang/internal/core"
+import "github.com/sunholo-data/ailang/internal/core"
 
 // Lower transforms a Core expression into a Block by extracting top-level
 // Let bindings into a flat sequence of statements.

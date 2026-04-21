@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // handleStageChat returns chat messages for a specific stage.

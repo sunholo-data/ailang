@@ -1,7 +1,7 @@
 package testing
 
 import (
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Shrinker defines the interface for shrinking values.

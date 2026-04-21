@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // messagingTracer is the OpenTelemetry tracer for messaging instrumentation.

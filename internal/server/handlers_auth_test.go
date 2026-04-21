@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/sunholo/ailang/internal/server/auth"
+	"github.com/sunholo-data/ailang/internal/server/auth"
 )
 
 func TestExtractBearerToken(t *testing.T) {

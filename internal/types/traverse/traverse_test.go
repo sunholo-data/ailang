@@ -3,7 +3,7 @@ package traverse
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 func TestVisitor_SimpleTypes(t *testing.T) {

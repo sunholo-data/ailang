@@ -5,7 +5,7 @@ package testing
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // TestCase represents a single test case extracted from the AST.

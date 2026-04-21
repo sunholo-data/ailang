@@ -6,7 +6,7 @@ package smt
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // RejectionCode identifies why a function cannot be SMT-verified.

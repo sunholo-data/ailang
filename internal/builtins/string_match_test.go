@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/effects/testctx"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects/testctx"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestStrChars tests the _str_chars builtin

@@ -8,9 +8,9 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // randSource is the global random source for the Rand effect.

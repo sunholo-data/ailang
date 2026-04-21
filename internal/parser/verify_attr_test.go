@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestVerifyAttribute_BasicDepth tests that @verify(depth: 5) parses and

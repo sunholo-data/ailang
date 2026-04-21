@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/dispatch/cloudrun"
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/storage"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/dispatch/cloudrun"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func coordinatorStart(args []string) error {

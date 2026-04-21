@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestNestedMatchSimple tests 2-level nesting with pure expressions (currently works)

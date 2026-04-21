@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

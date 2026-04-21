@@ -1,9 +1,9 @@
 package pipeline
 
 import (
-	"github.com/sunholo/ailang/internal/elaborate"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Converter functions for pipeline data structures

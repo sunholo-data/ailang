@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // testCache creates a pre-populated cache for testing (no GCS).

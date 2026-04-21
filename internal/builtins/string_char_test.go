@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 var errTestCallbackStr = errors.New("test callback error")

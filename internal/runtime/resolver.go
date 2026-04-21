@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/iface"
 )
 
 // moduleGlobalResolver resolves global references for module evaluation

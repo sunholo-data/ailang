@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // generateChat uses the Chat Completions API (/v1/chat/completions).

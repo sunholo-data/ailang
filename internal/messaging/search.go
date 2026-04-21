@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

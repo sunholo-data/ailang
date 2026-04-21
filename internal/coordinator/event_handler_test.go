@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 func TestCoordinatorEventHandler_Basic(t *testing.T) {

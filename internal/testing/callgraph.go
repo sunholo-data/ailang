@@ -5,7 +5,7 @@
 package testing
 
 import (
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // CallGraph represents dependencies between functions in a module.

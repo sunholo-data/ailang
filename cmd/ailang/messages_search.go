@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // Semantic search and deduplication commands for messages

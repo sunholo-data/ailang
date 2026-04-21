@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 // runCLI runs the ailang CLI with given arguments and returns stdout, stderr, and exit code

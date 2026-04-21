@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // MockTaskEventStore implements CoordinatorTaskEventStore for testing

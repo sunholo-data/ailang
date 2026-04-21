@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // generateResponses uses the Responses API (/v1/responses).

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // ScriptProvider executes shell scripts for deterministic workflow tasks.

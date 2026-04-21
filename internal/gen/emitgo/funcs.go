@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 func (e *emitter) emitFuncDecl(fd stmt.FuncDecl) {

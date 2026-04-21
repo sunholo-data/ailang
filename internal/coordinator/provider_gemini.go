@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/ai"
-	"github.com/sunholo/ailang/internal/ai/gemini"
+	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/gemini"
 )
 
 // GeminiAPIProvider executes tasks using Gemini API (text generation only).

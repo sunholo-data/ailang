@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestTypeAliases tests basic type alias declarations

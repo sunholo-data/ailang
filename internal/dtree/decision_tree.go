@@ -3,7 +3,7 @@ package dtree
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // DecisionTree represents a compiled pattern matching decision tree

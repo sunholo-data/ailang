@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	ailtrace "github.com/sunholo/ailang/internal/trace"
+	ailtrace "github.com/sunholo-data/ailang/internal/trace"
 )
 
 func replayCommand() {

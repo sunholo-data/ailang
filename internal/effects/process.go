@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // ResolveAllowlist resolves command names to absolute paths via exec.LookPath.

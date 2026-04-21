@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/planning"
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/planning"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // ProposePlanCommand validates a plan file and prints the result

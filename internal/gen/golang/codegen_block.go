@@ -2,8 +2,8 @@
 package golang
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/gen/block"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/gen/block"
 )
 
 // generateFlatBody generates a function body using Block IR for flat output.

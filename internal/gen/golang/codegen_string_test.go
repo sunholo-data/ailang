@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestStringConvBuiltinMapping tests that string conversion builtins are mapped correctly.

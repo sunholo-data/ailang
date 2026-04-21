@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 func coordinatorDiff(args []string) error {

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/petermattis/goid"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestGetEffContext_FastPath(t *testing.T) {

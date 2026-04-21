@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestValidateIP_MetadataServer tests the cloud metadata server exception.

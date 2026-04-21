@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestGenerateSumType_Simple(t *testing.T) {

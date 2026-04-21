@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // Helper functions for type inference

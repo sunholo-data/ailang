@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // mockModuleLoader is a minimal ModuleLoader for testing

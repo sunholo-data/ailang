@@ -3,7 +3,7 @@ package golang
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // GoType represents a Go type string that will be emitted in generated code.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TraceRegistry provides a simple in-memory registry for recording span names

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // EmbeddingCache stores document embeddings with model versioning

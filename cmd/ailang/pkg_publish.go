@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 func pkgPublishCommand(args []string) error {

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // ValidationLevel represents the severity of a validation issue

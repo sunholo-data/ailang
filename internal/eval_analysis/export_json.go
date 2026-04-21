@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // ExportBenchmarkJSON exports benchmark data as JSON for client-side rendering

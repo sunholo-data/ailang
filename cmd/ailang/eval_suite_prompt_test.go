@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TestPythonPromptLoading verifies that Python benchmarks load prompts/python.md

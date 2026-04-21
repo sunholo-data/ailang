@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 func TestNewGeminiExecutor(t *testing.T) {

@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // parseTestsBlock parses inline test cases: tests [(input1, expected1), (input2, expected2)]

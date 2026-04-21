@@ -2,8 +2,8 @@
 package pipeline
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // DebugEraser removes the Debug ghost effect from a Core program.

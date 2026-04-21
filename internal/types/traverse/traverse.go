@@ -9,7 +9,7 @@ package traverse
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // DefaultMaxDepth is the maximum traversal depth before panic.

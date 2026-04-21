@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 func TestStartSpan_RecordsWhenEnabled(t *testing.T) {

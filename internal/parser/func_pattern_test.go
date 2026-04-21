@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestPatternMatchingInFunctions tests that pattern matching works inside function bodies

@@ -77,4 +77,4 @@ doc: ## Show Go package documentation
 		echo "  internal/builtins   - Builtin function registry"; \
 		exit 1; \
 	fi
-	@go doc -all github.com/sunholo/ailang/$(PKG)
+	@go doc -all github.com/sunholo-data/ailang/$(PKG)

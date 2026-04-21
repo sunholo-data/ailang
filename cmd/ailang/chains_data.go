@@ -9,7 +9,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // taskEvent represents an event from coordinator task_events table (basic)

@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/loader"
-	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/runtime"
-	"github.com/sunholo/ailang/internal/runtime/argdecode"
-	"github.com/sunholo/ailang/internal/types"
-	"github.com/sunholo/ailang/internal/vm"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/runtime/argdecode"
+	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // envFlags contains all environment-related command-line flags

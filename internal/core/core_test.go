@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestCoreNode(t *testing.T) {

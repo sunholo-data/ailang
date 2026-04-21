@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestTraceRegistry_Basic(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // canonicalKey produces a deterministic canonical string representation of a value

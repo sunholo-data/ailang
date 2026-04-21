@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/executor"
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/telemetry"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/websocket"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 func TestScaffoldFromPlan_SimplePlan(t *testing.T) {

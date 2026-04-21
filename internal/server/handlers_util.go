@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // handleSelectFolder opens a native folder picker dialog and returns the selected path

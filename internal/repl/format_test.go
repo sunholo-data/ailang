@@ -3,7 +3,7 @@ package repl
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // TestFormatType_CyclicType tests M-DX11-TRAVERSE: cycle detection in formatType

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )

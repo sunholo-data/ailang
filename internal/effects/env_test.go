@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestEnvGetEnv_Success tests successful environment variable retrieval

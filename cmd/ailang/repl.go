@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/repl"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/repl"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func runREPL(learn bool, trace bool, strictSyntax bool) {

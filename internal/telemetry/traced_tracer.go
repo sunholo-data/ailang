@@ -7,7 +7,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 // traceRecordingEnabled controls whether span names are recorded to TraceRegistry.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/agentprompt"
+	"github.com/sunholo-data/ailang/internal/agentprompt"
 )
 
 // runAgentPrompt handles the 'ailang agent-prompt' command

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestUTF8BOM tests that parser handles UTF-8 BOM

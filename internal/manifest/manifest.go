@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // SchemaVersion is the current manifest schema version

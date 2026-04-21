@@ -20,7 +20,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/examples/sim_stub/gen/game"
+	"github.com/sunholo-data/ailang/examples/sim_stub/gen/game"
 )
 
 func main() {

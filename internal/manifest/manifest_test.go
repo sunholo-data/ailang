@@ -258,7 +258,7 @@ func TestGenerateREADMESection(t *testing.T) {
 				Reason:       "func not implemented",
 				ErrorCode:    "PAR003",
 				Requires:     []string{"func", "tests"},
-				TrackedIssue: "https://github.com/sunholo/ailang/issues/1",
+				TrackedIssue: "https://github.com/sunholo-data/ailang/issues/1",
 			}},
 		{Path: "experimental.ail", Status: StatusExperimental, Mode: ModeREPL,
 			RequiresFeatures: []string{"effects"}, SkipReason: "Not ready"},
@@ -292,7 +292,7 @@ func TestGenerateREADMESection(t *testing.T) {
 		t.Error("Missing working.ail in output")
 	}
 
-	if !strings.Contains(readme, "[#1](https://github.com/sunholo/ailang/issues/1)") {
+	if !strings.Contains(readme, "[#1](https://github.com/sunholo-data/ailang/issues/1)") {
 		t.Error("Issue link not formatted correctly")
 	}
 

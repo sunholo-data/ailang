@@ -25,15 +25,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/bytecode/compiler"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/gen/lower"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/runtime"
-	"github.com/sunholo/ailang/internal/vm"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode/compiler"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/gen/lower"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // benchCase describes one benchmarkable function call paired across both

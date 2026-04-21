@@ -6,8 +6,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // NewEffectSpanWrapper returns a SpanWrapperFunc that wraps each effect

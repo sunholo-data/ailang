@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
 )
 
 // Tests for short-circuit desugaring of && and || into core.If.

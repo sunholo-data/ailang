@@ -10,7 +10,7 @@
 // BUILTIN_TRAP and EFFECT_TRAP return clear "not implemented" errors.
 package vm
 
-import "github.com/sunholo/ailang/internal/bytecode"
+import "github.com/sunholo-data/ailang/internal/bytecode"
 
 // Frame is a single call activation. Frames are allocated on each CALL and
 // reused on TAIL_CALL (the register slab is resized in place if the callee

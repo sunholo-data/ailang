@@ -3,7 +3,7 @@ package dashboard_transforms
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // BudgetConfig mirrors the AILANG type

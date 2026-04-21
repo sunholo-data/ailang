@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/loader"
-	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/runtime"
 )
 
 // Executor handles evaluation of test expressions through the AILANG pipeline.

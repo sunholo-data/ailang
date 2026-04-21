@@ -3,7 +3,7 @@ package testing
 import (
 	"math/rand"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // MapGenerator transforms generated values using a mapping function.

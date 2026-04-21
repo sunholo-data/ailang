@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TagAggregate summarises pass/total counts for one tag, per language,

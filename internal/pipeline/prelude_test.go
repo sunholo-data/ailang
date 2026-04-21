@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // TestPrelude_EntryModuleDetection tests that IsEntryModuleFromAST correctly identifies entry modules

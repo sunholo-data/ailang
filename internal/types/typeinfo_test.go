@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestTypeInfo_MustReturnsTypeWhenExists(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	ollamaapi "github.com/ollama/ollama/api"
-	"github.com/sunholo/ailang/internal/ai"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

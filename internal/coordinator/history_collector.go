@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // CollectVersionHistory builds a VersionHistory by aggregating existing data sources:

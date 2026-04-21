@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor"
 	// Import to trigger init() registration for all executor packages
-	_ "github.com/sunholo/ailang/internal/executor/claude"
-	_ "github.com/sunholo/ailang/internal/executor/gemini"
+	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 )
 
 // ExecutorProvider wraps any executor.Executor as a coordinator Provider.

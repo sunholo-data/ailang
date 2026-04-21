@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 func TestNewReport(t *testing.T) {

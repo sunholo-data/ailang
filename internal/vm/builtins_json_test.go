@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // --- json_encode tests -------------------------------------------------------

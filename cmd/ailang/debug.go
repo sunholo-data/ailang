@@ -9,12 +9,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/elaborate"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 func runDebug() {

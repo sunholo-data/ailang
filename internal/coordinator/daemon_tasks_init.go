@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
-	"github.com/sunholo/ailang/internal/observatory"
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // CoordinatorMode determines how the coordinator receives messages and broadcasts events.

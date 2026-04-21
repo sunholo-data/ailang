@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // runCompileCacheClear clears the compilation cache.

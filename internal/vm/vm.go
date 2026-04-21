@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // DefaultMaxStack is the default frame depth limit. Matches the evaluator's

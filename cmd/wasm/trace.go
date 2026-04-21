@@ -6,7 +6,7 @@ package main
 import (
 	"syscall/js"
 
-	"github.com/sunholo/ailang/internal/trace"
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 // setTraceHandler: ailangSetTraceHandler(callback)

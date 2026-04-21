@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // humanDuration supports human-friendly duration parsing including "d" for days.

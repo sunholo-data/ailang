@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // InterfaceJSON represents the normalized JSON format for module interfaces

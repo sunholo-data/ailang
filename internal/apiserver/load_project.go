@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // LoadProject is the M-SERVEAPI-UNIFY replacement for the per-file

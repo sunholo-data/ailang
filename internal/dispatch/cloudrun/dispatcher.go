@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // jobRunner abstracts the Cloud Run Jobs API client for testing.

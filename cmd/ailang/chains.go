@@ -11,7 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 func chainsCommand() {

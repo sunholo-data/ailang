@@ -1,8 +1,8 @@
 package pipeline
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // isRecursive checks if an expression contains a self-reference to the given name

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // newTestDaemonT creates a minimal Daemon for HTTP handler testing.

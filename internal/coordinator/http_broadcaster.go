@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // HTTPBroadcaster sends task events to the Collaboration Hub server via HTTP.

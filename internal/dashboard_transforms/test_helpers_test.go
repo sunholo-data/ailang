@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // findProjectRoot walks up from the current directory looking for the std/ directory

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/sunholo/ailang/internal/manifest"
+	"github.com/sunholo-data/ailang/internal/manifest"
 )
 
 var (

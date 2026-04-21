@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestParseProperties_SingleProperty tests parsing a function with one property

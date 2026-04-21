@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/builtins"
 )
 
 // runDoctor implements `ailang doctor builtins` command

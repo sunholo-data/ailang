@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // InjectPrelude adds prelude type bindings to a type environment.

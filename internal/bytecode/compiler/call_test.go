@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/vm"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // runProgram compiles a multi-function program and runs the named entry.

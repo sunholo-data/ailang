@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
-	"github.com/sunholo/ailang/internal/pkg"
-	ailangTesting "github.com/sunholo/ailang/internal/testing"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/pkg"
+	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
 )
 
 // runTestsV2 executes all tests in the given path.

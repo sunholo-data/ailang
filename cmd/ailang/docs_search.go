@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/docsearch"
+	"github.com/sunholo-data/ailang/internal/docsearch"
 )
 
 // docsSearchCommand implements `ailang docs search` subcommand

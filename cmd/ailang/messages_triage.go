@@ -8,7 +8,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // Triage subcommand: cluster unread messages by envelope similarity

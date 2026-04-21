@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	obs "github.com/sunholo/ailang/internal/observatory"
+	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // --- Task operations ---

@@ -1,7 +1,7 @@
 package traverse
 
 import (
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // CollectFreeVars returns all free type variable names in a type.

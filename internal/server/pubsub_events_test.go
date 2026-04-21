@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // TestPubSubEventSubscriber_HandleEvent verifies that valid TaskStreamEvent

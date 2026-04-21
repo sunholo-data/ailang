@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // GET /api/controlplane/exec-hierarchy - Get exec task hierarchy from span attributes

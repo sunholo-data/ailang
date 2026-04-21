@@ -27,11 +27,11 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/embed"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // DefaultMaxUploadSize is the default maximum upload size (50MB).

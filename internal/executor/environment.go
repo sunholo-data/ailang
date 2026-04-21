@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // Embed the Claude settings and hook script from the repo

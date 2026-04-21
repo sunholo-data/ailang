@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 func TestEmit_SimpleFunc(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // MaxOutputSize is the maximum size (in bytes) for stdout/stderr capture

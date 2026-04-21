@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/petermattis/goid"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // debugConcurrency enables concurrency tracing via DEBUG_CONCURRENCY=1

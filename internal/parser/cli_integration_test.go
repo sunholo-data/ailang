@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestCLIIntegration_JavaScriptImport tests that JavaScript import errors show helpful suggestions

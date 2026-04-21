@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"go/format"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // ContractGenerator generates Go code for contract types and context.

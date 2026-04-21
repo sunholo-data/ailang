@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/apiserver"
-	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/apiserver"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 func serveAPICommand(args []string) error {

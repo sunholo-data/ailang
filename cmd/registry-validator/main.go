@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 const cacheTTL = 5 * time.Minute

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 func setupTestServer(t *testing.T) (*Server, messaging.MessageStore) {

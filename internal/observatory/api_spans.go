@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/claudehistory"
+	"github.com/sunholo-data/ailang/internal/claudehistory"
 )
 
 // ===== Span Handlers =====

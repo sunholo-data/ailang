@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // CompletionHandler processes task completions and updates task status

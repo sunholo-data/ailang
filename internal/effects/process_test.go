@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Helper to create a Process-capable context

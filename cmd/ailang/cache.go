@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // cacheCommand handles the 'cache' subcommand for the AILANG brain.

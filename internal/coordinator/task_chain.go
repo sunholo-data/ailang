@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // TaskChain manages the pipeline: design-doc → sprint-planner → sprint-executor.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // delimiterTrace provides runtime delimiter tracking for debugging parser issues

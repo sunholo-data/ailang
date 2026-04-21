@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 func TestNewTypecheck(t *testing.T) {

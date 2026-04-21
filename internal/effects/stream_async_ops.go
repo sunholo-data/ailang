@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // M-ASYNC-IO: New Stream effect operations for multi-source event multiplexing.

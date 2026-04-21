@@ -9,7 +9,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 
-	obs "github.com/sunholo/ailang/internal/observatory"
+	obs "github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // --- Conversion helpers ---

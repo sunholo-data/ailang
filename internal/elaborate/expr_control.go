@@ -3,8 +3,8 @@ package elaborate
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // Control flow expression normalization: if, let, letrec, block

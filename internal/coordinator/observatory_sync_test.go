@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 func TestObservatorySyncTask(t *testing.T) {

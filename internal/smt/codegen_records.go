@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // RecordTypeInfo describes a record type for SMT encoding.

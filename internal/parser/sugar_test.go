@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestSugarCall0_TopLevel tests S-CALL0 sugar at statement level: f() desugars to f(())

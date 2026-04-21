@@ -3,8 +3,8 @@ package eval
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/dtree"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/dtree"
 )
 
 // evalDecisionTree evaluates a match using a pre-compiled decision tree

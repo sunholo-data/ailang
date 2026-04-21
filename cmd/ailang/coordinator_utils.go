@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // wrapText wraps text at the specified width

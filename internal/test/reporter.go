@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // Case represents a single test case result

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // makePushBody creates a Pub/Sub push envelope JSON string.

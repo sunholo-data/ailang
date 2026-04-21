@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 func pkgDocsCommand(args []string) error {

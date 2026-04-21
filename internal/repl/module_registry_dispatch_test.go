@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestStringEqDispatchInNonExportedHelper reproduces Bug 2 from M-WASM-DICTIONARY-DISPATCH:

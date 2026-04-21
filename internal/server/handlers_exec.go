@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // ExecSessionRequest represents a request to create an exec session

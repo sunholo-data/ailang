@@ -3,8 +3,8 @@ package elaborate
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // VerifyANF checks that a Core program is in A-Normal Form.

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestElaborateEffectRowWithBudgets(t *testing.T) {

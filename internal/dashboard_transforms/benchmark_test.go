@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // Event represents a task event for benchmarking

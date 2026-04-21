@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestFSReadFile_Success(t *testing.T) {

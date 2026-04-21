@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 func observatoryEvolutionCommand() {

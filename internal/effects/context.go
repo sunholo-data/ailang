@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/trace"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/trace"
 )
 
 // EffContext holds runtime capability grants and environment configuration

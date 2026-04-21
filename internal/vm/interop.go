@@ -1,7 +1,7 @@
 package vm
 
 import (
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // EvalInterop is the VM-side view of the evaluator. The VM uses it to dispatch

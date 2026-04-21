@@ -3,9 +3,9 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/elaborate"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
 )
 
 // TestPatternSugarIntegration tests parse → elaborate pipeline with cons sugar

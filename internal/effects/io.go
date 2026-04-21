@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // init registers IO effect operations

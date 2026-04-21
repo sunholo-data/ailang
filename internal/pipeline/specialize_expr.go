@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // specializeExpr recursively specializes an expression

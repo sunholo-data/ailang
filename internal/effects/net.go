@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // init registers Net effect operations

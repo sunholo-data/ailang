@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // CRUD operations for messages: list, ack, unack, read

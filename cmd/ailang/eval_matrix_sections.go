@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/eval_analysis"
 )
 
 // printTagsSection emits a per-tag AILANG vs Python delta table using

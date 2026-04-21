@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestAssertTokenPosition tests the token position assertion helper

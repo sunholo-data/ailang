@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // isEffectRowVar returns true if name is a lowercase identifier (effect row variable)

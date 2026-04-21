@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // pricingConfig holds the loaded pricing configuration from models.yml.
@@ -32,7 +32,7 @@ func initPricing() {
 		// Also try from home directory for installed binaries
 		if home, err := os.UserHomeDir(); err == nil {
 			// Check go/src path for development
-			searchPaths = append(searchPaths, filepath.Join(home, "go/src/github.com/sunholo/ailang/internal/eval_harness/models.yml"))
+			searchPaths = append(searchPaths, filepath.Join(home, "go/src/github.com/sunholo-data/ailang/internal/eval_harness/models.yml"))
 		}
 
 		// Try cwd-based paths first

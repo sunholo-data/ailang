@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 // Compile lowers a Statement IR program into a bytecode image. The first

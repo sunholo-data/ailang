@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/elaborate"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/loader"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ModuleRuntime manages module instances and orchestrates evaluation

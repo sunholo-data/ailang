@@ -3,7 +3,7 @@ package effects
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestNewContractContext(t *testing.T) {

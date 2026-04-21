@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // selectEventsLoop is the core multi-source event multiplexer.

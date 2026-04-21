@@ -3,7 +3,7 @@ package effects
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestDebugContext_LogAndCollect(t *testing.T) {

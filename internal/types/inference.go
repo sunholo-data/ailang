@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // InferenceContext maintains state during type inference

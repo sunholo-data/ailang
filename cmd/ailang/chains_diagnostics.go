@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // chainsDiagnoseCommand provides a quick health report for a specific chain

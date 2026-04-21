@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // FallbackEvent tracks when CoreTI lookup misses during lowering

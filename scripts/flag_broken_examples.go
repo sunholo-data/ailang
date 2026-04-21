@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/scripts/internal/reporttypes"
+	"github.com/sunholo-data/ailang/scripts/internal/reporttypes"
 )
 
 func main() {

@@ -3,8 +3,8 @@ package iface
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 func TestConstructorScheme(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // ClaudeHookPayload matches Claude Code's native hook JSON schema.

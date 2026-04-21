@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // M-BYTECODE-HOF-BUILTINS: Higher-order builtin implementations.

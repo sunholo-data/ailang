@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
-	gen "github.com/sunholo/ailang/internal/gen/golang"
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/ast"
+	gen "github.com/sunholo-data/ailang/internal/gen/golang"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // compileCommand handles the 'ailang compile' subcommand

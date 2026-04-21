@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // debugParserEnabled returns true if DEBUG_PARSER environment variable is set to "1"

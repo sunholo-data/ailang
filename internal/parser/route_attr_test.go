@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestRouteAnnotation_BasicPost tests @route("POST", "/api/v1/parse") parsing.

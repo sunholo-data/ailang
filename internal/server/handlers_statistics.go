@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // StatisticsResponse represents aggregate statistics for the dashboard

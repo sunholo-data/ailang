@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // PubSubBroadcaster sends task stream events to the Pub/Sub events topic.

@@ -3,8 +3,8 @@ package compiler
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 // emitJumpPlaceholder writes a jump (or jump-if-false) instruction with a

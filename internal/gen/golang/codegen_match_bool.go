@@ -2,7 +2,7 @@
 package golang
 
 import (
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // BoolMatchChainEntry represents one condition-result pair in a bool match chain.

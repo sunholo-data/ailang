@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # Check if ailang is available
 if ! command -v ailang &> /dev/null; then
     echo -e "${RED}Error: ailang CLI not found${NC}"
-    echo "Install with: go install github.com/sunholo/ailang/cmd/ailang@latest"
+    echo "Install with: go install github.com/sunholo-data/ailang/cmd/ailang@latest"
     exit 1
 fi
 

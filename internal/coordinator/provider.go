@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // TaskType represents the category of a task

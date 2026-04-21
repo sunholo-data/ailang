@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	ailangErrors "github.com/sunholo/ailang/internal/errors"
+	ailangErrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // handleStructuredError outputs structured JSON error reports

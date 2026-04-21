@@ -10,12 +10,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/executor"
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
-	_ "github.com/sunholo/ailang/internal/executor/claude"
-	_ "github.com/sunholo/ailang/internal/executor/gemini"
-	"github.com/sunholo/ailang/internal/pubsub"
+	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // coordinatorExecuteJob is the entry point for Cloud Run Jobs.

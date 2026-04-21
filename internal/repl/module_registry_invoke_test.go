@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/runtime"
 )
 
 // TestInvokeExportWithImports tests that InvokeExport can call functions

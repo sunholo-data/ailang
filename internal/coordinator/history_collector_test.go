@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 func TestCollectVersionHistory_Basic(t *testing.T) {

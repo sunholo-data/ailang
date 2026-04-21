@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // generateContent uses the generateContent API.

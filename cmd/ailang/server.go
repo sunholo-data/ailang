@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/pubsub"
-	"github.com/sunholo/ailang/internal/server"
-	"github.com/sunholo/ailang/internal/storage"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/server"
+	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 func serverCommand(args []string) error {

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/eval_analysis"
 )
 
 // runEvalCompare compares two evaluation runs

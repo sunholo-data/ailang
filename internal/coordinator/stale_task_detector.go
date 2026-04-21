@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // StaleTaskDetector periodically checks for tasks stuck in queued/running status

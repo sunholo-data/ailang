@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestInferFreshCounterPersistence verifies that the InferenceContext freshCounter

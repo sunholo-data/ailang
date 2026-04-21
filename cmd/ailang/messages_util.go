@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 	"golang.org/x/term"
 )
 

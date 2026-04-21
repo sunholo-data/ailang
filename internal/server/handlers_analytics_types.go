@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // ============================================================================

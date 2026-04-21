@@ -1,8 +1,8 @@
 package iface
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Iface represents a module's interface (its typed exports)

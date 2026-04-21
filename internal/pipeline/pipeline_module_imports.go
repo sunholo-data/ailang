@@ -3,11 +3,11 @@ package pipeline
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/link"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/link"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // importedCtorInfo tracks full constructor info for elaborator registration.

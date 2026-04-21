@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // testRSAKeyPair generates a 2048-bit RSA key pair for testing.

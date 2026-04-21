@@ -11,10 +11,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/observatory"
-	fsstore "github.com/sunholo/ailang/internal/storage/firestore"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	fsstore "github.com/sunholo-data/ailang/internal/storage/firestore"
 )
 
 // Mode represents the storage backend mode.

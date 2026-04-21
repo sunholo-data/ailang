@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/devtoolsprompt"
+	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
 )
 
 // runDevtoolsPrompt handles the 'ailang devtools-prompt' command

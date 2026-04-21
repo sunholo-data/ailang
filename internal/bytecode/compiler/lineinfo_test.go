@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/vm"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // TestCompile_LineInfo_Populated verifies that the compiler stamps each

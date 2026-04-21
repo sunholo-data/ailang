@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor"
 )
 
 // TaskExecutor orchestrates task execution across multiple providers.

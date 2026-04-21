@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval_analyzer"
+	"github.com/sunholo-data/ailang/internal/eval_analyzer"
 )
 
 func runEvalAnalyze() {

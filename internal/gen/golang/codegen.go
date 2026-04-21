@@ -24,9 +24,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ADTConstructorInfo holds information about an ADT constructor.

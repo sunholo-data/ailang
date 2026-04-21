@@ -4,7 +4,7 @@ package repl
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // EffectsResult represents the result of effects introspection

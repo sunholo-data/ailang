@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/elaborate"
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // compileAndValidateEffects parses, elaborates, type-checks, and runs effect

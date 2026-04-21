@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/embed"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // timeNow is a function variable for time.Now, allowing tests to mock time.

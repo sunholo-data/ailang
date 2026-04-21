@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // resolveBuiltinViaRegistry checks if a name has a GoCodegenSpec in the builtin registry.

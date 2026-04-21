@@ -7,7 +7,7 @@
 package types
 
 import (
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // CycleKind classifies whether a cycle is expected or suspicious.

@@ -3,7 +3,7 @@ package eval
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/typedast"
+	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
 // Helper functions for TypedEvaluator

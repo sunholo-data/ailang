@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestAIContext_NilHandler(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Runner executes tests and properties.

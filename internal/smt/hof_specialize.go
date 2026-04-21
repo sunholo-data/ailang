@@ -3,7 +3,7 @@ package smt
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // SubstituteLambdaVar replaces all free occurrences of paramName in body

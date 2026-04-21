@@ -3,8 +3,8 @@ package pipeline
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // TestOpLowering_FloatEquality tests that float equality operations

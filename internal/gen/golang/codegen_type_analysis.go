@@ -4,7 +4,7 @@ package golang
 import (
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // exprProducesInterface checks if an expression produces interface{} type.

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestManagedProcess_SpawnWriteClose(t *testing.T) {

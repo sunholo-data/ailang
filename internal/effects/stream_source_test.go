@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // mockSource implements EventSource for testing

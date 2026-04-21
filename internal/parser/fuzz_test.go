@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // FuzzParseExpr fuzzes the expression parser

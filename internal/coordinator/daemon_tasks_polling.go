@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // inboxMessage pairs a message with the inbox and agent it came from.

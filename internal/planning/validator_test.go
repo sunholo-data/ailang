@@ -3,7 +3,7 @@ package planning
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 func TestValidatePlan_EmptyPlan(t *testing.T) {

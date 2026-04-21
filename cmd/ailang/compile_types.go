@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
-	gen "github.com/sunholo/ailang/internal/gen/golang"
+	"github.com/sunholo-data/ailang/internal/ast"
+	gen "github.com/sunholo-data/ailang/internal/gen/golang"
 )
 
 // sanitizePackageName converts a string to a valid Go package name

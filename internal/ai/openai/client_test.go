@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 func TestClient_Generate_ChatCompletions(t *testing.T) {

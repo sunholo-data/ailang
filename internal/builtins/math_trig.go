@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Trigonometry and advanced math builtins (v0.5.9)

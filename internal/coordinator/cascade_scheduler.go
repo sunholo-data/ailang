@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // ScheduleCascadeUpdate determines the execution order for packages affected by

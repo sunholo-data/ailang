@@ -2,8 +2,8 @@
 package golang
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // isLetIfChain checks if a Let's body is an If that starts an if-else chain.

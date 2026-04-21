@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // testHandler collects events and optionally stops after N events.

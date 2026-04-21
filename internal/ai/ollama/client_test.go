@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 func TestNewClient(t *testing.T) {

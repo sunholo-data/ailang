@@ -3,7 +3,7 @@ package effects
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // ContractMode controls how contract violations are handled

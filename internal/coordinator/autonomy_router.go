@@ -1,7 +1,7 @@
 package coordinator
 
 import (
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // ChangeClass represents the severity level of a package update.

@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/gen/emitgo"
-	"github.com/sunholo/ailang/internal/gen/lower"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/gen/emitgo"
+	"github.com/sunholo-data/ailang/internal/gen/lower"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // compileV2 uses the Statement IR pipeline:

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/errors"
 )
 
 // newIMP010 creates an error report for missing export

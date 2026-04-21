@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // TestGAP2_NewlineLPAREN tests that LPAREN on a new line is NOT parsed as a function call.

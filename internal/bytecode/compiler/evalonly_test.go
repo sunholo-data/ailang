@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/vm"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/vm"
 )
 
 // TestCompile_EvalOnly_PerFunctionTagging is the M-BYTECODE-2D M3 unit test

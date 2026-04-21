@@ -3,7 +3,7 @@ package firestore
 import (
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // taskToMap converts a TaskRecord to a Firestore document map.

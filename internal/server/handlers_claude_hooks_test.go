@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // mockClaudeHooksBackend is a minimal mock implementing just the methods used by claude hooks.

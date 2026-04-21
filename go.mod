@@ -1,4 +1,4 @@
-module github.com/sunholo/ailang
+module github.com/sunholo-data/ailang
 
 go 1.25.0
 

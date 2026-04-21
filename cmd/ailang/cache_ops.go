@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/builtins"
-	"github.com/sunholo/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/effects"
 )
 
 func runCacheSearch(args []string) {

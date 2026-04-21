@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // TaskHierarchyNode represents a task with its relationships for cross-task visualization.

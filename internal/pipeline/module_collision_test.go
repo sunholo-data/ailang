@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/loader"
 )
 
 // makeLoadedModule builds a minimal LoadedModule with a declared module header

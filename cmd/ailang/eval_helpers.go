@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // evalBenchmarkDir is the directory containing benchmark YAML files.

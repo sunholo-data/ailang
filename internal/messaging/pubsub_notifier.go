@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // PubSubNotifier wraps a Pub/Sub publisher for sending message notifications.

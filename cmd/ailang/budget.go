@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	ailembed "github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	ailembed "github.com/sunholo-data/ailang/internal/embed"
 )
 
 func parseFloat(s string) (float64, error) {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // CoordinatorApprovalStore provides approval request operations

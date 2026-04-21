@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // LockFileName is the canonical lock file name.

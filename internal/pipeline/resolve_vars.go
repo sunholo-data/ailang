@@ -1,8 +1,8 @@
 package pipeline
 
 import (
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ResolveVarTypes propagates monomorphic types from bindings to Var occurrences (M-DX4).

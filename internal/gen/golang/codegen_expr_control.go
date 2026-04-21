@@ -2,7 +2,7 @@
 package golang
 
 import (
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // chainBranch represents a single branch in an if-else chain.

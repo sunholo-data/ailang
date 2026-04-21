@@ -1,7 +1,7 @@
 package coordinator
 
 import (
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // InboxMessageAdapter adapts messaging.MessageStore (inbox_messages table) to the coordinator's MessageStore interface

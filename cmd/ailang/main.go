@@ -7,13 +7,13 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/sunholo/ailang/internal/agentprompt"
-	"github.com/sunholo/ailang/internal/devtoolsprompt"
-	"github.com/sunholo/ailang/internal/loader"
-	"github.com/sunholo/ailang/internal/observatory"
-	"github.com/sunholo/ailang/internal/prompt"
-	"github.com/sunholo/ailang/internal/schema"
-	"github.com/sunholo/ailang/internal/version"
+	"github.com/sunholo-data/ailang/internal/agentprompt"
+	"github.com/sunholo-data/ailang/internal/devtoolsprompt"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/prompt"
+	"github.com/sunholo-data/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/version"
 )
 
 //go:embed all:prompts

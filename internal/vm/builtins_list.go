@@ -3,7 +3,7 @@ package vm
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // M-BYTECODE-STDLIB-BUILTINS M3: Pure list builtins wired to VM OpBuiltinCall.

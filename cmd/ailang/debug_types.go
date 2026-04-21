@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // TypeDebugDumper formats type debugging information for CLI output.

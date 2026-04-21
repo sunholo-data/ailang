@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/builtins"
 )
 
 // TestBuiltinTypes_GoldenSnapshot ensures builtin type signatures don't change accidentally.

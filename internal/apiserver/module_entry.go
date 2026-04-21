@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/loader"
 )
 
 // registerModule is the SOLE write site for s.modules.

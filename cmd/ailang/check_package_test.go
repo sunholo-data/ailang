@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestCollectPatternVars_ListPatternTail verifies that collectPatternVars

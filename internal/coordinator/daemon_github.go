@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"gopkg.in/yaml.v3"
 )
 

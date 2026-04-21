@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/loader"
 )
 
 // ModuleID represents a module identifier

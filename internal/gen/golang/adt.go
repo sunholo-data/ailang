@@ -6,7 +6,7 @@ import (
 	"go/format"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // ADTGenerator generates Go code for AILANG algebraic data types.

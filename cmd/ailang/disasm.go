@@ -8,13 +8,13 @@ import (
 
 	"sort"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/bytecode/compiler"
-	"github.com/sunholo/ailang/internal/gen/lower"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/pipeline"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode/compiler"
+	"github.com/sunholo-data/ailang/internal/gen/lower"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // disasmCommand handles `ailang disasm <file.ail>` — runs the file through

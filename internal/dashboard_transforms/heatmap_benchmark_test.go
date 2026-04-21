@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // HeatmapCell mirrors the AILANG type

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sunholo/ailang/internal/apiserver/templates"
+	"github.com/sunholo-data/ailang/internal/apiserver/templates"
 )
 
 func initCommand(args []string) error {

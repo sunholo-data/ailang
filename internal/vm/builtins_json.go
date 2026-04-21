@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // Json ADT variant tags (must match std/json.ail declaration order).

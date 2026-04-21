@@ -3,7 +3,7 @@ package smt
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 func TestIsSMTEncodable_NoContracts(t *testing.T) {

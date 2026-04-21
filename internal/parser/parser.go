@@ -3,8 +3,8 @@ package parser
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // Parser parses AILANG source code into an AST
@@ -135,7 +135,7 @@ func (p *Parser) Parse() *ast.Program {
 				p.curToken,
 				fmt.Sprintf("internal parser panic: %v", r),
 				nil,
-				"Please report this as a bug at https://github.com/sunholo/ailang/issues"))
+				"Please report this as a bug at https://github.com/sunholo-data/ailang/issues"))
 		}
 	}()
 

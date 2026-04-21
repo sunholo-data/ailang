@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // ObservatorySync handles syncing coordinator entities to Observatory.

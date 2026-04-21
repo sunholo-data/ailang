@@ -9,9 +9,9 @@ import (
 	"strings"
 	"syscall/js"
 
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/repl"
-	"github.com/sunholo/ailang/std"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/repl"
+	"github.com/sunholo-data/ailang/std"
 )
 
 // Version information (injected at build time via -ldflags)

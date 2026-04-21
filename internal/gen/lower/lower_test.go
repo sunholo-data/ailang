@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/gen/stmt"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Helper to create a Core node with a specific ID and type in CTI.

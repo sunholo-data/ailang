@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // M-DX23: Test typed function signatures with CoreTypeInfo

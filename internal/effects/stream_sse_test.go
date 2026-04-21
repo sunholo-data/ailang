@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // newTestSSEServer creates a mock SSE server that sends the given events.

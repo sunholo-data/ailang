@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // TelemetryParser captures stdout from a Claude process and broadcasts telemetry updates

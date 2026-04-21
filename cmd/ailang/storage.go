@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/sunholo/ailang/internal/storage"
-	"github.com/sunholo/ailang/internal/storage/migrate"
+	"github.com/sunholo-data/ailang/internal/storage"
+	"github.com/sunholo-data/ailang/internal/storage/migrate"
 )
 
 func storageCommand(args []string) error {

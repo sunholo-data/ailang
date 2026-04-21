@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 func TestDebugParserEnabled(t *testing.T) {

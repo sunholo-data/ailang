@@ -3,8 +3,8 @@ package repl
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/runtime"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/runtime"
 )
 
 // TestConsExpression_REPLEval tests that :: expressions evaluate correctly

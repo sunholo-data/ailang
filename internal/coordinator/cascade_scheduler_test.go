@@ -3,7 +3,7 @@ package coordinator
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 func TestScheduleCascadeUpdate_LinearChain(t *testing.T) {

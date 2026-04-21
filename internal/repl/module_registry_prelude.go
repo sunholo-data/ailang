@@ -3,12 +3,12 @@ package repl
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/link"
-	"github.com/sunholo/ailang/internal/runtime"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/link"
+	"github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // CallExport formats a function call expression string for use with the REPL.

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // MockEffContext provides a test-friendly effect context with mocking capabilities

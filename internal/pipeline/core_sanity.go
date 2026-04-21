@@ -4,8 +4,8 @@ package pipeline
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // CoreSanityError represents a Core IR invariant violation

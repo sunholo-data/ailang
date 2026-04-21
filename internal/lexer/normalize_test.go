@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/ast"
 	"golang.org/x/text/unicode/norm"
 )
 

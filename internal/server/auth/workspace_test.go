@@ -3,7 +3,7 @@ package auth
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 func TestMatchPathPattern(t *testing.T) {

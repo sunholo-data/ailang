@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/sunholo/ailang/internal/effects/testctx"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects/testctx"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // M-DOCPARSE-DX M3: String splitting tests

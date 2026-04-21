@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // LoadResultsFromChain loads all benchmark results from a chain's stages,

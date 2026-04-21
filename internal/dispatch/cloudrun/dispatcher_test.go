@@ -9,7 +9,7 @@ import (
 	runpb "cloud.google.com/go/run/apiv2/runpb"
 	"github.com/googleapis/gax-go/v2"
 
-	"github.com/sunholo/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // mockJobRunner records RunJob calls for verification.

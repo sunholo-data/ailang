@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/builtins"
 )
 
 // MigrateDB applies any necessary schema migrations to an existing database.

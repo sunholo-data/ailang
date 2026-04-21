@@ -3,8 +3,8 @@ package elaborate
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
 )
 
 // TestVerifyDepthElaboration tests that per-function @verify(depth: N)

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
 // TestTraceRecording_Integration verifies that the telemetry bridge works:

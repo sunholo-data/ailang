@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 )
 
 // TestPolyArithmetic_VarBoundLambda_FloatAdd is the primary M-POLY-ARITH bug:

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // encodeLet encodes a let binding as SMT-LIB let expression.

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/sunholo/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // registryCache provides an in-memory cache for registry data.

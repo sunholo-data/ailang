@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Arithmetic builtins for Int and Float operations

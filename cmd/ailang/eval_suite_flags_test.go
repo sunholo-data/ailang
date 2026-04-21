@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/eval_analysis"
 )
 
 // TestParseTierList covers the M3 --tier argument parser.

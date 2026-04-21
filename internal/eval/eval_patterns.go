@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/dtree"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/dtree"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // debugMatch enables debug output for pattern matching when DEBUG_MATCH=1

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor"
 	// Register executors via init()
-	_ "github.com/sunholo/ailang/internal/executor/claude"
-	_ "github.com/sunholo/ailang/internal/executor/gemini"
+	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 )
 
 func TestGeminiExecutorIntegration(t *testing.T) {

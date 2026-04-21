@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/coordinator"
-	"github.com/sunholo/ailang/internal/display"
+	"github.com/sunholo-data/ailang/internal/coordinator"
+	"github.com/sunholo-data/ailang/internal/display"
 )
 
 // UIApproval is the format expected by the frontend Approval interface

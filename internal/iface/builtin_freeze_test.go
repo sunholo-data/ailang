@@ -3,7 +3,7 @@ package iface_test
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/iface"
 )
 
 // TestBuiltinInterfaceStability ensures the builtin interface doesn't change accidentally

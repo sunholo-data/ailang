@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/runtime"
 )
 
 // bytecodeBridge implements vm.EvalInterop for the `ailang run --bytecode`

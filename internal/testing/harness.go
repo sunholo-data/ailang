@@ -3,8 +3,8 @@ package testing
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // BuildInlineTestHarness creates a synthetic Core expression for evaluating inline tests.

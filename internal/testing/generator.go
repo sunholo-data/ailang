@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // Generator produces random values of a specific type for property-based testing.

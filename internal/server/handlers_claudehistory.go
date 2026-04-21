@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/claudehistory"
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/claudehistory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // ClaudeHistoryHandler provides HTTP handlers for Claude Code conversation history.

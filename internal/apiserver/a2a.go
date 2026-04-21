@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/embed"
+	"github.com/sunholo-data/ailang/internal/embed"
 )
 
 // handleA2AAgentCard serves the A2A Agent Card at /.well-known/agent.json.

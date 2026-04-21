@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/types"
-	"github.com/sunholo/ailang/internal/types/traverse"
+	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types/traverse"
 )
 
 // canonicalTypeFingerprint produces a stable, normalized string representation of types

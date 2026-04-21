@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // M-BYTECODE-STDLIB-BUILTINS M2: Math + type conversion builtins wired to VM.

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval"
-	"github.com/sunholo/ailang/internal/runtime"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/runtime"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ModuleRegistry stores compiled modules for REPL access.

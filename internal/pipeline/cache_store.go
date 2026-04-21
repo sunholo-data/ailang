@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/sunholo/ailang/internal/core"
-	_ "github.com/sunholo/ailang/internal/core" // registers gob types
-	"github.com/sunholo/ailang/internal/iface"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	_ "github.com/sunholo-data/ailang/internal/core" // registers gob types
+	"github.com/sunholo-data/ailang/internal/iface"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // M-PERF6 M3: Disk-based compilation cache for module interfaces.

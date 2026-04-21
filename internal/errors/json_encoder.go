@@ -4,7 +4,7 @@ package errors
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/schema"
 )
 
 // Error codes taxonomy

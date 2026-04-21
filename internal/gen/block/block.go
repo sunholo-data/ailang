@@ -6,7 +6,7 @@
 // M-CODEGEN-V2: Eliminate nested IIFEs by lowering let chains to flat blocks.
 package block
 
-import "github.com/sunholo/ailang/internal/core"
+import "github.com/sunholo-data/ailang/internal/core"
 
 // Block represents a sequence of variable bindings followed by a final expression.
 // This is the result of flattening nested let expressions from Core AST.

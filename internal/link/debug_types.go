@@ -3,7 +3,7 @@ package link
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/builtins"
 )
 
 func DebugBuiltinTypes() {

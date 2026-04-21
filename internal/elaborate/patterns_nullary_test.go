@@ -3,8 +3,8 @@ package elaborate
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/ast"
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestNullaryConstructorPattern tests that nullary constructors in patterns

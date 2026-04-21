@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/sunholo/ailang/internal/server/auth"
+	"github.com/sunholo-data/ailang/internal/server/auth"
 )
 
 // AuditLogEntry represents a single audit log entry.

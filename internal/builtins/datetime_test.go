@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sunholo/ailang/internal/effects/testctx"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/effects/testctx"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestDtParts(t *testing.T) {

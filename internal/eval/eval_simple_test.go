@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/lexer"
-	"github.com/sunholo/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/parser"
 )
 
 // Helper function to evaluate string expressions for tests

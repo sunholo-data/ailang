@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/prompt"
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // runPrompt handles the 'ailang prompt' command

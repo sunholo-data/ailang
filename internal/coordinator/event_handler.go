@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // EventBroadcaster is a function that broadcasts task stream events.

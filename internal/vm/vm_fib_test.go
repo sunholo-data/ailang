@@ -3,7 +3,7 @@ package vm
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // TestVM_Fib25 is the Phase 2B acceptance gate from M-BYTECODE-VM §10.

@@ -3,7 +3,7 @@ package repl
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestApplyClosure_ModuleSiblingBinding tests that a closure exported from a module

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sunholo/ailang/internal/telemetry"
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/telemetry"
+	"github.com/sunholo-data/ailang/internal/websocket"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

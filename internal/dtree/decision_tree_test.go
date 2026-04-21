@@ -3,7 +3,7 @@ package dtree
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestDecisionTree_SimpleBoolMatch tests decision tree compilation for Bool match

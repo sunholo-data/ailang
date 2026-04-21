@@ -3,8 +3,8 @@ package runtime
 import (
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // BuiltinOnlyResolver resolves builtin functions for non-module execution

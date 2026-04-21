@@ -3,7 +3,7 @@ package eval
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TestSimpleRecursion_Factorial tests self-recursion with factorial

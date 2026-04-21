@@ -3,7 +3,7 @@ package coordinator
 import (
 	"context"
 
-	"github.com/sunholo/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/observatory"
 )
 
 // updateChainStageStatus updates the stage status in observatory (M-CHAINS-SIMPLIFY)

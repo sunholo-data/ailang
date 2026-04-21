@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/apiserver/schema"
+	"github.com/sunholo-data/ailang/internal/apiserver/schema"
 )
 
 // handleOpenAPISpec generates and serves an OpenAPI 3.1 spec from loaded modules.

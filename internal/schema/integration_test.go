@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/sunholo/ailang/internal/errors"
-	"github.com/sunholo/ailang/internal/schema"
-	"github.com/sunholo/ailang/internal/test"
+	"github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/schema"
+	"github.com/sunholo-data/ailang/internal/test"
 )
 
 // TestErrorSchemaIntegration verifies error JSON schemas work end-to-end

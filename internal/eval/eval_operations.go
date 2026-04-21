@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // debugEvalApp enables debug output for function application when DEBUG_EVAL_APP=1

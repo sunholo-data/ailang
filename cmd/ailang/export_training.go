@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	ailtrace "github.com/sunholo/ailang/internal/trace"
+	ailtrace "github.com/sunholo-data/ailang/internal/trace"
 )
 
 func exportTraining() {

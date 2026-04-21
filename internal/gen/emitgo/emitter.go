@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"go/format"
 
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 // Emit produces Go source code from a Statement IR Program.

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // OpMapping defines how an intrinsic operation maps to builtins

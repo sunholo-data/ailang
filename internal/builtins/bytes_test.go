@@ -3,7 +3,7 @@ package builtins
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 func TestBytesFromString(t *testing.T) {

@@ -3,7 +3,7 @@ package block
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // Helper to create a simple Let expression

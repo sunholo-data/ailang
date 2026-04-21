@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/sunholo/ailang/internal/bytecode"
-	"github.com/sunholo/ailang/internal/gen/stmt"
+	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
 // BuiltinTable is the canonical, source-ordered table of pure builtins

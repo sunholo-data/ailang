@@ -3,7 +3,7 @@ package golang
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // TestTypeMapper_MapType_List tests M-DX25.1: TApp("List", T) maps to []T

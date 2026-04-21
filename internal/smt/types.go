@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // SMTContext holds the state needed for SMT-LIB generation.

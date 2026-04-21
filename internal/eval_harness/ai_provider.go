@@ -8,11 +8,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ai"
-	"github.com/sunholo/ailang/internal/ai/anthropic"
-	"github.com/sunholo/ailang/internal/ai/gemini"
-	"github.com/sunholo/ailang/internal/ai/ollama"
-	"github.com/sunholo/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/gemini"
+	"github.com/sunholo-data/ailang/internal/ai/ollama"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
 )
 
 // providerAdapter wraps ai.Provider for eval harness use.

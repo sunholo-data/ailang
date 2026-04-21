@@ -2,9 +2,9 @@
 //
 // These vars are overridden at link time via -ldflags:
 //
-//	-X github.com/sunholo/ailang/internal/version.Version=vX.Y.Z
-//	-X github.com/sunholo/ailang/internal/version.Commit=<sha>
-//	-X github.com/sunholo/ailang/internal/version.BuildTime=<iso>
+//	-X github.com/sunholo-data/ailang/internal/version.Version=vX.Y.Z
+//	-X github.com/sunholo-data/ailang/internal/version.Commit=<sha>
+//	-X github.com/sunholo-data/ailang/internal/version.BuildTime=<iso>
 //
 // For `go run` / `go test` invocations without ldflags, init() populates
 // Commit/BuildTime from runtime/debug.ReadBuildInfo() when available so

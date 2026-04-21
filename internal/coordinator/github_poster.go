@@ -3,7 +3,7 @@ package coordinator
 import (
 	"fmt"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 // LabelInProgress is the claim label used to prevent race conditions

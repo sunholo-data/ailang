@@ -3,7 +3,7 @@ package effects
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/eval"
 )
 
 // TestIntegration_EffContextFlow tests the full flow from CLI to effects

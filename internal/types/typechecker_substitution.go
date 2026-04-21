@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/typedast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
 // ApplySubstEverywhere applies substitution coherently to all relevant data structures

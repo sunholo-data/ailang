@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	promptpkg "github.com/sunholo/ailang/internal/prompt"
+	promptpkg "github.com/sunholo-data/ailang/internal/prompt"
 	"gopkg.in/yaml.v3"
 )
 

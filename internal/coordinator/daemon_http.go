@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sunholo/ailang/internal/messaging"
-	"github.com/sunholo/ailang/internal/observatory"
-	"github.com/sunholo/ailang/internal/pubsub"
+	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 // requireAPIKey returns middleware that checks for a valid Bearer token.

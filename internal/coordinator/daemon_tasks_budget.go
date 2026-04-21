@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sunholo/ailang/internal/websocket"
+	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // checkBudgetBeforeExecution checks if the task can proceed within budget limits.

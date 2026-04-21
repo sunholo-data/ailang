@@ -3,7 +3,7 @@ package coordinator
 import (
 	"testing"
 
-	"github.com/sunholo/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/messaging"
 )
 
 func boolPtr(b bool) *bool { return &b }

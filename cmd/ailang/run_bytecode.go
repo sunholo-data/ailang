@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/sunholo/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/bytecode"
 )
 
 // findEntryProto resolves an entry name (e.g. "main") to a prototype in the

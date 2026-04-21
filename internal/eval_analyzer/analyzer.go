@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // IssueReport represents a pattern of failures discovered in eval results

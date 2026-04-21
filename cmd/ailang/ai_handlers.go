@@ -12,13 +12,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/ai"
-	"github.com/sunholo/ailang/internal/ai/anthropic"
-	"github.com/sunholo/ailang/internal/ai/gemini"
-	"github.com/sunholo/ailang/internal/ai/ollama"
-	"github.com/sunholo/ailang/internal/ai/openai"
-	"github.com/sunholo/ailang/internal/effects"
-	"github.com/sunholo/ailang/internal/eval_harness"
+	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/anthropic"
+	"github.com/sunholo-data/ailang/internal/ai/gemini"
+	"github.com/sunholo-data/ailang/internal/ai/ollama"
+	"github.com/sunholo-data/ailang/internal/ai/openai"
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // setupAIHandler configures the AI effect handler based on CLI flags.

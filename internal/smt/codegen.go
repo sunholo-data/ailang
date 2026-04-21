@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sunholo/ailang/internal/core"
-	"github.com/sunholo/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ErrUnresolvableTypes indicates that the function references types
