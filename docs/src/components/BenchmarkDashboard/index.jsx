@@ -13,10 +13,28 @@ import AgentRadar from './AgentRadar';
 import AxiomScorecard from './AxiomScorecard';
 import styles from './styles.module.css';
 
+// Tier order + labels for the M6 toggle. Core is the headline tier
+// (primary metric), so it's the default selection when the tiers block
+// is present in the dashboard JSON.
+const TIER_ORDER = ['smoke', 'core', 'stretch', 'vision'];
+const TIER_LABELS = {
+  smoke: 'Smoke',
+  core: 'Core',
+  stretch: 'Stretch',
+  vision: 'Vision',
+};
+const TIER_BLURBS = {
+  smoke: 'Signal tier — fast sanity checks',
+  core: 'Primary metric — expected AILANG floor',
+  stretch: 'Headroom tier — hard contracts + polymorphism',
+  vision: 'Aspirational — type-directed synthesis',
+};
+
 export default function BenchmarkDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTier, setSelectedTier] = useState(null); // null = all tiers
 
   useEffect(() => {
     // Fetch benchmark data
@@ -27,6 +45,11 @@ export default function BenchmarkDashboard() {
       })
       .then(data => {
         setData(data);
+        // Default to Core tier when the tiers block is present, so the
+        // primary metric is the Core pass rate (M-EVAL-SUITE-PREP M6).
+        if (data?.tiers?.core) {
+          setSelectedTier('core');
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -67,17 +90,34 @@ export default function BenchmarkDashboard() {
     );
   }
 
-  const { aggregates, models, benchmarks, version, totalRuns, history, languages } = data;
+  const { aggregates, models, benchmarks, version, totalRuns, history, languages, tiers } = data;
 
   // Use AILANG-specific metrics for the dashboard
   const ailangStats = languages?.ailang || aggregates;
   const pythonStats = languages?.python;
   const ailangRuns = ailangStats.total_runs || ailangStats.totalRuns || Math.floor(totalRuns / 2);
-  const ailangSuccess = ailangStats.success_rate || ailangStats.finalSuccess || aggregates.finalSuccess;
+  const overallAilangSuccess = ailangStats.success_rate || ailangStats.finalSuccess || aggregates.finalSuccess;
+  const overallPythonSuccess = pythonStats?.success_rate ?? 0;
   const ailangZeroShot = ailangStats.success_rate || ailangStats.zeroShotSuccess || aggregates.zeroShotSuccess;
 
-  // Calculate deltas vs Python baseline
-  const successDelta = pythonStats ? ((ailangSuccess - pythonStats.success_rate) * 100) : 0;
+  // Resolve the currently displayed tier (null = overall). Core is the
+  // headline metric when the tiers block is present (M-EVAL-SUITE-PREP M6).
+  const activeTier = selectedTier && tiers?.[selectedTier] ? tiers[selectedTier] : null;
+  const ailangSuccess = activeTier ? activeTier.ailang_success_rate : overallAilangSuccess;
+  const tierPythonSuccess = activeTier ? activeTier.python_success_rate : overallPythonSuccess;
+  const tierAilangRuns = activeTier ? activeTier.ailang_runs : ailangRuns;
+  const tierBenchCount = activeTier ? activeTier.benchmark_count : Object.keys(benchmarks || {}).length;
+
+  // Filter benchmarks to the selected tier. The per-benchmark `tier`
+  // field is written by ExportBenchmarkJSON from the YAML spec.
+  const filteredBenchmarks = selectedTier && benchmarks
+    ? Object.fromEntries(
+        Object.entries(benchmarks).filter(([, b]) => b?.tier === selectedTier)
+      )
+    : benchmarks;
+
+  // Calculate deltas vs Python baseline (tier-aware)
+  const successDelta = (ailangSuccess - tierPythonSuccess) * 100;
   const tokenDelta = pythonStats ? ((ailangStats.avg_tokens - pythonStats.avg_tokens) / pythonStats.avg_tokens * 100) : 0;
   const tokenRatio = pythonStats ? (ailangStats.avg_tokens / pythonStats.avg_tokens) : 1;
 
@@ -98,17 +138,33 @@ export default function BenchmarkDashboard() {
     }
   }
 
+  const heroTitle = activeTier
+    ? `${TIER_LABELS[selectedTier]} Pass Rate`
+    : 'Success Rate';
+  const heroSubtitle = activeTier
+    ? `${successDelta >= 0 ? '+' : ''}${successDelta.toFixed(1)}% vs Python (${(tierPythonSuccess * 100).toFixed(1)}%)`
+    : (pythonStats ? `${successDelta.toFixed(1)}% vs Python (${(overallPythonSuccess * 100).toFixed(1)}%)` : 'AILANG success rate');
+
   return (
     <div className={styles.dashboard}>
+      {/* Tier Toggle (M6) */}
+      {tiers && Object.keys(tiers).length > 0 && (
+        <TierToggle
+          tiers={tiers}
+          selected={selectedTier}
+          onSelect={setSelectedTier}
+        />
+      )}
+
       {/* Hero Metrics */}
       <div className={styles.heroSection}>
         <div className={styles.metricGrid}>
           <MetricCard
             icon={<CheckCircle />}
-            title="Success Rate"
+            title={heroTitle}
             value={`${(ailangSuccess * 100).toFixed(1)}%`}
-            subtitle={pythonStats ? `${successDelta.toFixed(1)}% vs Python (${(pythonStats.success_rate * 100).toFixed(1)}%)` : 'AILANG success rate'}
-            trend={trend}
+            subtitle={heroSubtitle}
+            trend={activeTier ? null : trend}
             large
           />
           <MetricCard
@@ -120,9 +176,9 @@ export default function BenchmarkDashboard() {
           />
           <MetricCard
             icon={<Activity />}
-            title="Total Benchmarks"
-            value={ailangRuns}
-            subtitle={`Across ${Object.keys(models || {}).length} AI models`}
+            title={activeTier ? `${TIER_LABELS[selectedTier]} Benchmarks` : 'Total Benchmarks'}
+            value={activeTier ? tierBenchCount : ailangRuns}
+            subtitle={activeTier ? `${tierAilangRuns} AILANG runs` : `Across ${Object.keys(models || {}).length} AI models`}
           />
           <MetricCard
             icon={<Target />}
@@ -210,11 +266,18 @@ export default function BenchmarkDashboard() {
         </div>
       )}
 
-      {/* Benchmark Gallery */}
-      {benchmarks && Object.keys(benchmarks).length > 0 && (
+      {/* Benchmark Gallery (filtered by selected tier when active) */}
+      {filteredBenchmarks && Object.keys(filteredBenchmarks).length > 0 && (
         <div className={styles.section}>
-          <h3>Benchmark Results</h3>
-          <BenchmarkGallery benchmarks={benchmarks} />
+          <h3>
+            Benchmark Results
+            {activeTier && (
+              <span className={styles.tierHeadline}>
+                {' '}— showing {Object.keys(filteredBenchmarks).length} {TIER_LABELS[selectedTier]} benchmarks
+              </span>
+            )}
+          </h3>
+          <BenchmarkGallery benchmarks={filteredBenchmarks} />
         </div>
       )}
 
@@ -297,6 +360,41 @@ function ValueProp({ icon, title, description }) {
       <div className={styles.valuePropIcon}>{icon}</div>
       <div className={styles.valuePropTitle}>{title}</div>
       <div className={styles.valuePropDescription}>{description}</div>
+    </div>
+  );
+}
+
+// TierToggle renders a chip row of tier filters. The selected tier
+// drives the hero metric + benchmark gallery (M-EVAL-SUITE-PREP M6).
+// An "All" chip resets to the overall view.
+function TierToggle({ tiers, selected, onSelect }) {
+  const label = selected && TIER_BLURBS[selected]
+    ? TIER_BLURBS[selected]
+    : 'Combined view across every tier';
+  return (
+    <div>
+      <div className={styles.tierToggle}>
+        <span className={styles.tierToggleLabel}>Tier:</span>
+        <button
+          type="button"
+          className={`${styles.tierButton} ${selected === null ? styles.tierButtonActive : ''}`}
+          onClick={() => onSelect(null)}
+        >
+          All
+        </button>
+        {TIER_ORDER.filter((t) => tiers[t]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            className={`${styles.tierButton} ${selected === t ? styles.tierButtonActive : ''}`}
+            onClick={() => onSelect(t)}
+          >
+            {TIER_LABELS[t]}
+            <span className={styles.tierButtonCount}>({tiers[t].benchmark_count})</span>
+          </button>
+        ))}
+      </div>
+      <div className={styles.tierHeadline}>{label}</div>
     </div>
   );
 }

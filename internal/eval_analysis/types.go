@@ -213,19 +213,33 @@ type SummaryEntry struct {
 	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
 }
 
+// TierAggregate contains per-tier pass-rate metrics. Populated by
+// ExportBenchmarkJSON from the tier field attached to each benchmark
+// result (resolved via the benchmark YAML's tier). The Core tier pass
+// rate is the dashboard headline metric per M-EVAL-SUITE-PREP M6.
+type TierAggregate struct {
+	TotalRuns         int     `json:"total_runs"`
+	AILANGRuns        int     `json:"ailang_runs"`
+	PythonRuns        int     `json:"python_runs"`
+	AILANGSuccessRate float64 `json:"ailang_success_rate"`
+	PythonSuccessRate float64 `json:"python_success_rate"`
+	BenchmarkCount    int     `json:"benchmark_count"` // unique benchmark IDs in this tier
+}
+
 // DashboardJSON represents the structure of docs/static/benchmarks/latest.json
 // This is the single source of truth for the dashboard frontend
 type DashboardJSON struct {
-	Version     string                 `json:"version"`
-	Timestamp   string                 `json:"timestamp"`
-	TotalRuns   int                    `json:"totalRuns"`
-	Aggregates  map[string]interface{} `json:"aggregates"`
-	Models      map[string]interface{} `json:"models"`
-	AgentModels map[string]interface{} `json:"agentModels,omitempty"` // Agent-only models (separate from standard)
-	Benchmarks  map[string]interface{} `json:"benchmarks"`
-	Languages   map[string]interface{} `json:"languages"` // map[language]->stats
-	Executors   map[string]interface{} `json:"executors"` // map[executor]->agent stats (claude, gemini)
-	History     []HistoryEntry         `json:"history"`
+	Version     string                   `json:"version"`
+	Timestamp   string                   `json:"timestamp"`
+	TotalRuns   int                      `json:"totalRuns"`
+	Aggregates  map[string]interface{}   `json:"aggregates"`
+	Tiers       map[string]TierAggregate `json:"tiers,omitempty"` // Per-tier aggregates: smoke/core/stretch/vision
+	Models      map[string]interface{}   `json:"models"`
+	AgentModels map[string]interface{}   `json:"agentModels,omitempty"` // Agent-only models (separate from standard)
+	Benchmarks  map[string]interface{}   `json:"benchmarks"`
+	Languages   map[string]interface{}   `json:"languages"` // map[language]->stats
+	Executors   map[string]interface{}   `json:"executors"` // map[executor]->agent stats (claude, gemini)
+	History     []HistoryEntry           `json:"history"`
 }
 
 // HistoryEntry represents a single version's data in the history array

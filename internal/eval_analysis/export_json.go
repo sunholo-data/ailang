@@ -149,7 +149,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		agentBenchStats[r.ID][r.Lang] = stats
 	}
 
-	// Convert benchmarks to camelCase for JavaScript
+	// Convert benchmarks to camelCase for JavaScript. While iterating,
+	// capture each benchmark's tier (from the YAML) into an index so we
+	// can compute per-tier aggregates below without reloading the specs
+	// (M-EVAL-SUITE-PREP M6). Tags are emitted on each benchmark but do
+	// not need a separate index here.
+	benchmarkTier := make(map[string]string) // benchmarkID -> tier
 	benchmarksJS := make(map[string]interface{})
 	for id, stats := range matrix.Benchmarks {
 		benchmark := map[string]interface{}{
@@ -168,6 +173,15 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 					benchmark["taskPrompt"] = spec.TaskPrompt
 				} else if spec.Prompt != "" {
 					benchmark["taskPrompt"] = spec.Prompt
+				}
+				// Expose tier + tags so the dashboard can filter per-tier
+				// and render tag chips. Tier defaults to "core" in LoadSpec.
+				if spec.Tier != "" {
+					benchmark["tier"] = spec.Tier
+					benchmarkTier[id] = spec.Tier
+				}
+				if len(spec.Tags) > 0 {
+					benchmark["tags"] = spec.Tags
 				}
 			}
 		}
@@ -734,11 +748,63 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	sort.Strings(executorList)
 	aggregatesJS["agentExecutors"] = executorList
 
+	// Per-tier aggregates (M-EVAL-SUITE-PREP M6). Group results by tier
+	// (resolved from benchmarkTier built above) and compute AILANG vs
+	// Python pass rates per tier. The Core tier pass rate is the
+	// dashboard headline metric.
+	type tierAcc struct {
+		ailangRuns, ailangPass int
+		pythonRuns, pythonPass int
+		benchIDs               map[string]bool
+	}
+	tierAccs := make(map[string]*tierAcc)
+	for _, r := range standardResults {
+		tier := benchmarkTier[r.ID]
+		if tier == "" {
+			continue // benchmark without a YAML tier is not binned
+		}
+		acc, ok := tierAccs[tier]
+		if !ok {
+			acc = &tierAcc{benchIDs: make(map[string]bool)}
+			tierAccs[tier] = acc
+		}
+		acc.benchIDs[r.ID] = true
+		switch r.Lang {
+		case "ailang":
+			acc.ailangRuns++
+			if r.StdoutOk {
+				acc.ailangPass++
+			}
+		case "python":
+			acc.pythonRuns++
+			if r.StdoutOk {
+				acc.pythonPass++
+			}
+		}
+	}
+	tiersJS := make(map[string]TierAggregate, len(tierAccs))
+	for tier, acc := range tierAccs {
+		agg := TierAggregate{
+			TotalRuns:      acc.ailangRuns + acc.pythonRuns,
+			AILANGRuns:     acc.ailangRuns,
+			PythonRuns:     acc.pythonRuns,
+			BenchmarkCount: len(acc.benchIDs),
+		}
+		if acc.ailangRuns > 0 {
+			agg.AILANGSuccessRate = float64(acc.ailangPass) / float64(acc.ailangRuns)
+		}
+		if acc.pythonRuns > 0 {
+			agg.PythonSuccessRate = float64(acc.pythonPass) / float64(acc.pythonRuns)
+		}
+		tiersJS[tier] = agg
+	}
+
 	// Update dashboard with current version data
 	dashboard.Version = matrix.Version
 	dashboard.Timestamp = time.Now().Format(time.RFC3339)
 	dashboard.TotalRuns = matrix.TotalRuns
 	dashboard.Aggregates = aggregatesJS
+	dashboard.Tiers = tiersJS
 	dashboard.Models = modelsJS
 	dashboard.AgentModels = agentModelsJS
 	dashboard.Benchmarks = benchmarksJS

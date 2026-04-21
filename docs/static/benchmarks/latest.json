@@ -1,6 +1,6 @@
 {
-  "version": "0.12.0",
-  "timestamp": "2026-04-17T17:20:13+02:00",
+  "version": "v0.12.0",
+  "timestamp": "2026-04-21T09:32:22+02:00",
   "totalRuns": 612,
   "aggregates": {
     "agentBenchmarks": [
@@ -67,6 +67,40 @@
     "totalCostUSD": 21.873008000000016,
     "totalTokens": 7931014,
     "zeroShotSuccess": 0.7532679738562091
+  },
+  "tiers": {
+    "core": {
+      "total_runs": 252,
+      "ailang_runs": 126,
+      "python_runs": 126,
+      "ailang_success_rate": 0.873015873015873,
+      "python_success_rate": 0.8095238095238095,
+      "benchmark_count": 21
+    },
+    "smoke": {
+      "total_runs": 180,
+      "ailang_runs": 90,
+      "python_runs": 90,
+      "ailang_success_rate": 0.9777777777777777,
+      "python_success_rate": 0.9333333333333333,
+      "benchmark_count": 15
+    },
+    "stretch": {
+      "total_runs": 120,
+      "ailang_runs": 60,
+      "python_runs": 60,
+      "ailang_success_rate": 0.5666666666666667,
+      "python_success_rate": 0.6,
+      "benchmark_count": 10
+    },
+    "vision": {
+      "total_runs": 60,
+      "ailang_runs": 30,
+      "python_runs": 30,
+      "ailang_success_rate": 0.7666666666666667,
+      "python_success_rate": 0.6666666666666666,
+      "benchmark_count": 5
+    }
   },
   "models": {
     "claude-opus-4-7": {
@@ -2119,7 +2153,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines an Option type (Some/None, or equivalent)\n2. Implements a safe square root function that returns Option[Float]\n   - Returns Some(sqrt(n)) if n \u003e= 0\n   - Returns None if n \u003c 0 (can't take sqrt of negative)\n3. Tests the function with: safeSqrt(16.0) and safeSqrt(-4.0)\n4. Prints the results:\n   - For Some(value): print \"Root: {value}\"\n   - For None: print \"Error: Negative input\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "api_call_json": {
@@ -2159,7 +2197,12 @@
         "python"
       ],
       "successRate": 0.9166666666666666,
+      "tags": [
+        "effects_io",
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Makes an HTTP POST request to https://httpbin.org/post\n2. Includes custom headers: \"X-Test-Header: value123\" and \"Content-Type: application/json\"\n3. Sends a JSON body: {\"message\":\"Hello from \u003cLANG\u003e\",\"count\":42}\n4. Prints ONLY the response status code (e.g., \"200\" or \"201\")\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "balanced_parens": {
@@ -2199,7 +2242,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements a function `isBalanced` that checks if parentheses in a string are balanced\n   - Uses a counter: increment for '(', decrement for ')'\n   - Balanced if counter never goes negative and ends at zero\n\n2. Tests these strings and prints \"true\" or \"false\" for each:\n   - \"(())\"     -\u003e true  (balanced)\n   - \"(()\"      -\u003e false (unbalanced - missing close)\n   - \"())()\"    -\u003e false (unbalanced - close before open)\n   - \"()(())\"   -\u003e true  (balanced)\n\nPrint one result per line, in the order given above.\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "binary_tree_sum": {
@@ -2239,7 +2287,12 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Defines a binary tree data type with:\n   - Leaf nodes containing an integer value\n   - Branch nodes containing a left subtree, an integer value, and a right subtree\n\n2. Creates this tree:\n         5\n        / \\\n       3   8\n      / \\   \\\n     1   4   10\n\n3. Implements a function `treeSum` that recursively sums all values in the tree\n\n4. Prints the sum of all values in the tree\n\nThe tree has values: 5, 3, 8, 1, 4, 10\nExpected sum: 5 + 3 + 8 + 1 + 4 + 10 = 31\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "canonical_normalization": {
@@ -2279,7 +2332,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates canonical code structure.\n\nRequirements:\n1. Implement a function `filterEvens(numbers)` that returns only even numbers from a list\n2. Implement a function `sumList(numbers)` that returns the sum of a list\n3. Use these functions to:\n   - Start with list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n   - Filter to get evens: [2, 4, 6, 8, 10]\n   - Sum the evens: 30\n4. Print: \"Sum of evens: 30\"\n\nWrite the MOST IDIOMATIC code for \u003cLANG\u003e:\n- Use standard library functions where available\n- Prefer functional composition over loops\n- Use the canonical, recommended style for the language\n\nExpected output:\n\"Sum of evens: 30\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "cli_args": {
@@ -2319,7 +2376,12 @@
         "python"
       ],
       "successRate": 0.9166666666666666,
+      "tags": [
+        "effects_io",
+        "error_handling"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Takes a filename as a command-line argument\n2. Reads the file contents (assume it contains numbers, one per line)\n3. Computes the sum of all numbers\n4. Prints the sum\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "config_file_parser": {
@@ -2359,7 +2421,13 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "string_algo",
+        "error_handling",
+        "data_transform"
+      ],
       "taskPrompt": "Build a configuration file parser with validation.\n\n**Requirements**:\n\n1. Create a JSON config file named \"app_config.json\" containing:\n   - app_name: \"MyApp\"\n   - version: \"1.0.0\"\n   - port: 8080\n   - features: [\"logging\", \"auth\", \"api\"]\n\n2. Implement a function to load and validate the config:\n   - Read the JSON file\n   - Parse the JSON content\n   - Validate that port is between 1024 and 65535\n   - Validate that version contains exactly two dots (X.Y.Z format)\n   - Validate that features list is not empty\n\n3. Print the result in this exact format:\n   \"Loaded MyApp v1.0.0 on port 8080 with 3 features\"\n\nThe output format must be: \"Loaded {app_name} v{version} on port {port} with {count} features\"\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "contract_bst_validate": {
@@ -2385,7 +2453,13 @@
         "python"
       ],
       "successRate": 0.5833333333333334,
+      "tags": [
+        "contracts",
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Implement a binary search tree with insert, search, and structural validation.\n\nThe BST must not allow duplicates. Implement the type and functions matching\nthe contract signatures above. The proof functions must always return true.\nUse -999999 and 999999 as bounds for insertPreservesBST.\n\nPrint (one per line):\n  size(insert(insert(insert(Leaf, 5), 3), 7))\n  contains(insert(insert(insert(Leaf, 5), 3), 7), 3)\n  contains(insert(insert(insert(Leaf, 5), 3), 7), 4)\n  isBST(insert(insert(insert(Leaf, 5), 3), 7), -999999, 999999)\n  insertPreservesBST(42)\n  insertThenFind(42)\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "contract_matrix_determinant": {
@@ -2411,7 +2485,13 @@
         "python"
       ],
       "successRate": 0.16666666666666666,
+      "tags": [
+        "contracts",
+        "recursion",
+        "algorithmic"
+      ],
       "taskPrompt": "Compute the determinant of 2x2 and 3x3 integer matrices.\n\nMatrices are passed as individual int arguments in row-major order.\nImplement functions matching the contract signatures above.\nThe proof functions must always return true.\n\nPrint (one per line):\n  det2(3, 8, 4, 6)\n  det3(6, 1, 1, 4, -2, 5, 2, 8, 7)\n  det3(1, 0, 0, 0, 1, 0, 0, 0, 1)\n  identityDet()\n  zeroRowDet(3, 5, 7, 2, 4, 6)\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "contract_rle_roundtrip": {
@@ -2437,7 +2517,13 @@
         "python"
       ],
       "successRate": 0.25,
+      "tags": [
+        "contracts",
+        "string_algo",
+        "algorithmic"
+      ],
       "taskPrompt": "Implement run-length encoding and decoding with a roundtrip proof.\n\nEncoding replaces consecutive identical characters with count + character.\nExample: \"aaabbc\" -\u003e \"3a2b1c\". Always include the count, even for runs of 1.\nDecoding reverses the process. Must handle multi-digit counts.\n\nImplement functions matching the contract signatures above. Proof functions\nmust always return true.\n\nPrint (one per line):\n  encode(\"aaabbc\")\n  encode(\"xyz\")\n  decode(\"3a2b1c\")\n  decode(\"1x1y1z\")\n  roundtrip(\"hello\")\n  singleCharEncode(\"q\")\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "contract_roman_numeral": {
@@ -2463,7 +2549,12 @@
         "python"
       ],
       "successRate": 0.16666666666666666,
+      "tags": [
+        "contracts",
+        "string_algo"
+      ],
       "taskPrompt": "Implement bidirectional Roman numeral conversion (1-3999) with subtractive\nnotation (IV, IX, XL, XC, CD, CM).\n\nImplement functions matching the contract signatures above. toRoman must produce\ncanonical form. Proof functions must always return true.\n\nPrint (one per line):\n  toRoman(1994)\n  toRoman(58)\n  toRoman(3999)\n  fromRoman(\"MCMXCIV\")\n  fromRoman(\"LVIII\")\n  roundtrip(2024)\n  distinctEncoding(4, 6)\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "contract_sorted_merge": {
@@ -2489,7 +2580,13 @@
         "python"
       ],
       "successRate": 0.16666666666666666,
+      "tags": [
+        "contracts",
+        "algorithmic",
+        "recursion"
+      ],
       "taskPrompt": "Implement sorted integer sets as a custom ADT with merge (union), intersection,\nand a proof of the inclusion-exclusion principle: |A∪B| + |A∩B| == |A| + |B|.\n\nImplement the type and functions matching the contract signatures above.\nAll operations must preserve the sorted + no-duplicates invariant.\nProof functions must always return true.\n\nPrint (one per line):\n  toStr(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))\n  toStr(sIntersect(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))\n  sLength(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))\n  isSorted(sMerge(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil)))))\n  mergePreservesSorted(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil))))\n  inclusionExclusion(SCons(1, SCons(3, SCons(5, SNil))), SCons(2, SCons(3, SCons(4, SNil))))\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "csv_to_json_converter": {
@@ -2529,7 +2626,12 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "string_algo",
+        "data_transform"
+      ],
       "taskPrompt": "Convert a CSV file to JSON in \u003cLANG\u003e with validation.\n\n**Task Requirements**:\n\n1. **Create input CSV file \"users.csv\"** with this exact content:\n   ```\n   name,age,email\n   Alice,30,alice@example.com\n   Bob,25,bob@example.com\n   Carol,35,carol@example.com\n   ```\n\n2. **Parse the CSV file**:\n   - Read the file contents\n   - Parse headers and data rows\n   - Create structured data from the CSV\n\n3. **Validate each row**:\n   - Age must be a positive integer\n   - Email must contain \"@\" symbol\n   - Skip any invalid rows (don't include in output)\n\n4. **Convert to JSON array**:\n   Create a JSON array of objects like:\n   ```json\n   [\n     {\"name\": \"Alice\", \"age\": 30, \"email\": \"alice@example.com\"},\n     {\"name\": \"Bob\", \"age\": 25, \"email\": \"bob@example.com\"},\n     {\"name\": \"Carol\", \"age\": 35, \"email\": \"carol@example.com\"}\n   ]\n   ```\n\n5. **Write JSON to \"users.json\" file**\n\n6. **Print to stdout**: \"Converted 3 valid rows to users.json\"\n```\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "effect_composition": {
@@ -2569,7 +2671,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "effects_io",
+        "functional"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates effect composition.\n\nRequirements:\n1. Implement a PURE function `calculateTotal(price, quantity)` that returns price * quantity\n2. Implement a function `readPrice(filename)` that reads a number from a file (FS effect)\n3. Implement a function `displayOrder(product, total)` that prints \"Order: {product} = ${total}\" (IO effect)\n4. Implement a function `processOrder(product, priceFile, quantity)` that:\n   - Calls readPrice(priceFile) to get unit price (FS effect)\n   - Calls calculateTotal(price, quantity) to get total (pure)\n   - Calls displayOrder(product, total) to print (IO effect)\n   - This function has BOTH IO and FS effects\n\nMain should:\n- Create a test file \"widget_price.txt\" with content \"15\"\n- Call processOrder(\"Widget\", \"widget_price.txt\", 4)\n\nEffect propagation:\n- processOrder has both IO and FS effects (because it calls functions with those effects)\n- Effect signatures should compose: FS + IO = both in signature\n\nExpected output:\n\"Order: Widget = $60\"\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "effect_pure_separation": {
@@ -2609,7 +2716,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "effects_io",
+        "type_safety"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates separation of pure and effectful functions.\n\nRequirements:\n1. Implement a PURE function `double(x)` that returns x * 2 (no side effects)\n2. Implement a PURE function `add(a, b)` that returns a + b (no side effects)\n3. Implement an EFFECTFUL function `printResult(label, value)` that prints \"{label}: {value}\" (has IO)\n4. Implement an EFFECTFUL function `compute_and_print()` that:\n   - Calls double(5) to get 10\n   - Calls add(10, 3) to get 13\n   - Calls printResult(\"Result\", 13)\n\nKey constraint:\n- Pure functions CANNOT call effectful functions\n- Effectful functions CAN call pure functions\n- This should be enforced by the type system or clearly documented\n\nExpected output:\n\"Result: 13\"\n\nOutput only the code, no explanations.\n",
+      "tier": "vision",
       "totalRuns": 12
     },
     "effect_tracking_io_fs": {
@@ -2649,7 +2761,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "effects_io"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates explicit effect tracking.\n\nRequirements:\n1. Implement a PURE function `computeSum(a, b)` that returns a + b (no side effects)\n2. Implement a function `printSum(a, b)` that computes sum and prints it (has IO effect)\n3. Implement a function `logToFile(filename, message)` that writes message to file (has IO and FS effects)\n4. In main:\n   - Call computeSum(10, 20) and store result\n   - Call printSum(10, 20) to print \"Sum: 30\"\n   - Call logToFile(\"output.txt\", \"Sum was 30\")\n   - Print \"Done\"\n\nThe function signatures should make effects explicit:\n- Pure functions: no effect annotations\n- IO functions: should be marked as having IO effects\n- IO+FS functions: should be marked as having both effects\n\nExpected output:\n\"Sum: 30\"\n\"Done\"\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "error_handling": {
@@ -2689,7 +2805,12 @@
         "python"
       ],
       "successRate": 0.9166666666666666,
+      "tags": [
+        "error_handling",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a Result type with Ok(value) and Err(message) variants\n2. Implements a function `validate_age(age: int) -\u003e Result[int]`:\n   - Returns Ok(age) if age is between 0 and 150 (inclusive)\n   - Returns Err(\"Age out of range\") otherwise\n3. Implements a function `calculate_retirement_years(age: int) -\u003e Result[int]`:\n   - Returns Ok(65 - age) if age \u003c 65\n   - Returns Err(\"Already retired\") if age \u003e= 65\n4. Chains operations: validate_age(age) -\u003e calculate_retirement_years(result)\n5. Prints the final result:\n   - For Ok(value): \"Years to retirement: {value}\"\n   - For Err(msg): \"Error: {msg}\"\n\nTest cases:\n- age = 30 -\u003e \"Years to retirement: 35\"\n- age = 70 -\u003e \"Error: Already retired\"\n- age = -5 -\u003e \"Error: Age out of range\"\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "exhaustive_pattern_matching": {
@@ -2729,7 +2850,12 @@
         "python"
       ],
       "successRate": 0.75,
+      "tags": [
+        "type_safety",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates exhaustive pattern matching.\n\nRequirements:\n1. Define a Status type with three variants: Pending, InProgress, Completed\n2. Implement a function `describeStatus(status)` that pattern matches on ALL variants:\n   - Pending -\u003e \"Waiting to start\"\n   - InProgress -\u003e \"Currently working\"\n   - Completed -\u003e \"All done\"\n3. Create instances of all three statuses\n4. Print description for each status\n\nThe pattern matching MUST be exhaustive:\n- Compiler/type checker should verify all cases are covered\n- No default/wildcard cases (each variant explicitly handled)\n- Adding a new variant should require updating the match\n\nExpected output (one per line):\n\"Waiting to start\"\n\"Currently working\"\n\"All done\"\n\nOutput only the code, no explanations.\n",
+      "tier": "vision",
       "totalRuns": 12
     },
     "explicit_state_threading": {
@@ -2769,7 +2895,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "functional",
+        "state_machine"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements a counter with explicit state threading.\n\nRequirements:\n- Implement an `add(value, state)` function that returns a tuple: (newState, newState) where newState = state + value\n- Implement a `multiply(value, state)` function that returns a tuple: (newState, newState) where newState = state * value\n- Do NOT use global variables or mutable state\n- Thread state explicitly through function calls\n- Start with state = 0\n- Call: add(5, state) -\u003e capture new state\n- Call: multiply(3, state) -\u003e capture new state\n- Call: add(10, state) -\u003e capture final state\n- Print each intermediate state\n\nExpected computation:\n- Start: 0\n- After add(5, 0): 5\n- After multiply(3, 5): 15\n- After add(10, 15): 25\n\nPrint format (one per line):\n\"Initial: 0\"\n\"After add: 5\"\n\"After multiply: 15\"\n\"After add: 25\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "expression_evaluator": {
@@ -2809,7 +2940,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Defines an expression AST data type with:\n   - Num(int) - a numeric literal\n   - Add(Expr, Expr) - addition of two expressions\n   - Mul(Expr, Expr) - multiplication of two expressions\n\n2. Implements an `eval` function that evaluates an expression to an integer\n\n3. Constructs and evaluates this expression:\n   (3 + 4) * (2 + 5)\n\n   As an AST: Mul(Add(Num(3), Num(4)), Add(Num(2), Num(5)))\n\n4. Prints the result\n\nExpected: (3 + 4) * (2 + 5) = 7 * 7 = 49\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "fizzbuzz": {
@@ -2849,7 +2985,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "algorithmic"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that prints FizzBuzz from 1 to 100.\n\nRequirements:\n- Print numbers 1-100, one per line\n- For multiples of 3, print \"Fizz\" instead of the number\n- For multiples of 5, print \"Buzz\" instead of the number\n- For multiples of both 3 and 5, print \"FizzBuzz\" instead of the number\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "float_eq": {
@@ -2889,7 +3029,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "contracts",
+        "algorithmic"
+      ],
       "taskPrompt": "Write a \u003cLANG\u003e program that evaluates (0.0 == 0.0) and prints true or false.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "fold_reduce": {
@@ -2929,7 +3074,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "functional",
+        "recursion"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements a generic `foldl(f, acc, xs)` function that:\n   - Takes a binary function f, an initial accumulator, and a list\n   - Returns the result of folding the function over the list from left to right\n\n2. Uses foldl to compute:\n   - Sum of [2, 4, 6, 8, 10] using addition\n   - Product of [2, 4, 6, 8, 10] using multiplication\n   - Maximum of [7, 2, 8, 3, 11, 5, 1]\n\n3. Prints three lines:\n   - Sum: {value}\n   - Product: {value}\n   - Max: {value}\n\nExpected:\n- Sum: 2+4+6+8+10 = 30\n- Product: 2*4*6*8*10 = 3840\n- Max of [7,2,8,3,11,5,1] = 11\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "gcd_lcm": {
@@ -2969,7 +3119,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion",
+        "algorithmic"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements `gcd(a, b)` using the Euclidean algorithm:\n   - If b is 0, return a\n   - Otherwise, return gcd(b, a % b)  (use modulo operator)\n\n2. Implements `lcm(a, b)` using the formula:\n   - lcm(a, b) = (a * b) / gcd(a, b)\n\n3. Computes and prints:\n   - GCD of 48 and 18\n   - LCM of 48 and 18\n\nPrint one number per line: first the GCD, then the LCM.\n\nExpected:\n- GCD(48, 18) = 6\n- LCM(48, 18) = 144\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "graph_bfs": {
@@ -3009,7 +3164,12 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "algorithmic",
+        "recursion"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements breadth-first search:\n\n1. Represent a graph as an adjacency list: [(node, [neighbors])]\n   Example: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n2. Implement BFS that returns nodes in visit order from a starting node\n   - Use a queue (list where you add to end, remove from front)\n   - Track visited nodes to avoid cycles\n   - Helper: `contains(x, list)` to check if node is visited\n   - Helper: `enqueue(x, queue)` to add to end of queue\n\n3. Run BFS on this graph starting from node 1:\n   ```\n       1\n      / \\\n     2   3\n     |  / \\\n     4    5\n   ```\n   Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n4. Print visited nodes in BFS order, one per line\n\nExpected order: 1, 2, 3, 4, 5 (may vary based on neighbor order)\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "higher_order_functions": {
@@ -3049,7 +3209,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "functional"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates higher-order functions:\n\n1. Implement `pipe(f, g)` - returns a function that computes g(f(x)) (apply f first, then g)\n2. Implement `subtract(x, y)` - returns x - y\n3. Implement `negate(x)` - returns -x\n4. Create `sub4 = subtract(_, 4)` using partial application (or lambda) - subtracts 4 from input\n5. Create `double = multiply(2, _)` using partial application (or lambda)\n6. Create `sub4_then_double = pipe(sub4, double)` - subtract 4 first, then double\n7. Apply the piped function to 11\n8. Print the result: \"Result: {value}\"\n\nExpected computation: (11 - 4) * 2 = 14\n\nRequirements:\n- Use first-class functions\n- Demonstrate function piping (reverse of compose)\n- Show currying or partial application\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "immutable_data_structures": {
@@ -3089,7 +3253,12 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "functional",
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates immutable data structure updates.\n\nRequirements:\n1. Create a record/dict representing a person: {name: \"Alice\", age: 25, city: \"NYC\"}\n2. Create an updated version with age = 26 (original record unchanged)\n3. Create another updated version with city = \"SF\" (based on original, not the age-updated one)\n4. Print all three records to verify originals are unchanged:\n   - Original: \"Alice, 25, NYC\"\n   - Updated age: \"Alice, 26, NYC\"\n   - Updated city: \"Alice, 25, SF\"\n\nKey property: Updates create NEW records, originals never mutate.\nThis enables referential transparency and safe concurrent access.\n\nExpected output (one per line):\n\"Alice, 25, NYC\"\n\"Alice, 26, NYC\"\n\"Alice, 25, SF\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "inline_tests": {
@@ -3129,7 +3298,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "contracts",
+        "functional"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Defines a pure function `cube(n)` that returns n * n * n\n   - In AILANG, annotate with inline tests: `pure func cube(n: int) -\u003e int tests [(0, 0), (2, 8), (3, 27)] { ... }`\n\n2. Defines a pure function `isPositive(n)` that returns true if n \u003e 0\n   - In AILANG, annotate with inline tests: `pure func isPositive(n: int) -\u003e bool tests [(5, true), (0, false), (-3, false)] { ... }`\n\n3. In main, call cube(4) and print the result\n\nExpected output: 64\n\nNote: In Python, just define the functions normally without inline test syntax.\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "json_encode": {
@@ -3169,7 +3343,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "data_transform",
+        "string_algo"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a nested JSON structure representing:\n   - A product object with name \"Gadget\", price 149, inStock status true\n   - An array of tags: [\"electronics\", \"sale\", \"featured\"]\n   - A nested dimensions object: width 10, height 5, depth 3\n2. Encodes it to a JSON string\n3. Prints the JSON string\n\nThe output should be valid JSON with this structure:\n{\"name\":\"Gadget\",\"price\":149,\"inStock\":true,\"tags\":[\"electronics\",\"sale\",\"featured\"],\"dimensions\":{\"width\":10,\"height\":5,\"depth\":3}}\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "json_parse": {
@@ -3209,7 +3388,13 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "string_algo",
+        "data_transform",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Parses this JSON array: [{\"item\":\"Laptop\",\"price\":999},{\"item\":\"Mouse\",\"price\":25},{\"item\":\"Monitor\",\"price\":350},{\"item\":\"Cable\",\"price\":12}]\n2. Filters to keep only items priced over 100\n3. Prints the item names, one per line\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "json_transform": {
@@ -3249,7 +3434,12 @@
         "python"
       ],
       "successRate": 0.3333333333333333,
+      "tags": [
+        "data_transform",
+        "records"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Parses this JSON representing orders:\n   [{\"id\":1,\"item\":\"apple\",\"qty\":5,\"price\":1.50},{\"id\":2,\"item\":\"banana\",\"qty\":3,\"price\":0.75},{\"id\":3,\"item\":\"orange\",\"qty\":8,\"price\":2.00}]\n\n2. Computes the total cost for each order (qty * price)\n\n3. Filters to keep only orders with total \u003e 5.00\n\n4. Prints the item name and total for each qualifying order, one per line in format:\n   {item}: {total}\n\nExpected output (orders where qty * price \u003e 5.00):\n- apple: 5 * 1.50 = 7.50\n- orange: 8 * 2.00 = 16.00\n(banana: 3 * 0.75 = 2.25, filtered out)\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "lambda_calc": {
@@ -3289,7 +3479,13 @@
         "python"
       ],
       "successRate": 0.4166666666666667,
+      "tags": [
+        "functional",
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that evaluates lambda calculus expressions:\n\n1. Define a Term type:\n   - TVar(string) - variable\n   - TLam(string, Term) - lambda abstraction: λx.body\n   - TApp(Term, Term) - application: f x\n\n2. Implement `subst(term, var, replacement)` - substitute var with replacement in term\n   - Be careful with variable capture (for simplicity, assume no shadowing)\n\n3. Implement `eval(term)` using call-by-value:\n   - Variables evaluate to themselves\n   - Lambdas are values\n   - For App(f, arg): evaluate f, evaluate arg, if f is a lambda, substitute and evaluate\n\n4. Evaluate: (λx. λy. x) 1 2\n   - As AST: TApp(TApp(TLam(\"x\", TLam(\"y\", TVar(\"x\"))), TVar(\"1\")), TVar(\"2\"))\n   - This is the K combinator applied to 1 and 2\n\n5. Print the result (should be \"1\" or TVar(\"1\"))\n\nOutput only the code, no explanations.\n",
+      "tier": "vision",
       "totalRuns": 12
     },
     "list_comprehension": {
@@ -3329,7 +3525,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "functional",
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a list of integers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n2. Filters the list to keep only even numbers\n3. Maps the filtered list by squaring each number\n4. Computes the sum of the resulting list\n5. Prints the result: \"Sum of squares of evens: {result}\"\n\nRequirements:\n- For Python: Use list comprehensions or map/filter\n- For AILANG: Implement map/filter/fold as recursive functions\n- Show intermediate results if helpful for debugging\n\nExpected result: 2^2 + 4^2 + 6^2 + 8^2 + 10^2 = 4 + 16 + 36 + 64 + 100 = 220\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "log_file_analyzer": {
@@ -3369,7 +3570,13 @@
         "python"
       ],
       "successRate": 0.08333333333333333,
+      "tags": [
+        "string_algo",
+        "data_transform",
+        "effects_io"
+      ],
       "taskPrompt": "Analyze a log file and compute statistics.\n\n**Requirements**:\n\n1. Create a log file named \"app.log\" with these exact 6 lines:\n   ```\n   2024-10-29 10:00:00 INFO User logged in: alice\n   2024-10-29 10:01:15 ERROR Database connection failed\n   2024-10-29 10:02:30 INFO User logged in: bob\n   2024-10-29 10:03:45 WARNING High memory usage: 85%\n   2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n   2024-10-29 10:06:15 INFO User logged out: alice\n   ```\n\n2. Parse and analyze the log:\n   - Each line format: \"{date} {time} {LEVEL} {message}\"\n   - Count entries by level (INFO, ERROR, WARNING)\n   - Calculate percentage for each level (use integer division, round down)\n   - Extract unique usernames mentioned after colons (alice, bob)\n\n3. Print results in this exact format:\n   ```\n   Total log entries: 6\n   INFO: 3 (50%)\n   ERROR: 2 (33%)\n   WARNING: 1 (17%)\n   Unique users: alice, bob\n   ```\n\nNote: Users should be printed in alphabetical order, comma-separated.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "merge_sort": {
@@ -3409,7 +3616,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion",
+        "algorithmic"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements the merge sort algorithm with these helper functions:\n   - `merge(xs, ys)` - merges two sorted lists into one sorted list\n   - `split(xs)` - splits a list into two halves\n   - `mergeSort(xs)` - recursively sorts a list\n\n2. Sorts this list: [38, 27, 43, 3, 9, 82, 10]\n\n3. Prints the sorted result as a list\n\nExpected output: [3, 9, 10, 27, 38, 43, 82]\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "mini_interpreter": {
@@ -3449,7 +3661,13 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion",
+        "adt_pattern_match",
+        "state_machine"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements an interpreter for a mini-language:\n\n1. Define an AST with:\n   - Num(int) - numeric literal\n   - Var(string) - variable reference\n   - Add(Expr, Expr) - addition\n   - Mul(Expr, Expr) - multiplication\n   - Let(string, Expr, Expr) - let binding: let x = e1 in e2\n\n2. Define an environment as a list of (name, value) pairs\n\n3. Implement `lookup(name, env)` to find a variable's value\n\n4. Implement `eval(expr, env)` that evaluates an expression in an environment\n\n5. Evaluate this program:\n   let x = 5 in\n     let y = x + 3 in\n       x * y\n\n   As AST: Let(\"x\", Num(5), Let(\"y\", Add(Var(\"x\"), Num(3)), Mul(Var(\"x\"), Var(\"y\"))))\n\n6. Print the result\n\nExpected: x=5, y=5+3=8, result=5*8=40\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "nested_records": {
@@ -3489,7 +3707,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "records"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a nested record structure representing a company employee:\n   - Employee record with fields:\n     - name: \"Alice\"\n     - age: 30\n     - department: (nested record)\n       - name: \"Engineering\"\n       - code: \"ENG\"\n       - building: 5\n2. Access and print the employee's name, department name, and building number\n3. Output format (one per line):\n   \"Employee: {name}\"\n   \"Department: {dept_name}\"\n   \"Building: {building}\"\n\nRequirements:\n- Use nested record/object structure\n- Access nested fields through chaining (e.g., employee.department.name)\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "no_runtime_crashes_option": {
@@ -3529,7 +3751,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "type_safety",
+        "error_handling"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that safely handles missing values using Option/Maybe types.\n\nRequirements:\n1. Define an Option type: Some(value) | None\n2. Implement `safeLast(list)` that returns:\n   - Some(element) if list is non-empty (returns last element)\n   - None if list is empty\n3. Implement `flatMapOption(fn, option)` that applies fn (which returns Option) to the value if Some, otherwise returns None\n4. Implement `safeHead(list)` that returns Some(first element) or None if empty\n5. Test with list [\"apple\", \"banana\", \"cherry\"]:\n   - Get last element -\u003e Some(\"cherry\")\n   - FlatMap safeHead over chars of that string (get first char) -\u003e Some(\"c\")\n   - Print result: \"Last starts with: c\"\n6. Test with empty list []:\n   - Get last element -\u003e None\n   - FlatMap anything -\u003e None\n   - Print: \"Empty list\"\n\nThis demonstrates TOTALITY: no crashes, all cases handled explicitly.\n\nExpected output:\n\"Last starts with: c\"\n\"Empty list\"\n\nOutput only the code, no explanations.\n",
+      "tier": "vision",
       "totalRuns": 12
     },
     "numeric_modulo": {
@@ -3569,7 +3796,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "algorithmic"
+      ],
       "taskPrompt": "Write a \u003cLANG\u003e program that prints the remainder of 17 divided by 5.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "pattern_matching_complex": {
@@ -3609,7 +3840,12 @@
         "python"
       ],
       "successRate": 0.6666666666666666,
+      "tags": [
+        "adt_pattern_match",
+        "recursion"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates complex pattern matching:\n\n1. Define a Tree type: Leaf(value: int) | Node(left: Tree, value: int, right: Tree)\n2. Implement `tree_sum(tree: Tree) -\u003e int` using pattern matching:\n   - Match Leaf(v): return v\n   - Match Node(l, v, r): return tree_sum(l) + v + tree_sum(r)\n3. Implement `find_max(tree: Tree) -\u003e int` with nested patterns and guards:\n   - Match Leaf(v): return v\n   - Match Node with guards to find maximum value in tree\n4. Create a sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n5. Print results:\n   \"Sum: {sum}\"\n   \"Max: {max}\"\n\nExpected: sum = 1+5+3+7+2 = 18, max = 7\n\nRequirements:\n- Use algebraic data types\n- Use pattern matching with nested constructors\n- Demonstrate exhaustiveness (cover all cases)\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "pipeline": {
@@ -3649,7 +3885,12 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
+      "tags": [
+        "functional",
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Reads numbers from stdin (one per line)\n2. For each number, computes double its value\n3. Prints the doubled values to stdout (one per line)\n\nAssume input is: 1, 2, 3, 4, 5 (one per line)\n\nOutput only the code, no explanations.\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "record_update": {
@@ -3689,7 +3930,11 @@
         "python"
       ],
       "successRate": 0.6666666666666666,
+      "tags": [
+        "records"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a product record: {sku: \"WDG-001\", price: 29, inStock: true}\n2. Creates an updated version with price reduced by 5 (using record update syntax)\n3. Creates another update from the discounted version, setting inStock to false\n4. Prints all three records in format: \"{sku}, {price}, {inStock}\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "records_book": {
@@ -3729,7 +3974,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "records",
+        "data_transform"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a book record/object with fields: title (string), pages (int), genre (string)\n2. Creates TWO books:\n   - First: title=\"Dune\", pages=412, genre=\"SciFi\"\n   - Second: title=\"1984\", pages=328, genre=\"Dystopian\"\n3. Prints both books in this exact format (one per line):\n   \"{title}, {pages}, {genre}\"\n\nOutput only the code for \u003cLANG\u003e, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "recursion_fibonacci": {
@@ -3769,7 +4019,11 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "recursion"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a recursive Fibonacci function: fib(0) = 0, fib(1) = 1, fib(n) = fib(n-1) + fib(n-2)\n2. Computes fib(20)\n3. Prints the result\n\nThe function MUST use recursion (not loops or memoization).\nThis will be compute-intensive to test execution performance.\n\nOutput only the code for \u003cLANG\u003e, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "red_black_tree": {
@@ -3809,7 +4063,13 @@
         "python"
       ],
       "successRate": 0.4166666666666667,
+      "tags": [
+        "recursion",
+        "adt_pattern_match",
+        "contracts"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements red-black tree insertion:\n\n1. Define Color = Red | Black\n\n2. Define RBTree = Empty | Node(Color, RBTree, int, RBTree)\n\n3. Implement `balance(color, left, value, right)` that fixes red-red violations:\n   - Pattern match on the 4 rotation cases (left-left, left-right, right-left, right-right)\n   - Return balanced Node(Red, Node(Black, a, x, b), y, Node(Black, c, z, d))\n\n4. Implement `insert(x, tree)` that inserts and recolors root to black\n\n5. Implement `inorder(tree)` to get sorted values\n\n6. Insert these values: [7, 3, 18, 10, 22, 8, 11, 26]\n\n7. Print the inorder traversal (should be sorted)\n\nOutput only the code, no explanations.\n",
+      "tier": "vision",
       "totalRuns": 12
     },
     "run_length_encode": {
@@ -3849,7 +4109,12 @@
         "python"
       ],
       "successRate": 0.75,
+      "tags": [
+        "string_algo",
+        "algorithmic"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements run-length encoding for a list of characters\n   - Run-length encoding replaces consecutive identical elements with (count, element) pairs\n   - Example: ['a', 'a', 'a', 'b', 'b', 'c'] becomes [(3, 'a'), (2, 'b'), (1, 'c')]\n\n2. Encodes this input: ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']\n\n3. Prints the encoded result as a list of (count, char) pairs\n\nExpected output: [(3, a), (2, b), (4, c), (1, a)]\n\nNote: Characters are single-character strings in AILANG.\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "state_machine_elevator": {
@@ -3889,7 +4154,12 @@
         "python"
       ],
       "successRate": 0.9166666666666666,
+      "tags": [
+        "state_machine",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Implement an elevator state machine in \u003cLANG\u003e using algebraic data types (or equivalent) and exhaustive pattern matching.\n\n**Task Requirements**:\n\n1. **Define State Type** (3 variants):\n   - Idle state with current floor (integer 1-10)\n   - Moving state with current floor and target floor\n   - DoorOpen state with current floor and timer (seconds until door closes)\n\n2. **Define Event Type** (3 variants):\n   - Call(floor) event - someone calls elevator to a floor\n   - Tick event - time passes (1 second)\n   - Arrive event - elevator reaches target floor\n\n3. **Implement transition function** that takes a state and event, returns new state:\n   - **Idle(floor) + Call(target)**: If target == floor, go to DoorOpen(floor, 3); else go to Moving(floor, target)\n   - **Moving(cur, target) + Tick**: Stay in Moving (simulating movement)\n   - **Moving(cur, target) + Arrive**: Go to DoorOpen(target, 3)\n   - **DoorOpen(floor, timer) + Tick**: If timer \u003e 1, decrement timer; else go to Idle(floor)\n   - **Any other combination**: Return current state unchanged\n   - Must handle **all combinations exhaustively**\n\n4. **Implement display function** that takes a state and returns a formatted string:\n   - Idle at floor N → \"IDLE @ floor N\"\n   - Moving from F to T → \"MOVING F -\u003e T\"\n   - DoorOpen at floor N with timer T → \"DOOR_OPEN @ floor N (Tsec)\"\n\n5. **Main simulation**:\n   - Start with Idle(1)\n   - Apply Call(5) event (print state after)\n   - Apply 2 Tick events (print state after each)\n   - Apply Arrive event (print state after)\n   - Apply 4 Tick events (print state after each)\n   - Apply Call(1) event (print state after)\n   - Total output: 9 lines\n\n**Expected sequence**:\n```\nMOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nDOOR_OPEN @ floor 5 (3sec)\nDOOR_OPEN @ floor 5 (2sec)\nDOOR_OPEN @ floor 5 (1sec)\nIDLE @ floor 5\nIDLE @ floor 5\nMOVING 5 -\u003e 1\n```\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "symbolic_diff": {
@@ -3929,7 +4199,13 @@
         "python"
       ],
       "successRate": 0.8333333333333334,
-      "taskPrompt": "Write a program in \u003cLANG\u003e that implements symbolic differentiation:\n\n1. Define an expression AST with these constructors:\n   - Const(int) - a constant\n   - Var(string) - a variable (e.g., \"x\")\n   - Add(Expr, Expr) - addition\n   - Mul(Expr, Expr) - multiplication\n\n2. Implement `diff(expr, var)` that differentiates an expression with respect to a variable:\n   - d/dx(c) = 0 (constant)\n   - d/dx(x) = 1, d/dx(y) = 0 (variable)\n   - d/dx(f + g) = d/dx(f) + d/dx(g) (sum rule)\n   - d/dx(f * g) = f * d/dx(g) + g * d/dx(f) (product rule)\n\n3. Implement `simplify(expr)` to clean up the result:\n   - 0 + e = e, e + 0 = e\n   - 0 * e = 0, e * 0 = 0\n   - 1 * e = e, e * 1 = e\n\n4. Differentiate: x^2 + 3x + 5 (represented as Add(Add(Mul(Var(\"x\"), Var(\"x\")), Mul(Const(3), Var(\"x\"))), Const(5)))\n\n5. Implement `showExpr(expr)` to convert AST to readable string:\n   - Const(n) -\u003e just the number as string\n   - Var(name) -\u003e just the variable name\n   - Add(a, b) -\u003e \"(\" ++ showExpr(a) ++ \" + \" ++ showExpr(b) ++ \")\"\n   - Mul(a, b) -\u003e \"(\" ++ showExpr(a) ++ \" * \" ++ showExpr(b) ++ \")\"\n\n6. Print the simplified derivative using showExpr\n\nExpected output for d/dx(x^2 + 3x + 5): ((x + x) + 3)\n\nOutput only the code, no explanations.\n",
+      "tags": [
+        "recursion",
+        "adt_pattern_match",
+        "algorithmic"
+      ],
+      "taskPrompt": "Write a program in \u003cLANG\u003e that implements symbolic differentiation:\n\n1. Define an expression AST with these constructors:\n   - Const(int) - a constant\n   - Var(string) - a variable (e.g., \"x\")\n   - Add(Expr, Expr) - addition\n   - Mul(Expr, Expr) - multiplication\n\n2. Implement `diff(expr, var)` that differentiates an expression with respect to a variable:\n   - d/dx(c) = 0 (constant)\n   - d/dx(x) = 1, d/dx(y) = 0 (variable)\n   - d/dx(f + g) = d/dx(f) + d/dx(g) (sum rule)\n   - d/dx(f * g) = f * d/dx(g) + g * d/dx(f) (product rule)\n\n3. Implement `simplify(expr)` to clean up the result:\n   - 0 + e = e, e + 0 = e\n   - 0 * e = 0, e * 0 = 0\n   - 1 * e = e, e * 1 = e\n\n4. Differentiate: x^2 + 3x + 5 (represented as Add(Add(Mul(Var(\"x\"), Var(\"x\")), Mul(Const(3), Var(\"x\"))), Const(5)))\n\n5. Implement `showExpr(expr)` to convert AST to readable string:\n   - Const(n) -\u003e just the number as string\n   - Var(name) -\u003e just the variable name\n   - Add(a, b) -\u003e \"(${showExpr(a)} + ${showExpr(b)})\"\n   - Mul(a, b) -\u003e \"(${showExpr(a)} * ${showExpr(b)})\"\n\n6. Print the simplified derivative using showExpr\n\nExpected output for d/dx(x^2 + 3x + 5): ((x + x) + 3)\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     },
     "tree_transformation_pipeline": {
@@ -3969,7 +4245,13 @@
         "python"
       ],
       "successRate": 0.9166666666666666,
+      "tags": [
+        "data_transform",
+        "recursion",
+        "adt_pattern_match"
+      ],
       "taskPrompt": "Implement a binary tree transformation pipeline in \u003cLANG\u003e with recursive operations and higher-order functions.\n\n**Task Requirements**:\n\n1. **Define a Tree type** with two variants:\n   - Leaf: contains a single integer value\n   - Node: contains left subtree, integer value, right subtree\n\n2. **Implement mapTree(fn, tree)**:\n   - Recursively apply function to all values in tree\n   - Return new tree with transformed values\n\n3. **Implement foldTree(fn, acc, tree)**:\n   - In-order fold over tree values\n   - Combine all values using the binary function\n\n4. **Implement treeToList(tree)**:\n   - In-order traversal returning list of integers\n   - Used for printing results\n\n5. **Implement treeDepth(tree)**:\n   - Return maximum depth of tree (Leaf has depth 1)\n\n6. **Test with this tree structure**:\n   ```\n         4\n        / \\\n       2   6\n      / \\ / \\\n     1  3 5  7\n   ```\n   This is: Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)))\n\n7. **Print these results** (each on its own line):\n   - treeToList(tree): [1, 2, 3, 4, 5, 6, 7]\n   - treeToList(mapTree(double, tree)): [2, 4, 6, 8, 10, 12, 14]\n   - foldTree(add, 0, tree): 28\n   - treeDepth(tree): 3\n",
+      "tier": "core",
       "totalRuns": 12
     },
     "type_safe_record_access": {
@@ -4009,7 +4291,12 @@
         "python"
       ],
       "successRate": 1,
+      "tags": [
+        "type_safety",
+        "records"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates type-safe record/struct access.\n\nRequirements:\n1. Define a User record/struct with fields:\n   - name: string\n   - profile: nested record with:\n     - age: int\n     - city: string\n2. Create a User instance: name=\"Alice\", profile={age=30, city=\"NYC\"}\n3. Implement a function `getCity(user)` that safely accesses user.profile.city\n4. Call getCity and print the result: \"City: NYC\"\n\nType safety requirements:\n- Field access should be type-checked at compile time\n- Accessing non-existent fields should be caught by type checker (not runtime error)\n- Nested record types should be explicitly declared\n\nExpected output:\n\"City: NYC\"\n\nOutput only the code, no explanations.\n",
+      "tier": "smoke",
       "totalRuns": 12
     },
     "type_unify": {
@@ -4049,7 +4336,12 @@
         "python"
       ],
       "successRate": 0.5833333333333334,
+      "tags": [
+        "type_safety",
+        "recursion"
+      ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements simple type unification:\n\n1. Define a Type ADT:\n   - TVar(string) - type variable (e.g., \"a\", \"b\")\n   - TInt - integer type\n   - TBool - boolean type\n   - TFunc(Type, Type) - function type: arg -\u003e result\n\n2. Define a substitution as a list of (varName, Type) pairs\n\n3. Implement `apply(subst, type)` - apply substitution to a type\n\n4. Implement `unify(t1, t2)` that returns a substitution (or fails):\n   - unify(TInt, TInt) = []\n   - unify(TBool, TBool) = []\n   - unify(TVar(a), t) = [(a, t)] (occurs check omitted for simplicity)\n   - unify(t, TVar(a)) = [(a, t)]\n   - unify(TFunc(a1, r1), TFunc(a2, r2)) = unify(a1, a2) ++ unify(r1, r2)\n   - unify(_, _) = fail\n\n5. Unify these types and print if they unify:\n   - TFunc(TVar(\"a\"), TInt) with TFunc(TBool, TVar(\"b\"))\n   - Expected: a=TBool, b=TInt\n\nPrint \"a = TBool\" and \"b = TInt\" on separate lines.\n\nOutput only the code, no explanations.\n",
+      "tier": "stretch",
       "totalRuns": 12
     }
   },
@@ -4216,7 +4508,7 @@
   "history": [
     {
       "version": "v0.12.0",
-      "timestamp": "2026-04-17T17:20:12+02:00",
+      "timestamp": "2026-04-21T09:32:22+02:00",
       "successRate": 0.8120915032679739,
       "totalRuns": 612,
       "successCount": 497,
