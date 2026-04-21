@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: '30 6 * * 1'  # Monday 06:30 UTC
   push:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch:
 
 permissions: read-all
