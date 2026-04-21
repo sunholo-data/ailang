@@ -30,3 +30,5 @@ expected_stdout: |
   Employee: Alice
   Department: Engineering
   Building: 5
+tier: smoke
+tags: [records]

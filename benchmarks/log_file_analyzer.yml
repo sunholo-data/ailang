@@ -45,3 +45,5 @@ expected_stdout: |
   ERROR: 2 (33%)
   WARNING: 1 (17%)
   Unique users: alice, bob
+tier: stretch
+tags: [string_algo, data_transform, effects_io]

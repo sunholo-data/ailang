@@ -27,3 +27,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   49
+tier: stretch
+tags: [recursion, adt_pattern_match]

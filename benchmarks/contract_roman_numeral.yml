@@ -60,3 +60,5 @@ expected_stdout: |
   true
   true
 
+tier: core
+tags: [contracts, string_algo]

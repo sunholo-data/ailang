@@ -280,12 +280,9 @@ func TestValidTagTaxonomy_HasTwelveTags(t *testing.T) {
 }
 
 // TestAllBenchmarksHaveTierAndTags loads every YAML under benchmarks/ and asserts
-// each one parses cleanly with valid tier + at least one tag.
-// This is the CI gate added in M2 — until then, it is expected to fail because
-// benchmarks have not been tagged yet. Run with: go test -run TestAllBenchmarksHaveTierAndTags
+// each one parses cleanly with a valid tier and between 1 and 3 tags from the taxonomy.
+// This is the M2 CI gate for the Eval Suite Prep sprint.
 func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
-	// This test enforces M2's acceptance criterion. Until M2 tags all 51 benchmarks,
-	// the test runs with SkipUntaggedForNow=true (see below).
 	matches, err := filepath.Glob("../../benchmarks/*.yml")
 	if err != nil {
 		t.Fatalf("glob: %v", err)
@@ -294,22 +291,41 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 		t.Skip("no benchmark YAMLs found at ../../benchmarks/*.yml")
 	}
 
-	untagged := []string{}
+	tierCounts := map[string]int{}
 	for _, path := range matches {
+		base := filepath.Base(path)
 		spec, err := LoadSpec(path)
 		if err != nil {
-			t.Errorf("%s: LoadSpec failed: %v", filepath.Base(path), err)
+			t.Errorf("%s: LoadSpec failed: %v", base, err)
 			continue
 		}
-		if len(spec.Tags) == 0 {
-			untagged = append(untagged, filepath.Base(path))
+		if spec.Tier == "" {
+			t.Errorf("%s: tier is empty (should default to %q)", base, "core")
 		}
+		if len(spec.Tags) == 0 {
+			t.Errorf("%s: no tags (every benchmark must have 1-3 tags from taxonomy)", base)
+		}
+		if len(spec.Tags) > 3 {
+			t.Errorf("%s: %d tags (max 3)", base, len(spec.Tags))
+		}
+		tierCounts[spec.Tier]++
 	}
 
-	// During M1: every benchmark is currently untagged; we only check that LoadSpec
-	// succeeds (tier defaults to core, no tags is tolerated by a one-time flag).
-	// M2 will flip this to a hard failure.
-	if len(untagged) > 0 {
-		t.Logf("M1 note: %d benchmarks still untagged (will become hard failure in M2)", len(untagged))
+	// Sanity check: tier distribution is roughly ~15 smoke, ~20 core, ~8 stretch,
+	// ~5 vision per the sprint's M2 acceptance criterion (±2 tolerance).
+	if smoke := tierCounts["smoke"]; smoke < 13 || smoke > 17 {
+		t.Errorf("smoke count = %d, want 15±2", smoke)
 	}
+	if core := tierCounts["core"]; core < 18 || core > 22 {
+		t.Errorf("core count = %d, want 20±2", core)
+	}
+	if stretch := tierCounts["stretch"]; stretch < 6 || stretch > 10 {
+		t.Errorf("stretch count = %d, want 8±2", stretch)
+	}
+	if vision := tierCounts["vision"]; vision < 3 || vision > 7 {
+		t.Errorf("vision count = %d, want 5±2", vision)
+	}
+	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d (total %d)",
+		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["vision"],
+		len(matches))
 }

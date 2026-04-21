@@ -32,3 +32,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   Order: Widget = $60
+tier: core
+tags: [effects_io, functional]

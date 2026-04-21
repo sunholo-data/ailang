@@ -29,3 +29,5 @@ expected_stdout: |
   Years to retirement: 35
   Error: Already retired
   Error: Age out of range
+tier: core
+tags: [error_handling, adt_pattern_match]

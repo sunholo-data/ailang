@@ -27,3 +27,5 @@ task_prompt: |
 expected_stdout: |
   apple: 7.5
   orange: 16.0
+tier: core
+tags: [data_transform, records]

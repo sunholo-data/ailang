@@ -37,3 +37,5 @@ expected_stdout: |
   After add: 5
   After multiply: 15
   After add: 25
+tier: smoke
+tags: [functional, state_machine]

@@ -20,3 +20,5 @@ task_prompt: |
 expected_stdout: |
   Root: 4.0
   Error: Negative input
+tier: smoke
+tags: [adt_pattern_match]

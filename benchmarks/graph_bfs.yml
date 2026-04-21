@@ -38,3 +38,5 @@ expected_stdout: |
   3
   4
   5
+tier: core
+tags: [algorithmic, recursion]

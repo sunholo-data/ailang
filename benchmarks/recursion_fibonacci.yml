@@ -18,3 +18,5 @@ task_prompt: |
   Output only the code for <LANG>, no explanations.
 expected_stdout: |
   6765
+tier: smoke
+tags: [recursion]

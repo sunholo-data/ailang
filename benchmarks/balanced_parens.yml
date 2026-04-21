@@ -27,3 +27,5 @@ expected_stdout: |
   false
   false
   true
+tier: smoke
+tags: [recursion, adt_pattern_match]

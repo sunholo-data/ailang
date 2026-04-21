@@ -5,3 +5,5 @@ caps: ["IO"]
 prompt: |
   Write a <LANG> program that evaluates (0.0 == 0.0) and prints true or false.
 expected_stdout: "true"
+tier: core
+tags: [contracts, algorithmic]

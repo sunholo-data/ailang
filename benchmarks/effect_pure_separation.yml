@@ -28,3 +28,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   Result: 13
+tier: vision
+tags: [effects_io, type_safety]

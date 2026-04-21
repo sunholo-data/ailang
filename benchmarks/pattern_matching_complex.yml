@@ -31,3 +31,5 @@ task_prompt: |
 expected_stdout: |
   Sum: 18
   Max: 7
+tier: core
+tags: [adt_pattern_match, recursion]

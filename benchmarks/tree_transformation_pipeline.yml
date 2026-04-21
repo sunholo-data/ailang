@@ -51,3 +51,5 @@ expected_stdout: |
   [2, 4, 6, 8, 10, 12, 14]
   28
   3
+tier: core
+tags: [data_transform, recursion, adt_pattern_match]

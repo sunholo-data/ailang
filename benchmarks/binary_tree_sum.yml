@@ -30,3 +30,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   31
+tier: smoke
+tags: [recursion, adt_pattern_match]

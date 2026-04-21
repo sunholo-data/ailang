@@ -27,3 +27,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   Result: 14
+tier: core
+tags: [functional]

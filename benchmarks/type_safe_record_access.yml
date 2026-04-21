@@ -29,3 +29,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   City: NYC
+tier: smoke
+tags: [type_safety, records]

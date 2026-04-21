@@ -66,3 +66,5 @@ expected_stdout: |
   IDLE @ floor 5
   IDLE @ floor 5
   MOVING 5 -> 1
+tier: core
+tags: [state_machine, adt_pattern_match]

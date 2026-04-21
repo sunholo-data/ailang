@@ -32,3 +32,5 @@ expected_stdout: |
   Waiting to start
   Currently working
   All done
+tier: vision
+tags: [type_safety, adt_pattern_match]

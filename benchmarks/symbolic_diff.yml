@@ -40,3 +40,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   ((x + x) + 3)
+tier: stretch
+tags: [recursion, adt_pattern_match, algorithmic]

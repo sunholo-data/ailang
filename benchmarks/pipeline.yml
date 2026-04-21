@@ -26,3 +26,5 @@ stdin: |
   3
   4
   5
+tier: core
+tags: [functional, data_transform]

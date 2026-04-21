@@ -23,3 +23,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   [(3, a), (2, b), (4, c), (1, a)]
+tier: stretch
+tags: [string_algo, algorithmic]

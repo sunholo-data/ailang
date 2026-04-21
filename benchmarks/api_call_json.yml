@@ -15,3 +15,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   200
+tier: core
+tags: [effects_io, data_transform]

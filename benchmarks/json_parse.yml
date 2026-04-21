@@ -15,3 +15,5 @@ task_prompt: |
 expected_stdout: |
   Laptop
   Monitor
+tier: stretch
+tags: [string_algo, data_transform, adt_pattern_match]

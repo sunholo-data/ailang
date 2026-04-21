@@ -36,3 +36,5 @@ task_prompt: |
 expected_stdout: |
   a = TBool
   b = TInt
+tier: stretch
+tags: [type_safety, recursion]

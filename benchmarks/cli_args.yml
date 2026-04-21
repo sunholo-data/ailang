@@ -24,3 +24,5 @@ input_files:
     5
 cli_args:
   - "numbers.txt"
+tier: core
+tags: [effects_io, error_handling]

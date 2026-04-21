@@ -46,3 +46,5 @@ task_prompt: |
 
 expected_stdout: |
   Converted 3 valid rows to users.json
+tier: core
+tags: [string_algo, data_transform]

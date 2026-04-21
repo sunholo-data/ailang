@@ -23,3 +23,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   64
+tier: smoke
+tags: [contracts, functional]

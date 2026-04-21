@@ -22,3 +22,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   [3, 9, 10, 27, 38, 43, 82]
+tier: core
+tags: [recursion, algorithmic]

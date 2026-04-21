@@ -32,3 +32,5 @@ expected_stdout: |
   Sum: 30
   Product: 3840
   Max: 11
+tier: core
+tags: [functional, recursion]

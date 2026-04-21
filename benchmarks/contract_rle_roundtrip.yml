@@ -61,3 +61,5 @@ expected_stdout: |
   true
   true
 
+tier: stretch
+tags: [contracts, string_algo, algorithmic]

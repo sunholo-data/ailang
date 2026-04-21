@@ -29,3 +29,5 @@ task_prompt: |
 expected_stdout: |
   6
   144
+tier: smoke
+tags: [recursion, algorithmic]

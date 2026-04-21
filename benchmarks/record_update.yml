@@ -17,3 +17,5 @@ expected_stdout: |
   WDG-001, 29, true
   WDG-001, 24, true
   WDG-001, 24, false
+tier: smoke
+tags: [records]

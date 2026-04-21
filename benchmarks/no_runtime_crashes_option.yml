@@ -34,3 +34,5 @@ task_prompt: |
 expected_stdout: |
   Last starts with: c
   Empty list
+tier: vision
+tags: [type_safety, error_handling]

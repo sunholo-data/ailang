@@ -31,3 +31,5 @@ task_prompt: |
 expected_stdout: |
   Sum: 30
   Done
+tier: core
+tags: [effects_io]

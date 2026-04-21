@@ -32,3 +32,5 @@ task_prompt: |
 
 expected_stdout: |
   Loaded MyApp v1.0.0 on port 8080 with 3 features
+tier: core
+tags: [string_algo, error_handling, data_transform]

@@ -28,3 +28,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   Sum of evens: 30
+tier: smoke
+tags: [data_transform]

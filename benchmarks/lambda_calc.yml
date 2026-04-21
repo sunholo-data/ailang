@@ -30,3 +30,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   1
+tier: vision
+tags: [functional, recursion, adt_pattern_match]

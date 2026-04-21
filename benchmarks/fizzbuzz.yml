@@ -116,3 +116,5 @@ expected_stdout: |
   98
   Fizz
   Buzz
+tier: smoke
+tags: [algorithmic]

@@ -18,3 +18,5 @@ task_prompt: |
 expected_stdout: |
   Dune, 412, SciFi
   1984, 328, Dystopian
+tier: smoke
+tags: [records, data_transform]

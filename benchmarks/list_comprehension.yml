@@ -23,3 +23,5 @@ task_prompt: |
   Output only the code, no explanations.
 expected_stdout: |
   Sum of squares of evens: 220
+tier: core
+tags: [functional, data_transform]
