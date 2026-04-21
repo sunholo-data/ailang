@@ -20,6 +20,9 @@ on:
       - 'examples/sim_stub/**'
       - '.github/workflows/test-game-codegen.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test-game-codegen:
     name: Test AILANG -> Go Codegen Pipeline

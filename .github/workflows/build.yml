@@ -7,6 +7,11 @@ on:
     branches: [ main, dev ]
   workflow_dispatch:
 
+# Least-privilege default. Individual jobs may override with `permissions:`
+# blocks if they need to write (e.g. create releases, push commits).
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build ${{ matrix.os }}

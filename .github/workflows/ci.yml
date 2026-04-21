@@ -7,9 +7,18 @@ on:
     branches: [ main, dev ]
   workflow_dispatch:
 
+# Least-privilege default. The `test` job overrides to `contents: write`
+# because it auto-commits updated README badges + example status on dev
+# pushes (see git-auto-commit-action below). The `dependency-submission`
+# job also overrides — it submits the dependency graph back to GitHub.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - uses: actions/checkout@v6

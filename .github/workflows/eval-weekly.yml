@@ -16,6 +16,9 @@ on:
         description: 'Baseline version to compare against (optional)'
         required: false
 
+permissions:
+  contents: read
+
 jobs:
   eval:
     runs-on: ubuntu-latest

@@ -14,6 +14,9 @@ on:
       - ".github/workflows/dashboard-ui-build.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ui-build:
     name: UI build stage
