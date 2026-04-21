@@ -19,6 +19,21 @@ on:
       # Web assets (REPL component, etc.)
       - 'web/**'
 
+  # PRs build (but don't deploy) — gates dependency bumps that would break docs.
+  pull_request:
+    branches: ["dev", "main"]
+    paths:
+      - 'docs/**'
+      - 'prompts/**'
+      - 'llms.txt'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docusaurus-deploy.yml'
+      - 'internal/**'
+      - 'cmd/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'web/**'
+
   # Rebuild daily to pick up newly published packages in the registry
   schedule:
     - cron: '0 6 * * *'  # 06:00 UTC daily

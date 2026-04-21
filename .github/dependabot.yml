@@ -43,9 +43,18 @@ updates:
       docusaurus:
         patterns:
           - "@docusaurus/*"
-      all-patches:
+          - "@mdx-js/*"
+          - "@mermaid-js/*"
+      all-minor-patch:
+        patterns:
+          - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      # Webpack 5.106 tightened the ProgressPlugin schema in a way Docusaurus
+      # 3.10 doesn't match — skip until Docusaurus catches up.
+      - dependency-name: "webpack"
 
   # Control-plane / collab-hub UI. Shipped React app.
   - package-ecosystem: npm
@@ -64,6 +73,19 @@ updates:
         patterns:
           - "vite"
           - "@vitejs/*"
-      all-patches:
+          - "rollup"
+      all-minor-patch:
+        patterns:
+          - "*"
         update-types:
+          - minor
           - patch
+    ignore:
+      # Vite/React major bumps need coordinated ecosystem upgrades (plugin-react,
+      # @types/react-dom) Dependabot can't bundle — do these manually.
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
