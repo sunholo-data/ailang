@@ -103,20 +103,30 @@ do_install() {
     curl -fSL --progress-bar "$URL" -o "$TMPDIR/$ARCHIVE" \
         || err "download failed — check that $VERSION exists at\nhttps://github.com/$REPO/releases"
 
-    # --- Checksum verification ---
+    # --- Verification ---
     #
-    # Every release from v0.13.1 onward publishes <archive>.sha256 alongside
-    # the archive (and a combined SHA256SUMS). The installer requires these
-    # for current releases. For older releases that don't carry them, we
-    # warn loudly and continue — set NO_VERIFY=1 to suppress the prompt if
-    # you're deliberately installing one of those.
+    # Preferred: cosign keyless signature check. Every release from v0.14.1+
+    # publishes <archive>.sig and <archive>.pem produced by the release
+    # workflow via Sigstore's Fulcio CA. The signature is bound to the
+    # workflow identity below — a valid signature proves the binary was
+    # built by a specific GitHub Actions run in this repo, not just "some
+    # Action somewhere".
     #
-    # Set NO_VERIFY=1 to skip verification entirely (not recommended; only
-    # useful in CI smoke tests where you control the artifact).
+    # Fallback: SHA256 checksum (v0.13.1+) when cosign isn't installed or
+    # the release predates cosign signing.
+    #
+    # If neither is available, the install aborts rather than proceeding
+    # unverified — a silent-skip check is worse than no check.
+    #
+    # Escape hatch: NO_VERIFY=1 skips all verification. Intended for local
+    # CI smoke tests where the artifact is known-trusted; not for end users.
+    COSIGN_IDENTITY_REGEXP="^https://github\\.com/$REPO/\\.github/workflows/release\\.yml@refs/tags/v.+$"
+    COSIGN_OIDC_ISSUER="https://token.actions.githubusercontent.com"
+    SIG_URL="${URL}.sig"
+    CERT_URL="${URL}.pem"
     CHECKSUM_URL="${URL}.sha256"
-    if [ "${NO_VERIFY:-}" = "1" ]; then
-        warn "Checksum verification skipped (NO_VERIFY=1)."
-    elif curl -fsSL "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
+
+    verify_sha256() {
         info "Verifying SHA256 checksum..."
         cd "$TMPDIR"
         if command -v sha256sum >/dev/null 2>&1; then
@@ -128,16 +138,42 @@ do_install() {
         else
             err "neither sha256sum nor shasum available — cannot verify.\nInstall one, or re-run with NO_VERIFY=1 (not recommended)."
         fi
-        ok "Checksum verified."
+        ok "SHA256 verified."
         cd - >/dev/null
+    }
+
+    if [ "${NO_VERIFY:-}" = "1" ]; then
+        warn "Verification skipped (NO_VERIFY=1)."
+    elif command -v cosign >/dev/null 2>&1 \
+        && curl -fsSL "$SIG_URL"  -o "$TMPDIR/$ARCHIVE.sig"  2>/dev/null \
+        && curl -fsSL "$CERT_URL" -o "$TMPDIR/$ARCHIVE.pem" 2>/dev/null; then
+        info "Verifying cosign signature..."
+        if cosign verify-blob \
+            --signature   "$TMPDIR/$ARCHIVE.sig" \
+            --certificate "$TMPDIR/$ARCHIVE.pem" \
+            --certificate-identity-regexp "$COSIGN_IDENTITY_REGEXP" \
+            --certificate-oidc-issuer "$COSIGN_OIDC_ISSUER" \
+            "$TMPDIR/$ARCHIVE" >/dev/null 2>&1; then
+            ok "Signature verified: provenance GitHub Actions $REPO@$VERSION"
+        else
+            err "cosign verification FAILED — signature mismatch or wrong signer identity"
+        fi
+    elif curl -fsSL "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
+        if ! command -v cosign >/dev/null 2>&1; then
+            warn "cosign not found — falling back to SHA256."
+            warn "For cryptographic provenance, install cosign:"
+            warn "  https://docs.sigstore.dev/cosign/system_config/installation/"
+        else
+            warn "No cosign signature published for $VERSION — falling back to SHA256."
+        fi
+        verify_sha256
     else
-        # Older releases (pre-v0.13.1) don't publish per-artifact checksums.
-        # Warn loudly rather than silently skipping — a false sense of
-        # verification is worse than no verification at all.
-        warn "No .sha256 published for $VERSION — cannot verify archive integrity."
-        warn "Upgrade to a newer release for cryptographic verification,"
-        warn "or re-run with NO_VERIFY=1 to acknowledge and continue."
-        err "refusing to install unverified archive (set NO_VERIFY=1 to override)"
+        # No cosign signature AND no .sha256 — either a very old release or
+        # the release assets are incomplete. Refuse to install unverified.
+        warn "No verification method available for $VERSION"
+        warn "  (no cosign .sig/.pem, no .sha256)."
+        warn "Upgrade to a newer release, or re-run with NO_VERIFY=1 to override."
+        err "refusing to install unverified archive"
     fi
 
     info "Extracting..."

@@ -59,6 +59,44 @@ Out of scope:
   property of the model, not the language.
 - Social-engineering or phishing against maintainers.
 
+## Verifying Release Artifacts
+
+Release archives are signed keyless with [Sigstore cosign](https://docs.sigstore.dev/cosign/) starting with v0.14.1. Each `.tar.gz` / `.zip` has a matching `<archive>.sig` (signature) and `<archive>.pem` (certificate) attached to the GitHub release. An aggregate `SHA256SUMS` file is also published.
+
+The installer at `https://ailang.sunholo.com/install.sh` performs verification automatically: cosign first if available, SHA256 fallback otherwise. To verify manually:
+
+```bash
+# Download archive + signature + cert (replace arch/OS/version as needed)
+REPO=sunholo-data/ailang
+VERSION=v0.14.1
+ARCHIVE=linux.x64.ailang.tar.gz
+BASE="https://github.com/$REPO/releases/download/$VERSION"
+curl -fsSLO "$BASE/$ARCHIVE"
+curl -fsSLO "$BASE/$ARCHIVE.sig"
+curl -fsSLO "$BASE/$ARCHIVE.pem"
+
+cosign verify-blob \
+  --signature "$ARCHIVE.sig" \
+  --certificate "$ARCHIVE.pem" \
+  --certificate-identity-regexp \
+    "^https://github\.com/$REPO/\.github/workflows/release\.yml@refs/tags/v.+$" \
+  --certificate-oidc-issuer \
+    "https://token.actions.githubusercontent.com" \
+  "$ARCHIVE"
+```
+
+A successful verification proves the archive was built and signed by a GitHub Actions run of [`.github/workflows/release.yml`](.github/workflows/release.yml) in this repository, against a `v*` tag. The signing certificate is logged to the public [Rekor transparency log](https://search.sigstore.dev/), so the provenance is independently auditable.
+
+If cosign isn't available, the SHA256 fallback uses the per-archive `<archive>.sha256` files:
+
+```bash
+curl -fsSLO "$BASE/$ARCHIVE"
+curl -fsSLO "$BASE/$ARCHIVE.sha256"
+sha256sum -c "$ARCHIVE.sha256"   # or: shasum -a 256 -c on macOS
+```
+
+SHA256 confirms the archive wasn't corrupted in transit but does not by itself prove provenance — prefer cosign verification where possible.
+
 ## AI-Generated Code Disclosure
 
 AILANG is developed autonomously by AI agents via its
