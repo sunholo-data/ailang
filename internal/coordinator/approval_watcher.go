@@ -435,36 +435,36 @@ func (w *ApprovalWatcher) handleEvent(ctx context.Context, event *ApprovalEvent)
 	// Prefer custom handler if available
 	if isCustom {
 		log.Printf("[ApprovalWatcher] Processing custom label %q for task %s (issue #%d)",
-			event.Label, event.TaskID, event.IssueNumber)
+			SanitizeLog(event.Label), SanitizeLog(event.TaskID), event.IssueNumber)
 
 		if err := customHandler(ctx, event); err != nil {
-			log.Printf("[ApprovalWatcher] Custom handler error for %s: %v", event.Label, err)
+			log.Printf("[ApprovalWatcher] Custom handler error for %s: %v", SanitizeLog(event.Label), err)
 			return
 		}
 	} else if ok {
 		log.Printf("[ApprovalWatcher] Processing %s for task %s (issue #%d)",
-			event.EventType, event.TaskID, event.IssueNumber)
+			SanitizeLog(event.EventType), SanitizeLog(event.TaskID), event.IssueNumber)
 
 		if err := handler(ctx, event); err != nil {
-			log.Printf("[ApprovalWatcher] Handler error for %s: %v", event.EventType, err)
+			log.Printf("[ApprovalWatcher] Handler error for %s: %v", SanitizeLog(event.EventType), err)
 			return
 		}
 	} else {
-		log.Printf("[ApprovalWatcher] No handler for event type: %s (label: %s)", event.EventType, event.Label)
+		log.Printf("[ApprovalWatcher] No handler for event type: %s (label: %s)", SanitizeLog(event.EventType), SanitizeLog(event.Label))
 		return
 	}
 
 	// Get the task to access GithubRepo
 	task, err := w.store.GetTask(ctx, event.TaskID)
 	if err != nil {
-		log.Printf("[ApprovalWatcher] Failed to get task %s: %v", event.TaskID, err)
+		log.Printf("[ApprovalWatcher] Failed to get task %s: %v", SanitizeLog(event.TaskID), err)
 		return
 	}
 
 	// Remove the approval label after processing (to prevent re-triggering)
 	if err := w.poster.RemoveLabelInRepo(task.GithubRepo, event.IssueNumber, event.Label); err != nil {
 		log.Printf("[ApprovalWatcher] Failed to remove label %s from issue #%d: %v",
-			event.Label, event.IssueNumber, err)
+			SanitizeLog(event.Label), event.IssueNumber, err)
 	}
 
 	// Also remove the corresponding "needs-*" label if present (config-driven)

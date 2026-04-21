@@ -77,7 +77,7 @@ func (d *Daemon) syncAllRepos(repos []RepoSyncConfig) {
 
 // syncRepoIssues imports GitHub issues from a specific repo as messages using the ailang CLI.
 func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
-	d.logger.Printf("Syncing GitHub issues from %s...", repo.Repo)
+	d.logger.Printf("Syncing GitHub issues from %s...", SanitizeLog(repo.Repo))
 
 	// Build the command: ailang messages import-github --repo <repo> [--inbox target] [--labels label1,label2]
 	args := []string{"messages", "import-github", "--repo", repo.Repo}
@@ -101,7 +101,7 @@ func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		d.logger.Printf("GitHub sync error for %s: %v\nOutput: %s", repo.Repo, err, string(output))
+		d.logger.Printf("GitHub sync error for %s: %v\nOutput: %s", SanitizeLog(repo.Repo), err, SanitizeLog(string(output)))
 		return
 	}
 
@@ -111,7 +111,7 @@ func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
 		result = result[:200] + "..."
 	}
 	if result != "" {
-		d.logger.Printf("GitHub sync [%s]: %s", repo.Repo, result)
+		d.logger.Printf("GitHub sync [%s]: %s", SanitizeLog(repo.Repo), SanitizeLog(result))
 	}
 }
 

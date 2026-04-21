@@ -49,15 +49,8 @@ func NewGeminiEmbedder(cfg GeminiEmbedConfig) (*GeminiEmbedder, error) {
 	}, nil
 }
 
-func detectGeminiDimension(model string) int {
-	switch model {
-	case "text-embedding-004":
-		return 768
-	case "embedding-001":
-		return 768
-	default:
-		return 768
-	}
+func detectGeminiDimension(_ string) int {
+	return 768
 }
 
 type geminiEmbedRequest struct {

@@ -448,7 +448,7 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		d.logger.Printf("POST /api/messages: dispatch error: %v", err)
 	}
 
-	d.logger.Printf("POST /api/messages: created %s (inbox=%s, from=%s)", msg.ID, req.Inbox, req.From)
+	d.logger.Printf("POST /api/messages: created %s (inbox=%s, from=%s)", SanitizeLog(msg.ID), SanitizeLog(req.Inbox), SanitizeLog(req.From))
 
 	writeJSON(w, http.StatusCreated, postMessageResponse{
 		MessageID: msg.ID,

@@ -431,19 +431,11 @@ func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error
 	}, nil
 }
 
-// determinePurity analyzes an expression to determine if it's pure
-func (b *Builder) determinePurity(expr core.CoreExpr) bool {
-	// TODO: Implement actual purity analysis
-	// For now, assume functions are pure unless they have IO/effect annotations
-	switch expr.(type) {
-	case *core.Lambda:
-		return true
-	case *core.Lit:
-		return true
-	default:
-		// Conservative: assume impure if we're not sure
-		return true // For now, default to pure
-	}
+// determinePurity analyzes an expression to determine if it's pure.
+// TODO: implement real analysis — currently returns true unconditionally
+// (the type-class/row-effect system is the actual source of purity info).
+func (b *Builder) determinePurity(_ core.CoreExpr) bool {
+	return true
 }
 
 // ifaceItem is used for JSON serialization

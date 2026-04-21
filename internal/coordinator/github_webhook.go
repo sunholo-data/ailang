@@ -31,7 +31,7 @@ func (d *Daemon) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 	// Read body for signature verification
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		d.logger.Printf("Webhook: failed to read body: %v", err)
+		d.logger.Printf("Webhook: failed to read body: %v", SanitizeLog(err.Error()))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -59,7 +59,7 @@ func (d *Daemon) handleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 
 	default:
-		d.logger.Printf("Webhook: ignoring event type %q", event)
+		d.logger.Printf("Webhook: ignoring event type %q", SanitizeLog(event))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -89,7 +89,7 @@ type webhookIssuePayload struct {
 func (d *Daemon) handleWebhookIssueEvent(w http.ResponseWriter, body []byte) {
 	var payload webhookIssuePayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		d.logger.Printf("Webhook: failed to parse issues payload: %v", err)
+		d.logger.Printf("Webhook: failed to parse issues payload: %v", SanitizeLog(err.Error()))
 		w.WriteHeader(http.StatusOK) // Ack to prevent retry
 		return
 	}
@@ -97,7 +97,7 @@ func (d *Daemon) handleWebhookIssueEvent(w http.ResponseWriter, body []byte) {
 	// Skip bot-generated events to avoid infinite loops
 	// (coordinator adds its own labels, which would trigger another webhook)
 	if payload.Sender.Type == "Bot" {
-		d.logger.Printf("Webhook: skipping bot event from %s", payload.Sender.Login)
+		d.logger.Printf("Webhook: skipping bot event from %s", SanitizeLog(payload.Sender.Login))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -108,7 +108,7 @@ func (d *Daemon) handleWebhookIssueEvent(w http.ResponseWriter, body []byte) {
 	case "opened":
 		d.handleWebhookOpened(payload)
 	default:
-		d.logger.Printf("Webhook: ignoring issues action %q for #%d", payload.Action, payload.Issue.Number)
+		d.logger.Printf("Webhook: ignoring issues action %q for #%d", SanitizeLog(payload.Action), payload.Issue.Number)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -119,7 +119,7 @@ func (d *Daemon) handleWebhookIssueEvent(w http.ResponseWriter, body []byte) {
 func (d *Daemon) handleWebhookLabeled(payload webhookIssuePayload) {
 	label := payload.Label.Name
 	issueNum := payload.Issue.Number
-	d.logger.Printf("Webhook: issue #%d labeled %q by %s", issueNum, label, payload.Sender.Login)
+	d.logger.Printf("Webhook: issue #%d labeled %q by %s", issueNum, SanitizeLog(label), SanitizeLog(payload.Sender.Login))
 
 	if d.approvalWatcher == nil {
 		d.logger.Printf("Webhook: no approval watcher configured, ignoring label event")
@@ -139,7 +139,7 @@ func (d *Daemon) handleWebhookLabeled(payload webhookIssuePayload) {
 	// Determine event type from label
 	eventType := labelToEventType(label, d.approvalWatcher)
 	if eventType == "" {
-		d.logger.Printf("Webhook: label %q on issue #%d is not an approval label", label, issueNum)
+		d.logger.Printf("Webhook: label %q on issue #%d is not an approval label", SanitizeLog(label), issueNum)
 		return
 	}
 
@@ -151,14 +151,14 @@ func (d *Daemon) handleWebhookLabeled(payload webhookIssuePayload) {
 		Channel:     "github-webhook",
 	}
 
-	d.logger.Printf("Webhook: processing approval %s for task %s (issue #%d)", eventType, taskID, issueNum)
+	d.logger.Printf("Webhook: processing approval %s for task %s (issue #%d)", SanitizeLog(eventType), SanitizeLog(taskID), issueNum)
 	d.approvalWatcher.handleEvent(d.ctx, event)
 }
 
 // handleWebhookOpened processes a new issue being opened.
 // This replaces the periodic GitHub sync for cloud mode.
 func (d *Daemon) handleWebhookOpened(payload webhookIssuePayload) {
-	d.logger.Printf("Webhook: new issue #%d opened: %s", payload.Issue.Number, payload.Issue.Title)
+	d.logger.Printf("Webhook: new issue #%d opened: %s", payload.Issue.Number, SanitizeLog(payload.Issue.Title))
 
 	if d.msgStore == nil {
 		d.logger.Printf("Webhook: no message store, skipping import")

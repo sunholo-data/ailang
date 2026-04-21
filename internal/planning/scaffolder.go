@@ -191,27 +191,8 @@ func GenerateTypeDecl(typ schema.TypePlan, opts *ScaffoldOptions) (string, int) 
 		lineCount++
 	}
 
-	switch typ.Kind {
-	case "adt":
-		// ADT: type Name = Ctor1 | Ctor2
-		sb.WriteString(fmt.Sprintf("type %s = %s\n", typ.Name, typ.Definition))
-		lineCount++
-
-	case "record":
-		// Record: type Name = {field1: Type1, field2: Type2}
-		sb.WriteString(fmt.Sprintf("type %s = %s\n", typ.Name, typ.Definition))
-		lineCount++
-
-	case "alias":
-		// Type alias: type Name = ExistingType
-		sb.WriteString(fmt.Sprintf("type %s = %s\n", typ.Name, typ.Definition))
-		lineCount++
-
-	default:
-		// Fallback
-		sb.WriteString(fmt.Sprintf("type %s = %s\n", typ.Name, typ.Definition))
-		lineCount++
-	}
+	sb.WriteString(fmt.Sprintf("type %s = %s\n", typ.Name, typ.Definition))
+	lineCount++
 
 	return sb.String(), lineCount
 }

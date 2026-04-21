@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -79,14 +80,14 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 				MessageID: event.MessageID,
 			}
 			log.Printf("hooks: SessionStart with correlation task=%s chain=%s stage=%s msg=%s",
-				event.TaskID, event.ChainID, event.StageID, event.MessageID)
+				coordinator.SanitizeLog(event.TaskID), coordinator.SanitizeLog(event.ChainID), coordinator.SanitizeLog(event.StageID), coordinator.SanitizeLog(event.MessageID))
 		}
 
 		if err := s.obsBackend.UpsertSessionWithCorrelation(ctx, event.SessionID, event.Workspace, event.ClaudeVersion, "hook", corr); err != nil {
 			log.Printf("hooks: SessionStart upsert error: %v", err)
 			// Continue anyway - don't fail the hook
 		} else {
-			log.Printf("hooks: SessionStart session=%s workspace=%s", event.SessionID, event.Workspace)
+			log.Printf("hooks: SessionStart session=%s workspace=%s", coordinator.SanitizeLog(event.SessionID), coordinator.SanitizeLog(event.Workspace))
 		}
 
 		// Backfill any spans that arrived before this hook (race condition handling)
@@ -120,7 +121,7 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 		if err := s.obsBackend.InsertToolStart(ctx, event.SessionID, toolUseID, event.ToolName, toolInput); err != nil {
 			log.Printf("hooks: PreToolUse error: %v", err)
 		} else {
-			log.Printf("hooks: PreToolUse session=%s tool=%s", event.SessionID, event.ToolName)
+			log.Printf("hooks: PreToolUse session=%s tool=%s", coordinator.SanitizeLog(event.SessionID), coordinator.SanitizeLog(event.ToolName))
 		}
 
 	case "PostToolUse":
@@ -156,7 +157,7 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 		if err := s.obsBackend.UpdateToolEnd(ctx, toolUseID, toolResponse, success); err != nil {
 			log.Printf("hooks: PostToolUse error: %v", err)
 		} else {
-			log.Printf("hooks: PostToolUse tool_use_id=%s success=%v", toolUseID, success)
+			log.Printf("hooks: PostToolUse tool_use_id=%s success=%v", coordinator.SanitizeLog(toolUseID), success)
 		}
 
 	case "Stop":
@@ -170,11 +171,11 @@ func (s *Server) handleObservatoryHooks(w http.ResponseWriter, r *http.Request) 
 		if err := s.obsBackend.UpdateSessionEnded(ctx, event.SessionID); err != nil {
 			log.Printf("hooks: Stop error: %v", err)
 		} else {
-			log.Printf("hooks: Stop session=%s ended", event.SessionID)
+			log.Printf("hooks: Stop session=%s ended", coordinator.SanitizeLog(event.SessionID))
 		}
 
 	default:
-		log.Printf("hooks: unknown event type: %s", event.Event)
+		log.Printf("hooks: unknown event type: %s", coordinator.SanitizeLog(event.Event))
 	}
 
 	// Return success response

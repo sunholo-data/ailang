@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/sunholo/ailang/internal/coordinator"
 	"github.com/sunholo/ailang/internal/observatory"
 )
 
@@ -109,7 +110,7 @@ func (s *Server) handleClaudeHooks(w http.ResponseWriter, r *http.Request) {
 	case "TaskCompleted":
 		s.handleClaudeTaskCompleted(ctx, payload)
 	default:
-		log.Printf("claude-hooks: unhandled event type: %s", payload.HookEventName)
+		log.Printf("claude-hooks: unhandled event type: %s", coordinator.SanitizeLog(payload.HookEventName))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -141,7 +142,7 @@ func (s *Server) handleClaudeSessionStart(ctx context.Context, p ClaudeHookPaylo
 	if err := s.obsBackend.UpsertSessionWithCorrelation(ctx, p.SessionID, p.Cwd, version, "http-hook", corr); err != nil {
 		log.Printf("claude-hooks: SessionStart upsert error: %v", err)
 	} else {
-		log.Printf("claude-hooks: SessionStart session=%s workspace=%s model=%s", p.SessionID, p.Cwd, p.Model)
+		log.Printf("claude-hooks: SessionStart session=%s workspace=%s model=%s", coordinator.SanitizeLog(p.SessionID), coordinator.SanitizeLog(p.Cwd), coordinator.SanitizeLog(p.Model))
 	}
 
 	// Backfill any spans that arrived before this hook (race condition handling)
@@ -172,7 +173,7 @@ func (s *Server) handleClaudePreToolUse(ctx context.Context, p ClaudeHookPayload
 	if err := s.obsBackend.InsertToolStart(ctx, p.SessionID, toolUseID, p.ToolName, toolInput); err != nil {
 		log.Printf("claude-hooks: PreToolUse error: %v", err)
 	} else {
-		log.Printf("claude-hooks: PreToolUse session=%s tool=%s", p.SessionID, p.ToolName)
+		log.Printf("claude-hooks: PreToolUse session=%s tool=%s", coordinator.SanitizeLog(p.SessionID), coordinator.SanitizeLog(p.ToolName))
 	}
 }
 
@@ -198,7 +199,7 @@ func (s *Server) handleClaudePostToolUse(ctx context.Context, p ClaudeHookPayloa
 	if err := s.obsBackend.UpdateToolEnd(ctx, toolUseID, toolResponse, true); err != nil {
 		log.Printf("claude-hooks: PostToolUse error: %v", err)
 	} else {
-		log.Printf("claude-hooks: PostToolUse tool_use_id=%s tool=%s", toolUseID, p.ToolName)
+		log.Printf("claude-hooks: PostToolUse tool_use_id=%s tool=%s", coordinator.SanitizeLog(toolUseID), coordinator.SanitizeLog(p.ToolName))
 	}
 }
 
@@ -225,7 +226,7 @@ func (s *Server) handleClaudePostToolUseFailure(ctx context.Context, p ClaudeHoo
 	if err := s.obsBackend.UpdateToolEnd(ctx, toolUseID, toolResponse, false); err != nil {
 		log.Printf("claude-hooks: PostToolUseFailure error: %v", err)
 	} else {
-		log.Printf("claude-hooks: PostToolUseFailure tool_use_id=%s tool=%s", toolUseID, p.ToolName)
+		log.Printf("claude-hooks: PostToolUseFailure tool_use_id=%s tool=%s", coordinator.SanitizeLog(toolUseID), coordinator.SanitizeLog(p.ToolName))
 	}
 }
 
@@ -238,7 +239,7 @@ func (s *Server) handleClaudeStop(ctx context.Context, p ClaudeHookPayload) {
 	if err := s.obsBackend.UpdateSessionEnded(ctx, p.SessionID); err != nil {
 		log.Printf("claude-hooks: Stop error: %v", err)
 	} else {
-		log.Printf("claude-hooks: Stop session=%s ended", p.SessionID)
+		log.Printf("claude-hooks: Stop session=%s ended", coordinator.SanitizeLog(p.SessionID))
 	}
 }
 
@@ -246,7 +247,7 @@ func (s *Server) handleClaudeSubagentEvent(ctx context.Context, p ClaudeHookPayl
 	// SubagentStart/SubagentStop events track agent spawning.
 	// Store as tool calls with a synthetic tool name for observatory visibility.
 	if p.SessionID == "" {
-		log.Printf("claude-hooks: %s missing session_id", p.HookEventName)
+		log.Printf("claude-hooks: %s missing session_id", coordinator.SanitizeLog(p.HookEventName))
 		return
 	}
 
@@ -264,7 +265,7 @@ func (s *Server) handleClaudeSubagentEvent(ctx context.Context, p ClaudeHookPayl
 		if err := s.obsBackend.InsertToolStart(ctx, p.SessionID, toolUseID, "Subagent:"+agentInfo, input); err != nil {
 			log.Printf("claude-hooks: SubagentStart error: %v", err)
 		} else {
-			log.Printf("claude-hooks: SubagentStart session=%s agent=%s", p.SessionID, agentInfo)
+			log.Printf("claude-hooks: SubagentStart session=%s agent=%s", coordinator.SanitizeLog(p.SessionID), coordinator.SanitizeLog(agentInfo))
 		}
 	} else {
 		// SubagentStop — try to find matching start
@@ -280,7 +281,7 @@ func (s *Server) handleClaudeSubagentEvent(ctx context.Context, p ClaudeHookPayl
 		if err := s.obsBackend.UpdateToolEnd(ctx, toolUseID, output, true); err != nil {
 			log.Printf("claude-hooks: SubagentStop error: %v", err)
 		} else {
-			log.Printf("claude-hooks: SubagentStop session=%s agent=%s", p.SessionID, agentInfo)
+			log.Printf("claude-hooks: SubagentStop session=%s agent=%s", coordinator.SanitizeLog(p.SessionID), coordinator.SanitizeLog(agentInfo))
 		}
 	}
 }
@@ -289,5 +290,5 @@ func (s *Server) handleClaudeTaskCompleted(ctx context.Context, p ClaudeHookPayl
 	// TaskCompleted fires when Claude marks a task as done.
 	// Log for observability — this helps track end-to-end task duration.
 	log.Printf("claude-hooks: TaskCompleted session=%s agent_type=%s task_id=%s",
-		p.SessionID, p.AgentType, p.TaskID)
+		coordinator.SanitizeLog(p.SessionID), coordinator.SanitizeLog(p.AgentType), coordinator.SanitizeLog(p.TaskID))
 }

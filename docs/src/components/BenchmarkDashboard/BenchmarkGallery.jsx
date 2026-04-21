@@ -50,7 +50,19 @@ function BenchmarkCard({ benchmark }) {
 
   return (
     <div className={`${styles.benchmarkCard} ${styles[statusColor]}`}>
-      <div className={styles.benchmarkHeader} onClick={() => setExpanded(!expanded)}>
+      <div
+        className={styles.benchmarkHeader}
+        onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+      >
         <div className={styles.benchmarkTitle}>
           <StatusIcon className={styles.benchmarkIcon} size={24} />
           <span className={styles.benchmarkName}>{formatBenchmarkName(id)}</span>

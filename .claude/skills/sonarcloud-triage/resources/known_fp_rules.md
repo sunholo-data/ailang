@@ -30,6 +30,16 @@ listed here (or listed as `Review required`).
 | `gosecurity:S6096` | `internal/builtins/tar.go:472,476,484` | **False Positive** | Guarded by isEntryPathTraversal + filepath.Rel containment check at lines 458-468; analyzer doesn't follow the guard. |
 | `go:S5542` | `internal/builtins/crypto_rsa.go:89` | **False Positive** | PKCS1v15 used for signature verification only (required for RS256 JWT interop), not encryption. |
 
+## Issues — bulk via `mark_wontfix.sh RULE_KEY "comment"`
+
+Use `mark_wontfix.sh` when an entire rule's findings are not product concerns in
+our context (as opposed to `mark_fp.sh` for per-issue analyzer false positives).
+
+| Rule | Scope | Verdict | Comment |
+|------|-------|---------|---------|
+| `typescript:S1082` | `ui/.../EvolutionTree*.tsx` (a11y — clickable without keyboard listener) | **Won't Fix** | EvolutionTree visualization component; a11y keyboard-listener parity is not a product requirement for this internal observability view. |
+| `typescript:S3923` | `ui/.../EvolutionTree.tsx` (duplicate branches) | **Won't Fix** | Duplicate branches in EvolutionTree render logic are intentional for readability; refactor deferred to a dedicated UI rework sprint. |
+
 ## Workflow note
 
 For hotspots: `mark_safe.sh` paginates the first 500 TO_REVIEW hotspots and filters
@@ -39,3 +49,6 @@ its count reaches zero.
 For issues: `fetch_issues.sh` prints the issue key in the last column. Pass that
 key to `mark_fp.sh`. The comment is added first (for audit trail), then the
 transition is applied.
+
+For bulk Won't Fix: `mark_wontfix.sh RULE_KEY "comment"` transitions every open
+issue matching the rule in a single run — same pagination caveat as `mark_safe.sh`.
