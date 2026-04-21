@@ -50,8 +50,34 @@ rather than batch-triaging a whole rule.
 - Rule: `go:S2077`
 - Files: `internal/observatory/`, `internal/messaging/inbox.go`,
   `internal/coordinator/store_sqlite.go`
-- Action: **spot-check first**, do not bulk-mark. Confirm 2–3 sites use whitelisted
-  table/column names rather than raw user input before running `mark_safe.sh`.
+- Action: **`mark_safe.sh go:S2077 "..."`** using the standing comment.
+- Why: Spot-checked 2026-04-21 — dynamic column/table names come from internal
+  enum/dimension whitelists; user input always flows through `?` placeholders.
+  Key sites: store_sqlite.go:338 (OrderBy set from hardcoded literals only),
+  inbox.go:755 (internally-built query templates),
+  backend_controlplane_breakdowns.go:198 (whitelisted whereClause + parameterized args).
+
+### Insecure hash (non-crypto uses)
+- Rule: `go:S4790`
+- Files: `internal/apiserver/mcp_schema.go:78` (sha1), `internal/docsearch/search.go:234` (md5)
+- Action: **`mark_safe.sh go:S4790 "..."`**
+- Why: sha1 is used to hash-truncate module names to the 64-char MCP limit; md5
+  is a deterministic simhash over words for text search. Neither is credential-
+  or password-related.
+
+### Predictable temp fallback in REPL history
+- Rule: `go:S5443`
+- File: `internal/repl/repl.go:226`
+- Action: **`mark_safe.sh go:S5443 "..."`**
+- Why: Primary history path is `~/.ailang_history`; `os.TempDir()` is a defensive
+  fallback only when `os.UserHomeDir()` errors.
+
+### SRI on Google Fonts in served UI bundle
+- Rule: `Web:S5725`
+- File: `internal/server/dist/index.html:10`
+- Action: **`mark_safe.sh Web:S5725 "..."`**
+- Why: Generated UI bundle served on localhost from the Collaboration Hub daemon.
+  SRI hashes would have to be regenerated on every Google Fonts API change.
 
 ## Issues (BLOCKER / CRITICAL)
 

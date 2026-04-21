@@ -18,7 +18,10 @@ listed here (or listed as `Review required`).
 | `typescript:S2245` | `ui/src/.../useEventQueue.ts` | **Safe** | Math.random used for UI jitter/debounce, not security-sensitive. |
 | `go:S4507` | `cmd/ailang/main_run.go:154` | **Safe** | Opt-in CLI flag for pprof; standard Go CLI debug feature pattern. |
 | `go:S5445` | `internal/coordinator/worktree.go:49`, `cmd/ailang/eval_suite.go:535` | **Safe** | Intentional shared workspace paths; coordinator runs in single-tenant contexts. |
-| `go:S2077` | `internal/observatory/`, `internal/messaging/inbox.go`, `internal/coordinator/store_sqlite.go` | **Review required** | Likely dynamic table/column names with whitelisted values — spot-check before bulk-marking. |
+| `go:S2077` | `internal/observatory/`, `internal/messaging/inbox.go`, `internal/coordinator/store_sqlite.go` | **Safe (spot-checked)** | Dynamic SQL uses internal enum/dimension whitelists for column/table names; user inputs always go through `?` placeholders. Spot-checked store_sqlite.go:338 (OrderBy only set from hardcoded literals by all callers), inbox.go:755 (internally-built query templates), backend_controlplane_breakdowns.go:198 (whitelisted whereClause with parameterized args). |
+| `go:S4790` | `internal/apiserver/mcp_schema.go:78`, `internal/docsearch/search.go:234` | **Safe** | Non-cryptographic use: sha1 truncates module names to fit 64-char MCP limit; md5 is a deterministic simhash for word-level text search. Neither is password/credential-related. |
+| `go:S5443` | `internal/repl/repl.go:226` | **Safe** | Primary history path is `~/.ailang_history`; `os.TempDir()` is a defensive fallback only when `os.UserHomeDir()` fails. |
+| `Web:S5725` | `internal/server/dist/index.html:10` | **Safe** | Google Fonts stylesheet from trusted CDN in generated UI bundle; SRI would require re-hashing on every Google Fonts API change; bundle is served only on localhost from the single-tenant Collaboration Hub daemon. |
 
 ## Issues — per-issue via `mark_fp.sh ISSUE_KEY "comment"`
 
