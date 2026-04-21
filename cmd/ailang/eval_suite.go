@@ -104,6 +104,7 @@ func runEvalSuite() {
 	models := fs.String("models", "", "Comma-separated list of models (default: dev models)")
 	fullSuite := fs.Bool("full", false, "Run full benchmark suite with all models from extended_suite (gpt5-2-codex, claude-opus-4-6, claude-sonnet-4-6, gemini-3-pro, gemini-2-5-pro)")
 	benchmarks := fs.String("benchmarks", "", "Comma-separated list of benchmarks (empty = auto-discover from benchmarks/)")
+	tier := fs.String("tier", "", "Comma-separated list of tiers to include (smoke|core|stretch|vision). Empty = all tiers. Applied after benchmark discovery.")
 	langs := fs.String("langs", "python,ailang", "Comma-separated list of languages")
 	seed := fs.Int64("seed", 42, "Random seed for deterministic runs")
 	outputDir := fs.String("output", "eval_results", "Output directory for results")
@@ -232,6 +233,23 @@ func runEvalSuite() {
 	}
 	for i := range benchmarkList {
 		benchmarkList[i] = strings.TrimSpace(benchmarkList[i])
+	}
+
+	// Apply --tier filter (M-EVAL-SUITE-PREP M3)
+	if strings.TrimSpace(*tier) != "" {
+		tiers, err := parseTierList(*tier)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: --tier: %v\n", err)
+			os.Exit(1)
+		}
+		before := len(benchmarkList)
+		benchmarkList = filterBenchmarksByTier(benchmarkList, tiers)
+		fmt.Fprintf(os.Stderr, "Tier filter (%s): %d -> %d benchmarks\n",
+			strings.Join(tiers, ","), before, len(benchmarkList))
+		if len(benchmarkList) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: no benchmarks match tier %s\n", strings.Join(tiers, ","))
+			os.Exit(1)
+		}
 	}
 	for i := range langList {
 		langList[i] = strings.TrimSpace(langList[i])

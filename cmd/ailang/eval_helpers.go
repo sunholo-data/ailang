@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sunholo/ailang/internal/eval_harness"
 )
 
 // evalBenchmarkDir is the directory containing benchmark YAML files.
@@ -42,6 +44,56 @@ func discoverBenchmarks() []string {
 		}
 	}
 	return benchmarks
+}
+
+// parseTierList splits a comma-separated --tier argument and validates each entry
+// against eval_harness.ValidTiers. Whitespace is trimmed; empty input returns nil.
+func parseTierList(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	validTiers := map[string]bool{}
+	for _, t := range eval_harness.ValidTiers {
+		validTiers[t] = true
+	}
+	var tiers []string
+	for _, t := range strings.Split(raw, ",") {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if !validTiers[t] {
+			return nil, fmt.Errorf("unknown tier %q (valid: %v)", t, eval_harness.ValidTiers)
+		}
+		tiers = append(tiers, t)
+	}
+	return tiers, nil
+}
+
+// filterBenchmarksByTier narrows a benchmark ID list to those whose YAML tier
+// is in `tiers`. Missing tier fields default to "core" (per M1 back-compat
+// rule). Benchmarks that fail to load are dropped with a stderr warning.
+func filterBenchmarksByTier(benchmarks []string, tiers []string) []string {
+	if len(tiers) == 0 {
+		return benchmarks
+	}
+	keep := map[string]bool{}
+	for _, t := range tiers {
+		keep[t] = true
+	}
+	var out []string
+	for _, id := range benchmarks {
+		specPath := filepath.Join(evalBenchmarkDir, id+".yml")
+		spec, err := eval_harness.LoadSpec(specPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s %s: %v\n", yellow("⚠️"), id, err)
+			continue
+		}
+		if keep[spec.Tier] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // checkAPIKeys validates that required API keys are set
