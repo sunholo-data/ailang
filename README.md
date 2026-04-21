@@ -13,6 +13,7 @@
 
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
 [![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=sqale_rating)
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
