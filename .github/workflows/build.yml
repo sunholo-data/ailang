@@ -42,7 +42,7 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: '1.25'
 
     # uv pins the Python runtime for eval-harness tests. The harness invokes
     # `uv run --python <PinnedPythonVersion>` and fails loudly if uv is missing
