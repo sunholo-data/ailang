@@ -122,9 +122,9 @@ func TestParseMatrixFlags(t *testing.T) {
 // TestLoadBenchmarkTags loads the real benchmark directory and asserts
 // every benchmark has 1-3 tags (invariant already enforced by
 // TestAllBenchmarksHaveTierAndTags in eval_harness; this is the CLI-side
-// smoke that the helper sees them too).
+// smoke that the primitive sees them too).
 func TestLoadBenchmarkTags(t *testing.T) {
-	tags := loadBenchmarkTags("../../benchmarks")
+	tags := eval_analysis.LoadBenchmarkTags("../../benchmarks")
 	if len(tags) == 0 {
 		t.Skip("no benchmarks found at ../../benchmarks")
 	}

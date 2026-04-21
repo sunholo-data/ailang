@@ -92,6 +92,12 @@ func LoadResult(path string) (*BenchmarkResult, error) {
 		return nil, fmt.Errorf("missing required field: model")
 	}
 
+	// Annotate refusal at load time so historical baselines — which were
+	// written before the RefusalDetected field existed — inherit the flag.
+	if !result.RefusalDetected {
+		result.RefusalDetected = DetectRefusal(result.Code, result.Stderr, result.Stdout)
+	}
+
 	return &result, nil
 }
 

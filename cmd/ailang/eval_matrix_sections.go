@@ -2,122 +2,56 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/sunholo/ailang/internal/eval_analysis"
-	"github.com/sunholo/ailang/internal/eval_harness"
 )
 
-// loadBenchmarkTags reads every YAML in dir and returns benchmark ID -> tags.
-// Benchmarks that fail to load are skipped (silently here; LoadSpec already
-// warns on unknown tags via spec.go). The full analysis-grade version lives
-// in internal/eval_analysis/tags.go (arrives in M4).
-func loadBenchmarkTags(dir string) map[string][]string {
-	out := map[string][]string{}
-	matches, _ := filepath.Glob(filepath.Join(dir, "*.yml"))
-	for _, path := range matches {
-		spec, err := eval_harness.LoadSpec(path)
-		if err != nil {
-			continue
-		}
-		out[spec.ID] = spec.Tags
-	}
-	return out
-}
-
-// passCell counts pass/total events for a (tag, lang) cell.
-type passCell struct{ pass, total int }
-
-// printTagsSection emits a per-tag AILANG vs Python delta table.
-// A benchmark result contributes to every tag it carries. Pass rate is
-// computed on StdoutOk. Refusal filtering arrives in M4.
+// printTagsSection emits a per-tag AILANG vs Python delta table using
+// the eval_analysis primitives. The benchmark dir is passed so that
+// the CLI can point at a non-standard location during tests.
 func printTagsSection(results []*eval_analysis.BenchmarkResult, benchmarkDir string) {
-	tags := loadBenchmarkTags(benchmarkDir)
+	tags := eval_analysis.LoadBenchmarkTags(benchmarkDir)
 	if len(tags) == 0 {
 		fmt.Println("\n## By Tags\n\n(no benchmark tags loaded)")
 		return
 	}
 
-	byTag := map[string]map[string]*passCell{} // tag -> lang -> cell
-
-	for _, r := range results {
-		for _, tag := range tags[r.ID] {
-			if byTag[tag] == nil {
-				byTag[tag] = map[string]*passCell{}
-			}
-			if byTag[tag][r.Lang] == nil {
-				byTag[tag][r.Lang] = &passCell{}
-			}
-			c := byTag[tag][r.Lang]
-			c.total++
-			if r.StdoutOk {
-				c.pass++
-			}
-		}
-	}
-
-	tagNames := make([]string, 0, len(byTag))
-	for t := range byTag {
-		tagNames = append(tagNames, t)
-	}
-	sort.Strings(tagNames)
+	report := eval_analysis.GroupByTags(results, tags)
 
 	fmt.Println("\n## By Tags (AILANG vs Python)")
 	fmt.Println()
 	fmt.Println("| Tag | AILANG | Python | Δ (AILANG - Python) |")
 	fmt.Println("|-----|-------:|-------:|--------------------:|")
-	for _, tag := range tagNames {
-		ailCell := byTag[tag]["ailang"]
-		pyCell := byTag[tag]["python"]
-		delta := rate(ailCell) - rate(pyCell)
-		fmt.Printf("| %s | %s | %s | %+.1fpp |\n", tag, fmtRate(ailCell), fmtRate(pyCell), delta*100)
+	for _, tag := range report.Tags {
+		agg := report.Aggregates[tag]
+		fmt.Printf("| %s | %s | %s | %+.1fpp |\n",
+			tag,
+			fmtTagRate(agg.AILANGPass, agg.AILANGTotal),
+			fmtTagRate(agg.PythonPass, agg.PythonTotal),
+			agg.Delta*100,
+		)
 	}
 }
 
-// printSaturatedSection lists benchmarks passing 100% across all models for
-// every language in the given results. Multi-baseline saturation (requires
-// the latest 2 baselines per the design) arrives in M4.
+// printSaturatedSection wraps the current results as a single synthetic
+// baseline and runs DetectSaturation. This keeps the CLI single-batch
+// behaviour while using the same primitive the multi-baseline analysis
+// does — M5+ can call DetectSaturation directly with the latest 2
+// baselines when the pipeline loads them.
 func printSaturatedSection(results []*eval_analysis.BenchmarkResult) {
-	type key struct{ id, lang string }
-	type agg struct{ pass, total int }
-	byKey := map[key]*agg{}
+	baseline := &eval_analysis.Baseline{Version: "current", Results: results}
+	saturated := eval_analysis.DetectSaturation([]*eval_analysis.Baseline{baseline}, 1)
+
+	// Count benchmarks that participated in the analysis (for the
+	// "X of Y" footer). Mirror DetectSaturation's refusal filter.
+	benchSet := map[string]bool{}
 	for _, r := range results {
-		k := key{r.ID, r.Lang}
-		if byKey[k] == nil {
-			byKey[k] = &agg{}
+		if r.RefusalDetected {
+			continue
 		}
-		byKey[k].total++
-		if r.StdoutOk {
-			byKey[k].pass++
-		}
+		benchSet[r.ID] = true
 	}
-
-	// Saturated = 100% pass in every language seen for that benchmark.
-	langsByID := map[string]map[string]bool{}
-	for k := range byKey {
-		if langsByID[k.id] == nil {
-			langsByID[k.id] = map[string]bool{}
-		}
-		langsByID[k.id][k.lang] = true
-	}
-
-	var saturated []string
-	for id, langs := range langsByID {
-		all := true
-		for lang := range langs {
-			a := byKey[key{id, lang}]
-			if a.total == 0 || a.pass < a.total {
-				all = false
-				break
-			}
-		}
-		if all {
-			saturated = append(saturated, id)
-		}
-	}
-	sort.Strings(saturated)
 
 	fmt.Println("\n## Saturated Benchmarks (100% pass, all models + languages)")
 	fmt.Println()
@@ -125,67 +59,46 @@ func printSaturatedSection(results []*eval_analysis.BenchmarkResult) {
 		fmt.Println("(none)")
 		return
 	}
-	for _, id := range saturated {
-		fmt.Printf("- `%s`\n", id)
+	for _, s := range saturated {
+		fmt.Printf("- `%s`\n", s.ID)
 	}
-	fmt.Printf("\n**Count:** %d of %d benchmarks\n", len(saturated), len(langsByID))
+	fmt.Printf("\n**Count:** %d of %d benchmarks\n", len(saturated), len(benchSet))
 }
 
-// printAILANGWinsSection lists benchmarks where AILANG passes and Python fails
-// for the same model. M4 will add cross-model pattern detection (3+ models
-// agreeing) — this is the single-result view.
+// printAILANGWinsSection renders the per-cell win list plus the 3+ model
+// pattern list from DetectAILANGOnlyWins.
 func printAILANGWinsSection(results []*eval_analysis.BenchmarkResult) {
-	type key struct{ id, model string }
-	byKey := map[key]map[string]bool{} // lang -> pass
-	for _, r := range results {
-		k := key{r.ID, r.Model}
-		if byKey[k] == nil {
-			byKey[k] = map[string]bool{}
-		}
-		byKey[k][r.Lang] = r.StdoutOk
-	}
-
-	var wins []key
-	for k, langs := range byKey {
-		if langs["ailang"] && !langs["python"] {
-			wins = append(wins, k)
-		}
-	}
-	sort.Slice(wins, func(i, j int) bool {
-		if wins[i].id != wins[j].id {
-			return wins[i].id < wins[j].id
-		}
-		return wins[i].model < wins[j].model
-	})
+	report := eval_analysis.DetectAILANGOnlyWins(results)
 
 	fmt.Println("\n## AILANG-Only Wins (AILANG passes, Python fails, same model)")
 	fmt.Println()
-	if len(wins) == 0 {
+	if len(report.Wins) == 0 {
 		fmt.Println("(none)")
 		return
 	}
 	fmt.Println("| Benchmark | Model |")
 	fmt.Println("|-----------|-------|")
-	for _, w := range wins {
-		fmt.Printf("| `%s` | %s |\n", w.id, w.model)
+	for _, w := range report.Wins {
+		fmt.Printf("| `%s` | %s |\n", w.ID, w.Model)
 	}
-	fmt.Printf("\n**Total:** %d (benchmark × model) wins\n", len(wins))
+	fmt.Printf("\n**Total:** %d (benchmark × model) wins\n", len(report.Wins))
+
+	if len(report.Patterns) > 0 {
+		fmt.Println("\n### Cross-Model Patterns (≥3 models agreeing)")
+		fmt.Println()
+		for _, id := range report.Patterns {
+			fmt.Printf("- `%s` (%d models)\n", id, report.PerBenchmark[id])
+		}
+	}
 }
 
-// rate returns pass/total as a [0,1] fraction, or 0 if total is 0.
-func rate(c *passCell) float64 {
-	if c == nil || c.total == 0 {
-		return 0
-	}
-	return float64(c.pass) / float64(c.total)
-}
-
-// fmtRate formats a cell as "pp% (p/t)" or "n/a" when total is 0.
-func fmtRate(c *passCell) string {
-	if c == nil || c.total == 0 {
+// fmtTagRate formats a (pass, total) pair as "pp% (p/t)" or "n/a".
+// Kept CLI-local because it is purely a table-rendering helper.
+func fmtTagRate(pass, total int) string {
+	if total == 0 {
 		return "n/a"
 	}
-	return fmt.Sprintf("%.1f%% (%d/%d)", rate(c)*100, c.pass, c.total)
+	return fmt.Sprintf("%.1f%% (%d/%d)", 100*float64(pass)/float64(total), pass, total)
 }
 
 // parseMatrixFlags scans flag.Arg() from `start` onward for the three M3

@@ -26,6 +26,7 @@ type BenchmarkResult struct {
 	CompileMs     int64     `json:"compile_ms"`
 	ExecuteMs     int64     `json:"execute_ms"`
 	ErrorCategory string    `json:"error_category"`
+	Stdout        string    `json:"stdout,omitempty"`
 	Stderr        string    `json:"stderr,omitempty"`
 	Timestamp     time.Time `json:"timestamp"`
 	Code          string    `json:"code,omitempty"`
@@ -51,6 +52,11 @@ type BenchmarkResult struct {
 	BinaryHash string   `json:"binary_hash,omitempty"`
 	StdlibHash string   `json:"stdlib_hash,omitempty"`
 	Caps       []string `json:"caps,omitempty"`
+
+	// Refusal detection (M-EVAL-SUITE-PREP M4): populated at load time
+	// by DetectRefusal() scanning stdout+stderr. Not written by eval_harness,
+	// purely a read-side annotation so historical results inherit it.
+	RefusalDetected bool `json:"refusal_detected,omitempty"`
 }
 
 // Baseline represents a stored baseline with metadata
