@@ -57,7 +57,10 @@ func TestNewPythonCommandShape(t *testing.T) {
 	if len(args) < 5 {
 		t.Fatalf("expected >=5 args, got %d: %v", len(args), args)
 	}
-	if !strings.HasSuffix(args[0], "uv") {
+	// On Windows, LookPath returns an absolute path with a `.exe` suffix; strip
+	// it before the comparison so the test is portable.
+	binBase := strings.TrimSuffix(filepath.Base(args[0]), ".exe")
+	if binBase != "uv" {
 		t.Errorf("expected binary to be uv, got %q", args[0])
 	}
 	wantPrefix := []string{"run", "--python", PinnedPythonVersion(), "--"}
