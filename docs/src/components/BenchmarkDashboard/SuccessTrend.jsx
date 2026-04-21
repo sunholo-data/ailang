@@ -1,10 +1,11 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
-import { useEvents, annotationColor } from './useEvents';
+import { useEvents, annotationColor, groupByVersion } from './useEvents';
 
 export default function SuccessTrend({ history, languages, events, selectedTier }) {
   const annotations = useEvents(events, { selectedTier });
+  const eventsByVersion = groupByVersion(annotations, formatVersion);
   // Filter out entries with invalid timestamps (0001-01-01 means no timestamp)
   const validHistory = history.filter(h => {
     const date = new Date(h.timestamp);
@@ -66,6 +67,7 @@ export default function SuccessTrend({ history, languages, events, selectedTier 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const eventsHere = eventsByVersion.get(label) || [];
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
@@ -79,6 +81,19 @@ export default function SuccessTrend({ history, languages, events, selectedTier 
               <span className={styles.tooltipDot} style={{backgroundColor: '#ffa726'}} />
               Python: {data['Python']}%
             </p>
+          )}
+          {eventsHere.length > 0 && (
+            <>
+              <p className={styles.tooltipRuns} style={{marginTop: '8px', fontSize: '11px', color: '#666'}}>
+                Release events:
+              </p>
+              {eventsHere.map((ev, i) => (
+                <p key={i} className={styles.tooltipValue} style={{fontSize: '11px'}}>
+                  <span className={styles.tooltipDot} style={{backgroundColor: annotationColor(ev)}} />
+                  {ev.label}
+                </p>
+              ))}
+            </>
           )}
         </div>
       );
@@ -105,24 +120,25 @@ export default function SuccessTrend({ history, languages, events, selectedTier 
             domain={[0, 100]}
             label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
           <Legend
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
           />
-          {annotations.map(ann => {
-            const formattedVersion = formatVersion(ann.version);
+          {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {
             const exists = chartData.some(d => d.version === formattedVersion);
-            const color = annotationColor(ann);
-            return exists ? (
+            if (!exists) return null;
+            const color = annotationColor(evs[0]);
+            const marker = evs.length > 1 ? `● ${evs.length}` : '●';
+            return (
               <ReferenceLine
-                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
+                key={`ev-${formattedVersion}`}
                 x={formattedVersion}
                 stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
+                label={{ value: marker, position: 'top', fill: color, fontSize: 12, fontWeight: 600 }}
               />
-            ) : null;
+            );
           })}
           <Line
             type="monotone"

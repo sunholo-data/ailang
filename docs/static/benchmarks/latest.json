@@ -1,6 +1,6 @@
 {
   "version": "v0.13.0",
-  "timestamp": "2026-04-21T16:26:43+02:00",
+  "timestamp": "2026-04-21T16:37:58+02:00",
   "totalRuns": 396,
   "aggregates": {
     "agentBenchmarks": [
@@ -4423,7 +4423,7 @@
     },
     {
       "version": "v0.13.0",
-      "timestamp": "2026-04-21T16:26:39+02:00",
+      "timestamp": "2026-04-21T16:37:55+02:00",
       "successRate": 0.73989898989899,
       "totalRuns": 396,
       "successCount": 293,
@@ -13184,6 +13184,18 @@
         "stretch",
         "vision"
       ]
+    },
+    {
+      "version": "v0.13.0",
+      "label": "Reliability + refusal tracking",
+      "kind": "taxonomy",
+      "color": "#2E86DE"
+    },
+    {
+      "version": "v0.13.0",
+      "label": "baseline.json records resolved benchmark set",
+      "kind": "taxonomy",
+      "color": "#888888"
     }
   ]
 }

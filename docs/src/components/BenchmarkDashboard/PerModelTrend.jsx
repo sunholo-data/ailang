@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
-import { useEvents, annotationColor } from './useEvents';
+import { useEvents, annotationColor, groupByVersion } from './useEvents';
+import { assignModelColors } from './modelColors';
 
 function formatModelName(name) {
   // Check most specific patterns first
@@ -32,21 +33,24 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-// Color palette for models (distinct colors)
-const MODEL_COLORS = {
-  'gpt5-1': '#FF6B6B',
-  'gpt5-mini': '#FFA07A',
-  'gpt5-1-instant': '#FFD700',
-  'claude-sonnet-4-5': '#4ECDC4',
-  'claude-haiku-4-5': '#95E1D3',
-  'gemini-2-5-pro': '#9B59B6',
-  'gemini-2-5-flash': '#C39BD3',
-  'gemini-3-pro': '#8E44AD',
-};
-
 export default function PerModelTrend({ history, events, selectedTier }) {
   const [selectedLanguage, setSelectedLanguage] = useState('ailang');
+  // Selected-models set: empty Set = "show all" (default). Clicking a chip
+  // when the set is empty solos that model; subsequent clicks add or remove
+  // from the selection. Clicking the last remaining selection clears back
+  // to "show all" — lets the user focus one model then add peers to compare.
+  const [selectedModels, setSelectedModels] = useState(() => new Set());
+  const isVisible = (m) => selectedModels.size === 0 || selectedModels.has(m);
+  const toggleModel = (m) => {
+    setSelectedModels((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  };
   const annotations = useEvents(events, { selectedTier });
+  const eventsByVersion = groupByVersion(annotations, formatVersion);
 
   // When a tier is selected, read history[i].tiers[t].modelStats instead of
   // the all-tier history[i].modelStats. Historic baselines without tier
@@ -77,6 +81,10 @@ export default function PerModelTrend({ history, events, selectedTier }) {
       Object.keys(ms).forEach(model => allModels.add(model));
     }
   });
+
+  // Provider-grouped color assignment (Anthropic/OpenAI/Google shades) so
+  // new models don't fall through to grey when the static palette runs out.
+  const modelColors = assignModelColors(allModels);
 
   // Track api-error gate metadata per (version, model) so the tooltip can
   // explain why a dot is missing. Key: `${version}|${model}`.
@@ -124,6 +132,7 @@ export default function PerModelTrend({ history, events, selectedTier }) {
       const gatedHere = Array.from(allModels)
         .map((m) => ({ model: m, meta: apiErrorMeta[`${label}|${m}`] }))
         .filter((r) => r.meta);
+      const eventsHere = eventsByVersion.get(label) || [];
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
@@ -142,6 +151,19 @@ export default function PerModelTrend({ history, events, selectedTier }) {
               {gatedHere.map(({ model, meta }) => (
                 <p key={model} className={styles.tooltipValue} style={{fontSize: '11px', color: '#666'}}>
                   {formatModelName(model)}: — (API errors: {meta.apiErrors}/{meta.total})
+                </p>
+              ))}
+            </>
+          )}
+          {eventsHere.length > 0 && (
+            <>
+              <p className={styles.tooltipRuns} style={{marginTop: '8px', fontSize: '11px', color: '#666'}}>
+                Release events:
+              </p>
+              {eventsHere.map((ev, i) => (
+                <p key={i} className={styles.tooltipValue} style={{fontSize: '11px'}}>
+                  <span className={styles.tooltipDot} style={{backgroundColor: annotationColor(ev)}} />
+                  {ev.label}
                 </p>
               ))}
             </>
@@ -193,40 +215,73 @@ export default function PerModelTrend({ history, events, selectedTier }) {
             domain={[0, 100]}
             label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }}
           />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ paddingTop: '20px' }}
-            iconType="circle"
-            formatter={(value) => formatModelName(value)}
-          />
-          {annotations.map(ann => {
-            const formattedVersion = formatVersion(ann.version);
+          <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
+          {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {
             const exists = chartData.some(d => d.version === formattedVersion);
-            const color = annotationColor(ann);
-            return exists ? (
+            if (!exists) return null;
+            // One dashed line per version, colored by the first event. Full
+            // label text lives in the tooltip — stacking multiple labels on
+            // the axis is unreadable when a release carries several events.
+            const color = annotationColor(evs[0]);
+            const marker = evs.length > 1 ? `● ${evs.length}` : '●';
+            return (
               <ReferenceLine
-                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
+                key={`ev-${formattedVersion}`}
                 x={formattedVersion}
                 stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
+                label={{ value: marker, position: 'top', fill: color, fontSize: 12, fontWeight: 600 }}
               />
-            ) : null;
+            );
           })}
-          {Array.from(allModels).map(modelName => (
-            <Line
-              key={modelName}
-              type="linear"
-              dataKey={modelName}
-              stroke={MODEL_COLORS[modelName] || '#999'}
-              strokeWidth={2}
-              dot={{ r: 4 }}
-              activeDot={{ r: 6 }}
-              connectNulls
-            />
+          {Array.from(allModels)
+            .filter(isVisible)
+            .map(modelName => (
+              <Line
+                key={modelName}
+                type="linear"
+                dataKey={modelName}
+                stroke={modelColors.get(modelName) || '#999'}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+                connectNulls
+              />
           ))}
         </LineChart>
       </ResponsiveContainer>
+      <div className={styles.chipLegend}>
+        <p className={styles.chipLegendHint}>
+          {selectedModels.size === 0
+            ? 'Click a model to focus it; click more to compare.'
+            : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
+        </p>
+        {Array.from(allModels).map((modelName) => {
+          const active = isVisible(modelName);
+          const color = modelColors.get(modelName) || '#999';
+          return (
+            <button
+              key={modelName}
+              type="button"
+              className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
+              onClick={() => toggleModel(modelName)}
+            >
+              <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
+              {formatModelName(modelName)}
+            </button>
+          );
+        })}
+        {selectedModels.size > 0 && (
+          <button
+            type="button"
+            className={styles.legendChip}
+            onClick={() => setSelectedModels(new Set())}
+            title="Reset to show all models"
+          >
+            Reset
+          </button>
+        )}
+      </div>
     </div>
   );
 }

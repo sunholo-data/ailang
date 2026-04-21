@@ -33,3 +33,17 @@
   kind: benchmark_add
   color: "#888888"
   affects_tiers: [stretch, vision]
+
+# v0.13.0 (2026-04-21) — the benchmark set is now curated dynamically:
+# saturated benchmarks get rotated out each release, and baseline.json
+# records the `resolved` list per run. No need to log every add/remove
+# here; future per-benchmark churn is auditable from baseline.json.
+- version: v0.13.0
+  label: "Reliability + refusal tracking"
+  kind: taxonomy
+  color: "#2E86DE"
+
+- version: v0.13.0
+  label: "baseline.json records resolved benchmark set"
+  kind: taxonomy
+  color: "#888888"

@@ -49,3 +49,16 @@ export function annotationColor(event) {
       return '#888';
   }
 }
+
+// Group annotations by (formatted) version so ReferenceLine renders once per
+// version tick even when multiple events share a release (v0.13.0 currently
+// has two). Saves us from stacking labels that overlap and become unreadable.
+export function groupByVersion(annotations, formatVersion) {
+  const map = new Map();
+  annotations.forEach((ann) => {
+    const v = formatVersion(ann.version);
+    if (!map.has(v)) map.set(v, []);
+    map.get(v).push(ann);
+  });
+  return map;
+}

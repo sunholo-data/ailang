@@ -1,7 +1,8 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import React, { useState } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import styles from './styles.module.css';
-import { useEvents, annotationColor } from './useEvents';
+import { useEvents, annotationColor, groupByVersion } from './useEvents';
+import { assignModelColors } from './modelColors';
 
 function formatModelName(name) {
   // Check most specific patterns first
@@ -32,26 +33,23 @@ function formatVersion(version) {
   return `v${version}`;
 }
 
-// Color palette for models (distinct colors)
-const MODEL_COLORS = {
-  'gpt5-1': '#FF6B6B',
-  'gpt5-mini': '#FFA07A',
-  'gpt5-1-instant': '#FFD700',
-  'claude-sonnet-4-5': '#4ECDC4',
-  'claude-haiku-4-5': '#95E1D3',
-  'gemini-2-5-pro': '#9B59B6',
-  'gemini-2-5-flash': '#C39BD3',
-  'gemini-3-pro': '#8E44AD',
-};
-
 export default function ModelDeltaTrend({ history, events, selectedTier }) {
-  // ModelDeltaTrend shows the per-model AILANG−Python gap; taxonomy-only
-  // events don't shift that curve (they only change which benchmarks bin
-  // where), so filter them out — otherwise the chart is noisy.
-  const annotations = useEvents(events, {
-    kinds: ['benchmark_add', 'benchmark_remove', 'prompt'],
-    selectedTier,
-  });
+  // Show the same events on both trend charts so release context is
+  // consistent at a glance; taxonomy events get grouped+summarized in the
+  // tooltip rather than filtered out.
+  const annotations = useEvents(events, { selectedTier });
+  const eventsByVersion = groupByVersion(annotations, formatVersion);
+  // Same solo-then-add semantics as PerModelTrend: empty set = show all.
+  const [selectedModels, setSelectedModels] = useState(() => new Set());
+  const isVisible = (m) => selectedModels.size === 0 || selectedModels.has(m);
+  const toggleModel = (m) => {
+    setSelectedModels((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  };
 
   // Tier-scoped source: when a tier is selected read the per-tier snapshot
   // so the gap updates when the user flips between Core/Stretch.
@@ -81,6 +79,9 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
       Object.keys(ms).forEach(model => allModels.add(model));
     }
   });
+
+  // Provider-grouped color assignment — see modelColors.js.
+  const modelColors = assignModelColors(allModels);
 
   // Transform history data for recharts - calculate delta (AILANG - Python).
   // Same api-error gate as PerModelTrend: if either side's run is dominated
@@ -118,13 +119,13 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const eventsHere = eventsByVersion.get(label) || [];
       return (
         <div className={styles.chartTooltip}>
           <p className={styles.tooltipLabel}>{label}</p>
           {data.date && <p className={styles.tooltipDate}>{data.date}</p>}
           {payload.map((entry, index) => {
             const value = entry.value;
-            const color = value >= 0 ? '#2e8555' : '#e74c3c';
             return (
               <p key={index} className={styles.tooltipValue}>
                 <span className={styles.tooltipDot} style={{backgroundColor: entry.color}} />
@@ -135,6 +136,19 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
           <p className={styles.tooltipRuns} style={{marginTop: '8px', fontSize: '11px', color: '#666'}}>
             Positive = AILANG better, Negative = Python better
           </p>
+          {eventsHere.length > 0 && (
+            <>
+              <p className={styles.tooltipRuns} style={{marginTop: '8px', fontSize: '11px', color: '#666'}}>
+                Release events:
+              </p>
+              {eventsHere.map((ev, i) => (
+                <p key={i} className={styles.tooltipValue} style={{fontSize: '11px'}}>
+                  <span className={styles.tooltipDot} style={{backgroundColor: annotationColor(ev)}} />
+                  {ev.label}
+                </p>
+              ))}
+            </>
+          )}
         </div>
       );
     }
@@ -169,40 +183,70 @@ export default function ModelDeltaTrend({ history, events, selectedTier }) {
             label={{ value: 'Gap (AILANG - Python) %', angle: -90, position: 'insideLeft' }}
           />
           <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" strokeWidth={1} />
-          {annotations.map(ann => {
-            const formattedVersion = formatVersion(ann.version);
+          {Array.from(eventsByVersion.entries()).map(([formattedVersion, evs]) => {
             const exists = chartData.some(d => d.version === formattedVersion);
-            const color = annotationColor(ann);
-            return exists ? (
+            if (!exists) return null;
+            const color = annotationColor(evs[0]);
+            const marker = evs.length > 1 ? `● ${evs.length}` : '●';
+            return (
               <ReferenceLine
-                key={`${ann.version}-${ann.kind || 'event'}-${ann.label}`}
+                key={`ev-${formattedVersion}`}
                 x={formattedVersion}
                 stroke={color}
                 strokeDasharray="4 4"
-                label={{ value: ann.label, position: 'top', fill: color, fontSize: 11 }}
+                label={{ value: marker, position: 'top', fill: color, fontSize: 12, fontWeight: 600 }}
               />
-            ) : null;
+            );
           })}
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ paddingTop: '20px' }}
-            iconType="circle"
-            formatter={(value) => formatModelName(value)}
-          />
-          {Array.from(allModels).map(modelName => (
-            <Line
-              key={modelName}
-              type="linear"
-              dataKey={modelName}
-              stroke={MODEL_COLORS[modelName] || '#999'}
-              strokeWidth={2}
-              dot={{ r: 4 }}
-              activeDot={{ r: 6 }}
-              connectNulls
-            />
+          <Tooltip content={<CustomTooltip />} wrapperStyle={{ zIndex: 1000, outline: 'none' }} />
+          {Array.from(allModels)
+            .filter(isVisible)
+            .map(modelName => (
+              <Line
+                key={modelName}
+                type="linear"
+                dataKey={modelName}
+                stroke={modelColors.get(modelName) || '#999'}
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+                connectNulls
+              />
           ))}
         </LineChart>
       </ResponsiveContainer>
+      <div className={styles.chipLegend}>
+        <p className={styles.chipLegendHint}>
+          {selectedModels.size === 0
+            ? 'Click a model to focus it; click more to compare.'
+            : `Showing ${selectedModels.size} of ${allModels.size} — click more to add, or click again to remove.`}
+        </p>
+        {Array.from(allModels).map((modelName) => {
+          const active = isVisible(modelName);
+          const color = modelColors.get(modelName) || '#999';
+          return (
+            <button
+              key={modelName}
+              type="button"
+              className={`${styles.legendChip} ${active ? '' : styles.legendChipHidden}`}
+              onClick={() => toggleModel(modelName)}
+            >
+              <span className={styles.legendChipDot} style={{ backgroundColor: color }} />
+              {formatModelName(modelName)}
+            </button>
+          );
+        })}
+        {selectedModels.size > 0 && (
+          <button
+            type="button"
+            className={styles.legendChip}
+            onClick={() => setSelectedModels(new Set())}
+            title="Reset to show all models"
+          >
+            Reset
+          </button>
+        )}
+      </div>
     </div>
   );
 }
