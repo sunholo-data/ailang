@@ -11,7 +11,7 @@ require (
 	cloud.google.com/go/trace v1.11.7
 	firebase.google.com/go/v4 v4.19.0
 	github.com/BurntSushi/toml v1.6.0
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.30.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.32.0
 	github.com/fatih/color v1.16.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/go-cmp v0.7.0
@@ -52,7 +52,7 @@ require (
 	cloud.google.com/go/pubsub/v2 v2.4.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.56.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
