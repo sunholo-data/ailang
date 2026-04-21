@@ -273,3 +273,97 @@ jq -s '
 4. **Combine with grep** for filtering: `jq ... $SUMMARY | grep "gpt5"`
 5. **Use `-c`** for compact output: `jq -c ...`
 6. **Pretty print saved JSON**: `jq . failure_summary.json`
+
+## Tier- and tag-aware queries (v0.14.0+)
+
+These queries operate on the published **dashboard JSON**, not `summary.jsonl`:
+
+```bash
+DASH=docs/static/benchmarks/latest.json
+```
+
+The `.tiers` block is populated by `internal/eval_analysis/export_json.go`
+(M-EVAL-SUITE-PREP M6). Every benchmark under `.benchmarks.<id>` also carries
+`tier` and `tags` fields pulled from its YAML.
+
+### Tier pass rates at a glance
+
+```bash
+jq -r '.tiers | to_entries | .[] |
+  "\(.key)\tailang=\(.value.ailang_success_rate * 100 | round)%\tpython=\(.value.python_success_rate * 100 | round)%\t(\(.value.benchmark_count) benchmarks)"
+' $DASH
+```
+
+### Benchmarks in a specific tier
+
+```bash
+jq -r --arg tier core '
+  .benchmarks | to_entries |
+  map(select(.value.tier == $tier)) |
+  map(.key) | sort | .[]
+' $DASH
+```
+
+### Benchmarks sharing a tag
+
+```bash
+jq -r --arg tag recursion '
+  .benchmarks | to_entries |
+  map(select(.value.tags // [] | index($tag))) |
+  map("\(.key)\t\(.value.tier // "core")\t\(.value.successRate * 100 | round)%") |
+  sort | .[]
+' $DASH
+```
+
+### Promotion candidates (stretch ≥ 80% AILANG)
+
+```bash
+jq -r '
+  .benchmarks | to_entries |
+  map(select(
+    .value.tier == "stretch"
+    and (.value.languageStats.ailang.successRate // 0) >= 0.8
+  )) |
+  map(.key) | sort | .[]
+' $DASH
+```
+
+### Weakest core benchmarks (potential demotion)
+
+```bash
+jq -r '
+  .benchmarks | to_entries |
+  map(select(.value.tier == "core")) |
+  map({
+    id: .key,
+    ailang: (.value.languageStats.ailang.successRate // 0),
+    python: (.value.languageStats.python.successRate // 0)
+  }) |
+  sort_by(.ailang) | .[0:5] |
+  map("\(.id)\tailang=\(.ailang * 100 | round)%\tpython=\(.python * 100 | round)%") | .[]
+' $DASH
+```
+
+### Per-tag pass-rate summary
+
+```bash
+jq -r '
+  .benchmarks | to_entries |
+  map({
+    tags: (.value.tags // []),
+    rate: (.value.languageStats.ailang.successRate // 0)
+  }) |
+  map(.tags[] as $t | {tag: $t, rate: .rate}) |
+  group_by(.tag) |
+  map({
+    tag: .[0].tag,
+    avg_ailang: ((map(.rate) | add / length) * 100 | round),
+    benchmarks: length
+  }) | sort_by(.avg_ailang) | reverse |
+  .[] | "\(.tag)\t\(.avg_ailang)%\t(\(.benchmarks) benchmarks)"
+' $DASH
+```
+
+Prefer `ailang eval-matrix --by-tags` when you just want the standard table;
+use these queries when you need to cross-filter tiers and tags or emit
+machine-readable output.

@@ -142,32 +142,65 @@ See [architecture.md](architecture.md) for detailed command reference.
 
 ## Benchmarks
 
-Current benchmark suite (20 benchmarks):
+The benchmark suite is organized into four **tiers** that serve different
+release-review purposes. Every benchmark YAML declares a `tier` and 1–3
+`tags`. See [`benchmarks/CURATION.md`](https://github.com/sunholo-data/ailang/blob/dev/benchmarks/CURATION.md)
+for the full curation guide, promotion/demotion criteria, and rotation rules.
 
-**Core Language Features:**
-- `fizzbuzz` - Control flow (if/else, loops)
-- `recursion_factorial`, `recursion_fibonacci` - Recursion
-- `higher_order_functions` - Functions as first-class values
-- `list_operations`, `list_comprehension` - List manipulation
-- `string_manipulation` - String operations
+### Tier structure (v0.14.0+)
 
-**Type System:**
-- `records_person`, `nested_records` - Record types
-- `record_update` - Record update syntax
-- `adt_option` - Algebraic data types (Option)
-- `pattern_matching_complex` - Pattern matching
+| Tier      | Expected pass | Run cost  | Role                                       |
+|-----------|---------------|-----------|--------------------------------------------|
+| `smoke`   | ≥ 95%         | seconds   | Regression gate — flat near 100%           |
+| `core`    | 70–95%        | minutes   | **Headline metric** — what releases quote  |
+| `stretch` | 30–70%        | minutes   | Headroom / differentiation benchmarks      |
+| `vision`  | 0–50%         | variable  | Aspirational — measures potential          |
 
-**Effects & Capabilities:**
-- `simple_print` - IO effects
-- `cli_args` - Command-line arguments (IO + FS)
-- `json_parse` - JSON parsing
-- `error_handling` - Error propagation
-- `pipeline` - Effect composition
+The **Core tier** pass rate is the primary headline metric on the dashboard
+and the number quoted in release notes. Dashboard at
+[ailang.sunholo.com/benchmarks](https://ailang.sunholo.com/benchmarks) now
+renders a tier toggle; per-tier aggregates live under `tiers.<name>` in
+`docs/static/benchmarks/latest.json`.
 
-**Edge Cases:**
-- `float_eq` - Floating-point comparisons
-- `numeric_modulo` - Modulo operations
-- `targeted_repair_test` - Self-repair validation
+### Running tier subsets
+
+```bash
+# Fast regression check (run before every commit)
+make eval-smoke          # smoke tier only
+
+# Release gate (run before every tag)
+make eval-core           # core tier only — this produces the headline metric
+
+# Differentiation check
+make eval-stretch        # stretch tier only
+
+# Arbitrary tier combination via --tier flag
+ailang eval-suite --tier smoke,core --models claude-haiku-4-5
+```
+
+### Tags
+
+Tags describe the AILANG feature surface a benchmark exercises. Use them to
+localise regressions:
+
+```bash
+ailang eval-matrix <baseline_dir> <version> --by-tags
+```
+
+Canonical tags: `adt_pattern_match`, `algorithmic`, `contracts`,
+`data_transform`, `effects_io`, `error_handling`, `functional`, `records`,
+`recursion`, `state_machine`, `string_algo`, `type_safety`. New tags require
+a `CURATION.md` update so the taxonomy stays stable.
+
+### Rotation tools
+
+- `ailang eval-matrix <dir> <ver> --show-saturated` — benchmarks at 100%
+  across all models × all languages (retirement candidates).
+- `ailang eval-matrix <dir> <ver> --ailang-wins` — `(benchmark, model)` cells
+  where AILANG passes and Python fails (differentiation signal).
+- `.claude/skills/eval-analyzer/scripts/benchmark_health.sh` — one-shot
+  rotation report combining saturation, refusal detection, and tier promotion
+  signals.
 
 ## Results Location
 

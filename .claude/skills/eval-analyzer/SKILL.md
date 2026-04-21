@@ -49,6 +49,42 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
 
 **See [`resources/agent_optimization_guide.md`](resources/agent_optimization_guide.md) for complete optimization strategies.**
 
+**Tier- and tag-aware analysis (v0.14.0+):**
+```bash
+# Per-tier pass rates + per-tag deltas + AILANG-only wins (one shot)
+.claude/skills/eval-analyzer/scripts/category_analysis.sh eval_results/baselines/v0.13.0
+
+# Saturation + refusal detection + tier-promotion signal
+.claude/skills/eval-analyzer/scripts/benchmark_health.sh eval_results/baselines/v0.13.0
+
+# The primitives above wrap these CLI flags (added in M-EVAL-SUITE-PREP):
+ailang eval-matrix <dir> <ver> --by-tags         # per-tag AILANG vs Python delta
+ailang eval-matrix <dir> <ver> --show-saturated  # benchmarks at 100% everywhere
+ailang eval-matrix <dir> <ver> --ailang-wins     # AILANG passes, Python fails
+```
+
+Use these when:
+- **`--by-tags`**: deciding whether a regression is a language-wide issue or
+  concentrated in a single feature (e.g. `contracts` drops 15pp while
+  `records` is flat → it's a contract-prover issue, not a general regression).
+- **`--show-saturated`**: rotating out benchmarks that no longer
+  discriminate; see [`benchmarks/CURATION.md`](../../../benchmarks/CURATION.md) §4.
+- **`--ailang-wins`**: tracking AILANG's differentiation over time; a
+  shrinking list means the language-advantage story is eroding.
+
+**Tier definitions** (from `benchmarks/CURATION.md`):
+
+| Tier | Expected pass | Run cost | Role |
+|------|---------------|----------|------|
+| `smoke` | ≥ 95% | seconds | Regression gate |
+| `core` | 70–95% | minutes | **Headline metric** |
+| `stretch` | 30–70% | minutes | Headroom / differentiation |
+| `vision` | 0–50% | variable | Aspirational |
+
+Always quote the **Core tier** pass rate when reporting release numbers — it
+is what the dashboard shows as the headline and what promotion/demotion
+rules are calibrated against.
+
 ## Language Gap Analysis (PRIMARY GOAL)
 
 **The most valuable output of eval analysis is identifying AILANG language gaps** - what agents struggle with that reveals missing stdlib functions, undocumented features, or prompt gaps.
