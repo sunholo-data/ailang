@@ -28,6 +28,27 @@ count_benchmarks_in_tiers() {
     echo "$total"
 }
 
+# Resolve a tier spec to a comma-separated list of benchmark IDs.
+# Agent mode requires explicit --benchmarks (safety guardrail); this expands
+# the tier selection so we pass a vetted list to `ailang eval-suite --agent`.
+# Usage: resolve_benchmarks_in_tiers "core,stretch"
+resolve_benchmarks_in_tiers() {
+    local tier_csv="$1"
+    local ids=()
+    local tier
+    IFS=',' read -ra TIERS <<< "$tier_csv"
+    for tier in "${TIERS[@]}"; do
+        while IFS= read -r f; do
+            # Benchmark id = filename without .yml extension
+            local base
+            base="$(basename "$f" .yml)"
+            ids+=("$base")
+        done < <(grep -l "^tier: ${tier}\b" benchmarks/*.yml 2>/dev/null | sort)
+    done
+    local IFS=','
+    echo "${ids[*]}"
+}
+
 # Validation mode: check configuration without running full eval
 if [[ "${1:-}" == "--validate" ]]; then
     echo "Validating agent eval configuration..."
@@ -194,13 +215,22 @@ echo
 
 AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
 
+# Agent mode requires explicit --benchmarks (CLI safety guardrail), so expand
+# the tier spec to a vetted benchmark list.
+AGENT_BENCHMARKS_CSV="$(resolve_benchmarks_in_tiers "$TIER_FLAG")"
+if [[ -z "$AGENT_BENCHMARKS_CSV" ]]; then
+    echo "ERROR: could not resolve --tier $TIER_FLAG to any benchmark IDs" >&2
+    exit 1
+fi
+
 echo "Mode: ${FULL_FLAG:+FULL }(Claude Sonnet + Gemini 3 Flash, langs=$AGENT_LANGS)"
 echo "Executors: claude, gemini"
+echo "Agent benchmarks: $BENCHMARK_COUNT resolved from tier=$TIER_FLAG"
 monitor_progress "$RESULTS_DIR" "$EXPECTED_AGENT" "Agent" &
 MONITOR_PID=$!
 ailang eval-suite --agent \
     --models "$AGENT_MODELS" \
-    --tier "$TIER_FLAG" \
+    --benchmarks "$AGENT_BENCHMARKS_CSV" \
     --langs "$AGENT_LANGS" \
     --agent-parallel 2 \
     --output "$RESULTS_DIR"
