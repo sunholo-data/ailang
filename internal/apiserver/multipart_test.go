@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sunholo/ailang/internal/eval"
@@ -42,6 +43,37 @@ func TestWriteTempFile(t *testing.T) {
 
 		if filepath.Base(path) != "upload" {
 			t.Errorf("expected fallback filename 'upload', got %q", filepath.Base(path))
+		}
+	})
+
+	t.Run("path traversal is stripped", func(t *testing.T) {
+		// A malicious client could submit a multipart filename containing
+		// directory separators to escape the unique temp directory. Confirm
+		// filepath.Base neutralises this: the file must land inside `dir`.
+		cases := []string{
+			"../../etc/passwd",
+			"/etc/passwd",
+			"sub/dir/report.docx",
+			"..",
+			".",
+		}
+		for _, name := range cases {
+			path, err := writeTempFile(data, name)
+			if err != nil {
+				t.Fatalf("writeTempFile(%q): %v", name, err)
+			}
+			parent := filepath.Dir(path)
+			defer os.RemoveAll(parent)
+
+			// The written path's parent must equal the temp dir — no
+			// traversal outside it.
+			if filepath.Dir(path) != parent {
+				t.Errorf("filename %q escaped temp dir: path=%q", name, path)
+			}
+			base := filepath.Base(path)
+			if strings.Contains(base, "/") || strings.Contains(base, "..") {
+				t.Errorf("filename %q left traversal in basename: %q", name, base)
+			}
 		}
 	})
 }

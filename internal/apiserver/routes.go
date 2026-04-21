@@ -729,8 +729,13 @@ func writeTempFile(data []byte, originalFilename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	name := originalFilename
-	if name == "" {
+	// filepath.Base strips any directory components the client may have
+	// embedded in the multipart filename (e.g. "../../etc/passwd" or
+	// "sub/dir/report.docx"). Without this, filepath.Join would happily
+	// resolve the traversal and write outside `dir`. Base still returns
+	// ".." for a literal "..", so reject that explicitly too.
+	name := filepath.Base(originalFilename)
+	if name == "" || name == "." || name == ".." || name == string(filepath.Separator) {
 		name = "upload"
 	}
 	path := filepath.Join(dir, name)

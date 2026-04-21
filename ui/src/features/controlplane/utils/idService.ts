@@ -222,5 +222,5 @@ export function collectSpanTypes(spans: Span[]): string[] {
   };
 
   collect(spans);
-  return Array.from(types).sort();
+  return Array.from(types).sort((a, b) => a.localeCompare(b));
 }

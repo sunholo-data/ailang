@@ -30,13 +30,13 @@ export default function PackageExplorer() {
   const allEffects = useMemo(() => {
     const set = new Set();
     packages.forEach((p) => (p.effects || []).forEach((e) => set.add(e)));
-    return ['', ...Array.from(set).sort()];
+    return ['', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [packages]);
 
   const allStabilities = useMemo(() => {
     const set = new Set();
     packages.forEach((p) => set.add(p.stability || 'experimental'));
-    return ['', ...Array.from(set).sort()];
+    return ['', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [packages]);
 
   // Filter packages

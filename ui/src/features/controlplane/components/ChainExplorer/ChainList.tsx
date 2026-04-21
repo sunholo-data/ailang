@@ -234,7 +234,7 @@ export const ChainList: React.FC<ChainListProps> = ({
         chain.agent_flow.split(' -> ').forEach(a => agentSet.add(a));
       }
     }
-    return Array.from(agentSet).sort();
+    return Array.from(agentSet).sort((a, b) => a.localeCompare(b));
   }, [chains]);
 
   return (

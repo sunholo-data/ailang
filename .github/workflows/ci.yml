@@ -13,7 +13,11 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
-    
+      with:
+        # SonarCloud needs full history to attribute blame and compute
+        # "new code" metrics correctly. Shallow clones break both.
+        fetch-depth: 0
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -123,8 +127,18 @@ jobs:
           COLOR="brightgreen"
         fi
         echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
-    
-    
+
+    # Runs only when the SONAR_TOKEN repo secret is configured. Until then,
+    # SonarCloud's Automatic Analysis handles scans (without coverage data).
+    # continue-on-error keeps CI green if the secret is missing or the scan
+    # service has a hiccup — Sonar is a reporting layer, not a gate.
+    - name: SonarCloud scan
+      uses: SonarSource/sonarqube-scan-action@v5
+      continue-on-error: true
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: https://sonarcloud.io
+
     - name: Verify examples
       id: verify
       run: |
