@@ -44,6 +44,12 @@ jobs:
       with:
         go-version: '1.24'
 
+    # uv pins the Python runtime for eval-harness tests. The harness invokes
+    # `uv run --python <PinnedPythonVersion>` and fails loudly if uv is missing
+    # (see internal/eval_harness/python.go). Must match ci.yml.
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v4
+
     - name: Get dependencies
       run: go mod download
 
