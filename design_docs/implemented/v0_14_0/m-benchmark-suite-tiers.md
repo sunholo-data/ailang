@@ -1,6 +1,6 @@
 # M-BENCHMARK-SUITE-TIERS: Restructure the Eval Suite into Smoke / Core / Stretch Tiers
 
-**Status**: Planned
+**Status**: Implemented (v0.14.0, M-EVAL-SUITE-PREP)
 **Target**: v0.13.0
 **Priority**: P2 — Medium (eval-infra; not a language blocker but drives all other prioritisation)
 **Estimated**: 2–3 days (~16–24 hours, mostly YAML + analysis scripts)

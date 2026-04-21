@@ -1,6 +1,6 @@
 # Sprint Plan: M-EVAL-SUITE-PREP
 
-**Status**: Planned
+**Status**: Implemented (v0.14.0)
 **Target**: v0.14.0
 **Estimated**: 5–6 days (~40–48 hours)
 **Priority**: P2 (pre-work for M-EVAL-EXPAND)

@@ -1,6 +1,6 @@
 # M-EVAL-CATEGORY-ANALYSIS: Per-Category Benchmark Analysis & Curation
 
-**Status**: Planned
+**Status**: Implemented (v0.14.0, M-EVAL-SUITE-PREP)
 **Target**: v0.11.0
 **Priority**: P2
 **Estimated**: 3 days (~24 hours)
