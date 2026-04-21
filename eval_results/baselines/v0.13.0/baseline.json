@@ -1,0 +1,29 @@
+{
+  "version": "v0.13.0",
+  "git_describe": "v0.13.0-33-g05303247",
+  "timestamp": "2026-04-21T12:08:43Z",
+  "models": "claude-opus-4-7,claude-sonnet-4-6,gemini-3-1-pro,gemini-3-flash,gpt5-2-codex,gpt5-4",
+  "full_suite": true,
+  "languages": "ailang,python",
+  "parallel": 15,
+  "total_runs": 528,
+  "standard": {
+    "tier_spec": "core,stretch",
+    "count": 33,
+    "files": 396,
+    "models": "claude-opus-4-7,claude-sonnet-4-6,gemini-3-1-pro,gemini-3-flash,gpt5-2-codex,gpt5-4",
+    "langs": "ailang,python",
+    "resolved": ["api_call_json","cli_args","config_file_parser","contract_bst_validate","contract_matrix_determinant","contract_rle_roundtrip","contract_roman_numeral","contract_sorted_merge","csv_to_json_converter","effect_composition","effect_tracking_io_fs","error_handling","expression_evaluator","float_eq","fold_reduce","graph_bfs","higher_order_functions","json_encode","json_parse","json_transform","list_comprehension","log_file_analyzer","merge_sort","mini_interpreter","pattern_matching_complex","pipeline","polymorphic_ord_defaulting","run_length_encode","state_machine_elevator","state_machine_vending","symbolic_diff","tree_transformation_pipeline","type_unify"]
+  },
+  "agent": {
+    "tier_spec": "core,stretch",
+    "count": 33,
+    "files": 132,
+    "models": "claude-sonnet-4-5,gemini-3-flash",
+    "langs": "ailang,python",
+    "resolved": ["api_call_json","cli_args","config_file_parser","contract_bst_validate","contract_matrix_determinant","contract_rle_roundtrip","contract_roman_numeral","contract_sorted_merge","csv_to_json_converter","effect_composition","effect_tracking_io_fs","error_handling","expression_evaluator","float_eq","fold_reduce","graph_bfs","higher_order_functions","json_encode","json_parse","json_transform","list_comprehension","log_file_analyzer","merge_sort","mini_interpreter","pattern_matching_complex","pipeline","polymorphic_ord_defaulting","run_length_encode","state_machine_elevator","state_machine_vending","symbolic_diff","tree_transformation_pipeline","type_unify"]
+  },
+  "git_commit": "053032471e1a73beb27e7dcd02e20eba17710ffd",
+  "git_branch": "dev",
+  "git_dirty": true
+}

@@ -245,16 +245,18 @@ if [[ -f "$BASELINE_METADATA" ]]; then
         -exec jq -r '.id' {} \; 2>/dev/null | sort -u | jq -R . | jq -sc .)
     AGENT_IDS_JSON="${AGENT_IDS_JSON:-[]}"
     AGENT_COUNT_JSON=$(echo "$AGENT_IDS_JSON" | jq 'length')
+    AGENT_FILE_COUNT=$(find "$RESULTS_DIR/agent" -name "*.json" -type f 2>/dev/null | wc -l | tr -d ' ')
 
     tmp=$(mktemp)
     jq --arg tier "$TIER_FLAG" \
        --arg models "$AGENT_MODELS" \
        --arg langs "$AGENT_LANGS" \
        --argjson count "$AGENT_COUNT_JSON" \
+       --argjson files "$AGENT_FILE_COUNT" \
        --argjson resolved "$AGENT_IDS_JSON" \
-       '.agent = {tier_spec: $tier, models: $models, langs: $langs, count: $count, resolved: $resolved}' \
+       '.agent = {tier_spec: $tier, count: $count, files: $files, models: $models, langs: $langs, resolved: $resolved}' \
        "$BASELINE_METADATA" > "$tmp" && mv "$tmp" "$BASELINE_METADATA"
-    echo "✓ baseline.json augmented with agent stage metadata ($AGENT_COUNT_JSON benchmarks)"
+    echo "✓ baseline.json augmented with agent stage metadata ($AGENT_COUNT_JSON benchmarks, $AGENT_FILE_COUNT files)"
 else
     echo "⚠️  baseline.json not found at $BASELINE_METADATA — skipping agent metadata augmentation"
 fi

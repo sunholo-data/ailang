@@ -160,12 +160,22 @@ ACTUAL_MODELS=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.model'
 # Capture the resolved benchmark list (ground truth from result files, not just
 # the --tier spec). This locks in what "this release's baseline" actually
 # measured, so longitudinal comparisons can detect set drift across releases.
-BENCHMARK_IDS_JSON=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.id' {} \; 2>/dev/null \
+# Scope to the standard/ subdir so this block covers the standard stage only;
+# the agent stage (run separately by the post-release wrapper) augments
+# baseline.json with a parallel "agent" object.
+STD_RESULTS_DIR="$BASELINE_DIR/standard"
+if [ ! -d "$STD_RESULTS_DIR" ]; then
+  # Fallback for callers that write results directly to $BASELINE_DIR (no subdir)
+  STD_RESULTS_DIR="$BASELINE_DIR"
+fi
+BENCHMARK_IDS_JSON=$(find "$STD_RESULTS_DIR" -name "*.json" -type f ! -name "baseline.json" \
+  -exec jq -r '.id' {} \; 2>/dev/null \
   | sort -u \
   | jq -R . \
   | jq -sc .)
 BENCHMARK_IDS_JSON="${BENCHMARK_IDS_JSON:-[]}"
 BENCHMARK_COUNT=$(echo "$BENCHMARK_IDS_JSON" | jq 'length')
+STD_FILE_COUNT=$(find "$STD_RESULTS_DIR" -name "*.json" -type f ! -name "baseline.json" 2>/dev/null | wc -l | tr -d ' ')
 
 # Get git describe for reference (but keep version separate)
 GIT_DESCRIBE="$(git describe --tags --always 2>/dev/null || echo "unknown")"
@@ -180,9 +190,12 @@ cat > "$METADATA_FILE" << EOF
   "languages": "$LANGS",
   "parallel": $PARALLEL,
   "total_runs": $TOTAL_COUNT,
-  "benchmarks": {
+  "standard": {
     "tier_spec": "${TIER:-}",
     "count": $BENCHMARK_COUNT,
+    "files": $STD_FILE_COUNT,
+    "models": "$ACTUAL_MODELS",
+    "langs": "$LANGS",
     "resolved": $BENCHMARK_IDS_JSON
   },
   "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo "unknown")",
