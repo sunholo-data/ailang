@@ -245,14 +245,19 @@ Files currently in-tree:
 - `examples/sim_stub/sim_stub_release`
 
 Plan:
-- wasm: already built by `make build-wasm` during release; that run
-  already uploads `ailang-wasm.tar.gz`. Docs/web should fetch from
-  the release rather than commit the binary. Needs a docusaurus-deploy
-  workflow tweak to pull the tarball in at build time.
-- sim_stub: regenerate in CI for the `test-game-codegen.yml` workflow;
-  checked-in copy exists purely so local runs don't need the full
-  codegen path. Keep a local-only path (maybe `scripts/build-sim-stub.sh`)
-  and `.gitignore` the binaries.
+- wasm: `docusaurus-deploy.yml` already runs `make build-wasm` then
+  copies `bin/ailang.wasm` → `docs/static/wasm/ailang.wasm` at deploy
+  time. No workflow change needed — the checked-in binaries are pure
+  duplication. `web/ailang.wasm` has no referenced consumer; users are
+  directed via `web/README.md` to either `make build-wasm` or fetch
+  the `ailang-wasm.tar.gz` release bundle. Remove both; `*.wasm` is
+  already globbed in `.gitignore` so they stay gone.
+- sim_stub: `make test-sim-stub` invokes `make clean && make test`
+  inside `examples/sim_stub/`, which regenerates `gen/` and rebuilds
+  the binary. The `test-game-codegen.yml` workflow runs this on every
+  push/PR — so the checked-in binary is never consumed by CI and the
+  local `make test` path covers the developer use case. Remove
+  `sim_stub` and `sim_stub_release`; add them to `.gitignore`.
 
 Acceptance:
 - `git ls-files | xargs file` reports zero ELF/wasm/Mach-O binaries.
