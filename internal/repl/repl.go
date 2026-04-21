@@ -217,7 +217,12 @@ func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer
 	defer line.Close()
 
 	// Set up history file
-	historyFile := filepath.Join(os.TempDir(), ".ailang_history")
+	historyFile := func() string {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, ".ailang_history")
+		}
+		return filepath.Join(os.TempDir(), ".ailang_history")
+	}()
 	if f, err := os.Open(historyFile); err == nil {
 		_, _ = line.ReadHistory(f) // Ignore error as history is optional
 		f.Close()

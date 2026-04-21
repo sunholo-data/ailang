@@ -50,7 +50,7 @@ export default function ModelRadarComparison() {
   };
 
   // Calculate min/max for normalization
-  const models = Object.keys(data.models).sort();
+  const models = Object.keys(data.models).sort((a, b) => a.localeCompare(b));
 
   // Transform data: each model becomes a spoke (axis)
   // Filter to only include models that have language data
