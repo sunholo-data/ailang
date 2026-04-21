@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         # SonarCloud needs full history to attribute blame and compute
         # "new code" metrics correctly. Shallow clones break both.
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
@@ -30,7 +30,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v7
 
     - name: Install dependencies
       run: make deps
@@ -101,7 +101,7 @@ jobs:
 
     - name: Upload cycle analysis (M-DX11)
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: cycle-analysis
         path: cycles.json
@@ -188,7 +188,7 @@ jobs:
     
     - name: Commit README and docs updates
       if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-      uses: stefanzweifel/git-auto-commit-action@v5
+      uses: stefanzweifel/git-auto-commit-action@v7
       with:
         commit_message: 'Update example verification status and coverage [skip ci]'
         file_pattern: 'README.md docs/docs/examples.mdx'
@@ -200,10 +200,10 @@ jobs:
     needs: test
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
@@ -212,7 +212,7 @@ jobs:
       run: make build
     
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ailang-binary
         path: bin/ailang
@@ -222,7 +222,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Sync prompts/ to docs/prompts/
       run: ./docs/scripts/sync-prompts.sh
@@ -233,7 +233,7 @@ jobs:
     # Disabled: Auto-commit causes race condition with test job
     # Run sync-prompts.sh and generate-llms-txt.sh manually before releases
     # - name: Commit documentation updates
-    #   uses: stefanzweifel/git-auto-commit-action@v5
+    #   uses: stefanzweifel/git-auto-commit-action@v7
     #   with:
     #     commit_message: 'Docs: Auto-sync prompts and generate llms.txt [skip ci]'
     #     file_pattern: 'docs/docs/prompts/*.md docs/llms.txt llms.txt'
@@ -244,10 +244,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
@@ -270,10 +270,10 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 

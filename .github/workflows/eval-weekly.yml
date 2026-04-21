@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version: '1.25'
         cache: true
@@ -34,7 +34,7 @@ jobs:
     # rather than a system `python3`. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@v7
 
     - name: Install dependencies
       run: make deps
@@ -73,7 +73,7 @@ jobs:
         bin/ailang eval-report eval_results/current "${VERSION}" --format=html > eval_report.html
 
     - name: Upload results as artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: eval-results-${{ github.run_number }}
         path: |
@@ -84,7 +84,7 @@ jobs:
 
     - name: Comment PR with results (if PR context)
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       with:
         script: |
           const fs = require('fs');
