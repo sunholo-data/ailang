@@ -8,7 +8,7 @@
 ![Examples](https://img.shields.io/badge/examples-164%20passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-**164/165 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
+[Example status](https://ailang.sunholo.com/docs/examples)
 <!-- EXAMPLES_STATUS_END -->
 
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
