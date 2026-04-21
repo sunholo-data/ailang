@@ -103,19 +103,41 @@ do_install() {
     curl -fSL --progress-bar "$URL" -o "$TMPDIR/$ARCHIVE" \
         || err "download failed — check that $VERSION exists at\nhttps://github.com/$REPO/releases"
 
-    # Try checksum verification (gracefully skip if not available)
+    # --- Checksum verification ---
+    #
+    # Every release from v0.13.1 onward publishes <archive>.sha256 alongside
+    # the archive (and a combined SHA256SUMS). The installer requires these
+    # for current releases. For older releases that don't carry them, we
+    # warn loudly and continue — set NO_VERIFY=1 to suppress the prompt if
+    # you're deliberately installing one of those.
+    #
+    # Set NO_VERIFY=1 to skip verification entirely (not recommended; only
+    # useful in CI smoke tests where you control the artifact).
     CHECKSUM_URL="${URL}.sha256"
-    if curl -fsSL "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
-        info "Verifying checksum..."
+    if [ "${NO_VERIFY:-}" = "1" ]; then
+        warn "Checksum verification skipped (NO_VERIFY=1)."
+    elif curl -fsSL "$CHECKSUM_URL" -o "$TMPDIR/$ARCHIVE.sha256" 2>/dev/null; then
+        info "Verifying SHA256 checksum..."
         cd "$TMPDIR"
         if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum -c "$ARCHIVE.sha256" >/dev/null 2>&1 \
-                || err "checksum verification failed"
+            sha256sum -c "$ARCHIVE.sha256" >/dev/null \
+                || err "checksum verification FAILED — archive corrupt or tampered"
         elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 -c "$ARCHIVE.sha256" >/dev/null 2>&1 \
-                || err "checksum verification failed"
+            shasum -a 256 -c "$ARCHIVE.sha256" >/dev/null \
+                || err "checksum verification FAILED — archive corrupt or tampered"
+        else
+            err "neither sha256sum nor shasum available — cannot verify.\nInstall one, or re-run with NO_VERIFY=1 (not recommended)."
         fi
+        ok "Checksum verified."
         cd - >/dev/null
+    else
+        # Older releases (pre-v0.13.1) don't publish per-artifact checksums.
+        # Warn loudly rather than silently skipping — a false sense of
+        # verification is worse than no verification at all.
+        warn "No .sha256 published for $VERSION — cannot verify archive integrity."
+        warn "Upgrade to a newer release for cryptographic verification,"
+        warn "or re-run with NO_VERIFY=1 to acknowledge and continue."
+        err "refusing to install unverified archive (set NO_VERIFY=1 to override)"
     fi
 
     info "Extracting..."

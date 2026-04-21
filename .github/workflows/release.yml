@@ -267,6 +267,34 @@ jobs:
       with:
         path: ./artifacts
 
+    - name: Compute SHA256 checksums
+      # Produces two things the installer consumes:
+      #  * SHA256SUMS           — canonical file (one-per-line: <hash>  <filename>)
+      #  * <file>.sha256        — per-artifact companion, format expected by
+      #                           `sha256sum -c` / `shasum -a 256 -c`.
+      # The per-file format includes a leading "<hash>  <basename>" so the
+      # install script can verify without path munging after `cd $TMPDIR`.
+      run: |
+        set -euo pipefail
+        mkdir -p artifacts-flat
+        # Flatten actions/download-artifact's nested folders (one subdir per
+        # artifact) into a single directory so the hash file references
+        # basenames only — what the installer downloads into its $TMPDIR.
+        find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print0 \
+          | xargs -0 -I{} cp {} artifacts-flat/
+        cd artifacts-flat
+        ls -la
+        # Canonical SHA256SUMS (one file per release).
+        sha256sum *.tar.gz *.zip > SHA256SUMS
+        # Per-artifact companions so the installer can fetch just the one
+        # matching the archive it downloaded (avoids a full SHA256SUMS pull).
+        for f in *.tar.gz *.zip; do
+          sha256sum "$f" > "$f.sha256"
+        done
+        echo "::group::SHA256SUMS"
+        cat SHA256SUMS
+        echo "::endgroup::"
+
     - name: Get version
       id: get_version
       run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -323,3 +351,5 @@ jobs:
         files: |
           artifacts/**/*.tar.gz
           artifacts/**/*.zip
+          artifacts-flat/SHA256SUMS
+          artifacts-flat/*.sha256
