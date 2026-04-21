@@ -321,7 +321,7 @@ func TestZipReadEntryBytes_HappyPath(t *testing.T) {
 func TestZipReadEntryBytes_PathTraversal(t *testing.T) {
 	dir := t.TempDir()
 	zipPath := createTestZip(t, dir, map[string][]byte{
-		"safe.bin": []byte{0x00},
+		"safe.bin": {0x00},
 	})
 
 	ctx := makeTestCtx(t)
@@ -339,7 +339,7 @@ func TestZipReadEntryBytes_PathTraversal(t *testing.T) {
 func TestZipReadEntryBytes_MissingEntry(t *testing.T) {
 	dir := t.TempDir()
 	zipPath := createTestZip(t, dir, map[string][]byte{
-		"data.bin": []byte{0x01, 0x02},
+		"data.bin": {0x01, 0x02},
 	})
 
 	ctx := makeTestCtx(t)

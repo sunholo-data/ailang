@@ -142,7 +142,7 @@ func TestModuleGlobalResolver_ResolveImported_ModuleNotImported(t *testing.T) {
 		Bindings: make(map[string]eval.Value),
 		Exports:  make(map[string]eval.Value),
 		Imports: map[string]*ModuleInstance{
-			"test/dep1": &ModuleInstance{Path: "test/dep1"},
+			"test/dep1": {Path: "test/dep1"},
 		},
 	}
 
