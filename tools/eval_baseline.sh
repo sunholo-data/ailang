@@ -53,6 +53,7 @@ RESUME="${RESUME:-false}"  # Set RESUME=true to skip existing results
 MODELS="${MODELS:-}"  # Custom model list (comma-separated)
 LANGS="${LANGS:-python,ailang}"
 PARALLEL="${PARALLEL:-15}"
+TIER="${TIER:-}"  # Optional tier filter (smoke,core,stretch,vision); empty = all tiers
 
 BASELINE_DIR="eval_results/baselines/${VERSION}"
 
@@ -73,6 +74,7 @@ echo "  Version:     $VERSION"
 echo "  Models:      $MODEL_DESC"
 echo "  Languages:   $LANGS"
 echo "  Parallel:    $PARALLEL"
+echo "  Tier:        ${TIER:-all}"
 echo "  Self-repair: ENABLED (critical for agentic AI evaluation)"
 echo "  Output:      $BASELINE_DIR"
 echo ""
@@ -116,6 +118,11 @@ elif [ "$FULL_SUITE" = "true" ]; then
   CMD+=(--full)
 fi
 # Otherwise, use default (dev models)
+
+# Add --tier filter if requested (v0.14.0+)
+if [ -n "$TIER" ]; then
+  CMD+=(--tier "$TIER")
+fi
 
 # Add --skip-existing if resuming
 if [ "$RESUME" = "true" ]; then

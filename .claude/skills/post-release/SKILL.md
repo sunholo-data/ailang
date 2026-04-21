@@ -1,6 +1,6 @@
 ---
 name: post-release
-description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Executes 46-benchmark suite (medium/hard/stretch) + full standard eval with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
+description: Run automated post-release workflow (eval baselines, dashboard, docs) for AILANG releases. Runs the tier-based benchmark suite (core+stretch by default) for standard + agent evals with validation and progress reporting. Use when user says "post-release tasks for vX.X.X" or "update dashboard". Fully autonomous with pre-flight checks.
 ---
 
 # AILANG Post-Release Tasks
@@ -82,13 +82,16 @@ Expected time: ~15-20 minutes
   - Tests both AILANG and Python implementations
   - Uses all 6 production models (--full) or 3 dev models (default)
   - Tests all benchmarks in benchmarks/ directory
-- **Step 2**: Runs agent eval on full benchmark suite
-  - **Current suite** (v0.4.8+): 46 benchmarks (trimmed from 56)
-    - Removed: trivial benchmarks (print tests), most easy benchmarks
-    - Kept: fizzbuzz (1 easy for validation), all medium/hard/stretch benchmarks
-    - **Stretch goals** (6 new): symbolic_diff, mini_interpreter, lambda_calc,
-      graph_bfs, type_unify, red_black_tree
-    - Expected: ~55-70% success rate with haiku, higher with sonnet/opus
+- **Step 2**: Runs agent eval on tier-selected benchmarks
+  - **Tier system** (v0.14.0+): 54 benchmarks across `smoke` (15), `core` (22),
+    `stretch` (11), `vision` (6). Default release scope is `core,stretch` — Core is
+    the headline metric, Stretch is the harder bench we expect mixed results on.
+  - **Selection**: Pass `--tier smoke,core,stretch` to pick tiers. Omitting
+    `--tier` on `eval-suite` runs all tiers, which includes research-grade `vision`
+    benchmarks that are not appropriate for release baselines.
+  - **Curation**: See `benchmarks/CURATION.md` for the rotation philosophy
+    (saturated benchmarks demote, AILANG-only wins protect against regressions).
+  - Expected: `core` 70%+ for AILANG, `stretch` mixed, `vision` intentionally low.
   - Uses haiku+sonnet (--full) or haiku only (default)
   - Tests both AILANG and Python implementations
   - **v0.8.0+**: Agent results stored as chains in `observatory.db` (not just JSON files)
@@ -276,6 +279,16 @@ If release doesn't exist, run `release-manager` skill first.
 
 This runs all 6 production models with both AILANG and Python.
 
+**Tier scope for releases:**
+- Default (release): `--tier core,stretch` — 33 benchmarks (22 core + 11 stretch)
+- Dev/fast mode: `--tier core` — 22 benchmarks (Core is the headline metric)
+- Full audit: `--tier smoke,core,stretch` — 48 benchmarks (include smoke for sanity)
+- `vision` benchmarks are research-grade and excluded by default — opt in explicitly
+  with `--tier vision` if you want to publish those numbers.
+
+Override tier via the script's `--tier` flag (see `run_eval_baseline.sh --help`). If
+unsure, the default is tuned to produce a release-ready baseline in 10–20 minutes.
+
 **Cost**: ~$0.50-1.00
 **Time**: ~15-20 minutes
 
@@ -407,6 +420,35 @@ ailang eval-report --from-chain <chain-id> X.X.X --format=json
 Target metrics: Avg Turns ≤1.5x gap, Avg Tokens ≤2.0x gap vs Python.
 
 For detailed agent analysis guide, see [`resources/version_notes.md`](resources/version_notes.md).
+
+### 5b. Tag-Based Analysis and Rotation Check (v0.14.0+)
+
+After dashboard + changelog metrics, run the curation analysis primitives. These inform
+what to keep, demote, or promote for the next release — the suite is curated, not
+accumulated. See `benchmarks/CURATION.md` for the full philosophy.
+
+```bash
+# Tag coverage: which of the 12 canonical tags are thin or over-represented?
+ailang eval-matrix --by-tags
+
+# Saturated benchmarks: both languages ≥ 95% — demote candidates (no signal)
+ailang eval-matrix --show-saturated
+
+# AILANG-only wins: AILANG beats Python by ≥ 10pp — protect these from regressions
+ailang eval-matrix --ailang-wins
+
+# Optional: compare this release's tag deltas against the previous baseline
+ailang eval-report eval_results/baselines/vX.X.X vX.X.X --format=json
+```
+
+Record three things in the release notes (or the design doc retro):
+- **Demote candidates** — saturated benchmarks that should move to `stretch` or be
+  retired in the next sprint.
+- **Keep as value evidence** — AILANG-only wins that prove the language's ROI.
+- **Thin tags** — taxonomy gaps (<3 benchmarks in a tag) to target with new benchmarks.
+
+This step is cheap (seconds), has no external dependencies, and produces the input
+for the next release's benchmark-manager / eval-gap-finder work.
 
 ### 6. Move Design Docs to Implemented
 
@@ -556,7 +598,10 @@ For historical improvements and lessons learned, see [`resources/version_notes.m
 Key points:
 - All scripts accept version with or without 'v' prefix
 - Use `--validate` flag to check configuration before running
-- Agent eval requires explicit `--benchmarks` list (defined in script)
+- Agent eval scopes benchmarks by tier (`--tier core,stretch` default) — benchmarks
+  are resolved from `benchmarks/*.yml` by tier, not a hardcoded list
+- Tag-based curation analysis runs via `ailang eval-matrix --by-tags/--show-saturated/
+  --ailang-wins` in Step 5b
 
 ## Notes
 

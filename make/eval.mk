@@ -86,11 +86,11 @@ eval-prompt-hash: ## Compute SHA256 hashes for all prompts
 # Baseline & Comparison
 eval-baseline: build ## Store baseline for a version
 	@if [ -z "$(EVAL_VERSION)" ]; then \
-		echo "Usage: make eval-baseline EVAL_VERSION=v0.3.X [FULL=true] [RESUME=true]"; \
+		echo "Usage: make eval-baseline EVAL_VERSION=v0.3.X [FULL=true] [RESUME=true] [TIER=core,stretch]"; \
 		exit 1; \
 	fi
 	@echo "Storing baseline for version $(EVAL_VERSION)..."
-	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) ./tools/eval_baseline.sh
+	@VERSION=$(EVAL_VERSION) FULL=$(FULL) RESUME=$(RESUME) TIER=$(TIER) ./tools/eval_baseline.sh
 
 eval-diff: build ## Compare two eval result directories
 	@if [ -z "$(BASELINE)" ] || [ -z "$(NEW)" ]; then \

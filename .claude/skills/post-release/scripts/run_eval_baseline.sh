@@ -1,26 +1,36 @@
 #!/usr/bin/env bash
-# Run evaluation baseline for a release version
+# Run evaluation baseline for a release version.
+#
+# v0.14.0+: benchmark selection is driven by the tier system, not a hardcoded list.
+# Default release scope is `core,stretch`. Pass --tier to override.
 
 set -euo pipefail
 
-# Agent benchmarks list (46 benchmarks as of v0.12.0)
-# This MUST be kept in sync with benchmarks/ directory
-# Apr 2026: fixed records_person→records_book, state_machine_traffic_light→state_machine_elevator
-AGENT_BENCHMARKS="adt_option,api_call_json,balanced_parens,binary_tree_sum,canonical_normalization,cli_args,config_file_parser,csv_to_json_converter,effect_composition,effect_pure_separation,effect_tracking_io_fs,error_handling,exhaustive_pattern_matching,explicit_state_threading,expression_evaluator,fizzbuzz,float_eq,fold_reduce,gcd_lcm,graph_bfs,higher_order_functions,immutable_data_structures,inline_tests,json_encode,json_parse,json_transform,lambda_calc,list_comprehension,log_file_analyzer,merge_sort,mini_interpreter,nested_records,no_runtime_crashes_option,numeric_modulo,pattern_matching_complex,pipeline,record_update,records_book,recursion_fibonacci,red_black_tree,run_length_encode,state_machine_elevator,symbolic_diff,tree_transformation_pipeline,type_safe_record_access,type_unify"
+# Default tier scope for release baselines:
+#   - `core`    = headline metric (22 benchmarks as of v0.14.0)
+#   - `stretch` = harder benchmarks we expect mixed results on (11 benchmarks)
+# Vision tier (research-grade) is excluded by default; smoke tier is a subset of
+# CI sanity checks and also excluded by default to keep releases focused.
+DEFAULT_TIER="core,stretch"
+
+# Count benchmarks matching a tier spec (comma-separated tiers).
+# Usage: count_benchmarks_in_tiers "core,stretch"
+count_benchmarks_in_tiers() {
+    local tier_csv="$1"
+    local total=0
+    local tier
+    IFS=',' read -ra TIERS <<< "$tier_csv"
+    for tier in "${TIERS[@]}"; do
+        local c
+        c=$(grep -l "^tier: ${tier}\b" benchmarks/*.yml 2>/dev/null | wc -l | tr -d ' ')
+        total=$((total + c))
+    done
+    echo "$total"
+}
 
 # Validation mode: check configuration without running full eval
 if [[ "${1:-}" == "--validate" ]]; then
     echo "Validating agent eval configuration..."
-
-    # Check AGENT_BENCHMARKS is defined and non-empty
-    if [[ -z "${AGENT_BENCHMARKS:-}" ]]; then
-        echo "ERROR: AGENT_BENCHMARKS not defined"
-        exit 1
-    fi
-
-    # Count benchmarks
-    BENCHMARK_COUNT=$(echo "$AGENT_BENCHMARKS" | tr ',' '\n' | wc -l | tr -d ' ')
-    echo "  Benchmarks defined: $BENCHMARK_COUNT"
 
     # Verify ailang command exists
     if ! command -v ailang &> /dev/null; then
@@ -29,14 +39,14 @@ if [[ "${1:-}" == "--validate" ]]; then
     fi
     echo "  ailang command: found"
 
-    # Check that benchmark files exist (spot check first benchmark)
-    FIRST_BENCHMARK=$(echo "$AGENT_BENCHMARKS" | cut -d',' -f1)
-    if [[ -f "benchmarks/${FIRST_BENCHMARK}.yml" ]]; then
-        echo "  Benchmark files: found (checked $FIRST_BENCHMARK.yml)"
-    else
-        echo "WARNING: Benchmark file not found: benchmarks/${FIRST_BENCHMARK}.yml"
-    fi
+    # Report tier counts
+    for tier in smoke core stretch vision; do
+        count=$(grep -l "^tier: ${tier}\b" benchmarks/*.yml 2>/dev/null | wc -l | tr -d ' ')
+        echo "  $tier benchmarks: $count"
+    done
 
+    default_count=$(count_benchmarks_in_tiers "$DEFAULT_TIER")
+    echo "  Default tier scope: $DEFAULT_TIER ($default_count benchmarks)"
     echo "  ✓ Agent eval configuration valid"
     exit 0
 fi
@@ -53,126 +63,148 @@ monitor_progress() {
 
         if [[ -d "$results_dir" ]]; then
             current=$(find "$results_dir" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
-            percent=$((current * 100 / expected_count))
-            echo "[$phase] Progress: $current/$expected_count files ($percent%)"
+            if [[ $expected_count -gt 0 ]]; then
+                percent=$((current * 100 / expected_count))
+                echo "[$phase] Progress: $current/$expected_count files ($percent%)"
+            else
+                echo "[$phase] Progress: $current files"
+            fi
         fi
     done
 }
 
+# Arg parsing: <version> [--full] [--tier <spec>]
 if [[ $# -eq 0 ]]; then
-    echo "Usage: $0 <version> [--full]" >&2
+    echo "Usage: $0 <version> [--full] [--tier <spec>]" >&2
     echo "Example: $0 0.3.14 --full" >&2
+    echo "Example: $0 0.13.0 --full --tier core,stretch" >&2
     echo "" >&2
     echo "Options:" >&2
-    echo "  --full    Run with all production models (default: dev models only)" >&2
+    echo "  --full              Use all production models (default: dev models)" >&2
+    echo "  --tier <spec>       Comma-separated tiers: smoke,core,stretch,vision" >&2
+    echo "                      (default: $DEFAULT_TIER)" >&2
     exit 1
 fi
 
 VERSION="$1"
+shift
 FULL_FLAG=""
+TIER_FLAG="$DEFAULT_TIER"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --full)
+            FULL_FLAG="FULL=true"
+            shift
+            ;;
+        --tier)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --tier requires an argument" >&2
+                exit 1
+            fi
+            TIER_FLAG="$2"
+            shift 2
+            ;;
+        --tier=*)
+            TIER_FLAG="${1#--tier=}"
+            shift
+            ;;
+        *)
+            echo "Unknown argument: $1" >&2
+            exit 1
+            ;;
+    esac
+done
 
 # Normalize version: ensure directory always has "v" prefix
-# Strip any existing "v" prefix first, then add it
 VERSION_NORMALIZED="${VERSION#v}"
 RESULTS_DIR="eval_results/baselines/v$VERSION_NORMALIZED"
 
-if [[ $# -gt 1 ]] && [[ "$2" == "--full" ]]; then
-    FULL_FLAG="FULL=true"
+# Compute expected benchmark count for the selected tier(s)
+BENCHMARK_COUNT=$(count_benchmarks_in_tiers "$TIER_FLAG")
+if [[ "$BENCHMARK_COUNT" -eq 0 ]]; then
+    echo "ERROR: no benchmarks match --tier $TIER_FLAG" >&2
+    echo "Hint: valid tiers are smoke, core, stretch, vision" >&2
+    exit 1
 fi
 
 echo "Running eval baseline for $VERSION..."
+echo "Tier scope: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "Mode: FULL (all 6 production models)"
+    echo "Mode: FULL (extended model suite)"
     echo "Expected cost: ~\$0.50-1.00"
     echo "Expected time: ~15-20 minutes"
 else
-    echo "Mode: DEV (3 cheap models only)"
+    echo "Mode: DEV (3 dev models)"
     echo "Expected cost: ~\$0.10-0.20"
     echo "Expected time: ~5-10 minutes"
 fi
 echo
 
-# Step 1: Run standard eval baseline (pass normalized version WITH v prefix)
+# Step 1: Run standard eval baseline
 echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
+# Expected file count for standard eval: benchmarks × models × langs (2)
 if [[ -n "$FULL_FLAG" ]]; then
-    monitor_progress "$RESULTS_DIR" 480 "Standard" &
-    MONITOR_PID=$!
-    make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
-    kill $MONITOR_PID 2>/dev/null || true
+    EXPECTED_STANDARD=$((BENCHMARK_COUNT * 6 * 2))   # ~6 extended models
 else
-    monitor_progress "$RESULTS_DIR" 246 "Standard" &
-    MONITOR_PID=$!
-    make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
-    kill $MONITOR_PID 2>/dev/null || true
+    EXPECTED_STANDARD=$((BENCHMARK_COUNT * 3 * 2))   # 3 dev models
 fi
 
-# Step 2: Run agent eval on curated benchmarks
+monitor_progress "$RESULTS_DIR" "$EXPECTED_STANDARD" "Standard" &
+MONITOR_PID=$!
+if [[ -n "$FULL_FLAG" ]]; then
+    TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED" FULL=true
+else
+    TIER="$TIER_FLAG" make eval-baseline EVAL_VERSION="v$VERSION_NORMALIZED"
+fi
+kill $MONITOR_PID 2>/dev/null || true
+
+# Step 2: Run agent eval on tier-selected benchmarks
 echo
 echo "=== Step 2/2: Agent Eval (multi-turn) ==="
-echo "Running agent eval on curated benchmarks..."
-
-# AGENT_BENCHMARKS is defined at the top of the script (46 benchmarks)
-# See: benchmark-manager skill for benchmark categories
-echo "Benchmarks: all 46 benchmarks (see AGENT_BENCHMARKS at top of script)"
+echo "Running agent eval on tier=$TIER_FLAG benchmarks ($BENCHMARK_COUNT total)..."
 echo
 
-# Pre-flight validation and configuration summary
+# Pre-flight summary
 echo "=== Pre-Flight Check ==="
 echo "Version: $VERSION"
+echo "Tier: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
 echo "Mode: ${FULL_FLAG:-DEV}"
-echo "Benchmarks: 46 (1 easy, ~19 medium, ~17 hard, 6 stretch)"
 echo "Agent models: claude-sonnet-4-5 (Claude executor), gemini-3-flash (Gemini executor)"
 echo "Agent parallelism: 2"
-echo "Agent timeout: default (no override)"
-echo "Prompt version: latest (auto-selected)"
 echo
-echo "Expected results:"
+
+# Agent expected file counts: benchmarks × 2 executors × langs
 if [[ -n "$FULL_FLAG" ]]; then
-    echo "  Standard eval: ~552 files (46 benchmarks × 6 models × 2 langs)"
-    echo "  Agent eval: ~184 files (46 benchmarks × 2 executors × 2 langs)"
-    echo "  Total: ~736 files"
+    EXPECTED_AGENT=$((BENCHMARK_COUNT * 2 * 2))  # both langs
+    AGENT_LANGS="ailang,python"
 else
-    echo "  Standard eval: ~276 files (46 benchmarks × 3 models × 2 langs)"
-    echo "  Agent eval: ~92 files (46 benchmarks × 2 executors × 1 lang)"
-    echo "  Total: ~368 files"
+    EXPECTED_AGENT=$((BENCHMARK_COUNT * 2 * 1))  # AILANG only (faster)
+    AGENT_LANGS="ailang"
 fi
+
+echo "Expected results:"
+echo "  Standard eval: ~$EXPECTED_STANDARD files"
+echo "  Agent eval: ~$EXPECTED_AGENT files"
+echo "  Total: ~$((EXPECTED_STANDARD + EXPECTED_AGENT)) files"
 echo
 echo "Starting in 3 seconds... (Ctrl-C to abort)"
 sleep 3
 echo
 
-# Agent eval uses both Claude and Gemini executors (multi-executor support v0.6.0+)
-# --benchmarks is required for agent mode (safety feature)
-# Models: claude-sonnet-4-5 (Claude executor), gemini-3-flash (Gemini executor)
 AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
 
-if [[ -n "$FULL_FLAG" ]]; then
-    # Full mode: run both models on both languages
-    echo "Mode: FULL (Claude Sonnet + Gemini 3 Flash)"
-    echo "Executors: claude, gemini"
-    monitor_progress "$RESULTS_DIR" 184 "Agent" &
-    MONITOR_PID=$!
-    ailang eval-suite --agent \
-        --models "$AGENT_MODELS" \
-        --benchmarks "$AGENT_BENCHMARKS" \
-        --langs ailang,python \
-        --agent-parallel 2 \
-        --output "$RESULTS_DIR"
-    kill $MONITOR_PID 2>/dev/null || true
-else
-    # Dev mode: both executors but AILANG only (faster)
-    echo "Mode: DEV (Claude Sonnet + Gemini 3 Flash, AILANG only)"
-    echo "Executors: claude, gemini"
-    monitor_progress "$RESULTS_DIR" 92 "Agent" &
-    MONITOR_PID=$!
-    ailang eval-suite --agent \
-        --models "$AGENT_MODELS" \
-        --benchmarks "$AGENT_BENCHMARKS" \
-        --langs ailang \
-        --agent-parallel 2 \
-        --output "$RESULTS_DIR"
-    kill $MONITOR_PID 2>/dev/null || true
-fi
+echo "Mode: ${FULL_FLAG:+FULL }(Claude Sonnet + Gemini 3 Flash, langs=$AGENT_LANGS)"
+echo "Executors: claude, gemini"
+monitor_progress "$RESULTS_DIR" "$EXPECTED_AGENT" "Agent" &
+MONITOR_PID=$!
+ailang eval-suite --agent \
+    --models "$AGENT_MODELS" \
+    --tier "$TIER_FLAG" \
+    --langs "$AGENT_LANGS" \
+    --agent-parallel 2 \
+    --output "$RESULTS_DIR"
+kill $MONITOR_PID 2>/dev/null || true
 
 # Show combined results
 echo
@@ -193,21 +225,11 @@ fi
 # Validation
 echo
 echo "=== Validation ==="
+EXPECTED_TOTAL=$((EXPECTED_STANDARD + EXPECTED_AGENT))
 
-# Check file counts (46 benchmarks × models × 2 langs)
-if [[ -n "$FULL_FLAG" ]]; then
-    EXPECTED_STANDARD=552   # 46 × 6 × 2
-    EXPECTED_AGENT=184      # 46 × 2 × 2
-    EXPECTED_TOTAL=736
-else
-    EXPECTED_STANDARD=276   # 46 × 3 × 2
-    EXPECTED_AGENT=92       # 46 × 1 × 2
-    EXPECTED_TOTAL=368
-fi
-
-# Allow 5% tolerance for filtering/failures
+# Allow tolerance for filtering/failures
 MIN_STANDARD=$((EXPECTED_STANDARD * 95 / 100))
-MIN_AGENT=$((EXPECTED_AGENT * 85 / 100))  # Agent eval can have more variance
+MIN_AGENT=$((EXPECTED_AGENT * 85 / 100))   # Agent eval has more variance
 MIN_TOTAL=$((EXPECTED_TOTAL * 90 / 100))
 
 if [[ $STANDARD_COUNT -lt $MIN_STANDARD ]]; then
