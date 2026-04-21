@@ -157,6 +157,16 @@ METADATA_FILE="${BASELINE_DIR}/baseline.json"
 # Determine actual models used (extract from result files)
 ACTUAL_MODELS=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.model' {} \; 2>/dev/null | sort -u | paste -sd "," -)
 
+# Capture the resolved benchmark list (ground truth from result files, not just
+# the --tier spec). This locks in what "this release's baseline" actually
+# measured, so longitudinal comparisons can detect set drift across releases.
+BENCHMARK_IDS_JSON=$(find "$BASELINE_DIR" -name "*.json" -type f -exec jq -r '.id' {} \; 2>/dev/null \
+  | sort -u \
+  | jq -R . \
+  | jq -sc .)
+BENCHMARK_IDS_JSON="${BENCHMARK_IDS_JSON:-[]}"
+BENCHMARK_COUNT=$(echo "$BENCHMARK_IDS_JSON" | jq 'length')
+
 # Get git describe for reference (but keep version separate)
 GIT_DESCRIBE="$(git describe --tags --always 2>/dev/null || echo "unknown")"
 
@@ -170,6 +180,11 @@ cat > "$METADATA_FILE" << EOF
   "languages": "$LANGS",
   "parallel": $PARALLEL,
   "total_runs": $TOTAL_COUNT,
+  "benchmarks": {
+    "tier_spec": "${TIER:-}",
+    "count": $BENCHMARK_COUNT,
+    "resolved": $BENCHMARK_IDS_JSON
+  },
   "git_commit": "$(git rev-parse HEAD 2>/dev/null || echo "unknown")",
   "git_branch": "$(git branch --show-current 2>/dev/null || echo "unknown")",
   "git_dirty": $(git diff-index --quiet HEAD -- 2>/dev/null && echo "false" || echo "true")

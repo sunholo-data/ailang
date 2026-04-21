@@ -236,6 +236,29 @@ ailang eval-suite --agent \
     --output "$RESULTS_DIR"
 kill $MONITOR_PID 2>/dev/null || true
 
+# Augment baseline.json with an "agent" object capturing what the agent stage
+# actually measured. Locks in the resolved benchmark list so cross-release
+# agent comparisons can detect set drift (see feedback_* memory for rationale).
+BASELINE_METADATA="$RESULTS_DIR/baseline.json"
+if [[ -f "$BASELINE_METADATA" ]]; then
+    AGENT_IDS_JSON=$(find "$RESULTS_DIR/agent" -name "*.json" -type f \
+        -exec jq -r '.id' {} \; 2>/dev/null | sort -u | jq -R . | jq -sc .)
+    AGENT_IDS_JSON="${AGENT_IDS_JSON:-[]}"
+    AGENT_COUNT_JSON=$(echo "$AGENT_IDS_JSON" | jq 'length')
+
+    tmp=$(mktemp)
+    jq --arg tier "$TIER_FLAG" \
+       --arg models "$AGENT_MODELS" \
+       --arg langs "$AGENT_LANGS" \
+       --argjson count "$AGENT_COUNT_JSON" \
+       --argjson resolved "$AGENT_IDS_JSON" \
+       '.agent = {tier_spec: $tier, models: $models, langs: $langs, count: $count, resolved: $resolved}' \
+       "$BASELINE_METADATA" > "$tmp" && mv "$tmp" "$BASELINE_METADATA"
+    echo "✓ baseline.json augmented with agent stage metadata ($AGENT_COUNT_JSON benchmarks)"
+else
+    echo "⚠️  baseline.json not found at $BASELINE_METADATA — skipping agent metadata augmentation"
+fi
+
 # Show combined results
 echo
 if [[ -d "$RESULTS_DIR" ]]; then
