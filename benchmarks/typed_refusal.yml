@@ -1,0 +1,38 @@
+id: typed_refusal
+description: "Safe numeric chain via Option — type system refuses partial divisions/sqrts without try/except"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "very_high"
+task_prompt: |
+  Write a program in <LANG> that chains SAFE numeric operations using Option/Maybe.
+
+  Required functions (signatures must reflect the typed failure mode):
+  1. `safeDiv(a, b)` returns `Some(a / b)` when `b != 0`, else `None`.
+  2. `safeSqrt(x)` returns `Some(sqrt(x))` when `x >= 0`, else `None`.
+     Use integer square root (truncate to int) — inputs will be perfect squares.
+  3. `chain(a, b, c)` runs `safeDiv(a, b)` THEN flatMaps `safeSqrt` on the result
+     THEN maps `+ c` over that. When ANY step yields None, the whole chain is None.
+
+  Hard constraints (the type system must do the work, not runtime guards):
+  - NO `try/except`, NO `throw`, NO exceptions of any kind.
+  - NO if-guards OUTSIDE `safeDiv` / `safeSqrt` to pre-check inputs at the call site.
+  - `chain` itself must NOT use an if/match to branch on each step — use the Option
+    combinators (`map`, `flatMap`, or pattern-match inside a helper) instead.
+  - Pure functions only: `safeDiv`, `safeSqrt`, `chain` take no IO.
+
+  Print exactly these 4 lines, formatted as shown ("Some" or "None"):
+    chain(100, 4, 1)     -> Some(6)    (100/4=25, sqrt=5, +1=6)
+    chain(100, 0, 1)     -> None
+    chain(-4, 1, 10)     -> None       (sqrt of negative)
+    chain(16, 4, -3)     -> Some(-1)   (16/4=4, sqrt=2, +-3=-1)
+
+  Output only the code, no explanations.
+expected_stdout: |
+  Some(6)
+  None
+  None
+  Some(-1)
+tier: vision
+tags: [type_safety, error_handling, adt_pattern_match]

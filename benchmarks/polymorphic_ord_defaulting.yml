@@ -1,0 +1,40 @@
+id: polymorphic_ord_defaulting
+description: "Polymorphic top-3 selection using Ord class — works across int, string, and tuple lists"
+languages: ["python", "ailang"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "hard"
+expected_gain: "high"
+task_prompt: |
+  Write a program in <LANG> that implements a POLYMORPHIC function `top3(xs)`.
+
+  Requirements:
+  1. `top3` must be polymorphic over ANY ordered type — not specialised to integers.
+     In AILANG: use the Ord type class constraint (e.g. `func top3[a: Ord](xs: [a]) -> [a]`).
+     In Python: use `typing.TypeVar` bounded on `SupportsRichComparison` or a protocol.
+  2. `top3(xs)` returns the 3 largest elements in DESCENDING order.
+  3. If the list has fewer than 3 elements, return all of them in descending order.
+  4. Do NOT write three separate monomorphic copies — the SAME function must handle all
+     calls below. A solution that defines `top3_int`, `top3_str`, etc. is incorrect.
+
+  Call the SAME function four times and print each returned element on its own line,
+  in the order produced (so 4 groups, concatenated):
+
+    top3([5, 2, 8, 1, 9, 3, 7])         -> 9, 8, 7
+    top3(["pear", "apple", "kiwi", "fig", "plum"]) -> pear, plum, kiwi
+    top3([2, 2])                         -> 2, 2
+    top3([42])                           -> 42
+
+  Output only the code, no explanations.
+expected_stdout: |
+  9
+  8
+  7
+  pear
+  plum
+  kiwi
+  2
+  2
+  42
+tier: stretch
+tags: [type_safety, functional, data_transform]

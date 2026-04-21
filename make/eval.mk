@@ -6,6 +6,7 @@
 .PHONY: eval-to-design eval-prompt-ab eval-prompt-list eval-prompt-hash
 .PHONY: eval-baseline eval-diff eval-summary eval-matrix
 .PHONY: eval-auto-improve eval-auto-improve-apply
+.PHONY: eval-smoke eval-core eval-stretch
 .PHONY: bench-phase2a bench-phase2a-quick bench-workloads bench-workloads-quick
 
 # Basic eval commands
@@ -16,6 +17,21 @@ eval: build ## Run a single benchmark (mock mode)
 eval-suite: build ## Run full benchmark suite (all models, parallel)
 	@echo "Running full benchmark suite..."
 	@$(BUILD_DIR)/$(BINARY) eval-suite
+
+# Tier-specific eval targets (M-EVAL-SUITE-PREP). Each target runs a
+# single tier so "signal" (smoke) and "headroom" (vision) stay separate.
+# MODELS=... overrides the default model set; pass --full flags via EXTRA.
+eval-smoke: build ## Fast tier (15 benchmarks, dev models) — target <90s warm cache
+	@echo "Running SMOKE tier (dev models)..."
+	@$(BUILD_DIR)/$(BINARY) eval-suite -tier smoke $(if $(MODELS),-models $(MODELS)) $(EXTRA)
+
+eval-core: build ## Core tier (~20 benchmarks, dev models)
+	@echo "Running CORE tier (dev models)..."
+	@$(BUILD_DIR)/$(BINARY) eval-suite -tier core $(if $(MODELS),-models $(MODELS)) $(EXTRA)
+
+eval-stretch: build ## Stretch tier (~8 benchmarks, extended suite)
+	@echo "Running STRETCH tier (extended suite)..."
+	@$(BUILD_DIR)/$(BINARY) eval-suite -tier stretch $(if $(MODELS),-models $(MODELS),-full) $(EXTRA)
 
 eval-models: build ## List available AI models
 	@echo "Available models:"

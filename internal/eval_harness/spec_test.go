@@ -311,19 +311,21 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 		tierCounts[spec.Tier]++
 	}
 
-	// Sanity check: tier distribution is roughly ~15 smoke, ~20 core, ~8 stretch,
-	// ~5 vision per the sprint's M2 acceptance criterion (±2 tolerance).
+	// Sanity check: tier distribution targets shifted after M5 added
+	// polymorphic_ord_defaulting (stretch) and typed_refusal (vision).
+	// Post-M5 centers: 15/21/11/6 (total 53). Tolerance ±2 kept so future
+	// benchmark adds trigger the drift check instead of silently bloating.
 	if smoke := tierCounts["smoke"]; smoke < 13 || smoke > 17 {
 		t.Errorf("smoke count = %d, want 15±2", smoke)
 	}
-	if core := tierCounts["core"]; core < 18 || core > 22 {
-		t.Errorf("core count = %d, want 20±2", core)
+	if core := tierCounts["core"]; core < 19 || core > 23 {
+		t.Errorf("core count = %d, want 21±2", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 6 || stretch > 10 {
-		t.Errorf("stretch count = %d, want 8±2", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 9 || stretch > 13 {
+		t.Errorf("stretch count = %d, want 11±2", stretch)
 	}
-	if vision := tierCounts["vision"]; vision < 3 || vision > 7 {
-		t.Errorf("vision count = %d, want 5±2", vision)
+	if vision := tierCounts["vision"]; vision < 4 || vision > 8 {
+		t.Errorf("vision count = %d, want 6±2", vision)
 	}
 	t.Logf("Tier distribution: smoke=%d core=%d stretch=%d vision=%d (total %d)",
 		tierCounts["smoke"], tierCounts["core"], tierCounts["stretch"], tierCounts["vision"],

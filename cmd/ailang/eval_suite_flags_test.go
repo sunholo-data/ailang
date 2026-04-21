@@ -67,11 +67,12 @@ func TestFilterBenchmarksByTier(t *testing.T) {
 		t.Errorf("tier counts sum to %d, want %d (tier-per-benchmark invariant)", got, len(all))
 	}
 
-	// Distribution target per M2 acceptance: 15/20/8/5 ±2.
+	// Distribution target post-M5 (added polymorphic_ord_defaulting +
+	// typed_refusal): 15/21/11/6 ±2. Kept as drift detector.
 	checkTierCount(t, "smoke", len(smoke), 15, 2)
-	checkTierCount(t, "core", len(core), 20, 2)
-	checkTierCount(t, "stretch", len(stretch), 8, 2)
-	checkTierCount(t, "vision", len(vision), 5, 2)
+	checkTierCount(t, "core", len(core), 21, 2)
+	checkTierCount(t, "stretch", len(stretch), 11, 2)
+	checkTierCount(t, "vision", len(vision), 6, 2)
 
 	// Combined filter returns the union.
 	smokePlusCore := filterBenchmarksByTier(all, []string{"smoke", "core"})
