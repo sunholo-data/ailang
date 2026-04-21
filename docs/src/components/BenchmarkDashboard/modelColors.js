@@ -40,7 +40,7 @@ export function assignModelColors(models) {
   Array.from(models).forEach((m) => {
     byProvider[getProvider(m)].push(m);
   });
-  Object.values(byProvider).forEach((arr) => arr.sort());
+  Object.values(byProvider).forEach((arr) => arr.sort((a, b) => a.localeCompare(b)));
 
   const map = new Map();
   Object.entries(byProvider).forEach(([prov, arr]) => {
