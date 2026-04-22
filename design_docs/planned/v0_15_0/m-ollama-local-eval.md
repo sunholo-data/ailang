@@ -22,6 +22,8 @@ The default idle timeout is 3 minutes. `fizzbuzz` has no per-benchmark YAML time
 
 ## Investigation Data
 
+**Initial eval run (all 4 failed):**
+
 | Run | Benchmark | Failure mode | Actual timeout applied |
 |-----|-----------|-------------|------------------------|
 | 1 | recursion_fibonacci (ailang) | Hard timeout | 90 s (YAML spec) |
@@ -29,9 +31,20 @@ The default idle timeout is 3 minutes. `fizzbuzz` has no per-benchmark YAML time
 | 3 | recursion_fibonacci (python) | Hard timeout | 90 s (YAML spec) |
 | 4 | fizzbuzz (ailang) | Idle timeout | 180 s (3 m default) |
 
-Total wall time: 9 m 32 s = (90 + 180) × 2 — hitting limits every time, not running to completion.
+Total wall time: 9 m 32 s — hitting limits every time, not running to completion.
 
-Direct comparison: `ollama run gemma4:e4b 'write a fizzbuzz program'` → completes in seconds.
+**Actual timing measurements (gemma4:e4b, model warm, 24 GB Mac):**
+
+| Prompt type | Benchmark | TTFT | Total |
+|-------------|-----------|------|-------|
+| Short proxy (~50 tokens) | fizzbuzz | 43 s | 65 s |
+| Short proxy (~50 tokens) | recursion_fibonacci | 101 s | 160 s |
+| Full AILANG prompt (~18 k tokens) | fizzbuzz | 55 s | 98 s |
+| Full AILANG prompt (~18 k tokens) | recursion_fibonacci | **241 s** | **309 s** |
+
+The AILANG eval system prompt is **72 KB / ~18,200 tokens**. For fizzbuzz the large prompt adds ~12 s to TTFT (tolerable). For recursion_fibonacci it adds 140 s — the model spends 4+ minutes on prefill before generating a single output token.
+
+Key result: `recursion_fibonacci` with the full AILANG prompt needs **310 s** total. The current 90 s hard timeout fires 3× before the model even starts responding.
 
 ## Root Cause
 
@@ -65,11 +78,25 @@ if scale := modelCfg.TimeoutScale; scale > 1.0 {
 
 **Tradeoff**: Scaled-timeout results are not directly comparable to cloud results on timed benchmarks. Must be flagged in reports (see Decision C).
 
-### Decision B: Lite prompt mode for local models (Deferred)
+### Decision B: Prompt strategy for local models — three options
 
-The large system prompt is the root cause of slow TTFT. A "lite" mode would strip the verbose AILANG syntax guide and reduce the prompt to just the task description + file paths. This would genuinely improve TTFT and is probably more useful for small models anyway (a 4B model can't effectively use a 2000-token language spec).
+The 72 KB AILANG teaching prompt adds 140 s to TTFT on recursion_fibonacci (4B model). There are three approaches, not mutually exclusive:
 
-**Deferred** because: requires auditing what the agent prompt template generates, understanding which sections a small model actually uses, and measuring the quality impact. Worth a separate sprint. For now, `timeout_scale: 10` buys time without changing prompt content.
+**B1 — timeout_scale only (papering over it)**
+Keep the full prompt, just allow more time. `timeout_scale: 5` brings recursion_fibonacci from 90 s → 450 s, which covers the 309 s actual. Simple, no prompt changes.  
+Tradeoff: wastes the model's limited context window (8k–32k) on syntax docs it may not use.
+
+**B2 — Lite prompt (strip the AILANG teaching guide)**
+Send only the task description + workspace instructions. Drops from ~18k tokens to ~200 tokens. Measured TTFT improvement: 241 s → ~50 s for recursion_fibonacci (projection from short-prompt timing). The 4B model probably can't effectively use an 18k-token language spec anyway — it will hallucinate AILANG syntax regardless.  
+Tradeoff: model gets no syntax reference at all; quality may drop for AILANG benchmarks (but may already be poor given context limits).
+
+**B3 — Minimal prompt + on-demand context via μRAG tool (recommended for investigation)**
+Send a minimal system prompt that tells the model it can call a `fetch_ailang_docs` tool to look up specific syntax sections when needed. The μRAG infrastructure (added in M-EXEC-EXPAND / M7A) already provides `ailang micro-rag context`. The model fetches only what it needs, keeping prefill tiny while giving access to the full spec.  
+Tradeoff: requires wiring a new tool into the eval harness; more complex. But this is the right long-term architecture — models should retrieve rather than ingest.
+
+**Verdict**: Implement B1 (timeout_scale) to unblock testing immediately. Prototype B3 in the next sprint using the existing μRAG infrastructure. B2 is useful as a baseline to measure how much the teaching prompt actually helps.
+
+The design doc should be updated with results from all three approaches once measured.
 
 ### Decision C: Result labelling
 
@@ -126,14 +153,18 @@ Not acceptable (would make results meaningless):
 
 **Total: ~45 LOC**
 
-### Timeout scale values
+### Timeout scale values (data-driven)
 
-| Model | Recommended `timeout_scale` | Rationale |
-|-------|----------------------------|-----------|
-| `opencode-gemma4-e4b` | 5 | 4B model, ~5× slower than cloud API; fits 24 GB Mac |
-| `opencode-gemma4-26b` | 8 | 26B MoE, slower throughput; needs 128 GB Mac |
+Measured on 24 GB Mac, model warm (keep_alive pinned), full AILANG prompt (~18k tokens):
 
-These are initial estimates. After implementing `timeout_scale`, re-run the benchmark suite and tune based on actual completion times.
+| Model | Benchmark | Measured total | Current limit | Required scale |
+|-------|-----------|---------------|---------------|----------------|
+| `opencode-gemma4-e4b` | fizzbuzz (ailang) | 98 s | 300 s (default) | 1× (already ok) |
+| `opencode-gemma4-e4b` | recursion_fibonacci (ailang) | 309 s | 90 s (YAML) | **4×** minimum |
+
+Recommended `timeout_scale: 5` for `opencode-gemma4-e4b` — gives 450 s hard limit for recursion_fibonacci (309 s actual + 46% headroom) and 15 m idle timeout (well above 241 s TTFT).
+
+For `opencode-gemma4-26b` (128 GB Mac, not yet measured): start with `timeout_scale: 8` and tune.
 
 ### Implementation plan
 
