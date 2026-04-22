@@ -74,6 +74,9 @@ type AgentBenchmarkResult struct {
 	Stdout    string `json:"stdout,omitempty"`
 	Stderr    string `json:"stderr,omitempty"`
 
+	// Timing breakdown
+	TTFTSeconds float64 `json:"ttft_seconds,omitempty"` // Time to first token in seconds
+
 	// Contract verification results (M-CONTRACT-EVAL)
 	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
 	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions
@@ -160,13 +163,11 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 	var placeholder string
 
 	if language == "ailang" {
-		// Create benchmark/ subdirectory
+		// Create benchmark/ subdirectory — AILANG requires module path to match dir
 		benchmarkDir := filepath.Join(workspace, "benchmark")
 		if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create benchmark dir: %w", err)
 		}
-
-		// Create solution.ail with correct module declaration
 		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
 		placeholder = `module benchmark/solution
 // ⚠️ DO NOT CHANGE THE MODULE DECLARATION ABOVE! ⚠️
@@ -177,9 +178,13 @@ func RunAgentBenchmark(spec *BenchmarkSpec, config AgentBenchmarkConfig, languag
 
 `
 	} else {
-		// Python - simple placeholder in workspace root
-		solutionPath = filepath.Join(workspace, "solution.py")
-		placeholder = "# TODO: Write your Python solution here\n"
+		// All other languages (python, javascript, go, …) — place solution in workspace root.
+		lang, err := langreg.Get(language)
+		if err != nil {
+			return nil, fmt.Errorf("unknown language %q: %w", language, err)
+		}
+		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
+		placeholder = "# TODO: Write your solution here\n"
 	}
 
 	// Generate split prompts: system (language knowledge) + task (benchmark description)
@@ -433,70 +438,45 @@ func determineSuccess(result *ClaudeHeadlessResult, spec *BenchmarkSpec, workspa
 		}
 	}
 
-	// Check if solution file exists and has content
-	// For AILANG: benchmark/solution.ail
-	// For Python: solution.py
+	// Locate solution file via the language registry.
 	var solutionPath string
 	if language == "ailang" {
 		solutionPath = filepath.Join(workspace, "benchmark", "solution.ail")
 	} else {
-		solutionPath = filepath.Join(workspace, "solution.py")
+		lang, langErr := langreg.Get(language)
+		if langErr != nil {
+			return ValidationResult{Stderr: fmt.Sprintf("unknown language %q: %v", language, langErr)}
+		}
+		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
 	}
 
 	solutionContent, err := os.ReadFile(solutionPath)
 	if err != nil || len(solutionContent) == 0 {
 		return ValidationResult{
-			CompileOk: false,
-			RuntimeOk: false,
-			StdoutOk:  false,
-			Stderr:    fmt.Sprintf("Solution file not found or empty: %v", err),
+			Stderr: fmt.Sprintf("solution file not found or empty: %v", err),
 		}
 	}
 
-	// Run solution based on language
-	if language == "python" {
-		// Run Python solution via uv with the pinned runtime.
-		cmd, uvErr := newPythonCommand(solutionPath)
-		if uvErr != nil {
-			return ValidationResult{
-				CompileOk: false,
-				RuntimeOk: false,
-				StdoutOk:  false,
-				Stderr:    uvErr.Error(),
-			}
+	// Obtain a runner for this language via the registry.  AILANG gets its
+	// special runner (needs spec for caps/stdin/input_files); everything else
+	// uses GetRunnerWithContext which routes through langreg.
+	var runner LanguageRunner
+	if language == "ailang" {
+		runner = NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
+	} else {
+		r, runErr := GetRunnerWithContext(context.Background(), language, spec, "")
+		if runErr != nil {
+			return ValidationResult{Stderr: fmt.Sprintf("no runner for %q: %v", language, runErr)}
 		}
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return ValidationResult{
-				CompileOk: true,  // Python doesn't have compile phase
-				RuntimeOk: false, // Runtime error
-				StdoutOk:  false,
-				Stdout:    string(output),
-				Stderr:    fmt.Sprintf("Python execution failed: %v", err),
-			}
-		}
-		stdoutOk := CompareOutput(spec.ExpectedOut, string(output))
-		return ValidationResult{
-			CompileOk: true,
-			RuntimeOk: true,
-			StdoutOk:  stdoutOk,
-			Stdout:    string(output),
-		}
+		runner = r
 	}
 
-	// Run AILANG solution — pass spec for input_files/cli_args/stdin support
-	runner := NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
-	runResult, err := runner.Run(string(solutionContent), 10*time.Second)
+	timeout := 30 * time.Second
+	runResult, err := runner.Run(string(solutionContent), timeout)
 	if err != nil {
-		return ValidationResult{
-			CompileOk: false, // Compilation failed
-			RuntimeOk: false,
-			StdoutOk:  false,
-			Stderr:    fmt.Sprintf("validation runner error: %v", err),
-		}
+		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", err)}
 	}
 
-	// AILANG ran - check runtime and output
 	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
 	return ValidationResult{
 		CompileOk: runResult.CompileOk,
