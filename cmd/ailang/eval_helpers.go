@@ -23,6 +23,10 @@ var evalVerifyTimeout = 5 * time.Second
 // evalDevtoolsPromptFlag appends the devtools prompt to agent system prompts.
 var evalDevtoolsPromptFlag bool
 
+// evalMicroragMode controls AILANG_MICRORAG_ENABLED in subprocess env (M-BRAIN-MICRORAG).
+// Default auto: respect inherited environment. on/off force the value.
+var evalMicroragMode = eval_harness.MicroragModeAuto
+
 // discoverBenchmarks finds all .yml files in the benchmark directory
 func discoverBenchmarks() []string {
 	entries, err := os.ReadDir(evalBenchmarkDir)

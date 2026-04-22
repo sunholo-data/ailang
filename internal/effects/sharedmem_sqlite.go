@@ -513,6 +513,17 @@ func (c *SQLiteSharedCache) GarbageCollect() (int64, error) {
 	return result.RowsAffected()
 }
 
+// DeleteNamespace removes all frames in the given namespace.
+// Used by the micro-rag indexer to support release-tied corpus reset.
+// Returns the number of frames removed.
+func (c *SQLiteSharedCache) DeleteNamespace(namespace string) (int64, error) {
+	result, err := c.db.Exec(`DELETE FROM brain_frames WHERE namespace = ?`, namespace)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 // GarbageCollectOlderThan removes frames older than the given duration in a namespace.
 // Returns the number of frames removed.
 func (c *SQLiteSharedCache) GarbageCollectOlderThan(namespace string, age time.Duration) (int64, error) {

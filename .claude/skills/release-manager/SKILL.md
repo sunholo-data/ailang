@@ -312,6 +312,28 @@ gh run list --limit 3
 gh run watch
 ```
 
+### 7.5. Reindex μRAG Corpora (REQUIRED)
+
+After the tag pushes and CI publishes the release, refresh the brain corpora
+that back micro-rag (μRAG). The indexer always resolves the **active prompt
+version** at runtime — never pin a version anywhere — and `--reset` ensures
+the new release replaces stale chunks rather than layering on top of them.
+
+```bash
+make brain-index-syntax-reset
+```
+
+**Acceptance check:**
+- Output reports indexed chunk counts for `ailang-syntax`, `ailang-builtins`,
+  `ailang-examples`.
+- `ailang cache stats` shows non-zero counts for all three namespaces.
+- Sample probe: `ailang cache search --namespace ailang-syntax --limit 1 "string interpolation"`
+  returns a chunk whose `[version:vX.Y.Z]` tag matches the new release.
+
+If the indexer fails (e.g. "could not resolve active prompt version"),
+**do not skip this step** — investigate and fix before the release is
+considered complete. The post-release skill will re-verify.
+
 ### 8. Collect and Close Related Issues
 
 **Find issues that can be closed with this release:**

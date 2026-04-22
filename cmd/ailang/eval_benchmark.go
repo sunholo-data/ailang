@@ -206,7 +206,8 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			// Store agent KPI metrics (turns, transcript) for comparison with standard mode
 			AgentTurns:      result.NumTurns,
 			AgentTranscript: result.SessionLog,
-			EvalMode:        eval_harness.EvalModeAgent, // Mark as agent evaluation
+			EvalMode:        eval_harness.EvalModeAgent,                    // Mark as agent evaluation
+			MicroragState:   eval_harness.MicroragModeAuto.ResolvedState(), // M-BRAIN-MICRORAG
 		}
 
 		// Append transcript to stderr for backward compatibility with existing tools

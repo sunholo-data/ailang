@@ -142,16 +142,6 @@ func (v *freeVarVisitor) recordFree(name string) {
 	v.order = append(v.order, name)
 }
 
-func (v *freeVarVisitor) withBound(name string, body func()) {
-	if v.bound[name] {
-		body()
-		return
-	}
-	v.bound[name] = true
-	body()
-	delete(v.bound, name)
-}
-
 func (v *freeVarVisitor) visitStmt(s stmt.Stmt) {
 	switch s := s.(type) {
 	case stmt.VarDecl:

@@ -27,34 +27,55 @@ vet: prepare-embed ## Run go vet
 	@echo "Vet complete"
 
 # Linting
-install-lint: ## Install golangci-lint v2.x
-	@echo "Installing golangci-lint v2.x..."
-	@CURRENT_VERSION=$$(golangci-lint --version 2>/dev/null | grep -o 'v[0-9]*' | head -1 || echo "none"); \
-	if [ "$$CURRENT_VERSION" != "v2" ]; then \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.1.6; \
-	else \
-		echo "golangci-lint v2.x already installed"; \
+GOLANGCI_LINT_VERSION := v2.11.4
+install-lint: ## Install/upgrade golangci-lint (auto-reinstalls when its build-Go is older than go.mod)
+	@echo "Ensuring golangci-lint $(GOLANGCI_LINT_VERSION) (built with go$$(go env GOVERSION | sed 's/^go//') or newer)..."
+	@PROJECT_GO=$$(awk '/^go /{print $$2; exit}' go.mod); \
+	NEED_INSTALL=1; \
+	if command -v golangci-lint >/dev/null 2>&1; then \
+		INSTALLED_VER=$$(golangci-lint --version 2>/dev/null | grep -oE 'version [^ ]+' | awk '{print $$2}'); \
+		BUILD_GO=$$(golangci-lint --version 2>/dev/null | grep -oE 'go[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 | sed 's/^go//'); \
+		if [ "v$$INSTALLED_VER" = "$(GOLANGCI_LINT_VERSION)" ] && \
+		   [ "$$(printf '%s\n%s' "$$BUILD_GO" "$$PROJECT_GO" | sort -V | head -1)" = "$$PROJECT_GO" ]; then \
+			echo "golangci-lint $(GOLANGCI_LINT_VERSION) (built with go$$BUILD_GO) already installed"; \
+			NEED_INSTALL=0; \
+		else \
+			echo "Reinstalling: have v$$INSTALLED_VER/go$$BUILD_GO, need $(GOLANGCI_LINT_VERSION) with go>=$$PROJECT_GO"; \
+		fi; \
+	fi; \
+	if [ "$$NEED_INSTALL" = "1" ]; then \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
 	fi
 
 lint: prepare-embed ## Run linter (bug detectors only)
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Run 'make install-lint'" && exit 1)
-	@golangci-lint run ./cmd/... ./internal/... ./testutil/... 2>&1 | \
-		grep -v "(related information)" | \
-		grep -v "QF[0-9]" | \
-		grep -v "ST[0-9]" | \
-		grep -v "SA1019:" | \
-		grep -v "SA9003:" | \
-		grep -v "SA5011:" | \
-		grep -v "SA5012:" | \
-		grep -v "is unused" | \
-		grep -v "^\t" | \
-		grep -v "^[[:space:]]*\^" | \
-		tee /tmp/lint.out || true
-	@if grep -qE "^(internal|cmd|testutil)" /tmp/lint.out; then \
-		echo "$(RED)$(CROSS) Lint errors found$(RESET)"; \
-		exit 1; \
-	fi
+	@set -o pipefail; golangci-lint run ./cmd/... ./internal/... ./testutil/... > /tmp/lint.raw 2>&1; \
+		LINT_RC=$$?; \
+		if grep -qE "can't load config|the Go language version" /tmp/lint.raw; then \
+			echo "$(RED)$(CROSS) golangci-lint config/toolchain error — run 'make install-lint':$(RESET)"; \
+			cat /tmp/lint.raw; \
+			exit 1; \
+		fi; \
+		grep -v "(related information)" /tmp/lint.raw | \
+			grep -v "QF[0-9]" | \
+			grep -v "ST[0-9]" | \
+			grep -v "SA1019:" | \
+			grep -v "SA9003:" | \
+			grep -v "SA5011:" | \
+			grep -v "SA5012:" | \
+			grep -v "is unused" | \
+			grep -v "^\t" | \
+			grep -v "^[[:space:]]*\^" | \
+			tee /tmp/lint.out; \
+		if grep -qE "^(internal|cmd|testutil)" /tmp/lint.out; then \
+			echo "$(RED)$(CROSS) Lint errors found$(RESET)"; \
+			exit 1; \
+		fi; \
+		if [ $$LINT_RC -ne 0 ] && [ $$LINT_RC -ne 1 ]; then \
+			echo "$(RED)$(CROSS) golangci-lint exited with unexpected code $$LINT_RC$(RESET)"; \
+			exit $$LINT_RC; \
+		fi
 	@echo "$(GREEN)$(CHECKMARK) Lint complete (no bugs detected)$(RESET)"
 
 # File size checks (AI-friendly codebase)

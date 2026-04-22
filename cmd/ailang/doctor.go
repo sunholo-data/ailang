@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -110,13 +111,23 @@ func runBuiltinsList() {
 	byEffect := listFlags.Bool("by-effect", false, "Group by effect type")
 	byModule := listFlags.Bool("by-module", false, "Group by module")
 	verbose := listFlags.Bool("verbose", false, "Show full documentation including signatures")
+	jsonOut := listFlags.Bool("json", false, "Emit machine-readable JSON list")
 	_ = listFlags.Parse(flag.Args()[2:]) // ExitOnError means this never returns an error we can handle
 
 	// Get all specs from new registry (M-DX1 complete in v0.3.10)
 	specs := builtins.AllSpecs()
 
 	if len(specs) == 0 {
+		if *jsonOut {
+			fmt.Println(`{"count":0,"builtins":[]}`)
+			return
+		}
 		fmt.Println("No builtins registered")
+		return
+	}
+
+	if *jsonOut {
+		emitBuiltinsListJSON(specs)
 		return
 	}
 
@@ -328,18 +339,43 @@ func listBuiltinsVerboseByEffect(specs map[string]*builtins.BuiltinSpec) {
 // runBuiltinsShow shows detailed documentation for a specific builtin
 func runBuiltinsShow() {
 	if flag.NArg() < 3 {
-		fmt.Println("Usage: ailang builtins show <name>")
+		fmt.Println("Usage: ailang builtins show <name> [--json]")
 		fmt.Println()
 		fmt.Println("Examples:")
 		fmt.Println("  ailang builtins show _rand_int")
 		fmt.Println("  ailang builtins show _net_httpRequest")
+		fmt.Println("  ailang builtins show concat_String --json")
 		os.Exit(1)
 	}
 
-	name := flag.Arg(2)
+	// Scan args 2..N for the name (first non-flag) and --json toggle.
+	name := ""
+	jsonOut := false
+	for i := 2; i < flag.NArg(); i++ {
+		a := flag.Arg(i)
+		switch a {
+		case "--json", "-json":
+			jsonOut = true
+		default:
+			if name == "" && !strings.HasPrefix(a, "-") {
+				name = a
+			}
+		}
+	}
+	if name == "" {
+		fmt.Println("Usage: ailang builtins show <name> [--json]")
+		os.Exit(1)
+	}
 	specs := builtins.AllSpecs()
 
 	spec, ok := specs[name]
+	if !ok {
+		// Also try the leading-underscore variant (so callers can pass the
+		// public wrapper name like "concat_String" and still get a hit).
+		if alt, ok2 := specs["_"+name]; ok2 {
+			spec, ok = alt, true
+		}
+	}
 	if !ok {
 		// Try to find partial matches
 		var matches []string
@@ -350,6 +386,10 @@ func runBuiltinsShow() {
 		}
 		sortStrings(matches)
 
+		if jsonOut {
+			emitBuiltinShowError(name, matches)
+			os.Exit(1)
+		}
 		fmt.Printf("Builtin '%s' not found.\n", name)
 		if len(matches) > 0 {
 			fmt.Println("\nDid you mean:")
@@ -358,6 +398,11 @@ func runBuiltinsShow() {
 			}
 		}
 		os.Exit(1)
+	}
+
+	if jsonOut {
+		emitBuiltinShowJSON(spec)
+		return
 	}
 
 	// Print full documentation
@@ -432,6 +477,125 @@ func runBuiltinsShow() {
 		effect = spec.Effect
 	}
 	fmt.Printf("Effect: %s\n", effect)
+}
+
+// emitBuiltinsListJSON prints all registered builtins as a stable JSON list.
+// Consumed by `tools/index_ailang_syntax.sh` to populate the ailang-builtins
+// brain namespace.
+func emitBuiltinsListJSON(specs map[string]*builtins.BuiltinSpec) {
+	type item struct {
+		Name        string `json:"name"`
+		Module      string `json:"module"`
+		Signature   string `json:"signature"`
+		IsPure      bool   `json:"is_pure"`
+		Effect      string `json:"effect,omitempty"`
+		NumArgs     int    `json:"num_args"`
+		Description string `json:"description,omitempty"`
+	}
+	names := make([]string, 0, len(specs))
+	for n := range specs {
+		names = append(names, n)
+	}
+	sortStrings(names)
+	out := struct {
+		Count    int    `json:"count"`
+		Builtins []item `json:"builtins"`
+	}{Count: len(names)}
+	for _, n := range names {
+		s := specs[n]
+		it := item{
+			Name:      s.Name,
+			Module:    s.Module,
+			Signature: formatBuiltinSignature(s),
+			IsPure:    s.IsPure,
+			Effect:    s.Effect,
+			NumArgs:   s.NumArgs,
+		}
+		if s.Metadata != nil {
+			it.Description = s.Metadata.Description
+		}
+		out.Builtins = append(out.Builtins, it)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(out)
+}
+
+// emitBuiltinShowJSON prints a stable JSON envelope for a builtin spec.
+// Consumed by `ailang micro-rag lint-builtin` for first-use nudges.
+func emitBuiltinShowJSON(spec *builtins.BuiltinSpec) {
+	type paramJSON struct {
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+	}
+	type exampleJSON struct {
+		Code        string `json:"code"`
+		Description string `json:"description,omitempty"`
+	}
+	type metaJSON struct {
+		Description string        `json:"description,omitempty"`
+		LongDesc    string        `json:"long_desc,omitempty"`
+		Params      []paramJSON   `json:"params,omitempty"`
+		Returns     string        `json:"returns,omitempty"`
+		Examples    []exampleJSON `json:"examples,omitempty"`
+		SeeAlso     []string      `json:"see_also,omitempty"`
+		Tags        []string      `json:"tags,omitempty"`
+		Since       string        `json:"since,omitempty"`
+		Stability   string        `json:"stability,omitempty"`
+	}
+	out := struct {
+		Name      string    `json:"name"`
+		Module    string    `json:"module"`
+		Signature string    `json:"signature"`
+		IsPure    bool      `json:"is_pure"`
+		Effect    string    `json:"effect,omitempty"`
+		NumArgs   int       `json:"num_args"`
+		Metadata  *metaJSON `json:"metadata,omitempty"`
+	}{
+		Name:      spec.Name,
+		Module:    spec.Module,
+		Signature: formatBuiltinSignature(spec),
+		IsPure:    spec.IsPure,
+		Effect:    spec.Effect,
+		NumArgs:   spec.NumArgs,
+	}
+	if spec.Metadata != nil {
+		m := &metaJSON{
+			Description: spec.Metadata.Description,
+			LongDesc:    spec.Metadata.LongDesc,
+			Returns:     spec.Metadata.Returns,
+			SeeAlso:     spec.Metadata.SeeAlso,
+			Tags:        spec.Metadata.Tags,
+			Since:       spec.Metadata.Since,
+			Stability:   spec.Metadata.GetStabilityString(),
+		}
+		for _, p := range spec.Metadata.Params {
+			m.Params = append(m.Params, paramJSON{Name: p.Name, Description: p.Description})
+		}
+		for _, ex := range spec.Metadata.Examples {
+			m.Examples = append(m.Examples, exampleJSON{Code: ex.Code, Description: ex.Description})
+		}
+		out.Metadata = m
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(out)
+}
+
+// emitBuiltinShowError prints a JSON error envelope for builtin lookup failures.
+func emitBuiltinShowError(name string, suggestions []string) {
+	out := struct {
+		Error       string   `json:"error"`
+		Name        string   `json:"name"`
+		Suggestions []string `json:"suggestions,omitempty"`
+	}{
+		Error:       "not_found",
+		Name:        name,
+		Suggestions: suggestions,
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(out)
 }
 
 // runBuiltinsCheckMigration validates that all builtins have been migrated

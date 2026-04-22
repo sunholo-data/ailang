@@ -2,7 +2,7 @@
 # BUILD & INSTALL TARGETS
 # =============================================================================
 
-.PHONY: build install quick-install dev deps clean prepare-embed bootstrap-content
+.PHONY: build install quick-install dev deps clean prepare-embed bootstrap-content microrag-mcp-build microrag-mcp-install
 
 prepare-embed: ## Internal: Copy prompts and scorecard for embedding
 	@if [ ! -d cmd/ailang/prompts ] || [ prompts/versions.json -nt cmd/ailang/prompts/versions.json ]; then \
@@ -39,6 +39,16 @@ install: prepare-embed ## Install ailang to GOPATH/bin (with version info)
 quick-install: prepare-embed ## Quick install with version info
 	@go install $(LDFLAGS) ./cmd/ailang
 	@echo "$(GREEN)$(CHECKMARK) ailang updated in $$(go env GOPATH)/bin$(RESET)"
+
+microrag-mcp-build: ## Build the μRAG MCP server (cmd/ailang-microrag-mcp)
+	@echo "Building ailang-microrag-mcp..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/ailang-microrag-mcp ./cmd/ailang-microrag-mcp
+	@echo "$(GREEN)$(CHECKMARK) Built $(BUILD_DIR)/ailang-microrag-mcp$(RESET)"
+
+microrag-mcp-install: ## Install ailang-microrag-mcp to GOPATH/bin
+	@go install $(LDFLAGS) ./cmd/ailang-microrag-mcp
+	@echo "$(GREEN)$(CHECKMARK) ailang-microrag-mcp installed in $$(go env GOPATH)/bin$(RESET)"
 
 dev: ## Quick development build (no optimization)
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY) cmd/ailang/main.go

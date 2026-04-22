@@ -115,13 +115,6 @@ func (fc *funcCompiler) isPinned(r uint8) bool {
 	return false
 }
 
-// freeIfTemp returns r to the free list iff it is not a pinned local.
-func (fc *funcCompiler) freeIfTemp(r uint8) {
-	if !fc.isPinned(r) {
-		fc.regs.freeTemp(r)
-	}
-}
-
 // --- Literal lowering -------------------------------------------------------
 
 func (fc *funcCompiler) compileLitInt(e stmt.LitInt) (uint8, error) {

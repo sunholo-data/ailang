@@ -17,12 +17,23 @@ func runPrompt() {
 	listFlag := promptFS.Bool("list", false, "List all available prompt versions")
 	infoFlag := promptFS.Bool("info", false, "Show metadata for specified version")
 	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact version (~15KB vs ~49KB)")
+	versionActiveFlag := promptFS.Bool("version-active", false, "Print the active prompt version (machine-parseable)")
 	helpFlag := promptFS.Bool("help", false, "Show help for prompt command")
 
 	_ = promptFS.Parse(flag.Args()[1:])
 
 	if *helpFlag {
 		printPromptHelp()
+		return
+	}
+
+	if *versionActiveFlag {
+		v, err := prompt.GetActiveVersion()
+		if err != nil || v == "" {
+			fmt.Fprintf(os.Stderr, "%s: no active prompt version resolvable (run 'ailang prompt --list')\n", red("Error"))
+			os.Exit(1)
+		}
+		fmt.Println(v)
 		return
 	}
 

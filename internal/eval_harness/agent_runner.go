@@ -27,6 +27,7 @@ type AgentBenchmarkConfig struct {
 	DevtoolsPrompt     string        // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
 	AgentPromptContent string        // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
 	Condition          EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
+	MicroragMode       MicroragMode  // μRAG subprocess env mode (M-BRAIN-MICRORAG): on/off/auto
 }
 
 // DefaultAgentConfig returns sensible defaults
@@ -338,6 +339,8 @@ func runHeadlessSession(prompt, workspace string, config AgentBenchmarkConfig) (
 	}
 	// Set PWD to workspace so Claude knows this is the "project"
 	filteredEnv = append(filteredEnv, fmt.Sprintf("PWD=%s", workspace))
+	// Apply μRAG mode (M-BRAIN-MICRORAG): force AILANG_MICRORAG_ENABLED for A/B comparison.
+	filteredEnv = config.MicroragMode.ApplyToEnv(filteredEnv)
 	cmd.Env = filteredEnv
 
 	// DEBUG: Capture stderr for visibility

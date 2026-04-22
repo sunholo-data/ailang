@@ -64,6 +64,11 @@ type RunMetrics struct {
 
 	// Experimental condition (M-CONTRACT-EVAL conditions dimension)
 	Condition string `json:"condition,omitempty"` // Experimental condition: "baseline", "contract", "z3_guided", "full"
+
+	// μRAG state for this run (M-BRAIN-MICRORAG)
+	// Values: "on" | "off" | "auto" | "disabled" | "" (legacy / not set).
+	// Lets eval-report break results down with vs. without JIT knowledge injection.
+	MicroragState string `json:"microrag_state,omitempty"`
 }
 
 // EvalMode constants
@@ -128,6 +133,13 @@ func (l *MetricsLogger) Log(m *RunMetrics) error {
 	m.Code = truncateField(m.Code)
 	m.AgentTranscript = truncateField(m.AgentTranscript)
 	m.VerifyJSON = truncateField(m.VerifyJSON)
+
+	// M-BRAIN-MICRORAG: backstop population so direct struct-literal call sites
+	// (e.g. agent paths in cmd/ailang/eval_benchmark.go) cannot silently drop
+	// the μRAG state. Auto-derive from env if the caller didn't set it.
+	if m.MicroragState == "" {
+		m.MicroragState = MicroragModeAuto.ResolvedState()
+	}
 
 	// Determine subdirectory based on eval mode
 	var targetDir string
@@ -197,13 +209,16 @@ func CalculateCostWithBreakdown(model string, inputTokens, outputTokens int) flo
 	return cost
 }
 
-// NewRunMetrics creates a new RunMetrics with timestamp and error category
+// NewRunMetrics creates a new RunMetrics with timestamp and error category.
+// MicroragState is auto-populated from the inherited env so every metrics
+// emission honours the eval-suite --microrag flag (M-BRAIN-MICRORAG).
 func NewRunMetrics(id, lang, model string, seed int64) *RunMetrics {
 	return &RunMetrics{
-		ID:        id,
-		Lang:      lang,
-		Model:     model,
-		Seed:      seed,
-		Timestamp: time.Now(),
+		ID:            id,
+		Lang:          lang,
+		Model:         model,
+		Seed:          seed,
+		Timestamp:     time.Now(),
+		MicroragState: MicroragModeAuto.ResolvedState(),
 	}
 }

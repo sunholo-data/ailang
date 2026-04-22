@@ -120,3 +120,43 @@ func TestNewRunMetrics(t *testing.T) {
 		t.Error("Timestamp is not recent")
 	}
 }
+
+// M-BRAIN-MICRORAG: NewRunMetrics must auto-populate MicroragState from env
+// so eval result files always record the effective state.
+func TestNewRunMetrics_MicroragState(t *testing.T) {
+	t.Setenv("AILANG_MICRORAG_ENABLED", "0")
+	m := NewRunMetrics("t", "ailang", "m", 1)
+	if m.MicroragState != "off" {
+		t.Errorf("env=0 → state should be 'off', got %q", m.MicroragState)
+	}
+
+	t.Setenv("AILANG_MICRORAG_ENABLED", "1")
+	m = NewRunMetrics("t", "ailang", "m", 1)
+	if m.MicroragState != "on" {
+		t.Errorf("env=1 → state should be 'on', got %q", m.MicroragState)
+	}
+}
+
+// M-BRAIN-MICRORAG: MetricsLogger.Log() must backstop MicroragState for
+// direct struct-literal call sites (agent path) that bypass NewRunMetrics.
+func TestMetricsLogger_BackstopsMicroragState(t *testing.T) {
+	t.Setenv("AILANG_MICRORAG_ENABLED", "1")
+	logger := NewMetricsLogger(t.TempDir())
+	m := &RunMetrics{ID: "t", Lang: "ailang", Model: "m", EvalMode: EvalModeAgent}
+	if err := logger.Log(m); err != nil {
+		t.Fatalf("log failed: %v", err)
+	}
+	if m.MicroragState != "on" {
+		t.Errorf("logger should backstop MicroragState from env; got %q", m.MicroragState)
+	}
+
+	// Caller-set value must win over backstop.
+	t.Setenv("AILANG_MICRORAG_ENABLED", "0")
+	m2 := &RunMetrics{ID: "t2", Lang: "ailang", Model: "m", EvalMode: EvalModeAgent, MicroragState: "on"}
+	if err := logger.Log(m2); err != nil {
+		t.Fatalf("log failed: %v", err)
+	}
+	if m2.MicroragState != "on" {
+		t.Errorf("explicit caller value must win; got %q", m2.MicroragState)
+	}
+}

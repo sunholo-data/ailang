@@ -40,6 +40,8 @@ func cacheCommand() {
 		runCacheStats(args)
 	case "gc":
 		runCacheGC(args)
+	case "delete-namespace":
+		runCacheDeleteNamespace(args)
 	case "export":
 		runCacheExport(args)
 	case "import":
@@ -310,6 +312,54 @@ func runCacheGC(args []string) {
 	}
 
 	fmt.Printf("Removed %d expired/old frame(s)\n", totalRemoved)
+}
+
+// runCacheDeleteNamespace drops every frame in a namespace across the
+// requested scope(s). Required by the micro-rag release reindex flow.
+func runCacheDeleteNamespace(args []string) {
+	fs := flag.NewFlagSet("cache delete-namespace", flag.ExitOnError)
+	ns := fs.String("namespace", "", "Namespace to drop (required)")
+	scope := fs.String("scope", "both", "Scope: user, project, both")
+	confirm := fs.Bool("yes", false, "Skip the confirmation prompt")
+	_ = fs.Parse(args)
+
+	if *ns == "" {
+		fmt.Fprintln(os.Stderr, "Error: --namespace is required")
+		os.Exit(1)
+	}
+	if !*confirm {
+		fmt.Fprintf(os.Stderr, "Refusing to delete namespace %q without --yes\n", *ns)
+		os.Exit(1)
+	}
+
+	store, err := openBrainStore()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening brain: %v\n", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	var total int64
+	for _, tier := range []struct {
+		name  string
+		match bool
+		cache *effects.SQLiteSharedCache
+	}{
+		{"project", *scope == "project" || *scope == "both", store.Project},
+		{"user", *scope == "user" || *scope == "both", store.User},
+	} {
+		if !tier.match || tier.cache == nil {
+			continue
+		}
+		removed, err := tier.cache.DeleteNamespace(*ns)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "delete-namespace error (%s): %v\n", tier.name, err)
+			continue
+		}
+		fmt.Printf("  %s: removed %d frame(s)\n", tier.name, removed)
+		total += removed
+	}
+	fmt.Printf("Removed %d frame(s) from namespace %q\n", total, *ns)
 }
 
 // --- Helpers ---

@@ -222,6 +222,20 @@ test-codegen: build
 	@rm -rf tests/codegen-harness/gen
 
 # =============================================================================
+# MICRO-RAG (μRAG) CORPUS INDEXER
+# =============================================================================
+
+## brain-index-syntax: Index AILANG syntax/builtins/examples into the brain (additive, idempotent)
+brain-index-syntax: build
+	@echo "$(BOLD)Indexing μRAG corpora (active prompt resolved at runtime)...$(RESET)"
+	@AILANG_BIN=./bin/ailang ./tools/index_ailang_syntax.sh
+
+## brain-index-syntax-reset: Drop and rebuild the μRAG namespaces (used at release time)
+brain-index-syntax-reset: build
+	@echo "$(BOLD)Resetting and rebuilding μRAG corpora...$(RESET)"
+	@AILANG_BIN=./bin/ailang ./tools/index_ailang_syntax.sh --reset
+
+# =============================================================================
 # DEFAULT TARGET
 # =============================================================================
 

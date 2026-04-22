@@ -129,6 +129,12 @@ func runEvalSuite() {
 	devtoolsPrompt := fs.Bool("devtools-prompt", false, "Append devtools prompt to agent system prompt (enables full experiment condition)")
 	conditions := fs.String("conditions", "", "Comma-separated experimental conditions (baseline,contract,z3_guided,full,tool_aware). Creates separate jobs per condition like --langs. Overrides --verify and --devtools-prompt.")
 
+	// μRAG injection toggle (M-BRAIN-MICRORAG)
+	// auto: respect inherited env (default).
+	// on:   force AILANG_MICRORAG_ENABLED=1 in subprocess env.
+	// off:  force AILANG_MICRORAG_ENABLED=0 (use for the baseline arm of an A/B run).
+	microragMode := fs.String("microrag", "auto", "μRAG knowledge injection: on | off | auto (default: auto). For A/B comparison, run twice with on/off.")
+
 	// Message-based coordination flags (M-UNIFIED-AI-CONTROL-PLANE)
 	queueMode := fs.Bool("queue", false, "Run benchmarks via message queue (coordinator processes, crash recovery)")
 	queueInbox := fs.String("queue-inbox", "eval-runner", "Inbox for queue mode benchmark jobs")
@@ -146,6 +152,7 @@ func runEvalSuite() {
 	evalVerifyFlag = *verify
 	evalVerifyTimeout = *verifyTimeout
 	evalDevtoolsPromptFlag = *devtoolsPrompt
+	evalMicroragMode = eval_harness.ParseMicroragMode(*microragMode)
 
 	// Parse --conditions flag into a list
 	var conditionList []string
@@ -539,7 +546,19 @@ func runEvalSuite() {
 			Verify:             evalVerifyFlag,     // M-CONTRACT-EVAL: enable contract verification
 			DevtoolsPrompt:     devtoolsContent,    // M-CONTRACT-EVAL: devtools prompt for "full" condition
 			AgentPromptContent: agentPromptContent, // Agent coding prompt for "agent_prompt" condition
+			MicroragMode:       evalMicroragMode,   // M-BRAIN-MICRORAG: subprocess env mode
 		}
+	}
+
+	// M-BRAIN-MICRORAG: For executor-based paths (claude/gemini via internal/executor),
+	// the executors call BuildEnvironment() which inherits os.Environ(). Setting the
+	// var on this process ensures inheritance reaches those subprocesses too. Direct
+	// agent_runner paths use ApplyToEnv on the per-cmd env explicitly.
+	switch evalMicroragMode {
+	case eval_harness.MicroragModeOn:
+		_ = os.Setenv("AILANG_MICRORAG_ENABLED", "1")
+	case eval_harness.MicroragModeOff:
+		_ = os.Setenv("AILANG_MICRORAG_ENABLED", "0")
 	}
 
 	// Queue mode: Submit benchmarks as messages for coordinator processing (M-UNIFIED-AI-CONTROL-PLANE)

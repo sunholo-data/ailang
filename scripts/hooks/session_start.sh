@@ -61,11 +61,23 @@ if command -v gh &> /dev/null; then
     fi
 fi
 
-# Get current version from CHANGELOG.md (most reliable source)
+# Get current version. Primary source: newest git tag (authoritative — set by
+# the release workflow). Fallback: newest version string in CHANGELOG.md.
+# The root CHANGELOG.md is now an index referencing per-series files
+# (e.g. "v0.10-current.md"), so a naive grep/head would pin to an old series.
 get_current_version() {
+    local tag
+    tag=$(git -C "$PROJECT_ROOT" tag --sort=-version:refname 2>/dev/null \
+          | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    if [ -n "$tag" ]; then
+        echo "$tag"
+        return
+    fi
     local CHANGELOG="$PROJECT_ROOT/CHANGELOG.md"
     if [ -f "$CHANGELOG" ]; then
-        grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" | head -1
+        grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' "$CHANGELOG" \
+          | sort -t. -k1.2,1n -k2,2n -k3,3n \
+          | tail -1
     else
         echo "unknown"
     fi
@@ -112,8 +124,12 @@ log "GitHub import handled by coordinator (github_sync enabled)"
 
 # Use ailang messages CLI to get unread messages (SQLite-backed)
 # The CLI handles all inbox types via the unified collaboration.db
-MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
-UNREAD_COUNT=$(echo "$MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
+# Cap the startup injection at 5 most-recent unread messages; full backlog
+# is still visible via `ailang messages list --unread`.
+INBOX_DUMP_LIMIT="${AILANG_INBOX_DUMP_LIMIT:-5}"
+ALL_MESSAGES_JSON=$(ailang messages list --unread --json 2>/dev/null || echo "[]")
+UNREAD_COUNT=$(echo "$ALL_MESSAGES_JSON" | jq 'length' 2>/dev/null || echo "0")
+MESSAGES_JSON=$(echo "$ALL_MESSAGES_JSON" | jq ".[:${INBOX_DUMP_LIMIT}]" 2>/dev/null || echo "[]")
 
 # Function to query brain for relevant context based on recent files
 get_brain_context() {
@@ -144,7 +160,7 @@ get_brain_context() {
     local BRAIN_RESULTS=""
     if [ -n "$RECENT_FILES" ]; then
         # Search brain based on recently touched files
-        BRAIN_RESULTS=$(ailang cache search --context "$RECENT_FILES" --limit 3 2>/dev/null || echo "")
+        BRAIN_RESULTS=$(ailang cache search --context "$RECENT_FILES" --limit 2 2>/dev/null || echo "")
     fi
 
     # Also do a general search based on current branch/task
@@ -152,7 +168,7 @@ get_brain_context() {
     BRANCH_NAME=$(git branch --show-current 2>/dev/null || echo "")
     if [ -n "$BRANCH_NAME" ] && [ "$BRANCH_NAME" != "dev" ] && [ "$BRANCH_NAME" != "main" ]; then
         local BRANCH_RESULTS
-        BRANCH_RESULTS=$(ailang cache search "${BRANCH_NAME//-/ }" --limit 2 2>/dev/null || echo "")
+        BRANCH_RESULTS=$(ailang cache search "${BRANCH_NAME//-/ }" --limit 1 2>/dev/null || echo "")
         if [ -n "$BRANCH_RESULTS" ] && ! echo "$BRANCH_RESULTS" | grep -q "No results"; then
             BRAIN_RESULTS="${BRAIN_RESULTS}
 ${BRANCH_RESULTS}"
@@ -295,10 +311,15 @@ fi
 # Build formatted context string for Claude
 # The MESSAGES_JSON comes from the CLI and has format:
 # [{"id":"msg_xxx","from_agent":"test","to_inbox":"user","title":"Title","payload":"...","status":"unread","created_at":"..."}]
+INBOX_HEADER="📬 AGENT INBOX: $UNREAD_COUNT unread message(s) from autonomous agents"
+if [ "$UNREAD_COUNT" -gt "$INBOX_DUMP_LIMIT" ] 2>/dev/null; then
+    INBOX_HEADER="$INBOX_HEADER (showing $INBOX_DUMP_LIMIT most recent)"
+fi
+
 CONTEXT_MESSAGE=$(cat <<EOF
 📦 AILANG $CURRENT_VERSION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📬 AGENT INBOX: $UNREAD_COUNT unread message(s) from autonomous agents
+$INBOX_HEADER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 $(echo "$MESSAGES_JSON" | jq -r '.[] | "ID: \(.id)\nFrom: \(.from_agent)\nTitle: \(.title)\nTime: \(.created_at)\n"')

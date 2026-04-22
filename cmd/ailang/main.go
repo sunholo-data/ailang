@@ -236,6 +236,9 @@ func main() {
 	case "cache", "brain":
 		cacheCommand()
 
+	case "micro-rag", "microrag", "urag":
+		microragCommand()
+
 	case "prompt":
 		runPrompt()
 

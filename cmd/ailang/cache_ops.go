@@ -22,6 +22,7 @@ func runCacheSearch(args []string) {
 	context := fs.String("context", "", "Comma-separated file paths to find related knowledge")
 	cosineOnly := fs.Bool("cosine", false, "Force cosine (embedding) search only")
 	simhashOnly := fs.Bool("simhash", false, "Force SimHash search only (fast path)")
+	jsonOut := fs.Bool("json", false, "Output results as JSON (for tool consumption, e.g., micro-rag engine)")
 	fs.Parse(args)
 
 	query := strings.Join(fs.Args(), " ")
@@ -84,6 +85,11 @@ func runCacheSearch(args []string) {
 
 	elapsed := time.Since(start)
 
+	if *jsonOut {
+		emitCacheSearchJSON(merged, *scope, elapsed)
+		return
+	}
+
 	if len(merged) == 0 {
 		fmt.Println("No results found.")
 	} else {
@@ -108,6 +114,46 @@ func runCacheSearch(args []string) {
 		mode = "simhash"
 	}
 	fmt.Printf("\nmode=%s scope=%s results=%d query_ms=%d\n", mode, *scope, len(merged), elapsed.Milliseconds())
+}
+
+// emitCacheSearchJSON prints search results as a stable JSON envelope.
+// Consumed by the micro-rag engine and any other tool that needs structured
+// search output. Field names are deliberately stable — changing them is a
+// breaking change for downstream consumers.
+func emitCacheSearchJSON(results []effects.BrainSearchResult, scope string, elapsed time.Duration) {
+	type resultJSON struct {
+		Tier         string  `json:"tier"`
+		Namespace    string  `json:"namespace"`
+		Key          string  `json:"key"`
+		Score        float64 `json:"score"`
+		Content      string  `json:"content"`
+		UpdatedAt    int64   `json:"updated_at_ms"`
+		EmbeddingDim int     `json:"embedding_dim"`
+		Source       string  `json:"source"`
+	}
+	type envelope struct {
+		Scope   string       `json:"scope"`
+		Count   int          `json:"count"`
+		QueryMs int64        `json:"query_ms"`
+		Results []resultJSON `json:"results"`
+	}
+	out := envelope{Scope: scope, Count: len(results), QueryMs: elapsed.Milliseconds()}
+	out.Results = make([]resultJSON, len(results))
+	for i, r := range results {
+		out.Results[i] = resultJSON{
+			Tier:         r.Tier,
+			Namespace:    r.Frame.Namespace,
+			Key:          r.Frame.Key,
+			Score:        r.Score,
+			Content:      r.Frame.Content,
+			UpdatedAt:    r.Frame.UpdatedAt,
+			EmbeddingDim: r.Frame.EmbeddingDim,
+			Source:       r.Frame.Source,
+		}
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(out)
 }
 
 func runCachePut(args []string) {

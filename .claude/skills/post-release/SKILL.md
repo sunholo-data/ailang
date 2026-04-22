@@ -548,6 +548,41 @@ git commit -m "docs: sync website with vX.X.X implementation"
 
 See [docs-sync skill](../docs-sync/SKILL.md) for full documentation.
 
+### 9. Verify μRAG Corpus Reindex (REQUIRED)
+
+`release-manager` runs `make brain-index-syntax-reset` immediately after the
+tag pushes. This step **verifies** that the reset actually populated the
+brain with chunks tagged with the new release version — protects against
+silent indexer failures that would leave Claude pulling stale snippets.
+
+**Spot-check ≥5 chunks reference the active version:**
+
+```bash
+EXPECTED_VERSION="$(ailang prompt --version-active)"
+ailang cache search --namespace ailang-syntax --limit 5 "string" \
+  | grep -c "version:${EXPECTED_VERSION}" \
+  || { echo "FAIL: μRAG corpus does not reference $EXPECTED_VERSION"; exit 1; }
+```
+
+**Quick stat check:**
+
+```bash
+ailang cache stats | grep -E "ailang-(syntax|builtins|examples)"
+# Expect: ailang-syntax >= 50, ailang-builtins >= 250, ailang-examples >= 100
+```
+
+**Append a one-line audit to release notes** (or `eval_results/baselines/<version>/notes.md`):
+
+```
+μRAG corpus reindex verified: <ailang-syntax count>, <ailang-builtins count>, <ailang-examples count> chunks @ <version>.
+```
+
+**If verification fails:**
+- Re-run `make brain-index-syntax-reset` from the project root.
+- Check `ailang prompt --version-active` returns the new release tag.
+- If it returns nothing, the prompt directory wasn't published in the
+  release — escalate to release-manager rather than masking the issue.
+
 ## Resources
 
 ### Post-Release Checklist

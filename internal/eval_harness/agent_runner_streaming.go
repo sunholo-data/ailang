@@ -63,6 +63,8 @@ func RunHeadlessSessionStreaming(spec *BenchmarkSpec, systemPrompt, taskPrompt, 
 	env := os.Environ()
 	env = append(env, fmt.Sprintf("AILANG_STDLIB_PATH=%s", stdlibPath))
 	env = append(env, fmt.Sprintf("PWD=%s", workspace)) // Make workspace the "project" directory
+	// Apply μRAG mode (M-BRAIN-MICRORAG): force AILANG_MICRORAG_ENABLED for A/B comparison.
+	env = config.MicroragMode.ApplyToEnv(env)
 	cmd.Env = env
 
 	// Claude's stream-json output goes to stdout
