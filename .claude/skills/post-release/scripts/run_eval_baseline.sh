@@ -39,11 +39,15 @@ ollama_warmup() {
     local model="$1"           # e.g. "ollama/gemma4:e4b"
     local ollama_model="${model#ollama/}"  # strip "ollama/" prefix for API
     echo "→ Warming up Ollama model: $ollama_model (keepalive=${OLLAMA_EVAL_KEEPALIVE})"
-    curl -sf --max-time 300 "${OLLAMA_API}/api/generate" \
+    local response
+    response=$(curl -s --max-time 300 "${OLLAMA_API}/api/generate" \
         -d "{\"model\":\"${ollama_model}\",\"prompt\":\"hi\",\"stream\":false,\"keep_alive\":\"${OLLAMA_EVAL_KEEPALIVE}\"}" \
-        > /dev/null 2>&1 \
-        && echo "  ✓ $ollama_model loaded and pinned" \
-        || echo "  ⚠ Could not warm up $ollama_model (Ollama running?)"
+        2>&1)
+    if echo "$response" | grep -q '"done":true'; then
+        echo "  ✓ $ollama_model loaded and pinned"
+    else
+        echo "  ⚠ Could not warm up $ollama_model (Ollama running?)"
+    fi
 }
 
 # Unload an Ollama model immediately after eval to free RAM.

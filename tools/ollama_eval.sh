@@ -25,13 +25,19 @@ MODELS_YML="internal/eval_harness/models.yml"
 ollama_warmup() {
     local ollama_model="$1"
     echo "→ Warming up: $ollama_model (keepalive=${OLLAMA_EVAL_KEEPALIVE})"
-    if curl -sf --max-time 300 "${OLLAMA_API}/api/generate" \
+    # Use -s (silent) but NOT -f (fail-on-http-error) — Ollama returns 200 with
+    # JSON body; -f would exit 1 if curl times out before response completes.
+    # Check for "done":true in the response to confirm the model loaded.
+    local response
+    response=$(curl -s --max-time 300 "${OLLAMA_API}/api/generate" \
         -d "{\"model\":\"${ollama_model}\",\"prompt\":\"hi\",\"stream\":false,\"keep_alive\":\"${OLLAMA_EVAL_KEEPALIVE}\"}" \
-        > /dev/null 2>&1; then
+        2>&1)
+    if echo "$response" | grep -q '"done":true'; then
         echo "  ✓ $ollama_model loaded and pinned"
     else
-        echo "  ⚠ Could not warm up $ollama_model — is Ollama running?"
-        echo "    Start with: open -a Ollama  (or: ollama serve)"
+        echo "  ⚠ Could not warm up $ollama_model"
+        echo "    Response: ${response:0:200}"
+        echo "    Is Ollama running? Start with: open -a Ollama"
         exit 1
     fi
 }
