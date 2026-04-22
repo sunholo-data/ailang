@@ -83,6 +83,12 @@ jobs:
       - name: Build WASM binary
         run: make build-wasm
 
+      # Native binary is needed by verify_examples.go (invoked transitively
+      # by `make update-readme` below). Without this, the examples page
+      # would ship with whatever examples.mdx was last committed.
+      - name: Build native ailang binary
+        run: make build
+
       - name: Copy static assets
         run: |
           mkdir -p docs/static/js docs/static/wasm
@@ -105,6 +111,51 @@ jobs:
           # Use latest git tag for version (handles tags on other branches)
           export AILANG_VERSION=$(git tag --sort=-v:refname | head -1)
           bash tools/generate_codebase_stats.sh
+
+      # Regenerate docs/docs/examples.mdx (the examples-status page) and
+      # docs/static/badges/examples.json (consumed by a shields.io endpoint
+      # badge in README.md). Runs ~ every example once; tolerable inside the
+      # docs build since WASM already dominates wall time.
+      #
+      # We don't `git commit` anything here — the regenerated files are
+      # consumed by `make docs-build` below and baked into the Pages artifact.
+      # README.md in the dev tree stays static; the badge it points at is
+      # the JSON we publish to Pages.
+      - name: Regenerate examples status page + badge JSON
+        run: |
+          # Produce examples_report.json from the freshly-built ailang binary.
+          # Intentionally does NOT call `make update-readme` in full: that
+          # target also runs update_readme.go, which would clobber the
+          # shields.io endpoint badge with a hardcoded one.
+          go run ./scripts/verify_examples.go --json > examples_report.json || true
+
+          # Feed the report into the examples-status page (baked into the
+          # Docusaurus build; never committed).
+          if [ -f examples_report.json ]; then
+            go run ./scripts/update_docs_examples.go
+          fi
+
+          # Emit the JSON consumed by the shields.io endpoint badge in
+          # README.md. Hosted under /badges/ on the docs site.
+          mkdir -p docs/static/badges
+          if [ -f examples_report.json ]; then
+            jq '{
+              schemaVersion: 1,
+              label: "examples",
+              message: "\(.passed) passing",
+              color: (
+                if .failed == 0 then "brightgreen"
+                elif (.passed / .total_examples * 100) >= 80 then "green"
+                elif (.passed / .total_examples * 100) >= 60 then "orange"
+                else "red"
+                end
+              )
+            }' examples_report.json > docs/static/badges/examples.json
+            echo "Badge JSON:"
+            cat docs/static/badges/examples.json
+          else
+            echo "::warning::examples_report.json not produced; badge not refreshed"
+          fi
 
       - name: Sync teaching prompts
         run: bash docs/scripts/sync-prompts.sh
