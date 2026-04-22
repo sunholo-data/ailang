@@ -1,0 +1,22 @@
+// opencode custom provider config for Ollama local models.
+// Place at: ~/.config/opencode/opencode.jsonc
+// Requires: ollama serve running at localhost:11434
+//
+// Usage:  opencode run "..." --model ollama/gemma4:latest --format json
+{
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama Local",
+      "options": {
+        "baseURL": "http://localhost:11434/v1"
+      },
+      "models": {
+        "gemma4:latest":   { "name": "Gemma 4" },
+        "gemma3:4b":       { "name": "Gemma 3 4B" },
+        "llama3.3:latest": { "name": "Llama 3.3" },
+        "qwen3:4b":        { "name": "Qwen3 4B" }
+      }
+    }
+  }
+}

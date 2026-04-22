@@ -173,6 +173,58 @@ ailang eval --benchmark fizzbuzz --model claude-sonnet-4-5 --seed 42
 make eval-suite
 ```
 
+### For Multi-Harness Cross-Comparison (v0.15.0+)
+
+`agent_suite` routes the same benchmarks through all four supported CLI-subprocess
+harnesses — Claude Code, Gemini CLI, Codex, and opencode — using the executor
+factory. One command, four harnesses, identical result schema:
+
+```bash
+# Preview routing without running (--dry-run):
+ailang eval-suite --models agent_suite --benchmarks fizzbuzz --dry-run
+# claude-sonnet-4-6  → claude executor
+# gemini-3-flash     → gemini executor
+# gpt5-4             → codex executor
+# opencode-haiku     → opencode executor
+
+# Run the full cross-harness comparison:
+ailang eval-suite --models agent_suite --benchmarks fizzbuzz
+
+# Add μRAG A/B toggle:
+ailang eval-suite --models agent_suite --benchmarks fizzbuzz --microrag=on
+ailang eval-suite --models agent_suite --benchmarks fizzbuzz --microrag=off
+```
+
+**Harness-specific prerequisites:**
+| Harness | Install | Auth |
+|---------|---------|------|
+| claude | `npm i -g @anthropic-ai/claude-code` | `ANTHROPIC_API_KEY` |
+| gemini | `npm i -g @google/gemini-cli` | ADC (`gcloud auth application-default login`) |
+| codex | `npm i -g @openai/codex` | `OPENAI_API_KEY` |
+| opencode | `npm i -g opencode-ai` | `ANTHROPIC_API_KEY` (or provider-specific key) |
+
+Harnesses without the CLI binary installed are **skipped gracefully** — the
+eval harness logs a `SKIP` row rather than failing the suite.
+
+**Local Ollama models with opencode:**
+```bash
+# Start Ollama server
+ollama serve
+ollama pull gemma4:latest
+
+# Configure opencode (~/.config/opencode/opencode.jsonc):
+# { "provider": { "ollama": { "npm": "@ai-sdk/openai-compatible",
+#     "options": { "baseURL": "http://localhost:11434/v1" },
+#     "models": { "gemma4:latest": { "name": "Gemma 4" } } } } }
+
+# Run benchmark with local model:
+ailang eval-suite --models opencode-haiku --benchmarks fizzbuzz \
+  --model-override ollama/gemma4:latest
+```
+
+See `internal/executor/opencode/testdata/opencode_ollama_config.jsonc` for
+the full Ollama provider config template.
+
 ### For Budget-Conscious Testing
 ```bash
 # Start with mock mode (free)

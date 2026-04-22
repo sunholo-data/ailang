@@ -7,7 +7,7 @@ import "testing"
 // so NewExecutorProvider() resolves each name without any coordinator code change.
 // This is the M-EXEC-EXPAND guarantee documented in docs/internal/EXECUTOR_SHAPE.md.
 func TestExecutorRegistration_AutoDiscovery(t *testing.T) {
-	for _, name := range []string{"claude", "gemini", "codex"} {
+	for _, name := range []string{"claude", "gemini", "codex", "opencode"} {
 		t.Run(name, func(t *testing.T) {
 			p, err := NewExecutorProvider(name)
 			if err != nil {

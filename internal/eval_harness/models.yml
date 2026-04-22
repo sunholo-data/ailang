@@ -418,6 +418,34 @@ models:
       Agent eval support: ✅ Fully supported via Gemini CLI.
 
   # =============================================================================
+  # OPENCODE HARNESS MODELS
+  # =============================================================================
+  # These models are evaluated via the opencode CLI (npm install -g opencode-ai).
+  # opencode supports ANY provider/model string including Ollama local models,
+  # making it the gateway for open-source / local agent eval.
+  # See: internal/executor/opencode/README.md
+
+  opencode-haiku:
+    api_name: "claude-haiku-4-5-20251001"
+    provider: "anthropic"
+    description: "Claude Haiku 4.5 via opencode harness (multi-provider gateway)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "opencode"                        # Routes to opencode executor
+    agent_model_name: "anthropic/claude-haiku-4-5"  # opencode provider/model format
+    max_output_tokens: 16000
+    pricing:
+      input_per_1k: 0.00025   # $0.25 per 1M
+      output_per_1k: 0.00125  # $1.25 per 1M
+    notes: |
+      Claude Haiku 4.5 evaluated via the opencode CLI harness.
+      Used as the canonical opencode model in agent_suite — same model as claude-haiku-4-5
+      but routed through opencode instead of Claude Code CLI.
+      This lets AILANG compare harness overhead (Claude Code vs opencode) on the same model.
+      Agent eval support: ✅ Fully supported via opencode CLI.
+      Ollama alternative: set agent_model_name to "ollama/gemma4:latest" for local eval.
+      Requires: opencode CLI (npm i -g opencode-ai) + config at ~/.config/opencode/opencode.jsonc
+
+  # =============================================================================
   # LOCAL MODELS (via Ollama)
   # =============================================================================
   # These models run locally via Ollama - no API keys or costs.
@@ -566,9 +594,10 @@ dev_models:
 # participate in agent-mode runs; the rest are skipped cleanly.
 # Cost: ~$1-2 per full benchmark run (depends on task complexity)
 agent_suite:
-  - "claude-sonnet-4-6"  # agent_cli: "claude"  — Anthropic agent harness
-  - "gemini-3-flash"     # agent_cli: "gemini"  — Google agent harness
-  - "gpt5-4"             # agent_cli: "codex"   — OpenAI Codex CLI harness
+  - "claude-sonnet-4-6"  # agent_cli: "claude"    — Anthropic agent harness
+  - "gemini-3-flash"     # agent_cli: "gemini"    — Google agent harness
+  - "gpt5-4"             # agent_cli: "codex"     — OpenAI Codex CLI harness
+  - "opencode-haiku"     # agent_cli: "opencode"  — opencode harness (Ollama/multi-provider gateway)
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code

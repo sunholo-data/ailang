@@ -37,6 +37,10 @@ type Config struct {
 	CodexPath  string // Path to codex CLI binary
 	CodexModel string // Default Codex model
 
+	// opencode configuration
+	OpenCodePath  string // Path to opencode CLI binary
+	OpenCodeModel string // Default opencode model (provider/model format)
+
 	// Common settings
 	TimeoutSeconds int
 	WorkspaceDir   string
@@ -55,6 +59,8 @@ func DefaultConfig() *Config {
 		GeminiTools:      []string{},
 		CodexPath:        "codex",
 		CodexModel:       "gpt-5-codex",
+		OpenCodePath:     "opencode",
+		OpenCodeModel:    "anthropic/claude-haiku-4-5",
 		TimeoutSeconds:   300,
 		WorkspaceDir:     os.TempDir(),
 	}
