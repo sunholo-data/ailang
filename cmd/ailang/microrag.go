@@ -1,12 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
 
+	"github.com/sunholo-data/ailang/internal/builtins"
+	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/microrag"
+	"github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // microragCommand handles the 'micro-rag' subcommand. The engine is harness-
@@ -28,6 +36,8 @@ func microragCommand() {
 		runMicroragLintBuiltin(args)
 	case "init":
 		runMicroragInit(args)
+	case "bootstrap":
+		runMicroragBootstrap(args)
 	case "--help", "-h", "help":
 		printMicroragHelp()
 	default:
@@ -194,6 +204,318 @@ marker_style: unicode  # unicode | ascii
 `
 }
 
+// --- bootstrap subcommand (M-BRAIN-BOOTSTRAP) -----------------------------
+//
+// Populates the brain DB with `ailang-syntax` (h2 chunks of the active
+// embedded prompt) and `ailang-builtins` (one frame per registered builtin)
+// using ONLY resources bundled in the binary. Required for fresh installs
+// (Claude Code plugin / Gemini CLI extension) where the source repo is
+// absent and the shell-based `tools/index_ailang_syntax.sh` cannot run.
+//
+// Default scope is `--scope user` (writes to ~/.ailang/state/brain.db) so
+// the corpus survives across every project on the host. The hooks read
+// from both scopes via BrainStore's union semantics.
+
+const (
+	bootstrapSourceTag       = "bootstrap-v0.15.1"
+	bootstrapSyntaxNamespace = "ailang-syntax"
+	bootstrapBuiltinsNS      = "ailang-builtins"
+)
+
+// promptChunk is the unit of work for syntax indexing: one ## section.
+type promptChunk struct {
+	Key     string // stable: "syntax-<version>-<slug>"
+	Section string // raw heading text (without "## ")
+	Body    string // section body including the heading line
+}
+
+// bootstrapResult is emitted in --json mode for install scripts.
+type bootstrapResult struct {
+	ActiveVersion    string `json:"active_version"`
+	Scope            string `json:"scope"`
+	SyntaxIndexed    int    `json:"syntax_indexed"`
+	BuiltinsIndexed  int    `json:"builtins_indexed"`
+	EmbedUsed        bool   `json:"embed_used"`
+	Reset            bool   `json:"reset"`
+	TookMs           int64  `json:"took_ms"`
+	SyntaxNamespace  string `json:"syntax_namespace"`
+	BuiltinNamespace string `json:"builtins_namespace"`
+}
+
+func runMicroragBootstrap(args []string) {
+	fs := flag.NewFlagSet("micro-rag bootstrap", flag.ExitOnError)
+	scopeFlag := fs.String("scope", "user", "Brain scope: user (default) | project")
+	reset := fs.Bool("reset", false, "Drop ailang-syntax + ailang-builtins namespaces before indexing")
+	noEmbed := fs.Bool("no-embed", false, "Skip Ollama embedding (SimHash + FTS only)")
+	jsonOut := fs.Bool("json", false, "Emit machine-readable JSON result")
+	_ = fs.Parse(args)
+
+	start := time.Now()
+
+	scope := parseScope(*scopeFlag)
+	if scope == effects.ScopeBoth {
+		// `parseScope` defaults to ScopeBoth — bootstrap requires explicit user/project.
+		fmt.Fprintf(os.Stderr, "%s: --scope must be 'user' or 'project' (got %q)\n", red("Error"), *scopeFlag)
+		os.Exit(1)
+	}
+
+	// Resolve active prompt version. No fallback: if the binary cannot tell
+	// us, callers must know to run `ailang prompt --list`.
+	activeVersion, err := prompt.GetActiveVersion()
+	if err != nil || activeVersion == "" {
+		fmt.Fprintf(os.Stderr, "%s: could not resolve active prompt version: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+
+	store, embedUsed, err := openBootstrapStore(*noEmbed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: could not open brain store: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	// Optional reset. Only touches the two namespaces we own.
+	if *reset {
+		if err := bootstrapResetNamespaces(store, scope); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: reset failed: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+	}
+
+	if !*jsonOut {
+		fmt.Println("═══ μRAG bootstrap ═══")
+		fmt.Printf("  Active prompt:  %s\n", activeVersion)
+		fmt.Printf("  Scope:          %s\n", scope)
+		fmt.Printf("  Embed:          %v\n", embedUsed)
+		fmt.Printf("  Reset:          %v\n\n", *reset)
+	}
+
+	syntaxN, err := bootstrapSyntax(store, scope, activeVersion)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: syntax indexing failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if !*jsonOut {
+		fmt.Printf("[1/2] ailang-syntax    indexed %d chunks\n", syntaxN)
+	}
+
+	builtinN, err := bootstrapBuiltins(store, scope, activeVersion)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: builtins indexing failed: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
+	if !*jsonOut {
+		fmt.Printf("[2/2] ailang-builtins  indexed %d frames\n\n", builtinN)
+	}
+
+	result := bootstrapResult{
+		ActiveVersion:    activeVersion,
+		Scope:            string(scope),
+		SyntaxIndexed:    syntaxN,
+		BuiltinsIndexed:  builtinN,
+		EmbedUsed:        embedUsed,
+		Reset:            *reset,
+		TookMs:           time.Since(start).Milliseconds(),
+		SyntaxNamespace:  bootstrapSyntaxNamespace,
+		BuiltinNamespace: bootstrapBuiltinsNS,
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetEscapeHTML(false)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(result)
+		return
+	}
+
+	fmt.Println("═══ Done ═══")
+	fmt.Printf("  Syntax chunks:    %d\n", result.SyntaxIndexed)
+	fmt.Printf("  Builtin frames:   %d\n", result.BuiltinsIndexed)
+	fmt.Printf("  Elapsed:          %dms\n", result.TookMs)
+}
+
+// openBootstrapStore opens the brain store with optional embedder.
+// Returns (store, embedUsed, err). If noEmbed is true, no embedder is even
+// attempted. Otherwise we try createEmbedder() and fall back to no-embedder
+// (with the warning createEmbedder already prints) if Ollama is down.
+func openBootstrapStore(noEmbed bool) (*effects.BrainStore, bool, error) {
+	if noEmbed {
+		s, err := openBrainStore()
+		return s, false, err
+	}
+	emb := createEmbedder()
+	if emb == nil {
+		s, err := openBrainStore()
+		return s, false, err
+	}
+	s, err := openBrainStoreWithOpts(effects.WithEmbedder(emb))
+	return s, true, err
+}
+
+// bootstrapResetNamespaces drops ailang-syntax and ailang-builtins from the
+// selected scope. Other namespaces (resolutions, ailang-examples, etc.) are
+// left untouched.
+func bootstrapResetNamespaces(store *effects.BrainStore, scope effects.BrainScope) error {
+	cache := scopeCache(store, scope)
+	if cache == nil {
+		return fmt.Errorf("scope %s has no cache available", scope)
+	}
+	for _, ns := range []string{bootstrapSyntaxNamespace, bootstrapBuiltinsNS} {
+		if _, err := cache.DeleteNamespace(ns); err != nil {
+			return fmt.Errorf("DeleteNamespace(%q): %w", ns, err)
+		}
+	}
+	return nil
+}
+
+func scopeCache(store *effects.BrainStore, scope effects.BrainScope) *effects.SQLiteSharedCache {
+	switch scope {
+	case effects.ScopeUser:
+		return store.User
+	case effects.ScopeProject:
+		return store.Project
+	default:
+		return nil
+	}
+}
+
+// bootstrapSyntax loads the active embedded prompt, splits it into ##
+// sections, and writes one BrainFrame per section under `ailang-syntax`.
+// Returns the number of frames written.
+func bootstrapSyntax(store *effects.BrainStore, scope effects.BrainScope, version string) (int, error) {
+	content, err := prompt.LoadPrompt("")
+	if err != nil {
+		return 0, fmt.Errorf("LoadPrompt: %w", err)
+	}
+	chunks := chunkPromptByH2(content, version)
+
+	count := 0
+	for _, c := range chunks {
+		body := fmt.Sprintf("[ns:%s] [version:%s] [section:%s]\n%s",
+			bootstrapSyntaxNamespace, version, c.Section, c.Body)
+		frame := effects.BrainFrame{
+			Key:       c.Key,
+			Namespace: bootstrapSyntaxNamespace,
+			Content:   body,
+			Source:    bootstrapSourceTag,
+		}
+		if err := store.Put(frame, scope); err != nil {
+			return count, fmt.Errorf("put %s: %w", c.Key, err)
+		}
+		count++
+	}
+	return count, nil
+}
+
+// bootstrapBuiltins iterates the compiled-in builtin registry and writes one
+// BrainFrame per spec under `ailang-builtins`. Returns the number of frames
+// written. Iteration order is sorted by name for deterministic key
+// emission across runs.
+func bootstrapBuiltins(store *effects.BrainStore, scope effects.BrainScope, version string) (int, error) {
+	specs := builtins.AllSpecs()
+	names := make([]string, 0, len(specs))
+	for n := range specs {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	count := 0
+	for _, name := range names {
+		spec := specs[name]
+		effectLabel := "pure"
+		if !spec.IsPure {
+			if spec.Effect != "" {
+				effectLabel = spec.Effect
+			} else {
+				effectLabel = "effectful"
+			}
+		}
+		signature := formatBuiltinSignature(spec)
+		desc := ""
+		if spec.Metadata != nil && spec.Metadata.Description != "" {
+			desc = spec.Metadata.Description
+		}
+		body := fmt.Sprintf("[ns:%s] [version:%s] [module:%s] [effect:%s]\n%s\n%s",
+			bootstrapBuiltinsNS, version, spec.Module, effectLabel, signature, desc)
+		frame := effects.BrainFrame{
+			Key:       "builtin-" + sanitizeKey(spec.Name),
+			Namespace: bootstrapBuiltinsNS,
+			Content:   body,
+			Source:    bootstrapSourceTag,
+		}
+		if err := store.Put(frame, scope); err != nil {
+			return count, fmt.Errorf("put %s: %w", spec.Name, err)
+		}
+		count++
+	}
+	return count, nil
+}
+
+// chunkPromptByH2 splits a markdown document into chunks at every "## "
+// heading. Each chunk's body includes the heading line itself. Bodies
+// shorter than 200 bytes are filtered out (no signal). Returns chunks in
+// document order with stable keys derived from version + slugified heading.
+//
+// Mirrors the awk in tools/index_ailang_syntax.sh so retrieval-side filters
+// match across the two indexers.
+func chunkPromptByH2(content, version string) []promptChunk {
+	const minBodyBytes = 200
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	scanner.Buffer(make([]byte, 0, 1<<20), 1<<22)
+
+	var (
+		out     []promptChunk
+		section string
+		body    strings.Builder
+	)
+
+	flush := func() {
+		if section == "" || body.Len() < minBodyBytes {
+			return
+		}
+		out = append(out, promptChunk{
+			Key:     fmt.Sprintf("syntax-%s-%s", version, slugify(section)),
+			Section: section,
+			Body:    body.String(),
+		})
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "## ") {
+			flush()
+			section = strings.TrimPrefix(line, "## ")
+			body.Reset()
+			body.WriteString(line)
+			body.WriteByte('\n')
+			continue
+		}
+		body.WriteString(line)
+		body.WriteByte('\n')
+	}
+	flush()
+	return out
+}
+
+var slugInvalidRe = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+
+// slugify lowercases, replaces non-alphanumerics with '-', trims dashes.
+// Matches the awk gsub pattern from the shell indexer.
+func slugify(s string) string {
+	s = slugInvalidRe.ReplaceAllString(s, "-")
+	s = strings.ToLower(s)
+	s = strings.Trim(s, "-")
+	return s
+}
+
+var keyInvalidRe = regexp.MustCompile(`[^A-Za-z0-9_]`)
+
+// sanitizeKey replaces non [A-Za-z0-9_] with '_' for use as a brain key
+// fragment. Matches `tr -c 'A-Za-z0-9_' '_'` in the shell indexer.
+func sanitizeKey(s string) string {
+	return keyInvalidRe.ReplaceAllString(s, "_")
+}
+
 func printMicroragHelp() {
 	fmt.Print(`Usage: ailang micro-rag <subcommand> [options]
 
@@ -203,6 +525,8 @@ Subcommands:
   context       Resolve injection for a tool-call event (Edit | Write | Read)
   lint-builtin  Resolve first-use builtin signature nudges (PostToolUse)
   init          Write a default ~/.ailang/microrag.yaml
+  bootstrap     Populate ailang-syntax + ailang-builtins from embedded resources
+                (run on fresh installs that lack the source repo)
 
 Common flags (context):
   --tool NAME              Tool name (Edit | Write | Read)
@@ -211,7 +535,13 @@ Common flags (context):
   --config PATH            Override config path (default: ~/.ailang/microrag.yaml)
   --ailang-binary PATH     ailang binary for cache search shell-out
 
-Eval toggle (env vars, honored by all subcommands):
+Bootstrap flags:
+  --scope user|project     Brain scope (default: user → ~/.ailang/state/brain.db)
+  --reset                  Drop ailang-syntax + ailang-builtins before indexing
+  --no-embed               Skip Ollama embedding (SimHash + FTS only)
+  --json                   Emit machine-readable JSON result (for install scripts)
+
+Eval toggle (env vars, honored by context/lint subcommands):
   AILANG_MICRORAG_ENABLED  0/1 master switch (default: 1)
   AILANG_MICRORAG_ROUTES   Comma-list KB allowlist (default: all)
   AILANG_MICRORAG_DRYRUN   1 = log to ledger, suppress injection (default: 0)
@@ -219,6 +549,7 @@ Eval toggle (env vars, honored by all subcommands):
 
 Output: JSON {injection: {...} | null, microrag_state: "...", reason: "..."}.
 
-See design_docs/planned/v0_15_0/m-brain-microrag.md for details.
+See design_docs/implemented/v0_15_0/m-brain-microrag.md and
+design_docs/planned/v0_15_0/m-brain-bootstrap.md for details.
 `)
 }

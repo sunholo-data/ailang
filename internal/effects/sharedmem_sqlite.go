@@ -324,6 +324,11 @@ func (c *SQLiteSharedCache) PutFrame(f BrainFrame) error {
 		f.UpdatedAt = now
 	}
 
+	// value column is NOT NULL; use content as canonical blob when value is empty.
+	if len(f.Value) == 0 && f.Content != "" {
+		f.Value = []byte(f.Content)
+	}
+
 	// Auto-embed: if we have an embedder, content, and no existing embedding
 	if c.embedder != nil && f.Content != "" && len(f.Embedding) == 0 {
 		if emb, err := c.embedder.Embed(f.Content); err == nil && len(emb) > 0 {
