@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
 
 	// Register executors via init()
@@ -109,8 +111,12 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 
 `
 	} else {
-		solutionPath = filepath.Join(workspace, "solution.py")
-		placeholder = "# TODO: Write your Python solution here\n"
+		lang, langErr := langreg.Get(language)
+		if langErr != nil {
+			return nil, fmt.Errorf("unknown language %q: %w", language, langErr)
+		}
+		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
+		placeholder = "# TODO: Write your solution here\n"
 	}
 
 	// Generate prompts
@@ -139,11 +145,27 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Model:        modelName,
 	}
 
-	// Build event handler: debug handler + optional extra handler (observatory writer)
-	var handler executor.EventHandler = &debugEventHandler{}
+	// Apply per-model TTFT / generation timeouts from models.yml
+	if GlobalModelsConfig != nil {
+		if cfg, ok := GlobalModelsConfig.Models[config.ModelName]; ok {
+			if cfg.TTFTTimeoutSeconds > 0 {
+				task.TTFTTimeout = time.Duration(cfg.TTFTTimeoutSeconds) * time.Second
+			}
+			if cfg.GenerationTimeoutSeconds > 0 {
+				task.IdleTimeout = time.Duration(cfg.GenerationTimeoutSeconds) * time.Second
+			}
+		}
+	}
+
+	// Wrap handler to capture TTFT (time from task start to first output event)
+	ttftTracker := &ttftEventHandler{start: time.Now()}
+	var handler executor.EventHandler = &compositeEventHandler{
+		primary:   &debugEventHandler{},
+		secondary: ttftTracker,
+	}
 	if config.ExtraHandler != nil {
 		handler = &compositeEventHandler{
-			primary:   &debugEventHandler{},
+			primary:   handler,
 			secondary: config.ExtraHandler,
 		}
 	}
@@ -203,6 +225,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		SessionID:     result.SessionID,
 		Result:        result.Output,
 		Usage:         TokenUsage{InputTokens: result.InputTokens, OutputTokens: result.OutputTokens},
+		TTFTSeconds:   ttftTracker.seconds,
 		SolutionCode:  string(solutionCode),
 		SessionLog:    result.Transcript,
 		PromptVersion: promptVersion,
@@ -236,12 +259,31 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 		}
 	}
 
-	// Run solution based on language
+	// Run solution based on language via the runner registry.
 	if language == "python" {
 		return runPythonSolution(solutionPath, spec)
 	}
+	if language == "ailang" {
+		return runAILANGSolution(string(solutionContent), spec)
+	}
 
-	return runAILANGSolution(string(solutionContent), spec)
+	// JS, Go, and future languages: use GetRunnerWithContext.
+	r, runErr := GetRunnerWithContext(context.Background(), language, spec, "")
+	if runErr != nil {
+		return ValidationResult{Stderr: fmt.Sprintf("no runner for %q: %v", language, runErr)}
+	}
+	runResult, runRunErr := r.Run(string(solutionContent), 30*time.Second)
+	if runRunErr != nil {
+		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", runRunErr)}
+	}
+	stdoutOk := runResult.RuntimeOk && CompareOutput(spec.ExpectedOut, runResult.Stdout)
+	return ValidationResult{
+		CompileOk: runResult.CompileOk,
+		RuntimeOk: runResult.RuntimeOk,
+		StdoutOk:  stdoutOk,
+		Stdout:    runResult.Stdout,
+		Stderr:    runResult.Stderr,
+	}
 }
 
 // runPythonSolution executes and validates a Python solution using the
@@ -372,3 +414,21 @@ func (c *compositeEventHandler) OnError(err error) {
 	c.primary.OnError(err)
 	c.secondary.OnError(err)
 }
+
+// ttftEventHandler records the elapsed time until the first output event (text or tool use).
+type ttftEventHandler struct {
+	start   time.Time
+	seconds float64
+	once    sync.Once
+}
+
+func (h *ttftEventHandler) record() {
+	h.once.Do(func() { h.seconds = time.Since(h.start).Seconds() })
+}
+
+func (h *ttftEventHandler) OnTurnStart(int)             {}
+func (h *ttftEventHandler) OnText(string)               { h.record() }
+func (h *ttftEventHandler) OnToolUse(string, string)    { h.record() }
+func (h *ttftEventHandler) OnToolResult(string, string) {}
+func (h *ttftEventHandler) OnTurnEnd(int)               {}
+func (h *ttftEventHandler) OnError(error)               {}
