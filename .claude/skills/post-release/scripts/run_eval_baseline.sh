@@ -3,8 +3,90 @@
 #
 # v0.14.0+: benchmark selection is driven by the tier system, not a hardcoded list.
 # Default release scope is `core,stretch`. Pass --tier to override.
+#
+# Ollama local models: models with agent_model_name starting with "ollama/" are
+# detected automatically. The script pins them in memory for the eval run (via a
+# keepalive API call) and unloads them when done — so the laptop isn't permanently
+# full. Set OLLAMA_EVAL_KEEPALIVE to override the pin duration (default: 60m).
 
 set -euo pipefail
+
+OLLAMA_EVAL_KEEPALIVE="${OLLAMA_EVAL_KEEPALIVE:-60m}"
+OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
+
+# Extract Ollama model names from the models.yml for a given comma-separated
+# list of model IDs. Returns newline-separated "ollama/<model>" strings.
+# Usage: get_ollama_models "opencode-gemma4-e4b,claude-sonnet-4-5"
+get_ollama_models() {
+    local model_ids="$1"
+    local yml="internal/eval_harness/models.yml"
+    [[ -f "$yml" ]] || return 0
+
+    local IFS=','
+    for id in $model_ids; do
+        # Look for agent_model_name: "ollama/..." under this model's block
+        local name
+        name=$(awk "/^  ${id}:/{found=1} found && /agent_model_name:/{print; exit}" "$yml" \
+               | grep -oE '"ollama/[^"]+"' | tr -d '"')
+        [[ -n "$name" ]] && echo "$name"
+    done
+}
+
+# Pin an Ollama model in memory for the duration of the eval run.
+# Fires a minimal generate request with keep_alive=OLLAMA_EVAL_KEEPALIVE.
+# No-ops silently if Ollama is not running.
+ollama_warmup() {
+    local model="$1"           # e.g. "ollama/gemma4:e4b"
+    local ollama_model="${model#ollama/}"  # strip "ollama/" prefix for API
+    echo "→ Warming up Ollama model: $ollama_model (keepalive=${OLLAMA_EVAL_KEEPALIVE})"
+    curl -sf --max-time 300 "${OLLAMA_API}/api/generate" \
+        -d "{\"model\":\"${ollama_model}\",\"prompt\":\"hi\",\"stream\":false,\"keep_alive\":\"${OLLAMA_EVAL_KEEPALIVE}\"}" \
+        > /dev/null 2>&1 \
+        && echo "  ✓ $ollama_model loaded and pinned" \
+        || echo "  ⚠ Could not warm up $ollama_model (Ollama running?)"
+}
+
+# Unload an Ollama model immediately after eval to free RAM.
+ollama_unload() {
+    local model="$1"
+    local ollama_model="${model#ollama/}"
+    echo "→ Unloading Ollama model: $ollama_model"
+    curl -sf --max-time 10 "${OLLAMA_API}/api/generate" \
+        -d "{\"model\":\"${ollama_model}\",\"prompt\":\"\",\"keep_alive\":\"0\"}" \
+        > /dev/null 2>&1 \
+        && echo "  ✓ $ollama_model unloaded" \
+        || echo "  ⚠ Could not unload $ollama_model"
+}
+
+# Warmup all Ollama models in a model list, unload them on EXIT.
+# Usage: setup_ollama_models "opencode-gemma4-e4b,opencode-gemma4-26b"
+OLLAMA_MODELS_TO_UNLOAD=()
+setup_ollama_models() {
+    local model_ids="$1"
+    local ollama_models
+    ollama_models=$(get_ollama_models "$model_ids")
+    [[ -z "$ollama_models" ]] && return 0
+
+    echo ""
+    echo "=== Ollama Model Setup ==="
+    while IFS= read -r m; do
+        ollama_warmup "$m"
+        OLLAMA_MODELS_TO_UNLOAD+=("$m")
+    done <<< "$ollama_models"
+    echo ""
+
+    # Register teardown — runs on EXIT (normal finish, Ctrl-C, or error)
+    trap 'teardown_ollama_models' EXIT
+}
+
+teardown_ollama_models() {
+    [[ ${#OLLAMA_MODELS_TO_UNLOAD[@]} -eq 0 ]] && return 0
+    echo ""
+    echo "=== Ollama Model Teardown ==="
+    for m in "${OLLAMA_MODELS_TO_UNLOAD[@]}"; do
+        ollama_unload "$m"
+    done
+}
 
 # Default tier scope for release baselines:
 #   - `core`    = headline metric (22 benchmarks as of v0.14.0)
@@ -162,6 +244,11 @@ else
 fi
 echo
 
+# Pre-warm any Ollama-backed models and register unload-on-exit.
+# This eliminates cold starts between sequential runs and ensures RAM
+# is freed when the script exits (normally, on Ctrl-C, or on error).
+setup_ollama_models "$AGENT_MODELS"
+
 # Step 1: Run standard eval baseline
 echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
 # Expected file count for standard eval: benchmarks × models × langs (2)
@@ -186,21 +273,37 @@ echo "=== Step 2/2: Agent Eval (multi-turn) ==="
 echo "Running agent eval on tier=$TIER_FLAG benchmarks ($BENCHMARK_COUNT total)..."
 echo
 
+# Agent model selection:
+#   DEV mode  → claude-sonnet-4-5 + gemini-3-flash (2 harnesses, fast)
+#   FULL mode → agent_suite (all 4 harnesses: claude + gemini + codex + opencode)
+#
+# agent_suite requires OPENAI_API_KEY (codex) and a running opencode binary.
+# Missing harnesses are skipped gracefully by the executor factory.
+if [[ -n "$FULL_FLAG" ]]; then
+    AGENT_MODELS="agent_suite"
+    AGENT_HARNESS_DESC="agent_suite (claude + gemini + codex + opencode, 4 harnesses)"
+    AGENT_HARNESS_COUNT=4
+else
+    AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
+    AGENT_HARNESS_DESC="claude + gemini (2 harnesses)"
+    AGENT_HARNESS_COUNT=2
+fi
+
 # Pre-flight summary
 echo "=== Pre-Flight Check ==="
 echo "Version: $VERSION"
 echo "Tier: $TIER_FLAG ($BENCHMARK_COUNT benchmarks)"
-echo "Mode: ${FULL_FLAG:-DEV}"
-echo "Agent models: claude-sonnet-4-5 (Claude executor), gemini-3-flash (Gemini executor)"
+echo "Mode: ${FULL_FLAG:+FULL}${FULL_FLAG:-DEV}"
+echo "Agent models: $AGENT_HARNESS_DESC"
 echo "Agent parallelism: 2"
 echo
 
-# Agent expected file counts: benchmarks × 2 executors × langs
+# Agent expected file counts: benchmarks × harnesses × langs
 if [[ -n "$FULL_FLAG" ]]; then
-    EXPECTED_AGENT=$((BENCHMARK_COUNT * 2 * 2))  # both langs
+    EXPECTED_AGENT=$((BENCHMARK_COUNT * AGENT_HARNESS_COUNT * 2))  # both langs
     AGENT_LANGS="ailang,python"
 else
-    EXPECTED_AGENT=$((BENCHMARK_COUNT * 2 * 1))  # AILANG only (faster)
+    EXPECTED_AGENT=$((BENCHMARK_COUNT * AGENT_HARNESS_COUNT * 1))  # AILANG only (faster)
     AGENT_LANGS="ailang"
 fi
 
@@ -212,8 +315,6 @@ echo
 echo "Starting in 3 seconds... (Ctrl-C to abort)"
 sleep 3
 echo
-
-AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
 
 # Agent mode requires explicit --benchmarks (CLI safety guardrail), so expand
 # the tier spec to a vetted benchmark list.
