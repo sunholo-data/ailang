@@ -1,6 +1,6 @@
 # M-EXEC-EXPAND: Codex + opencode Executors (Uniform CLI-Subprocess Shape)
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.15.0
 **Priority**: P1 (Medium — harness diversity unblocks M-EVAL-EXPAND Sprints 3-4 and M-COORD-CODEX)
 **Estimated**: 2 weeks (two ~1-week sprints; Sprint 2 preceded by a ~1-day research spike)

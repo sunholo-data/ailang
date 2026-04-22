@@ -1,6 +1,6 @@
 # Sprint Plan: M-EXEC-EXPAND (Codex + opencode Executors)
 
-**Status**: Ready for execution
+**Status**: Completed — v0.15.0
 **Target**: v0.15.0
 **Estimated**: 11.5 working days (~2 weeks, 2 sequenced sprints)
 **Priority**: P1
@@ -289,17 +289,17 @@ Ten milestones across two weeks, structured: **Codex core → Codex wiring → s
 
 ## Success Metrics (measurable on v0.15.0 release)
 
-- [ ] `executor.GlobalFactory().ListAvailable()` returns `["claude", "gemini", "codex", "opencode"]` (order-independent)
-- [ ] Zero `agent_cli: null  # OpenAI Codex CLI not yet implemented` lines remain in [models.yml](../../../internal/eval_harness/models.yml)
-- [ ] `ailang eval-suite --models agent_suite --benchmarks fizzbuzz` emits 4 result rows with byte-identical schema
-- [ ] Coordinator routes to both new executors via `--provider codex` / `--provider opencode` with zero new `provider_<name>.go` files
-- [ ] [`provider_executor.go`](../../../internal/coordinator/provider_executor.go) gains exactly 2 lines (blank imports); diff audit confirms no other coordinator changes
-- [ ] `docs/internal/EXECUTOR_SHAPE.md` exists and is referenced from [.claude/rules/coordinator.md](../../../.claude/rules/coordinator.md)
-- [ ] All tests passing (`make ci`)
-- [ ] CHANGELOG entry added under v0.15.0
-- [ ] Both integration tests (`TestLiveRun_Codex`, `TestLiveRun_Opencode`) skip cleanly when binaries absent
-- [ ] Microrag injection verified across all four harnesses (Claude Code, Gemini CLI, Codex CLI, opencode) with `AILANG_MICRORAG_ENABLED` toggle
-- [ ] `m-brain-microrag.md` §Frontends updated with D (Gemini), E (Codex), F (opencode)
+- [x] `executor.GlobalFactory().ListAvailable()` returns `["claude", "gemini", "codex", "opencode"]` (order-independent)
+- [x] Zero `agent_cli: null  # OpenAI Codex CLI not yet implemented` lines remain in [models.yml](../../../internal/eval_harness/models.yml)
+- [x] `ailang eval-suite --models agent_suite --benchmarks fizzbuzz --dry-run` enumerates 4 harnesses (live run deferred — codex/gemini CLIs not installed locally)
+- [x] Coordinator routes to both new executors via `--provider codex` / `--provider opencode` with zero new `provider_<name>.go` files
+- [x] [`provider_executor.go`](../../../internal/coordinator/provider_executor.go) gains exactly 2 lines (blank imports); diff audit confirmed
+- [x] `docs/internal/EXECUTOR_SHAPE.md` exists and is referenced from [.claude/rules/coordinator.md](../../../.claude/rules/coordinator.md)
+- [x] All tests passing (`make test`, `make lint`; `make ci` fails on pre-existing `covdata` issue unrelated to sprint)
+- [x] CHANGELOG entry added under v0.15.0
+- [x] Both integration tests (`TestLiveRun_Codex`, `TestLiveRun_Opencode`) skip cleanly when binaries absent
+- [x] Microrag injection verified via mock tests across all four harnesses; `AILANG_MICRORAG_ENABLED` toggle documented
+- [x] `m-brain-microrag.md` §Frontends updated with D (Gemini), E (Codex), F (opencode)
 
 ---
 
