@@ -24,6 +24,19 @@ ailang coordinator pending                   # Review pending approvals
 
 **Config**: `~/.ailang/config.yaml` | **Cloud mode**: Pub/Sub + Cloud Run (v0.9.0+)
 
+## Adding a New CLI-Subprocess Executor
+
+Claude, Gemini, Codex, and future CLI-subprocess executors (opencode, aider, cline)
+all follow a single uniform contract. If a new executor package conforms, it is
+auto-discovered by both the coordinator and eval harness with **zero changes to
+either** — only a one-line blank import in `internal/coordinator/provider_executor.go`
+and an `agent_cli` string in `internal/eval_harness/models.yml`.
+
+**Full contract:** [`docs/internal/EXECUTOR_SHAPE.md`](../../docs/internal/EXECUTOR_SHAPE.md)
+
+Four required elements: package layout, required symbols (`Register()` + `init()`),
+coordinator wiring (blank import), and `models.yml` wiring (`agent_cli: "<name>"`).
+
 ## Collaboration Hub Server
 
 Use the `collaboration-hub` skill for development.

@@ -38,6 +38,7 @@ type ModelsConfig struct {
 	BenchmarkSuite []string               `yaml:"benchmark_suite"`
 	ExtendedSuite  []string               `yaml:"extended_suite"`
 	DevModels      []string               `yaml:"dev_models"`
+	AgentSuite     []string               `yaml:"agent_suite"`
 }
 
 var (
@@ -199,6 +200,13 @@ func (c *ModelsConfig) ListModels() []string {
 // GetBenchmarkSuite returns the recommended models for comprehensive evaluation
 func (c *ModelsConfig) GetBenchmarkSuite() []string {
 	return c.BenchmarkSuite
+}
+
+// GetAgentSuite returns the cross-harness agent eval suite (claude+gemini+codex+opencode).
+// Only models with non-null agent_cli participate in agent-mode runs; text-only
+// models in the suite are skipped cleanly.
+func (c *ModelsConfig) GetAgentSuite() []string {
+	return c.AgentSuite
 }
 
 // GetDefaultModel returns the default model name

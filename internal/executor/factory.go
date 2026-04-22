@@ -33,6 +33,10 @@ type Config struct {
 	GeminiModel string // Default Gemini model
 	GeminiTools []string
 
+	// Codex configuration
+	CodexPath  string // Path to codex CLI binary
+	CodexModel string // Default Codex model
+
 	// Common settings
 	TimeoutSeconds int
 	WorkspaceDir   string
@@ -49,6 +53,8 @@ func DefaultConfig() *Config {
 		GeminiPath:       "gemini",
 		GeminiModel:      "gemini-3-flash-preview",
 		GeminiTools:      []string{},
+		CodexPath:        "codex",
+		CodexModel:       "gpt-5-codex",
 		TimeoutSeconds:   300,
 		WorkspaceDir:     os.TempDir(),
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	// Import to trigger init() registration for all executor packages
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
+	_ "github.com/sunholo-data/ailang/internal/executor/codex"
 	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 )
 

@@ -114,6 +114,7 @@ func runEvalSuite() {
 	noSelfRepair := fs.Bool("no-self-repair", false, "Disable self-repair (run without error correction)")
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
+	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
 
 	// Agent mode flags
 	agent := fs.Bool("agent", false, "Use agent-based evaluation (Claude Code or Gemini CLI)")
@@ -190,8 +191,10 @@ func runEvalSuite() {
 	// Determine model list
 	var modelList []string
 	if *models != "" {
-		// User specified models explicitly
-		modelList = strings.Split(*models, ",")
+		// User specified models explicitly. Recognize named suites as a
+		// single token (e.g. --models agent_suite) and expand them to the
+		// composite from models.yml. Otherwise fall back to comma-split.
+		modelList = expandModelSuite(*models, eval_harness.GlobalModelsConfig)
 	} else if *fullSuite {
 		// Full suite: use extended suite (5 models) from models.yml
 		if eval_harness.GlobalModelsConfig != nil && len(eval_harness.GlobalModelsConfig.ExtendedSuite) > 0 {
@@ -260,6 +263,32 @@ func runEvalSuite() {
 	}
 	for i := range langList {
 		langList[i] = strings.TrimSpace(langList[i])
+	}
+
+	// --dry-run: enumerate planned runs and exit before any execution.
+	// Used by M-EXEC-EXPAND to verify agent_suite expands correctly.
+	if *dryRun {
+		fmt.Printf("Dry-run: %d model(s) x %d benchmark(s) x %d language(s) = %d planned runs\n",
+			len(modelList), len(benchmarkList), len(langList),
+			len(modelList)*len(benchmarkList)*len(langList))
+		fmt.Printf("Models:     %s\n", strings.Join(modelList, ", "))
+		fmt.Printf("Benchmarks: %s\n", strings.Join(benchmarkList, ", "))
+		fmt.Printf("Languages:  %s\n", strings.Join(langList, ", "))
+		if eval_harness.GlobalModelsConfig != nil {
+			fmt.Printf("\nHarness routing (agent_cli per model):\n")
+			for _, m := range modelList {
+				if cfg, ok := eval_harness.GlobalModelsConfig.Models[m]; ok {
+					cli := "<none>"
+					if cfg.AgentCLI != nil && *cfg.AgentCLI != "" {
+						cli = *cfg.AgentCLI
+					}
+					fmt.Printf("  %-24s -> %s\n", m, cli)
+				} else {
+					fmt.Printf("  %-24s -> <unknown model>\n", m)
+				}
+			}
+		}
+		return
 	}
 
 	// Filter models for agent mode
@@ -742,4 +771,41 @@ func runEvalSuite() {
 
 		fmt.Printf("  Chain: ailang chains view %s\n", evalChain.ChainID[:8])
 	}
+}
+
+// expandModelSuite resolves a --models argument. If the value is a single
+// token matching a known suite name (e.g. "agent_suite", "benchmark_suite",
+// "extended_suite", "dev_models"), it expands to the composite from
+// models.yml. Otherwise the value is split on commas and trimmed.
+func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
+	trimmed := strings.TrimSpace(value)
+	if cfg != nil && !strings.Contains(trimmed, ",") {
+		switch trimmed {
+		case "agent_suite":
+			if len(cfg.AgentSuite) > 0 {
+				return cfg.AgentSuite
+			}
+		case "benchmark_suite":
+			if len(cfg.BenchmarkSuite) > 0 {
+				return cfg.BenchmarkSuite
+			}
+		case "extended_suite":
+			if len(cfg.ExtendedSuite) > 0 {
+				return cfg.ExtendedSuite
+			}
+		case "dev_models":
+			if len(cfg.DevModels) > 0 {
+				return cfg.DevModels
+			}
+		}
+	}
+
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

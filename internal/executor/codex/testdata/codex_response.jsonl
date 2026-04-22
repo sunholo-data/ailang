@@ -1,0 +1,9 @@
+{"type":"session","session_id":"codex-sess-abc123","model":"gpt-5-codex"}
+{"type":"message","turn_number":1,"text":"Analyzing the request.","tokens_used":{"input":42,"output":8}}
+{"type":"tool_use","tool_name":"read","tool_id":"tool_1","parameters":{"path":"README.md"}}
+{"type":"tool_result","tool_name":"read","tool_id":"tool_1","output":"# project readme"}
+{"type":"message","turn_number":2,"text":"Writing fizzbuzz implementation.","tokens_used":{"input":128,"output":64}}
+{"type":"tool_use","tool_name":"write","tool_id":"tool_2","parameters":{"path":"fizzbuzz.py","content":"..."}}
+{"type":"tool_result","tool_name":"write","tool_id":"tool_2","output":"wrote 210 bytes"}
+{"type":"message","turn_number":3,"text":"Done.","tokens_used":{"input":160,"output":72}}
+{"type":"result","tokens_used":{"input":160,"output":72},"status":"success"}

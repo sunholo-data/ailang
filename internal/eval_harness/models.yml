@@ -12,7 +12,7 @@ models:
     provider: "openai"
     description: "GPT-5 full reasoning model"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
@@ -28,7 +28,7 @@ models:
     provider: "openai"
     description: "GPT-5 mini (faster, cheaper)"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K (~1/5 of GPT-5)
@@ -41,7 +41,7 @@ models:
     provider: "openai"
     description: "GPT-5.1 with adaptive reasoning"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
@@ -60,7 +60,7 @@ models:
     provider: "openai"
     description: "GPT-5.1 Instant (fast, general purpose)"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00125   # $1.25 per 1M = $0.00125 per 1K
@@ -79,7 +79,7 @@ models:
     provider: "openai"
     description: "GPT-5.2 Thinking - 40% smarter than GPT-5.1"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
@@ -98,7 +98,7 @@ models:
     provider: "openai"
     description: "GPT-5.2 Instant (fast, daily tasks)"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000
     pricing:
       input_per_1k: 0.00175   # $1.75 per 1M = $0.00175 per 1K
@@ -116,7 +116,7 @@ models:
     provider: "openai"
     description: "GPT-5.4 - most powerful OpenAI model with 1M context and computer-use"
     env_var: "OPENAI_API_KEY"
-    agent_cli: null  # OpenAI Codex CLI not yet implemented
+    agent_cli: "codex"
     max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
@@ -559,6 +559,16 @@ dev_models:
   - "gpt5-1-instant"   # OpenAI fast
   - "claude-haiku-4-5" # Anthropic cheap
   - "gemini-3-flash"   # Google cheap + smart (Dec 2025)
+
+# Agent CLI suite - one model per agentic CLI harness (M-EXEC-EXPAND / v0.15.0)
+# Use for: Cross-harness agent evals (claude + gemini + codex, opencode added
+# later in M7 of M-EXEC-EXPAND). Only models whose agent_cli is non-null
+# participate in agent-mode runs; the rest are skipped cleanly.
+# Cost: ~$1-2 per full benchmark run (depends on task complexity)
+agent_suite:
+  - "claude-sonnet-4-6"  # agent_cli: "claude"  — Anthropic agent harness
+  - "gemini-3-flash"     # agent_cli: "gemini"  — Google agent harness
+  - "gpt5-4"             # agent_cli: "codex"   — OpenAI Codex CLI harness
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
