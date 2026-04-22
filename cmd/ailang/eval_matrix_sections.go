@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
 )
 
-// printTagsSection emits a per-tag AILANG vs Python delta table using
-// the eval_analysis primitives. The benchmark dir is passed so that
-// the CLI can point at a non-standard location during tests.
+// printTagsSection emits a per-tag breakdown table for all eval languages
+// present in the results. The benchmark dir is passed so that the CLI can
+// point at a non-standard location during tests.
 func printTagsSection(results []*eval_analysis.BenchmarkResult, benchmarkDir string) {
 	tags := eval_analysis.LoadBenchmarkTags(benchmarkDir)
 	if len(tags) == 0 {
@@ -19,18 +20,53 @@ func printTagsSection(results []*eval_analysis.BenchmarkResult, benchmarkDir str
 
 	report := eval_analysis.GroupByTags(results, tags)
 
-	fmt.Println("\n## By Tags (AILANG vs Python)")
+	// Collect all languages present across all tags, sorted.
+	langSet := map[string]bool{}
+	for _, agg := range report.Aggregates {
+		for lang := range agg.LanguageBreakdown {
+			langSet[lang] = true
+		}
+	}
+	langs := sortedKeys(langSet)
+
+	// Preferred display order: ailang first, then python, then alphabetical.
+	preferred := []string{"ailang", "python"}
+	langs = reorderLangs(langs, preferred)
+
+	title := "By Tags (" + strings.Join(langs, " vs ") + ")"
+	fmt.Println("\n## " + title)
 	fmt.Println()
-	fmt.Println("| Tag | AILANG | Python | Δ (AILANG - Python) |")
-	fmt.Println("|-----|-------:|-------:|--------------------:|")
+
+	// Build header dynamically.
+	header := "| Tag |"
+	sep := "|-----|"
+	for _, lang := range langs {
+		header += " " + lang + " |"
+		sep += "-------:|"
+	}
+	// Add delta column only when ailang and python are both present.
+	withDelta := langSet["ailang"] && langSet["python"]
+	if withDelta {
+		header += " Δ (ailang-python) |"
+		sep += "------------------:|"
+	}
+	fmt.Println(header)
+	fmt.Println(sep)
+
 	for _, tag := range report.Tags {
 		agg := report.Aggregates[tag]
-		fmt.Printf("| %s | %s | %s | %+.1fpp |\n",
-			tag,
-			fmtTagRate(agg.AILANGPass, agg.AILANGTotal),
-			fmtTagRate(agg.PythonPass, agg.PythonTotal),
-			agg.Delta*100,
-		)
+		row := fmt.Sprintf("| %s |", tag)
+		for _, lang := range langs {
+			if ls := agg.LanguageBreakdown[lang]; ls != nil {
+				row += " " + fmtTagRate(ls.Pass, ls.Total) + " |"
+			} else {
+				row += " n/a |"
+			}
+		}
+		if withDelta {
+			row += fmt.Sprintf(" %+.1fpp |", agg.Delta*100)
+		}
+		fmt.Println(row)
 	}
 }
 
@@ -90,6 +126,38 @@ func printAILANGWinsSection(results []*eval_analysis.BenchmarkResult) {
 			fmt.Printf("- `%s` (%d models)\n", id, report.PerBenchmark[id])
 		}
 	}
+}
+
+// sortedKeys returns the sorted keys of a string bool map.
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// reorderLangs moves preferred languages to the front (in order), with
+// remaining languages sorted alphabetically after them.
+func reorderLangs(langs []string, preferred []string) []string {
+	inLangs := make(map[string]bool, len(langs))
+	for _, l := range langs {
+		inLangs[l] = true
+	}
+	out := make([]string, 0, len(langs))
+	for _, p := range preferred {
+		if inLangs[p] {
+			out = append(out, p)
+			delete(inLangs, p)
+		}
+	}
+	for _, l := range langs {
+		if inLangs[l] {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // fmtTagRate formats a (pass, total) pair as "pp% (p/t)" or "n/a".

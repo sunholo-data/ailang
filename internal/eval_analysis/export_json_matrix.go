@@ -165,24 +165,18 @@ func buildTagModelMatrix(
 
 // --- Tier aggregates (repair, cost, reliability) ------------------------
 
-// tierExtras collects the repair-delta and cost-per-lang metrics for a
-// single tier. Returned by computeTierExtras for splicing into the
-// existing TierAggregate struct.
+// tierExtras collects per-language repair-delta, cost, api-error, and
+// refusal data for a single tier. Returned by computeTierExtras.
 type tierExtras struct {
-	AILANGRepairDelta float64
-	PythonRepairDelta float64
-	AILANGAvgCost     float64
-	PythonAvgCost     float64
-	APIErrorCount     int
-	AILANGAPIError    int
-	PythonAPIError    int
-	RefusalCount      int
+	langs         map[string]*TierLanguageStats
+	apiErrorCount int
+	refusalCount  int
 }
 
-// computeTierExtras walks results one more time and computes per-tier
-// self-repair deltas, average cost (per lang), api-error counts, and
-// refusal counts. Kept separate from buildTierModelMatrix so the two
-// aren't coupled; the main exporter is free to call either or both.
+// computeTierExtras walks results once per tier and computes per-language
+// self-repair deltas, average cost, api-error counts, and refusal counts.
+// All eval languages (python, ailang, javascript, go, …) are handled
+// generically — no language is silently dropped.
 func computeTierExtras(
 	results []*BenchmarkResult,
 	tierOf map[string]string,
@@ -196,8 +190,7 @@ func computeTierExtras(
 		cost      float64
 	}
 	type perTier struct {
-		ailang perLang
-		python perLang
+		langs map[string]*perLang
 	}
 	tierAcc := map[string]*perTier{}
 	for _, r := range results {
@@ -206,17 +199,12 @@ func computeTierExtras(
 			continue
 		}
 		if tierAcc[tier] == nil {
-			tierAcc[tier] = &perTier{}
+			tierAcc[tier] = &perTier{langs: map[string]*perLang{}}
 		}
-		var pl *perLang
-		switch r.Lang {
-		case "ailang":
-			pl = &tierAcc[tier].ailang
-		case "python":
-			pl = &tierAcc[tier].python
-		default:
-			continue
+		if tierAcc[tier].langs[r.Lang] == nil {
+			tierAcc[tier].langs[r.Lang] = &perLang{}
 		}
+		pl := tierAcc[tier].langs[r.Lang]
 		pl.runs++
 		if r.FirstAttemptOk {
 			pl.firstOk++
@@ -233,7 +221,6 @@ func computeTierExtras(
 		pl.cost += r.CostUSD
 	}
 
-	out := map[string]*tierExtras{}
 	rate := func(num, denom int) float64 {
 		if denom == 0 {
 			return 0
@@ -246,19 +233,22 @@ func computeTierExtras(
 		}
 		return total / float64(denom)
 	}
-	for tier, acc := range tierAcc {
-		out[tier] = &tierExtras{
-			AILANGRepairDelta: rate(acc.ailang.stdoutOk, acc.ailang.runs) -
-				rate(acc.ailang.firstOk, acc.ailang.runs),
-			PythonRepairDelta: rate(acc.python.stdoutOk, acc.python.runs) -
-				rate(acc.python.firstOk, acc.python.runs),
-			AILANGAvgCost:  avg(acc.ailang.cost, acc.ailang.runs),
-			PythonAvgCost:  avg(acc.python.cost, acc.python.runs),
-			APIErrorCount:  acc.ailang.apiErrors + acc.python.apiErrors,
-			AILANGAPIError: acc.ailang.apiErrors,
-			PythonAPIError: acc.python.apiErrors,
-			RefusalCount:   acc.ailang.refusals + acc.python.refusals,
+	out := map[string]*tierExtras{}
+	for tier, pt := range tierAcc {
+		ex := &tierExtras{langs: make(map[string]*TierLanguageStats, len(pt.langs))}
+		for lang, pl := range pt.langs {
+			ex.langs[lang] = &TierLanguageStats{
+				Runs:        pl.runs,
+				Pass:        pl.stdoutOk,
+				SuccessRate: rate(pl.stdoutOk, pl.runs),
+				RepairDelta: rate(pl.stdoutOk, pl.runs) - rate(pl.firstOk, pl.runs),
+				AvgCostUSD:  avg(pl.cost, pl.runs),
+				APIErrors:   pl.apiErrors,
+			}
+			ex.apiErrorCount += pl.apiErrors
+			ex.refusalCount += pl.refusals
 		}
+		out[tier] = ex
 	}
 	return out
 }
@@ -284,13 +274,15 @@ type ModelReliability struct {
 	RefusalCount  int     `json:"refusalCount"`
 	RefusalRate   float64 `json:"refusalRate"`
 	TotalRuns     int     `json:"totalRuns"`
-	// Per-language api-error counts so the UI can say "AILANG 10, Python 3".
-	AILANGAPIError int `json:"ailangApiError,omitempty"`
-	PythonAPIError int `json:"pythonApiError,omitempty"`
+	// Per-language api-error counts. AILANGAPIError/PythonAPIError kept for
+	// backward compatibility; LanguageAPIErrors covers all eval languages.
+	AILANGAPIError    int            `json:"ailangApiError,omitempty"`
+	PythonAPIError    int            `json:"pythonApiError,omitempty"`
+	LanguageAPIErrors map[string]int `json:"language_api_errors,omitempty"`
 }
 
 // computeReliability scans the standard results once and returns the
-// global + per-model reliability counters.
+// global + per-model reliability counters for all eval languages.
 func computeReliability(results []*BenchmarkResult) *ReliabilityCounts {
 	r := &ReliabilityCounts{PerModel: map[string]*ModelReliability{}}
 	for _, res := range results {
@@ -300,11 +292,10 @@ func computeReliability(results []*BenchmarkResult) *ReliabilityCounts {
 		if res.ErrorCategory == "api_error" {
 			r.APIErrorCount++
 			m.APIErrorCount++
-			if res.Lang == "ailang" {
-				m.AILANGAPIError++
-			} else if res.Lang == "python" {
-				m.PythonAPIError++
+			if m.LanguageAPIErrors == nil {
+				m.LanguageAPIErrors = map[string]int{}
 			}
+			m.LanguageAPIErrors[res.Lang]++
 		}
 		if res.RefusalDetected {
 			r.RefusalCount++
@@ -321,6 +312,9 @@ func computeReliability(results []*BenchmarkResult) *ReliabilityCounts {
 			m.APIErrorRate = float64(m.APIErrorCount) / float64(m.TotalRuns)
 			m.RefusalRate = float64(m.RefusalCount) / float64(m.TotalRuns)
 		}
+		// backward-compat typed fields populated from the generic map
+		m.AILANGAPIError = m.LanguageAPIErrors["ailang"]
+		m.PythonAPIError = m.LanguageAPIErrors["python"]
 	}
 	return r
 }
@@ -353,13 +347,12 @@ func buildHistoricalTierPoints(
 	matrix := buildTierModelMatrix(results, tierOf)
 	stats := finalizeTierModelMatrix(matrix)
 
-	// Separately compute AILANG/Python aggregate pass rates per tier so
-	// the TierHistoryPoint can fill its own ailang/python runs fields
-	// without the frontend having to sum ModelStats.
+	// Compute per-language aggregate pass rates per tier — all eval languages
+	// (python, ailang, javascript, go, …) are handled generically.
+	type langCount struct{ total, pass int }
 	type perTier struct {
-		aTotal, aPass int
-		pTotal, pPass int
-		benchIDs      map[string]struct{}
+		langs    map[string]*langCount
+		benchIDs map[string]struct{}
 	}
 	tier := map[string]*perTier{}
 	for _, r := range results {
@@ -368,36 +361,38 @@ func buildHistoricalTierPoints(
 			continue
 		}
 		if tier[t] == nil {
-			tier[t] = &perTier{benchIDs: map[string]struct{}{}}
+			tier[t] = &perTier{langs: map[string]*langCount{}, benchIDs: map[string]struct{}{}}
 		}
 		pt := tier[t]
 		pt.benchIDs[r.ID] = struct{}{}
-		switch r.Lang {
-		case "ailang":
-			pt.aTotal++
-			if r.StdoutOk {
-				pt.aPass++
-			}
-		case "python":
-			pt.pTotal++
-			if r.StdoutOk {
-				pt.pPass++
-			}
+		if pt.langs[r.Lang] == nil {
+			pt.langs[r.Lang] = &langCount{}
+		}
+		pt.langs[r.Lang].total++
+		if r.StdoutOk {
+			pt.langs[r.Lang].pass++
 		}
 	}
 
 	out := map[string]*TierHistoryPoint{}
 	for t, pt := range tier {
 		p := &TierHistoryPoint{
-			AILANGRuns:     pt.aTotal,
-			PythonRuns:     pt.pTotal,
 			BenchmarkCount: len(pt.benchIDs),
+			LanguageStats:  make(map[string]*TierLanguageStats, len(pt.langs)),
 		}
-		if pt.aTotal > 0 {
-			p.AILANGSuccessRate = float64(pt.aPass) / float64(pt.aTotal)
+		for lang, lc := range pt.langs {
+			sr := 0.0
+			if lc.total > 0 {
+				sr = float64(lc.pass) / float64(lc.total)
+			}
+			p.LanguageStats[lang] = &TierLanguageStats{Runs: lc.total, Pass: lc.pass, SuccessRate: sr}
 		}
-		if pt.pTotal > 0 {
-			p.PythonSuccessRate = float64(pt.pPass) / float64(pt.pTotal)
+		// backward-compat typed fields
+		if ls := p.LanguageStats["ailang"]; ls != nil {
+			p.AILANGRuns, p.AILANGSuccessRate = ls.Runs, ls.SuccessRate
+		}
+		if ls := p.LanguageStats["python"]; ls != nil {
+			p.PythonRuns, p.PythonSuccessRate = ls.Runs, ls.SuccessRate
 		}
 		if stats[t] != nil {
 			p.ModelStats = stats[t]
@@ -417,10 +412,10 @@ func buildTierAggregates(
 	results []*BenchmarkResult,
 	tierOf map[string]string,
 ) map[string]TierAggregate {
+	type langCount struct{ runs, pass int }
 	type tierAcc struct {
-		ailangRuns, ailangPass int
-		pythonRuns, pythonPass int
-		benchIDs               map[string]bool
+		langs    map[string]*langCount
+		benchIDs map[string]bool
 	}
 	tierAccs := map[string]*tierAcc{}
 	for _, r := range results {
@@ -430,21 +425,16 @@ func buildTierAggregates(
 		}
 		acc, ok := tierAccs[tier]
 		if !ok {
-			acc = &tierAcc{benchIDs: map[string]bool{}}
+			acc = &tierAcc{langs: map[string]*langCount{}, benchIDs: map[string]bool{}}
 			tierAccs[tier] = acc
 		}
 		acc.benchIDs[r.ID] = true
-		switch r.Lang {
-		case "ailang":
-			acc.ailangRuns++
-			if r.StdoutOk {
-				acc.ailangPass++
-			}
-		case "python":
-			acc.pythonRuns++
-			if r.StdoutOk {
-				acc.pythonPass++
-			}
+		if acc.langs[r.Lang] == nil {
+			acc.langs[r.Lang] = &langCount{}
+		}
+		acc.langs[r.Lang].runs++
+		if r.StdoutOk {
+			acc.langs[r.Lang].pass++
 		}
 	}
 	modelStats := finalizeTierModelMatrix(buildTierModelMatrix(results, tierOf))
@@ -453,29 +443,50 @@ func buildTierAggregates(
 	out := make(map[string]TierAggregate, len(tierAccs))
 	for tier, acc := range tierAccs {
 		agg := TierAggregate{
-			TotalRuns:      acc.ailangRuns + acc.pythonRuns,
-			AILANGRuns:     acc.ailangRuns,
-			PythonRuns:     acc.pythonRuns,
 			BenchmarkCount: len(acc.benchIDs),
+			LanguageStats:  make(map[string]*TierLanguageStats, len(acc.langs)),
 		}
-		if acc.ailangRuns > 0 {
-			agg.AILANGSuccessRate = float64(acc.ailangPass) / float64(acc.ailangRuns)
+		for lang, lc := range acc.langs {
+			sr := 0.0
+			if lc.runs > 0 {
+				sr = float64(lc.pass) / float64(lc.runs)
+			}
+			agg.LanguageStats[lang] = &TierLanguageStats{Runs: lc.runs, Pass: lc.pass, SuccessRate: sr}
+			agg.TotalRuns += lc.runs
 		}
-		if acc.pythonRuns > 0 {
-			agg.PythonSuccessRate = float64(acc.pythonPass) / float64(acc.pythonRuns)
+		// backward-compat typed fields
+		if ls := agg.LanguageStats["ailang"]; ls != nil {
+			agg.AILANGRuns, agg.AILANGSuccessRate = ls.Runs, ls.SuccessRate
+		}
+		if ls := agg.LanguageStats["python"]; ls != nil {
+			agg.PythonRuns, agg.PythonSuccessRate = ls.Runs, ls.SuccessRate
 		}
 		if ms := modelStats[tier]; ms != nil {
 			agg.ModelStats = ms
 		}
 		if ex := extras[tier]; ex != nil {
-			agg.AILANGRepairDelta = ex.AILANGRepairDelta
-			agg.PythonRepairDelta = ex.PythonRepairDelta
-			agg.AILANGAvgCostUSD = ex.AILANGAvgCost
-			agg.PythonAvgCostUSD = ex.PythonAvgCost
-			agg.APIErrorCount = ex.APIErrorCount
-			agg.AILANGAPIError = ex.AILANGAPIError
-			agg.PythonAPIError = ex.PythonAPIError
-			agg.RefusalCount = ex.RefusalCount
+			agg.APIErrorCount = ex.apiErrorCount
+			agg.RefusalCount = ex.refusalCount
+			for lang, ls := range ex.langs {
+				if tls := agg.LanguageStats[lang]; tls != nil {
+					tls.RepairDelta = ls.RepairDelta
+					tls.AvgCostUSD = ls.AvgCostUSD
+					tls.APIErrors = ls.APIErrors
+				} else {
+					agg.LanguageStats[lang] = ls
+				}
+			}
+			// backward-compat typed extras
+			if ls := ex.langs["ailang"]; ls != nil {
+				agg.AILANGRepairDelta = ls.RepairDelta
+				agg.AILANGAvgCostUSD = ls.AvgCostUSD
+				agg.AILANGAPIError = ls.APIErrors
+			}
+			if ls := ex.langs["python"]; ls != nil {
+				agg.PythonRepairDelta = ls.RepairDelta
+				agg.PythonAvgCostUSD = ls.AvgCostUSD
+				agg.PythonAPIError = ls.APIErrors
+			}
 		}
 		out[tier] = agg
 	}

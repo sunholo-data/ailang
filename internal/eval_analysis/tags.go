@@ -7,6 +7,13 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
+// TagLangStats holds per-language pass/total inside a TagAggregate.
+type TagLangStats struct {
+	Pass  int     `json:"pass"`
+	Total int     `json:"total"`
+	Rate  float64 `json:"rate"`
+}
+
 // TagAggregate summarises pass/total counts for one tag, per language,
 // plus the AILANG vs Python delta in [-1,1].
 type TagAggregate struct {
@@ -15,7 +22,11 @@ type TagAggregate struct {
 	AILANGTotal int     `json:"ailang_total"`
 	PythonPass  int     `json:"python_pass"`
 	PythonTotal int     `json:"python_total"`
-	Delta       float64 `json:"delta"` // ailangRate - pythonRate
+	Delta       float64 `json:"delta"` // ailangRate - pythonRate; kept for backward compat
+	// LanguageBreakdown contains pass/total for ALL eval languages
+	// (python, ailang, javascript, go, …). The typed AILANG*/Python* fields
+	// above remain for backward compatibility.
+	LanguageBreakdown map[string]*TagLangStats `json:"language_breakdown,omitempty"`
 	// M-DASH-V2: unique benchmark IDs carrying this tag (useful for the
 	// UI "N benchmarks in tag" chip).
 	BenchmarkCount int `json:"benchmark_count,omitempty"`
@@ -109,14 +120,20 @@ func GroupByTags(results []*BenchmarkResult, tags map[string][]string) *TagRepor
 		Aggregates: map[string]*TagAggregate{},
 	}
 	for tag, langs := range byTag {
-		ail := langs["ailang"]
-		py := langs["python"]
-		agg := &TagAggregate{Tag: tag}
-		if ail != nil {
-			agg.AILANGPass, agg.AILANGTotal = ail.pass, ail.total
+		agg := &TagAggregate{
+			Tag:               tag,
+			LanguageBreakdown: make(map[string]*TagLangStats, len(langs)),
 		}
-		if py != nil {
-			agg.PythonPass, agg.PythonTotal = py.pass, py.total
+		for lang, c := range langs {
+			r := cellRate(c.pass, c.total)
+			agg.LanguageBreakdown[lang] = &TagLangStats{Pass: c.pass, Total: c.total, Rate: r}
+		}
+		// backward-compat typed fields
+		if lc := langs["ailang"]; lc != nil {
+			agg.AILANGPass, agg.AILANGTotal = lc.pass, lc.total
+		}
+		if lc := langs["python"]; lc != nil {
+			agg.PythonPass, agg.PythonTotal = lc.pass, lc.total
 		}
 		agg.Delta = cellRate(agg.AILANGPass, agg.AILANGTotal) - cellRate(agg.PythonPass, agg.PythonTotal)
 		report.Aggregates[tag] = agg

@@ -70,7 +70,8 @@ func TestBuildTierModelMatrix(t *testing.T) {
 	}
 }
 
-// TestComputeTierExtras verifies repair delta + cost + api-error split.
+// TestComputeTierExtras verifies repair delta + cost + api-error split for
+// all languages including JS/Go (not just ailang/python).
 func TestComputeTierExtras(t *testing.T) {
 	results := []*BenchmarkResult{
 		// core/ailang: 2 runs, first-attempt 1, stdout-ok 2 → repair delta = +0.5
@@ -78,21 +79,44 @@ func TestComputeTierExtras(t *testing.T) {
 		mkResult("b1", "ailang", "gpt5", "none", true, false, false, 0, 2.0),
 		// core/python: 1 run, api_error
 		mkResult("b2", "python", "gpt5", "api_error", false, false, false, 0, 0.5),
+		// core/javascript: 1 passing run
+		mkResult("b3", "javascript", "gpt5", "none", true, true, false, 0, 0.3),
 	}
-	tierOf := map[string]string{"b1": "core", "b2": "core"}
+	tierOf := map[string]string{"b1": "core", "b2": "core", "b3": "core"}
 	extras := computeTierExtras(results, tierOf)
 	core := extras["core"]
 	if core == nil {
 		t.Fatal("expected core extras")
 	}
-	if core.AILANGRepairDelta != 0.5 {
-		t.Errorf("AILANG repair delta: want 0.5, got %.2f", core.AILANGRepairDelta)
+
+	ail := core.langs["ailang"]
+	if ail == nil {
+		t.Fatal("expected ailang entry in core extras")
 	}
-	if core.PythonAPIError != 1 || core.AILANGAPIError != 0 {
-		t.Errorf("api-error split: want 0/1, got ailang=%d python=%d", core.AILANGAPIError, core.PythonAPIError)
+	if ail.RepairDelta != 0.5 {
+		t.Errorf("ailang repair delta: want 0.5, got %.2f", ail.RepairDelta)
 	}
-	if core.AILANGAvgCost != 1.5 {
-		t.Errorf("AILANG avg cost: want 1.5, got %.2f", core.AILANGAvgCost)
+	if ail.AvgCostUSD != 1.5 {
+		t.Errorf("ailang avg cost: want 1.5, got %.2f", ail.AvgCostUSD)
+	}
+
+	py := core.langs["python"]
+	if py == nil {
+		t.Fatal("expected python entry in core extras")
+	}
+	if py.APIErrors != 1 {
+		t.Errorf("python api errors: want 1, got %d", py.APIErrors)
+	}
+	if ail.APIErrors != 0 {
+		t.Errorf("ailang api errors: want 0, got %d", ail.APIErrors)
+	}
+
+	js := core.langs["javascript"]
+	if js == nil {
+		t.Fatal("expected javascript entry in core extras — JS results must not be silently dropped")
+	}
+	if js.Runs != 1 || js.Pass != 1 {
+		t.Errorf("javascript: want 1 run, 1 pass; got %d/%d", js.Runs, js.Pass)
 	}
 }
 

@@ -213,6 +213,18 @@ type SummaryEntry struct {
 	AgentTurns int    `json:"agent_turns,omitempty"` // Number of conversation turns
 }
 
+// TierLanguageStats holds per-language aggregate metrics for one tier.
+// Used in TierAggregate.LanguageStats and TierHistoryPoint.LanguageStats
+// to surface data for all eval languages (python, ailang, javascript, go, …).
+type TierLanguageStats struct {
+	Runs        int     `json:"runs"`
+	Pass        int     `json:"pass"`
+	SuccessRate float64 `json:"success_rate"`
+	RepairDelta float64 `json:"repair_delta,omitempty"`
+	AvgCostUSD  float64 `json:"avg_cost_usd,omitempty"`
+	APIErrors   int     `json:"api_errors,omitempty"`
+}
+
 // TierAggregate contains per-tier pass-rate metrics. Populated by
 // ExportBenchmarkJSON from the tier field attached to each benchmark
 // result (resolved via the benchmark YAML's tier). The Core tier pass
@@ -224,6 +236,11 @@ type TierAggregate struct {
 	AILANGSuccessRate float64 `json:"ailang_success_rate"`
 	PythonSuccessRate float64 `json:"python_success_rate"`
 	BenchmarkCount    int     `json:"benchmark_count"` // unique benchmark IDs in this tier
+
+	// Generic per-language breakdown — includes all eval languages (python,
+	// ailang, javascript, go, …). The typed AILANG*/Python* fields above
+	// remain for backward compatibility with existing dashboard consumers.
+	LanguageStats map[string]*TierLanguageStats `json:"language_stats,omitempty"`
 
 	// M-DASH-V2: per-tier × per-model breakdown so charts can filter
 	// time-series data to this tier. Outer key is model name, inner key is
@@ -272,6 +289,10 @@ type TierHistoryPoint struct {
 	PythonRuns        int                                        `json:"python_runs"`
 	BenchmarkCount    int                                        `json:"benchmark_count"`
 	ModelStats        map[string]map[string]*ModelDimensionStats `json:"modelStats,omitempty"`
+	// Generic per-language breakdown for all eval languages (python, ailang,
+	// javascript, go, …). The typed AILANG*/Python* fields remain for
+	// backward compatibility.
+	LanguageStats map[string]*TierLanguageStats `json:"language_stats,omitempty"`
 }
 
 // SuiteEvent is a timeline annotation (benchmark additions, taxonomy
