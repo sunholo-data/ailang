@@ -65,12 +65,40 @@ and confirmed by the NDJSON fixture at `testdata/codex_response.jsonl`.
 
 Codex CLI reads credentials from (in priority order):
 
-1. `OPENAI_API_KEY` environment variable
-2. The local credential cache created by `codex login`
+1. `OPENAI_API_KEY` environment variable — recommended for CI/CD and cloud machines
+2. The local credential cache created by `codex login` (ChatGPT Plus/Pro OAuth2 session)
 
 The executor does **not** fail `HealthCheck` when `OPENAI_API_KEY` is unset —
 Codex may be using cached auth. A `DEBUG_AGENT=1` trace prints a warning so
 missing auth is still surfaced for the developer.
+
+### Headless / Remote / Cloud Machines
+
+On machines without a browser (cloud VMs, remote SSH sessions, coordinator workers):
+
+```bash
+# Device authorization flow — prints a URL + code; authorize on any device with a browser
+codex login --device-auth
+```
+
+This is the OAuth2 Device Authorization Grant (RFC 8628). It avoids the browser redirect
+requirement of the standard `codex login` flow. Once authorized, credentials are cached
+at `~/.codex/auth.json` (or equivalent platform path) and reused by all subsequent
+`codex` invocations on that machine.
+
+**Which to use:**
+
+| Environment | Method |
+|---|---|
+| Laptop / desktop with browser | `codex login` |
+| Cloud VM / SSH session / CI runner | `codex login --device-auth` |
+| Automated pipeline (no human) | `OPENAI_API_KEY` env var |
+| AILANG coordinator daemon | `OPENAI_API_KEY` in coordinator env (preferred) |
+
+For the AILANG coordinator, `OPENAI_API_KEY` in the process environment is the most
+reliable approach — it survives container restarts and doesn't require cached session
+files to be present on every worker node. `codex login --device-auth` is the right
+choice for interactive developer machines that don't expose API keys.
 
 ## Event Schema
 

@@ -445,6 +445,46 @@ models:
       Ollama alternative: set agent_model_name to "ollama/gemma4:latest" for local eval.
       Requires: opencode CLI (npm i -g opencode-ai) + config at ~/.config/opencode/opencode.jsonc
 
+  # opencode + Ollama: local models routed through the opencode harness.
+  # opencode handles the Ollama provider config (~/.config/opencode/opencode.jsonc).
+  # Zero cost, zero API keys. Requires: ollama serve + model pulled.
+
+  opencode-gemma4-e4b:
+    api_name: "gemma4:e4b"
+    provider: "ollama"
+    description: "Gemma 4 E4B (4.5B active params) via opencode+Ollama — smoke test / 16GB laptop"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/gemma4:e4b"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Gemma 4 E4B running locally via Ollama, accessed through the opencode harness.
+      9.6GB Q4_K_M — fits any Mac with ≥16GB RAM.
+      Smoke-test / integration-validation model for the opencode+Ollama pipeline.
+      Pull: ollama pull gemma4:e4b
+      Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
+
+  opencode-gemma4-26b:
+    api_name: "gemma4:26b-a4b-it-q4_K_M"
+    provider: "ollama"
+    description: "Gemma 4 26B MoE (3.8B active params) via opencode+Ollama — eval-grade local model"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "ollama/gemma4:26b-a4b-it-q4_K_M"
+    max_output_tokens: 8192
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+    notes: |
+      Gemma 4 26B MoE via Ollama — 25.2B total params, only 3.8B active per token.
+      18GB Q4_K_M — fits Macs with ≥32GB RAM. Significantly better coding quality than E4B.
+      Primary benchmark model for open-source / offline agent eval.
+      Pull: ollama pull gemma4:26b-a4b-it-q4_K_M
+      Requires: ollama serve + ~/.config/opencode/opencode.jsonc Ollama provider block.
+
   # =============================================================================
   # LOCAL MODELS (via Ollama)
   # =============================================================================

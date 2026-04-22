@@ -101,6 +101,34 @@ models:
 - Add the model to the `agent_suite` composite if it should appear in
   `ailang eval-suite --models agent_suite`
 
+## Authentication Patterns for Executors
+
+Each executor has its own auth surface. The patterns break into three tiers:
+
+| Tier | Method | Best for |
+|---|---|---|
+| **API key** | `EXECUTOR_API_KEY` env var | CI/CD, coordinator daemon, cloud workers |
+| **Browser OAuth** | `<cli> login` | Developer laptop with browser |
+| **Device OAuth** | `<cli> login --device-auth` | Headless / SSH / remote machines |
+
+**The coordinator should always use env-var auth** — it is stateless, survives
+container restarts, and requires no browser or cached session files on worker nodes.
+
+**For interactive developer machines without a browser** (cloud VM, SSH session):
+```bash
+codex login --device-auth   # OAuth2 Device Authorization Grant (RFC 8628)
+                             # Prints URL + code; authorize on any device with browser
+```
+
+Per-executor summary:
+
+| Executor | Env var | Device flow | Notes |
+|---|---|---|---|
+| `claude` | `ANTHROPIC_API_KEY` | `claude login --device-auth` (Claude Pro) | Claude Code uses OAuth for subscription billing |
+| `gemini` | ADC (`GOOGLE_APPLICATION_CREDENTIALS`) | `gcloud auth login --no-browser` | Vertex AI ADC; device flow via gcloud |
+| `codex` | `OPENAI_API_KEY` | `codex login --device-auth` | ChatGPT Plus session OR API key; device flow for headless |
+| `opencode` | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / ADC | provider-dependent | opencode Zen subscription optional; direct provider keys work |
+
 ## Testing Checklist
 
 For a new executor package:
