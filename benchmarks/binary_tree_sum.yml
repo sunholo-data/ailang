@@ -1,6 +1,6 @@
 id: binary_tree_sum
 description: "Define binary tree ADT and sum all values (ADT + recursion)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

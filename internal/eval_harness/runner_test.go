@@ -210,7 +210,9 @@ func TestGetRunner(t *testing.T) {
 	}{
 		{"python", false},
 		{"ailang", false},
-		{"javascript", true},
+		{"javascript", false},
+		{"go", false},
+		{"typescript", true},
 	}
 
 	for _, tt := range tests {
@@ -320,6 +322,128 @@ func TestLimitedWriter_MultipleWritesExceedLimit(t *testing.T) {
 
 	if !lw.Truncated() {
 		t.Error("Expected Truncated() to be true")
+	}
+}
+
+func TestJSRunner(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node not available, skipping")
+	}
+
+	r := NewJSRunner()
+	if r.Language() != "javascript" {
+		t.Errorf("Expected language 'javascript', got '%s'", r.Language())
+	}
+
+	result, err := r.Run(`console.log("Hello, World!")`, 10*time.Second)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if !result.CompileOk {
+		t.Error("Expected CompileOk=true")
+	}
+	if !result.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true, stderr: %s", result.Stderr)
+	}
+	if strings.TrimSpace(result.Stdout) != "Hello, World!" {
+		t.Errorf("Expected 'Hello, World!', got %q", result.Stdout)
+	}
+}
+
+func TestJSRunner_Error(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node not available, skipping")
+	}
+
+	r := NewJSRunner()
+	result, err := r.Run(`console.log(undefined_var_xyz)`, 10*time.Second)
+	if err != nil {
+		t.Fatalf("Run should not return error: %v", err)
+	}
+	if result.RuntimeOk {
+		t.Error("Expected RuntimeOk=false for reference error")
+	}
+	if result.ExitCode == 0 {
+		t.Error("Expected non-zero exit code")
+	}
+}
+
+func TestJSRunner_Timeout(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node not available, skipping")
+	}
+
+	r := NewJSRunner()
+	result, err := r.Run(`while(true){}`, 100*time.Millisecond)
+	if err != nil {
+		t.Fatalf("Run should not return error: %v", err)
+	}
+	if !result.TimedOut {
+		t.Error("Expected TimedOut=true")
+	}
+}
+
+func TestGoRunner(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go not available, skipping")
+	}
+
+	r := NewGoRunner()
+	if r.Language() != "go" {
+		t.Errorf("Expected language 'go', got '%s'", r.Language())
+	}
+
+	code := `import "fmt"
+func main() { fmt.Println("Hello, World!") }`
+	result, err := r.Run(code, 30*time.Second)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if !result.CompileOk {
+		t.Errorf("Expected CompileOk=true, stderr: %s", result.Stderr)
+	}
+	if !result.RuntimeOk {
+		t.Errorf("Expected RuntimeOk=true, stderr: %s", result.Stderr)
+	}
+	if strings.TrimSpace(result.Stdout) != "Hello, World!" {
+		t.Errorf("Expected 'Hello, World!', got %q", result.Stdout)
+	}
+}
+
+func TestGoRunner_PackageMain(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go not available, skipping")
+	}
+
+	r := NewGoRunner()
+	// Code with package main already present
+	code := `package main
+import "fmt"
+func main() { fmt.Println(42) }`
+	result, err := r.Run(code, 30*time.Second)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if strings.TrimSpace(result.Stdout) != "42" {
+		t.Errorf("Expected '42', got %q", result.Stdout)
+	}
+}
+
+func TestGoRunner_CompileError(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go not available, skipping")
+	}
+
+	r := NewGoRunner()
+	result, err := r.Run(`func main() { invalid syntax here }`, 30*time.Second)
+	if err != nil {
+		t.Fatalf("Run should not return error: %v", err)
+	}
+	if result.RuntimeOk {
+		t.Error("Expected RuntimeOk=false for compile error")
+	}
+	if result.ExitCode == 0 {
+		t.Error("Expected non-zero exit code")
 	}
 }
 

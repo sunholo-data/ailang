@@ -25,9 +25,9 @@ func TestRegistry_BasicLookup(t *testing.T) {
 
 // TestRegistry_UnknownLanguage verifies a helpful error for unregistered languages.
 func TestRegistry_UnknownLanguage(t *testing.T) {
-	_, err := langreg.Get("javascript")
+	_, err := langreg.Get("typescript")
 	if err == nil {
-		t.Fatal("Get(\"javascript\") should return error, got nil")
+		t.Fatal("Get(\"typescript\") should return error, got nil")
 	}
 }
 

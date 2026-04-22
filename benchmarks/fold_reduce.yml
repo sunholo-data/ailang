@@ -1,6 +1,6 @@
 id: fold_reduce
 description: "Implement fold/reduce and use for sum, product, max (higher-order functions)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

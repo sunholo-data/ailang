@@ -1,6 +1,6 @@
 id: gcd_lcm
 description: "Compute GCD and LCM using Euclidean algorithm (math + mutual recursion)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

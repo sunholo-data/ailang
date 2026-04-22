@@ -1,0 +1,53 @@
+You are solving a JavaScript benchmark.
+
+## Task
+
+{{DESCRIPTION}}
+
+**IMPORTANT: Write your complete solution to: {{SOLUTION_PATH}}**
+
+Expected output:
+{{EXPECTED_OUTPUT}}
+
+## Requirements
+
+- Timeout: {{TIMEOUT}} seconds
+- Write your solution to: **{{SOLUTION_PATH}}**
+- Your solution must produce output matching the expected output **exactly** (no extra newlines, spaces, etc.)
+- Read {{SOLUTION_PATH}} file first so you know the template to write to
+- If your solution is impossible due to JavaScript language limitations - stop and report
+
+## Verification Steps (REQUIRED!)
+
+**You MUST verify your solution before finishing:**
+
+1. **Run your solution:**
+   ```
+   node solution.js
+   ```
+
+2. **Compare output carefully:**
+   - Check that every line matches expected output
+   - No extra spaces or formatting differences
+
+3. **If output doesn't match:**
+   - Fix your code
+   - Re-run to verify
+   - Repeat until output matches exactly
+
+4. **Only finish once verified!**
+
+## Available Tools
+
+You have access to standard Node.js tools:
+- **Run code:** `node solution.js` (this is exactly what the grader invokes)
+- **Check syntax:** `node --check solution.js`
+
+## Tips
+
+- Node.js standard library is available (fs, path, os, readline, etc.)
+- Do NOT use npm packages — only Node.js built-ins
+- Use `console.log()` for output (adds a newline)
+- Use `process.stdout.write()` if you need output without a trailing newline
+
+Good luck!

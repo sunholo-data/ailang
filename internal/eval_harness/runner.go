@@ -519,3 +519,188 @@ func FindAILANG() (string, error) {
 
 	return "", fmt.Errorf("ailang binary not found in PATH or common locations")
 }
+
+// JSRunner executes JavaScript (Node.js) code
+type JSRunner struct {
+	spec *BenchmarkSpec
+}
+
+// NewJSRunner creates a new JavaScript runner
+func NewJSRunner() *JSRunner { return &JSRunner{} }
+
+// NewJSRunnerWithSpec creates a new JavaScript runner with benchmark spec
+func NewJSRunnerWithSpec(spec *BenchmarkSpec) *JSRunner { return &JSRunner{spec: spec} }
+
+// Language returns "javascript"
+func (r *JSRunner) Language() string { return "javascript" }
+
+// Run executes JavaScript code via node
+func (r *JSRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
+	tmpDir, err := os.MkdirTemp("", "eval_js_*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(tmpDir, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
+	tmpFile := filepath.Join(tmpDir, "solution.js")
+	if err := os.WriteFile(tmpFile, []byte(code), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write code: %w", err)
+	}
+
+	nodePath, err := exec.LookPath("node")
+	if err != nil {
+		return &RunResult{
+			Stderr:    "node not found in PATH: " + err.Error(),
+			ExitCode:  -1,
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+
+	cmdArgs := []string{tmpFile}
+	if r.spec != nil {
+		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
+	}
+
+	return runSubprocess(nodePath, cmdArgs, tmpDir, r.spec, timeout, "JavaScript")
+}
+
+// GoRunner executes Go code via go run
+type GoRunner struct {
+	spec *BenchmarkSpec
+}
+
+// NewGoRunner creates a new Go runner
+func NewGoRunner() *GoRunner { return &GoRunner{} }
+
+// NewGoRunnerWithSpec creates a new Go runner with benchmark spec
+func NewGoRunnerWithSpec(spec *BenchmarkSpec) *GoRunner { return &GoRunner{spec: spec} }
+
+// Language returns "go"
+func (r *GoRunner) Language() string { return "go" }
+
+// Run executes Go code via go run
+func (r *GoRunner) Run(code string, timeout time.Duration) (*RunResult, error) {
+	tmpDir, err := os.MkdirTemp("", "eval_go_*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if r.spec != nil {
+		for name, content := range r.spec.InputFiles {
+			fpath := filepath.Join(tmpDir, name)
+			if err := os.MkdirAll(filepath.Dir(fpath), 0755); err != nil {
+				return nil, fmt.Errorf("failed to create dir for input file %s: %w", name, err)
+			}
+			if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+				return nil, fmt.Errorf("failed to write input file %s: %w", name, err)
+			}
+		}
+	}
+
+	// Ensure code starts with package main
+	src := code
+	if len(src) > 0 && src[:7] != "package" {
+		src = "package main\n\n" + src
+	}
+
+	tmpFile := filepath.Join(tmpDir, "solution.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write code: %w", err)
+	}
+
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		return &RunResult{
+			Stderr:    "go not found in PATH: " + err.Error(),
+			ExitCode:  -1,
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+
+	cmdArgs := []string{"run", tmpFile}
+	if r.spec != nil {
+		cmdArgs = append(cmdArgs, r.spec.CliArgs...)
+	}
+
+	return runSubprocess(goPath, cmdArgs, tmpDir, r.spec, timeout, "Go")
+}
+
+// runSubprocess is a shared helper for JSRunner and GoRunner.
+// It starts cmd with the given args, wires stdin/stdout/stderr, and enforces timeout.
+func runSubprocess(binary string, args []string, workDir string, spec *BenchmarkSpec, timeout time.Duration, langLabel string) (*RunResult, error) {
+	start := time.Now()
+	cmd := exec.Command(binary, args...)
+	cmd.Dir = workDir
+
+	if spec != nil && spec.Stdin != "" {
+		cmd.Stdin = strings.NewReader(spec.Stdin)
+	}
+
+	SetProcessGroup(cmd)
+
+	stdout := NewLimitedWriter(MaxOutputSize)
+	stderr := NewLimitedWriter(MaxOutputSize)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Start(); err != nil {
+		return &RunResult{
+			Stderr:    err.Error(),
+			ExitCode:  -1,
+			Duration:  time.Since(start),
+			CompileOk: false,
+			RuntimeOk: false,
+		}, nil
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case <-time.After(timeout):
+		_ = KillProcessGroup(cmd.Process.Pid)
+		<-done
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    langLabel + " execution timed out",
+			ExitCode:  -1,
+			Duration:  timeout,
+			CompileOk: true,
+			RuntimeOk: false,
+			TimedOut:  true,
+		}, nil
+	case err := <-done:
+		duration := time.Since(start)
+		exitCode := 0
+		if err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				exitCode = exitErr.ExitCode()
+			} else {
+				exitCode = -1
+			}
+		}
+		return &RunResult{
+			Stdout:    stdout.String(),
+			Stderr:    stderr.String(),
+			ExitCode:  exitCode,
+			Duration:  duration,
+			CompileOk: true,
+			RuntimeOk: exitCode == 0,
+		}, nil
+	}
+}

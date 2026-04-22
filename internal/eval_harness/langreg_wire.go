@@ -37,4 +37,18 @@ func init() {
 		}
 		return NewAILANGRunnerWithTask(ctx, "", caps, taskID, bs)
 	})
+
+	langreg.SetJSRunnerFactory(func(spec interface{}) interface{} {
+		if bs, ok := spec.(*BenchmarkSpec); ok {
+			return NewJSRunnerWithSpec(bs)
+		}
+		return NewJSRunner()
+	})
+
+	langreg.SetGoRunnerFactory(func(spec interface{}) interface{} {
+		if bs, ok := spec.(*BenchmarkSpec); ok {
+			return NewGoRunnerWithSpec(bs)
+		}
+		return NewGoRunner()
+	})
 }

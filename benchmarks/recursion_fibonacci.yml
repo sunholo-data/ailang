@@ -1,6 +1,6 @@
 id: recursion_fibonacci
 description: "Recursive Fibonacci computation (compute-intensive)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"
