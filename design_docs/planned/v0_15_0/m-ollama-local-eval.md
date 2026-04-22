@@ -35,27 +35,84 @@ Total wall time: 9 m 32 s — hitting limits every time, not running to completi
 
 **Actual timing measurements (gemma4:e4b, model warm, 24 GB Mac):**
 
-| Prompt type | Benchmark | TTFT | Total |
-|-------------|-----------|------|-------|
-| Short proxy (~50 tokens) | fizzbuzz | 43 s | 65 s |
-| Short proxy (~50 tokens) | recursion_fibonacci | 101 s | 160 s |
-| Full AILANG prompt (~18 k tokens) | fizzbuzz | 55 s | 98 s |
-| Full AILANG prompt (~18 k tokens) | recursion_fibonacci | **241 s** | **309 s** |
+Prompt sizes: AILANG system prompt = **72 KB / ~18,200 tokens**. Python system prompt = **1.5 KB / ~380 tokens** (48× smaller).
 
-The AILANG eval system prompt is **72 KB / ~18,200 tokens**. For fizzbuzz the large prompt adds ~12 s to TTFT (tolerable). For recursion_fibonacci it adds 140 s — the model spends 4+ minutes on prefill before generating a single output token.
+| Language | Benchmark | Prompt tokens | TTFT | Generation | Total | Current limit | Verdict |
+|----------|-----------|--------------|------|------------|-------|---------------|---------|
+| Python | fizzbuzz | ~76 | 20 s | 110 s | 130 s | 300 s (default) | ✓ passes |
+| Python | recursion_fibonacci | ~60 | 66 s | 91 s | 157 s | 90 s (YAML) | ✗ TTFT alone > limit |
+| AILANG | fizzbuzz | ~18,200 | 55 s | 43 s | 98 s | 300 s (default) | ✓ passes |
+| AILANG | recursion_fibonacci | ~18,200 | **241 s** | 68 s | **309 s** | 90 s (YAML) | ✗ TTFT alone > 2× limit |
 
-Key result: `recursion_fibonacci` with the full AILANG prompt needs **310 s** total. The current 90 s hard timeout fires 3× before the model even starts responding.
+Key findings:
+1. **TTFT is driven by prompt size, not task complexity.** Python fizzbuzz (76 tokens) = 20 s TTFT; AILANG recursion_fibonacci (18,200 tokens) = 241 s TTFT. Same model, same hardware.
+2. **Generation time is fast and consistent** — 43–110 s once the model starts. This is the actual quality-measurable work.
+3. **The idle timeout conflates two unrelated waits**: prefill latency (hardware/prompt-size-dependent) and per-token generation idle (quality-dependent). They should be measured and limited separately.
 
 ## Root Cause
 
-The per-benchmark YAML `timeout` field and the executor's `idleTimeout` default were both designed with cloud API latencies in mind (sub-second TTFT, fast generation). Local models differ in two ways:
+The per-benchmark YAML `timeout` field and the executor's `idleTimeout` default conflate two distinct phases of model execution that have completely different latency profiles:
 
-1. **TTFT scales with prompt size** — prefilling 2000+ tokens on a 4B model under memory pressure takes minutes. Cloud APIs pipeline this in milliseconds.
-2. **Generation throughput** — local models generate tokens at ~5–20 tok/s vs cloud APIs at 50–100+ tok/s. A benchmark that completes in 30 s on a cloud model takes 5–10× longer locally.
+| Phase | Cloud API | Local Ollama (large prompt) | What limits it |
+|-------|-----------|----------------------------|----------------|
+| **Prefill / TTFT** | <1 s | 20–241 s (scales with prompt tokens) | Hardware + prompt size |
+| **Generation** | 30–60 s | 43–110 s (scales with task complexity) | Model quality + hardware |
+
+The current `idleTimeout` (3 min default) fires on *any* 3-minute gap in stdout events — including the prefill window before the first token. For a cloud model with sub-second TTFT this is fine. For a local model processing 18k tokens of AILANG syntax, the prefill alone takes 241 s and fires the idle timeout 80 s before the model would have responded.
+
+The benchmark `timeout` (e.g. 90 s for recursion_fibonacci) was designed as a total-run SLA. It was never intended to include prefill wait, which is purely a hardware cost, not a measure of model quality.
 
 ## Design Decisions
 
-### Decision A: `timeout_scale` in models.yml ✅ Recommended
+### Decision A: Split TTFT timeout from generation timeout ✅ Recommended architecture
+
+The cleanest fix is to split the current single `idleTimeout` into two distinct limits that reflect the two phases measured above:
+
+- **`ttft_timeout`** — how long to wait for the *first* event after process start. Covers prefill latency. Cloud default: 10 s. Local Ollama: 60–300 s depending on prompt size.
+- **`generation_timeout`** — per-token idle window *after* the first event arrives. Covers stuck-mid-generation. Stays tight for all models (60–120 s). This is the actual quality SLA.
+
+The benchmark `timeout` YAML field (e.g. `timeout: 90`) would be reinterpreted as **generation budget only** — the clock starts from first event, not from process start. This preserves the quality SLA without penalising models for slow hardware prefill.
+
+**Measured values needed per model in models.yml:**
+```yaml
+opencode-gemma4-e4b:
+  agent_cli: "opencode"
+  agent_model_name: "ollama/gemma4:e4b"
+  pricing: 0.0
+  ttft_timeout: 300      # prefill budget: up to 5 min (measured 241s on 24 GB Mac)
+  generation_timeout: 120  # per-token idle after first event
+```
+
+Cloud models use defaults (ttft_timeout: 10 s, generation_timeout: 60 s) — no YAML change needed.
+
+**Where applied**: `executor.Task` gains `TTFTTimeout time.Duration`. The executor starts a separate `ttftTimer` that fires only if no events arrive before it expires. Once the first event arrives, the ttftTimer stops and the existing `idleCheck` (now generation_timeout) takes over.
+
+```go
+// executor/opencode.go — conceptual change
+ttftTimer := time.NewTimer(task.TTFTTimeout)   // new: prefill budget
+idleCheck  := time.NewTimer(task.IdleTimeout)  // existing: per-token gap
+
+// In the event loop:
+case line := <-stdoutCh:
+    if !firstEventSeen {
+        ttftTimer.Stop()   // prefill done, cancel prefill budget
+        firstEventSeen = true
+    }
+    idleCheck.Reset(task.IdleTimeout)  // reset per-token idle
+    // ...
+
+case <-ttftTimer.C:
+    // model never responded — hardware/connectivity issue
+    return error("ttft timeout: no output after %v", task.TTFTTimeout)
+
+case <-idleCheck.C:
+    // model got stuck mid-generation
+    return error("generation idle for %v", task.IdleTimeout)
+```
+
+**Tradeoff vs `timeout_scale`**: More surgical — the benchmark quality SLA (generation time) stays unchanged for all models. Only the prefill wait is relaxed, and only for models that need it. Results remain directly comparable for generation quality; TTFT is reported separately as a hardware metric.
+
+### Decision A2: `timeout_scale` in models.yml — simpler fallback
 
 Add an optional `timeout_scale` field per model. When the eval harness picks up a model with `timeout_scale > 1`, it multiplies both the benchmark hard timeout and the executor idle timeout by that factor.
 
@@ -141,49 +198,62 @@ Not acceptable (would make results meaningless):
 
 ## Solution Design
 
-### Files to modify
+### Preferred approach: split TTFT + generation timeouts
 
 | File | Change | ~LOC |
 |------|--------|------|
-| `internal/eval_harness/models.go` | Add `TimeoutScale float64` to `ModelConfig` struct | +5 |
-| `internal/eval_harness/agent_runner_multi.go` | Apply `timeout_scale` to task.Timeout and task.IdleTimeout | +15 |
-| `internal/eval_harness/models.yml` | Add `timeout_scale: 5` to `opencode-gemma4-e4b` and `opencode-gemma4-26b`; add `ollama_suite` composite | +8 |
-| `internal/eval_harness/metrics.go` | Add `TimeoutScale` and `EffectiveTimeoutSeconds` to result JSON | +5 |
-| `cmd/ailang/eval_report.go` | Display `⏱×N` marker for scaled-timeout results | +10 |
+| `internal/executor/executor.go` | Add `TTFTTimeout time.Duration` to `Task` struct | +3 |
+| `internal/executor/opencode/opencode.go` | Add `ttftTimer`; stop on first event; separate error messages | +20 |
+| `internal/executor/codex/codex.go` | Same TTFT timer pattern | +20 |
+| `internal/eval_harness/models.go` | Add `TTFTTimeout int`, `GenerationTimeout int` to `ModelConfig` | +6 |
+| `internal/eval_harness/agent_runner_multi.go` | Read per-model TTFT/generation timeouts, set on task | +15 |
+| `internal/eval_harness/models.yml` | Add `ttft_timeout: 300`, `generation_timeout: 120` to Ollama models; add `ollama_suite` composite | +10 |
+| `internal/eval_harness/metrics.go` | Add `ttft_seconds`, `generation_seconds` to result JSON | +8 |
 
-**Total: ~45 LOC**
+**Total: ~80 LOC** (vs ~45 for timeout_scale — worth the extra 35 LOC for correct semantics)
 
-### Timeout scale values (data-driven)
+### Per-model timeout values (data-driven, 24 GB Mac)
 
-Measured on 24 GB Mac, model warm (keep_alive pinned), full AILANG prompt (~18k tokens):
+| Model | `ttft_timeout` | `generation_timeout` | Benchmark hard limit | Rationale |
+|-------|---------------|---------------------|----------------------|-----------|
+| cloud models | 10 s (default) | 60 s (default) | unchanged | sub-second TTFT |
+| `opencode-gemma4-e4b` | **300 s** | 120 s | unchanged (90 s from YAML) | measured TTFT 241 s + 25% headroom |
+| `opencode-gemma4-26b` | **480 s** | 180 s | unchanged | not yet measured; estimate 2× e4b |
 
-| Model | Benchmark | Measured total | Current limit | Required scale |
-|-------|-----------|---------------|---------------|----------------|
-| `opencode-gemma4-e4b` | fizzbuzz (ailang) | 98 s | 300 s (default) | 1× (already ok) |
-| `opencode-gemma4-e4b` | recursion_fibonacci (ailang) | 309 s | 90 s (YAML) | **4×** minimum |
+With split timeouts: the 90 s `recursion_fibonacci` hard limit now means "model must finish generating within 90 s of first token" — a fair quality SLA. The 241 s prefill wait is allowed by `ttft_timeout: 300` and recorded as a hardware metric in results.
 
-Recommended `timeout_scale: 5` for `opencode-gemma4-e4b` — gives 450 s hard limit for recursion_fibonacci (309 s actual + 46% headroom) and 15 m idle timeout (well above 241 s TTFT).
+### Result JSON additions
 
-For `opencode-gemma4-26b` (128 GB Mac, not yet measured): start with `timeout_scale: 8` and tune.
+```json
+{
+  "ttft_seconds": 241,
+  "generation_seconds": 68,
+  "total_seconds": 309,
+  "ttft_timeout_seconds": 300,
+  "generation_timeout_seconds": 120
+}
+```
 
 ### Implementation plan
 
-1. Add `TimeoutScale float64` to `ModelConfig` in `models.go`
-2. Parse `timeout_scale` from `models.yml` YAML
-3. In `agent_runner_multi.go`, after resolving executor+model, read `TimeoutScale` and scale both `timeoutSeconds` and `task.IdleTimeout`
-4. Add `timeout_scale` + `effective_timeout_seconds` fields to result JSON in `metrics.go`
-5. Add `ollama_suite` composite to `models.yml`
-6. Add `⏱×N` display in `eval-summary` / `eval-matrix`
-7. Update `tools/ollama_eval.sh` to use `--models ollama_suite` as the default
+1. Add `TTFTTimeout time.Duration` to `executor.Task`
+2. Implement split timer in opencode and codex executors (ttftTimer stops on first event)
+3. Add `TTFTTimeout`, `GenerationTimeout` fields to `ModelConfig`; parse from YAML
+4. In `agent_runner_multi.go`, set `task.TTFTTimeout` and `task.IdleTimeout` from per-model config
+5. Reinterpret benchmark `timeout` YAML field as generation budget (clock from first event)
+6. Add `ttft_seconds` / `generation_seconds` to result JSON
+7. Add `ollama_suite` composite to `models.yml` with Ollama models
+8. Update `tools/ollama_eval.sh` to default to `--models ollama_suite`
 
 ## Success Criteria
 
-- [ ] `./tools/ollama_eval.sh --models opencode-gemma4-e4b --benchmarks fizzbuzz,recursion_fibonacci` completes at least 1/4 (correctness, not speed)
-- [ ] Result JSON includes `timeout_scale: 5` and `effective_timeout_seconds`
-- [ ] `ailang eval-matrix` shows `⏱×5` marker on scaled results
+- [ ] `./tools/ollama_eval.sh --models opencode-gemma4-e4b --benchmarks fizzbuzz,recursion_fibonacci` completes at least 1/4 runs without timing out
+- [ ] `recursion_fibonacci` (ailang) no longer fails with "idle timeout" or "hard timeout before first token"
+- [ ] Result JSON includes `ttft_seconds`, `generation_seconds`, `ttft_timeout_seconds`
 - [ ] `ollama_suite` composite resolves and runs end-to-end
 - [ ] `agent_suite` unchanged — no Ollama models included
-- [ ] `timeout_scale` field in models.yml is documented in eval guide
+- [ ] Cloud model benchmarks unaffected (TTFTTimeout defaults to 10 s, no behaviour change)
+- [ ] `ttft_timeout` / `generation_timeout` documented in eval guide
 
 ## Non-Goals
 
