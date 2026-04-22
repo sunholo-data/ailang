@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
 // AgentBenchmarkConfig configures agent-based evaluation
@@ -521,13 +522,9 @@ func getErrorMessage(result *ClaudeHeadlessResult) string {
 //
 //nolint:unused // Kept for backwards compatibility
 func getSolutionFilename(language string) string {
-	switch language {
-	case "python":
-		return "solution.py"
-	case "ailang":
-		return "solution.ail"
-	default:
-		// Default to ailang for backward compatibility
+	lang, err := langreg.Get(language)
+	if err != nil {
 		return "solution.ail"
 	}
+	return lang.SolutionFilename()
 }

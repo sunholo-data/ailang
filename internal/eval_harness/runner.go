@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -481,16 +482,20 @@ func GetRunnerWithTask(lang string, spec *BenchmarkSpec, taskID string) (Languag
 // GetRunnerWithContext returns a LanguageRunner with full telemetry context.
 // The ctx is used to propagate TRACEPARENT for span hierarchy.
 // The taskID is propagated via AILANG_PARENT_TASK_ID for task-level correlation.
-func GetRunnerWithContext(ctx context.Context, lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
-	switch lang {
-	case "python":
-		return NewPythonRunnerWithSpec(spec), nil
-	case "ailang":
-		runner := NewAILANGRunnerWithTask(ctx, "", spec.Caps, taskID, spec)
-		return runner, nil
-	default:
-		return nil, fmt.Errorf("unsupported language: %s", lang)
+func GetRunnerWithContext(ctx context.Context, langName string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
+	lang, err := langreg.Get(langName)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported language: %s", langName)
 	}
+	runner, err := lang.NewRunner(ctx, spec, taskID)
+	if err != nil {
+		return nil, err
+	}
+	lr, ok := runner.(LanguageRunner)
+	if !ok {
+		return nil, fmt.Errorf("langreg: runner for %q does not implement LanguageRunner", langName)
+	}
+	return lr, nil
 }
 
 // FindAILANG attempts to locate the ailang binary

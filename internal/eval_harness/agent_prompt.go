@@ -5,20 +5,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
 // GenerateAgentPrompt creates a comprehensive prompt for the agent
 // This version loads from a language-specific template file for easy editing
 func GenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, syntaxRef string, language string) string {
 	// Determine template path based on language
-	var templatePath string
-	switch language {
-	case "python":
-		templatePath = "internal/eval_harness/templates/agent_prompt_python.txt"
-	case "ailang":
-		templatePath = "internal/eval_harness/templates/agent_prompt.txt"
-	default:
-		templatePath = "internal/eval_harness/templates/agent_prompt.txt"
+	templatePath := "internal/eval_harness/templates/agent_prompt.txt"
+	if lang, err := langreg.Get(language); err == nil {
+		if p := lang.PromptTemplatePath(); p != "" {
+			templatePath = p
+		}
 	}
 
 	// Try to load template from file
@@ -105,35 +104,13 @@ Good luck!
 
 // LoadActiveSyntaxReference loads the active teaching prompt for a language
 func LoadActiveSyntaxReference(language string) (string, error) {
-	// Handle different languages
-	switch language {
-	case "ailang":
-		return loadAILANGPrompt()
-	case "python":
-		return loadPythonPrompt()
-	default:
+	lang, err := langreg.Get(language)
+	if err != nil {
 		// Default to AILANG for unknown languages
-		return loadAILANGPrompt()
+		lang = langreg.MustGet("ailang")
 	}
-}
-
-// loadAILANGPrompt loads the active AILANG teaching prompt
-func loadAILANGPrompt() (string, error) {
-	// Load versions.json to find active prompt
-	versionsPath := "prompts/versions.json"
-
-	// Use the PromptLoader to get active prompt
-	loader, err := NewPromptLoader(versionsPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create prompt loader: %w", err)
-	}
-
-	activePrompt, err := loader.GetActivePrompt()
-	if err != nil {
-		return "", fmt.Errorf("failed to get active prompt: %w", err)
-	}
-
-	return activePrompt, nil
+	content, _, loadErr := lang.LoadSyntaxRef("")
+	return content, loadErr
 }
 
 // loadPythonPrompt loads the Python teaching prompt and substitutes the
@@ -330,67 +307,23 @@ Good luck!
 // LoadSystemPromptForLanguage loads the versioned teaching prompt for a language
 // This is used with Claude CLI's --system-prompt flag
 func LoadSystemPromptForLanguage(language string, promptVersion string) (string, string, error) {
-	versionsPath := "prompts/versions.json"
-	loader, err := NewPromptLoader(versionsPath)
+	lang, err := langreg.Get(language)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create prompt loader: %w", err)
-	}
-
-	var prompt string
-	var versionUsed string
-
-	switch language {
-	case "ailang":
-		// Use specified version or active version
-		if promptVersion != "" {
-			prompt, err = loader.LoadPrompt(promptVersion)
-			if err != nil {
-				return "", "", fmt.Errorf("failed to load AILANG prompt version %s: %w", promptVersion, err)
-			}
-			versionUsed = promptVersion
-		} else {
-			prompt, err = loader.GetActivePrompt()
-			if err != nil {
-				return "", "", fmt.Errorf("failed to load active AILANG prompt: %w", err)
-			}
-			// Get active version ID from registry
-			if loader.registry != nil && loader.registry.Active != "" {
-				versionUsed = loader.registry.Active
-			} else {
-				versionUsed = "active"
-			}
-		}
-
-	case "python":
-		// Python uses "python" entry from versions.json
-		prompt, err = loader.LoadPrompt("python")
-		if err != nil {
-			return "", "", fmt.Errorf("failed to load Python prompt: %w", err)
-		}
-		versionUsed = "python"
-
-	default:
 		return "", "", fmt.Errorf("unsupported language: %s", language)
 	}
-
-	return prompt, versionUsed, nil
+	return lang.LoadSyntaxRef(promptVersion)
 }
 
 // LoadTaskPromptTemplate loads the generic .txt template for the initial agent prompt
 // This explains the benchmark task (what to solve), not the language syntax
 func LoadTaskPromptTemplate(language string) (string, error) {
-	var templatePath string
-	switch language {
-	case "python":
-		templatePath = "internal/eval_harness/templates/agent_task_python.txt"
-	case "ailang":
-		templatePath = "internal/eval_harness/templates/agent_task_ailang.txt"
-	default:
+	lang, err := langreg.Get(language)
+	if err != nil {
 		return "", fmt.Errorf("unsupported language: %s", language)
 	}
 
-	data, err := os.ReadFile(templatePath)
-	if err != nil {
+	data, readErr := os.ReadFile(lang.TaskTemplatePath())
+	if readErr != nil {
 		// Fallback to hardcoded template if file not found
 		return getDefaultTaskTemplate(language), nil
 	}

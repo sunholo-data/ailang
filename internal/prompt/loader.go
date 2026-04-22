@@ -79,6 +79,25 @@ func LoadPrompt(version string) (string, error) {
 	return string(content), nil
 }
 
+// LoadPromptWithVersion loads a prompt by version string and returns the resolved version ID.
+// If version is empty or "latest", the active version is used and its ID is returned.
+// Returns (content, versionUsed, error).
+func LoadPromptWithVersion(version string) (string, string, error) {
+	manifest, err := loadVersionsManifest()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to load versions manifest: %w", err)
+	}
+	targetVersion := version
+	if targetVersion == "" || targetVersion == "latest" {
+		targetVersion = manifest.Active
+	}
+	content, err := LoadPrompt(targetVersion)
+	if err != nil {
+		return "", "", err
+	}
+	return content, targetVersion, nil
+}
+
 // loadVersionsManifest loads the versions.json file
 func loadVersionsManifest() (*VersionsManifest, error) {
 	var data []byte

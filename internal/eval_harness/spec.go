@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	promptpkg "github.com/sunholo-data/ailang/internal/prompt"
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"gopkg.in/yaml.v3"
 )
 
@@ -191,11 +191,8 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 
 	// Normalize language names for <LANG> placeholder
 	langName := lang
-	switch lang {
-	case "python":
-		langName = "Python 3"
-	case "ailang":
-		langName = "AILANG"
+	if l, err := langreg.Get(lang); err == nil {
+		langName = l.DisplayName()
 	}
 
 	// Replace <LANG> placeholder
@@ -204,21 +201,11 @@ func (s *BenchmarkSpec) PromptForLanguage(lang string) string {
 
 // getDefaultPrompt returns a minimal default prompt for a language
 func getDefaultPrompt(lang string) string {
-	switch lang {
-	case "python":
-		return "You are an expert Python programmer. Write clean, idiomatic Python code."
-	case "ailang":
-		// For AILANG, use the active prompt from the central prompt package
-		// Single source of truth: internal/prompt (also used by `ailang prompt` CLI)
-		activePrompt, err := promptpkg.LoadPrompt("")
-		if err == nil {
-			return activePrompt
-		}
-		// Fallback if prompt loader fails
-		return "You are writing code in AILANG, a functional programming language."
-	default:
+	l, err := langreg.Get(lang)
+	if err != nil {
 		return "Write clean, idiomatic code in the specified language."
 	}
+	return l.DefaultPrompt()
 }
 
 // FormatContractSpec returns a formatted contract specification block for prompt injection.
