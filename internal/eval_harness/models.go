@@ -14,15 +14,17 @@ var embeddedModelsYAML []byte
 
 // ModelConfig represents a single model configuration
 type ModelConfig struct {
-	APIName         string  `yaml:"api_name"`
-	Provider        string  `yaml:"provider"`
-	Description     string  `yaml:"description"`
-	EnvVar          string  `yaml:"env_var"`
-	AgentCLI        *string `yaml:"agent_cli"`         // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
-	AgentModelName  *string `yaml:"agent_model_name"`  // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
-	MaxOutputTokens int     `yaml:"max_output_tokens"` // Max output tokens (0 = handler default 4096)
-	Pricing         Pricing `yaml:"pricing"`
-	Notes           string  `yaml:"notes"`
+	APIName                  string  `yaml:"api_name"`
+	Provider                 string  `yaml:"provider"`
+	Description              string  `yaml:"description"`
+	EnvVar                   string  `yaml:"env_var"`
+	AgentCLI                 *string `yaml:"agent_cli"`          // CLI command for agent eval (e.g., "claude", "openai", "gemini"), nil if not supported
+	AgentModelName           *string `yaml:"agent_model_name"`   // Model name to pass to agent CLI (e.g., "haiku", "sonnet")
+	MaxOutputTokens          int     `yaml:"max_output_tokens"`  // Max output tokens (0 = handler default 4096)
+	TTFTTimeoutSeconds       int     `yaml:"ttft_timeout"`       // Prefill budget in seconds (0 = executor default 30s)
+	GenerationTimeoutSeconds int     `yaml:"generation_timeout"` // Per-token idle budget after first event (0 = executor default 3m)
+	Pricing                  Pricing `yaml:"pricing"`
+	Notes                    string  `yaml:"notes"`
 }
 
 // Pricing represents model pricing information
@@ -39,6 +41,7 @@ type ModelsConfig struct {
 	ExtendedSuite  []string               `yaml:"extended_suite"`
 	DevModels      []string               `yaml:"dev_models"`
 	AgentSuite     []string               `yaml:"agent_suite"`
+	OllamaSuite    []string               `yaml:"ollama_suite"`
 }
 
 var (

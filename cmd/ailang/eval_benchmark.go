@@ -113,6 +113,7 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			AgentBenchmarkConfig: sessionConfig,
 			ExecutorName:         executorName,
 			ModelName:            modelName,
+			ConfigKey:            model, // original models.yml key for per-model timeout lookup
 		}
 
 		// M-EVAL-CHAINS: Structured tool/chat capture (executor-aware)

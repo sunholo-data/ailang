@@ -165,14 +165,25 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	if idleTimeout == 0 {
 		idleTimeout = 3 * time.Minute
 	}
+	ttftTimeout := task.TTFTTimeout
+	if ttftTimeout == 0 {
+		ttftTimeout = 30 * time.Second
+	}
 
 	hardTimer := time.NewTimer(timeout)
 	defer hardTimer.Stop()
+	// ttftTimer fires if no output arrives before the first event (prefill budget).
+	// Stopped as soon as the first stdout event is received.
+	ttftTimer := time.NewTimer(ttftTimeout)
+	defer ttftTimer.Stop()
+	// idleCheck only meaningful after first event — generation idle window.
 	idleCheck := time.NewTimer(idleTimeout)
+	idleCheck.Stop() // paused until first event arrives
 	defer idleCheck.Stop()
 
 	var lastActivity atomic.Int64
 	lastActivity.Store(time.Now().UnixNano())
+	var firstEventSeen atomic.Bool
 
 	done := make(chan error, 1)
 	var transcriptBuf strings.Builder
@@ -205,6 +216,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		for stdoutScanner.Scan() {
 			line := stdoutScanner.Bytes()
 			lastActivity.Store(time.Now().UnixNano())
+			if !firstEventSeen.Swap(true) {
+				// First event: prefill done — stop TTFT timer, start generation idle check.
+				ttftTimer.Stop()
+				idleCheck.Reset(idleTimeout)
+			}
 
 			ev, err := parseOpenCodeEvent(line)
 			if err != nil {
@@ -328,14 +344,22 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				Error:   fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
 			}, nil
 
+		case <-ttftTimer.C:
+			_ = cmd.Process.Kill()
+			span.SetStatus(codes.Error, "ttft timeout")
+			return &executor.Result{
+				Success: false,
+				Error:   fmt.Sprintf("opencode produced no output within %v (prefill timeout)", ttftTimeout),
+			}, nil
+
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
 				_ = cmd.Process.Kill()
-				span.SetStatus(codes.Error, "idle timeout")
+				span.SetStatus(codes.Error, "generation idle timeout")
 				return &executor.Result{
 					Success: false,
-					Error:   fmt.Sprintf("opencode idle for %v (no output)", since),
+					Error:   fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
 				}, nil
 			}
 			idleCheck.Reset(idleTimeout - since)

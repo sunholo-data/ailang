@@ -41,7 +41,8 @@ type Task struct {
 	SystemPrompt string            // Optional system-level context
 	Workspace    string            // Working directory (local path)
 	Timeout      time.Duration     // Hard ceiling execution timeout
-	IdleTimeout  time.Duration     // Kill if no events for this long (0 = use default 3m)
+	IdleTimeout  time.Duration     // Kill if no events for this long after first event (0 = use default 3m)
+	TTFTTimeout  time.Duration     // Kill if no output before first event (prefill budget; 0 = use default 30s)
 	AllowedTools []string          // Tools the agent can use
 	Model        string            // Model to use (provider-specific)
 	Metadata     map[string]string // Provider-specific options

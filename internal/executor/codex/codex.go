@@ -151,15 +151,22 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 	if idleTimeout == 0 {
 		idleTimeout = 3 * time.Minute
 	}
+	ttftTimeout := task.TTFTTimeout
+	if ttftTimeout == 0 {
+		ttftTimeout = 30 * time.Second
+	}
 
 	hardTimer := time.NewTimer(timeout)
 	defer hardTimer.Stop()
+	ttftTimer := time.NewTimer(ttftTimeout)
+	defer ttftTimer.Stop()
 	idleCheck := time.NewTimer(idleTimeout)
+	idleCheck.Stop() // paused until first event arrives
 	defer idleCheck.Stop()
 
 	var lastActivity atomic.Int64
 	lastActivity.Store(time.Now().UnixNano())
-
+	var firstEventSeen atomic.Bool
 	done := make(chan error, 1)
 	var transcriptBuf strings.Builder
 	var rawEvents []map[string]any
@@ -194,6 +201,10 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				continue
 			}
 			lastActivity.Store(time.Now().UnixNano())
+			if !firstEventSeen.Swap(true) {
+				ttftTimer.Stop()
+				idleCheck.Reset(idleTimeout)
+			}
 
 			if os.Getenv("DEBUG_AGENT") != "" {
 				fmt.Fprintf(os.Stderr, "[DEBUG_CODEX_RAW] %s\n", line)
@@ -334,16 +345,36 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 				ProviderData:  providerData(rawEvents),
 			}, nil
 
+		case <-ttftTimer.C:
+			_ = cmd.Process.Kill()
+			ttftErr := fmt.Errorf("codex produced no output within %v (prefill timeout)", ttftTimeout)
+			handler.OnError(ttftErr)
+			span.RecordError(ttftErr)
+			span.SetStatus(codes.Error, "ttft timeout")
+			span.SetAttributes(
+				attribute.Int("task.turns", turnNum),
+				attribute.Bool("task.success", false),
+			)
+			return &executor.Result{
+				Success:       false,
+				Error:         ttftErr.Error(),
+				DurationMS:    int(time.Since(startTime).Milliseconds()),
+				NumTurns:      turnNum,
+				ToolCallCount: toolCallCount,
+				SessionID:     sessionID,
+				Transcript:    transcriptBuf.String(),
+				ProviderData:  providerData(rawEvents),
+			}, nil
+
 		case <-idleCheck.C:
 			last := time.Unix(0, lastActivity.Load())
 			idle := time.Since(last)
 			if idle >= idleTimeout {
 				_ = cmd.Process.Kill()
-				idleErr := fmt.Errorf("timeout after %v idle (no output for %v, total runtime %v)",
-					idleTimeout, idle.Round(time.Second), time.Since(startTime).Round(time.Second))
+				idleErr := fmt.Errorf("codex idle for %v mid-generation (no output)", idle.Round(time.Second))
 				handler.OnError(idleErr)
 				span.RecordError(idleErr)
-				span.SetStatus(codes.Error, "timeout (idle)")
+				span.SetStatus(codes.Error, "generation idle timeout")
 				span.SetAttributes(
 					attribute.Int("task.turns", turnNum),
 					attribute.Bool("task.success", false),

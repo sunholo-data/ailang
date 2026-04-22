@@ -31,6 +31,11 @@ type MultiExecutorConfig struct {
 	// ModelName is the model to use (e.g., "claude-sonnet-4-5", "gemini-3-flash")
 	ModelName string
 
+	// ConfigKey is the models.yml lookup key for per-model config (e.g., "opencode-gemma4-e4b").
+	// When set, overrides ModelName for timeout/config lookups. Needed when ModelName is the
+	// resolved API model name (e.g., "ollama/gemma4:e4b") rather than the models.yml key.
+	ConfigKey string
+
 	// ExtraHandler is an additional event handler composed with the debug handler.
 	// Used for ObservatoryWriter to capture structured tool calls during streaming.
 	// When nil, only the debug handler is used (no behavior change).
@@ -146,8 +151,12 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	}
 
 	// Apply per-model TTFT / generation timeouts from models.yml
+	lookupKey := config.ModelName
+	if config.ConfigKey != "" {
+		lookupKey = config.ConfigKey
+	}
 	if GlobalModelsConfig != nil {
-		if cfg, ok := GlobalModelsConfig.Models[config.ModelName]; ok {
+		if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
 			if cfg.TTFTTimeoutSeconds > 0 {
 				task.TTFTTimeout = time.Duration(cfg.TTFTTimeoutSeconds) * time.Second
 			}

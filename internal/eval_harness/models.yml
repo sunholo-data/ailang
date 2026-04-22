@@ -457,6 +457,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "ollama/gemma4:e4b"
     max_output_tokens: 8192
+    ttft_timeout: 300
+    generation_timeout: 120
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -475,6 +477,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "ollama/gemma4:26b-a4b-it-q4_K_M"
     max_output_tokens: 8192
+    ttft_timeout: 480
+    generation_timeout: 180
     pricing:
       input_per_1k: 0.0
       output_per_1k: 0.0
@@ -638,6 +642,10 @@ agent_suite:
   - "gemini-3-flash"     # agent_cli: "gemini"    — Google agent harness
   - "gpt5-4"             # agent_cli: "codex"     — OpenAI Codex CLI harness
   - "opencode-haiku"     # agent_cli: "opencode"  — opencode harness (Ollama/multi-provider gateway)
+
+ollama_suite:
+  - "opencode-gemma4-e4b"   # Gemma 4 E4B — 16GB laptop, relaxed TTFT (300s)
+  - "opencode-gemma4-26b"   # Gemma 4 26B — 32GB Mac, relaxed TTFT (480s)
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code

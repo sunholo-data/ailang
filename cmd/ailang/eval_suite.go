@@ -797,6 +797,10 @@ func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
 			if len(cfg.DevModels) > 0 {
 				return cfg.DevModels
 			}
+		case "ollama_suite":
+			if len(cfg.OllamaSuite) > 0 {
+				return cfg.OllamaSuite
+			}
 		}
 	}
 
