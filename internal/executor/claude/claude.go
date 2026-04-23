@@ -743,7 +743,7 @@ func writeCredentialsFile() error {
 		return fmt.Errorf("failed to marshal credentials: %w", err)
 	}
 
-	// Write to ~/.claude/.credentials.json
+	// Write to ~/.claude/.credentials.json (default path)
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home dir: %w", err)
@@ -758,8 +758,19 @@ func writeCredentialsFile() error {
 	if err := os.WriteFile(credPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write credentials: %w", err)
 	}
-
 	fmt.Fprintf(os.Stderr, "claude-auth: wrote credentials to %s (%d bytes)\n", credPath, len(data))
+
+	// When CLAUDE_CONFIG_DIR is set it overrides ~/.claude/ entirely, so credentials
+	// must also exist there — otherwise Claude prompts for login.
+	if configDir := os.Getenv("CLAUDE_CONFIG_DIR"); configDir != "" && configDir != claudeDir {
+		if err := os.MkdirAll(configDir, 0700); err == nil {
+			altPath := filepath.Join(configDir, ".credentials.json")
+			if err := os.WriteFile(altPath, data, 0600); err == nil {
+				fmt.Fprintf(os.Stderr, "claude-auth: also wrote credentials to %s\n", altPath)
+			}
+		}
+	}
+
 	return nil
 }
 
