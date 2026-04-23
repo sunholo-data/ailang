@@ -57,8 +57,11 @@ func (d *Daemon) pollAndProcessTasks() error {
 		msg := im.msg
 		agentID := im.agentID
 
-		// Create a Task for the analyzer
-		taskID := fmt.Sprintf("task-%s", msg.ID[:8])
+		// Create a Task for the analyzer.
+		// Use suffix of message ID (the unique UUID part) not prefix — message IDs are
+		// like "inbox_1776939677870_a065c1ee" so the prefix "inbox_17" is the same for
+		// all messages in 2026, which caused every task to get ID "task-inbox_17".
+		taskID := fmt.Sprintf("task-%s", msgIDSuffix(msg.ID, 8))
 
 		// Determine kind - use message kind if set, otherwise infer from type
 		kind := msg.Kind
@@ -328,12 +331,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 		}
 
 		// Reuse the existing task creation logic from local mode.
-		// Build task ID
-		msgIDPrefix := msg.ID
-		if len(msgIDPrefix) > 8 {
-			msgIDPrefix = msgIDPrefix[:8]
-		}
-		taskID := fmt.Sprintf("task-%s", msgIDPrefix)
+		taskID := fmt.Sprintf("task-%s", msgIDSuffix(msg.ID, 8))
 
 		// Determine kind
 		kind := msg.Kind
@@ -535,4 +533,14 @@ func (d *Daemon) publishDedupCompletion(taskID, agentID, originalTaskID string) 
 	} else {
 		d.logger.Printf("Posted dedup completion for task %s (original: %s)", taskID, originalTaskID)
 	}
+}
+
+// msgIDSuffix returns the last n characters of id, or all of id if shorter.
+// Message IDs are "inbox_{timestamp}_{uuid}" — the suffix (UUID part) is unique
+// per message, while the prefix shares the same epoch digits across all messages.
+func msgIDSuffix(id string, n int) string {
+	if len(id) <= n {
+		return id
+	}
+	return id[len(id)-n:]
 }
