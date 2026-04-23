@@ -14,7 +14,7 @@ export default function RadarCharts({ data }) {
   const aggregates = data.aggregates || {};
   const executors = data.executors || {};
   const hasAgentData = aggregates.agentRuns > 0;
-  const executorNames = aggregates.agentExecutors || Object.keys(executors);
+  const executorNames = (aggregates.agentExecutors || Object.keys(executors)).filter(e => e !== 'unknown');
   const multiExecutor = executorNames.length > 1;
 
   // Custom tooltip for all radar charts

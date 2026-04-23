@@ -4,18 +4,27 @@ import styles from './styles.module.css';
 
 function formatModelName(name) {
   // Check most specific patterns first for proper display names
+  if (name.includes('claude-opus-4-7')) return 'Claude Opus 4.7';
+  if (name.includes('claude-opus-4-6')) return 'Claude Opus 4.6';
   if (name.includes('claude-opus-4-5')) return 'Claude Opus 4.5';
+  if (name.includes('claude-sonnet-4-6')) return 'Claude Sonnet 4.6';
   if (name.includes('claude-sonnet-4-5')) return 'Claude Sonnet 4.5';
   if (name.includes('claude-haiku-4-5')) return 'Claude Haiku 4.5';
+  if (name.includes('gpt5-4-mini') || name.includes('gpt5-4mini')) return 'GPT-5.4 Mini';
+  if (name.includes('gpt5-4')) return 'GPT-5.4';
+  if (name.includes('gpt5-2-codex')) return 'GPT-5.2 Codex';
+  if (name.includes('gpt5-2-instant')) return 'GPT-5.2 Instant';
+  if (name.includes('gpt5-2')) return 'GPT-5.2';
   if (name.includes('gpt5-1-instant')) return 'GPT-5.1 Instant';
   if (name.includes('gpt5-1-codex')) return 'GPT-5.1 Codex';
   if (name.includes('gpt5-1')) return 'GPT-5.1';
   if (name.includes('gpt-5-mini') || name.includes('gpt5-mini')) return 'GPT-5 Mini';
   if (name.includes('gpt-5') || name.includes('gpt5')) return 'GPT-5';
+  if (name.includes('gemini-3-1-pro')) return 'Gemini 3.1 Pro';
+  if (name.includes('gemini-3-flash')) return 'Gemini 3.0 Flash';
+  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
   if (name.includes('gemini-2-5-flash') || name.includes('gemini-2.5-flash')) return 'Gemini 2.5 Flash';
   if (name.includes('gemini-2-5-pro') || name.includes('gemini-2.5-pro')) return 'Gemini 2.5 Pro';
-  if (name.includes('gemini-3-pro') || name.includes('gemini-3.0-pro')) return 'Gemini 3.0 Pro';
-  if (name.includes('gemini-3-flash')) return 'Gemini 3.0 Flash';
   // Fallback: capitalize first letter of each word
   return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
@@ -53,11 +62,19 @@ export default function ModelRadarComparison() {
   const models = Object.keys(data.models).sort((a, b) => a.localeCompare(b));
 
   // Transform data: each model becomes a spoke (axis)
-  // Filter to only include models that have language data
-  const modelsWithLanguages = models.filter(model => {
-    const modelData = data.models[model];
-    return modelData?.languages?.ailang && modelData?.languages?.python;
-  });
+  // Filter to only include models that have language data, cap at 12 by run count for readability
+  const modelsWithLanguages = models
+    .filter(model => {
+      const modelData = data.models[model];
+      return modelData?.languages?.ailang && modelData?.languages?.python;
+    })
+    .sort((a, b) => {
+      const runsA = data.models[a]?.aggregates?.totalRuns || 0;
+      const runsB = data.models[b]?.aggregates?.totalRuns || 0;
+      return runsB - runsA;
+    })
+    .slice(0, 12)
+    .sort((a, b) => a.localeCompare(b)); // restore alphabetical order for consistent spoke layout
 
   const radarData = modelsWithLanguages.map(model => {
     const modelData = data.models[model];

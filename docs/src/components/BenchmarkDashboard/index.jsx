@@ -271,9 +271,9 @@ export default function BenchmarkDashboard({ view }) {
             onSelect={(t) => { setSelectedTier(t); setSelectedTag(null); }}
           />
         )}
-        <ModelChart models={displayModels} />
-        <ModelTokenChart models={displayModels} />
-        <ModelComparisonTable models={displayModels} />
+        <ModelChart models={scopedModels} />
+        <ModelTokenChart models={scopedModels} />
+        <ModelComparisonTable models={scopedModels} />
       </div>
     );
   }
