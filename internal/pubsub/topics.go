@@ -64,6 +64,31 @@ type TaskCompletion struct {
 	ArtifactGCSPath string `json:"artifact_gcs_path,omitempty"`
 }
 
+// Package build statuses for PackageEvent.
+const (
+	PackageStatusBuilding   = "building"
+	PackageStatusValidating = "validating"
+	PackageStatusPublished  = "published"
+	PackageStatusFailed     = "failed"
+)
+
+// PackageEvent is published to TopicEvents with attribute stream_type=package
+// to notify subscribers (dashboard, laptop daemon) about package build
+// progression from validation through registry landing.
+//
+// See M-PKG-INFLIGHT.
+type PackageEvent struct {
+	BuildID     string `json:"build_id"`
+	TaskID      string `json:"task_id,omitempty"`
+	AgentID     string `json:"agent_id,omitempty"`
+	Vendor      string `json:"vendor"`
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Status      string `json:"status"` // "building"|"validating"|"published"|"failed"
+	RegistryURL string `json:"registry_url,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
 // MessageAttributes carries routing metadata as Pub/Sub message attributes.
 // Used for subscription filtering (e.g., filter by inbox or workspace).
 type MessageAttributes struct {

@@ -49,11 +49,15 @@ func main() {
 	defer gcsClient.Close()
 
 	bucketHandle := gcsClient.Bucket(bucket)
+	tracker := newBuildTracker(ctx)
+	defer tracker.Close()
+
 	v := &validator{
 		bucket:     bucketHandle,
 		bucketName: bucket,
 		apiKey:     os.Getenv("REGISTRY_API_KEY"),
 		cache:      newRegistryCache(bucketHandle, cacheTTL),
+		builds:     tracker,
 	}
 
 	http.HandleFunc("/publish", v.handlePublish)
@@ -76,6 +80,7 @@ type validator struct {
 	bucketName string
 	apiKey     string // if set, requires X-API-Key header on publish
 	cache      *registryCache
+	builds     *buildTracker // nil-safe: tracks in-flight package builds (M-PKG-INFLIGHT)
 }
 
 // validatorBuildVersion is set at build time via -ldflags.
@@ -164,13 +169,36 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 4: Check immutability — reject if version already exists
+	// M-PKG-INFLIGHT: Track this build from validation through to registry landing.
+	// The task/agent headers come from the executor (see internal/executor) and
+	// carry the provenance link from coordinator task → published package version.
 	ctx := r.Context()
+	taskID := r.Header.Get("X-Ailang-Task-ID")
+	agentID := r.Header.Get("X-Ailang-Agent-ID")
+	workspace := r.Header.Get("X-Ailang-Workspace")
+	build := buildInfo{
+		BuildID:   makeBuildID(taskID, parts[0], parts[1]),
+		TaskID:    taskID,
+		AgentID:   agentID,
+		Vendor:    parts[0],
+		Name:      parts[1],
+		Version:   version,
+		Workspace: workspace,
+	}
+	artifactPath := ""
+	if taskID != "" {
+		artifactPath = "tasks/" + taskID
+	}
+	v.builds.Start(ctx, build, artifactPath)
+
+	// Step 4: Check immutability — reject if version already exists
 	metaPath := fmt.Sprintf("packages/%s/%s/%s/metadata.json", parts[0], parts[1], version)
 	if v.bucket != nil {
 		_, err = v.bucket.Object(metaPath).Attrs(ctx)
 		if err == nil {
-			jsonError(w, http.StatusConflict, "Version %s@%s already published (immutable)", name, version)
+			msg := fmt.Sprintf("Version %s@%s already published (immutable)", name, version)
+			v.builds.Fail(ctx, build, msg)
+			jsonError(w, http.StatusConflict, "%s", msg)
 			return
 		}
 	}
@@ -186,7 +214,9 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	contractsVerified, contractsTotal, contractsSkipped := runAilangVerify(tempDir)
 
 	if !compileOk {
-		jsonError(w, http.StatusBadRequest, "Compilation failed:\n%s", compileErr)
+		msg := fmt.Sprintf("Compilation failed:\n%s", compileErr)
+		v.builds.Fail(ctx, build, msg)
+		jsonError(w, http.StatusBadRequest, "%s", msg)
 		return
 	}
 
@@ -232,7 +262,9 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 
 	metaJSON, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "Failed to marshal metadata: %v", err)
+		msg := fmt.Sprintf("Failed to marshal metadata: %v", err)
+		v.builds.Fail(ctx, build, msg)
+		jsonError(w, http.StatusInternalServerError, "%s", msg)
 		return
 	}
 
@@ -241,12 +273,16 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		tarballGCSPath := fmt.Sprintf("packages/%s/%s/%s/package.tar.gz", parts[0], parts[1], version)
 
 		if err := v.uploadToGCS(ctx, tarballGCSPath, tarballData, "application/gzip"); err != nil {
-			jsonError(w, http.StatusInternalServerError, "Failed to upload tarball: %v", err)
+			msg := fmt.Sprintf("Failed to upload tarball: %v", err)
+			v.builds.Fail(ctx, build, msg)
+			jsonError(w, http.StatusInternalServerError, "%s", msg)
 			return
 		}
 
 		if err := v.uploadToGCS(ctx, metaPath, metaJSON, "application/json"); err != nil {
-			jsonError(w, http.StatusInternalServerError, "Failed to upload metadata: %v", err)
+			msg := fmt.Sprintf("Failed to upload metadata: %v", err)
+			v.builds.Fail(ctx, build, msg)
+			jsonError(w, http.StatusInternalServerError, "%s", msg)
 			return
 		}
 
@@ -274,6 +310,11 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Published %s@%s (%d bytes, %d/%d contracts verified)", name, version, len(tarballData), contractsVerified, contractsTotal)
+
+	// M-PKG-INFLIGHT: Mark build as published with the public registry URL so
+	// subscribers (laptop daemon, dashboard) can observe completion.
+	registryURL := fmt.Sprintf("gs://%s/packages/%s/%s/%s/", v.bucketName, parts[0], parts[1], version)
+	v.builds.Succeed(ctx, build, registryURL)
 
 	// Invalidate API cache so fresh data is served immediately
 	if v.cache != nil {

@@ -200,6 +200,19 @@ func uploadTarball(url string, tarballData []byte) error {
 		req.Header.Set("X-API-Key", apiKey)
 	}
 
+	// M-PKG-INFLIGHT: Forward provenance headers so the registry validator can
+	// write a `package_builds` row linked back to the coordinator task/agent.
+	// The executor injects these env vars into the subprocess (see
+	// internal/executor/environment.go); when a human runs `ailang publish`
+	// directly they are simply absent and the validator records the build as
+	// manually-triggered.
+	if taskID := os.Getenv("AILANG_TASK_ID"); taskID != "" {
+		req.Header.Set("X-Ailang-Task-ID", taskID)
+	}
+	if agentID := os.Getenv("AILANG_AGENT_ID"); agentID != "" {
+		req.Header.Set("X-Ailang-Agent-ID", agentID)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload failed: %w", err)

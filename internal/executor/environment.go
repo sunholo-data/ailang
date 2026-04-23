@@ -131,6 +131,12 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 		if messageID := opts.Task.Metadata["message_id"]; messageID != "" {
 			env = append(env, fmt.Sprintf("AILANG_MESSAGE_ID=%s", messageID))
 		}
+		// M-PKG-INFLIGHT: surface the agent name to child processes so that
+		// `ailang publish` can attach X-Ailang-Agent-ID and the validator can
+		// link package_builds rows back to the agent that fired them.
+		if agentID := opts.Task.Metadata["ailang.agent_id"]; agentID != "" {
+			env = append(env, fmt.Sprintf("AILANG_AGENT_ID=%s", agentID))
+		}
 	}
 
 	// Build resource attributes for trace linking (M-TASK-HIERARCHY)

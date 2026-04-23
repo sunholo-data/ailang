@@ -120,6 +120,44 @@ func (p *Publisher) PublishEvent(ctx context.Context, eventJSON []byte, eventTyp
 	return nil
 }
 
+// PublishPackageEvent publishes a package-build event to the events topic.
+// Sets stream_type=package so subscribers (dashboard, laptop daemon) can
+// filter for package updates alongside regular task stream events.
+//
+// See M-PKG-INFLIGHT.
+func (p *Publisher) PublishPackageEvent(ctx context.Context, evt PackageEvent, workspace string) error {
+	payload, err := json.Marshal(evt)
+	if err != nil {
+		return fmt.Errorf("marshal package event: %w", err)
+	}
+
+	attrs := map[string]string{
+		"stream_type": "package",
+		"status":      evt.Status,
+		"vendor":      evt.Vendor,
+		"name":        evt.Name,
+	}
+	if evt.TaskID != "" {
+		attrs["task_id"] = evt.TaskID
+	}
+	if evt.AgentID != "" {
+		attrs["agent_id"] = evt.AgentID
+	}
+	if workspace != "" {
+		attrs["workspace"] = workspace
+	}
+
+	result := p.topic(TopicEvents).Publish(ctx, &gpubsub.Message{
+		Data:        payload,
+		Attributes:  attrs,
+		OrderingKey: evt.BuildID, // per-build ordering: validating→published/failed
+	})
+	if _, err := result.Get(ctx); err != nil {
+		return fmt.Errorf("publish package event (build=%s, status=%s): %w", evt.BuildID, evt.Status, err)
+	}
+	return nil
+}
+
 // Stop flushes all pending messages and releases topic resources.
 func (p *Publisher) Stop() {
 	p.mu.Lock()
