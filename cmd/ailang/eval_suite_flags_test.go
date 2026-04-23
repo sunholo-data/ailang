@@ -98,23 +98,24 @@ func checkTierCount(t *testing.T, name string, got, want, tolerance int) {
 // from the positional arg list.
 func TestParseMatrixFlags(t *testing.T) {
 	cases := []struct {
-		name                        string
-		args                        []string
-		wantTags, wantSat, wantWins bool
+		name                                     string
+		args                                     []string
+		wantTags, wantSat, wantWins, wantHarness bool
 	}{
-		{"none", []string{"eval-matrix", "dir", "v1"}, false, false, false},
-		{"by-tags only", []string{"eval-matrix", "dir", "v1", "--by-tags"}, true, false, false},
-		{"show-saturated only", []string{"eval-matrix", "dir", "v1", "--show-saturated"}, false, true, false},
-		{"ailang-wins only", []string{"eval-matrix", "dir", "v1", "--ailang-wins"}, false, false, true},
-		{"all three", []string{"eval-matrix", "dir", "v1", "--by-tags", "--show-saturated", "--ailang-wins"}, true, true, true},
-		{"unknown flag ignored", []string{"eval-matrix", "dir", "v1", "--by-tags", "--unknown"}, true, false, false},
+		{"none", []string{"eval-matrix", "dir", "v1"}, false, false, false, false},
+		{"by-tags only", []string{"eval-matrix", "dir", "v1", "--by-tags"}, true, false, false, false},
+		{"show-saturated only", []string{"eval-matrix", "dir", "v1", "--show-saturated"}, false, true, false, false},
+		{"ailang-wins only", []string{"eval-matrix", "dir", "v1", "--ailang-wins"}, false, false, true, false},
+		{"by-harness only", []string{"eval-matrix", "dir", "v1", "--by-harness"}, false, false, false, true},
+		{"all flags", []string{"eval-matrix", "dir", "v1", "--by-tags", "--show-saturated", "--ailang-wins", "--by-harness"}, true, true, true, true},
+		{"unknown flag ignored", []string{"eval-matrix", "dir", "v1", "--by-tags", "--unknown"}, true, false, false, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotTags, gotSat, gotWins := parseMatrixFlags(func(i int) string { return tc.args[i] }, len(tc.args))
-			if gotTags != tc.wantTags || gotSat != tc.wantSat || gotWins != tc.wantWins {
-				t.Errorf("parseMatrixFlags(%v) = (%v, %v, %v), want (%v, %v, %v)",
-					tc.args, gotTags, gotSat, gotWins, tc.wantTags, tc.wantSat, tc.wantWins)
+			gotTags, gotSat, gotWins, gotHarness := parseMatrixFlags(func(i int) string { return tc.args[i] }, len(tc.args))
+			if gotTags != tc.wantTags || gotSat != tc.wantSat || gotWins != tc.wantWins || gotHarness != tc.wantHarness {
+				t.Errorf("parseMatrixFlags(%v) = (%v, %v, %v, %v), want (%v, %v, %v, %v)",
+					tc.args, gotTags, gotSat, gotWins, gotHarness, tc.wantTags, tc.wantSat, tc.wantWins, tc.wantHarness)
 			}
 		})
 	}

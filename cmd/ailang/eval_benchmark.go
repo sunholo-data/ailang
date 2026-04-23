@@ -180,7 +180,8 @@ func runSingleBenchmark(ctx context.Context, model, benchmarkID, lang, condition
 			ID:           result.BenchmarkID,
 			Lang:         lang,
 			Model:        model,
-			Executor:     result.Executor, // Track which executor was used (claude, gemini, etc.)
+			Executor:     result.Executor,    // Track which executor was used (claude, gemini, etc.)
+			ModelFamily:  result.ModelFamily, // For cross-harness grouping (M-EVAL-CROSS-HARNESS)
 			Seed:         seed,
 			InputTokens:  result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 			OutputTokens: result.Usage.OutputTokens,

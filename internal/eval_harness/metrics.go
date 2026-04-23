@@ -69,6 +69,11 @@ type RunMetrics struct {
 	// Values: "on" | "off" | "auto" | "disabled" | "" (legacy / not set).
 	// Lets eval-report break results down with vs. without JIT knowledge injection.
 	MicroragState string `json:"microrag_state,omitempty"`
+
+	// Cross-harness grouping (M-EVAL-CROSS-HARNESS)
+	// Populated from models.yml model_family field. Enables --group-by=model-family
+	// in eval-matrix to compare same model across different harnesses (e.g. claude vs opencode).
+	ModelFamily string `json:"model_family,omitempty"`
 }
 
 // EvalMode constants

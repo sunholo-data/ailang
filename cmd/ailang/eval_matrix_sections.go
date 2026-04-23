@@ -172,7 +172,7 @@ func fmtTagRate(pass, total int) string {
 // parseMatrixFlags scans flag.Arg() from `start` onward for the four
 // boolean flags. Unknown --flag=... / --flag args are left alone (they may
 // be parsed elsewhere, e.g. --format= in eval-report shares this scan path).
-func parseMatrixFlags(getArg func(int) string, n int) (byTags, showSaturated, ailangWins bool) {
+func parseMatrixFlags(getArg func(int) string, n int) (byTags, showSaturated, ailangWins, byHarness bool) {
 	for i := 0; i < n; i++ {
 		switch strings.TrimSpace(getArg(i)) {
 		case "--by-tags":
@@ -181,6 +181,8 @@ func parseMatrixFlags(getArg func(int) string, n int) (byTags, showSaturated, ai
 			showSaturated = true
 		case "--ailang-wins":
 			ailangWins = true
+		case "--by-harness":
+			byHarness = true
 		}
 	}
 	return
@@ -198,6 +200,104 @@ func parseGroupByFlag(getArg func(int) string, n int) string {
 		}
 	}
 	return ""
+}
+
+// printByHarnessSection renders a language × model × harness breakdown table.
+// Each row is one (language, model) pair; columns are harnesses (executors).
+// This gives the full picture: which models, on which harnesses, pass in which languages.
+func printByHarnessSection(results []*eval_analysis.BenchmarkResult) {
+	type cell struct{ pass, total int }
+
+	// Collect unique harnesses, languages, models in stable order
+	harnessSet := map[string]bool{}
+	langSet := map[string]bool{}
+	modelSet := map[string]bool{}
+	// data: lang+model → harness → cell
+	data := map[string]map[string]*cell{}
+
+	for _, r := range results {
+		exec := r.Executor
+		if exec == "" {
+			exec = "standard"
+		}
+		harnessSet[exec] = true
+		langSet[r.Lang] = true
+		modelSet[r.Model] = true
+		key := r.Lang + "\x00" + r.Model
+		if data[key] == nil {
+			data[key] = map[string]*cell{}
+		}
+		if data[key][exec] == nil {
+			data[key][exec] = &cell{}
+		}
+		data[key][exec].total++
+		if r.StdoutOk && r.CompileOk && r.RuntimeOk {
+			data[key][exec].pass++
+		}
+	}
+
+	var harnesses, langs, models []string
+	for h := range harnessSet {
+		harnesses = append(harnesses, h)
+	}
+	for l := range langSet {
+		langs = append(langs, l)
+	}
+	for m := range modelSet {
+		models = append(models, m)
+	}
+	sort.Strings(harnesses)
+	sort.Strings(langs)
+	sort.Strings(models)
+
+	if len(harnesses) == 0 {
+		fmt.Println("\n## By Language × Model × Harness\n\n(no results)")
+		return
+	}
+
+	fmt.Print("\n## By Language × Model × Harness\n\n")
+
+	// Header
+	header := "| Language | Model |"
+	sep := "|---|---|"
+	for _, h := range harnesses {
+		header += fmt.Sprintf(" %s |", h)
+		sep += "---|"
+	}
+	fmt.Println(header)
+	fmt.Println(sep)
+
+	for _, lang := range langs {
+		for _, model := range models {
+			key := lang + "\x00" + model
+			row := data[key]
+			if row == nil {
+				continue
+			}
+			line := fmt.Sprintf("| %s | %s |", lang, model)
+			hasAny := false
+			for _, h := range harnesses {
+				c := row[h]
+				if c == nil || c.total == 0 {
+					line += " — |"
+				} else {
+					pct := float64(c.pass) / float64(c.total) * 100
+					mark := "✓"
+					if c.pass < c.total {
+						mark = "⚠"
+					}
+					if c.pass == 0 {
+						mark = "✗"
+					}
+					line += fmt.Sprintf(" %s %.0f%% (%d/%d) |", mark, pct, c.pass, c.total)
+					hasAny = true
+				}
+			}
+			if hasAny {
+				fmt.Println(line)
+			}
+		}
+	}
 }
 
 // printGroupedByFamilySection renders a cross-harness comparison table.
