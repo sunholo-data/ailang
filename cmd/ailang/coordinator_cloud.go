@@ -399,8 +399,17 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 
 	fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
 
-	// Step 5c: Push all commits
+	// Step 5c: Push all commits.
+	// Shallow clones can't push new branches — unshallow first so the remote
+	// has full history context for the new branch ref.
 	if repoURL != "" {
+		unshallowCmd := exec.CommandContext(ctx, "git", "-C", workDir, "fetch", "--unshallow")
+		unshallowCmd.Stdout = os.Stdout
+		unshallowCmd.Stderr = os.Stderr
+		if err := unshallowCmd.Run(); err != nil {
+			// Already a full clone or network issue — log and continue
+			fmt.Fprintf(os.Stderr, "execute-job: fetch --unshallow skipped: %v\n", err)
+		}
 		pushCmd := exec.CommandContext(ctx, "git", "-C", workDir, "push", "origin", branchName)
 		pushCmd.Stdout = os.Stdout
 		pushCmd.Stderr = os.Stderr
