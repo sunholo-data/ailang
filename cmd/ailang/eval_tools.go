@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // runEvalCompare compares two evaluation runs
@@ -106,18 +107,20 @@ func runEvalCompare() {
 func runEvalMatrix() {
 	if flag.NArg() < 3 {
 		fmt.Fprintf(os.Stderr, "%s: missing arguments\n", red("Error"))
-		fmt.Println("Usage: ailang eval-matrix <results_dir> <version> [--by-tags] [--show-saturated] [--ailang-wins]")
+		fmt.Println("Usage: ailang eval-matrix <results_dir> <version> [--by-tags] [--show-saturated] [--ailang-wins] [--group-by=model-family]")
 		fmt.Println("")
 		fmt.Println("Generate performance matrix with aggregated statistics.")
 		fmt.Println("")
 		fmt.Println("Options:")
-		fmt.Println("  --by-tags         Append per-tag AILANG vs Python delta table")
-		fmt.Println("  --show-saturated  Append list of benchmarks at 100% pass across all models + languages")
-		fmt.Println("  --ailang-wins     Append list of (benchmark × model) cells where AILANG passes and Python fails")
+		fmt.Println("  --by-tags                Append per-tag AILANG vs Python delta table")
+		fmt.Println("  --show-saturated         Append list of benchmarks at 100% pass across all models + languages")
+		fmt.Println("  --ailang-wins            Append list of (benchmark × model) cells where AILANG passes and Python fails")
+		fmt.Println("  --group-by=model-family  Append cross-harness comparison grouped by model family")
 		fmt.Println("")
 		fmt.Println("Examples:")
 		fmt.Println("  ailang eval-matrix eval_results/baselines/v0.3.0 v0.3.0-alpha5")
 		fmt.Println("  ailang eval-matrix eval_results/baselines/v0.13.0 v0.13.0 --by-tags --show-saturated")
+		fmt.Println("  ailang eval-matrix eval_results/baselines/v0.14.0 v0.14.0 --group-by=model-family")
 		os.Exit(1)
 	}
 
@@ -127,6 +130,7 @@ func runEvalMatrix() {
 	// M-EVAL-SUITE-PREP M3: parse report-section flags. Positional args are
 	// [1]=resultsDir, [2]=version; flags live from index 3 onward.
 	byTags, showSaturated, ailangWins := parseMatrixFlags(flag.Arg, flag.NArg())
+	groupBy := parseGroupByFlag(flag.Arg, flag.NArg())
 
 	// Load results
 	fmt.Fprintf(os.Stderr, "Loading results from %s...\n", resultsDir)
@@ -187,6 +191,9 @@ func runEvalMatrix() {
 	}
 	if ailangWins {
 		printAILANGWinsSection(results)
+	}
+	if groupBy == "model-family" {
+		printGroupedByFamilySection(results)
 	}
 }
 
@@ -306,6 +313,10 @@ func runEvalReport() {
 			format = strings.TrimPrefix(arg, "--format=")
 		}
 	}
+
+	// Load models config so harness/provider_type lookups work in JSON export.
+	// Non-fatal: export degrades gracefully when config unavailable.
+	_ = eval_harness.InitModelsConfig()
 
 	// Load results
 	var results []*eval_analysis.BenchmarkResult
