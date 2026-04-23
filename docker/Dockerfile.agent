@@ -43,6 +43,11 @@ RUN npm install -g @anthropic-ai/gemini-cli 2>/dev/null || true
 # Copy ailang binary
 COPY --from=builder /ailang /usr/local/bin/ailang
 
+# Copy Go toolchain from builder so agents can build Go projects without downloading it
+COPY --from=builder /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/home/ailang/go"
+
 # Git config for automated commits
 RUN git config --system user.name "ailang-agent" \
     && git config --system user.email "ailang-agent@noreply.github.com"
