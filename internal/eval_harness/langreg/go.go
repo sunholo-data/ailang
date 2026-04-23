@@ -3,6 +3,8 @@ package langreg
 import (
 	"context"
 	"fmt"
+
+	promptpkg "github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // Compile-time check: goLang implements Language.
@@ -27,7 +29,11 @@ func (g *goLang) TaskTemplatePath() string {
 }
 
 func (g *goLang) LoadSyntaxRef(_ string) (string, string, error) {
-	return g.DefaultPrompt(), "default", nil
+	content, err := promptpkg.LoadPrompt("go")
+	if err != nil {
+		return g.DefaultPrompt(), "default", nil
+	}
+	return content, "go", nil
 }
 
 func (g *goLang) DefaultPrompt() string {

@@ -3,6 +3,8 @@ package langreg
 import (
 	"context"
 	"fmt"
+
+	promptpkg "github.com/sunholo-data/ailang/internal/prompt"
 )
 
 // Compile-time check: jsLang implements Language.
@@ -27,7 +29,11 @@ func (j *jsLang) TaskTemplatePath() string {
 }
 
 func (j *jsLang) LoadSyntaxRef(_ string) (string, string, error) {
-	return j.DefaultPrompt(), "default", nil
+	content, err := promptpkg.LoadPrompt("javascript")
+	if err != nil {
+		return j.DefaultPrompt(), "default", nil
+	}
+	return content, "javascript", nil
 }
 
 func (j *jsLang) DefaultPrompt() string {
