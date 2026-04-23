@@ -295,6 +295,14 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 						outputTokens = ev.Usage.OutputTokens
 					}
 				}
+				// New format has no separate "result" event — turn.completed
+				// is the terminal signal that the session produced output.
+				sawResult = true
+				handler.OnTurnEnd(turnNum)
+				if turnSpan != nil {
+					turnSpan.End()
+					turnSpan = nil
+				}
 
 			// ── Old format (pre-v0.1): flat message/tool_use stream ───────────────
 			case "session", "session_start", "init":
