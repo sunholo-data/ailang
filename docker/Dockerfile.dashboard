@@ -4,7 +4,7 @@
 # provides REST API + WebSocket for real-time updates.
 
 # ── Build Go binary ──────────────────────────────────────────
-FROM golang:1.24-bookworm AS go-builder
+FROM golang:1.25-bookworm AS go-builder
 
 WORKDIR /build
 
