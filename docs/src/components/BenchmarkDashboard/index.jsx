@@ -116,7 +116,7 @@ function buildTierScopedModels(tierModelStats, fallbackModels) {
 
 // view prop: undefined/"full" = all components (existing behaviour)
 //            "model" = model leaderboard only (used by by-model.md page)
-export default function BenchmarkDashboard({ view }) {
+export default function BenchmarkDashboard({ view, showGallery = true }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -451,7 +451,7 @@ export default function BenchmarkDashboard({ view }) {
       )}
 
       {/* Benchmark Gallery (filtered by selected tier + tag when active) */}
-      {filteredBenchmarks && Object.keys(filteredBenchmarks).length > 0 && (
+      {showGallery && filteredBenchmarks && Object.keys(filteredBenchmarks).length > 0 && (
         <div className={styles.section}>
           <h3>
             Benchmark Results

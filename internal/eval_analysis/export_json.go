@@ -245,6 +245,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	modelAgentStats := make(map[string]struct {
 		runs        int
 		success     int
+		apiErrors   int
 		totalTurns  int
 		totalTokens int
 		totalCost   float64
@@ -254,6 +255,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats.runs++
 		if r.StdoutOk {
 			stats.success++
+		}
+		if r.ErrorCategory == "api_error" {
+			stats.apiErrors++
 		}
 		stats.totalTurns += r.AgentTurns
 		stats.totalTokens += r.TotalTokens
@@ -329,11 +333,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		// Add agent-specific stats for this model
 		if agentStats, ok := modelAgentStats[name]; ok && agentStats.runs > 0 {
 			modelData["agentStats"] = map[string]interface{}{
-				"runs":        agentStats.runs,
-				"successRate": float64(agentStats.success) / float64(agentStats.runs),
-				"avgTurns":    float64(agentStats.totalTurns) / float64(agentStats.runs),
-				"avgTokens":   float64(agentStats.totalTokens) / float64(agentStats.runs),
-				"avgCost":     agentStats.totalCost / float64(agentStats.runs),
+				"runs":         agentStats.runs,
+				"successRate":  float64(agentStats.success) / float64(agentStats.runs),
+				"apiErrors":    agentStats.apiErrors,
+				"apiErrorRate": float64(agentStats.apiErrors) / float64(agentStats.runs),
+				"avgTurns":     float64(agentStats.totalTurns) / float64(agentStats.runs),
+				"avgTokens":    float64(agentStats.totalTokens) / float64(agentStats.runs),
+				"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 			}
 		}
 		// M-DASH-V2: attach per-model reliability counters so the dashboard
@@ -359,11 +365,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			agentModelsJS[modelName] = map[string]interface{}{
 				"totalRuns": agentStats.runs,
 				"agentStats": map[string]interface{}{
-					"runs":        agentStats.runs,
-					"successRate": float64(agentStats.success) / float64(agentStats.runs),
-					"avgTurns":    float64(agentStats.totalTurns) / float64(agentStats.runs),
-					"avgTokens":   float64(agentStats.totalTokens) / float64(agentStats.runs),
-					"avgCost":     agentStats.totalCost / float64(agentStats.runs),
+					"runs":         agentStats.runs,
+					"successRate":  float64(agentStats.success) / float64(agentStats.runs),
+					"apiErrors":    agentStats.apiErrors,
+					"apiErrorRate": float64(agentStats.apiErrors) / float64(agentStats.runs),
+					"avgTurns":     float64(agentStats.totalTurns) / float64(agentStats.runs),
+					"avgTokens":    float64(agentStats.totalTokens) / float64(agentStats.runs),
+					"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 				},
 			}
 		}

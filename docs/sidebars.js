@@ -140,6 +140,7 @@ const sidebars = {
       collapsed: true,
       items: [
         'benchmarks/explorer',
+        'benchmarks/gallery',
         {
           type: 'doc',
           id: 'benchmarks/performance',

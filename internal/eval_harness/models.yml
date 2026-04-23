@@ -117,6 +117,7 @@ models:
     description: "GPT-5.4 - most powerful OpenAI model with 1M context and computer-use"
     env_var: "OPENAI_API_KEY"
     agent_cli: "codex"
+    model_family: "gpt5-4"  # Cross-harness grouping: pairs with opencode-gpt5-4
     max_output_tokens: 128000  # 128K max output (API limit)
     pricing:
       input_per_1k: 0.0025    # $2.50 per 1M = $0.0025 per 1K
@@ -130,7 +131,22 @@ models:
       Cached input: $1.25/M (50% discount, applied automatically).
       Also available: gpt-5.4-thinking (reasoning), gpt-5.4-pro (high performance).
       Uses max_completion_tokens instead of max_tokens.
-      Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
+
+  opencode-gpt5-4:
+    api_name: "gpt-5.4"
+    provider: "openai"
+    description: "GPT-5.4 via opencode harness — cross-harness comparison pair"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openai/gpt-5.4"  # opencode provider/model format
+    model_family: "gpt5-4"  # Cross-harness grouping: pairs with gpt5-4
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.0025
+      output_per_1k: 0.015
+    notes: |
+      GPT-5.4 evaluated via the opencode CLI harness for cross-harness comparison.
+      Use harness_suite to run both harnesses in one command.
 
   # OpenAI GPT-5.2-Codex (released January 2026)
   gpt5-2-codex:
@@ -725,6 +741,7 @@ harness_suite:
   - "gemini-3-flash"          # Gemini Flash via Gemini CLI
   - "opencode-gemini-3-flash" # Gemini Flash via opencode harness (ailang-dev + global location)
   - "gpt5-4"                  # GPT-5.4 via Codex CLI harness
+  - "opencode-gpt5-4"         # GPT-5.4 via opencode harness (cross-harness comparison)
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code

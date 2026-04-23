@@ -1,7 +1,7 @@
 {
   "version": "v0.14.1",
-  "timestamp": "2026-04-23T15:26:39+02:00",
-  "totalRuns": 292,
+  "timestamp": "2026-04-23T15:41:58+02:00",
+  "totalRuns": 400,
   "aggregates": {
     "agentBenchmarks": [
       "api_call_json",
@@ -33,26 +33,26 @@
       "gemini",
       "opencode"
     ],
-    "agentRuns": 292,
-    "agentSuccessRate": 0.6986301369863014,
-    "agentTotalTokens": 11731981,
+    "agentRuns": 400,
+    "agentSuccessRate": 0.765,
+    "agentTotalTokens": 18141879,
     "apiErrorCount": 0,
     "apiErrorRate": 0,
-    "avgAgentCost": 0.0791265619863014,
-    "avgAgentTurns": 2.8321917808219177,
-    "avgDurationMs": 24189.883561643837,
-    "finalSuccess": 0.6986301369863014,
+    "avgAgentCost": 0.085432802625,
+    "avgAgentTurns": 2.9975,
+    "avgDurationMs": 25214.0325,
+    "finalSuccess": 0.765,
     "refusalCount": 0,
     "refusalRate": 0,
     "repairSuccessRate": 0,
     "repairUsed": 0,
-    "totalCostUSD": 23.10495610000001,
-    "totalTokens": 11731981,
-    "zeroShotSuccess": 0.6986301369863014
+    "totalCostUSD": 34.17312105,
+    "totalTokens": 18141879,
+    "zeroShotSuccess": 0.765
   },
   "tiers": {
     "core": {
-      "total_runs": 292,
+      "total_runs": 400,
       "ailang_runs": 110,
       "python_runs": 110,
       "ailang_success_rate": 0.7636363636363637,
@@ -67,18 +67,18 @@
           "api_errors": 23
         },
         "go": {
-          "runs": 36,
-          "pass": 21,
-          "success_rate": 0.5833333333333334,
-          "avg_cost_usd": 0.02672046111111111,
-          "api_errors": 15
+          "runs": 90,
+          "pass": 73,
+          "success_rate": 0.8111111111111111,
+          "avg_cost_usd": 0.07413448444444445,
+          "api_errors": 17
         },
         "javascript": {
-          "runs": 36,
-          "pass": 22,
-          "success_rate": 0.6111111111111112,
-          "avg_cost_usd": 0.032824086111111116,
-          "api_errors": 12
+          "runs": 90,
+          "pass": 72,
+          "success_rate": 0.8,
+          "avg_cost_usd": 0.072662945,
+          "api_errors": 15
         },
         "python": {
           "runs": 110,
@@ -145,6 +145,17 @@
             "avgTokens": 984.4545454545455,
             "apiErrorCount": 4
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 18,
+            "avgTokens": 1221.2777777777778
+          },
+          "javascript": {
+            "successRate": 0.9444444444444444,
+            "totalRuns": 18,
+            "avgTokens": 995.7222222222222,
+            "apiErrorCount": 1
+          },
           "python": {
             "successRate": 0.8181818181818182,
             "totalRuns": 22,
@@ -159,6 +170,18 @@
             "avgTokens": 809.8636363636364,
             "apiErrorCount": 8
           },
+          "go": {
+            "successRate": 0.8888888888888888,
+            "totalRuns": 18,
+            "avgTokens": 1243,
+            "apiErrorCount": 2
+          },
+          "javascript": {
+            "successRate": 0.8888888888888888,
+            "totalRuns": 18,
+            "avgTokens": 1007.3888888888889,
+            "apiErrorCount": 2
+          },
           "python": {
             "successRate": 0.6818181818181818,
             "totalRuns": 22,
@@ -172,6 +195,16 @@
             "totalRuns": 22,
             "avgTokens": 1084.9545454545455
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 18,
+            "avgTokens": 953.0555555555555
+          },
+          "javascript": {
+            "successRate": 0.9444444444444444,
+            "totalRuns": 18,
+            "avgTokens": 870.2222222222222
+          },
           "python": {
             "successRate": 0.9090909090909091,
             "totalRuns": 22,
@@ -180,7 +213,7 @@
           }
         }
       },
-      "api_error_count": 79,
+      "api_error_count": 84,
       "ailang_api_error": 23,
       "python_api_error": 29,
       "refusal_count": 0,
@@ -205,14 +238,14 @@
           "rate": 0.9
         },
         "go": {
-          "pass": 5,
-          "total": 10,
-          "rate": 0.5
+          "pass": 20,
+          "total": 25,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 5,
-          "total": 10,
-          "rate": 0.5
+          "pass": 20,
+          "total": 25,
+          "rate": 0.8
         },
         "python": {
           "pass": 24,
@@ -277,6 +310,16 @@
             "totalRuns": 6,
             "avgTokens": 1095
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1581.6
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1300.6
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 6,
@@ -290,6 +333,16 @@
             "avgTokens": 1130.1666666666667,
             "apiErrorCount": 1
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1876.4
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1658
+          },
           "python": {
             "successRate": 0.6666666666666666,
             "totalRuns": 6,
@@ -302,6 +355,16 @@
             "successRate": 1,
             "totalRuns": 6,
             "avgTokens": 1134.6666666666667
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1177.8
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1154.2
           },
           "python": {
             "successRate": 1,
@@ -325,14 +388,14 @@
           "rate": 0.7333333333333333
         },
         "go": {
-          "pass": 4,
-          "total": 6,
-          "rate": 0.6666666666666666
+          "pass": 12,
+          "total": 15,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 4,
-          "total": 6,
-          "rate": 0.6666666666666666
+          "pass": 11,
+          "total": 15,
+          "rate": 0.7333333333333333
         },
         "python": {
           "pass": 11,
@@ -396,6 +459,17 @@
             "totalRuns": 3,
             "avgTokens": 1076.3333333333333
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1059.6666666666667
+          },
+          "javascript": {
+            "successRate": 0.6666666666666666,
+            "totalRuns": 3,
+            "avgTokens": 579,
+            "apiErrorCount": 1
+          },
           "python": {
             "successRate": 0.6666666666666666,
             "totalRuns": 3,
@@ -410,6 +484,18 @@
             "avgTokens": 372.6666666666667,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 0.6666666666666666,
+            "totalRuns": 3,
+            "avgTokens": 902.6666666666666,
+            "apiErrorCount": 1
+          },
+          "javascript": {
+            "successRate": 0.6666666666666666,
+            "totalRuns": 3,
+            "avgTokens": 801.6666666666666,
+            "apiErrorCount": 1
+          },
           "python": {
             "successRate": 0.6666666666666666,
             "totalRuns": 3,
@@ -422,6 +508,16 @@
             "successRate": 1,
             "totalRuns": 3,
             "avgTokens": 839.3333333333334
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 916.3333333333334
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 918.6666666666666
           },
           "python": {
             "successRate": 1,
@@ -445,14 +541,14 @@
           "rate": 0.6666666666666666
         },
         "go": {
-          "pass": 2,
-          "total": 2,
-          "rate": 1
+          "pass": 4,
+          "total": 5,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 2,
-          "total": 2,
-          "rate": 1
+          "pass": 4,
+          "total": 5,
+          "rate": 0.8
         },
         "python": {
           "pass": 11,
@@ -515,6 +611,16 @@
             "avgTokens": 592.6666666666666,
             "apiErrorCount": 1
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 518
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 692
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 3,
@@ -528,6 +634,18 @@
             "avgTokens": 690.3333333333334,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 0,
+            "totalRuns": 1,
+            "avgTokens": 0,
+            "apiErrorCount": 1
+          },
+          "javascript": {
+            "successRate": 0,
+            "totalRuns": 1,
+            "avgTokens": 0,
+            "apiErrorCount": 1
+          },
           "python": {
             "successRate": 0.3333333333333333,
             "totalRuns": 3,
@@ -540,6 +658,16 @@
             "successRate": 1,
             "totalRuns": 3,
             "avgTokens": 1186
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 529
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 484
           },
           "python": {
             "successRate": 1,
@@ -563,14 +691,14 @@
           "rate": 0.725
         },
         "go": {
-          "pass": 9,
-          "total": 16,
-          "rate": 0.5625
+          "pass": 33,
+          "total": 40,
+          "rate": 0.825
         },
         "javascript": {
-          "pass": 11,
-          "total": 16,
-          "rate": 0.6875
+          "pass": 34,
+          "total": 40,
+          "rate": 0.85
         },
         "python": {
           "pass": 29,
@@ -636,6 +764,16 @@
             "avgTokens": 1137.5,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 1108
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 956.25
+          },
           "python": {
             "successRate": 0.75,
             "totalRuns": 8,
@@ -650,6 +788,16 @@
             "avgTokens": 886.625,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 1373.875
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 1031.5
+          },
           "python": {
             "successRate": 0.875,
             "totalRuns": 8,
@@ -662,6 +810,16 @@
             "successRate": 0.875,
             "totalRuns": 8,
             "avgTokens": 1186.125
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 901.875
+          },
+          "javascript": {
+            "successRate": 0.875,
+            "totalRuns": 8,
+            "avgTokens": 823
           },
           "python": {
             "successRate": 0.875,
@@ -686,14 +844,14 @@
           "rate": 0.85
         },
         "go": {
-          "pass": 3,
-          "total": 4,
-          "rate": 0.75
+          "pass": 8,
+          "total": 10,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 2,
-          "total": 4,
-          "rate": 0.5
+          "pass": 7,
+          "total": 10,
+          "rate": 0.7
         },
         "python": {
           "pass": 11,
@@ -758,6 +916,16 @@
             "avgTokens": 800.5,
             "apiErrorCount": 1
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1304.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1103
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 4,
@@ -769,6 +937,18 @@
             "successRate": 0.75,
             "totalRuns": 4,
             "avgTokens": 865.75,
+            "apiErrorCount": 1
+          },
+          "go": {
+            "successRate": 0.5,
+            "totalRuns": 2,
+            "avgTokens": 348.5,
+            "apiErrorCount": 1
+          },
+          "javascript": {
+            "successRate": 0.5,
+            "totalRuns": 2,
+            "avgTokens": 390.5,
             "apiErrorCount": 1
           },
           "python": {
@@ -783,6 +963,16 @@
             "successRate": 1,
             "totalRuns": 4,
             "avgTokens": 909.25
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 859
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 768.5
           },
           "python": {
             "successRate": 0.75,
@@ -806,14 +996,14 @@
           "rate": 0.7
         },
         "go": {
-          "pass": 5,
-          "total": 8,
-          "rate": 0.625
+          "pass": 16,
+          "total": 20,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 4,
-          "total": 8,
-          "rate": 0.5
+          "pass": 15,
+          "total": 20,
+          "rate": 0.75
         },
         "python": {
           "pass": 15,
@@ -878,6 +1068,16 @@
             "avgTokens": 1081.25,
             "apiErrorCount": 1
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 1775
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 1341.75
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 4,
@@ -889,6 +1089,18 @@
             "successRate": 0.75,
             "totalRuns": 4,
             "avgTokens": 737.5,
+            "apiErrorCount": 1
+          },
+          "go": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 1236,
+            "apiErrorCount": 1
+          },
+          "javascript": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 972,
             "apiErrorCount": 1
           },
           "python": {
@@ -903,6 +1115,16 @@
             "successRate": 0.75,
             "totalRuns": 4,
             "avgTokens": 1390.75
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 1110
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 927.25
           },
           "python": {
             "successRate": 0.75,
@@ -926,14 +1148,14 @@
           "rate": 0.76
         },
         "go": {
-          "pass": 4,
-          "total": 8,
-          "rate": 0.5
+          "pass": 16,
+          "total": 20,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 5,
-          "total": 8,
-          "rate": 0.625
+          "pass": 16,
+          "total": 20,
+          "rate": 0.8
         },
         "python": {
           "pass": 15,
@@ -999,6 +1221,16 @@
             "avgTokens": 834,
             "apiErrorCount": 1
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 896.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 813
+          },
           "python": {
             "successRate": 0.6,
             "totalRuns": 5,
@@ -1013,6 +1245,16 @@
             "avgTokens": 832.4,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 1049.75
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 704.25
+          },
           "python": {
             "successRate": 0.6,
             "totalRuns": 5,
@@ -1025,6 +1267,16 @@
             "successRate": 1,
             "totalRuns": 5,
             "avgTokens": 888.4
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 672.75
+          },
+          "javascript": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 597
           },
           "python": {
             "successRate": 1,
@@ -1048,13 +1300,13 @@
           "rate": 0.8
         },
         "go": {
-          "pass": 1,
-          "total": 2,
-          "rate": 0.5
+          "pass": 4,
+          "total": 5,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 2,
-          "total": 2,
+          "pass": 5,
+          "total": 5,
           "rate": 1
         },
         "python": {
@@ -1118,6 +1370,16 @@
             "totalRuns": 1,
             "avgTokens": 1327
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 1010
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 845
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 1,
@@ -1130,6 +1392,16 @@
             "totalRuns": 1,
             "avgTokens": 1064
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 832
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 863
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 1,
@@ -1141,6 +1413,16 @@
             "successRate": 1,
             "totalRuns": 1,
             "avgTokens": 934
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 1148
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 1008
           },
           "python": {
             "successRate": 1,
@@ -1164,14 +1446,14 @@
           "rate": 0.8333333333333334
         },
         "go": {
-          "pass": 5,
-          "total": 10,
-          "rate": 0.5
+          "pass": 20,
+          "total": 25,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 5,
-          "total": 10,
-          "rate": 0.5
+          "pass": 19,
+          "total": 25,
+          "rate": 0.76
         },
         "python": {
           "pass": 22,
@@ -1236,6 +1518,17 @@
             "totalRuns": 6,
             "avgTokens": 1140.3333333333333
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1303.4
+          },
+          "javascript": {
+            "successRate": 0.8,
+            "totalRuns": 5,
+            "avgTokens": 773,
+            "apiErrorCount": 1
+          },
           "python": {
             "successRate": 0.8333333333333334,
             "totalRuns": 6,
@@ -1250,6 +1543,16 @@
             "avgTokens": 870,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1652.8
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1354
+          },
           "python": {
             "successRate": 0.6666666666666666,
             "totalRuns": 6,
@@ -1262,6 +1565,16 @@
             "successRate": 1,
             "totalRuns": 6,
             "avgTokens": 1004
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1034.2
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 1055.8
           },
           "python": {
             "successRate": 1,
@@ -1285,14 +1598,14 @@
           "rate": 1
         },
         "go": {
-          "pass": 2,
-          "total": 4,
-          "rate": 0.5
+          "pass": 8,
+          "total": 10,
+          "rate": 0.8
         },
         "javascript": {
-          "pass": 2,
-          "total": 4,
-          "rate": 0.5
+          "pass": 8,
+          "total": 10,
+          "rate": 0.8
         },
         "python": {
           "pass": 9,
@@ -1355,6 +1668,16 @@
             "totalRuns": 2,
             "avgTokens": 1109.5
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 2037.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1792
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 2,
@@ -1367,6 +1690,16 @@
             "totalRuns": 2,
             "avgTokens": 1481.5
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1843.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1821.5
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 2,
@@ -1378,6 +1711,16 @@
             "successRate": 1,
             "totalRuns": 2,
             "avgTokens": 1287
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1468.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1335
           },
           "python": {
             "successRate": 1,
@@ -1401,14 +1744,14 @@
           "rate": 0.55
         },
         "go": {
-          "pass": 4,
-          "total": 6,
-          "rate": 0.6666666666666666
+          "pass": 13,
+          "total": 15,
+          "rate": 0.8666666666666667
         },
         "javascript": {
-          "pass": 4,
-          "total": 6,
-          "rate": 0.6666666666666666
+          "pass": 13,
+          "total": 15,
+          "rate": 0.8666666666666667
         },
         "python": {
           "pass": 15,
@@ -1473,6 +1816,16 @@
             "avgTokens": 1069,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1230.3333333333333
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1126.6666666666667
+          },
           "python": {
             "successRate": 0.75,
             "totalRuns": 4,
@@ -1487,6 +1840,16 @@
             "avgTokens": 708,
             "apiErrorCount": 2
           },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1518.6666666666667
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 992.3333333333334
+          },
           "python": {
             "successRate": 1,
             "totalRuns": 4,
@@ -1498,6 +1861,16 @@
             "successRate": 0.75,
             "totalRuns": 4,
             "avgTokens": 1574
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 986.6666666666666
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 734.6666666666666
           },
           "python": {
             "successRate": 0.75,
@@ -1512,6 +1885,8 @@
   "models": {
     "claude-sonnet-4-6": {
       "agentStats": {
+        "apiErrorRate": 0.025,
+        "apiErrors": 2,
         "avgCost": 0.062142166875,
         "avgTokens": 1027.325,
         "avgTurns": 4.2125,
@@ -1690,6 +2065,8 @@
     },
     "gemini-3-flash": {
       "agentStats": {
+        "apiErrorRate": 0.6625,
+        "apiErrors": 53,
         "avgCost": 0.01977779375,
         "avgTokens": 38154.275,
         "avgTurns": 1.4125,
@@ -1868,40 +2245,42 @@
     },
     "gpt5-4": {
       "agentStats": {
-        "avgCost": 0.17059045454545455,
-        "avgTokens": 129998.63636363637,
-        "avgTurns": 0.8181818181818182,
-        "runs": 44,
-        "successRate": 0.8181818181818182
+        "apiErrorRate": 0.1125,
+        "apiErrors": 9,
+        "avgCost": 0.16672531250000006,
+        "avgTokens": 126327.925,
+        "avgTurns": 0.8875,
+        "runs": 80,
+        "successRate": 0.8875
       },
       "agent_cli": "codex",
       "aggregates": {
-        "avgDurationMs": 36604.72727272727,
-        "finalSuccess": 0.8181818181818182,
+        "avgDurationMs": 37961.85,
+        "finalSuccess": 0.8875,
         "repairSuccessRate": 0,
         "repairUsed": 0,
-        "totalCostUSD": 7.50598,
-        "totalTokens": 5719940,
-        "zeroShotSuccess": 0.8181818181818182
+        "totalCostUSD": 13.338025000000005,
+        "totalTokens": 10106234,
+        "zeroShotSuccess": 0.8875
       },
       "benchmarks": {
         "api_call_json": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 135526
+          "tokens": 107291
         },
         "cli_args": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 163809
         },
         "config_file_parser": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 252397
+          "tokens": 137307
         },
         "contract_bst_validate": {
           "firstAttemptOk": true,
@@ -1919,7 +2298,7 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 250916
+          "tokens": 109799
         },
         "effect_composition": {
           "firstAttemptOk": true,
@@ -1937,85 +2316,85 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 108096
+          "tokens": 108721
         },
         "float_eq": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 189655
+          "tokens": 133344
         },
         "fold_reduce": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 191766
+          "tokens": 108155
         },
         "graph_bfs": {
-          "firstAttemptOk": true,
-          "repairUsed": false,
-          "success": true,
-          "tokens": 193198
-        },
-        "higher_order_functions": {
-          "firstAttemptOk": true,
-          "repairUsed": false,
-          "success": true,
-          "tokens": 190952
-        },
-        "json_encode": {
           "firstAttemptOk": false,
           "repairUsed": false,
           "success": false,
           "tokens": 0
         },
+        "higher_order_functions": {
+          "firstAttemptOk": true,
+          "repairUsed": false,
+          "success": true,
+          "tokens": 135386
+        },
+        "json_encode": {
+          "firstAttemptOk": true,
+          "repairUsed": false,
+          "success": true,
+          "tokens": 161873
+        },
         "json_transform": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 192621
+          "tokens": 108055
         },
         "list_comprehension": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 192594
+          "tokens": 107317
         },
         "merge_sort": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 107972
+          "tokens": 108827
         },
         "pattern_matching_complex": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 108255
+          "tokens": 108860
         },
         "pipeline": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 134919
+          "tokens": 134568
         },
         "state_machine_elevator": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 110527
+          "tokens": 168325
         },
         "state_machine_vending": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 140952
+          "tokens": 141661
         },
         "tree_transformation_pipeline": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 193303
+          "tokens": 166842
         }
       },
       "languages": {
@@ -2024,39 +2403,52 @@
           "successRate": 0.8181818181818182,
           "totalRuns": 22
         },
+        "go": {
+          "avgTokens": 1221.2777777777778,
+          "successRate": 1,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "avgTokens": 995.7222222222222,
+          "successRate": 0.9444444444444444,
+          "totalRuns": 18
+        },
         "python": {
           "avgTokens": 865.1818181818181,
           "successRate": 0.8181818181818182,
           "totalRuns": 22
         }
       },
+      "model_family": "gpt5-4",
       "provider_type": "cloud",
-      "totalRuns": 44
+      "totalRuns": 80
     },
     "opencode-gemini-3-flash": {
       "agentStats": {
-        "avgCost": 0.041103529545454535,
-        "avgTokens": 64456.09090909091,
-        "avgTurns": 3.477272727272727,
-        "runs": 44,
-        "successRate": 0.6590909090909091
+        "apiErrorRate": 0.2375,
+        "apiErrors": 19,
+        "avgCost": 0.04008648500000002,
+        "avgTokens": 60333.25,
+        "avgTurns": 4.1625,
+        "runs": 80,
+        "successRate": 0.7625
       },
       "agent_cli": "opencode",
       "aggregates": {
-        "avgDurationMs": 24082.43181818182,
-        "finalSuccess": 0.6590909090909091,
+        "avgDurationMs": 26029.25,
+        "finalSuccess": 0.7625,
         "repairSuccessRate": 0,
         "repairUsed": 0,
-        "totalCostUSD": 1.8085552999999996,
-        "totalTokens": 2836068,
-        "zeroShotSuccess": 0.6590909090909091
+        "totalCostUSD": 3.2069188000000013,
+        "totalTokens": 4826660,
+        "zeroShotSuccess": 0.7625
       },
       "benchmarks": {
         "api_call_json": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 64799
+          "tokens": 33711
         },
         "cli_args": {
           "firstAttemptOk": false,
@@ -2068,7 +2460,7 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 162583
+          "tokens": 48718
         },
         "contract_bst_validate": {
           "firstAttemptOk": true,
@@ -2086,7 +2478,7 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 181793
+          "tokens": 96480
         },
         "effect_composition": {
           "firstAttemptOk": true,
@@ -2104,7 +2496,7 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 128270
+          "tokens": 59507
         },
         "float_eq": {
           "firstAttemptOk": false,
@@ -2116,73 +2508,73 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 94069
+          "tokens": 41310
         },
         "graph_bfs": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 36209
         },
         "higher_order_functions": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 30895
         },
         "json_encode": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 61894
         },
         "json_transform": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 89571
+          "tokens": 47535
         },
         "list_comprehension": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 217035
+          "tokens": 58757
         },
         "merge_sort": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 76939
+          "tokens": 53296
         },
         "pattern_matching_complex": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 38830
         },
         "pipeline": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 0
+          "success": true,
+          "tokens": 80799
         },
         "state_machine_elevator": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 64299
+          "tokens": 62923
         },
         "state_machine_vending": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 56891
+          "tokens": 47613
         },
         "tree_transformation_pipeline": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 42107
+          "tokens": 67253
         }
       },
       "languages": {
@@ -2190,6 +2582,16 @@
           "avgTokens": 809.8636363636364,
           "successRate": 0.6363636363636364,
           "totalRuns": 22
+        },
+        "go": {
+          "avgTokens": 1243,
+          "successRate": 0.8888888888888888,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "avgTokens": 1007.3888888888889,
+          "successRate": 0.8888888888888888,
+          "totalRuns": 18
         },
         "python": {
           "avgTokens": 692.3181818181819,
@@ -2199,44 +2601,46 @@
       },
       "model_family": "gemini-3-flash",
       "provider_type": "cloud",
-      "totalRuns": 44
+      "totalRuns": 80
     },
     "opencode-sonnet-4-6": {
       "agentStats": {
-        "avgCost": 0.16447327159090916,
-        "avgTokens": 941.9318181818181,
-        "avgTurns": 4.2727272727272725,
-        "runs": 44,
-        "successRate": 0.9318181818181818
+        "apiErrorRate": 0.0125,
+        "apiErrors": 1,
+        "avgCost": 0.13843225499999998,
+        "avgTokens": 930.7125,
+        "avgTurns": 4.3125,
+        "runs": 80,
+        "successRate": 0.95
       },
       "agent_cli": "opencode",
       "aggregates": {
-        "avgDurationMs": 22785.272727272728,
-        "finalSuccess": 0.9318181818181818,
+        "avgDurationMs": 19695.825,
+        "finalSuccess": 0.95,
         "repairSuccessRate": 0,
         "repairUsed": 0,
-        "totalCostUSD": 7.2368239500000024,
-        "totalTokens": 41445,
-        "zeroShotSuccess": 0.9318181818181818
+        "totalCostUSD": 11.074580399999999,
+        "totalTokens": 74457,
+        "zeroShotSuccess": 0.95
       },
       "benchmarks": {
         "api_call_json": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 639
+          "tokens": 676
         },
         "cli_args": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 1413
+          "tokens": 872
         },
         "config_file_parser": {
-          "firstAttemptOk": false,
+          "firstAttemptOk": true,
           "repairUsed": false,
-          "success": false,
-          "tokens": 1972
+          "success": true,
+          "tokens": 895
         },
         "contract_bst_validate": {
           "firstAttemptOk": true,
@@ -2254,7 +2658,7 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 1746
+          "tokens": 802
         },
         "effect_composition": {
           "firstAttemptOk": true,
@@ -2272,85 +2676,85 @@
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 922
+          "tokens": 721
         },
         "float_eq": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 644
+          "tokens": 489
         },
         "fold_reduce": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 833
+          "tokens": 627
         },
         "graph_bfs": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 995
+          "tokens": 703
         },
         "higher_order_functions": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 824
+          "tokens": 580
         },
         "json_encode": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 849
+          "tokens": 522
         },
         "json_transform": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 939
+          "tokens": 1015
         },
         "list_comprehension": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 814
+          "tokens": 563
         },
         "merge_sort": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 894
+          "tokens": 1583
         },
         "pattern_matching_complex": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 762
+          "tokens": 880
         },
         "pipeline": {
-          "firstAttemptOk": true,
+          "firstAttemptOk": false,
           "repairUsed": false,
-          "success": true,
-          "tokens": 538
+          "success": false,
+          "tokens": 638
         },
         "state_machine_elevator": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 1142
+          "tokens": 1438
         },
         "state_machine_vending": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 1464
+          "tokens": 1242
         },
         "tree_transformation_pipeline": {
           "firstAttemptOk": true,
           "repairUsed": false,
           "success": true,
-          "tokens": 1088
+          "tokens": 1517
         }
       },
       "languages": {
@@ -2358,6 +2762,16 @@
           "avgTokens": 1084.9545454545455,
           "successRate": 0.9545454545454546,
           "totalRuns": 22
+        },
+        "go": {
+          "avgTokens": 953.0555555555555,
+          "successRate": 1,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "avgTokens": 870.2222222222222,
+          "successRate": 0.9444444444444444,
+          "totalRuns": 18
         },
         "python": {
           "avgTokens": 788.4090909090909,
@@ -2367,7 +2781,7 @@
       },
       "model_family": "claude-sonnet-4-6",
       "provider_type": "cloud",
-      "totalRuns": 44
+      "totalRuns": 80
     }
   },
   "benchmarks": {
@@ -2380,16 +2794,16 @@
           "successRate": 1
         },
         "go": {
-          "avgTokens": 44167,
-          "avgTurns": 4,
-          "runs": 2,
+          "avgTokens": 51011.8,
+          "avgTurns": 3.4,
+          "runs": 5,
           "successRate": 1
         },
         "javascript": {
-          "avgTokens": 357.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 28478.6,
+          "avgTurns": 3,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 60676.6,
@@ -2398,7 +2812,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 714.5714285714286,
+      "avgTokens": 727.7,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/net (httpRequest)\nimport std/json (encode, jo, kv, js, jnum)\n\nexport func main() -\u003e () ! {IO, Net} {\n  let body = encode(jo([kv(\"message\", js(\"Hello from AILANG\")), kv(\"count\", jnum(42.0))]));\n  let headers = [{name: \"X-Test-Header\", value: \"value123\"}, {name: \"Content-Type\", value: \"application/json\"}];\n  match httpRequest(\"POST\", \"https://httpbin.org/post\", headers, body) {\n    Ok(resp) =\u003e println(show(resp.status)),\n    Err(_) =\u003e println(\"error\")\n  }\n}\n",
         "go": "package main\n\nimport (\n\t\"bytes\"\n\t\"fmt\"\n\t\"net/http\"\n\t\"time\"\n)\n\nfunc main() {\n\tbody := []byte(`{\"message\":\"Hello from go\",\"count\":42}`)\n\n\treq, err := http.NewRequest(\"POST\", \"https://httpbin.org/post\", bytes.NewBuffer(body))\n\tif err != nil {\n\t\tfmt.Println(\"Error creating request:\", err)\n\t\treturn\n\t}\n\n\treq.Header.Set(\"X-Test-Header\", \"value123\")\n\treq.Header.Set(\"Content-Type\", \"application/json\")\n\n\tclient := \u0026http.Client{Timeout: 60 * time.Second}\n\tresp, err := client.Do(req)\n\tif err != nil {\n\t\tfmt.Println(\"Error making request:\", err)\n\t\treturn\n\t}\n\tdefer resp.Body.Close()\n\n\tfmt.Println(resp.StatusCode)\n}\n",
@@ -2412,14 +2826,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 772.5,
+          "avgTokens": 750.8,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 355,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 610.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 781,
@@ -2433,14 +2847,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.8571428571428571,
+      "successRate": 0.9,
       "tags": [
         "effects_io",
         "data_transform"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Makes an HTTP POST request to https://httpbin.org/post\n2. Includes custom headers: \"X-Test-Header: value123\" and \"Content-Type: application/json\"\n3. Sends a JSON body: {\"message\":\"Hello from \u003cLANG\u003e\",\"count\":42}\n4. Prints ONLY the response status code (e.g., \"200\" or \"201\")\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "cli_args": {
       "agentStats": {
@@ -2451,16 +2865,16 @@
           "successRate": 0.4
         },
         "go": {
-          "avgTokens": 744,
-          "avgTurns": 2.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 33268.6,
+          "avgTurns": 2.2,
+          "runs": 5,
+          "successRate": 0.6
         },
         "javascript": {
-          "avgTokens": 692,
-          "avgTurns": 3,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 27452.8,
+          "avgTurns": 2.4,
+          "runs": 5,
+          "successRate": 0.6
         },
         "python": {
           "avgTokens": 21730.6,
@@ -2469,7 +2883,7 @@
           "successRate": 0.2
         }
       },
-      "avgTokens": 628.9285714285714,
+      "avgTokens": 690.15,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/env (getArgs)\nimport std/fs (readFile)\nimport std/string (split, trim, stringToInt)\nimport std/list (foldl)\nimport std/option (Option, Some, None)\n\nfunc sumLines(lines: [string]) -\u003e int =\n  foldl(func(acc: int, line: string) -\u003e int {\n    let trimmed = trim(line);\n    if trimmed == \"\" then acc\n    else match stringToInt(trimmed) {\n      Some(n) =\u003e acc + n,\n      None =\u003e acc\n    }\n  }, 0, lines)\n\nexport func main() -\u003e () ! {IO, FS, Env} {\n  let args = getArgs();\n  match args {\n    filename :: _ =\u003e {\n      let content = readFile(filename);\n      let lines = split(content, \"\\n\");\n      let total = sumLines(lines);\n      println(show(total))\n    },\n    _ =\u003e println(\"Usage: solution \u003cfilename\u003e\")\n  }\n}\n",
         "go": "package main\n\nimport (\n\t\"bufio\"\n\t\"fmt\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n)\n\nfunc main() {\n\tif len(os.Args) \u003c 2 {\n\t\tfmt.Fprintln(os.Stderr, \"usage: solution \u003cfile\u003e\")\n\t\tos.Exit(1)\n\t}\n\n\tf, err := os.Open(os.Args[1])\n\tif err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n\tdefer f.Close()\n\n\tsum := 0\n\tscanner := bufio.NewScanner(f)\n\tfor scanner.Scan() {\n\t\tline := strings.TrimSpace(scanner.Text())\n\t\tif line == \"\" {\n\t\t\tcontinue\n\t\t}\n\t\tn, err := strconv.Atoi(line)\n\t\tif err != nil {\n\t\t\tfmt.Fprintln(os.Stderr, \"parse error:\", err)\n\t\t\tos.Exit(1)\n\t\t}\n\t\tsum += n\n\t}\n\tif err := scanner.Err(); err != nil {\n\t\tfmt.Fprintln(os.Stderr, err)\n\t\tos.Exit(1)\n\t}\n\n\tfmt.Println(sum)\n}\n",
@@ -2483,14 +2897,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 741,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 859.4,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 688.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 712,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 581.6,
@@ -2504,14 +2918,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.35714285714285715,
+      "successRate": 0.45,
       "tags": [
         "effects_io",
         "error_handling"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Takes a filename as a command-line argument\n2. Reads the file contents (assume it contains numbers, one per line)\n3. Computes the sum of all numbers\n4. Prints the sum\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "config_file_parser": {
       "agentStats": {
@@ -2522,16 +2936,16 @@
           "successRate": 0.6
         },
         "go": {
-          "avgTokens": 565,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 34925.6,
+          "avgTurns": 3,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 418.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 37551.4,
+          "avgTurns": 2.8,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 47696.4,
@@ -2540,7 +2954,7 @@
           "successRate": 1
         }
       },
-      "avgTokens": 1025.642857142857,
+      "avgTokens": 1104,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/fs (readFile, writeFile)\nimport std/json (encode, decode, jo, kv, js, jnum, ja, getString, getInt, getArray)\nimport std/string (split)\nimport std/list (length)\nimport std/option (Some, None)\nimport std/result (Ok, Err)\n\npure func countDots(s: string) -\u003e int {\n  let parts = split(s, \".\");\n  length(parts) - 1\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  let config = encode(jo([\n    kv(\"app_name\", js(\"MyApp\")),\n    kv(\"version\", js(\"1.0.0\")),\n    kv(\"port\", jnum(8080.0)),\n    kv(\"features\", ja([js(\"logging\"), js(\"auth\"), js(\"api\")]))\n  ]));\n  writeFile(\"app_config.json\", config);\n  let content = readFile(\"app_config.json\");\n  match decode(content) {\n    Err(e) =\u003e println(\"Error parsing config: ${e}\"),\n    Ok(json) =\u003e {\n      let appName = match getString(json, \"app_name\") { Some(s) =\u003e s, None =\u003e \"\" };\n      let version = match getString(json, \"version\") { Some(s) =\u003e s, None =\u003e \"\" };\n      let port = match getInt(json, \"port\") { Some(n) =\u003e n, None =\u003e 0 };\n      let features = match getArray(json, \"features\") { Some(arr) =\u003e arr, None =\u003e [] };\n      let portValid = port \u003e= 1024 \u0026\u0026 port \u003c= 65535;\n      let versionValid = countDots(version) == 2;\n      let featuresValid = length(features) \u003e 0;\n      if portValid \u0026\u0026 versionValid \u0026\u0026 featuresValid then\n        println(\"Loaded ${appName} v${version} on port ${show(port)} with ${show(length(features))} features\")\n      else\n        println(\"Config validation failed\")\n    }\n  }\n}\n",
         "go": "package main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n\t\"strings\"\n)\n\ntype Config struct {\n\tAppName  string   `json:\"app_name\"`\n\tVersion  string   `json:\"version\"`\n\tPort     int      `json:\"port\"`\n\tFeatures []string `json:\"features\"`\n}\n\nfunc createConfig() error {\n\tdata := `{\n\t\"app_name\": \"MyApp\",\n\t\"version\": \"1.0.0\",\n\t\"port\": 8080,\n\t\"features\": [\"logging\", \"auth\", \"api\"]\n}`\n\treturn os.WriteFile(\"app_config.json\", []byte(data), 0644)\n}\n\nfunc loadAndValidateConfig(filename string) (*Config, error) {\n\tdata, err := os.ReadFile(filename)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"failed to read config: %w\", err)\n\t}\n\n\tvar cfg Config\n\tif err := json.Unmarshal(data, \u0026cfg); err != nil {\n\t\treturn nil, fmt.Errorf(\"failed to parse config: %w\", err)\n\t}\n\n\tif cfg.Port \u003c 1024 || cfg.Port \u003e 65535 {\n\t\treturn nil, fmt.Errorf(\"invalid port %d: must be between 1024 and 65535\", cfg.Port)\n\t}\n\n\tif strings.Count(cfg.Version, \".\") != 2 {\n\t\treturn nil, fmt.Errorf(\"invalid version %q: must be in X.Y.Z format\", cfg.Version)\n\t}\n\n\tif len(cfg.Features) == 0 {\n\t\treturn nil, fmt.Errorf(\"features list must not be empty\")\n\t}\n\n\treturn \u0026cfg, nil\n}\n\nfunc main() {\n\tif err := createConfig(); err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"error creating config: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tcfg, err := loadAndValidateConfig(\"app_config.json\")\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"error loading config: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tfmt.Printf(\"Loaded %s v%s on port %d with %d features\\n\",\n\t\tcfg.AppName, cfg.Version, cfg.Port, len(cfg.Features))\n}\n",
@@ -2554,14 +2968,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 562.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1140.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 416,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 795,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 916.8,
@@ -2575,7 +2989,7 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7142857142857143,
+      "successRate": 0.8,
       "tags": [
         "string_algo",
         "error_handling",
@@ -2583,7 +2997,7 @@
       ],
       "taskPrompt": "Build a configuration file parser with validation.\n\n**Requirements**:\n\n1. Create a JSON config file named \"app_config.json\" containing:\n   - app_name: \"MyApp\"\n   - version: \"1.0.0\"\n   - port: 8080\n   - features: [\"logging\", \"auth\", \"api\"]\n\n2. Implement a function to load and validate the config:\n   - Read the JSON file\n   - Parse the JSON content\n   - Validate that port is between 1024 and 65535\n   - Validate that version contains exactly two dots (X.Y.Z format)\n   - Validate that features list is not empty\n\n3. Print the result in this exact format:\n   \"Loaded MyApp v1.0.0 on port 8080 with 3 features\"\n\nThe output format must be: \"Loaded {app_name} v{version} on port {port} with {count} features\"\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "contract_bst_validate": {
       "agentStats": {
@@ -2685,16 +3099,16 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 617.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 37415.8,
+          "avgTurns": 3.2,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 452.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 41597.2,
+          "avgTurns": 3.4,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 40601,
@@ -2703,7 +3117,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 1144.7857142857142,
+      "avgTokens": 1169.65,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/fs (readFile, writeFile)\nimport std/string (split, trim, contains, stringToInt)\nimport std/list (map, filter, foldl, length)\nimport std/json (encode, jo, ja, kv, js, jnum)\nimport std/option (Option, Some, None)\n\n-- Validate a row: age must be positive integer, email must contain @\npure func isValidRow(name: string, ageStr: string, email: string) -\u003e bool {\n  let validEmail = contains(email, \"@\");\n  let validAge = match stringToInt(trim(ageStr)) {\n    Some(n) =\u003e n \u003e 0,\n    None =\u003e false\n  };\n  validEmail \u0026\u0026 validAge\n}\n\n-- Parse a single CSV data row into a JSON object string, returning None if invalid\npure func parseRow(row: string) -\u003e Option[string] {\n  let fields = split(row, \",\");\n  match fields {\n    name :: ageStr :: email :: _ =\u003e {\n      let n = trim(name);\n      let a = trim(ageStr);\n      let e = trim(email);\n      if isValidRow(n, a, e) then\n        match stringToInt(a) {\n          Some(age) =\u003e Some(encode(jo([kv(\"name\", js(n)), kv(\"age\", jnum(intToFloat(age))), kv(\"email\", js(e))]))),\n          None =\u003e None\n        }\n      else None\n    },\n    _ =\u003e None\n  }\n}\n\n-- Collect valid row JSON strings from data rows\nfunc collectRows(rows: [string], acc: [string]) -\u003e [string] =\n  match rows {\n    [] =\u003e acc,\n    row :: rest =\u003e {\n      let trimmed = trim(row);\n      if trimmed == \"\" then collectRows(rest, acc)\n      else match parseRow(trimmed) {\n        Some(jsonStr) =\u003e collectRows(rest, acc ++ [jsonStr]),\n        None =\u003e collectRows(rest, acc)\n      }\n    }\n  }\n\n-- Build JSON array string from list of JSON object strings\nfunc buildJsonArray(items: [string]) -\u003e string {\n  let inner = foldl(func(acc: string, item: string) -\u003e string {\n    if acc == \"\" then item else \"${acc},${item}\"\n  }, \"\", items);\n  \"[${inner}]\"\n}\n\nexport func main() -\u003e () ! {IO, FS} {\n  -- Create the input CSV file\n  writeFile(\"users.csv\", \"name,age,email\\nAlice,30,alice@example.com\\nBob,25,bob@example.com\\nCarol,35,carol@example.com\\n\");\n\n  -- Read the CSV file\n  let content = readFile(\"users.csv\");\n  let lines = split(content, \"\\n\");\n\n  -- Skip header row (first line), process data rows\n  let dataRows = match lines {\n    _ :: rest =\u003e rest,\n    [] =\u003e []\n  };\n\n  -- Collect valid rows\n  let validJsonRows = collectRows(dataRows, []);\n  let count = length(validJsonRows);\n\n  -- Build JSON array\n  let jsonOutput = buildJsonArray(validJsonRows);\n\n  -- Write JSON to file\n  writeFile(\"users.json\", jsonOutput);\n\n  -- Print result\n  println(\"Converted ${show(count)} valid rows to users.json\")\n}\n",
         "go": "package main\n\nimport (\n\t\"encoding/csv\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n)\n\ntype User struct {\n\tName  string `json:\"name\"`\n\tAge   int    `json:\"age\"`\n\tEmail string `json:\"email\"`\n}\n\nfunc main() {\n\tcsvContent := \"name,age,email\\nAlice,30,alice@example.com\\nBob,25,bob@example.com\\nCarol,35,carol@example.com\\n\"\n\tif err := os.WriteFile(\"users.csv\", []byte(csvContent), 0644); err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Error writing CSV: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tf, err := os.Open(\"users.csv\")\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Error opening CSV: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\tdefer f.Close()\n\n\treader := csv.NewReader(f)\n\trecords, err := reader.ReadAll()\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Error reading CSV: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tif len(records) \u003c 1 {\n\t\tfmt.Fprintf(os.Stderr, \"Empty CSV\\n\")\n\t\tos.Exit(1)\n\t}\n\n\tvar users []User\n\tfor _, row := range records[1:] {\n\t\tif len(row) \u003c 3 {\n\t\t\tcontinue\n\t\t}\n\t\tname := row[0]\n\t\tageStr := row[1]\n\t\temail := row[2]\n\n\t\tage, err := strconv.Atoi(ageStr)\n\t\tif err != nil || age \u003c= 0 {\n\t\t\tcontinue\n\t\t}\n\n\t\tif !strings.Contains(email, \"@\") {\n\t\t\tcontinue\n\t\t}\n\n\t\tusers = append(users, User{Name: name, Age: age, Email: email})\n\t}\n\n\tdata, err := json.MarshalIndent(users, \"\", \"  \")\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Error marshaling JSON: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tif err := os.WriteFile(\"users.json\", data, 0644); err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Error writing JSON: %v\\n\", err)\n\t\tos.Exit(1)\n\t}\n\n\tfmt.Printf(\"Converted %d valid rows to users.json\\n\", len(users))\n}\n",
@@ -2717,14 +3131,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 615,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1061.8,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 450,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 837.4,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 835.8,
@@ -2738,14 +3152,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7142857142857143,
+      "successRate": 0.8,
       "tags": [
         "string_algo",
         "data_transform"
       ],
       "taskPrompt": "Convert a CSV file to JSON in \u003cLANG\u003e with validation.\n\n**Task Requirements**:\n\n1. **Create input CSV file \"users.csv\"** with this exact content:\n   ```\n   name,age,email\n   Alice,30,alice@example.com\n   Bob,25,bob@example.com\n   Carol,35,carol@example.com\n   ```\n\n2. **Parse the CSV file**:\n   - Read the file contents\n   - Parse headers and data rows\n   - Create structured data from the CSV\n\n3. **Validate each row**:\n   - Age must be a positive integer\n   - Email must contain \"@\" symbol\n   - Skip any invalid rows (don't include in output)\n\n4. **Convert to JSON array**:\n   Create a JSON array of objects like:\n   ```json\n   [\n     {\"name\": \"Alice\", \"age\": 30, \"email\": \"alice@example.com\"},\n     {\"name\": \"Bob\", \"age\": 25, \"email\": \"bob@example.com\"},\n     {\"name\": \"Carol\", \"age\": 35, \"email\": \"carol@example.com\"}\n   ]\n   ```\n\n5. **Write JSON to \"users.json\" file**\n\n6. **Print to stdout**: \"Converted 3 valid rows to users.json\"\n```\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "effect_composition": {
       "agentStats": {
@@ -2845,16 +3259,16 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 29655.5,
-          "avgTurns": 3.5,
-          "runs": 2,
+          "avgTokens": 50932.4,
+          "avgTurns": 3.2,
+          "runs": 5,
           "successRate": 1
         },
         "javascript": {
-          "avgTokens": 358,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 33933,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 37800,
@@ -2863,7 +3277,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 688.2142857142857,
+      "avgTokens": 752.65,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Result[a] = Ok(a) | Err(string)\n\npure func validate_age(age: int) -\u003e Result[int] =\n  if age \u003e= 0 \u0026\u0026 age \u003c= 150 then Ok(age) else Err(\"Age out of range\")\n\npure func calculate_retirement_years(age: int) -\u003e Result[int] =\n  if age \u003c 65 then Ok(65 - age) else Err(\"Already retired\")\n\npure func years_to_retirement(age: int) -\u003e Result[int] =\n  match validate_age(age) {\n    Ok(valid_age) =\u003e calculate_retirement_years(valid_age),\n    Err(msg) =\u003e Err(msg)\n  }\n\npure func format_result(result: Result[int]) -\u003e string =\n  match result {\n    Ok(value) =\u003e \"Years to retirement: ${show(value)}\",\n    Err(msg) =\u003e \"Error: ${msg}\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  println(format_result(years_to_retirement(30)));\n  println(format_result(years_to_retirement(70)));\n  println(format_result(years_to_retirement(-5)))\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\ntype Result struct {\n\tvalue int\n\terr   string\n\tisOk  bool\n}\n\nfunc Ok(value int) Result {\n\treturn Result{value: value, isOk: true}\n}\n\nfunc Err(msg string) Result {\n\treturn Result{err: msg, isOk: false}\n}\n\nfunc validateAge(age int) Result {\n\tif age \u003e= 0 \u0026\u0026 age \u003c= 150 {\n\t\treturn Ok(age)\n\t}\n\treturn Err(\"Age out of range\")\n}\n\nfunc calculateRetirementYears(age int) Result {\n\tif age \u003c 65 {\n\t\treturn Ok(65 - age)\n\t}\n\treturn Err(\"Already retired\")\n}\n\nfunc chain(age int) Result {\n\tr := validateAge(age)\n\tif !r.isOk {\n\t\treturn r\n\t}\n\treturn calculateRetirementYears(r.value)\n}\n\nfunc printResult(r Result) {\n\tif r.isOk {\n\t\tfmt.Printf(\"Years to retirement: %d\\n\", r.value)\n\t} else {\n\t\tfmt.Printf(\"Error: %s\\n\", r.err)\n\t}\n}\n\nfunc main() {\n\tprintResult(chain(30))\n\tprintResult(chain(70))\n\tprintResult(chain(-5))\n}\n",
@@ -2877,14 +3291,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 770,
+          "avgTokens": 869.2,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 355.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 664.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 741.8,
@@ -2898,14 +3312,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7857142857142857,
+      "successRate": 0.85,
       "tags": [
         "error_handling",
         "adt_pattern_match"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Defines a Result type with Ok(value) and Err(message) variants\n2. Implements a function `validate_age(age: int) -\u003e Result[int]`:\n   - Returns Ok(age) if age is between 0 and 150 (inclusive)\n   - Returns Err(\"Age out of range\") otherwise\n3. Implements a function `calculate_retirement_years(age: int) -\u003e Result[int]`:\n   - Returns Ok(65 - age) if age \u003c 65\n   - Returns Err(\"Already retired\") if age \u003e= 65\n4. Chains operations: validate_age(age) -\u003e calculate_retirement_years(result)\n5. Prints the final result:\n   - For Ok(value): \"Years to retirement: {value}\"\n   - For Err(msg): \"Error: {msg}\"\n\nTest cases:\n- age = 30 -\u003e \"Years to retirement: 35\"\n- age = 70 -\u003e \"Error: Already retired\"\n- age = -5 -\u003e \"Error: Age out of range\"\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "float_eq": {
       "agentStats": {
@@ -2916,16 +3330,16 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 28514.5,
-          "avgTurns": 4,
-          "runs": 2,
-          "successRate": 1
+          "avgTokens": 38071.8,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 21886.5,
-          "avgTurns": 3.5,
-          "runs": 2,
-          "successRate": 1
+          "avgTokens": 35521.2,
+          "avgTurns": 2.4,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 29926.2,
@@ -2934,7 +3348,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 438.85714285714283,
+      "avgTokens": 418.35,
       "codeSamples": {
         "ailang": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n// TODO: Add your solution code below\n\nexport func main() -\u003e () ! {IO} {\n  println(show(1.0 == 1.0))\n}\n",
         "go": "package main\n\nimport (\n\t\"fmt\"\n\t\"math\"\n)\n\nfunc floatEq(a, b float64) bool {\n\treturn math.Abs(a-b) \u003c 1e-9\n}\n\nfunc main() {\n\tfmt.Println(floatEq(0.1+0.2, 0.3))\n}\n",
@@ -2948,14 +3362,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 509,
-          "successRate": 1,
-          "totalRuns": 2
+          "avgTokens": 413,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 463.5,
-          "successRate": 1,
-          "totalRuns": 2
+          "avgTokens": 420.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 381.2,
@@ -2969,14 +3383,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.8571428571428571,
+      "successRate": 0.8,
       "tags": [
         "contracts",
         "algorithmic"
       ],
       "taskPrompt": "Write a \u003cLANG\u003e program that evaluates (0.0 == 0.0) and prints true or false.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "fold_reduce": {
       "agentStats": {
@@ -2987,16 +3401,16 @@
           "successRate": 1
         },
         "go": {
-          "avgTokens": 23024,
-          "avgTurns": 3.5,
-          "runs": 2,
+          "avgTokens": 39367.6,
+          "avgTurns": 3.2,
+          "runs": 5,
           "successRate": 1
         },
         "javascript": {
-          "avgTokens": 493,
-          "avgTurns": 2.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 31563.6,
+          "avgTurns": 2.8,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 35868.2,
@@ -3005,7 +3419,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 798,
+      "avgTokens": 799.9,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nfunc foldl(f: (a, b) -\u003e a, acc: a, xs: [b]) -\u003e a =\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e foldl(f, f(acc, x), rest)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [2, 4, 6, 8, 10];\n  let values = [7, 2, 8, 3, 11, 5, 1];\n  let sum = foldl(func(acc: int, x: int) -\u003e int { acc + x }, 0, nums);\n  let product = foldl(func(acc: int, x: int) -\u003e int { acc * x }, 1, nums);\n  let maximum = foldl(func(acc: int, x: int) -\u003e int { if x \u003e acc then x else acc }, 7, values);\n  println(\"Sum: ${sum}\");\n  println(\"Product: ${product}\");\n  println(\"Max: ${maximum}\")\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\nfunc foldl(f func(int, int) int, acc int, xs []int) int {\n\tfor _, x := range xs {\n\t\tacc = f(acc, x)\n\t}\n\treturn acc\n}\n\nfunc main() {\n\tnums := []int{2, 4, 6, 8, 10}\n\n\tsum := foldl(func(a, b int) int { return a + b }, 0, nums)\n\tproduct := foldl(func(a, b int) int { return a * b }, 1, nums)\n\tmax := foldl(func(a, b int) int {\n\t\tif b \u003e a {\n\t\t\treturn b\n\t\t}\n\t\treturn a\n\t}, []int{7, 2, 8, 3, 11, 5, 1}[0], []int{7, 2, 8, 3, 11, 5, 1}[1:])\n\n\tfmt.Printf(\"Sum: %d\\n\", sum)\n\tfmt.Printf(\"Product: %d\\n\", product)\n\tfmt.Printf(\"Max: %d\\n\", max)\n}\n",
@@ -3019,14 +3433,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 816,
+          "avgTokens": 864.2,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 490,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 623.4,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 684.4,
@@ -3040,14 +3454,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.8571428571428571,
+      "successRate": 0.9,
       "tags": [
         "functional",
         "recursion"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements a generic `foldl(f, acc, xs)` function that:\n   - Takes a binary function f, an initial accumulator, and a list\n   - Returns the result of folding the function over the list from left to right\n\n2. Uses foldl to compute:\n   - Sum of [2, 4, 6, 8, 10] using addition\n   - Product of [2, 4, 6, 8, 10] using multiplication\n   - Maximum of [7, 2, 8, 3, 11, 5, 1]\n\n3. Prints three lines:\n   - Sum: {value}\n   - Product: {value}\n   - Max: {value}\n\nExpected:\n- Sum: 2+4+6+8+10 = 30\n- Product: 2*4*6*8*10 = 3840\n- Max of [7,2,8,3,11,5,1] = 11\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "graph_bfs": {
       "agentStats": {
@@ -3058,16 +3472,16 @@
           "successRate": 0.6
         },
         "go": {
-          "avgTokens": 397.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 42960,
+          "avgTurns": 2.8,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 374,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 7532,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.6
         },
         "python": {
           "avgTokens": 8986.4,
@@ -3076,7 +3490,7 @@
           "successRate": 0.6
         }
       },
-      "avgTokens": 528.6428571428571,
+      "avgTokens": 599.65,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\npure func contains(x: int, xs: [int]) -\u003e bool =\n  match xs {\n    [] =\u003e false,\n    h :: rest =\u003e if h == x then true else contains(x, rest)\n  }\n\npure func enqueue(x: int, queue: [int]) -\u003e [int] =\n  queue ++ [x]\n\npure func getNeighbors(node: int, graph: [(int, [int])]) -\u003e [int] =\n  match graph {\n    [] =\u003e [],\n    (n, neighbors) :: rest =\u003e if n == node then neighbors else getNeighbors(node, rest)\n  }\n\nfunc addUnvisited(neighbors: [int], queue: [int], visited: [int]) -\u003e [int] =\n  match neighbors {\n    [] =\u003e queue,\n    n :: rest =\u003e\n      if contains(n, visited) || contains(n, queue)\n        then addUnvisited(rest, queue, visited)\n        else addUnvisited(rest, enqueue(n, queue), visited)\n  }\n\nfunc bfs(queue: [int], visited: [int], graph: [(int, [int])]) -\u003e () ! {IO} =\n  match queue {\n    [] =\u003e (),\n    node :: rest =\u003e {\n      println(show(node));\n      let newVisited = visited ++ [node];\n      let neighbors = getNeighbors(node, graph);\n      let newQueue = addUnvisited(neighbors, rest, newVisited);\n      bfs(newQueue, newVisited, graph)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let graph = [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])];\n  bfs([1], [], graph)\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\nfunc contains(x int, list []int) bool {\n\tfor _, v := range list {\n\t\tif v == x {\n\t\t\treturn true\n\t\t}\n\t}\n\treturn false\n}\n\nfunc enqueue(x int, queue []int) []int {\n\treturn append(queue, x)\n}\n\nfunc bfs(graph map[int][]int, start int) []int {\n\tvisited := []int{}\n\tqueue := []int{start}\n\n\tfor len(queue) \u003e 0 {\n\t\tnode := queue[0]\n\t\tqueue = queue[1:]\n\n\t\tif contains(node, visited) {\n\t\t\tcontinue\n\t\t}\n\n\t\tvisited = append(visited, node)\n\n\t\tfor _, neighbor := range graph[node] {\n\t\t\tif !contains(neighbor, visited) {\n\t\t\t\tqueue = enqueue(neighbor, queue)\n\t\t\t}\n\t\t}\n\t}\n\n\treturn visited\n}\n\nfunc main() {\n\tgraph := map[int][]int{\n\t\t1: {2, 3},\n\t\t2: {4},\n\t\t3: {4, 5},\n\t\t4: {},\n\t\t5: {},\n\t}\n\n\tresult := bfs(graph, 1)\n\tfor _, node := range result {\n\t\tfmt.Println(node)\n\t}\n}\n",
@@ -3090,14 +3504,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 395,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 730,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 371.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 495,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 488,
@@ -3111,14 +3525,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.5714285714285714,
+      "successRate": 0.65,
       "tags": [
         "algorithmic",
         "recursion"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that implements breadth-first search:\n\n1. Represent a graph as an adjacency list: [(node, [neighbors])]\n   Example: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n2. Implement BFS that returns nodes in visit order from a starting node\n   - Use a queue (list where you add to end, remove from front)\n   - Track visited nodes to avoid cycles\n   - Helper: `contains(x, list)` to check if node is visited\n   - Helper: `enqueue(x, queue)` to add to end of queue\n\n3. Run BFS on this graph starting from node 1:\n   ```\n       1\n      / \\\n     2   3\n     |  / \\\n     4    5\n   ```\n   Adjacency list: [(1, [2, 3]), (2, [4]), (3, [4, 5]), (4, []), (5, [])]\n\n4. Print visited nodes in BFS order, one per line\n\nExpected order: 1, 2, 3, 4, 5 (may vary based on neighbor order)\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "higher_order_functions": {
       "agentStats": {
@@ -3129,16 +3543,16 @@
           "successRate": 0.6
         },
         "go": {
-          "avgTokens": 414.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 40604.6,
+          "avgTurns": 3.2,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 295,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 33490.2,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 13096.4,
@@ -3147,7 +3561,7 @@
           "successRate": 0.6
         }
       },
-      "avgTokens": 418.92857142857144,
+      "avgTokens": 533.5,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\npure func pipe(f: int -\u003e int, g: int -\u003e int) -\u003e int -\u003e int =\n  \\x. g(f(x))\n\npure func subtract(x: int, y: int) -\u003e int =\n  x - y\n\npure func multiply(x: int, y: int) -\u003e int =\n  x * y\n\npure func negate(x: int) -\u003e int =\n  -x\n\nexport func main() -\u003e () ! {IO} {\n  let sub4 = \\x. subtract(x, 4);\n  let double = \\x. multiply(2, x);\n  let sub4_then_double = pipe(sub4, double);\n  let value = sub4_then_double(11);\n  println(\"Result: ${value}\")\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\nfunc pipe(f, g func(int) int) func(int) int {\n\treturn func(x int) int {\n\t\treturn g(f(x))\n\t}\n}\n\nfunc subtract(x, y int) int {\n\treturn x - y\n}\n\nfunc negate(x int) int {\n\treturn -x\n}\n\nfunc multiply(x, y int) int {\n\treturn x * y\n}\n\nfunc main() {\n\tsub4 := func(x int) int { return subtract(x, 4) }\n\tdouble := func(x int) int { return multiply(2, x) }\n\tsub4ThenDouble := pipe(sub4, double)\n\tresult := sub4ThenDouble(11)\n\tfmt.Printf(\"Result: %d\\n\", result)\n}\n",
@@ -3161,14 +3575,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 412,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 736.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 292.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 506.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 384,
@@ -3182,13 +3596,13 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.5714285714285714,
+      "successRate": 0.7,
       "tags": [
         "functional"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates higher-order functions:\n\n1. Implement `pipe(f, g)` - returns a function that computes g(f(x)) (apply f first, then g)\n2. Implement `subtract(x, y)` - returns x - y\n3. Implement `negate(x)` - returns -x\n4. Create `sub4 = subtract(_, 4)` using partial application (or lambda) - subtracts 4 from input\n5. Create `double = multiply(2, _)` using partial application (or lambda)\n6. Create `sub4_then_double = pipe(sub4, double)` - subtract 4 first, then double\n7. Apply the piped function to 11\n8. Print the result: \"Result: {value}\"\n\nExpected computation: (11 - 4) * 2 = 14\n\nRequirements:\n- Use first-class functions\n- Demonstrate function piping (reverse of compose)\n- Show currying or partial application\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "json_encode": {
       "agentStats": {
@@ -3199,15 +3613,15 @@
           "successRate": 0.4
         },
         "go": {
-          "avgTokens": 22246,
-          "avgTurns": 3.5,
-          "runs": 2,
+          "avgTokens": 46640.6,
+          "avgTurns": 3.8,
+          "runs": 5,
           "successRate": 1
         },
         "javascript": {
-          "avgTokens": 22031.5,
-          "avgTurns": 3.5,
-          "runs": 2,
+          "avgTokens": 53670.4,
+          "avgTurns": 3.6,
+          "runs": 5,
           "successRate": 1
         },
         "python": {
@@ -3217,7 +3631,7 @@
           "successRate": 0.4
         }
       },
-      "avgTokens": 382.7857142857143,
+      "avgTokens": 502,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/json (encode, jo, ja, kv, js, jnum, jb)\n\nexport func main() -\u003e () ! {IO} {\n  let dimensions = jo([\n    kv(\"width\", jnum(10.0)),\n    kv(\"height\", jnum(5.0)),\n    kv(\"depth\", jnum(3.0))\n  ]);\n  let tags = ja([js(\"electronics\"), js(\"sale\"), js(\"featured\")]);\n  let product = jo([\n    kv(\"name\", js(\"Gadget\")),\n    kv(\"price\", jnum(149.0)),\n    kv(\"inStock\", jb(true)),\n    kv(\"tags\", tags),\n    kv(\"dimensions\", dimensions)\n  ]);\n  println(encode(product))\n}\n",
         "go": "package main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n)\n\ntype Dimensions struct {\n\tWidth  int `json:\"width\"`\n\tHeight int `json:\"height\"`\n\tDepth  int `json:\"depth\"`\n}\n\ntype Product struct {\n\tName       string     `json:\"name\"`\n\tPrice      int        `json:\"price\"`\n\tInStock    bool       `json:\"inStock\"`\n\tTags       []string   `json:\"tags\"`\n\tDimensions Dimensions `json:\"dimensions\"`\n}\n\nfunc main() {\n\tp := Product{\n\t\tName:    \"Gadget\",\n\t\tPrice:   149,\n\t\tInStock: true,\n\t\tTags:    []string{\"electronics\", \"sale\", \"featured\"},\n\t\tDimensions: Dimensions{\n\t\t\tWidth:  10,\n\t\t\tHeight: 5,\n\t\t\tDepth:  3,\n\t\t},\n\t}\n\tdata, err := json.Marshal(p)\n\tif err != nil {\n\t\tfmt.Println(\"error:\", err)\n\t\treturn\n\t}\n\tfmt.Print(string(data))\n}\n",
@@ -3231,14 +3645,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 711,
+          "avgTokens": 794.4,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 492.5,
+          "avgTokens": 623.2,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 258.4,
@@ -3252,14 +3666,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.5714285714285714,
+      "successRate": 0.7,
       "tags": [
         "data_transform",
         "string_algo"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a nested JSON structure representing:\n   - A product object with name \"Gadget\", price 149, inStock status true\n   - An array of tags: [\"electronics\", \"sale\", \"featured\"]\n   - A nested dimensions object: width 10, height 5, depth 3\n2. Encodes it to a JSON string\n3. Prints the JSON string\n\nThe output should be valid JSON with this structure:\n{\"name\":\"Gadget\",\"price\":149,\"inStock\":true,\"tags\":[\"electronics\",\"sale\",\"featured\"],\"dimensions\":{\"width\":10,\"height\":5,\"depth\":3}}\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "json_transform": {
       "agentStats": {
@@ -3270,15 +3684,15 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 775,
-          "avgTurns": 3.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 38292,
+          "avgTurns": 3.4,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 52535,
-          "avgTurns": 5.5,
-          "runs": 2,
+          "avgTokens": 52335,
+          "avgTurns": 4.8,
+          "runs": 5,
           "successRate": 1
         },
         "python": {
@@ -3288,7 +3702,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 746.3571428571429,
+      "avgTokens": 807.75,
       "codeSamples": {
         "ailang": "module benchmark/solution\nimport std/json (decode, getArray, getString, getNumber, asArray)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\nimport std/math (floatToInt, intToFloat)\n\nfunc processOrders(orders: [Json]) -\u003e () ! {IO} =\n  match orders {\n    [] =\u003e (),\n    order :: rest =\u003e {\n      let item = match getString(order, \"item\") { Some(s) =\u003e s, None =\u003e \"\" };\n      let qty = match getNumber(order, \"qty\") { Some(n) =\u003e n, None =\u003e 0.0 };\n      let price = match getNumber(order, \"price\") { Some(n) =\u003e n, None =\u003e 0.0 };\n      let total = qty * price;\n      if total \u003e 5.0 then println(\"${item}: ${show(total)}\") else ();\n      processOrders(rest)\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let json = \"[{\\\"id\\\":1,\\\"item\\\":\\\"apple\\\",\\\"qty\\\":5,\\\"price\\\":1.50},{\\\"id\\\":2,\\\"item\\\":\\\"banana\\\",\\\"qty\\\":3,\\\"price\\\":0.75},{\\\"id\\\":3,\\\"item\\\":\\\"orange\\\",\\\"qty\\\":8,\\\"price\\\":2.00}]\";\n  match decode(json) {\n    Ok(parsed) =\u003e match asArray(parsed) {\n      Some(orders) =\u003e processOrders(orders),\n      None =\u003e println(\"Not an array\")\n    },\n    Err(e) =\u003e println(\"Parse error: ${e}\")\n  }\n}\n",
         "go": "package main\n\nimport (\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"strconv\"\n\t\"strings\"\n)\n\ntype Order struct {\n\tID    int     `json:\"id\"`\n\tItem  string  `json:\"item\"`\n\tQty   int     `json:\"qty\"`\n\tPrice float64 `json:\"price\"`\n}\n\nfunc main() {\n\tdata := `[{\"id\":1,\"item\":\"apple\",\"qty\":5,\"price\":1.50},{\"id\":2,\"item\":\"banana\",\"qty\":3,\"price\":0.75},{\"id\":3,\"item\":\"orange\",\"qty\":8,\"price\":2.00}]`\n\n\tvar orders []Order\n\tif err := json.Unmarshal([]byte(data), \u0026orders); err != nil {\n\t\tpanic(err)\n\t}\n\n\tfor _, o := range orders {\n\t\ttotal := float64(o.Qty) * o.Price\n\t\tif total \u003e 5.00 {\n\t\t\ts := strconv.FormatFloat(total, 'f', -1, 64)\n\t\t\tif !strings.Contains(s, \".\") {\n\t\t\t\ts += \".0\"\n\t\t\t}\n\t\t\tfmt.Printf(\"%s: %s\\n\", o.Item, s)\n\t\t}\n\t}\n}\n",
@@ -3302,14 +3716,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 771,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 906.4,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 987,
+          "avgTokens": 938,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 518.2,
@@ -3323,14 +3737,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7857142857142857,
+      "successRate": 0.85,
       "tags": [
         "data_transform",
         "records"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Parses this JSON representing orders:\n   [{\"id\":1,\"item\":\"apple\",\"qty\":5,\"price\":1.50},{\"id\":2,\"item\":\"banana\",\"qty\":3,\"price\":0.75},{\"id\":3,\"item\":\"orange\",\"qty\":8,\"price\":2.00}]\n\n2. Computes the total cost for each order (qty * price)\n\n3. Filters to keep only orders with total \u003e 5.00\n\n4. Prints the item name and total for each qualifying order, one per line in format:\n   {item}: {total}\n\nExpected output (orders where qty * price \u003e 5.00):\n- apple: 5 * 1.50 = 7.50\n- orange: 8 * 2.00 = 16.00\n(banana: 3 * 0.75 = 2.25, filtered out)\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "list_comprehension": {
       "agentStats": {
@@ -3341,15 +3755,15 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 478,
-          "avgTurns": 2.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 30489.8,
+          "avgTurns": 2.8,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 29591.5,
-          "avgTurns": 4.5,
-          "runs": 2,
+          "avgTokens": 45164,
+          "avgTurns": 3.6,
+          "runs": 5,
           "successRate": 1
         },
         "python": {
@@ -3359,7 +3773,7 @@
           "successRate": 0.6
         }
       },
-      "avgTokens": 600.5,
+      "avgTokens": 631.6,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nfunc myFilter(xs: [int], pred: int -\u003e bool) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e if pred(x) then x :: myFilter(rest, pred) else myFilter(rest, pred)\n  }\n\nfunc myMap(xs: [int], f: int -\u003e int) -\u003e [int] =\n  match xs {\n    [] =\u003e [],\n    x :: rest =\u003e f(x) :: myMap(rest, f)\n  }\n\nfunc myFold(xs: [int], acc: int, f: int -\u003e int -\u003e int) -\u003e int =\n  match xs {\n    [] =\u003e acc,\n    x :: rest =\u003e myFold(rest, f(acc)(x), f)\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n  let evens = myFilter(nums, \\x. x % 2 == 0);\n  let squares = myMap(evens, \\x. x * x);\n  let total = myFold(squares, 0, \\acc. \\x. acc + x);\n  println(\"Sum of squares of evens: ${show(total)}\")\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tnums := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}\n\n\tvar evens []int\n\tfor _, n := range nums {\n\t\tif n%2 == 0 {\n\t\t\tevens = append(evens, n)\n\t\t}\n\t}\n\n\tvar squares []int\n\tfor _, n := range evens {\n\t\tsquares = append(squares, n*n)\n\t}\n\n\tsum := 0\n\tfor _, n := range squares {\n\t\tsum += n\n\t}\n\n\tfmt.Printf(\"Sum of squares of evens: %d\\n\", sum)\n}\n",
@@ -3373,14 +3787,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 475,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 676.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 687,
+          "avgTokens": 633.2,
           "successRate": 1,
-          "totalRuns": 2
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 340,
@@ -3394,14 +3808,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7142857142857143,
+      "successRate": 0.8,
       "tags": [
         "functional",
         "data_transform"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Creates a list of integers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n2. Filters the list to keep only even numbers\n3. Maps the filtered list by squaring each number\n4. Computes the sum of the resulting list\n5. Prints the result: \"Sum of squares of evens: {result}\"\n\nRequirements:\n- For Python: Use list comprehensions or map/filter\n- For AILANG: Implement map/filter/fold as recursive functions\n- Show intermediate results if helpful for debugging\n\nExpected result: 2^2 + 4^2 + 6^2 + 8^2 + 10^2 = 4 + 16 + 36 + 64 + 100 = 220\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "merge_sort": {
       "agentStats": {
@@ -3412,16 +3826,16 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 754,
-          "avgTurns": 3.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 51883.2,
+          "avgTurns": 4.8,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 29944,
-          "avgTurns": 5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 44718.8,
+          "avgTurns": 5.4,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 37274.6,
@@ -3430,7 +3844,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 829.4285714285714,
+      "avgTokens": 1016.55,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\nimport std/list (length, take, drop)\n\npure func merge(xs: [int], ys: [int]) -\u003e [int] =\n  match xs {\n    [] =\u003e ys,\n    x :: xrest =\u003e match ys {\n      [] =\u003e xs,\n      y :: yrest =\u003e\n        if x \u003c= y then x :: merge(xrest, ys)\n        else y :: merge(xs, yrest)\n    }\n  }\n\npure func split(xs: [int]) -\u003e ([int], [int]) =\n  let mid = length(xs) / 2 in\n  (take(mid, xs), drop(mid, xs))\n\npure func mergeSort(xs: [int]) -\u003e [int] {\n  if length(xs) \u003c= 1 then xs\n  else {\n    match split(xs) {\n      (left, right) =\u003e merge(mergeSort(left), mergeSort(right))\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let list = [38, 27, 43, 3, 9, 82, 10];\n  println(show(mergeSort(list)))\n}\n",
         "go": "package main\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n\t\"strconv\"\n)\n\nfunc merge(xs, ys []int) []int {\n\tresult := make([]int, 0, len(xs)+len(ys))\n\ti, j := 0, 0\n\tfor i \u003c len(xs) \u0026\u0026 j \u003c len(ys) {\n\t\tif xs[i] \u003c= ys[j] {\n\t\t\tresult = append(result, xs[i])\n\t\t\ti++\n\t\t} else {\n\t\t\tresult = append(result, ys[j])\n\t\t\tj++\n\t\t}\n\t}\n\tresult = append(result, xs[i:]...)\n\tresult = append(result, ys[j:]...)\n\treturn result\n}\n\nfunc split(xs []int) ([]int, []int) {\n\tmid := len(xs) / 2\n\treturn xs[:mid], xs[mid:]\n}\n\nfunc mergeSort(xs []int) []int {\n\tif len(xs) \u003c= 1 {\n\t\treturn xs\n\t}\n\tleft, right := split(xs)\n\treturn merge(mergeSort(left), mergeSort(right))\n}\n\nfunc main() {\n\txs := []int{38, 27, 43, 3, 9, 82, 10}\n\tsorted := mergeSort(xs)\n\tparts := make([]string, len(sorted))\n\tfor i, v := range sorted {\n\t\tparts[i] = strconv.Itoa(v)\n\t}\n\tfmt.Println(\"[\" + strings.Join(parts, \", \") + \"]\")\n}\n",
@@ -3444,14 +3858,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 750,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1245.8,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 989,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1193.6,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 645.4,
@@ -3465,14 +3879,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7142857142857143,
+      "successRate": 0.8,
       "tags": [
         "recursion",
         "algorithmic"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n\n1. Implements the merge sort algorithm with these helper functions:\n   - `merge(xs, ys)` - merges two sorted lists into one sorted list\n   - `split(xs)` - splits a list into two halves\n   - `mergeSort(xs)` - recursively sorts a list\n\n2. Sorts this list: [38, 27, 43, 3, 9, 82, 10]\n\n3. Prints the sorted result as a list\n\nExpected output: [3, 9, 10, 27, 38, 43, 82]\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "pattern_matching_complex": {
       "agentStats": {
@@ -3483,16 +3897,16 @@
           "successRate": 0.8
         },
         "go": {
-          "avgTokens": 0,
-          "avgTurns": 0,
-          "runs": 2,
-          "successRate": 0
+          "avgTokens": 36882.2,
+          "avgTurns": 2.4,
+          "runs": 5,
+          "successRate": 0.6
         },
         "javascript": {
-          "avgTokens": 493,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 29911.2,
+          "avgTurns": 3,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 22066.4,
@@ -3501,9 +3915,10 @@
           "successRate": 0.6
         }
       },
-      "avgTokens": 560.6428571428571,
+      "avgTokens": 767.4,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\nfunc tree_sum(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e tree_sum(l) + v + tree_sum(r)\n  }\n\nfunc find_max(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e v,\n    Node(l, v, r) =\u003e {\n      let left_max = find_max(l);\n      let right_max = find_max(r);\n      let node_max = if v \u003e left_max then v else left_max;\n      if node_max \u003e right_max then node_max else right_max\n    }\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let sample = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n  let s = tree_sum(sample);\n  let m = find_max(sample);\n  println(\"Sum: ${show(s)}\");\n  println(\"Max: ${show(m)}\")\n}\n",
+        "go": "package main\n\nimport \"fmt\"\n\ntype TreeKind int\n\nconst (\n\tKindLeaf TreeKind = iota\n\tKindNode\n)\n\ntype Tree struct {\n\tkind  TreeKind\n\tvalue int\n\tleft  *Tree\n\tright *Tree\n}\n\nfunc Leaf(value int) *Tree {\n\treturn \u0026Tree{kind: KindLeaf, value: value}\n}\n\nfunc Node(left *Tree, value int, right *Tree) *Tree {\n\treturn \u0026Tree{kind: KindNode, value: value, left: left, right: right}\n}\n\nfunc treeSum(t *Tree) int {\n\tswitch t.kind {\n\tcase KindLeaf:\n\t\treturn t.value\n\tcase KindNode:\n\t\treturn treeSum(t.left) + t.value + treeSum(t.right)\n\tdefault:\n\t\tpanic(\"unknown tree kind\")\n\t}\n}\n\nfunc findMax(t *Tree) int {\n\tswitch t.kind {\n\tcase KindLeaf:\n\t\treturn t.value\n\tcase KindNode:\n\t\tleftMax := findMax(t.left)\n\t\trightMax := findMax(t.right)\n\t\tmax := t.value\n\t\tif leftMax \u003e max {\n\t\t\tmax = leftMax\n\t\t}\n\t\tif rightMax \u003e max {\n\t\t\tmax = rightMax\n\t\t}\n\t\treturn max\n\tdefault:\n\t\tpanic(\"unknown tree kind\")\n\t}\n}\n\nfunc main() {\n\ttree := Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n\tsum := treeSum(tree)\n\tmax := findMax(tree)\n\tfmt.Printf(\"Sum: %d\\n\", sum)\n\tfmt.Printf(\"Max: %d\\n\", max)\n}\n",
         "javascript": "// Algebraic Data Types for Tree\nconst Leaf = (value) =\u003e ({ type: 'Leaf', value });\nconst Node = (left, value, right) =\u003e ({ type: 'Node', left, value, right });\n\n// Pattern matching via destructuring + exhaustiveness check\nfunction matchTree(tree, { onLeaf, onNode }) {\n  switch (tree.type) {\n    case 'Leaf': return onLeaf(tree.value);\n    case 'Node': return onNode(tree.left, tree.value, tree.right);\n    default: throw new Error(`Non-exhaustive pattern: unknown type \"${tree.type}\"`);\n  }\n}\n\nfunction tree_sum(tree) {\n  return matchTree(tree, {\n    onLeaf: (v) =\u003e v,\n    onNode: (l, v, r) =\u003e tree_sum(l) + v + tree_sum(r),\n  });\n}\n\nfunction find_max(tree) {\n  return matchTree(tree, {\n    onLeaf: (v) =\u003e v,\n    onNode: (l, v, r) =\u003e {\n      const leftMax = find_max(l);\n      const rightMax = find_max(r);\n      // Guard: pick the largest among left subtree max, current value, right subtree max\n      return leftMax \u003e= v \u0026\u0026 leftMax \u003e= rightMax ? leftMax\n           : rightMax \u003e= v \u0026\u0026 rightMax \u003e= leftMax ? rightMax\n           : v;\n    },\n  });\n}\n\nconst tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)));\n\nconsole.log(`Sum: ${tree_sum(tree)}`);\nconsole.log(`Max: ${find_max(tree)}`);\n",
         "python": "from __future__ import annotations\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass Leaf:\n    value: int\n\n\n@dataclass(frozen=True)\nclass Node:\n    left: Tree\n    value: int\n    right: Tree\n\n\ntype Tree = Leaf | Node\n\n\ndef tree_sum(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(left, value, right):\n            return tree_sum(left) + value + tree_sum(right)\n\n\ndef find_max(tree: Tree) -\u003e int:\n    match tree:\n        case Leaf(v):\n            return v\n        case Node(Leaf(left_value), value, Leaf(right_value)):\n            return max(left_value, value, right_value)\n        case Node(Leaf(left_value), value, right) if left_value \u003e= value:\n            return max(left_value, find_max(right))\n        case Node(Leaf(left_value), value, right):\n            return max(value, left_value, find_max(right))\n        case Node(left, value, Leaf(right_value)) if right_value \u003e= value:\n            return max(find_max(left), right_value)\n        case Node(left, value, Leaf(right_value)):\n            return max(find_max(left), value, right_value)\n        case Node(left, value, right) if value \u003e= find_max(left):\n            return max(value, find_max(right))\n        case Node(left, value, right):\n            return max(find_max(left), value, find_max(right))\n\n\ndef main() -\u003e None:\n    tree = Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n    print(f\"Sum: {tree_sum(tree)}\")\n    print(f\"Max: {find_max(tree)}\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
       },
@@ -3514,14 +3929,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 0,
-          "successRate": 0,
-          "totalRuns": 2
+          "avgTokens": 788,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 490.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 908,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 646.2,
@@ -3535,14 +3950,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.5714285714285714,
+      "successRate": 0.7,
       "tags": [
         "adt_pattern_match",
         "recursion"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that demonstrates complex pattern matching:\n\n1. Define a Tree type: Leaf(value: int) | Node(left: Tree, value: int, right: Tree)\n2. Implement `tree_sum(tree: Tree) -\u003e int` using pattern matching:\n   - Match Leaf(v): return v\n   - Match Node(l, v, r): return tree_sum(l) + v + tree_sum(r)\n3. Implement `find_max(tree: Tree) -\u003e int` with nested patterns and guards:\n   - Match Leaf(v): return v\n   - Match Node with guards to find maximum value in tree\n4. Create a sample tree: Node(Leaf(1), 5, Node(Leaf(3), 7, Leaf(2)))\n5. Print results:\n   \"Sum: {sum}\"\n   \"Max: {max}\"\n\nExpected: sum = 1+5+3+7+2 = 18, max = 7\n\nRequirements:\n- Use algebraic data types\n- Use pattern matching with nested constructors\n- Demonstrate exhaustiveness (cover all cases)\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "pipeline": {
       "agentStats": {
@@ -3553,16 +3968,16 @@
           "successRate": 0.4
         },
         "go": {
-          "avgTokens": 0,
-          "avgTurns": 0,
-          "runs": 2,
-          "successRate": 0
+          "avgTokens": 41622.6,
+          "avgTurns": 2.4,
+          "runs": 5,
+          "successRate": 0.6
         },
         "javascript": {
-          "avgTokens": 44359.5,
-          "avgTurns": 4.5,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 60944.8,
+          "avgTurns": 4.6,
+          "runs": 5,
+          "successRate": 0.6
         },
         "python": {
           "avgTokens": 27208.4,
@@ -3571,9 +3986,10 @@
           "successRate": 0.4
         }
       },
-      "avgTokens": 506.7142857142857,
+      "avgTokens": 608.55,
       "codeSamples": {
         "ailang": "module benchmark/solution\n// DO NOT CHANGE THE MODULE DECLARATION ABOVE!\n\nimport std/io (readLine)\nimport std/string (stringToInt, trim)\n\nfunc loop() -\u003e () ! {IO} {\n  let line = readLine();\n  if line == \"\" then ()\n  else {\n    let cleaned = trim(line);\n    match stringToInt(cleaned) {\n      Some(n) =\u003e {\n        if n % 2 == 0 then println(show(n)) else ();\n        loop()\n      },\n      None =\u003e loop()\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  loop()\n}\n",
+        "go": "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfor i := 1; i \u003c= 5; i++ {\n\t\tfmt.Println(i * 2)\n\t}\n}\n",
         "javascript": "import * as readline from 'readline';\n\nconst rl = readline.createInterface({ input: process.stdin });\nconst lines = [];\n\nrl.on('line', (line) =\u003e {\n  lines.push(line.trim());\n});\n\nrl.on('close', () =\u003e {\n  const evens = lines\n    .map(Number)\n    .filter(n =\u003e !isNaN(n) \u0026\u0026 n % 2 === 0);\n  console.log(evens.join('\\n'));\n});\n",
         "python": "from __future__ import annotations\n\nimport sys\n\n\ndef main() -\u003e None:\n    numbers = [1, 2, 3, 4, 5]\n    doubled = [number * 2 for number in numbers]\n    sys.stdout.write(\"\\n\".join(str(number) for number in doubled))\n\n\nif __name__ == \"__main__\":\n    main()\n"
       },
@@ -3584,14 +4000,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 0,
-          "successRate": 0,
-          "totalRuns": 2
+          "avgTokens": 499.4,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 900,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 876,
+          "successRate": 0.6,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 427.8,
@@ -3605,14 +4021,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.35714285714285715,
+      "successRate": 0.5,
       "tags": [
         "functional",
         "data_transform"
       ],
       "taskPrompt": "Write a program in \u003cLANG\u003e that:\n1. Reads numbers from stdin (one per line)\n2. For each number, computes double its value\n3. Prints the doubled values to stdout (one per line)\n\nAssume input is: 1, 2, 3, 4, 5 (one per line)\n\nOutput only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "state_machine_elevator": {
       "agentStats": {
@@ -3623,16 +4039,16 @@
           "successRate": 1
         },
         "go": {
-          "avgTokens": 693.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 32530.6,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 630,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 46789.2,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 35405,
@@ -3641,7 +4057,7 @@
           "successRate": 0.8
         }
       },
-      "avgTokens": 968.2142857142857,
+      "avgTokens": 1142,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype State = Idle(int) | Moving(int, int) | DoorOpen(int, int)\n\ntype Event = Call(int) | Tick | Arrive\n\nfunc transition(state: State, event: Event) -\u003e State =\n  match state {\n    Idle(floor) =\u003e match event {\n      Call(target) =\u003e if target == floor then DoorOpen(floor, 3) else Moving(floor, target),\n      Tick =\u003e Idle(floor),\n      Arrive =\u003e Idle(floor)\n    },\n    Moving(cur, target) =\u003e match event {\n      Tick =\u003e Moving(cur, target),\n      Arrive =\u003e DoorOpen(target, 3),\n      Call(_) =\u003e Moving(cur, target)\n    },\n    DoorOpen(floor, timer) =\u003e match event {\n      Tick =\u003e if timer \u003e 1 then DoorOpen(floor, timer - 1) else Idle(floor),\n      Call(target) =\u003e DoorOpen(floor, timer),\n      Arrive =\u003e DoorOpen(floor, timer)\n    }\n  }\n\nfunc display(state: State) -\u003e string =\n  match state {\n    Idle(floor) =\u003e \"IDLE @ floor ${show(floor)}\",\n    Moving(f, t) =\u003e \"MOVING ${show(f)} -\u003e ${show(t)}\",\n    DoorOpen(floor, timer) =\u003e \"DOOR_OPEN @ floor ${show(floor)} (${show(timer)}sec)\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let s0 = Idle(1);\n  let s1 = transition(s0, Call(5));\n  println(display(s1));\n  let s2 = transition(s1, Tick);\n  println(display(s2));\n  let s3 = transition(s2, Tick);\n  println(display(s3));\n  let s4 = transition(s3, Arrive);\n  println(display(s4));\n  let s5 = transition(s4, Tick);\n  println(display(s5));\n  let s6 = transition(s5, Tick);\n  println(display(s6));\n  let s7 = transition(s6, Tick);\n  println(display(s7));\n  let s8 = transition(s7, Tick);\n  println(display(s8));\n  let s9 = transition(s8, Call(1));\n  println(display(s9))\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\ntype StateKind int\n\nconst (\n\tStateIdle StateKind = iota\n\tStateMoving\n\tStateDoorOpen\n)\n\ntype State struct {\n\tkind    StateKind\n\tfloor   int\n\ttarget  int\n\ttimer   int\n}\n\ntype EventKind int\n\nconst (\n\tEventCall EventKind = iota\n\tEventTick\n\tEventArrive\n)\n\ntype Event struct {\n\tkind  EventKind\n\tfloor int\n}\n\nfunc transition(s State, e Event) State {\n\tswitch s.kind {\n\tcase StateIdle:\n\t\tswitch e.kind {\n\t\tcase EventCall:\n\t\t\tif e.floor == s.floor {\n\t\t\t\treturn State{kind: StateDoorOpen, floor: s.floor, timer: 3}\n\t\t\t}\n\t\t\treturn State{kind: StateMoving, floor: s.floor, target: e.floor}\n\t\tdefault:\n\t\t\treturn s\n\t\t}\n\tcase StateMoving:\n\t\tswitch e.kind {\n\t\tcase EventTick:\n\t\t\treturn s\n\t\tcase EventArrive:\n\t\t\treturn State{kind: StateDoorOpen, floor: s.target, timer: 3}\n\t\tdefault:\n\t\t\treturn s\n\t\t}\n\tcase StateDoorOpen:\n\t\tswitch e.kind {\n\t\tcase EventTick:\n\t\t\tif s.timer \u003e 1 {\n\t\t\t\treturn State{kind: StateDoorOpen, floor: s.floor, timer: s.timer - 1}\n\t\t\t}\n\t\t\treturn State{kind: StateIdle, floor: s.floor}\n\t\tdefault:\n\t\t\treturn s\n\t\t}\n\tdefault:\n\t\treturn s\n\t}\n}\n\nfunc display(s State) string {\n\tswitch s.kind {\n\tcase StateIdle:\n\t\treturn fmt.Sprintf(\"IDLE @ floor %d\", s.floor)\n\tcase StateMoving:\n\t\treturn fmt.Sprintf(\"MOVING %d -\u003e %d\", s.floor, s.target)\n\tcase StateDoorOpen:\n\t\treturn fmt.Sprintf(\"DOOR_OPEN @ floor %d (%dsec)\", s.floor, s.timer)\n\tdefault:\n\t\treturn \"UNKNOWN\"\n\t}\n}\n\nfunc main() {\n\tstate := State{kind: StateIdle, floor: 1}\n\n\tstate = transition(state, Event{kind: EventCall, floor: 5})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventArrive})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventTick})\n\tfmt.Println(display(state))\n\n\tstate = transition(state, Event{kind: EventCall, floor: 1})\n\tfmt.Println(display(state))\n}\n",
@@ -3655,14 +4071,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 691,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1159.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 627.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1225.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 934.4,
@@ -3676,14 +4092,14 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.7857142857142857,
+      "successRate": 0.85,
       "tags": [
         "state_machine",
         "adt_pattern_match"
       ],
       "taskPrompt": "Implement an elevator state machine in \u003cLANG\u003e using algebraic data types (or equivalent) and exhaustive pattern matching.\n\n**Task Requirements**:\n\n1. **Define State Type** (3 variants):\n   - Idle state with current floor (integer 1-10)\n   - Moving state with current floor and target floor\n   - DoorOpen state with current floor and timer (seconds until door closes)\n\n2. **Define Event Type** (3 variants):\n   - Call(floor) event - someone calls elevator to a floor\n   - Tick event - time passes (1 second)\n   - Arrive event - elevator reaches target floor\n\n3. **Implement transition function** that takes a state and event, returns new state:\n   - **Idle(floor) + Call(target)**: If target == floor, go to DoorOpen(floor, 3); else go to Moving(floor, target)\n   - **Moving(cur, target) + Tick**: Stay in Moving (simulating movement)\n   - **Moving(cur, target) + Arrive**: Go to DoorOpen(target, 3)\n   - **DoorOpen(floor, timer) + Tick**: If timer \u003e 1, decrement timer; else go to Idle(floor)\n   - **Any other combination**: Return current state unchanged\n   - Must handle **all combinations exhaustively**\n\n4. **Implement display function** that takes a state and returns a formatted string:\n   - Idle at floor N → \"IDLE @ floor N\"\n   - Moving from F to T → \"MOVING F -\u003e T\"\n   - DoorOpen at floor N with timer T → \"DOOR_OPEN @ floor N (Tsec)\"\n\n5. **Main simulation**:\n   - Start with Idle(1)\n   - Apply Call(5) event (print state after)\n   - Apply 2 Tick events (print state after each)\n   - Apply Arrive event (print state after)\n   - Apply 4 Tick events (print state after each)\n   - Apply Call(1) event (print state after)\n   - Total output: 9 lines\n\n**Expected sequence**:\n```\nMOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nMOVING 1 -\u003e 5\nDOOR_OPEN @ floor 5 (3sec)\nDOOR_OPEN @ floor 5 (2sec)\nDOOR_OPEN @ floor 5 (1sec)\nIDLE @ floor 5\nIDLE @ floor 5\nMOVING 5 -\u003e 1\n```\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "state_machine_vending": {
       "agentStats": {
@@ -3694,16 +4110,16 @@
           "successRate": 1
         },
         "go": {
-          "avgTokens": 703.5,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 45946.2,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 690,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 38379.2,
+          "avgTurns": 2.6,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 52957.8,
@@ -3712,7 +4128,7 @@
           "successRate": 1
         }
       },
-      "avgTokens": 1198.7142857142858,
+      "avgTokens": 1404.65,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype State = Idle | HasCredit(int) | Dispensing(int)\n\ntype Event = Insert(int) | Select(int) | DispenseDone\n\ntype Result = Ok(State) | Err(string)\n\npure func price(code: int) -\u003e int =\n  match code {\n    1 =\u003e 125,\n    2 =\u003e 75,\n    _ =\u003e 100\n  }\n\npure func step(state: State, event: Event) -\u003e Result =\n  match state {\n    Idle =\u003e match event {\n      Insert(n) =\u003e Ok(HasCredit(n)),\n      Select(_) =\u003e Err(\"no_credit\"),\n      DispenseDone =\u003e Err(\"not_dispensing\")\n    },\n    HasCredit(c) =\u003e match event {\n      Insert(n) =\u003e Ok(HasCredit(c + n)),\n      Select(code) =\u003e if code != 1 \u0026\u0026 code != 2 \u0026\u0026 code != 3\n        then Err(\"unknown_item\")\n        else if c \u003c price(code)\n          then Err(\"insufficient_funds\")\n          else Ok(Dispensing(c - price(code))),\n      DispenseDone =\u003e Err(\"not_dispensing\")\n    },\n    Dispensing(_) =\u003e match event {\n      Insert(_) =\u003e Err(\"busy\"),\n      Select(_) =\u003e Err(\"busy\"),\n      DispenseDone =\u003e Ok(Idle)\n    }\n  }\n\npure func showState(s: State) -\u003e string =\n  match s {\n    Idle =\u003e \"ok: IDLE\",\n    HasCredit(n) =\u003e \"ok: CREDIT(${show(n)})\",\n    Dispensing(ch) =\u003e \"ok: DISPENSING(${show(ch)})\"\n  }\n\nfunc applyAndPrint(state: State, event: Event) -\u003e State ! {IO} {\n  let result = step(state, event);\n  match result {\n    Ok(newState) =\u003e {\n      println(showState(newState));\n      newState\n    },\n    Err(reason) =\u003e {\n      println(\"err: ${reason}\");\n      state\n    }\n  }\n}\n\nexport func main() -\u003e () ! {IO} {\n  let s0 = Idle;\n  let s1 = applyAndPrint(s0, Insert(50));\n  let s2 = applyAndPrint(s1, Select(1));\n  let s3 = applyAndPrint(s2, Insert(100));\n  let s4 = applyAndPrint(s3, Select(1));\n  let s5 = applyAndPrint(s4, Insert(50));\n  let s6 = applyAndPrint(s5, DispenseDone);\n  let s7 = applyAndPrint(s6, Select(2));\n  let s8 = applyAndPrint(s7, Insert(100));\n  let s9 = applyAndPrint(s8, Select(2));\n  applyAndPrint(s9, DispenseDone);\n  ()\n}\n",
         "go": "package main\n\nimport \"fmt\"\n\n// State variants\ntype StateKind int\n\nconst (\n\tStateIdle StateKind = iota\n\tStateHasCredit\n\tStateDispensing\n)\n\ntype State struct {\n\tkind  StateKind\n\tvalue int // cents for HasCredit, change for Dispensing\n}\n\n// Event variants\ntype EventKind int\n\nconst (\n\tEventInsert EventKind = iota\n\tEventSelect\n\tEventDispenseDone\n)\n\ntype Event struct {\n\tkind  EventKind\n\tvalue int // cents for Insert, code for Select\n}\n\n// Result\ntype Result struct {\n\tok  bool\n\tstate State\n\terr  string\n}\n\nfunc Ok(s State) Result    { return Result{ok: true, state: s} }\nfunc Err(e string) Result  { return Result{ok: false, err: e} }\n\nfunc price(code int) (int, bool) {\n\tswitch code {\n\tcase 1:\n\t\treturn 125, true\n\tcase 2:\n\t\treturn 75, true\n\tcase 3:\n\t\treturn 100, true\n\t}\n\treturn 0, false\n}\n\nfunc step(s State, e Event) Result {\n\tswitch s.kind {\n\tcase StateIdle:\n\t\tswitch e.kind {\n\t\tcase EventInsert:\n\t\t\treturn Ok(State{kind: StateHasCredit, value: e.value})\n\t\tcase EventSelect:\n\t\t\treturn Err(\"no_credit\")\n\t\tcase EventDispenseDone:\n\t\t\treturn Err(\"not_dispensing\")\n\t\t}\n\tcase StateHasCredit:\n\t\tswitch e.kind {\n\t\tcase EventInsert:\n\t\t\treturn Ok(State{kind: StateHasCredit, value: s.value + e.value})\n\t\tcase EventSelect:\n\t\t\tp, valid := price(e.value)\n\t\t\tif !valid {\n\t\t\t\treturn Err(\"unknown_item\")\n\t\t\t}\n\t\t\tif s.value \u003c p {\n\t\t\t\treturn Err(\"insufficient_funds\")\n\t\t\t}\n\t\t\treturn Ok(State{kind: StateDispensing, value: s.value - p})\n\t\tcase EventDispenseDone:\n\t\t\treturn Err(\"not_dispensing\")\n\t\t}\n\tcase StateDispensing:\n\t\tswitch e.kind {\n\t\tcase EventInsert:\n\t\t\treturn Err(\"busy\")\n\t\tcase EventSelect:\n\t\t\treturn Err(\"busy\")\n\t\tcase EventDispenseDone:\n\t\t\treturn Ok(State{kind: StateIdle})\n\t\t}\n\t}\n\treturn Err(\"unknown_state\")\n}\n\nfunc printResult(r Result) {\n\tif r.ok {\n\t\tswitch r.state.kind {\n\t\tcase StateIdle:\n\t\t\tfmt.Println(\"ok: IDLE\")\n\t\tcase StateHasCredit:\n\t\t\tfmt.Printf(\"ok: CREDIT(%d)\\n\", r.state.value)\n\t\tcase StateDispensing:\n\t\t\tfmt.Printf(\"ok: DISPENSING(%d)\\n\", r.state.value)\n\t\t}\n\t} else {\n\t\tfmt.Printf(\"err: %s\\n\", r.err)\n\t}\n}\n\nfunc main() {\n\tevents := []Event{\n\t\t{EventInsert, 50},\n\t\t{EventSelect, 1},\n\t\t{EventInsert, 100},\n\t\t{EventSelect, 1},\n\t\t{EventInsert, 50},\n\t\t{EventDispenseDone, 0},\n\t\t{EventSelect, 2},\n\t\t{EventInsert, 100},\n\t\t{EventSelect, 2},\n\t\t{EventDispenseDone, 0},\n\t}\n\n\tstate := State{kind: StateIdle}\n\tfor _, e := range events {\n\t\tr := step(state, e)\n\t\tprintResult(r)\n\t\tif r.ok {\n\t\t\tstate = r.state\n\t\t}\n\t}\n}\n",
@@ -3726,14 +4142,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 701,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1537.4,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 687.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1280.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 1558.8,
@@ -3747,7 +4163,7 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.8571428571428571,
+      "successRate": 0.9,
       "tags": [
         "state_machine",
         "error_handling",
@@ -3755,7 +4171,7 @@
       ],
       "taskPrompt": "Implement a vending machine state machine in \u003cLANG\u003e. Every transition must return a\ntagged Result — either Ok(newState) or Err(reason) — so that invalid transitions\nsurface as explicit errors rather than exceptions or silent no-ops.\n\n**State (3 variants)**:\n- `Idle` — no credit\n- `HasCredit(cents)` — credit accumulated, awaiting selection\n- `Dispensing(change)` — dispensing an item, carrying the change to return\n\n**Event (3 variants)**:\n- `Insert(cents)` — insert coins (positive integer)\n- `Select(code)` — select an item by code: 1 = cola (125), 2 = chips (75), 3 = water (100)\n- `DispenseDone` — item fully dispensed\n\n**Transition function `step(state, event) -\u003e Result\u003cState, String\u003e`**:\n\n| State \\ Event  | Insert(n)                  | Select(code)                                | DispenseDone         |\n|----------------|----------------------------|---------------------------------------------|----------------------|\n| Idle           | Ok(HasCredit(n))           | Err(\"no_credit\")                            | Err(\"not_dispensing\")|\n| HasCredit(c)   | Ok(HasCredit(c + n))       | see rules below                             | Err(\"not_dispensing\")|\n| Dispensing(ch) | Err(\"busy\")                | Err(\"busy\")                                 | Ok(Idle)             |\n\n**Select rules when in `HasCredit(c)`**:\n- If code is not 1, 2, or 3 → `Err(\"unknown_item\")`\n- Else if c \u003c price(code) → `Err(\"insufficient_funds\")` (stay in HasCredit)\n- Else → `Ok(Dispensing(c - price(code)))`\n\n**Printing**: after each transition, print exactly one line:\n- On `Ok(state)`:\n  - `Idle` → `ok: IDLE`\n  - `HasCredit(n)` → `ok: CREDIT(n)`\n  - `Dispensing(ch)` → `ok: DISPENSING(ch)`\n- On `Err(reason)` → `err: \u003creason\u003e`\n\n**Simulation**: start from `Idle`, apply this sequence of events (print after each,\nand thread the state forward — on `Err`, keep the previous state):\n\n1. `Insert(50)`\n2. `Select(1)`\n3. `Insert(100)`\n4. `Select(1)`\n5. `Insert(50)`\n6. `DispenseDone`\n7. `Select(2)`\n8. `Insert(100)`\n9. `Select(2)`\n10. `DispenseDone`\n\nOutput exactly 10 lines.\n\n**Requirements**:\n- Use algebraic data types / tagged unions for State, Event, and Result — no raw\n  strings or dicts for state.\n- Pattern match exhaustively on (state, event) — do NOT use nested if/else on\n  string tags.\n- Errors must be values returned via `Err(...)`, not thrown exceptions.\n- Output only the code, no explanations.\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     },
     "tree_transformation_pipeline": {
       "agentStats": {
@@ -3766,16 +4182,16 @@
           "successRate": 1
         },
         "go": {
-          "avgTokens": 651,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 48540,
+          "avgTurns": 3.2,
+          "runs": 5,
+          "successRate": 0.8
         },
         "javascript": {
-          "avgTokens": 514,
-          "avgTurns": 2,
-          "runs": 2,
-          "successRate": 0.5
+          "avgTokens": 35768,
+          "avgTurns": 3.4,
+          "runs": 5,
+          "successRate": 0.8
         },
         "python": {
           "avgTokens": 43245.6,
@@ -3784,7 +4200,7 @@
           "successRate": 1
         }
       },
-      "avgTokens": 1017.3571428571429,
+      "avgTokens": 1223.65,
       "codeSamples": {
         "ailang": "module benchmark/solution\n\ntype Tree = Leaf(int) | Node(Tree, int, Tree)\n\npure func mapTree(fn: int -\u003e int, tree: Tree) -\u003e Tree =\n  match tree {\n    Leaf(v) =\u003e Leaf(fn(v)),\n    Node(l, v, r) =\u003e Node(mapTree(fn, l), fn(v), mapTree(fn, r))\n  }\n\npure func foldTree(fn: (int, int) -\u003e int, acc: int, tree: Tree) -\u003e int =\n  match tree {\n    Leaf(v) =\u003e fn(acc, v),\n    Node(l, v, r) =\u003e foldTree(fn, fn(foldTree(fn, acc, l), v), r)\n  }\n\npure func treeToList(tree: Tree) -\u003e [int] =\n  match tree {\n    Leaf(v) =\u003e [v],\n    Node(l, v, r) =\u003e treeToList(l) ++ [v] ++ treeToList(r)\n  }\n\npure func treeDepth(tree: Tree) -\u003e int =\n  match tree {\n    Leaf(_) =\u003e 1,\n    Node(l, _, r) =\u003e {\n      let ld = treeDepth(l);\n      let rd = treeDepth(r);\n      1 + if ld \u003e rd then ld else rd\n    }\n  }\n\npure func double(x: int) -\u003e int = x * 2\npure func add(a: int, b: int) -\u003e int = a + b\n\npure func showList(xs: [int]) -\u003e string =\n  match xs {\n    [] =\u003e \"[]\",\n    _ =\u003e \"[${joinInts(xs)}]\"\n  }\n\npure func joinInts(xs: [int]) -\u003e string =\n  match xs {\n    [] =\u003e \"\",\n    [x] =\u003e show(x),\n    x :: rest =\u003e \"${show(x)}, ${joinInts(rest)}\"\n  }\n\nexport func main() -\u003e () ! {IO} {\n  let tree = Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)));\n  println(showList(treeToList(tree)));\n  println(showList(treeToList(mapTree(double, tree))));\n  println(show(foldTree(add, 0, tree)));\n  println(show(treeDepth(tree)))\n}\n",
         "go": "package main\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n\t\"strconv\"\n)\n\ntype TreeKind int\n\nconst (\n\tLeafKind TreeKind = iota\n\tNodeKind\n)\n\ntype Tree struct {\n\tkind  TreeKind\n\tvalue int\n\tleft  *Tree\n\tright *Tree\n}\n\nfunc Leaf(v int) *Tree {\n\treturn \u0026Tree{kind: LeafKind, value: v}\n}\n\nfunc Node(left *Tree, v int, right *Tree) *Tree {\n\treturn \u0026Tree{kind: NodeKind, value: v, left: left, right: right}\n}\n\nfunc mapTree(fn func(int) int, t *Tree) *Tree {\n\tif t.kind == LeafKind {\n\t\treturn Leaf(fn(t.value))\n\t}\n\treturn Node(mapTree(fn, t.left), fn(t.value), mapTree(fn, t.right))\n}\n\nfunc foldTree(fn func(int, int) int, acc int, t *Tree) int {\n\tif t.kind == LeafKind {\n\t\treturn fn(acc, t.value)\n\t}\n\tacc = foldTree(fn, acc, t.left)\n\tacc = fn(acc, t.value)\n\tacc = foldTree(fn, acc, t.right)\n\treturn acc\n}\n\nfunc treeToList(t *Tree) []int {\n\tif t.kind == LeafKind {\n\t\treturn []int{t.value}\n\t}\n\tresult := treeToList(t.left)\n\tresult = append(result, t.value)\n\tresult = append(result, treeToList(t.right)...)\n\treturn result\n}\n\nfunc treeDepth(t *Tree) int {\n\tif t.kind == LeafKind {\n\t\treturn 1\n\t}\n\tleftDepth := treeDepth(t.left)\n\trightDepth := treeDepth(t.right)\n\tif leftDepth \u003e rightDepth {\n\t\treturn leftDepth + 1\n\t}\n\treturn rightDepth + 1\n}\n\nfunc formatList(nums []int) string {\n\tparts := make([]string, len(nums))\n\tfor i, n := range nums {\n\t\tparts[i] = strconv.Itoa(n)\n\t}\n\treturn \"[\" + strings.Join(parts, \", \") + \"]\"\n}\n\nfunc main() {\n\ttree := Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)))\n\n\tdouble := func(x int) int { return x * 2 }\n\tadd := func(a, b int) int { return a + b }\n\n\tfmt.Println(formatList(treeToList(tree)))\n\tfmt.Println(formatList(treeToList(mapTree(double, tree))))\n\tfmt.Println(foldTree(add, 0, tree))\n\tfmt.Println(treeDepth(tree))\n}\n",
@@ -3798,14 +4214,14 @@
           "totalRuns": 5
         },
         "go": {
-          "avgTokens": 648.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1406.2,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "javascript": {
-          "avgTokens": 511.5,
-          "successRate": 0.5,
-          "totalRuns": 2
+          "avgTokens": 1103.8,
+          "successRate": 0.8,
+          "totalRuns": 5
         },
         "python": {
           "avgTokens": 1216,
@@ -3819,7 +4235,7 @@
         "javascript",
         "python"
       ],
-      "successRate": 0.8571428571428571,
+      "successRate": 0.9,
       "tags": [
         "data_transform",
         "recursion",
@@ -3827,7 +4243,7 @@
       ],
       "taskPrompt": "Implement a binary tree transformation pipeline in \u003cLANG\u003e with recursive operations and higher-order functions.\n\n**Task Requirements**:\n\n1. **Define a Tree type** with two variants:\n   - Leaf: contains a single integer value\n   - Node: contains left subtree, integer value, right subtree\n\n2. **Implement mapTree(fn, tree)**:\n   - Recursively apply function to all values in tree\n   - Return new tree with transformed values\n\n3. **Implement foldTree(fn, acc, tree)**:\n   - In-order fold over tree values\n   - Combine all values using the binary function\n\n4. **Implement treeToList(tree)**:\n   - In-order traversal returning list of integers\n   - Used for printing results\n\n5. **Implement treeDepth(tree)**:\n   - Return maximum depth of tree (Leaf has depth 1)\n\n6. **Test with this tree structure**:\n   ```\n         4\n        / \\\n       2   6\n      / \\ / \\\n     1  3 5  7\n   ```\n   This is: Node(Node(Leaf(1), 2, Leaf(3)), 4, Node(Leaf(5), 6, Leaf(7)))\n\n7. **Print these results** (each on its own line):\n   - treeToList(tree): [1, 2, 3, 4, 5, 6, 7]\n   - treeToList(mapTree(double, tree)): [2, 4, 6, 8, 10, 12, 14]\n   - foldTree(add, 0, tree): 28\n   - treeDepth(tree): 3\n",
       "tier": "core",
-      "totalRuns": 14
+      "totalRuns": 20
     }
   },
   "languages": {
@@ -3864,48 +4280,68 @@
       "total_runs": 110
     },
     "go": {
-      "agent_avg_cost": 0.02672046111111111,
+      "agent_avg_cost": 0.07413448444444445,
       "agent_avg_cost_claude": 0.0448447,
+      "agent_avg_cost_codex": 0.1678219444444444,
       "agent_avg_cost_gemini": 0.008596222222222222,
-      "agent_avg_tokens": 8577.805555555555,
+      "agent_avg_cost_opencode": 0.07470477777777779,
+      "agent_avg_tokens": 41188.07777777778,
       "agent_avg_tokens_claude": 955.3888888888889,
+      "agent_avg_tokens_codex": 125708.61111111111,
       "agent_avg_tokens_gemini": 16200.222222222223,
-      "agent_avg_turns": 2.4722222222222223,
+      "agent_avg_tokens_opencode": 31538.083333333332,
+      "agent_avg_turns": 3.0444444444444443,
       "agent_avg_turns_claude": 4,
+      "agent_avg_turns_codex": 1,
       "agent_avg_turns_failure": 0,
       "agent_avg_turns_gemini": 0.9444444444444444,
-      "agent_avg_turns_success": 4.238095238095238,
-      "agent_runs": 36,
+      "agent_avg_turns_opencode": 4.638888888888889,
+      "agent_avg_turns_success": 3.7534246575342465,
+      "agent_runs": 90,
       "agent_runs_claude": 18,
+      "agent_runs_codex": 18,
       "agent_runs_gemini": 18,
-      "agent_success_rate": 0.5833333333333334,
+      "agent_runs_opencode": 36,
+      "agent_success_rate": 0.8111111111111111,
       "agent_success_rate_claude": 0.8888888888888888,
+      "agent_success_rate_codex": 1,
       "agent_success_rate_gemini": 0.2777777777777778,
-      "avg_tokens": 574.4722222222222,
-      "success_rate": 0.5833333333333334,
-      "total_runs": 36
+      "agent_success_rate_opencode": 0.9444444444444444,
+      "avg_tokens": 913.2555555555556,
+      "success_rate": 0.8111111111111111,
+      "total_runs": 90
     },
     "javascript": {
-      "agent_avg_cost": 0.032824086111111116,
+      "agent_avg_cost": 0.072662945,
       "agent_avg_cost_claude": 0.05402086666666667,
+      "agent_avg_cost_codex": 0.15618055555555554,
       "agent_avg_cost_gemini": 0.011627305555555556,
-      "agent_avg_tokens": 11450.861111111111,
+      "agent_avg_cost_opencode": 0.07074299861111114,
+      "agent_avg_tokens": 38044.47777777778,
       "agent_avg_tokens_claude": 895.1666666666666,
+      "agent_avg_tokens_codex": 117974.38888888889,
       "agent_avg_tokens_gemini": 22006.555555555555,
-      "agent_avg_turns": 2.888888888888889,
+      "agent_avg_tokens_opencode": 24673.13888888889,
+      "agent_avg_turns": 3.2333333333333334,
       "agent_avg_turns_claude": 4.333333333333333,
-      "agent_avg_turns_failure": 0.5714285714285714,
+      "agent_avg_turns_codex": 0.9444444444444444,
+      "agent_avg_turns_failure": 0.6666666666666666,
       "agent_avg_turns_gemini": 1.4444444444444444,
-      "agent_avg_turns_success": 4.363636363636363,
-      "agent_runs": 36,
+      "agent_avg_turns_opencode": 4.722222222222222,
+      "agent_avg_turns_success": 3.875,
+      "agent_runs": 90,
       "agent_runs_claude": 18,
+      "agent_runs_codex": 18,
       "agent_runs_gemini": 18,
-      "agent_success_rate": 0.6111111111111112,
+      "agent_runs_opencode": 36,
+      "agent_success_rate": 0.8,
       "agent_success_rate_claude": 0.9444444444444444,
+      "agent_success_rate_codex": 0.9444444444444444,
       "agent_success_rate_gemini": 0.2777777777777778,
-      "avg_tokens": 569.7222222222222,
-      "success_rate": 0.6111111111111112,
-      "total_runs": 36
+      "agent_success_rate_opencode": 0.9166666666666666,
+      "avg_tokens": 802.5555555555555,
+      "success_rate": 0.8,
+      "total_runs": 90
     },
     "python": {
       "agent_avg_cost": 0.06042842636363638,
@@ -3997,9 +4433,9 @@
       "totalCost": 4.97137335
     },
     "codex": {
-      "avgCost": 0.17059045454545455,
-      "avgTokens": 129998.63636363637,
-      "avgTurns": 0.8181818181818182,
+      "avgCost": 0.16672531250000006,
+      "avgTokens": 126327.925,
+      "avgTurns": 0.8875,
       "languages": {
         "ailang": {
           "avgCost": 0.21474812499999996,
@@ -4009,6 +4445,23 @@
           "avgTurnsSuccess": 1,
           "runs": 22,
           "successRate": 0.8181818181818182
+        },
+        "go": {
+          "avgCost": 0.1678219444444444,
+          "avgTokens": 125708.61111111111,
+          "avgTurns": 1,
+          "avgTurnsSuccess": 1,
+          "runs": 18,
+          "successRate": 1
+        },
+        "javascript": {
+          "avgCost": 0.15618055555555554,
+          "avgTokens": 117974.38888888889,
+          "avgTurns": 0.9444444444444444,
+          "avgTurnsFailure": 0,
+          "avgTurnsSuccess": 1,
+          "runs": 18,
+          "successRate": 0.9444444444444444
         },
         "python": {
           "avgCost": 0.12643278409090908,
@@ -4022,16 +4475,16 @@
       },
       "models": {
         "gpt5-4": {
-          "avgCost": 0.17059045454545455,
-          "avgTokens": 129998.63636363637,
-          "avgTurns": 0.8181818181818182,
-          "runs": 44,
-          "successRate": 0.8181818181818182
+          "avgCost": 0.16672531250000006,
+          "avgTokens": 126327.925,
+          "avgTurns": 0.8875,
+          "runs": 80,
+          "successRate": 0.8875
         }
       },
-      "runs": 44,
-      "successRate": 0.8181818181818182,
-      "totalCost": 7.50598
+      "runs": 80,
+      "successRate": 0.8875,
+      "totalCost": 13.338025000000005
     },
     "gemini": {
       "avgCost": 0.01977779375,
@@ -4089,9 +4542,9 @@
       "totalCost": 1.5822235
     },
     "opencode": {
-      "avgCost": 0.10278840056818182,
-      "avgTokens": 32699.011363636364,
-      "avgTurns": 3.875,
+      "avgCost": 0.08925936999999999,
+      "avgTokens": 30631.98125,
+      "avgTurns": 4.2375,
       "languages": {
         "ailang": {
           "avgCost": 0.14412349431818186,
@@ -4101,6 +4554,24 @@
           "avgTurnsSuccess": 5.0285714285714285,
           "runs": 44,
           "successRate": 0.7954545454545454
+        },
+        "go": {
+          "avgCost": 0.07470477777777779,
+          "avgTokens": 31538.083333333332,
+          "avgTurns": 4.638888888888889,
+          "avgTurnsFailure": 0,
+          "avgTurnsSuccess": 4.911764705882353,
+          "runs": 36,
+          "successRate": 0.9444444444444444
+        },
+        "javascript": {
+          "avgCost": 0.07074299861111114,
+          "avgTokens": 24673.13888888889,
+          "avgTurns": 4.722222222222222,
+          "avgTurnsFailure": 1.3333333333333333,
+          "avgTurnsSuccess": 5.03030303030303,
+          "runs": 36,
+          "successRate": 0.9166666666666666
         },
         "python": {
           "avgCost": 0.06145330681818181,
@@ -4114,23 +4585,23 @@
       },
       "models": {
         "opencode-gemini-3-flash": {
-          "avgCost": 0.041103529545454535,
-          "avgTokens": 64456.09090909091,
-          "avgTurns": 3.477272727272727,
-          "runs": 44,
-          "successRate": 0.6590909090909091
+          "avgCost": 0.04008648500000002,
+          "avgTokens": 60333.25,
+          "avgTurns": 4.1625,
+          "runs": 80,
+          "successRate": 0.7625
         },
         "opencode-sonnet-4-6": {
-          "avgCost": 0.16447327159090916,
-          "avgTokens": 941.9318181818181,
-          "avgTurns": 4.2727272727272725,
-          "runs": 44,
-          "successRate": 0.9318181818181818
+          "avgCost": 0.13843225499999998,
+          "avgTokens": 930.7125,
+          "avgTurns": 4.3125,
+          "runs": 80,
+          "successRate": 0.95
         }
       },
-      "runs": 88,
-      "successRate": 0.7954545454545454,
-      "totalCost": 9.04537925
+      "runs": 160,
+      "successRate": 0.85625,
+      "totalCost": 14.281499199999999
     }
   },
   "harnesses": {
@@ -4172,8 +4643,8 @@
       "total_runs": 80
     },
     "codex": {
-      "avg_cost_usd": 0.17059045454545455,
-      "avg_duration_ms": 36604.72727272727,
+      "avg_cost_usd": 0.16672531250000006,
+      "avg_duration_ms": 37961.85,
       "display_name": "Codex CLI",
       "languages": {
         "ailang": {
@@ -4181,6 +4652,18 @@
           "avgTokens": 164907.31818181818,
           "runs": 22,
           "successRate": 0.8181818181818182
+        },
+        "go": {
+          "avgCost": 0.1678219444444444,
+          "avgTokens": 125708.61111111111,
+          "runs": 18,
+          "successRate": 1
+        },
+        "javascript": {
+          "avgCost": 0.15618055555555554,
+          "avgTokens": 117974.38888888889,
+          "runs": 18,
+          "successRate": 0.9444444444444444
         },
         "python": {
           "avgCost": 0.12643278409090908,
@@ -4193,8 +4676,8 @@
         "gpt5-4"
       ],
       "name": "codex",
-      "success_rate": 0.8181818181818182,
-      "total_runs": 44
+      "success_rate": 0.8875,
+      "total_runs": 80
     },
     "gemini": {
       "avg_cost_usd": 0.01977779375,
@@ -4234,8 +4717,8 @@
       "total_runs": 80
     },
     "opencode": {
-      "avg_cost_usd": 0.10278840056818182,
-      "avg_duration_ms": 23433.852272727272,
+      "avg_cost_usd": 0.08925936999999999,
+      "avg_duration_ms": 22862.5375,
       "display_name": "opencode CLI",
       "languages": {
         "ailang": {
@@ -4243,6 +4726,18 @@
           "avgTokens": 46488.52272727273,
           "runs": 44,
           "successRate": 0.7954545454545454
+        },
+        "go": {
+          "avgCost": 0.07470477777777779,
+          "avgTokens": 31538.083333333332,
+          "runs": 36,
+          "successRate": 0.9444444444444444
+        },
+        "javascript": {
+          "avgCost": 0.07074299861111114,
+          "avgTokens": 24673.13888888889,
+          "runs": 36,
+          "successRate": 0.9166666666666666
         },
         "python": {
           "avgCost": 0.06145330681818181,
@@ -4256,16 +4751,16 @@
         "opencode-sonnet-4-6"
       ],
       "name": "opencode",
-      "success_rate": 0.7954545454545454,
-      "total_runs": 88
+      "success_rate": 0.85625,
+      "total_runs": 160
     }
   },
   "history": [
     {
       "version": "v0.14.1",
-      "timestamp": "2026-04-23T15:26:35+02:00",
+      "timestamp": "2026-04-23T15:41:54+02:00",
       "successRate": 0,
-      "totalRuns": 292,
+      "totalRuns": 400,
       "successCount": 0,
       "languages": "ailang,go,javascript,python",
       "languageStats": {
@@ -4274,12 +4769,12 @@
           "total_runs": 110
         },
         "go": {
-          "success_rate": 0.5833333333333334,
-          "total_runs": 36
+          "success_rate": 0.8111111111111111,
+          "total_runs": 90
         },
         "javascript": {
-          "success_rate": 0.6111111111111112,
-          "total_runs": 36
+          "success_rate": 0.8,
+          "total_runs": 90
         },
         "python": {
           "success_rate": 0.7,
@@ -4337,6 +4832,16 @@
             "successRate": 0.8181818181818182,
             "totalRuns": 22
           },
+          "go": {
+            "avgTokens": 1221.2777777777778,
+            "successRate": 1,
+            "totalRuns": 18
+          },
+          "javascript": {
+            "avgTokens": 995.7222222222222,
+            "successRate": 0.9444444444444444,
+            "totalRuns": 18
+          },
           "python": {
             "avgTokens": 865.1818181818181,
             "successRate": 0.8181818181818182,
@@ -4349,6 +4854,16 @@
             "successRate": 0.6363636363636364,
             "totalRuns": 22
           },
+          "go": {
+            "avgTokens": 1243,
+            "successRate": 0.8888888888888888,
+            "totalRuns": 18
+          },
+          "javascript": {
+            "avgTokens": 1007.3888888888889,
+            "successRate": 0.8888888888888888,
+            "totalRuns": 18
+          },
           "python": {
             "avgTokens": 692.3181818181819,
             "successRate": 0.6818181818181818,
@@ -4360,6 +4875,16 @@
             "avgTokens": 1084.9545454545455,
             "successRate": 0.9545454545454546,
             "totalRuns": 22
+          },
+          "go": {
+            "avgTokens": 953.0555555555555,
+            "successRate": 1,
+            "totalRuns": 18
+          },
+          "javascript": {
+            "avgTokens": 870.2222222222222,
+            "successRate": 0.9444444444444444,
+            "totalRuns": 18
           },
           "python": {
             "avgTokens": 788.4090909090909,

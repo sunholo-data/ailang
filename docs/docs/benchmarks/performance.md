@@ -1,8 +1,8 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 title: Benchmarks
-description: Real-world AI code generation performance metrics for AILANG
-last_updated: 2025-11-29
+description: Real-world AI code generation performance metrics for AILANG across models, harnesses, and languages
+last_updated: 2026-04-23
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
@@ -10,11 +10,24 @@ import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 
 # AI Code Generation Benchmarks
 
-Real-world performance metrics for AILANG vs Python across multiple AI models.
+Real-world performance metrics for AILANG and Python across multiple AI models, harnesses, and languages.
 
-:::tip Explore across all dimensions
-Want to filter by language, harness (Claude CLI vs Gemini vs opencode vs Codex), or model? Use the **[Benchmark Explorer →](/docs/benchmarks/explorer)**
+:::tip Explore and browse
+- **[Benchmark Explorer →](/docs/benchmarks/explorer)** — filter by language, harness, and model; cross-harness comparison table
+- **[Benchmark Gallery →](/docs/benchmarks/gallery)** — browse all benchmark tasks with pass rates and code samples
 :::
+
+## Evaluation Modes
+
+This page shows results from three complementary evaluation approaches:
+
+| Mode | What it tests | Metric |
+|------|--------------|--------|
+| **Standard API (0-shot)** | Direct model API call — does the model produce correct code on the first attempt? | `zeroShotSuccess` |
+| **Self-repair** | One additional attempt after failure — does error feedback help? | `finalSuccess` |
+| **Agent mode** | Agentic CLI (Claude Code / Gemini CLI / opencode / Codex) with multi-turn iteration — real-world developer workflow | `agentSuccessRate` |
+
+Agent mode results are also shown in the [Benchmark Explorer](/docs/benchmarks/explorer) broken down by language and harness.
 
 ## Model Comparison
 
@@ -22,17 +35,17 @@ Compare AI model performance across multiple dimensions:
 
 <ModelRadarComparison />
 
-<BenchmarkDashboard />
+<BenchmarkDashboard showGallery={false} />
 
 ## What These Numbers Mean
 
-Our benchmark suite tests AI models' ability to generate correct, working code in both AILANG and Python.
+Our benchmark suite tests AI models' ability to generate correct, working code across 4 languages.
 
 ### Success Metrics
 
 - **0-Shot Success**: Code works on first try (no repairs)
 - **Final Success**: Code works after M-EVAL-LOOP self-repair
-- **Token Efficiency**: Lower tokens = more concise code
+- **Agent Success**: Code works via multi-turn agentic iteration
 
 ### Why This Matters
 
