@@ -54,6 +54,14 @@ type TaskCompletion struct {
 	OutputTokens  int     `json:"output_tokens,omitempty"`
 	CostUSD       float64 `json:"cost_usd,omitempty"`
 	DurationMS    int     `json:"duration_ms,omitempty"`
+
+	// Cache token breakdown (omitted from InputTokens total — additive cost context)
+	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
+
+	// GCS path prefix for raw artifacts: transcript.txt, session.jsonl, metrics.json
+	// Format: "tasks/{taskID}" (relative to the per-environment artifact bucket)
+	ArtifactGCSPath string `json:"artifact_gcs_path,omitempty"`
 }
 
 // MessageAttributes carries routing metadata as Pub/Sub message attributes.

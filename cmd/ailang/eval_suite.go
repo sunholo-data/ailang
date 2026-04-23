@@ -801,6 +801,10 @@ func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
 			if len(cfg.OllamaSuite) > 0 {
 				return cfg.OllamaSuite
 			}
+		case "harness_suite":
+			if len(cfg.HarnessSuite) > 0 {
+				return cfg.HarnessSuite
+			}
 		}
 	}
 

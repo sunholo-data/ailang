@@ -123,6 +123,10 @@ type ExecuteResult struct {
 	FilesModified []string
 	// Session continuity (for agent-to-agent handoffs)
 	SessionID string // Claude Code --resume ID or Gemini CLI --conversation-id
+
+	// GCS path prefix for raw artifacts (e.g. "tasks/{taskID}").
+	// Set when the job ran with an artifact bucket mounted at /artifacts.
+	ArtifactGCSPath string
 }
 
 // Provider executes tasks using a specific AI backend.

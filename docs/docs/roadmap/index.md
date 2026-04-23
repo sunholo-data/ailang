@@ -23,9 +23,15 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
-## Planned for v0.13.1
+## Planned for v0.15.0
 
-- [M-SONAR-GATE-CLEANUP: Drive SonarCloud Quality Gate to PASS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_1/m-sonar-gate-cleanup.md)
+- [M-BENCHMARK-SECTION: Multi-Page Benchmark Section for AILANG Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-benchmark-section-redesign.md)
+- [M-EVAL-CROSS-HARNESS: Cross-Harness Benchmark Comparison](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-cross-harness-comparison.md)
+- [M-EVAL-CROSS-HARNESS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-cross-harness-sprint-plan.md)
+- [Sprint Plan: M-EVAL-LANG-JSGO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)
+- [Sprint Plan: M-EVAL-LANGREG (Language Registry)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-langreg-sprint-plan.md)
+- [M-OLLAMA-LOCAL-EVAL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval-sprint-plan.md)
+- [M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval.md)
 
 ## Planned for v0.13.0
 
@@ -112,4 +118,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 77 planned features across 4 upcoming versions.*
+*Generated at build time. 83 planned features across 4 upcoming versions.*

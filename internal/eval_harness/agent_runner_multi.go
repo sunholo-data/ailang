@@ -235,6 +235,14 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		Result:        result.Output,
 		Usage:         TokenUsage{InputTokens: result.InputTokens, OutputTokens: result.OutputTokens},
 		TTFTSeconds:   ttftTracker.seconds,
+		ModelFamily: func() string {
+			if GlobalModelsConfig != nil {
+				if cfg, ok := GlobalModelsConfig.Models[lookupKey]; ok {
+					return cfg.ModelFamily
+				}
+			}
+			return ""
+		}(),
 		SolutionCode:  string(solutionCode),
 		SessionLog:    result.Transcript,
 		PromptVersion: promptVersion,

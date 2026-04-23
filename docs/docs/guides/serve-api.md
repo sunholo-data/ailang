@@ -862,7 +862,7 @@ curl -s -D- http://localhost:8080/api/v1/parse -d '{"path": "test.docx"}'
 # {"data": "parsed content", "count": 15}
 ```
 
-> **Note:** The `_headers` convention is consistent with the existing `_body`/`_status`/`_headers` pattern used for [binary responses](#binary-response). For simple JSON responses that just need extra headers, `@nowrap` with `_headers` is more ergonomic than the full `_body` pattern.
+> **Note:** The `_headers` convention is consistent with the existing `_body`/`_status`/`_headers` pattern used for [binary responses](#binary-response-v094). For simple JSON responses that just need extra headers, `@nowrap` with `_headers` is more ergonomic than the full `_body` pattern.
 
 #### JSON Auto-Unwrap with `@nowrap`
 

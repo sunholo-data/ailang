@@ -180,16 +180,19 @@ monitor_progress() {
     done
 }
 
-# Arg parsing: <version> [--full] [--tier <spec>]
+# Arg parsing: <version> [--full] [--tier <spec>] [--cross-harness]
 if [[ $# -eq 0 ]]; then
-    echo "Usage: $0 <version> [--full] [--tier <spec>]" >&2
+    echo "Usage: $0 <version> [--full] [--tier <spec>] [--cross-harness]" >&2
     echo "Example: $0 0.3.14 --full" >&2
     echo "Example: $0 0.13.0 --full --tier core,stretch" >&2
+    echo "Example: $0 0.15.0 --full --cross-harness" >&2
     echo "" >&2
     echo "Options:" >&2
     echo "  --full              Use all production models (default: dev models)" >&2
     echo "  --tier <spec>       Comma-separated tiers: smoke,core,stretch,vision" >&2
     echo "                      (default: $DEFAULT_TIER)" >&2
+    echo "  --cross-harness     Use harness_suite (sonnet+gemini via claude/opencode)" >&2
+    echo "                      to measure harness-induced benchmark deltas" >&2
     exit 1
 fi
 
@@ -197,6 +200,7 @@ VERSION="$1"
 shift
 FULL_FLAG=""
 TIER_FLAG="$DEFAULT_TIER"
+CROSS_HARNESS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -214,6 +218,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --tier=*)
             TIER_FLAG="${1#--tier=}"
+            shift
+            ;;
+        --cross-harness)
+            CROSS_HARNESS="true"
             shift
             ;;
         *)
@@ -248,11 +256,6 @@ else
 fi
 echo
 
-# Pre-warm any Ollama-backed models and register unload-on-exit.
-# This eliminates cold starts between sequential runs and ensures RAM
-# is freed when the script exits (normally, on Ctrl-C, or on error).
-setup_ollama_models "$AGENT_MODELS"
-
 # Step 1: Run standard eval baseline
 echo "=== Step 1/2: Standard Eval (0-shot + repair) ==="
 # Expected file count for standard eval: benchmarks × models × langs (2)
@@ -278,20 +281,31 @@ echo "Running agent eval on tier=$TIER_FLAG benchmarks ($BENCHMARK_COUNT total).
 echo
 
 # Agent model selection:
-#   DEV mode  → claude-sonnet-4-5 + gemini-3-flash (2 harnesses, fast)
-#   FULL mode → agent_suite (all 4 harnesses: claude + gemini + codex + opencode)
+#   DEV mode         → claude-sonnet-4-6 + gemini-3-flash (2 harnesses, fast)
+#   FULL mode        → agent_suite (all 4 harnesses: claude + gemini + codex + opencode)
+#   --cross-harness  → harness_suite (sonnet+opencode-sonnet, gemini+opencode-gemini)
+#                      measures harness-induced delta for the same underlying model
 #
 # agent_suite requires OPENAI_API_KEY (codex) and a running opencode binary.
+# harness_suite requires opencode binary only.
 # Missing harnesses are skipped gracefully by the executor factory.
-if [[ -n "$FULL_FLAG" ]]; then
+if [[ -n "$CROSS_HARNESS" ]]; then
+    AGENT_MODELS="harness_suite"
+    AGENT_HARNESS_DESC="harness_suite (claude-sonnet-4-6, opencode-sonnet-4-6, gemini-3-flash, opencode-gemini-3-flash)"
+    AGENT_HARNESS_COUNT=4
+elif [[ -n "$FULL_FLAG" ]]; then
     AGENT_MODELS="agent_suite"
     AGENT_HARNESS_DESC="agent_suite (claude + gemini + codex + opencode, 4 harnesses)"
     AGENT_HARNESS_COUNT=4
 else
-    AGENT_MODELS="claude-sonnet-4-5,gemini-3-flash"
+    AGENT_MODELS="claude-sonnet-4-6,gemini-3-flash"
     AGENT_HARNESS_DESC="claude + gemini (2 harnesses)"
     AGENT_HARNESS_COUNT=2
 fi
+
+# Pre-warm any Ollama-backed models now that AGENT_MODELS is resolved.
+# Eliminates cold starts and ensures RAM is freed on EXIT/Ctrl-C.
+setup_ollama_models "$AGENT_MODELS"
 
 # Pre-flight summary
 echo "=== Pre-Flight Check ==="
@@ -328,8 +342,8 @@ if [[ -z "$AGENT_BENCHMARKS_CSV" ]]; then
     exit 1
 fi
 
-echo "Mode: ${FULL_FLAG:+FULL }(Claude Sonnet + Gemini 3 Flash, langs=$AGENT_LANGS)"
-echo "Executors: claude, gemini"
+echo "Mode: ${CROSS_HARNESS:+CROSS-HARNESS }${FULL_FLAG:+FULL }${FULL_FLAG:-DEV} (langs=$AGENT_LANGS)"
+echo "Models: $AGENT_HARNESS_DESC"
 echo "Agent benchmarks: $BENCHMARK_COUNT resolved from tier=$TIER_FLAG"
 monitor_progress "$RESULTS_DIR" "$EXPECTED_AGENT" "Agent" &
 MONITOR_PID=$!
@@ -408,4 +422,18 @@ if [[ $TOTAL_COUNT -lt $MIN_TOTAL ]]; then
     echo "   This may indicate interrupted runs or configuration issues"
 else
     echo "✓ File counts within expected range"
+fi
+
+# Cross-harness comparison matrix (only when --cross-harness was used).
+# Prints the grouped-by-family table to stdout and saves it alongside the
+# baseline so the result is always reproducible without re-running the eval.
+if [[ -n "$CROSS_HARNESS" ]]; then
+    echo
+    echo "=== Cross-Harness Comparison Matrix ==="
+    MATRIX_VERSION="v$VERSION_NORMALIZED-harness"
+    HARNESS_MATRIX_OUT="$RESULTS_DIR/cross_harness_matrix.md"
+    ailang eval-matrix "$RESULTS_DIR" "$MATRIX_VERSION" --group-by=model-family \
+        | tee "$HARNESS_MATRIX_OUT"
+    echo
+    echo "✓ Cross-harness matrix saved: $HARNESS_MATRIX_OUT"
 fi

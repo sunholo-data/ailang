@@ -23,6 +23,7 @@ type ModelConfig struct {
 	MaxOutputTokens          int     `yaml:"max_output_tokens"`  // Max output tokens (0 = handler default 4096)
 	TTFTTimeoutSeconds       int     `yaml:"ttft_timeout"`       // Prefill budget in seconds (0 = executor default 30s)
 	GenerationTimeoutSeconds int     `yaml:"generation_timeout"` // Per-token idle budget after first event (0 = executor default 3m)
+	ModelFamily              string  `yaml:"model_family"`       // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
 	Pricing                  Pricing `yaml:"pricing"`
 	Notes                    string  `yaml:"notes"`
 }
@@ -42,6 +43,7 @@ type ModelsConfig struct {
 	DevModels      []string               `yaml:"dev_models"`
 	AgentSuite     []string               `yaml:"agent_suite"`
 	OllamaSuite    []string               `yaml:"ollama_suite"`
+	HarnessSuite   []string               `yaml:"harness_suite"`
 }
 
 var (

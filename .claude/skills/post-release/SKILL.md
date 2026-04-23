@@ -48,7 +48,7 @@ Invoke this skill when:
 
 ## Available Scripts
 
-### `scripts/run_eval_baseline.sh <version> [--full]`
+### `scripts/run_eval_baseline.sh <version> [--full] [--cross-harness]`
 Run evaluation baseline for a release version.
 
 **🚨 CRITICAL: ALWAYS use --full for releases!**
@@ -58,6 +58,9 @@ Run evaluation baseline for a release version.
 # ✅ CORRECT - For releases (ALL 6 production models)
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14 --full
 .claude/skills/post-release/scripts/run_eval_baseline.sh v0.3.14 --full
+
+# Cross-harness comparison: same model via claude CLI vs opencode
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --cross-harness
 
 # ❌ WRONG - Only use without --full for quick testing/validation
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14

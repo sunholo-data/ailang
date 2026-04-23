@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -104,17 +105,19 @@ func coordinatorExecuteJob(args []string) error {
 	// publishCompletion is a closure that publishes (or logs to stderr as fallback).
 	// The optional execResult carries metrics from the executor for parity with local.
 	// changedFiles lists files created/modified by the agent (discovered via git diff).
-	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, changedFiles []string) {
+	// artifactPath is the GCS path prefix where raw artifacts were uploaded (may be empty).
+	publishCompletion := func(status, errMsg, branchName string, execResult *executor.Result, changedFiles []string, artifactPath string) {
 		if completionSent.Swap(true) {
 			return // Already sent — prevent double-publish.
 		}
 		completion := pubsub.TaskCompletion{
-			TaskID:       taskID,
-			AgentID:      agentID,
-			Status:       status,
-			ErrorMsg:     errMsg,
-			BranchName:   branchName,
-			ChangedFiles: changedFiles,
+			TaskID:          taskID,
+			AgentID:         agentID,
+			Status:          status,
+			ErrorMsg:        errMsg,
+			BranchName:      branchName,
+			ChangedFiles:    changedFiles,
+			ArtifactGCSPath: artifactPath,
 		}
 		// Populate executor metrics when available (same data as local coordinator)
 		if execResult != nil {
@@ -125,6 +128,8 @@ func coordinatorExecuteJob(args []string) error {
 			completion.OutputTokens = execResult.OutputTokens
 			completion.CostUSD = execResult.CostUSD
 			completion.DurationMS = execResult.DurationMS
+			completion.CacheReadTokens = execResult.CacheReadInputTokens
+			completion.CacheCreationTokens = execResult.CacheCreationInputTokens
 		}
 		if publisher != nil {
 			pubCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -146,24 +151,24 @@ func coordinatorExecuteJob(args []string) error {
 	// Defer guard: catches panics and any exit path that forgot to publish.
 	defer func() {
 		if r := recover(); r != nil {
-			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, nil)
+			publishCompletion("failed", fmt.Sprintf("panic: %v", r), "", nil, nil, "")
 		} else if !completionSent.Load() {
 			// Should not happen — means we returned without publishing.
-			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, nil)
+			publishCompletion("failed", "unknown: exited without publishing completion", "", nil, nil, "")
 		}
 	}()
 
 	// Validate required env vars (after Pub/Sub init so failures are reported).
 	if taskID == "" {
-		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, nil)
+		publishCompletion("failed", "AILANG_TASK_ID environment variable is required", "", nil, nil, "")
 		return fmt.Errorf("AILANG_TASK_ID environment variable is required")
 	}
 	if agentID == "" {
-		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, nil)
+		publishCompletion("failed", "AILANG_AGENT_ID environment variable is required", "", nil, nil, "")
 		return fmt.Errorf("AILANG_AGENT_ID environment variable is required")
 	}
 	if projectID == "" {
-		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, nil)
+		publishCompletion("failed", "AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required", "", nil, nil, "")
 		return fmt.Errorf("AILANG_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT is required")
 	}
 
@@ -186,12 +191,17 @@ func coordinatorExecuteJob(args []string) error {
 	// Execute the task
 	branchName, execResult, changedFiles, execErr := executeCloudTask(ctx, taskID, agentID, repoURL, branch, directive, provider, pluginRepo, model, timeoutStr)
 
+	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
+	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
+	// Files written here land directly in GCS — no upload client needed.
+	artifactPath := writeTaskArtifacts(taskID, execResult)
+
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {
-		publishCompletion("failed", execErr.Error(), branchName, execResult, nil)
+		publishCompletion("failed", execErr.Error(), branchName, execResult, nil, artifactPath)
 		fmt.Printf("execute-job: task %s failed: %v\n", taskID, execErr)
 	} else {
-		publishCompletion("completed", "", branchName, execResult, changedFiles)
+		publishCompletion("completed", "", branchName, execResult, changedFiles, artifactPath)
 		fmt.Printf("execute-job: task %s completed (branch=%s, files=%d)\n", taskID, branchName, len(changedFiles))
 	}
 
@@ -303,6 +313,15 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	if subdir := os.Getenv("AILANG_SUBDIRECTORY"); subdir != "" {
 		execWorkDir = filepath.Join(workDir, subdir)
 		fmt.Printf("execute-job: scoped to subdirectory %s (within %s)\n", subdir, workDir)
+	}
+
+	// Direct Claude Code session storage into the GCS-mounted artifact directory.
+	// CLAUDE_CONFIG_DIR overrides ~/.claude — session JSONL is written directly to GCS
+	// without any upload step. Path: /artifacts/tasks/{taskID}/claude/projects/{path}/{sid}.jsonl
+	claudeConfigDir := filepath.Join("/artifacts", "tasks", taskID, "claude")
+	if err := os.MkdirAll(claudeConfigDir, 0755); err == nil {
+		os.Setenv("CLAUDE_CONFIG_DIR", claudeConfigDir)
+		fmt.Printf("execute-job: CLAUDE_CONFIG_DIR=%s (session JSONL → GCS)\n", claudeConfigDir)
 	}
 
 	fmt.Printf("execute-job: running %s executor (unified path)\n", provider)
@@ -433,6 +452,66 @@ func injectAgentsMD(pluginDir, workDir string) {
 		return
 	}
 	fmt.Printf("execute-job: injected AGENTS.md from plugin into workspace\n")
+}
+
+// writeTaskArtifacts writes execution artifacts to the GCS-mounted artifact directory.
+//
+// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount
+// (configured in Terraform). Files written here go directly to GCS — no upload client needed.
+// Claude Code session JSONL is captured separately via CLAUDE_CONFIG_DIR pointing into /artifacts.
+//
+// Writes:
+//   - /artifacts/tasks/{taskID}/transcript.txt — plain-text turn summary
+//   - /artifacts/tasks/{taskID}/metrics.json   — extended metrics (cache tokens, files)
+//
+// Returns the GCS path prefix ("tasks/{taskID}") for linking from Firestore.
+// Failures are non-fatal and logged to stderr.
+func writeTaskArtifacts(taskID string, result *executor.Result) string {
+	artifactDir := filepath.Join("/artifacts", "tasks", taskID)
+	if err := os.MkdirAll(artifactDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: warning: could not create artifact dir %s: %v\n", artifactDir, err)
+		return ""
+	}
+
+	prefix := fmt.Sprintf("tasks/%s", taskID)
+
+	if result == nil {
+		return prefix
+	}
+
+	// 1. Plain-text transcript
+	if result.Transcript != "" {
+		p := filepath.Join(artifactDir, "transcript.txt")
+		if err := os.WriteFile(p, []byte(result.Transcript), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "execute-job: warning: failed to write transcript.txt: %v\n", err)
+		}
+	}
+
+	// 2. Extended metrics (cache tokens, files — not in TaskCompletion message)
+	metrics := map[string]any{
+		"task_id":               taskID,
+		"session_id":            result.SessionID,
+		"num_turns":             result.NumTurns,
+		"tool_call_count":       result.ToolCallCount,
+		"input_tokens":          result.InputTokens,
+		"output_tokens":         result.OutputTokens,
+		"cache_read_tokens":     result.CacheReadInputTokens,
+		"cache_creation_tokens": result.CacheCreationInputTokens,
+		"cost_usd":              result.CostUSD,
+		"duration_ms":           result.DurationMS,
+		"files_created":         result.FilesCreated,
+		"files_modified":        result.FilesModified,
+		"written_at":            time.Now().UTC().Format(time.RFC3339),
+	}
+	if metricsJSON, err := json.Marshal(metrics); err == nil {
+		p := filepath.Join(artifactDir, "metrics.json")
+		if err := os.WriteFile(p, metricsJSON, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "execute-job: warning: failed to write metrics.json: %v\n", err)
+		}
+	}
+
+	fmt.Printf("execute-job: artifacts written to /artifacts/%s\n", prefix)
+	return prefix
 }
 
 func printExecuteJobHelp() {

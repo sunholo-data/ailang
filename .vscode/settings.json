@@ -19,7 +19,18 @@
     "build.directoryFilters": [
       "-scripts",
       "-examples/agents"
-    ]
+    ],
+    "ui.diagnostic.analyses": {
+      "cognitive_complexity": false
+    }
+  },
+  "sonarlint.rules": {
+    "go:S3776": {
+      "level": "off"
+    },
+    "go:S1541": {
+      "level": "off"
+    }
   },
   "files.exclude": {
     "scripts/**/*.go": false

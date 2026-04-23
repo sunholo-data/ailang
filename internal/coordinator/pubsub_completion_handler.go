@@ -90,17 +90,18 @@ func (h *CompletionHandler) handleCompletion(ctx context.Context, completion pub
 
 	// Build ExecuteResult from completion metrics so they're stored in Firestore.
 	var execResult *ExecuteResult
-	if completion.SessionID != "" || completion.NumTurns > 0 || completion.ToolCallCount > 0 {
+	if completion.SessionID != "" || completion.NumTurns > 0 || completion.ToolCallCount > 0 || completion.ArtifactGCSPath != "" {
 		execResult = &ExecuteResult{
-			Success:       completion.Status == "completed",
-			SessionID:     completion.SessionID,
-			NumTurns:      completion.NumTurns,
-			ToolCallCount: completion.ToolCallCount,
-			InputTokens:   completion.InputTokens,
-			OutputTokens:  completion.OutputTokens,
-			TokensUsed:    completion.InputTokens + completion.OutputTokens,
-			Cost:          completion.CostUSD,
-			Duration:      time.Duration(completion.DurationMS) * time.Millisecond,
+			Success:         completion.Status == "completed",
+			SessionID:       completion.SessionID,
+			NumTurns:        completion.NumTurns,
+			ToolCallCount:   completion.ToolCallCount,
+			InputTokens:     completion.InputTokens,
+			OutputTokens:    completion.OutputTokens,
+			TokensUsed:      completion.InputTokens + completion.OutputTokens,
+			Cost:            completion.CostUSD,
+			Duration:        time.Duration(completion.DurationMS) * time.Millisecond,
+			ArtifactGCSPath: completion.ArtifactGCSPath,
 		}
 		if completion.ErrorMsg != "" {
 			execResult.Error = completion.ErrorMsg

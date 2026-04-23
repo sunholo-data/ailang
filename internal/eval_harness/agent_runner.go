@@ -77,6 +77,9 @@ type AgentBenchmarkResult struct {
 	// Timing breakdown
 	TTFTSeconds float64 `json:"ttft_seconds,omitempty"` // Time to first token in seconds
 
+	// Cross-harness grouping
+	ModelFamily string `json:"model_family,omitempty"` // Logical model family (e.g. "claude-sonnet-4-6"); empty = no grouping
+
 	// Contract verification results (M-CONTRACT-EVAL)
 	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
 	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions

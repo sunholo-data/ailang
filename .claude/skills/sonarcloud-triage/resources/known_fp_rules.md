@@ -37,6 +37,7 @@ our context (as opposed to `mark_fp.sh` for per-issue analyzer false positives).
 
 | Rule | Scope | Verdict | Comment |
 |------|-------|---------|---------|
+| `go:S3776` | all Go sources | **Won't Fix** | Cognitive Complexity threshold (15) is calibrated for CRUD apps. Lexer, parser, type-checker, and VM builtins inherently have high branching — refactoring would reduce readability without improving correctness. |
 | `typescript:S1082` | `ui/.../EvolutionTree*.tsx` (a11y — clickable without keyboard listener) | **Won't Fix** | EvolutionTree visualization component; a11y keyboard-listener parity is not a product requirement for this internal observability view. |
 | `typescript:S3923` | `ui/.../EvolutionTree.tsx` (duplicate branches) | **Won't Fix** | Duplicate branches in EvolutionTree render logic are intentional for readability; refactor deferred to a dedicated UI rework sprint. |
 

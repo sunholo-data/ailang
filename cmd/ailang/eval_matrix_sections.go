@@ -169,7 +169,7 @@ func fmtTagRate(pass, total int) string {
 	return fmt.Sprintf("%.1f%% (%d/%d)", 100*float64(pass)/float64(total), pass, total)
 }
 
-// parseMatrixFlags scans flag.Arg() from `start` onward for the three M3
+// parseMatrixFlags scans flag.Arg() from `start` onward for the four
 // boolean flags. Unknown --flag=... / --flag args are left alone (they may
 // be parsed elsewhere, e.g. --format= in eval-report shares this scan path).
 func parseMatrixFlags(getArg func(int) string, n int) (byTags, showSaturated, ailangWins bool) {
@@ -184,4 +184,178 @@ func parseMatrixFlags(getArg func(int) string, n int) (byTags, showSaturated, ai
 		}
 	}
 	return
+}
+
+// parseGroupByFlag returns the value of --group-by=<value> or --group-by <value>.
+func parseGroupByFlag(getArg func(int) string, n int) string {
+	for i := 0; i < n; i++ {
+		arg := strings.TrimSpace(getArg(i))
+		if strings.HasPrefix(arg, "--group-by=") {
+			return strings.TrimPrefix(arg, "--group-by=")
+		}
+		if arg == "--group-by" && i+1 < n {
+			return strings.TrimSpace(getArg(i + 1))
+		}
+	}
+	return ""
+}
+
+// printGroupedByFamilySection renders a cross-harness comparison table.
+// Results are clustered by ModelFamily; within each family, each unique
+// Executor is a column. Delta rows show pass-rate difference between
+// the first and second harness in order of appearance.
+func printGroupedByFamilySection(results []*eval_analysis.BenchmarkResult) {
+	// Index: family → executor → benchmark → results
+	type cell struct {
+		pass  int
+		total int
+		cost  float64
+		durMs int64
+	}
+
+	// Collect families and executors in stable order.
+	var families []string
+	familySet := map[string]bool{}
+	// executor order per family
+	familyExecutors := map[string][]string{}
+	familyExecutorSet := map[string]map[string]bool{}
+	// data: family → executor → benchID → []pass
+	data := map[string]map[string]map[string]*cell{}
+
+	for _, r := range results {
+		if r.ModelFamily == "" {
+			continue
+		}
+		fam := r.ModelFamily
+		exec := r.Executor
+		if exec == "" {
+			exec = r.Model
+		}
+
+		if !familySet[fam] {
+			familySet[fam] = true
+			families = append(families, fam)
+		}
+		if familyExecutorSet[fam] == nil {
+			familyExecutorSet[fam] = map[string]bool{}
+		}
+		if !familyExecutorSet[fam][exec] {
+			familyExecutorSet[fam][exec] = true
+			familyExecutors[fam] = append(familyExecutors[fam], exec)
+		}
+		if data[fam] == nil {
+			data[fam] = map[string]map[string]*cell{}
+		}
+		if data[fam][exec] == nil {
+			data[fam][exec] = map[string]*cell{}
+		}
+		c := data[fam][exec][r.ID]
+		if c == nil {
+			c = &cell{}
+			data[fam][exec][r.ID] = c
+		}
+		c.total++
+		if r.StdoutOk {
+			c.pass++
+		}
+		c.cost += r.CostUSD
+		c.durMs += r.DurationMs
+	}
+
+	if len(families) == 0 {
+		fmt.Println("\n## Cross-Harness Comparison\n\n(no results with model_family set)")
+		return
+	}
+
+	sort.Strings(families)
+
+	fmt.Println("\n## Cross-Harness Comparison (by Model Family)")
+
+	for _, fam := range families {
+		execs := familyExecutors[fam]
+		fmt.Printf("\n### %s (%d harness(es): %s)\n\n", fam, len(execs), strings.Join(execs, ", "))
+
+		if len(execs) == 0 {
+			continue
+		}
+
+		// Collect all benchmark IDs for this family.
+		benchSet := map[string]bool{}
+		for _, exec := range execs {
+			for benchID := range data[fam][exec] {
+				benchSet[benchID] = true
+			}
+		}
+		var benchIDs []string
+		for b := range benchSet {
+			benchIDs = append(benchIDs, b)
+		}
+		sort.Strings(benchIDs)
+
+		// Header
+		header := "| Benchmark |"
+		sep := "|-----------|"
+		for _, exec := range execs {
+			header += fmt.Sprintf(" %s |", exec)
+			sep += "--------:|"
+		}
+		if len(execs) >= 2 {
+			header += fmt.Sprintf(" Δ (%s→%s) |", execs[0], execs[1])
+			sep += "-----------:|"
+		}
+		fmt.Println(header)
+		fmt.Println(sep)
+
+		// Per-benchmark rows
+		execPass := make(map[string]int)
+		execTotal := make(map[string]int)
+		for _, benchID := range benchIDs {
+			row := fmt.Sprintf("| `%s` |", benchID)
+			var rates []float64
+			for _, exec := range execs {
+				c := data[fam][exec][benchID]
+				if c == nil || c.total == 0 {
+					row += " n/a |"
+					rates = append(rates, -1)
+				} else {
+					rate := float64(c.pass) / float64(c.total)
+					row += fmt.Sprintf(" %.0f%% (%d/%d) |", rate*100, c.pass, c.total)
+					rates = append(rates, rate)
+					execPass[exec] += c.pass
+					execTotal[exec] += c.total
+				}
+			}
+			if len(execs) >= 2 && len(rates) >= 2 && rates[0] >= 0 && rates[1] >= 0 {
+				delta := rates[1] - rates[0]
+				row += fmt.Sprintf(" %+.1fpp |", delta*100)
+			} else if len(execs) >= 2 {
+				row += " n/a |"
+			}
+			fmt.Println(row)
+		}
+
+		// Summary row
+		fmt.Println()
+		fmt.Print("**Summary:** ")
+		parts := make([]string, 0, len(execs))
+		var summaryRates []float64
+		for _, exec := range execs {
+			t := execTotal[exec]
+			p := execPass[exec]
+			if t == 0 {
+				parts = append(parts, fmt.Sprintf("%s: n/a", exec))
+				summaryRates = append(summaryRates, -1)
+			} else {
+				rate := float64(p) / float64(t)
+				parts = append(parts, fmt.Sprintf("%s: %d/%d (%.1f%%)", exec, p, t, rate*100))
+				summaryRates = append(summaryRates, rate)
+			}
+		}
+		fmt.Print(strings.Join(parts, ", "))
+		if len(execs) >= 2 && len(summaryRates) >= 2 && summaryRates[0] >= 0 && summaryRates[1] >= 0 {
+			fmt.Printf(", Δ = %+.1fpp\n", (summaryRates[1]-summaryRates[0])*100)
+		} else {
+			fmt.Println()
+		}
+	}
 }

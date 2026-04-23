@@ -444,6 +444,9 @@ func (s *CoordinatorStore) MarkTaskPendingApproval(ctx context.Context, id, work
 			firestore.Update{Path: "session_id", Value: result.SessionID},
 			firestore.Update{Path: "duration", Value: int64(result.Duration)},
 		)
+		if result.ArtifactGCSPath != "" {
+			updates = append(updates, firestore.Update{Path: "artifact_gcs_path", Value: result.ArtifactGCSPath})
+		}
 	}
 	_, err := s.client.Doc(collTasks, id).Update(ctx, updates)
 	if err != nil {
@@ -479,6 +482,9 @@ func (s *CoordinatorStore) MarkTaskCompleted(ctx context.Context, id string, res
 		)
 		if !result.Success {
 			updates = append(updates, firestore.Update{Path: "error", Value: result.Error})
+		}
+		if result.ArtifactGCSPath != "" {
+			updates = append(updates, firestore.Update{Path: "artifact_gcs_path", Value: result.ArtifactGCSPath})
 		}
 	}
 	_, err := s.client.Doc(collTasks, id).Update(ctx, updates)

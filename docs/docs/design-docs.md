@@ -8,6 +8,22 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.15.1
+
+- [M-BRAIN-BOOTSTRAP: `ailang micro-rag bootstrap` for fresh installs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-brain-bootstrap.md)
+
+## v0.15.0
+
+- [Sprint Plan: M-BRAIN-MICRORAG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-brain-microrag-sprint-plan.md)
+- [M-BRAIN-MICRORAG: Micro-RAG — Just-in-Time Knowledge Injection on Tool Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-brain-microrag.md)
+- [Sprint Plan: M-EXEC-EXPAND (Codex + opencode Executors)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode-sprint-plan.md)
+- [M-EXEC-EXPAND: Codex + opencode Executors (Uniform CLI-Subprocess Shape)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode.md)
+
+## v0.14.1
+
+- [M-SONAR-GATE-CLEANUP: Drive SonarCloud Quality Gate to PASS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_1/m-sonar-gate-cleanup.md)
+- [M-SUPPLY-CHAIN-HARDENING — OpenSSF Scorecard response](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_1/m-supply-chain-hardening.md)
+
 ## v0.14.0
 
 - [M-BENCHMARK-SUITE-TIERS: Restructure the Eval Suite into Smoke / Core / Stretch Tiers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_0/m-benchmark-suite-tiers.md)
@@ -883,4 +899,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 657 design documents across 72 versions.*
+*Generated at build time. 664 design documents across 75 versions.*

@@ -202,6 +202,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "sonnet"  # Pass to --agent-model flag
+    model_family: "claude-sonnet-4-6"  # Cross-harness grouping: pairs with opencode-sonnet-4-6
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.003  # $3 per million = $0.003 per 1K
@@ -239,6 +240,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "claude"  # Supports Claude Code CLI for agent evals
     agent_model_name: "haiku"  # Pass to --agent-model flag
+    model_family: "claude-haiku-4-5"  # Cross-harness grouping: pairs with opencode-haiku
     max_output_tokens: 64000   # 64K max output (API limit for all Claude 4.5+)
     pricing:
       input_per_1k: 0.001   # $1.00 per million = $0.001 per 1K
@@ -359,6 +361,7 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-flash-preview"  # Pass to -m flag
+    model_family: "gemini-3-flash"  # Cross-harness grouping: pairs with opencode-gemini-3-flash
     max_output_tokens: 65536   # 65K max output (model limit)
     pricing:
       input_per_1k: 0.0005     # $0.50 per 1M = $0.0005 per 1K
@@ -432,6 +435,7 @@ models:
     env_var: "ANTHROPIC_API_KEY"
     agent_cli: "opencode"                        # Routes to opencode executor
     agent_model_name: "anthropic/claude-haiku-4-5"  # opencode provider/model format
+    model_family: "claude-haiku-4-5"             # Cross-harness grouping: pairs with claude-haiku-4-5
     max_output_tokens: 16000
     pricing:
       input_per_1k: 0.00025   # $0.25 per 1M
@@ -444,6 +448,42 @@ models:
       Agent eval support: ✅ Fully supported via opencode CLI.
       Ollama alternative: set agent_model_name to "ollama/gemma4:latest" for local eval.
       Requires: opencode CLI (npm i -g opencode-ai) + config at ~/.config/opencode/opencode.jsonc
+
+  opencode-sonnet-4-6:
+    api_name: "claude-sonnet-4-6"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.6 via opencode harness — cross-harness comparison pair"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "anthropic/claude-sonnet-4-6"  # opencode provider/model format
+    model_family: "claude-sonnet-4-6"                # Cross-harness grouping: pairs with claude-sonnet-4-6
+    max_output_tokens: 64000
+    pricing:
+      input_per_1k: 0.003   # $3 per million
+      output_per_1k: 0.015  # $15 per million
+    notes: |
+      Claude Sonnet 4.6 evaluated via the opencode CLI harness.
+      Cross-harness comparison pair for claude-sonnet-4-6 (Claude Code CLI).
+      Use harness_suite to run both harnesses in one command.
+      Requires: opencode CLI (npm i -g opencode-ai) + ANTHROPIC_API_KEY configured.
+
+  opencode-gemini-3-flash:
+    api_name: "gemini-3-flash-preview"
+    provider: "google"
+    description: "Gemini 3 Flash via opencode harness — cross-harness comparison pair"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "google/gemini-3-flash-preview"  # opencode provider/model format
+    model_family: "gemini-3-flash"                     # Cross-harness grouping: pairs with gemini-3-flash
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.0005  # $0.50 per 1M
+      output_per_1k: 0.003  # $3.00 per 1M
+    notes: |
+      Gemini 3 Flash evaluated via the opencode CLI harness.
+      Cross-harness comparison pair for gemini-3-flash (Gemini CLI).
+      Use harness_suite to run both harnesses in one command.
+      Requires: opencode CLI (npm i -g opencode-ai) + Google credentials configured.
 
   # opencode + Ollama: local models routed through the opencode harness.
   # opencode handles the Ollama provider config (~/.config/opencode/opencode.jsonc).
@@ -646,6 +686,12 @@ agent_suite:
 ollama_suite:
   - "opencode-gemma4-e4b"   # Gemma 4 E4B — 16GB laptop, relaxed TTFT (300s)
   - "opencode-gemma4-26b"   # Gemma 4 26B — 32GB Mac, relaxed TTFT (480s)
+
+harness_suite:
+  - "claude-sonnet-4-6"       # Sonnet via Claude Code CLI
+  - "opencode-sonnet-4-6"     # Sonnet via opencode harness
+  - "gemini-3-flash"          # Gemini Flash via Gemini CLI
+  - "opencode-gemini-3-flash" # Gemini Flash via opencode harness
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
