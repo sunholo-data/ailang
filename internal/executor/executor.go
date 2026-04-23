@@ -62,6 +62,11 @@ type Task struct {
 	// Session continuity (M-TRANSCRIPT)
 	Iteration       int    // Iteration number (1 = first run, 2+ = re-run with feedback)
 	ResumeSessionID string // Previous session ID to resume (for Iteration > 1)
+
+	// GCP override — when set, overrides GOOGLE_CLOUD_PROJECT/LOCATION env vars
+	// for the subprocess. Populated from models.yml gcp_project / gcp_location fields.
+	GCPProject  string
+	GCPLocation string
 }
 
 // PluginsConfig specifies third-party plugins to install before execution.

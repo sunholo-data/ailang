@@ -132,6 +132,8 @@ func (e *GeminiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		SessionID:             sessionID,
 		Context:               ctx,
 		EnableGeminiTelemetry: true,
+		GCPProject:            task.GCPProject,
+		GCPLocation:           task.GCPLocation,
 	})
 
 	// Ensure matching Node version is on PATH (required for Gemini CLI's regex /v flag)

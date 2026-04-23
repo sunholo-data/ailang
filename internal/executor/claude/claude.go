@@ -245,6 +245,8 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		SessionID:             sessionID,
 		Context:               ctx,
 		EnableClaudeTelemetry: true,
+		GCPProject:            task.GCPProject,
+		GCPLocation:           task.GCPLocation,
 	})
 
 	// Strip CLAUDE_CODE_OAUTH_TOKEN from subprocess environment (M-CLOUD-OAUTH).

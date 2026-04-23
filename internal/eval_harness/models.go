@@ -24,6 +24,8 @@ type ModelConfig struct {
 	TTFTTimeoutSeconds       int     `yaml:"ttft_timeout"`       // Prefill budget in seconds (0 = executor default 30s)
 	GenerationTimeoutSeconds int     `yaml:"generation_timeout"` // Per-token idle budget after first event (0 = executor default 3m)
 	ModelFamily              string  `yaml:"model_family"`       // Logical model family for cross-harness grouping (e.g., "claude-sonnet-4-6"); empty = no grouping
+	GCPProject               string  `yaml:"gcp_project"`        // Override GOOGLE_CLOUD_PROJECT for this model's evals (e.g. "ailang-dev")
+	GCPLocation              string  `yaml:"gcp_location"`       // Override GOOGLE_CLOUD_LOCATION (e.g. "us-central1")
 	Pricing                  Pricing `yaml:"pricing"`
 	Notes                    string  `yaml:"notes"`
 }

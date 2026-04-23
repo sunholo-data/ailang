@@ -39,6 +39,14 @@ type EnvironmentOptions struct {
 
 	// EnableGeminiTelemetry enables Gemini CLI specific telemetry vars
 	EnableGeminiTelemetry bool
+
+	// GCPProject overrides GOOGLE_CLOUD_PROJECT for this subprocess.
+	// When empty, falls back to the shell environment value.
+	GCPProject string
+
+	// GCPLocation overrides GOOGLE_CLOUD_LOCATION for this subprocess.
+	// When empty, falls back to the shell environment value.
+	GCPLocation string
 }
 
 // BuildEnvironment creates the common environment variables for AI executor processes.
@@ -144,15 +152,27 @@ func BuildEnvironment(opts EnvironmentOptions) []string {
 		env = append(env, fmt.Sprintf("OTEL_EXPORTER_OTLP_PROTOCOL=%s", protocol))
 	}
 
-	// For GCP export, set the project
-	// Check OTLP_GOOGLE_CLOUD_PROJECT first (Gemini CLI standard), fallback to GOOGLE_CLOUD_PROJECT
-	project := os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
+	// For GCP export, set the project.
+	// Priority: EnvironmentOptions override > OTLP_GOOGLE_CLOUD_PROJECT > GOOGLE_CLOUD_PROJECT
+	project := opts.GCPProject
+	if project == "" {
+		project = os.Getenv("OTLP_GOOGLE_CLOUD_PROJECT")
+	}
 	if project == "" {
 		project = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	}
 	if project != "" {
-		env = append(env, fmt.Sprintf("GOOGLE_CLOUD_PROJECT=%s", project))
-		env = append(env, fmt.Sprintf("OTLP_GOOGLE_CLOUD_PROJECT=%s", project))
+		env = UpdateEnvVar(env, "GOOGLE_CLOUD_PROJECT", project)
+		env = UpdateEnvVar(env, "OTLP_GOOGLE_CLOUD_PROJECT", project)
+	}
+
+	// GCP location override (e.g. us-central1, europe-west1)
+	location := opts.GCPLocation
+	if location == "" {
+		location = os.Getenv("GOOGLE_CLOUD_LOCATION")
+	}
+	if location != "" {
+		env = UpdateEnvVar(env, "GOOGLE_CLOUD_LOCATION", location)
 	}
 
 	// Claude-specific telemetry configuration

@@ -163,6 +163,12 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 			if cfg.GenerationTimeoutSeconds > 0 {
 				task.IdleTimeout = time.Duration(cfg.GenerationTimeoutSeconds) * time.Second
 			}
+			if cfg.GCPProject != "" {
+				task.GCPProject = cfg.GCPProject
+			}
+			if cfg.GCPLocation != "" {
+				task.GCPLocation = cfg.GCPLocation
+			}
 		}
 	}
 

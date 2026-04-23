@@ -137,9 +137,11 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 	}
 
 	env := executor.BuildEnvironment(executor.EnvironmentOptions{
-		Task:      task,
-		SessionID: sessionID,
-		Context:   ctx,
+		Task:        task,
+		SessionID:   sessionID,
+		Context:     ctx,
+		GCPProject:  task.GCPProject,
+		GCPLocation: task.GCPLocation,
 	})
 	cmd.Env = env
 

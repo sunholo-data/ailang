@@ -323,6 +323,8 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-pro"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     max_output_tokens: 65536   # 65K max output (API limit)
     pricing:
       input_per_1k: 0.00125    # $1.25 per 1M = $0.00125 per 1K (≤200k context)
@@ -342,6 +344,8 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-2.5-flash"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     max_output_tokens: 65536   # 65K max output (API limit)
     pricing:
       input_per_1k: 0.0003     # $0.30 per 1M = $0.0003 per 1K
@@ -361,6 +365,8 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-flash-preview"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     model_family: "gemini-3-flash"  # Cross-harness grouping: pairs with opencode-gemini-3-flash
     max_output_tokens: 65536   # 65K max output (model limit)
     pricing:
@@ -384,6 +390,8 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3-pro-preview"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     max_output_tokens: 65536   # 65K max output (same as Gemini 3 Flash)
     pricing:
       input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
@@ -405,6 +413,8 @@ models:
     env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login). GOOGLE_API_KEY only used by AI Studio path in builtins/ai.go.
     agent_cli: "gemini"  # Supports Gemini CLI for agent evals
     agent_model_name: "gemini-3.1-pro-preview"  # Pass to -m flag
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     max_output_tokens: 65536   # 65K max output
     pricing:
       input_per_1k: 0.002      # $2.00 per 1M = $0.002 per 1K (≤200k context)
@@ -473,7 +483,9 @@ models:
     description: "Gemini 3 Flash via opencode harness — cross-harness comparison pair"
     env_var: ""
     agent_cli: "opencode"
-    agent_model_name: "google-vertex/gemini-3-flash-preview"  # opencode provider/model format
+    agent_model_name: "google-vertex/gemini-3-flash-preview"  # opencode provider/model format; may not be available in all Vertex regions
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
     model_family: "gemini-3-flash"                     # Cross-harness grouping: pairs with gemini-3-flash
     max_output_tokens: 65536
     pricing:
@@ -484,6 +496,26 @@ models:
       Cross-harness comparison pair for gemini-3-flash (Gemini CLI).
       Use harness_suite to run both harnesses in one command.
       Requires: opencode CLI (npm i -g opencode-ai) + Google credentials configured.
+      NOTE: gemini-3-flash-preview may not be provisioned for all GCP projects yet.
+      Use opencode-gemini-2.5-flash as the working fallback until project access is granted.
+
+  opencode-gemini-2.5-flash:
+    api_name: "gemini-2.5-flash"
+    provider: "google"
+    description: "Gemini 2.5 Flash via opencode harness — working fallback while gemini-3-flash-preview is not yet provisioned in this GCP project"
+    env_var: ""
+    agent_cli: "opencode"
+    agent_model_name: "google-vertex/gemini-2.5-flash"
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    model_family: "gemini-2.5-flash"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.0005  # $0.50 per 1M
+      output_per_1k: 0.003  # $3.00 per 1M
+    notes: |
+      Gemini 2.5 Flash via opencode CLI harness. Confirmed working with this GCP project.
+      Use this instead of opencode-gemini-3-flash until the project gains access to gemini-3-flash-preview.
 
   # opencode + Ollama: local models routed through the opencode harness.
   # opencode handles the Ollama provider config (~/.config/opencode/opencode.jsonc).
@@ -691,7 +723,7 @@ harness_suite:
   - "claude-sonnet-4-6"       # Sonnet via Claude Code CLI
   - "opencode-sonnet-4-6"     # Sonnet via opencode harness
   - "gemini-3-flash"          # Gemini Flash via Gemini CLI
-  - "opencode-gemini-3-flash" # Gemini Flash via opencode harness
+  - "opencode-gemini-3-flash" # Gemini Flash via opencode harness (ailang-dev + global location)
   - "gpt5-4"                  # GPT-5.4 via Codex CLI harness
 
 # Local models - free, offline, privacy-preserving (4 models)
