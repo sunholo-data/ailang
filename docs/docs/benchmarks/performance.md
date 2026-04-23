@@ -1,6 +1,6 @@
 ---
-sidebar_position: 6
-title: Benchmark Performance
+sidebar_position: 2
+title: Benchmarks
 description: Real-world AI code generation performance metrics for AILANG
 last_updated: 2025-11-29
 ---
@@ -11,6 +11,10 @@ import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 # AI Code Generation Benchmarks
 
 Real-world performance metrics for AILANG vs Python across multiple AI models.
+
+:::tip Explore across all dimensions
+Want to filter by language, harness (Claude CLI vs Gemini vs opencode vs Codex), or model? Use the **[Benchmark Explorer →](/docs/benchmarks/explorer)**
+:::
 
 ## Model Comparison
 

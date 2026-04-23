@@ -2,18 +2,61 @@ import React, { useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import styles from './styles.module.css';
 
+const TIER_ORDER = ['core', 'stretch', 'vision', 'smoke'];
+const TIER_LABELS = { core: 'Core', stretch: 'Stretch', vision: 'Vision', smoke: 'Smoke' };
+
 export default function BenchmarkGallery({ benchmarks }) {
-  // Convert benchmarks object to array and sort by success rate
-  const benchmarkArray = Object.entries(benchmarks).map(([id, stats]) => ({
-    id,
-    ...stats
-  })).sort((a, b) => b.successRate - a.successRate);
+  const allArray = Object.entries(benchmarks).map(([id, stats]) => ({ id, ...stats }));
+
+  // Detect which tiers are present
+  const tierCounts = {};
+  for (const b of allArray) {
+    const t = b.tier || 'core';
+    tierCounts[t] = (tierCounts[t] || 0) + 1;
+  }
+  const tiersPresent = TIER_ORDER.filter(t => tierCounts[t] > 0);
+  const showTierFilter = tiersPresent.length > 1;
+
+  const defaultTier = tiersPresent.includes('core') ? 'core' : (tiersPresent[0] || null);
+  const [localTier, setLocalTier] = useState(defaultTier);
+
+  const filtered = localTier
+    ? allArray.filter(b => (b.tier || 'core') === localTier)
+    : allArray;
+  const sorted = [...filtered].sort((a, b) => b.successRate - a.successRate);
 
   return (
-    <div className={styles.benchmarkGallery}>
-      {benchmarkArray.map(benchmark => (
-        <BenchmarkCard key={benchmark.id} benchmark={benchmark} />
-      ))}
+    <div>
+      {showTierFilter && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--ifm-color-emphasis-700)' }}>Tier:</span>
+          {[null, ...tiersPresent].map(t => {
+            const label = t ? `${TIER_LABELS[t]} (${tierCounts[t]})` : `All (${allArray.length})`;
+            const active = localTier === t;
+            return (
+              <button
+                key={t ?? 'all'}
+                onClick={() => setLocalTier(t)}
+                style={{
+                  padding: '3px 12px', borderRadius: 14, cursor: 'pointer', fontSize: '0.8rem',
+                  fontWeight: active ? 600 : 400,
+                  border: active ? '2px solid var(--ifm-color-primary)' : '1px solid var(--ifm-color-emphasis-300)',
+                  background: active ? 'var(--ifm-color-primary)' : 'transparent',
+                  color: active ? '#fff' : 'var(--ifm-color-emphasis-700)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className={styles.benchmarkGallery}>
+        {sorted.map(benchmark => (
+          <BenchmarkCard key={benchmark.id} benchmark={benchmark} />
+        ))}
+      </div>
     </div>
   );
 }
