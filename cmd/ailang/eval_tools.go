@@ -380,9 +380,14 @@ func runEvalReport() {
 				standardResults = append(standardResults, r)
 			}
 		}
+		// All-agent baseline: fall back to using agent results for matrix so
+		// agent-only baselines (e.g. harness comparison runs) produce a valid report.
+		if len(standardResults) == 0 {
+			standardResults = results
+		}
 	}
 
-	// Generate matrix (using only standard results for model comparison)
+	// Generate matrix (using standard results, or agent results when no standard exist)
 	fmt.Fprintf(os.Stderr, "Generating performance matrix...\n")
 	var matrix *eval_analysis.PerformanceMatrix
 	if multiModel {
