@@ -114,7 +114,9 @@ function buildTierScopedModels(tierModelStats, fallbackModels) {
   return out;
 }
 
-export default function BenchmarkDashboard() {
+// view prop: undefined/"full" = all components (existing behaviour)
+//            "model" = model leaderboard only (used by by-model.md page)
+export default function BenchmarkDashboard({ view }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -257,6 +259,24 @@ export default function BenchmarkDashboard() {
   const heroSubtitle = activeTier
     ? `${successDelta >= 0 ? '+' : ''}${successDelta.toFixed(1)}% vs Python (${(tierPythonSuccess * 100).toFixed(1)}%)`
     : (pythonStats ? `${successDelta.toFixed(1)}% vs Python (${(overallPythonSuccess * 100).toFixed(1)}%)` : 'AILANG success rate');
+
+  // Model-leaderboard-only view for by-model.md page
+  if (view === 'model') {
+    return (
+      <div className={styles.dashboard}>
+        {tiers && Object.keys(tiers).length > 0 && (
+          <TierToggle
+            tiers={tiers}
+            selected={selectedTier}
+            onSelect={(t) => { setSelectedTier(t); setSelectedTag(null); }}
+          />
+        )}
+        <ModelChart models={displayModels} />
+        <ModelTokenChart models={displayModels} />
+        <ModelComparisonTable models={displayModels} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.dashboard}>

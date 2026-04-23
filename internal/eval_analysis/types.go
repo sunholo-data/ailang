@@ -53,6 +53,11 @@ type BenchmarkResult struct {
 	StdlibHash string   `json:"stdlib_hash,omitempty"`
 	Caps       []string `json:"caps,omitempty"`
 
+	// Cross-harness comparison (M-EVAL-CROSS-HARNESS)
+	// Logical model family for grouping paired harness results.
+	// e.g. "claude-sonnet-4-6" shared by "claude" and "opencode" executors.
+	ModelFamily string `json:"model_family,omitempty"`
+
 	// Refusal detection (M-EVAL-SUITE-PREP M4): populated at load time
 	// by DetectRefusal() scanning stdout+stderr. Not written by eval_harness,
 	// purely a read-side annotation so historical results inherit it.
@@ -322,7 +327,10 @@ type DashboardJSON struct {
 	Benchmarks  map[string]interface{}   `json:"benchmarks"`
 	Languages   map[string]interface{}   `json:"languages"` // map[language]->stats
 	Executors   map[string]interface{}   `json:"executors"` // map[executor]->agent stats (claude, gemini)
-	History     []HistoryEntry           `json:"history"`
+	// M-BENCHMARK-SECTION: harness-grouped aggregates for cross-harness comparison page.
+	// Keys are agent_cli values ("claude", "gemini", "opencode", "codex").
+	Harnesses map[string]interface{} `json:"harnesses,omitempty"`
+	History   []HistoryEntry         `json:"history"`
 	// M-DASH-V2: suite-change annotations rendered as ReferenceLine on every
 	// time-series chart. Sourced from benchmarks/events.yml.
 	Events []SuiteEvent `json:"events,omitempty"`

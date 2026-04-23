@@ -170,7 +170,7 @@ marker_style: unicode          # unicode | ascii
 
 ## Eval Integration
 
-The [eval suite](./evaluation/README.md) supports a `--microrag=on|off|auto`
+The [eval suite](./evaluation/) supports a `--microrag=on|off|auto`
 flag (M-EVAL milestone). When set:
 
 - `off` — `AILANG_MICRORAG_ENABLED=0` for the run; baseline.
@@ -278,9 +278,8 @@ The corpus reflects the *active* AILANG prompt. Whenever a new prompt ships:
 make brain-index-syntax-reset   # drops + rebuilds all three namespaces
 ```
 
-This is a **required step** in the [`release-manager`](../../../.claude/skills/release-manager/SKILL.md)
-skill (section 7.5) and verified by [`post-release`](../../../.claude/skills/post-release/SKILL.md)
-(section 9). Skipping it leaves μRAG injecting outdated syntax — exactly
+This is a **required step** in the `release-manager` skill (section 7.5)
+and verified by `post-release` (section 9). Skipping it leaves μRAG injecting outdated syntax — exactly
 the bug the system is supposed to prevent.
 
 ## Troubleshooting
@@ -317,4 +316,4 @@ or the engine ledger for symptoms.
 - [Brain Cache](./brain-cache.md) — the underlying SQLite + embeddings store
 - [Design doc: M-BRAIN-MICRORAG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-brain-microrag.md) — the engine + hooks
 - [Design doc: M-BRAIN-BOOTSTRAP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-brain-bootstrap.md) — fresh-install corpus population
-- [Evaluation guide](./evaluation/README.md) — how `--microrag` flag fits into eval runs
+- [Evaluation guide](./evaluation/) — how `--microrag` flag fits into eval runs

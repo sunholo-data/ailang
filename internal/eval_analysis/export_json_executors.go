@@ -1,6 +1,10 @@
 package eval_analysis
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
+)
 
 // Per-executor agent aggregates (claude, gemini, etc.) extracted from
 // export_json.go to keep the main exporter under the 800-line soft limit.
@@ -185,4 +189,110 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 	sort.Strings(executorList)
 
 	return executorsJS, simplified, executorList
+}
+
+// harnessTotals accumulates agent results per harness (agent_cli value).
+type harnessTotals struct {
+	models     map[string]struct{} // model keys seen under this harness
+	runs       int
+	success    int
+	totalCost  float64
+	totalDurMs int64
+	languages  map[string]*executorLangTotals
+}
+
+// buildHarnessAggregates groups agent results by their harness (agent_cli field
+// from ModelConfig) and returns a map ready for DashboardJSON.Harnesses.
+// Results with no matching ModelConfig entry are grouped under "unknown".
+func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interface{} {
+	cfg := eval_harness.GlobalModelsConfig
+	perHarness := make(map[string]*harnessTotals)
+
+	for _, r := range agentResults {
+		harness := "unknown"
+		if cfg != nil {
+			if cli, err := cfg.GetAgentCLI(r.Model); err == nil && cli != "" {
+				harness = cli
+			}
+		}
+
+		h := perHarness[harness]
+		if h == nil {
+			h = &harnessTotals{
+				models:    make(map[string]struct{}),
+				languages: make(map[string]*executorLangTotals),
+			}
+			perHarness[harness] = h
+		}
+		h.models[r.Model] = struct{}{}
+		h.runs++
+		if r.StdoutOk {
+			h.success++
+		}
+		h.totalCost += r.CostUSD
+		h.totalDurMs += r.DurationMs
+
+		ls := h.languages[r.Lang]
+		if ls == nil {
+			ls = &executorLangTotals{}
+			h.languages[r.Lang] = ls
+		}
+		ls.runs++
+		ls.cost += r.CostUSD
+		ls.tokens += r.TotalTokens
+		ls.turns += r.AgentTurns
+		if r.StdoutOk {
+			ls.success++
+		}
+	}
+
+	harnessDisplayNames := map[string]string{
+		"claude":   "Claude Code CLI",
+		"gemini":   "Gemini CLI",
+		"opencode": "opencode CLI",
+		"codex":    "Codex CLI",
+	}
+
+	result := make(map[string]interface{}, len(perHarness))
+	for harness, h := range perHarness {
+		if h.runs == 0 {
+			continue
+		}
+		modelList := make([]string, 0, len(h.models))
+		for m := range h.models {
+			modelList = append(modelList, m)
+		}
+		sort.Strings(modelList)
+
+		displayName := harnessDisplayNames[harness]
+		if displayName == "" {
+			displayName = harness
+		}
+
+		langBreakdown := make(map[string]interface{}, len(h.languages))
+		for lang, ls := range h.languages {
+			if ls.runs == 0 {
+				continue
+			}
+			langBreakdown[lang] = map[string]interface{}{
+				"runs":        ls.runs,
+				"successRate": float64(ls.success) / float64(ls.runs),
+				"avgTokens":   float64(ls.tokens) / float64(ls.runs),
+				"avgCost":     ls.cost / float64(ls.runs),
+			}
+		}
+
+		entry := map[string]interface{}{
+			"name":            harness,
+			"display_name":    displayName,
+			"models":          modelList,
+			"total_runs":      h.runs,
+			"success_rate":    float64(h.success) / float64(h.runs),
+			"avg_cost_usd":    h.totalCost / float64(h.runs),
+			"avg_duration_ms": float64(h.totalDurMs) / float64(h.runs),
+			"languages":       langBreakdown,
+		}
+		result[harness] = entry
+	}
+	return result
 }

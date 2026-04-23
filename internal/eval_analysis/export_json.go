@@ -270,6 +270,27 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				"avgDurationMs":     stats.Aggregates.AvgDurationMs,
 			},
 		}
+		// M-BENCHMARK-SECTION: provider_type and timeout_scale for cloud/local badge.
+		if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+			if mc, ok := cfg.Models[name]; ok {
+				providerType := "cloud"
+				if mc.Provider == "ollama" {
+					providerType = "local"
+				}
+				modelData["provider_type"] = providerType
+				if mc.TTFTTimeoutSeconds > 0 {
+					// timeout_scale relative to the default 30s cloud TTFT budget
+					const cloudTTFTDefault = 30
+					modelData["timeout_scale"] = float64(mc.TTFTTimeoutSeconds) / cloudTTFTDefault
+				}
+				if mc.AgentCLI != nil && *mc.AgentCLI != "" {
+					modelData["agent_cli"] = *mc.AgentCLI
+				}
+				if mc.ModelFamily != "" {
+					modelData["model_family"] = mc.ModelFamily
+				}
+			}
+		}
 		// Add baseline version if available
 		if stats.BaselineVersion != "" {
 			modelData["baselineVersion"] = stats.BaselineVersion
@@ -648,6 +669,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// already past the 800-line soft limit.
 	tiersJS := buildTierAggregates(standardResults, benchmarkTier)
 	tagsJS := buildTagAggregates(standardResults)
+	harnessesJS := buildHarnessAggregates(agentResults)
 	suiteEvents, err := LoadSuiteEvents("benchmarks/events.yml")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: load events.yml: %v\n", err)
@@ -665,6 +687,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	dashboard.Benchmarks = benchmarksJS
 	dashboard.Languages = languagesMap
 	dashboard.Executors = executorsJS
+	dashboard.Harnesses = harnessesJS
 	dashboard.Events = suiteEvents
 
 	// Write atomically

@@ -138,7 +138,15 @@ const sidebars = {
       label: 'Benchmarks',
       collapsed: true,
       items: [
-        'benchmarks/performance',
+        'benchmarks/overview',
+        'benchmarks/by-language',
+        'benchmarks/by-model',
+        'benchmarks/by-harness',
+        {
+          type: 'doc',
+          id: 'benchmarks/performance',
+          label: 'Standard Eval Details',
+        },
         'benchmarks/codebase-stats',
       ],
     },
