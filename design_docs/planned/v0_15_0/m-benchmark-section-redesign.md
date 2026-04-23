@@ -1,6 +1,6 @@
 # M-BENCHMARK-SECTION: Multi-Page Benchmark Section for AILANG Website
 
-**Status**: Planned
+**Status**: Partially Implemented (Phases 1–4 done; Phase 5 planned)
 **Target**: v0.15.x
 **Priority**: P2 (Strategic — needed as dimension count grows)
 **Estimated**: 4 days
@@ -223,11 +223,37 @@ type ExecutorLangStats struct {
 - [ ] Extend `ModelComparisonTable.jsx` with `groupByFamily` prop
 - [ ] Wire all new components into their respective page stubs
 
-**Phase 4: Connect + verify** (~0.5 day)
-- [ ] Run `ailang eval-report` with latest baselines; confirm `latest.json` has `harnesses` key
-- [ ] Verify language heatmap shows AILANG + Python; confirm JS/Go rows appear with `--` cells (no results yet)
-- [ ] Verify harness table shows grouped rows for `claude-sonnet-4-6` / `opencode-sonnet-4-6` pair (once M-EVAL-CROSS-HARNESS runs provide result data)
-- [ ] Check existing `/docs/benchmarks/performance` page still renders correctly
+**Phase 4: Connect + verify** (~0.5 day) ✅ DONE (v0.14.1)
+- [x] Run `ailang eval-report` with latest baselines; `latest.json` has `harnesses` key
+- [x] Language heatmap shows AILANG, Python, Go, JavaScript rows with real data
+- [x] Harness table shows grouped rows by model_family
+- [x] Existing `/docs/benchmarks/performance` page renders correctly
+- [x] `cd docs && npm run build` clean
+- [x] Fixed: `tiers: {}` was empty for agent-only baselines → added fallback in `ExportBenchmarkJSON`
+- [x] Fixed: `LanguageLeaderboard.getRate()` was reading wrong JSON path (`ms.languages.lang` → `ms.lang`)
+
+**Phase 5: BenchmarkExplorer unified heatmap** (~2 days, user-requested April 2026)
+
+**Motivation:** User feedback — the separate by-language / by-model / by-harness pages fragment the data. "I see nowhere a place I can browse through all the dimensions — model, harness, language, benchmark category that I can filter and inspect."
+
+**Goal:** One page (`/docs/benchmarks/explorer`) with a unified filterable heatmap where the user can slice any combination of dimensions.
+
+**Design:**
+- **Filters (top bar):** Language | Tier | Harness | Model family (chips)
+- **Rows (Y-axis):** Benchmark name (from `data.benchmarks[].name`) — filtered by tier
+- **Columns (X-axis):** Model × Harness combos visible given filter (e.g., select "claude" harness → only claude/opencode-claude columns)
+- **Cells:** Pass rate %, green→yellow→red heatmap
+- **Data source:** `data.benchmarks[n].languageStats[lang].modelResults[modelKey]` (agent mode) or per-model success rate from benchmark section
+
+**Tasks:**
+- [ ] New component: `docs/src/components/BenchmarkExplorer/index.jsx` (~250 LOC)
+  - Filter bar using existing `DimensionSelector` pattern
+  - Heatmap grid: benchmark rows × model columns
+  - Cell colour scale: ≥85% green, 50–84% yellow, <50% red, null = —
+- [ ] New page: `docs/docs/benchmarks/explorer.md` (~20 LOC, imports BenchmarkExplorer)
+- [ ] Update `docs/sidebars.js` — add `benchmarks/explorer` as PRIMARY entry (before by-language/by-model/by-harness)
+- [ ] Update `docs/docs/benchmarks/overview.md` — add prominent link to Explorer
+- [ ] Verify all 42 benchmarks appear as rows; language filter scopes data correctly
 - [ ] `cd docs && npm run build` clean
 
 ### Files to Modify/Create
@@ -337,15 +363,23 @@ New keys in `docs/static/benchmarks/latest.json`:
 
 ## Success Criteria
 
-- [ ] `ailang eval-report` output contains `harnesses` top-level key with ≥1 harness entry
-- [ ] `provider_type: "cloud"` on all non-Ollama model entries; `"local"` on Ollama entries
-- [ ] `docs/sidebars.js` includes overview, by-language, by-model, by-harness items
-- [ ] `/docs/benchmarks/overview` renders with real headline metrics (not placeholder)
-- [ ] `/docs/benchmarks/by-language` shows AILANG and Python rows with live data; JS/Go rows show `—` (not an error)
-- [ ] `/docs/benchmarks/by-harness` shows grouped clusters when `model_family` matches exist in results
-- [ ] `/docs/benchmarks/performance` renders without regression
-- [ ] `cd docs && npm run build` clean, no broken imports
-- [ ] `make test ./internal/eval_analysis/...` green (new struct tests)
+### Phases 1–4 (all complete as of v0.14.1)
+- [x] `ailang eval-report` output contains `harnesses` top-level key with ≥1 harness entry
+- [x] `provider_type: "cloud"` on all non-Ollama model entries; `"local"` on Ollama entries
+- [x] `docs/sidebars.js` includes overview, by-language, by-model, by-harness items
+- [x] `/docs/benchmarks/overview` renders with real headline metrics
+- [x] `/docs/benchmarks/by-language` shows AILANG, Python, Go, JavaScript rows with live data
+- [x] `/docs/benchmarks/by-harness` shows grouped clusters by model_family
+- [x] `/docs/benchmarks/performance` renders without regression
+- [x] `cd docs && npm run build` clean, no broken imports
+- [x] `make test ./internal/eval_analysis/...` green
+
+### Phase 5 (BenchmarkExplorer — planned)
+- [ ] `/docs/benchmarks/explorer` renders 42 benchmark rows × N model columns heatmap
+- [ ] Language filter scopes data — selecting "go" shows only Go results, not avg across all langs
+- [ ] Harness filter scopes columns — selecting "claude" shows only Claude CLI models
+- [ ] Tier filter scopes rows — selecting "core" shows only 22 core benchmarks
+- [ ] Explorer link appears prominently on overview page and in sidebar (before by-language/by-model/by-harness)
 
 ---
 
