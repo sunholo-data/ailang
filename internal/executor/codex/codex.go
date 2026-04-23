@@ -63,6 +63,37 @@ func (e *CodexExecutor) Execute(ctx context.Context, task *executor.Task) (*exec
 	return e.ExecuteStreaming(ctx, task, &executor.NoOpEventHandler{})
 }
 
+const (
+	spanExecTurn  = "exec.turn"
+	attrTurnNum   = "turn.number"
+	attrSessionID = "session.id"
+	fmtTurnHeader = "\n[TURN %d]\n"
+)
+
+// startTurn opens a new turn span, fires OnTurnStart, and appends the turn
+// header to transcriptBuf. It ends any in-progress turn span first.
+func startTurn(
+	ctx context.Context,
+	n int,
+	sessionID string,
+	prev *trace.Span,
+	buf *strings.Builder,
+	handler executor.EventHandler,
+) trace.Span {
+	if prev != nil && *prev != nil {
+		(*prev).End()
+	}
+	_, s := telemetry.StartSpan(ctx, codexTracer, spanExecTurn,
+		trace.WithAttributes(
+			attribute.Int(attrTurnNum, n),
+			attribute.String(attrSessionID, sessionID),
+		),
+	)
+	handler.OnTurnStart(n)
+	buf.WriteString(fmt.Sprintf(fmtTurnHeader, n))
+	return s
+}
+
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // Codex NDJSON stream into normalized executor events.
 func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
@@ -221,57 +252,73 @@ func (e *CodexExecutor) ExecuteStreaming(ctx context.Context, task *executor.Tas
 			rawEvents = append(rawEvents, ev.Raw)
 
 			switch ev.Type {
+			// ── New format (codex CLI v0.1+): thread/item stream ──────────────────
+			case "thread.started":
+				if ev.ThreadID != "" {
+					sessionID = ev.ThreadID
+					span.SetAttributes(attribute.String("exec.codex_session_id", ev.ThreadID))
+				}
+
+			case "turn.started":
+				turnNum++
+				turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
+
+			case "item.completed":
+				if ev.Item != nil {
+					switch ev.Item.Type {
+					case "file_change", "command_execution":
+						// Each completed file write or shell command = one tool call.
+						toolCallCount++
+						toolLabel := ev.Item.Type
+						if ev.Item.Command != "" {
+							toolLabel = ev.Item.Command
+						}
+						handler.OnToolUse(toolLabel, "")
+						transcriptBuf.WriteString(fmt.Sprintf("[TOOL] %s\n", toolLabel))
+					case "agent_message":
+						if ev.Item.Text != "" {
+							handler.OnText(ev.Item.Text)
+							transcriptBuf.WriteString(ev.Item.Text)
+						}
+					}
+				}
+
+			case "turn.completed":
+				// New format reports token usage on turn.completed.
+				if ev.Usage != nil {
+					if ev.Usage.InputTokens > inputTokens {
+						inputTokens = ev.Usage.InputTokens
+					}
+					if ev.Usage.OutputTokens > outputTokens {
+						outputTokens = ev.Usage.OutputTokens
+					}
+				}
+
+			// ── Old format (pre-v0.1): flat message/tool_use stream ───────────────
 			case "session", "session_start", "init":
 				if ev.SessionID != "" {
 					sessionID = ev.SessionID
 					span.SetAttributes(attribute.String("exec.codex_session_id", ev.SessionID))
 				}
-				turnNum++
-				if turnSpan != nil {
-					turnSpan.End()
+				if turnNum == 0 {
+					turnNum++
+					turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
 				}
-				_, turnSpan = telemetry.StartSpan(ctx, codexTracer, "exec.turn",
-					trace.WithAttributes(
-						attribute.Int("turn.number", turnNum),
-						attribute.String("session.id", sessionID),
-					),
-				)
-				handler.OnTurnStart(turnNum)
-				transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
 
 			case "message":
 				if turnNum == 0 {
 					turnNum = 1
-					_, turnSpan = telemetry.StartSpan(ctx, codexTracer, "exec.turn",
-						trace.WithAttributes(
-							attribute.Int("turn.number", turnNum),
-							attribute.String("session.id", sessionID),
-						),
-					)
-					handler.OnTurnStart(turnNum)
-					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
+					turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
 				}
 				if ev.TurnNumber > turnNum {
-					if turnSpan != nil {
-						turnSpan.End()
-					}
 					turnNum = ev.TurnNumber
-					_, turnSpan = telemetry.StartSpan(ctx, codexTracer, "exec.turn",
-						trace.WithAttributes(
-							attribute.Int("turn.number", turnNum),
-							attribute.String("session.id", sessionID),
-						),
-					)
-					handler.OnTurnStart(turnNum)
-					transcriptBuf.WriteString(fmt.Sprintf("\n[TURN %d]\n", turnNum))
+					turnSpan = startTurn(ctx, turnNum, sessionID, &turnSpan, &transcriptBuf, handler)
 				}
 				if ev.Text != "" {
 					handler.OnText(ev.Text)
 					transcriptBuf.WriteString(ev.Text)
 				}
-				// Codex emits cumulative tokens_used per message (running total),
-				// not per-turn deltas — matching OpenAI API usage semantics.
-				// Take the max so we end up with the final cumulative total.
+				// Old format: cumulative tokens_used per message.
 				if ev.Tokens.Input > inputTokens {
 					inputTokens = ev.Tokens.Input
 				}
@@ -515,24 +562,52 @@ type codexTokens struct {
 }
 
 // codexEvent is the normalized Codex NDJSON event shape.
-// Codex emits flat records (see codex_compat_test.go):
+//
+// Codex CLI v0.1+ emits a thread/item stream format:
+//
+//	{"type":"thread.started","thread_id":"..."}
+//	{"type":"turn.started"}
+//	{"type":"item.started","item":{"id":"...","type":"file_change"|"command_execution"|"agent_message",...}}
+//	{"type":"item.completed","item":{...}}
+//	{"type":"turn.completed","usage":{"input_tokens":N,"cached_input_tokens":N,"output_tokens":N}}
+//
+// Older format (pre-v0.1) used flat records:
 //
 //	{"type":"message","turn_number":N,"text":"...","tokens_used":{"input":N,"output":N}}
+//	{"type":"tool_use","tool_name":"...","parameters":{...}}
 //
-// Unknown fields are preserved in Raw for ProviderData.
+// Both formats are handled. Unknown fields are preserved in Raw for ProviderData.
 type codexEvent struct {
 	Type       string          `json:"type"`
 	TurnNumber int             `json:"turn_number,omitempty"`
 	Text       string          `json:"text,omitempty"`
 	Tokens     codexTokens     `json:"tokens_used,omitempty"`
 	SessionID  string          `json:"session_id,omitempty"`
+	ThreadID   string          `json:"thread_id,omitempty"`
 	ToolName   string          `json:"tool_name,omitempty"`
 	Parameters json.RawMessage `json:"parameters,omitempty"`
 	Output     string          `json:"output,omitempty"`
 	Role       string          `json:"role,omitempty"`
+	Usage      *codexUsage     `json:"usage,omitempty"`
+	Item       *codexItem      `json:"item,omitempty"`
 
 	// Raw preserves the full event map for ProviderData (tolerance to schema drift).
 	Raw map[string]any `json:"-"`
+}
+
+// codexUsage is the token usage block in turn.completed events.
+type codexUsage struct {
+	InputTokens       int `json:"input_tokens"`
+	CachedInputTokens int `json:"cached_input_tokens"`
+	OutputTokens      int `json:"output_tokens"`
+}
+
+// codexItem is the item payload in item.started / item.completed events.
+type codexItem struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"` // "agent_message", "command_execution", "file_change"
+	Text    string `json:"text,omitempty"`
+	Command string `json:"command,omitempty"`
 }
 
 // parseCodexEvent parses a single NDJSON line into a codexEvent.

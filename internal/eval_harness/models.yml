@@ -473,7 +473,7 @@ models:
     description: "Gemini 3 Flash via opencode harness — cross-harness comparison pair"
     env_var: ""
     agent_cli: "opencode"
-    agent_model_name: "google/gemini-3-flash-preview"  # opencode provider/model format
+    agent_model_name: "google-vertex/gemini-3-flash-preview"  # opencode provider/model format
     model_family: "gemini-3-flash"                     # Cross-harness grouping: pairs with gemini-3-flash
     max_output_tokens: 65536
     pricing:
@@ -692,6 +692,7 @@ harness_suite:
   - "opencode-sonnet-4-6"     # Sonnet via opencode harness
   - "gemini-3-flash"          # Gemini Flash via Gemini CLI
   - "opencode-gemini-3-flash" # Gemini Flash via opencode harness
+  - "gpt5-4"                  # GPT-5.4 via Codex CLI harness
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
