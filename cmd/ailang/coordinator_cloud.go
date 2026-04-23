@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -458,11 +459,15 @@ func injectAgentsMD(pluginDir, workDir string) {
 //
 // The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount
 // (configured in Terraform). Files written here go directly to GCS — no upload client needed.
-// Claude Code session JSONL is captured separately via CLAUDE_CONFIG_DIR pointing into /artifacts.
 //
 // Writes:
 //   - /artifacts/tasks/{taskID}/transcript.txt — plain-text turn summary
 //   - /artifacts/tasks/{taskID}/metrics.json   — extended metrics (cache tokens, files)
+//   - /artifacts/tasks/{taskID}/session.jsonl  — Claude Code JSONL history (copied from CLAUDE_CONFIG_DIR)
+//
+// The JSONL copy is necessary because gcsfuse uses "legacy staged writes" for files
+// that Claude appends to incrementally — the staged write may not flush before the
+// container exits. Explicitly re-writing the file via os.WriteFile guarantees flush.
 //
 // Returns the GCS path prefix ("tasks/{taskID}") for linking from Firestore.
 // Failures are non-fatal and logged to stderr.
@@ -510,8 +515,48 @@ func writeTaskArtifacts(taskID string, result *executor.Result) string {
 		}
 	}
 
+	// 3. Copy Claude Code session JSONL to session.jsonl.
+	// Claude writes the JSONL to CLAUDE_CONFIG_DIR/projects/{path}/{sessionID}.jsonl via gcsfuse.
+	// gcsfuse uses legacy staged writes for incrementally-appended files, which may not flush
+	// before the container exits. Re-writing via os.WriteFile guarantees the data reaches GCS.
+	if result.SessionID != "" {
+		claudeConfigDir := os.Getenv("CLAUDE_CONFIG_DIR")
+		if claudeConfigDir == "" {
+			claudeConfigDir = filepath.Join("/artifacts", "tasks", taskID, "claude")
+		}
+		jsonlPath := findSessionJSONL(claudeConfigDir, result.SessionID)
+		if jsonlPath != "" {
+			if data, err := os.ReadFile(jsonlPath); err == nil && len(data) > 0 {
+				dst := filepath.Join(artifactDir, "session.jsonl")
+				if err := os.WriteFile(dst, data, 0644); err != nil {
+					fmt.Fprintf(os.Stderr, "execute-job: warning: failed to write session.jsonl: %v\n", err)
+				} else {
+					fmt.Printf("execute-job: session.jsonl written (%d bytes)\n", len(data))
+				}
+			}
+		}
+	}
+
 	fmt.Printf("execute-job: artifacts written to /artifacts/%s\n", prefix)
 	return prefix
+}
+
+// findSessionJSONL searches claudeConfigDir for a JSONL file matching sessionID.
+// Claude Code writes to: {claudeConfigDir}/projects/{encoded-path}/{sessionID}.jsonl
+func findSessionJSONL(claudeConfigDir, sessionID string) string {
+	target := sessionID + ".jsonl"
+	var found string
+	filepath.WalkDir(claudeConfigDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == target {
+			found = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 func printExecuteJobHelp() {
