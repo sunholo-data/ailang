@@ -139,6 +139,7 @@ const sidebars = {
       label: 'Benchmarks',
       collapsed: true,
       items: [
+        'benchmarks/explorer',
         'benchmarks/overview',
         'benchmarks/by-language',
         'benchmarks/by-model',
