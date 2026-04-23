@@ -84,7 +84,7 @@
         "latest",
         "vision-aligned"
       ],
-      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%→70%, State 0%→60%, Canonical 0%→70%. Expected: 36.5%→70% AILANG success."
+      "notes": "MAJOR upgrade addressing vision benchmark failures: 1) Effect system docs (~200 lines), 2) State threading patterns (~80 lines), 3) Canonical list operations (~120 lines). Targets: Effect 6%\u219270%, State 0%\u219260%, Canonical 0%\u219270%. Expected: 36.5%\u219270% AILANG success."
     },
     "v0.3.6": {
       "file": "prompts/v0.3.6.md",
@@ -161,7 +161,7 @@
         "latest",
         "optimized"
       ],
-      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189→5058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
+      "notes": "SUCCESS: Phase 1 optimization (-2.5% tokens, 5189\u21925058 words). Added quick reference, condensed verbose sections, kept all 64 examples. Validated: 41.9% AILANG success rate. Conservative incremental approach proven effective."
     },
     "v0.3.20": {
       "file": "prompts/v0.3.20.md",
@@ -173,7 +173,7 @@
         "testing",
         "broken"
       ],
-      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% → 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
+      "notes": "BROKEN: Incorrect pattern matching syntax in Quick Reference (pipes before patterns). Caused -4.8% regression (40.0% \u2192 35.2%). Fixed in v0.3.21. Added testing features from v0.3.20: unit tests (test \"name\" = expr) and property-based tests (property \"name\" (x: type) = expr). Includes 100-case generation with automatic shrinking. Size: 5262 words (+4% from v0.3.19). Run with: ailang test file.ail"
     },
     "v0.3.21": {
       "file": "prompts/v0.3.21.md",
@@ -185,7 +185,7 @@
         "testing",
         "hotfix"
       ],
-      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% → 40.0%+"
+      "notes": "CRITICAL HOTFIX: Fixed 3 syntax errors in v0.3.20: (1) Pattern matching (no pipes before patterns, commas between arms), (2) Import syntax (no quotes on module paths), (3) Tuple destructuring (use `match tuple { (x, y) => ... }` NOT `let (x, y) = tuple`). State threading examples corrected. All v0.3.20 testing features included. Expected: AILANG success 35.2% \u2192 40.0%+"
     },
     "v0.3.22": {
       "file": "prompts/v0.3.22.md",
@@ -197,7 +197,7 @@
         "latest",
         "m-eval-http-fix"
       ],
-      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 → line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
+      "notes": "M-EVAL-HTTP-FIX Milestone 2: (1) Enhanced parser error messages for JavaScript/Python patterns (PAR014: const keyword, PAR015: bare assignment), (2) HTTP POST example moved from line 218 \u2192 line 107 (-51% position). Target: Reduce api_call_json failures from 75% by guiding AIs toward correct AILANG syntax earlier in prompt. All v0.3.21 testing features included."
     },
     "v0.3.23": {
       "file": "prompts/v0.3.23.md",
@@ -350,7 +350,7 @@
         "production",
         "optimized"
       ],
-      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (❌ WRONG / ✅ RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
+      "notes": "REWRITE v2: Added back critical sections lost in streamlining. Includes negative examples (\u274c WRONG / \u2705 RIGHT) for let/in scoping and curried function calls. Key sections: Block vs expression let bindings, curried function chaining, Option patterns, ADT state machine. 2,204 words (71% smaller than v0.4.4)."
     },
     "v0.5.11": {
       "file": "prompts/v0.5.11.md",
@@ -427,14 +427,14 @@
     "v0.7.0": {
       "file": "prompts/v0.7.0.md",
       "hash": "8c31bbd4ebf260d6f7609ebe507b840193b30622ace13ed35d1ba4881207af01",
-      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2→v0.7.0 eval",
+      "description": "Integrated gap analysis fixes: block braces, imports, JSON patterns from v0.6.2\u2192v0.7.0 eval",
       "created": "2026-01-22",
       "tags": [
         "production",
         "latest",
         "gap-analysis"
       ],
-      "notes": "Gap analysis integration from v0.6.2→v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
+      "notes": "Gap analysis integration from v0.6.2\u2192v0.7.0 eval comparison: (1) Strengthened block brace requirements with explicit examples, (2) Added import checklist reminder, (3) Enhanced JSON patterns with getString/getNumber examples. Target: Reduce AILANG eval failures from import errors and missing braces."
     },
     "v0.7.3": {
       "file": "prompts/v0.7.3.md",
@@ -537,6 +537,28 @@
         "string-interpolation"
       ],
       "notes": "M-CONCAT-DISAMBIG Phase 1: Introduces \"${expr}\" interpolation as the idiomatic way to build strings. Desugars to concat_String(..., show(expr), ...) chains via Show type-class dispatch (show_String is identity). Supports nested braces, arbitrary expressions, and \\${ escape. ++ still works for strings today but will be restricted to lists only in v0.13.0 (Phase 2)."
+    },
+    "go": {
+      "file": "prompts/go.md",
+      "hash": "4eeda96353767bc89691212a24b3ddfe3ad798770fd279058751dfc77e17ff16",
+      "description": "Go language teaching prompt for eval harness",
+      "created": "2026-04-23",
+      "tags": [
+        "control",
+        "go"
+      ],
+      "notes": "Used for Go vs AILANG baseline comparison in multi-language evals"
+    },
+    "javascript": {
+      "file": "prompts/javascript.md",
+      "hash": "c6ecd959bc551eca34af6df3d1bf6544cefa1dab4f08264789286bab9a1adbe9",
+      "description": "JavaScript (Node.js) language teaching prompt for eval harness",
+      "created": "2026-04-23",
+      "tags": [
+        "control",
+        "javascript"
+      ],
+      "notes": "Used for JavaScript vs AILANG baseline comparison in multi-language evals"
     }
   },
   "active": "v0.12.1",

@@ -106,11 +106,12 @@ export default function LanguageLeaderboard() {
     (t) => ['smoke', 'core', 'stretch', 'vision'].includes(t)
   );
 
-  // Helper: get success rate for a language in a model under active tier
+  // Helper: get success rate for a language in a model under active tier.
+  // model_stats[modelKey] is a direct lang→stats map (no .languages wrapper).
   function getRate(modelKey, lang) {
     if (selectedTier && data.tiers?.[selectedTier]?.model_stats) {
       const ms = data.tiers[selectedTier].model_stats[modelKey];
-      return ms?.languages?.[lang]?.success_rate ?? null;
+      return ms?.[lang]?.successRate ?? null;
     }
     return data.models?.[modelKey]?.languages?.[lang]?.successRate ?? null;
   }

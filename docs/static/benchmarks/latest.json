@@ -1,6 +1,6 @@
 {
   "version": "v0.14.1",
-  "timestamp": "2026-04-23T12:31:35+02:00",
+  "timestamp": "2026-04-23T13:51:38+02:00",
   "totalRuns": 176,
   "aggregates": {
     "agentBenchmarks": [
@@ -69,6 +69,1150 @@
     "totalCostUSD": 13.205892100000007,
     "totalTokens": 8674946,
     "zeroShotSuccess": 0.9261363636363636
+  },
+  "tiers": {
+    "core": {
+      "total_runs": 88,
+      "ailang_runs": 44,
+      "python_runs": 44,
+      "ailang_success_rate": 0.9318181818181818,
+      "python_success_rate": 0.8636363636363636,
+      "benchmark_count": 22,
+      "language_stats": {
+        "ailang": {
+          "runs": 44,
+          "pass": 41,
+          "success_rate": 0.9318181818181818,
+          "avg_cost_usd": 0.09264904772727274,
+          "api_errors": 1
+        },
+        "python": {
+          "runs": 44,
+          "pass": 38,
+          "success_rate": 0.8636363636363636,
+          "avg_cost_usd": 0.04060551590909091
+        }
+      },
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 22,
+            "avgTokens": 1319.8181818181818
+          },
+          "python": {
+            "successRate": 0.9090909090909091,
+            "totalRuns": 22,
+            "avgTokens": 867.6818181818181
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.8636363636363636,
+            "totalRuns": 22,
+            "avgTokens": 981.4545454545455,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 0.8181818181818182,
+            "totalRuns": 22,
+            "avgTokens": 987.7727272727273
+          }
+        }
+      },
+      "api_error_count": 1,
+      "ailang_api_error": 1,
+      "python_api_error": 0,
+      "refusal_count": 0,
+      "ailang_repair_delta": 0,
+      "python_repair_delta": 0,
+      "ailang_avg_cost_usd": 0.09264904772727274,
+      "python_avg_cost_usd": 0.04060551590909091
+    },
+    "smoke": {
+      "total_runs": 60,
+      "ailang_runs": 15,
+      "python_runs": 15,
+      "ailang_success_rate": 0.9333333333333333,
+      "python_success_rate": 1,
+      "benchmark_count": 3,
+      "language_stats": {
+        "ailang": {
+          "runs": 15,
+          "pass": 14,
+          "success_rate": 0.9333333333333333,
+          "avg_cost_usd": 0.13976569000000003,
+          "api_errors": 1
+        },
+        "go": {
+          "runs": 15,
+          "pass": 15,
+          "success_rate": 1,
+          "avg_cost_usd": 0.06986510333333333
+        },
+        "javascript": {
+          "runs": 15,
+          "pass": 15,
+          "success_rate": 1,
+          "avg_cost_usd": 0.07048276333333334
+        },
+        "python": {
+          "runs": 15,
+          "pass": 15,
+          "success_rate": 1,
+          "avg_cost_usd": 0.07060243666666666
+        }
+      },
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1029
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 681.6666666666666
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 726.3333333333334
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 699.6666666666666
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.6666666666666666,
+            "totalRuns": 3,
+            "avgTokens": 379.3333333333333,
+            "apiErrorCount": 1
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 521
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 358
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 469
+          }
+        },
+        "gpt5-4": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1132
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 857
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 898.3333333333334
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 907.3333333333334
+          }
+        },
+        "opencode-gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 691
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 584.6666666666666
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 490
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 500
+          }
+        },
+        "opencode-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 689.6666666666666
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 582
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 541
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 581.6666666666666
+          }
+        }
+      },
+      "api_error_count": 1,
+      "ailang_api_error": 1,
+      "python_api_error": 0,
+      "refusal_count": 0,
+      "ailang_repair_delta": 0,
+      "python_repair_delta": 0,
+      "ailang_avg_cost_usd": 0.13976569000000003,
+      "python_avg_cost_usd": 0.07060243666666666
+    },
+    "stretch": {
+      "total_runs": 22,
+      "ailang_runs": 11,
+      "python_runs": 11,
+      "ailang_success_rate": 0.8181818181818182,
+      "python_success_rate": 0.9090909090909091,
+      "benchmark_count": 11,
+      "language_stats": {
+        "ailang": {
+          "runs": 11,
+          "pass": 9,
+          "success_rate": 0.8181818181818182,
+          "avg_cost_usd": 0.08231093181818183,
+          "api_errors": 2
+        },
+        "python": {
+          "runs": 11,
+          "pass": 10,
+          "success_rate": 0.9090909090909091,
+          "avg_cost_usd": 0.06146188636363636
+        }
+      },
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.8181818181818182,
+            "totalRuns": 11,
+            "avgTokens": 1144.2727272727273,
+            "apiErrorCount": 2
+          },
+          "python": {
+            "successRate": 0.9090909090909091,
+            "totalRuns": 11,
+            "avgTokens": 1395.909090909091
+          }
+        }
+      },
+      "api_error_count": 2,
+      "ailang_api_error": 2,
+      "python_api_error": 0,
+      "refusal_count": 0,
+      "ailang_repair_delta": 0,
+      "python_repair_delta": 0,
+      "ailang_avg_cost_usd": 0.08231093181818183,
+      "python_avg_cost_usd": 0.06146188636363636
+    },
+    "vision": {
+      "total_runs": 6,
+      "ailang_runs": 6,
+      "python_runs": 0,
+      "ailang_success_rate": 1,
+      "python_success_rate": 0,
+      "benchmark_count": 6,
+      "language_stats": {
+        "ailang": {
+          "runs": 6,
+          "pass": 6,
+          "success_rate": 1,
+          "avg_cost_usd": 0.08340839999999998
+        }
+      },
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 6,
+            "avgTokens": 1262.6666666666667
+          }
+        }
+      },
+      "api_error_count": 0,
+      "ailang_api_error": 0,
+      "python_api_error": 0,
+      "refusal_count": 0,
+      "ailang_repair_delta": 0,
+      "python_repair_delta": 0,
+      "ailang_avg_cost_usd": 0.08340839999999998,
+      "python_avg_cost_usd": 0
+    }
+  },
+  "tags": {
+    "adt_pattern_match": {
+      "tag": "adt_pattern_match",
+      "ailang_pass": 25,
+      "ailang_total": 25,
+      "python_pass": 21,
+      "python_total": 21,
+      "delta": 0,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 25,
+          "total": 25,
+          "rate": 1
+        },
+        "go": {
+          "pass": 5,
+          "total": 5,
+          "rate": 1
+        },
+        "javascript": {
+          "pass": 5,
+          "total": 5,
+          "rate": 1
+        },
+        "python": {
+          "pass": 21,
+          "total": 21,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 17,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 15,
+            "avgTokens": 1275.5333333333333
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 608
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 812
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 11,
+            "avgTokens": 1096.7272727272727
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 7,
+            "avgTokens": 1091.7142857142858
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 581
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 388
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 7,
+            "avgTokens": 1210.142857142857
+          }
+        },
+        "gpt5-4": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 1032
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 834
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 899
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 746
+          }
+        },
+        "opencode-gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 959
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 632
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 543
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 509
+          }
+        },
+        "opencode-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 788
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 593
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 552
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 593
+          }
+        }
+      }
+    },
+    "algorithmic": {
+      "tag": "algorithmic",
+      "ailang_pass": 20,
+      "ailang_total": 21,
+      "python_pass": 21,
+      "python_total": 21,
+      "delta": -0.04761904761904767,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 20,
+          "total": 21,
+          "rate": 0.9523809523809523
+        },
+        "go": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "javascript": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "python": {
+          "pass": 21,
+          "total": 21,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 11,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 10,
+            "avgTokens": 1288.4
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 718.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 683.5
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 10,
+            "avgTokens": 1011.5
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.8,
+            "totalRuns": 5,
+            "avgTokens": 864.4,
+            "apiErrorCount": 1
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 491
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 343
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 639.4
+          }
+        },
+        "gpt5-4": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1182
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 868.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 898
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 988
+          }
+        },
+        "opencode-gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 557
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 561
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 463.5
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 495.5
+          }
+        },
+        "opencode-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 640.5
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 576.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 535.5
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 576
+          }
+        }
+      }
+    },
+    "contracts": {
+      "tag": "contracts",
+      "ailang_pass": 10,
+      "ailang_total": 10,
+      "python_pass": 9,
+      "python_total": 9,
+      "delta": 0,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "python": {
+          "pass": 9,
+          "total": 9,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 8,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 7,
+            "avgTokens": 1906.7142857142858
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 6,
+            "avgTokens": 995.8333333333334
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1213.6666666666667
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1193.6666666666667
+          }
+        }
+      }
+    },
+    "data_transform": {
+      "tag": "data_transform",
+      "ailang_pass": 15,
+      "ailang_total": 19,
+      "python_pass": 13,
+      "python_total": 19,
+      "delta": 0.10526315789473684,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 15,
+          "total": 19,
+          "rate": 0.7894736842105263
+        },
+        "python": {
+          "pass": 13,
+          "total": 19,
+          "rate": 0.6842105263157895
+        }
+      },
+      "benchmark_count": 14,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.8181818181818182,
+            "totalRuns": 11,
+            "avgTokens": 1124.1818181818182,
+            "apiErrorCount": 2
+          },
+          "python": {
+            "successRate": 0.8181818181818182,
+            "totalRuns": 11,
+            "avgTokens": 932.2727272727273
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.75,
+            "totalRuns": 8,
+            "avgTokens": 808.375
+          },
+          "python": {
+            "successRate": 0.5,
+            "totalRuns": 8,
+            "avgTokens": 959.375
+          }
+        }
+      }
+    },
+    "effects_io": {
+      "tag": "effects_io",
+      "ailang_pass": 8,
+      "ailang_total": 10,
+      "python_pass": 7,
+      "python_total": 9,
+      "delta": 0.022222222222222254,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 8,
+          "total": 10,
+          "rate": 0.8
+        },
+        "python": {
+          "pass": 7,
+          "total": 9,
+          "rate": 0.7777777777777778
+        }
+      },
+      "benchmark_count": 6,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.8333333333333334,
+            "totalRuns": 6,
+            "avgTokens": 762.3333333333334,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 0.8,
+            "totalRuns": 5,
+            "avgTokens": 999
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 569,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 930.25
+          }
+        }
+      }
+    },
+    "error_handling": {
+      "tag": "error_handling",
+      "ailang_pass": 9,
+      "ailang_total": 10,
+      "python_pass": 7,
+      "python_total": 8,
+      "delta": 0.025000000000000022,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 9,
+          "total": 10,
+          "rate": 0.9
+        },
+        "python": {
+          "pass": 7,
+          "total": 8,
+          "rate": 0.875
+        }
+      },
+      "benchmark_count": 6,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 6,
+            "avgTokens": 1557.5
+          },
+          "python": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 1070.25
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.75,
+            "totalRuns": 4,
+            "avgTokens": 1205.25
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 4,
+            "avgTokens": 1362.5
+          }
+        }
+      }
+    },
+    "functional": {
+      "tag": "functional",
+      "ailang_pass": 11,
+      "ailang_total": 12,
+      "python_pass": 8,
+      "python_total": 11,
+      "delta": 0.18939393939393934,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 11,
+          "total": 12,
+          "rate": 0.9166666666666666
+        },
+        "python": {
+          "pass": 8,
+          "total": 11,
+          "rate": 0.7272727272727273
+        }
+      },
+      "benchmark_count": 10,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.8571428571428571,
+            "totalRuns": 7,
+            "avgTokens": 910.2857142857143,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 0.6666666666666666,
+            "totalRuns": 6,
+            "avgTokens": 1041.1666666666667
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 5,
+            "avgTokens": 724
+          },
+          "python": {
+            "successRate": 0.8,
+            "totalRuns": 5,
+            "avgTokens": 626.8
+          }
+        }
+      }
+    },
+    "records": {
+      "tag": "records",
+      "ailang_pass": 2,
+      "ailang_total": 2,
+      "python_pass": 2,
+      "python_total": 2,
+      "delta": 0,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 2,
+          "total": 2,
+          "rate": 1
+        },
+        "python": {
+          "pass": 2,
+          "total": 2,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 5,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 1016
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 633
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 876
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 1,
+            "avgTokens": 717
+          }
+        }
+      }
+    },
+    "recursion": {
+      "tag": "recursion",
+      "ailang_pass": 30,
+      "ailang_total": 30,
+      "python_pass": 28,
+      "python_total": 28,
+      "delta": 0,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 30,
+          "total": 30,
+          "rate": 1
+        },
+        "go": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "javascript": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "python": {
+          "pass": 28,
+          "total": 28,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 18,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 16,
+            "avgTokens": 1237
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 730.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 825
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 14,
+            "avgTokens": 1162.857142857143
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 1048.25
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 577.5
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 379
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 943.5
+          }
+        },
+        "gpt5-4": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 846
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 779
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 903.5
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 789.5
+          }
+        },
+        "opencode-gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 722
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 599
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 540
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 540
+          }
+        },
+        "opencode-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 709
+          },
+          "go": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 586
+          },
+          "javascript": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 542
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 590
+          }
+        }
+      }
+    },
+    "state_machine": {
+      "tag": "state_machine",
+      "ailang_pass": 5,
+      "ailang_total": 5,
+      "python_pass": 5,
+      "python_total": 5,
+      "delta": 0,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 5,
+          "total": 5,
+          "rate": 1
+        },
+        "python": {
+          "pass": 5,
+          "total": 5,
+          "rate": 1
+        }
+      },
+      "benchmark_count": 4,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1178.3333333333333
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 3,
+            "avgTokens": 1286.3333333333333
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1417.5
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 2,
+            "avgTokens": 1335.5
+          }
+        }
+      }
+    },
+    "string_algo": {
+      "tag": "string_algo",
+      "ailang_pass": 9,
+      "ailang_total": 12,
+      "python_pass": 10,
+      "python_total": 12,
+      "delta": -0.08333333333333337,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 9,
+          "total": 12,
+          "rate": 0.75
+        },
+        "python": {
+          "pass": 10,
+          "total": 12,
+          "rate": 0.8333333333333334
+        }
+      },
+      "benchmark_count": 8,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.875,
+            "totalRuns": 8,
+            "avgTokens": 1750.375,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 1,
+            "totalRuns": 8,
+            "avgTokens": 945.625
+          }
+        },
+        "gemini-3-flash": {
+          "ailang": {
+            "successRate": 0.5,
+            "totalRuns": 4,
+            "avgTokens": 1213.25
+          },
+          "python": {
+            "successRate": 0.5,
+            "totalRuns": 4,
+            "avgTokens": 1162.5
+          }
+        }
+      }
+    },
+    "type_safety": {
+      "tag": "type_safety",
+      "ailang_pass": 5,
+      "ailang_total": 6,
+      "python_pass": 1,
+      "python_total": 2,
+      "delta": 0.33333333333333337,
+      "language_breakdown": {
+        "ailang": {
+          "pass": 5,
+          "total": 6,
+          "rate": 0.8333333333333334
+        },
+        "python": {
+          "pass": 1,
+          "total": 2,
+          "rate": 0.5
+        }
+      },
+      "benchmark_count": 7,
+      "model_stats": {
+        "claude-sonnet-4-6": {
+          "ailang": {
+            "successRate": 0.8333333333333334,
+            "totalRuns": 6,
+            "avgTokens": 1072.5,
+            "apiErrorCount": 1
+          },
+          "python": {
+            "successRate": 0.5,
+            "totalRuns": 2,
+            "avgTokens": 2214
+          }
+        }
+      }
+    }
   },
   "models": {
     "claude-sonnet-4-6": {
@@ -3158,7 +4302,7 @@
   "history": [
     {
       "version": "v0.14.1",
-      "timestamp": "2026-04-23T12:31:32+02:00",
+      "timestamp": "2026-04-23T13:51:34+02:00",
       "successRate": 0,
       "totalRuns": 176,
       "successCount": 0,

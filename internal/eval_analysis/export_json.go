@@ -29,6 +29,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			standardResults = append(standardResults, r)
 		}
 	}
+	// Agent-only baselines (e.g. harness comparison runs) have no standard results.
+	// Fall back to all results so tier/tag aggregates are still populated.
+	resultsForTiers := standardResults
+	if len(resultsForTiers) == 0 {
+		resultsForTiers = results
+	}
 
 	// Calculate agent-specific metrics
 	agentSuccessCount := 0
@@ -667,8 +673,8 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// Tier/tag aggregates + suite-change events (M-EVAL-SUITE-PREP M6 +
 	// M-DASH-V2). Extracted to sibling file because the main exporter is
 	// already past the 800-line soft limit.
-	tiersJS := buildTierAggregates(standardResults, benchmarkTier)
-	tagsJS := buildTagAggregates(standardResults)
+	tiersJS := buildTierAggregates(resultsForTiers, benchmarkTier)
+	tagsJS := buildTagAggregates(resultsForTiers)
 	harnessesJS := buildHarnessAggregates(agentResults)
 	suiteEvents, err := LoadSuiteEvents("benchmarks/events.yml")
 	if err != nil {
