@@ -1,6 +1,6 @@
 id: json_transform
 description: "Parse JSON, transform data, and output (complex JSON processing)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

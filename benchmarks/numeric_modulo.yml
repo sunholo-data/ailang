@@ -1,5 +1,5 @@
 id: numeric_modulo
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 prompt: |

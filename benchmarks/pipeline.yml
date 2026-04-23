@@ -1,6 +1,6 @@
 id: pipeline
 description: "Read stdin, transform data, write stdout (IO + lists)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

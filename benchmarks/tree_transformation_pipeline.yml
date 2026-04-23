@@ -1,6 +1,6 @@
 id: tree_transformation_pipeline
 description: "Recursive tree transformations with higher-order functions and ADTs"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "very_hard"

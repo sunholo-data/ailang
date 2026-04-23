@@ -1,6 +1,6 @@
 id: red_black_tree
 description: "Red-black tree insertion with balancing (advanced data structure)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

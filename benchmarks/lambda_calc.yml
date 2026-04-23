@@ -1,6 +1,6 @@
 id: lambda_calc
 description: "Lambda calculus evaluator with substitution (advanced functional programming)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

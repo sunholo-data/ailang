@@ -1,6 +1,6 @@
 id: json_parse
 description: "Parse JSON array, filter, and output (data parsing)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

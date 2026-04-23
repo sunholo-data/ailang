@@ -1,6 +1,6 @@
 id: list_comprehension
 description: "Map/filter/fold operations on lists"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

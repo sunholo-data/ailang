@@ -1,6 +1,6 @@
 id: run_length_encode
 description: "Run-length encoding of a string (string processing + recursion)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

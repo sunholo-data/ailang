@@ -1,6 +1,6 @@
 id: canonical_normalization
 description: "One canonical form for semantically equivalent code"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

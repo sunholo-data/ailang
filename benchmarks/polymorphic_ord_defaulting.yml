@@ -1,6 +1,6 @@
 id: polymorphic_ord_defaulting
 description: "Polymorphic top-3 selection using Ord class — works across int, string, and tuple lists"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

@@ -1,6 +1,6 @@
 id: json_encode
 description: "Build and encode nested JSON (data serialization)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

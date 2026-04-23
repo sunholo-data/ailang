@@ -1,6 +1,6 @@
 id: log_file_analyzer
 description: "Parse log file and compute statistics with aggregation"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "hard"

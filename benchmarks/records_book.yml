@@ -1,6 +1,6 @@
 id: records_book
 description: "Record types with field access and updates"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

@@ -1,6 +1,6 @@
 id: merge_sort
 description: "Implement merge sort algorithm (divide and conquer + recursion)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

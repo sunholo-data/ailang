@@ -1,6 +1,6 @@
 id: mini_interpreter
 description: "Interpret a mini-language with let bindings and arithmetic (complete interpreter)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

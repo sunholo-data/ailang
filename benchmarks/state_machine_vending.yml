@@ -1,6 +1,6 @@
 id: state_machine_vending
 description: "Vending machine state machine returning Result<NewState, Error> for invalid transitions"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

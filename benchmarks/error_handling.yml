@@ -1,6 +1,6 @@
 id: error_handling
 description: "Result/Either type for error propagation"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "medium"

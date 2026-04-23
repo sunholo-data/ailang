@@ -1,6 +1,6 @@
 id: symbolic_diff
 description: "Symbolic differentiation of expressions (AST transformation + pattern matching)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"

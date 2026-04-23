@@ -1,6 +1,6 @@
 id: config_file_parser
 description: "Parse and validate JSON configuration file with error handling"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO", "FS"]
 difficulty: "hard"

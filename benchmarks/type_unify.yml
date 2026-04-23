@@ -1,6 +1,6 @@
 id: type_unify
 description: "Simple type unification algorithm (type inference building block)"
-languages: ["python", "ailang"]
+languages: ["python", "ailang", "javascript", "go"]
 entrypoint: "main"
 caps: ["IO"]
 difficulty: "hard"
