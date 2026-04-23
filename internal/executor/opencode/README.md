@@ -29,13 +29,18 @@ opencode --version   # e.g. 1.14.20
 opencode uses `provider/model` strings:
 
 ```
-anthropic/claude-haiku-4-5          # Anthropic via API key
-openai/gpt-5                         # OpenAI via API key
-google/gemini-3-flash                # Google
-opencode/claude-opus-4-5            # opencode Zen proxy
-ollama/gemma4:latest                 # Local Ollama model
-ollama/llama3.3:latest              # Local Llama
+anthropic/claude-haiku-4-5                    # Anthropic via API key
+openai/gpt-5                                   # OpenAI via API key
+google-vertex/gemini-3-flash-preview           # Google via Vertex AI (ADC)
+opencode/claude-opus-4-5                       # opencode Zen proxy
+ollama/gemma4:latest                           # Local Ollama model
+ollama/llama3.3:latest                         # Local Llama
 ```
+
+> **Google models require `google-vertex/` prefix**, not `google/`.
+> `google/` is not a registered provider in opencode — it will fail with
+> `ProviderModelNotFoundError`. Run `opencode models google-vertex` to list
+> available Gemini model IDs.
 
 ## Ollama / Local Model Setup
 

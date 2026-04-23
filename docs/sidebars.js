@@ -126,6 +126,7 @@ const sidebars = {
       items: [
         'guides/evaluation/README',
         'guides/evaluation/architecture',
+        'guides/evaluation/harness-setup',
         'guides/evaluation/model-configuration',
         'guides/evaluation/eval-loop',
         'guides/evaluation/go-implementation',
