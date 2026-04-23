@@ -379,19 +379,25 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
 	}
 
-	// Step 5b: Check for ANY unpushed commits
+	// Step 5b: Check for unpushed commits.
+	// If origin/{branchName} doesn't exist yet (new coordinator branch), git log
+	// exits 128 — treat that as "entire branch is unpushed" and proceed to push.
 	logCmd := exec.CommandContext(ctx, "git", "-C", workDir, "log", fmt.Sprintf("origin/%s..HEAD", branchName), "--oneline")
 	logOutput, err := logCmd.Output()
+	newBranch := false
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "execute-job: git log origin/%s..HEAD failed (shallow clone?): %v\n", branchName, err)
-		revCmd := exec.CommandContext(ctx, "git", "-C", workDir, "rev-list", "--count", fmt.Sprintf("origin/%s..HEAD", branchName))
-		revOutput, revErr := revCmd.Output()
-		if revErr == nil && strings.TrimSpace(string(revOutput)) != "0" {
-			logOutput = revOutput
+		// Check whether the remote ref simply doesn't exist yet.
+		lsRemote := exec.CommandContext(ctx, "git", "-C", workDir, "ls-remote", "--exit-code", "origin", branchName)
+		if lsRemote.Run() != nil {
+			// Remote ref absent — whole branch needs pushing.
+			newBranch = true
+			fmt.Printf("execute-job: branch %s not on remote yet — will push\n", branchName)
+		} else {
+			fmt.Fprintf(os.Stderr, "execute-job: git log origin/%s..HEAD failed: %v\n", branchName, err)
 		}
 	}
 
-	if len(strings.TrimSpace(string(logOutput))) == 0 {
+	if !newBranch && len(strings.TrimSpace(string(logOutput))) == 0 {
 		fmt.Println("execute-job: no commits to push")
 		changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
 		return branchName, execResult, changedFiles, nil
