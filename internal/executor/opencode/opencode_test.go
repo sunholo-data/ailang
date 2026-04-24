@@ -15,6 +15,8 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
+const skipWindows = "mock binary tests use /bin/sh; skipping on windows"
+
 func TestNewOpenCodeExecutor(t *testing.T) {
 	cfg := executor.DefaultConfig()
 	e, err := New(cfg)
@@ -273,6 +275,9 @@ func mockEvents() []string {
 }
 
 func TestExecuteStreaming_ParsesFixture(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
 	dir := t.TempDir()
 	_ = writeFakeOpenCode(t, dir, mockEvents())
 
@@ -359,6 +364,9 @@ func TestExecuteStreaming_ParsesFixture(t *testing.T) {
 }
 
 func TestExecuteStreaming_NonJSONPreambleTolerated(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
 	// Non-JSON lines (startup messages) must be skipped without failing.
 	events := append(
 		[]string{
@@ -417,6 +425,9 @@ func TestHealthCheck_MissingBinary(t *testing.T) {
 }
 
 func TestHealthCheck_WithFakeBinary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip(skipWindows)
+	}
 	dir := t.TempDir()
 	// writeFakeOpenCode handles --version → prints version and exits 0
 	_ = writeFakeOpenCode(t, dir, nil)

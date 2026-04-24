@@ -50,7 +50,7 @@ install-lint: ## Install/upgrade golangci-lint (auto-reinstalls when its build-G
 lint: prepare-embed ## Run linter (bug detectors only)
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Run 'make install-lint'" && exit 1)
-	@set -o pipefail; golangci-lint run ./cmd/... ./internal/... ./testutil/... > /tmp/lint.raw 2>&1; \
+	@golangci-lint run ./cmd/... ./internal/... ./testutil/... > /tmp/lint.raw 2>&1; \
 		LINT_RC=$$?; \
 		if grep -qE "can't load config|the Go language version" /tmp/lint.raw; then \
 			echo "$(RED)$(CROSS) golangci-lint config/toolchain error — run 'make install-lint':$(RESET)"; \
