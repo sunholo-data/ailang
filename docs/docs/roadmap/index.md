@@ -10,6 +10,11 @@ This page is automatically generated from the [design_docs/planned](https://gith
 For completed features, see [Design Documents](/docs/design-docs).
 
 
+## Planned for v1.1.0
+
+- [M-EXECUTOR-VARIANTS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-executor-variants-sprint-plan.md)
+- [M-EXECUTOR-VARIANTS: Per-Agent Docker Image Variants](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-executor-variants.md)
+
 ## Planned for v1.0.0
 
 - [Global Collaboration Hub - Cross-Computer Agent Collaboration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/global-collaboration-hub.md)
@@ -30,6 +35,8 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EVAL-CROSS-HARNESS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-cross-harness-sprint-plan.md)
 - [Sprint Plan: M-EVAL-LANG-JSGO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)
 - [Sprint Plan: M-EVAL-LANGREG (Language Registry)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-langreg-sprint-plan.md)
+- [M-EVAL-RESULTS-FOLDER-STRUCTURE: Model-First Eval Results Layout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-results-folder-structure.md)
+- [M-EXECUTOR-VARIANTS: Per-Agent Executor Image Variants](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-executor-variants.md)
 - [M-OLLAMA-LOCAL-EVAL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval-sprint-plan.md)
 - [M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval.md)
 
@@ -118,4 +125,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 83 planned features across 4 upcoming versions.*
+*Generated at build time. 87 planned features across 5 upcoming versions.*

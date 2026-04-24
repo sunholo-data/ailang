@@ -63,6 +63,11 @@ __pycache__/
 
 # Temporary data
 temp_data/
+
+# Eval raw run results (regeneratable; only baselines/ and performance_tables/ are kept)
+eval_results/agent/
+eval_results/harness_smoke_v2/
+eval_results/v0141_*/
 ui/.env.local
 code-harness-skills/
 # Stray compiled binary (build output lands in repo root)

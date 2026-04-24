@@ -1,0 +1,1652 @@
+{
+  "version": "v0.14.1-harness",
+  "timestamp": "2026-04-23T10:57:34.235142+02:00",
+  "total_runs": 381,
+  "aggregates": {
+    "0-shot_success": 0.7375328083989501,
+    "final_success": 0.7375328083989501,
+    "repair_used": 0,
+    "repair_success_rate": 0,
+    "total_tokens": 15040727,
+    "total_cost_usd": 20.4663055,
+    "avg_duration_ms": 29567.333333333332
+  },
+  "models": {
+    "claude-haiku-4-5": {
+      "total_runs": 136,
+      "aggregates": {
+        "0-shot_success": 0.8529411764705882,
+        "final_success": 0.8529411764705882,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 355047,
+        "total_cost_usd": 5.220298999999997,
+        "avg_duration_ms": 35899.80882352941
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1914
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2267
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2425
+        },
+        "binary_tree_sum": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 5806
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2431
+        },
+        "cli_args": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 3825
+        },
+        "contract_abs_difference": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1063
+        },
+        "contract_billing_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2291
+        },
+        "contract_booking_score": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1540
+        },
+        "contract_capacity_booking": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1730
+        },
+        "contract_clamp_value": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1118
+        },
+        "contract_credit_overflow": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1249
+        },
+        "contract_escalation_guard": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1585
+        },
+        "contract_exchange_rate": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 11543
+        },
+        "contract_fair_split": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1320
+        },
+        "contract_insurance_premium": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1676
+        },
+        "contract_integer_sqrt": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1345
+        },
+        "contract_permission_chain": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1577
+        },
+        "contract_progressive_tax": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1542
+        },
+        "contract_promo_rebate": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1408
+        },
+        "contract_prorated_refund": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1639
+        },
+        "contract_risk_score": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1645
+        },
+        "contract_safe_subtract": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1292
+        },
+        "csv_to_json_converter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 7499
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2332
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1926
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 3120
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2347
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1529
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2315
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1695
+        },
+        "fizzbuzz": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 3707
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1661
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 3215
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1602
+        },
+        "graph_bfs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 8364
+        },
+        "higher_order_functions": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 3940
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1779
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1500
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2109
+        },
+        "json_parse": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2451
+        },
+        "json_transform": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 6608
+        },
+        "lambda_calc": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 4009
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2542
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 6807
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 4266
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1468
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 4288
+        },
+        "numeric_modulo": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1391
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2185
+        },
+        "pipeline": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 4174
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1914
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2066
+        },
+        "recursion_fibonacci": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 2081
+        },
+        "red_black_tree": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 10573
+        },
+        "run_length_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 4138
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 9471
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 8822
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 4649
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1852
+        },
+        "type_unify": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 5277
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 74,
+          "success_rate": 0.8918918918918919,
+          "avg_tokens": 2799.2432432432433
+        },
+        "go": {
+          "total_runs": 4,
+          "success_rate": 0,
+          "avg_tokens": 2433.75
+        },
+        "javascript": {
+          "total_runs": 4,
+          "success_rate": 0,
+          "avg_tokens": 2274.75
+        },
+        "python": {
+          "total_runs": 54,
+          "success_rate": 0.9259259259259259,
+          "avg_tokens": 2318.0925925925926
+        }
+      }
+    },
+    "claude-sonnet-4-6": {
+      "total_runs": 24,
+      "aggregates": {
+        "0-shot_success": 1,
+        "final_success": 1,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 18849,
+        "total_cost_usd": 1.77451815,
+        "avg_duration_ms": 18433.541666666668
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 1289
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 720
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 727
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 12,
+          "success_rate": 1,
+          "avg_tokens": 852.5
+        },
+        "python": {
+          "total_runs": 12,
+          "success_rate": 1,
+          "avg_tokens": 702.75
+        }
+      }
+    },
+    "gemini-2-5-flash": {
+      "total_runs": 96,
+      "aggregates": {
+        "0-shot_success": 0.78125,
+        "final_success": 0.78125,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 8148034,
+        "total_cost_usd": 4.241742,
+        "avg_duration_ms": 38536.520833333336
+      },
+      "benchmarks": {
+        "adt_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 240456
+        },
+        "api_call_json": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 265522
+        },
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89188
+        },
+        "binary_tree_sum": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 150366
+        },
+        "canonical_normalization": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 118935
+        },
+        "cli_args": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 149821
+        },
+        "config_file_parser": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "csv_to_json_converter": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "effect_composition": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 375184
+        },
+        "effect_pure_separation": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89328
+        },
+        "effect_tracking_io_fs": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 90215
+        },
+        "error_handling": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89470
+        },
+        "exhaustive_pattern_matching": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89164
+        },
+        "explicit_state_threading": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 181396
+        },
+        "expression_evaluator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 120135
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89636
+        },
+        "float_eq": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 571047
+        },
+        "fold_reduce": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 90140
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89276
+        },
+        "graph_bfs": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 77267
+        },
+        "higher_order_functions": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "immutable_data_structures": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 89154
+        },
+        "inline_tests": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 88403
+        },
+        "json_encode": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 117608
+        },
+        "json_parse": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "json_transform": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 164789
+        },
+        "lambda_calc": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 369435
+        },
+        "list_comprehension": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 124083
+        },
+        "log_file_analyzer": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "merge_sort": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 150942
+        },
+        "mini_interpreter": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 151384
+        },
+        "nested_records": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 117642
+        },
+        "no_runtime_crashes_option": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 90187
+        },
+        "numeric_modulo": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "pattern_matching_complex": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 242889
+        },
+        "pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 118085
+        },
+        "record_update": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 180216
+        },
+        "records_book": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 35900
+        },
+        "recursion_fibonacci": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 88552
+        },
+        "red_black_tree": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "run_length_encode": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "state_machine_elevator": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 91706
+        },
+        "symbolic_diff": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 222012
+        },
+        "tree_transformation_pipeline": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 299241
+        },
+        "type_safe_record_access": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 88901
+        },
+        "type_unify": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 48,
+          "success_rate": 0.75,
+          "avg_tokens": 657.8541666666666
+        },
+        "python": {
+          "total_runs": 48,
+          "success_rate": 0.8125,
+          "avg_tokens": 739.8541666666666
+        }
+      }
+    },
+    "gemini-3-flash": {
+      "total_runs": 32,
+      "aggregates": {
+        "0-shot_success": 0.84375,
+        "final_success": 0.84375,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 2724963,
+        "total_cost_usd": 1.3964414999999997,
+        "avg_duration_ms": 27932.5
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 134814
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 172259
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 134870
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 16,
+          "success_rate": 0.8125,
+          "avg_tokens": 474.25
+        },
+        "python": {
+          "total_runs": 16,
+          "success_rate": 0.875,
+          "avg_tokens": 374.75
+        }
+      }
+    },
+    "gpt5-4": {
+      "total_runs": 24,
+      "aggregates": {
+        "0-shot_success": 0,
+        "final_success": 0,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 2537971,
+        "total_cost_usd": 3.3227187500000004,
+        "avg_duration_ms": 27266.125
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 186757
+        },
+        "fizzbuzz": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 187565
+        },
+        "gcd_lcm": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 12,
+          "success_rate": 0,
+          "avg_tokens": 727.9166666666666
+        },
+        "python": {
+          "total_runs": 12,
+          "success_rate": 0,
+          "avg_tokens": 703.0833333333334
+        }
+      }
+    },
+    "opencode-gemini-2.5-flash": {
+      "total_runs": 2,
+      "aggregates": {
+        "0-shot_success": 1,
+        "final_success": 1,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 39794,
+        "total_cost_usd": 0.021849300000000002,
+        "avg_duration_ms": 12082.5
+      },
+      "benchmarks": {
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 19925
+        }
+      },
+      "languages": {
+        "python": {
+          "total_runs": 2,
+          "success_rate": 1,
+          "avg_tokens": 280
+        }
+      }
+    },
+    "opencode-gemini-3-flash": {
+      "total_runs": 25,
+      "aggregates": {
+        "0-shot_success": 0.52,
+        "final_success": 0.52,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 1200597,
+        "total_cost_usd": 0.73055595,
+        "avg_duration_ms": 12545.32
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 26058
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 127970
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 88618
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 12,
+          "success_rate": 0.5,
+          "avg_tokens": 451.25
+        },
+        "python": {
+          "total_runs": 13,
+          "success_rate": 0.5384615384615384,
+          "avg_tokens": 326.46153846153845
+        }
+      }
+    },
+    "opencode-gemma4-e4b": {
+      "total_runs": 18,
+      "aggregates": {
+        "0-shot_success": 0,
+        "final_success": 0,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 0,
+        "total_cost_usd": 0,
+        "avg_duration_ms": 0
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "fizzbuzz": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        },
+        "recursion_fibonacci": {
+          "success": false,
+          "first_attempt_ok": false,
+          "repair_used": false,
+          "tokens": 0
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 9,
+          "success_rate": 0,
+          "avg_tokens": 0
+        },
+        "python": {
+          "total_runs": 9,
+          "success_rate": 0,
+          "avg_tokens": 0
+        }
+      }
+    },
+    "opencode-sonnet-4-6": {
+      "total_runs": 24,
+      "aggregates": {
+        "0-shot_success": 1,
+        "final_success": 1,
+        "repair_used": 0,
+        "repair_success_rate": 0,
+        "total_tokens": 15472,
+        "total_cost_usd": 3.7581808500000005,
+        "avg_duration_ms": 14785.166666666666
+      },
+      "benchmarks": {
+        "balanced_parens": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 798
+        },
+        "fizzbuzz": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 570
+        },
+        "gcd_lcm": {
+          "success": true,
+          "first_attempt_ok": true,
+          "repair_used": false,
+          "tokens": 635
+        }
+      },
+      "languages": {
+        "ailang": {
+          "total_runs": 12,
+          "success_rate": 1,
+          "avg_tokens": 698.1666666666666
+        },
+        "python": {
+          "total_runs": 12,
+          "success_rate": 1,
+          "avg_tokens": 581.1666666666666
+        }
+      }
+    }
+  },
+  "benchmarks": {
+    "adt_option": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1207.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "api_call_json": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1281.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "balanced_parens": {
+      "total_runs": 46,
+      "success_rate": 0.6521739130434783,
+      "avg_tokens": 688.4130434782609,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "binary_tree_sum": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2306.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "canonical_normalization": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1334.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "cli_args": {
+      "total_runs": 4,
+      "success_rate": 0.25,
+      "avg_tokens": 1417,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "config_file_parser": {
+      "total_runs": 4,
+      "success_rate": 0.25,
+      "avg_tokens": 1806.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "contract_abs_difference": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1047,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_billing_pipeline": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 2275,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_booking_score": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1524,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_capacity_booking": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1714,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_clamp_value": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1102,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_credit_overflow": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1232,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_escalation_guard": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1572,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_exchange_rate": {
+      "total_runs": 1,
+      "success_rate": 0,
+      "avg_tokens": 11480,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_fair_split": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1307,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_insurance_premium": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1663,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_integer_sqrt": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1329,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_permission_chain": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1561,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_progressive_tax": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1526,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_promo_rebate": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1391,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_prorated_refund": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1621,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_risk_score": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1629,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "contract_safe_subtract": {
+      "total_runs": 1,
+      "success_rate": 1,
+      "avg_tokens": 1276,
+      "languages": [
+        "ailang"
+      ]
+    },
+    "csv_to_json_converter": {
+      "total_runs": 4,
+      "success_rate": 0.5,
+      "avg_tokens": 2689.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_composition": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1693.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_pure_separation": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1494.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "effect_tracking_io_fs": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2085.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "error_handling": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1423.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "exhaustive_pattern_matching": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1832.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "explicit_state_threading": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1365.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "expression_evaluator": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 1009.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fizzbuzz": {
+      "total_runs": 83,
+      "success_rate": 0.6265060240963856,
+      "avg_tokens": 676.722891566265,
+      "languages": [
+        "ailang",
+        "go",
+        "javascript",
+        "python"
+      ]
+    },
+    "float_eq": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1618.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "fold_reduce": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1628.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "gcd_lcm": {
+      "total_runs": 44,
+      "success_rate": 0.7272727272727273,
+      "avg_tokens": 595.9545454545455,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "graph_bfs": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 3045.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "higher_order_functions": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 1639,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "immutable_data_structures": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1115.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "inline_tests": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 824.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_encode": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 1099.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_parse": {
+      "total_runs": 4,
+      "success_rate": 0.5,
+      "avg_tokens": 890,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "json_transform": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2609.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "lambda_calc": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2887,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "list_comprehension": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1233.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "log_file_analyzer": {
+      "total_runs": 4,
+      "success_rate": 0.5,
+      "avg_tokens": 1460,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "merge_sort": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2582.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "mini_interpreter": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2193.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "nested_records": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 905.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "no_runtime_crashes_option": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2070.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "numeric_modulo": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 1136.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pattern_matching_complex": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 2019.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "pipeline": {
+      "total_runs": 4,
+      "success_rate": 0.25,
+      "avg_tokens": 1938.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "record_update": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1329,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "records_book": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1123,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "recursion_fibonacci": {
+      "total_runs": 23,
+      "success_rate": 0.34782608695652173,
+      "avg_tokens": 922.7826086956521,
+      "languages": [
+        "ailang",
+        "go",
+        "javascript",
+        "python"
+      ]
+    },
+    "red_black_tree": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 5646.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "run_length_encode": {
+      "total_runs": 4,
+      "success_rate": 0.25,
+      "avg_tokens": 1802.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "state_machine_elevator": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 3938,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "symbolic_diff": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 4029.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "tree_transformation_pipeline": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 3056.25,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_safe_record_access": {
+      "total_runs": 4,
+      "success_rate": 1,
+      "avg_tokens": 1180.75,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    },
+    "type_unify": {
+      "total_runs": 4,
+      "success_rate": 0.75,
+      "avg_tokens": 2724.5,
+      "languages": [
+        "ailang",
+        "python"
+      ]
+    }
+  },
+  "error_codes": null,
+  "languages": {
+    "ailang": {
+      "total_runs": 195,
+      "success_rate": 0.7435897435897436,
+      "avg_tokens": 1431.1128205128205
+    },
+    "go": {
+      "total_runs": 4,
+      "success_rate": 0,
+      "avg_tokens": 2433.75
+    },
+    "javascript": {
+      "total_runs": 4,
+      "success_rate": 0,
+      "avg_tokens": 2274.75
+    },
+    "python": {
+      "total_runs": 178,
+      "success_rate": 0.7640449438202247,
+      "avg_tokens": 1097.3820224719102
+    }
+  },
+  "prompt_versions": {
+    "default": {
+      "total_runs": 8,
+      "0-shot_success": 0,
+      "final_success": 0,
+      "avg_tokens": 2396.125
+    },
+    "python": {
+      "total_runs": 153,
+      "0-shot_success": 0.8888888888888888,
+      "final_success": 0.8888888888888888,
+      "avg_tokens": 27857.21568627451
+    },
+    "v0.12.1": {
+      "total_runs": 54,
+      "0-shot_success": 0.8333333333333334,
+      "final_success": 0.8333333333333334,
+      "avg_tokens": 82124.5925925926
+    },
+    "v0.6.5": {
+      "total_runs": 1,
+      "0-shot_success": 1,
+      "final_success": 1,
+      "avg_tokens": 1673
+    },
+    "v0.7.0": {
+      "total_runs": 2,
+      "0-shot_success": 1,
+      "final_success": 1,
+      "avg_tokens": 80683
+    },
+    "v0.7.4": {
+      "total_runs": 20,
+      "0-shot_success": 0.95,
+      "final_success": 0.95,
+      "avg_tokens": 5889.1
+    },
+    "v0.8.2": {
+      "total_runs": 2,
+      "0-shot_success": 1,
+      "final_success": 1,
+      "avg_tokens": 1466
+    },
+    "v0.9.0": {
+      "total_runs": 82,
+      "0-shot_success": 0.926829268292683,
+      "final_success": 0.926829268292683,
+      "avg_tokens": 73669.79268292683
+    }
+  }
+}
