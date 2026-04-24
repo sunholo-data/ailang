@@ -95,15 +95,15 @@ export default function ModelRadarComparison() {
     const ailangData = modelData.languages.ailang || {};
     const pythonData = modelData.languages.python || {};
 
-    const totalModelTokens = modelData.aggregates.totalTokens || 1;
+    const totalModelTokens = modelData.aggregates?.totalTokens || 1;
     const ailangTotalTokens = (ailangData.avgTokens || 0) * (ailangData.totalRuns || 0);
     const pythonTotalTokens = (pythonData.avgTokens || 0) * (pythonData.totalRuns || 0);
 
     const ailangCostProportion = ailangTotalTokens / totalModelTokens;
     const pythonCostProportion = pythonTotalTokens / totalModelTokens;
 
-    const ailangEstimatedCost = modelData.aggregates.totalCostUSD * ailangCostProportion;
-    const pythonEstimatedCost = modelData.aggregates.totalCostUSD * pythonCostProportion;
+    const ailangEstimatedCost = (modelData.aggregates?.totalCostUSD || 0) * ailangCostProportion;
+    const pythonEstimatedCost = (modelData.aggregates?.totalCostUSD || 0) * pythonCostProportion;
 
     const ailangSuccessCount = (ailangData.successRate || 0) * (ailangData.totalRuns || 0);
     const pythonSuccessCount = (pythonData.successRate || 0) * (pythonData.totalRuns || 0);

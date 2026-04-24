@@ -271,12 +271,8 @@ export default function BenchmarkExplorer() {
   if (error) return <p style={{ color: 'red' }}>Failed to load: {error}</p>;
   if (!data) return <p>Loading benchmark data…</p>;
 
-  const allLangs = Object.keys(data.languages || {}).sort((a, b) => {
-    const ia = LANG_ORDER.indexOf(a), ib = LANG_ORDER.indexOf(b);
-    if (ia < 0 && ib < 0) return a.localeCompare(b);
-    if (ia < 0) return 1; if (ib < 0) return -1;
-    return ia - ib;
-  });
+  // Fixed 4-language set for agent mode explorer
+  const allLangs = LANG_ORDER;
   const langs = activeLang ? [activeLang] : allLangs;
 
   const allHarnesses = Object.keys(data.harnesses || {}).sort();
