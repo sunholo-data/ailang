@@ -1,0 +1,8 @@
+# AILANG Agent Executor — opencode variant (opencode CLI, no Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for agents running OpenAI models via the opencode CLI.
+# Use for: any agent with provider=opencode on non-Go codebases.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# opencode CLI (npm package: opencode-ai, binary: opencode)
+RUN npm install -g opencode-ai

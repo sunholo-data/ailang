@@ -1,0 +1,8 @@
+# AILANG Agent Executor — codex variant (OpenAI Codex CLI, no Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for agents running OpenAI models via the Codex CLI.
+# Use for: any agent with provider=codex on non-Go codebases.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# OpenAI Codex CLI
+RUN npm install -g @openai/codex
