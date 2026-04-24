@@ -1,6 +1,9 @@
 # M-EXECUTOR-VARIANTS: Per-Agent Executor Image Variants
 
-**Status**: Planned
+> **Superseded** — this is a rough draft. The full design doc is at
+> [`design_docs/planned/v1_1_0/m-executor-variants.md`](../v1_1_0/m-executor-variants.md).
+
+**Status**: Superseded
 **Target**: v1.1.0
 **Priority**: P2 — quality-of-life; current baked-in-Go image is a temporary workaround
 **Estimated**: 1–2 days

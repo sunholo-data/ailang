@@ -1,0 +1,55 @@
+# AILANG Agent Base — minimal shared layer for all executor variants.
+# Contains: Node 22 + git + ailang binary + bootstrap plugin pre-clone.
+# Does NOT contain any executor CLI (claude, gemini, codex, opencode) or Go toolchain.
+# All executor-specific images build FROM this.
+
+# ── Build stage ──────────────────────────────────────────────
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /ailang ./cmd/ailang/
+
+# ── Runtime stage ────────────────────────────────────────────
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    curl \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 22 (required by all AI CLI tools: claude, gemini, codex, opencode)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ailang binary
+COPY --from=builder /ailang /usr/local/bin/ailang
+
+# Git identity for automated commits
+RUN git config --system user.name "ailang-agent" \
+    && git config --system user.email "ailang-agent@noreply.github.com"
+
+# Pre-clone shared skills plugin for faster cold starts (M-CLOUD-PLUGIN-SKILLS, v0.9.1).
+# Override at build time: --build-arg AILANG_PLUGIN_REPO=https://github.com/your-org/plugin.git
+ARG AILANG_PLUGIN_REPO=https://github.com/sunholo-data/ailang_bootstrap.git
+RUN git clone --depth 1 ${AILANG_PLUGIN_REPO} /plugins/ailang_bootstrap 2>/dev/null || true
+
+ENV COORDINATOR_MODE=cloud
+
+# Non-root user — Claude Code refuses --dangerously-skip-permissions when running as root.
+RUN useradd -m -s /bin/bash ailang \
+    && mkdir -p /workspace /plugins \
+    && chown -R ailang:ailang /workspace /plugins
+
+USER ailang
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/ailang"]
+CMD ["coordinator", "execute-job"]

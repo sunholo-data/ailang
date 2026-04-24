@@ -59,16 +59,55 @@ func newDispatcherWithClient(client jobRunner, projectID, region, prefix string)
 	}
 }
 
+// knownVariants is the set of valid executor_variant values.
+// Each variant corresponds to a separate Cloud Run Job template in Terraform with the
+// matching Docker image baked in. The Cloud Run Jobs API does not support per-execution
+// image overrides, so variant selection happens via job name, not ContainerOverride.
+// Job naming: {prefix}-agent-executor[-{variant}][-apikey]
+var knownVariants = map[string]bool{
+	"":          true, // defaults to "default"
+	"default":   true,
+	"go":        true,
+	"gemini":    true,
+	"gemini-go": true,
+	"codex":     true,
+	"codex-go":  true,
+	"opencode":  true,
+	"eval":      true,
+	"eval-go":   true,
+}
+
+// jobSuffixForVariant returns the Cloud Run Job name suffix for a variant + auth mode pair.
+// Examples:
+//
+//	("", "oauth")      → "agent-executor"
+//	("go", "oauth")    → "agent-executor-go"
+//	("go", "apikey")   → "agent-executor-go-apikey"
+//	("codex", "oauth") → "agent-executor-codex"
+func jobSuffixForVariant(variant, authMode string) (string, error) {
+	if !knownVariants[variant] {
+		return "", fmt.Errorf("unknown executor_variant %q — check config.cloud.yaml", variant)
+	}
+	suffix := "agent-executor"
+	if variant != "" && variant != "default" {
+		suffix += "-" + variant
+	}
+	if authMode == "apikey" {
+		suffix += "-apikey"
+	}
+	return suffix, nil
+}
+
 // Dispatch triggers a Cloud Run Job execution with per-execution env var overrides.
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
 // This matches the Terraform-defined job name in cloud_run_jobs.tf.
 func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchParams) error {
-	// M-CLOUD-DUAL-AUTH: Select job template based on auth mode.
-	// "apikey" uses agent-executor-apikey (no OAuth token, user provides API key).
-	// Default uses agent-executor (OAuth credentials from Secret Manager).
-	jobSuffix := "agent-executor"
-	if params.AuthMode == "apikey" {
-		jobSuffix = "agent-executor-apikey"
+	// M-EXECUTOR-VARIANTS + M-CLOUD-DUAL-AUTH: select the Cloud Run Job template.
+	// Each variant has its own job with the corresponding Docker image baked in.
+	// Auth mode selects between OAuth and API-key job templates within each variant.
+	jobSuffix, err := jobSuffixForVariant(params.ExecutorVariant, params.AuthMode)
+	if err != nil {
+		return err
 	}
 	jobName := fmt.Sprintf("projects/%s/locations/%s/jobs/%s-%s",
 		d.projectID, d.region, d.prefix, jobSuffix)
@@ -175,7 +214,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 
 	// RunJob returns a long-running operation. We only check the initial error —
 	// job completion is reported via Pub/Sub completions topic, not by polling.
-	_, err := d.client.RunJob(ctx, req)
+	_, err = d.client.RunJob(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to trigger Cloud Run Job %s: %w", jobName, err)
 	}

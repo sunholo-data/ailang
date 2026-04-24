@@ -1,0 +1,10 @@
+# AILANG Agent Executor — go variant (Claude CLI + Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for agents that run go build/test on Go repos.
+# Use for: sprint-executor (ailang repo), any agent editing Go codebases.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent:latest
+
+# Go toolchain — matches go.mod version in the ailang repo
+COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/home/ailang/go"

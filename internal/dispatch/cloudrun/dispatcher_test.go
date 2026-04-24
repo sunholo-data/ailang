@@ -286,6 +286,83 @@ func TestDispatchOAuthModeDefault(t *testing.T) {
 	}
 }
 
+func TestJobSuffixForVariant(t *testing.T) {
+	tests := []struct {
+		variant  string
+		authMode string
+		want     string
+		wantErr  bool
+	}{
+		{"", "oauth", "agent-executor", false},
+		{"", "apikey", "agent-executor-apikey", false},
+		{"default", "oauth", "agent-executor", false},
+		{"default", "apikey", "agent-executor-apikey", false},
+		{"go", "oauth", "agent-executor-go", false},
+		{"go", "apikey", "agent-executor-go-apikey", false},
+		{"gemini", "oauth", "agent-executor-gemini", false},
+		{"gemini-go", "oauth", "agent-executor-gemini-go", false},
+		{"codex", "oauth", "agent-executor-codex", false},
+		{"codex-go", "oauth", "agent-executor-codex-go", false},
+		{"opencode", "oauth", "agent-executor-opencode", false},
+		{"eval", "oauth", "agent-executor-eval", false},
+		{"eval-go", "oauth", "agent-executor-eval-go", false},
+		{"unknown-xyz", "oauth", "", true},
+		{"aider", "oauth", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.variant+"/"+tt.authMode, func(t *testing.T) {
+			got, err := jobSuffixForVariant(tt.variant, tt.authMode)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("jobSuffixForVariant(%q, %q): expected error, got %q", tt.variant, tt.authMode, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("jobSuffixForVariant(%q, %q): unexpected error: %v", tt.variant, tt.authMode, err)
+			}
+			if got != tt.want {
+				t.Errorf("jobSuffixForVariant(%q, %q) = %q, want %q", tt.variant, tt.authMode, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDispatchGoVariantJobName(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "ailang-multivac-dev", "europe-west1", "ailang-dev")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:          "task-sprint-1",
+		AgentID:         "sprint-executor",
+		ExecutorVariant: "go",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := "projects/ailang-multivac-dev/locations/europe-west1/jobs/ailang-dev-agent-executor-go"
+	if mock.lastReq.Name != want {
+		t.Errorf("job name = %q, want %q", mock.lastReq.Name, want)
+	}
+}
+
+func TestDispatchUnknownVariantReturnsError(t *testing.T) {
+	mock := &mockJobRunner{}
+	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
+
+	err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+		TaskID:          "task-bad",
+		ExecutorVariant: "not-a-real-variant",
+	})
+	if err == nil {
+		t.Fatal("expected error for unknown variant, got nil")
+	}
+	if mock.lastReq != nil {
+		t.Error("RunJob should not have been called for unknown variant")
+	}
+}
+
 func TestDispatchDifferentRegions(t *testing.T) {
 	tests := []struct {
 		region   string

@@ -160,6 +160,10 @@ func (d *Daemon) dispatchTasksCloud() error {
 				if agent.GitMode != "" {
 					params.GitMode = agent.GitMode
 				}
+				// M-EXECUTOR-VARIANTS: Per-agent Docker image variant selection.
+				if agent.ExecutorVariant != "" {
+					params.ExecutorVariant = agent.ExecutorVariant
+				}
 				// M-PKG-AUTONOMOUS-UPDATES: Pass subdirectory for monorepo package agents.
 				if agent.Subdirectory != "" {
 					params.Subdirectory = agent.Subdirectory
