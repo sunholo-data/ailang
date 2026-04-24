@@ -66,7 +66,7 @@ export default function ModelRadarComparison() {
   const modelsWithLanguages = models
     .filter(model => {
       const modelData = data.models[model];
-      return modelData?.languages?.ailang && modelData?.languages?.python;
+      return modelData?.languages?.ailang && modelData?.languages?.python && modelData?.aggregates;
     })
     .sort((a, b) => {
       const runsA = data.models[a]?.aggregates?.totalRuns || 0;

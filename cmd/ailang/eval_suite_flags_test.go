@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TestParseTierList covers the M3 --tier argument parser.
@@ -209,4 +210,39 @@ func captureStdout(t *testing.T, fn func()) string {
 	_ = w.Close()
 	os.Stdout = orig
 	return <-done
+}
+
+// TestExpandModelSuite verifies all named suites expand correctly from models.yml.
+// This guards against adding a suite to models.yml but forgetting to register
+// it in expandModelSuite()'s switch statement.
+func TestExpandModelSuite(t *testing.T) {
+	cfg, err := eval_harness.LoadModelsConfig("../../internal/eval_harness/models.yml")
+	if err != nil {
+		t.Skipf("models.yml not available: %v", err)
+	}
+	cases := []struct {
+		suite string
+		field []string
+	}{
+		{"agent_suite", cfg.AgentSuite},
+		{"extended_suite", cfg.ExtendedSuite},
+		{"dev_models", cfg.DevModels},
+		{"ollama_suite", cfg.OllamaSuite},
+		{"harness_suite", cfg.HarnessSuite},
+		{"lang_harness_suite", cfg.LangHarnessSuite},
+	}
+	for _, tc := range cases {
+		t.Run(tc.suite, func(t *testing.T) {
+			if len(tc.field) == 0 {
+				t.Skipf("suite %q is empty in models.yml, skipping", tc.suite)
+			}
+			got := expandModelSuite(tc.suite, cfg)
+			if len(got) == 0 {
+				t.Errorf("expandModelSuite(%q) returned empty — suite registered in models.yml but missing from switch", tc.suite)
+			}
+			if len(got) != len(tc.field) {
+				t.Errorf("expandModelSuite(%q): got %d models, want %d", tc.suite, len(got), len(tc.field))
+			}
+		})
+	}
 }
