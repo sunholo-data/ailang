@@ -1,6 +1,6 @@
 {
   "version": "0.14.1",
-  "timestamp": "2026-04-24T14:04:38+02:00",
+  "timestamp": "2026-04-24T14:19:19+02:00",
   "totalRuns": 396,
   "aggregates": {
     "agentBenchmarks": [
@@ -1452,6 +1452,47 @@
     }
   },
   "models": {
+    "claude-haiku-4-5": {
+      "agentStats": {
+        "apiErrorRate": 0.1375,
+        "apiErrors": 11,
+        "avgCost": 0.040247496249999994,
+        "avgTokens": 2574.6,
+        "avgTurns": 4.4625,
+        "runs": 80,
+        "successRate": 0.8375
+      },
+      "agent_cli": "claude",
+      "languages": {
+        "ailang": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.7727272727272727,
+          "totalRuns": 22
+        },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.9444444444444444,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 1,
+          "totalRuns": 18
+        },
+        "python": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.6818181818181818,
+          "totalRuns": 22
+        }
+      },
+      "model_family": "claude-haiku-4-5",
+      "provider_type": "cloud",
+      "totalRuns": 80
+    },
     "claude-opus-4-7": {
       "agent_cli": "claude",
       "aggregates": {
@@ -2393,6 +2434,18 @@
           "successRate": 0.5757575757575758,
           "totalRuns": 33
         },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.5,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.7777777777777778,
+          "totalRuns": 18
+        },
         "python": {
           "avgTokens": 305.93939393939394,
           "successRate": 0.6363636363636364,
@@ -2874,6 +2927,18 @@
           "successRate": 0.6666666666666666,
           "totalRuns": 33
         },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 1,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 1,
+          "totalRuns": 18
+        },
         "python": {
           "avgTokens": 269.1818181818182,
           "successRate": 0.8181818181818182,
@@ -2891,6 +2956,47 @@
         "totalRuns": 66
       },
       "totalRuns": 66
+    },
+    "opencode-haiku": {
+      "agentStats": {
+        "apiErrorRate": 0.4794520547945205,
+        "apiErrors": 70,
+        "avgCost": 0.031335198287671236,
+        "avgTokens": 907.5410958904109,
+        "avgTurns": 3.4794520547945207,
+        "runs": 146,
+        "successRate": 0.4726027397260274
+      },
+      "agent_cli": "opencode",
+      "languages": {
+        "ailang": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.34545454545454546,
+          "totalRuns": 55
+        },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.7777777777777778,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.8888888888888888,
+          "totalRuns": 18
+        },
+        "python": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.36363636363636365,
+          "totalRuns": 55
+        }
+      },
+      "model_family": "claude-haiku-4-5",
+      "provider_type": "cloud",
+      "totalRuns": 146
     }
   },
   "agentModels": {
@@ -2904,6 +3010,35 @@
         "runs": 80,
         "successRate": 0.8375
       },
+      "agent_cli": "claude",
+      "languages": {
+        "ailang": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.7727272727272727,
+          "totalRuns": 22
+        },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.9444444444444444,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 1,
+          "totalRuns": 18
+        },
+        "python": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.6818181818181818,
+          "totalRuns": 22
+        }
+      },
+      "model_family": "claude-haiku-4-5",
+      "provider_type": "cloud",
       "totalRuns": 80
     },
     "opencode-haiku": {
@@ -2916,6 +3051,35 @@
         "runs": 146,
         "successRate": 0.4726027397260274
       },
+      "agent_cli": "opencode",
+      "languages": {
+        "ailang": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.34545454545454546,
+          "totalRuns": 55
+        },
+        "go": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.7777777777777778,
+          "totalRuns": 18
+        },
+        "javascript": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.8888888888888888,
+          "totalRuns": 18
+        },
+        "python": {
+          "agentOnly": true,
+          "avgTokens": 0,
+          "successRate": 0.36363636363636365,
+          "totalRuns": 55
+        }
+      },
+      "model_family": "claude-haiku-4-5",
+      "provider_type": "cloud",
       "totalRuns": 146
     }
   },
@@ -5332,7 +5496,7 @@
   "history": [
     {
       "version": "v0.14.1",
-      "timestamp": "2026-04-24T14:04:35+02:00",
+      "timestamp": "2026-04-24T14:19:16+02:00",
       "successRate": 0.7373737373737373,
       "totalRuns": 396,
       "successCount": 292,

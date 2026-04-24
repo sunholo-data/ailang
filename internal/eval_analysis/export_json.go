@@ -241,6 +241,21 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		benchmarksJS[id] = benchmark
 	}
 
+	// Per-model, per-language agent stats (for JS/Go in BenchmarkExplorer)
+	type agentLangStat struct{ runs, success int }
+	modelAgentLangStats := make(map[string]map[string]agentLangStat)
+	for _, r := range agentResults {
+		if modelAgentLangStats[r.Model] == nil {
+			modelAgentLangStats[r.Model] = make(map[string]agentLangStat)
+		}
+		ls := modelAgentLangStats[r.Model][r.Lang]
+		ls.runs++
+		if r.StdoutOk {
+			ls.success++
+		}
+		modelAgentLangStats[r.Model][r.Lang] = ls
+	}
+
 	// Calculate per-model agent statistics
 	modelAgentStats := make(map[string]struct {
 		runs        int
@@ -305,16 +320,29 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if stats.BaselineVersion != "" {
 			modelData["baselineVersion"] = stats.BaselineVersion
 		}
-		// Add per-language breakdown for this model
-		if len(stats.Languages) > 0 {
-			langBreakdown := make(map[string]interface{})
-			for lang, lstats := range stats.Languages {
-				langBreakdown[lang] = map[string]interface{}{
-					"successRate": lstats.SuccessRate,
-					"avgTokens":   lstats.AvgTokens,
-					"totalRuns":   lstats.TotalRuns,
+		// Add per-language breakdown for this model (standard evals)
+		langBreakdown := make(map[string]interface{})
+		for lang, lstats := range stats.Languages {
+			langBreakdown[lang] = map[string]interface{}{
+				"successRate": lstats.SuccessRate,
+				"avgTokens":   lstats.AvgTokens,
+				"totalRuns":   lstats.TotalRuns,
+			}
+		}
+		// Augment with agent-only languages (JS/Go from lang_harness_suite)
+		if agentLangs, ok := modelAgentLangStats[name]; ok {
+			for lang, als := range agentLangs {
+				if _, exists := langBreakdown[lang]; !exists && als.runs > 0 {
+					langBreakdown[lang] = map[string]interface{}{
+						"successRate": float64(als.success) / float64(als.runs),
+						"avgTokens":   0,
+						"totalRuns":   als.runs,
+						"agentOnly":   true,
+					}
 				}
 			}
+		}
+		if len(langBreakdown) > 0 {
 			modelData["languages"] = langBreakdown
 		}
 		// Add per-benchmark breakdown for this model
@@ -358,11 +386,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		modelsJS[name] = modelData
 	}
 
-	// Separate agent-only models (models that ran agents but not standard evals)
+	// Agent-only models (no standard eval — e.g. lang_harness_suite): add to modelsJS
+	// so BenchmarkExplorer can display them alongside standard models.
 	agentModelsJS := make(map[string]interface{})
 	for modelName, agentStats := range modelAgentStats {
 		if _, exists := modelsJS[modelName]; !exists && agentStats.runs > 0 {
-			agentModelsJS[modelName] = map[string]interface{}{
+			entry := map[string]interface{}{
 				"totalRuns": agentStats.runs,
 				"agentStats": map[string]interface{}{
 					"runs":         agentStats.runs,
@@ -374,6 +403,42 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 					"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 				},
 			}
+			// Per-language agent success rates (JS/Go from lang_harness_suite)
+			if agentLangs, ok := modelAgentLangStats[modelName]; ok && len(agentLangs) > 0 {
+				langBreakdown := make(map[string]interface{})
+				for lang, als := range agentLangs {
+					if als.runs > 0 {
+						langBreakdown[lang] = map[string]interface{}{
+							"successRate": float64(als.success) / float64(als.runs),
+							"avgTokens":   0,
+							"totalRuns":   als.runs,
+							"agentOnly":   true,
+						}
+					}
+				}
+				if len(langBreakdown) > 0 {
+					entry["languages"] = langBreakdown
+				}
+			}
+			// Attach models.yml metadata (agent_cli, model_family, provider_type)
+			if cfg := eval_harness.GlobalModelsConfig; cfg != nil {
+				if mc, ok := cfg.Models[modelName]; ok {
+					if mc.AgentCLI != nil && *mc.AgentCLI != "" {
+						entry["agent_cli"] = *mc.AgentCLI
+					}
+					if mc.ModelFamily != "" {
+						entry["model_family"] = mc.ModelFamily
+					}
+					providerType := "cloud"
+					if mc.Provider == "ollama" {
+						providerType = "local"
+					}
+					entry["provider_type"] = providerType
+				}
+			}
+			// Add to both modelsJS (for BenchmarkExplorer) and agentModelsJS (legacy)
+			modelsJS[modelName] = entry
+			agentModelsJS[modelName] = entry
 		}
 	}
 
