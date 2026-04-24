@@ -1,5 +1,5 @@
 # AILANG Evaluation Model Configuration
-# Last updated: March 2026
+# Last updated: April 2026
 #
 # This file defines the canonical model names for evaluation benchmarks.
 # Update this file when new model versions are released.
@@ -147,6 +147,40 @@ models:
     notes: |
       GPT-5.4 evaluated via the opencode CLI harness for cross-harness comparison.
       Use harness_suite to run both harnesses in one command.
+
+  # OpenAI GPT-5.4-Mini (released March 17, 2026)
+  gpt5-4-mini:
+    api_name: "gpt-5.4-mini"
+    provider: "openai"
+    description: "GPT-5.4 Mini — cheaper same-gen sibling of gpt-5.4"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.00075   # $0.75 per 1M = $0.00075 per 1K
+      output_per_1k: 0.0045   # $4.50 per 1M = $0.0045 per 1K
+    notes: |
+      GPT-5.4 Mini (March 17, 2026) — same generation as gpt-5.4, ~3x cheaper.
+      Use in dev_models for cost-effective iteration at current-gen quality.
+      Also available: gpt-5.4-mini-2026-03-17 (pinned version).
+      Uses max_completion_tokens instead of max_tokens.
+
+  # OpenAI GPT-5.4-Nano (released March 17, 2026)
+  gpt5-4-nano:
+    api_name: "gpt-5.4-nano"
+    provider: "openai"
+    description: "GPT-5.4 Nano — ultra-cheap same-gen model for high-volume tasks"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.0002    # $0.20 per 1M = $0.0002 per 1K
+      output_per_1k: 0.00125  # $1.25 per 1M = $0.00125 per 1K
+    notes: |
+      GPT-5.4 Nano (March 17, 2026) — same generation as gpt-5.4, ~12x cheaper.
+      Cached input: $0.020/M (90% discount).
+      Also available: gpt-5.4-nano-2026-03-17 (pinned version).
+      Uses max_completion_tokens instead of max_tokens.
 
   # OpenAI GPT-5.2-Codex (released January 2026)
   gpt5-2-codex:
@@ -420,6 +454,27 @@ models:
       Currently in preview - available on Vertex AI global endpoint.
       Requires gcloud auth (uses Vertex AI, not Google AI Studio API).
       Agent eval support: ✅ Fully supported via Gemini CLI.
+
+  # Google Gemini 3.1 Flash Lite (released March 2026)
+  gemini-3-1-flash-lite:
+    api_name: "gemini-3.1-flash-lite-preview"
+    provider: "google"
+    description: "Gemini 3.1 Flash Lite — ultra-cheap same-gen sibling of 3.1 Pro"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    agent_cli: "gemini"
+    agent_model_name: "gemini-3.1-flash-lite-preview"
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.00025   # $0.25 per 1M = $0.00025 per 1K
+      output_per_1k: 0.0015   # $1.50 per 1M = $0.0015 per 1K
+    notes: |
+      Google's cheapest 3.1-generation model (released March 2026).
+      ~1/8th the cost of Gemini 3.1 Pro ($2.00/$12.00 vs $0.25/$1.50 per 1M).
+      Context caching: $0.03 per 1M.
+      Use for dev_models once access is confirmed in ailang-dev GCP project.
+      Agent eval support: ✅ Supported via Gemini CLI (verify access before running).
 
   # Google Gemini 3.1 Pro (released February 19, 2026)
   gemini-3-1-pro:
@@ -698,7 +753,7 @@ default: "claude-sonnet-4-6"
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
   - "gpt5-4"           # OpenAI flagship (Mar 2026)
-  - "claude-sonnet-4-6" # Anthropic flagship (Feb 2026)
+  - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
 
 # Extended suite - flagship + best alternatives (6 models)
@@ -706,17 +761,17 @@ benchmark_suite:
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
   - "gpt5-4"           # OpenAI flagship (Mar 2026)
-  - "gpt5-2-codex"     # OpenAI agentic coding (Jan 2026)
+  - "gpt5-4-mini"      # OpenAI cheap same-gen (Mar 2026) — replaces gpt5-2-codex (no agent_cli)
   - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
-  - "gemini-3-flash"   # Google fast + cheap (Dec 2025) - replaces retired gemini-3-pro-preview
+  - "gemini-3-flash"   # Google fast + cheap (Dec 2025)
 
 # Development models - cheap and fast (3 models)
 # Use for: Development iteration, testing eval infrastructure
 # Cost: ~$0.10-0.50 per full benchmark run
 dev_models:
-  - "gpt5-1-instant"   # OpenAI fast
+  - "gpt5-4-mini"      # OpenAI cheap same-gen as gpt5-4 (Mar 2026)
   - "claude-haiku-4-5" # Anthropic cheap
   - "gemini-3-flash"   # Google cheap + smart (Dec 2025)
 
@@ -726,10 +781,20 @@ dev_models:
 # participate in agent-mode runs; the rest are skipped cleanly.
 # Cost: ~$1-2 per full benchmark run (depends on task complexity)
 agent_suite:
-  - "claude-sonnet-4-6"  # agent_cli: "claude"    — Anthropic agent harness
-  - "gemini-3-flash"     # agent_cli: "gemini"    — Google agent harness
-  - "gpt5-4"             # agent_cli: "codex"     — OpenAI Codex CLI harness
-  - "opencode-haiku"     # agent_cli: "opencode"  — opencode harness (Ollama/multi-provider gateway)
+  - "claude-sonnet-4-6"  # agent_cli: "claude"    — kept as longitudinal anchor across releases
+  - "gemini-3-flash"     # agent_cli: "gemini"    — Google cheap (already lowest tier)
+  - "gpt5-4-mini"        # agent_cli: "codex"     — OpenAI cheap (was gpt5-4, swapped to keep cost down)
+  - "opencode-haiku"     # agent_cli: "opencode"  — opencode cheap
+
+# Language × Harness suite - cheapest model per harness for 4-language sweep
+# Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)
+# One cheap representative per harness so the 4-language cost stays manageable.
+# Cost: ~$0.30-0.60 per core-tier run across all 4 langs
+lang_harness_suite:
+  - "claude-haiku-4-5"   # Anthropic cheapest — agent_cli: "claude"
+  - "gemini-3-flash"     # Google cheapest — agent_cli: "gemini"
+  - "gpt5-4-mini"        # OpenAI cheapest — agent_cli: "codex"
+  - "opencode-haiku"     # opencode cheapest — agent_cli: "opencode"
 
 ollama_suite:
   - "opencode-gemma4-e4b"   # Gemma 4 E4B — 16GB laptop, relaxed TTFT (300s)
@@ -758,16 +823,19 @@ local_models:
 # Available but not in default suites (run with --models flag):
 # - gpt5              # Superseded by gpt5-4
 # - gpt5-1            # Superseded by gpt5-4
+# - gpt5-1-instant    # Superseded by gpt5-4-mini in dev_models (Apr 2026)
 # - gpt5-1-codex-max  # Superseded by gpt5-2-codex (Jan 2026)
 # - gpt5-2            # GPT-5.2 flagship (superseded by gpt5-4)
 # - gpt5-2-codex      # Still in extended_suite for agentic coding comparison
-# - gpt5-mini         # Cheaper but slower than gpt5-1-instant
+# - gpt5-mini         # Cheaper but slower than gpt5-4-mini
 # - gpt5-2-instant    # Fast variant of GPT-5.2
+# - gpt5-4-nano       # Ultra-cheap ($0.20/M) — run with --models gpt5-4-nano
 # - codex-mini-latest # Cheap coding model (use for simple tasks)
 # - claude-opus-4-5   # Superseded by claude-opus-4-7 (Apr 2026)
 # - claude-opus-4-6   # Superseded by claude-opus-4-7 (Apr 2026)
 # - claude-sonnet-4-5 # Superseded by claude-sonnet-4-6 (Feb 2026)
 # - gemini-2-5-flash  # Superseded by gemini-3-flash in dev_models
+# - gemini-3-1-flash-lite # Cheap same-gen ($0.25/M) — verify GCP access first
 # - gemini-3-pro      # RETIRED - gemini-3-pro-preview returns 404 from Vertex (Apr 2026). Use gemini-3-1-pro instead.
 
 # Agent CLI support for agent-based evaluation

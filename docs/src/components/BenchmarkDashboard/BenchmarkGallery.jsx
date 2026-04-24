@@ -15,7 +15,7 @@ export default function BenchmarkGallery({ benchmarks }) {
     tierCounts[t] = (tierCounts[t] || 0) + 1;
   }
   const tiersPresent = TIER_ORDER.filter(t => tierCounts[t] > 0);
-  const showTierFilter = tiersPresent.length > 1;
+  const showTierFilter = tiersPresent.length > 0;
 
   const defaultTier = tiersPresent.includes('core') ? 'core' : (tiersPresent[0] || null);
   const [localTier, setLocalTier] = useState(defaultTier);

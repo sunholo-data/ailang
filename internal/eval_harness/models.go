@@ -38,14 +38,15 @@ type Pricing struct {
 
 // ModelsConfig represents the entire models.yml configuration
 type ModelsConfig struct {
-	Models         map[string]ModelConfig `yaml:"models"`
-	Default        string                 `yaml:"default"`
-	BenchmarkSuite []string               `yaml:"benchmark_suite"`
-	ExtendedSuite  []string               `yaml:"extended_suite"`
-	DevModels      []string               `yaml:"dev_models"`
-	AgentSuite     []string               `yaml:"agent_suite"`
-	OllamaSuite    []string               `yaml:"ollama_suite"`
-	HarnessSuite   []string               `yaml:"harness_suite"`
+	Models           map[string]ModelConfig `yaml:"models"`
+	Default          string                 `yaml:"default"`
+	BenchmarkSuite   []string               `yaml:"benchmark_suite"`
+	ExtendedSuite    []string               `yaml:"extended_suite"`
+	DevModels        []string               `yaml:"dev_models"`
+	AgentSuite       []string               `yaml:"agent_suite"`
+	OllamaSuite      []string               `yaml:"ollama_suite"`
+	HarnessSuite     []string               `yaml:"harness_suite"`
+	LangHarnessSuite []string               `yaml:"lang_harness_suite"`
 }
 
 var (

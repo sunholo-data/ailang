@@ -139,12 +139,12 @@ const sidebars = {
       label: 'Benchmarks',
       collapsed: true,
       items: [
-        'benchmarks/explorer',
+        { type: 'doc', id: 'benchmarks/explorer', label: 'Agent Harness Explorer' },
         'benchmarks/gallery',
         {
           type: 'doc',
           id: 'benchmarks/performance',
-          label: 'Benchmarks',
+          label: 'Model Leaderboard',
         },
         'benchmarks/codebase-stats',
       ],

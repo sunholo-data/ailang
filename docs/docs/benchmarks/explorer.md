@@ -1,13 +1,15 @@
 ---
 sidebar_position: 1
-title: Benchmark Explorer
-description: Explore AILANG benchmark results across all dimensions — model, harness, language
+title: Agent Harness Explorer
+description: Compare coding agent performance across harnesses (Claude CLI, Gemini CLI, opencode, Codex) by language — agent mode only
 ---
 
 import BenchmarkExplorer from '@site/src/components/BenchmarkExplorer';
 
-# Benchmark Explorer
+# Agent Harness Explorer
 
-Browse benchmark results across all dimensions: language, model, harness. Use the filter chips to narrow the view.
+**Agent mode only** — these results come from multi-turn agentic coding sessions (Claude CLI, Gemini CLI, opencode, Codex). For 0-shot API and self-repair results, see [Benchmarks](/docs/benchmarks/performance).
+
+Browse by language, harness, and model. The cross-harness comparison shows what happens when the same underlying model runs through a different CLI.
 
 <BenchmarkExplorer />

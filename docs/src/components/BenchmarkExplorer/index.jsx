@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import styles from './styles.module.css';
 
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
-const LANG_SHORT = { ailang: 'AI', python: 'Py', javascript: 'JS', go: 'Go' };
+const LANG_SHORT = { ailang: 'AILANG', python: 'Python', javascript: 'JS', go: 'Go' };
+const LANG_COLOR = { ailang: '#6366f1', python: '#eab308', javascript: '#f97316', go: '#06b6d4' };
 const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
@@ -23,6 +25,15 @@ function rateColor(rate) {
   if (rate >= 0.85) return '#15803d';
   if (rate < 0.30) return '#b91c1c';
   return 'inherit';
+}
+
+// Adjusted success rate: excludes API errors from denominator
+// adj = passes / (total - api_errors) = rate / (1 - apiErrorRate)
+function adjRate(rate, apiErrorRate) {
+  if (rate == null) return null;
+  if (!apiErrorRate || apiErrorRate <= 0) return rate;
+  const adj = rate / (1 - apiErrorRate);
+  return Math.min(1.0, adj);
 }
 
 function Cell({ rate }) {
@@ -85,51 +96,50 @@ function familyLabel(fam) {
   return fam.replace('claude-', 'Claude ').replace('gemini-', 'Gemini ').replace(/-/g, ' ');
 }
 
-// Section A: one card per model showing all 4 language rates
+// Mini bar row: label | ████░░░░ 72%
+function MiniBar({ lang, rate }) {
+  const p = rate != null ? Math.round(rate * 100) : null;
+  const color = LANG_COLOR[lang] || '#94a3b8';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+      <span style={{ width: 44, fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-600)', flexShrink: 0, textAlign: 'right' }}>
+        {LANG_SHORT[lang] || lang}
+      </span>
+      <div style={{ flex: 1, background: 'var(--ifm-color-emphasis-100)', borderRadius: 3, height: 10, overflow: 'hidden' }}>
+        {p != null && (
+          <div style={{ width: `${p}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s' }} />
+        )}
+      </div>
+      <span style={{ width: 30, fontSize: '0.72rem', fontWeight: p >= 85 ? 700 : 400, color: p == null ? 'var(--ifm-color-emphasis-300)' : rateColor(rate), flexShrink: 0 }}>
+        {p != null ? `${p}%` : '—'}
+      </span>
+    </div>
+  );
+}
+
+// Section A: one card per model, bars inside = languages side-by-side
 function ModelLanguageSpread({ models, data, allLangs }) {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: '1rem' }}>Language Spread by Model</h3>
-      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 12 }}>
-        Pass rate across all 4 languages for each model — agent mode, core tier.
+    <div style={{ marginBottom: 32 }}>
+      <h3 style={{ marginTop: 0, marginBottom: 4, fontSize: '1rem' }}>Language Spread by Model</h3>
+      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
+        Agent pass rate per language, one card per model (core tier).
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {models.map(m => {
           const md = data.models[m];
           const harness = HARNESS_LABEL[md?.agent_cli] || md?.agent_cli || '?';
-          const rates = allLangs.map(l => {
-            const r = md?.languages?.[l]?.successRate;
-            return { l, r };
-          }).filter(x => x.r != null);
           return (
             <div key={m} style={{
-              border: '1px solid var(--ifm-color-emphasis-200)',
-              borderRadius: 8, padding: '10px 14px', minWidth: 200,
+              border: '1px solid var(--ifm-color-emphasis-200)', borderRadius: 8,
+              padding: '10px 14px', minWidth: 220, flex: '1 1 220px', maxWidth: 300,
               background: 'var(--ifm-background-color)',
             }}>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 4 }}>{modelShort(m)}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--ifm-color-emphasis-500)', marginBottom: 8 }}>{harness}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {rates.map(({ l, r }) => (
-                  <span key={l} style={{
-                    fontSize: '0.78rem', padding: '2px 7px', borderRadius: 10,
-                    background: heatBg(r), color: rateColor(r),
-                    fontWeight: r >= 0.85 ? 700 : 400,
-                    border: '1px solid var(--ifm-color-emphasis-200)',
-                  }}>
-                    {LANG_SHORT[l] || l} {Math.round(r * 100)}%
-                  </span>
-                ))}
-                {allLangs.filter(l => md?.languages?.[l]?.successRate == null).map(l => (
-                  <span key={l} style={{
-                    fontSize: '0.78rem', padding: '2px 7px', borderRadius: 10,
-                    color: 'var(--ifm-color-emphasis-400)',
-                    border: '1px solid var(--ifm-color-emphasis-200)',
-                  }}>
-                    {LANG_SHORT[l] || l} —
-                  </span>
-                ))}
-              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 2 }}>{modelShort(m)}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-500)', marginBottom: 10 }}>{harness}</div>
+              {allLangs.map(l => (
+                <MiniBar key={l} lang={l} rate={md?.languages?.[l]?.successRate ?? null} />
+              ))}
             </div>
           );
         })}
@@ -139,8 +149,8 @@ function ModelLanguageSpread({ models, data, allLangs }) {
 }
 
 // Section B: same model, different harness — grouped by model_family
+// Shows raw rate + adjusted rate (excludes API errors from denominator)
 function CrossHarnessTable({ data, allLangs }) {
-  // Group models by model_family
   const families = {};
   for (const [id, m] of Object.entries(data.models || {})) {
     const fam = m.model_family || id;
@@ -150,67 +160,93 @@ function CrossHarnessTable({ data, allLangs }) {
   const crossHarness = Object.entries(families).filter(([, ms]) => ms.length > 1);
   if (crossHarness.length === 0) return null;
 
+  // Check if any model has non-trivial API error rates
+  const anyApiErrors = crossHarness.some(([, variants]) =>
+    variants.some(v => (v.agentStats?.apiErrorRate ?? 0) > 0.05)
+  );
+
   return (
-    <div style={{ marginBottom: 28 }}>
-      <h3 style={{ marginTop: 0, marginBottom: 6, fontSize: '1rem' }}>Same Model, Different Harness</h3>
-      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        When the same underlying model runs through different agent CLIs. ↑ = harness improves over the baseline.
+    <div style={{ marginBottom: 32 }}>
+      <h3 style={{ marginTop: 0, marginBottom: 4, fontSize: '1rem' }}>Same Model, Different Harness</h3>
+      <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 4 }}>
+        Effect of harness choice on the same underlying model. ↑ = harness improves over baseline.
       </p>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+      {anyApiErrors && (
+        <div style={{ fontSize: '0.75rem', padding: '6px 10px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, marginBottom: 10, borderLeft: '3px solid #ef4444' }}>
+          ⚠ <strong>API errors inflate failure rates</strong> for some harnesses (shown in red). <em>Adj%</em> = pass rate excluding API errors from the denominator — a fairer measure of code generation quality.
+        </div>
+      )}
+      <div className={styles.tableScroll}>
+        <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
-              <th style={{ ...th, textAlign: 'left' }}>Model Family</th>
+              <th style={{ ...th, textAlign: 'left' }}>Model / Harness</th>
               {allLangs.map(l => <th key={l} style={th}>{LANG_LABEL[l] || l}</th>)}
+              {anyApiErrors && <th style={th}>API Errors</th>}
             </tr>
           </thead>
           <tbody>
             {crossHarness.map(([fam, variants]) => {
-              // Sort: native CLI first, opencode second
               const sorted = [...variants].sort((a, b) => {
                 const order = { claude: 0, gemini: 1, codex: 2, opencode: 3 };
                 return (order[a.agent_cli] ?? 9) - (order[b.agent_cli] ?? 9);
               });
-              // Find the baseline (first native CLI rate) per language
               const baseline = {};
               for (const l of allLangs) {
                 baseline[l] = sorted[0]?.languages?.[l]?.successRate ?? null;
               }
-              return sorted.map((v, i) => (
-                <tr key={v.id} style={{ ...rowStyle, ...(i === sorted.length - 1 ? { borderBottom: '2px solid var(--ifm-color-emphasis-300)' } : {}) }}>
-                  <td style={{ ...rowHeader, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'inherit' : 'var(--ifm-color-emphasis-600)', paddingLeft: i === 0 ? 14 : 28 }}>
-                    {i === 0 ? familyLabel(fam) : ''}
-                    <span style={{ fontSize: '0.75rem', fontWeight: 400, marginLeft: 6, color: 'var(--ifm-color-emphasis-500)' }}>
-                      {HARNESS_LABEL[v.agent_cli] || v.agent_cli}
-                    </span>
-                  </td>
-                  {allLangs.map(l => {
-                    const rate = v.languages?.[l]?.successRate ?? null;
-                    const base = i > 0 ? baseline[l] : null;
-                    const delta = (base != null && rate != null) ? Math.round((rate - base) * 100) : null;
-                    const apiErrRate = v.agentStats?.apiErrorRate;
-                    return (
-                      <td key={l} style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(rate), color: rateColor(rate), fontWeight: rate >= 0.85 ? 700 : 400 }}>
-                        {rate == null ? '—' : (
+              return sorted.map((v, i) => {
+                const apiErrRate = v.agentStats?.apiErrorRate ?? 0;
+                const apiErrCount = v.agentStats?.apiErrors ?? 0;
+                return (
+                  <tr key={v.id} style={{ ...rowStyle, ...(i === sorted.length - 1 ? { borderBottom: '2px solid var(--ifm-color-emphasis-300)' } : {}) }}>
+                    <td style={{ ...rowHeader, fontWeight: i === 0 ? 700 : 400, paddingLeft: i === 0 ? 14 : 28, color: i === 0 ? 'inherit' : 'var(--ifm-color-emphasis-600)' }}>
+                      {i === 0 && <span style={{ display: 'block', fontWeight: 700 }}>{familyLabel(fam)}</span>}
+                      <span style={{ fontSize: '0.78rem', color: 'var(--ifm-color-emphasis-500)' }}>
+                        {HARNESS_LABEL[v.agent_cli] || v.agent_cli}
+                      </span>
+                    </td>
+                    {allLangs.map(l => {
+                      const rate = v.languages?.[l]?.successRate ?? null;
+                      const base = i > 0 ? baseline[l] : null;
+                      const delta = (base != null && rate != null) ? Math.round((rate - base) * 100) : null;
+                      const adj = adjRate(rate, apiErrRate);
+                      const showAdj = apiErrRate > 0.05 && adj != null && Math.round(adj * 100) !== pct(rate);
+                      return (
+                        <td key={l} style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(rate), verticalAlign: 'middle' }}>
+                          {rate == null ? '—' : (
+                            <>
+                              <span style={{ color: rateColor(rate), fontWeight: rate >= 0.85 ? 700 : 400 }}>
+                                {Math.round(rate * 100)}%
+                              </span>
+                              {delta != null && delta !== 0 && (
+                                <span style={{ fontSize: '0.7rem', marginLeft: 4, color: delta > 0 ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
+                                  {delta > 0 ? `↑+${delta}` : `↓${delta}`}pp
+                                </span>
+                              )}
+                              {showAdj && (
+                                <div style={{ fontSize: '0.68rem', color: '#6366f1', marginTop: 1 }}>
+                                  adj {Math.round(adj * 100)}%
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </td>
+                      );
+                    })}
+                    {anyApiErrors && (
+                      <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.78rem', color: apiErrRate > 0.05 ? '#b91c1c' : 'var(--ifm-color-emphasis-500)' }}>
+                        {apiErrCount > 0 ? (
                           <>
-                            {Math.round(rate * 100)}%
-                            {delta != null && delta !== 0 && (
-                              <span style={{ fontSize: '0.7rem', marginLeft: 4, color: delta > 0 ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
-                                {delta > 0 ? `↑+${delta}` : `↓${delta}`}pp
-                              </span>
-                            )}
-                            {i === 0 && apiErrRate != null && apiErrRate > 0.05 && (
-                              <span style={{ display: 'block', fontSize: '0.65rem', color: '#b91c1c', marginTop: 1 }}>
-                                {Math.round(apiErrRate * 100)}% API err
-                              </span>
-                            )}
+                            <span style={{ fontWeight: apiErrRate > 0.05 ? 700 : 400 }}>{Math.round(apiErrRate * 100)}%</span>
+                            <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--ifm-color-emphasis-400)' }}>({apiErrCount} runs)</span>
                           </>
-                        )}
+                        ) : '—'}
                       </td>
-                    );
-                  })}
-                </tr>
-              ));
+                    )}
+                  </tr>
+                );
+              });
             })}
           </tbody>
         </table>
@@ -260,8 +296,8 @@ export default function BenchmarkExplorer() {
         onLang={setActiveLang}
       />
 
-      {/* Section A: language spread cards */}
-      <ModelLanguageSpread models={models} data={data} allLangs={allLangs} />
+      {/* Section A: language spread bar chart */}
+      <ModelLanguageSpread models={models} data={data} allLangs={langs} />
 
       {/* Section B: cross-harness delta (hidden when a single harness is selected) */}
       {!activeHarness && <CrossHarnessTable data={data} allLangs={langs} />}
@@ -269,11 +305,11 @@ export default function BenchmarkExplorer() {
       {/* Table 1: language × model heatmap */}
       <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: '1rem' }}>Pass Rate by Language × Model</h3>
       <p style={{ fontSize: '0.8rem', color: 'var(--ifm-color-emphasis-600)', marginBottom: 8 }}>
-        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no results
+        Green ≥ 85% · Yellow 50–84% · Red &lt; 30% · — = no results yet
       </p>
 
-      <div style={{ overflowX: 'auto', marginBottom: 32 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+      <div className={styles.tableScroll} style={{ marginBottom: 32 }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
               <th style={{ ...th, textAlign: 'left' }}>Language</th>
@@ -299,8 +335,8 @@ export default function BenchmarkExplorer() {
         Aggregated across all models using each harness.
       </p>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+      <div className={styles.tableScroll}>
+        <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
               <th style={{ ...th, textAlign: 'left' }}>Harness</th>

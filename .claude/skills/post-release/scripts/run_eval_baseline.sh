@@ -193,6 +193,9 @@ if [[ $# -eq 0 ]]; then
     echo "                      (default: $DEFAULT_TIER)" >&2
     echo "  --cross-harness     Use harness_suite (sonnet+gemini via claude/opencode)" >&2
     echo "                      to measure harness-induced benchmark deltas" >&2
+    echo "  --lang-harness      Add Step 3: 4-language sweep using lang_harness_suite" >&2
+    echo "                      (cheapest model per harness × ailang,python,js,go × core)" >&2
+    echo "                      Feeds the Agent Harness Explorer language/harness data" >&2
     exit 1
 fi
 
@@ -201,6 +204,7 @@ shift
 FULL_FLAG=""
 TIER_FLAG="$DEFAULT_TIER"
 CROSS_HARNESS=""
+LANG_HARNESS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -222,6 +226,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --cross-harness)
             CROSS_HARNESS="true"
+            shift
+            ;;
+        --lang-harness)
+            LANG_HARNESS="true"
             shift
             ;;
         *)
@@ -295,7 +303,7 @@ if [[ -n "$CROSS_HARNESS" ]]; then
     AGENT_HARNESS_COUNT=4
 elif [[ -n "$FULL_FLAG" ]]; then
     AGENT_MODELS="agent_suite"
-    AGENT_HARNESS_DESC="agent_suite (claude + gemini + codex + opencode, 4 harnesses)"
+    AGENT_HARNESS_DESC="agent_suite (sonnet + flash + gpt5-mini + opencode-haiku — sonnet kept as longitudinal anchor)"
     AGENT_HARNESS_COUNT=4
 else
     AGENT_MODELS="claude-sonnet-4-6,gemini-3-flash"
@@ -422,6 +430,43 @@ if [[ $TOTAL_COUNT -lt $MIN_TOTAL ]]; then
     echo "   This may indicate interrupted runs or configuration issues"
 else
     echo "✓ File counts within expected range"
+fi
+
+# Step 3: Language × Harness sweep (only when --lang-harness was used).
+# Runs lang_harness_suite (cheapest model per harness) across all 4 langs on core tier.
+# This feeds the Agent Harness Explorer language/harness comparison data.
+# Separate from Step 2 (ailang+python flagship models) so the two stories stay distinct.
+if [[ -n "$LANG_HARNESS" ]]; then
+    echo
+    echo "=== Step 3: Language × Harness Sweep (4 langs × cheap models) ==="
+    LANG_HARNESS_TIER="core"
+    LANG_HARNESS_COUNT=$(count_benchmarks_in_tiers "$LANG_HARNESS_TIER")
+    LANG_HARNESS_BENCHMARKS="$(resolve_benchmarks_in_tiers "$LANG_HARNESS_TIER")"
+    LANG_HARNESS_LANGS="ailang,python,javascript,go"
+    LANG_HARNESS_MODELS="lang_harness_suite"
+    LANG_HARNESS_HARNESS_COUNT=4
+    EXPECTED_LANG_HARNESS=$((LANG_HARNESS_COUNT * LANG_HARNESS_HARNESS_COUNT * 4))
+
+    echo "Models: lang_harness_suite (claude-haiku-4-5, gemini-3-flash, gpt5-4-mini, opencode-haiku)"
+    echo "Langs: $LANG_HARNESS_LANGS"
+    echo "Tier: $LANG_HARNESS_TIER ($LANG_HARNESS_COUNT benchmarks)"
+    echo "Expected results: ~$EXPECTED_LANG_HARNESS files"
+    echo
+
+    setup_ollama_models "$LANG_HARNESS_MODELS"
+
+    monitor_progress "$RESULTS_DIR" "$EXPECTED_LANG_HARNESS" "LangHarness" &
+    MONITOR_PID=$!
+    ailang eval-suite --agent \
+        --models "$LANG_HARNESS_MODELS" \
+        --benchmarks "$LANG_HARNESS_BENCHMARKS" \
+        --langs "$LANG_HARNESS_LANGS" \
+        --agent-parallel 2 \
+        --output "$RESULTS_DIR"
+    kill $MONITOR_PID 2>/dev/null || true
+
+    LANG_HARNESS_COUNT_ACTUAL=$(find "$RESULTS_DIR/agent" -name "*.json" 2>/dev/null | wc -l | tr -d ' ')
+    echo "✓ Language × Harness sweep complete ($LANG_HARNESS_COUNT_ACTUAL total agent files)"
 fi
 
 # Cross-harness comparison matrix (only when --cross-harness was used).

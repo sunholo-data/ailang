@@ -1,0 +1,30 @@
+.tableScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  display: block;
+  /* force scrollbar always visible so users know it's scrollable */
+  scrollbar-width: thin;
+  scrollbar-color: var(--ifm-color-emphasis-400) transparent;
+}
+
+.tableScroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  background: var(--ifm-color-emphasis-400);
+  border-radius: 3px;
+}
+
+.tableScroll table {
+  /* override .markdown table { overflow: hidden } from custom.css */
+  overflow: visible !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}

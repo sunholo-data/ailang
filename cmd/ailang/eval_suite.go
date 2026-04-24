@@ -805,6 +805,10 @@ func expandModelSuite(value string, cfg *eval_harness.ModelsConfig) []string {
 			if len(cfg.HarnessSuite) > 0 {
 				return cfg.HarnessSuite
 			}
+		case "lang_harness_suite":
+			if len(cfg.LangHarnessSuite) > 0 {
+				return cfg.LangHarnessSuite
+			}
 		}
 	}
 

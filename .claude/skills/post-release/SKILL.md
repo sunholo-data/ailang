@@ -55,15 +55,17 @@ Run evaluation baseline for a release version.
 
 **Usage:**
 ```bash
-# ✅ CORRECT - For releases (ALL 6 production models)
-.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14 --full
-.claude/skills/post-release/scripts/run_eval_baseline.sh v0.3.14 --full
+# ✅ Full release baseline (standard + agent + lang/harness explorer data)
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --full --lang-harness
+
+# Standard + agent only (no 4-lang Explorer sweep)
+.claude/skills/post-release/scripts/run_eval_baseline.sh v0.15.0 --full
 
 # Cross-harness comparison: same model via claude CLI vs opencode
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --cross-harness
 
-# ❌ WRONG - Only use without --full for quick testing/validation
-.claude/skills/post-release/scripts/run_eval_baseline.sh 0.3.14
+# ❌ Dev only — 3 cheap models, AILANG lang only (quick testing/validation)
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0
 ```
 
 **Output:**
@@ -81,27 +83,22 @@ Expected time: ~15-20 minutes
 ```
 
 **What it does:**
-- **Step 1**: Runs `make eval-baseline` (standard 0-shot + repair evaluation)
-  - Tests both AILANG and Python implementations
-  - Uses all 6 production models (--full) or 3 dev models (default)
-  - Tests all benchmarks in benchmarks/ directory
-- **Step 2**: Runs agent eval on tier-selected benchmarks
-  - **Tier system** (v0.14.0+): 54 benchmarks across `smoke` (15), `core` (22),
-    `stretch` (11), `vision` (6). Default release scope is `core,stretch` — Core is
-    the headline metric, Stretch is the harder bench we expect mixed results on.
-  - **Selection**: Pass `--tier smoke,core,stretch` to pick tiers. Omitting
-    `--tier` on `eval-suite` runs all tiers, which includes research-grade `vision`
-    benchmarks that are not appropriate for release baselines.
-  - **Curation**: See `benchmarks/CURATION.md` for the rotation philosophy
-    (saturated benchmarks demote, AILANG-only wins protect against regressions).
-  - Expected: `core` 70%+ for AILANG, `stretch` mixed, `vision` intentionally low.
-  - Uses haiku+sonnet (--full) or haiku only (default)
-  - Tests both AILANG and Python implementations
-  - **v0.8.0+**: Agent results stored as chains in `observatory.db` (not just JSON files)
-    - One chain per suite, one stage per benchmark
-    - Full tool/chat data captured per executor
-    - Query with `ailang eval-chains view <chain-id>`
-- Saves combined results to eval_results/baselines/X.X.X/
+- **Step 1**: Standard eval (0-shot + self-repair)
+  - Uses `extended_suite` (--full): gpt5-4, gpt5-4-mini, claude-opus-4-7, claude-sonnet-4-6, gemini-3-1-pro, gemini-3-flash
+  - Or `dev_models` (default): gpt5-4-mini, claude-haiku-4-5, gemini-3-flash
+  - Both AILANG and Python; all benchmarks in selected tier(s)
+- **Step 2**: Agent eval — flagship models × AILANG+Python
+  - `agent_suite`: claude-sonnet-4-6 (longitudinal anchor), gemini-3-flash, gpt5-4-mini, opencode-haiku
+  - **Tier system** (v0.14.0+): `smoke` (15), `core` (22), `stretch` (11), `vision` (6)
+  - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
+  - Expected: `core` 70%+ for AILANG; `vision` intentionally low
+  - Feeds the ailang-vs-python comparison story in the Model Leaderboard page
+- **Step 3** (--lang-harness): Language × Harness sweep — cheapest models × 4 languages
+  - `lang_harness_suite`: claude-haiku-4-5, gemini-3-flash, gpt5-4-mini, opencode-haiku
+  - All 4 languages: ailang, python, javascript, go; core tier only
+  - Feeds the **Agent Harness Explorer** language spread and cross-harness comparison data
+  - Cost: ~$0.30–0.60 extra per run
+- Saves combined results to `eval_results/baselines/vX.X.X/`
 - Accepts version with or without 'v' prefix
 
 ### `scripts/update_dashboard.sh <version>`

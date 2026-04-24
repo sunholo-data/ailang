@@ -1,14 +1,14 @@
 ---
 sidebar_position: 3
-title: Benchmarks
-description: Real-world AI code generation performance metrics for AILANG across models, harnesses, and languages
+title: Model Leaderboard
+description: AI model leaderboard for AILANG code generation — radar comparison, trend charts, and 0-shot / self-repair results across 8 models
 last_updated: 2026-04-23
 ---
 
 import BenchmarkDashboard from '@site/src/components/BenchmarkDashboard';
 import ModelRadarComparison from '@site/src/components/ModelRadarComparison';
 
-# AI Code Generation Benchmarks
+# Model Leaderboard
 
 Real-world performance metrics for AILANG and Python across multiple AI models, harnesses, and languages.
 
