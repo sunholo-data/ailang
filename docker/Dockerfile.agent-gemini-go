@@ -1,0 +1,9 @@
+# AILANG Agent Executor — gemini-go variant (Gemini CLI + Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for agents running Gemini models on Go codebases.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-gemini:latest
+
+# Go toolchain — matches go.mod version in the ailang repo
+COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/home/ailang/go"

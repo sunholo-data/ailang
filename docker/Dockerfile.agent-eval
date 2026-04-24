@@ -1,0 +1,11 @@
+# AILANG Agent Executor — eval variant (all four executor CLIs, no Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for eval-harness agents that run benchmarks across all
+# AI providers in a single container (claude, gemini, codex, opencode).
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# All four executor CLIs — order matters for npm install speed (largest first)
+RUN npm install -g @anthropic-ai/claude-code \
+    && npm install -g @google/gemini-cli \
+    && npm install -g @openai/codex \
+    && npm install -g opencode-ai

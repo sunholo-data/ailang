@@ -1,0 +1,8 @@
+# AILANG Agent Executor — gemini variant (Google Gemini CLI, no Go toolchain)
+# M-EXECUTOR-VARIANTS: Use for agents running Gemini models via the Gemini CLI.
+# Use for: any agent with provider=gemini on non-Go codebases.
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# Google Gemini CLI
+RUN npm install -g @google/gemini-cli
