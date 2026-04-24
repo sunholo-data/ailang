@@ -5,7 +5,9 @@ ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # All four executor CLIs — order matters for npm install speed (largest first)
+USER root
 RUN npm install -g @anthropic-ai/claude-code \
     && npm install -g @google/gemini-cli \
     && npm install -g @openai/codex \
     && npm install -g opencode-ai
+USER ailang

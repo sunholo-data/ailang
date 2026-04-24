@@ -5,4 +5,6 @@ ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # opencode CLI (npm package: opencode-ai, binary: opencode)
+USER root
 RUN npm install -g opencode-ai
+USER ailang
