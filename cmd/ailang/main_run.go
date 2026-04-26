@@ -40,7 +40,8 @@ func runCommand() {
 	debugCompileFlag := fs.Bool("debug-compile", false, "Show compilation statistics (specialization counts, etc.)")
 	strictSyntaxFlagRun := fs.Bool("strict-syntax", false, "Disable syntactic sugar (require canonical syntax)")
 	entryFlag := fs.String("entry", "main", "Entrypoint function name to execute")
-	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint")
+	argsJSONFlag := fs.String("args-json", "null", "JSON arguments to pass to entrypoint (use '-' to read from stdin)")
+	argsFileFlag := fs.String("args-file", "", "Path to a file containing JSON arguments (alternative to -args-json; bypasses shell quoting on Windows/PowerShell)")
 	printFlag := fs.Bool("print", true, "Print return value (even for unit type)")
 	noPrintFlag := fs.Bool("no-print", false, "Suppress output (exit code only)")
 	batchFlag := fs.Bool("batch", false, "Batch mode: compile once, run entrypoint per input (remaining args are inputs)")
@@ -125,6 +126,16 @@ func runCommand() {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Resolve --args-json / --args-file / stdin into a single effective JSON
+	// string. PowerShell quote-mangling makes inline JSON unusable on Windows;
+	// -args-file and -args-json - give operators a quote-free input path.
+	resolvedArgsJSON, err := resolveArgsJSON(*argsJSONFlag, *argsFileFlag, os.Stdin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(2)
+	}
+	*argsJSONFlag = resolvedArgsJSON
 
 	// Start CPU profiling if requested
 	if *cpuprofileFlag != "" {
