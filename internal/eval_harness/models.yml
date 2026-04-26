@@ -110,6 +110,87 @@ models:
       Uses max_completion_tokens instead of max_tokens.
       Agent eval support: Not yet implemented (requires OpenAI Codex CLI).
 
+  # OpenAI GPT-5.5 (released April 23, 2026)
+  gpt5-5:
+    api_name: "gpt-5.5"
+    provider: "openai"
+    description: "GPT-5.5 - new flagship reasoning model with 1M context"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    model_family: "gpt5-5"  # Cross-harness grouping: pairs with opencode-gpt5-5
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.005     # $5.00 per 1M = $0.005 per 1K
+      output_per_1k: 0.030    # $30.00 per 1M = $0.030 per 1K
+    notes: |
+      OpenAI's new flagship reasoning model (April 23, 2026).
+      ⚠️ 2x more expensive than GPT-5.4 ($2.50/$15 → $5/$30 per 1M).
+      1.05M token context window, 128K max output tokens.
+      Knowledge cutoff: December 1, 2025.
+      Adaptive reasoning with reasoning_tokens (like o1/o3 style).
+      Supports reasoning.effort: none/minimal/low/medium/high/xhigh (default: medium).
+      Cached input: $0.50/M (90% discount).
+      Batch/Flex API: 50% off ($2.50/$15 per 1M).
+      Also available: gpt-5.5-pro ($30/$180 per 1M — 6x base price, run with --models gpt5-5-pro).
+      Uses max_completion_tokens instead of max_tokens.
+
+  opencode-gpt5-5:
+    api_name: "gpt-5.5"
+    provider: "openai"
+    description: "GPT-5.5 via opencode harness — cross-harness comparison pair"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openai/gpt-5.5"  # opencode provider/model format
+    model_family: "gpt5-5"               # Cross-harness grouping: pairs with gpt5-5
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.005
+      output_per_1k: 0.030
+    notes: |
+      GPT-5.5 evaluated via the opencode CLI harness for cross-harness comparison.
+      Use harness_suite to run both harnesses in one command.
+      Note: opencode harness has historically been more cost-efficient than codex
+      for the gpt5-4 generation (2x cheaper, slightly higher pass rate).
+
+  # OpenAI GPT-5.5 Pro (released April 23, 2026)
+  gpt5-5-pro:
+    api_name: "gpt-5.5-pro"
+    provider: "openai"
+    description: "GPT-5.5 Pro - high-performance variant (6x base price)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"
+    model_family: "gpt5-5-pro"  # Cross-harness grouping: pairs with opencode-gpt5-5-pro
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.030     # $30.00 per 1M = $0.030 per 1K
+      output_per_1k: 0.180    # $180.00 per 1M = $0.180 per 1K
+    notes: |
+      GPT-5.5 Pro - high-performance variant (April 23, 2026).
+      ⚠️ 6x more expensive than gpt-5.5 base ($30/$180 vs $5/$30 per 1M).
+      ❌ Agent mode NOT supported (Apr 2026):
+         - codex CLI rejects with "not supported when using Codex with a ChatGPT account"
+         - opencode harness returns 0 tool calls (Pro tier disables tool use)
+      Currently usable for standard (non-agent) eval mode only.
+      Same context/reasoning as gpt-5.5.
+      Uses max_completion_tokens instead of max_tokens.
+
+  opencode-gpt5-5-pro:
+    api_name: "gpt-5.5-pro"
+    provider: "openai"
+    description: "GPT-5.5 Pro via opencode harness — cross-harness comparison pair"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "opencode"
+    agent_model_name: "openai/gpt-5.5-pro"  # opencode provider/model format
+    model_family: "gpt5-5-pro"               # Cross-harness grouping: pairs with gpt5-5-pro
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.030
+      output_per_1k: 0.180
+    notes: |
+      GPT-5.5 Pro via the opencode CLI harness for cross-harness comparison.
+      ⚠️ 6x more expensive than gpt-5.5 base — use sparingly.
+      Use harness_suite to run both harnesses in one command.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
@@ -752,7 +833,7 @@ default: "claude-sonnet-4-6"
 # Core benchmark suite - top model from each provider (3 models)
 # Use for: Regular CI, quick comparisons, development validation
 benchmark_suite:
-  - "gpt5-4"           # OpenAI flagship (Mar 2026)
+  - "gpt5-5"           # OpenAI flagship (Apr 2026)
   - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
 
@@ -760,8 +841,8 @@ benchmark_suite:
 # Use for: Release baselines, comprehensive comparisons
 # Cost: ~$2-5 per full benchmark run
 extended_suite:
-  - "gpt5-4"           # OpenAI flagship (Mar 2026)
-  - "gpt5-4-mini"      # OpenAI cheap same-gen (Mar 2026) — replaces gpt5-2-codex (no agent_cli)
+  - "gpt5-5"           # OpenAI flagship (Apr 2026)
+  - "gpt5-4-mini"      # OpenAI cheap (Mar 2026)
   - "claude-opus-4-7"  # Anthropic flagship (Apr 2026)
   - "claude-sonnet-4-6" # Anthropic best for coding (Feb 2026)
   - "gemini-3-1-pro"   # Google flagship (Feb 2026)
@@ -781,10 +862,10 @@ dev_models:
 # participate in agent-mode runs; the rest are skipped cleanly.
 # Cost: ~$1-2 per full benchmark run (depends on task complexity)
 agent_suite:
-  - "claude-sonnet-4-6"  # agent_cli: "claude"    — kept as longitudinal anchor across releases
-  - "gemini-3-flash"     # agent_cli: "gemini"    — Google cheap (already lowest tier)
-  - "gpt5-4-mini"        # agent_cli: "codex"     — OpenAI cheap (was gpt5-4, swapped to keep cost down)
-  - "opencode-haiku"     # agent_cli: "opencode"  — opencode cheap
+  - "claude-sonnet-4-6"     # agent_cli: "claude"    — kept as longitudinal anchor across releases
+  - "gemini-3-flash"        # agent_cli: "gemini"    — Google cheap (already lowest tier)
+  - "gpt5-4-mini"           # agent_cli: "codex"     — OpenAI cheap (was gpt5-4, swapped to keep cost down)
+  - "opencode-sonnet-4-6"   # agent_cli: "opencode"  — Sonnet via opencode (cross-harness pair to claude-sonnet-4-6)
 
 # Language × Harness suite - cheapest model per harness for 4-language sweep
 # Use for: Post-release language/harness Explorer data (ailang,python,js,go × 4 harnesses)
@@ -805,8 +886,8 @@ harness_suite:
   - "opencode-sonnet-4-6"     # Sonnet via opencode harness
   - "gemini-3-flash"          # Gemini Flash via Gemini CLI
   - "opencode-gemini-3-flash" # Gemini Flash via opencode harness (ailang-dev + global location)
-  - "gpt5-4"                  # GPT-5.4 via Codex CLI harness
-  - "opencode-gpt5-4"         # GPT-5.4 via opencode harness (cross-harness comparison)
+  - "gpt5-5"                  # GPT-5.5 via Codex CLI harness (Apr 2026)
+  - "opencode-gpt5-5"         # GPT-5.5 via opencode harness (cross-harness comparison)
 
 # Local models - free, offline, privacy-preserving (4 models)
 # Use for: Offline development, cost-free iteration, privacy-sensitive code
@@ -821,8 +902,11 @@ local_models:
   - "ollama-paddleocr-vl"       # PaddleOCR-VL 0.9B (lightweight OCR)
 
 # Available but not in default suites (run with --models flag):
-# - gpt5              # Superseded by gpt5-4
-# - gpt5-1            # Superseded by gpt5-4
+# - gpt5              # Superseded by gpt5-5
+# - gpt5-1            # Superseded by gpt5-5
+# - gpt5-4            # OpenAI prior gen — removed from extended_suite, available for longitudinal compare
+# - opencode-gpt5-4   # Prior gen — opencode pair for gpt5-4, kept for cross-harness history
+# - opencode-haiku    # Was in agent_suite, swapped for opencode-sonnet-4-6 to pair with claude-sonnet-4-6
 # - gpt5-1-instant    # Superseded by gpt5-4-mini in dev_models (Apr 2026)
 # - gpt5-1-codex-max  # Superseded by gpt5-2-codex (Jan 2026)
 # - gpt5-2            # GPT-5.2 flagship (superseded by gpt5-4)
@@ -830,6 +914,7 @@ local_models:
 # - gpt5-mini         # Cheaper but slower than gpt5-4-mini
 # - gpt5-2-instant    # Fast variant of GPT-5.2
 # - gpt5-4-nano       # Ultra-cheap ($0.20/M) — run with --models gpt5-4-nano
+# - gpt5-5-pro        # 6x base price ($30/$180 per 1M) — run sparingly for hard benchmarks
 # - codex-mini-latest # Cheap coding model (use for simple tasks)
 # - claude-opus-4-5   # Superseded by claude-opus-4-7 (Apr 2026)
 # - claude-opus-4-6   # Superseded by claude-opus-4-7 (Apr 2026)

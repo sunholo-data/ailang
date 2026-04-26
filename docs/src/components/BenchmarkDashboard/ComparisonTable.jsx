@@ -172,39 +172,81 @@ export default function ComparisonTable({ data }) {
           </tr>
         )}
 
-        {/* Derived metrics showing agent value (blended) */}
+        {/* Derived metrics — per-executor where computable, blended for impossibility coverage */}
         <tr className={styles.derivedMetricsHeader}>
-          <td colSpan={multiExecutor ? 3 + executorNames.length : 4}><strong>Agent Superiority Metrics (blended)</strong></td>
+          <td colSpan={multiExecutor ? 3 + executorNames.length : 4}><strong>Agent Superiority Metrics</strong></td>
         </tr>
 
+        {/* Success Gap = agent_success - zero_shot_success_comparable_<exec>.
+            Uses the per-executor comparable baseline when available so the
+            denominator matches that executor's actual benchmark set. Falls back
+            to subtracting the blended zero_shot if the per-executor field is
+            absent (e.g. older baselines). */}
         <tr>
           <td>Success Gap (agent - 0-shot)</td>
-          <td className={styles.tableCell} colSpan={multiExecutor ? 1 + executorNames.length : 3}>-</td>
-          <td className={styles.tableCell}>
-            <span className={derived.successGap > 0.3 ? styles.goodValue : ''}>
-              {fmtPct(derived.successGap)}
-            </span>
-          </td>
+          <td className={styles.tableCell} colSpan="2">-</td>
+          {multiExecutor ? (
+            executorNames.map(exec => {
+              const fairGap = langData[`agent_success_gap_${exec}`];
+              const es = getExecStats(langData, exec);
+              const fallback = (es.success != null && zeroShot.success != null) ? es.success - zeroShot.success : null;
+              const gap = fairGap != null ? fairGap : fallback;
+              return (
+                <td key={exec} className={styles.tableCell}>
+                  <span className={gap > 0.3 ? styles.goodValue : (gap < 0 ? styles.badValue : '')}>
+                    {fmtPct(gap)}
+                  </span>
+                </td>
+              );
+            })
+          ) : (
+            <td className={styles.tableCell}>
+              <span className={derived.successGap > 0.3 ? styles.goodValue : ''}>
+                {fmtPct(derived.successGap)}
+              </span>
+            </td>
+          )}
         </tr>
 
+        {/* Impossibility Coverage — only blended (requires per-benchmark data not exported per-executor) */}
         <tr>
-          <td>Impossibility Coverage</td>
-          <td className={styles.tableCell} colSpan={multiExecutor ? 1 + executorNames.length : 3}>-</td>
-          <td className={styles.tableCell}>
+          <td>Impossibility Coverage <span style={{ fontSize: '0.75em', color: 'var(--ifm-color-emphasis-500)' }}>(blended)</span></td>
+          <td className={styles.tableCell} colSpan="2">-</td>
+          <td className={styles.tableCell} colSpan={multiExecutor ? executorNames.length : 1} style={{ textAlign: 'center' }}>
             <span className={derived.impossibilityCoverage > 0.7 ? styles.goodValue : ''}>
               {fmtPct(derived.impossibilityCoverage)}
             </span>
           </td>
         </tr>
 
+        {/* Cost Efficiency Ratio = (agent_cost/success) / zero_shot_cost/success.
+            Uses per-executor comparable baseline when available — same fairness
+            argument as Success Gap above. */}
         <tr className={styles.highlightRow}>
           <td><strong>Cost Efficiency Ratio</strong></td>
-          <td className={styles.tableCell} colSpan={multiExecutor ? 1 + executorNames.length : 3}>-</td>
-          <td className={styles.tableCell}>
-            <span className={derived.costRatio < 5 ? styles.goodValue : styles.badValue}>
-              {fmt(derived.costRatio)}x
-            </span>
-          </td>
+          <td className={styles.tableCell} colSpan="2">-</td>
+          {multiExecutor ? (
+            executorNames.map(exec => {
+              const fairRatio = langData[`agent_cost_efficiency_ratio_${exec}`];
+              const es = getExecStats(langData, exec);
+              const cps = (es.success > 0 && es.cost != null) ? es.cost / es.success : null;
+              const fallback = (cps != null && zeroShot.costPerSuccess > 0) ? cps / zeroShot.costPerSuccess : null;
+              const ratio = fairRatio != null ? fairRatio : fallback;
+              return (
+                <td key={exec} className={styles.tableCell}>
+                  <span className={ratio != null && ratio < 5 ? styles.goodValue : styles.badValue}>
+                    {ratio != null ? `${fmt(ratio)}x` : 'N/A'}
+                  </span>
+                </td>
+              );
+            })
+          ) : (
+            <td className={styles.tableCell}>
+              <span className={derived.costRatio < 5 ? styles.goodValue : styles.badValue}>
+                {fmt(derived.costRatio)}x
+              </span>
+            </td>
+          )}
         </tr>
       </React.Fragment>
     );

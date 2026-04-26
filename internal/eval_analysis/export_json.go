@@ -67,8 +67,20 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 	// Build list of agent benchmark IDs (sorted for consistent output)
 	agentBenchmarkIDs := make(map[string]bool)
+	// Per-executor benchmark IDs — used downstream to compute fair per-executor
+	// success-gap / cost-ratio comparisons. The blended `agentBenchmarkIDs` is
+	// the union; per-executor sets capture exactly which benchmarks each harness
+	// actually ran, so deltas vs zero-shot use matching denominators when
+	// harness coverage diverges (e.g., one harness crashes mid-run).
+	perExecBenchmarkIDs := make(map[string]map[string]bool) // executor -> benchmarkID -> true
 	for _, r := range agentResults {
 		agentBenchmarkIDs[r.ID] = true
+		if r.Executor != "" {
+			if perExecBenchmarkIDs[r.Executor] == nil {
+				perExecBenchmarkIDs[r.Executor] = make(map[string]bool)
+			}
+			perExecBenchmarkIDs[r.Executor][r.ID] = true
+		}
 	}
 	agentBenchmarkList := make([]string, 0, len(agentBenchmarkIDs))
 	for id := range agentBenchmarkIDs {
@@ -139,31 +151,60 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats.AvgTokens = (stats.AvgTokens*float64(stats.TotalRuns-1) + float64(r.OutputTokens)) / float64(stats.TotalRuns)
 	}
 
-	// Collect agent-specific stats per benchmark+language
-	agentBenchStats := make(map[string]map[string]struct {
-		runs    int
-		success int
-		turns   int
-		tokens  int
-	}) // benchmarkID -> language -> stats
+	// Collect agent-specific stats per benchmark+language, including api_errors
+	// and per-harness (executor) buckets so the gallery can show adjusted pass
+	// rates and per-harness breakdowns. Using pointers because we mutate nested
+	// maps; the prior anonymous-struct + reassign pattern doesn't compose well
+	// once we have per-harness sub-maps.
+	type agentBenchHarnessStat struct {
+		runs      int
+		success   int
+		apiErrors int
+	}
+	type agentBenchStat struct {
+		runs       int
+		success    int
+		apiErrors  int
+		turns      int
+		tokens     int
+		perHarness map[string]*agentBenchHarnessStat // executor -> per-harness stats
+	}
+	agentBenchStats := make(map[string]map[string]*agentBenchStat) // benchmarkID -> lang -> stats
 
 	for _, r := range agentResults {
 		if agentBenchStats[r.ID] == nil {
-			agentBenchStats[r.ID] = make(map[string]struct {
-				runs    int
-				success int
-				turns   int
-				tokens  int
-			})
+			agentBenchStats[r.ID] = make(map[string]*agentBenchStat)
 		}
 		stats := agentBenchStats[r.ID][r.Lang]
+		if stats == nil {
+			stats = &agentBenchStat{perHarness: make(map[string]*agentBenchHarnessStat)}
+			agentBenchStats[r.ID][r.Lang] = stats
+		}
 		stats.runs++
 		if r.StdoutOk {
 			stats.success++
 		}
+		if r.ErrorCategory == "api_error" {
+			stats.apiErrors++
+		}
 		stats.turns += r.AgentTurns
 		stats.tokens += r.TotalTokens
-		agentBenchStats[r.ID][r.Lang] = stats
+
+		// Per-harness bucket. Skip if executor is empty (legacy or non-agent rows).
+		if r.Executor != "" {
+			hs := stats.perHarness[r.Executor]
+			if hs == nil {
+				hs = &agentBenchHarnessStat{}
+				stats.perHarness[r.Executor] = hs
+			}
+			hs.runs++
+			if r.StdoutOk {
+				hs.success++
+			}
+			if r.ErrorCategory == "api_error" {
+				hs.apiErrors++
+			}
+		}
 	}
 
 	// Convert benchmarks to camelCase for JavaScript. While iterating,
@@ -220,17 +261,35 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			benchmark["languageStats"] = langStatsJS
 		}
 
-		// Add agent-specific stats per language
+		// Add agent-specific stats per language. Includes api_error counts
+		// and per-harness breakdown (claude/codex/gemini/opencode) so the
+		// gallery can show adjusted pass rates and per-harness reliability.
 		if agentStats, ok := agentBenchStats[id]; ok {
 			agentLangStats := make(map[string]interface{})
 			for lang, astats := range agentStats {
-				if astats.runs > 0 {
-					agentLangStats[lang] = map[string]interface{}{
-						"runs":        astats.runs,
-						"successRate": float64(astats.success) / float64(astats.runs),
-						"avgTurns":    float64(astats.turns) / float64(astats.runs),
-						"avgTokens":   float64(astats.tokens) / float64(astats.runs),
+				if astats.runs == 0 {
+					continue
+				}
+				byHarness := make(map[string]interface{})
+				for hname, hs := range astats.perHarness {
+					if hs.runs == 0 {
+						continue
 					}
+					byHarness[hname] = map[string]interface{}{
+						"runs":         hs.runs,
+						"successRate":  float64(hs.success) / float64(hs.runs),
+						"apiErrors":    hs.apiErrors,
+						"apiErrorRate": float64(hs.apiErrors) / float64(hs.runs),
+					}
+				}
+				agentLangStats[lang] = map[string]interface{}{
+					"runs":         astats.runs,
+					"successRate":  float64(astats.success) / float64(astats.runs),
+					"avgTurns":     float64(astats.turns) / float64(astats.runs),
+					"avgTokens":    float64(astats.tokens) / float64(astats.runs),
+					"apiErrors":    astats.apiErrors,
+					"apiErrorRate": float64(astats.apiErrors) / float64(astats.runs),
+					"byHarness":    byHarness,
 				}
 			}
 			if len(agentLangStats) > 0 {
@@ -540,6 +599,20 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		finalCost       float64
 	})
 
+	// Per-executor comparable stats: zero-shot/repair metrics filtered to the
+	// exact benchmarks each executor ran. Lets the dashboard compute fair
+	// per-harness deltas (success gap, cost ratio) without mixing denominators.
+	type perExecComparable struct {
+		zeroShotRuns    int
+		zeroShotSuccess int
+		zeroShotTokens  int
+		zeroShotCost    float64
+		finalRuns       int
+		finalSuccess    int
+		finalCost       float64
+	}
+	langPerExecComparableStats := make(map[string]map[string]*perExecComparable) // exec -> lang -> stats
+
 	for _, r := range standardResults {
 		stats := langStandardStats[r.Lang]
 
@@ -601,6 +674,38 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			comparableStats.finalTokens += r.OutputTokens
 			comparableStats.finalCost += r.CostUSD
 			langAgentComparableStats[r.Lang] = comparableStats
+		}
+
+		// Per-executor comparable: count this standard run for every executor
+		// whose benchmark set includes r.ID. A standard run on benchmark X is
+		// the fair zero-shot baseline for any executor that also ran X.
+		for executor, benchSet := range perExecBenchmarkIDs {
+			if !benchSet[r.ID] {
+				continue
+			}
+			if langPerExecComparableStats[executor] == nil {
+				langPerExecComparableStats[executor] = make(map[string]*perExecComparable)
+			}
+			pec := langPerExecComparableStats[executor][r.Lang]
+			if pec == nil {
+				pec = &perExecComparable{}
+				langPerExecComparableStats[executor][r.Lang] = pec
+			}
+			pec.zeroShotRuns++
+			if r.FirstAttemptOk {
+				pec.zeroShotSuccess++
+			}
+			if !r.RepairUsed {
+				if r.OutputTokens > 0 {
+					pec.zeroShotTokens += r.OutputTokens
+				}
+				pec.zeroShotCost += r.CostUSD
+			}
+			pec.finalRuns++
+			if r.StdoutOk {
+				pec.finalSuccess++
+			}
+			pec.finalCost += r.CostUSD
 		}
 	}
 
@@ -735,6 +840,35 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				langData["agent_avg_tokens_"+executor] = float64(ls.Tokens) / float64(ls.Runs)
 				langData["agent_avg_cost_"+executor] = ls.Cost / float64(ls.Runs)
 				langData["agent_runs_"+executor] = ls.Runs
+
+				// Per-executor comparable baseline + derived deltas. Filtered to
+				// exactly the benchmarks this executor ran, so the success-gap
+				// and cost-ratio comparisons hold even when harness coverage
+				// drifts (one harness skips/crashes a benchmark another runs).
+				if execLangMap, ok := langPerExecComparableStats[executor]; ok {
+					if pec, ok := execLangMap[lang]; ok && pec.zeroShotRuns > 0 {
+						zeroShotSuccessExec := float64(pec.zeroShotSuccess) / float64(pec.zeroShotRuns)
+						zeroShotAvgCostExec := pec.zeroShotCost / float64(pec.zeroShotRuns)
+
+						langData["zero_shot_success_comparable_"+executor] = zeroShotSuccessExec
+						langData["zero_shot_avg_cost_comparable_"+executor] = zeroShotAvgCostExec
+
+						agentSuccessRateExec := float64(ls.Success) / float64(ls.Runs)
+						agentAvgCostExec := ls.Cost / float64(ls.Runs)
+
+						// Success gap (fair: same benchmark set as this executor).
+						langData["agent_success_gap_"+executor] = agentSuccessRateExec - zeroShotSuccessExec
+
+						// Cost efficiency ratio (lower is better; agent vs zero-shot).
+						if zeroShotSuccessExec > 0 && agentSuccessRateExec > 0 {
+							zeroShotCPS := zeroShotAvgCostExec / zeroShotSuccessExec
+							agentCPS := agentAvgCostExec / agentSuccessRateExec
+							if zeroShotCPS > 0 {
+								langData["agent_cost_efficiency_ratio_"+executor] = agentCPS / zeroShotCPS
+							}
+						}
+					}
+				}
 			}
 		}
 

@@ -21,7 +21,7 @@ task_prompt: |
   in the order produced (so 4 groups, concatenated):
 
     top3([5, 2, 8, 1, 9, 3, 7])         -> 9, 8, 7
-    top3(["pear", "apple", "kiwi", "fig", "plum"]) -> pear, plum, kiwi
+    top3(["pear", "apple", "kiwi", "fig", "plum"]) -> plum, pear, kiwi
     top3([2, 2])                         -> 2, 2
     top3([42])                           -> 42
 
@@ -30,8 +30,8 @@ expected_stdout: |
   9
   8
   7
-  pear
   plum
+  pear
   kiwi
   2
   2

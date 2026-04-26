@@ -1,6 +1,6 @@
 {
-  "version": "0.14.1",
-  "timestamp": "2026-04-24T14:19:19+02:00",
+  "version": "v0.14.1",
+  "timestamp": "2026-04-27T00:07:52+02:00",
   "totalRuns": 396,
   "aggregates": {
     "agentBenchmarks": [
@@ -3087,26 +3087,138 @@
     "api_call_json": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 101764.5,
           "avgTurns": 2,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.625
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 49940,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 33082.5,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         },
         "python": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 25399.75,
           "avgTurns": 2.375,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         }
@@ -3156,26 +3268,138 @@
     "cli_args": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 29791.5,
           "avgTurns": 1.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 64779.5,
           "avgTurns": 10.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 54897.25,
           "avgTurns": 6.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 13270.5,
           "avgTurns": 2.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0
         }
@@ -3225,26 +3449,138 @@
     "config_file_parser": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 22790.375,
           "avgTurns": 3.625,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 55245.25,
           "avgTurns": 4.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 47986.25,
           "avgTurns": 4,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "python": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 32636.75,
           "avgTurns": 2,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.625
         }
@@ -3295,14 +3631,70 @@
     "contract_bst_validate": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 974,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 417.5,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -3341,14 +3733,70 @@
     "contract_matrix_determinant": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 43468.25,
           "avgTurns": 2,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 218,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -3387,14 +3835,70 @@
     "contract_rle_roundtrip": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 1,
+          "apiErrors": 4,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 227.25,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -3433,14 +3937,70 @@
     "contract_roman_numeral": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.875,
+          "apiErrors": 7,
           "avgTokens": 726,
           "avgTurns": 0.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 620.125,
           "avgTurns": 1.125,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -3478,14 +4038,70 @@
     "contract_sorted_merge": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 742.5,
           "avgTurns": 1.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 1,
+          "apiErrors": 4,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0
         }
@@ -3524,26 +4140,138 @@
     "csv_to_json_converter": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 1,
+          "apiErrors": 8,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 72224.25,
           "avgTurns": 5.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 41462.75,
           "avgTurns": 4,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 38636.375,
           "avgTurns": 1.375,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         }
@@ -3593,14 +4321,70 @@
     "effect_composition": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.875,
+          "apiErrors": 7,
           "avgTokens": 169,
           "avgTurns": 0.625,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "python": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 15855.5,
           "avgTurns": 1.625,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.375
         }
@@ -3638,14 +4422,70 @@
     "effect_tracking_io_fs": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 17359.75,
           "avgTurns": 1.875,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.375
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 304.875,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -3682,26 +4522,138 @@
     "error_handling": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.125,
+          "apiErrors": 1,
           "avgTokens": 64439.375,
           "avgTurns": 3.125,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            }
+          },
           "runs": 8,
           "successRate": 0.875
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 33081.5,
           "avgTurns": 2.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 44234.75,
           "avgTurns": 3.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 403.25,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -3751,14 +4703,70 @@
     "expression_evaluator": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 89980.25,
           "avgTurns": 4.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 421.5,
           "avgTurns": 2.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         }
@@ -3796,26 +4804,138 @@
     "float_eq": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 53552.875,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            }
+          },
           "runs": 8,
           "successRate": 0.75
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 46283,
           "avgTurns": 3.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 49883.25,
           "avgTurns": 3.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 15654.625,
           "avgTurns": 1.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.375
         }
@@ -3865,26 +4985,138 @@
     "fold_reduce": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.125,
+          "apiErrors": 1,
           "avgTokens": 122142,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            }
+          },
           "runs": 8,
           "successRate": 0.875
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 32683.25,
           "avgTurns": 2.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 44191.25,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 273.125,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -3934,26 +5166,138 @@
     "graph_bfs": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 25191.625,
           "avgTurns": 1.875,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 26428.75,
           "avgTurns": 2.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 44361.5,
           "avgTurns": 3.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 16403.875,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         }
@@ -4003,26 +5347,138 @@
     "higher_order_functions": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 23852.25,
           "avgTurns": 1.875,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 32479,
           "avgTurns": 2.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 43944.5,
           "avgTurns": 3,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 22042.125,
           "avgTurns": 2.125,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.625
         }
@@ -4071,26 +5527,138 @@
     "json_encode": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 49647.125,
           "avgTurns": 2,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 50187.5,
           "avgTurns": 4.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 36449.5,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 19944,
           "avgTurns": 2.125,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.625
         }
@@ -4140,14 +5708,70 @@
     "json_parse": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 33653.75,
           "avgTurns": 0.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 130.5,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -4186,26 +5810,138 @@
     "json_transform": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.625,
+          "apiErrors": 5,
           "avgTokens": 30569.375,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.375
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 41441,
           "avgTurns": 3.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 33261.75,
           "avgTurns": 3.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 13051.5,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         }
@@ -4255,26 +5991,138 @@
     "list_comprehension": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 6,
           "avgTokens": 367.25,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 53452.25,
           "avgTurns": 3.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 40555.25,
           "avgTurns": 3.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 16087.75,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         }
@@ -4324,14 +6172,70 @@
     "log_file_analyzer": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 1,
+          "apiErrors": 4,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 45367.75,
           "avgTurns": 1.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         }
@@ -4363,33 +6267,145 @@
         "data_transform",
         "effects_io"
       ],
-      "taskPrompt": "Analyze a log file and compute statistics.\n\n**Requirements**:\n\n1. Create a log file named \"app.log\" with these exact 6 lines:\n   ```\n   2024-10-29 10:00:00 INFO User logged in: alice\n   2024-10-29 10:01:15 ERROR Database connection failed\n   2024-10-29 10:02:30 INFO User logged in: bob\n   2024-10-29 10:03:45 WARNING High memory usage: 85%\n   2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n   2024-10-29 10:06:15 INFO User logged out: alice\n   ```\n\n2. Parse and analyze the log:\n   - Each line format: \"{date} {time} {LEVEL} {message}\"\n   - Count entries by level (INFO, ERROR, WARNING)\n   - Calculate percentage for each level (use integer division, round down)\n   - Extract unique usernames mentioned after colons (alice, bob)\n\n3. Print results in this exact format:\n   ```\n   Total log entries: 6\n   INFO: 3 (50%)\n   ERROR: 2 (33%)\n   WARNING: 1 (17%)\n   Unique users: alice, bob\n   ```\n\nNote: Users should be printed in alphabetical order, comma-separated.\n",
+      "taskPrompt": "Analyze a log file and compute statistics.\n\n**Requirements**:\n\n1. Create a log file named \"app.log\" with these exact 6 lines:\n   ```\n   2024-10-29 10:00:00 INFO User logged in: alice\n   2024-10-29 10:01:15 ERROR Database connection failed\n   2024-10-29 10:02:30 INFO User logged in: bob\n   2024-10-29 10:03:45 WARNING High memory usage: 85%\n   2024-10-29 10:05:00 ERROR API timeout: /users endpoint\n   2024-10-29 10:06:15 INFO User logged out: alice\n   ```\n\n2. Parse and analyze the log:\n   - Each line format: \"{date} {time} {LEVEL} {message}\"\n   - Count entries by level (INFO, ERROR, WARNING)\n   - Calculate percentage for each level (use integer division, round down)\n   - Extract unique usernames mentioned after colons (alice, bob)\n\n3. Print results in this exact format:\n   ```\n   Total log entries: 6\n   INFO: 3 (50%)\n   ERROR: 2 (33%)\n   WARNING: 1 (16%)\n   Unique users: alice, bob\n   ```\n\nNote: Users should be printed in alphabetical order, comma-separated.\n",
       "tier": "stretch",
       "totalRuns": 12
     },
     "merge_sort": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.875,
+          "apiErrors": 7,
           "avgTokens": 239.5,
           "avgTurns": 0.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 52039.25,
           "avgTurns": 2.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 57568.5,
           "avgTurns": 6,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 33060.5,
           "avgTurns": 2.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.75
         }
@@ -4439,14 +6455,70 @@
     "mini_interpreter": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 253.75,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 392.25,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -4485,26 +6557,138 @@
     "pattern_matching_complex": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 1,
+          "apiErrors": 8,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 33413.75,
           "avgTurns": 2.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 38849,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.375,
+          "apiErrors": 3,
           "avgTokens": 26024.875,
           "avgTurns": 2.625,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.625
         }
@@ -4554,26 +6738,138 @@
     "pipeline": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.875,
+          "apiErrors": 7,
           "avgTokens": 184.875,
           "avgTurns": 0.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.125
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 32097.25,
           "avgTurns": 3.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 66092,
           "avgTurns": 8.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "python": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 32470.25,
           "avgTurns": 3.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.25
         }
@@ -4623,14 +6919,70 @@
     "polymorphic_ord_defaulting": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 1,
+          "apiErrors": 4,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0
         },
         "python": {
+          "apiErrorRate": 1,
+          "apiErrors": 4,
           "avgTokens": 0,
           "avgTurns": 0,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0
         }
@@ -4662,21 +7014,77 @@
         "functional",
         "data_transform"
       ],
-      "taskPrompt": "Write a program in \u003cLANG\u003e that implements a POLYMORPHIC function `top3(xs)`.\n\nRequirements:\n1. `top3` must be polymorphic over ANY ordered type — not specialised to integers.\n   In AILANG: use the Ord type class constraint (e.g. `func top3[a: Ord](xs: [a]) -\u003e [a]`).\n   In Python: use `typing.TypeVar` bounded on `SupportsRichComparison` or a protocol.\n2. `top3(xs)` returns the 3 largest elements in DESCENDING order.\n3. If the list has fewer than 3 elements, return all of them in descending order.\n4. Do NOT write three separate monomorphic copies — the SAME function must handle all\n   calls below. A solution that defines `top3_int`, `top3_str`, etc. is incorrect.\n\nCall the SAME function four times and print each returned element on its own line,\nin the order produced (so 4 groups, concatenated):\n\n  top3([5, 2, 8, 1, 9, 3, 7])         -\u003e 9, 8, 7\n  top3([\"pear\", \"apple\", \"kiwi\", \"fig\", \"plum\"]) -\u003e pear, plum, kiwi\n  top3([2, 2])                         -\u003e 2, 2\n  top3([42])                           -\u003e 42\n\nOutput only the code, no explanations.\n",
+      "taskPrompt": "Write a program in \u003cLANG\u003e that implements a POLYMORPHIC function `top3(xs)`.\n\nRequirements:\n1. `top3` must be polymorphic over ANY ordered type — not specialised to integers.\n   In AILANG: use the Ord type class constraint (e.g. `func top3[a: Ord](xs: [a]) -\u003e [a]`).\n   In Python: use `typing.TypeVar` bounded on `SupportsRichComparison` or a protocol.\n2. `top3(xs)` returns the 3 largest elements in DESCENDING order.\n3. If the list has fewer than 3 elements, return all of them in descending order.\n4. Do NOT write three separate monomorphic copies — the SAME function must handle all\n   calls below. A solution that defines `top3_int`, `top3_str`, etc. is incorrect.\n\nCall the SAME function four times and print each returned element on its own line,\nin the order produced (so 4 groups, concatenated):\n\n  top3([5, 2, 8, 1, 9, 3, 7])         -\u003e 9, 8, 7\n  top3([\"pear\", \"apple\", \"kiwi\", \"fig\", \"plum\"]) -\u003e plum, pear, kiwi\n  top3([2, 2])                         -\u003e 2, 2\n  top3([42])                           -\u003e 42\n\nOutput only the code, no explanations.\n",
       "tier": "stretch",
       "totalRuns": 12
     },
     "run_length_encode": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 235.25,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 188,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -4714,26 +7122,138 @@
     "state_machine_elevator": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 59062.75,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 50086.75,
           "avgTurns": 5.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 49630.25,
           "avgTurns": 4,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 33110.5,
           "avgTurns": 2.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.75
         }
@@ -4783,26 +7303,138 @@
     "state_machine_vending": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 4,
           "avgTokens": 48757.375,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            }
+          },
           "runs": 8,
           "successRate": 0.5
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 50635.75,
           "avgTurns": 4.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 43153.75,
           "avgTurns": 4.5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.125,
+          "apiErrors": 1,
           "avgTokens": 46099.125,
           "avgTurns": 3.375,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            }
+          },
           "runs": 8,
           "successRate": 0.875
         }
@@ -4853,14 +7485,70 @@
     "symbolic_diff": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 267,
           "avgTurns": 1,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         },
         "python": {
+          "apiErrorRate": 0.75,
+          "apiErrors": 3,
           "avgTokens": 507.25,
           "avgTurns": 1.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.25
         }
@@ -4899,26 +7587,138 @@
     "tree_transformation_pipeline": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 67052.75,
           "avgTurns": 3.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 2,
+              "runs": 2,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            }
+          },
           "runs": 8,
           "successRate": 0.75
         },
         "go": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 1,
           "avgTokens": 48558.75,
           "avgTurns": 2.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            }
+          },
           "runs": 4,
           "successRate": 0.75
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgTokens": 56958.75,
           "avgTurns": 5.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 1
         },
         "python": {
+          "apiErrorRate": 0.25,
+          "apiErrors": 2,
           "avgTokens": 40918.5,
           "avgTurns": 2.75,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 2,
+              "successRate": 1
+            },
+            "gemini": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            },
+            "opencode": {
+              "apiErrorRate": 0.5,
+              "apiErrors": 1,
+              "runs": 2,
+              "successRate": 0.5
+            }
+          },
           "runs": 8,
           "successRate": 0.75
         }
@@ -4969,14 +7769,70 @@
     "type_unify": {
       "agentStats": {
         "ailang": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 1998.75,
           "avgTurns": 5,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         },
         "python": {
+          "apiErrorRate": 0.5,
+          "apiErrors": 2,
           "avgTokens": 969,
           "avgTurns": 2.25,
+          "byHarness": {
+            "claude": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            },
+            "codex": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "gemini": {
+              "apiErrorRate": 1,
+              "apiErrors": 1,
+              "runs": 1,
+              "successRate": 0
+            },
+            "opencode": {
+              "apiErrorRate": 0,
+              "apiErrors": 0,
+              "runs": 1,
+              "successRate": 1
+            }
+          },
           "runs": 4,
           "successRate": 0.5
         }
@@ -5032,6 +7888,10 @@
       "agent_avg_turns_opencode": 2.909090909090909,
       "agent_avg_turns_success": 4.3,
       "agent_cost_efficiency_ratio": 1.833286175214756,
+      "agent_cost_efficiency_ratio_claude": 1.036351626262737,
+      "agent_cost_efficiency_ratio_codex": 4.333291686869846,
+      "agent_cost_efficiency_ratio_gemini": 1.1440947794986513,
+      "agent_cost_efficiency_ratio_opencode": 1.3852648553933458,
       "agent_cost_per_success": 0.14851552562499998,
       "agent_impossibility_coverage": -0.826086956521739,
       "agent_runs": 220,
@@ -5040,6 +7900,10 @@
       "agent_runs_gemini": 55,
       "agent_runs_opencode": 55,
       "agent_success_gap": -0.28787878787878785,
+      "agent_success_gap_claude": -0.033333333333333326,
+      "agent_success_gap_codex": -0.3424242424242424,
+      "agent_success_gap_gemini": -0.46969696969696967,
+      "agent_success_gap_opencode": -0.30606060606060603,
       "agent_success_rate": 0.36363636363636365,
       "agent_success_rate_claude": 0.6181818181818182,
       "agent_success_rate_codex": 0.3090909090909091,
@@ -5058,11 +7922,19 @@
       "total_runs": 198,
       "zero_shot_avg_cost": 0.052779602272727266,
       "zero_shot_avg_cost_comparable": 0.052779602272727266,
+      "zero_shot_avg_cost_comparable_claude": 0.052779602272727266,
+      "zero_shot_avg_cost_comparable_codex": 0.052779602272727266,
+      "zero_shot_avg_cost_comparable_gemini": 0.052779602272727266,
+      "zero_shot_avg_cost_comparable_opencode": 0.052779602272727266,
       "zero_shot_avg_tokens": 267.3131313131313,
       "zero_shot_avg_tokens_comparable": 267.3131313131313,
       "zero_shot_cost_per_success": 0.0810105523255814,
       "zero_shot_success": 0.6515151515151515,
-      "zero_shot_success_comparable": 0.6515151515151515
+      "zero_shot_success_comparable": 0.6515151515151515,
+      "zero_shot_success_comparable_claude": 0.6515151515151515,
+      "zero_shot_success_comparable_codex": 0.6515151515151515,
+      "zero_shot_success_comparable_gemini": 0.6515151515151515,
+      "zero_shot_success_comparable_opencode": 0.6515151515151515
     },
     "python": {
       "agent_avg_cost": 0.0333043234090909,
@@ -5083,6 +7955,10 @@
       "agent_avg_turns_opencode": 2.290909090909091,
       "agent_avg_turns_success": 3.705263157894737,
       "agent_cost_efficiency_ratio": 15.298664232840132,
+      "agent_cost_efficiency_ratio_claude": 9.328098678409757,
+      "agent_cost_efficiency_ratio_codex": 32.67906594656875,
+      "agent_cost_efficiency_ratio_gemini": 10.664662736213678,
+      "agent_cost_efficiency_ratio_opencode": 9.199326919931899,
       "agent_cost_per_success": 0.07712580157894734,
       "agent_impossibility_coverage": -0.973684210526316,
       "agent_runs": 220,
@@ -5091,6 +7967,10 @@
       "agent_runs_gemini": 55,
       "agent_runs_opencode": 55,
       "agent_success_gap": -0.28030303030303033,
+      "agent_success_gap_claude": 0.08787878787878789,
+      "agent_success_gap_codex": -0.2757575757575758,
+      "agent_success_gap_gemini": -0.584848484848485,
+      "agent_success_gap_opencode": -0.3484848484848485,
       "agent_success_rate": 0.4318181818181818,
       "agent_success_rate_claude": 0.8,
       "agent_success_rate_codex": 0.43636363636363634,
@@ -5109,11 +7989,19 @@
       "total_runs": 198,
       "zero_shot_avg_cost": 0.003590046717171717,
       "zero_shot_avg_cost_comparable": 0.003590046717171717,
+      "zero_shot_avg_cost_comparable_claude": 0.003590046717171717,
+      "zero_shot_avg_cost_comparable_codex": 0.003590046717171717,
+      "zero_shot_avg_cost_comparable_gemini": 0.003590046717171717,
+      "zero_shot_avg_cost_comparable_opencode": 0.003590046717171717,
       "zero_shot_avg_tokens": 215.37878787878788,
       "zero_shot_avg_tokens_comparable": 215.37878787878788,
       "zero_shot_cost_per_success": 0.00504134219858156,
       "zero_shot_success": 0.7121212121212122,
-      "zero_shot_success_comparable": 0.7121212121212122
+      "zero_shot_success_comparable": 0.7121212121212122,
+      "zero_shot_success_comparable_claude": 0.7121212121212122,
+      "zero_shot_success_comparable_codex": 0.7121212121212122,
+      "zero_shot_success_comparable_gemini": 0.7121212121212122,
+      "zero_shot_success_comparable_opencode": 0.7121212121212122
     }
   },
   "executors": {
@@ -5496,7 +8384,7 @@
   "history": [
     {
       "version": "v0.14.1",
-      "timestamp": "2026-04-24T14:19:16+02:00",
+      "timestamp": "2026-04-27T00:07:48+02:00",
       "successRate": 0.7373737373737373,
       "totalRuns": 396,
       "successCount": 292,

@@ -268,7 +268,7 @@
 /* Benchmark Gallery */
 .benchmarkGallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
   gap: 1.5rem;
 }
 
@@ -278,6 +278,13 @@
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
+}
+
+/* When a card is expanded, span the full row so code samples + per-harness
+   table have horizontal room. Without this, a 4-language code comparison
+   gets crammed into ~360px which is unreadable. */
+.benchmarkCard.expanded {
+  grid-column: 1 / -1;
 }
 
 .benchmarkCard:hover {
@@ -553,7 +560,7 @@
 
 .codeGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 1rem;
 }
 
@@ -1845,4 +1852,122 @@
     font-size: 0.68rem;
     padding: 0.1rem 0.4rem;
   }
+}
+
+/* API-error chip on the gallery card header.
+   Surfaces when infrastructure failures (quota, CLI version) are inflating
+   the failure rate so users don't read the headline as model weakness. */
+.apiErrorChip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .apiErrorChip {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Inline annotations next to raw success rates: "(adj 80%)" and "(3 api-err)" */
+.adjRate {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6366f1;
+}
+
+.apiErrInline {
+  font-size: 0.7rem;
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+[data-theme='dark'] .adjRate { color: #a5b4fc; }
+[data-theme='dark'] .apiErrInline { color: #fca5a5; }
+
+/* Per-language stats grid at the top of the expanded gallery card.
+   Shows success rate + run count + avg tokens for each of the 4 languages
+   (AILANG, Python, JavaScript, Go) — anything we have data for. */
+.languageStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.langStatCard {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.langStatHeader {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 0.25rem;
+}
+
+.langStatRate {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.langStatMeta {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 0.25rem;
+}
+
+/* Per-harness breakdown table inside the expanded gallery card. */
+.harnessBreakdown {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 6px;
+}
+
+.harnessTitle {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.harnessSubtitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.harnessTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.harnessTable th,
+.harnessTable td {
+  padding: 6px 10px;
+  text-align: center;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.harnessTable th {
+  background: var(--ifm-color-emphasis-200);
+  font-weight: 600;
+}
+
+.harnessTable td:first-child,
+.harnessTable th:first-child {
+  text-align: left;
+  font-weight: 500;
 }

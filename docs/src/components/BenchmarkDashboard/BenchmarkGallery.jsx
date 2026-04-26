@@ -4,6 +4,36 @@ import styles from './styles.module.css';
 
 const TIER_ORDER = ['core', 'stretch', 'vision', 'smoke'];
 const TIER_LABELS = { core: 'Core', stretch: 'Stretch', vision: 'Vision', smoke: 'Smoke' };
+const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI', opencode: 'opencode' };
+const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'opencode'];
+const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
+const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
+
+// Adjusted success rate: excludes API errors from denominator.
+// API errors are infrastructure failures (quota, CLI version mismatch) that
+// don't reflect model code-generation quality. Adj rate = passes / non-api-runs.
+function adjRate(rate, apiErrorRate) {
+  if (rate == null) return null;
+  if (!apiErrorRate || apiErrorRate <= 0) return rate;
+  const adj = rate / (1 - apiErrorRate);
+  return Math.min(1.0, adj);
+}
+
+function heatBg(rate) {
+  if (rate == null) return 'transparent';
+  if (rate >= 0.85) return 'rgba(34,197,94,0.25)';
+  if (rate >= 0.70) return 'rgba(34,197,94,0.12)';
+  if (rate >= 0.50) return 'rgba(234,179,8,0.18)';
+  if (rate >= 0.30) return 'rgba(249,115,22,0.18)';
+  return 'rgba(239,68,68,0.20)';
+}
+
+function rateColor(rate) {
+  if (rate == null) return 'var(--ifm-color-emphasis-400)';
+  if (rate >= 0.85) return '#15803d';
+  if (rate < 0.30) return '#b91c1c';
+  return 'inherit';
+}
 
 export default function BenchmarkGallery({ benchmarks }) {
   const allArray = Object.entries(benchmarks).map(([id, stats]) => ({ id, ...stats }));
@@ -75,6 +105,22 @@ function BenchmarkCard({ benchmark }) {
   const pythonAgent = agentStats?.python;
   const hasAgentData = ailangAgent || pythonAgent;
 
+  // API-error awareness: when infra failures inflate the failure rate,
+  // surface a warning chip and show adjusted rates alongside raw ones.
+  const ailangApiErrRate = ailangAgent?.apiErrorRate ?? 0;
+  const pythonApiErrRate = pythonAgent?.apiErrorRate ?? 0;
+  const showApiWarning = ailangApiErrRate > 0.05 || pythonApiErrRate > 0.05;
+  const totalApiErrors = (ailangAgent?.apiErrors ?? 0) + (pythonAgent?.apiErrors ?? 0);
+
+  // Per-harness breakdown across both languages, ordered for stable rendering.
+  const harnessBreakdown = HARNESS_ORDER
+    .map(h => ({
+      name: h,
+      ailang: ailangAgent?.byHarness?.[h] || null,
+      python: pythonAgent?.byHarness?.[h] || null,
+    }))
+    .filter(row => row.ailang || row.python);
+
   // Determine status
   let status, statusColor, StatusIcon;
   if (successRate >= 0.8) {
@@ -92,7 +138,7 @@ function BenchmarkCard({ benchmark }) {
   }
 
   return (
-    <div className={`${styles.benchmarkCard} ${styles[statusColor]}`}>
+    <div className={`${styles.benchmarkCard} ${styles[statusColor]} ${expanded ? styles.expanded : ''}`}>
       <div
         className={styles.benchmarkHeader}
         onClick={() => setExpanded(!expanded)}
@@ -111,6 +157,11 @@ function BenchmarkCard({ benchmark }) {
           <span className={styles.benchmarkName}>{formatBenchmarkName(id)}</span>
         </div>
         <div className={styles.benchmarkMeta}>
+          {showApiWarning && (
+            <span className={styles.apiErrorChip} title={`${totalApiErrors} API errors inflate the failure rate. See per-harness breakdown.`}>
+              ⚠ {Math.round(Math.max(ailangApiErrRate, pythonApiErrRate) * 100)}% API err
+            </span>
+          )}
           <span className={`${styles.statusBadge} ${styles[statusColor]}`}>
             {status}
           </span>
@@ -188,22 +239,37 @@ function BenchmarkCard({ benchmark }) {
               <p>💡 {getHint(id, successRate)}</p>
             </div>
           )}
-          {codeSamples && (codeSamples.ailang || codeSamples.python) && (
+          {languageStats && (
+            <div className={styles.languageStatsGrid}>
+              {LANG_ORDER.map(lang => {
+                const ls = languageStats[lang];
+                if (!ls) return null;
+                return (
+                  <div key={lang} className={styles.langStatCard} style={{ background: heatBg(ls.successRate) }}>
+                    <div className={styles.langStatHeader}>{LANG_LABEL[lang]}</div>
+                    <div className={styles.langStatRate} style={{ color: rateColor(ls.successRate) }}>
+                      {Math.round(ls.successRate * 100)}%
+                    </div>
+                    <div className={styles.langStatMeta}>
+                      {ls.totalRuns} runs · {Math.round(ls.avgTokens)} tok
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {codeSamples && Object.keys(codeSamples).length > 0 && (
             <div className={styles.codeComparison}>
               <h4 className={styles.comparisonTitle}>Generated Code Comparison</h4>
               <div className={styles.codeGrid}>
-                {codeSamples.ailang && (
-                  <div className={styles.codeBlock}>
-                    <div className={styles.codeHeader}>AILANG</div>
-                    <pre className={styles.codePre}><code>{codeSamples.ailang}</code></pre>
-                  </div>
-                )}
-                {codeSamples.python && (
-                  <div className={styles.codeBlock}>
-                    <div className={styles.codeHeader}>Python</div>
-                    <pre className={styles.codePre}><code>{codeSamples.python}</code></pre>
-                  </div>
-                )}
+                {['ailang', 'python', 'javascript', 'go'].map(lang => (
+                  codeSamples[lang] && (
+                    <div key={lang} className={styles.codeBlock}>
+                      <div className={styles.codeHeader}>{LANG_LABEL[lang] || lang}</div>
+                      <pre className={styles.codePre}><code>{codeSamples[lang]}</code></pre>
+                    </div>
+                  )
+                ))}
               </div>
             </div>
           )}
@@ -222,6 +288,11 @@ function BenchmarkCard({ benchmark }) {
                         <span className={styles.agentLabel}>Success Rate</span>
                         <span className={styles.agentValue}>
                           {(ailangAgent.successRate * 100).toFixed(0)}%
+                          {ailangApiErrRate > 0.05 && (
+                            <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
+                              {' '}(adj {Math.round(adjRate(ailangAgent.successRate, ailangApiErrRate) * 100)}%)
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className={styles.agentMetric}>
@@ -240,6 +311,11 @@ function BenchmarkCard({ benchmark }) {
                         <span className={styles.agentLabel}>Runs</span>
                         <span className={styles.agentValue}>
                           {ailangAgent.runs}
+                          {ailangApiErrRate > 0.05 && (
+                            <span className={styles.apiErrInline} title="API errors (infrastructure failures, not model failures)">
+                              {' '}({ailangAgent.apiErrors} api-err)
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -253,6 +329,11 @@ function BenchmarkCard({ benchmark }) {
                         <span className={styles.agentLabel}>Success Rate</span>
                         <span className={styles.agentValue}>
                           {(pythonAgent.successRate * 100).toFixed(0)}%
+                          {pythonApiErrRate > 0.05 && (
+                            <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
+                              {' '}(adj {Math.round(adjRate(pythonAgent.successRate, pythonApiErrRate) * 100)}%)
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className={styles.agentMetric}>
@@ -271,6 +352,11 @@ function BenchmarkCard({ benchmark }) {
                         <span className={styles.agentLabel}>Runs</span>
                         <span className={styles.agentValue}>
                           {pythonAgent.runs}
+                          {pythonApiErrRate > 0.05 && (
+                            <span className={styles.apiErrInline} title="API errors (infrastructure failures, not model failures)">
+                              {' '}({pythonAgent.apiErrors} api-err)
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -285,6 +371,54 @@ function BenchmarkCard({ benchmark }) {
                     and uses {(ailangAgent.avgTokens / pythonAgent.avgTokens).toFixed(1)}x more tokens
                     compared to Python. This reflects the learning curve of a new language.
                   </p>
+                </div>
+              )}
+              {harnessBreakdown.length > 0 && (
+                <div className={styles.harnessBreakdown}>
+                  <h5 className={styles.harnessTitle}>Per-Harness Breakdown</h5>
+                  <p className={styles.harnessSubtitle}>
+                    Pass rate per harness × language. Adjusted (adj) excludes API-error runs.
+                  </p>
+                  <table className={styles.harnessTable}>
+                    <thead>
+                      <tr>
+                        <th>Harness</th>
+                        <th>AILANG</th>
+                        <th>Python</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {harnessBreakdown.map(row => {
+                        const renderCell = (h) => {
+                          if (!h) return <span style={{ color: 'var(--ifm-color-emphasis-400)' }}>—</span>;
+                          const adj = adjRate(h.successRate, h.apiErrorRate);
+                          const showAdj = h.apiErrorRate > 0.05 && Math.round(adj * 100) !== Math.round(h.successRate * 100);
+                          return (
+                            <span style={{ color: rateColor(h.successRate), fontWeight: h.successRate >= 0.85 ? 700 : 400 }}>
+                              {Math.round(h.successRate * 100)}%
+                              {showAdj && (
+                                <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
+                                  {' '}(adj {Math.round(adj * 100)}%)
+                                </span>
+                              )}
+                              {h.apiErrorRate > 0.05 && (
+                                <span className={styles.apiErrInline} title={`${h.apiErrors}/${h.runs} api errors`}>
+                                  {' '}⚠ {h.apiErrors}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        };
+                        return (
+                          <tr key={row.name}>
+                            <td>{HARNESS_LABEL[row.name] || row.name}</td>
+                            <td style={{ background: heatBg(row.ailang?.successRate) }}>{renderCell(row.ailang)}</td>
+                            <td style={{ background: heatBg(row.python?.successRate) }}>{renderCell(row.python)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
