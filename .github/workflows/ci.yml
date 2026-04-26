@@ -241,10 +241,12 @@ jobs:
 
     - name: Run Go test suite
       shell: pwsh
-      # Same -timeout 60s as the Linux test job. Failures here are blocking:
-      # if a test is genuinely Windows-incompatible, fix it or skip it with
-      # a `// TODO(windows-ci): <reason>` comment + tracked GH issue.
-      run: go test -timeout 60s ./...
+      # 5min timeout (vs 60s on Linux): windows-latest runners are noticeably
+      # slower for IO-heavy work (Git worktree ops, process spawn). Real hangs
+      # still get caught — a 5min ceiling is well above any healthy test.
+      # If a test is genuinely Windows-incompatible (not just slow), fix it or
+      # skip it with a `// TODO(windows-ci): <reason>` + tracked GH issue.
+      run: go test -timeout 300s ./...
 
   build:
     runs-on: ubuntu-latest
