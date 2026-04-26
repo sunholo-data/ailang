@@ -205,9 +205,39 @@ jobs:
         go-version: '1.25'
         cache: true
 
-    - name: Build ailang.exe
+    - name: Set up uv (provides Python for eval-harness Python runner tests)
+      uses: astral-sh/setup-uv@v7
+
+    - name: Install ailang to PATH (mirrors `make install`)
       shell: pwsh
-      run: go build -o ailang.exe ./cmd/ailang
+      # Use go install so the binary lands in $(go env GOPATH)/bin, which
+      # setup-go puts on PATH. Tests like tests/golden/codegen invoke
+      # exec.Command("ailang", ...) and need it discoverable by name.
+      run: |
+        go install ./cmd/ailang
+        $bin = & go env GOPATH
+        Write-Host "Installed to $bin/bin"
+        & "$bin/bin/ailang.exe" --version
+
+    - name: PowerShell smoke — -args-file (regression fixture for #199)
+      shell: pwsh
+      # Run BEFORE go test so the regression fixture for the original bug
+      # always exercises, even if some other test fails. This is the whole
+      # reason the test-windows job exists.
+      run: |
+        Set-Content -Path args.json -Value '"World"' -NoNewline
+        $output = & ailang run --caps IO --entry greet --args-file args.json examples/docs/module_greet.ail
+        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
+        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
+        Write-Host "OK: -args-file"
+
+    - name: PowerShell smoke — -args-json - via stdin (regression fixture for #199)
+      shell: pwsh
+      run: |
+        $output = '"World"' | & ailang run --caps IO --entry greet --args-json - examples/docs/module_greet.ail
+        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
+        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
+        Write-Host "OK: -args-json - (stdin)"
 
     - name: Run Go test suite
       shell: pwsh
@@ -215,25 +245,6 @@ jobs:
       # if a test is genuinely Windows-incompatible, fix it or skip it with
       # a `// TODO(windows-ci): <reason>` comment + tracked GH issue.
       run: go test -timeout 60s ./...
-
-    - name: PowerShell smoke — -args-file
-      shell: pwsh
-      # This is the regression fixture for GH #199. If PowerShell quote
-      # mangling ever sneaks back in, this step catches it.
-      run: |
-        Set-Content -Path args.json -Value '"World"' -NoNewline
-        $output = & .\ailang.exe run --caps IO --entry greet --args-file args.json examples/docs/module_greet.ail
-        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
-        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
-        Write-Host "OK: -args-file"
-
-    - name: PowerShell smoke — -args-json - via stdin
-      shell: pwsh
-      run: |
-        $output = '"World"' | & .\ailang.exe run --caps IO --entry greet --args-json - examples/docs/module_greet.ail
-        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
-        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
-        Write-Host "OK: -args-json - (stdin)"
 
   build:
     runs-on: ubuntu-latest

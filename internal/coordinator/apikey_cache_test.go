@@ -7,6 +7,7 @@ import (
 
 func TestAPIKeyCacheStoreAndRetrieve(t *testing.T) {
 	c := NewAPIKeyCache(10 * time.Minute)
+	defer c.Close()
 
 	c.Store("msg-1", "sk-ant-api-key-1")
 
@@ -21,6 +22,7 @@ func TestAPIKeyCacheStoreAndRetrieve(t *testing.T) {
 
 func TestAPIKeyCacheOneTimeUse(t *testing.T) {
 	c := NewAPIKeyCache(10 * time.Minute)
+	defer c.Close()
 
 	c.Store("msg-2", "sk-ant-api-key-2")
 
@@ -57,6 +59,7 @@ func TestAPIKeyCacheExpiry(t *testing.T) {
 
 func TestAPIKeyCacheMissing(t *testing.T) {
 	c := NewAPIKeyCache(10 * time.Minute)
+	defer c.Close()
 
 	_, ok := c.Retrieve("nonexistent")
 	if ok {
