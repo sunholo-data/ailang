@@ -1,6 +1,6 @@
 # M-CLI: `-args-file`, Stdin Input, and Windows Runtime CI
 
-**Status**: Planned
+**Status**: Implemented (v0.14.2, 2026-04-27)
 **Target**: v0.14.2 (patch — Windows hotfix + lasting Windows CI signal)
 **Priority**: P0 (Windows users currently cannot reliably pass JSON args, and we have no CI signal to catch the next Windows-only regression)
 **Estimated**: ~3.5 hours (2h CLI fix + 1.5h Windows CI matrix)
