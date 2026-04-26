@@ -179,6 +179,7 @@ Sprint execution implements the plan with test-driven development and continuous
 2. **Lint-Clean** - All code must pass linting
 3. **Document as You Go** - Update CHANGELOG and docs progressively
 4. **Pause for Breath** - Stop at natural breakpoints for review
+5. **Cross-Platform** - CI runs `go test ./...` on `windows-latest` (job: `test-windows`). If your change touches paths, shell-outs, or CLI flag parsing, expect Windows-specific failures and treat them as blocking. Reproduce locally via `GOOS=windows go build` for compile-time issues; runtime issues need a Windows VM or wait for CI.
 
 ### Starting a Sprint
 

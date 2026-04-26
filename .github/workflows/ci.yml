@@ -178,6 +178,63 @@ jobs:
         make verify-examples-trace > trace_output.txt 2>&1 || true
         cat trace_output.txt
 
+  # Windows runtime signal (M-CLI-ARGS-WIN, v0.14.2). Sibling to `test`
+  # rather than a matrix because the main `test` job uses many POSIX-only
+  # patterns (heredocs, find -exec, awk/sed in make targets, uv, SonarCloud).
+  # This job runs go test ./... directly and a PowerShell smoke for the
+  # -args-file / -args-json - paths that motivated this work. Future work:
+  # expand to make verify-examples / make test-imports once stable.
+  test-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        # Avoid CRLF rewrites on test fixtures and golden files.
+        # PowerShell + git autocrlf can otherwise mutate bytes between
+        # checkout and `go test`, producing spurious diffs.
+        fetch-depth: 1
+
+    - name: Disable autocrlf
+      shell: pwsh
+      run: git config --global core.autocrlf false
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+        cache: true
+
+    - name: Build ailang.exe
+      shell: pwsh
+      run: go build -o ailang.exe ./cmd/ailang
+
+    - name: Run Go test suite
+      shell: pwsh
+      # Same -timeout 60s as the Linux test job. Failures here are blocking:
+      # if a test is genuinely Windows-incompatible, fix it or skip it with
+      # a `// TODO(windows-ci): <reason>` comment + tracked GH issue.
+      run: go test -timeout 60s ./...
+
+    - name: PowerShell smoke — -args-file
+      shell: pwsh
+      # This is the regression fixture for GH #199. If PowerShell quote
+      # mangling ever sneaks back in, this step catches it.
+      run: |
+        Set-Content -Path args.json -Value '"World"' -NoNewline
+        $output = & .\ailang.exe run --caps IO --entry greet --args-file args.json examples/docs/module_greet.ail
+        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
+        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
+        Write-Host "OK: -args-file"
+
+    - name: PowerShell smoke — -args-json - via stdin
+      shell: pwsh
+      run: |
+        $output = '"World"' | & .\ailang.exe run --caps IO --entry greet --args-json - examples/docs/module_greet.ail
+        if ($LASTEXITCODE -ne 0) { Write-Error "ailang exited $LASTEXITCODE"; exit 1 }
+        if ($output -notcontains 'World') { Write-Error "expected 'World' in output, got: $output"; exit 1 }
+        Write-Host "OK: -args-json - (stdin)"
+
   build:
     runs-on: ubuntu-latest
     needs: test
