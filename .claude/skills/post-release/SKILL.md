@@ -24,7 +24,7 @@ Run post-release tasks for an AILANG release: evaluation baselines, dashboard up
 ```bash
 # User says: "Run post-release tasks for v0.3.14"
 # This skill will:
-# 1. Run eval baseline (ALL 6 PRODUCTION MODELS, both languages) - ALWAYS USE --full FOR RELEASES
+# 1. Run eval baseline (extended_suite: 7 production models + lang-harness sweep) - ALWAYS USE --full FOR RELEASES
 # 2. Update website dashboard (JSON with history preservation)
 # 3. Update axiom scorecard KPI (if features affect axiom compliance)
 # 4. Extract metrics and UPDATE CHANGELOG.md automatically
@@ -55,51 +55,59 @@ Run evaluation baseline for a release version.
 
 **Usage:**
 ```bash
-# ✅ Full release baseline (standard + agent + lang/harness explorer data)
+# ✅ RECOMMENDED release baseline (standard + agent + 4-language Explorer sweep) — ~$23
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --full --lang-harness
 
-# Standard + agent only (no 4-lang Explorer sweep)
+# Standard + agent only (no 4-lang Explorer sweep) — ~$16
 .claude/skills/post-release/scripts/run_eval_baseline.sh v0.15.0 --full
 
-# Cross-harness comparison: same model via claude CLI vs opencode
-.claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --cross-harness
+# Major release: includes cross-harness comparison (gpt5-5 + opencode-gpt5-5 etc.) — ~$47
+.claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0 --full --cross-harness
 
-# ❌ Dev only — 3 cheap models, AILANG lang only (quick testing/validation)
+# ❌ Dev only — 3 cheap models, AILANG lang only (quick testing/validation) — ~$3.50
 .claude/skills/post-release/scripts/run_eval_baseline.sh 0.15.0
 ```
 
 **Output:**
 ```
 Running eval baseline for 0.3.14...
-Mode: FULL (all 6 production models)
-Expected cost: ~$0.50-1.00
-Expected time: ~15-20 minutes
+Mode: FULL (extended_suite: 7 production models)
+Expected cost: ~$16 (FULL) or ~$23 (FULL + lang-harness) or ~$47 (FULL + cross-harness)
+Expected time: ~30-60 minutes
 
 [Running benchmarks...]
 
 ✓ Baseline complete
   Results: eval_results/baselines/0.3.14
-  Files: 264 result files
+  Files: 726 result files
 ```
 
 **What it does:**
 - **Step 1**: Standard eval (0-shot + self-repair)
-  - Uses `extended_suite` (--full): gpt5-4, gpt5-4-mini, claude-opus-4-7, claude-sonnet-4-6, gemini-3-1-pro, gemini-3-flash
+  - Uses `extended_suite` (--full, 6 models): **gpt5-5** (Apr 2026 flagship), gpt5-4-mini, claude-opus-4-7, claude-sonnet-4-6, gemini-3-1-pro, gemini-3-flash
   - Or `dev_models` (default): gpt5-4-mini, claude-haiku-4-5, gemini-3-flash
   - Both AILANG and Python; all benchmarks in selected tier(s)
 - **Step 2**: Agent eval — flagship models × AILANG+Python
-  - `agent_suite`: claude-sonnet-4-6 (longitudinal anchor), gemini-3-flash, gpt5-4-mini, opencode-haiku
+  - `agent_suite` (4 cost-tuned models): claude-sonnet-4-6 (longitudinal anchor), gemini-3-flash, gpt5-4-mini, **opencode-sonnet-4-6** (cross-harness pair)
   - **Tier system** (v0.14.0+): `smoke` (15), `core` (22), `stretch` (11), `vision` (6)
   - Default scope: `core,stretch` — Core is the headline metric, Stretch is harder mixed results
   - Expected: `core` 70%+ for AILANG; `vision` intentionally low
   - Feeds the ailang-vs-python comparison story in the Model Leaderboard page
 - **Step 3** (--lang-harness): Language × Harness sweep — cheapest models × 4 languages
   - `lang_harness_suite`: claude-haiku-4-5, gemini-3-flash, gpt5-4-mini, opencode-haiku
-  - All 4 languages: ailang, python, javascript, go; core tier only
+  - All 4 languages: ailang, python, javascript, go
+  - **Tier: `core` only** (22 benchmarks) — stretch is skipped here even if `--tier core,stretch` was set globally
+  - Note: 4 core benchmarks are AILANG/Python-only (`contract_bst_validate`, `contract_roman_numeral`, `effect_composition`, `effect_tracking_io_fs`) and auto-skip on JS/Go runs
   - Feeds the **Agent Harness Explorer** language spread and cross-harness comparison data
-  - Cost: ~$0.30–0.60 extra per run
+  - Cost: ~$7 extra
+- **--cross-harness**: Replaces Step 2 with `harness_suite` (6 models, paired across harnesses)
+  - claude-sonnet-4-6 + opencode-sonnet-4-6, gemini-3-flash + opencode-gemini-3-flash, **gpt5-5 + opencode-gpt5-5**
+  - Cost: ~$31 extra vs base FULL (3x)
 - Saves combined results to `eval_results/baselines/vX.X.X/`
 - Accepts version with or without 'v' prefix
+
+**⚠️ Note**: `gpt5-5-pro` is in `models.yml` but **not in any default suite** — agent mode is blocked
+(codex rejects with ChatGPT account, opencode returns 0 tool calls). Don't add it to suites.
 
 ### `scripts/update_dashboard.sh <version>`
 Update website benchmark dashboard with new release data.
@@ -273,11 +281,14 @@ If release doesn't exist, run `release-manager` skill first.
 
 **Correct workflow:**
 ```bash
-# ✅ ALWAYS do this for releases - ONE command, let it complete
+# ✅ RECOMMENDED for releases — adds 4-language Explorer data for ~$7 more
+.claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X --full --lang-harness
+
+# Minimum acceptable for releases
 .claude/skills/post-release/scripts/run_eval_baseline.sh X.X.X --full
 ```
 
-This runs all 6 production models with both AILANG and Python.
+This runs all 7 production models (`extended_suite`) with both AILANG and Python.
 
 **Tier scope for releases:**
 - Default (release): `--tier core,stretch` — 33 benchmarks (22 core + 11 stretch)
@@ -287,10 +298,15 @@ This runs all 6 production models with both AILANG and Python.
   with `--tier vision` if you want to publish those numbers.
 
 Override tier via the script's `--tier` flag (see `run_eval_baseline.sh --help`). If
-unsure, the default is tuned to produce a release-ready baseline in 10–20 minutes.
+unsure, the default is tuned to produce a release-ready baseline in ~30–60 minutes.
 
-**Cost**: ~$0.50-1.00
-**Time**: ~15-20 minutes
+**Cost & time** (default tier `core,stretch` = 33 benchmarks):
+| Mode | Cost | Time | Use for |
+|---|---|---|---|
+| `--full` | ~$16 | ~30-40 min | Standard release |
+| `--full --lang-harness` | ~$23 | ~45-60 min | **Recommended** — adds 4-lang Explorer data |
+| `--full --cross-harness` | ~$47 | ~45-60 min | Major releases (vX.0, quarterly) |
+| dev (no flags) | ~$3.50 | ~10-15 min | Quick validation only — never for releases |
 
 **❌ WRONG workflow (what happened with v0.3.22):**
 ```bash
@@ -429,13 +445,20 @@ accumulated. See `benchmarks/CURATION.md` for the full philosophy.
 
 ```bash
 # Tag coverage: which of the 12 canonical tags are thin or over-represented?
-ailang eval-matrix --by-tags
-
-# Saturated benchmarks: both languages ≥ 95% — demote candidates (no signal)
-ailang eval-matrix --show-saturated
+ailang eval-matrix eval_results/baselines/vX.X.X vX.X.X --by-tags
 
 # AILANG-only wins: AILANG beats Python by ≥ 10pp — protect these from regressions
-ailang eval-matrix --ailang-wins
+ailang eval-matrix eval_results/baselines/vX.X.X vX.X.X --ailang-wins
+
+# Dual-mode saturation audit (RECOMMENDED for demotion decisions):
+# Lists every benchmark's standard AND agent pass rate per language.
+# Demote candidates require ≥95% on ALL 4 dimensions (std-AI, std-Py, agent-AI, agent-Py).
+# Standard-only saturation is misleading: many benchmarks are 100/100 in standard
+# but drop to 12-50% in agent mode — those are still valuable signal, KEEP IN CORE.
+.claude/skills/benchmark-manager/scripts/audit_saturation.sh vX.X.X
+
+# Built-in saturated check (uses topline successRate only — less reliable, prefer the script above):
+ailang eval-matrix eval_results/baselines/vX.X.X vX.X.X --show-saturated
 
 # Optional: compare this release's tag deltas against the previous baseline
 ailang eval-report eval_results/baselines/vX.X.X vX.X.X --format=json
