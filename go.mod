@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/firestore v1.22.0
 	cloud.google.com/go/kms v1.29.0
 	cloud.google.com/go/pubsub v1.50.2
-	cloud.google.com/go/run v1.15.0
+	cloud.google.com/go/run v1.19.0
 	cloud.google.com/go/storage v1.56.0
 	cloud.google.com/go/trace v1.14.0
 	firebase.google.com/go/v4 v4.19.0
