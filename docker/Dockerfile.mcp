@@ -1,0 +1,65 @@
+# AILANG MCP Server — Remote Model Context Protocol endpoint for ailang.sunholo.com.
+#
+# Runs `ailang serve-api --mcp-http --routes-only --caps FS,Env` against a
+# baked-in snapshot of the AILANG corpus (stdlib summaries, prompts,
+# benchmarks, design docs, changelog, examples). Agents connect over
+# Streamable HTTP at /mcp/ and call ~21 typed tools.
+#
+# Build context: the ailang repo root (the snapshot tool, the AILANG modules,
+# and the Go source all live here).
+#
+# Build command:
+#   docker build -f docker/Dockerfile.mcp -t ailang-mcp:latest .
+#
+# Cloud Run entrypoint expects PORT env var; we bind to 8080 by default which
+# Cloud Run overrides at runtime.
+
+# ── Build the ailang binary AND the snapshot in one Go stage ──────────────
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# ailang serves the MCP tools; build-snapshot produces the content corpus.
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /out/ailang ./cmd/ailang/ && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /out/build-snapshot ./tools/build-snapshot/
+
+# Build the snapshot from the same repo state that produced the binary.
+# Output lives at /out/snapshot/ and gets baked into the runtime image below.
+RUN /out/build-snapshot --repo /build --out /out/snapshot
+
+# ── Runtime: minimal image with just the binary, the AILANG modules, snapshot ──
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY --from=builder /out/ailang /usr/local/bin/ailang
+COPY --from=builder /out/snapshot /srv/snapshot
+COPY --from=builder /build/mcp_tools /srv/mcp_tools
+# Copy stdlib too — the AILANG modules in /srv/mcp_tools/ import std/* and the
+# loader needs the stdlib source available at runtime.
+COPY --from=builder /build/std /srv/std
+
+# Snapshot location for the mcp_tools/lib.ail helpers.
+ENV MCP_SNAPSHOT_DIR=/srv/snapshot
+# Module path tolerance — files live under /srv/mcp_tools/ but declare
+# `module mcp_tools/<name>`, which doesn't match the absolute path.
+ENV AILANG_RELAX_MODULES=1
+# Tell the loader where stdlib lives.
+ENV AILANG_STDLIB_PATH=/srv/std
+
+EXPOSE 8080
+
+# Entrypoint: serve MCP over Streamable HTTP. --routes-only filters registration
+# to only @mcp_name/@route exports (no helper leakage). --caps FS,Env restricts
+# the runtime to filesystem reads (snapshot) + env var reads (snapshot dir
+# config). Net is added in M7 when submit_feedback publishes to Pub/Sub.
+ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
+            "--mcp-http", "--routes-only", \
+            "--caps", "FS,Env", \
+            "--port", "8080", \
+            "/srv/mcp_tools/"]
