@@ -30,8 +30,8 @@ func TestModelFamilyParsed(t *testing.T) {
 			t.Errorf("model %q: model_family=%q, want %q", tc.key, cfg.ModelFamily, tc.wantFamily)
 		}
 	}
-	if len(GlobalModelsConfig.HarnessSuite) != 6 {
-		t.Errorf("harness_suite: expected 6 models, got %d: %v", len(GlobalModelsConfig.HarnessSuite), GlobalModelsConfig.HarnessSuite)
+	if len(GlobalModelsConfig.HarnessSuite) != 7 {
+		t.Errorf("harness_suite: expected 7 models, got %d: %v", len(GlobalModelsConfig.HarnessSuite), GlobalModelsConfig.HarnessSuite)
 	}
 }
 

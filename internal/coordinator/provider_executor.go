@@ -11,6 +11,7 @@ import (
 	_ "github.com/sunholo-data/ailang/internal/executor/codex"
 	_ "github.com/sunholo-data/ailang/internal/executor/gemini"
 	_ "github.com/sunholo-data/ailang/internal/executor/opencode"
+	_ "github.com/sunholo-data/ailang/internal/executor/pi"
 )
 
 // ExecutorProvider wraps any executor.Executor as a coordinator Provider.

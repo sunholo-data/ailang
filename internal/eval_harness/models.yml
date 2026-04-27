@@ -651,6 +651,79 @@ models:
       NOTE: gemini-3-flash-preview may not be provisioned for all GCP projects yet.
       Use opencode-gemini-2.5-flash as the working fallback until project access is granted.
 
+  pi-claude-haiku-4-5:
+    api_name: "claude-haiku-4-5-20251001"
+    provider: "anthropic"
+    description: "Claude Haiku 4.5 via pi minimal harness — cross-harness comparison"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "anthropic/claude-haiku-4-5"   # pi provider/model shorthand
+    model_family: "claude-haiku-4-5"                 # Cross-harness grouping: pairs with claude-haiku-4-5 + opencode-haiku
+    max_output_tokens: 16000
+    pricing:
+      input_per_1k: 0.00025   # $0.25 per 1M
+      output_per_1k: 0.00125  # $1.25 per 1M
+    notes: |
+      Claude Haiku 4.5 evaluated via the pi minimal harness.
+      Pi is a deliberately minimal Claude Agent SDK-based CLI (no MCP, no sub-agents,
+      no permission popups), serving as the "thin-harness" baseline against
+      claude-haiku-4-5 (Claude Code CLI, full-featured) and opencode-haiku
+      (opencode TUI). Same model, three different harness behaviours — feeds the
+      harness-richness vs. completion-rate axis of cross-harness analysis.
+      Requires: pi CLI (npm i -g @mariozechner/pi-coding-agent) + ANTHROPIC_API_KEY.
+
+  pi-claude-sonnet-4-6:
+    api_name: "claude-sonnet-4-6"
+    provider: "anthropic"
+    description: "Claude Sonnet 4.6 via pi minimal harness — cross-harness comparison"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "anthropic/claude-sonnet-4-6"
+    model_family: "claude-sonnet-4-6"                # Pairs with claude-sonnet-4-6 + opencode-sonnet-4-6
+    max_output_tokens: 64000
+    pricing:
+      input_per_1k: 0.003   # $3 per million
+      output_per_1k: 0.015  # $15 per million
+    notes: |
+      Claude Sonnet 4.6 evaluated via the pi minimal harness.
+      Cross-harness comparison member for the claude-sonnet-4-6 family.
+      Headline cross-harness signal — included in harness_suite.
+      Requires: pi CLI (npm i -g @mariozechner/pi-coding-agent) + ANTHROPIC_API_KEY.
+
+  pi-gpt5-4:
+    api_name: "gpt-5.4"
+    provider: "openai"
+    description: "GPT-5.4 via pi minimal harness — cross-harness comparison"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openai/gpt-5.4"
+    model_family: "gpt5-4"                           # Pairs with gpt5-4 + opencode-gpt5-4
+    max_output_tokens: 128000
+    pricing:
+      input_per_1k: 0.0025
+      output_per_1k: 0.015
+    notes: |
+      GPT-5.4 evaluated via the pi minimal harness.
+      Cross-harness comparison member for the gpt5-4 family.
+      Requires: pi CLI (npm i -g @mariozechner/pi-coding-agent) + OPENAI_API_KEY.
+
+  pi-gemini-3-flash-preview:
+    api_name: "gemini-3-flash-preview"
+    provider: "google"
+    description: "Gemini 3 Flash via pi minimal harness — cross-harness comparison"
+    env_var: "GEMINI_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "google/gemini-3-flash-preview"
+    model_family: "gemini-3-flash"                   # Pairs with gemini-3-flash + opencode-gemini-3-flash
+    max_output_tokens: 65536
+    pricing:
+      input_per_1k: 0.0005  # $0.50 per 1M
+      output_per_1k: 0.003  # $3.00 per 1M
+    notes: |
+      Gemini 3 Flash evaluated via the pi minimal harness.
+      Cross-harness comparison member for the gemini-3-flash family.
+      Requires: pi CLI (npm i -g @mariozechner/pi-coding-agent) + GEMINI_API_KEY (or ADC).
+
   opencode-gemini-2.5-flash:
     api_name: "gemini-2.5-flash"
     provider: "google"
@@ -884,6 +957,7 @@ ollama_suite:
 harness_suite:
   - "claude-sonnet-4-6"       # Sonnet via Claude Code CLI
   - "opencode-sonnet-4-6"     # Sonnet via opencode harness
+  - "pi-claude-sonnet-4-6"    # Sonnet via pi minimal harness (3-way claude-sonnet-4-6 family)
   - "gemini-3-flash"          # Gemini Flash via Gemini CLI
   - "opencode-gemini-3-flash" # Gemini Flash via opencode harness (ailang-dev + global location)
   - "gpt5-5"                  # GPT-5.5 via Codex CLI harness (Apr 2026)
