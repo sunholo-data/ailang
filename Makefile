@@ -239,14 +239,14 @@ brain-index-syntax-reset: build
 # AGENT MCP SERVER (M-AGENT-MCP)
 # =============================================================================
 
-## snapshot: Build the MCP snapshot tree (M1 stub; M2 expands with real builders)
-snapshot:
-	@echo "$(BOLD)Building MCP snapshot at build/snapshot/ ...$(RESET)"
-	@VER=$$(cat std/VERSION); mkdir -p build/snapshot/versioned/$$VER build/snapshot/unscoped
-	@VER=$$(cd build/snapshot/versioned && readlink latest 2>/dev/null || cat ../../../std/VERSION); \
-		(cd build/snapshot/versioned && ln -sfn $$(cat ../../../std/VERSION) latest)
-	@echo "✓ Snapshot tree ready at build/snapshot/"
-	@echo "  Real data builders land in M2"
+## snapshot: Build the MCP snapshot tree from current repo state (M2)
+snapshot: bin/build-snapshot
+	@./bin/build-snapshot --repo . --out build/snapshot
+
+## bin/build-snapshot: Build the snapshot tool
+bin/build-snapshot: tools/build-snapshot/main.go
+	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"
+	@go build -o bin/build-snapshot ./tools/build-snapshot/
 
 ## mcp-local: Run the MCP server locally against the build/snapshot/ directory
 mcp-local: build snapshot

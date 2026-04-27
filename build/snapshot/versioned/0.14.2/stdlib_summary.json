@@ -1,9 +1,0 @@
-{
-  "modules": [
-    {"name": "std/list", "summary": "Functional list operations: map, filter, fold", "function_count": 32},
-    {"name": "std/string", "summary": "String operations: length, substring, trim, split", "function_count": 18},
-    {"name": "std/json", "summary": "JSON encoding/decoding with constructor helpers", "function_count": 24},
-    {"name": "std/fs", "summary": "Read/write files with capability-based security", "function_count": 12},
-    {"name": "std/net", "summary": "Network operations (HTTP)", "function_count": 8}
-  ]
-}
