@@ -287,10 +287,13 @@ function BenchmarkCard({ benchmark }) {
                       <div className={styles.agentMetric}>
                         <span className={styles.agentLabel}>Success Rate</span>
                         <span className={styles.agentValue}>
-                          {(ailangAgent.successRate * 100).toFixed(0)}%
+                          {ailangApiErrRate > 0.05
+                            ? Math.round(adjRate(ailangAgent.successRate, ailangApiErrRate) * 100)
+                            : Math.round(ailangAgent.successRate * 100)
+                          }%
                           {ailangApiErrRate > 0.05 && (
-                            <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
-                              {' '}(adj {Math.round(adjRate(ailangAgent.successRate, ailangApiErrRate) * 100)}%)
+                            <span className={styles.adjRate} title="Raw rate before excluding API-error runs">
+                              {' '}(raw {Math.round(ailangAgent.successRate * 100)}%)
                             </span>
                           )}
                         </span>
@@ -328,10 +331,13 @@ function BenchmarkCard({ benchmark }) {
                       <div className={styles.agentMetric}>
                         <span className={styles.agentLabel}>Success Rate</span>
                         <span className={styles.agentValue}>
-                          {(pythonAgent.successRate * 100).toFixed(0)}%
+                          {pythonApiErrRate > 0.05
+                            ? Math.round(adjRate(pythonAgent.successRate, pythonApiErrRate) * 100)
+                            : Math.round(pythonAgent.successRate * 100)
+                          }%
                           {pythonApiErrRate > 0.05 && (
-                            <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
-                              {' '}(adj {Math.round(adjRate(pythonAgent.successRate, pythonApiErrRate) * 100)}%)
+                            <span className={styles.adjRate} title="Raw rate before excluding API-error runs">
+                              {' '}(raw {Math.round(pythonAgent.successRate * 100)}%)
                             </span>
                           )}
                         </span>
@@ -392,13 +398,15 @@ function BenchmarkCard({ benchmark }) {
                         const renderCell = (h) => {
                           if (!h) return <span style={{ color: 'var(--ifm-color-emphasis-400)' }}>—</span>;
                           const adj = adjRate(h.successRate, h.apiErrorRate);
-                          const showAdj = h.apiErrorRate > 0.05 && Math.round(adj * 100) !== Math.round(h.successRate * 100);
+                          const showAdjusted = h.apiErrorRate > 0.05 && Math.abs(adj - h.successRate) >= 0.01;
+                          const primary = showAdjusted ? adj : h.successRate;
                           return (
-                            <span style={{ color: rateColor(h.successRate), fontWeight: h.successRate >= 0.85 ? 700 : 400 }}>
-                              {Math.round(h.successRate * 100)}%
-                              {showAdj && (
-                                <span className={styles.adjRate} title="Adjusted: passes / non-api-error runs">
-                                  {' '}(adj {Math.round(adj * 100)}%)
+                            <span style={{ color: rateColor(primary), fontWeight: primary >= 0.85 ? 700 : 400 }}>
+                              {Math.round(primary * 100)}%
+                              {showAdjusted && (
+                                <span className={styles.adjRate} title={`Raw rate before excluding ${h.apiErrors}/${h.runs} API errors`}
+                                      style={{ color: 'var(--ifm-color-emphasis-500)', fontStyle: 'italic' }}>
+                                  {' '}(raw {Math.round(h.successRate * 100)}%)
                                 </span>
                               )}
                               {h.apiErrorRate > 0.05 && (
@@ -412,8 +420,8 @@ function BenchmarkCard({ benchmark }) {
                         return (
                           <tr key={row.name}>
                             <td>{HARNESS_LABEL[row.name] || row.name}</td>
-                            <td style={{ background: heatBg(row.ailang?.successRate) }}>{renderCell(row.ailang)}</td>
-                            <td style={{ background: heatBg(row.python?.successRate) }}>{renderCell(row.python)}</td>
+                            <td style={{ background: heatBg(row.ailang ? (row.ailang.apiErrorRate > 0.05 ? adjRate(row.ailang.successRate, row.ailang.apiErrorRate) : row.ailang.successRate) : null) }}>{renderCell(row.ailang)}</td>
+                            <td style={{ background: heatBg(row.python ? (row.python.apiErrorRate > 0.05 ? adjRate(row.python.successRate, row.python.apiErrorRate) : row.python.successRate) : null) }}>{renderCell(row.python)}</td>
                           </tr>
                         );
                       })}

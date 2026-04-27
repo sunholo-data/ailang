@@ -73,13 +73,29 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	// actually ran, so deltas vs zero-shot use matching denominators when
 	// harness coverage diverges (e.g., one harness crashes mid-run).
 	perExecBenchmarkIDs := make(map[string]map[string]bool) // executor -> benchmarkID -> true
+	// Set of models that ran in agent mode. The cross-method comparison
+	// (standard vs agent) is only fair when both sides use the same model
+	// pool — otherwise standard's flagship pool (e.g., Opus, GPT-5) gets
+	// compared to agent's cheap pool (e.g., Sonnet, Haiku, Flash) and the
+	// agent column looks artificially worse.
+	agentModelsSet := make(map[string]bool)
+	perExecModelsSet := make(map[string]map[string]bool) // executor -> model -> true
 	for _, r := range agentResults {
 		agentBenchmarkIDs[r.ID] = true
+		if r.Model != "" {
+			agentModelsSet[r.Model] = true
+		}
 		if r.Executor != "" {
 			if perExecBenchmarkIDs[r.Executor] == nil {
 				perExecBenchmarkIDs[r.Executor] = make(map[string]bool)
 			}
 			perExecBenchmarkIDs[r.Executor][r.ID] = true
+			if r.Model != "" {
+				if perExecModelsSet[r.Executor] == nil {
+					perExecModelsSet[r.Executor] = make(map[string]bool)
+				}
+				perExecModelsSet[r.Executor][r.Model] = true
+			}
 		}
 	}
 	agentBenchmarkList := make([]string, 0, len(agentBenchmarkIDs))
@@ -87,6 +103,15 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		agentBenchmarkList = append(agentBenchmarkList, id)
 	}
 	sort.Strings(agentBenchmarkList)
+
+	// Sorted list of agent models — exposed so the UI can label the cross-method
+	// comparison as "matched models only" and surface which model pool the
+	// 0-shot baseline used.
+	agentModelsList := make([]string, 0, len(agentModelsSet))
+	for m := range agentModelsSet {
+		agentModelsList = append(agentModelsList, m)
+	}
+	sort.Strings(agentModelsList)
 
 	// Compute reliability counters (api-error + refusal) across standard
 	// results so the dashboard can render an API Reliability card and
@@ -110,6 +135,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		"agentTotalTokens": agentTotalTokens,
 		"avgAgentCost":     avgAgentCost,
 		"agentBenchmarks":  agentBenchmarkList, // Sorted list of benchmark IDs for fair comparison
+		"agentModels":      agentModelsList,    // Models used in agent mode — also the 0-shot baseline pool
 		// API reliability + refusal (M-DASH-V2). Keys are camelCase.
 		"apiErrorCount": reliability.APIErrorCount,
 		"apiErrorRate":  reliability.APIErrorRate,
@@ -300,8 +326,10 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		benchmarksJS[id] = benchmark
 	}
 
-	// Per-model, per-language agent stats (for JS/Go in BenchmarkExplorer)
-	type agentLangStat struct{ runs, success int }
+	// Per-model, per-language agent stats (for JS/Go in BenchmarkExplorer).
+	// Tracks api_error count so the explorer can surface adjusted pass rates
+	// at the per-(model × language) granularity its mini-bars use.
+	type agentLangStat struct{ runs, success, apiErrors int }
 	modelAgentLangStats := make(map[string]map[string]agentLangStat)
 	for _, r := range agentResults {
 		if modelAgentLangStats[r.Model] == nil {
@@ -311,6 +339,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		ls.runs++
 		if r.StdoutOk {
 			ls.success++
+		}
+		if r.ErrorCategory == "api_error" {
+			ls.apiErrors++
 		}
 		modelAgentLangStats[r.Model][r.Lang] = ls
 	}
@@ -382,22 +413,42 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		// Add per-language breakdown for this model (standard evals)
 		langBreakdown := make(map[string]interface{})
 		for lang, lstats := range stats.Languages {
-			langBreakdown[lang] = map[string]interface{}{
+			entry := map[string]interface{}{
 				"successRate": lstats.SuccessRate,
 				"avgTokens":   lstats.AvgTokens,
 				"totalRuns":   lstats.TotalRuns,
 			}
+			// Attach agent api_error info if this model also ran in agent mode for this lang.
+			// Lets the explorer's per-model mini-bars show adjusted rates.
+			if agentLangs, ok := modelAgentLangStats[name]; ok {
+				if als, ok := agentLangs[lang]; ok && als.runs > 0 {
+					entry["agentRuns"] = als.runs
+					entry["agentApiErrors"] = als.apiErrors
+					entry["agentApiErrorRate"] = float64(als.apiErrors) / float64(als.runs)
+					if nonApi := als.runs - als.apiErrors; nonApi > 0 {
+						entry["agentSuccessRate"] = float64(als.success) / float64(als.runs)
+						entry["agentSuccessRateAdjusted"] = float64(als.success) / float64(nonApi)
+					}
+				}
+			}
+			langBreakdown[lang] = entry
 		}
 		// Augment with agent-only languages (JS/Go from lang_harness_suite)
 		if agentLangs, ok := modelAgentLangStats[name]; ok {
 			for lang, als := range agentLangs {
 				if _, exists := langBreakdown[lang]; !exists && als.runs > 0 {
-					langBreakdown[lang] = map[string]interface{}{
-						"successRate": float64(als.success) / float64(als.runs),
-						"avgTokens":   0,
-						"totalRuns":   als.runs,
-						"agentOnly":   true,
+					entry := map[string]interface{}{
+						"successRate":       float64(als.success) / float64(als.runs),
+						"avgTokens":         0,
+						"totalRuns":         als.runs,
+						"agentOnly":         true,
+						"agentApiErrors":    als.apiErrors,
+						"agentApiErrorRate": float64(als.apiErrors) / float64(als.runs),
 					}
+					if nonApi := als.runs - als.apiErrors; nonApi > 0 {
+						entry["agentSuccessRateAdjusted"] = float64(als.success) / float64(nonApi)
+					}
+					langBreakdown[lang] = entry
 				}
 			}
 		}
@@ -462,17 +513,29 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 					"avgCost":      agentStats.totalCost / float64(agentStats.runs),
 				},
 			}
-			// Per-language agent success rates (JS/Go from lang_harness_suite)
+			// Per-language agent success rates (JS/Go from lang_harness_suite).
+			// Includes adjusted rate + api_error counts so the Explorer's mini-bars
+			// and per-model heatmap row can flip raw→adjusted just like models that
+			// also have standard runs.
 			if agentLangs, ok := modelAgentLangStats[modelName]; ok && len(agentLangs) > 0 {
 				langBreakdown := make(map[string]interface{})
 				for lang, als := range agentLangs {
 					if als.runs > 0 {
-						langBreakdown[lang] = map[string]interface{}{
-							"successRate": float64(als.success) / float64(als.runs),
-							"avgTokens":   0,
-							"totalRuns":   als.runs,
-							"agentOnly":   true,
+						rawRate := float64(als.success) / float64(als.runs)
+						langEntry := map[string]interface{}{
+							"successRate":       rawRate,
+							"avgTokens":         0,
+							"totalRuns":         als.runs,
+							"agentOnly":         true,
+							"agentRuns":         als.runs,
+							"agentSuccessRate":  rawRate,
+							"agentApiErrors":    als.apiErrors,
+							"agentApiErrorRate": float64(als.apiErrors) / float64(als.runs),
 						}
+						if nonApi := als.runs - als.apiErrors; nonApi > 0 {
+							langEntry["agentSuccessRateAdjusted"] = float64(als.success) / float64(nonApi)
+						}
+						langBreakdown[lang] = langEntry
 					}
 				}
 				if len(langBreakdown) > 0 {
@@ -577,11 +640,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		zeroShotSuccess int
 		zeroShotTokens  int
 		zeroShotCost    float64
+		zeroShotApiErr  int // api_error count — excluded from "adjusted" rate
 		// Final (including repairs)
 		finalRuns    int
 		finalSuccess int
 		finalTokens  int
 		finalCost    float64
+		finalApiErr  int
 		// Repair-specific
 		repairAttempts int
 		repairSuccess  int
@@ -593,10 +658,12 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		zeroShotSuccess int
 		zeroShotTokens  int
 		zeroShotCost    float64
+		zeroShotApiErr  int
 		finalRuns       int
 		finalSuccess    int
 		finalTokens     int
 		finalCost       float64
+		finalApiErr     int
 	})
 
 	// Per-executor comparable stats: zero-shot/repair metrics filtered to the
@@ -607,14 +674,17 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		zeroShotSuccess int
 		zeroShotTokens  int
 		zeroShotCost    float64
+		zeroShotApiErr  int
 		finalRuns       int
 		finalSuccess    int
 		finalCost       float64
+		finalApiErr     int
 	}
 	langPerExecComparableStats := make(map[string]map[string]*perExecComparable) // exec -> lang -> stats
 
 	for _, r := range standardResults {
 		stats := langStandardStats[r.Lang]
+		isApiErr := r.ErrorCategory == "api_error"
 
 		// Zero-shot metrics: Count ALL runs, but look at first attempt only
 		// Success rate: based on first_attempt_ok across all runs
@@ -622,6 +692,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats.zeroShotRuns++
 		if r.FirstAttemptOk {
 			stats.zeroShotSuccess++
+		}
+		if isApiErr {
+			stats.zeroShotApiErr++
 		}
 		if !r.RepairUsed {
 			// Only count tokens/cost from non-repair runs for accurate per-attempt metrics
@@ -636,6 +709,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		if r.StdoutOk {
 			stats.finalSuccess++
 		}
+		if isApiErr {
+			stats.finalApiErr++
+		}
 		stats.finalTokens += r.OutputTokens
 		stats.finalCost += r.CostUSD
 
@@ -649,14 +725,19 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 
 		langStandardStats[r.Lang] = stats
 
-		// Track agent-comparable metrics (same benchmarks as agent ran)
-		if agentBenchmarkIDs[r.ID] {
+		// Track agent-comparable metrics: same benchmarks AND same models as
+		// agent ran. Without the model filter, standard's flagship pool gets
+		// compared against agent's cheap pool — see comment on agentModelsSet.
+		if agentBenchmarkIDs[r.ID] && agentModelsSet[r.Model] {
 			comparableStats := langAgentComparableStats[r.Lang]
 
 			// Zero-shot: Count ALL runs, look at first attempt only
 			comparableStats.zeroShotRuns++
 			if r.FirstAttemptOk {
 				comparableStats.zeroShotSuccess++
+			}
+			if isApiErr {
+				comparableStats.zeroShotApiErr++
 			}
 			if !r.RepairUsed {
 				// Only count tokens/cost from non-repair runs for accurate per-attempt metrics
@@ -671,16 +752,23 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			if r.StdoutOk {
 				comparableStats.finalSuccess++
 			}
+			if isApiErr {
+				comparableStats.finalApiErr++
+			}
 			comparableStats.finalTokens += r.OutputTokens
 			comparableStats.finalCost += r.CostUSD
 			langAgentComparableStats[r.Lang] = comparableStats
 		}
 
 		// Per-executor comparable: count this standard run for every executor
-		// whose benchmark set includes r.ID. A standard run on benchmark X is
-		// the fair zero-shot baseline for any executor that also ran X.
+		// where (a) the benchmark was run by that executor AND (b) the model
+		// was used by that executor. The model filter ensures we don't
+		// compare e.g. Opus 0-shot against Sonnet agent runs for "claude".
 		for executor, benchSet := range perExecBenchmarkIDs {
 			if !benchSet[r.ID] {
+				continue
+			}
+			if execModels := perExecModelsSet[executor]; execModels != nil && !execModels[r.Model] {
 				continue
 			}
 			if langPerExecComparableStats[executor] == nil {
@@ -695,6 +783,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			if r.FirstAttemptOk {
 				pec.zeroShotSuccess++
 			}
+			if isApiErr {
+				pec.zeroShotApiErr++
+			}
 			if !r.RepairUsed {
 				if r.OutputTokens > 0 {
 					pec.zeroShotTokens += r.OutputTokens
@@ -705,6 +796,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			if r.StdoutOk {
 				pec.finalSuccess++
 			}
+			if isApiErr {
+				pec.finalApiErr++
+			}
 			pec.finalCost += r.CostUSD
 		}
 	}
@@ -713,6 +807,7 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 	langAgentStats := make(map[string]struct {
 		runs         int
 		success      int
+		apiErrors    int // for "adjusted" rate that excludes infra failures
 		turns        int
 		tokens       int
 		cost         float64
@@ -727,6 +822,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 		stats.turns += r.AgentTurns
 		stats.tokens += r.TotalTokens
 		stats.cost += r.CostUSD
+		if r.ErrorCategory == "api_error" {
+			stats.apiErrors++
+		}
 
 		if r.StdoutOk {
 			stats.success++
@@ -755,10 +853,22 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			langData["zero_shot_avg_tokens"] = float64(stdStats.zeroShotTokens) / float64(stdStats.zeroShotRuns)
 			langData["zero_shot_avg_cost"] = stdStats.zeroShotCost / float64(stdStats.zeroShotRuns)
 
+			// Adjusted = passes / non-api-error runs. Surfaces "true" model
+			// strength when infrastructure works (4% baseline of api_errors
+			// in standard mode for v0.14.x).
+			if zsNonApi := stdStats.zeroShotRuns - stdStats.zeroShotApiErr; zsNonApi > 0 {
+				langData["zero_shot_success_adjusted"] = float64(stdStats.zeroShotSuccess) / float64(zsNonApi)
+				langData["zero_shot_api_errors"] = stdStats.zeroShotApiErr
+				langData["zero_shot_api_error_rate"] = float64(stdStats.zeroShotApiErr) / float64(stdStats.zeroShotRuns)
+			}
+
 			// Final metrics (including repairs)
 			if stdStats.finalRuns > 0 {
 				langData["final_success_avg_tokens"] = float64(stdStats.finalTokens) / float64(stdStats.finalRuns)
 				langData["final_success_avg_cost"] = stdStats.finalCost / float64(stdStats.finalRuns)
+				if finalNonApi := stdStats.finalRuns - stdStats.finalApiErr; finalNonApi > 0 {
+					langData["final_success_adjusted"] = float64(stdStats.finalSuccess) / float64(finalNonApi)
+				}
 			}
 
 			// Repair metrics
@@ -780,6 +890,16 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 			agentAvgCost := agentStats.cost / float64(agentStats.runs)
 			langData["agent_avg_cost"] = agentAvgCost
 
+			// Adjusted agent rate — pass count / runs that did not hit api_error.
+			// In v0.14.x ~45% of agent runs are api_errors (gemini quota, codex
+			// CLI version, opencode infra) so this is the headline "model
+			// strength when the harness works" number.
+			langData["agent_api_errors"] = agentStats.apiErrors
+			langData["agent_api_error_rate"] = float64(agentStats.apiErrors) / float64(agentStats.runs)
+			if nonApi := agentStats.runs - agentStats.apiErrors; nonApi > 0 {
+				langData["agent_success_rate_adjusted"] = float64(agentStats.success) / float64(nonApi)
+			}
+
 			// Agent turn efficiency breakdown
 			if agentStats.successCount > 0 {
 				langData["agent_avg_turns_success"] = float64(agentStats.successTurns) / float64(agentStats.successCount)
@@ -796,6 +916,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				langData["zero_shot_success_comparable"] = zeroShotSuccess
 				langData["zero_shot_avg_tokens_comparable"] = float64(comparableStats.zeroShotTokens) / float64(comparableStats.zeroShotRuns)
 				langData["zero_shot_avg_cost_comparable"] = zeroShotAvgCost
+				if zsNonApi := comparableStats.zeroShotRuns - comparableStats.zeroShotApiErr; zsNonApi > 0 {
+					langData["zero_shot_success_comparable_adjusted"] = float64(comparableStats.zeroShotSuccess) / float64(zsNonApi)
+				}
 
 				if comparableStats.finalRuns > 0 {
 					finalSuccess := float64(comparableStats.finalSuccess) / float64(comparableStats.finalRuns)
@@ -803,6 +926,9 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 					langData["final_success_comparable"] = finalSuccess
 					langData["final_success_avg_tokens_comparable"] = float64(comparableStats.finalTokens) / float64(comparableStats.finalRuns)
 					langData["final_success_avg_cost_comparable"] = finalAvgCost
+					if finalNonApi := comparableStats.finalRuns - comparableStats.finalApiErr; finalNonApi > 0 {
+						langData["final_success_comparable_adjusted"] = float64(comparableStats.finalSuccess) / float64(finalNonApi)
+					}
 
 					// Cost per success for repair approach
 					if finalSuccess > 0 {
@@ -841,6 +967,13 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 				langData["agent_avg_cost_"+executor] = ls.Cost / float64(ls.Runs)
 				langData["agent_runs_"+executor] = ls.Runs
 
+				// Adjusted per-executor: passes / non-api-error runs.
+				langData["agent_api_errors_"+executor] = ls.APIErrors
+				langData["agent_api_error_rate_"+executor] = float64(ls.APIErrors) / float64(ls.Runs)
+				if nonApi := ls.Runs - ls.APIErrors; nonApi > 0 {
+					langData["agent_success_rate_adjusted_"+executor] = float64(ls.Success) / float64(nonApi)
+				}
+
 				// Per-executor comparable baseline + derived deltas. Filtered to
 				// exactly the benchmarks this executor ran, so the success-gap
 				// and cost-ratio comparisons hold even when harness coverage
@@ -853,11 +986,31 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 						langData["zero_shot_success_comparable_"+executor] = zeroShotSuccessExec
 						langData["zero_shot_avg_cost_comparable_"+executor] = zeroShotAvgCostExec
 
+						// Adjusted = success / non-api-error runs. Surfaces true model
+						// strength when infrastructure works.
+						var zsAdjExec, agentAdjExec float64
+						haveZsAdj, haveAgentAdj := false, false
+						if zsNonApi := pec.zeroShotRuns - pec.zeroShotApiErr; zsNonApi > 0 {
+							zsAdjExec = float64(pec.zeroShotSuccess) / float64(zsNonApi)
+							langData["zero_shot_success_comparable_adjusted_"+executor] = zsAdjExec
+							haveZsAdj = true
+						}
+						if agentNonApi := ls.Runs - ls.APIErrors; agentNonApi > 0 {
+							agentAdjExec = float64(ls.Success) / float64(agentNonApi)
+							haveAgentAdj = true
+						}
+
 						agentSuccessRateExec := float64(ls.Success) / float64(ls.Runs)
 						agentAvgCostExec := ls.Cost / float64(ls.Runs)
 
-						// Success gap (fair: same benchmark set as this executor).
+						// Raw success gap (kept for backwards-compat).
 						langData["agent_success_gap_"+executor] = agentSuccessRateExec - zeroShotSuccessExec
+
+						// Adjusted success gap — apples-to-apples with the headline
+						// "Success Rate" row which now defaults to adjusted.
+						if haveZsAdj && haveAgentAdj {
+							langData["agent_success_gap_adjusted_"+executor] = agentAdjExec - zsAdjExec
+						}
 
 						// Cost efficiency ratio (lower is better; agent vs zero-shot).
 						if zeroShotSuccessExec > 0 && agentSuccessRateExec > 0 {
@@ -865,6 +1018,17 @@ func ExportBenchmarkJSON(matrix *PerformanceMatrix, history []*Baseline, results
 							agentCPS := agentAvgCostExec / agentSuccessRateExec
 							if zeroShotCPS > 0 {
 								langData["agent_cost_efficiency_ratio_"+executor] = agentCPS / zeroShotCPS
+							}
+						}
+
+						// Adjusted cost efficiency: keep total spend in numerator but
+						// divide by adjusted success count (excluding api-error runs).
+						// This says "cost per success when the harness actually runs".
+						if haveZsAdj && haveAgentAdj && zsAdjExec > 0 && agentAdjExec > 0 {
+							zsCPSAdj := zeroShotAvgCostExec / zsAdjExec
+							agentCPSAdj := agentAvgCostExec / agentAdjExec
+							if zsCPSAdj > 0 {
+								langData["agent_cost_efficiency_ratio_adjusted_"+executor] = agentCPSAdj / zsCPSAdj
 							}
 						}
 					}

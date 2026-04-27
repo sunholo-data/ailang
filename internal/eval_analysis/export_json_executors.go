@@ -19,11 +19,12 @@ import (
 // ExecutorLangStats exposes the counts the language aggregate loop needs
 // to surface per-executor agent metrics alongside the default ones.
 type ExecutorLangStats struct {
-	Runs    int
-	Success int
-	Turns   int
-	Tokens  int
-	Cost    float64
+	Runs      int
+	Success   int
+	APIErrors int // count of api_error runs — excluded from "adjusted" rate
+	Turns     int
+	Tokens    int
+	Cost      float64
 }
 
 type executorAgentTotals struct {
@@ -37,6 +38,7 @@ type executorAgentTotals struct {
 type executorLangTotals struct {
 	runs         int
 	success      int
+	apiErrors    int
 	turns        int
 	tokens       int
 	cost         float64
@@ -99,6 +101,9 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		ls.turns += r.AgentTurns
 		ls.tokens += r.TotalTokens
 		ls.cost += r.CostUSD
+		if r.ErrorCategory == "api_error" {
+			ls.apiErrors++
+		}
 		if r.StdoutOk {
 			ls.success++
 			ls.successTurns += r.AgentTurns
@@ -172,11 +177,12 @@ func buildExecutorAggregates(agentResults []*BenchmarkResult) (
 		bucket := make(map[string]ExecutorLangStats, len(langMap))
 		for lang, ls := range langMap {
 			bucket[lang] = ExecutorLangStats{
-				Runs:    ls.runs,
-				Success: ls.success,
-				Turns:   ls.turns,
-				Tokens:  ls.tokens,
-				Cost:    ls.cost,
+				Runs:      ls.runs,
+				Success:   ls.success,
+				APIErrors: ls.apiErrors,
+				Turns:     ls.turns,
+				Tokens:    ls.tokens,
+				Cost:      ls.cost,
 			}
 		}
 		simplified[executor] = bucket
@@ -241,6 +247,9 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 		ls.cost += r.CostUSD
 		ls.tokens += r.TotalTokens
 		ls.turns += r.AgentTurns
+		if r.ErrorCategory == "api_error" {
+			ls.apiErrors++
+		}
 		if r.StdoutOk {
 			ls.success++
 		}
@@ -274,12 +283,18 @@ func buildHarnessAggregates(agentResults []*BenchmarkResult) map[string]interfac
 			if ls.runs == 0 {
 				continue
 			}
-			langBreakdown[lang] = map[string]interface{}{
-				"runs":        ls.runs,
-				"successRate": float64(ls.success) / float64(ls.runs),
-				"avgTokens":   float64(ls.tokens) / float64(ls.runs),
-				"avgCost":     ls.cost / float64(ls.runs),
+			entry := map[string]interface{}{
+				"runs":         ls.runs,
+				"successRate":  float64(ls.success) / float64(ls.runs),
+				"avgTokens":    float64(ls.tokens) / float64(ls.runs),
+				"avgCost":      ls.cost / float64(ls.runs),
+				"apiErrors":    ls.apiErrors,
+				"apiErrorRate": float64(ls.apiErrors) / float64(ls.runs),
 			}
+			if nonApi := ls.runs - ls.apiErrors; nonApi > 0 {
+				entry["successRateAdjusted"] = float64(ls.success) / float64(nonApi)
+			}
+			langBreakdown[lang] = entry
 		}
 
 		entry := map[string]interface{}{

@@ -36,54 +36,72 @@ export default function RadarCharts({ data }) {
     return null;
   };
 
+  // Pick adjusted rate when available (true model strength when infra works);
+  // fall back to raw when adjusted hasn't been computed yet (older baselines).
+  // This matches the headline-rate convention used across all dashboard tables.
+  const pickRate = (langData, rawKey, adjustedKey) => {
+    const adjusted = langData?.[adjustedKey];
+    const raw = langData?.[rawKey];
+    return ((adjusted != null ? adjusted : raw) || 0) * 100;
+  };
+
   // Build success rate data with per-executor agent axes when multiple executors exist
   const successRateData = [
     {
       metric: '0-Shot',
       AILANG: hasAgentData
-        ? (languages.ailang?.zero_shot_success_comparable || 0) * 100
-        : (languages.ailang?.zero_shot_success || 0) * 100,
+        ? pickRate(languages.ailang, 'zero_shot_success_comparable', 'zero_shot_success_comparable_adjusted')
+        : pickRate(languages.ailang, 'zero_shot_success', 'zero_shot_success_adjusted'),
       Python: hasAgentData
-        ? (languages.python?.zero_shot_success_comparable || 0) * 100
-        : (languages.python?.zero_shot_success || 0) * 100
+        ? pickRate(languages.python, 'zero_shot_success_comparable', 'zero_shot_success_comparable_adjusted')
+        : pickRate(languages.python, 'zero_shot_success', 'zero_shot_success_adjusted')
     },
     {
       metric: 'With Repair',
       AILANG: hasAgentData
-        ? (languages.ailang?.final_success_comparable || 0) * 100
-        : (languages.ailang?.success_rate || 0) * 100,
+        ? pickRate(languages.ailang, 'final_success_comparable', 'final_success_comparable_adjusted')
+        : pickRate(languages.ailang, 'success_rate', 'final_success_adjusted'),
       Python: hasAgentData
-        ? (languages.python?.final_success_comparable || 0) * 100
-        : (languages.python?.success_rate || 0) * 100
+        ? pickRate(languages.python, 'final_success_comparable', 'final_success_comparable_adjusted')
+        : pickRate(languages.python, 'success_rate', 'final_success_adjusted')
     }
   ];
 
   if (hasAgentData && multiExecutor) {
-    // Add one axis per executor
+    // Add one axis per executor (adjusted preferred)
     for (const exec of executorNames) {
       successRateData.push({
         metric: `Agent (${execLabel(exec)})`,
-        AILANG: (languages.ailang?.[`agent_success_rate_${exec}`] || 0) * 100,
-        Python: (languages.python?.[`agent_success_rate_${exec}`] || 0) * 100
+        AILANG: pickRate(languages.ailang, `agent_success_rate_${exec}`, `agent_success_rate_adjusted_${exec}`),
+        Python: pickRate(languages.python, `agent_success_rate_${exec}`, `agent_success_rate_adjusted_${exec}`)
       });
     }
   } else if (hasAgentData) {
     // Single executor - show as plain "Agent"
     successRateData.push({
       metric: 'Agent',
-      AILANG: (languages.ailang?.agent_success_rate || 0) * 100,
-      Python: (languages.python?.agent_success_rate || 0) * 100
+      AILANG: pickRate(languages.ailang, 'agent_success_rate', 'agent_success_rate_adjusted'),
+      Python: pickRate(languages.python, 'agent_success_rate', 'agent_success_rate_adjusted')
     });
   }
 
   // Get agent benchmark list from data
   const agentBenchmarks = aggregates.agentBenchmarks || [];
+  const matchedModels = aggregates.agentModels || [];
 
   return (
     <>
       {hasAgentData && agentBenchmarks.length > 0 && (
         <div className={styles.benchmarkNote}>
-          <strong>Note:</strong> Comparison uses only the {agentBenchmarks.length} benchmarks tested in agent mode.
+          <strong>Note:</strong> Plotted rates exclude API-error runs (infrastructure failures
+          like quota or CLI version mismatches) so each axis reflects true model strength when
+          the harness works. Comparison uses the {agentBenchmarks.length} benchmarks tested in agent mode
+          {matchedModels.length > 0 && (
+            <>, and the 0-shot baseline only counts the {matchedModels.length} models that also ran in agent mode
+              (<code style={{ fontSize: '0.85em' }}>{matchedModels.join(', ')}</code>) — flagship-only models like
+              Opus or Pro are excluded so the comparison is apples-to-apples</>
+          )}
+          .
           {multiExecutor && (
             <> Agents: {executorNames.map(e => execLabel(e)).join(', ')}.</>
           )}

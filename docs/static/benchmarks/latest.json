@@ -1,6 +1,6 @@
 {
   "version": "v0.14.1",
-  "timestamp": "2026-04-27T00:07:52+02:00",
+  "timestamp": "2026-04-27T08:21:48+02:00",
   "totalRuns": 396,
   "aggregates": {
     "agentBenchmarks": [
@@ -43,6 +43,13 @@
       "codex",
       "gemini",
       "opencode"
+    ],
+    "agentModels": [
+      "claude-haiku-4-5",
+      "claude-sonnet-4-6",
+      "gemini-3-flash",
+      "gpt5-4-mini",
+      "opencode-haiku"
     ],
     "agentRuns": 584,
     "agentSuccessRate": 0.511986301369863,
@@ -1465,25 +1472,45 @@
       "agent_cli": "claude",
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.22727272727272727,
+          "agentApiErrors": 5,
           "agentOnly": true,
+          "agentRuns": 22,
+          "agentSuccessRate": 0.7727272727272727,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 0.7727272727272727,
           "totalRuns": 22
         },
         "go": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.9444444444444444,
+          "agentSuccessRateAdjusted": 0.9444444444444444,
           "avgTokens": 0,
           "successRate": 0.9444444444444444,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 1,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 1,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.2727272727272727,
+          "agentApiErrors": 6,
           "agentOnly": true,
+          "agentRuns": 22,
+          "agentSuccessRate": 0.6818181818181818,
+          "agentSuccessRateAdjusted": 0.9375,
           "avgTokens": 0,
           "successRate": 0.6818181818181818,
           "totalRuns": 22
@@ -1950,11 +1977,21 @@
       },
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.48484848484848486,
+          "agentApiErrors": 16,
+          "agentRuns": 33,
+          "agentSuccessRate": 0.5151515151515151,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 558.1818181818181,
           "successRate": 0.7878787878787878,
           "totalRuns": 33
         },
         "python": {
+          "agentApiErrorRate": 0.06060606060606061,
+          "agentApiErrors": 2,
+          "agentRuns": 33,
+          "agentSuccessRate": 0.8787878787878788,
+          "agentSuccessRateAdjusted": 0.9354838709677419,
           "avgTokens": 354.42424242424244,
           "successRate": 0.7575757575757576,
           "totalRuns": 33
@@ -2430,23 +2467,39 @@
       },
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.8,
+          "agentApiErrors": 44,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.18181818181818182,
+          "agentSuccessRateAdjusted": 0.9090909090909091,
           "avgTokens": 282.90909090909093,
           "successRate": 0.5757575757575758,
           "totalRuns": 33
         },
         "go": {
+          "agentApiErrorRate": 0.3888888888888889,
+          "agentApiErrors": 7,
           "agentOnly": true,
+          "agentSuccessRateAdjusted": 0.8181818181818182,
           "avgTokens": 0,
           "successRate": 0.5,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0.1111111111111111,
+          "agentApiErrors": 2,
           "agentOnly": true,
+          "agentSuccessRateAdjusted": 0.875,
           "avgTokens": 0,
           "successRate": 0.7777777777777778,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.8181818181818182,
+          "agentApiErrors": 45,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.12727272727272726,
+          "agentSuccessRateAdjusted": 0.7,
           "avgTokens": 305.93939393939394,
           "successRate": 0.6363636363636364,
           "totalRuns": 33
@@ -2923,23 +2976,39 @@
       },
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.6727272727272727,
+          "agentApiErrors": 37,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.3090909090909091,
+          "agentSuccessRateAdjusted": 0.9444444444444444,
           "avgTokens": 241.27272727272728,
           "successRate": 0.6666666666666666,
           "totalRuns": 33
         },
         "go": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 1,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 1,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.5636363636363636,
+          "agentApiErrors": 31,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.43636363636363634,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 269.1818181818182,
           "successRate": 0.8181818181818182,
           "totalRuns": 33
@@ -2970,25 +3039,45 @@
       "agent_cli": "opencode",
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.6363636363636364,
+          "agentApiErrors": 35,
           "agentOnly": true,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.34545454545454546,
+          "agentSuccessRateAdjusted": 0.95,
           "avgTokens": 0,
           "successRate": 0.34545454545454546,
           "totalRuns": 55
         },
         "go": {
+          "agentApiErrorRate": 0.05555555555555555,
+          "agentApiErrors": 1,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.7777777777777778,
+          "agentSuccessRateAdjusted": 0.8235294117647058,
           "avgTokens": 0,
           "successRate": 0.7777777777777778,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0.05555555555555555,
+          "agentApiErrors": 1,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.8888888888888888,
+          "agentSuccessRateAdjusted": 0.9411764705882353,
           "avgTokens": 0,
           "successRate": 0.8888888888888888,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.6,
+          "agentApiErrors": 33,
           "agentOnly": true,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.36363636363636365,
+          "agentSuccessRateAdjusted": 0.9090909090909091,
           "avgTokens": 0,
           "successRate": 0.36363636363636365,
           "totalRuns": 55
@@ -3013,25 +3102,45 @@
       "agent_cli": "claude",
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.22727272727272727,
+          "agentApiErrors": 5,
           "agentOnly": true,
+          "agentRuns": 22,
+          "agentSuccessRate": 0.7727272727272727,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 0.7727272727272727,
           "totalRuns": 22
         },
         "go": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.9444444444444444,
+          "agentSuccessRateAdjusted": 0.9444444444444444,
           "avgTokens": 0,
           "successRate": 0.9444444444444444,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0,
+          "agentApiErrors": 0,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 1,
+          "agentSuccessRateAdjusted": 1,
           "avgTokens": 0,
           "successRate": 1,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.2727272727272727,
+          "agentApiErrors": 6,
           "agentOnly": true,
+          "agentRuns": 22,
+          "agentSuccessRate": 0.6818181818181818,
+          "agentSuccessRateAdjusted": 0.9375,
           "avgTokens": 0,
           "successRate": 0.6818181818181818,
           "totalRuns": 22
@@ -3054,25 +3163,45 @@
       "agent_cli": "opencode",
       "languages": {
         "ailang": {
+          "agentApiErrorRate": 0.6363636363636364,
+          "agentApiErrors": 35,
           "agentOnly": true,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.34545454545454546,
+          "agentSuccessRateAdjusted": 0.95,
           "avgTokens": 0,
           "successRate": 0.34545454545454546,
           "totalRuns": 55
         },
         "go": {
+          "agentApiErrorRate": 0.05555555555555555,
+          "agentApiErrors": 1,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.7777777777777778,
+          "agentSuccessRateAdjusted": 0.8235294117647058,
           "avgTokens": 0,
           "successRate": 0.7777777777777778,
           "totalRuns": 18
         },
         "javascript": {
+          "agentApiErrorRate": 0.05555555555555555,
+          "agentApiErrors": 1,
           "agentOnly": true,
+          "agentRuns": 18,
+          "agentSuccessRate": 0.8888888888888888,
+          "agentSuccessRateAdjusted": 0.9411764705882353,
           "avgTokens": 0,
           "successRate": 0.8888888888888888,
           "totalRuns": 18
         },
         "python": {
+          "agentApiErrorRate": 0.6,
+          "agentApiErrors": 33,
           "agentOnly": true,
+          "agentRuns": 55,
+          "agentSuccessRate": 0.36363636363636365,
+          "agentSuccessRateAdjusted": 0.9090909090909091,
           "avgTokens": 0,
           "successRate": 0.36363636363636365,
           "totalRuns": 55
@@ -7870,6 +7999,16 @@
   },
   "languages": {
     "ailang": {
+      "agent_api_error_rate": 0.6227272727272727,
+      "agent_api_error_rate_claude": 0.38181818181818183,
+      "agent_api_error_rate_codex": 0.6727272727272727,
+      "agent_api_error_rate_gemini": 0.8,
+      "agent_api_error_rate_opencode": 0.6363636363636364,
+      "agent_api_errors": 137,
+      "agent_api_errors_claude": 21,
+      "agent_api_errors_codex": 37,
+      "agent_api_errors_gemini": 44,
+      "agent_api_errors_opencode": 35,
       "agent_avg_cost": 0.054005645681818176,
       "agent_avg_cost_claude": 0.05189971272727273,
       "agent_avg_cost_codex": 0.10850400000000003,
@@ -7887,56 +8026,82 @@
       "agent_avg_turns_gemini": 0.7272727272727273,
       "agent_avg_turns_opencode": 2.909090909090909,
       "agent_avg_turns_success": 4.3,
-      "agent_cost_efficiency_ratio": 1.833286175214756,
-      "agent_cost_efficiency_ratio_claude": 1.036351626262737,
-      "agent_cost_efficiency_ratio_codex": 4.333291686869846,
-      "agent_cost_efficiency_ratio_gemini": 1.1440947794986513,
-      "agent_cost_efficiency_ratio_opencode": 1.3852648553933458,
+      "agent_cost_efficiency_ratio": 3.3589696517446397,
+      "agent_cost_efficiency_ratio_adjusted_claude": 0.5666817799660723,
+      "agent_cost_efficiency_ratio_adjusted_codex": 7.092877765704897,
+      "agent_cost_efficiency_ratio_adjusted_gemini": 1.497180569090226,
+      "agent_cost_efficiency_ratio_claude": 0.9166911146509993,
+      "agent_cost_efficiency_ratio_codex": 17.732194414262242,
+      "agent_cost_efficiency_ratio_gemini": 6.578520682366144,
       "agent_cost_per_success": 0.14851552562499998,
-      "agent_impossibility_coverage": -0.826086956521739,
+      "agent_impossibility_coverage": -0.5365853658536585,
       "agent_runs": 220,
       "agent_runs_claude": 55,
       "agent_runs_codex": 55,
       "agent_runs_gemini": 55,
       "agent_runs_opencode": 55,
-      "agent_success_gap": -0.28787878787878785,
-      "agent_success_gap_claude": -0.033333333333333326,
-      "agent_success_gap_codex": -0.3424242424242424,
-      "agent_success_gap_gemini": -0.46969696969696967,
-      "agent_success_gap_opencode": -0.30606060606060603,
+      "agent_success_gap": -0.2222222222222222,
+      "agent_success_gap_adjusted_claude": 0.36363636363636365,
+      "agent_success_gap_adjusted_codex": 0.16666666666666663,
+      "agent_success_gap_adjusted_gemini": 0.3573667711598746,
+      "agent_success_gap_claude": -0.018181818181818188,
+      "agent_success_gap_codex": -0.32727272727272727,
+      "agent_success_gap_gemini": -0.30303030303030304,
       "agent_success_rate": 0.36363636363636365,
+      "agent_success_rate_adjusted": 0.963855421686747,
+      "agent_success_rate_adjusted_claude": 1,
+      "agent_success_rate_adjusted_codex": 0.9444444444444444,
+      "agent_success_rate_adjusted_gemini": 0.9090909090909091,
+      "agent_success_rate_adjusted_opencode": 0.95,
       "agent_success_rate_claude": 0.6181818181818182,
       "agent_success_rate_codex": 0.3090909090909091,
       "agent_success_rate_gemini": 0.18181818181818182,
       "agent_success_rate_opencode": 0.34545454545454546,
       "avg_cost_usd": 0.06183928787878783,
       "avg_tokens": 366.4141414141414,
-      "final_cost_per_success_comparable": 0.0856236293706293,
+      "final_cost_per_success_comparable": 0.052329388059701505,
+      "final_success_adjusted": 0.7814207650273224,
       "final_success_avg_cost": 0.06183928787878783,
-      "final_success_avg_cost_comparable": 0.06183928787878783,
+      "final_success_avg_cost_comparable": 0.035414838383838396,
       "final_success_avg_tokens": 366.4141414141414,
-      "final_success_avg_tokens_comparable": 366.4141414141414,
-      "final_success_comparable": 0.7222222222222222,
+      "final_success_avg_tokens_comparable": 360.7878787878788,
+      "final_success_comparable": 0.6767676767676768,
+      "final_success_comparable_adjusted": 0.7528089887640449,
       "repair_success_rate": 0.35,
       "success_rate": 0.7222222222222222,
       "total_runs": 198,
+      "zero_shot_api_error_rate": 0.07575757575757576,
+      "zero_shot_api_errors": 15,
       "zero_shot_avg_cost": 0.052779602272727266,
-      "zero_shot_avg_cost_comparable": 0.052779602272727266,
-      "zero_shot_avg_cost_comparable_claude": 0.052779602272727266,
-      "zero_shot_avg_cost_comparable_codex": 0.052779602272727266,
-      "zero_shot_avg_cost_comparable_gemini": 0.052779602272727266,
-      "zero_shot_avg_cost_comparable_opencode": 0.052779602272727266,
+      "zero_shot_avg_cost_comparable": 0.025903507575757576,
+      "zero_shot_avg_cost_comparable_claude": 0.05828154545454546,
+      "zero_shot_avg_cost_comparable_codex": 0.012598022727272725,
+      "zero_shot_avg_cost_comparable_gemini": 0.006830954545454546,
       "zero_shot_avg_tokens": 267.3131313131313,
-      "zero_shot_avg_tokens_comparable": 267.3131313131313,
-      "zero_shot_cost_per_success": 0.0810105523255814,
+      "zero_shot_avg_tokens_comparable": 219.13131313131314,
+      "zero_shot_cost_per_success": 0.04421460775862069,
       "zero_shot_success": 0.6515151515151515,
-      "zero_shot_success_comparable": 0.6515151515151515,
-      "zero_shot_success_comparable_claude": 0.6515151515151515,
-      "zero_shot_success_comparable_codex": 0.6515151515151515,
-      "zero_shot_success_comparable_gemini": 0.6515151515151515,
-      "zero_shot_success_comparable_opencode": 0.6515151515151515
+      "zero_shot_success_adjusted": 0.7049180327868853,
+      "zero_shot_success_comparable": 0.5858585858585859,
+      "zero_shot_success_comparable_adjusted": 0.651685393258427,
+      "zero_shot_success_comparable_adjusted_claude": 0.6363636363636364,
+      "zero_shot_success_comparable_adjusted_codex": 0.7777777777777778,
+      "zero_shot_success_comparable_adjusted_gemini": 0.5517241379310345,
+      "zero_shot_success_comparable_claude": 0.6363636363636364,
+      "zero_shot_success_comparable_codex": 0.6363636363636364,
+      "zero_shot_success_comparable_gemini": 0.48484848484848486
     },
     "python": {
+      "agent_api_error_rate": 0.5318181818181819,
+      "agent_api_error_rate_claude": 0.14545454545454545,
+      "agent_api_error_rate_codex": 0.5636363636363636,
+      "agent_api_error_rate_gemini": 0.8181818181818182,
+      "agent_api_error_rate_opencode": 0.6,
+      "agent_api_errors": 117,
+      "agent_api_errors_claude": 8,
+      "agent_api_errors_codex": 31,
+      "agent_api_errors_gemini": 45,
+      "agent_api_errors_opencode": 33,
       "agent_avg_cost": 0.0333043234090909,
       "agent_avg_cost_claude": 0.037620909999999994,
       "agent_avg_cost_codex": 0.0718893181818182,
@@ -7954,54 +8119,70 @@
       "agent_avg_turns_gemini": 0.8,
       "agent_avg_turns_opencode": 2.290909090909091,
       "agent_avg_turns_success": 3.705263157894737,
-      "agent_cost_efficiency_ratio": 15.298664232840132,
-      "agent_cost_efficiency_ratio_claude": 9.328098678409757,
-      "agent_cost_efficiency_ratio_codex": 32.67906594656875,
-      "agent_cost_efficiency_ratio_gemini": 10.664662736213678,
-      "agent_cost_efficiency_ratio_opencode": 9.199326919931899,
+      "agent_cost_efficiency_ratio": 26.107304469573958,
+      "agent_cost_efficiency_ratio_adjusted_claude": 6.586514574137193,
+      "agent_cost_efficiency_ratio_adjusted_codex": 52.40387262198479,
+      "agent_cost_efficiency_ratio_adjusted_gemini": 9.004480744572374,
+      "agent_cost_efficiency_ratio_claude": 7.70762343782012,
+      "agent_cost_efficiency_ratio_codex": 116.45305027107732,
+      "agent_cost_efficiency_ratio_gemini": 49.52464409514807,
       "agent_cost_per_success": 0.07712580157894734,
-      "agent_impossibility_coverage": -0.973684210526316,
+      "agent_impossibility_coverage": -0.8750000000000002,
       "agent_runs": 220,
       "agent_runs_claude": 55,
       "agent_runs_codex": 55,
       "agent_runs_gemini": 55,
       "agent_runs_opencode": 55,
-      "agent_success_gap": -0.28030303030303033,
-      "agent_success_gap_claude": 0.08787878787878789,
-      "agent_success_gap_codex": -0.2757575757575758,
-      "agent_success_gap_gemini": -0.584848484848485,
-      "agent_success_gap_opencode": -0.3484848484848485,
+      "agent_success_gap": -0.2651515151515152,
+      "agent_success_gap_adjusted_claude": 0.20889748549323017,
+      "agent_success_gap_adjusted_codex": 0.1875,
+      "agent_success_gap_adjusted_gemini": 0.12424242424242415,
+      "agent_success_gap_claude": 0.07272727272727275,
+      "agent_success_gap_codex": -0.3515151515151515,
+      "agent_success_gap_gemini": -0.44848484848484854,
       "agent_success_rate": 0.4318181818181818,
+      "agent_success_rate_adjusted": 0.9223300970873787,
+      "agent_success_rate_adjusted_claude": 0.9361702127659575,
+      "agent_success_rate_adjusted_codex": 1,
+      "agent_success_rate_adjusted_gemini": 0.7,
+      "agent_success_rate_adjusted_opencode": 0.9090909090909091,
       "agent_success_rate_claude": 0.8,
       "agent_success_rate_codex": 0.43636363636363634,
       "agent_success_rate_gemini": 0.12727272727272726,
       "agent_success_rate_opencode": 0.36363636363636365,
       "avg_cost_usd": 0.0048483232323232334,
       "avg_tokens": 318.32828282828285,
-      "final_cost_per_success_comparable": 0.0064427382550335584,
+      "final_cost_per_success_comparable": 0.003947582191780822,
+      "final_success_adjusted": 0.7563451776649747,
       "final_success_avg_cost": 0.0048483232323232334,
-      "final_success_avg_cost_comparable": 0.0048483232323232334,
+      "final_success_avg_cost_comparable": 0.0029108434343434342,
       "final_success_avg_tokens": 318.32828282828285,
-      "final_success_avg_tokens_comparable": 318.32828282828285,
-      "final_success_comparable": 0.7525252525252525,
+      "final_success_avg_tokens_comparable": 309.8484848484849,
+      "final_success_comparable": 0.7373737373737373,
+      "final_success_comparable_adjusted": 0.7448979591836735,
       "repair_success_rate": 0.1568627450980392,
       "success_rate": 0.7525252525252525,
       "total_runs": 198,
+      "zero_shot_api_error_rate": 0.005050505050505051,
+      "zero_shot_api_errors": 1,
       "zero_shot_avg_cost": 0.003590046717171717,
-      "zero_shot_avg_cost_comparable": 0.003590046717171717,
-      "zero_shot_avg_cost_comparable_claude": 0.003590046717171717,
-      "zero_shot_avg_cost_comparable_codex": 0.003590046717171717,
-      "zero_shot_avg_cost_comparable_gemini": 0.003590046717171717,
-      "zero_shot_avg_cost_comparable_opencode": 0.003590046717171717,
+      "zero_shot_avg_cost_comparable": 0.0020589772727272722,
+      "zero_shot_avg_cost_comparable_claude": 0.004437272727272726,
+      "zero_shot_avg_cost_comparable_codex": 0.0011146136363636365,
+      "zero_shot_avg_cost_comparable_gemini": 0.0006250454545454545,
       "zero_shot_avg_tokens": 215.37878787878788,
-      "zero_shot_avg_tokens_comparable": 215.37878787878788,
-      "zero_shot_cost_per_success": 0.00504134219858156,
+      "zero_shot_avg_tokens_comparable": 208.54545454545453,
+      "zero_shot_cost_per_success": 0.0029541847826086948,
       "zero_shot_success": 0.7121212121212122,
-      "zero_shot_success_comparable": 0.7121212121212122,
-      "zero_shot_success_comparable_claude": 0.7121212121212122,
-      "zero_shot_success_comparable_codex": 0.7121212121212122,
-      "zero_shot_success_comparable_gemini": 0.7121212121212122,
-      "zero_shot_success_comparable_opencode": 0.7121212121212122
+      "zero_shot_success_adjusted": 0.7157360406091371,
+      "zero_shot_success_comparable": 0.696969696969697,
+      "zero_shot_success_comparable_adjusted": 0.7040816326530612,
+      "zero_shot_success_comparable_adjusted_claude": 0.7272727272727273,
+      "zero_shot_success_comparable_adjusted_codex": 0.8125,
+      "zero_shot_success_comparable_adjusted_gemini": 0.5757575757575758,
+      "zero_shot_success_comparable_claude": 0.7272727272727273,
+      "zero_shot_success_comparable_codex": 0.7878787878787878,
+      "zero_shot_success_comparable_gemini": 0.5757575757575758
     }
   },
   "executors": {
@@ -8237,28 +8418,40 @@
       "display_name": "Claude Code CLI",
       "languages": {
         "ailang": {
+          "apiErrorRate": 0.38181818181818183,
+          "apiErrors": 21,
           "avgCost": 0.05189971272727273,
           "avgTokens": 1368.581818181818,
           "runs": 55,
-          "successRate": 0.6181818181818182
+          "successRate": 0.6181818181818182,
+          "successRateAdjusted": 1
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgCost": 0.04365387777777778,
           "avgTokens": 3066.777777777778,
           "runs": 18,
-          "successRate": 0.9444444444444444
+          "successRate": 0.9444444444444444,
+          "successRateAdjusted": 0.9444444444444444
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgCost": 0.04241228055555556,
           "avgTokens": 2854.9444444444443,
           "runs": 18,
-          "successRate": 1
+          "successRate": 1,
+          "successRateAdjusted": 1
         },
         "python": {
+          "apiErrorRate": 0.14545454545454545,
+          "apiErrors": 8,
           "avgCost": 0.037620909999999994,
           "avgTokens": 1337.4363636363637,
           "runs": 55,
-          "successRate": 0.8
+          "successRate": 0.8,
+          "successRateAdjusted": 0.9361702127659575
         }
       },
       "models": [
@@ -8275,28 +8468,40 @@
       "display_name": "Codex CLI",
       "languages": {
         "ailang": {
+          "apiErrorRate": 0.6727272727272727,
+          "apiErrors": 37,
           "avgCost": 0.10850400000000003,
           "avgTokens": 81740.29090909091,
           "runs": 55,
-          "successRate": 0.3090909090909091
+          "successRate": 0.3090909090909091,
+          "successRateAdjusted": 0.9444444444444444
         },
         "go": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgCost": 0.18289361111111113,
           "avgTokens": 136434.38888888888,
           "runs": 18,
-          "successRate": 1
+          "successRate": 1,
+          "successRateAdjusted": 1
         },
         "javascript": {
+          "apiErrorRate": 0,
+          "apiErrors": 0,
           "avgCost": 0.17216916666666668,
           "avgTokens": 128762.88888888889,
           "runs": 18,
-          "successRate": 1
+          "successRate": 1,
+          "successRateAdjusted": 1
         },
         "python": {
+          "apiErrorRate": 0.5636363636363636,
+          "apiErrors": 31,
           "avgCost": 0.0718893181818182,
           "avgTokens": 53256.09090909091,
           "runs": 55,
-          "successRate": 0.43636363636363634
+          "successRate": 0.43636363636363634,
+          "successRateAdjusted": 1
         }
       },
       "models": [
@@ -8312,28 +8517,40 @@
       "display_name": "Gemini CLI",
       "languages": {
         "ailang": {
+          "apiErrorRate": 0.8,
+          "apiErrors": 44,
           "avgCost": 0.01685159090909091,
           "avgTokens": 32964.454545454544,
           "runs": 55,
-          "successRate": 0.18181818181818182
+          "successRate": 0.18181818181818182,
+          "successRateAdjusted": 0.9090909090909091
         },
         "go": {
+          "apiErrorRate": 0.3888888888888889,
+          "apiErrors": 7,
           "avgCost": 0.02282680555555556,
           "avgTokens": 42375.27777777778,
           "runs": 18,
-          "successRate": 0.5
+          "successRate": 0.5,
+          "successRateAdjusted": 0.8181818181818182
         },
         "javascript": {
+          "apiErrorRate": 0.1111111111111111,
+          "apiErrors": 2,
           "avgCost": 0.027199583333333333,
           "avgTokens": 50630.27777777778,
           "runs": 18,
-          "successRate": 0.7777777777777778
+          "successRate": 0.7777777777777778,
+          "successRateAdjusted": 0.875
         },
         "python": {
+          "apiErrorRate": 0.8181818181818182,
+          "apiErrors": 45,
           "avgCost": 0.006842718181818182,
           "avgTokens": 12721.8,
           "runs": 55,
-          "successRate": 0.12727272727272726
+          "successRate": 0.12727272727272726,
+          "successRateAdjusted": 0.7
         }
       },
       "models": [
@@ -8349,28 +8566,40 @@
       "display_name": "opencode CLI",
       "languages": {
         "ailang": {
+          "apiErrorRate": 0.6363636363636364,
+          "apiErrors": 35,
           "avgCost": 0.038767279090909094,
           "avgTokens": 862.5272727272727,
           "runs": 55,
-          "successRate": 0.34545454545454546
+          "successRate": 0.34545454545454546,
+          "successRateAdjusted": 0.95
         },
         "go": {
+          "apiErrorRate": 0.05555555555555555,
+          "apiErrors": 1,
           "avgCost": 0.04197775,
           "avgTokens": 1469.5,
           "runs": 18,
-          "successRate": 0.7777777777777778
+          "successRate": 0.7777777777777778,
+          "successRateAdjusted": 0.8235294117647058
         },
         "javascript": {
+          "apiErrorRate": 0.05555555555555555,
+          "apiErrors": 1,
           "avgCost": 0.042199999999999994,
           "avgTokens": 1432.5,
           "runs": 18,
-          "successRate": 0.8888888888888888
+          "successRate": 0.8888888888888888,
+          "successRateAdjusted": 0.9411764705882353
         },
         "python": {
+          "apiErrorRate": 0.6,
+          "apiErrors": 33,
           "avgCost": 0.016864347272727277,
           "avgTokens": 596.8363636363637,
           "runs": 55,
-          "successRate": 0.36363636363636365
+          "successRate": 0.36363636363636365,
+          "successRateAdjusted": 0.9090909090909091
         }
       },
       "models": [
@@ -8384,7 +8613,7 @@
   "history": [
     {
       "version": "v0.14.1",
-      "timestamp": "2026-04-27T00:07:48+02:00",
+      "timestamp": "2026-04-27T08:21:45+02:00",
       "successRate": 0.7373737373737373,
       "totalRuns": 396,
       "successCount": 292,

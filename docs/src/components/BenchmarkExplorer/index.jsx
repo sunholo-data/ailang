@@ -36,11 +36,25 @@ function adjRate(rate, apiErrorRate) {
   return Math.min(1.0, adj);
 }
 
-function Cell({ rate }) {
-  const p = pct(rate);
+// Cell display priority: ADJUSTED rate is the headline (true model strength),
+// raw rate shown only when meaningfully different (≥1pp delta) so users can
+// see the infra noise that's been factored out. Heatmap color follows the
+// number being shown as primary.
+function Cell({ rate, adjusted, apiErrorRate }) {
+  const showAdjusted = adjusted != null && apiErrorRate != null && apiErrorRate > 0.05
+    && rate != null && Math.abs(adjusted - rate) >= 0.01;
+  const primary = showAdjusted ? adjusted : rate;
+  const p = pct(primary);
+  const showRaw = showAdjusted && rate != null;
   return (
-    <td style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(rate), color: rateColor(rate), fontWeight: rate >= 0.85 ? 700 : 400 }}>
+    <td style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(primary), color: rateColor(primary), fontWeight: primary >= 0.85 ? 700 : 400 }}>
       {p == null ? '—' : `${p}%`}
+      {showRaw && (
+        <span style={{ display: 'block', fontSize: '0.7em', color: 'var(--ifm-color-emphasis-500)', fontWeight: 400, fontStyle: 'italic' }}
+              title={`Raw rate before excluding API errors`}>
+          (raw {Math.round(rate * 100)}%)
+        </span>
+      )}
     </td>
   );
 }
@@ -96,9 +110,14 @@ function familyLabel(fam) {
   return fam.replace('claude-', 'Claude ').replace('gemini-', 'Gemini ').replace(/-/g, ' ');
 }
 
-// Mini bar row: label | ████░░░░ 72%
-function MiniBar({ lang, rate }) {
-  const p = rate != null ? Math.round(rate * 100) : null;
+// Mini bar row: label | ████░░░░ 91%  (raw 18%)
+// Display priority: ADJUSTED is primary (true model strength when infra works);
+// RAW shown as small annotation only when meaningfully different.
+function MiniBar({ lang, rate, adjusted, apiErrorRate, apiErrors }) {
+  const showAdjusted = apiErrorRate != null && apiErrorRate > 0.05 && adjusted != null
+    && rate != null && Math.abs(adjusted - rate) >= 0.01;
+  const primary = showAdjusted ? adjusted : rate;
+  const p = primary != null ? Math.round(primary * 100) : null;
   const color = LANG_COLOR[lang] || '#94a3b8';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
@@ -110,9 +129,17 @@ function MiniBar({ lang, rate }) {
           <div style={{ width: `${p}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s' }} />
         )}
       </div>
-      <span style={{ width: 30, fontSize: '0.72rem', fontWeight: p >= 85 ? 700 : 400, color: p == null ? 'var(--ifm-color-emphasis-300)' : rateColor(rate), flexShrink: 0 }}>
+      <span style={{ width: 30, fontSize: '0.72rem', fontWeight: p >= 85 ? 700 : 400, color: p == null ? 'var(--ifm-color-emphasis-300)' : rateColor(primary), flexShrink: 0 }}>
         {p != null ? `${p}%` : '—'}
       </span>
+      {showAdjusted && (
+        <span
+          style={{ fontSize: '0.65rem', color: 'var(--ifm-color-emphasis-500)', flexShrink: 0, fontStyle: 'italic' }}
+          title={`Raw rate before excluding ${apiErrors ?? 0} API errors`}
+        >
+          (raw {Math.round(rate * 100)}%)
+        </span>
+      )}
     </div>
   );
 }
@@ -137,9 +164,22 @@ function ModelLanguageSpread({ models, data, allLangs }) {
             }}>
               <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 2 }}>{modelShort(m)}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-500)', marginBottom: 10 }}>{harness}</div>
-              {allLangs.map(l => (
-                <MiniBar key={l} lang={l} rate={md?.languages?.[l]?.successRate ?? null} />
-              ))}
+              {allLangs.map(l => {
+                const ld = md?.languages?.[l];
+                // Prefer agent-specific rate when available (this section is "Agent" focused).
+                // Fallback to overall successRate (which mixes std + agent for back-compat).
+                const rate = ld?.agentSuccessRate ?? ld?.successRate ?? null;
+                return (
+                  <MiniBar
+                    key={l}
+                    lang={l}
+                    rate={rate}
+                    adjusted={ld?.agentSuccessRateAdjusted}
+                    apiErrorRate={ld?.agentApiErrorRate}
+                    apiErrors={ld?.agentApiErrors}
+                  />
+                );
+              })}
             </div>
           );
         })}
@@ -173,7 +213,7 @@ function CrossHarnessTable({ data, allLangs }) {
       </p>
       {anyApiErrors && (
         <div style={{ fontSize: '0.75rem', padding: '6px 10px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, marginBottom: 10, borderLeft: '3px solid #ef4444' }}>
-          ⚠ <strong>API errors inflate failure rates</strong> for some harnesses (shown in red). <em>Adj%</em> = pass rate excluding API errors from the denominator — a fairer measure of code generation quality.
+          ⚠ <strong>Headline rates exclude API errors</strong> (quota, CLI version mismatches, harness crashes) — these are infrastructure failures, not model failures. <em>(raw N%)</em> shows the unfiltered rate before exclusion.
         </div>
       )}
       <div className={styles.tableScroll}>
@@ -191,9 +231,14 @@ function CrossHarnessTable({ data, allLangs }) {
                 const order = { claude: 0, gemini: 1, codex: 2, opencode: 3 };
                 return (order[a.agent_cli] ?? 9) - (order[b.agent_cli] ?? 9);
               });
+              // Baseline for cross-harness delta uses ADJUSTED rate when available
+              // so we compare like-for-like (model strength vs model strength).
               const baseline = {};
               for (const l of allLangs) {
-                baseline[l] = sorted[0]?.languages?.[l]?.successRate ?? null;
+                const ld0 = sorted[0]?.languages?.[l];
+                const apiErr0 = sorted[0]?.agentStats?.apiErrorRate ?? 0;
+                const adj0 = adjRate(ld0?.successRate, apiErr0);
+                baseline[l] = (apiErr0 > 0.05 && adj0 != null) ? adj0 : (ld0?.successRate ?? null);
               }
               return sorted.map((v, i) => {
                 const apiErrRate = v.agentStats?.apiErrorRate ?? 0;
@@ -208,25 +253,28 @@ function CrossHarnessTable({ data, allLangs }) {
                     </td>
                     {allLangs.map(l => {
                       const rate = v.languages?.[l]?.successRate ?? null;
-                      const base = i > 0 ? baseline[l] : null;
-                      const delta = (base != null && rate != null) ? Math.round((rate - base) * 100) : null;
                       const adj = adjRate(rate, apiErrRate);
-                      const showAdj = apiErrRate > 0.05 && adj != null && Math.round(adj * 100) !== pct(rate);
+                      // ADJUSTED is primary when api errors are non-trivial; raw is secondary.
+                      const showAdjusted = apiErrRate > 0.05 && adj != null && rate != null
+                        && Math.abs(adj - rate) >= 0.01;
+                      const primary = showAdjusted ? adj : rate;
+                      const base = i > 0 ? baseline[l] : null;
+                      const delta = (base != null && primary != null) ? Math.round((primary - base) * 100) : null;
                       return (
-                        <td key={l} style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(rate), verticalAlign: 'middle' }}>
-                          {rate == null ? '—' : (
+                        <td key={l} style={{ textAlign: 'center', padding: '8px 12px', background: heatBg(primary), verticalAlign: 'middle' }}>
+                          {primary == null ? '—' : (
                             <>
-                              <span style={{ color: rateColor(rate), fontWeight: rate >= 0.85 ? 700 : 400 }}>
-                                {Math.round(rate * 100)}%
+                              <span style={{ color: rateColor(primary), fontWeight: primary >= 0.85 ? 700 : 400 }}>
+                                {Math.round(primary * 100)}%
                               </span>
                               {delta != null && delta !== 0 && (
                                 <span style={{ fontSize: '0.7rem', marginLeft: 4, color: delta > 0 ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
                                   {delta > 0 ? `↑+${delta}` : `↓${delta}`}pp
                                 </span>
                               )}
-                              {showAdj && (
-                                <div style={{ fontSize: '0.68rem', color: '#6366f1', marginTop: 1 }}>
-                                  adj {Math.round(adj * 100)}%
+                              {showAdjusted && rate != null && (
+                                <div style={{ fontSize: '0.68rem', color: 'var(--ifm-color-emphasis-500)', marginTop: 1, fontStyle: 'italic' }}>
+                                  (raw {Math.round(rate * 100)}%)
                                 </div>
                               )}
                             </>
@@ -316,9 +364,19 @@ export default function BenchmarkExplorer() {
             {langs.map(lang => (
               <tr key={lang} style={rowStyle}>
                 <td style={rowHeader}>{LANG_LABEL[lang] || lang}</td>
-                {models.map(m => (
-                  <Cell key={m} rate={data.models[m]?.languages?.[lang]?.successRate ?? null} />
-                ))}
+                {models.map(m => {
+                  const ld = data.models[m]?.languages?.[lang];
+                  // For models that ran in agent mode for this lang, prefer adjusted.
+                  // Otherwise fall back to plain successRate (standard or agent-only).
+                  return (
+                    <Cell
+                      key={m}
+                      rate={ld?.agentSuccessRate ?? ld?.successRate ?? null}
+                      adjusted={ld?.agentSuccessRateAdjusted}
+                      apiErrorRate={ld?.agentApiErrorRate}
+                    />
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -348,9 +406,17 @@ export default function BenchmarkExplorer() {
               return (
                 <tr key={h} style={rowStyle}>
                   <td style={rowHeader}>{HARNESS_LABEL[h] || h}</td>
-                  {langs.map(l => (
-                    <Cell key={l} rate={hr.languages?.[l]?.successRate ?? null} />
-                  ))}
+                  {langs.map(l => {
+                    const hl = hr.languages?.[l];
+                    return (
+                      <Cell
+                        key={l}
+                        rate={hl?.successRate ?? null}
+                        adjusted={hl?.successRateAdjusted}
+                        apiErrorRate={hl?.apiErrorRate}
+                      />
+                    );
+                  })}
                   <td style={{ textAlign: 'center', padding: '8px 12px', fontSize: '0.8rem' }}>
                     {hr.avg_cost_usd != null ? `$${hr.avg_cost_usd.toFixed(4)}` : '—'}
                   </td>
