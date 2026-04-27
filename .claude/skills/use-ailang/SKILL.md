@@ -5,350 +5,156 @@ description: Write and run AILANG code with correct syntax. Use when user asks t
 
 # AILANG Code Writing
 
-Write correct AILANG code following current syntax (v0.3.12+).
+Write correct AILANG code using the live MCP server as the canonical reference.
 
 ## Quick Start
 
-AILANG is a pure functional programming language with Hindley-Milner type inference and algebraic effects.
-
-**Most common usage:**
 ```bash
 ailang run --caps IO --entry main solution.ail   # Run with effects
-ailang repl                                        # Interactive development
-ailang check solution.ail                          # Type-check only
-ailang verify solution.ail                         # Prove contracts with Z3
+ailang repl                                       # Interactive development
+ailang check solution.ail                         # Type-check only
+ailang verify solution.ail                        # Prove contracts with Z3
 ```
 
 ## When to Use This Skill
 
-Invoke this skill when:
-- User asks to write AILANG code
-- User needs help with AILANG syntax errors
-- User wants to run AILANG programs
-- User asks about AILANG features or capabilities
-- User mentions AILANG version or syntax
-- User wants to add verification or contracts to AILANG code
-- User asks about Z3, SMT, or formal verification in AILANG
+- User asks to write AILANG code, fix syntax errors, or run programs
+- User asks about AILANG features, capabilities, or version
+- User wants to add Z3 verification or contracts
+
+## Source of Truth: the AILANG MCP Server
+
+**`mcp.ailang.sunholo.com`** is the canonical, live, version-locked source of truth for AILANG syntax, stdlib, examples, and limitations. Prefer it over any embedded reference in this file.
+
+**If the user's harness supports remote MCP** (Claude Desktop, Cursor, Cline, Continue, Claude Code), have them add it once:
+
+```json
+{
+  "mcpServers": {
+    "ailang-docs": {
+      "url": "https://mcp.ailang.sunholo.com/mcp/",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+Or use the one-click button at [ailang.sunholo.com](https://ailang.sunholo.com/).
+
+Then the agent has typed tools to query AILANG knowledge directly:
+
+| Tool | When to call |
+|---|---|
+| `prompt_get(for_version, kind="agent")` | Need full syntax reference (replaces reading `resources/syntax_quick_ref.md`) |
+| `stdlib_modules(for_version)` | Discover what's available in stdlib |
+| `stdlib_module(name, for_version)` | Look up exports of a specific module before importing |
+| `stdlib_search(query, for_version)` | Find a function by name/keyword |
+| `examples_for_concept(concept, for_version)` | Find a working example of a feature |
+| `example_get(path, for_version)` | Read full source of a specific example |
+| `limitations_list(for_version)` | Check what AILANG can't do (Y-combinator etc.) before proposing it |
+| `effects_catalog(for_version)` | Find which capability flag a function needs |
+| `submit_feedback(...)` | File a bug/limitation report mid-session — lands in our triage queue |
+
+Pass `for_version=$(ailang prompt --version-active)` (or empty for "latest") so the response is guaranteed to match the user's CLI capabilities.
+
+**If the harness does NOT support remote MCP** — fall back to the local CLI:
+
+```bash
+ailang prompt                            # Full teaching prompt (embedded)
+ailang prompt --source mcp               # Force fresh copy from MCP if reachable
+ailang prompt --source embedded          # Force embedded copy (eval reproducibility)
+ailang docs std/list                     # Inspect a stdlib module locally
+ailang examples search "pattern matching"
+ailang mcp status                        # Check MCP reachability + drift
+```
+
+`ailang prompt --source auto` (the default) prefers MCP-served content when reachable AND its `served_for` matches the CLI version, otherwise silently falls back to embedded. Reproducible eval runs MUST set `--source embedded`.
+
+## Local CLI Reference (always works, even offline)
+
+### Core commands
+
+```bash
+ailang repl                                       # Interactive
+ailang run --caps IO,FS --entry main file.ail     # Flags BEFORE filename!
+ailang check file.ail                             # Type-check only
+ailang verify file.ail                            # Z3 contract verification
+ailang watch file.ail                             # Auto-reload on change
+ailang iface mymodule                             # Module interface as JSON
+```
+
+**Critical**: `ailang run` flags MUST come before the filename. `ailang run file.ail --caps IO` silently ignores the flags.
+
+### Examples (already on disk)
+
+```bash
+ailang examples search "pattern matching"
+ailang examples list --tags adt
+ailang examples show adt_option --run
+```
+
+## Three Module Conventions (memorize these — they bite)
+
+### 1. REPL — no module declaration
+
+```bash
+ailang repl
+```
+
+### 2. Module file — standard
+
+```ailang
+module myapp/main
+import std/io (println)
+export func main() -> () ! {IO} = println("Hello, AILANG!")
+```
+
+Module path uses **underscores, not hyphens** (`mcp_tools/lib`, not `mcp-tools/lib`).
+
+### 3. Eval-harness benchmark — must use `module benchmark/solution`
+
+```ailang
+module benchmark/solution
+import std/io (println)
+export func main() -> () ! {IO} = println("Benchmark solution")
+```
+
+## Workflow
+
+When the user asks for AILANG code:
+
+1. **Check that the agent has MCP access** (if applicable): `ailang mcp status` or look for `mcp.ailang.sunholo.com` in the agent's MCP config.
+2. **Get current syntax reference**: call `prompt_get(for_version=...)` via MCP, or `ailang prompt` locally.
+3. **Discover stdlib + examples** before writing: call `stdlib_search` / `examples_for_concept` instead of guessing imports.
+4. **Write the code** following the prompt's syntax. Prefer pure functions (`! {}`) for core logic — these are Z3-verifiable; keep effectful code (`! {IO}`) as thin wrappers.
+5. **Add contracts** to pure functions when verification matters (`requires`/`ensures`). Then `ailang verify solution.ail`.
+6. **Type-check before running**: `ailang check solution.ail`.
+7. **Run with the right caps**: `ailang run --caps IO,FS --entry main solution.ail`.
 
 ## Available Scripts
 
 ### `scripts/check_version.sh`
-Check current active AILANG prompt version from `prompts/versions.json`.
+Print the active AILANG prompt version (uses `prompts/versions.json`).
 
-**Usage:**
 ```bash
 .claude/skills/use-ailang/scripts/check_version.sh
 ```
 
-**Output:**
-```
-Active AILANG version: v0.3.12
-Prompt file: prompts/v0.3.12.md
-Status: File exists ✓
-```
-
 ### `scripts/validate_code.sh <file.ail>`
-Validate AILANG code syntax using `ailang check`.
+Type-check an AILANG file via `ailang check`.
 
-**Usage:**
 ```bash
 .claude/skills/use-ailang/scripts/validate_code.sh solution.ail
 ```
 
-**Output:**
-```
-Validating solution.ail...
-✓ Type check passed
-```
+## Migration Note (M-AGENT-MCP)
 
-## Key Resources
-
-### 1. **Current Version Check** (Always Use First!)
-```bash
-# Check active prompt version
-.claude/skills/use-ailang/scripts/check_version.sh
-```
-
-The active version in `prompts/versions.json` is the source of truth for current AILANG syntax.
-
-### 2. **Syntax Quick Reference**
-See [`resources/syntax_quick_ref.md`](resources/syntax_quick_ref.md) for:
-- Basic syntax rules (func, semicolons, patterns)
-- Core language features (functions, ADTs, records, effects)
-- Standard library overview
-- What works vs what doesn't work
-
-### 3. **Common Patterns**
-See [`resources/common_patterns.md`](resources/common_patterns.md) for:
-- Recursion patterns (no loops!)
-- Pattern matching examples
-- Effects and IO patterns
-- Record updates
-- Common mistakes and fixes
-- Best practices
-
-### 4. **Z3 Verification Patterns**
-See [`resources/z3_verification_patterns.md`](resources/z3_verification_patterns.md) for:
-- "Pure core, effectful shell" architecture
-- Writing contracts (`requires`/`ensures`)
-- The decidable fragment (what Z3 can and cannot verify)
-- Refactoring effectful code for verification
-- Running `ailang verify`
-
-### 5. **Searchable Examples** (v0.6.2+)
-Use CLI to find working AILANG patterns:
-```bash
-ailang examples search "pattern matching"   # Search by content/tags
-ailang examples show adt_option             # View example with metadata
-ailang examples list --tags recursion       # Filter by tag
-ailang examples tags                        # List all available tags
-```
-
-### 6. **Dev Tools Reference** (v0.8.0+)
-Run `ailang devtools-prompt` for toolchain documentation covering:
-- Debugging with traces, replay, determinism verification
-- Agent chains, coordinator, messaging
-- Eval harness, telemetry, compilation
-
-### 7. **Full Documentation**
-- **Teaching prompt**: `ailang prompt` (language syntax)
-- **Dev tools prompt**: `ailang devtools-prompt` (toolchain usage)
-- **Website**: https://ailang.sunholo.com/
-- **Examples**: `examples/runnable/` directory (96 working examples)
-- **REPL commands**: `docs/docs/reference/repl-commands.md`
-
-## Usage Contexts
-
-### 1. REPL (Interactive Development)
-**Most flexible** - No module declaration needed:
-
-```bash
-ailang repl
-```
-
-```ailang
-> 5 + 3
-8 : int
-
-> let double = func(x: int) -> int { x * 2 }
-> double(21)
-42 : int
-
-> :type double
-func(int) -> int
-```
-
-### 2. Module Files (General Programs)
-**Standard usage** - Module with exported functions:
-
-```ailang
-module myapp/main
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Hello, AILANG!")
-}
-```
-
-```bash
-# Run with effects (flags BEFORE filename!)
-ailang run --caps IO main.ail
-
-# Type-check only
-ailang check main.ail
-```
-
-### 3. Eval Harness (AI Benchmarks)
-**Specific structure required** - Must use `module benchmark/solution`:
-
-```ailang
-module benchmark/solution
-
-import std/io (println)
-
-export func main() -> () ! {IO} {
-  println("Benchmark solution")
-}
-```
-
-**Note:** Teaching prompts in `prompts/` use eval harness conventions for AI code generation benchmarks.
-
-## AILANG CLI Reference
-
-### Core Commands
-
-```bash
-# Interactive REPL
-ailang repl
-
-# Run a program (flags BEFORE filename!)
-ailang run --caps IO,FS --entry main file.ail
-
-# Type-check without running
-ailang check file.ail
-
-# Verify contracts with Z3
-ailang verify file.ail
-ailang verify --verbose file.ail              # Show generated SMT-LIB
-ailang verify --json file.ail                 # Machine-readable output
-ailang verify --verify-recursive-depth 5 file.ail  # Bounded recursion depth
-
-# Watch for changes and auto-reload
-ailang watch file.ail
-
-# Output module interface (JSON)
-ailang iface mymodule
-
-# Export training data
-ailang export-training
-```
-
-### Run Command Flags
-
-**IMPORTANT**: Flags must come BEFORE the filename!
-
-```bash
-# ✅ CORRECT
-ailang run --caps IO,FS --entry main file.ail
-
-# ❌ WRONG
-ailang run file.ail --caps IO  # Flags ignored!
-```
-
-**Available flags:**
-- `--caps <list>` - Enable capabilities (IO, FS, Net, Clock)
-- `--entry <name>` - Entrypoint function (default: main)
-- `--args-json <json>` - JSON arguments to pass to entrypoint
-- `--trace` - Enable execution tracing
-- `--print` - Print return value (default: true)
-- `--no-print` - Suppress output (exit code only)
-
-### Development Commands
-
-```bash
-# Validate builtin registry
-ailang doctor builtins
-
-# List all builtins
-ailang builtins list --by-module
-
-# Run tests
-ailang test
-```
-
-### Examples Commands (v0.6.2+)
-
-```bash
-# Search for working examples
-ailang examples search "pattern matching"
-ailang examples search "recursion" --limit 5
-
-# List examples with filters
-ailang examples list                    # All working examples
-ailang examples list --tags adt         # Filter by tag
-ailang examples list --status all       # Include broken
-
-# View specific example
-ailang examples show adt_option         # Show with metadata
-ailang examples show adt_option --run   # Show and execute
-ailang examples show fold --expected    # Show expected output only
-
-# List available tags
-ailang examples tags
-```
-
-## Progressive Disclosure
-
-This skill loads information progressively:
-
-1. **Always loaded**: This SKILL.md file (YAML frontmatter + overview)
-2. **Load on demand**: `resources/syntax_quick_ref.md` (detailed syntax)
-3. **Load on demand**: `resources/common_patterns.md` (examples and patterns)
-4. **Load on demand**: `resources/z3_verification_patterns.md` (contracts and verification)
-5. **Execute as needed**: Scripts in `scripts/` directory
-
-This saves context tokens while providing access to comprehensive information when needed.
-
-## Version Information
-
-**Current active version**: Check with `scripts/check_version.sh`
-
-**As of this skill**: v0.3.12 (October 2025)
-
-Key features by version:
-- v0.3.12: Emphasis on show() function (recovery release)
-- v0.3.9: JSON encoding, HTTP headers for AI API integration
-- v0.3.8: Multi-line ADTs, record updates, auto-import prelude
-- v0.3.7: Effect system with capability security
-- v0.3.5: Anonymous functions, letrec, numeric conversions
-
-Check `CHANGELOG.md` for detailed version history.
-
-## Installation (For Reference)
-
-```bash
-# From releases (recommended)
-wget https://github.com/sunholo-data/ailang/releases/latest/download/ailang-<platform>.tar.gz
-tar xzf ailang-<platform>.tar.gz
-sudo mv ailang /usr/local/bin/
-
-# Or build from source
-git clone https://github.com/sunholo-data/ailang
-cd ailang
-make install
-```
+This skill used to embed extensive syntax reference (`resources/syntax_quick_ref.md`, `common_patterns.md`, `z3_verification_patterns.md`). Those files are still on disk for offline use, but **prefer the MCP server** — it's version-locked to your CLI and updates without skill edits. See [docs/guides/agent-mcp.md](https://ailang.sunholo.com/docs/guides/agent-mcp) for the full tool catalog.
 
 ## Getting Help
 
-- **Version check**: `.claude/skills/use-ailang/scripts/check_version.sh`
-- **Syntax reference**: `resources/syntax_quick_ref.md`
-- **Common patterns**: `resources/common_patterns.md`
-- **Teaching prompt**: `ailang prompt` (language syntax from `prompts/versions.json`)
-- **Dev tools prompt**: `ailang devtools-prompt` (toolchain: debug, trace, eval, chains)
+- **AILANG MCP**: https://mcp.ailang.sunholo.com/mcp/ (the canonical reference)
 - **Documentation**: https://ailang.sunholo.com/
-- **Examples**: `examples/` directory
-- **Issues**: https://github.com/sunholo-data/ailang/issues
-- **REPL help**: Type `:help` in the REPL
-
-## Workflow
-
-When user asks for AILANG code:
-
-1. **Check version** (optional, if uncertain):
-   ```bash
-   .claude/skills/use-ailang/scripts/check_version.sh
-   ```
-
-2. **Load syntax reference** (if needed):
-   Read `resources/syntax_quick_ref.md` for detailed syntax rules
-
-3. **Load common patterns** (if needed):
-   Read `resources/common_patterns.md` for examples and best practices
-
-4. **Write code** following current syntax
-   - Prefer **pure functions** (`! {}`) for core logic — these are Z3-verifiable
-   - Keep effectful code (`! {IO}`) as thin wrappers around pure functions
-
-5. **Add contracts to pure functions** (if applicable):
-   Read `resources/z3_verification_patterns.md` for contract patterns
-
-6. **Verify contracts** (if contracts present):
-   ```bash
-   ailang verify solution.ail
-   ```
-
-7. **Validate code** (optional):
-   ```bash
-   .claude/skills/use-ailang/scripts/validate_code.sh solution.ail
-   ```
-
-8. **Help user run** with correct CLI flags
-
-## Notes
-
-- This skill follows Anthropic's Agent Skills specification (Oct 2025)
-- Uses progressive disclosure to save context tokens
-- Scripts execute without loading into context window
-- Resource files loaded on demand when detailed reference needed
-- Always check `prompts/versions.json` for latest active version when writing benchmark code
+- **Examples**: `ailang examples search ...` or [examples/](https://github.com/sunholo-data/ailang/tree/dev/examples) directory
+- **Issues**: https://github.com/sunholo-data/ailang/issues — or call `submit_feedback` from inside an MCP-connected session
+- **REPL**: type `:help` in `ailang repl`
