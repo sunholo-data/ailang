@@ -131,6 +131,124 @@ func TestToGo(t *testing.T) {
 	}
 }
 
+// TestToGo_JsonUnwrap covers the std/json.Json -> plain Go shape unwrap, so
+// HTTP/MCP responses serialize as ordinary JSON instead of leaking the AILANG
+// ADT envelope ({__tag, __type, fields}). Other tagged values still go through
+// the generic envelope path — this special-case is scoped to TypeName=="Json"
+// AND ModulePath=="std/json".
+func TestToGo_JsonUnwrap(t *testing.T) {
+	mkJson := func(ctor string, fields ...eval.Value) *eval.TaggedValue {
+		return &eval.TaggedValue{
+			ModulePath: "std/json", TypeName: "Json", CtorName: ctor,
+			Fields: fields,
+		}
+	}
+	mkKv := func(k string, v eval.Value) *eval.RecordValue {
+		return &eval.RecordValue{Fields: map[string]eval.Value{
+			"key":   &eval.StringValue{Value: k},
+			"value": v,
+		}}
+	}
+
+	tests := []struct {
+		name string
+		in   eval.Value
+		want interface{}
+	}{
+		{"JNull", mkJson("JNull"), nil},
+		{"JBool true", mkJson("JBool", &eval.BoolValue{Value: true}), true},
+		{"JNumber float", mkJson("JNumber", &eval.FloatValue{Value: 3.14}), 3.14},
+		{"JNumber int", mkJson("JNumber", &eval.IntValue{Value: 42}), 42.0},
+		{"JString", mkJson("JString", &eval.StringValue{Value: "hi"}), "hi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ToGo(tt.in)
+			if err != nil {
+				t.Fatalf("ToGo error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("got %v (%T), want %v (%T)", got, got, tt.want, tt.want)
+			}
+		})
+	}
+
+	t.Run("JObject nested", func(t *testing.T) {
+		// {"served_for": "latest", "data": {"n": 1}}
+		inner := mkJson("JObject", &eval.ListValue{Elements: []eval.Value{
+			mkKv("n", mkJson("JNumber", &eval.IntValue{Value: 1})),
+		}})
+		outer := mkJson("JObject", &eval.ListValue{Elements: []eval.Value{
+			mkKv("served_for", mkJson("JString", &eval.StringValue{Value: "latest"})),
+			mkKv("data", inner),
+		}})
+
+		got, err := ToGo(outer)
+		if err != nil {
+			t.Fatalf("ToGo error: %v", err)
+		}
+		m, ok := got.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected map, got %T", got)
+		}
+		if m["served_for"] != "latest" {
+			t.Errorf("served_for = %v, want \"latest\"", m["served_for"])
+		}
+		dm, ok := m["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("data not a map, got %T", m["data"])
+		}
+		if dm["n"] != 1.0 {
+			t.Errorf("data.n = %v, want 1.0", dm["n"])
+		}
+		// Critically: no __tag / __type / fields keys leaking through.
+		for _, k := range []string{"__tag", "__type", "fields"} {
+			if _, present := m[k]; present {
+				t.Errorf("%q key leaked into Json unwrap output (ADT envelope still present)", k)
+			}
+		}
+	})
+
+	t.Run("JArray", func(t *testing.T) {
+		arr := mkJson("JArray", &eval.ListValue{Elements: []eval.Value{
+			mkJson("JString", &eval.StringValue{Value: "a"}),
+			mkJson("JString", &eval.StringValue{Value: "b"}),
+		}})
+		got, err := ToGo(arr)
+		if err != nil {
+			t.Fatalf("ToGo error: %v", err)
+		}
+		out, ok := got.([]interface{})
+		if !ok {
+			t.Fatalf("expected []interface{}, got %T", got)
+		}
+		if len(out) != 2 || out[0] != "a" || out[1] != "b" {
+			t.Errorf("got %v, want [a b]", out)
+		}
+	})
+
+	t.Run("non-Json TaggedValue keeps ADT envelope", func(t *testing.T) {
+		// Regression: only std/json.Json gets unwrapped; other ADTs keep the
+		// {__tag, __type, fields} envelope so downstream callers can still
+		// discriminate by tag.
+		notJson := &eval.TaggedValue{
+			ModulePath: "std/result", TypeName: "Result", CtorName: "Ok",
+			Fields: []eval.Value{&eval.IntValue{Value: 7}},
+		}
+		got, err := ToGo(notJson)
+		if err != nil {
+			t.Fatalf("ToGo error: %v", err)
+		}
+		m, ok := got.(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected map, got %T", got)
+		}
+		if m["__tag"] != "Ok" || m["__type"] != "Result" {
+			t.Errorf("ADT envelope missing/wrong: %+v", m)
+		}
+	})
+}
+
 func TestToGoList(t *testing.T) {
 	list := &eval.ListValue{
 		Elements: []eval.Value{

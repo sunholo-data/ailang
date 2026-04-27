@@ -235,7 +235,13 @@ func ToGo(v eval.Value) (interface{}, error) {
 		return result, nil
 
 	case *eval.TaggedValue:
-		// Convert ADT constructors to maps with a tag
+		// Json values from std/json unwrap to their natural Go shapes so they
+		// serialize as plain JSON in HTTP/MCP responses (not the verbose
+		// {__tag, __type, fields} ADT envelope). Other tagged values keep the
+		// ADT envelope so callers can still discriminate by tag.
+		if val.TypeName == "Json" && val.ModulePath == "std/json" {
+			return jsonTaggedToGo(val)
+		}
 		result := map[string]interface{}{
 			"__type": val.TypeName,
 			"__tag":  val.CtorName,
@@ -354,4 +360,105 @@ func ToRecord(v eval.Value) (map[string]eval.Value, error) {
 func IsUnit(v eval.Value) bool {
 	_, ok := v.(*eval.UnitValue)
 	return ok
+}
+
+// jsonTaggedToGo unwraps a std/json.Json TaggedValue to its natural Go shape:
+//
+//	JNull         → nil
+//	JBool(b)      → bool
+//	JNumber(x)    → float64
+//	JString(s)    → string
+//	JArray(xs)    → []interface{}            (recursive)
+//	JObject(kvs)  → map[string]interface{}   (recursive)
+//
+// kvs is a List[{key: string, value: Json}]; we project it into a Go map.
+// This makes Json values from AILANG functions serialize as plain JSON when
+// returned over HTTP/MCP, instead of leaking the {__tag, __type, fields}
+// ADT envelope. Other tagged values still go through the generic envelope path
+// so callers can discriminate by tag.
+func jsonTaggedToGo(val *eval.TaggedValue) (interface{}, error) {
+	switch val.CtorName {
+	case "JNull":
+		return nil, nil
+
+	case "JBool":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JBool: expected 1 field, got %d", len(val.Fields))
+		}
+		bv, ok := val.Fields[0].(*eval.BoolValue)
+		if !ok {
+			return nil, fmt.Errorf("JBool: expected BoolValue, got %T", val.Fields[0])
+		}
+		return bv.Value, nil
+
+	case "JNumber":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JNumber: expected 1 field, got %d", len(val.Fields))
+		}
+		switch n := val.Fields[0].(type) {
+		case *eval.FloatValue:
+			return n.Value, nil
+		case *eval.IntValue:
+			return float64(n.Value), nil
+		default:
+			return nil, fmt.Errorf("JNumber: expected FloatValue or IntValue, got %T", val.Fields[0])
+		}
+
+	case "JString":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JString: expected 1 field, got %d", len(val.Fields))
+		}
+		sv, ok := val.Fields[0].(*eval.StringValue)
+		if !ok {
+			return nil, fmt.Errorf("JString: expected StringValue, got %T", val.Fields[0])
+		}
+		return sv.Value, nil
+
+	case "JArray":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JArray: expected 1 field, got %d", len(val.Fields))
+		}
+		lv, ok := val.Fields[0].(*eval.ListValue)
+		if !ok {
+			return nil, fmt.Errorf("JArray: expected ListValue, got %T", val.Fields[0])
+		}
+		out := make([]interface{}, len(lv.Elements))
+		for i, elem := range lv.Elements {
+			gv, err := ToGo(elem)
+			if err != nil {
+				return nil, fmt.Errorf("JArray element %d: %w", i, err)
+			}
+			out[i] = gv
+		}
+		return out, nil
+
+	case "JObject":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JObject: expected 1 field, got %d", len(val.Fields))
+		}
+		lv, ok := val.Fields[0].(*eval.ListValue)
+		if !ok {
+			return nil, fmt.Errorf("JObject: expected ListValue, got %T", val.Fields[0])
+		}
+		out := make(map[string]interface{}, len(lv.Elements))
+		for i, elem := range lv.Elements {
+			rec, ok := elem.(*eval.RecordValue)
+			if !ok {
+				return nil, fmt.Errorf("JObject entry %d: expected RecordValue, got %T", i, elem)
+			}
+			keyVal, ok := rec.Fields["key"].(*eval.StringValue)
+			if !ok {
+				return nil, fmt.Errorf("JObject entry %d: missing/non-string 'key' field", i)
+			}
+			gv, err := ToGo(rec.Fields["value"])
+			if err != nil {
+				return nil, fmt.Errorf("JObject entry %d (key=%q): %w", i, keyVal.Value, err)
+			}
+			out[keyVal.Value] = gv
+		}
+		return out, nil
+
+	default:
+		return nil, fmt.Errorf("unknown Json constructor: %s", val.CtorName)
+	}
 }
