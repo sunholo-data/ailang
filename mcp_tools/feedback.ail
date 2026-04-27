@@ -30,8 +30,14 @@ pure func invalidCategory(c: string) -> bool =
 -- ailang_version: the reporter's CLI version (free-form string, used for triage).
 -- snippet: optional code/error snippet (≤4 KB).
 -- contact: optional follow-up address (free-form, opaque to the server).
-@route("POST", "/api/mcp/submit_feedback")
-@mcp_name("submit_feedback")
+--
+-- @noexpose hides this from the MCP `tools/list` because the production
+-- submit_feedback is registered Go-side (internal/apiserver/feedback_tool.go +
+-- internal/feedback/publisher.go) — that path needs Firestore + Pub/Sub
+-- effects which the AILANG runtime does not yet expose. This AILANG file
+-- stays as documentation + offline validation reference. The @route is also
+-- removed so plain HTTP doesn't accidentally hit the placeholder.
+@noexpose
 export func submitFeedback(
   title: string,
   body: string,

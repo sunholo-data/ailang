@@ -33,6 +33,7 @@ func NewMCPServer(srv *Server) *MCPServer {
 
 	ms.registerTools()
 	ms.registerResources()
+	ms.registerFeedbackTool()
 
 	return ms
 }
