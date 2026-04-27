@@ -1,0 +1,53 @@
+-- mcp_tools/feedback.ail — public feedback channel (M7 placeholder).
+--
+-- The full implementation lands in M7 and publishes to the existing
+-- ailang-messages Pub/Sub topic with attributes
+-- {inbox: "public-feedback", from_agent: "mcp-public", category: <input>,
+--  message_type: "feedback"}, reusing the coordinator's existing push
+-- subscription. For M1 this validates inputs and returns a stub ticket id
+-- so the tool surface is registered and the schema is visible to agents.
+module mcp_tools/feedback
+
+import mcp_tools/lib (errorJson)
+import std/json (Json, jo, kv, js, jb)
+import std/string (length)
+
+-- Validate a category against the allowed enum.
+pure func validCategory(c: string) -> bool =
+  c == "bug" || c == "feature" || c == "docs" || c == "limitation"
+
+-- True when category is NOT in the allowed set (avoids `!` prefix operator).
+pure func invalidCategory(c: string) -> bool =
+  if validCategory(c) then false else true
+
+-- Anonymous bug report / feature request / docs gap, queued for human review.
+-- ailang_version: the reporter's CLI version (free-form string, used for triage).
+-- snippet: optional code/error snippet (≤4 KB).
+-- contact: optional follow-up address (free-form, opaque to the server).
+@route("POST", "/api/mcp/submit_feedback")
+@mcp_name("submit_feedback")
+export func submitFeedback(
+  title: string,
+  body: string,
+  category: string,
+  ailangVersion: string,
+  snippet: string,
+  contact: string
+) -> Json ! {Env, FS} =
+  if title == "" then
+    errorJson("missing_field", "title is required")
+  else if body == "" then
+    errorJson("missing_field", "body is required")
+  else if length(body) > 10240 then
+    errorJson("body_too_large", "body must be <= 10240 bytes")
+  else if length(snippet) > 4096 then
+    errorJson("snippet_too_large", "snippet must be <= 4096 bytes")
+  else if invalidCategory(category) then
+    errorJson("invalid_category", "category must be one of: bug, feature, docs, limitation")
+  else
+    jo([
+      kv("ticket_id", js("stub-m1-not-yet-published")),
+      kv("queued_at", js("1970-01-01T00:00:00Z")),
+      kv("note", js("M1 placeholder — Pub/Sub publish wires up in M7")),
+      kv("would_publish", jb(true))
+    ])

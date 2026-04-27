@@ -1,0 +1,32 @@
+-- mcp_tools/discovery.ail — docs navigation and search MCP tools.
+module mcp_tools/discovery
+
+import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson)
+import std/json (Json)
+
+-- Sidebar tree as JSON. Replaces scraping the Docusaurus sidebar.
+-- Version-scoped: snapshot of that release's docs site nav.
+@route("POST", "/api/mcp/docs_nav")
+@mcp_name("docs_nav")
+export func docsNav(forVersion: string) -> Json ! {Env, FS} =
+  readOrError(forVersion, "docs_nav.json")
+
+-- Full-text search across doc Markdown for the given version.
+-- M1: thin pass-through over a pre-built index. M2 may swap to FTS5.
+@route("POST", "/api/mcp/docs_search")
+@mcp_name("docs_search")
+export func docsSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
+  if query == "" then
+    errorJson("missing_field", "query is required")
+  else
+    readOrError(forVersion, "docs_search_index.json")
+
+-- What changed in a given release (added/changed/fixed/breaking).
+@route("POST", "/api/mcp/changelog_for_version")
+@mcp_name("changelog_for_version")
+export func changelogForVersion(version: string) -> Json ! {Env, FS} =
+  if version == "" then
+    errorJson("missing_field", "version is required")
+  else
+    let suffix = "changelog/${version}.json" in
+    readUnscopedOrError(suffix)

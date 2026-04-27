@@ -1,0 +1,62 @@
+-- mcp_tools/language.ail — language-reference MCP tools.
+--
+-- All tools here are version-scoped: callers pass for_version (empty = "latest").
+-- Responses use the {served_for, data} envelope so the CLI can reject
+-- cross-version content leak.
+module mcp_tools/language
+
+import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion)
+import std/json (jo, kv, js, ja)
+
+-- List all AILANG versions the server can answer for.
+@route("POST", "/api/mcp/ailang_versions")
+@mcp_name("ailang_versions")
+export func ailangVersions() -> Json ! {Env, FS} =
+  readUnscopedOrError("versions_index.json")
+
+-- Fetch the canonical teaching prompt for a version.
+-- kind = "agent" | "devtools" | "compact" (full prompt = empty).
+@route("POST", "/api/mcp/prompt_get")
+@mcp_name("prompt_get")
+export func promptGet(forVersion: string, kind: string) -> Json ! {Env, FS} =
+  let chosen = if kind == "" then "full" else kind in
+  let suffix = "prompts/${chosen}.json" in
+  readOrError(forVersion, suffix)
+
+-- List stdlib modules available in this AILANG version with one-line summaries.
+@route("POST", "/api/mcp/stdlib_modules")
+@mcp_name("stdlib_modules")
+export func stdlibModules(forVersion: string) -> Json ! {Env, FS} =
+  readOrError(forVersion, "stdlib_summary.json")
+
+-- Full module: exports + signatures + docstrings.
+@route("POST", "/api/mcp/stdlib_module")
+@mcp_name("stdlib_module")
+export func stdlibModule(name: string, forVersion: string) -> Json ! {Env, FS} =
+  if name == "" then
+    errorJson("missing_field", "name is required")
+  else
+    let suffix = "stdlib/${name}.json" in
+    readOrError(forVersion, suffix)
+
+-- Find stdlib functions by name, signature, or keyword.
+-- For M1 this is a thin pass-through over a pre-built index; M2 may swap to FTS.
+@route("POST", "/api/mcp/stdlib_search")
+@mcp_name("stdlib_search")
+export func stdlibSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
+  if query == "" then
+    errorJson("missing_field", "query is required")
+  else
+    readOrError(forVersion, "stdlib_search_index.json")
+
+-- Known limitations (Y-combinator, etc.) optionally filtered by category.
+@route("POST", "/api/mcp/limitations_list")
+@mcp_name("limitations_list")
+export func limitationsList(category: string, forVersion: string) -> Json ! {Env, FS} =
+  readOrError(forVersion, "limitations.json")
+
+-- All declared effects with capability mapping and the version they appeared in.
+@route("POST", "/api/mcp/effects_catalog")
+@mcp_name("effects_catalog")
+export func effectsCatalog(forVersion: string) -> Json ! {Env, FS} =
+  readOrError(forVersion, "effects.json")

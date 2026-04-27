@@ -1,0 +1,30 @@
+-- mcp_tools/design.ail — design-doc and roadmap MCP tools.
+--
+-- These are UNSCOPED (historical record, not current language facts).
+module mcp_tools/design
+
+import mcp_tools/lib (readUnscopedOrError, errorJson)
+import std/json (Json)
+
+-- List planned/implemented/rejected design docs, optionally filtered by version.
+-- state = "planned" | "implemented" | "rejected" | ""; empty = all.
+@route("POST", "/api/mcp/design_docs_list")
+@mcp_name("design_docs_list")
+export func designDocsList(state: string, version: string) -> Json ! {Env, FS} =
+  readUnscopedOrError("design_docs_index.json")
+
+-- Full design doc by slug (e.g. "m-agent-mcp-website").
+@route("POST", "/api/mcp/design_doc")
+@mcp_name("design_doc")
+export func designDoc(slug: string) -> Json ! {Env, FS} =
+  if slug == "" then
+    errorJson("missing_field", "slug is required")
+  else
+    let suffix = "design_docs/${slug}.json" in
+    readUnscopedOrError(suffix)
+
+-- What's shipping next, what's been rejected and why.
+@route("POST", "/api/mcp/roadmap")
+@mcp_name("roadmap")
+export func roadmap() -> Json ! {Env, FS} =
+  readUnscopedOrError("roadmap.json")

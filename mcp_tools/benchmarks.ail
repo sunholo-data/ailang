@@ -1,0 +1,47 @@
+-- mcp_tools/benchmarks.ail — benchmark introspection MCP tools.
+--
+-- UNSCOPED: benchmarks describe history, not the current language. Each row
+-- carries its own ailang_version field so callers can filter as needed.
+module mcp_tools/benchmarks
+
+import mcp_tools/lib (readUnscopedOrError, errorJson)
+import std/json (Json)
+
+-- List benchmark suites and runs, optionally filtered to a since_version cutoff.
+@route("POST", "/api/mcp/benchmarks_list")
+@mcp_name("benchmarks_list")
+export func benchmarksList(sinceVersion: string) -> Json ! {Env, FS} =
+  readUnscopedOrError("benchmarks_index.json")
+
+-- One run's full result (code, compile_ok, runtime_ok, stdout_ok, cost, tokens).
+@route("POST", "/api/mcp/benchmark_run")
+@mcp_name("benchmark_run")
+export func benchmarkRun(runId: string) -> Json ! {Env, FS} =
+  if runId == "" then
+    errorJson("missing_field", "run_id is required")
+  else
+    let suffix = "benchmarks/runs/${runId}.json" in
+    readUnscopedOrError(suffix)
+
+-- Where does a given model pass/fail? Optional version filter.
+-- Output: {passes: [...], fails_by_category: {...}, total_cost}
+@route("POST", "/api/mcp/benchmarks_for_model")
+@mcp_name("benchmarks_for_model")
+export func benchmarksForModel(model: string, version: string) -> Json ! {Env, FS} =
+  if model == "" then
+    errorJson("missing_field", "model is required")
+  else
+    let suffix = "benchmarks/by_model/${model}.json" in
+    readUnscopedOrError(suffix)
+
+-- Pairwise model comparison.
+-- Output: {a_only_passes, b_only_passes, both, neither}
+@route("POST", "/api/mcp/benchmarks_compare")
+@mcp_name("benchmarks_compare")
+export func benchmarksCompare(modelA: string, modelB: string, version: string) -> Json ! {Env, FS} =
+  if modelA == "" then
+    errorJson("missing_field", "model_a is required")
+  else if modelB == "" then
+    errorJson("missing_field", "model_b is required")
+  else
+    readUnscopedOrError("benchmarks_compare_index.json")

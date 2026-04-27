@@ -1,0 +1,10 @@
+{
+  "effects": [
+    {"effect": "IO", "capabilities": ["IO"], "since_version": "0.0.1"},
+    {"effect": "FS", "capabilities": ["FS"], "since_version": "0.0.1"},
+    {"effect": "Net", "capabilities": ["Net"], "since_version": "0.0.1"},
+    {"effect": "AI", "capabilities": ["AI"], "since_version": "0.4.0"},
+    {"effect": "Env", "capabilities": ["Env"], "since_version": "0.4.0"},
+    {"effect": "Clock", "capabilities": ["Clock"], "since_version": "0.4.0"}
+  ]
+}

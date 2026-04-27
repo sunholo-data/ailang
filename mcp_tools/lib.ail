@@ -1,0 +1,104 @@
+-- mcp_tools/lib.ail — shared helpers for the MCP introspection tools.
+--
+-- Snapshot layout the tools assume:
+--   $MCP_SNAPSHOT_DIR/
+--     versioned/<version>/{stdlib_summary.json, prompts/, examples_index.json,
+--                          docs.json, limitations.json, effects.json,
+--                          docs_nav.json}
+--     unscoped/{design_docs_index.json, benchmarks_index.json,
+--               changelog_index.json, roadmap.json}
+--     versioned/latest -> versioned/<version>
+--
+-- All read tools default to "latest" when for_version is empty.
+module mcp_tools/lib
+
+import std/env (getEnvOr)
+import std/fs (fileExists, readFile, listDir, isDir)
+import std/json (decode, encode, jo, kv, js, ja, jnum, jb, jn)
+import std/option (getOrElse)
+import std/result (Result, Ok, Err)
+import std/string (trim)
+
+-- snapshotDir returns the snapshot root directory, configurable via env var.
+export func snapshotDir() -> string ! {Env} =
+  getEnvOr("MCP_SNAPSHOT_DIR", "build/snapshot")
+
+-- versionedPath builds a path inside versioned/<resolved>/.
+-- Empty `forVersion` resolves to the "latest" symlink.
+export func versionedPath(forVersion: string, suffix: string) -> string ! {Env} =
+  let v = if forVersion == "" then "latest" else forVersion in
+  let base = snapshotDir() in
+  "${base}/versioned/${v}/${suffix}"
+
+-- unscopedPath builds a path inside unscoped/.
+export func unscopedPath(suffix: string) -> string ! {Env} =
+  let base = snapshotDir() in
+  "${base}/unscoped/${suffix}"
+
+-- resolveVersion returns the actual version string we'll serve for, or
+-- "unknown" if the directory doesn't exist for the requested version.
+export func resolveVersion(forVersion: string) -> string ! {Env, FS} =
+  let v = if forVersion == "" then "latest" else forVersion in
+  let base = snapshotDir() in
+  let p = "${base}/versioned/${v}" in
+  if isDir(p) then v else "unknown"
+
+-- readVersionedJson reads a JSON file under versioned/<resolved>/<suffix>.
+-- Returns Err with a structured reason when the file is missing or unparseable.
+export func readVersionedJson(forVersion: string, suffix: string) -> Result[Json, string] ! {Env, FS} =
+  let path = versionedPath(forVersion, suffix) in
+  if fileExists(path) then
+    decode(readFile(path))
+  else
+    Err("missing:${path}")
+
+-- readUnscopedJson reads a JSON file under unscoped/<suffix>.
+export func readUnscopedJson(suffix: string) -> Result[Json, string] ! {Env, FS} =
+  let path = unscopedPath(suffix) in
+  if fileExists(path) then
+    decode(readFile(path))
+  else
+    Err("missing:${path}")
+
+-- envelope wraps a tool's payload with the {served_for, data} envelope used by
+-- every version-scoped tool, so callers can detect cross-version content leak.
+export func envelope(servedFor: string, data: Json) -> Json =
+  jo([
+    kv("served_for", js(servedFor)),
+    kv("data", data)
+  ])
+
+-- errorJson builds a structured error result usable as a tool return value.
+export func errorJson(code: string, detail: string) -> Json =
+  jo([
+    kv("error", js(code)),
+    kv("detail", js(detail))
+  ])
+
+-- unknownVersionError is the canonical "we don't have content for this
+-- version" reply. The CLI uses this signal to fall back to embedded.
+export func unknownVersionError(forVersion: string, nearest: string) -> Json =
+  jo([
+    kv("error", js("unknown_version")),
+    kv("requested", js(forVersion)),
+    kv("nearest", js(nearest))
+  ])
+
+-- readOrError wraps readVersionedJson into a tool-return-shaped Json,
+-- handling missing snapshots cleanly.
+export func readOrError(forVersion: string, suffix: string) -> Json ! {Env, FS} =
+  let resolved = resolveVersion(forVersion) in
+  if resolved == "unknown" then
+    unknownVersionError(forVersion, "latest")
+  else
+    match readVersionedJson(resolved, suffix) {
+      Ok(data) => envelope(resolved, data),
+      Err(reason) => errorJson("snapshot_read_failed", reason)
+    }
+
+-- readUnscopedOrError reads from unscoped/ and wraps errors.
+export func readUnscopedOrError(suffix: string) -> Json ! {Env, FS} =
+  match readUnscopedJson(suffix) {
+    Ok(data) => data,
+    Err(reason) => errorJson("snapshot_read_failed", reason)
+  }

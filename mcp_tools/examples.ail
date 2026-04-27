@@ -1,0 +1,35 @@
+-- mcp_tools/examples.ail — example-finder MCP tools.
+--
+-- All version-scoped: examples that PASS under for_version.
+module mcp_tools/examples
+
+import mcp_tools/lib (readOrError, errorJson)
+import std/json (Json)
+
+-- Filter examples that pass under for_version, optionally by features/status.
+-- features = comma-separated tags ("effects,records"); empty = no filter.
+-- status = "passing" | "failing" | ""; empty = passing only.
+@route("POST", "/api/mcp/examples_list")
+@mcp_name("examples_list")
+export func examplesList(features: string, status: string, forVersion: string) -> Json ! {Env, FS} =
+  readOrError(forVersion, "examples_index.json")
+
+-- Full source + metadata for one example by path.
+@route("POST", "/api/mcp/example_get")
+@mcp_name("example_get")
+export func exampleGet(path: string, forVersion: string) -> Json ! {Env, FS} =
+  if path == "" then
+    errorJson("missing_field", "path is required")
+  else
+    let suffix = "examples/${path}.json" in
+    readOrError(forVersion, suffix)
+
+-- Best-fit example for a free-form concept query ("how do I use effects?").
+-- Single best result, not a list.
+@route("POST", "/api/mcp/example_for_concept")
+@mcp_name("example_for_concept")
+export func exampleForConcept(concept: string, forVersion: string) -> Json ! {Env, FS} =
+  if concept == "" then
+    errorJson("missing_field", "concept is required")
+  else
+    readOrError(forVersion, "example_concept_index.json")

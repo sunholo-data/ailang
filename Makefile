@@ -236,6 +236,26 @@ brain-index-syntax-reset: build
 	@AILANG_BIN=./bin/ailang ./tools/index_ailang_syntax.sh --reset
 
 # =============================================================================
+# AGENT MCP SERVER (M-AGENT-MCP)
+# =============================================================================
+
+## snapshot: Build the MCP snapshot tree (M1 stub; M2 expands with real builders)
+snapshot:
+	@echo "$(BOLD)Building MCP snapshot at build/snapshot/ ...$(RESET)"
+	@VER=$$(cat std/VERSION); mkdir -p build/snapshot/versioned/$$VER build/snapshot/unscoped
+	@VER=$$(cd build/snapshot/versioned && readlink latest 2>/dev/null || cat ../../../std/VERSION); \
+		(cd build/snapshot/versioned && ln -sfn $$(cat ../../../std/VERSION) latest)
+	@echo "✓ Snapshot tree ready at build/snapshot/"
+	@echo "  Real data builders land in M2"
+
+## mcp-local: Run the MCP server locally against the build/snapshot/ directory
+mcp-local: build snapshot
+	@echo "$(BOLD)Starting MCP server on http://localhost:8080/mcp/ ...$(RESET)"
+	@MCP_SNAPSHOT_DIR=$$(pwd)/build/snapshot AILANG_RELAX_MODULES=1 \
+		./bin/ailang serve-api --mcp-http --routes-only \
+		--caps FS,Env --port 8080 ./mcp_tools/
+
+# =============================================================================
 # DEFAULT TARGET
 # =============================================================================
 
