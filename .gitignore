@@ -51,6 +51,15 @@ benchmark/solution*.ail
 data/
 output/
 .eval_workspace/
+# Benchmark side-effect files written to repo root by FS-effecting benchmarks
+# (log_file_analyzer writes app.log, config_file_parser writes app_config.json, etc.)
+# These leak from temp dirs when an agent's working directory resolves to repo root.
+/app.log
+/app_config.json
+/output.txt
+/users.csv
+/users.json
+/widget_price.txt
 
 # Python
 __pycache__/
