@@ -1,0 +1,10 @@
+# AILANG Agent Executor — pi variant (pi CLI, no Go toolchain)
+# M-EXEC-PI: Use for agents running multi-provider models via the pi minimal harness.
+# Use for: any agent with provider=pi (cross-harness comparisons against claude-code/opencode).
+ARG PROJECT
+FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
+
+# pi CLI (npm package: @mariozechner/pi-coding-agent, binary: pi)
+USER root
+RUN npm install -g @mariozechner/pi-coding-agent
+USER ailang
