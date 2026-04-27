@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -297,4 +298,107 @@ func splitLines(s string) []string {
 		out = append(out, cur)
 	}
 	return out
+}
+
+// --- Anti-pattern hint extraction ----------------------------------------
+
+func TestExtractAntiPatternHints_ModuleHyphen(t *testing.T) {
+	content := "module mcp-tools/lib\n\nexport func main() = ()\n"
+	hints := extractAntiPatternHints(content)
+	if len(hints) == 0 {
+		t.Fatal("expected at least one hint for module hyphen, got none")
+	}
+	if !strings.Contains(strings.Join(hints, " "), "underscores") {
+		t.Errorf("expected 'underscores' hint for module-hyphen pattern, got: %v", hints)
+	}
+}
+
+func TestExtractAntiPatternHints_StringPlusPlus(t *testing.T) {
+	cases := []string{
+		`let s = "hello" ++ "world"`,
+		`let s = "hello" ++ name`,
+		`let s = name ++ "!"`,
+	}
+	for _, c := range cases {
+		hints := extractAntiPatternHints(c)
+		if len(hints) == 0 {
+			t.Errorf("expected hint for string ++ in %q, got none", c)
+			continue
+		}
+		joined := strings.Join(hints, " ")
+		if !strings.Contains(joined, "list-only") && !strings.Contains(joined, "interpolation") {
+			t.Errorf("expected list-only/interpolation hint for %q, got: %v", c, hints)
+		}
+	}
+}
+
+func TestExtractAntiPatternHints_PythonSyntax(t *testing.T) {
+	cases := []string{
+		"def hello():\n  pass\n",
+		"class Foo:\n  pass\n",
+		"for i in range(10):\n  print(i)\n",
+		"while x < 10:\n  x = x+1\n",
+	}
+	for _, c := range cases {
+		hints := extractAntiPatternHints(c)
+		if len(hints) == 0 {
+			t.Errorf("expected python-syntax hint for %q, got none", c)
+		}
+	}
+}
+
+func TestExtractAntiPatternHints_MarkdownFence(t *testing.T) {
+	content := "```ailang\nmodule foo/bar\n```"
+	hints := extractAntiPatternHints(content)
+	if len(hints) == 0 {
+		t.Fatal("expected markdown-fence hint")
+	}
+	if !strings.Contains(strings.Join(hints, " "), "fences") {
+		t.Errorf("expected 'fences' hint, got: %v", hints)
+	}
+}
+
+func TestExtractAntiPatternHints_NoMatch(t *testing.T) {
+	content := "module foo/bar\n\nexport func main() = ()\n"
+	hints := extractAntiPatternHints(content)
+	if len(hints) != 0 {
+		t.Errorf("expected no hints for clean code, got: %v", hints)
+	}
+}
+
+func TestExtractAntiPatternHints_DedupSamePattern(t *testing.T) {
+	// Two string-++ occurrences should yield only one hint, not duplicates.
+	content := `let a = "x" ++ "y";` + "\n" + `let b = "p" ++ "q"`
+	hints := extractAntiPatternHints(content)
+	if len(hints) != 1 {
+		t.Errorf("expected exactly one deduped hint, got %d: %v", len(hints), hints)
+	}
+}
+
+func TestBuildQuery_EnrichesWithHints(t *testing.T) {
+	req := Request{
+		ToolName: "Write",
+		FilePath: "/tmp/lib.ail",
+		Content:  "module mcp-tools/lib\n",
+	}
+	q := buildQuery(req)
+	if !strings.Contains(q, "underscores") {
+		t.Errorf("expected query to contain hint terms; got: %q", q)
+	}
+	if !strings.Contains(q, "/tmp/lib.ail") {
+		t.Errorf("expected query to still contain file path; got: %q", q)
+	}
+}
+
+func TestBuildQuery_NoHintsPreservesOldBehaviour(t *testing.T) {
+	req := Request{
+		ToolName: "Read",
+		FilePath: "/tmp/clean.ail",
+		Content:  "module foo/bar\n",
+	}
+	q := buildQuery(req)
+	expected := "/tmp/clean.ail\nmodule foo/bar\n"
+	if q != expected {
+		t.Errorf("expected unchanged query for clean content;\n  got: %q\n want: %q", q, expected)
+	}
 }

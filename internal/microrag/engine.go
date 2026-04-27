@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -247,13 +248,92 @@ func (e *Engine) now() time.Time {
 
 // --- Query building -------------------------------------------------------
 
+// antiPattern flags AILANG-specific failure modes that should drive μRAG
+// retrieval toward a specific corpus chunk. Without these hints, embedding
+// search averages cosine similarity over the whole file and pinpoint
+// anti-patterns get lost (e.g. a single hyphen in a `module` line is
+// invisible against ~2KB of body text).
+//
+// Each `hint` mirrors the section titles + keywords from real chunks in the
+// `ailang-syntax` namespace, so prepending them to the query string boosts
+// the matching chunk's similarity score.
+type antiPattern struct {
+	name string
+	re   *regexp.Regexp
+	hint string
+}
+
+var antiPatterns = []antiPattern{
+	{
+		// `module foo-bar/baz` — hyphen in path → multi-module-projects chunk
+		name: "module-hyphen",
+		re:   regexp.MustCompile(`(?m)^\s*module\s+[A-Za-z0-9_]*-`),
+		hint: "module path underscores hyphen multi-module relax-modules",
+	},
+	{
+		// "a" ++ x  OR  x ++ "a"  — string used with list operator
+		name: "string-concat-plusplus",
+		re:   regexp.MustCompile(`("[^"]*"\s*\+\+|\+\+\s*"[^"]*")`),
+		hint: "string concatenation list-only interpolation concat join",
+	},
+	{
+		// Python keywords at line start — model wrote Python instead of AILANG
+		name: "python-syntax",
+		re:   regexp.MustCompile(`(?m)^\s*(def\s+\w+|class\s+\w+|for\s+\w+\s+in\s|while\s)`),
+		hint: "AILANG not Python def class for while recursion functional pure",
+	},
+	{
+		// `func f() = let x = ...;` — = body with ; instead of `in`
+		name: "expr-body-let-semi",
+		re:   regexp.MustCompile(`func\s+\w+[^={]*=\s*[\s\S]{0,80}?\blet\s+[^;]*;`),
+		hint: "function body block expression style let in semicolons",
+	},
+	{
+		// Markdown code fence at very start of file — model emitted prose
+		name: "markdown-fence",
+		re:   regexp.MustCompile("^```"),
+		hint: "AILANG raw code no markdown fences module declaration first line",
+	},
+}
+
+// extractAntiPatternHints scans content for the known anti-patterns above and
+// returns query-enrichment phrases. Returns an empty slice if no anti-patterns
+// match — in that case `buildQuery` falls back to the previous behaviour.
+//
+// Order is preserved (in `antiPatterns` order) and duplicates collapsed so
+// the prepended hint string is bounded.
+func extractAntiPatternHints(content string) []string {
+	if content == "" {
+		return nil
+	}
+	seen := make(map[string]bool, len(antiPatterns))
+	hints := make([]string, 0, 2)
+	for _, ap := range antiPatterns {
+		if seen[ap.name] {
+			continue
+		}
+		if ap.re.MatchString(content) {
+			seen[ap.name] = true
+			hints = append(hints, ap.hint)
+		}
+	}
+	return hints
+}
+
 func buildQuery(req Request) string {
 	const maxContent = 2048
 	c := req.Content
 	if len(c) > maxContent {
 		c = c[:maxContent]
 	}
-	return req.FilePath + "\n" + c
+	base := req.FilePath + "\n" + c
+	hints := extractAntiPatternHints(c)
+	if len(hints) == 0 {
+		return base
+	}
+	// Prepend hints so embedding cosine weights the anti-pattern terms
+	// alongside the file content, surfacing the targeted corpus chunk.
+	return strings.Join(hints, " ") + "\n" + base
 }
 
 // --- Search-result cache --------------------------------------------------
