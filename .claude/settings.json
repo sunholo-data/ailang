@@ -52,7 +52,8 @@
       "Bash(/Users/mark/go/bin/ailang disasm:*)",
       "WebFetch(domain:arxiv.org)",
       "Bash(.claude/skills/sonarcloud-triage/scripts/:*)",
-      "Skill(sonarcloud-triage)"
+      "Skill(sonarcloud-triage)",
+      "Bash(gcloud run *)"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
