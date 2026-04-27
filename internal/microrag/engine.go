@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -248,92 +247,58 @@ func (e *Engine) now() time.Time {
 
 // --- Query building -------------------------------------------------------
 
-// antiPattern flags AILANG-specific failure modes that should drive μRAG
-// retrieval toward a specific corpus chunk. Without these hints, embedding
-// search averages cosine similarity over the whole file and pinpoint
-// anti-patterns get lost (e.g. a single hyphen in a `module` line is
-// invisible against ~2KB of body text).
+// buildQuery composes the embedding-search query from a tool-call request.
 //
-// Each `hint` mirrors the section titles + keywords from real chunks in the
-// `ailang-syntax` namespace, so prepending them to the query string boosts
-// the matching chunk's similarity score.
-type antiPattern struct {
-	name string
-	re   *regexp.Regexp
-	hint string
-}
-
-var antiPatterns = []antiPattern{
-	{
-		// `module foo-bar/baz` — hyphen in path → multi-module-projects chunk
-		name: "module-hyphen",
-		re:   regexp.MustCompile(`(?m)^\s*module\s+[A-Za-z0-9_]*-`),
-		hint: "module path underscores hyphen multi-module relax-modules",
-	},
-	{
-		// "a" ++ x  OR  x ++ "a"  — string used with list operator
-		name: "string-concat-plusplus",
-		re:   regexp.MustCompile(`("[^"]*"\s*\+\+|\+\+\s*"[^"]*")`),
-		hint: "string concatenation list-only interpolation concat join",
-	},
-	{
-		// Python keywords at line start — model wrote Python instead of AILANG
-		name: "python-syntax",
-		re:   regexp.MustCompile(`(?m)^\s*(def\s+\w+|class\s+\w+|for\s+\w+\s+in\s|while\s)`),
-		hint: "AILANG not Python def class for while recursion functional pure",
-	},
-	{
-		// `func f() = let x = ...;` — = body with ; instead of `in`
-		name: "expr-body-let-semi",
-		re:   regexp.MustCompile(`func\s+\w+[^={]*=\s*[\s\S]{0,80}?\blet\s+[^;]*;`),
-		hint: "function body block expression style let in semicolons",
-	},
-	{
-		// Markdown code fence at very start of file — model emitted prose
-		name: "markdown-fence",
-		re:   regexp.MustCompile("^```"),
-		hint: "AILANG raw code no markdown fences module declaration first line",
-	},
-}
-
-// extractAntiPatternHints scans content for the known anti-patterns above and
-// returns query-enrichment phrases. Returns an empty slice if no anti-patterns
-// match — in that case `buildQuery` falls back to the previous behaviour.
+// The previous implementation concatenated `filepath + first 2KB of content`,
+// which gave the embedding model ~50 lines of text to average over. High-
+// signal but localised tokens (a single `module foo-bar/...` line, a single
+// `"a" ++ "b"` operator) got diluted and the broad-topic chunks dominated.
 //
-// Order is preserved (in `antiPatterns` order) and duplicates collapsed so
-// the prepended hint string is bounded.
-func extractAntiPatternHints(content string) []string {
-	if content == "" {
-		return nil
-	}
-	seen := make(map[string]bool, len(antiPatterns))
-	hints := make([]string, 0, 2)
-	for _, ap := range antiPatterns {
-		if seen[ap.name] {
-			continue
-		}
-		if ap.re.MatchString(content) {
-			seen[ap.name] = true
-			hints = append(hints, ap.hint)
-		}
-	}
-	return hints
-}
+// Without prompt/intent context from the harness (hooks only receive
+// `tool_input` — see Claude Code PreToolUse schema), the most generic
+// improvement is to make the query *structurally focused* on the lines
+// most likely to drive misuse:
+//
+//   - The first STRUCTURAL_HEAD_LINES of the file capture the module
+//     declaration, imports, and first decl signature — where ~80% of AILANG
+//     0-shot parse failures live (per v0.14.2 baseline analysis).
+//   - The total content window is capped at QUERY_MAX_CHARS so the embedding
+//     gets a tight, signal-dense input rather than a long noisy one.
+//
+// This is a strict tightening: any chunk that the old (2KB) query retrieved
+// was either matched against the head of the file (still in the window) or
+// against generic prose deep in the body (which we want to deprioritise).
+const (
+	queryMaxChars       = 512 // empirical: tighter than this loses imports; wider re-introduces noise
+	structuralHeadLines = 12  // module + import block + first decl signature
+)
 
 func buildQuery(req Request) string {
-	const maxContent = 2048
 	c := req.Content
-	if len(c) > maxContent {
-		c = c[:maxContent]
+	if c == "" {
+		return req.FilePath
 	}
-	base := req.FilePath + "\n" + c
-	hints := extractAntiPatternHints(c)
-	if len(hints) == 0 {
-		return base
+	c = structuralHead(c, structuralHeadLines, queryMaxChars)
+	return req.FilePath + "\n" + c
+}
+
+// structuralHead returns at most `maxLines` lines of `content`, capped at
+// `maxChars`. Whitespace-only lines are kept (they often carry block structure
+// information for the embedding) but the first non-empty line is required so
+// the head isn't empty for files with leading blank lines.
+func structuralHead(content string, maxLines, maxChars int) string {
+	if content == "" {
+		return ""
 	}
-	// Prepend hints so embedding cosine weights the anti-pattern terms
-	// alongside the file content, surfacing the targeted corpus chunk.
-	return strings.Join(hints, " ") + "\n" + base
+	lines := strings.SplitN(content, "\n", maxLines+1)
+	if len(lines) > maxLines {
+		lines = lines[:maxLines]
+	}
+	out := strings.Join(lines, "\n")
+	if len(out) > maxChars {
+		out = out[:maxChars]
+	}
+	return out
 }
 
 // --- Search-result cache --------------------------------------------------

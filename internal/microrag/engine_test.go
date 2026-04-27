@@ -300,97 +300,94 @@ func splitLines(s string) []string {
 	return out
 }
 
-// --- Anti-pattern hint extraction ----------------------------------------
+// --- structuralHead / buildQuery focus on top-of-file -------------------
 
-func TestExtractAntiPatternHints_ModuleHyphen(t *testing.T) {
-	content := "module mcp-tools/lib\n\nexport func main() = ()\n"
-	hints := extractAntiPatternHints(content)
-	if len(hints) == 0 {
-		t.Fatal("expected at least one hint for module hyphen, got none")
+func TestStructuralHead_LineCap(t *testing.T) {
+	content := strings.Repeat("line\n", 50)
+	out := structuralHead(content, 12, 10000)
+	got := strings.Count(out, "\n") + 1 // last line may not have trailing \n
+	// Up to 12 lines (out has 12 entries from SplitN, joined by \n).
+	if got > 13 {
+		t.Errorf("expected ≤12 lines, got %d", got)
 	}
-	if !strings.Contains(strings.Join(hints, " "), "underscores") {
-		t.Errorf("expected 'underscores' hint for module-hyphen pattern, got: %v", hints)
+	if !strings.HasPrefix(out, "line") {
+		t.Errorf("expected head to start with first line, got %q", out[:min(20, len(out))])
 	}
 }
 
-func TestExtractAntiPatternHints_StringPlusPlus(t *testing.T) {
-	cases := []string{
-		`let s = "hello" ++ "world"`,
-		`let s = "hello" ++ name`,
-		`let s = name ++ "!"`,
-	}
-	for _, c := range cases {
-		hints := extractAntiPatternHints(c)
-		if len(hints) == 0 {
-			t.Errorf("expected hint for string ++ in %q, got none", c)
-			continue
-		}
-		joined := strings.Join(hints, " ")
-		if !strings.Contains(joined, "list-only") && !strings.Contains(joined, "interpolation") {
-			t.Errorf("expected list-only/interpolation hint for %q, got: %v", c, hints)
-		}
+func TestStructuralHead_ByteCap(t *testing.T) {
+	content := "module foo/bar\n" + strings.Repeat("x", 5000)
+	out := structuralHead(content, 1000, 256)
+	if len(out) > 256 {
+		t.Errorf("expected ≤256 chars, got %d", len(out))
 	}
 }
 
-func TestExtractAntiPatternHints_PythonSyntax(t *testing.T) {
-	cases := []string{
-		"def hello():\n  pass\n",
-		"class Foo:\n  pass\n",
-		"for i in range(10):\n  print(i)\n",
-		"while x < 10:\n  x = x+1\n",
+func TestStructuralHead_KeepsModuleAndImports(t *testing.T) {
+	content := `module foo/bar
+
+import std/io (println)
+import std/list (map, filter)
+
+export func main() -> () ! {IO} {
+  let x = 1;
+  println(show(x))
+}
+` + strings.Repeat("-- noise\n", 1000)
+	out := structuralHead(content, 12, 512)
+	if !strings.Contains(out, "module foo/bar") {
+		t.Errorf("expected module decl in head, got: %q", out)
 	}
-	for _, c := range cases {
-		hints := extractAntiPatternHints(c)
-		if len(hints) == 0 {
-			t.Errorf("expected python-syntax hint for %q, got none", c)
-		}
+	if !strings.Contains(out, "import std/io") {
+		t.Errorf("expected first import in head, got: %q", out)
+	}
+	if !strings.Contains(out, "import std/list") {
+		t.Errorf("expected second import in head, got: %q", out)
 	}
 }
 
-func TestExtractAntiPatternHints_MarkdownFence(t *testing.T) {
-	content := "```ailang\nmodule foo/bar\n```"
-	hints := extractAntiPatternHints(content)
-	if len(hints) == 0 {
-		t.Fatal("expected markdown-fence hint")
-	}
-	if !strings.Contains(strings.Join(hints, " "), "fences") {
-		t.Errorf("expected 'fences' hint, got: %v", hints)
+func TestStructuralHead_EmptyContent(t *testing.T) {
+	if got := structuralHead("", 10, 100); got != "" {
+		t.Errorf("expected empty head for empty input, got %q", got)
 	}
 }
 
-func TestExtractAntiPatternHints_NoMatch(t *testing.T) {
-	content := "module foo/bar\n\nexport func main() = ()\n"
-	hints := extractAntiPatternHints(content)
-	if len(hints) != 0 {
-		t.Errorf("expected no hints for clean code, got: %v", hints)
-	}
-}
-
-func TestExtractAntiPatternHints_DedupSamePattern(t *testing.T) {
-	// Two string-++ occurrences should yield only one hint, not duplicates.
-	content := `let a = "x" ++ "y";` + "\n" + `let b = "p" ++ "q"`
-	hints := extractAntiPatternHints(content)
-	if len(hints) != 1 {
-		t.Errorf("expected exactly one deduped hint, got %d: %v", len(hints), hints)
-	}
-}
-
-func TestBuildQuery_EnrichesWithHints(t *testing.T) {
+func TestBuildQuery_TightenedWindow(t *testing.T) {
+	// File with anti-pattern at the top + lots of body noise.
+	content := "module mcp-tools/lib\nimport std/io (println)\n" + strings.Repeat("-- pure noise that used to dilute the signal\n", 500)
 	req := Request{
 		ToolName: "Write",
 		FilePath: "/tmp/lib.ail",
-		Content:  "module mcp-tools/lib\n",
+		Content:  content,
 	}
 	q := buildQuery(req)
-	if !strings.Contains(q, "underscores") {
-		t.Errorf("expected query to contain hint terms; got: %q", q)
-	}
 	if !strings.Contains(q, "/tmp/lib.ail") {
-		t.Errorf("expected query to still contain file path; got: %q", q)
+		t.Errorf("expected query to contain file path; got: %q", q)
+	}
+	if !strings.Contains(q, "mcp-tools") {
+		t.Errorf("expected query to retain top-of-file module decl; got: %q", q)
+	}
+	// Body noise should be discarded so the embedding doesn't average over it.
+	if strings.Count(q, "pure noise") > 12 {
+		t.Errorf("expected body noise to be truncated; got %d occurrences", strings.Count(q, "pure noise"))
 	}
 }
 
-func TestBuildQuery_NoHintsPreservesOldBehaviour(t *testing.T) {
+func TestBuildQuery_EmptyContent(t *testing.T) {
+	req := Request{ToolName: "Read", FilePath: "/tmp/x.ail", Content: ""}
+	if got := buildQuery(req); got != "/tmp/x.ail" {
+		t.Errorf("expected file-path-only query for empty content, got %q", got)
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func TestBuildQuery_PreservesShortContent(t *testing.T) {
 	req := Request{
 		ToolName: "Read",
 		FilePath: "/tmp/clean.ail",
