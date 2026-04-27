@@ -81,6 +81,17 @@ const config = {
         href: '/img/ailang-logo.svg',
       },
     },
+    // Remote MCP server discovery — agents that scan rel="mcp" can pick up
+    // mcp.ailang.sunholo.com as the canonical structured-data endpoint for
+    // AILANG docs/stdlib/examples/benchmarks. See docs/guides/agent-mcp.md.
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'mcp',
+        href: 'https://mcp.ailang.sunholo.com/mcp/',
+        title: 'AILANG MCP — versioned docs, stdlib, examples, benchmarks',
+      },
+    },
   ],
 
   // Even if you don't use internationalization, you can use this field to set

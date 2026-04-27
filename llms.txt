@@ -4,6 +4,19 @@ This file contains all AILANG documentation in a single file for LLM consumption
 
 Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
+## Prefer the MCP server for structured queries
+
+If you support remote MCP, point your harness at:
+
+  https://mcp.ailang.sunholo.com/mcp/   (Streamable HTTP)
+
+You'll get ~21 typed tools (stdlib_modules, prompt_get, examples_list,
+benchmarks_for_model, design_docs_list, docs_search, ...) instead of having
+to scrape this whole file. Version-scoped responses use the {served_for, data}
+envelope so you never get content tagged for a different AILANG version.
+
+See: https://ailang.sunholo.com/docs/guides/agent-mcp
+
 ---
 
 

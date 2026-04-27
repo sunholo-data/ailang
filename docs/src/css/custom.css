@@ -911,3 +911,123 @@ pre {
     max-width: 100% !important;
   }
 }
+
+/* ============================================
+   AddToAgent component (M-AGENT-MCP M4)
+   ============================================ */
+.add-to-agent {
+  padding: 4rem 2rem;
+  background: linear-gradient(180deg, var(--ifm-background-color) 0%, var(--ifm-background-surface-color) 100%);
+}
+
+.add-to-agent-inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.add-to-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.add-to-agent-header h2 {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.75rem;
+}
+
+.add-to-agent-lede {
+  color: var(--ifm-color-emphasis-700);
+  margin-bottom: 1.5rem;
+  line-height: 1.55;
+}
+
+.add-to-agent-lede code {
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.add-to-agent-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.add-to-agent-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.add-to-agent-btn:hover {
+  border-color: var(--sunholo-teal);
+  transform: translateY(-1px);
+  text-decoration: none;
+  color: var(--ifm-font-color-base);
+}
+
+.add-to-agent-btn span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.add-to-agent-btn small {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.75rem;
+}
+
+.add-to-agent-fallback {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--ifm-background-surface-color);
+  border-radius: 8px;
+}
+
+.add-to-agent-fallback summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.add-to-agent-code {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.add-to-agent-code pre {
+  margin: 0;
+  padding: 1rem;
+  font-size: 0.85em;
+}
+
+.add-to-agent-copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 4px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.add-to-agent-copy:hover {
+  border-color: var(--sunholo-teal);
+}

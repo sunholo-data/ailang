@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '../constants/version';
 import BenchmarkMini from '../components/BenchmarkMini';
+import AddToAgent from '../components/AddToAgent';
 
 // Hero Section
 function HeroSection() {
@@ -1234,6 +1235,7 @@ export default function Home() {
         <QuickStartSection />
         <FeaturesSection />
         <BenchmarkMini />
+        <AddToAgent />
         <DemosShowcase />
         <CTASection />
       </main>
