@@ -16,9 +16,9 @@ The contract has **two pillars**:
 
 The total touch points outside the new executor package are: one-line blank
 import in `provider_executor.go`, an `agent_cli` string in `models.yml`,
-one Dockerfile under `docker/`, one Cloud Build step in
-`ailang-multivac/cloudbuild-images.yaml`, and one Cloud Run Job block in
-`ailang-multivac/terraform/cloud_run_jobs.tf`.
+one Dockerfile under `docker/`, **two Cloud Build steps** (one in
+`ailang-multivac/cloudbuild.yaml` and one in `ailang-multivac/cloudbuild-images.yaml`),
+and one Cloud Run Job block in `ailang-multivac/terraform/cloud_run_jobs.tf`.
 
 ## Pillar 1 — Local Executor
 
@@ -152,13 +152,32 @@ compiles AILANG → Go inside the agent), also add `Dockerfile.agent-<name>-go`
 mirroring `Dockerfile.agent-codex-go`. Most new executors do **not** need the
 `-go` variant; defer it until a concrete benchmark requires it.
 
-### 6. Cloud Build Step
+### 6. Cloud Build Step (BOTH `cloudbuild.yaml` AND `cloudbuild-images.yaml`)
 
-In [`ailang-multivac/cloudbuild-images.yaml`](https://github.com/sunholo-data/ailang-multivac),
-add a `build-agent-<name>` step (and `push-agent-<name>` if a downstream
-`-go` variant `FROM`s it). Mirror the `build-agent-opencode` block exactly —
-same `--build-arg PROJECT=$_TARGET_PROJECT`, same registry path
+**⚠️ Critical**: a new executor variant must be added to **both** Cloud Build
+configs in `ailang-multivac/`:
+
+1. **`cloudbuild.yaml`** — the auto-trigger pipeline that runs on push to
+   dev/test/prod. This is the file that builds images **before** running
+   `terraform apply`. If a new variant is missing here, `terraform apply` will
+   fail with `Image 'agent-<name>:latest' not found.` for the new Cloud Run
+   Job, and Cloud Run will cache that failure (`ContainerMissing` condition)
+   until the next successful apply re-validates the resource.
+2. **`cloudbuild-images.yaml`** — the manual image-only pipeline (no
+   terraform, no deploy). Useful for rebuilding images without paying for a
+   full deploy. Must stay in sync with `cloudbuild.yaml` so manual rebuilds
+   produce the same image set as auto-triggered runs.
+
+In each file, add a `build-agent-<name>` step (and `push-agent-<name>` if a
+downstream `-go` variant `FROM`s it). Mirror the `build-agent-opencode`
+block exactly — same `--build-arg PROJECT=$_TARGET_PROJECT`, same registry path
 (`${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent-<name>:latest`).
+Also add the new image to the `push-images` `waitFor` list and the top-level
+`images:` declaration so it's recorded as a build artifact.
+
+The historical drift between the two files (cloudbuild.yaml missing all
+executor variants for several months) is exactly the kind of silent breakage
+this contract is designed to prevent. Updating both is non-negotiable.
 
 ### 7. Cloud Run Job
 
@@ -170,15 +189,27 @@ resource limits, service account, VPC connector, env, secret bindings.
 
 ### 8. Secret Bindings
 
-Bind every provider API key the executor may use into the Cloud Run Job's
-`env { value_source { secret_key_ref { ... } } }` blocks. For multi-provider
-executors (e.g., pi, opencode), bind **all** relevant secrets — a single-key
-binding defeats the multi-provider story. Standard secrets:
+Bind the provider API keys the executor may use into the Cloud Run Job's
+`env { value_source { secret_key_ref { ... } } }` blocks. Standard secrets:
 
 - `ANTHROPIC_API_KEY` — Anthropic models
 - `OPENAI_API_KEY` — OpenAI models
 - `GEMINI_API_KEY` — Gemini API (alternate to ADC)
 - `GOOGLE_APPLICATION_CREDENTIALS` (mounted file) — Vertex AI via ADC
+
+**⚠️ Cost-control rule**: the **claude** executor uses a free Claude
+Code OAuth token (`CLAUDE_CODE_OAUTH_TOKEN`) — it MUST NOT bind
+`ANTHROPIC_API_KEY` (per `ailang-multivac/CLAUDE.md` §5; API-key billing
+is pay-per-token and a busy day of agent runs can cost hundreds of
+dollars). For multi-provider executors that have no OAuth path
+(e.g., pi), bind only the API-keyed providers you've decided to allow
+billing for; other models become dispatch-time errors with a clear
+"No API key found for X" message — exactly the failure mode you want.
+
+**Pi precedent**: `agent_executor_pi` deliberately binds only
+`OPENAI_API_KEY` + `GEMINI_API_KEY`. Pi-claude-* models remain
+runnable LOCALLY (where the developer's own key is in env) but fail
+fast in cloud — preventing surprise Anthropic bills.
 
 ### Cloud Deployment Checklist
 
@@ -187,7 +218,8 @@ For a new cloud-deployable executor:
 1. `docker/Dockerfile.agent-<name>` builds locally with
    `docker build -f docker/Dockerfile.agent-<name> --build-arg PROJECT=<dev-project> -t agent-<name>:dev .`
 2. `<cli> --version` succeeds inside the built image
-3. `cloudbuild-images.yaml` produces `agent-<name>:latest` in Artifact Registry
+3. **Both** `cloudbuild.yaml` AND `cloudbuild-images.yaml` produce
+   `agent-<name>:latest` in Artifact Registry (not just one!)
 4. `terraform apply` creates an `agent-<name>` Cloud Run Job in dev
 5. Coordinator-dispatched task targeting the new Job completes end-to-end
 6. Promote to prod after dev smoke passes
@@ -253,12 +285,17 @@ See `internal/executor/codex/codex_test.go` for the complete blueprint.
 
 7. Author `docker/Dockerfile.agent-<name>` (mirror `Dockerfile.agent-opencode`);
    verify `docker build` + `<cli> --version` locally
-8. Add `build-agent-<name>` (+ `push-agent-<name>` if needed) to
-   `ailang-multivac/cloudbuild-images.yaml`
-9. Add a Cloud Run Job block in
-   `ailang-multivac/terraform/cloud_run_jobs.tf` with **all** relevant
-   provider-key secret bindings
-10. Smoke-test in dev: build pipeline → `terraform apply` → coordinator
+8. Add `build-agent-<name>` (+ `push-agent-<name>` if needed) to **BOTH**
+   `ailang-multivac/cloudbuild.yaml` AND `ailang-multivac/cloudbuild-images.yaml`.
+   Update each file's `push-images.waitFor` and `images:` lists.
+9. Add `"<name>"` to `knownVariants` in
+   `internal/dispatch/cloudrun/dispatcher.go` so the coordinator accepts the
+   new variant in `DispatchParams.ExecutorVariant`
+10. Add a Cloud Run Job block in
+    `ailang-multivac/terraform/cloud_run_jobs.tf` (one for the project-keys
+    variant, one for the user-API-key variant) with the policy-appropriate
+    secret bindings — see §8 above for the cost-control rule
+11. Smoke-test in dev: build pipeline → `terraform apply` → coordinator
     dispatch with `--executor <name>` → completion
 
 No coordinator code change. No eval-harness code change. No factory

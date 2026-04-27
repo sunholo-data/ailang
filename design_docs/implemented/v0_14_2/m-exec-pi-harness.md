@@ -390,6 +390,43 @@ The following are intentionally left open for the implementer:
 - [github.com/badlogic/pi-mono](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) — pi source + `docs/json.md` event schema
 - npm: `@mariozechner/pi-coding-agent`
 
+## Implementation Report
+
+Sprint completed 2026-04-27 (single working day, ~5 hours active dev time
+across 7 milestones). All success criteria met.
+
+### What Was Built
+
+| Milestone | LOC actual | Estimated | Notes |
+|---|---|---|---|
+| M1 — Fixture spike | ~180 | ~50 | Captured live fixtures (20 + 37 events) + executor README documenting full schema upfront |
+| M2 — Executor core | 522 | ~500 | `pi.go` modeled on opencode; per-turn deltas summed from `message_end` |
+| M3 — Tests | 680 | ~250 | 26 tests, 78.8% coverage (over 70% target); fixture replay validates real schema |
+| M4 — Wiring + smoke | 110 | ~220 | One-line blank import + 4 `pi-*` models.yml entries + harness_suite update; smoke passed 1/1 |
+| M5 — Dockerfile | 10 | 10 | Mirrors `agent-opencode`; only npm package name differs |
+| M6 — Cloud deploy | 274 + 156 | ~65 | 274 LOC tf + cloudbuild-images, plus 156 LOC for the systemic cloudbuild.yaml fix |
+| M7 — Contract + CHANGELOG | ~80 | ~50 | EXECUTOR_SHAPE.md refinements, CHANGELOG entry, implementation report |
+| **Total** | **~2,012 LOC** | **~1,145** | 1.76× the estimate, driven mostly by the M6 systemic fix that wasn't scoped |
+
+### Cloud Smoke Test (M6)
+
+End-to-end verification:
+- `pi-smoke-1777275079` (anthropic/claude-haiku-4-5): expected fail — "No API key found for anthropic" — confirms cost-control policy works as designed
+- `pi-smoke-openai-1777275552` (openai/gpt-5.4-mini): **completed**, 2 turns, $0.0046
+
+### Deviations from Plan
+
+1. **`agent-pi-go` Docker variant** — deferred per Design Freeze decision; no AILANG benchmark currently targets pi with Go-toolchain needs.
+2. **`agent_suite` membership** — pi NOT added (kept the 4-member shape). `harness_suite` got `pi-claude-sonnet-4-6` only.
+3. **Cost-control adjustment** — `agent_executor_pi` ended up binding only `OPENAI_API_KEY` + `GEMINI_API_KEY`, not `ANTHROPIC_API_KEY`. The original design doc's "bind all three" was overruled mid-sprint per CLAUDE.md §5; pi-claude-* models work locally only.
+4. **Unscoped systemic fix (in scope per "first application" decision)** — `cloudbuild.yaml` was missing 8 of 16 image build steps. Added them all so future executor variants land cleanly via the auto-trigger pipeline.
+
+### Lessons Captured in Contract
+
+- **EXECUTOR_SHAPE.md §6** — both `cloudbuild.yaml` AND `cloudbuild-images.yaml` must be updated for new variants (the historical drift between them caused this sprint's terraform-apply failure; explicit guard added).
+- **EXECUTOR_SHAPE.md §8** — cost-control rule for cloud secret bindings: claude uses free OAuth (never bind ANTHROPIC_API_KEY); multi-provider executors with no OAuth path bind only the API-keyed providers explicitly approved for billing. Pi precedent now documented as the canonical example.
+- **Recipe step 9** — explicit "add to `knownVariants`" step in `internal/dispatch/cloudrun/dispatcher.go`. Easy to miss; pi originally compiled fine without it but the coordinator would have rejected `--executor pi` at dispatch time.
+
 ## Future Work
 
 - **Provider expansion** — once pi is proven on the four anchor models, add Bedrock, Azure, Groq, Mistral entries to `models.yml` to extend the agent-mode coverage matrix.
