@@ -5,10 +5,20 @@ context on `Edit`, `Write`, `Read`, and `MultiEdit` tool events.
 
 ## What it does
 
-On every file-touching tool call, the plugin shells out to `ailang micro-rag
-context`. The μRAG engine queries the local vector index for snippets relevant
-to the file being edited and returns an injection text prefixed with `🧠 μRAG`.
-opencode prepends this text to the next LLM prompt as `additionalContext`.
+Two μRAG hooks are wired:
+
+- **`preToolUse`** — calls the engine's `micro-rag context`, but the engine
+  returns `kb_skip` for `.ail` files (per ADR-002: embedding-based PreToolUse
+  retrieval on file content averages over too many tokens; cosine similarity
+  dilutes single-character anti-patterns like `++`). The plugin stays wired so
+  re-enabling the route in `~/.ailang/microrag.yaml` is the only change a
+  future redesign would need.
+- **`postToolUse`** — fires after `Edit`, `Write`, and `MultiEdit` on `.ail`
+  files. Calls `ailang micro-rag lint-builtin` which regex-scans the just-written
+  code for first-use builtin invocations and emits one short signature nudge
+  per first-use. The plugin returns the joined nudge text so opencode can
+  prepend it to the next LLM turn — same harness-fairness behaviour the bash
+  `microrag_lint.sh` shims give Claude Code / Gemini / Codex agents.
 
 Same engine as the Claude Code / Gemini CLI / Codex CLI shims — only the hook
 interface differs (TypeScript module exports vs bash stdin/stdout).
@@ -57,8 +67,8 @@ spawned, no latency impact.
 | Export | Fires | Purpose |
 |---|---|---|
 | `sessionStart(info)` | Session init | Sets `AILANG_MICRORAG_SESSION` from opencode session ID |
-| `preToolUse(tool, input)` | Before each tool call | Injects μRAG context; returns `string \| undefined` |
-| `postToolUse(tool, input, output)` | After tool completes | No-op (reserved for future lint hooks) |
+| `preToolUse(tool, input)` | Before each tool call | Calls `micro-rag context`; engine returns `kb_skip` for `.ail` files (ADR-002) |
+| `postToolUse(tool, input, output)` | After Edit/Write/MultiEdit on `.ail` files | Returns first-use builtin signature nudges |
 
 ## Skipped files
 
@@ -75,13 +85,16 @@ npx vitest run
 ```
 
 Tests use `vitest` with `vi.mock("child_process")` — no live `ailang` binary
-required. All 18 test cases verify subprocess args, content truncation,
-MultiEdit handling, error resilience, and the `AILANG_MICRORAG_ENABLED=0` guard.
+required. All 26 test cases verify subprocess args, content truncation,
+MultiEdit handling, error resilience, the `AILANG_MICRORAG_ENABLED=0` guard,
+and `postToolUse` builtin-lint behaviour.
 
 ## Known limits
 
 - opencode plugin loader version ≥ 1.14.0 required (TypeScript ESM support)
-- `postToolUse` is a no-op stub; lint integration analogous to `microrag_lint.sh`
-  is a future enhancement
+- `preToolUse` is intentionally a no-op stub — see ADR-002 for the reasoning
+  behind disabling embedding-based PreToolUse retrieval on `.ail` file content.
+  PostToolUse builtin-lint (an unrelated targeted code path) provides the
+  on-agent signal.
 - Session isolation via `AILANG_MICRORAG_SESSION` works only within a single
   Node.js process; multi-process opencode setups would need a different IPC path

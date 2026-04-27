@@ -141,6 +141,16 @@ Pi uses the underlying provider's pricing and reports it inline. The executor's
   the executor always provides an explicit `--model` to avoid surprises.
 - Long output streams emit large `partial` payloads in every `message_update`;
   the parser must handle multi-megabyte single-line JSON without copying.
+- **No plugin / extension surface for μRAG injection.** Pi runs the agent loop
+  inside its own process and emits NDJSON events for *observation* — there is
+  no PreToolUse / PostToolUse callback hook the host can interpose on to feed
+  context back into the next turn. Cross-harness fairness with the
+  builtin-first-use μRAG nudge that Claude Code / Gemini / Codex / opencode
+  agents receive is therefore currently unachievable on Pi.
+  Tracked under [M-MICRORAG-EXPAND](../../../design_docs/planned/v0_15_0/m-microrag-hook-expansion.md);
+  unblocked once Pi adds upstream support for a passive PostToolUse hook
+  (or alternatively, when SessionStart-style up-front context prepending
+  proves valuable enough to ship as M3).
 
 ## References
 

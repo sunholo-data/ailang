@@ -34,6 +34,8 @@ func microragCommand() {
 		runMicroragContext(args)
 	case "lint-builtin":
 		runMicroragLintBuiltin(args)
+	case "user-prompt":
+		runMicroragUserPrompt(args)
 	case "init":
 		runMicroragInit(args)
 	case "bootstrap":
@@ -109,6 +111,64 @@ func readContentArg(v string) string {
 		return ""
 	}
 	return string(data)
+}
+
+// runMicroragUserPrompt is the UserPromptSubmit-driven entry point. The
+// user's prompt itself is the embedding query — the right-fit hook for
+// μRAG per ADR-002. Output envelope mirrors `context`: an Injection or a
+// reason for skipping.
+func runMicroragUserPrompt(args []string) {
+	fs := flag.NewFlagSet("micro-rag user-prompt", flag.ExitOnError)
+	prompt := fs.String("prompt", "", "User prompt text (or @path to read from file)")
+	namespacesCSV := fs.String("namespaces", "", "Comma-list of brain namespaces to query (default: ailang-syntax,ailang-builtins)")
+	configPath := fs.String("config", "", "Path to microrag.yaml (default: ~/.ailang/microrag.yaml)")
+	binary := fs.String("ailang-binary", "", "Path to ailang binary for cache search shell-out (default: ailang)")
+	_ = fs.Parse(args)
+
+	promptText := readContentArg(*prompt)
+	if promptText == "" {
+		emitUserPromptResult(&microrag.UserPromptResult{State: "on", Reason: "missing_prompt"})
+		return
+	}
+
+	if !microrag.EnabledFromEnv() {
+		emitUserPromptResult(&microrag.UserPromptResult{State: "disabled", Reason: "env_disabled"})
+		return
+	}
+
+	cfg, err := microrag.LoadConfig(*configPath)
+	if err != nil {
+		emitUserPromptResult(&microrag.UserPromptResult{State: "on", Reason: fmt.Sprintf("config_error: %v", err)})
+		return
+	}
+
+	var namespaces []string
+	if csv := strings.TrimSpace(*namespacesCSV); csv != "" {
+		for _, n := range strings.Split(csv, ",") {
+			n = strings.TrimSpace(n)
+			if n != "" {
+				namespaces = append(namespaces, n)
+			}
+		}
+	}
+
+	eng := &microrag.Engine{
+		Cfg:        cfg,
+		Searcher:   &microrag.CLISearcher{Binary: *binary},
+		SessionDir: microrag.DefaultSessionDir(),
+	}
+	res, err := eng.UserPrompt(microrag.UserPromptRequest{Prompt: promptText, Namespaces: namespaces})
+	if err != nil {
+		emitUserPromptResult(&microrag.UserPromptResult{State: "on", Reason: fmt.Sprintf("engine_error: %v", err)})
+		return
+	}
+	emitUserPromptResult(res)
+}
+
+func emitUserPromptResult(r *microrag.UserPromptResult) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(r)
 }
 
 func runMicroragLintBuiltin(args []string) {
@@ -523,6 +583,8 @@ Just-in-time knowledge injection engine. Harness-agnostic.
 
 Subcommands:
   context       Resolve injection for a tool-call event (Edit | Write | Read)
+  user-prompt   Resolve injection for a UserPromptSubmit event (the right
+                hook for embedding-driven retrieval — see ADR-002)
   lint-builtin  Resolve first-use builtin signature nudges (PostToolUse)
   init          Write a default ~/.ailang/microrag.yaml
   bootstrap     Populate ailang-syntax + ailang-builtins from embedded resources
@@ -533,6 +595,13 @@ Common flags (context):
   --file PATH              File path being acted on (required)
   --content TEXT           File content (or @path to read from file)
   --config PATH            Override config path (default: ~/.ailang/microrag.yaml)
+  --ailang-binary PATH     ailang binary for cache search shell-out
+
+User-prompt flags:
+  --prompt TEXT            User prompt text (or @path to read from file)
+  --namespaces CSV         Override default namespaces (default:
+                           ailang-syntax,ailang-builtins)
+  --config PATH            Override config path
   --ailang-binary PATH     ailang binary for cache search shell-out
 
 Bootstrap flags:

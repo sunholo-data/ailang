@@ -10,10 +10,17 @@
  *   AILANG_MICRORAG_ENABLED=0   (disable without uninstalling)
  *
  * How it works:
- *   preToolUse fires before Edit/Write/Read/MultiEdit tool calls.
- *   It shells out to `ailang micro-rag context`, which queries the μRAG engine
- *   and returns a snippet. That snippet is returned from preToolUse as the
- *   additionalContext string, which opencode prepends to the next LLM prompt.
+ *   preToolUse currently returns undefined for all tools — embedding-based
+ *   PreToolUse retrieval on `.ail` files was disabled per ADR-002 (queries
+ *   built from file content average over too many tokens). Engine is left
+ *   wired so a future hook redesign can re-enable it without code churn.
+ *
+ *   postToolUse fires after Edit/Write/MultiEdit and runs the targeted
+ *   builtin-lint pass on `.ail` files: regex-extract builtin call sites,
+ *   then emit one short signature nudge per first-use builtin. This is
+ *   the working part of μRAG on the agent loop and gives opencode-driven
+ *   eval runs the same harness-fairness signal that Claude Code / Gemini /
+ *   Codex agents already get.
  *
  * Session isolation:
  *   AILANG_MICRORAG_SESSION is set from sessionInfo.id so the engine's
@@ -24,6 +31,10 @@ import { spawnSync } from "child_process";
 
 // Tool names that trigger μRAG context injection.
 const WATCHED_TOOLS = new Set(["Edit", "Write", "Read", "MultiEdit"]);
+
+// Tools whose post-state is worth scanning for first-use builtin nudges.
+// Read is excluded — no new code is being introduced.
+const POST_LINT_TOOLS = new Set(["Edit", "Write", "MultiEdit"]);
 
 // File paths / extensions that are never worth indexing.
 const SKIP_PATH_RE =
@@ -87,12 +98,63 @@ export function preToolUse(
   return injectionText;
 }
 
+/**
+ * postToolUse runs the builtin-lint nudge pass on `.ail` files. Returns the
+ * joined nudge text so opencode can prepend it to the next LLM turn — same
+ * harness-fairness behaviour as the bash microrag_lint.sh shims used by
+ * Claude Code / Gemini / Codex. Returns undefined if no nudges fire.
+ */
 export function postToolUse(
-  _toolName: string,
-  _toolInput: Record<string, unknown>,
+  toolName: string,
+  toolInput: Record<string, unknown>,
   _toolOutput: unknown
-): void {
-  // Reserved for future lint/quality hooks analogous to microrag_lint.sh.
+): string | undefined {
+  if (process.env["AILANG_MICRORAG_ENABLED"] === "0") return undefined;
+
+  if (!POST_LINT_TOOLS.has(toolName)) return undefined;
+
+  const filePath = resolveFilePath(toolName, toolInput);
+  if (!filePath) return undefined;
+
+  // Builtin lint is AILANG-specific. Skip everything else.
+  if (!filePath.endsWith(".ail")) return undefined;
+
+  const content = resolveContent(toolName, toolInput);
+  if (!content) return undefined;
+
+  // Engine accepts up to ~8KB of code body for the regex pass; truncate so we
+  // never feed multi-megabyte payloads.
+  const code = content.slice(0, 8192);
+
+  const args = [
+    "micro-rag",
+    "lint-builtin",
+    "--file",
+    filePath,
+    "--code",
+    code,
+  ];
+  const result = spawnSync("ailang", args, {
+    encoding: "utf-8",
+    timeout: 3000,
+    env: { ...process.env },
+  });
+  if (result.status !== 0 || !result.stdout) return undefined;
+
+  let parsed: { nudges?: { injection_text?: string }[] };
+  try {
+    parsed = JSON.parse(result.stdout) as typeof parsed;
+  } catch {
+    return undefined;
+  }
+  const nudges = parsed?.nudges ?? [];
+  if (nudges.length === 0) return undefined;
+
+  const joined = nudges
+    .map((n) => n?.injection_text)
+    .filter((t): t is string => typeof t === "string" && t.length > 0)
+    .join("\n");
+  return joined.length > 0 ? joined : undefined;
 }
 
 // --- helpers ---

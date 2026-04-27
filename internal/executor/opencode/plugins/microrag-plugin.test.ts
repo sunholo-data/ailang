@@ -219,10 +219,69 @@ describe("preToolUse subprocess failure", () => {
   });
 });
 
-// --- postToolUse ---
+// --- postToolUse: builtin-lint ---
 
-describe("postToolUse", () => {
-  it("is a no-op (reserved for future lint hooks)", () => {
-    expect(() => postToolUse("Edit", { file_path: "/a.go" }, "output")).not.toThrow();
+function makeLintResult(nudges: string[]) {
+  return {
+    status: 0,
+    stdout: JSON.stringify({
+      nudges: nudges.map((t) => ({ injection_text: t })),
+    }),
+    stderr: "",
+  };
+}
+
+describe("postToolUse builtin-lint", () => {
+  it("returns joined nudge text for .ail Edit", () => {
+    mockedSpawn.mockReturnValue(
+      makeLintResult(["═ μRAG/builtin: httpGet ═", "═ μRAG/builtin: parseJSON ═"]) as ReturnType<typeof child_process.spawnSync>
+    );
+    const r = postToolUse("Edit", { file_path: "/src/foo.ail", new_string: "httpGet(url)" }, undefined);
+    expect(r).toBe("═ μRAG/builtin: httpGet ═\n═ μRAG/builtin: parseJSON ═");
+    expect(mockedSpawn).toHaveBeenCalledWith(
+      "ailang",
+      expect.arrayContaining(["micro-rag", "lint-builtin", "--file", "/src/foo.ail"]),
+      expect.objectContaining({ timeout: 3000 })
+    );
+  });
+
+  it("returns undefined for non-.ail files", () => {
+    const r = postToolUse("Write", { file_path: "/src/foo.go", content: "x" }, undefined);
+    expect(r).toBeUndefined();
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined for Read tool (no new code)", () => {
+    const r = postToolUse("Read", { file_path: "/src/foo.ail" }, undefined);
+    expect(r).toBeUndefined();
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined when AILANG_MICRORAG_ENABLED=0", () => {
+    process.env["AILANG_MICRORAG_ENABLED"] = "0";
+    const r = postToolUse("Edit", { file_path: "/src/foo.ail", new_string: "x" }, undefined);
+    expect(r).toBeUndefined();
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it("returns undefined when nudges array is empty", () => {
+    mockedSpawn.mockReturnValue(makeLintResult([]) as ReturnType<typeof child_process.spawnSync>);
+    const r = postToolUse("Edit", { file_path: "/src/foo.ail", new_string: "x" }, undefined);
+    expect(r).toBeUndefined();
+  });
+
+  it("returns undefined when subprocess fails", () => {
+    mockedSpawn.mockReturnValue({ status: 1, stdout: "", stderr: "boom" } as ReturnType<typeof child_process.spawnSync>);
+    const r = postToolUse("Edit", { file_path: "/src/foo.ail", new_string: "x" }, undefined);
+    expect(r).toBeUndefined();
+  });
+
+  it("truncates code to 8192 chars before invoking subprocess", () => {
+    mockedSpawn.mockReturnValue(makeLintResult(["nudge"]) as ReturnType<typeof child_process.spawnSync>);
+    const longCode = "x".repeat(20000);
+    postToolUse("Write", { file_path: "/a.ail", content: longCode }, undefined);
+    const args = mockedSpawn.mock.calls[0][1] as string[];
+    const codeIdx = args.indexOf("--code");
+    expect(args[codeIdx + 1].length).toBe(8192);
   });
 });
