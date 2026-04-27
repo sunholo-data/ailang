@@ -4,8 +4,8 @@ import styles from './styles.module.css';
 
 const TIER_ORDER = ['core', 'stretch', 'vision', 'smoke'];
 const TIER_LABELS = { core: 'Core', stretch: 'Stretch', vision: 'Vision', smoke: 'Smoke' };
-const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI', opencode: 'opencode' };
-const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'opencode'];
+const HARNESS_LABEL = { claude: 'Claude CLI', codex: 'Codex', gemini: 'Gemini CLI', opencode: 'opencode', pi: 'Pi' };
+const HARNESS_ORDER = ['claude', 'codex', 'gemini', 'opencode', 'pi'];
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 

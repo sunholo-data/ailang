@@ -4,7 +4,7 @@ import styles from './styles.module.css';
 const LANG_LABEL = { ailang: 'AILANG', python: 'Python', javascript: 'JavaScript', go: 'Go' };
 const LANG_SHORT = { ailang: 'AILANG', python: 'Python', javascript: 'JS', go: 'Go' };
 const LANG_COLOR = { ailang: '#6366f1', python: '#eab308', javascript: '#f97316', go: '#06b6d4' };
-const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex' };
+const HARNESS_LABEL = { claude: 'Claude CLI', gemini: 'Gemini CLI', opencode: 'opencode', codex: 'Codex', pi: 'Pi' };
 const LANG_ORDER = ['ailang', 'python', 'javascript', 'go'];
 
 function pct(v) {
@@ -110,9 +110,11 @@ function familyLabel(fam) {
   return fam.replace('claude-', 'Claude ').replace('gemini-', 'Gemini ').replace(/-/g, ' ');
 }
 
-// Mini bar row: label | ████░░░░ 91%  (raw 18%)
+// Mini bar row: label | ████░░░░ 91%
+//                              (raw 18%)
 // Display priority: ADJUSTED is primary (true model strength when infra works);
-// RAW shown as small annotation only when meaningfully different.
+// RAW shown on a sub-row so the bar's flex-1 area is the same width across
+// all rows regardless of whether an adjustment annotation is present.
 function MiniBar({ lang, rate, adjusted, apiErrorRate, apiErrors }) {
   const showAdjusted = apiErrorRate != null && apiErrorRate > 0.05 && adjusted != null
     && rate != null && Math.abs(adjusted - rate) >= 0.01;
@@ -120,25 +122,27 @@ function MiniBar({ lang, rate, adjusted, apiErrorRate, apiErrors }) {
   const p = primary != null ? Math.round(primary * 100) : null;
   const color = LANG_COLOR[lang] || '#94a3b8';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-      <span style={{ width: 44, fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-600)', flexShrink: 0, textAlign: 'right' }}>
-        {LANG_SHORT[lang] || lang}
-      </span>
-      <div style={{ flex: 1, background: 'var(--ifm-color-emphasis-100)', borderRadius: 3, height: 10, overflow: 'hidden' }}>
-        {p != null && (
-          <div style={{ width: `${p}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s' }} />
-        )}
+    <div style={{ marginBottom: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 44, fontSize: '0.72rem', color: 'var(--ifm-color-emphasis-600)', flexShrink: 0, textAlign: 'right' }}>
+          {LANG_SHORT[lang] || lang}
+        </span>
+        <div style={{ flex: 1, background: 'var(--ifm-color-emphasis-100)', borderRadius: 3, height: 10, overflow: 'hidden' }}>
+          {p != null && (
+            <div style={{ width: `${p}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s' }} />
+          )}
+        </div>
+        <span style={{ width: 30, fontSize: '0.72rem', fontWeight: p >= 85 ? 700 : 400, color: p == null ? 'var(--ifm-color-emphasis-300)' : rateColor(primary), flexShrink: 0 }}>
+          {p != null ? `${p}%` : '—'}
+        </span>
       </div>
-      <span style={{ width: 30, fontSize: '0.72rem', fontWeight: p >= 85 ? 700 : 400, color: p == null ? 'var(--ifm-color-emphasis-300)' : rateColor(primary), flexShrink: 0 }}>
-        {p != null ? `${p}%` : '—'}
-      </span>
       {showAdjusted && (
-        <span
-          style={{ fontSize: '0.65rem', color: 'var(--ifm-color-emphasis-500)', flexShrink: 0, fontStyle: 'italic' }}
+        <div
+          style={{ paddingLeft: 50, fontSize: '0.62rem', color: 'var(--ifm-color-emphasis-500)', fontStyle: 'italic', marginTop: 1 }}
           title={`Raw rate before excluding ${apiErrors ?? 0} API errors`}
         >
           (raw {Math.round(rate * 100)}%)
-        </span>
+        </div>
       )}
     </div>
   );
@@ -228,7 +232,7 @@ function CrossHarnessTable({ data, allLangs }) {
           <tbody>
             {crossHarness.map(([fam, variants]) => {
               const sorted = [...variants].sort((a, b) => {
-                const order = { claude: 0, gemini: 1, codex: 2, opencode: 3 };
+                const order = { claude: 0, gemini: 1, codex: 2, opencode: 3, pi: 4 };
                 return (order[a.agent_cli] ?? 9) - (order[b.agent_cli] ?? 9);
               });
               // Baseline for cross-harness delta uses ADJUSTED rate when available

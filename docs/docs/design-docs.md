@@ -19,6 +19,13 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-EXEC-EXPAND (Codex + opencode Executors)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode-sprint-plan.md)
 - [M-EXEC-EXPAND: Codex + opencode Executors (Uniform CLI-Subprocess Shape)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode.md)
 
+## v0.14.2
+
+- [Sprint Plan: M-CLI-ARGS-WIN (v0.14.2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_2/m-cli-args-file-stdin-sprint-plan.md)
+- [M-CLI: `-args-file`, Stdin Input, and Windows Runtime CI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_2/m-cli-args-file-stdin.md)
+- [Sprint Plan: M-EXEC-PI (Pi Coding Harness Executor)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_2/m-exec-pi-harness-sprint-plan.md)
+- [M-EXEC-PI: Pi Coding Harness Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_2/m-exec-pi-harness.md)
+
 ## v0.14.1
 
 - [M-SONAR-GATE-CLEANUP: Drive SonarCloud Quality Gate to PASS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_1/m-sonar-gate-cleanup.md)
@@ -899,4 +906,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 664 design documents across 75 versions.*
+*Generated at build time. 668 design documents across 76 versions.*

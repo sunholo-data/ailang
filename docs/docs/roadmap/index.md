@@ -40,12 +40,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-OLLAMA-LOCAL-EVAL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval-sprint-plan.md)
 - [M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval.md)
 
-## Planned for v0.14.2
-
-- [Sprint Plan: M-CLI-ARGS-WIN (v0.14.2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_14_2/m-cli-args-file-stdin-sprint-plan.md)
-- [M-CLI: `-args-file`, Stdin Input, and Windows Runtime CI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_14_2/m-cli-args-file-stdin.md)
-- [M-EXEC-PI: Pi Coding Harness Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_14_2/m-exec-pi-harness.md)
-
 ## Planned for v0.13.0
 
 - [AILANG: Auto-Caps and Capability Inference](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/20251013_auto_caps_capability_inference.md)
@@ -131,4 +125,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 90 planned features across 6 upcoming versions.*
+*Generated at build time. 87 planned features across 5 upcoming versions.*
