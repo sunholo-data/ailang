@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/prompt"
+	versionpkg "github.com/sunholo-data/ailang/internal/version"
 )
 
 // runPrompt handles the 'ailang prompt' command
@@ -18,6 +20,7 @@ func runPrompt() {
 	infoFlag := promptFS.Bool("info", false, "Show metadata for specified version")
 	compactFlag := promptFS.Bool("compact", false, "Use token-efficient compact version (~15KB vs ~49KB)")
 	versionActiveFlag := promptFS.Bool("version-active", false, "Print the active prompt version (machine-parseable)")
+	sourceFlag := promptFS.String("source", "auto", "Where to load the prompt from: auto|mcp|embedded (default auto). Use embedded for reproducible eval runs.")
 	helpFlag := promptFS.Bool("help", false, "Show help for prompt command")
 
 	_ = promptFS.Parse(flag.Args()[1:])
@@ -74,14 +77,40 @@ func runPrompt() {
 		}
 	}
 
-	content, err := prompt.LoadPrompt(version)
+	// New: --source auto|mcp|embedded routes through LoadPromptFresh, which
+	// prefers the MCP-served (version-locked) copy when reachable AND the
+	// served_for matches the binary's compile-time version. Falls back to
+	// embedded silently when MCP is unreachable or version-mismatched.
+	src := prompt.Source(*sourceFlag)
+	if src != prompt.SourceAuto && src != prompt.SourceMCP && src != prompt.SourceEmbedded {
+		fmt.Fprintf(os.Stderr, "%s: --source must be auto, mcp, or embedded\n", red("Error"))
+		os.Exit(2)
+	}
+
+	res, err := prompt.LoadPromptFresh(context.Background(), prompt.FreshOptions{
+		Source:  src,
+		Version: version,
+		MCPURL:  os.Getenv("AILANG_MCP_URL"),
+	}, versionpkg.Version)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
+	if res.MCPNote != "" && os.Getenv("AILANG_MCP_QUIET") == "" {
+		fmt.Fprintf(os.Stderr, "%s prompt source=%s version=%s sha=%s (%s)\n",
+			yellow("note:"), res.Source, res.Version, shortSHA(res.SHA256), res.MCPNote)
+	}
 
 	// Write to stdout (pipe-friendly)
-	fmt.Print(content)
+	fmt.Print(res.Content)
+}
+
+// shortSHA returns the first 7 chars of a hex sha (git-style).
+func shortSHA(s string) string {
+	if len(s) < 7 {
+		return s
+	}
+	return s[:7]
 }
 
 // printPromptHelp shows help for the prompt command

@@ -248,6 +248,9 @@ func main() {
 	case "agent-prompt":
 		runAgentPrompt()
 
+	case "mcp":
+		runMCPCommand()
+
 	case "server", "serve": // "serve" kept as alias for backward compatibility
 		if err := serverCommand(flag.Args()[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)

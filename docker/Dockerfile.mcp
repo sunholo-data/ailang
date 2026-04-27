@@ -52,14 +52,22 @@ ENV AILANG_RELAX_MODULES=1
 # Tell the loader where stdlib lives.
 ENV AILANG_STDLIB_PATH=/srv/std
 
+# WORKDIR=/srv so the AILANG module loader resolves `import mcp_tools/lib`
+# relative to /srv/mcp_tools/lib.ail (it walks up from CWD looking for the
+# module directory). Without this the container fails at startup with
+# LDR001: module not found: mcp_tools/lib.
+WORKDIR /srv
+
 EXPOSE 8080
 
 # Entrypoint: serve MCP over Streamable HTTP. --routes-only filters registration
 # to only @mcp_name/@route exports (no helper leakage). --caps FS,Env restricts
 # the runtime to filesystem reads (snapshot) + env var reads (snapshot dir
 # config). Net is added in M7 when submit_feedback publishes to Pub/Sub.
+# Pass mcp_tools/ as a relative path (matches CWD=/srv) so the loader
+# discovers sibling modules cleanly.
 ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
             "--mcp-http", "--routes-only", \
             "--caps", "FS,Env", \
             "--port", "8080", \
-            "/srv/mcp_tools/"]
+            "mcp_tools/"]
