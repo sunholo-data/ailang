@@ -41,6 +41,10 @@ type Config struct {
 	OpenCodePath  string // Path to opencode CLI binary
 	OpenCodeModel string // Default opencode model (provider/model format)
 
+	// pi configuration
+	PiPath  string // Path to pi CLI binary
+	PiModel string // Default pi model (provider/model format)
+
 	// Common settings
 	TimeoutSeconds int
 	WorkspaceDir   string
@@ -61,6 +65,8 @@ func DefaultConfig() *Config {
 		CodexModel:       "gpt-5-codex",
 		OpenCodePath:     "opencode",
 		OpenCodeModel:    "anthropic/claude-haiku-4-5",
+		PiPath:           "pi",
+		PiModel:          "anthropic/claude-haiku-4-5",
 		TimeoutSeconds:   300,
 		WorkspaceDir:     os.TempDir(),
 	}
