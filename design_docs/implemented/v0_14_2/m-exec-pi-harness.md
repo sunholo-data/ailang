@@ -1,6 +1,6 @@
 # M-EXEC-PI: Pi Coding Harness Executor
 
-**Status**: Planned
+**Status**: Implemented
 **Target**: v0.14.2
 **Priority**: P2 (Medium-Low — harness diversity for cross-harness eval; not on a critical path)
 **Estimated**: 5–6 days (one short sprint: ~½ day fixture-capture spike, ~3.5 days local executor + tests + wiring, ~1.5 days Docker + Cloud Run deployment pillar)
