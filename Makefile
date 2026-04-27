@@ -243,6 +243,19 @@ brain-index-syntax-reset: build
 snapshot: bin/build-snapshot
 	@./bin/build-snapshot --repo . --out build/snapshot
 
+## verify-mcp-tools: Type-check every AILANG file under mcp_tools/ (M-AGENT-MCP M8)
+verify-mcp-tools: build
+	@echo "$(BOLD)Verifying mcp_tools/...$(RESET)"
+	@FAIL=0; for f in mcp_tools/*.ail; do \
+		AILANG_RELAX_MODULES=1 ./bin/ailang check $$f > /dev/null 2>&1 \
+			&& echo "  ✓ $$f" \
+			|| { echo "  ✗ $$f"; FAIL=1; }; \
+	done; \
+	if [ $$FAIL -ne 0 ]; then \
+		echo "$(BOLD)mcp_tools/ verification FAILED$(RESET)"; exit 1; \
+	fi
+	@echo "$(BOLD)✓ All mcp_tools/ AILANG modules type-check$(RESET)"
+
 ## bin/build-snapshot: Build the snapshot tool
 bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"
