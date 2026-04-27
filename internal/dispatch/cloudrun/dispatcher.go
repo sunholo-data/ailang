@@ -73,6 +73,7 @@ var knownVariants = map[string]bool{
 	"codex":     true,
 	"codex-go":  true,
 	"opencode":  true,
+	"pi":        true,
 	"eval":      true,
 	"eval-go":   true,
 }
