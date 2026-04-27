@@ -1,11 +1,17 @@
--- mcp_tools/feedback.ail — public feedback channel (M7 placeholder).
+-- mcp_tools/feedback.ail — public feedback channel (M7).
 --
--- The full implementation lands in M7 and publishes to the existing
--- ailang-messages Pub/Sub topic with attributes
--- {inbox: "public-feedback", from_agent: "mcp-public", category: <input>,
---  message_type: "feedback"}, reusing the coordinator's existing push
--- subscription. For M1 this validates inputs and returns a stub ticket id
--- so the tool surface is registered and the schema is visible to agents.
+-- Validates anonymous bug/feature/docs reports submitted via MCP. The actual
+-- Pub/Sub publish to the ailang-messages topic is deferred to a Go-side
+-- builtin in M7.1 (one focused commit, ~80 LOC) — the wire requires
+-- coordinating Firestore-store + pubsub-notifier the same way the existing
+-- `ailang messages send` CLI does. The IAM binding granting the MCP
+-- service account roles/pubsub.publisher on the ailang-messages topic is
+-- live as of M7 (see ailang-multivac/terraform/cloud_run_mcp.tf), so the
+-- only remaining work is wiring the publish call.
+--
+-- For now this validates inputs and returns a deterministic placeholder
+-- ticket_id so the tool surface advertises the right shape to agents.
+-- Submissions are NOT yet reaching the public-feedback inbox.
 module mcp_tools/feedback
 
 import mcp_tools/lib (errorJson)
@@ -45,9 +51,17 @@ export func submitFeedback(
   else if invalidCategory(category) then
     errorJson("invalid_category", "category must be one of: bug, feature, docs, limitation")
   else
+    -- M7: inputs validated, IAM in place. Pub/Sub wire ships in M7.1 follow-up.
     jo([
-      kv("ticket_id", js("stub-m1-not-yet-published")),
+      kv("ticket_id", js("pending-publish-wire-m7-1")),
       kv("queued_at", js("1970-01-01T00:00:00Z")),
-      kv("note", js("M1 placeholder — Pub/Sub publish wires up in M7")),
-      kv("would_publish", jb(true))
+      kv("status", js("validated")),
+      kv("note", js("Inputs validated successfully. The actual Pub/Sub publish to ailang-messages is wired in M7.1; submissions are not yet reaching the public-feedback inbox.")),
+      kv("attributes_would_be", jo([
+        kv("inbox", js("public-feedback")),
+        kv("from_agent", js("mcp-public")),
+        kv("category", js(category)),
+        kv("message_type", js("feedback")),
+        kv("ailang_version", js(ailangVersion))
+      ]))
     ])
