@@ -239,6 +239,11 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      # Base64-encoded SHA256SUMS body, consumed by the SLSA provenance
+      # generator job below. Format expected by the generator: one line
+      # per artifact, "<sha256>  <basename>".
+      hashes: ${{ steps.compute-subjects.outputs.hashes }}
 
     steps:
     - name: Checkout code
@@ -276,6 +281,16 @@ jobs:
         echo "::group::SHA256SUMS"
         cat SHA256SUMS
         echo "::endgroup::"
+
+    - name: Compute base64 subjects for SLSA provenance
+      # The SLSA generic generator expects a base64-encoded blob whose
+      # decoded content has one line per artifact: "<sha256>  <basename>".
+      # SHA256SUMS already has exactly that format, so we just base64 it.
+      id: compute-subjects
+      run: |
+        set -euo pipefail
+        cd artifacts-flat
+        echo "hashes=$(base64 -w0 < SHA256SUMS)" >> "$GITHUB_OUTPUT"
 
     - name: Install cosign
       uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
@@ -364,3 +379,31 @@ jobs:
           artifacts-flat/*.sha256
           artifacts-flat/*.sig
           artifacts-flat/*.pem
+
+  # SLSA Build Level 3 provenance for every published artifact.
+  #
+  # Cosign (above) proves: this binary was signed by a workflow with the
+  # OIDC identity sunholo-data/ailang/.github/workflows/release.yml.
+  #
+  # SLSA provenance proves: which source commit + builder + materials
+  # produced that binary. The two claims compose — a verifier checks the
+  # signature, then the provenance describes the build that ran inside
+  # that signed identity.
+  #
+  # Output: a single multiple.intoto.jsonl attached to the release that
+  # covers all artifacts listed in SHA256SUMS. Verifiable with:
+  #   slsa-verifier verify-artifact <archive> \
+  #     --provenance-path multiple.intoto.jsonl \
+  #     --source-uri github.com/sunholo-data/ailang \
+  #     --source-tag <tag>
+  provenance:
+    needs: [create-release]
+    permissions:
+      actions: read       # detect the build workflow
+      id-token: write     # OIDC token for keyless signing
+      contents: write     # attach .intoto.jsonl to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: "${{ needs.create-release.outputs.hashes }}"
+      upload-assets: true
+      provenance-name: "multiple.intoto.jsonl"

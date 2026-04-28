@@ -103,6 +103,32 @@ sha256sum -c "$ARCHIVE.sha256"   # or: shasum -a 256 -c on macOS
 
 SHA256 confirms the archive wasn't corrupted in transit but does not by itself prove provenance — prefer cosign verification where possible.
 
+### SLSA build provenance
+
+Starting with v0.15.x, every release also carries [SLSA Build Level 3 provenance](https://slsa.dev/spec/v1.0/levels#build-l3) attached as `multiple.intoto.jsonl`. This is a separate claim from the cosign signature: cosign proves *this binary was signed by our workflow's OIDC identity*; SLSA provenance proves *which source commit, build steps, and inputs produced it*. The two compose.
+
+Verify with [slsa-verifier](https://github.com/slsa-framework/slsa-verifier):
+
+```bash
+go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
+
+VERSION=v0.15.0
+ARCHIVE=linux.x64.ailang.tar.gz
+BASE="https://github.com/sunholo-data/ailang/releases/download/$VERSION"
+curl -fsSLO "$BASE/$ARCHIVE"
+curl -fsSLO "$BASE/multiple.intoto.jsonl"
+
+slsa-verifier verify-artifact "$ARCHIVE" \
+  --provenance-path multiple.intoto.jsonl \
+  --source-uri github.com/sunholo-data/ailang \
+  --source-tag "$VERSION"
+```
+
+A successful verification confirms the binary was produced by the
+expected workflow run on the expected source tag. The provenance is
+itself signed via Sigstore and logged to Rekor, same trust root as
+the cosign signature above.
+
 ## Build Trust Boundary
 
 CI workflows under [.github/workflows/](.github/workflows/) reference
