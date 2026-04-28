@@ -1,6 +1,6 @@
 module github.com/sunholo-data/ailang
 
-go 1.25.0
+go 1.25.9
 
 require (
 	cloud.google.com/go/firestore v1.22.0
