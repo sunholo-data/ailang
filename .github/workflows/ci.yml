@@ -316,6 +316,31 @@ jobs:
         make install-lint
         make lint
 
+  govulncheck:
+    name: govulncheck (vuln gate)
+    runs-on: ubuntu-latest
+    # Reads .govulncheck-allow.yml. Fails on any new finding or any
+    # allowlist entry past its expires date — forces re-review rather
+    # than letting suppressions float forever.
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25.9'
+
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    - name: Build filter
+      run: go build -o ./bin/govulncheck-filter ./tools/govulncheck-filter
+
+    - name: Run govulncheck against allowlist
+      run: |
+        set -o pipefail
+        govulncheck -format json ./... | ./bin/govulncheck-filter
+
   dependency-submission:
     runs-on: ubuntu-latest
     permissions:

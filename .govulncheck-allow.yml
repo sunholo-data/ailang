@@ -1,0 +1,50 @@
+# govulncheck allowlist for AILANG
+#
+# Each entry suppresses a specific govulncheck finding from causing CI
+# failure. Entries MUST have an `expires` date — once that date passes,
+# the CI gate fails on the entry, forcing manual review.
+#
+# Format:
+#   - id: GO-YYYY-NNNN          # the govulncheck Vulnerability ID
+#     reason: <one-line>        # why we're not fixing this directly
+#     expires: YYYY-MM-DD       # when this allowlist entry self-expires
+#
+# To add a new entry: explain in `reason` whether the upstream fix is
+# pending, the dependency is being phased out, or the finding is a
+# false positive for AILANG's call paths. Default expiry is 90 days.
+#
+# Reviewed: post-release skill prompts a check of expiries.
+
+allow:
+  # Ollama: 9 reachable findings, all unfixed upstream as of 2026-04-28.
+  # AILANG calls api.ClientFromEnvironment to talk to a local Ollama
+  # daemon for the eval suite (internal/eval_harness). Removing Ollama
+  # support is not on the roadmap; we monitor https://github.com/ollama/ollama
+  # for security releases via Dependabot.
+  - id: GO-2025-4251
+    reason: Ollama upstream unpatched; tracked via Dependabot. AILANG only invokes the client side; daemon-side issues need an upstream Ollama release.
+    expires: 2026-07-31
+  - id: GO-2025-3824
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3695
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3689
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3582
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3559
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3558
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3557
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
+  - id: GO-2025-3548
+    reason: Ollama upstream unpatched; tracked via Dependabot.
+    expires: 2026-07-31
