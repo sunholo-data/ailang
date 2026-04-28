@@ -278,7 +278,7 @@ jobs:
         echo "::endgroup::"
 
     - name: Install cosign
-      uses: sigstore/cosign-installer@v3.7.0
+      uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
       with:
         cosign-release: 'v2.4.1'
 
@@ -351,7 +351,7 @@ jobs:
         echo 'See [web/README.md](https://github.com/${{ github.repository }}/blob/main/web/README.md) for integration guide.' >> changelog.md
 
     - name: Create Release
-      uses: softprops/action-gh-release@v3
+      uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
       with:
         name: AILANG ${{ steps.get_version.outputs.VERSION }}
         body_path: changelog.md

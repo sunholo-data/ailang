@@ -103,6 +103,33 @@ sha256sum -c "$ARCHIVE.sha256"   # or: shasum -a 256 -c on macOS
 
 SHA256 confirms the archive wasn't corrupted in transit but does not by itself prove provenance — prefer cosign verification where possible.
 
+## Build Trust Boundary
+
+CI workflows under [.github/workflows/](.github/workflows/) reference
+two classes of GitHub Actions, with different pinning policies:
+
+- **First-party (`actions/*`, `github/*`)** — pinned to major-version
+  tags (e.g. `actions/checkout@v6`). The trust boundary is GitHub
+  itself. SHA-pinning these would force constant Dependabot churn on
+  identical-looking SHA bumps, which is itself an attack surface
+  (reviewer rubber-stamping). Tags are the right granularity here.
+- **Third-party (everything else)** — pinned to a 40-character SHA
+  with a trailing version-tag comment for human readability:
+  ```yaml
+  uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da  # v3.7.0
+  ```
+  Examples in this repo: `sigstore/cosign-installer`,
+  `softprops/action-gh-release`, `SonarSource/sonarqube-scan-action`,
+  `ossf/scorecard-action`, `docker/build-push-action`,
+  `docker/setup-buildx-action`, `astral-sh/setup-uv`. A tag re-point
+  on these actions actually changes the threat model (different
+  organization holds the trust boundary), so SHA-pinning them is
+  worth the maintenance cost.
+
+Dependabot is configured to update both classes; for SHA-pinned
+references it proposes new SHA + new comment together, preserving
+the human-readable version tag.
+
 ## AI-Generated Code Disclosure
 
 AILANG is developed autonomously by AI agents via its
