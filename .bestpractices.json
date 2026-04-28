@@ -339,6 +339,6 @@
   "assurance_case_status": "Unmet",
   "assurance_case_justification": "No formal written assurance case yet. The de-facto assurance argument (capability-effect system + third-party SAST + fuzzing + eval suite) is described across SECURITY.md, ARCHITECTURE.md, and design_docs/implemented/v0_14_1/m-supply-chain-hardening.md, but is not consolidated into a single assurance-case document. Tracked for a future sprint.",
 
-  "dco_status": "N/A",
-  "dco_justification": "AI-coordinator commits use a `Co-Authored-By` trailer rather than a DCO `Signed-off-by` line. This is the standard pattern for AI-authored contributions across the ecosystem (used by Claude Code, Gemini CLI, etc.) and provides equivalent attribution intent. See GOVERNANCE.md for the contribution model: https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md"
+  "dco_status": "Unmet",
+  "dco_justification": "AI-coordinator commits use a `Co-Authored-By` trailer rather than a DCO `Signed-off-by` line. The Co-Authored-By pattern is the ecosystem-standard for AI-authored contributions (used by Claude Code, Gemini CLI, etc.) and provides equivalent attribution intent, but it is not a literal DCO sign-off. Marked Unmet for honest signal rather than papered over. See GOVERNANCE.md: https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md"
 }
