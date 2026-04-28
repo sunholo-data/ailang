@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/messaging"
+	"github.com/sunholo-data/ailang/internal/storage"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -102,8 +103,27 @@ func messagesCommand() {
 	}
 }
 
-// openStore opens the unified collaboration database
+// openStore opens the unified collaboration database, honoring the
+// AILANG_STORAGE env var so cloud-mode CLIs (AILANG_STORAGE=gcp) can read/
+// write the same Firestore that the prod MCP server publishes feedback to.
+//
+// Without this, `ailang messages list --inbox public-feedback` always
+// returned "No messages found" because openStore unconditionally opened the
+// local SQLite database — invisible to the cloud-side public-feedback inbox.
+//
+// Resolution order:
+//   - AILANG_STORAGE=gcp   → Firestore (requires AILANG_CLOUD_PROJECT)
+//   - AILANG_STORAGE=hybrid → SQLite (storage.NewHybridBackends uses SQLite for messaging)
+//   - unset / "local"      → SQLite at messaging.GetDefaultDatabasePath()
 func openStore() (messaging.MessageStore, error) {
-	dbPath := messaging.GetDefaultDatabasePath()
-	return messaging.OpenStore(dbPath)
+	if storage.GetMode() == storage.ModeLocal || os.Getenv("AILANG_STORAGE") == "" {
+		// Fast path: no need to spin up the full Backends struct for SQLite.
+		dbPath := messaging.GetDefaultDatabasePath()
+		return messaging.OpenStore(dbPath)
+	}
+	backends, err := storage.NewBackends(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("openStore: %w", err)
+	}
+	return backends.Messaging, nil
 }
