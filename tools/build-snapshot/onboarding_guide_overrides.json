@@ -1,0 +1,222 @@
+{
+  "_comment": "Hand-curated stepwise onboarding flows. Includes common_pitfalls keyed off the AILANG syntax gotchas surfaced during M-AGENT-MCP execution. Update when the language adds/changes a footgun.",
+  "roles": {
+    "agent": {
+      "role": "agent",
+      "audience": "AI coding agent (Claude Code, Cursor, Cline, Continue, Gemini CLI, etc.) picking up AILANG for the first time within a user's session",
+      "steps": [
+        {
+          "n": 1,
+          "title": "Verify or install AILANG",
+          "actions": [
+            "Run `ailang --version` first — if it succeeds, skip to step 2",
+            "If not installed, call `install_guide(harness=<your-harness>)` for the right install command",
+            "Re-run `ailang --version` to confirm the install"
+          ]
+        },
+        {
+          "n": 2,
+          "title": "Confirm the remote MCP is connected",
+          "actions": [
+            "If you can call this onboarding_guide tool, the remote MCP is working — skip the rest of this step",
+            "Otherwise, point your harness at https://mcp.ailang.sunholo.com/mcp/ (transport: streamable-http)",
+            "For Claude Desktop specifically, use the mcp-remote bridge: `npx -y mcp-remote https://mcp.ailang.sunholo.com/mcp/`"
+          ]
+        },
+        {
+          "n": 3,
+          "title": "Load the current syntax",
+          "actions": [
+            "Call `prompt_get(forVersion=\"\", kind=\"agent\")` for the agent-shaped prompt (~180 lines) — start here for any new task",
+            "Call `prompt_get(forVersion=\"\", kind=\"\")` only when you need the full ~50 KB reference",
+            "Use the prompt as the source of truth for syntax — do NOT guess"
+          ]
+        },
+        {
+          "n": 4,
+          "title": "Discover stdlib + examples before writing code",
+          "actions": [
+            "Call `stdlib_modules(forVersion=\"\")` to see what's available (35 modules)",
+            "Call `stdlib_search(query=\"<keyword>\", forVersion=\"\")` to find a function by name/signature/keyword",
+            "Call `examples_for_concept(concept=\"<feature>\", forVersion=\"\")` for a working pattern matching the user's task"
+          ]
+        },
+        {
+          "n": 5,
+          "title": "Check limitations + effects before proposing solutions",
+          "actions": [
+            "Call `limitations_list(category=\"\", forVersion=\"\")` if your plan involves recursion-heavy or mutable patterns — AILANG has design constraints (no Y-combinator, etc.)",
+            "Call `effects_catalog(forVersion=\"\")` to find the right capability flag for any side-effecting code"
+          ]
+        },
+        {
+          "n": 6,
+          "title": "Write the code",
+          "actions": [
+            "Always start with `module <project>/<file>` declaration (use UNDERSCORES, not hyphens)",
+            "Use `${var}` for string interpolation, NOT `++` (which is list-only — see common_pitfalls)",
+            "Declare effects in the function signature: `! {IO, FS}` etc.",
+            "For the eval-harness: use `module benchmark/solution`"
+          ]
+        },
+        {
+          "n": 7,
+          "title": "Type-check then run",
+          "actions": [
+            "`ailang check file.ail` — type-check first (fast feedback)",
+            "`ailang run --caps IO,FS --entry main file.ail` — flags MUST come BEFORE the filename (silent failure otherwise)",
+            "On error: call `examples_for_concept` for a working analog, or call `submit_feedback` to file a docs/bug report"
+          ]
+        },
+        {
+          "n": 8,
+          "title": "When stuck — submit feedback",
+          "actions": [
+            "Call `submit_feedback(title, body, category=\"bug\"|\"feature\"|\"docs\"|\"limitation\", ailang_version, snippet, contact)` from inside this MCP session",
+            "Lands in the team's public-feedback inbox; counts as a real signal for what blocks agents",
+            "Anonymous is fine — provide `contact` only if you want a follow-up"
+          ]
+        }
+      ],
+      "common_pitfalls": [
+        {
+          "pitfall": "string concat with ++",
+          "wrong": "let s = \"hello \" ++ name",
+          "right": "let s = \"hello ${name}\"",
+          "note": "++ is list-only in AILANG. Use string interpolation."
+        },
+        {
+          "pitfall": "module is a reserved keyword",
+          "wrong": "func stdlibModule(module: string, forVersion: string)",
+          "right": "func stdlibModule(name: string, forVersion: string)",
+          "note": "Don't use `module` as a parameter name. Pick `name`/`path`/`pkg`."
+        },
+        {
+          "pitfall": "hyphens in module paths",
+          "wrong": "module mcp-tools/lib",
+          "right": "module mcp_tools/lib",
+          "note": "Hyphens parse as subtraction in module paths. Use underscores. (Directories CAN have hyphens; only the `module` declaration matters.)"
+        },
+        {
+          "pitfall": "ailang run flag ordering",
+          "wrong": "ailang run file.ail --caps IO",
+          "right": "ailang run --caps IO file.ail",
+          "note": "Flags after the filename are silently ignored. Always put flags FIRST."
+        },
+        {
+          "pitfall": "missing effect declaration",
+          "wrong": "func greet(name: string) -> () = println(\"hi ${name}\")",
+          "right": "func greet(name: string) -> () ! {IO} = println(\"hi ${name}\")",
+          "note": "Functions calling println/readLine/file ops MUST declare their effects."
+        },
+        {
+          "pitfall": "no `!` prefix unary operator",
+          "wrong": "if !validCategory(c) then ... ",
+          "right": "if validCategory(c) then false else true   -- write a helper, or invert the branches",
+          "note": "AILANG has no `!` for boolean negation. Invert the branches or write a named helper."
+        }
+      ],
+      "verification_path": "After step 7, you should have a working .ail file that prints something. If not, call submit_feedback with category=docs and what blocked you — that's the highest-value signal we receive."
+    },
+    "developer": {
+      "role": "developer",
+      "audience": "Human developer wanting to write AILANG code at the CLI, with or without an AI agent",
+      "steps": [
+        {
+          "n": 1,
+          "title": "Install AILANG",
+          "actions": [
+            "Quick path: `git clone https://github.com/sunholo-data/ailang && cd ailang && make install`",
+            "Or grab a release tarball from https://github.com/sunholo-data/ailang/releases/latest",
+            "Verify: `ailang --version`"
+          ]
+        },
+        {
+          "n": 2,
+          "title": "Try the REPL",
+          "actions": [
+            "`ailang repl` — interactive evaluator, no module declaration needed",
+            "Try: `5 + 3`, then `:type 5`, then `:help`"
+          ]
+        },
+        {
+          "n": 3,
+          "title": "Read the prompt for syntax",
+          "actions": [
+            "`ailang prompt` — the canonical teaching prompt (full ~50 KB)",
+            "`ailang prompt --compact` — the smaller variant (~15 KB)",
+            "`ailang prompt --source mcp` — fetch fresher version from the remote MCP if available"
+          ]
+        },
+        {
+          "n": 4,
+          "title": "Browse examples",
+          "actions": [
+            "`ailang examples list` — all working examples",
+            "`ailang examples search \"effects\"` — find by keyword",
+            "`ailang examples show adt_option --run` — view + execute"
+          ]
+        },
+        {
+          "n": 5,
+          "title": "Write your first program",
+          "actions": [
+            "Create a file with `module hello/main` declaration",
+            "Use the syntax from `ailang prompt`; copy patterns from examples",
+            "Type-check: `ailang check hello.ail`",
+            "Run: `ailang run --caps IO --entry main hello.ail`"
+          ]
+        },
+        {
+          "n": 6,
+          "title": "Add an AI agent (optional)",
+          "actions": [
+            "Install ailang_bootstrap for your harness (Claude Code / Gemini CLI / Codex CLI) — see install_guide",
+            "Or just add the remote MCP `https://mcp.ailang.sunholo.com/mcp/` to whatever harness you use",
+            "Now your agent has typed AILANG knowledge tools"
+          ]
+        },
+        {
+          "n": 7,
+          "title": "Z3 verification (optional, for proof-curious)",
+          "actions": [
+            "Add `requires`/`ensures` contracts to pure functions",
+            "Run `ailang verify file.ail` to discharge contracts via Z3",
+            "Read the Z3 patterns: call `docs_search(query=\"verification\")` via MCP"
+          ]
+        },
+        {
+          "n": 8,
+          "title": "Get unstuck",
+          "actions": [
+            "REPL `:help` for inline commands",
+            "`ailang docs std/<module>` for stdlib reference",
+            "https://github.com/sunholo-data/ailang/issues for bugs",
+            "Or call submit_feedback via MCP for a quick docs/bug report"
+          ]
+        }
+      ],
+      "common_pitfalls": [
+        {
+          "pitfall": "string concat with ++",
+          "wrong": "\"hello \" ++ name",
+          "right": "\"hello ${name}\"",
+          "note": "++ is list-only. Strings use interpolation."
+        },
+        {
+          "pitfall": "ailang run flag ordering",
+          "wrong": "ailang run file.ail --caps IO",
+          "right": "ailang run --caps IO file.ail",
+          "note": "Flags after the filename are silently ignored."
+        },
+        {
+          "pitfall": "missing effect declaration",
+          "wrong": "func greet(name: string) -> () = println(\"hi ${name}\")",
+          "right": "func greet(name: string) -> () ! {IO} = println(\"hi ${name}\")",
+          "note": "Effects MUST be declared in the function signature."
+        }
+      ],
+      "verification_path": "After step 5, you should have a runnable .ail file. The REPL and `ailang examples` are the fastest ways to learn the syntax."
+    }
+  }
+}

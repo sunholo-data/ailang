@@ -256,6 +256,34 @@ verify-mcp-tools: build
 	fi
 	@echo "$(BOLD)✓ All mcp_tools/ AILANG modules type-check$(RESET)"
 
+## verify-install-guide: Drift-check install_guide_overrides.json against canonical sources (M-AGENT-MCP-ONBOARDING M2)
+verify-install-guide:
+	@echo "$(BOLD)Verifying install_guide_overrides.json against canonical sources...$(RESET)"
+	@OVERRIDES=tools/build-snapshot/install_guide_overrides.json; \
+	GETTING_STARTED=docs/docs/guides/getting-started.mdx; \
+	BOOTSTRAP_README=../ailang_bootstrap/README.md; \
+	FAIL=0; \
+	for cmd in "/plugin marketplace add sunholo-data/ailang_bootstrap" "gemini extensions install" "codex plugin add"; do \
+		if ! grep -q -F "$$cmd" $$OVERRIDES 2>/dev/null; then \
+			echo "  ✗ override missing: $$cmd"; FAIL=1; \
+		else \
+			echo "  ✓ override present: $$cmd"; \
+		fi; \
+	done; \
+	if [ -f "$$GETTING_STARTED" ]; then \
+		for cmd in "/plugin marketplace add" "gemini extensions install" "codex plugin add"; do \
+			if grep -q -F "$$cmd" $$GETTING_STARTED && ! grep -q -F "$$cmd" $$OVERRIDES; then \
+				echo "  ✗ canonical $$GETTING_STARTED has '$$cmd' but overrides do not"; FAIL=1; \
+			fi; \
+		done; \
+	else \
+		echo "  ⚠ canonical $$GETTING_STARTED missing (skipping that diff)"; \
+	fi; \
+	if [ $$FAIL -ne 0 ]; then \
+		echo "$(BOLD)install_guide drift detected — update install_guide_overrides.json$(RESET)"; exit 1; \
+	fi
+	@echo "$(BOLD)✓ install_guide_overrides.json is in sync with canonical sources$(RESET)"
+
 ## bin/build-snapshot: Build the snapshot tool
 bin/build-snapshot: tools/build-snapshot/main.go
 	@echo "$(BOLD)Building build-snapshot tool...$(RESET)"

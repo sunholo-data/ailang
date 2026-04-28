@@ -1,0 +1,159 @@
+{
+  "_comment": "Hand-curated install instructions per harness. The drift-check 'make verify-install-guide' diffs these against the canonical sources (docs/docs/guides/getting-started.mdx + ailang_bootstrap/README.md). When you update getting-started or ailang_bootstrap, update this file too — CI will fail otherwise.",
+  "harnesses": {
+    "claude-code": {
+      "harness": "claude-code",
+      "display_name": "Claude Code",
+      "commands": [
+        "/plugin marketplace add sunholo-data/ailang_bootstrap",
+        "/plugin install ailang"
+      ],
+      "what_you_get": [
+        "AILANG binary auto-installed for your platform",
+        "Local stdio MCP tools: ailang_prompt, ailang_check, ailang_run, ailang_builtins",
+        "Slash commands: /ailang:prompt, /ailang:new, /ailang:run, /ailang:challenge",
+        "Teaching prompts loaded automatically",
+        "Plus the remote ailang-docs MCP at https://mcp.ailang.sunholo.com/mcp/ for live docs"
+      ],
+      "verify": [
+        {"command": "ailang --version", "expect_pattern": "v0\\.\\d+\\.\\d+"},
+        {"command": "ailang prompt --version-active", "expect_pattern": "^v0\\."}
+      ],
+      "post_install": [
+        "Run `ailang prompt` to print current syntax rules",
+        "Run `ailang examples list --tags effects` to find working code samples",
+        "Call `onboarding_guide(role=\"agent\")` from the remote MCP for the full agent workflow"
+      ],
+      "docs_url": "https://ailang.sunholo.com/docs/guides/getting-started",
+      "source_repo": "https://github.com/sunholo-data/ailang_bootstrap"
+    },
+    "gemini-cli": {
+      "harness": "gemini-cli",
+      "display_name": "Gemini CLI",
+      "commands": [
+        "gemini extensions install https://github.com/sunholo-data/ailang_bootstrap.git"
+      ],
+      "what_you_get": [
+        "AILANG binary auto-installed for your platform",
+        "Gemini CLI extension with AILANG context (GEMINI.md)",
+        "Slash commands installed automatically",
+        "Local stdio MCP tools: ailang_prompt, ailang_check, ailang_run, ailang_builtins",
+        "Plus the remote ailang-docs MCP at https://mcp.ailang.sunholo.com/mcp/ for live docs"
+      ],
+      "verify": [
+        {"command": "ailang --version", "expect_pattern": "v0\\.\\d+\\.\\d+"}
+      ],
+      "post_install": [
+        "Run `ailang prompt` to print current syntax rules",
+        "Ask Gemini: 'Write an AILANG program that reads a file and counts lines'"
+      ],
+      "docs_url": "https://ailang.sunholo.com/docs/guides/getting-started",
+      "source_repo": "https://github.com/sunholo-data/ailang_bootstrap"
+    },
+    "codex-cli": {
+      "harness": "codex-cli",
+      "display_name": "Codex CLI",
+      "commands": [
+        "codex plugin add https://github.com/sunholo-data/ailang_bootstrap"
+      ],
+      "what_you_get": [
+        "AILANG binary auto-installed for your platform",
+        "Codex CLI plugin with .codex-plugin/plugin.json + .mcp.json",
+        "Local stdio MCP tools: ailang_prompt, ailang_check, ailang_run, ailang_builtins",
+        "Plus the remote ailang-docs MCP at https://mcp.ailang.sunholo.com/mcp/ for live docs"
+      ],
+      "verify": [
+        {"command": "ailang --version", "expect_pattern": "v0\\.\\d+\\.\\d+"}
+      ],
+      "post_install": [
+        "Run `ailang prompt` to print current syntax rules",
+        "Codex will auto-load AILANG knowledge via the plugin's MCP servers"
+      ],
+      "docs_url": "https://ailang.sunholo.com/docs/guides/getting-started",
+      "source_repo": "https://github.com/sunholo-data/ailang_bootstrap"
+    },
+    "manual": {
+      "harness": "manual",
+      "display_name": "Manual install (any platform)",
+      "commands": [
+        "# Pick the right tarball for your platform from GitHub Releases:",
+        "# https://github.com/sunholo-data/ailang/releases/latest",
+        "wget https://github.com/sunholo-data/ailang/releases/latest/download/ailang-<PLATFORM>.tar.gz",
+        "tar xzf ailang-<PLATFORM>.tar.gz",
+        "sudo mv ailang /usr/local/bin/"
+      ],
+      "platforms": {
+        "darwin-amd64": "ailang-darwin-amd64.tar.gz",
+        "darwin-arm64": "ailang-darwin-arm64.tar.gz",
+        "linux-amd64": "ailang-linux-amd64.tar.gz",
+        "linux-arm64": "ailang-linux-arm64.tar.gz",
+        "windows-amd64": "ailang-windows-amd64.zip"
+      },
+      "what_you_get": [
+        "AILANG binary at /usr/local/bin/ailang (or wherever you put it)",
+        "Embedded teaching prompts (offline-available via `ailang prompt --source embedded`)",
+        "All CLI commands: ailang run, ailang check, ailang verify, ailang repl, etc."
+      ],
+      "verify": [
+        {"command": "ailang --version", "expect_pattern": "v0\\.\\d+\\.\\d+"}
+      ],
+      "post_install": [
+        "Add the remote MCP to your harness manually for live docs:",
+        "  Endpoint: https://mcp.ailang.sunholo.com/mcp/",
+        "  Transport: streamable-http",
+        "  For Claude Desktop, use the mcp-remote bridge: `npx -y mcp-remote https://mcp.ailang.sunholo.com/mcp/`",
+        "Run `ailang prompt` to print current syntax rules",
+        "Run `ailang mcp status` to verify the remote MCP is reachable"
+      ],
+      "docs_url": "https://ailang.sunholo.com/docs/guides/getting-started",
+      "source_repo": "https://github.com/sunholo-data/ailang_bootstrap"
+    },
+    "build-from-source": {
+      "harness": "build-from-source",
+      "display_name": "Build from source (developers / latest dev branch)",
+      "commands": [
+        "git clone https://github.com/sunholo-data/ailang.git",
+        "cd ailang",
+        "make install"
+      ],
+      "what_you_get": [
+        "AILANG binary at $GOPATH/bin/ailang (typically /Users/<you>/go/bin/ailang)",
+        "Latest dev-branch features (not yet released)",
+        "Full source for hacking on the language itself"
+      ],
+      "verify": [
+        {"command": "ailang --version", "expect_pattern": "v0\\.\\d+\\.\\d+"}
+      ],
+      "post_install": [
+        "Re-run `make install` after pulling new commits",
+        "Use `make quick-install` for fast iterations during development"
+      ],
+      "docs_url": "https://ailang.sunholo.com/docs/guides/getting-started",
+      "source_repo": "https://github.com/sunholo-data/ailang"
+    }
+  },
+  "remote_mcp": {
+    "endpoint": "https://mcp.ailang.sunholo.com/mcp/",
+    "transport": "streamable-http",
+    "tool_count_approx": 23,
+    "what_for": "Live, version-locked AILANG documentation, stdlib, examples, benchmarks, and a public-feedback channel — typed MCP tools instead of scraping markdown.",
+    "agent_config_examples": {
+      "claude-code-or-cursor-or-cline": {
+        "mcpServers": {
+          "ailang-docs": {
+            "url": "https://mcp.ailang.sunholo.com/mcp/",
+            "transport": "streamable-http"
+          }
+        }
+      },
+      "claude-desktop-via-bridge": {
+        "mcpServers": {
+          "ailang-docs": {
+            "command": "npx",
+            "args": ["-y", "mcp-remote", "https://mcp.ailang.sunholo.com/mcp/"]
+          }
+        }
+      }
+    }
+  }
+}

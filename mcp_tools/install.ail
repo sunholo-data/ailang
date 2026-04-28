@@ -1,0 +1,26 @@
+-- mcp_tools/install.ail — install_guide MCP tool (M-AGENT-MCP-ONBOARDING M2).
+--
+-- Returns harness-aware install instructions derived from the canonical
+-- sources (docs/docs/guides/getting-started.mdx + ailang_bootstrap/README.md)
+-- via tools/build-snapshot/install_guide_overrides.json. Drift-checked by
+-- `make verify-install-guide` in CI.
+--
+-- This is unscoped (lives under build/snapshot/unscoped/) because install
+-- commands change with plugin updates, not language releases.
+module mcp_tools/install
+
+import mcp_tools/lib (readUnscopedOrError, errorJson)
+import std/json (Json)
+
+-- Harness-aware install instructions for AILANG.
+-- harness: "claude-code" | "gemini-cli" | "codex-cli" | "manual" | "build-from-source" | ""
+-- platform: only meaningful for "manual" (e.g. "darwin-arm64", "linux-amd64"); ignored otherwise
+-- Empty harness returns ALL harnesses + the remote_mcp config block.
+@route("POST", "/api/mcp/install_guide")
+@mcp_name("install_guide")
+export func installGuide(harness: string, platform: string) -> Json ! {Env, FS} =
+  -- The AILANG-side filtering by harness/platform is deferred to v2 (would
+  -- require parsing the wrapped {harnesses: {...}} record); for v1 we return
+  -- the full guide and let the caller pick the relevant entry. This is
+  -- consistent with how docs_search/stdlib_search work today.
+  readUnscopedOrError("install_guide.json")

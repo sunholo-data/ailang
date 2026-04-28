@@ -1,0 +1,21 @@
+-- mcp_tools/onboarding.ail — onboarding_guide MCP tool (M-AGENT-MCP-ONBOARDING M3).
+--
+-- Returns a stepwise onboarding flow per role (agent | developer). Includes
+-- common_pitfalls pre-populated with AILANG-syntax gotchas surfaced during
+-- M-AGENT-MCP execution (string ++, module keyword, hyphens in paths,
+-- flag ordering, no `!` prefix, effect declarations).
+--
+-- Unscoped — the flow doesn't change per AILANG release.
+module mcp_tools/onboarding
+
+import mcp_tools/lib (readUnscopedOrError, errorJson)
+import std/json (Json)
+
+-- Stepwise onboarding flow for using AILANG.
+-- role: "agent" (AI coding agent flow, default) | "developer" (human dev flow) | "" (returns both)
+-- For v1 returns the full guide; client picks the relevant role. v2 may
+-- filter on AILANG side once we have proper record-projection helpers.
+@route("POST", "/api/mcp/onboarding_guide")
+@mcp_name("onboarding_guide")
+export func onboardingGuide(role: string) -> Json ! {Env, FS} =
+  readUnscopedOrError("onboarding_guide.json")

@@ -326,6 +326,12 @@ func buildUnscoped(root, dir, version string) error {
 	if err := writeVersionsIndex(root, dir, version); err != nil {
 		return fmt.Errorf("versions_index: %w", err)
 	}
+	if err := writeInstallGuide(root, dir); err != nil {
+		return fmt.Errorf("install_guide: %w", err)
+	}
+	if err := writeOnboardingGuide(root, dir); err != nil {
+		return fmt.Errorf("onboarding_guide: %w", err)
+	}
 	if err := writeBenchmarksIndex(root, dir); err != nil {
 		return fmt.Errorf("benchmarks_index: %w", err)
 	}
@@ -606,6 +612,45 @@ func must(err error) {
 func fail(msg string) {
 	fmt.Fprintf(os.Stderr, "build-snapshot: %s\n", msg)
 	os.Exit(1)
+}
+
+// writeInstallGuide copies the hand-curated overrides JSON into the snapshot
+// (unscoped — install commands rarely change between AILANG releases). The
+// drift-check `make verify-install-guide` runs in CI and diffs the overrides
+// against canonical sources (getting-started.mdx + ailang_bootstrap/README.md).
+func writeInstallGuide(root, dir string) error {
+	src := filepath.Join(root, "tools", "build-snapshot", "install_guide_overrides.json")
+	body, err := os.ReadFile(src)
+	if err != nil {
+		// Optional — emit empty harnesses map rather than failing the build.
+		return writeJSON(filepath.Join(dir, "install_guide.json"), map[string]any{
+			"harnesses": map[string]any{},
+		})
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return fmt.Errorf("parse install_guide_overrides.json: %w", err)
+	}
+	delete(doc, "_comment") // strip authoring marker
+	return writeJSON(filepath.Join(dir, "install_guide.json"), doc)
+}
+
+// writeOnboardingGuide is the sibling of writeInstallGuide for the onboarding
+// flow — same hand-curated-overrides + drift-check pattern.
+func writeOnboardingGuide(root, dir string) error {
+	src := filepath.Join(root, "tools", "build-snapshot", "onboarding_guide_overrides.json")
+	body, err := os.ReadFile(src)
+	if err != nil {
+		return writeJSON(filepath.Join(dir, "onboarding_guide.json"), map[string]any{
+			"roles": map[string]any{},
+		})
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return fmt.Errorf("parse onboarding_guide_overrides.json: %w", err)
+	}
+	delete(doc, "_comment")
+	return writeJSON(filepath.Join(dir, "onboarding_guide.json"), doc)
 }
 
 // ---------------------------------------------------------------------------
