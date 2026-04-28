@@ -1,10 +1,22 @@
 # M-SUPPLY-CHAIN-HARDENING-2 — second pass on Scorecard findings
 
-**Status**: planned
+**Status**: planned (M6 partially shipped; M1–M5 pending)
 **Target**: v0.15.x
 **Predecessor**: [M-SUPPLY-CHAIN-HARDENING](../../implemented/v0_14_1/m-supply-chain-hardening.md) (v0.14.1)
+**Companion docs**:
+- [m-supply-chain-hardening-2-cii-answers.md](m-supply-chain-hardening-2-cii-answers.md) — CII passing-tier walkthrough
+- [m-supply-chain-hardening-2-cii-silver.md](m-supply-chain-hardening-2-cii-silver.md) — CII silver-tier feasibility triage
+
 **Live score** (2026-04-28, commit `374af8503`): **6/10**
 **Target score**: ~7.5–8.0/10 (ceiling set by Code-Review opt-out)
+
+## Status as of 2026-04-28
+
+- **CII Best Practices**: passing badge **earned** (project ID 12676, https://www.bestpractices.dev/projects/12676). Silver tier prepped in `.bestpractices.json` but blocked by two honest Unmets (`bus_factor`, `test_statement_coverage80`); see silver companion doc.
+- **Governance artifacts shipped** in commit `fa64b79e`: CODE_OF_CONDUCT.md, GOVERNANCE.md, ARCHITECTURE.md.
+- **Token-Permissions** (top-level `release.yml`): fixed in this branch.
+- **Dependabot** is currently flagging **18 vulnerabilities** (2 critical, 4 high, 10 moderate, 2 low) on the dev branch. Substantially overlapping with the 23 govulncheck findings below; M1+M2 below should clear most of them.
+- **M1–M5 still pending**: Go toolchain bump, MCP SDK bump, SLSA provenance, third-party Action pinning, govulncheck CI gate.
 
 ## Context
 
@@ -75,7 +87,7 @@ warnings; the right answer is documentation, not removal.
 | Pinned-Dependencies | 0 → ~3 | **M4** — pin third-party actions only; reject first-party + Docker pinning |
 | Branch-Protection | 3 | accept (deliberate, see prior doc) |
 | Code-Review | 0 | accept (deliberate, see prior doc) |
-| CII-Best-Practices | 0 → passing | **M6** — pursue the badge after all; the disclosure criteria are already met, the rest are mostly low-effort URL-fills |
+| CII-Best-Practices | 0 → 5 | **shipped** — passing badge earned at https://www.bestpractices.dev/projects/12676. Silver out of scope. |
 | CI-Tests | -1 | structural — no PRs to score |
 | Contributors | 6 | accept |
 
@@ -281,7 +293,34 @@ Acceptance:
   governance reminder.
 - Allowlist entries are reviewed in the post-release skill checklist.
 
-### M6 — CII Best Practices badge (passing tier)
+### M6 — CII Best Practices badge (passing tier) — SHIPPED
+
+**Status**: complete on 2026-04-28. Project ID **12676** at
+<https://www.bestpractices.dev/projects/12676>. Badge in [README.md:19](../../../README.md#L19).
+
+**What landed** (across commits `64e8f238` and `fa64b79e`):
+- [.bestpractices.json](../../../.bestpractices.json) covering all
+  passing-tier criteria + silver-tier prep.
+- [CODE_OF_CONDUCT.md](../../../CODE_OF_CONDUCT.md) (Contributor
+  Covenant 2.1 by reference).
+- [GOVERNANCE.md](../../../GOVERNANCE.md) (single-maintainer + AI
+  coordinator model + bus-factor + access continuity).
+- [ARCHITECTURE.md](../../../ARCHITECTURE.md) (repo map + pipeline
+  diagram + capability-effect overview).
+- [SECURITY.md](../../../SECURITY.md) "Response SLA" subsection
+  added for stable deep-link.
+- README badge added.
+
+**Why silver was deferred**: silver requires zero Unmets, and
+`bus_factor` (single maintainer at v0.x by design) plus
+`test_statement_coverage80` (38% vs 80% target) are real blockers,
+not bypassable via theatre. See
+[m-supply-chain-hardening-2-cii-silver.md](m-supply-chain-hardening-2-cii-silver.md).
+
+The original passing-tier plan is preserved below for reference; no
+further work is required for this milestone.
+
+#### Original passing-tier plan (reference only)
 
 **Goal**: earn the [OpenSSF Best Practices passing badge](https://www.bestpractices.dev/)
 by attesting to work that already shipped. Adds a fourth trust signal
@@ -374,19 +413,19 @@ Acceptance:
 
 ## Projected score
 
-| Check | Live (2026-04-28) | After this sprint |
-|---|---|---|
-| Token-Permissions | 0 | ~8 *(this branch)* |
-| Vulnerabilities | 0 | ~7 *(M1+M2; ceiling set by Ollama)* |
-| Signed-Releases | 3 | 7 *(M3; full 10 needs ≥3 releases with provenance)* |
-| Pinned-Dependencies | 0 | ~3 *(M4; ceiling set by first-party-pinning rejection)* |
-| CII-Best-Practices | 0 | 5–10 *(M6; passing tier)* |
+| Check | Live (2026-04-28) | After M6 (now) | After M1–M5 |
+|---|---|---|---|
+| Token-Permissions | 0 | 0 → ~8 (after next Scorecard run) | ~8 |
+| Vulnerabilities | 0 | 0 | ~7 *(M1+M2; ceiling set by Ollama)* |
+| Signed-Releases | 3 | 3 | 7 *(M3; full 10 needs ≥3 releases with provenance)* |
+| Pinned-Dependencies | 0 | 0 | ~3 *(M4; ceiling set by first-party-pinning rejection)* |
+| CII-Best-Practices | 0 | **5** *(passing earned)* | 5 |
 
-Overall **6.0 → ~8.0** if CII passing lands inside this sprint window;
-otherwise ~7.5 with M6 spanning into v0.15.x+1. The remaining gap
-(Code-Review, full Pinned-Dependencies, CII silver/gold) is the
-documented deliberate-skip surface — `two_person_review` is the only
-hard ceiling.
+Overall **6.0 → ~8.0** once M1–M5 land. M6 already moved the needle:
+once the next Scorecard cron runs, CII-Best-Practices flips from 0 to
+5 (passing tier counts as 5 in Scorecard's rubric). Token-Permissions
+also flips when the next scan picks up the `release.yml` top-level fix.
+M1–M5 are the remaining sprint work.
 
 ## Out of scope
 
