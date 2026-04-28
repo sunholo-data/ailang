@@ -123,12 +123,24 @@ func (d *Daemon) dispatchTasksCloud() error {
 		// M-CLOUD-DISPATCH: Trigger Cloud Run Job execution via dispatcher.
 		// Pub/Sub publish above is for audit trail only — the dispatcher actually starts the job.
 		if d.cloudDispatcher != nil {
+			// M-PKG-FEEDBACK-LOOP M2: Apply template_file / template_by_message_type
+			// before dispatch. Local mode does this in executeTask via
+			// BuildDirectiveFromConfig; cloud mode used to send task.Content raw,
+			// which silently bypassed every pkg-* agent's template_file. Look up
+			// the agent config here so the cloud agent receives the same fully
+			// templated prompt the local executor would build.
+			directive := task.Content
+			if d.agentRegistry != nil {
+				if agent := d.agentRegistry.GetAgentByID(task.AgentID); agent != nil {
+					directive = BuildDirectiveFromConfig(task, agent)
+				}
+			}
 			params := DispatchParams{
 				TaskID:    task.ID,
 				AgentID:   task.AgentID,
 				Workspace: task.Workspace,
 				Provider:  provider,
-				Directive: task.Content,
+				Directive: directive,
 				RepoURL:   deriveRepoURL(task.Workspace),
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
 			}
