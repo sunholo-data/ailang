@@ -95,6 +95,21 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 
 Submissions land in our `ailang messages list --inbox public-feedback` queue. Anonymous is fine; the value is the signal, not the identity.
 
+### Rate limit
+
+`submit_feedback` is throttled per client IP (via the rightmost `X-Forwarded-For` entry, which Cloud Run's frontend appends as the real TCP source). Default: **5 requests per minute, burst 3**. Over the cap, you get a structured `{"error": "rate_limited", "detail": "...retry after 60s"}` envelope — `IsError=true`, no Firestore write, no agent dispatch.
+
+The cap applies to writes only. Read tools (everything in the catalog above except `submit_feedback`) are not throttled.
+
+Operators can tune the limits via env vars on the Cloud Run service:
+
+| Env var | Default | Notes |
+|---|---|---|
+| `AILANG_RATELIMIT_RPM` | `5` | Tokens added per minute. `0` disables the limiter entirely (escape hatch). |
+| `AILANG_RATELIMIT_BURST` | `3` | Max tokens (and starting balance) per IP bucket. |
+
+The limiter is in-process: each Cloud Run instance keeps its own table. Under autoscale this is a "soft" cap up to `instances × rpm`. Strict edge enforcement (Cloud Armor + HTTPS LB) is documented as a follow-up — see [`design_docs/planned/v0_15_0/m-mcp-edge-throttle.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-mcp-edge-throttle.md). The deeper protection (deterministic + LLM triage gate before the agent fans out) lives in [`m-feedback-triage-gate.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-feedback-triage-gate.md).
+
 ## Versioning model
 
 Each Cloud Run image bakes in a snapshot of the AILANG corpus pinned to the release that built it. Multi-version is handled inside the tool calls (`for_version`), not at the URL — there's exactly one endpoint, `mcp.ailang.sunholo.com/mcp/`, and the data inside it is version-scoped.

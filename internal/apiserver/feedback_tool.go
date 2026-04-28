@@ -4,11 +4,38 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sunholo-data/ailang/internal/feedback"
 )
+
+// Defaults for the per-IP feedback rate limiter (see M-MCP-EDGE-THROTTLE).
+// Override via AILANG_RATELIMIT_RPM / AILANG_RATELIMIT_BURST. RPM=0 disables.
+const (
+	defaultFeedbackRPM   = 5
+	defaultFeedbackBurst = 3
+)
+
+func feedbackRateLimitRPM() int {
+	if v := os.Getenv("AILANG_RATELIMIT_RPM"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return defaultFeedbackRPM
+}
+
+func feedbackRateLimitBurst() int {
+	if v := os.Getenv("AILANG_RATELIMIT_BURST"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return defaultFeedbackBurst
+}
 
 // registerFeedbackTool registers the Go-side submit_feedback MCP tool.
 //
@@ -48,7 +75,20 @@ func (ms *MCPServer) registerFeedbackTool() {
 		},
 	}
 
-	ms.mcpServer.AddTool(tool, handleSubmitFeedback)
+	ms.mcpServer.AddTool(tool, ms.handleSubmitFeedback)
+}
+
+// handleSubmitFeedback enforces the per-IP rate limit before publishing.
+// IP comes from the rightmost X-Forwarded-For entry (Cloud Run's GFE always
+// appends the real TCP source, regardless of what the client claims).
+func (ms *MCPServer) handleSubmitFeedback(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if ms.feedbackRL != nil && req != nil && req.Extra != nil {
+		ip := clientIPFromHeader(req.Extra.Header)
+		if !ms.feedbackRL.Allow(ip) {
+			return feedbackError("rate_limited", "", "submit_feedback rate limit exceeded for this client; retry after 60s")
+		}
+	}
+	return handleSubmitFeedback(ctx, req)
 }
 
 func handleSubmitFeedback(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {

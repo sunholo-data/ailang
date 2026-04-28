@@ -14,12 +14,17 @@ import (
 
 // MCPServer wraps an apiserver.Server to expose its functions as MCP tools.
 type MCPServer struct {
-	server    *Server
-	mcpServer *mcp.Server
+	server     *Server
+	mcpServer  *mcp.Server
+	feedbackRL *IPRateLimiter // nil = disabled; only applied to submit_feedback
 }
 
 // NewMCPServer creates an MCP server from an apiserver.Server.
 // All loaded modules' exported functions are registered as MCP tools.
+//
+// The submit_feedback tool is rate-limited per-client-IP via env vars
+// (AILANG_RATELIMIT_RPM, AILANG_RATELIMIT_BURST). Read-only tools are not
+// throttled — they're idempotent and cacheable.
 func NewMCPServer(srv *Server) *MCPServer {
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
 		Name:    "ailang-api",
@@ -27,8 +32,9 @@ func NewMCPServer(srv *Server) *MCPServer {
 	}, nil)
 
 	ms := &MCPServer{
-		server:    srv,
-		mcpServer: mcpSrv,
+		server:     srv,
+		mcpServer:  mcpSrv,
+		feedbackRL: NewIPRateLimiter(feedbackRateLimitRPM(), feedbackRateLimitBurst()),
 	}
 
 	ms.registerTools()
