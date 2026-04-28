@@ -26,10 +26,12 @@ func (ms *MCPServer) registerFeedbackTool() {
 	tool := &mcp.Tool{
 		Name: "submit_feedback",
 		Description: "Anonymous bug report / feature request / docs gap, queued for human review. " +
-			"Submissions land in `ailang messages list --inbox public-feedback`. " +
+			"Default routing: `public-feedback` inbox (general AILANG). " +
+			"Pass `package=\"vendor/name\"` (e.g. \"sunholo/auth\") to route to that package's `pkg:vendor/name` inbox where its autonomous agent watches. " +
 			"Categories: bug, feature, docs, limitation. " +
 			"Body limit 10KB, snippet limit 4KB. " +
-			"Optional contact field for follow-up; opaque to the server.",
+			"Optional contact field for follow-up; opaque to the server. " +
+			"Set `auto_dispatch=true` to authorize the package agent to act on your submission immediately (default false — files for human triage; pkg-feedback agent template lands in a separate sprint).",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -39,6 +41,8 @@ func (ms *MCPServer) registerFeedbackTool() {
 				"ailang_version": {Type: "string", Description: "The reporter's CLI version (free-form, used for triage)"},
 				"snippet":        {Type: "string", Description: "Optional code/error snippet (≤4 KB)"},
 				"contact":        {Type: "string", Description: "Optional follow-up address (free-form, opaque to the server)"},
+				"package":        {Type: "string", Description: "Optional vendor/name (e.g. \"sunholo/auth\") to route to that package's pkg:vendor/name inbox. Empty = general AILANG feedback."},
+				"auto_dispatch":  {Type: "boolean", Description: "Authorize the receiving package's autonomous agent to act on this submission. Default false (files for human triage). Tagged on the Pub/Sub notification as category=auto:<original> for coordinator filtering."},
 			},
 			Required: []string{"title", "body", "category", "ailang_version"},
 		},
@@ -55,6 +59,8 @@ func handleSubmitFeedback(ctx context.Context, req *mcp.CallToolRequest) (*mcp.C
 		AILangVersion string `json:"ailang_version"`
 		Snippet       string `json:"snippet"`
 		Contact       string `json:"contact"`
+		Package       string `json:"package"`
+		AutoDispatch  bool   `json:"auto_dispatch"`
 	}
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
 		return feedbackError("invalid_arguments", "", fmt.Sprintf("could not parse arguments: %v", err))
@@ -67,6 +73,8 @@ func handleSubmitFeedback(ctx context.Context, req *mcp.CallToolRequest) (*mcp.C
 		AILangVersion: args.AILangVersion,
 		Snippet:       args.Snippet,
 		Contact:       args.Contact,
+		Package:       args.Package,
+		AutoDispatch:  args.AutoDispatch,
 	}
 
 	// Validate FIRST so bad input always gets a structured field error,

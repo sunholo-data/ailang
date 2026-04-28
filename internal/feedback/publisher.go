@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -41,10 +42,15 @@ const (
 	maxTitleBytes   = 256
 	maxContactBytes = 512
 	maxVersionBytes = 64
-	inboxName       = "public-feedback"
+	maxPackageBytes = 128
+	defaultInbox    = "public-feedback"
 	fromAgent       = "mcp-public"
 	messageType     = "feedback"
 )
+
+// packageRe validates a vendor/name package coordinate. Vendor and name are
+// alphanumeric with hyphens or underscores; both are required.
+var packageRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$`)
 
 // Request is the public-facing input shape for submit_feedback.
 type Request struct {
@@ -54,6 +60,21 @@ type Request struct {
 	AILangVersion string
 	Snippet       string // optional
 	Contact       string // optional
+
+	// Package routes feedback to a specific package's inbox (pkg:<vendor>/<name>)
+	// instead of the default public-feedback inbox. Empty = general AILANG feedback.
+	// Format: vendor/name (e.g. "sunholo/auth"). Validated against packageRe.
+	Package string
+
+	// AutoDispatch hints to the cloud coordinator that the user explicitly
+	// authorizes the package's autonomous agent to act on this submission.
+	// Default false — feedback files in the inbox for human/agent triage.
+	// Today, package agents use pkg-update.md (release-sync template); a
+	// dedicated pkg-feedback.md template is planned but not yet wired, so
+	// auto-dispatch=true on a pkg:* inbox today would trigger a release-sync
+	// workflow on a bug report (wrong). Surface as an attribute on the
+	// Pub/Sub notification so the coordinator can filter when ready.
+	AutoDispatch bool
 }
 
 // Result is what we hand back to the agent.
@@ -157,10 +178,19 @@ func (p *Publisher) Submit(ctx context.Context, req Request) (*Result, error) {
 		return nil, fmt.Errorf("generate message id: %w", err)
 	}
 
+	// Resolve target inbox. Default = public-feedback (general AILANG feedback,
+	// triaged manually). When package is set, route to pkg:<vendor>/<name>
+	// where the autonomous package agent is watching (per
+	// ailang-multivac/config/config.cloud.yaml).
+	targetInbox := defaultInbox
+	if req.Package != "" {
+		targetInbox = "pkg:" + req.Package
+	}
+
 	now := time.Now().UTC()
 	msg := &messaging.InboxMessage{
 		MessageID:   messageID,
-		ToInbox:     inboxName,
+		ToInbox:     targetInbox,
 		FromAgent:   fromAgent,
 		Title:       req.Title,
 		Payload:     formatBody(req),
@@ -175,11 +205,18 @@ func (p *Publisher) Submit(ctx context.Context, req Request) (*Result, error) {
 	}
 
 	// Pub/Sub notification — coordinator push subscription picks this up and
-	// fans it out to the dashboard/laptop subscribers.
+	// fans it out to the dashboard/laptop subscribers. AutoDispatch is
+	// surfaced as a category prefix so the existing attribute schema (which
+	// has no dispatch field) doesn't need extending; coordinator can grep
+	// for "auto:" prefix when the pkg-feedback template lands.
+	dispatchedCategory := req.Category
+	if req.AutoDispatch {
+		dispatchedCategory = "auto:" + req.Category
+	}
 	notifyErr := p.notifier.PublishMessage(ctx, messageID, pubsub.MessageAttributes{
-		Inbox:       inboxName,
+		Inbox:       targetInbox,
 		FromAgent:   fromAgent,
-		Category:    req.Category,
+		Category:    dispatchedCategory,
 		MessageType: messageType,
 	})
 	if notifyErr != nil {
@@ -232,6 +269,10 @@ func validate(req Request) error {
 		return &FieldError{Code: "ailang_version_too_large", Field: "ailang_version", Detail: fmt.Sprintf("ailang_version must be <= %d bytes", maxVersionBytes)}
 	case !allowedCategories[req.Category]:
 		return &FieldError{Code: "invalid_category", Field: "category", Detail: "category must be one of: bug, feature, docs, limitation"}
+	case len(req.Package) > maxPackageBytes:
+		return &FieldError{Code: "package_too_large", Field: "package", Detail: fmt.Sprintf("package must be <= %d bytes", maxPackageBytes)}
+	case req.Package != "" && !packageRe.MatchString(req.Package):
+		return &FieldError{Code: "invalid_package", Field: "package", Detail: "package must look like vendor/name (e.g. sunholo/auth) — alphanumerics, hyphens, underscores only"}
 	}
 	return nil
 }
