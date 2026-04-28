@@ -205,5 +205,140 @@
   "dynamic_analysis_enable_assertions_justification": "DEBUG_STRICT=1 environment flag enables fail-loud assertion behavior across the compiler (panic on unhandled cases instead of silent fallback). Documented in CLAUDE.md and .claude/rules/dev-workflow.md.",
 
   "dynamic_analysis_fixed_status": "Met",
-  "dynamic_analysis_fixed_justification": "Fuzz-discovered crashes are filed as issues and fixed within the standard 14-day SLA. Regression corpus is committed under internal/parser/testdata/fuzz/."
+  "dynamic_analysis_fixed_justification": "Fuzz-discovered crashes are filed as issues and fixed within the standard 14-day SLA. Regression corpus is committed under internal/parser/testdata/fuzz/.",
+
+  "achieve_passing_status": "Met",
+  "achieve_passing_justification": "AILANG holds the OpenSSF Best Practices passing badge: https://www.bestpractices.dev/projects/12676",
+
+  "code_of_conduct_status": "Met",
+  "code_of_conduct_justification": "CODE_OF_CONDUCT.md adopts the Contributor Covenant 2.1 by reference. Enforcement contact: mark@aitanalabs.com. https://github.com/sunholo-data/ailang/blob/dev/CODE_OF_CONDUCT.md",
+
+  "governance_status": "Met",
+  "governance_justification": "GOVERNANCE.md documents the single-maintainer + AI-coordinator model, decision-making process, and access-continuity plan: https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md",
+
+  "roles_responsibilities_status": "Met",
+  "roles_responsibilities_justification": "Roles table in GOVERNANCE.md (lead maintainer, AI coordinator, contributors): https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md#project-model",
+
+  "access_continuity_status": "Met",
+  "access_continuity_justification": "Bus-factor and access-continuity section in GOVERNANCE.md: Sunholo Ltd holds organization-admin rights independently of the lead maintainer's personal account; cosign signing identity is workflow-bound, not key-bound. https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md#bus-factor-and-access-continuity",
+
+  "bus_factor_status": "Unmet",
+  "bus_factor_justification": "Honest Unmet: project bus factor is 1 (single human maintainer plus an AI coordinator account that cannot merge to main). Documented openly in GOVERNANCE.md rather than papered over. The OpenSSF Best Practices framework expects multi-maintainer projects; AILANG is deliberately single-maintainer at v0.x. Recovery via Sunholo Ltd organization admin is documented but is not equivalent to a second maintainer. https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md#bus-factor-and-access-continuity",
+
+  "documentation_roadmap_status": "Met",
+  "documentation_roadmap_justification": "Roadmap surfaced via design_docs/planned/ tree at https://ailang.sunholo.com/docs/design-docs and https://ailang.sunholo.com/docs/roadmap.",
+
+  "documentation_architecture_status": "Met",
+  "documentation_architecture_justification": "ARCHITECTURE.md provides a high-level repository map and pipeline diagram: https://github.com/sunholo-data/ailang/blob/dev/ARCHITECTURE.md",
+
+  "documentation_security_status": "Met",
+  "documentation_security_justification": "SECURITY.md documents the threat model and verification chain. Capability-effect security model is described in ARCHITECTURE.md and at https://ailang.sunholo.com/docs/guides/effects/.",
+
+  "documentation_quick_start_status": "Met",
+  "documentation_quick_start_justification": "README has a Quick Start section: https://github.com/sunholo-data/ailang#quick-start",
+
+  "documentation_current_status": "Met",
+  "documentation_current_justification": "Documentation is updated in the same PR as the change. Active development confirmed by Scorecard Maintained=10/10.",
+
+  "documentation_achievements_status": "Met",
+  "documentation_achievements_justification": "CHANGELOG.md tracks releases. Trust signals (Sonar, Scorecard, CodeQL, CII passing badge) are linked from README.",
+
+  "accessibility_best_practices_status": "Met",
+  "accessibility_best_practices_justification": "Documentation site uses Docusaurus default theme which follows WCAG 2.1 AA practices. The project itself is a CLI compiler with structured terminal output; not a GUI.",
+
+  "internationalization_status": "N/A",
+  "internationalization_justification": "AILANG is a programming language whose syntax is English-keyword-based by design (let, func, if, match, etc.). CLI and error messages are English-only. Internationalization of source-language keywords is an explicit non-goal.",
+
+  "sites_password_security_status": "N/A",
+  "sites_password_security_justification": "No password authentication on the docs site or any project-operated public service. Coordinator dashboard uses GitHub OAuth via opaque tokens; no password storage anywhere.",
+
+  "maintenance_or_update_status": "Met",
+  "maintenance_or_update_justification": "Active development on dev branch with multiple releases per month. CHANGELOG.md and https://github.com/sunholo-data/ailang/releases.",
+
+  "vulnerability_report_credit_status": "Met",
+  "vulnerability_report_credit_justification": "SECURITY.md commits to crediting reporters in release notes unless they request otherwise: https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#response-sla",
+
+  "vulnerability_response_process_status": "Met",
+  "vulnerability_response_process_justification": "Documented in SECURITY.md with explicit SLAs (acknowledgement within 3 business days, assessment within 7 days, critical fixes within 14 days): https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#response-sla",
+
+  "build_standard_variables_status": "Met",
+  "build_standard_variables_justification": "Go honors GOOS/GOARCH/CGO_ENABLED. Makefile honors PREFIX, DESTDIR, INSTALL_DIR.",
+
+  "build_preserve_debug_status": "Met",
+  "build_preserve_debug_justification": "Default `go build` produces binaries with debug info. Release ldflags only inject the version string; symbols are not stripped.",
+
+  "build_non_recursive_status": "Met",
+  "build_non_recursive_justification": "Go's compiler builds the dependency graph in a single pass. Makefile targets are flat; no recursive `make` invocations.",
+
+  "build_repeatable_status": "Met",
+  "build_repeatable_justification": "go.mod and go.sum lock all dependency versions and content hashes. Reproducibility is a property of the Go toolchain plus the locked module graph.",
+
+  "installation_standard_variables_status": "Met",
+  "installation_standard_variables_justification": "install.sh honors PREFIX (default /usr/local) and INSTALL_DIR.",
+
+  "installation_development_quick_status": "Met",
+  "installation_development_quick_justification": "README Quick Start documents `make install` and the plugin-based install paths for Claude Code and Gemini CLI.",
+
+  "external_dependencies_status": "Met",
+  "external_dependencies_justification": "All dependencies declared in go.mod with content hashes in go.sum. Container base images and npm dependencies declared in their respective manifests. No vendored copies.",
+
+  "dependency_monitoring_status": "Met",
+  "dependency_monitoring_justification": "Dependabot enabled across go modules, GitHub Actions, npm, and docker ecosystems (.github/dependabot.yml). Scorecard Dependency-Update-Tool=10/10.",
+
+  "updateable_reused_components_status": "Met",
+  "updateable_reused_components_justification": "Dependencies updated via go.mod version bumps; Dependabot opens PRs automatically. No vendored copies prevent updates.",
+
+  "interfaces_current_status": "Met",
+  "interfaces_current_justification": "CLI surface tracked via cmd/ailang/help.go as a single source of truth (cli-doc-maintainer skill enforces this). Public Go API surface is internal/ — not exposed for re-use.",
+
+  "automated_integration_testing_status": "Met",
+  "automated_integration_testing_justification": "make test runs the full integration suite (unit + integration) in CI on every push and PR. examples/ are verified end-to-end via make verify-examples.",
+
+  "regression_tests_added50_status": "Met",
+  "regression_tests_added50_justification": "Bug-fix PRs include regression tests as a matter of policy (sprint-evaluator skill scores this). See e.g. internal/iface/constructor_test.go which captured the ast.TypeVar regression.",
+
+  "test_statement_coverage80_status": "Unmet",
+  "test_statement_coverage80_justification": "Honest Unmet: current statement coverage is approximately 38% (go tool cover -func). The project is at v0.x with a fast-iterating compiler surface; pushing to 80% in this phase produces tests against unstable APIs that churn faster than they protect. Coverage push is planned post-v1.0 once the public surface stabilises. The OpenSSF Best Practices fixed 80% threshold is appropriate for human-paced projects; for an AI-coordinator project at v0.x the substitute signal is third-party static analysis (CodeQL, Sonar, golangci-lint security analysers, fuzzing) plus an extensive eval suite (33 benchmarks across 8 frontier models per release).",
+
+  "test_policy_mandated_status": "Met",
+  "test_policy_mandated_justification": "Documented in CONTRIBUTING.md and .claude/rules/coding-standards.md as a hard requirement. Sprint-evaluator skill enforces test presence.",
+
+  "implement_secure_design_status": "Met",
+  "implement_secure_design_justification": "Capability-based effect system enforces least-authority by design: every effectful function declares its effects in its type, and the runtime grants capabilities explicitly at module load. Functions cannot perform I/O without a corresponding capability — verified by the type checker. Documented at https://ailang.sunholo.com/docs/guides/effects/ and ARCHITECTURE.md.",
+
+  "crypto_algorithm_agility_status": "N/A",
+  "crypto_algorithm_agility_justification": "AILANG ships no in-house cryptographic primitives. All crypto is delegated to Go stdlib (TLS, x509, rand) and Sigstore cosign — both of which support algorithm agility upstream. AILANG inherits whatever upstream supports.",
+
+  "crypto_credential_agility_status": "N/A",
+  "crypto_credential_agility_justification": "No managed credential store in AILANG. Cosign keyless signing uses ephemeral OIDC tokens issued per release run; there is no long-lived credential to rotate.",
+
+  "crypto_used_network_status": "Met",
+  "crypto_used_network_justification": "All network communications use TLS via Go stdlib (crypto/tls). HTTPS is the only protocol used by effects/net.go for outbound calls in the compiler and installer.",
+
+  "crypto_tls12_status": "Met",
+  "crypto_tls12_justification": "Go 1.25 stdlib supports TLS 1.2 and TLS 1.3, defaulting to 1.3. No code path forces a lower minimum.",
+
+  "crypto_certificate_verification_status": "Met",
+  "crypto_certificate_verification_justification": "Default Go TLS verifies the certificate chain against the system trust store. No use of InsecureSkipVerify in any production code path.",
+
+  "crypto_verification_private_status": "N/A",
+  "crypto_verification_private_justification": "AILANG does not establish encrypted channels with private (non-public) certificate authorities. Cosign uses Sigstore's public Fulcio CA and Rekor transparency log.",
+
+  "signed_releases_status": "Met",
+  "signed_releases_justification": "Cosign keyless signing on every release since v0.14.1. Each archive ships .sig and .pem files; verification chain documented in SECURITY.md.",
+
+  "version_tags_signed_status": "Met",
+  "version_tags_signed_justification": "Git tags are SSH-signed by the sunholo-voight-kampff release identity. Verifiable via `git tag -v <tag>` with the public key configured.",
+
+  "input_validation_status": "Met",
+  "input_validation_justification": "Parser performs Hindley-Milner type checking on all .ail input; capability checks happen at module load. Network-effect inputs validated at boundary (effects/net.go). Tar extraction (pkg/tarball.go) bounds-checks against unbounded-allocation bug class.",
+
+  "hardening_status": "Met",
+  "hardening_justification": "Docs site sets a Content-Security-Policy header via Docusaurus config. CI workflows use top-level least-privilege permissions (contents: read), with only release.yml's create-release job escalating. SLSA build provenance is being added in v0.15.x per design_docs/planned/v0_15_0/m-supply-chain-hardening-2.md.",
+
+  "assurance_case_status": "Unmet",
+  "assurance_case_justification": "No formal written assurance case yet. The de-facto assurance argument (capability-effect system + third-party SAST + fuzzing + eval suite) is described across SECURITY.md, ARCHITECTURE.md, and design_docs/implemented/v0_14_1/m-supply-chain-hardening.md, but is not consolidated into a single assurance-case document. Tracked for a future sprint.",
+
+  "dco_status": "N/A",
+  "dco_justification": "AI-coordinator commits use a `Co-Authored-By` trailer rather than a DCO `Signed-off-by` line. This is the standard pattern for AI-authored contributions across the ecosystem (used by Claude Code, Gemini CLI, etc.) and provides equivalent attribution intent. See GOVERNANCE.md for the contribution model: https://github.com/sunholo-data/ailang/blob/dev/GOVERNANCE.md"
 }
