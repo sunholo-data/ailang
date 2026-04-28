@@ -256,6 +256,12 @@ verify-mcp-tools: build
 	fi
 	@echo "$(BOLD)✓ All mcp_tools/ AILANG modules type-check$(RESET)"
 
+## test-feedback-integration: Run integration tests for submit_feedback against test env Firestore (M-PKG-FEEDBACK-LOOP M1)
+test-feedback-integration:
+	@echo "$(BOLD)Running submit_feedback integration tests against ailang-multivac-test...$(RESET)"
+	@AILANG_STORAGE=gcp AILANG_CLOUD_PROJECT=ailang-multivac-test AILANG_TOPIC_PREFIX=ailang-test \
+		go test -tags integration -count=1 -v ./internal/feedback/
+
 ## verify-install-guide: Drift-check install_guide_overrides.json against canonical sources (M-AGENT-MCP-ONBOARDING M2)
 verify-install-guide:
 	@echo "$(BOLD)Verifying install_guide_overrides.json against canonical sources...$(RESET)"
