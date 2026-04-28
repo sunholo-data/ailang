@@ -1,0 +1,196 @@
+---
+sidebar_position: 2
+title: Feedback & Contributing
+description: How to file feedback, bugs, and feature requests for AILANG — humans via GitHub Issues, AI agents via the MCP submit_feedback tool
+---
+
+# Feedback & Contributing
+
+AILANG is an AI-first open source project. The compiler, runtime, and standard library are built almost entirely by AI agents operating through a structured pipeline. Your feedback — bugs, feature requests, DX/UX gripes, design questions — is what drives the work.
+
+Both **humans and AI agents** can contribute. Pick the path that matches your tooling.
+
+---
+
+## For AI Agents: the MCP `submit_feedback` tool
+
+If your agent harness has the AILANG MCP server connected, file feedback directly from inside your session — no GitHub account required.
+
+**Endpoint:** `https://mcp.ailang.sunholo.com/mcp/`
+**Tool:** `submit_feedback`
+
+```json
+{
+  "tool": "submit_feedback",
+  "arguments": {
+    "category": "bug",
+    "title": "Brief summary",
+    "body": "Markdown-formatted details, reproduction steps, version, etc.",
+    "agent_name": "your-agent-name"
+  }
+}
+```
+
+Categories: `bug`, `enhancement`, `documentation`, `design-discussion`, `dx`, `feedback`, `limitation`.
+
+Submissions land in the `public-feedback` inbox queue and are triaged against existing design docs by the AILANG core team. Anonymous is fine — the value is the signal, not the identity.
+
+**Connect the MCP server:** see the [Agent MCP guide](/docs/guides/agent-mcp) for one-click deeplinks (Claude Desktop, Cursor, Cline) and manual config snippets.
+
+---
+
+## For Humans: GitHub Issues
+
+Issues are the entry point for all new work. Use the [issue templates](https://github.com/sunholo-data/ailang/issues/new/choose):
+
+- **Bug Report** — Something broken? Include AILANG version (`ailang --version`), minimal reproduction, expected vs actual behavior.
+- **Feature Request** — Focus on the use case and the "what/why", not implementation details.
+- **DX/UX Feedback** — Error messages confusing? CLI awkward? Install painful? This feedback is gold.
+- **Design Discussion** — Proposing a major architectural change? This template feeds directly into the design doc system.
+
+```bash
+gh issue create \
+  --repo sunholo-data/ailang \
+  --title "Brief description" \
+  --label "bug"
+```
+
+---
+
+## How Your Contribution Becomes Code
+
+```
+You file feedback (issue or MCP)
+    ↓
+Auto-imported into agent inbox
+    ↓
+Triaged against existing design docs
+    ↓
+Design doc created (human-approved)
+    ↓
+Sprint planned with acceptance criteria
+    ↓
+AI agent implements with TDD
+    ↓
+Independent AI evaluator scores quality
+    ↓
+Human reviews and merges
+```
+
+Your feedback drives the entire pipeline. The more detail you provide — use cases, reproduction steps, examples — the better the result.
+
+---
+
+## Ways to Contribute
+
+### Issues / MCP feedback (the primary path)
+
+This is where every change starts. Bug reports, feature requests, DX feedback, design proposals — file them and they enter the triage queue.
+
+### Documentation PRs (always welcome)
+
+Documentation pull requests are reviewed and merged directly:
+
+- Docs site content (`docs/`)
+- Example programs (`examples/`)
+- Error message improvements
+- Tutorials and guides
+- Editor/tooling integration docs
+- README improvements
+
+Run `make verify-examples` before submitting to ensure examples compile.
+
+### Design Proposals
+
+For larger changes, use the **Design Discussion** issue template. If accepted, the maintainer creates a formal design document in `design_docs/planned/` using the project's standard format (axiom scoring, decision tables, impact assessment). Your proposal may be modified during this process.
+
+You don't need to write AILANG code to make a significant design contribution.
+
+---
+
+## Programmatic Issue Submission (AI agents without MCP)
+
+If you're an agent operating without the MCP connection, use the `gh` CLI with structured labels — this feeds the same triage pipeline:
+
+```bash
+gh issue create \
+  --repo sunholo-data/ailang \
+  --title "[your-agent-name] Brief description" \
+  --label "bug,ailang-message" \
+  --body "BODY"
+```
+
+**Key details:**
+
+- **Always include the `ailang-message` label** — this is how the import pipeline discovers your issue
+- **Prefix the title with `[your-agent-name]`** — helps track which agent submitted it
+- **Use category labels:** `bug`, `enhancement`, `documentation`, `design-discussion`, `dx`, `feedback`
+
+**Body templates** (use these section headers — triage agents parse them):
+
+````markdown
+## What happened?
+Description of the bug
+
+## Steps to Reproduce
+Minimal AILANG code or CLI commands that trigger the bug
+
+## Expected Behavior
+What should happen
+
+## Actual Behavior
+What actually happens (include error messages)
+
+## AILANG Version
+v0.14.2
+
+## Component
+Parser / Type System / Runtime / etc.
+````
+
+**What happens next:**
+
+1. `ailang messages import-github` picks up issues labeled `ailang-message`
+2. The issue enters the agent inbox with your agent name and category
+3. It's triaged against existing design docs
+4. If accepted, a design doc is created and enters the sprint pipeline
+5. Your issue is auto-closed with a version reference when the fix ships
+
+---
+
+## Code PRs
+
+We do not accept code pull requests for compiler, runtime, or standard library changes. This isn't about the quality of your code — it's about the pipeline:
+
+1. **TDD enforcement** — The sprint executor writes tests before implementation and maintains them throughout
+2. **Axiom compliance** — Every change is scored against AILANG's 12 design axioms
+3. **Independent evaluation** — A separate AI evaluator scores the implementation against acceptance criteria
+4. **Architectural coherence** — Design doc approval ensures changes fit the larger vision
+
+If you submit a code PR, we'll close it with thanks and ask you to open an issue instead. Your idea is valuable — the issue is how we capture it.
+
+**Exceptions:** Documentation-only PRs, CI/build fixes, and critical security patches.
+
+---
+
+## Getting Credit
+
+Contributors whose feedback leads to implemented features are credited in:
+
+- The design document's References section (links back to your issue)
+- The CHANGELOG entry for the release
+- Git commit messages (`Fixes #N` links and closes your issue automatically)
+
+---
+
+## Code of Conduct
+
+We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). Be kind, be constructive, and remember that behind every issue is someone trying to make AILANG better.
+
+---
+
+## Questions?
+
+- File a [DX/UX Feedback](https://github.com/sunholo-data/ailang/issues/new?template=dx_ux_feedback.yml) issue if something about the contribution process is unclear — that's exactly the kind of feedback we want
+- Or use `submit_feedback` with `category: "dx"` from your MCP-connected agent
+- Full details: [CONTRIBUTING.md](https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md) on GitHub

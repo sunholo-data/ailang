@@ -1,0 +1,209 @@
+{
+  "name": "AILANG",
+  "description": "AILANG is a deterministic programming language designed for autonomous AI code synthesis and reasoning. The compiler is written in Go and ships with a Hindley-Milner type system, an explicit row-polymorphic effect system, and a capability-based runtime. The repository, compiler, and stdlib are developed primarily by AI agents driven by an in-repo coordinator; third-party static analyzers (SonarCloud, OpenSSF Scorecard, CodeQL, Go Report Card) provide the independent verification.",
+  "homepage_url": "https://ailang.sunholo.com",
+  "repo_url": "https://github.com/sunholo-data/ailang",
+  "license": "Apache-2.0",
+  "implementation_languages": "Go",
+
+  "description_good_status": "Met",
+  "description_good_justification": "README and homepage describe what AILANG is in plain language: a deterministic programming language for AI-authored code with an explicit effect system. See https://github.com/sunholo-data/ailang#readme.",
+
+  "interact_status": "Met",
+  "interact_justification": "Issues and Discussions are enabled on GitHub: https://github.com/sunholo-data/ailang/issues and https://github.com/sunholo-data/ailang/discussions. Maintainers respond publicly within the SLA documented in SECURITY.md.",
+
+  "contribution_status": "Met",
+  "contribution_justification": "CONTRIBUTING.md at repo root: https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md. Documents the AI-coordinator pipeline plus the human-PR path.",
+
+  "contribution_requirements_status": "Met",
+  "contribution_requirements_justification": "CONTRIBUTING.md spells out issue templates, design-doc workflow, coding standards reference (.claude/rules/coding-standards.md), and the test-required policy: https://github.com/sunholo-data/ailang/blob/dev/CONTRIBUTING.md.",
+
+  "floss_license_status": "Met",
+  "floss_license_justification": "Apache-2.0. See https://github.com/sunholo-data/ailang/blob/dev/LICENSE.",
+
+  "floss_license_osi_status": "Met",
+  "floss_license_osi_justification": "Apache-2.0 is OSI-approved: https://opensource.org/license/apache-2-0.",
+
+  "license_location_status": "Met",
+  "license_location_justification": "LICENSE file at repo root: https://github.com/sunholo-data/ailang/blob/dev/LICENSE.",
+
+  "documentation_basics_status": "Met",
+  "documentation_basics_justification": "Documentation site at https://ailang.sunholo.com/docs/ covers installation, language reference, stdlib, effects, capability system, examples, and guides.",
+
+  "documentation_interface_status": "Met",
+  "documentation_interface_justification": "CLI help via `ailang --help` (and `ailang <subcommand> --help`); language reference at https://ailang.sunholo.com/docs/reference/syntax/; stdlib API at https://ailang.sunholo.com/docs/reference/stdlib/.",
+
+  "sites_https_status": "Met",
+  "sites_https_justification": "Both https://github.com/sunholo-data/ailang and https://ailang.sunholo.com use TLS. The install script https://ailang.sunholo.com/install.sh is also served over HTTPS and verifies releases via cosign + SHA256.",
+
+  "discussion_status": "Met",
+  "discussion_justification": "GitHub Discussions: https://github.com/sunholo-data/ailang/discussions. Threaded, archived, and indexed by GitHub.",
+
+  "english_status": "Met",
+  "english_justification": "All documentation, code comments, issue templates, and discussions are in English.",
+
+  "maintained_status": "Met",
+  "maintained_justification": "Active development on the dev branch with multiple commits per week. OpenSSF Scorecard reports Maintained = 10/10 (30 commits + 25 issue activity in the last 90 days as of 2026-04-28). See https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang.",
+
+  "repo_public_status": "Met",
+  "repo_public_justification": "Public repository at https://github.com/sunholo-data/ailang.",
+
+  "repo_track_status": "Met",
+  "repo_track_justification": "Git version control on GitHub.",
+
+  "repo_interim_status": "Met",
+  "repo_interim_justification": "Commits land on dev between releases; full history is preserved at https://github.com/sunholo-data/ailang/commits/dev.",
+
+  "repo_distributed_status": "Met",
+  "repo_distributed_justification": "Git is a distributed VCS; full history clones to any developer machine.",
+
+  "version_unique_status": "Met",
+  "version_unique_justification": "Every release has a unique tag of the form vMAJOR.MINOR.PATCH. See https://github.com/sunholo-data/ailang/releases.",
+
+  "version_semver_status": "Met",
+  "version_semver_justification": "Semantic Versioning 2.0.0 is followed; see CHANGELOG.md groupings (Added/Changed/Fixed/Removed) and the release-manager skill that gates version bumps.",
+
+  "version_tags_status": "Met",
+  "version_tags_justification": "Each release is git-tagged: https://github.com/sunholo-data/ailang/tags.",
+
+  "release_notes_status": "Met",
+  "release_notes_justification": "Per-release notes published via GitHub Releases (auto-generated from changelog.md by the release.yml workflow). CHANGELOG.md aggregates the same content: https://github.com/sunholo-data/ailang/blob/dev/CHANGELOG.md.",
+
+  "release_notes_vulns_status": "Met",
+  "release_notes_vulns_justification": "Security fixes are called out explicitly in release notes. Forward commitment captured in design_docs/planned/v0_15_0/m-supply-chain-hardening-2.md (M6 step 2 adds a Security section template to the release-manager skill).",
+
+  "report_process_status": "Met",
+  "report_process_justification": "Bug reports and feature requests via GitHub Issues with templates: https://github.com/sunholo-data/ailang/issues/new/choose.",
+
+  "report_tracker_status": "Met",
+  "report_tracker_justification": "GitHub Issues serves as the public bug tracker: https://github.com/sunholo-data/ailang/issues.",
+
+  "report_responses_status": "Met",
+  "report_responses_justification": "Issue triage runs continuously via the github-issue-triage skill; closed issues link back to commits/PRs that resolved them.",
+
+  "enhancement_responses_status": "Met",
+  "enhancement_responses_justification": "Feature requests are either implemented, declined with rationale, or converted to design docs in design_docs/planned/. The decision is recorded as an issue comment.",
+
+  "report_archive_status": "Met",
+  "report_archive_justification": "All issue history is preserved on GitHub: https://github.com/sunholo-data/ailang/issues?q=is%3Aissue.",
+
+  "vulnerability_report_process_status": "Met",
+  "vulnerability_report_process_justification": "SECURITY.md documents the public reporting process: https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#reporting-a-vulnerability.",
+
+  "vulnerability_report_private_status": "Met",
+  "vulnerability_report_private_justification": "Two private channels documented in SECURITY.md: GitHub Security Advisories (https://github.com/sunholo-data/ailang/security/advisories/new) and email to mark@aitanalabs.com. See https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#reporting-a-vulnerability.",
+
+  "vulnerability_report_response_status": "Met",
+  "vulnerability_report_response_justification": "SECURITY.md commits to acknowledgement within 3 business days, initial assessment within 7 days, and critical fixes within 14 days. See the Response SLA section: https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#response-sla.",
+
+  "build_status": "Met",
+  "build_justification": "`make build` produces the ailang binary from source. Build instructions in README and docs/docs/guides/development-workflow.md.",
+
+  "build_common_tools_status": "Met",
+  "build_common_tools_justification": "Go (>=1.25) and GNU Make. Both available via every major OS package manager.",
+
+  "build_floss_tools_status": "Met",
+  "build_floss_tools_justification": "Go (BSD-3-Clause), GNU Make (GPL), all FLOSS.",
+
+  "test_status": "Met",
+  "test_justification": "Comprehensive Go test suite invoked via `make test`. Coverage tracked via `make test-coverage-badge`. Fuzz tests in internal/parser/fuzz_test.go.",
+
+  "test_invocation_status": "Met",
+  "test_invocation_justification": "README and docs/docs/guides/development-workflow.md document `make test`. CI runs the same target.",
+
+  "test_most_status": "Met",
+  "test_most_justification": "Test coverage badge is published on README; coverage tooling enforces a floor via `make test-coverage-badge`.",
+
+  "test_continuous_integration_status": "Met",
+  "test_continuous_integration_justification": ".github/workflows/ci.yml runs `make test` on every push and pull request to main and dev. https://github.com/sunholo-data/ailang/actions/workflows/ci.yml.",
+
+  "test_policy_status": "Met",
+  "test_policy_justification": "CONTRIBUTING.md and .claude/rules/coding-standards.md require tests for new features and regression tests for bug fixes. Sprint-evaluator skill gates merges on test presence.",
+
+  "tests_are_added_status": "Met",
+  "tests_are_added_justification": "Recent PR history shows tests landing alongside features; sprint-evaluator scores cover this.",
+
+  "tests_documented_added_status": "Met",
+  "tests_documented_added_justification": "CONTRIBUTING.md states the test-required policy explicitly.",
+
+  "warnings_status": "Met",
+  "warnings_justification": "golangci-lint runs in CI with the project config at .golangci.yml. `make lint` runs the same locally.",
+
+  "warnings_fixed_status": "Met",
+  "warnings_fixed_justification": "CI fails on lint warnings; SonarCloud quality gate also blocks merge on new code-smell increases.",
+
+  "warnings_strict_status": "Met",
+  "warnings_strict_justification": "Go vet, golangci-lint with multiple analyzers (errcheck, gosec, staticcheck, etc.), and SonarCloud all run on every CI build. See .github/workflows/ci.yml.",
+
+  "know_secure_design_status": "Met",
+  "know_secure_design_justification": "AILANG's design centers a capability-based effect system that surfaces side effects in function signatures (least-authority by default). The lead maintainer has authored production systems in Go for >10 years; design decisions are recorded in design_docs/.",
+
+  "know_common_errors_status": "Met",
+  "know_common_errors_justification": "Project follows the OWASP top 10 awareness in code review (no SQL injection — parameterized queries; no XSS — html/template; no path traversal — filepath.Clean + boundary checks). CodeQL security-extended pack runs on every push to surface common-error patterns.",
+
+  "crypto_published_status": "Met",
+  "crypto_published_justification": "All cryptographic operations use the Go standard library (crypto/tls, crypto/x509, crypto/rand) and Sigstore cosign — both peer-reviewed published implementations.",
+
+  "crypto_call_status": "Met",
+  "crypto_call_justification": "AILANG calls Go stdlib and sigstore cosign; no in-house crypto. Sigstore documentation: https://docs.sigstore.dev/.",
+
+  "crypto_floss_status": "Met",
+  "crypto_floss_justification": "Go stdlib (BSD-3-Clause) and Sigstore cosign (Apache-2.0). Both FLOSS.",
+
+  "crypto_keylength_status": "Met",
+  "crypto_keylength_justification": "Go stdlib defaults to >=256-bit symmetric keys and >=2048-bit RSA. Cosign keyless uses ECDSA P-256 via Sigstore Fulcio.",
+
+  "crypto_working_status": "Met",
+  "crypto_working_justification": "Go stdlib uses well-tested algorithms (TLS 1.3, AES-GCM, SHA-256). No deprecated MD5/SHA-1 in any code path that affects security claims.",
+
+  "crypto_weaknesses_status": "Met",
+  "crypto_weaknesses_justification": "No use of MD5, SHA-1, RC4, or DES in security-sensitive code paths. SHA-1 appears only via Git internals (transitively, via go-git in tooling) — not in cryptographic claims.",
+
+  "crypto_pfs_status": "Met",
+  "crypto_pfs_justification": "Go TLS 1.3 (default in Go 1.25) provides forward secrecy via ECDHE.",
+
+  "crypto_password_storage_status": "N/A",
+  "crypto_password_storage_justification": "AILANG does not store user passwords. The compiler is offline; the dashboard server uses GitHub OAuth via opaque tokens, no password storage.",
+
+  "crypto_random_status": "Met",
+  "crypto_random_justification": "All security-sensitive random values use crypto/rand. math/rand is used only for non-security paths (e.g., test data shuffling).",
+
+  "delivery_mitm_status": "Met",
+  "delivery_mitm_justification": "Releases are served over HTTPS from GitHub. Each archive has a cosign signature (.sig + .pem) and SHA256 (.sha256) attached. The installer at https://ailang.sunholo.com/install.sh verifies cosign first, falls back to SHA256 — see SECURITY.md#verifying-release-artifacts.",
+
+  "delivery_unsigned_status": "Met",
+  "delivery_unsigned_justification": "Cosign keyless signing has been on every release since v0.14.1. Verification chain documented in SECURITY.md: https://github.com/sunholo-data/ailang/blob/dev/SECURITY.md#verifying-release-artifacts. SLSA build provenance is being added in v0.15.x per design_docs/planned/v0_15_0/m-supply-chain-hardening-2.md (M3).",
+
+  "vulnerabilities_fixed_60_days_status": "Met",
+  "vulnerabilities_fixed_60_days_justification": "Dependency updates land via Dependabot. govulncheck output reviewed at every release; the v0.15.x sprint (m-supply-chain-hardening-2 M1+M2) bumps Go toolchain to 1.25.9 and the MCP SDK to v1.4.1, clearing 19 of 23 reachable findings.",
+
+  "vulnerabilities_critical_fixed_status": "Met",
+  "vulnerabilities_critical_fixed_justification": "No publicly known critical vulnerabilities in AILANG itself. Critical issues in dependencies are addressed within 14 days per SECURITY.md SLA.",
+
+  "no_leaked_credentials_status": "Met",
+  "no_leaked_credentials_justification": "GitHub secret scanning is enabled on the repository (default for public repos). No credentials, API keys, or tokens have been committed; secrets used by CI live in GitHub Actions secrets and are referenced as ${{ secrets.* }}.",
+
+  "static_analysis_status": "Met",
+  "static_analysis_justification": "Three independent SAST tools run on every push: CodeQL (.github/workflows/codeql.yml, security-extended pack), SonarCloud (.github/workflows/ci.yml), and golangci-lint (`make lint`). Public Sonar dashboard: https://sonarcloud.io/project/overview?id=sunholo-data_ailang.",
+
+  "static_analysis_common_vulnerabilities_status": "Met",
+  "static_analysis_common_vulnerabilities_justification": "CodeQL security-extended pack covers OWASP top 10 patterns (SQL injection, path traversal, command injection, XSS, etc.). gosec analyzer is part of the golangci-lint config.",
+
+  "static_analysis_fixed_status": "Met",
+  "static_analysis_fixed_justification": "CodeQL alerts and Sonar gate failures block merges. The SonarCloud-triage skill runs on demand to triage open issues.",
+
+  "static_analysis_often_status": "Met",
+  "static_analysis_often_justification": "CodeQL runs on every push, every PR, and weekly via cron (.github/workflows/codeql.yml). SonarCloud runs on every CI build.",
+
+  "dynamic_analysis_status": "Met",
+  "dynamic_analysis_justification": "Go's built-in fuzzer is used in internal/parser/fuzz_test.go (4 fuzz harnesses, score 10/10 on Scorecard's Fuzzing check). Run via `go test -fuzz=Fuzz...`.",
+
+  "dynamic_analysis_unsafe_status": "Met",
+  "dynamic_analysis_unsafe_justification": "AILANG's Go code uses package unsafe only inside internal/runtime memory layout helpers, with extensive test coverage. `grep -rn 'unsafe\\.' --include='*.go'` returns a small, audited surface.",
+
+  "dynamic_analysis_enable_assertions_status": "Met",
+  "dynamic_analysis_enable_assertions_justification": "DEBUG_STRICT=1 environment flag enables fail-loud assertion behavior across the compiler (panic on unhandled cases instead of silent fallback). Documented in CLAUDE.md and .claude/rules/dev-workflow.md.",
+
+  "dynamic_analysis_fixed_status": "Met",
+  "dynamic_analysis_fixed_justification": "Fuzz-discovered crashes are filed as issues and fixed within the standard 14-day SLA. Regression corpus is committed under internal/parser/testdata/fuzz/."
+}

@@ -32,14 +32,20 @@ Use one of these private channels instead:
 - The AILANG version (`ailang --version`) and OS/architecture
 - Any suggested fix or mitigation you've already considered
 
-### What to expect
+### Response SLA
 
-- **Acknowledgement** within 3 business days
-- **Initial assessment** (confirmed / not a vulnerability / need more info) within 7 days
+This is a public commitment, not a target. If we can't meet it for a
+given report, we'll say so explicitly in our reply.
+
+- **Acknowledgement**: within 3 business days of receipt
+- **Initial assessment** (confirmed / not a vulnerability / need more info): within 7 days
 - **Fix timeline**: critical issues within 14 days; lower severity on the
   next minor release
 - **Credit**: reporters are credited in the release notes unless they request
   otherwise
+
+The 14-day fix SLA aligns with the [OpenSSF Best Practices](https://www.bestpractices.dev/)
+`vulnerability_report_response` requirement.
 
 ## Scope
 

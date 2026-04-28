@@ -28,6 +28,7 @@ const sidebars = {
     'examples',
     'playground',
     'demos',
+    'feedback',
     {
       type: 'category',
       label: 'Getting Started',

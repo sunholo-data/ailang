@@ -210,6 +210,11 @@ const config = {
             position: 'left',
           },
           {
+            to: '/docs/feedback',
+            label: 'Feedback',
+            position: 'left',
+          },
+          {
             href: 'https://ailang.sunholo.com/llms.txt',
             label: 'llms.txt',
             position: 'right',
@@ -262,6 +267,10 @@ const config = {
               {
                 label: 'Issues',
                 href: 'https://github.com/sunholo-data/ailang/issues',
+              },
+              {
+                label: 'Feedback & Contributing',
+                to: '/docs/feedback',
               },
             ],
           },

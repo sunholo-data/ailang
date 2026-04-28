@@ -16,6 +16,8 @@
 [![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=sqale_rating)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sunholo-data/ailang)](https://goreportcard.com/report/github.com/sunholo-data/ailang)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sunholo-data/ailang/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang)
+<!-- TODO(CII-BADGE): replace BPP_PROJECT_ID below with the numeric ID assigned by bestpractices.dev once the project is registered. Submission walkthrough: design_docs/planned/v0_15_0/m-supply-chain-hardening-2-cii-answers.md -->
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/BPP_PROJECT_ID/badge)](https://www.bestpractices.dev/projects/BPP_PROJECT_ID)
 
 > **Third-party verification.** AILANG is written autonomously by AI agents via its own [coordinator](https://ailang.sunholo.com/docs/guides/coordinator). The badges above are independent static-analysis and supply-chain scores — not self-reported. Live correctness signal: the [benchmark dashboard](https://ailang.sunholo.com/docs/benchmarks/performance) runs 33 benchmarks across 8 frontier models on every release.
 

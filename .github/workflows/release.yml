@@ -5,8 +5,12 @@ on:
     tags:
       - 'v*'
 
+# Least-privilege default. Only `create-release` escalates to
+# `contents: write` (publish release) + `id-token: write` (cosign).
+# Build jobs only produce artifacts via actions/upload-artifact and
+# stay read-only.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-wasm:
