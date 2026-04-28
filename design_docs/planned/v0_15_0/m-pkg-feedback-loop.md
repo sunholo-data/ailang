@@ -3,7 +3,7 @@
 **Status**: Planned
 **Target**: v0.15.x (follow-up to M-AGENT-MCP-ONBOARDING)
 **Priority**: P1 (closes the validation gap on the package-routing wire we just shipped — and unlocks the autonomous package agents to actually act on user feedback)
-**Estimated**: 1 day, ~350 LOC
+**Estimated**: 1.5 days, ~550 LOC
 **Dependencies**: M-AGENT-MCP-ONBOARDING shipped (`submit_feedback` accepts `package` + `auto_dispatch` args), package agents already configured in `ailang-multivac/config/config.cloud.yaml`
 
 ## Axiom Compliance
@@ -110,9 +110,39 @@ Suspects to audit:
 
 Each fix is ~5-15 LOC. Estimate ~5-7 commands need the same change. Total ~80 LOC across all of them. Add a regression test that picks one CLI command and asserts it honors AILANG_STORAGE=gcp by checking which env var was read.
 
+### M5: Minimum-viable notifier for new feedback (carve-out from M-MAC-NOTIFY-DAEMON)
+
+The user's immediate need is "tell me when new public-feedback or pkg:* feedback arrives". The full M-MAC-NOTIFY-DAEMON design (planned, not implemented) covers task approvals, completions, registry events, etc. — too big for this sprint.
+
+This milestone ships the **minimum viable** subset:
+
+- New `ailang daemon notify-feedback` subcommand (NOT `ailang daemon` — leave that name for the full daemon later)
+- Subscribes to `messages-laptop` Pub/Sub subscription, filters to `to_inbox` ∈ {`public-feedback`, `pkg:*`}
+- Fires macOS notification via `terminal-notifier` (with `osascript` fallback) — pattern lifted from `scripts/hooks/session_end_speak.sh`
+- Title: `"✉️ AILANG: $inbox"` (e.g. `"✉️ AILANG: pkg:sunholo/auth"`)
+- Body: `"$title — $from_agent"`, capped at 200 chars
+- Click action: `open https://dashboard.ailang.sunholo.com/inbox/$inbox` (assuming the dashboard supports inbox-deep-link; if not, opens the inbox list)
+- Dedup: same `message_id` not re-notified within 5 min (rare with Pub/Sub at-least-once but worth guarding)
+- launchd plist at `scripts/ailang-daemon-notify-feedback.plist` so it auto-starts on login + restarts on crash; `make install-feedback-daemon` target sets it up
+- `--dry-run` flag logs without firing notifications (for testing)
+- Removes `scripts/hooks/check_public_feedback.sh` and its entry in `.claude/settings.json` SessionStart — its role is now covered by ambient notifications instead of session-start polling
+
+**Acceptance**:
+- After `make install-feedback-daemon`, `launchctl list | grep ailang` shows it running
+- Submit a test feedback to test env's pkg:sunholo/auth → mac notification fires within ~5s
+- Killing the daemon via `launchctl unload` and re-loading restores notifications without duplicates
+- check_public_feedback.sh removed from .claude/settings.json; no orphan files left
+
+**Out of scope for this M5** (deferred to full M-MAC-NOTIFY-DAEMON):
+- Task approval / completion / failure notifications
+- Registry-publish notifications  
+- Per-event notification config (notify_excludes.conf)
+- Sound/Group customization
+- The `ailang daemon` umbrella command (this just adds `notify-feedback` as a subcommand)
+
 ---
 
-## Implementation Plan (1 day, ~350 LOC)
+## Implementation Plan (1.5 days, ~550 LOC)
 
 ### M1 — Integration test harness (~120 LOC, ~3h)
 
@@ -148,6 +178,20 @@ Each fix is ~5-15 LOC. Estimate ~5-7 commands need the same change. Total ~80 LO
 - Update CHANGELOG with the list of CLI commands now cloud-aware
 
 **Acceptance**: `AILANG_STORAGE=gcp ailang chains list`, `ailang approvals list`, `ailang tasks list` all return cloud data instead of empty SQLite results.
+
+### M5 — Minimum-viable feedback notifier (~200 LOC, ~3h)
+
+- New `cmd/ailang/daemon_notify_feedback.go` — `ailang daemon notify-feedback` subcommand
+- New `internal/notify/macos.go` — terminal-notifier + osascript fallback (pattern from `scripts/hooks/session_end_speak.sh`)
+- New `scripts/ailang-daemon-notify-feedback.plist` — launchd config
+- New `make install-feedback-daemon` / `make uninstall-feedback-daemon` targets
+- Delete `scripts/hooks/check_public_feedback.sh` + remove its entry from `.claude/settings.json` SessionStart array
+- Document in `docs/docs/guides/agent-mcp.md`: how to install the daemon for laptop notifications
+
+**Acceptance**:
+- `make install-feedback-daemon` sets up launchd; `launchctl list | grep ailang.feedback` shows it
+- Test submission produces a macOS notification within 5s
+- Old hook removed cleanly
 
 ---
 
