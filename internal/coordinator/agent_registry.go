@@ -21,6 +21,13 @@ type InvokeConfig struct {
 	Template     string `yaml:"template" json:"template"`           // Custom template (for prompt type) - inline
 	TemplateFile string `yaml:"template_file" json:"template_file"` // Path to template file (for prompt type) - v0.6.7+
 
+	// TemplateByMessageType maps inbound message_type → template file path (M-PKG-FEEDBACK-LOOP).
+	// When set, ResolveTemplateForType picks the template matching the message's Kind/MessageType
+	// (e.g. "feedback" → pkg-feedback.md) and falls back to TemplateFile when no entry matches.
+	// Lets one agent serve multiple workflows from a single InvokeConfig instead of fanning out
+	// per-message-type agent IDs.
+	TemplateByMessageType map[string]string `yaml:"template_by_message_type" json:"template_by_message_type,omitempty"`
+
 	// Script-specific fields (v0.6.4+)
 	// Used when Type == "script" for deterministic workflow execution
 	Command        string `yaml:"command" json:"command,omitempty"`                   // Script path or inline command
@@ -37,33 +44,47 @@ type InvokeConfig struct {
 //   - Home directory: ~/.ailang/templates/design-doc.md
 //   - Relative to workspace: templates/design-doc.md (requires workspace param)
 func (ic *InvokeConfig) ResolveTemplate(workspace string) (string, error) {
-	// If template_file is set, load from file
-	if ic.TemplateFile != "" {
-		path := ic.TemplateFile
+	return ic.ResolveTemplateForType(workspace, "")
+}
 
-		// Expand ~ to home directory
-		if strings.HasPrefix(path, "~/") {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return "", fmt.Errorf("failed to get home directory: %w", err)
-			}
-			path = filepath.Join(home, path[2:])
+// ResolveTemplateForType returns the template content for a specific message type.
+// Priority: template_by_message_type[messageType] > template_file > template (inline).
+// messageType=="" means "no type-specific override", same as ResolveTemplate.
+func (ic *InvokeConfig) ResolveTemplateForType(workspace, messageType string) (string, error) {
+	if messageType != "" {
+		if tplPath, ok := ic.TemplateByMessageType[messageType]; ok && tplPath != "" {
+			return loadTemplateFile(workspace, tplPath)
 		}
-
-		// If not absolute, resolve relative to workspace
-		if !filepath.IsAbs(path) && workspace != "" {
-			path = filepath.Join(workspace, path)
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return "", fmt.Errorf("failed to read template file %q: %w", ic.TemplateFile, err)
-		}
-		return string(content), nil
 	}
 
-	// Fall back to inline template
+	if ic.TemplateFile != "" {
+		return loadTemplateFile(workspace, ic.TemplateFile)
+	}
+
 	return ic.Template, nil
+}
+
+// loadTemplateFile reads a template file, resolving ~ and workspace-relative paths.
+func loadTemplateFile(workspace, path string) (string, error) {
+	original := path
+
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		path = filepath.Join(home, path[2:])
+	}
+
+	if !filepath.IsAbs(path) && workspace != "" {
+		path = filepath.Join(workspace, path)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read template file %q: %w", original, err)
+	}
+	return string(content), nil
 }
 
 // ApprovalConfig specifies the approval workflow for an agent.

@@ -1,6 +1,8 @@
 package coordinator
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -627,5 +629,43 @@ func TestExtractMarkerValue(t *testing.T) {
 		if result != tc.expected {
 			t.Errorf("For output %q, marker %q: expected %q, got %q", tc.output, tc.marker, tc.expected, result)
 		}
+	}
+}
+
+func TestBuildDirectiveFromConfig_TemplateByMessageType(t *testing.T) {
+	tmp := t.TempDir()
+	releaseTpl := filepath.Join(tmp, "release.md")
+	feedbackTpl := filepath.Join(tmp, "feedback.md")
+
+	if err := os.WriteFile(releaseTpl, []byte("RELEASE-SYNC: {{.Content}}"), 0644); err != nil {
+		t.Fatalf("write release tpl: %v", err)
+	}
+	if err := os.WriteFile(feedbackTpl, []byte("FEEDBACK: {{.Content}}"), 0644); err != nil {
+		t.Fatalf("write feedback tpl: %v", err)
+	}
+
+	agent := &AgentConfig{
+		ID:        "pkg-test",
+		Workspace: tmp,
+		Invoke: &InvokeConfig{
+			Type:         "prompt",
+			TemplateFile: "release.md",
+			TemplateByMessageType: map[string]string{
+				"feedback": "feedback.md",
+			},
+		},
+	}
+
+	feedbackTask := &TaskRecord{ID: "t1", Content: "user feedback body", Kind: "feedback"}
+	got := BuildDirectiveFromConfig(feedbackTask, agent)
+	if !strings.HasPrefix(got, "FEEDBACK:") {
+		t.Errorf("feedback message_type should pick feedback.md, got: %q", got)
+	}
+
+	// Default (release-sync style) message goes through template_file fallback
+	defaultTask := &TaskRecord{ID: "t2", Content: "release notify", Kind: "directive"}
+	got = BuildDirectiveFromConfig(defaultTask, agent)
+	if !strings.HasPrefix(got, "RELEASE-SYNC:") {
+		t.Errorf("non-feedback message_type should fall back to template_file, got: %q", got)
 	}
 }
