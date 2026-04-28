@@ -91,6 +91,15 @@ func buildVersioned(root, dir, version string) error {
 	if err := writeStdlibSummary(root, dir); err != nil {
 		return fmt.Errorf("stdlib_summary: %w", err)
 	}
+	if err := writeStdlibSearchIndex(root, dir); err != nil {
+		return fmt.Errorf("stdlib_search_index: %w", err)
+	}
+	if err := writeDocsSearchIndex(root, dir); err != nil {
+		return fmt.Errorf("docs_search_index: %w", err)
+	}
+	if err := writeExampleConceptIndex(root, dir); err != nil {
+		return fmt.Errorf("example_concept_index: %w", err)
+	}
 	if err := writeEffects(dir); err != nil {
 		return fmt.Errorf("effects: %w", err)
 	}
@@ -597,4 +606,270 @@ func must(err error) {
 func fail(msg string) {
 	fmt.Fprintf(os.Stderr, "build-snapshot: %s\n", msg)
 	os.Exit(1)
+}
+
+// ---------------------------------------------------------------------------
+// M-AGENT-MCP-ONBOARDING M1: search indexes for the previously-broken tools
+// (docs_search, example_for_concept, stdlib_search). Each tool was registered
+// in M-AGENT-MCP M1 but the corresponding snapshot file was never generated,
+// so every call returned snapshot_read_failed in prod.
+// ---------------------------------------------------------------------------
+
+// writeStdlibSearchIndex emits per-export rows so stdlib_search can match
+// by function name, signature, or docstring keyword. Pairs with the existing
+// writeStdlibSummary which emits one row per module.
+func writeStdlibSearchIndex(root, dir string) error {
+	stdDir := filepath.Join(root, "std")
+	entries, err := os.ReadDir(stdDir)
+	if err != nil {
+		return err
+	}
+	type row struct {
+		Module    string `json:"module"`
+		Name      string `json:"name"`
+		Signature string `json:"signature"`
+		Doc       string `json:"doc"`
+		Keywords  string `json:"keywords"` // lowercased name+sig+doc, for substring match
+		Pure      bool   `json:"pure"`
+	}
+	var rows []row
+
+	// Match `[pure ]export func name(arg: T, ...) -> RetType ! {Effects}`. The
+	// stdlib uses single-line signatures; multi-line ones get truncated to the
+	// first line and that's fine for keyword search.
+	exportRe := regexp.MustCompile(`(?m)^\s*export\s+(pure\s+)?func\s+(\w+)\s*(\([^)]*\))(?:\s*->\s*([^=\n]+?))?(?:\s*!\s*\{[^}]*\})?\s*=`)
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ail") {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(stdDir, e.Name()))
+		if err != nil {
+			continue
+		}
+		module := "std/" + strings.TrimSuffix(e.Name(), ".ail")
+		text := string(body)
+
+		for _, m := range exportRe.FindAllStringSubmatchIndex(text, -1) {
+			// Optional groups (pure prefix, return type) come back as -1/-1 when
+			// unmatched — slicing text[-1:-1] panics, so guard explicitly.
+			isPure := m[2] >= 0 && m[3] >= 0 && text[m[2]:m[3]] != ""
+			name := text[m[4]:m[5]]
+			args := text[m[6]:m[7]]
+			ret := ""
+			if m[8] >= 0 && m[9] >= 0 {
+				ret = strings.TrimSpace(text[m[8]:m[9]])
+			}
+			sig := name + args
+			if ret != "" {
+				sig += " -> " + ret
+			}
+
+			// Doc = the contiguous block of `--` comments immediately above
+			// the export. Walk backwards from the match start.
+			doc := docCommentAbove(text, m[0])
+
+			kw := strings.ToLower(name + " " + sig + " " + doc)
+			rows = append(rows, row{
+				Module:    module,
+				Name:      name,
+				Signature: sig,
+				Doc:       doc,
+				Keywords:  kw,
+				Pure:      isPure,
+			})
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Module != rows[j].Module {
+			return rows[i].Module < rows[j].Module
+		}
+		return rows[i].Name < rows[j].Name
+	})
+	return writeJSON(filepath.Join(dir, "stdlib_search_index.json"), map[string]any{
+		"exports": rows,
+	})
+}
+
+// docCommentAbove returns the contiguous block of `--` comment lines
+// immediately preceding the given offset, with leading `--` stripped and
+// internal newlines preserved. Empty if there's no preceding comment.
+func docCommentAbove(text string, offset int) string {
+	if offset <= 0 {
+		return ""
+	}
+	// Walk backwards line-by-line.
+	lines := strings.Split(text[:offset], "\n")
+	var doc []string
+	for i := len(lines) - 2; i >= 0; i-- { // -2: skip the partial line at offset
+		trimmed := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(trimmed, "--") {
+			doc = append([]string{strings.TrimSpace(strings.TrimPrefix(trimmed, "--"))}, doc...)
+		} else if trimmed == "" && len(doc) > 0 {
+			// Allow blank lines INSIDE the doc block, but not before it.
+			break
+		} else {
+			break
+		}
+	}
+	return strings.TrimSpace(strings.Join(doc, " "))
+}
+
+// writeDocsSearchIndex walks docs/docs/**/*.{md,mdx}, strips frontmatter,
+// extracts title (first `# `) + headings + body, and writes a flat searchable
+// index. For v1 we use simple substring matching on the AILANG side; the JSON
+// is small enough (<150 KB) that this is fine.
+func writeDocsSearchIndex(root, dir string) error {
+	docsDir := filepath.Join(root, "docs", "docs")
+	type page struct {
+		Path     string   `json:"path"` // relative to docs/docs/
+		Title    string   `json:"title"`
+		Headings []string `json:"headings"` // ##, ### headings
+		Body     string   `json:"body"`     // first 4 KB of body, lowercased
+	}
+	var pages []page
+
+	frontmatterRe := regexp.MustCompile(`(?s)\A---\s*\n.*?\n---\s*\n`)
+	titleRe := regexp.MustCompile(`(?m)^#\s+(.+)$`)
+	headingRe := regexp.MustCompile(`(?m)^##+\s+(.+)$`)
+
+	_ = filepath.Walk(docsDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(p, ".md") && !strings.HasSuffix(p, ".mdx") {
+			return nil
+		}
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return nil
+		}
+		text := frontmatterRe.ReplaceAllString(string(body), "")
+
+		title := strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
+		if m := titleRe.FindStringSubmatch(text); len(m) > 1 {
+			title = strings.TrimSpace(m[1])
+		}
+		var headings []string
+		for _, m := range headingRe.FindAllStringSubmatch(text, -1) {
+			headings = append(headings, strings.TrimSpace(m[1]))
+		}
+		// Lowercased body, capped at 4 KB so the index stays small.
+		bodyLower := strings.ToLower(text)
+		if len(bodyLower) > 4096 {
+			bodyLower = bodyLower[:4096]
+		}
+
+		rel, _ := filepath.Rel(docsDir, p)
+		pages = append(pages, page{
+			Path:     rel,
+			Title:    title,
+			Headings: headings,
+			Body:     bodyLower,
+		})
+		return nil
+	})
+
+	sort.Slice(pages, func(i, j int) bool { return pages[i].Path < pages[j].Path })
+	return writeJSON(filepath.Join(dir, "docs_search_index.json"), map[string]any{
+		"pages": pages,
+	})
+}
+
+// writeExampleConceptIndex builds a concept-keyed index over the examples by
+// walking examples/ directly. We deliberately do NOT depend on
+// examples_report.json — that file is generated by `make verify-examples` and
+// can be left in an unparseable state when verify fails (we hit this exact
+// problem in M-AGENT-MCP M2 and again in M-AGENT-MCP-ONBOARDING M1: the file
+// contained a stderr error message instead of JSON).
+//
+// Each .ail file under examples/ becomes one entry; concepts come from the
+// leading `--` comment block and from path components (e.g. examples/runnable/
+// adt_option.ail → concepts include "adt", "option", "runnable").
+func writeExampleConceptIndex(root, dir string) error {
+	examplesDir := filepath.Join(root, "examples")
+	type row struct {
+		Path     string   `json:"path"` // relative to repo root
+		Title    string   `json:"title"`
+		Concepts []string `json:"concepts"`
+		Why      string   `json:"why"` // short rationale for matching (the comment block)
+	}
+	var rows []row
+	commentBlockRe := regexp.MustCompile(`(?m)^--\s*([^\n]*)`)
+
+	_ = filepath.Walk(examplesDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(p, ".ail") {
+			return nil
+		}
+		// Skip cache/build outputs.
+		if strings.Contains(p, "/cache/") || strings.Contains(p, "/.ailang/") {
+			return nil
+		}
+
+		body, _ := os.ReadFile(p)
+		rel, _ := filepath.Rel(root, p)
+
+		title := strings.TrimSuffix(filepath.Base(p), ".ail")
+		concepts := map[string]bool{}
+		var why []string
+
+		// Path components → concepts (e.g. "runnable", "docs", "bugs").
+		relDir, _ := filepath.Rel(examplesDir, filepath.Dir(p))
+		for _, seg := range strings.Split(relDir, string(filepath.Separator)) {
+			if seg != "" && seg != "." {
+				concepts[strings.ToLower(seg)] = true
+			}
+		}
+		// Filename tokens → concepts (split on _ and -).
+		base := strings.TrimSuffix(filepath.Base(p), ".ail")
+		for _, tok := range strings.FieldsFunc(strings.ToLower(base), func(r rune) bool {
+			return r == '_' || r == '-'
+		}) {
+			if len(tok) >= 3 {
+				concepts[tok] = true
+			}
+		}
+
+		// Comment block → title (first non-bookkeeping line) + concept tokens.
+		commentLines := commentBlockRe.FindAllStringSubmatch(string(body), 20)
+		for _, m := range commentLines {
+			line := strings.TrimSpace(m[1])
+			if line == "" || strings.EqualFold(line, filepath.Base(p)) {
+				continue
+			}
+			if title == base {
+				title = line
+			}
+			why = append(why, line)
+			for _, tok := range strings.FieldsFunc(strings.ToLower(line), func(r rune) bool {
+				return !(r >= 'a' && r <= 'z')
+			}) {
+				if len(tok) >= 4 {
+					concepts[tok] = true
+				}
+			}
+		}
+
+		conceptList := make([]string, 0, len(concepts))
+		for c := range concepts {
+			conceptList = append(conceptList, c)
+		}
+		sort.Strings(conceptList)
+
+		rows = append(rows, row{
+			Path:     rel,
+			Title:    title,
+			Concepts: conceptList,
+			Why:      strings.Join(why, " "),
+		})
+		return nil
+	})
+
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Path < rows[j].Path })
+	return writeJSON(filepath.Join(dir, "example_concept_index.json"), map[string]any{
+		"examples": rows,
+	})
 }
