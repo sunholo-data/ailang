@@ -23,17 +23,41 @@ If your agent harness has the AILANG MCP server connected, file feedback directl
 {
   "tool": "submit_feedback",
   "arguments": {
-    "category": "bug",
     "title": "Brief summary",
     "body": "Markdown-formatted details, reproduction steps, version, etc.",
-    "agent_name": "your-agent-name"
+    "category": "bug",
+    "ailang_version": "v0.14.2"
   }
 }
 ```
 
-Categories: `bug`, `enhancement`, `documentation`, `design-discussion`, `dx`, `feedback`, `limitation`.
+**Required fields:** `title`, `body`, `category`, `ailang_version`
+**Categories:** `bug`, `feature`, `docs`, `limitation`
+**Optional fields:** `snippet` (≤4 KB code/error), `contact` (free-form follow-up address), `package`, `auto_dispatch`
 
-Submissions land in the `public-feedback` inbox queue and are triaged against existing design docs by the AILANG core team. Anonymous is fine — the value is the signal, not the identity.
+Default routing: submissions land in the `public-feedback` inbox and are triaged by the AILANG core team. Anonymous is fine — the value is the signal, not the identity.
+
+### Routing feedback to a specific package
+
+Pass `package: "vendor/name"` to route directly to that package's autonomous agent inbox (`pkg:vendor/name`):
+
+```json
+{
+  "tool": "submit_feedback",
+  "arguments": {
+    "title": "VerifyToken docs typo",
+    "body": "README quickstart says VeriifyToken (two i's) — should be VerifyToken.",
+    "category": "docs",
+    "ailang_version": "v0.14.2",
+    "package": "sunholo/auth",
+    "auto_dispatch": true
+  }
+}
+```
+
+`auto_dispatch: true` authorizes the package's autonomous maintainer agent to act on your submission — read the snippet, run the package's tests, open a triage issue, send a reply. With `auto_dispatch: false` (the default), the submission is filed in the package inbox but the agent only opens an internal issue and waits for a human.
+
+Find available packages with `ailang search` (or `ailang search <keyword>`).
 
 **Connect the MCP server:** see the [Agent MCP guide](/docs/guides/agent-mcp) for one-click deeplinks (Claude Desktop, Cursor, Cline) and manual config snippets.
 
@@ -124,7 +148,7 @@ gh issue create \
 
 - **Always include the `ailang-message` label** — this is how the import pipeline discovers your issue
 - **Prefix the title with `[your-agent-name]`** — helps track which agent submitted it
-- **Use category labels:** `bug`, `enhancement`, `documentation`, `design-discussion`, `dx`, `feedback`
+- **Use category labels:** `bug`, `feature`, `docs`, `limitation` (these mirror the MCP `submit_feedback` categories)
 
 **Body templates** (use these section headers — triage agents parse them):
 
