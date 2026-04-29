@@ -1,8 +1,14 @@
-# Agent MCP — Live AILANG Knowledge for Coding Agents
+# Hosted Docs MCP — Live AILANG Knowledge for Coding Agents
 
 `mcp.ailang.sunholo.com` is a remote [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes ~21 typed tools so AI coding agents can query AILANG documentation, stdlib, examples, design docs, benchmarks, and prompts as **structured data** — instead of scraping markdown.
 
 If you're building with AILANG and your harness supports remote MCP (Claude Desktop, Cursor, Cline, Continue, Claude Code), you can add the endpoint in one click from [the landing page](/) and your agent gains live, version-pinned AILANG knowledge.
+
+> **Not the same as the local execution MCP.** AILANG ships *two* MCP servers:
+> - **This one** (`mcp.ailang.sunholo.com`) — read-only **knowledge**: docs, stdlib, examples, design docs. Hosted, public, no install. **Cannot run your code.**
+> - **Local execution MCP** (in [`ailang_bootstrap`](https://github.com/sunholo-data/ailang_bootstrap)) — wraps your local `ailang` binary so the agent can `ailang_check` / `ailang_run` / `ailang_eval`. Bundled with the plugin.
+>
+> Most agents benefit from both attached. See the comparison table in [Getting Started → MCP Servers](/docs/guides/getting-started#-mcp-servers).
 
 ## Why use it
 

@@ -1,5 +1,9 @@
-// AddToAgent — landing-page CTA that lets a visitor add the AILANG MCP server
-// to their AI coding harness in one click. Three buttons:
+// AddToAgent — landing-page CTA that adds the AILANG **hosted docs MCP**
+// (mcp.ailang.sunholo.com — read-only knowledge: docs, stdlib, examples,
+// benchmarks, submit_feedback) to the visitor's AI coding harness in one click.
+// This is NOT the local execution MCP that ships in ailang_bootstrap; that one
+// wraps the local `ailang` binary and is installed via the plugin, not here.
+// Three buttons:
 //   - Claude Desktop (claude:// deeplink)
 //   - Cursor (cursor:// deeplink)
 //   - Cline (vscode:extension/saoudrizwan.claude-dev?addMcp=...)
