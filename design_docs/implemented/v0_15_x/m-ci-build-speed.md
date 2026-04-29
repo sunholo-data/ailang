@@ -1,6 +1,6 @@
 # M-CI-BUILD-SPEED: Cut multivac build time from ~25min to ~5min
 
-**Status**: Planned
+**Status**: Implemented (v0.15.x — see [retro](/docs/sprint-retros/m-ci-build-speed.md))
 **Target**: v0.15.x
 **Priority**: P2 (DX win, blocks no shipping work but every release/promotion pays the tax)
 **Estimated**: 1 day, ~150 LOC of CI YAML + small Dockerfile tweaks
