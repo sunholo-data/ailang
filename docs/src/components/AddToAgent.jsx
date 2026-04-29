@@ -125,3 +125,66 @@ export default function AddToAgent() {
     </section>
   );
 }
+
+// AddToAgentButtons — chrome-less variant for embedding inside docs pages
+// (e.g. getting-started.mdx) where the surrounding heading and manual-config
+// snippet are already present. Renders just the three deeplink buttons,
+// reusing deeplink() and HARNESSES from above.
+export function AddToAgentButtons() {
+  return (
+    <div className="add-to-agent-buttons add-to-agent-buttons--inline">
+      {HARNESSES.map((h) => (
+        <a
+          key={h.id}
+          href={deeplink(h.id)}
+          className="add-to-agent-btn"
+          rel="noopener noreferrer"
+        >
+          <ExternalLink size={16} />
+          <span>
+            <strong>Add to {h.name}</strong>
+            <small>{h.sub}</small>
+          </span>
+        </a>
+      ))}
+      <style>{`
+        .add-to-agent-buttons--inline {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.75rem;
+          margin: 1rem 0 1.25rem 0;
+        }
+        @media (max-width: 720px) {
+          .add-to-agent-buttons--inline { grid-template-columns: 1fr; }
+        }
+        .add-to-agent-buttons--inline .add-to-agent-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.6rem;
+          padding: 0.7rem 0.9rem;
+          border: 1px solid var(--ifm-color-emphasis-300);
+          border-radius: 8px;
+          background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+          color: var(--ifm-color-content);
+          text-decoration: none;
+          transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        .add-to-agent-buttons--inline .add-to-agent-btn:hover {
+          border-color: var(--ifm-color-primary);
+          transform: translateY(-1px);
+          text-decoration: none;
+        }
+        .add-to-agent-buttons--inline .add-to-agent-btn span {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.2;
+        }
+        .add-to-agent-buttons--inline .add-to-agent-btn small {
+          color: var(--ifm-color-content-secondary);
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.75rem;
+        }
+      `}</style>
+    </div>
+  );
+}

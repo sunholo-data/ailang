@@ -4,6 +4,7 @@ sidebar_position: 1
 
 import Icon, { CheckIcon, InfoIcon, WarningIcon } from '@site/src/components/Icon';
 import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
+import { AddToAgentButtons } from '@site/src/components/AddToAgent';
 
 # Getting Started with AILANG
 
@@ -111,9 +112,11 @@ There are **two** AILANG MCP servers, and they do different jobs. Most agents be
 
 A remote [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the AILANG corpus as structured, version-scoped data so the agent doesn't have to scrape markdown.
 
-**One-click setup:** the buttons on the [landing page](/) generate deeplinks that pre-fill the config for Claude Desktop, Cursor, and Cline.
+**One-click setup** — each button generates a deeplink that pre-fills `name=ailang-docs` + the MCP URL. Your harness opens, you confirm, and the server is attached:
 
-**Manual config** (Continue or any other harness):
+<AddToAgentButtons />
+
+**Manual config** (Continue or any other harness without a deeplink):
 
 ```json
 {
