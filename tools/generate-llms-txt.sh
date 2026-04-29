@@ -7,18 +7,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 DOCS_OUTPUT="$REPO_ROOT/docs/llms.txt"
+STATIC_OUTPUT="$REPO_ROOT/docs/static/llms.txt"
 ROOT_OUTPUT="$REPO_ROOT/llms.txt"
 OUTPUT="$DOCS_OUTPUT"
 
+NOW="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
 echo "=== Generating llms.txt from documentation ==="
 
-# Start with header
-cat > "$OUTPUT" << 'EOF'
+# Start with header. The first sentence is the LLM-discovery anchor —
+# keep it short and self-contained so models scanning the top of the file
+# get an immediate, accurate definition.
+cat > "$OUTPUT" << EOF
 # AILANG Documentation for LLMs
 
-This file contains all AILANG documentation in a single file for LLM consumption.
+AILANG is a deterministic, effect-typed programming language designed as a safe target for AI-generated programs. Side effects are declared in function signatures (\`! {IO, FS, Net}\`), execution is reproducible, and runs emit structured traces so agents can localize errors.
 
-Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
+
+Last updated: ${NOW}
 
 ---
 
@@ -130,12 +137,17 @@ SIZE=$(wc -c < "$OUTPUT" | tr -d ' ')
 LINES=$(wc -l < "$OUTPUT" | tr -d ' ')
 
 
-# Copy to root for easy local access  
+# Copy to root for easy local access
 cp "$DOCS_OUTPUT" "$ROOT_OUTPUT"
+
+# Copy to docs/static/ — Docusaurus serves this directory at the site root,
+# so this is the file actually published at https://ailang.sunholo.com/llms.txt
+cp "$DOCS_OUTPUT" "$STATIC_OUTPUT"
 
 echo "✓ llms.txt generated successfully"
 echo "  Size: $SIZE bytes"
 echo "  Lines: $LINES"
-echo "  Website: $DOCS_OUTPUT"
-echo "  Root: $ROOT_OUTPUT"
-echo "  URL: https://sunholo-data.github.io/ailang/llms.txt"
+echo "  Docs:   $DOCS_OUTPUT"
+echo "  Static: $STATIC_OUTPUT (served by Docusaurus)"
+echo "  Root:   $ROOT_OUTPUT"
+echo "  URL:    https://ailang.sunholo.com/llms.txt"

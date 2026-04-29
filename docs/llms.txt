@@ -1,8 +1,10 @@
 # AILANG Documentation for LLMs
 
-This file contains all AILANG documentation in a single file for LLM consumption.
+AILANG is a deterministic, effect-typed programming language designed as a safe target for AI-generated programs. Side effects are declared in function signatures (`! {IO, FS, Net}`), execution is reproducible, and runs emit structured traces so agents can localize errors.
 
-Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
+
+Last updated: 2026-04-29T10:12:58Z
 
 ---
 
@@ -16,11 +18,20 @@ Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 # AILANG: The Deterministic Language for AI Coders
 
 <!-- EXAMPLES_STATUS_START -->
-![Examples](https://img.shields.io/badge/examples-162%20passing-brightgreen.svg)
+![Examples](https://img.shields.io/endpoint?url=https://ailang.sunholo.com/badges/examples.json)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
-**162/163 examples passing (99%)** | [Full status](https://ailang.sunholo.com/docs/examples)
+[Example status](https://ailang.sunholo.com/docs/examples)
 <!-- EXAMPLES_STATUS_END -->
+
+[![Reliability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=reliability_rating)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=security_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=security_rating)
+[![Maintainability](https://sonarcloud.io/api/project_badges/measure?project=sunholo-data_ailang&metric=sqale_rating)](https://sonarcloud.io/component_measures?id=sunholo-data_ailang&metric=sqale_rating)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sunholo-data/ailang)](https://goreportcard.com/report/github.com/sunholo-data/ailang)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sunholo-data/ailang/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sunholo-data/ailang)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12676/badge)](https://www.bestpractices.dev/projects/12676)
+
+> **Third-party verification.** AILANG is written autonomously by AI agents via its own [coordinator](https://ailang.sunholo.com/docs/guides/coordinator). The badges above are independent static-analysis and supply-chain scores — not self-reported. Live correctness signal: the [benchmark dashboard](https://ailang.sunholo.com/docs/benchmarks/performance) runs 33 benchmarks across 8 frontier models on every release.
 
 AILANG is a purely functional, effect-typed language designed as a **deterministic execution substrate** for AI-generated code. Every construct has deterministic semantics that can be reflected, verified, and serialized.
 
@@ -1347,8 +1358,12 @@ export func main() -> () ! {IO} {
 **Rules:**
 1. First line MUST be `module path/name` matching the file path
 2. Use `println(show(value))` for numbers, `println(str)` for strings. **Prefer `show` over `intToStr`/`floatToStr`** — `show` works on ALL types
-3. **Inside `{ }` blocks: use `let x = e;` (semicolons). NEVER use `let x = e in`!**
-4. No loops - use recursion
+3. **Pick ONE function-body style per function and stick to it:**
+   - **Block body** `func f() ! {IO} { let x = a; let y = b; finalExpr }` — semicolons between lets, NO `in`
+   - **Expression body** `func f() ! {IO} = let x = a in let y = b in finalExpr` — `in` keyword, NO semicolons
+   - **Common error**: `func f() = let x = a; ...` is a parse error (`unexpected token: ;`). Either wrap the body in `{ }` and use semicolons, or use `let .. in ..` chains.
+4. No loops — use recursion
+5. **Output raw AILANG code only** — no markdown fences (`` ``` ``), no prose, no JSON wrappers. The first line must be `module ...`.
 
 ## println vs print
 

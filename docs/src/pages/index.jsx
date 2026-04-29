@@ -1222,6 +1222,155 @@ function CTASection() {
   );
 }
 
+// Workflow Section - "What you actually do"
+function WorkflowSection() {
+  const steps = [
+    {
+      n: '1',
+      icon: Bot,
+      title: 'Agent writes .ail',
+      desc: 'Plug AILANG into Claude Code, Gemini CLI, or any agent that follows the teaching prompt.',
+    },
+    {
+      n: '2',
+      icon: Shield,
+      title: 'AILANG checks',
+      desc: 'Types, effects, capabilities, and inline contracts are verified before anything runs.',
+    },
+    {
+      n: '3',
+      icon: Play,
+      title: 'Run deterministically',
+      desc: 'Same input → same output. Capabilities (`--caps IO,FS`) constrain what code is allowed to do.',
+    },
+    {
+      n: '4',
+      icon: Activity,
+      title: 'Traces explain failures',
+      desc: 'Structured per-effect traces feed back to the agent so the next iteration is targeted, not guessing.',
+    },
+  ];
+
+  return (
+    <section className="workflow-section">
+      <div className="workflow-container">
+        <div className="workflow-header">
+          <h2 className="workflow-title">How AILANG works</h2>
+          <p className="workflow-subtitle">
+            Humans specify intent. Agents write <code>.ail</code>. AILANG constrains, runs, and explains.
+          </p>
+        </div>
+        <div className="workflow-grid">
+          {steps.map((s) => (
+            <div key={s.n} className="workflow-step">
+              <div className="workflow-step-head">
+                <span className="workflow-step-n">{s.n}</span>
+                <s.icon size={20} className="workflow-step-icon" />
+              </div>
+              <h3 className="workflow-step-title">{s.title}</h3>
+              <p className="workflow-step-desc">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        .workflow-section {
+          padding: 4rem 2rem;
+          background: var(--ifm-background-color);
+          border-bottom: 1px solid var(--ifm-color-emphasis-200);
+        }
+        .workflow-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .workflow-header {
+          text-align: center;
+          margin-bottom: 2.5rem;
+        }
+        .workflow-title {
+          font-size: 2rem;
+          font-weight: 700;
+          margin: 0 0 0.5rem 0;
+          color: var(--ifm-color-content);
+        }
+        .workflow-subtitle {
+          font-size: 1.05rem;
+          color: var(--ifm-color-content-secondary);
+          margin: 0;
+        }
+        .workflow-subtitle code {
+          background: var(--ifm-code-background);
+          padding: 0.1rem 0.35rem;
+          border-radius: 4px;
+          font-size: 0.95em;
+        }
+        .workflow-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1.25rem;
+        }
+        @media (max-width: 900px) {
+          .workflow-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 540px) {
+          .workflow-grid { grid-template-columns: 1fr; }
+        }
+        .workflow-step {
+          padding: 1.5rem;
+          border: 1px solid var(--ifm-color-emphasis-200);
+          border-radius: 12px;
+          background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+          transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .workflow-step:hover {
+          transform: translateY(-2px);
+          border-color: var(--ifm-color-primary);
+        }
+        .workflow-step-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.75rem;
+        }
+        .workflow-step-n {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--ifm-color-primary);
+          background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+          width: 1.75rem;
+          height: 1.75rem;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .workflow-step-icon {
+          color: var(--ifm-color-content-secondary);
+        }
+        .workflow-step-title {
+          font-size: 1.05rem;
+          font-weight: 600;
+          margin: 0 0 0.4rem 0;
+          color: var(--ifm-color-content);
+        }
+        .workflow-step-desc {
+          font-size: 0.9rem;
+          line-height: 1.5;
+          color: var(--ifm-color-content-secondary);
+          margin: 0;
+        }
+        .workflow-step-desc code {
+          background: var(--ifm-code-background);
+          padding: 0.05rem 0.3rem;
+          border-radius: 3px;
+          font-size: 0.95em;
+        }
+      `}</style>
+    </section>
+  );
+}
+
 // Main Page Component
 export default function Home() {
   const {siteConfig} = useDocusaurusContext();
@@ -1229,9 +1378,10 @@ export default function Home() {
   return (
     <Layout
       title="AI-First Programming Language"
-      description="AILANG is a pure functional programming language designed for AI-assisted software development">
+      description="AILANG is a deterministic, effect-typed programming language designed as a safe target for AI-generated programs.">
       <main>
         <HeroSection />
+        <WorkflowSection />
         <QuickStartSection />
         <FeaturesSection />
         <BenchmarkMini />

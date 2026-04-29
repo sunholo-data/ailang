@@ -14,7 +14,9 @@ import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 # AILANG: AI-First Programming Language
 
-Welcome to the official documentation for AILANG, an experimental programming language designed from the ground up for AI-assisted software development.
+Welcome to the official documentation for AILANG, a deterministic, effect-typed programming language designed as a safe target for AI-generated programs.
+
+AILANG {STABLE_RELEASE} ships a stable core — language, effects, modules, codegen — with APIs that may still evolve in pre-1.0 minor releases.
 
 <div className="callout-box">
   <Icon name="zap" inline /> **New to AILANG?** Read our [Vision](/docs/vision) to understand why AILANG exists and what makes it different from other programming languages.
@@ -98,12 +100,12 @@ AILANG {STABLE_RELEASE} is the latest stable release. Check the [implementation 
 - <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
 - <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
 
-### <Icon name="wrench" size={18} /> Recent Additions (v0.5.x)
+### <Icon name="wrench" size={18} /> Recent Additions ({STABLE_RELEASE})
 
-- <CheckIcon inline size={14} /> **Go Codegen** - Compile AILANG to typed Go code (`ailang compile --emit-go`)
-- <CheckIcon inline size={14} /> **Import Aliasing** - `import std/list as List` for cleaner qualified access
-- <CheckIcon inline size={14} /> **Array Support** - Fixed-size arrays with `Array[T]` type and `#[...]` literals
-- <CheckIcon inline size={14} /> **Agent Messaging** - Unified messaging system via `ailang messages`
+- <CheckIcon inline size={14} /> **Tiered Eval Suite (v0.14.0)** - `smoke / core / stretch / vision` tiers with a 12-tag taxonomy; Core tier is the headline AILANG-vs-Python metric (87.3% vs 81.0% on v0.12.0 baseline)
+- <CheckIcon inline size={14} /> **List-only `++` (v0.13.0)** - String concatenation now goes through `"${...}"` interpolation, `concat([...])`, or `join(sep, xs)` — clearer error messages, ~82 fewer lines of compiler heuristics
+- <CheckIcon inline size={14} /> **Three-tier OTEL Tracing (v0.12.0)** - `--trace-tier off|standard|deep` with span budgets and `trace.truncated` rollups
+- <CheckIcon inline size={14} /> **New Stdlib Modules (v0.12.0)** - `std/gzip`, `std/tar`, plus 6.6× XLSX runtime speedup
 
 ### <Icon name="rocket" size={18} /> Roadmap
 
@@ -153,4 +155,4 @@ AILANG is built on several key principles:
 
 ---
 
-<WarningIcon inline size={16} /> *AILANG is an experimental language under active development. APIs and syntax may change.*
+<WarningIcon inline size={16} /> *AILANG is pre-1.0. The core language, effects, modules, and codegen are stable; minor-version releases may still adjust public APIs. See the [Roadmap](/docs/roadmap) for what's next.*
