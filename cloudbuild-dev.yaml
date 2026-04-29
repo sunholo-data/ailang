@@ -1,0 +1,198 @@
+# Cloud Build — Triggered by push to sunholo-data/ailang dev branch.
+#
+# Source-of-truth for the ailang-core-dev trigger (was previously a stale
+# inline build in GCP, drifted from any repo file). Kept in this repo (not
+# ailang-multivac) because file-based Cloud Build triggers read from the
+# source repo that triggered the build — and this trigger fires on
+# ailang/dev pushes.
+#
+# Rebuilds all images using the ailang source tree:
+#   coordinator, agent-base → agent → agent-go, dashboard, mcp.
+# Website builder is NOT rebuilt (its source lives in ailang-demos).
+#
+# M-CI-BUILD-SPEED M2/M3: docker buildx with registry-backed cache for
+# every Dockerfile, pushes embedded in the build step (no separate push-*
+# steps). Build graph is two-tier: agent-base → agent → agent-go (each
+# FROMs the prior); coordinator + dashboard + mcp + agent-base run in
+# parallel from the start.
+
+substitutions:
+  _REGION: europe-west1
+  _TARGET_PROJECT: ailang-multivac-dev
+  _PREFIX: ailang-dev
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+  # Setup buildx builder (~5s; required for --cache-from registry).
+  - id: setup-buildx
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        docker buildx create --name ci --driver docker-container --use
+        docker buildx inspect --bootstrap
+    waitFor: ['-']
+
+  # Build coordinator (buildpacks — runs in parallel with everything else).
+  - id: build-coordinator
+    name: gcr.io/k8s-skaffold/pack
+    entrypoint: pack
+    args:
+      - build
+      - ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest
+      - --builder=gcr.io/buildpacks/builder:latest
+      - --lifecycle-image=buildpacksio/lifecycle:0.20.4
+      - --path=/workspace
+      - --env=GOOGLE_BUILDABLE=./cmd/ailang/
+      - --env=GOOGLE_GOLDFLAGS=-s -w
+      - --env=GOOGLE_CLEAR_SOURCE=true
+      - --env=CGO_ENABLED=0
+    waitFor: ['-']
+
+  # Build dashboard with registry cache (parallel with mcp + agent chain).
+  - id: build-dashboard
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/dashboard:cache" \
+          --cache-to   "type=registry,ref=$$AR/dashboard:cache,mode=max" \
+          -t "$$AR/dashboard:latest" \
+          -f docker/Dockerfile.dashboard \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+
+  # Build MCP server image with registry cache (parallel with dashboard +
+  # agent chain). Build context is the ailang repo root because
+  # Dockerfile.mcp expects to bake in /srv/snapshot, /srv/mcp_tools,
+  # /srv/std from the source tree. Uses :latest tag only — this trigger is
+  # dev-only; the multivac full pipeline drives versioned tags.
+  - id: build-mcp
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/mcp:cache" \
+          --cache-to   "type=registry,ref=$$AR/mcp:cache,mode=max" \
+          -t "$$AR/mcp:latest" \
+          -f docker/Dockerfile.mcp \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+
+  # ── Agent image DAG (M-EXECUTOR-VARIANTS + M-CI-BUILD-SPEED) ────
+  # agent-base → agent (FROM agent-base) → agent-go (FROM agent).
+  # Pushes are embedded in --push so no intermediate push-* steps needed.
+
+  - id: build-agent-base
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-base:cache,mode=max" \
+          -t "$$AR/agent-base:latest" \
+          -f docker/Dockerfile.agent-base \
+          --push \
+          .
+    waitFor: ['setup-buildx']
+
+  - id: build-agent
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent:cache" \
+          --cache-from "type=registry,ref=$$AR/agent-base:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent:latest" \
+          -f docker/Dockerfile.agent \
+          --push \
+          .
+    waitFor: ['build-agent-base']
+
+  - id: build-agent-go
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        AR=${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang
+        docker buildx build \
+          --cache-from "type=registry,ref=$$AR/agent-go:cache" \
+          --cache-from "type=registry,ref=$$AR/agent:cache" \
+          --cache-to   "type=registry,ref=$$AR/agent-go:cache,mode=max" \
+          --build-arg PROJECT=$_TARGET_PROJECT \
+          -t "$$AR/agent-go:latest" \
+          -f docker/Dockerfile.agent-go \
+          --push \
+          .
+    waitFor: ['build-agent']
+
+  # Push coordinator (buildpacks doesn't push automatically like buildx --push).
+  - id: push-coordinator
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest']
+    waitFor: ['build-coordinator']
+
+  # Redeploy Cloud Run services + jobs to pick up new image digests.
+  - id: deploy-services
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        echo "Redeploying coordinator..."
+        gcloud run services update ${_PREFIX}-coordinator \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/coordinator:latest \
+          --quiet
+
+        echo "Redeploying dashboard..."
+        gcloud run services update ${_PREFIX}-dashboard \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/dashboard:latest \
+          --quiet
+
+        # Force a Cloud Run revision update so the newly-pushed mcp:latest is
+        # actually picked up — :latest tag moves alone don't trigger a roll.
+        # Same pattern as M-AGENT-MCP-ONBOARDING M1 in the multivac pipeline
+        # (we hit this twice in M-AGENT-MCP before adding the explicit roll).
+        echo "Redeploying MCP..."
+        gcloud run services update ${_PREFIX}-mcp \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/mcp:latest \
+          --quiet
+
+        echo "Updating agent executor job (default)..."
+        gcloud run jobs update ${_PREFIX}-agent-executor \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent:latest \
+          --quiet
+
+        echo "Updating agent executor job (go variant)..."
+        gcloud run jobs update ${_PREFIX}-agent-executor-go \
+          --region ${_REGION} --project $_TARGET_PROJECT \
+          --image ${_REGION}-docker.pkg.dev/$_TARGET_PROJECT/ailang/agent-go:latest \
+          --quiet
+
+        echo "Deploy complete."
+    waitFor: ['push-coordinator', 'build-agent-go', 'build-dashboard', 'build-mcp']
