@@ -429,6 +429,12 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 				os.Exit(1)
 			}
+		case "cascade":
+			// M-PKG-AUTONOMOUS-CASCADE-SAFE M4
+			if err := pkgCascadeCommand(subArgs[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+				os.Exit(1)
+			}
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown pkg command '%s'\n", red("Error"), subArgs[0])
 			os.Exit(1)
