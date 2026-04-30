@@ -1,0 +1,79 @@
+-- examples/runnable/contracts/cross_module_types.ail
+--
+-- Cross-module Z3 contract verification demonstration (M-SMT-CROSS-MODULE-TYPES).
+-- Demonstrates the four capabilities landed in v0.14.3:
+--   1. Per-function filtering of cross-module record aliases (M1)
+--   2. Mutual recursion via declare-datatypes (M2 — exercised by countNodes
+--      which uses the recursive Tree from the lib module)
+--   3. Parameter-prefix collision avoidance (M3a — `text` parameter does not
+--      clash with the `text` accessor of the Cell record alias)
+--   4. Named-builtin SKIP messages (M4 — see the deliberately-skipped
+--      filterMatching function for the new diagnostic)
+--
+-- Run:    ailang verify examples/runnable/contracts/cross_module_types.ail
+-- Expect: 4 verified, 1 skipped (trimText: unencodable builtin std/string.trim)
+
+module examples/runnable/contracts/cross_module_types
+
+import examples/runnable/contracts/cross_module_types_lib (Cell, Tree)
+import std/list (length as listLength)
+import std/string (trim)
+
+-- M1 + M3a: parameter `text` shares its name with Cell.text accessor.
+-- Pre-M3a this caused Z3 "ambiguous constant reference" errors. With the
+-- $p_ rename, the parameter is `$p_text` and the accessor is `text`,
+-- unambiguous to Z3.
+export pure func makeCell(text: string, count: int) -> Cell ! {}
+requires { count >= 0 }
+ensures  { result.count >= 0 }
+{
+  { text: text, count: count }
+}
+
+-- M1: this function references only Cell, not Tree. The verifier filters
+-- the alias map down to {Cell} for THIS function — Tree never appears in
+-- its preamble, so the recursion in Tree cannot cascade-poison verification.
+export pure func emptyCell() -> Cell ! {}
+ensures { result.count == 0 }
+{
+  { text: "", count: 0 }
+}
+
+-- M2: this function uses the recursive Tree ADT. The verifier emits
+-- declare-datatypes (plural) for the Tree <-> Record_label_subtrees cycle.
+-- Pre-M2 this would SKIP with "sort 'Tree' referenced in declaration of
+-- 'Record_label_subtrees' is not declared".
+export pure func countNodes(subtrees: [Tree]) -> int ! {}
+ensures { result >= 0 }
+{
+  listLength(subtrees)
+}
+
+-- M3a + M2: parameter `count` shares its name with Cell.count accessor;
+-- works the same as makeCell above.
+export pure func bumpCount(c: Cell, count: int) -> int ! {}
+requires { c.count >= 0, count >= 0 }
+ensures  { result >= c.count }
+{
+  c.count + count
+}
+
+-- M4: this function uses std/string.trim, which has no SMT encoding.
+-- The verifier emits a NAMED skip reason ("uses an unencodable builtin:
+-- std/string.trim"), so users know which call to remove or refactor.
+-- Without M4 the message would be the generic "uses types not encodable in
+-- SMT (list, unsupported string operations)" — leaving the user guessing.
+export pure func trimText(s: string) -> string ! {}
+ensures { result == result }
+{
+  trim(s)
+}
+
+-- Entry point.
+export func main() -> int ! {}
+{
+  let c = makeCell("hello", 3);
+  let bumped = bumpCount(c, 5);
+  let nodes = countNodes([]);
+  bumped + nodes
+}

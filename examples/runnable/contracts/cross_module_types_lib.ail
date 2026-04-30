@@ -1,0 +1,25 @@
+-- examples/runnable/contracts/cross_module_types_lib.ail
+--
+-- Library module: defines a named record alias and a self-recursive ADT.
+-- Imported by cross_module_types.ail to demonstrate Z3 verification across
+-- module boundaries (M-SMT-CROSS-MODULE-TYPES, v0.14.3).
+
+module examples/runnable/contracts/cross_module_types_lib
+
+-- Named record alias. The verifier emits this as
+--   (declare-datatype Cell ((mk_Cell (text String) (count Int))))
+-- only into functions that actually reference it, thanks to per-function
+-- demand-driven filtering (M1).
+export type Cell = {
+  text: string,
+  count: int
+}
+
+-- Self-recursive ADT — the SectionNode variant references its own type via
+-- an inline record. Pre-sprint, the inline record would have referenced
+-- the (not-yet-declared) Tree, producing an unresolvable-types SKIP.
+-- Post-M2, this is encoded as a single
+--   (declare-datatypes ((Tree 0) (Record_label_subtrees 0)) (...))
+-- block, which Z3 accepts.
+export type Tree = LeafNode({value: int})
+                 | SectionNode({label: string, subtrees: [Tree]})
