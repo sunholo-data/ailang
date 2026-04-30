@@ -1,0 +1,124 @@
+-- examples/runnable/contracts/inbox_injection_v2.ail
+--
+-- Inbox-injection demo rewritten using M-TAINT-TYPES label annotations.
+-- This is the v2 successor to inbox_injection.ail which used plain string types
+-- and Z3 contracts alone. V2 adds T<label> source annotations and T{not LABEL}
+-- sink refinements to express the taint policy at the type level.
+--
+-- The scenario mirrors "Guardians of the Agents" (Meijer, CACM Jan 2026):
+-- a mail-processing agent must not let untrusted email body text flow to
+-- network sinks without going through an explicit declassify step.
+--
+-- Label lattice used here:
+--   <email>     -- raw text received from the mail inbox (untrusted source)
+--   <sanitized> -- text that has been scrubbed by an explicit sanitize step
+--   string{not email} -- sink refinement: refuses any value labelled <email>
+--
+-- With full label enforcement (M-TAINT-TYPES Phase 2+), the two ATTACK
+-- functions below will be caught as TYPE ERRORS before Z3 runs.
+-- Today (Phase 1 demo), Z3 catches them via the ensures contracts.
+--
+-- Run:    ailang verify examples/runnable/contracts/inbox_injection_v2.ail
+-- Expect: 5 functions: 3 verified, 2 violations (injectedForward, attemptLaunder)
+
+module examples/runnable/contracts/inbox_injection_v2
+
+import std/string (endsWith, length as strLen)
+
+-- The data shape placed on the wire by the agent.
+type SendAction = { to: string, body: string }
+
+-- ---------------------------------------------------------------------------
+-- Sanitize: the declassify gate
+-- ---------------------------------------------------------------------------
+
+-- sanitizeBody strips all raw content, replacing it with a constant.
+-- Label typing: input is string<email> (untrusted), output is string<sanitized>.
+-- The Declassify effect flags that this function intentionally changes the label.
+-- Z3 contract pins the output: any call-site can prove the body is [sanitized].
+export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{
+  "[sanitized]"
+}
+
+-- ---------------------------------------------------------------------------
+-- Helpers
+-- ---------------------------------------------------------------------------
+
+-- isInternal: domain check for allowlisted recipients.
+export pure func isInternal(addr: string) -> bool ! {}
+ensures { result == endsWith(addr, "@company.com") }
+{
+  endsWith(addr, "@company.com")
+}
+
+-- ---------------------------------------------------------------------------
+-- SAFE: sanitize then send
+-- ---------------------------------------------------------------------------
+
+-- safeForward routes an email safely:
+--   rawEmail: string<email>    (untrusted source — never touches the wire)
+--   → sanitizeBody             (Declassify gate changes label to <sanitized>)
+--   → body of SendAction       (sink accepts string{not email}: <sanitized> satisfies {not email})
+--
+-- Z3 verifies: result.body == "[sanitized]" — the raw content is provably absent.
+export pure func safeForward(rawEmail: string<email>, recipient: string) -> SendAction ! {Declassify}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  { to: recipient, body: sanitizeBody(rawEmail) }
+}
+
+-- ---------------------------------------------------------------------------
+-- ATTACK 1: inject raw email body into the sink
+-- ---------------------------------------------------------------------------
+
+-- injectedForward is the prompt-injection pattern: an LLM instruction inside
+-- rawEmail causes the agent to forward the raw body instead of a summary.
+--
+-- Label violation (Phase 2+):
+--   rawEmail has label <email>
+--   result.body field is a {not email} sink
+--   → TYPE ERROR: <email> flows into {not email} position
+--   Source: rawEmail (<email>) → Sink: SendAction.body ({not email})
+--
+-- Z3 catches this today: result.body == "[sanitized]" fails when body = rawEmail.
+export pure func injectedForward(rawEmail: string<email>, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  { to: recipient, body: rawEmail }  -- SINK VIOLATION: <email> → {not email}
+}
+
+-- ---------------------------------------------------------------------------
+-- ATTACK 2: attempt to launder the label via an identity binding
+-- ---------------------------------------------------------------------------
+
+-- attemptLaunder shows that wrapping rawEmail in a let-binding does not erase
+-- its label. APP-PURE rule: every pure operation joins input labels into output.
+-- Identity preserves labels: laundered inherits <email> from rawEmail.
+--
+-- Label violation (Phase 2+):
+--   laundered: string<email>  (identity from rawEmail, label preserved by APP-PURE)
+--   result.body is {not email} sink
+--   → TYPE ERROR: <email> still flows — identity bypass is structurally impossible
+--
+-- Z3 catches this today: laundered == rawEmail, so result.body != "[sanitized]".
+export pure func attemptLaunder(rawEmail: string<email>, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  let laundered = rawEmail in  -- laundered: string<email> — label NOT erased by identity
+  { to: recipient, body: laundered }  -- SINK VIOLATION: <email> → {not email}
+}
+
+-- ---------------------------------------------------------------------------
+-- Entry point (not verified — no contracts)
+-- ---------------------------------------------------------------------------
+
+export func main() -> int ! {Declassify}
+{
+  let action = safeForward("confidential-body", "alice@company.com");
+  if isInternal(action.to) then strLen(action.body) else 0
+}

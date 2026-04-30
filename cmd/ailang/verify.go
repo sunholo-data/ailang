@@ -569,6 +569,9 @@ func astTypeToSMTSort(t ast.Type) string {
 			return "Int"
 		}
 		return smt.MapRecordSortName(trec)
+	case *ast.LabelledType:
+		// Strip IFC label metadata — labels do not affect SMT sorts.
+		return astTypeToSMTSort(ty.Base)
 	default:
 		return "Int" // Fallback for complex types
 	}
@@ -706,6 +709,9 @@ func convertASTTypeToType(t ast.Type) types.Type {
 			fields[f.Name] = ft
 		}
 		return &types.TRecord{Fields: fields}
+	case *ast.LabelledType:
+		// Strip IFC label metadata — labels do not affect type structure.
+		return convertASTTypeToType(ty.Base)
 	default:
 		return nil
 	}
