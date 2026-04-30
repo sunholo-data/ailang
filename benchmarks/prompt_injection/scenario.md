@@ -10,7 +10,9 @@ malicious email contains an instruction such as:
 
 A naive agent will obey, because the LLM cannot reliably tell instructions
 from data. This is the classic prompt-injection scenario from Erik Meijer's
-"Guardians of the Agents" (CACM, January 2026).
+[*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/)
+(CACM, January 2026), with the Python reference implementation at
+[github.com/metareflection/guardians](https://github.com/metareflection/guardians).
 
 ## Task
 

@@ -16,6 +16,15 @@ system. Labels mark values as carrying source-level taint and let the
 compiler refuse to route untrusted data into sensitive sinks. The
 runtime cost is zero — labels exist only at the type-system layer.
 
+The design follows Erik Meijer's
+[*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/)
+(CACM, January 2026) and its
+[Python reference implementation `metareflection/guardians`](https://github.com/metareflection/guardians)
+(~1,900 LOC). Meijer's paper proposes a three-check guardian pipeline
+(taint + automata + Z3); AILANG already shipped the Z3 piece in v0.9.x,
+and this milestone adds the taint piece *as a language feature* rather
+than an external library.
+
 This guide is the user-facing companion to the
 [M-TAINT-TYPES design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md).
 For motivation, see also the blog post draft
@@ -47,6 +56,33 @@ pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 -- A declassifier: <email> in, <sanitized> out, must declare ! {Declassify}
 pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 ```
+
+## Labels Are Open
+
+**Labels are not a fixed vocabulary.** `<email>` is just the demo label.
+You can use any lowercase identifier (kebab-case for compounds) and the
+type system will track it. There is no enum, no registry, no migration
+step — define labels at the point of use, in the type signature, in the
+language you already speak.
+
+The same lattice machinery handles all of them. Combinations join
+naturally: a value with both `<email>` and `<pii>` taint has type
+`string<email ⊔ pii>`, and a sink that refuses either label
+(`string{not pii}`) will reject it.
+
+Common patterns we expect you to write:
+
+| Domain | Source labels | Sink refinements |
+|--------|---------------|------------------|
+| **Agent / LLM** | `<user-input>`, `<email>`, `<tool-output>` | `{not user-input}` on `sendEmail`, `runShell`, `evalSql` |
+| **Web / API** | `<request-body>`, `<query-string>`, `<header>` | `{not request-body}` on `executeSQL`, `renderHTML` |
+| **Compliance** | `<pii>`, `<phi>`, `<gdpr-eu>` | `{not pii}` on `logEvent`, `analytics` |
+| **Secrets** | `<api-key>`, `<token>`, `<password>` | `{not api-key}` on `httpResponseBody`, `errorReport` |
+| **Multi-tenant** | `<tenant-a>`, `<tenant-b>` | `{not tenant-a}` on serialisers crossing tenant boundaries |
+
+The runtime cost is zero regardless of how many labels you define —
+they all erase at compile time. Pick the labels that match your threat
+model and add new ones whenever a new source/sink shape appears.
 
 ## Naming Convention
 
@@ -147,6 +183,127 @@ Output:
 5 functions: 3 verified, 2 violations
 ```
 
+## Real-World Scenarios
+
+Each of the patterns below has been documented in published security
+research or incident write-ups. The labels you'd reach for, and a
+sketched signature of the sink that would have caught it.
+
+### 1. Indirect prompt injection via email or document
+
+An agent processes a document (email, PDF, web page, calendar invite)
+that contains instructions targeting the agent itself. Documented
+extensively in
+[Greshake et al., 2023](https://arxiv.org/abs/2302.12173) and listed as
+[OWASP LLM01](https://owasp.org/www-project-top-10-for-large-language-model-applications/).
+This is the headline scenario for IFC labels.
+
+```ailang
+-- Source: any text fetched from external content
+pure func fetchEmailBody() -> string<email> ! {FS}
+pure func fetchWebPage(url: string) -> string<web> ! {Net}
+
+-- Sink: tool calls that act in the world
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+pure func runShell(cmd: string{not email, not web}) -> () ! {Process}
+```
+
+The `runShell` sink rejects both `<email>`-tainted and `<web>`-tainted
+arguments, so a model that reads a PDF and tries to execute a shell
+command described inside it gets a structural type error before the
+shell runs.
+
+### 2. PII leakage in agent summaries
+
+An agent reads a customer record, summarises it for a downstream
+analytics call, and accidentally includes raw PII (names, account
+numbers) in the summary body. Categories: GDPR Art. 5(1)(c)
+(data minimisation), HIPAA §164.312(e). See
+[NIST AI RMF Profile: Generative AI, GV-1.3-006](https://airc.nist.gov/AI_RMF_Knowledge_Base/Playbook).
+
+```ailang
+-- PII source from a customer record
+pure func loadCustomer(id: string) -> Customer<pii> ! {FS}
+
+-- A redactor is the only path from <pii> → <redacted>
+pure func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify}
+
+-- Analytics sink refuses raw PII
+pure func logEvent(name: string, payload: string{not pii}) -> () ! {Net}
+```
+
+A model that calls `logEvent("customer_seen", customer.name)` is
+rejected: `customer.name` carries `<pii>`, the sink refuses it. The
+only way through is `redactPII` — which has `! {Declassify}` and is
+grep-able for audit.
+
+### 3. Secret exfiltration via error responses
+
+An agent throws an error and the error handler embeds environment
+state — including an API key — in the response body returned to the
+user. Documented incident pattern after the
+[2024 OWASP LLM Top 10 v1.1 §LLM02 (Insecure Output Handling)](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+update; analogous to log-injection bugs that have shipped credentials
+to telemetry pipelines for years.
+
+```ailang
+-- Secrets are tainted at the source
+pure func getEnv(name: string) -> string<api-key> ! {Env}
+
+-- Error responses cannot contain api-key-tainted strings
+pure func httpResponse(status: int, body: string{not api-key}) -> Response ! {}
+```
+
+A debug handler that does `httpResponse(500, "config: ${getEnv("OPENAI_API_KEY")}")`
+is rejected at the type level. The fix is either *don't include the
+secret*, or pass it through an explicit `redactSecret(s) ! {Declassify}`
+function.
+
+### 4. SQL / command injection through LLM output
+
+An LLM generates a query fragment, which a tool runs against a
+database. The classic SQL injection problem reborn: the LLM output is
+indistinguishable from "trusted" template text by the time it reaches
+the executor. See
+[NVIDIA AI Red Team writeups](https://developer.nvidia.com/blog/nvidia-ai-red-team-an-introduction/)
+and the
+[MathGPT DEFCON 2023 demonstration](https://kai-greshake.de/posts/inject-my-pdf/)
+where an LLM-driven calculator was tricked into executing arbitrary
+Python.
+
+```ailang
+-- Output of any LLM is tainted as <llm>
+pure func askLLM(prompt: string) -> string<llm> ! {AI}
+
+-- The query executor refuses LLM-derived text
+pure func executeSQL(query: string{not llm}) -> [Row] ! {DB}
+```
+
+The only way to compose them is to run the LLM output through a
+parser/whitelister with `! {Declassify}` — and now you have an audit
+trail for every place the boundary is crossed.
+
+### 5. Multi-tenant data crossover
+
+A SaaS agent reads tenant A's data and serialises a response that
+gets dispatched to tenant B's webhook. Easy to do by accident in
+async pipelines; surfaced repeatedly in cross-tenant LLM scenarios
+where the prompt context is shared. Categories: SOC 2 CC6.6, ISO
+27001 A.9.4.1.
+
+```ailang
+-- Per-tenant labels - open vocabulary, you make these up
+pure func loadOrders(tenant: TenantId) -> [Order<tenant-a>] ! {DB}
+
+-- Per-tenant webhook sink
+pure func dispatchToTenantB(payload: string{not tenant-a}) -> () ! {Net}
+```
+
+Routing tenant-A data into a tenant-B webhook produces a type error.
+This pattern is impractical to catch with runtime guards alone, since
+"the right tenant" is often a chain of let-bindings deep — but the
+compiler walks every binding.
+
 ## Cross-Module Label Flow
 
 Labels travel across module boundaries through the iface JSON. The
@@ -196,3 +353,15 @@ to the violating sink.
 - Design doc: [`design_docs/implemented/v0_16_0/m-taint-types.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
 - Prompt for AI agents: `ailang prompt --version v0.16.0`
 - Benchmark: [`benchmarks/prompt_injection/`](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)
+
+### Prior art
+
+- Erik Meijer, [*Guardians of the Agents*](https://cacm.acm.org/practice/guardians-of-the-agents/),
+  CACM, January 2026 — the paper this work is built on.
+- [`metareflection/guardians`](https://github.com/metareflection/guardians)
+  — the original Python reference implementation (~1,900 LOC).
+  AILANG implements the same three-check vision (taint + automata + Z3)
+  as language features rather than as an external runtime library.
+- Bayless et al., [*A Neurosymbolic Approach to Natural Language
+  Formalization and Verification*](https://arxiv.org/abs/2511.09008)
+  (2025) — the AWS ARC paper that grounds AILANG's contract layer.

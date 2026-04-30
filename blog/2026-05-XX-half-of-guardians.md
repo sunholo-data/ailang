@@ -8,9 +8,10 @@ draft: true
 
 # Half of guardians is already a language feature
 
-Erik Meijer's January 2026 CACM piece [*Guardians of the Agents*][cacm] frames
-the prompt-injection problem the way a programming-language person should: as
-a separation-of-concerns failure. An autonomous agent receives a mix of
+Erik Meijer's January 2026 CACM piece [*Guardians of the Agents*][cacm]
+— with its [Python reference implementation `metareflection/guardians`][repo]
+(~1,900 LOC) — frames the prompt-injection problem the way a programming-
+language person should: as a separation-of-concerns failure. An autonomous agent receives a mix of
 instructions (from the user) and data (from the world), and the LLM cannot
 tell them apart on its own. The fix Meijer proposes — and the one a long
 line of database and security work has converged on for decades — is to
@@ -132,6 +133,33 @@ Once you stop treating the tool boundary as an afterthought and put it
 in the type system instead, half of the work disappears: the compiler
 will not produce an executable that violates it.
 
+## What this looks like next to the reference implementation
+
+The [`metareflection/guardians`][repo] repo is the canonical artefact
+that accompanies the CACM paper — a roughly 1,900-line Python project
+that wires taint analysis, automaton checks, and an SMT call into a
+runtime guardian. It is exactly the right shape for a paper: it
+demonstrates the vision end-to-end with code you can read in an
+afternoon. It is also exactly the wrong shape for a production agent
+host, for the same reason most defence-in-depth security libraries are
+wrong-shape: it is **a runtime layer that wraps an existing language**,
+which means every new sink, every new source, and every new policy
+exists by convention and is enforced by a process the agent runtime
+sits next to rather than inside.
+
+AILANG inverts that. The Z3 piece (`ailang verify`) was already a
+language feature in v0.9.x — it reads contracts that are part of the
+function signature and lives on the same side of the build as the
+code it is checking. M-TAINT-TYPES makes the taint piece work the
+same way: `string<email>` and `string{not email}` are part of the
+type, not a runtime check; declassification is an effect that the
+type system tracks, not a callsite annotation that hopes a reviewer
+notices. The result is a language whose surface syntax encodes the
+guardians vision directly, and whose compiler refuses to produce an
+artifact that violates it.
+
+The automaton piece is still ahead — see below.
+
 ## The other half — what's still ahead
 
 The three-check pipeline isn't free. AILANG v0.16.0 ships:
@@ -180,4 +208,5 @@ property they buy you is the kind that compounds across an entire
 codebase.
 
 [cacm]: https://cacm.acm.org/practice/guardians-of-the-agents/
+[repo]: https://github.com/metareflection/guardians
 [bench]: https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection

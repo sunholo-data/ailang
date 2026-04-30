@@ -93,15 +93,17 @@ AILANG {STABLE_RELEASE} is the latest stable release. Check the [implementation 
 - <CheckIcon inline size={14} /> **Type System** - [Hindley-Milner inference](/docs/reference/language-syntax#type-inference) with type classes (Num, Eq, Ord, Show)
 - <CheckIcon inline size={14} /> **Pattern Matching** - Constructors, tuples, lists, wildcards, guards
 - <CheckIcon inline size={14} /> **Module System** - Cross-module imports, entrypoint execution
-- <CheckIcon inline size={14} /> **Effect System** - IO, FS, Clock, Net with capability-based security
+- <CheckIcon inline size={14} /> **Effect System** - IO, FS, Clock, Net, Declassify with capability-based security
   - **Clock Effect**: Monotonic time, sleep, deterministic mode
   - **Net Effect**: HTTP GET/POST with DNS rebinding prevention, IP blocking
+  - **Declassify Effect**: Marks functions that lower an [IFC label](/docs/guides/ifc-labels) — every label change is auditable
 - <CheckIcon inline size={14} /> **Inline Tests** - Test pure functions directly in code, `ailang test`
 - <CheckIcon inline size={14} /> **REPL** - Full type checking, command history, tab completion
 - <CheckIcon inline size={14} /> **Lambda Calculus** - First-class functions, closures, currying
 
 ### <Icon name="wrench" size={18} /> Recent Additions ({STABLE_RELEASE})
 
+- <CheckIcon inline size={14} /> **IFC Labels (v0.16.0)** - Information-flow control at the type system. `T<label>` marks tainted sources; `T{not LABEL}` marks sinks that refuse them. Implements the language-feature half of Erik Meijer's [Guardians of the Agents](https://cacm.acm.org/practice/guardians-of-the-agents/) (CACM Jan 2026) — see the [IFC labels guide](/docs/guides/ifc-labels) and the [prompt-injection benchmark](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)
 - <CheckIcon inline size={14} /> **Tiered Eval Suite (v0.14.0)** - `smoke / core / stretch / vision` tiers with a 12-tag taxonomy; Core tier is the headline AILANG-vs-Python metric (87.3% vs 81.0% on v0.12.0 baseline)
 - <CheckIcon inline size={14} /> **List-only `++` (v0.13.0)** - String concatenation now goes through `"${...}"` interpolation, `concat([...])`, or `join(sep, xs)` — clearer error messages, ~82 fewer lines of compiler heuristics
 - <CheckIcon inline size={14} /> **Three-tier OTEL Tracing (v0.12.0)** - `--trace-tier off|standard|deep` with span budgets and `trace.truncated` rollups
