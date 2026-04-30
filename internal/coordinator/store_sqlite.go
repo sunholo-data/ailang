@@ -171,6 +171,15 @@ func (s *SQLiteStore) migrate() error {
 		"ALTER TABLE tasks ADD COLUMN parent_task_id TEXT",
 		// Iteration tracking for feedback loops (M-TRANSCRIPT)
 		"ALTER TABLE tasks ADD COLUMN iteration INTEGER DEFAULT 0",
+		// Message kind and source — needed at dispatch time to choose the
+		// right invoke template and (M-PKG-AUTONOMOUS-CASCADE-SAFE M1) to
+		// distinguish authoritative cascade-driven bumps from public-routed
+		// feedback. Pre-existing latent bug: Kind was set on the in-memory
+		// task but never persisted, so dispatchTasksCloud (which reads from
+		// DB) saw an empty Kind and silently fell back to the default
+		// template.
+		"ALTER TABLE tasks ADD COLUMN kind TEXT",
+		"ALTER TABLE tasks ADD COLUMN source TEXT",
 		// Handoff tracking - to detect missed handoffs on daemon startup
 		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
 		// Execution chain tracking (M-CHAINS-SIMPLIFY)
@@ -198,14 +207,14 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 	}
 
 	query := `
-		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, priority, status, workspace,
+		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, workspace,
 		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo,
 		                   chain_id, stage_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
-		task.Type, task.Priority, task.Status, task.Workspace,
+		task.Type, task.Kind, task.Source, task.Priority, task.Status, task.Workspace,
 		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
 		task.GithubIssue, task.GithubRepo,
 		task.ChainID, task.StageID, task.CreatedAt,
@@ -216,7 +225,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 // GetTask retrieves a task by ID
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
@@ -265,7 +274,7 @@ func (s *SQLiteStore) DeleteTask(ctx context.Context, id string) error {
 func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*TaskRecord, error) {
 	query := strings.Builder{}
 	query.WriteString(`
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
@@ -630,7 +639,7 @@ func (s *SQLiteStore) ResetTaskToPending(ctx context.Context, id string) error {
 // FindDuplicateTask finds a similar task by fingerprint
 func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64, threshold float64) (*TaskRecord, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
+		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, duration_ns,

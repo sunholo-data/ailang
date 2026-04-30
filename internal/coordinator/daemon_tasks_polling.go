@@ -124,6 +124,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			Content:       msg.Content,
 			Type:          analyzed.Type,
 			Kind:          kind,
+			Source:        msg.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: cascade-vs-public topic
 			Priority:      CalculatePriority(analyzed),
 			Status:        TaskStatusPending,
 			Workspace:     workspace,

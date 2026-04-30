@@ -577,3 +577,44 @@ func createTestStore(t *testing.T) *SQLiteStore {
 	}
 	return store
 }
+
+// TestSQLiteStoreKindAndSourceRoundTrip is the regression test for the latent
+// bug discovered while implementing M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Kind was
+// being set on the in-memory TaskRecord at message-receive time but never
+// persisted to SQLite. dispatchTasksCloud reads tasks back from the DB, so
+// the templated directive selection (which uses Kind to pick between
+// pkg-update.md and pkg-feedback.md) was silently falling back to the default
+// template even when the message kind was set. This test guards both fields.
+func TestSQLiteStoreKindAndSourceRoundTrip(t *testing.T) {
+	store := createTestStore(t)
+	defer store.Close()
+	ctx := context.Background()
+
+	task := &TaskRecord{
+		ID:        "task-kind-source",
+		MessageID: "msg-kind-source",
+		Title:     "Kind/Source persistence test",
+		Content:   "regression",
+		Type:      TaskTypeBugFix,
+		Kind:      "feedback",
+		Source:    "cascade",
+		Priority:  2,
+		Status:    TaskStatusPending,
+		CreatedAt: time.Now(),
+	}
+
+	if err := store.CreateTask(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	got, err := store.GetTask(ctx, "task-kind-source")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Kind != "feedback" {
+		t.Errorf("Kind round-trip: got %q want %q", got.Kind, "feedback")
+	}
+	if got.Source != "cascade" {
+		t.Errorf("Source round-trip: got %q want %q", got.Source, "cascade")
+	}
+}

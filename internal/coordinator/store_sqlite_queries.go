@@ -46,7 +46,7 @@ func (s *SQLiteStore) SetTaskSprintPlanPath(ctx context.Context, id string, path
 // GetTasksByGithubIssue retrieves all tasks linked to a GitHub issue
 func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) ([]*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
@@ -75,7 +75,7 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 // GetTasksByStage retrieves all tasks in a specific pipeline stage
 func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, duration_ns,
@@ -178,10 +178,11 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
+	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 
 	err := row.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
-		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
+		&task.Type, &kindCol, &sourceCol, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt,
@@ -190,6 +191,13 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if kindCol.Valid {
+		task.Kind = kindCol.String
+	}
+	if sourceCol.Valid {
+		task.Source = sourceCol.String
 	}
 
 	return s.populateTaskFields(task, startedAt, completedAt, durationNs, messageID,
@@ -214,10 +222,11 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var githubRepo sql.NullString
 	var capsJSON, impactLevel sql.NullString
 	var estimatedCost sql.NullFloat64
+	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 
 	err := rows.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
-		&task.Type, &task.Priority, &task.Status, &provider, &agentID,
+		&task.Type, &kindCol, &sourceCol, &task.Priority, &task.Status, &provider, &agentID,
 		&worktreeID, &worktreePath, &baseBranch, &baseCommit, &workspace, &githubIssue, &githubRepo, &stage, &designDocPath, &sprintPlanPath,
 		&sessionID, &iteration, &chainID, &stageID,
 		&task.CreatedAt, &startedAt, &completedAt,
@@ -226,6 +235,13 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if kindCol.Valid {
+		task.Kind = kindCol.String
+	}
+	if sourceCol.Valid {
+		task.Source = sourceCol.String
 	}
 
 	return s.populateTaskFields(task, startedAt, completedAt, durationNs, messageID,

@@ -213,6 +213,11 @@ func buildTemplateDirective(task *TaskRecord, agent *AgentConfig) string {
 	result = strings.ReplaceAll(result, "{{.Content}}", task.Content)
 	result = strings.ReplaceAll(result, "{{.Stage}}", string(task.Stage))
 	result = strings.ReplaceAll(result, "{{.OutputMarkers}}", strings.Join(agent.OutputMarkers, ", "))
+	// M-PKG-AUTONOMOUS-CASCADE-SAFE M1: surface the Pub/Sub topic origin so
+	// the pkg-update.md template's cascade-trigger guard can decide whether
+	// to act on a bump request. "cascade" = authoritative; anything else =
+	// public-routed, agent must stop at file-an-issue.
+	result = strings.ReplaceAll(result, "{{.Source}}", task.Source)
 
 	return result
 }

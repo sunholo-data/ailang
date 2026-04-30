@@ -54,13 +54,17 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 
 	// Build coordinator Message from notification + attributes.
 	msg := &Message{
-		ID:        notification.MessageID,
-		From:      msgAttrs.FromAgent,
-		Inbox:     msgAttrs.Inbox,
-		Title:     fmt.Sprintf("Pub/Sub notification from %s", msgAttrs.FromAgent),
-		Content:   notification.MessageID, // Fallback: just the ID
-		Type:      msgAttrs.Category,
-		Kind:      msgAttrs.MessageType,
+		ID:      notification.MessageID,
+		From:    msgAttrs.FromAgent,
+		Inbox:   msgAttrs.Inbox,
+		Title:   fmt.Sprintf("Pub/Sub notification from %s", msgAttrs.FromAgent),
+		Content: notification.MessageID, // Fallback: just the ID
+		Type:    msgAttrs.Category,
+		Kind:    msgAttrs.MessageType,
+		// M-PKG-AUTONOMOUS-CASCADE-SAFE M1: surface the source topic so
+		// downstream agents can distinguish authoritative cascade-driven
+		// bumps from public-routed feedback.
+		Source:    msgAttrs.Source,
 		CreatedAt: time.Now(),
 	}
 

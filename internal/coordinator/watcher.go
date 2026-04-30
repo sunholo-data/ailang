@@ -16,6 +16,7 @@ type Message struct {
 	Inbox        string // Target inbox (set by PubSubInboxAdapter from message attributes, M-CLOUD-E2E)
 	Type         string // bug, feature, task, etc. (category)
 	Kind         string // directive, question (message type)
+	Source       string // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1), anything else = treat as public-routed
 	Priority     string // high, medium, low
 	GithubIssue  int    // Linked GitHub issue number (M-COORD-GITHUB-AUTO-ROUTING)
 	GithubRepo   string // GitHub repo (owner/repo) for issue operations (M-COORD-GITHUB-CLOSE-ON-MERGE)

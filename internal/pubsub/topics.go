@@ -72,12 +72,19 @@ type MessageAttributes struct {
 	FromAgent   string // Sender agent ID (e.g., "user", "sprint-planner")
 	Category    string // Message category (e.g., "bug", "feature", "general")
 	MessageType string // Message type (e.g., "request", "notification")
+
+	// Source identifies which Pub/Sub topic the message arrived on.
+	// (M-PKG-AUTONOMOUS-CASCADE-SAFE M1) Used by the agent to distinguish
+	// authoritative cascade-driven bumps ("cascade") from public-routed
+	// feedback ("messages" or empty). Set by the publisher; the receiving
+	// adapter copies it through to Message.Source for downstream guards.
+	Source string
 }
 
 // ToMap converts attributes to map[string]string for Pub/Sub message publishing.
 // Only non-empty values are included.
 func (a MessageAttributes) ToMap() map[string]string {
-	m := make(map[string]string, 5)
+	m := make(map[string]string, 6)
 	if a.Inbox != "" {
 		m["inbox"] = a.Inbox
 	}
@@ -93,6 +100,9 @@ func (a MessageAttributes) ToMap() map[string]string {
 	if a.MessageType != "" {
 		m["message_type"] = a.MessageType
 	}
+	if a.Source != "" {
+		m["source"] = a.Source
+	}
 	return m
 }
 
@@ -104,5 +114,6 @@ func AttributesFromMap(m map[string]string) MessageAttributes {
 		FromAgent:   m["from_agent"],
 		Category:    m["category"],
 		MessageType: m["message_type"],
+		Source:      m["source"],
 	}
 }

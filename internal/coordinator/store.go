@@ -14,7 +14,8 @@ type TaskRecord struct {
 	Title        string     `json:"title"`
 	Content      string     `json:"content"`
 	Type         TaskType   `json:"type"`
-	Kind         string     `json:"kind,omitempty"` // "directive" or "question" - affects execution mode
+	Kind         string     `json:"kind,omitempty"`   // "directive" or "question" or message_type (e.g. "feedback") - affects template selection
+	Source       string     `json:"source,omitempty"` // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1)
 	Priority     int        `json:"priority"`
 	Status       TaskStatus `json:"status"`
 	Provider     string     `json:"provider,omitempty"`

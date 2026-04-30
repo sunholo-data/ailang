@@ -17,6 +17,7 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"content":          t.Content,
 		"type":             string(t.Type),
 		"kind":             t.Kind,
+		"source":           t.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: Pub/Sub topic origin
 		"priority":         t.Priority,
 		"status":           string(t.Status),
 		"provider":         t.Provider,
@@ -78,6 +79,7 @@ func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 		Content:        getString(data, "content"),
 		Type:           coordinator.TaskType(getString(data, "type")),
 		Kind:           getString(data, "kind"),
+		Source:         getString(data, "source"), // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 		Priority:       getInt(data, "priority"),
 		Status:         coordinator.TaskStatus(getString(data, "status")),
 		Provider:       getString(data, "provider"),
