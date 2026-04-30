@@ -341,6 +341,33 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 
 	rootRef := pkgName + "@" + newVersion
 
+	// Look up previous version + its interface hash from the registry index.
+	// Required by the messaging schema validator (upgrade-available demands
+	// from_version + from_interface_hash). We pull the second-most-recent
+	// version from the index entry and fetch its metadata.json for the hash.
+	oldInfo := messaging.PackageVersionInfo{Name: pkgName}
+	for _, e := range index.Packages {
+		if e.Name != pkgName {
+			continue
+		}
+		// Versions list contains the just-published version too. Find the
+		// most recent version that isn't the new one.
+		for i := len(e.Versions) - 1; i >= 0; i-- {
+			if e.Versions[i] == newVersion {
+				continue
+			}
+			oldInfo.Version = e.Versions[i]
+			break
+		}
+		break
+	}
+	if oldInfo.Version != "" {
+		if oldMeta, mErr := client.FetchMetadata(pkgName, oldInfo.Version); mErr == nil && oldMeta != nil {
+			oldInfo.InterfaceHash = oldMeta.InterfHash
+			oldInfo.ContentHash = oldMeta.ContentHash
+		}
+	}
+
 	for _, depName := range dependents {
 		recipients := []string{messaging.FormatPackageInbox(depName)}
 		depInfo := messaging.PackageVersionInfo{
@@ -349,27 +376,35 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 			InterfaceHash: interfaceHash,
 			ContentHash:   contentHash,
 		}
-		if msgID, err := messaging.EmitUpgradeAvailable(store, messaging.PackageVersionInfo{Name: pkgName}, depInfo, recipients); err == nil && msgID != "" {
+		msgID, err := messaging.EmitUpgradeAvailable(store, oldInfo, depInfo, recipients)
+		if err == nil && msgID != "" {
 			fmt.Printf("%s Notified dependent %s (ID: %s, class: %s, legacy inbox)\n", cyan("→"), depName, msgID, changeClass)
+		} else if err != nil {
+			fmt.Printf("%s Legacy inbox notify failed for %s: %v\n", yellow("⚠"), depName, err)
+		}
 
-			// Cascade-topic publish (M-PKG-AUTONOMOUS-CASCADE-SAFE M2).
-			// The IAM-restricted topic is what the agents act on; the inbox
-			// write above is just for backward-compat observation tooling.
-			if cascadePublisher != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				attrs := pubsub.MessageAttributes{
-					Inbox:       messaging.FormatPackageInbox(depName),
-					FromAgent:   "coordinator",
-					Category:    changeClass,
-					MessageType: "upgrade-available",
-				}
-				if cascadeErr := cascadePublisher.PublishCascade(ctx, msgID, attrs, rootRef); cascadeErr != nil {
-					fmt.Printf("%s Cascade publish failed for %s: %v (inbox notification still landed)\n", yellow("⚠"), depName, cascadeErr)
-				} else {
-					fmt.Printf("%s Cascade-topic notification published for %s (root=%s)\n", cyan("→"), depName, rootRef)
-				}
-				cancel()
+		// Cascade-topic publish (M-PKG-AUTONOMOUS-CASCADE-SAFE M2).
+		// Decoupled from the legacy inbox path: this is the authoritative,
+		// IAM-restricted path that agents act on. If legacy inbox failed,
+		// fabricate a stable correlation ID so the cascade still fires.
+		cascadeMsgID := msgID
+		if cascadeMsgID == "" {
+			cascadeMsgID = fmt.Sprintf("cascade-%s-%s", strings.ReplaceAll(rootRef, "/", "_"), strings.ReplaceAll(depName, "/", "_"))
+		}
+		if cascadePublisher != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			attrs := pubsub.MessageAttributes{
+				Inbox:       messaging.FormatPackageInbox(depName),
+				FromAgent:   "coordinator",
+				Category:    changeClass,
+				MessageType: "upgrade-available",
 			}
+			if cascadeErr := cascadePublisher.PublishCascade(ctx, cascadeMsgID, attrs, rootRef); cascadeErr != nil {
+				fmt.Printf("%s Cascade publish failed for %s: %v\n", yellow("⚠"), depName, cascadeErr)
+			} else {
+				fmt.Printf("%s Cascade-topic notification published for %s (root=%s)\n", cyan("→"), depName, rootRef)
+			}
+			cancel()
 		}
 	}
 }
