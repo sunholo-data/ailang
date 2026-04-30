@@ -1,0 +1,111 @@
+-- examples/runnable/contracts/inbox_v2_app.ail
+--
+-- Cross-module inbox-injection demo (M-TAINT-TYPES Phase 2).
+-- The lib module (`inbox_v2_lib.ail`) defines a Mail record type with
+-- labelled fields:
+--   body: string<email>
+--   subject: string<email>
+--
+-- This app module imports Mail and defines the workflow + sink + attacks.
+-- The labels travel cross-module via M6 (iface JSON serialisation), so
+-- when the app reads `m.body`, the type-system view is `string<email>`
+-- even though the runtime value is a plain string.
+--
+-- Sink violations therefore surface a CROSS-MODULE binding chain:
+--   source: inbox_v2_lib.Mail.body field (label <email>)
+--     → app's binding via record access
+--       → app's SendAction.body sink (expects {not email})
+--
+-- Run:    ailang verify examples/runnable/contracts/inbox_v2_app.ail
+-- Expect: 5 functions: 3 verified, 2 violations (injectedForward, attemptLaunder)
+
+module examples/runnable/contracts/inbox_v2_app
+
+import examples/runnable/contracts/inbox_v2_lib (Mail)
+import std/string (endsWith, length as strLen)
+
+type SendAction = { to: string, body: string }
+
+-- ---------------------------------------------------------------------------
+-- Sanitize: the declassify gate
+-- ---------------------------------------------------------------------------
+
+-- sanitizeBody strips the raw content and returns a constant scrubbed
+-- value. The Declassify effect documents that this function intentionally
+-- changes the label of its input from <email> to <sanitized>.
+export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{
+  "[sanitized]"
+}
+
+-- ---------------------------------------------------------------------------
+-- Helpers
+-- ---------------------------------------------------------------------------
+
+export pure func isInternal(addr: string) -> bool ! {}
+ensures { result == endsWith(addr, "@company.com") }
+{
+  endsWith(addr, "@company.com")
+}
+
+-- ---------------------------------------------------------------------------
+-- SAFE: declassify before sending
+-- ---------------------------------------------------------------------------
+
+-- safeForward declassifies the imported Mail.body before placing it on
+-- the wire. Z3 verifies: result.body == "[sanitized]".
+export pure func safeForward(m: Mail, recipient: string) -> SendAction ! {Declassify}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  { to: recipient, body: sanitizeBody(m.body) }
+}
+
+-- ---------------------------------------------------------------------------
+-- ATTACK 1: cross-module sink violation
+-- ---------------------------------------------------------------------------
+
+-- injectedForward forwards the imported Mail.body verbatim. The label
+-- <email> originates in inbox_v2_lib.Mail.body and propagates straight
+-- into the {not email} sink position.
+--
+-- Label violation (Phase 2+):
+--   source: inbox_v2_lib.Mail.body (label <email>)
+--   binding: m.body (record access, inherits <email>)
+--   sink: SendAction.body field (expects {not email})
+--   → cross-module SINK VIOLATION
+--
+-- Z3 catches this today: result.body == m.body fails the postcondition.
+export pure func injectedForward(m: Mail, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  { to: recipient, body: m.body }  -- SINK VIOLATION: <email> → {not email}
+}
+
+-- ---------------------------------------------------------------------------
+-- ATTACK 2: identity-style launder, cross-module
+-- ---------------------------------------------------------------------------
+
+-- attemptLaunder routes the imported Mail.body through an identity
+-- let-binding. APP-PURE rule: identity preserves labels, so `laundered`
+-- still carries <email>.
+export pure func attemptLaunder(m: Mail, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  let laundered = m.body in
+  { to: recipient, body: laundered }  -- SINK VIOLATION: <email> still flows
+}
+
+-- ---------------------------------------------------------------------------
+-- Entry point
+-- ---------------------------------------------------------------------------
+
+export func main() -> int ! {Declassify}
+{
+  let m = { body: "confidential-body", subject: "subject" };
+  let action = safeForward(m, "alice@company.com");
+  if isInternal(action.to) then strLen(action.body) else 0
+}

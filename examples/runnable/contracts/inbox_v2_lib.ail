@@ -1,0 +1,22 @@
+-- examples/runnable/contracts/inbox_v2_lib.ail
+--
+-- Library module for the cross-module inbox-injection v2 demo.
+-- Exports a record type whose fields carry IFC labels. Importing modules
+-- see the labels at the iface level via M6 (iface JSON serialisation),
+-- so reading `m.body` yields a value labelled <email> at the type system.
+--
+-- Companion file: inbox_v2_app.ail (consumer + sink + workflow).
+
+module examples/runnable/contracts/inbox_v2_lib
+
+-- Mail: an inbox message with tainted body and subject. Field labels
+-- mark these as untrusted-source data; routing them directly to a
+-- {not email} sink is structurally unsafe.
+--
+-- The label travels cross-module through the iface JSON: the importing
+-- module sees `body: string<email>` even though the underlying value
+-- is a plain string at runtime.
+export type Mail = {
+  body: string<email>,
+  subject: string<email>
+}

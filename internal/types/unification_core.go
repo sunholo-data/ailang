@@ -112,6 +112,17 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		return nil, fmt.Errorf("cannot unify nil types: t1=%v, t2=%v", t1, t2)
 	}
 
+	// M-TAINT-TYPES (M7): IFC labels are projection metadata — they do not
+	// affect type structure and never participate in unification. Strip
+	// either side's label and recurse on the inner type. Cross-module label
+	// flow analysis happens elsewhere (CheckSinkRefinement, etc.).
+	if _, isLabelled := t1.(*TLabelled); isLabelled {
+		return u.Unify(StripLabel(t1), t2, sub)
+	}
+	if _, isLabelled := t2.(*TLabelled); isLabelled {
+		return u.Unify(t1, StripLabel(t2), sub)
+	}
+
 	// M-BUGFIX: Expand type aliases before unification
 	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
 	t1 = u.expandAlias(t1)
