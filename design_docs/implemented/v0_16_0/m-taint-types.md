@@ -1,6 +1,6 @@
 # M-TAINT-TYPES: Value-Labelled Information-Flow Types
 
-**Status**: Planned
+**Status**: Implemented (2026-04-30)
 **Target**: v0.16.0
 **Priority**: P1 — Medium (strategic; differentiator vs Python guardians)
 **Estimated**: ~70 hours (~3 sprints)

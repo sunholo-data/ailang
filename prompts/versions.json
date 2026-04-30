@@ -559,9 +559,22 @@
         "javascript"
       ],
       "notes": "Used for JavaScript vs AILANG baseline comparison in multi-language evals"
+    },
+    "v0.16.0": {
+      "file": "prompts/v0.16.0.md",
+      "hash": "8be7946f2318991110299311701ad5e26ee2c8d64f8f6121591c508b4f6c55ab",
+      "description": "v0.12.1 base + IFC labels (M-TAINT-TYPES): T<label> source annotations, T{not LABEL} sink refinements, Declassify effect, DECLASS rule, inbox-injection worked example",
+      "created": "2026-04-30",
+      "tags": [
+        "production",
+        "ifc",
+        "labels",
+        "m-taint-types"
+      ],
+      "notes": "Adds Phase 1+2 IFC label syntax to the AILANG teaching prompt. Includes the inbox-injection worked example and the DECLASS rule."
     }
   },
-  "active": "v0.12.1",
+  "active": "v0.16.0",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

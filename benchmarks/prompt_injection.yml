@@ -53,4 +53,4 @@ expected_stdout: |
   1
 
 tier: core
-tags: [contracts, ifc, labels, m-taint-types, prompt-injection, security]
+tags: [contracts, type_safety, error_handling]
