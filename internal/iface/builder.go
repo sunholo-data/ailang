@@ -115,12 +115,58 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		}
 
 	case *ast.LabelledType:
-		// IFC label/refinement — strip label metadata, use base type for structural operations.
-		return astTypeToInternalType(typ.Base)
+		// IFC label — wrap the base type in TLabelled so the label survives
+		// iface serialisation (M6). Refinements (`{not LABEL}`) are sink-side
+		// only and are not stored on the type itself.
+		base := astTypeToInternalType(typ.Base)
+		if typ.Label != nil {
+			return types.WithLabel(base, types.LabelConst(typ.Label.Name))
+		}
+		return base
 
 	default:
 		// No silent fallback — fail loudly per CLAUDE.md Section 2
 		panic(fmt.Sprintf("astTypeToInternalType: unhandled ast.Type variant: %T", t))
+	}
+}
+
+// extractLabel returns the IFC label declared on an AST type, or ⊥ if none.
+// Refinements ({not LABEL}) are sink-side metadata and are not stored on the type.
+func extractLabel(t ast.Type) types.Label {
+	if lt, ok := t.(*ast.LabelledType); ok && lt.Label != nil {
+		return types.LabelConst(lt.Label.Name)
+	}
+	return types.LabelBottom()
+}
+
+// applyLabelsFromAST takes a typechecker-produced TFunc2 (with labels stripped)
+// and the original AST FuncDecl, and re-wraps each param/return position with
+// the label that appeared in the surface syntax. Non-function types pass through.
+func applyLabelsFromAST(t types.Type, fd *ast.FuncDecl) types.Type {
+	fn, ok := t.(*types.TFunc2)
+	if !ok {
+		return t
+	}
+	newParams := make([]types.Type, len(fn.Params))
+	copy(newParams, fn.Params)
+	for i, p := range fd.Params {
+		if i >= len(newParams) {
+			break
+		}
+		if l := extractLabel(p.Type); l != types.LabelBottom() {
+			newParams[i] = types.WithLabel(newParams[i], l)
+		}
+	}
+	newRet := fn.Return
+	if fd.ReturnType != nil {
+		if l := extractLabel(fd.ReturnType); l != types.LabelBottom() {
+			newRet = types.WithLabel(newRet, l)
+		}
+	}
+	return &types.TFunc2{
+		Params:    newParams,
+		EffectRow: fn.EffectRow,
+		Return:    newRet,
 	}
 }
 
@@ -168,6 +214,16 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		return nil, err
 	}
 
+	// Build a map from function name to its AST declaration so we can recover
+	// IFC labels (M6): the type checker strips labels for unification purposes,
+	// but they must survive into the iface for cross-module flow analysis.
+	funcDecls := map[string]*ast.FuncDecl{}
+	if file, ok := astFile.(*ast.File); ok {
+		for _, fd := range file.Funcs {
+			funcDecls[fd.Name] = fd
+		}
+	}
+
 	// Process each export
 	for name, binding := range exports {
 		// Get the type from the environment
@@ -183,6 +239,13 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		scheme, err := b.generalizeType(typ, name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generalize export %s: %w", name, err)
+		}
+
+		// M6: re-apply IFC labels from the AST onto param/return positions of
+		// function schemes. The type checker erases labels during unification;
+		// this restores them for serialisation. Non-function schemes are unchanged.
+		if fd, ok := funcDecls[name]; ok && scheme != nil {
+			scheme.Type = applyLabelsFromAST(scheme.Type, fd)
 		}
 
 		// Determine purity (for now, assume pure unless marked otherwise)

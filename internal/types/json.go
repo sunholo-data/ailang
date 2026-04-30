@@ -225,6 +225,22 @@ func (t *TApp) MarshalJSON() ([]byte, error) {
 	return json.Marshal(typeJSON{Tag: "tapp", Data: raw})
 }
 
+func (t *TLabelled) MarshalJSON() ([]byte, error) {
+	innerBytes, err := json.Marshal(t.Inner)
+	if err != nil {
+		return nil, err
+	}
+	labelBytes, err := MarshalLabel(t.L)
+	if err != nil {
+		return nil, err
+	}
+	raw, _ := json.Marshal(struct {
+		Inner json.RawMessage `json:"inner"`
+		Label json.RawMessage `json:"label"`
+	}{innerBytes, labelBytes})
+	return json.Marshal(typeJSON{Tag: "tlabelled", Data: raw})
+}
+
 func (r *Row) MarshalJSON() ([]byte, error) {
 	kindBytes, err := MarshalKind(r.Kind)
 	if err != nil {
@@ -501,6 +517,24 @@ func UnmarshalType(data []byte) (Type, error) {
 
 	case "row":
 		return unmarshalRow(envelope.Data)
+
+	case "tlabelled":
+		var d struct {
+			Inner json.RawMessage `json:"inner"`
+			Label json.RawMessage `json:"label"`
+		}
+		if err := json.Unmarshal(envelope.Data, &d); err != nil {
+			return nil, err
+		}
+		inner, err := UnmarshalType(d.Inner)
+		if err != nil {
+			return nil, err
+		}
+		label, err := UnmarshalLabel(d.Label)
+		if err != nil {
+			return nil, err
+		}
+		return &TLabelled{Inner: inner, L: label}, nil
 
 	default:
 		return nil, fmt.Errorf("UnmarshalType: unknown tag %q", envelope.Tag)
