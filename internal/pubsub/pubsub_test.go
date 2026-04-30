@@ -106,7 +106,7 @@ func TestAttributesRoundTrip(t *testing.T) {
 
 func TestTopicConstants(t *testing.T) {
 	// Verify all topic constants are non-empty and distinct.
-	topics := []string{TopicMessages, TopicTasks, TopicCompletions, TopicEvents, TopicDeadLetter}
+	topics := []string{TopicMessages, TopicTasks, TopicCompletions, TopicEvents, TopicDeadLetter, TopicCascade}
 	seen := make(map[string]bool)
 	for _, topic := range topics {
 		if topic == "" {
@@ -116,6 +116,26 @@ func TestTopicConstants(t *testing.T) {
 			t.Errorf("duplicate topic constant: %q", topic)
 		}
 		seen[topic] = true
+	}
+}
+
+// TestSourceAttributeRoundTrip is the M-PKG-AUTONOMOUS-CASCADE-SAFE M1
+// regression test: the new `source` attribute must survive the full
+// ToMap → AttributesFromMap cycle so the receiving agent can read it.
+func TestSourceAttributeRoundTrip(t *testing.T) {
+	original := MessageAttributes{
+		Inbox:     "pkg:sunholo/test_pkg",
+		FromAgent: "coordinator",
+		Source:    SourceCascade,
+	}
+	restored := AttributesFromMap(original.ToMap())
+	if restored.Source != SourceCascade {
+		t.Errorf("Source round-trip: got %q want %q", restored.Source, SourceCascade)
+	}
+	// Map representation must use the literal "source" key — that's what
+	// the receiving pubsub_adapter.HandleNotification reads.
+	if got := original.ToMap()["source"]; got != SourceCascade {
+		t.Errorf("ToMap source key: got %q want %q", got, SourceCascade)
 	}
 }
 
