@@ -1,9 +1,7 @@
 ---
+sidebar_position: 10
 title: "Half of guardians is already a language feature"
-date: 2026-05-XX
-authors: [ailang-team]
-tags: [security, types, ifc, agents, prompt-injection]
-draft: true
+description: A deeper dive into why AILANG's IFC labels are language-level rather than library-level, framed against Meijer's CACM 2026 piece and the Python reference implementation.
 ---
 
 # Half of guardians is already a language feature
@@ -11,11 +9,12 @@ draft: true
 Erik Meijer's January 2026 CACM piece [*Guardians of the Agents*][cacm]
 — with its [Python reference implementation `metareflection/guardians`][repo]
 (~1,900 LOC) — frames the prompt-injection problem the way a programming-
-language person should: as a separation-of-concerns failure. An autonomous agent receives a mix of
-instructions (from the user) and data (from the world), and the LLM cannot
-tell them apart on its own. The fix Meijer proposes — and the one a long
-line of database and security work has converged on for decades — is to
-**verify the plan before any tool runs**, using three orthogonal checks:
+language person should: as a separation-of-concerns failure. An autonomous
+agent receives a mix of instructions (from the user) and data (from the
+world), and the LLM cannot tell them apart on its own. The fix Meijer
+proposes — and the one a long line of database and security work has
+converged on for decades — is to **verify the plan before any tool runs**,
+using three orthogonal checks:
 
 1. **Taint analysis.** Where did this string come from? Where is it allowed
    to flow?
@@ -28,12 +27,16 @@ of those three** — the SMT half — back in the v0.9.x line, and that
 adding the other two is mostly a question of giving the type system the
 right primitives.
 
-This post is about what we just built, why it sits below the runtime
+This page is about what we just built, why it sits below the runtime
 rather than above it, and why the result is closer to the database
 literature on parameterised SQL than to the application-layer
 "defence-in-depth" advice you usually get for prompt injection.
 
-<!-- truncate -->
+:::tip Reference docs
+For the syntax, naming convention, and worked examples, see the
+[**IFC Labels guide**](ifc-labels.mdx). This page is the longer essay
+on *why*; the IFC labels guide is the *how*.
+:::
 
 ## The shape of the bug
 
@@ -125,7 +128,7 @@ instead of the SQL boundary. The labels do not *do* anything at runtime
 `string` when the bytes hit the wire. They exist *only* to give the
 type checker enough information to refuse the structurally wrong shape.
 
-This is why the title of this post is what it is. Meijer's three-check
+This is why the title of this page is what it is. Meijer's three-check
 guardian pipeline is the right shape for a research agenda; it is also
 mostly a re-discovery of the language-design ideas that the IFC and
 contract-verification communities have been pursuing for thirty years.
@@ -206,6 +209,15 @@ v0.16.0 prompt is the place to start. The labels are a small grammar
 addition — a few hundred lines of type-checker plumbing — but the
 property they buy you is the kind that compounds across an entire
 codebase.
+
+## See also
+
+- [**IFC Labels guide**](ifc-labels.mdx) — full syntax reference, naming
+  convention, real-world scenarios drawn from documented incident patterns.
+- [**Contracts & Verification**](contracts.mdx) — the Z3 contract layer
+  that the IFC labels build on top of.
+- Design doc: [`design_docs/implemented/v0_16_0/m-taint-types.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
+- Benchmark: [`benchmarks/prompt_injection/`](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)
 
 [cacm]: https://cacm.acm.org/practice/guardians-of-the-agents/
 [repo]: https://github.com/metareflection/guardians
