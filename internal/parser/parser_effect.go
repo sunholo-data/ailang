@@ -31,6 +31,7 @@ func (p *Parser) parseEffectAnnotation() []ast.EffectAnnotation {
 		"SharedIndex": true, // Similarity index for semantic retrieval (v0.5.11+, M-DX16)
 		"Stream":      true, // Bidirectional WebSocket streaming (v0.8.1+, M-STREAM-BIDI)
 		"Process":     true, // External command execution (v0.8.0+, M-PROCESS)
+		"Declassify":  true, // IFC declassification capability (v0.16.0+, M-TAINT-TYPES)
 	}
 
 	// We're at the BANG token

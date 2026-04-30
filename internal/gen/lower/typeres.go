@@ -212,6 +212,10 @@ func projectASTType(t ast.Type, depth int) stmt.ResolvedType {
 		// Structural record in AST — no name available.
 		return stmt.InterfaceType{}
 
+	case *ast.LabelledType:
+		// IFC label/refinement — strip label metadata, use base type.
+		return projectASTType(t.Base, depth)
+
 	default:
 		return stmt.InterfaceType{}
 	}

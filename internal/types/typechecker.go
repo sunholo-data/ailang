@@ -283,6 +283,12 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			Args:        args,
 		}
 
+	case *ast.LabelledType:
+		// IFC label/refinement annotation — strip the label metadata and use the base type.
+		// Labels are tracked separately via internal/types.TLabelled; the structural type
+		// is the base type for unification and code generation purposes.
+		return tc.astTypeToType(typ.Base)
+
 	default:
 		// No silent fallback — fail loudly per CLAUDE.md Section 2
 		panic(fmt.Sprintf("astTypeToType: unhandled ast.Type variant: %T", t))

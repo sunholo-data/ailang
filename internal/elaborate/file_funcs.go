@@ -390,6 +390,10 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			Args:        args,
 		}
 
+	case *ast.LabelledType:
+		// IFC label/refinement — strip label metadata, use base type for structural operations.
+		return e.astTypeToInternalType(typ.Base)
+
 	default:
 		// Unknown type - return nil (will be handled gracefully)
 		return nil

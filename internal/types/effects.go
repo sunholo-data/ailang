@@ -164,6 +164,7 @@ func IsKnownEffect(name string) bool {
 		"SharedIndex": true, // v0.5.11: Similarity index for semantic retrieval (M-DX16)
 		"Stream":      true, // v0.8.1: Bidirectional WebSocket streaming (M-STREAM-BIDI)
 		"Process":     true, // v0.8.0: External command execution (M-PROCESS)
+		"Declassify":  true, // v0.16.0: IFC declassification capability (M-TAINT-TYPES)
 	}
 	return knownEffects[name]
 }

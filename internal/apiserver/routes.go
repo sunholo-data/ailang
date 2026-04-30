@@ -75,6 +75,9 @@ func paramTypeToString(t ast.Type) string {
 		return "array"
 	case *ast.RecordType:
 		return "record"
+	case *ast.LabelledType:
+		// IFC label/refinement — delegate to base type for name extraction.
+		return v.Base.String()
 	default:
 		return "unknown"
 	}

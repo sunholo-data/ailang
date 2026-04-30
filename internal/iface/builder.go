@@ -114,6 +114,10 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			Args:        args,
 		}
 
+	case *ast.LabelledType:
+		// IFC label/refinement — strip label metadata, use base type for structural operations.
+		return astTypeToInternalType(typ.Base)
+
 	default:
 		// No silent fallback — fail loudly per CLAUDE.md Section 2
 		panic(fmt.Sprintf("astTypeToInternalType: unhandled ast.Type variant: %T", t))
