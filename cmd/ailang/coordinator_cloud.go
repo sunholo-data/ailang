@@ -423,11 +423,81 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 			return branchName, execResult, nil, fmt.Errorf("git push failed: %w", err)
 		}
 		fmt.Printf("execute-job: pushed branch %s\n", branchName)
+
+		// Step 5d: Open a deterministic PR (M-PKG-AUTONOMOUS-CASCADE-SAFE follow-up).
+		// Always-PR is the design — no autonomous merge for v1. Doing this in the
+		// wrapper (vs the agent) means the agent doesn't need to know `gh` syntax,
+		// and we get a consistent PR title/body across every agent run.
+		// Best-effort: failures don't fail the task (branch is already pushed).
+		openCascadePullRequest(ctx, workDir, branchName, taskID, agentID, baseBranch)
 	}
 
 	// Step 6: Discover changed files for the completion message.
 	changedFiles := discoverChangedFilesFromCommit(workDir, clonePoint)
 	return branchName, execResult, changedFiles, nil
+}
+
+// openCascadePullRequest opens a PR via `gh pr create` after the wrapper has
+// pushed the agent's branch. Best-effort — if gh isn't available or the PR
+// already exists, we log and continue (the task itself succeeded; the PR is
+// the surfacing mechanism for human review).
+//
+// Cascade context (root_package, root_version) is surfaced via env vars set
+// by the dispatcher; if absent, we open a generic agent-task PR instead.
+func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, agentID, baseBranch string) {
+	if baseBranch == "" {
+		baseBranch = "main"
+	}
+
+	// Detect cascade vs generic agent task from env (set by dispatcher when
+	// the inbound message had source=cascade + root_package attribute).
+	rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE")
+	title := fmt.Sprintf("[agent] %s: %s", agentID, taskID)
+	bodyLines := []string{
+		fmt.Sprintf("Autonomous task `%s` completed and pushed by agent `%s`.", taskID, agentID),
+		"",
+		"This PR was opened deterministically by the AILANG coordinator wrapper.",
+		"",
+		fmt.Sprintf("View execution chain: `ailang chains view %s`", taskID),
+	}
+	labels := []string{"agent-task"}
+
+	if rootPackage != "" {
+		title = fmt.Sprintf("[cascade] bump %s (%s)", rootPackage, taskID)
+		bodyLines = []string{
+			fmt.Sprintf("Cascade-driven dependency update from `%s`.", rootPackage),
+			"",
+			fmt.Sprintf("Triggered by autonomous task `%s` (agent `%s`).", taskID, agentID),
+			"",
+			"This PR was opened deterministically by the AILANG coordinator wrapper.",
+			"Always-PR is the v1 design — no autonomous merge.",
+			"",
+			fmt.Sprintf("View execution chain: `ailang chains view %s`", taskID),
+		}
+		labels = []string{"cascade", "agent-task"}
+	}
+
+	args := []string{"pr", "create",
+		"--title", title,
+		"--body", strings.Join(bodyLines, "\n"),
+		"--base", baseBranch,
+		"--head", branchName,
+	}
+	for _, l := range labels {
+		args = append(args, "--label", l)
+	}
+
+	prCmd := exec.CommandContext(ctx, "gh", args...)
+	prCmd.Dir = workDir
+	out, err := prCmd.CombinedOutput()
+	outStr := strings.TrimSpace(string(out))
+	if err != nil {
+		// Common case: gh CLI missing or PR already exists for this branch.
+		// Don't fail the task — the branch push already succeeded.
+		fmt.Fprintf(os.Stderr, "execute-job: gh pr create skipped: %v (output: %s)\n", err, outStr)
+		return
+	}
+	fmt.Printf("execute-job: opened PR: %s\n", outStr)
 }
 
 // discoverChangedFilesFromCommit uses ArtifactDiscovery to find files created/modified by the agent.
