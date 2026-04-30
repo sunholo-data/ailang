@@ -490,6 +490,44 @@ func TestEncodeFunction_NoEnsures(t *testing.T) {
 	}
 }
 
+func TestEncodeFunction_MultipleEnsuresConjoined(t *testing.T) {
+	// Regression: when a function has multiple ensures clauses, the SMT
+	// query must negate their CONJUNCTION, not negate each one independently.
+	// Negating each clause separately silently misses violations because
+	// Z3 then only reports models where ALL clauses fail simultaneously.
+	params := []FunctionParam{
+		{Name: "x", Type: &types.TCon{Name: "int"}},
+	}
+	body := &core.Var{Name: "x"}
+	mkGe := func(left core.CoreExpr, n int64) core.CoreExpr {
+		return &core.App{
+			Func: &core.VarGlobal{Ref: core.GlobalRef{Module: "$builtin", Name: "ge_Int"}},
+			Args: []core.CoreExpr{left, &core.Lit{Kind: core.IntLit, Value: n}},
+		}
+	}
+	meta := &core.DeclMeta{
+		Name:   "f",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: mkGe(&core.Var{Name: "result"}, 0)},
+			{Kind: core.EnsuresKind, Expr: mkGe(&core.Var{Name: "result"}, 5)},
+		},
+	}
+
+	result, err := EncodeFunction("f", params, body, "", meta, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Must produce a single negated conjunction, not two independent negations.
+	if !strings.Contains(result.SMTLib, "(assert (not (and (>= result 0) (>= result 5))))") {
+		t.Errorf("expected negated conjunction of ensures, got:\n%s", result.SMTLib)
+	}
+	if strings.Count(result.SMTLib, "(assert (not") != 1 {
+		t.Errorf("expected exactly one (assert (not ...)) for combined ensures, got:\n%s", result.SMTLib)
+	}
+}
+
 func TestEncodeFunction_StringParam(t *testing.T) {
 	params := []FunctionParam{
 		{Name: "s", Type: &types.TCon{Name: "string"}},

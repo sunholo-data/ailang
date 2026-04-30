@@ -373,7 +373,14 @@ func EncodeFunction(
 	resultDecl := fmt.Sprintf("(define-const result %s %s)", resultSort, bodyExpr)
 	result.Declarations = append(result.Declarations, resultDecl)
 
-	// Step 5: Assert negation of postconditions (ensures clauses)
+	// Step 5: Assert negation of the conjunction of all postconditions.
+	//
+	// Each ensures clause is a separate predicate, but we want Z3 to find a
+	// model where AT LEAST ONE clause fails. Asserting `(not P_i)` per clause
+	// asks Z3 for a model where ALL clauses fail simultaneously, which is
+	// strictly stronger and silently misses real violations. Combine them
+	// into one `(assert (not (and P_1 ... P_n)))`.
+	var ensuresExprs []string
 	for _, contract := range meta.Contracts {
 		if contract.Kind != core.EnsuresKind {
 			continue
@@ -385,7 +392,16 @@ func EncodeFunction(
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode ensures clause: %w", err)
 		}
-		result.Assertions = append(result.Assertions, AssertNot(encoded))
+		ensuresExprs = append(ensuresExprs, encoded)
+	}
+	switch len(ensuresExprs) {
+	case 0:
+		// No postconditions — nothing to assert.
+	case 1:
+		result.Assertions = append(result.Assertions, AssertNot(ensuresExprs[0]))
+	default:
+		conj := fmt.Sprintf("(and %s)", strings.Join(ensuresExprs, " "))
+		result.Assertions = append(result.Assertions, AssertNot(conj))
 	}
 
 	// Step 5.5: Validate declarations — check for forward references to undeclared sorts.
