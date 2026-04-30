@@ -438,8 +438,8 @@ func TestEncodeFunction_WithRecursiveDepth(t *testing.T) {
 		t.Error("expected define-fun factorial_3 in SMT-LIB output")
 	}
 
-	// Body should use factorial_3 (top-level)
-	if !strings.Contains(result.SMTLib, "factorial_3 n") {
+	// Body should use factorial_3 (top-level) called on the renamed parameter.
+	if !strings.Contains(result.SMTLib, "factorial_3 $p_n") {
 		t.Errorf("expected factorial_3 as body reference in SMT-LIB:\n%s", result.SMTLib)
 	}
 

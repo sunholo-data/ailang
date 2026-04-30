@@ -425,9 +425,10 @@ func TestEncodeFunction_NestedRecordParam(t *testing.T) {
 		t.Errorf("inner record must be declared before outer record in SMT-LIB:\n%s", result.SMTLib)
 	}
 
-	// Body should encode nested access: (x (pos o))
-	if result.BodyExpr != "(x (pos o))" {
-		t.Errorf("body expression = %q, want %q", result.BodyExpr, "(x (pos o))")
+	// Body should encode nested access: (x (pos $p_o)) — parameter `o` is
+	// renamed via the `$p_` prefix to avoid record-accessor collisions.
+	if result.BodyExpr != "(x (pos $p_o))" {
+		t.Errorf("body expression = %q, want %q", result.BodyExpr, "(x (pos $p_o))")
 	}
 }
 

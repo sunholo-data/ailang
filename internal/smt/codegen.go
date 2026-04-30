@@ -34,6 +34,19 @@ var activeRecordTypes map[string]*RecordTypeInfo
 // enabling record construction lookup by field names.
 var activeFieldSetToSort map[string]string
 
+// activeParamRenames maps an AILANG parameter name to its prefixed Z3 form.
+// We prefix every parameter declare-const with `$p_` so the symbol cannot
+// collide with a record accessor function of the same field name (e.g., a
+// parameter named `text` no longer clashes with `(text TableCell) -> String`).
+// Set on EncodeFunction entry, cleared on exit. EncodeExpr's *core.Var case
+// rewrites bare names to the prefixed form when present.
+var activeParamRenames map[string]string
+
+// ParamRenamePrefix is the prefix used for parameter rename to avoid
+// collisions with record accessor functions. Exposed (but typed as a const)
+// so test code can verify the chosen scheme.
+const ParamRenamePrefix = "$p_"
+
 // EncodeResult holds the generated SMT-LIB program for a function.
 type EncodeResult struct {
 	// SMTLib is the complete SMT-LIB program text.
@@ -123,6 +136,10 @@ func EncodeFunction(
 	// Set active resolved callees for encodeApp to use
 	activeResolvedCallees = ctx.ResolvedCallees
 	defer func() { activeResolvedCallees = nil }()
+
+	// Activate parameter renames for this function's body encoding.
+	activeParamRenames = make(map[string]string)
+	defer func() { activeParamRenames = nil }()
 
 	// Collect and declare record types from function parameters and return type
 	activeRecordTypes = make(map[string]*RecordTypeInfo)
@@ -349,15 +366,22 @@ func EncodeFunction(
 		unrollTopName = unrollResult.TopLevelName
 	}
 
-	// Step 2: Declare symbolic variables for function parameters
+	// Step 2: Declare symbolic variables for function parameters.
+	//
+	// Parameter names are prefixed with `$p_` to avoid colliding with record
+	// accessor function names. Without the prefix, a parameter named `text`
+	// would clash with `(text TableCell) -> String` in Z3's symbol table and
+	// the solver would report "ambiguous constant reference 'text'".
 	for _, p := range params {
 		sort, err := MapType(p.Type)
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode parameter %q: %w", p.Name, err)
 		}
-		decl := DeclareConst(p.Name, sort)
+		renamed := ParamRenamePrefix + p.Name
+		decl := DeclareConst(renamed, sort)
 		result.Declarations = append(result.Declarations, decl)
 		ctx.Variables[p.Name] = sort
+		activeParamRenames[p.Name] = renamed
 	}
 
 	// Step 3: Assert preconditions
@@ -378,10 +402,17 @@ func EncodeFunction(
 	// Step 4: Encode function body and bind to "result"
 	var bodyExpr string
 	if unrollTopName != "" {
-		// Bounded recursion: use the top-level unrolled function
+		// Bounded recursion: call the top-level unrolled function with the
+		// renamed (prefixed) parameter symbols. The unroll's own internal
+		// define-fun uses bare names as locally bound formal params, but the
+		// top-level call must reference the constants we declared above.
 		var paramNames []string
 		for _, p := range params {
-			paramNames = append(paramNames, p.Name)
+			if renamed, ok := activeParamRenames[p.Name]; ok {
+				paramNames = append(paramNames, renamed)
+			} else {
+				paramNames = append(paramNames, p.Name)
+			}
 		}
 		bodyExpr = fmt.Sprintf("(%s %s)", unrollTopName, strings.Join(paramNames, " "))
 	} else {

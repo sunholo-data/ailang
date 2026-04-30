@@ -18,6 +18,12 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 		return encodeLit(e)
 
 	case *core.Var:
+		// Apply parameter rename if this name refers to a function parameter.
+		// Parameters are prefixed with `$p_` to avoid colliding with record
+		// accessor function names (Issue 5).
+		if renamed, ok := activeParamRenames[e.Name]; ok {
+			return renamed, nil
+		}
 		return e.Name, nil
 
 	case *core.VarGlobal:

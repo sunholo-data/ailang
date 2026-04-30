@@ -191,9 +191,9 @@ func TestEncodeFunction_ParkAdmissionFee(t *testing.T) {
 		{"header", "; Verification of admissionFee"},
 		{"logic", "(set-logic ALL)"},
 		{"season type", "(declare-datatype Season ((LOW_SEASON) (HIGH_SEASON)))"},
-		{"age param", "(declare-const age Int)"},
-		{"season param", "(declare-const season Season)"},
-		{"precondition", "(assert (>= age 0))"},
+		{"age param", "(declare-const $p_age Int)"},
+		{"season param", "(declare-const $p_season Season)"},
+		{"precondition", "(assert (>= $p_age 0))"},
 		{"result def", "(define-const result Int"},
 		{"postcondition negated", "(assert (not (>= result 0)))"},
 		{"check-sat", "(check-sat)"},
@@ -493,11 +493,11 @@ func TestEncodeFunction_WithRecordParam(t *testing.T) {
 	if !strings.Contains(result.SMTLib, "(x Int)") {
 		t.Errorf("expected (x Int) accessor in SMT-LIB:\n%s", result.SMTLib)
 	}
-	if !strings.Contains(result.SMTLib, "declare-const p Point") {
-		t.Errorf("expected (declare-const p Point) in SMT-LIB:\n%s", result.SMTLib)
+	if !strings.Contains(result.SMTLib, "declare-const $p_p Point") {
+		t.Errorf("expected (declare-const $p_p Point) in SMT-LIB:\n%s", result.SMTLib)
 	}
-	if !strings.Contains(result.SMTLib, "(x p)") {
-		t.Errorf("expected (x p) in body, SMT-LIB:\n%s", result.SMTLib)
+	if !strings.Contains(result.SMTLib, "(x $p_p)") {
+		t.Errorf("expected (x $p_p) in body, SMT-LIB:\n%s", result.SMTLib)
 	}
 }
 

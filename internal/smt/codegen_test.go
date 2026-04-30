@@ -386,14 +386,14 @@ func TestEncodeFunction_Absolute(t *testing.T) {
 	if !strings.Contains(smtlib, "; Verification of absolute") {
 		t.Error("missing verification comment")
 	}
-	if !strings.Contains(smtlib, "(declare-const x Int)") {
-		t.Error("missing parameter declaration")
+	if !strings.Contains(smtlib, "(declare-const $p_x Int)") {
+		t.Errorf("missing parameter declaration with $p_ prefix; got:\n%s", smtlib)
 	}
-	if !strings.Contains(smtlib, "(assert (>= x 0))") {
-		t.Error("missing precondition assertion")
+	if !strings.Contains(smtlib, "(assert (>= $p_x 0))") {
+		t.Errorf("missing precondition assertion referencing $p_x; got:\n%s", smtlib)
 	}
-	if !strings.Contains(smtlib, "(define-const result Int x)") {
-		t.Error("missing result definition")
+	if !strings.Contains(smtlib, "(define-const result Int $p_x)") {
+		t.Errorf("missing result definition referencing $p_x; got:\n%s", smtlib)
 	}
 	if !strings.Contains(smtlib, "(assert (not (>= result 0)))") {
 		t.Error("missing negated postcondition")
@@ -456,14 +456,14 @@ func TestEncodeFunction_WithADT(t *testing.T) {
 	if !strings.Contains(smtlib, "(declare-datatype Season ((LOW_SEASON) (HIGH_SEASON)))") {
 		t.Error("missing datatype declaration")
 	}
-	if !strings.Contains(smtlib, "(declare-const season Season)") {
-		t.Error("missing season parameter declaration")
+	if !strings.Contains(smtlib, "(declare-const $p_season Season)") {
+		t.Errorf("missing season parameter declaration with $p_ prefix; got:\n%s", smtlib)
 	}
 	if !strings.Contains(smtlib, "(assert true)") {
 		t.Error("missing true precondition")
 	}
-	if !strings.Contains(smtlib, "(match season ((LOW_SEASON 5) (HIGH_SEASON 10)))") {
-		t.Error("missing match expression in result definition")
+	if !strings.Contains(smtlib, "(match $p_season ((LOW_SEASON 5) (HIGH_SEASON 10)))") {
+		t.Errorf("missing match expression referencing $p_season; got:\n%s", smtlib)
 	}
 }
 
@@ -528,6 +528,45 @@ func TestEncodeFunction_MultipleEnsuresConjoined(t *testing.T) {
 	}
 }
 
+// TestEncodeFunction_ParamPrefix_AvoidsAccessorCollision verifies M3a:
+// a parameter named the same as a record field accessor (e.g., `text` while
+// `TableCell.text` exists) is renamed to `$p_text` in both the declaration
+// and the body, eliminating Z3's "ambiguous constant reference" error.
+func TestEncodeFunction_ParamPrefix_AvoidsAccessorCollision(t *testing.T) {
+	params := []FunctionParam{
+		{Name: "text", Type: &types.TCon{Name: "string"}},
+	}
+	body := &core.Var{Name: "text"}
+	meta := &core.DeclMeta{
+		Name:   "echo",
+		IsPure: true,
+		Contracts: []*core.Contract{
+			{Kind: core.EnsuresKind, Expr: &core.Lit{Kind: core.BoolLit, Value: true}},
+		},
+	}
+
+	result, err := EncodeFunction("echo", params, body, "String", meta, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Declaration must use the prefixed form.
+	if !strings.Contains(result.SMTLib, "(declare-const $p_text String)") {
+		t.Errorf("expected (declare-const $p_text String); got:\n%s", result.SMTLib)
+	}
+	// Body reference must use the prefixed form too.
+	if !strings.Contains(result.SMTLib, "(define-const result String $p_text)") {
+		t.Errorf("expected body to reference $p_text; got:\n%s", result.SMTLib)
+	}
+	// The bare `text` must NOT appear anywhere in the declarations
+	// (would mean we missed a rename site).
+	for _, decl := range result.Declarations {
+		if strings.Contains(decl, "(declare-const text ") {
+			t.Errorf("found bare `text` in declarations — rename incomplete:\n%s", decl)
+		}
+	}
+}
+
 func TestEncodeFunction_StringParam(t *testing.T) {
 	params := []FunctionParam{
 		{Name: "s", Type: &types.TCon{Name: "string"}},
@@ -545,11 +584,11 @@ func TestEncodeFunction_StringParam(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error for string parameter: %v", err)
 	}
-	if !strings.Contains(result.SMTLib, "(declare-const s String)") {
-		t.Error("expected string parameter declaration")
+	if !strings.Contains(result.SMTLib, "(declare-const $p_s String)") {
+		t.Errorf("expected string parameter declaration with $p_ prefix; got:\n%s", result.SMTLib)
 	}
-	if !strings.Contains(result.SMTLib, "(define-const result String s)") {
-		t.Error("expected result as String sort")
+	if !strings.Contains(result.SMTLib, "(define-const result String $p_s)") {
+		t.Errorf("expected result definition referencing $p_s; got:\n%s", result.SMTLib)
 	}
 }
 
