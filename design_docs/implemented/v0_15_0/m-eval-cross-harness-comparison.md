@@ -1,6 +1,6 @@
 # M-EVAL-CROSS-HARNESS: Cross-Harness Benchmark Comparison
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x
 **Priority**: P1 (Medium — strategic eval insight, not a release blocker)
 **Estimated**: 2 days

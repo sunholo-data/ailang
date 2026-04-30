@@ -1,6 +1,6 @@
 # M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x
 **Priority**: P2 (Low) — zero cost, quality-of-life
 **Estimated**: 2 days
