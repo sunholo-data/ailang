@@ -252,15 +252,43 @@ func EncodeFunction(
 			}
 			pending = remaining
 		}
-		// If any declarations remain unresolved after multi-pass, we have circular
-		// dependencies (mutual recursion) that require declare-datatypes (plural).
-		// For now, emit them and let validateDeclarations catch ordering issues.
-		// Sort: non-recursive first, then potentially recursive ones.
-		for _, pd := range pending {
-			if !ctx.DeclaredTypes[pd.sortName] {
-				result.Declarations = append(result.Declarations, pd.decl)
-				if pd.sortName != "" {
-					ctx.DeclaredTypes[pd.sortName] = true
+		// If any declarations remain unresolved after multi-pass, we have
+		// circular dependencies (mutual recursion). Group them into SCCs and
+		// emit each SCC of size > 1 as a single `declare-datatypes` (plural)
+		// block — Z3's only supported encoding for mutual recursion.
+		// Self-recursive singletons (e.g., a list type) stay in the singular
+		// form, which Z3 also accepts.
+		if len(pending) > 0 {
+			pendingDecls := make([]string, 0, len(pending))
+			declBySort := make(map[string]string, len(pending))
+			for _, pd := range pending {
+				if ctx.DeclaredTypes[pd.sortName] {
+					continue
+				}
+				pendingDecls = append(pendingDecls, pd.decl)
+				declBySort[pd.sortName] = pd.decl
+			}
+			sccs := findSCCs(pendingDecls)
+			for _, scc := range sccs {
+				if len(scc) > 1 {
+					// Mutual recursion — emit plural form.
+					group := make([]string, 0, len(scc))
+					for _, name := range scc {
+						if d, ok := declBySort[name]; ok {
+							group = append(group, d)
+						}
+					}
+					result.Declarations = append(result.Declarations, DeclareDatatypesMutual(group))
+					for _, name := range scc {
+						ctx.DeclaredTypes[name] = true
+					}
+				} else {
+					// Singleton (possibly self-recursive) — singular form is fine.
+					name := scc[0]
+					if d, ok := declBySort[name]; ok {
+						result.Declarations = append(result.Declarations, d)
+						ctx.DeclaredTypes[name] = true
+					}
 				}
 			}
 		}
