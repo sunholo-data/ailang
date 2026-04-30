@@ -108,6 +108,14 @@ $ ailang verify examples/runnable/contracts/park.ail
 The ARC paper uses an external LLM + Z3 pipeline to verify natural-language policies. AILANG achieves the same result **natively** — contracts are first-class syntax, verification is a single CLI command, and Z3 proves properties like "seniors always pay less" across all possible inputs with cross-function inlining.
 :::
 
+:::tip See also: IFC Labels
+For prompt-injection prevention and information-flow control, see the
+[**Information-Flow Control (IFC) Labels** guide](ifc-labels.mdx).
+Labels (`T<label>` and `T{not LABEL}`) are a sibling feature to
+contracts — they work at the type-system layer rather than the SMT
+layer, and the two are designed to compose.
+:::
+
 ## Why Contracts Matter for AI
 
 Contracts are particularly valuable for AI code generation:

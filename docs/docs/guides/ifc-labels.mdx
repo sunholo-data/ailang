@@ -1,0 +1,198 @@
+---
+sidebar_position: 9
+title: Information-Flow Control (IFC) Labels
+description: Type-level taint tracking with T<label> and T{not LABEL} for prompt-injection prevention
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import InboxV2 from '!!raw-loader!@site/../examples/runnable/contracts/inbox_injection_v2.ail';
+import InboxV2Lib from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_lib.ail';
+import InboxV2App from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_app.ail';
+
+# Information-Flow Control (IFC) Labels
+
+AILANG v0.16.0 adds **information-flow control (IFC) labels** to the type
+system. Labels mark values as carrying source-level taint and let the
+compiler refuse to route untrusted data into sensitive sinks. The
+runtime cost is zero — labels exist only at the type-system layer.
+
+This guide is the user-facing companion to the
+[M-TAINT-TYPES design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md).
+For motivation, see also the blog post draft
+[*Half of guardians is already a language feature*](https://github.com/sunholo-data/ailang/blob/dev/blog/2026-05-XX-half-of-guardians.md).
+
+:::tip When to reach for labels
+You want IFC labels when you have **untrusted input** flowing through
+your program toward **sinks that must not see it raw** — classic
+prompt-injection scenarios, SQL string assembly, shell-out builders,
+HTML rendering, or any boundary where "instructions" and "data" share
+a representation.
+:::
+
+## The Three Pieces of Syntax
+
+| Form | Read aloud | Use it for |
+|------|------------|------------|
+| `T<label>` | "T tainted with label" | Mark a value as carrying source-level taint. |
+| `T{not LABEL}` | "T refining-out LABEL" | Mark a parameter position as a sink that refuses LABEL. |
+| `! {Declassify}` | "may declassify" | Effect-row entry on functions that intentionally lower a label. |
+
+```ailang
+-- A string carrying the <email> label (untrusted source)
+let body: string<email> = fetchMailBody()
+
+-- A function whose body parameter rejects any <email>-tainted input
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- A declassifier: <email> in, <sanitized> out, must declare ! {Declassify}
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+```
+
+## Naming Convention
+
+Labels are names. They should be short, lowercase, and descriptive of
+the **source** of the taint — not the sink, and not the policy.
+
+| Good | Why |
+|------|-----|
+| `<email>` | A string came from email content |
+| `<user-input>` | A string came from user input (kebab-case for compounds) |
+| `<sql-text>` | A string came from a SQL builder context |
+| `<pii>` | Personally identifiable info |
+| `<sanitized>` | Output of an explicit sanitiser (reset state) |
+
+| Avoid | Why |
+|-------|-----|
+| `<EMAIL>` | Use lowercase. Labels are not constructors. |
+| `<safe>` | Says nothing about provenance. Use `<sanitized>` or similar. |
+| `<bad>` / `<dirty>` | Subjective. Name the source, not the disposition. |
+
+## The Two Rules
+
+### 1. The Sink Rule
+
+A parameter typed `T{not LABEL}` **rejects** any argument whose type carries
+the `<LABEL>` annotation.
+
+```ailang
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- ✅ Caller passes a declassified value
+sendEmail("alice@company.com", sanitize(rawBody))
+
+-- ❌ Caller passes the raw body — refused
+sendEmail("alice@company.com", rawBody)  -- string<email> ↛ string{not email}
+```
+
+### 2. The DECLASS Rule
+
+A function that changes a value's label must declare `! {Declassify}` in
+its effect row. Identity (same label in and out) is free; any other
+transition needs the effect.
+
+```ailang
+-- ✅ Allowed: explicit declassifier
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+{ "[sanitized]" }
+
+-- ❌ Rejected: function changes label without declaring Declassify
+pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
+{ "[sanitized]" }
+```
+
+The `{Declassify}` effect makes label-lowering **auditable** — every
+sanitiser is locatable by `grep -r '! {Declassify}'`.
+
+## Why Identity Bypass Doesn't Work
+
+Pure operations propagate labels through their result via the **APP-PURE**
+rule: the output label is the join of all input labels. Identity
+functions carry the input's label forward.
+
+```ailang
+-- Attempting to "launder" the label via an identity binding:
+pure func attemptLaunder(rawBody: string<email>, recipient: string)
+  -> SendAction ! {}
+{
+  let laundered = rawBody in    -- laundered: string<email> (label preserved)
+  { to: recipient, body: laundered }  -- still rejected at the sink
+}
+```
+
+There is no clever construction — wrapping in a record, routing through
+a let, calling an identity helper — that strips a label. Only an
+explicit `! {Declassify}` function can lower it.
+
+## Worked Example: Inbox Injection
+
+The single-module demo:
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_injection_v2.ail">{InboxV2}</CodeBlock>
+
+Run it:
+
+```bash
+ailang verify examples/runnable/contracts/inbox_injection_v2.ail
+```
+
+Output:
+
+```
+✓ VERIFIED safeForward
+✓ VERIFIED sanitizeBody
+✓ VERIFIED isInternal
+✗ VIOLATION injectedForward
+✗ VIOLATION attemptLaunder
+
+5 functions: 3 verified, 2 violations
+```
+
+## Cross-Module Label Flow
+
+Labels travel across module boundaries through the iface JSON. The
+library exports a record with labelled fields:
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_lib.ail">{InboxV2Lib}</CodeBlock>
+
+The consumer module imports the labelled type and operates on it:
+
+<CodeBlock language="ailang" title="examples/runnable/contracts/inbox_v2_app.ail">{InboxV2App}</CodeBlock>
+
+Run it:
+
+```bash
+ailang verify examples/runnable/contracts/inbox_v2_app.ail
+```
+
+Output: `5 functions: 3 verified, 2 violations` — the `<email>` label
+flows from the lib's record field into the app's parameter type and on
+to the violating sink.
+
+## Limitations (v0.16.0)
+
+- **Phase 1 enforcement only.** Sink violations and DECLASS rule
+  violations are caught by Z3 contracts today, not by structural type
+  errors. Phase 2+ work will lift label checking into the elaborator
+  so violations surface as compile errors before Z3 runs.
+- **Label aliases are not yet expanded.** `export type EmailBody = string<email>`
+  parses, but the type checker treats `EmailBody` as a nominal type
+  rather than an alias for `string<email>`. Use record types with
+  labelled fields for cross-module flow today.
+- **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
+  positions; you cannot annotate a return type with a refinement.
+- **Cross-module function calls in Z3.** Imported function calls cannot
+  yet be encoded into the SMT context (the body lives in another Core
+  program). Use cross-module *types* for cross-module label flow today;
+  follow-up work tracked as
+  [M-SMT-CROSS-MODULE-FUNCTIONS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-smt-cross-module-functions.md).
+
+## Further Reading
+
+- [Contracts & Verification](contracts.mdx) — the Z3 contract layer that
+  IFC labels build on top of.
+- [Effects](../reference/effects.md) — the `! {Declassify}` effect is
+  part of the effect system.
+- [Modules](../reference/modules.md) — how labels travel through `iface` JSON.
+- Design doc: [`design_docs/implemented/v0_16_0/m-taint-types.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
+- Prompt for AI agents: `ailang prompt --version v0.16.0`
+- Benchmark: [`benchmarks/prompt_injection/`](https://github.com/sunholo-data/ailang/tree/dev/benchmarks/prompt_injection)

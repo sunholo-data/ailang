@@ -173,6 +173,11 @@ DESCRIPTION:
   Each prompt version corresponds to a specific AILANG language version and
   includes comprehensive syntax reference, examples, and limitations.
 
+  The active version (v0.16.0) covers the IFC label system: T<label>
+  source annotations, T{not LABEL} sink refinements, and the Declassify
+  effect for prompt-injection-resistant agent code. Use --version v0.12.1
+  for the prior version without IFC labels.
+
   Prompts are versioned and tracked in prompts/versions.json.
 `)
 }

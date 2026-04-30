@@ -44,6 +44,13 @@ func verifyCommand() {
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
 		fmt.Println("Returns exit code 0 if all verifiable contracts are proven.")
+		fmt.Println()
+		fmt.Println("IFC labels (v0.16.0+):")
+		fmt.Println("  Functions can use T<label> for tainted sources and T{not LABEL}")
+		fmt.Println("  for sinks that refuse a given label. Declassify in the effect row")
+		fmt.Println("  marks intentional label changes. See:")
+		fmt.Println("    https://ailang.sunholo.com/docs/guides/ifc-labels")
+		fmt.Println("    examples/runnable/contracts/inbox_injection_v2.ail")
 		os.Exit(1)
 	}
 
