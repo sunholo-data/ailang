@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/pkg"
+	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
 func pkgPublishCommand(args []string) error {
@@ -321,6 +323,24 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 		}
 	}
 
+	// M-PKG-AUTONOMOUS-CASCADE-SAFE M2: Set up the cascade-topic publisher.
+	// We dual-write: the legacy inbox path (for backward compat — agents
+	// that still poll inboxes will see it but won't act per the M1 template
+	// guard), AND the new ailang-cascade Pub/Sub topic with source=cascade
+	// attribute (which triggers the agent to actually do the bump).
+	//
+	// Both writes are best-effort and logged. A failure on either side
+	// doesn't abort the publish — the publish has already succeeded; this
+	// is dependent notification.
+	cascadePublisher := newCascadePublisher()
+	defer func() {
+		if cascadePublisher != nil {
+			cascadePublisher.Stop()
+		}
+	}()
+
+	rootRef := pkgName + "@" + newVersion
+
 	for _, depName := range dependents {
 		recipients := []string{messaging.FormatPackageInbox(depName)}
 		depInfo := messaging.PackageVersionInfo{
@@ -330,7 +350,53 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 			ContentHash:   contentHash,
 		}
 		if msgID, err := messaging.EmitUpgradeAvailable(store, messaging.PackageVersionInfo{Name: pkgName}, depInfo, recipients); err == nil && msgID != "" {
-			fmt.Printf("%s Notified dependent %s (ID: %s, class: %s)\n", cyan("→"), depName, msgID, changeClass)
+			fmt.Printf("%s Notified dependent %s (ID: %s, class: %s, legacy inbox)\n", cyan("→"), depName, msgID, changeClass)
+
+			// Cascade-topic publish (M-PKG-AUTONOMOUS-CASCADE-SAFE M2).
+			// The IAM-restricted topic is what the agents act on; the inbox
+			// write above is just for backward-compat observation tooling.
+			if cascadePublisher != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				attrs := pubsub.MessageAttributes{
+					Inbox:       messaging.FormatPackageInbox(depName),
+					FromAgent:   "coordinator",
+					Category:    changeClass,
+					MessageType: "upgrade-available",
+				}
+				if cascadeErr := cascadePublisher.PublishCascade(ctx, msgID, attrs, rootRef); cascadeErr != nil {
+					fmt.Printf("%s Cascade publish failed for %s: %v (inbox notification still landed)\n", yellow("⚠"), depName, cascadeErr)
+				} else {
+					fmt.Printf("%s Cascade-topic notification published for %s (root=%s)\n", cyan("→"), depName, rootRef)
+				}
+				cancel()
+			}
 		}
 	}
+}
+
+// newCascadePublisher constructs a Pub/Sub publisher targeting the cascade
+// topic. Returns nil (with no error logged) when running outside cloud mode
+// or when AILANG_CLOUD_PROJECT is unset — the legacy inbox path still fires
+// in those cases. This keeps `ailang publish` working unchanged for local
+// laptop use.
+func newCascadePublisher() *pubsub.Publisher {
+	projectID := os.Getenv("AILANG_CLOUD_PROJECT")
+	if projectID == "" {
+		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+	}
+	if projectID == "" {
+		return nil
+	}
+	prefix := os.Getenv("AILANG_TOPIC_PREFIX")
+	if prefix == "" {
+		prefix = pubsub.DefaultTopicPrefix
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	client, err := pubsub.NewClient(ctx, projectID, prefix)
+	if err != nil {
+		fmt.Printf("%s Cascade publisher init failed: %v (continuing without cascade topic)\n", yellow("⚠"), err)
+		return nil
+	}
+	return pubsub.NewPublisher(client)
 }

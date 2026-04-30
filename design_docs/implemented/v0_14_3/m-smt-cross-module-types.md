@@ -1,6 +1,6 @@
 # M-SMT-CROSS-MODULE-TYPES: Z3 Cross-Module Type Resolution
 
-**Status**: Planned
+**Status**: IMPLEMENTED
 **Target**: v0.10.0
 **Priority**: P1 (Medium)
 **Estimated**: 3-4 days (~24 hours implementation + testing)

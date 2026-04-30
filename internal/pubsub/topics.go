@@ -10,7 +10,13 @@ const (
 	TopicCompletions = "completions" // Task completion notifications
 	TopicEvents      = "events"      // Real-time dashboard/laptop event streaming
 	TopicDeadLetter  = "dead-letter" // Failed message sink
+	TopicCascade     = "cascade"     // Authoritative package cascade triggers (M-PKG-AUTONOMOUS-CASCADE-SAFE M2)
 )
+
+// SourceCascade is the value for the "source" message attribute on
+// cascade-topic publishes. Agents check this against the message they
+// receive to decide whether to act on a bump request.
+const SourceCascade = "cascade"
 
 // Subscription base names. The full name is "{prefix}-{base}".
 const (

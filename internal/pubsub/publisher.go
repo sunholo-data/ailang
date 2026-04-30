@@ -59,6 +59,43 @@ func (p *Publisher) PublishMessage(ctx context.Context, messageID string, attrs 
 	return nil
 }
 
+// PublishCascade publishes a cascade-trigger notification to the cascade topic.
+// (M-PKG-AUTONOMOUS-CASCADE-SAFE M2) The cascade topic's publish IAM is
+// restricted to the coordinator service account at the GCP layer, so this
+// method's success implicitly proves the caller is authorized — a stranger
+// via the public MCP cannot reach this topic.
+//
+// Stamps `source=cascade` and `root_package=<vendor>/<name>@<version>` as
+// message attributes alongside the standard inbox routing fields. The
+// receiving pkg-* agent's pkg-update.md template uses {{.Source}} to
+// distinguish authoritative bumps from public-routed feedback.
+func (p *Publisher) PublishCascade(ctx context.Context, messageID string, attrs MessageAttributes, rootPackage string) error {
+	payload, err := json.Marshal(MessageNotification{MessageID: messageID})
+	if err != nil {
+		return fmt.Errorf("marshal cascade notification: %w", err)
+	}
+
+	// Stamp the source so the receiving template guard can recognize it.
+	// We always force this regardless of what the caller passed; cascade
+	// topic publishes are authoritative bumps by construction.
+	attrs.Source = SourceCascade
+
+	attrMap := attrs.ToMap()
+	if rootPackage != "" {
+		attrMap["root_package"] = rootPackage
+	}
+
+	result := p.topic(TopicCascade).Publish(ctx, &gpubsub.Message{
+		Data:        payload,
+		Attributes:  attrMap,
+		OrderingKey: attrs.Inbox, // Cascade messages to same dependent in order
+	})
+	if _, err := result.Get(ctx); err != nil {
+		return fmt.Errorf("publish cascade notification (id=%s, root=%s): %w", messageID, rootPackage, err)
+	}
+	return nil
+}
+
 // PublishTask publishes a task dispatch to the tasks topic.
 // This triggers a Cloud Run Job via Eventarc to execute the task.
 func (p *Publisher) PublishTask(ctx context.Context, taskID, agentID, workspace, provider string) error {
