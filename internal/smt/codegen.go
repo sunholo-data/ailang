@@ -212,7 +212,7 @@ func EncodeFunction(
 		// Add extra declarations (inline record types from ADT constructor fields)
 		if len(opts) > 0 {
 			for _, decl := range opts[0].ExtraDeclarations {
-				sortName := extractSortNameFromDecl(decl)
+				sortName := ExtractSortNameFromDecl(decl)
 				if sortName != "" && ctx.DeclaredTypes[sortName] {
 					continue
 				}
@@ -428,8 +428,9 @@ func EncodeFunction(
 	return result, nil
 }
 
-// extractSortNameFromDecl extracts the sort name from a "(declare-datatype SortName ...)" string.
-func extractSortNameFromDecl(decl string) string {
+// ExtractSortNameFromDecl extracts the sort name from a "(declare-datatype SortName ...)" string.
+// Exported so cmd/ailang/verify.go can filter ExtraDeclarations per-function.
+func ExtractSortNameFromDecl(decl string) string {
 	const prefix = "(declare-datatype "
 	if !strings.HasPrefix(decl, prefix) {
 		return ""
@@ -523,7 +524,7 @@ func declReferencesUndeclaredSort(decl string, ctx *SMTContext) bool {
 	if !strings.HasPrefix(decl, "(declare-datatype ") {
 		return false
 	}
-	sortName := extractSortNameFromDecl(decl)
+	sortName := ExtractSortNameFromDecl(decl)
 	constructors := extractConstructorNames(decl)
 	refs := sortRefPattern.FindAllString(decl, -1)
 	for _, ref := range refs {
@@ -563,7 +564,7 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 	// in this batch — those must be checked positionally.
 	declaredInBatch := make(map[string]bool)
 	for _, decl := range decls {
-		if name := extractSortNameFromDecl(decl); name != "" {
+		if name := ExtractSortNameFromDecl(decl); name != "" {
 			declaredInBatch[name] = true
 		}
 	}
@@ -579,7 +580,7 @@ func validateDeclarations(decls []string, ctx *SMTContext) error {
 			// Non-datatype declarations (declare-const, define-const, etc.) are fine
 			continue
 		}
-		sortName := extractSortNameFromDecl(decl)
+		sortName := ExtractSortNameFromDecl(decl)
 		constructors := extractConstructorNames(decl)
 		refs := sortRefPattern.FindAllString(decl, -1)
 		for _, ref := range refs {

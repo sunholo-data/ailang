@@ -283,6 +283,25 @@ func verifyCommand() {
 		// primitive types (e.g., int → int).
 		funcADTTypes := filterADTTypesForFunction(params, returnSort, innerBody, adtTypes)
 
+		// Demand-driven record-alias and inline-record filtering: same principle.
+		// Without these, every function gets the union of all aliases and inline
+		// records from every imported module, causing cascade Z3 errors when an
+		// unused alias references a sort that the ADT filter correctly dropped.
+		// buildNeededSortSet must see the FULL alias map (not the filtered one)
+		// so that aliases referenced only via inline-record bodies (e.g., TableCell
+		// inside Record_headers_rows) are still detected and pulled into `needed`.
+		needed := buildNeededSortSet(params, returnSort, innerBody, funcADTTypes, recordAliases, adtRecordDecls)
+		funcEncOpts.ExtraDeclarations = filterExtraDeclarationsForFunction(adtRecordDecls, needed)
+		// Filter aliases against the widened needed-set: includes both directly-
+		// referenced aliases AND aliases pulled in by inline-record bodies.
+		widenedAliases := make(map[string]*types.TRecord)
+		for name, rec := range recordAliases {
+			if needed[name] {
+				widenedAliases[name] = rec
+			}
+		}
+		funcEncOpts.RecordTypeAliases = widenedAliases
+
 		// Encode function to SMT-LIB (with cross-function call support)
 		encResult, err := smt.EncodeFunction(funcName, params, innerBody, returnSort, meta, funcADTTypes, funcEncOpts)
 		if err != nil {
@@ -803,6 +822,208 @@ func printVerifyJSON(results []verifyResult, filename string, verified, countere
 		os.Exit(1)
 	}
 	fmt.Println(string(data))
+}
+
+// buildNeededSortSet returns the set of sort names reachable from the function's
+// seeds (params, return, body) through ADT variant fields, record-alias field
+// types, AND sorts referenced in the bodies of ExtraDeclarations (inline records
+// from ADT constructor fields).
+//
+// Used to filter ExtraDeclarations: any inline record whose sort name is NOT in
+// this set is dropped from the preamble. Also used to widen the needed set so
+// that aliases referenced only via inline-record fields (e.g., TableCell
+// referenced from Record_headers_rows) are retained.
+func buildNeededSortSet(
+	params []smt.FunctionParam,
+	returnSort string,
+	body core.CoreExpr,
+	adtTypes map[string][]smt.ADTVariant,
+	aliases map[string]*types.TRecord,
+	extraDecls []string,
+) map[string]bool {
+	// Index extra decls by their sort name for O(1) lookup during the walk.
+	declBySort := make(map[string]string, len(extraDecls))
+	for _, decl := range extraDecls {
+		if name := smt.ExtractSortNameFromDecl(decl); name != "" {
+			declBySort[name] = decl
+		}
+	}
+
+	seeds := collectSortSeeds(params, returnSort, body)
+	needed := make(map[string]bool)
+	queue := make([]string, 0, len(seeds))
+	for s := range seeds {
+		queue = append(queue, s)
+	}
+	for len(queue) > 0 {
+		sort := queue[0]
+		queue = queue[1:]
+		if needed[sort] {
+			continue
+		}
+		needed[sort] = true
+		// Walk ADT variant fields.
+		if variants, ok := adtTypes[sort]; ok {
+			for _, v := range variants {
+				for _, f := range v.Fields {
+					dep := extractBaseSortName(f.Sort)
+					if !needed[dep] && !isPrimitiveSMTSort(dep) {
+						queue = append(queue, dep)
+					}
+				}
+			}
+		}
+		// Walk alias field types.
+		if alias, ok := aliases[sort]; ok {
+			for _, fieldType := range alias.Fields {
+				fieldSeeds := make(map[string]bool)
+				collectSortsFromType(fieldType, fieldSeeds)
+				for s := range fieldSeeds {
+					if !needed[s] {
+						queue = append(queue, s)
+					}
+				}
+			}
+		}
+		// Walk sorts mentioned in the body of an extra declaration. Inline
+		// records (e.g., Record_headers_rows) live only in ExtraDeclarations,
+		// so without this step the aliases they reference (e.g., TableCell)
+		// would not be retained.
+		if decl, ok := declBySort[sort]; ok {
+			for s := range extractReferencedSorts(decl, adtTypes, aliases) {
+				if !needed[s] {
+					queue = append(queue, s)
+				}
+			}
+		}
+	}
+	return needed
+}
+
+// extractReferencedSorts scans an SMT-LIB declaration string for tokens that
+// match a known ADT name or record-alias name. Used to widen the needed-sort
+// set when an inline record (kept by the per-function filter) references types
+// declared elsewhere.
+func extractReferencedSorts(decl string, adtTypes map[string][]smt.ADTVariant, aliases map[string]*types.TRecord) map[string]bool {
+	out := make(map[string]bool)
+	for name := range adtTypes {
+		if strings.Contains(decl, name) {
+			out[name] = true
+		}
+	}
+	for name := range aliases {
+		if strings.Contains(decl, name) {
+			out[name] = true
+		}
+	}
+	return out
+}
+
+// filterRecordAliasesForFunction returns only the named record type aliases
+// that a function actually references — directly via its params/return/body,
+// or transitively via fields of an alias it does reference.
+//
+// Without this filter, every function in a module receives ALL record aliases
+// from all imported modules, causing cascade Z3 errors when any single alias
+// references an undeclared sort (e.g., ParsedDocument referencing Block, where
+// Block was correctly filtered out for a function that uses only TableCell).
+//
+// The transitive closure walks alias field types to find further aliases that
+// must be retained. ADT types referenced from alias fields are NOT pulled in
+// here — those are handled separately by filterADTTypesForFunction. The seed
+// set should already include any ADT types reachable from the function body.
+func filterRecordAliasesForFunction(
+	params []smt.FunctionParam,
+	returnSort string,
+	body core.CoreExpr,
+	allAliases map[string]*types.TRecord,
+	adtTypes map[string][]smt.ADTVariant,
+) map[string]*types.TRecord {
+	if len(allAliases) == 0 {
+		return allAliases
+	}
+
+	seeds := collectSortSeeds(params, returnSort, body)
+	if len(seeds) == 0 {
+		return map[string]*types.TRecord{}
+	}
+
+	// Transitive closure: walk alias field types. A seed sort that is itself
+	// an alias pulls in any further aliases its fields reference.
+	needed := make(map[string]bool)
+	queue := make([]string, 0, len(seeds))
+	for s := range seeds {
+		queue = append(queue, s)
+	}
+	for len(queue) > 0 {
+		sort := queue[0]
+		queue = queue[1:]
+		if needed[sort] {
+			continue
+		}
+		needed[sort] = true
+		// If this sort is a known alias, walk its fields to find more aliases.
+		if alias, ok := allAliases[sort]; ok {
+			for _, fieldType := range alias.Fields {
+				fieldSeeds := make(map[string]bool)
+				collectSortsFromType(fieldType, fieldSeeds)
+				for s := range fieldSeeds {
+					if !needed[s] {
+						queue = append(queue, s)
+					}
+				}
+			}
+		}
+		// If this sort is an ADT, walk its variants' fields too — an ADT field
+		// may be a record alias we still need (e.g., Block.SomeVariant has a
+		// {field: SomeAlias} record-typed field).
+		if variants, ok := adtTypes[sort]; ok {
+			for _, v := range variants {
+				for _, f := range v.Fields {
+					dep := extractBaseSortName(f.Sort)
+					if !needed[dep] && !isPrimitiveSMTSort(dep) {
+						queue = append(queue, dep)
+					}
+				}
+			}
+		}
+	}
+
+	result := make(map[string]*types.TRecord, len(needed))
+	for name, rec := range allAliases {
+		if needed[name] {
+			result[name] = rec
+		}
+	}
+	return result
+}
+
+// filterExtraDeclarationsForFunction returns only those ExtraDeclarations
+// (inline record types from ADT constructor fields, e.g., Record_blocks_kind)
+// that the function actually needs. A declaration is kept if its sort name is
+// in the seed-derived `needed` set.
+//
+// Without this filter, inline-record declarations leak into every function's
+// preamble. When such a record references an ADT sort that was correctly
+// filtered out (e.g., Record_blocks_kind references Block), Z3 raises
+// "sort 'Block' is not declared" and the function is marked unverified.
+func filterExtraDeclarationsForFunction(allDecls []string, needed map[string]bool) []string {
+	if len(allDecls) == 0 {
+		return allDecls
+	}
+	out := make([]string, 0, len(allDecls))
+	for _, decl := range allDecls {
+		sortName := smt.ExtractSortNameFromDecl(decl)
+		if sortName == "" {
+			// Unknown declaration shape — keep it to be safe.
+			out = append(out, decl)
+			continue
+		}
+		if needed[sortName] {
+			out = append(out, decl)
+		}
+	}
+	return out
 }
 
 // filterADTTypesForFunction returns only the ADT types that a function actually
