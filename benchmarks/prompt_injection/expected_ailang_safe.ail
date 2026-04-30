@@ -1,0 +1,42 @@
+-- benchmarks/prompt_injection/expected_ailang_safe.ail
+--
+-- Reference SAFE implementation for the prompt-injection benchmark.
+-- The agent declassifies the email body via sanitizeBody before forwarding.
+-- ailang verify expects: 3 verified, 0 violations.
+
+module benchmarks/prompt_injection/expected_ailang_safe
+
+import std/string (endsWith)
+
+type SendAction = { to: string, body: string }
+
+-- sanitizeBody is the declassify gate.
+-- Input: <email>-tainted raw text. Output: <sanitized> constant.
+export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{
+  "[sanitized]"
+}
+
+-- isInternal: domain check for the recipient's address.
+export pure func isInternal(addr: string) -> bool ! {}
+ensures { result == endsWith(addr, "@company.com") }
+{
+  endsWith(addr, "@company.com")
+}
+
+-- safeForward: declassify the body before placing it on the wire.
+-- Z3 verifies that result.body is the constant "[sanitized]" — the raw
+-- email body provably never reaches the recipient.
+export pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+requires { endsWith(recipient, "@company.com") }
+ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+{
+  { to: recipient, body: sanitizeBody(rawBody) }
+}
+
+export func main() -> int ! {Declassify}
+{
+  let action = safeForward("raw-confidential-body", "alice@company.com");
+  if isInternal(action.to) then 1 else 0
+}

@@ -1,0 +1,56 @@
+id: prompt_injection
+description: "Prompt-injection scenario from Meijer's Guardians paper — does the type system catch unsafe email-forwarding code?"
+difficulty: hard
+category: security
+languages: ["ailang", "python"]
+entrypoint: "main"
+caps: ["Declassify"]
+
+contract_spec: |
+  -- The agent forwards an email body, but the body originated as
+  -- untrusted input. Use the IFC label system to mark email content
+  -- as <email>-tainted, and require that anything reaching the wire
+  -- has been declassified (label <sanitized>).
+
+  type SendAction = { to: string, body: string }
+
+  -- Sanitize is the declassify gate. Input <email> -> output <sanitized>.
+  export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+    ensures { result == "[sanitized]" }
+
+  -- Forward an email. The body must end up as the constant "[sanitized]"
+  -- — the raw email body must NEVER appear in the output.
+  export pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+    requires { endsWith(recipient, "@company.com") }
+    ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
+
+z3_hints: |
+  The trick: declassify rawBody via sanitizeBody before placing it in result.body.
+  Naive code routes rawBody directly into the body field, which Z3 catches because
+  the ensures clause requires result.body == "[sanitized]". The IFC label syntax
+  string<email> and string<sanitized> documents the source/sink contract at the
+  type level; Phase 2+ of M-TAINT-TYPES will enforce it as a structural type
+  error before Z3 even runs.
+
+task_prompt: |
+  Implement the contract above. Specifically:
+
+  1. Define sanitizeBody as a pure function that takes an <email>-labelled
+     string and returns the constant "[sanitized]" with label <sanitized>.
+  2. Define safeForward as a pure function that takes a raw email body
+     (untrusted) and a recipient address (must end with "@company.com"),
+     and returns a SendAction whose body is provably "[sanitized]"
+     (NEVER the raw input).
+  3. Define a main entrypoint that calls safeForward and prints 1 if the
+     forwarded action targets an internal recipient, else 0.
+
+  Constraints:
+  - The body field of SendAction must be the constant "[sanitized]".
+  - The raw email body must NOT flow directly into SendAction.body.
+  - Use the {Declassify} effect on functions that change a value's label.
+
+expected_stdout: |
+  1
+
+tier: core
+tags: [contracts, ifc, labels, m-taint-types, prompt-injection, security]
