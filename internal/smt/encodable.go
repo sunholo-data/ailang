@@ -89,11 +89,23 @@ func IsSMTEncodable(funcName string, meta *core.DeclMeta, body core.CoreExpr) (b
 	}
 
 	// Check 6: Encodable types only (no list or unsupported string builtins)
-	if hasUnencodableTypes(body) {
+	if blocker := firstUnencodableBuiltin(body); blocker != "" {
+		// M4: name the specific builtin that blocks encoding so users can
+		// narrow contracts or refactor rather than guessing which call is
+		// the offender. We keep the leading underscore (e.g., `_str_trim`)
+		// so the message matches what users see in source / error logs.
 		reasons = append(reasons, SMTRejectionReason{
 			Code:    RejectUnencodable,
-			Message: fmt.Sprintf("Function %q uses types not encodable in SMT (list, unsupported string operations)", funcName),
-			Hint:    "Use int, float, bool, string, records, or enum ADTs. Avoid list operations and _str_trim/_str_upper/_str_lower.",
+			Message: fmt.Sprintf("Function %q uses an unencodable builtin: %s", funcName, blocker),
+			Hint:    fmt.Sprintf("Z3 has no SMT-LIB encoding for %s. Either remove its use, refactor to use a supported builtin, or narrow the function's contracts.", blocker),
+		})
+	} else if hasUnencodableTypes(body) {
+		// Fallback: the body has an unencodable shape (e.g., core.Array)
+		// that isn't a named builtin. Keep the generic message.
+		reasons = append(reasons, SMTRejectionReason{
+			Code:    RejectUnencodable,
+			Message: fmt.Sprintf("Function %q uses types not encodable in SMT", funcName),
+			Hint:    "Use int, float, bool, string, records, or enum ADTs.",
 		})
 	}
 
@@ -545,6 +557,140 @@ func walkForUnencodableTypes(expr core.CoreExpr) bool {
 	default:
 		return false
 	}
+}
+
+// firstUnencodableBuiltin walks the body and returns the FIRST builtin name
+// (e.g., `_str_trim`, `_str_upper`) that has no SMT-LIB encoding. Returns ""
+// if no such builtin appears (the body may still be unencodable for other
+// reasons — see hasUnencodableTypes).
+//
+// This powers M4's named skip messages: instead of "list, unsupported string
+// operations" we surface "_str_trim" so users know what to fix.
+func firstUnencodableBuiltin(expr core.CoreExpr) string {
+	if expr == nil {
+		return ""
+	}
+	switch e := expr.(type) {
+	case *core.VarGlobal:
+		if e.Ref.Module == "$builtin" && isUnencodableBuiltin(e.Ref.Name) {
+			return e.Ref.Name
+		}
+		// Stdlib functions in std/string or std/list without an SMT mapping
+		// are also unencodable. Surface them as `module.name` so users can
+		// trace exactly which call is the blocker.
+		if _, ok := ResolveStdlibToBuiltin(e.Ref.Module, e.Ref.Name); ok {
+			return ""
+		}
+		if e.Ref.Module == "std/string" || e.Ref.Module == "std/list" {
+			return e.Ref.Module + "." + e.Ref.Name
+		}
+		return ""
+	case *core.App:
+		// HOF inlining: lambda + literal-list args don't disqualify the App
+		// itself, but their bodies may still contain unencodable builtins.
+		if _, ok := matchHOFCall(e); ok {
+			for _, arg := range e.Args {
+				if lam, isLam := arg.(*core.Lambda); isLam {
+					if name := firstUnencodableBuiltin(lam.Body); name != "" {
+						return name
+					}
+				} else if name := firstUnencodableBuiltin(arg); name != "" {
+					return name
+				}
+			}
+			return ""
+		}
+		if name := firstUnencodableBuiltin(e.Func); name != "" {
+			return name
+		}
+		for _, arg := range e.Args {
+			if name := firstUnencodableBuiltin(arg); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.If:
+		if name := firstUnencodableBuiltin(e.Cond); name != "" {
+			return name
+		}
+		if name := firstUnencodableBuiltin(e.Then); name != "" {
+			return name
+		}
+		return firstUnencodableBuiltin(e.Else)
+	case *core.Let:
+		if name := firstUnencodableBuiltin(e.Value); name != "" {
+			return name
+		}
+		return firstUnencodableBuiltin(e.Body)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			if name := firstUnencodableBuiltin(b.Value); name != "" {
+				return name
+			}
+		}
+		return firstUnencodableBuiltin(e.Body)
+	case *core.Match:
+		if name := firstUnencodableBuiltin(e.Scrutinee); name != "" {
+			return name
+		}
+		for _, arm := range e.Arms {
+			if name := firstUnencodableBuiltin(arm.Body); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.BinOp:
+		if name := firstUnencodableBuiltin(e.Left); name != "" {
+			return name
+		}
+		return firstUnencodableBuiltin(e.Right)
+	case *core.UnOp:
+		return firstUnencodableBuiltin(e.Operand)
+	case *core.Lambda:
+		return firstUnencodableBuiltin(e.Body)
+	case *core.Record:
+		for _, v := range e.Fields {
+			if name := firstUnencodableBuiltin(v); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.RecordAccess:
+		return firstUnencodableBuiltin(e.Record)
+	case *core.RecordUpdate:
+		if name := firstUnencodableBuiltin(e.Base); name != "" {
+			return name
+		}
+		for _, v := range e.Updates {
+			if name := firstUnencodableBuiltin(v); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.List:
+		for _, elem := range e.Elements {
+			if name := firstUnencodableBuiltin(elem); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.Intrinsic:
+		for _, arg := range e.Args {
+			if name := firstUnencodableBuiltin(arg); name != "" {
+				return name
+			}
+		}
+		return ""
+	case *core.Forall:
+		if name := firstUnencodableBuiltin(e.Lo); name != "" {
+			return name
+		}
+		if name := firstUnencodableBuiltin(e.Hi); name != "" {
+			return name
+		}
+		return firstUnencodableBuiltin(e.Body)
+	}
+	return ""
 }
 
 // isUnencodableBuiltin checks if a $builtin name has no SMT-LIB mapping.
