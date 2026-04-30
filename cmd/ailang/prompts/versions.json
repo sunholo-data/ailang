@@ -528,8 +528,8 @@
     },
     "v0.12.1": {
       "file": "prompts/v0.12.1.md",
-      "hash": "15655485d4ab78751a7c72d09e3ce280405dbde73e3a7c58d23d4ba889377ad5",
-      "description": "Add string interpolation \"${expr}\" as preferred string-building syntax (M-CONCAT-DISAMBIG Phase 1)",
+      "hash": "d45e0ae3096f012ad84a3a99e46da09a0fd6b984c837eecb3f4f381599cb5150",
+      "description": "Add string interpolation \"${expr}\" as preferred string-building syntax (M-CONCAT-DISAMBIG Phase 1) + Rule #3 disambiguation between =-body (let..in) and {}-body (semicolons) per v0.14.2 eval findings",
       "created": "2026-04-20",
       "tags": [
         "production",

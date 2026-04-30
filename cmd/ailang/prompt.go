@@ -96,7 +96,11 @@ func runPrompt() {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
-	if res.MCPNote != "" && os.Getenv("AILANG_MCP_QUIET") == "" {
+	// Suppress the info note when stdout is piped — pipe mode is for scripts,
+	// stderr should only carry errors/warnings. Explicit AILANG_MCP_QUIET=1 also
+	// suppresses; AILANG_MCP_VERBOSE=1 forces the note even in pipe mode for
+	// when an operator wants to see it.
+	if res.MCPNote != "" && os.Getenv("AILANG_MCP_QUIET") == "" && (isStdoutTerminal() || os.Getenv("AILANG_MCP_VERBOSE") != "") {
 		fmt.Fprintf(os.Stderr, "%s prompt source=%s version=%s sha=%s (%s)\n",
 			yellow("note:"), res.Source, res.Version, shortSHA(res.SHA256), res.MCPNote)
 	}
@@ -111,6 +115,18 @@ func shortSHA(s string) string {
 		return s
 	}
 	return s[:7]
+}
+
+// isStdoutTerminal reports whether stdout is a TTY. Used to suppress
+// informational stderr notes (e.g. "cache hit") when the command is piped
+// — scripts capturing stdout shouldn't have to filter benign info out of
+// stderr too.
+func isStdoutTerminal() bool {
+	st, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return st.Mode()&os.ModeCharDevice != 0
 }
 
 // printPromptHelp shows help for the prompt command
