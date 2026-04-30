@@ -1,6 +1,6 @@
 # M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade
 
-**Status**: Planned
+**Status**: Implemented (v0.16.x — see [retro](/docs/guides/autonomous-package-updates))
 **Target**: v0.16.0
 **Priority**: P0 (unlocks public claim about autonomous package updates; closes a small but real attack surface on the public MCP)
 **Estimated**: 1.5–2 days, ~150 LOC code + Terraform + scripts
