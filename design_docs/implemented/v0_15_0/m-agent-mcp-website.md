@@ -1,6 +1,6 @@
 # M-AGENT-MCP: Remote MCP Server for ailang.sunholo.com
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x
 **Priority**: P1 (Strategic — directly serves Axiom A7 "Machines First")
 **Estimated**: 7.5 days

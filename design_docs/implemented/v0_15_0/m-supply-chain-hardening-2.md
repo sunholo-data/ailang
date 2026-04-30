@@ -1,6 +1,6 @@
 # M-SUPPLY-CHAIN-HARDENING-2 — second pass on Scorecard findings
 
-**Status**: planned (M6 partially shipped; M1–M5 pending)
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x
 **Predecessor**: [M-SUPPLY-CHAIN-HARDENING](../../implemented/v0_14_1/m-supply-chain-hardening.md) (v0.14.1)
 **Companion docs**:

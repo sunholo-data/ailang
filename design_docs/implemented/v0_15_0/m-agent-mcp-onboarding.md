@@ -1,6 +1,6 @@
 # M-AGENT-MCP-ONBOARDING: Fix broken indexes + add install/onboarding tools
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x (follow-up to M-AGENT-MCP)
 **Priority**: P1 (closes a regression + ships the most-asked-for missing capability)
 **Estimated**: 1.5 days, ~420 LOC

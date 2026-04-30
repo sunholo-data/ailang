@@ -1,6 +1,6 @@
 # M-MCP-EDGE-THROTTLE: Per-IP rate limiting for the public MCP endpoint
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.x
 **Priority**: P1 (defense-in-depth for the public unauthenticated MCP surface; pairs with M-FEEDBACK-TRIAGE-GATE)
 **Estimated**: see "Two paths" below — fast path is ~1h, full path is ~1 day

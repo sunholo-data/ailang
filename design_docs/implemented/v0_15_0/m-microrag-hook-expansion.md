@@ -1,6 +1,6 @@
 # M-MICRORAG-HOOK-EXPANSION: μRAG hook coverage across harnesses + UserPromptSubmit
 
-**Status**: Planned
+**Status**: Implemented (v0.15.0)
 **Target**: v0.15.0 (M1 + M2), v0.15.x (M3 follow-up)
 **Priority**: P3 (Quality-of-life — μRAG is functional today; this expands signal coverage)
 **Estimated**: 2 days for M1+M2 (frontend wiring + UserPromptSubmit). M3 is open-ended.
