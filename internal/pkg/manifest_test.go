@@ -460,3 +460,62 @@ func TestManifest_MapModuleToImportPath(t *testing.T) {
 		t.Errorf("expected 'sunholo/docparse/services/api', got %q", got)
 	}
 }
+
+// TestCascadeConfig_Parse verifies the [cascade] max_cost_usd section
+// (M-PKG-AUTONOMOUS-CASCADE-SAFE M3) round-trips through TOML and that
+// the EffectiveMaxCostUSD helper applies the default when the section
+// is absent or set to a non-positive value.
+func TestCascadeConfig_Parse(t *testing.T) {
+	cases := []struct {
+		name string
+		toml string
+		want float64
+	}{
+		{
+			name: "explicit override",
+			toml: `[package]
+name = "vendor/cap"
+version = "0.1.0"
+edition = "2025"
+[cascade]
+max_cost_usd = 0.50
+`,
+			want: 0.50,
+		},
+		{
+			name: "missing section uses default",
+			toml: `[package]
+name = "vendor/default"
+version = "0.1.0"
+edition = "2025"
+`,
+			want: DefaultCascadeMaxCostUSD,
+		},
+		{
+			name: "zero override falls back to default",
+			toml: `[package]
+name = "vendor/zero"
+version = "0.1.0"
+edition = "2025"
+[cascade]
+max_cost_usd = 0
+`,
+			want: DefaultCascadeMaxCostUSD,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmp := t.TempDir() + "/ailang.toml"
+			if err := os.WriteFile(tmp, []byte(tc.toml), 0644); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			m, err := LoadManifestFile(tmp)
+			if err != nil {
+				t.Fatalf("LoadManifestFile: %v", err)
+			}
+			if got := m.Cascade.EffectiveMaxCostUSD(); got != tc.want {
+				t.Errorf("EffectiveMaxCostUSD: got $%.2f, want $%.2f", got, tc.want)
+			}
+		})
+	}
+}

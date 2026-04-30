@@ -23,6 +23,39 @@ type PackageManifest struct {
 	Effects      EffectConfig           `toml:"effects"`
 	Metadata     map[string]interface{} `toml:"metadata"`
 	Stability    StabilityConfig        `toml:"stability"`
+	Cascade      CascadeConfig          `toml:"cascade"` // M-PKG-AUTONOMOUS-CASCADE-SAFE M3
+}
+
+// CascadeConfig holds the optional [cascade] section in ailang.toml.
+// Used by the cascade scheduler to bound the cumulative cost of an
+// autonomous cascade across the dependent DAG. Default applied when the
+// section is absent: $1.00 USD per cascade root.
+//
+// Example:
+//
+//	[cascade]
+//	max_cost_usd = 0.50  # Cascades rooted at this package abort after $0.50.
+type CascadeConfig struct {
+	// MaxCostUSD is the cumulative cost ceiling for a cascade rooted at
+	// this package. When the cascade scheduler dispatches dependents and
+	// the running per-task cost sum approaches the cap, it aborts further
+	// dispatches with a structured event. 0 = use the default (1.0).
+	MaxCostUSD float64 `toml:"max_cost_usd"`
+}
+
+// DefaultCascadeMaxCostUSD is the cumulative cost ceiling applied when a
+// package's ailang.toml does not specify [cascade] max_cost_usd. Chosen so
+// a typical small cascade (~3-5 dependents) bumps + tests fit comfortably,
+// while a runaway cycle aborts long before cost becomes concerning.
+const DefaultCascadeMaxCostUSD = 1.0
+
+// EffectiveMaxCostUSD returns the per-cascade cost cap to enforce, applying
+// the default when the manifest is silent.
+func (c CascadeConfig) EffectiveMaxCostUSD() float64 {
+	if c.MaxCostUSD <= 0 {
+		return DefaultCascadeMaxCostUSD
+	}
+	return c.MaxCostUSD
 }
 
 // PackageInfo holds the [package] section.

@@ -122,3 +122,49 @@ func TestCascadeCircuitBreaker(t *testing.T) {
 		t.Errorf("expected count 0 after reset, got %d", cb.FailureCount())
 	}
 }
+
+// TestCascadeBudget_BasicFlow exercises the per-cascade cumulative cost
+// gate added in M-PKG-AUTONOMOUS-CASCADE-SAFE M3. Charge accumulates,
+// CanDispatch admits while there's headroom and rejects with a structured
+// reason once the cap would be exceeded.
+func TestCascadeBudget_BasicFlow(t *testing.T) {
+	b := NewCascadeBudget(1.00, "cascade-1")
+
+	if ok, _ := b.CanDispatch(0.30); !ok {
+		t.Fatal("first task ($0.30 of $1.00) should be admitted")
+	}
+	b.Charge(0.30)
+
+	if ok, _ := b.CanDispatch(0.40); !ok {
+		t.Fatal("second task ($0.30 + est $0.40 = $0.70 of $1.00) should be admitted")
+	}
+	b.Charge(0.40)
+
+	if ok, reason := b.CanDispatch(0.50); ok {
+		t.Errorf("third task ($0.70 + est $0.50 = $1.20 of $1.00) should be rejected, got admitted")
+	} else if reason == "" {
+		t.Error("rejection reason should be non-empty")
+	}
+
+	if got := b.Used(); got != 0.70 {
+		t.Errorf("Used() = $%.2f, want $0.70", got)
+	}
+	if got := b.AbortedCount(); got != 1 {
+		t.Errorf("AbortedCount() = %d, want 1", got)
+	}
+}
+
+// TestCascadeBudget_DefaultCap verifies a zero/negative cap falls back to
+// the package-level default ($1.00) so callers can pass 0 to mean "use
+// the default" without special-casing at every call site.
+func TestCascadeBudget_DefaultCap(t *testing.T) {
+	b := NewCascadeBudget(0, "cascade-default")
+	if b.MaxCostUSD != 1.0 {
+		t.Errorf("default cap: got $%.2f, want $1.00", b.MaxCostUSD)
+	}
+
+	b2 := NewCascadeBudget(-0.5, "cascade-neg")
+	if b2.MaxCostUSD != 1.0 {
+		t.Errorf("negative cap: got $%.2f, want $1.00", b2.MaxCostUSD)
+	}
+}

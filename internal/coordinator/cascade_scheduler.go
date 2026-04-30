@@ -148,3 +148,80 @@ func (cb *CascadeCircuitBreaker) FailureCount() int {
 	defer cb.mu.Unlock()
 	return cb.failureCount
 }
+
+// CascadeBudget enforces a cumulative cost ceiling across all tasks
+// dispatched as part of a single cascade. It is the second of two cascade-
+// safety primitives (alongside CascadeCircuitBreaker) introduced by
+// M-PKG-AUTONOMOUS-CASCADE-SAFE M3.
+//
+// The cap is sourced from the root package's [cascade] max_cost_usd
+// (defaulting to 1.0) so each package owner controls how expensive a
+// cascade rooted at their package can grow. Per-task hard ceilings (set
+// by the existing budget machinery) are unchanged — this is an
+// additional, cumulative gate.
+type CascadeBudget struct {
+	MaxCostUSD    float64
+	CorrelationID string
+
+	mu           sync.Mutex
+	usedCostUSD  float64
+	abortedCount int
+}
+
+// NewCascadeBudget creates a budget tracker for a single cascade. cap
+// is the cumulative ceiling in USD; pass 0 to use the package default
+// (pkg.DefaultCascadeMaxCostUSD).
+func NewCascadeBudget(cap float64, correlationID string) *CascadeBudget {
+	if cap <= 0 {
+		cap = pkg.DefaultCascadeMaxCostUSD
+	}
+	return &CascadeBudget{MaxCostUSD: cap, CorrelationID: correlationID}
+}
+
+// Charge records the cost of a completed task against the cascade
+// budget. Always succeeds; the per-task cost is tracked even when over
+// budget so the abort message can quote the actual overshoot.
+func (cb *CascadeBudget) Charge(costUSD float64) {
+	if costUSD <= 0 {
+		return
+	}
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	cb.usedCostUSD += costUSD
+}
+
+// CanDispatch returns (true, "") when there is enough budget remaining
+// to cover an estimated next-task cost; otherwise (false, reason) with a
+// structured-event-friendly reason string.
+//
+// The estimated cost is the coordinator's pre-execution estimate (see
+// AnalyzedTask.EstimatedCost); the cap is applied against the running
+// total + estimate so a single task that would push the cascade over
+// budget aborts BEFORE running, not after.
+func (cb *CascadeBudget) CanDispatch(estimatedCostUSD float64) (bool, string) {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	if cb.usedCostUSD+estimatedCostUSD > cb.MaxCostUSD {
+		cb.abortedCount++
+		return false, fmt.Sprintf(
+			"cascade budget exceeded: used $%.4f + est $%.4f > cap $%.2f (cascade %s)",
+			cb.usedCostUSD, estimatedCostUSD, cb.MaxCostUSD, cb.CorrelationID,
+		)
+	}
+	return true, ""
+}
+
+// Used returns the cumulative cost charged so far.
+func (cb *CascadeBudget) Used() float64 {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	return cb.usedCostUSD
+}
+
+// AbortedCount returns the number of dispatch attempts denied by the
+// budget gate.
+func (cb *CascadeBudget) AbortedCount() int {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	return cb.abortedCount
+}
