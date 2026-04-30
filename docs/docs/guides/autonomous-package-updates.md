@@ -159,7 +159,7 @@ Three defenses already in the box:
 - **Per-cascade cumulative budget cap.** Each package owner sets `[cascade] max_cost_usd` in their `ailang.toml` (default $1.00). When the cumulative cost across the cascade DAG approaches the cap, the scheduler aborts further dispatches with a structured event. Per-task hard ceilings (existing budget machinery) are unchanged.
 - **Always-PR.** No package agent auto-merges. A compromised agent can open noisy PRs but cannot land code without a human reviewing.
 
-Future complement: in-language `Net<external>` taint sinks via [M-TAINT-EFFECTS](/design_docs/planned/v0_16_0/m-taint-effects).
+Future complement: in-language `Net<external>` taint sinks via [M-TAINT-TYPES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-taint-types.md).
 
 ### Threat model: drift between intent and act
 
@@ -234,7 +234,7 @@ This guide describes M-PKG-AUTONOMOUS-CASCADE-SAFE. Two larger sprints build on 
 
 ## References
 
-- [M-PKG-AUTONOMOUS-CASCADE-SAFE design doc](/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe)
-- [M-PKG-AUTONOMOUS-UPDATES design doc](/design_docs/implemented/v0_10_0/m-pkg-autonomous-updates) — the v0.10.0 work this validates and secures
+- [M-PKG-AUTONOMOUS-CASCADE-SAFE design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe.md)
+- [M-PKG-AUTONOMOUS-UPDATES design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_10_0/m-pkg-autonomous-updates.md) — the v0.10.0 work this validates and secures
 - [pkg-update.md template](https://github.com/sunholo-data/ailang-multivac/blob/main/config/templates/pkg-update.md) — what the package agent reads
 - [pkg-feedback.md template](https://github.com/sunholo-data/ailang-multivac/blob/main/config/templates/pkg-feedback.md) — what the agent reads for public feedback messages

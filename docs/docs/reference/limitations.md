@@ -10,6 +10,8 @@ This document tracks known limitations, workarounds, and design constraints in A
 
 For features that have been implemented, see [Design Documents](/docs/design-docs).
 
+Last verified against AILANG **v0.14.2**.
+
 ---
 
 ## Type System Limitations
@@ -40,115 +42,170 @@ func factorial(n: int) -> int =
   if n <= 1 then 1 else n * factorial(n - 1)
 ```
 
----
-
-### Polymorphic Arithmetic Operators in Lambdas
-
-**Status**: Known bug — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-poly-arithmetic-fix.md)
-**Affects**: Arithmetic operators (`+`, `-`, `*`, `/`, `%`) inside polymorphic lambdas
-
-**Problem**: Arithmetic operators in lambda bodies panic when called with floats:
-
-```ailang
--- This panics at runtime:
-let add = \x. \y. x + y in
-add(3.14)(2.71)  -- panic: FloatValue, not IntValue
-```
-
-**Why**: Type inference defaults arithmetic operators to `int` (Num typeclass defaulting), but monomorphization runs after defaulting and sees the lambda already typed as `int -> int -> int`.
-
-**What Works**:
-```ailang
--- Comparison operators work:
-let max = \x. \y. if x > y then x else y in
-max(3.14)(2.71)  -- Returns: 3.14
-
--- Direct arithmetic (no lambdas) works:
-let x = 3.14 + 2.71 in x * 2.0  -- Returns: 11.7
-
--- Named functions with explicit types work:
-func addFloat(x: float, y: float) -> float = x + y
-addFloat(3.14, 2.71)  -- Returns: 5.85
-```
-
-**Workaround**: Use named functions with concrete types, or use direct arithmetic without lambdas.
+Named `func` recursion is also supported by `ailang verify` via bounded unrolling
+(`--verify-recursive-depth N`, v0.8.0+).
 
 ---
 
-## Parser & Evaluation Limitations
+### Duplicate Record Types with Identical Fields
 
-### Pattern Guards (Parsed but Not Evaluated)
+**Status**: Known limitation with workarounds
+**Since**: v0.5.10
+**Affects**: Go code generation when multiple record types share identical field structures
 
-**Status**: Known limitation — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-pattern-guards.md)
-
-Pattern guards are syntactically supported but the guard conditions are not evaluated during matching:
+When multiple record types declare the same field names and types, the Go
+codegen may pick the wrong struct because `GetRecordTypeByFields` returns the
+first match:
 
 ```ailang
--- Guards are parsed but conditions are ignored:
-match 5 {
-  x if x > 100 => "over 100",  -- 5 > 100 is false, should skip
-  x if x > 0 => "positive",    -- 5 > 0 is true, should match
-  x => "other"
+-- starmap.ail
+export type Vec3 = { x: float, y: float, z: float }
+
+-- celestial.ail
+export type SystemPos = { x: float, y: float, z: float }
+
+func initSystem() -> StarSystem {
+    { position: { x: 0.0, y: 0.0, z: 0.0 }, ... }
+    -- May generate &Vec3{} instead of &SystemPos{}
 }
--- Expected: "positive"
--- Actual: "over 100" (first pattern matches, guard ignored)
 ```
 
-**Workaround**: Use nested `if` expressions or separate match arms without guards.
+**Workarounds**:
+
+1. **Merge duplicates** if semantically equivalent — keep one type and import it everywhere.
+2. **Rename to be unique** — `GalacticCoord` vs `SystemPos` instead of two `Vec3`-shaped types.
+3. **Add a discriminator field** — e.g. `_tag: string` — to break the structural tie.
+
+**See Also**: [implemented/v0_5_10/m-codegen-nested-record-type.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_10/m-codegen-nested-record-type.md)
+
+---
+
+## Parser Limitations
+
+### If-Else Branches Require Explicit Braces
+
+**Status**: Design constraint (improved error message in v0.5.9)
+**Affects**: Multi-statement branches in if-else expressions
+
+AILANG is not layout-sensitive, so multi-statement branches must be wrapped in
+explicit braces. Without them, only the first `let` is parsed as the branch:
+
+```ailang
+-- Fails:
+if x > maxX then [] else
+    let v = x * 2;
+    let rest = buildList(x + 1, maxX);
+    v :: rest
+-- Error: if-else branches require explicit braces when using let bindings
+```
+
+**Fix**:
+
+```ailang
+if x > maxX then [] else {
+    let v = x * 2;
+    let rest = buildList(x + 1, maxX);
+    v :: rest
+}
+```
+
+Single-expression branches don't need braces.
+
+---
+
+### `match` Inside Block-Body Lambdas in HOF Arguments
+
+**Status**: Known parser bug — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-dx-match-in-hof-block-lambda.md)
+**Affects**: Inline `\x. { ... match ... with ... }` lambdas passed directly to higher-order functions
+
+The parser's nested-delimiter tracking gets confused when a `match ... with`
+expression appears inside a brace-block lambda passed to a HOF:
+
+```ailang
+-- Fails: PAR_UNEXPECTED_TOKEN at 'with'
+let result = flatMap(\item. {
+  let status = match item with
+    | 0 -> Err("zero")
+    | _ -> Ok;
+  [status]
+}, myList)
+```
+
+**Workaround**: Extract the lambda body into a named helper:
+
+```ailang
+let processItem = \item.
+  match item with
+  | 0 -> Err("zero")
+  | _ -> Ok
+
+let result = flatMap(\item. [processItem(item)], myList)
+```
+
+Simple `let` bindings inside block-body lambdas (without `match`) are fine.
 
 ---
 
 ## Language Feature Gaps
 
-### String Interpolation
-
-**Status**: ✅ **Implemented in v0.12.1** as Phase 1 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md). Phase 2 (restricting `++` to lists only) shipped in **v0.13.0**.
-
-Double-quoted strings accept `${expr}` substitution. The parser desugars
-interpolations to `concat_String(..., show(expr), ...)` chains; `show_String`
-is identity so string-typed values are not double-quoted.
-
-```ailang
-let name = "Alice" in
-let age  = 30 in
-println("Hello, ${name}! Next year you will be ${age + 1}.")
--- → Hello, Alice! Next year you will be 31.
-```
-
-Supports nested braces (`${compute({a: 1}.a)}`), escape sequences (`\${literal}`
-→ literal `${literal}`), and arbitrary expressions inside `${...}`. `"..." ++
-show(x)` concatenation still works but is discouraged; Phase 2 of
-M-CONCAT-DISAMBIG (v0.13.0) will restrict `++` to lists only.
-
----
-
 ### Error Propagation Operator (`?`)
 
-**Status**: Not implemented — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-error-propagation.md)
+**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-error-propagation.md)
 
-The `?` operator for early return on errors is planned but not yet available.
+The `?` operator for early return on `Result` errors is designed but not yet
+implemented. For now, use explicit `match` on `Result`:
+
+```ailang
+match readFile(path) {
+  Ok(contents) => process(contents),
+  Err(e) => Err(e)
+}
+```
 
 ---
 
 ### Typed Quasiquotes
 
-**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_7_0/m-quasi-typed-quasiquotes.md)
+**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
 
-Typed quasiquotes for deterministic AST templates and secure string templating are designed but not yet implemented.
+Typed quasiquotes for deterministic AST templates and secure string templating
+are designed but not yet implemented. Use string interpolation (`"${expr}"`,
+v0.12.1+) or `concat([..])` for now.
 
 ---
 
 ### CSP Concurrency
 
-**Status**: Deferred
+**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-csp-session-types.md)
 
-CSP-style concurrency with channels and session types is deferred. AILANG currently focuses on deterministic, single-threaded execution.
+CSP-style concurrency with channels and session types is deferred to v1.0.0+.
+AILANG currently focuses on deterministic, single-threaded execution. The
+runtime does support effect-level concurrency primitives in some contexts (see
+the `Concurrency` effect), but full CSP with session types remains future work.
+
+---
+
+## Recently Resolved
+
+These limitations existed in earlier versions and are now fully resolved.
+Listed for users following older docs:
+
+- **String interpolation** — Implemented in v0.12.1 (`"Hello, ${name}!"`).
+  Phase 2 of [M-CONCAT-DISAMBIG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_13_0/m-concat-disambiguation.md)
+  in v0.13.0 made `++` list-only.
+- **Pattern guards** — Implemented in v0.6.2
+  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_6_2/m-pattern-guards.md)).
+  `match x { x if x > 100 => ..., x if x > 0 => ... }` now evaluates guards
+  correctly.
+- **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
+  ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).
+  `let add = \x. \y. x + y in add(3.14)(2.71)` now returns `5.85`.
 
 ---
 
 ## Notes on Parser Error Messages
 
-Parser errors now include:
+Parser errors include:
 - **Error codes** (e.g., `PAR_UNEXPECTED_TOKEN`)
 - **Precise positions** (file, line, column)
 - **Suggestions** for fixing the error

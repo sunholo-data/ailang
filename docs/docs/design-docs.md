@@ -8,16 +8,49 @@ sidebar_position: 100
 This page is automatically generated from the [design_docs/implemented](https://github.com/sunholo-data/ailang/tree/dev/design_docs/implemented) directory. Each design document describes a feature, bug fix, or architectural decision that has been implemented.
 
 
+## v0.16.x
+
+- [Sprint Plan: M-PKG-AUTONOMOUS-CASCADE-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe-sprint-plan.md)
+- [M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe.md)
+
+## v0.15.x
+
+- [Sprint Plan: M-CI-BUILD-SPEED (Cut multivac CI from ~25min to ~5min)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed-sprint-plan.md)
+- [M-CI-BUILD-SPEED: Cut multivac build time from ~25min to ~5min](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed.md)
+
 ## v0.15.1
 
 - [M-BRAIN-BOOTSTRAP: `ailang micro-rag bootstrap` for fresh installs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_1/m-brain-bootstrap.md)
 
 ## v0.15.0
 
+- [Sprint Plan: M-AGENT-MCP-ONBOARDING (Fix broken indexes + install/onboarding tools)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-agent-mcp-onboarding-sprint-plan.md)
+- [M-AGENT-MCP-ONBOARDING: Fix broken indexes + add install/onboarding tools](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-agent-mcp-onboarding.md)
+- [Sprint Plan: M-AGENT-MCP (Remote MCP Server for ailang.sunholo.com)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-agent-mcp-sprint-plan.md)
+- [M-AGENT-MCP: Remote MCP Server for ailang.sunholo.com](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-agent-mcp-website.md)
 - [Sprint Plan: M-BRAIN-MICRORAG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-brain-microrag-sprint-plan.md)
 - [M-BRAIN-MICRORAG: Micro-RAG — Just-in-Time Knowledge Injection on Tool Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-brain-microrag.md)
+- [M-EVAL-CROSS-HARNESS: Cross-Harness Benchmark Comparison](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-eval-cross-harness-comparison.md)
+- [M-EVAL-CROSS-HARNESS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-eval-cross-harness-sprint-plan.md)
+- [Sprint Plan: M-EVAL-LANG-JSGO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)
+- [Sprint Plan: M-EVAL-LANGREG (Language Registry)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-eval-langreg-sprint-plan.md)
 - [Sprint Plan: M-EXEC-EXPAND (Codex + opencode Executors)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode-sprint-plan.md)
 - [M-EXEC-EXPAND: Codex + opencode Executors (Uniform CLI-Subprocess Shape)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-exec-expand-codex-opencode.md)
+- [M-EXECUTOR-VARIANTS: Per-Agent Executor Image Variants](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-executor-variants.md)
+- [M-MCP-EDGE-THROTTLE: Per-IP rate limiting for the public MCP endpoint](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-mcp-edge-throttle.md)
+- [Sprint Plan: M-MICRORAG-EXPAND (μRAG hook coverage expansion)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-microrag-hook-expansion-sprint-plan.md)
+- [M-MICRORAG-HOOK-EXPANSION: μRAG hook coverage across harnesses + UserPromptSubmit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-microrag-hook-expansion.md)
+- [M-OLLAMA-LOCAL-EVAL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-ollama-local-eval-sprint-plan.md)
+- [M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-ollama-local-eval.md)
+- [CII Best Practices badge — submission scratch](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-supply-chain-hardening-2-cii-answers.md)
+- [CII Silver tier — feasibility triage](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-supply-chain-hardening-2-cii-silver.md)
+- [M-SUPPLY-CHAIN-HARDENING-2 — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-supply-chain-hardening-2-sprint-plan.md)
+- [M-SUPPLY-CHAIN-HARDENING-2 — second pass on Scorecard findings](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_0/m-supply-chain-hardening-2.md)
+
+## v0.14.3
+
+- [M-SMT-CROSS-MODULE-TYPES — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_3/m-smt-cross-module-types-sprint-plan.md)
+- [M-SMT-CROSS-MODULE-TYPES: Z3 Cross-Module Type Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_14_3/m-smt-cross-module-types.md)
 
 ## v0.14.2
 
@@ -906,4 +939,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 668 design documents across 76 versions.*
+*Generated at build time. 692 design documents across 79 versions.*

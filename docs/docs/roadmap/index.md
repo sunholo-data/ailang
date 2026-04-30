@@ -14,6 +14,7 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 - [M-EXECUTOR-VARIANTS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-executor-variants-sprint-plan.md)
 - [M-EXECUTOR-VARIANTS: Per-Agent Docker Image Variants](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-executor-variants.md)
+- [M-PROCESS-MODES: Replay-Contract Modes for the Process Effect](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-process-modes.md)
 
 ## Planned for v1.0.0
 
@@ -23,22 +24,26 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-DX-PACKAGE-DOGFOODING: DX Issues Found Building AILANG Packages in AILANG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-dx-package-dogfooding.md)
 - [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
 - [M-ENTROPY: Semantic Entropy Budgets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-entropy-budgets.md)
+- [M-EU-COMPLIANCE-EFFECTS: Regulatory Trigger Effects for Agentic Systems](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-eu-compliance-effects.md)
 - [M-PERF4: Bytecode Interpreter (Stretch Goal)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-perf4-bytecode-interpreter.md)
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.16.0
+
+- [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-agent-safe-runner.md)
+- [M-TAINT-TYPES: Value-Labelled Information-Flow Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-taint-types.md)
+
 ## Planned for v0.15.0
 
 - [M-BENCHMARK-SECTION: Multi-Page Benchmark Section for AILANG Website](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-benchmark-section-redesign.md)
-- [M-EVAL-CROSS-HARNESS: Cross-Harness Benchmark Comparison](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-cross-harness-comparison.md)
-- [M-EVAL-CROSS-HARNESS Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-cross-harness-sprint-plan.md)
-- [Sprint Plan: M-EVAL-LANG-JSGO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-lang-jsgo-sprint-plan.md)
-- [Sprint Plan: M-EVAL-LANGREG (Language Registry)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-langreg-sprint-plan.md)
+- [M-EVAL-GAP-FIXES: Eval-discovered AILANG and harness improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-gap-fixes.md)
 - [M-EVAL-RESULTS-FOLDER-STRUCTURE: Model-First Eval Results Layout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-results-folder-structure.md)
-- [M-EXECUTOR-VARIANTS: Per-Agent Executor Image Variants](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-executor-variants.md)
-- [M-OLLAMA-LOCAL-EVAL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval-sprint-plan.md)
-- [M-OLLAMA-LOCAL-EVAL: Local Model Eval Harness Adaptation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-ollama-local-eval.md)
+- [M-EVAL-TRUST-SIGNALS: External Trust Signals for AILANG Eval Results](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-eval-trust-signals.md)
+- [M-FEEDBACK-TRIAGE-GATE: Cost & abuse gate for the public feedback → agent pipeline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-feedback-triage-gate.md)
+- [Sprint Plan: M-PKG-FEEDBACK-LOOP (Test + activate per-package feedback + macOS notifier)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-pkg-feedback-loop-sprint-plan.md)
+- [M-PKG-FEEDBACK-LOOP: Validate the per-package feedback loop end-to-end](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_15_0/m-pkg-feedback-loop.md)
 
 ## Planned for v0.13.0
 
@@ -97,7 +102,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-PROTOCOL-SUPPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-protocol-support-sprint-plan.md)
 - [M-PROVENANCE: Code Provenance Tracing & Agent Trace Export](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-provenance-tracing.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-reflect-structural-reflection.md)
-- [M-SMT-CROSS-MODULE-TYPES: Z3 Cross-Module Type Resolution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-smt-cross-module-types.md)
 - [M-TASK-GRAPH-SPANS-UNIFICATION: Fix TaskHierarchyGraph Filtering](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-task-graph-spans-unification.md)
 - [M-TYPEENV-SUB: TypeEnv Substitution Gap — ADT Return Types Lost in Cross-Module Exports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-typeenv-sub-fix.md)
 - [M-UI-REFACTOR: Refactor UI Folder for AI-Friendly File Sizes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_13_0/m-ui-refactor-ai-friendly.md)
@@ -125,4 +129,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 87 planned features across 5 upcoming versions.*
+*Generated at build time. 88 planned features across 6 upcoming versions.*
