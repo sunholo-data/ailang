@@ -25,6 +25,10 @@ func pkgCascadeCommand(args []string) error {
 		fmt.Println()
 		fmt.Println("Example:")
 		fmt.Println("  ailang pkg cascade status sunholo/test_pkg@0.0.4")
+		fmt.Println()
+		fmt.Println("See also:")
+		fmt.Println("  ailang pkg history     — version-by-version timeline of one package")
+		fmt.Println("  ailang pkg provenance  — detailed per-version publish provenance")
 		return nil
 	default:
 		return fmt.Errorf("unknown pkg cascade subcommand %q (try `ailang pkg cascade --help`)", args[0])
