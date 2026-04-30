@@ -390,6 +390,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			Content:       msg.Content,
 			Type:          analyzed.Type,
 			Kind:          kind,
+			Source:        msg.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: cascade-vs-public topic origin (CLOUD path was missing this — caused empty {{.Source}} in pkg-update.md template, which made the cascade guard wrongly reject valid cascade messages)
 			Priority:      CalculatePriority(analyzed),
 			Status:        TaskStatusPending,
 			Workspace:     workspace,
