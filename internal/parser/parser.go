@@ -9,10 +9,11 @@ import (
 
 // Parser parses AILANG source code into an AST
 type Parser struct {
-	l         *lexer.Lexer
-	curToken  lexer.Token
-	peekToken lexer.Token
-	errors    []error
+	l          *lexer.Lexer
+	curToken   lexer.Token
+	peekToken  lexer.Token
+	peek2Token lexer.Token // 2nd lookahead — used by parseLabelOrRefinementSuffix
+	errors     []error
 
 	// Pratt parsing
 	prefixParseFns map[lexer.TokenType]prefixParseFn
@@ -117,9 +118,10 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(lexer.DOT, p.parseRecordAccess)
 	p.registerInfix(lexer.LARROW, p.parseSendExpression)
 
-	// Read two tokens to set curToken and peekToken
-	p.nextToken()
-	p.nextToken()
+	// Read three tokens to prime curToken, peekToken, and peek2Token
+	p.nextToken() // peek2Token ← first token from lexer
+	p.nextToken() // peekToken  ← peek2Token (first), peek2Token ← second
+	p.nextToken() // curToken   ← peekToken (first), peekToken ← second, peek2Token ← third
 
 	return p
 }
@@ -194,7 +196,8 @@ func (p *Parser) reportSugarError(sugarName, example, canonical string) {
 
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
-	p.peekToken = p.l.NextToken()
+	p.peekToken = p.peek2Token
+	p.peek2Token = p.l.NextToken()
 }
 
 func (p *Parser) curTokenIs(t lexer.TokenType) bool {
@@ -203,6 +206,10 @@ func (p *Parser) curTokenIs(t lexer.TokenType) bool {
 
 func (p *Parser) peekTokenIs(t lexer.TokenType) bool {
 	return p.peekToken.Type == t
+}
+
+func (p *Parser) peek2TokenIs(t lexer.TokenType) bool {
+	return p.peek2Token.Type == t
 }
 
 func (p *Parser) expectPeek(t lexer.TokenType) bool {

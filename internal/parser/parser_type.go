@@ -218,6 +218,9 @@ func (p *Parser) parseType() ast.Type {
 	}
 
 checkArrow:
+	// M-TAINT-TYPES: Check for label suffix T<label> or refinement T{not IDENT}
+	typ = p.parseLabelOrRefinementSuffix(typ)
+
 	// S-ARROWTYPE: Check for function type arrow (int -> bool)
 	if p.peekTokenIs(lexer.ARROW) {
 		startPos := typ.Position()
@@ -791,5 +794,108 @@ func (p *Parser) parseDeriveName() ast.DeriveKind {
 	default:
 		p.report("PAR_DERIVING_UNSUPPORTED", "unsupported deriving: "+name+", only 'Eq' is currently supported", "Use 'Eq'")
 		return ast.DeriveNone
+	}
+}
+
+// parseLabelOrRefinementSuffix attempts to parse a label or refinement suffix
+// after the primary type has been parsed:
+//
+//	T<label>     → LabelledType{Base: T, Label: &LabelExpr{Name: label}}
+//	T{not IDENT} → LabelledType{Base: T, Refinement: &RefinementExpr{NotLabel: IDENT}}
+//
+// Unsupported forms ({!label}, {label=...}, {not a && not b}) produce structured
+// parse errors with a hint pointing to the MVP grammar.
+// The cursor is assumed to be AT the last token of the base type on entry.
+func (p *Parser) parseLabelOrRefinementSuffix(base ast.Type) ast.Type {
+	if base == nil {
+		return base
+	}
+	pos := base.Position()
+
+	// T<label> — label annotation
+	if p.peekTokenIs(lexer.LT) {
+		p.nextToken() // advance: cur = LT
+		if !p.peekTokenIs(lexer.IDENT) {
+			p.report("PAR_LABEL_IDENT_EXPECTED",
+				"expected label name after '<' in label annotation",
+				"Use T<label> syntax, e.g. string<email>")
+			return base
+		}
+		p.nextToken() // cur = IDENT (label name)
+		labelName := p.curToken.Literal
+		if !p.expectPeek(lexer.GT) {
+			p.report("PAR_LABEL_GT_EXPECTED",
+				"expected '>' to close label annotation",
+				"Close label with '>': string<email>")
+			return base
+		}
+		// cur = GT
+		return &ast.LabelledType{
+			Base:  base,
+			Label: &ast.LabelExpr{Name: labelName, Pos: pos},
+			Pos:   pos,
+		}
+	}
+
+	// T{not IDENT} — refinement annotation.
+	// Use 2-token lookahead: only enter this path when {not follows the base type,
+	// so function body braces (-> T { body }) are never misidentified.
+	// Unsupported forms ({!label}, {not a && not b}, {label=...}) are also caught here.
+	if p.peekTokenIs(lexer.LBRACE) {
+		// Safe to enter the refinement path if:
+		//   peek=LBRACE and peek2=NOT  → valid or invalid refinement form
+		//   peek=LBRACE and peek2=BANG → {!...} error form, still ours to diagnose
+		//
+		// Everything else (peek2=IDENT, peek2=whatever) means this is a record
+		// literal or function body — don't touch it.
+		if !p.peek2TokenIs(lexer.NOT) && !p.peek2TokenIs(lexer.BANG) {
+			return base
+		}
+
+		p.nextToken() // cur = LBRACE
+
+		if p.peekTokenIs(lexer.NOT) {
+			p.nextToken() // cur = NOT
+			if !p.peekTokenIs(lexer.IDENT) {
+				p.report("PAR_REFINE_IDENT_EXPECTED",
+					"expected label name after 'not' in refinement",
+					"Use T{not LABEL} syntax, e.g. string{not email} — MVP grammar: only 'not IDENT' is supported")
+				p.skipToRBrace()
+				return base
+			}
+			p.nextToken() // cur = IDENT (label name)
+			labelName := p.curToken.Literal
+			if p.peekTokenIs(lexer.RBRACE) {
+				p.nextToken() // cur = RBRACE
+				return &ast.LabelledType{
+					Base:       base,
+					Refinement: &ast.RefinementExpr{NotLabel: labelName, Pos: pos},
+					Pos:        pos,
+				}
+			}
+			// Something follows the label before } — conjunction or other unsupported form
+			p.report("PAR_REFINE_MVP",
+				"unsupported refinement form — MVP grammar only supports 'not IDENT'",
+				"Use T{not LABEL} with a single label, e.g. string{not email}. Conjunctions like {not a && not b} are not supported in MVP.")
+			p.skipToRBrace()
+			return base
+		}
+
+		// peek2=BANG branch: {!email} — common mistake
+		p.report("PAR_REFINE_BANG",
+			"'!' is not valid in refinements — use the 'not' keyword",
+			"Use T{not LABEL} syntax, e.g. string{not email} (MVP grammar: only 'not IDENT')")
+		p.skipToRBrace()
+		return base
+	}
+
+	return base
+}
+
+// skipToRBrace advances the parser until it finds a RBRACE or EOF,
+// used to recover after a malformed refinement expression.
+func (p *Parser) skipToRBrace() {
+	for !p.curTokenIs(lexer.RBRACE) && !p.curTokenIs(lexer.EOF) {
+		p.nextToken()
 	}
 }

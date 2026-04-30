@@ -103,3 +103,44 @@ func (t *TypeApp) String() string {
 }
 func (t *TypeApp) Position() Pos { return t.Pos }
 func (t *TypeApp) typeNode()     {}
+
+// --- IFC label syntax (M-TAINT-TYPES) ---
+
+// LabelExpr is the label constant in T<label> syntax.
+type LabelExpr struct {
+	Name string
+	Pos  Pos
+}
+
+// RefinementExpr is the {not LABEL} refinement constraint on a type.
+// MVP: only `not IDENT` is supported.
+type RefinementExpr struct {
+	NotLabel string // the label name that must NOT be present
+	Pos      Pos
+}
+
+// LabelledType wraps any type with an optional label and/or refinement.
+// Exactly one of Label or Refinement is non-nil (or both could be nil if only
+// the base is retained after desugaring, but the parser always sets at least one).
+//
+//	string<email>   → LabelledType{Base: SimpleType{"string"}, Label: &LabelExpr{"email"}}
+//	string{not pii} → LabelledType{Base: SimpleType{"string"}, Refinement: &RefinementExpr{"pii"}}
+type LabelledType struct {
+	Base       Type
+	Label      *LabelExpr      // set for T<label> syntax
+	Refinement *RefinementExpr // set for T{not IDENT} syntax
+	Pos        Pos
+}
+
+func (t *LabelledType) String() string {
+	base := t.Base.String()
+	if t.Label != nil {
+		return fmt.Sprintf("%s<%s>", base, t.Label.Name)
+	}
+	if t.Refinement != nil {
+		return fmt.Sprintf("%s{not %s}", base, t.Refinement.NotLabel)
+	}
+	return base
+}
+func (t *LabelledType) Position() Pos { return t.Pos }
+func (t *LabelledType) typeNode()     {}
