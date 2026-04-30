@@ -443,6 +443,9 @@ func main() {
 	case "ai-check":
 		aiCheckCommand()
 
+	case "policy-check":
+		policyCheckCommand()
+
 	case "examples":
 		examplesCommand(flag.Args()[1:])
 

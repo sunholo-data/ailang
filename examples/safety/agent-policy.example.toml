@@ -1,0 +1,32 @@
+# Example policy for the M-AGENT-SAFE-RUNNER pattern.
+# Operator-authored; pinned at deploy time. The submitted .ail program's
+# entry-function effect row must be a subset of `allowed_caps`.
+
+# Capabilities the program is permitted to declare. Empty list = deny-all.
+allowed_caps = ["Net"]
+
+# Filesystem root exported as AILANG_FS_SANDBOX at run time.
+# The static gate does not enforce this; the runtime FS effect handler does.
+fs_sandbox = "/tmp/agent-work"
+
+# Hostname allowlist for the Net effect handler.
+net_allow = ["api.example.com"]
+
+# Hard timeout in milliseconds.
+timeout_ms = 5000
+
+# Reject submissions larger than this many bytes before typechecking.
+max_source_bytes = 65536
+
+# AI provider mode: "stub" (deterministic) or a model name.
+ai_provider = "stub"
+
+# Exported function the runner will invoke.
+entry = "main"
+
+# Per-effect operation budgets (runtime enforced).
+# NOTE: Tables MUST come last in TOML — anything below is folded into them.
+[budgets]
+Net = 100
+FS = 0
+IO = 50

@@ -1,0 +1,18 @@
+-- Demo for M-AGENT-SAFE-RUNNER (planned v0.16.0).
+--
+-- An adversarial agent might try to "smuggle" effects by omitting them
+-- from the signature. AILANG's typechecker rejects this BEFORE the policy
+-- gate runs — the signature literally cannot lie.
+--
+-- This is the property that makes admission control adversarial-safe.
+-- Without it, every dynamic language has to either (a) run the program
+-- and trap, or (b) use partial static analysis with false negatives.
+
+module examples/safety/lying_signature
+
+import std/fs (writeFile)
+
+-- DECLARES no effects, but body needs FS. Typechecker rejects.
+export func main() -> () {
+  writeFile("/tmp/oops", "")
+}
