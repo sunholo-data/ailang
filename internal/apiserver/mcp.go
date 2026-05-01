@@ -262,10 +262,18 @@ func (ms *MCPServer) RunStdio(ctx context.Context) error {
 }
 
 // HTTPHandler returns an HTTP handler for the MCP server using streamable HTTP transport.
+//
+// Stateless: true disables Mcp-Session-Id validation. Every request gets a
+// fresh temporary session, which means clients holding a stale session ID
+// (e.g. after a Cloud Run revision rolls) no longer get "session not found"
+// 4xx — they just transparently re-handshake. AILANG's MCP tools are all
+// read-only lookups (docs_search, stdlib_modules, benchmark_run, ...), so we
+// don't need server→client requests, which is the only feature stateless
+// mode disables.
 func (ms *MCPServer) HTTPHandler() http.Handler {
 	return mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server { return ms.mcpServer },
-		nil,
+		&mcp.StreamableHTTPOptions{Stateless: true},
 	)
 }
 
