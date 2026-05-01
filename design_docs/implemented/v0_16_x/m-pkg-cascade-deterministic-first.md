@@ -5,12 +5,112 @@
 > classifier (M-PKG-MSG, classifyChange in `internal/messaging/pkg_events.go`) that the
 > cascade flow doesn't yet leverage. Most cascade bumps shouldn't need an AI agent at all.
 
-**Status**: Planned
+**Status**: Implemented (dev only — test+prod pending v0.14.3 release tag)
 **Target**: v0.16.x (follow-up to M-PKG-AUTONOMOUS-CASCADE-SAFE)
 **Priority**: P0 — Routine cascades currently cost $0.10-0.30 + 3min per bump on a
             $0.000 deterministic operation. Also unblocks "no AI for safe bumps" pattern.
 **Estimated**: 2-3 days (~400 LOC)
+**Actual**: ~1 day (~750 LOC, larger than estimate due to schema plumbing across 8 files)
 **Dependencies**: M-PKG-AUTONOMOUS-CASCADE-SAFE (implemented v0.16.x)
+
+## Implementation Report (2026-05-01)
+
+All four phases shipped in 1 day on the dev environment. End-to-end smoke testing
+proved both the deterministic-first path AND the AI escalation path work correctly.
+
+**What shipped:**
+
+| Phase | Commits | Status |
+|-------|---------|--------|
+| 1: Envelope in cascade Pub/Sub data | `96804aec` | ✅ Verified end-to-end on dev |
+| 2: Deterministic dispatch in wrapper | `630507f3` | ✅ PR #12: $0, 7.5s, zero AI |
+| 3: Template variables for AI escalation | `aa763956` (ailang) + `23b4c9b` (multivac) | ✅ PR #11: AI repaired wrap.ail with full hash context |
+| Conservative C-classifier fix | `92576123` | ✅ Committed; class-C smoke deferred (see Known Gaps) |
+
+**Headline metrics from PR #12 (the success-path smoke test, dev environment):**
+
+```
+18:51:23 cascade detected — root=sunholo/test_pkg@0.0.27, change_class=A, dispatch_path=deterministic
+18:51:23 deterministic bump sunholo/test_pkg → 0.0.27 in /workspace/.../ailang.toml
+18:51:24 deterministic ailang lock regenerated
+18:51:26 deterministic ailang check passed
+18:51:26 ✓ deterministic cascade bump succeeded — skipping AI executor
+18:51:26 [coordinator/task-...] [cascade] bump sunholo/test_pkg to 0.0.27
+18:51:28 pushed branch coordinator/task-6c4e8bc2
+18:51:29 opened PR #12: https://github.com/sunholo-data/ailang-packages/pull/12
+18:51:30 task completed (turns=0, tokens=0+0, cost=$0.0000)
+```
+
+| Metric | Before (AI-only) | After (deterministic-first) |
+|---|---|---|
+| Wall time (dispatch → PR) | ~3 minutes | **7.5 seconds** |
+| AI cost per cascade | $0.10–0.30 | **$0.00** |
+| AI tools invoked | 5–12 | **0** |
+| Reliability | model-variance | deterministic Go code |
+
+**Class-A escalation path (PR #11, before fixture fix landed):**
+- Wrapper attempted deterministic bump
+- `ailang.toml` updated, `ailang.lock` regenerated
+- `ailang check` failed (consumer wrap.ail had deprecated `++` on strings)
+- Wrapper escalated to AI with full cascade context (Phase 3 template variables)
+- AI received `{{.RootPackage}}=sunholo/test_pkg@0.0.26`, `{{.FromVersion}}=0.0.25`,
+  `{{.ToVersion}}=0.0.26`, `{{.RootChangeClass}}=A`, full hashes
+- AI repaired `wrap.ail` (converted `++` to `${}` interpolation)
+- PR opened with `[cascade]` title + `cascade` label
+
+This proved the design's escalation semantics: routine bumps are free, breakage
+repair invokes the AI but with rich enough context that even haiku can succeed.
+
+**Code summary (8 files, ~750 LOC):**
+
+| File | Change |
+|------|--------|
+| `internal/pubsub/publisher.go` | New `PublishCascadeWithEnvelope` + `CascadeEnvelopeFields` + `CascadeMessageData`; old `PublishCascade` is now a thin shim |
+| `cmd/ailang/pkg_publish.go` | `mapChangeClassToSchema` (A/B/C), `effectsWidened`, `exportsRemoved`; emit envelope to cascade publisher |
+| `internal/coordinator/pubsub_adapter.go` | Decode envelope from data field with attribute-only fallback; populate Message |
+| `internal/coordinator/watcher.go` | Add 11 cascade fields to `Message` |
+| `internal/coordinator/store.go` | Add 11 cascade fields to `TaskRecord` |
+| `internal/coordinator/store_sqlite.go` | ALTER TABLE for 11 new columns; INSERT writes them |
+| `internal/coordinator/daemon_tasks_polling.go` | Cloud path copies cascade fields msg → task |
+| `internal/coordinator/cloud_dispatcher.go` | DispatchParams gets cascade fields |
+| `internal/dispatch/cloudrun/dispatcher.go` | Inject 7 `AILANG_CASCADE_*` env vars into Cloud Run Job |
+| `cmd/ailang/coordinator_cloud.go` | `classifyDispatchPath` + `deterministicCascadeBump` (~150 LOC); skip AI when deterministic succeeds; skip AGENTS.md injection for cascade tasks |
+| `internal/coordinator/stage_execution.go` | 9 new template variables ({{.RootPackage}}, {{.FromVersion}}, {{.ToVersion}}, etc.) |
+| `internal/storage/firestore/coordinator_convert.go` | Persist + hydrate cascade fields; new `getStringSlice` helper |
+| `ailang-multivac/config/templates/pkg-update.md` | Action-first restructure; uses Phase 3 template variables |
+
+**Known Gaps (deferred):**
+
+1. **Class C smoke test in dev**: the conservative C-classifier fix (`92576123`)
+   is committed but not retested end-to-end because three local `ailang publish`
+   processes from earlier today are stuck in kernel uninterruptible sleep state
+   (network syscalls hung, can't be killed without reboot or sudo). The previous
+   class-A-with-check-failure test (PR #11) exercised the same AI escalation
+   code path the class-C path uses, just with different classification. Risk
+   is low; full retest needed before tag.
+
+2. **Test+prod deployment**: the cascade work is dev-only. Promotion to test
+   requires cutting a v0.14.3 release tag (the `ailang-core-test-release`
+   trigger fires on `^v.*` tags only); prod requires a manual `promote-to-prod`
+   trigger run after that. Multivac config changes (templates, agent
+   registrations) DO promote via `git push origin dev:test/prod` and the
+   `ailang-multivac-config-{test,prod}` triggers.
+
+3. **`*.md` ignore filter on multivac config triggers**: the
+   `ailang-multivac-config-*` triggers ignore `**/*.md`, which incorrectly
+   excludes `config/templates/*.md` (functional config, not docs). Worked
+   around today by manually triggering the build; the filter should be
+   refined to `docs/**/*.md` for the next sprint.
+
+4. **gh CLI absent in agent executor image**: the wrapper opens PRs via
+   GitHub REST API instead. Works fine but means we depend on the API rather
+   than gh's auth/retry logic.
+
+5. **Function-level interface diff**: the classifier compares MODULE exports,
+   not function exports. Removing a function from an unchanged module is
+   classified as C (conservative) but could in principle be class B if the
+   removed function was unused by all consumers. Real function-level diff
+   would need an `interface.json` export listing per-function signatures.
 
 ## Axiom Compliance
 
