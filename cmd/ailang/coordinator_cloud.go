@@ -456,7 +456,9 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 		baseBranch = "main"
 	}
 
-	token := os.Getenv("GITHUB_TOKEN")
+	// Trim whitespace — Secret Manager values sometimes have trailing newlines
+	// which cause net/http to reject the Authorization header outright.
+	token := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
 	if token == "" {
 		fmt.Fprintln(os.Stderr, "execute-job: pr create skipped: GITHUB_TOKEN not set")
 		return
