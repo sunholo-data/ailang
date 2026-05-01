@@ -444,20 +444,38 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 //
 // Mapping:
 //
-//	patch → A (content change only, interface unchanged)
-//	minor → B (interface changed but additively — old exports still present)
-//	major → C (breaking — exports removed OR effects widened)
+//	A → content change only (interface hash unchanged)
+//	B → interface changed AND new module exports added (purely additive at module level)
+//	C → interface hash changed but module exports unchanged or shrunk
+//	    (a function may have been removed/changed; without function-level diff,
+//	    treat conservatively as breaking so the AI is invoked to verify)
 //
-// The local heuristic in emitDependentNotifications already detects interface
-// hash deltas. We refine here using the actual export delta + effect widening.
+// The conservative C-on-any-interface-change rule mirrors the original
+// classifyChange in internal/messaging/pkg_events.go, with B reserved for
+// the rare module-add case the wrapper can prove safe.
 func mapChangeClassToSchema(localClass string, oldInfo, newInfo messaging.PackageVersionInfo) string {
 	if oldInfo.InterfaceHash == "" || oldInfo.InterfaceHash == newInfo.InterfaceHash {
 		return "A" // Content-only change
 	}
-	if effectsWidened(oldInfo.Effects, newInfo.Effects) || exportsRemoved(oldInfo.Exports, newInfo.Exports) {
-		return "C" // Breaking
+	// Effects widening is always breaking (consumers may not declare new effects).
+	if effectsWidened(oldInfo.Effects, newInfo.Effects) {
+		return "C"
 	}
-	return "B" // Additive
+	// Module-level export removal is definitely breaking.
+	if exportsRemoved(oldInfo.Exports, newInfo.Exports) {
+		return "C"
+	}
+	// New modules added with no removals → additive at module level.
+	// Note: this is permissive — a new module could still hide a function-level
+	// removal in an unchanged module. For now we trust the +module case.
+	if len(newInfo.Exports) > len(oldInfo.Exports) {
+		return "B"
+	}
+	// Interface hash changed but module exports list is unchanged. We cannot
+	// distinguish "added function" from "removed function" without a finer
+	// interface diff. Conservative: assume breaking → AI escalates and either
+	// confirms additive (PR opens with no consumer changes) or repairs.
+	return "C"
 }
 
 // effectsWidened mirrors messaging.effectsWidened (which is unexported).
