@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -437,10 +439,15 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 	return branchName, execResult, changedFiles, nil
 }
 
-// openCascadePullRequest opens a PR via `gh pr create` after the wrapper has
-// pushed the agent's branch. Best-effort — if gh isn't available or the PR
-// already exists, we log and continue (the task itself succeeded; the PR is
-// the surfacing mechanism for human review).
+// openCascadePullRequest opens a PR via the GitHub REST API after the wrapper
+// has pushed the agent's branch. Best-effort — if the token is missing, the
+// repo URL isn't a GitHub HTTPS URL, or the PR already exists, we log and
+// continue (the task itself succeeded; the PR is the surfacing mechanism for
+// human review).
+//
+// We use direct REST calls (not the `gh` CLI) because the agent executor image
+// doesn't ship with `gh` installed. GITHUB_TOKEN is already populated for git
+// auth (see Step -1) so we reuse it for the REST call.
 //
 // Cascade context (root_package, root_version) is surfaced via env vars set
 // by the dispatcher; if absent, we open a generic agent-task PR instead.
@@ -449,55 +456,138 @@ func openCascadePullRequest(ctx context.Context, workDir, branchName, taskID, ag
 		baseBranch = "main"
 	}
 
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "execute-job: pr create skipped: GITHUB_TOKEN not set")
+		return
+	}
+
+	// Get the GitHub owner/repo by parsing the remote URL inside workDir.
+	repoOwner, repoName, err := getGitHubOwnerRepo(ctx, workDir)
+	if err != nil || repoOwner == "" || repoName == "" {
+		fmt.Fprintf(os.Stderr, "execute-job: pr create skipped: cannot parse GitHub repo: %v\n", err)
+		return
+	}
+
 	// Detect cascade vs generic agent task from env (set by dispatcher when
 	// the inbound message had source=cascade + root_package attribute).
 	rootPackage := os.Getenv("AILANG_CASCADE_ROOT_PACKAGE")
 	title := fmt.Sprintf("[agent] %s: %s", agentID, taskID)
-	bodyLines := []string{
-		fmt.Sprintf("Autonomous task `%s` completed and pushed by agent `%s`.", taskID, agentID),
-		"",
-		"This PR was opened deterministically by the AILANG coordinator wrapper.",
-		"",
-		fmt.Sprintf("View execution chain: `ailang chains view %s`", taskID),
-	}
+	body := fmt.Sprintf("Autonomous task `%s` completed and pushed by agent `%s`.\n\n"+
+		"This PR was opened deterministically by the AILANG coordinator wrapper.\n\n"+
+		"View execution chain: `ailang chains view %s`", taskID, agentID, taskID)
 	labels := []string{"agent-task"}
 
 	if rootPackage != "" {
 		title = fmt.Sprintf("[cascade] bump %s (%s)", rootPackage, taskID)
-		bodyLines = []string{
-			fmt.Sprintf("Cascade-driven dependency update from `%s`.", rootPackage),
-			"",
-			fmt.Sprintf("Triggered by autonomous task `%s` (agent `%s`).", taskID, agentID),
-			"",
-			"This PR was opened deterministically by the AILANG coordinator wrapper.",
-			"Always-PR is the v1 design — no autonomous merge.",
-			"",
-			fmt.Sprintf("View execution chain: `ailang chains view %s`", taskID),
-		}
+		body = fmt.Sprintf("Cascade-driven dependency update from `%s`.\n\n"+
+			"Triggered by autonomous task `%s` (agent `%s`).\n\n"+
+			"This PR was opened deterministically by the AILANG coordinator wrapper.\n"+
+			"Always-PR is the v1 design — no autonomous merge.\n\n"+
+			"View execution chain: `ailang chains view %s`", rootPackage, taskID, agentID, taskID)
 		labels = []string{"cascade", "agent-task"}
 	}
 
-	args := []string{"pr", "create",
-		"--title", title,
-		"--body", strings.Join(bodyLines, "\n"),
-		"--base", baseBranch,
-		"--head", branchName,
-	}
-	for _, l := range labels {
-		args = append(args, "--label", l)
-	}
-
-	prCmd := exec.CommandContext(ctx, "gh", args...)
-	prCmd.Dir = workDir
-	out, err := prCmd.CombinedOutput()
-	outStr := strings.TrimSpace(string(out))
+	prNum, prURL, err := createGitHubPR(ctx, token, repoOwner, repoName, title, body, branchName, baseBranch)
 	if err != nil {
-		// Common case: gh CLI missing or PR already exists for this branch.
-		// Don't fail the task — the branch push already succeeded.
-		fmt.Fprintf(os.Stderr, "execute-job: gh pr create skipped: %v (output: %s)\n", err, outStr)
+		fmt.Fprintf(os.Stderr, "execute-job: pr create failed: %v\n", err)
 		return
 	}
-	fmt.Printf("execute-job: opened PR: %s\n", outStr)
+	fmt.Printf("execute-job: opened PR #%d: %s\n", prNum, prURL)
+
+	// Best-effort: apply labels in a follow-up call. PR creation succeeded
+	// even if labelling fails.
+	if err := addGitHubLabels(ctx, token, repoOwner, repoName, prNum, labels); err != nil {
+		fmt.Fprintf(os.Stderr, "execute-job: pr labels skipped: %v\n", err)
+	}
+}
+
+// getGitHubOwnerRepo parses `git remote get-url origin` to extract owner/repo
+// for HTTPS GitHub URLs. Returns empty strings + nil error for non-GitHub repos.
+func getGitHubOwnerRepo(ctx context.Context, workDir string) (string, string, error) {
+	out, err := exec.CommandContext(ctx, "git", "-C", workDir, "remote", "get-url", "origin").Output()
+	if err != nil {
+		return "", "", fmt.Errorf("git remote: %w", err)
+	}
+	url := strings.TrimSpace(string(out))
+	// Accept https://github.com/OWNER/REPO[.git] or git@github.com:OWNER/REPO[.git]
+	url = strings.TrimSuffix(url, ".git")
+	for _, prefix := range []string{"https://github.com/", "git@github.com:"} {
+		if strings.HasPrefix(url, prefix) {
+			rest := strings.TrimPrefix(url, prefix)
+			parts := strings.SplitN(rest, "/", 2)
+			if len(parts) == 2 {
+				return parts[0], parts[1], nil
+			}
+		}
+	}
+	return "", "", nil
+}
+
+// createGitHubPR makes a POST /repos/{owner}/{repo}/pulls call.
+// Returns the PR number, its html_url, and any error.
+func createGitHubPR(ctx context.Context, token, owner, repo, title, body, head, base string) (int, string, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/pulls", owner, repo)
+	payload := map[string]string{
+		"title": title,
+		"body":  body,
+		"head":  head,
+		"base":  base,
+	}
+	bodyBytes, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return 0, "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 300 {
+		return 0, "", fmt.Errorf("github api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var prResp struct {
+		Number  int    `json:"number"`
+		HTMLURL string `json:"html_url"`
+	}
+	if err := json.Unmarshal(respBody, &prResp); err != nil {
+		return 0, "", fmt.Errorf("decode pr response: %w", err)
+	}
+	return prResp.Number, prResp.HTMLURL, nil
+}
+
+// addGitHubLabels makes a POST /repos/{owner}/{repo}/issues/{prNum}/labels call.
+// PRs and issues share the labels endpoint.
+func addGitHubLabels(ctx context.Context, token, owner, repo string, prNum int, labels []string) error {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%d/labels", owner, repo, prNum)
+	payload := map[string][]string{"labels": labels}
+	bodyBytes, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(string(bodyBytes)))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("github labels api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
 }
 
 // discoverChangedFilesFromCommit uses ArtifactDiscovery to find files created/modified by the agent.
