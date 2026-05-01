@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.12.1) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.0) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.12.1.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.0.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.12.1.md -->
-<!-- Active Version: v0.12.1 -->
+<!-- Source: prompts/v0.16.0.md -->
+<!-- Active Version: v0.16.0 -->
 
-# AILANG v0.11.4 - AI Teaching Prompt
+# AILANG v0.16.0 - AI Teaching Prompt (with IFC Labels)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -2154,3 +2154,142 @@ When set, all paths are resolved relative to the sandbox root:
 Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
 
 If unset (default), paths resolve normally from the process working directory.
+
+---
+
+# Information-Flow Control with IFC Labels (v0.16.0+)
+
+AILANG supports **information-flow control (IFC) labels** that mark
+strings (and other types) as carrying source-level taint. Labels
+travel with values through the type system and document where text
+is allowed to flow. This is the language-level equivalent of
+"parameterised SQL" — code is separated from data, and the verifier
+proves that untrusted data never reaches a sensitive sink.
+
+## Syntax
+
+| Form               | Meaning                                              |
+|--------------------|------------------------------------------------------|
+| `T<label>`         | A `T` whose data is tainted with constant `<label>`. |
+| `T{not LABEL}`     | A `T` REFINED to refuse values labelled `<LABEL>`.   |
+| `! {Declassify}`   | Function effect: this function changes a label.      |
+
+Examples:
+```ailang
+-- A string carrying the <email> label (untrusted source)
+let body: string<email> = fetchMailBody()
+
+-- A function whose body parameter rejects any <email>-tainted input
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- A declassifier: input <email>, output <sanitized>, declared via Declassify
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{ "[sanitized]" }
+```
+
+## Label Naming Convention
+
+- **lowercase**, single-word labels: `<email>`, `<pii>`, `<secret>`.
+- **kebab-case** for compounds: `<user-input>`, `<sql-text>`, `<raw-html>`.
+- Labels are **structural**, not nominal — `<email>` from one module is
+  the same label as `<email>` from another module.
+- The bottom label `⊥` (untainted) is implicit on any value with no
+  annotation. `<L> ⊔ ⊥ = <L>` (identity), `<L> ⊔ <L> = <L>` (idempotent).
+
+## The DECLASS Rule
+
+To LOWER a value's label (e.g. `<email>` → `<sanitized>`), write a
+function whose **input** has the higher label and whose **output** has
+the lower label, AND declare `! {Declassify}` in the effect row. The
+type checker rejects any other transition.
+
+```ailang
+-- ✅ Allowed: explicit declassifier
+pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+{ "[sanitized]" }
+
+-- ❌ Rejected: function changes label without Declassify
+pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
+{ "[sanitized]" }
+```
+
+## The Sink Rule
+
+A function parameter typed `T{not LABEL}` REJECTS any argument carrying
+the `<LABEL>` annotation in its type. This is how you build sinks that
+provably refuse tainted input.
+
+```ailang
+-- A network sink that refuses anything carrying <email>
+pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+
+-- ✅ Caller passes a declassified value
+sendEmail("alice@company.com", sanitize(rawBody))
+
+-- ❌ Caller passes the raw body — refused at the type level
+sendEmail("alice@company.com", rawBody)  -- string<email> ↛ string{not email}
+```
+
+## Identity Bypass Is Structurally Impossible
+
+Pure operations propagate labels through their result via APP-PURE:
+the output label is the JOIN of all input labels. Identity functions
+(or any function that returns its input) carry the input's label
+forward. There is no way to "wash" a label by routing through a
+trivial function.
+
+```ailang
+let laundered = rawBody;  -- laundered: string<email> (label preserved)
+sendEmail(addr, laundered);  -- still rejected at the sink
+```
+
+## Worked Example: Inbox-Injection
+
+```ailang
+module myapp/agent
+
+import std/string (endsWith)
+
+type SendAction = { to: string, body: string }
+
+-- Declassify: explicit gate from <email> to <sanitized>
+pure func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" }
+{ "[sanitized]" }
+
+-- ✅ Verified: declassifies before sending
+pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+requires { endsWith(recipient, "@company.com") }
+ensures  { result.body == "[sanitized]" }
+{ { to: recipient, body: sanitize(rawBody) } }
+
+-- ❌ Rejected: forwards raw body verbatim — Z3 catches it now,
+-- the type system will catch it once full label enforcement lands.
+pure func injectedForward(rawBody: string<email>, recipient: string) -> SendAction ! {}
+requires { endsWith(recipient, "@company.com") }
+ensures  { result.body == "[sanitized]" }
+{ { to: recipient, body: rawBody } }
+```
+
+`ailang verify` on this module reports: 2 verified (sanitize, safeForward),
+1 violation (injectedForward).
+
+## When to Use Labels
+
+- **Mark sources** of untrusted data: email bodies, HTTP request payloads,
+  user input, file contents from the network.
+- **Mark sinks** that must NOT receive specific labels: `sendEmail`,
+  `executeShell`, `evalSql`, anything that puts data on the wire or into
+  an interpreter.
+- **Always pair declassification with `! {Declassify}`** so reviewers can
+  audit every place a label is lowered.
+
+## What Labels Do NOT Do
+
+- Labels are NOT a runtime check — they have zero runtime cost.
+- Labels do NOT affect the value's representation; `string<email>` is
+  still a plain `string` at runtime.
+- Labels do NOT propagate through impure operations (`! {IO}`,
+  `! {Net}`) — those are assumed to clear the label, since IO sinks
+  are the boundary between in-process trust and the outside world.

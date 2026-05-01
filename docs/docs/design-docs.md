@@ -13,6 +13,11 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-PKG-AUTONOMOUS-CASCADE-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe-sprint-plan.md)
 - [M-PKG-AUTONOMOUS-CASCADE-SAFE: Validate + Harden the Autonomous Package Cascade](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-pkg-autonomous-cascade-safe.md)
 
+## v0.16.0
+
+- [M-TAINT-TYPES — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types-sprint-plan.md)
+- [M-TAINT-TYPES: Value-Labelled Information-Flow Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_0/m-taint-types.md)
+
 ## v0.15.x
 
 - [Sprint Plan: M-CI-BUILD-SPEED (Cut multivac CI from ~25min to ~5min)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed-sprint-plan.md)
@@ -939,4 +944,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 692 design documents across 79 versions.*
+*Generated at build time. 694 design documents across 80 versions.*

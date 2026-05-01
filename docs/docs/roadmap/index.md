@@ -30,10 +30,17 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
+## Planned for v0.17.0
+
+- [M-SMT-CROSS-MODULE-FUNCTIONS: Z3 verification of imported function calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-smt-cross-module-functions.md)
+
+## Planned for v0.16.x
+
+- [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_x/m-pkg-cascade-deterministic-first.md)
+
 ## Planned for v0.16.0
 
 - [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-agent-safe-runner.md)
-- [M-TAINT-TYPES: Value-Labelled Information-Flow Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_0/m-taint-types.md)
 
 ## Planned for v0.15.0
 
@@ -129,4 +136,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 88 planned features across 6 upcoming versions.*
+*Generated at build time. 89 planned features across 8 upcoming versions.*

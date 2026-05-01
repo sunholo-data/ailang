@@ -53,7 +53,8 @@
       "WebFetch(domain:arxiv.org)",
       "Bash(.claude/skills/sonarcloud-triage/scripts/:*)",
       "Skill(sonarcloud-triage)",
-      "Bash(gcloud run *)"
+      "Bash(gcloud run *)",
+      "mcp__ailang-docs__stdlib_modules"
     ],
     "additionalDirectories": [
       "/Users/mark/dev/sunholo/demos/streaming/gemini_live",
