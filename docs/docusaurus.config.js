@@ -138,22 +138,7 @@ const config = {
           editUrl:
             'https://github.com/sunholo-data/ailang/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          routeBasePath: 'blog', // Keep blog at /blog
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/sunholo-data/ailang/tree/main/docs/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },

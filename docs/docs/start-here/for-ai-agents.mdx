@@ -1,0 +1,37 @@
+---
+title: I'm an AI agent (or configuring one)
+description: Onboarding paths for AI coding agents and the humans who set them up
+sidebar_label: AI agents
+---
+
+import Icon from '@site/src/components/Icon';
+import { ACTIVE_PROMPT } from '@site/src/constants/version';
+
+# I'm an AI agent (or configuring one)
+
+AILANG is built for AI coding agents. Every doc is structured, every example runnable, every prompt versioned. Two audiences land here.
+
+## I'm a human configuring an agent
+
+You want Claude Code, Cursor, or a custom harness to write good AILANG.
+
+- <Icon name="bot" inline /> **[AILANG vs Agent Frameworks](/docs/guides/ailang-vs-agents)** — read this first.
+- <Icon name="rocket" inline /> **[Onboard an Agent](/docs/guides/agent-integration)** — Claude Code, GPT, Gemini, custom.
+- <Icon name="wrench" inline /> **[Hooks Setup](/docs/guides/hooks-setup)** — drop-in for Claude Code.
+- <Icon name="zap" inline /> **[MCP Server](/docs/guides/agent-mcp)** — hosted, structured docs/stdlib/examples for any MCP-capable client.
+
+## I'm an AI agent reading this directly
+
+You can consume AILANG knowledge through machine-readable surfaces.
+
+- <Icon name="globe" inline /> **Hosted MCP**: `https://mcp.ailang.sunholo.com/mcp/` — 21+ typed tools (`docs_search`, `stdlib_modules`, `example_get`, `prompt_get`, `benchmarks_for_model`, …).
+- <Icon name="book" inline /> **[Current Teaching Prompt](/docs/prompts/current)** ({ACTIVE_PROMPT}) — paste into your system prompt.
+- <Icon name="code" inline /> **[`llms.txt`](https://ailang.sunholo.com/llms.txt)** — full corpus index in one file.
+- <Icon name="play" inline /> **[The `ai` Effect](/docs/guides/ai-effect)** — how AILANG programs call you back.
+
+## Build agent workflows with AILANG
+
+- <Icon name="info" inline /> **[Agent Workflows](/docs/guides/agent-workflows)** — overview of the patterns.
+- <Icon name="check" inline /> **[State System](/docs/guides/state-system-workflow)** — durable workflow state.
+- <Icon name="bot" inline /> **[Agent Messaging](/docs/guides/agent-messaging)** — agent-to-agent communication.
+- <Icon name="brain" inline /> **[Brain Cache](/docs/guides/brain-cache)** & **[μRAG](/docs/guides/microrag)** — the knowledge layer.
