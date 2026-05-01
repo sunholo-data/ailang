@@ -33,4 +33,16 @@ type DispatchParams struct {
 	BriefID         string  // Brief ID for commit message — M-HARNESS-COMMIT-CONTRACT
 	Subdirectory    string  // Monorepo subdirectory for package agents — M-PKG-AUTONOMOUS-UPDATES
 	ExecutorVariant string  // Docker image variant — M-EXECUTOR-VARIANTS ("", "go", "codex", etc.)
+
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, propagated
+	// from TaskRecord so the Cloud Run Job wrapper can decide deterministic-
+	// bump vs AI-escalation without re-fetching the task. Empty/false for
+	// non-cascade tasks.
+	RootPackage       string
+	RootChangeClass   string
+	FromVersion       string
+	ToVersion         string
+	FromInterfaceHash string
+	ToInterfaceHash   string
+	EffectsWidened    bool
 }

@@ -178,6 +178,43 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			Name: "AILANG_SUBDIRECTORY", Values: &runpb.EnvVar_Value{Value: params.Subdirectory},
 		})
 	}
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope env vars. The Cloud
+	// Run Job wrapper reads these to choose deterministic-bump vs AI-escalation.
+	if params.RootPackage != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_ROOT_PACKAGE", Values: &runpb.EnvVar_Value{Value: params.RootPackage},
+		})
+	}
+	if params.RootChangeClass != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_CHANGE_CLASS", Values: &runpb.EnvVar_Value{Value: params.RootChangeClass},
+		})
+	}
+	if params.FromVersion != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_FROM_VERSION", Values: &runpb.EnvVar_Value{Value: params.FromVersion},
+		})
+	}
+	if params.ToVersion != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_TO_VERSION", Values: &runpb.EnvVar_Value{Value: params.ToVersion},
+		})
+	}
+	if params.FromInterfaceHash != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_FROM_INTERFACE_HASH", Values: &runpb.EnvVar_Value{Value: params.FromInterfaceHash},
+		})
+	}
+	if params.ToInterfaceHash != "" {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_TO_INTERFACE_HASH", Values: &runpb.EnvVar_Value{Value: params.ToInterfaceHash},
+		})
+	}
+	if params.EffectsWidened {
+		envOverrides = append(envOverrides, &runpb.EnvVar{
+			Name: "AILANG_CASCADE_EFFECTS_WIDENED", Values: &runpb.EnvVar_Value{Value: "true"},
+		})
+	}
 	// M-CLOUD-PROGRESS-TRACKING M4: Inject W3C trace context for Cloud Trace linking.
 	// This propagates the coordinator's span context to the Cloud Run Job so
 	// job spans appear as children of the coordinator dispatch span.

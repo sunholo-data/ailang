@@ -143,6 +143,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 				Directive: directive,
 				RepoURL:   deriveRepoURL(task.Workspace),
 				Branch:    task.BaseBranch, // From task record, defaults handled by job
+				// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so the
+				// Cloud Run Job wrapper can decide deterministic-bump vs AI-escalation.
+				RootPackage:       task.RootPackage,
+				RootChangeClass:   task.RootChangeClass,
+				FromVersion:       task.FromVersion,
+				ToVersion:         task.ToVersion,
+				FromInterfaceHash: task.FromInterfaceHash,
+				ToInterfaceHash:   task.ToInterfaceHash,
+				EffectsWidened:    task.EffectsWidened,
 			}
 			// Pass plugin repo from coordinator config (M-CLOUD-PLUGIN-SKILLS, v0.9.1)
 			if d.coordConfig != nil && d.coordConfig.PluginRepo != "" {
