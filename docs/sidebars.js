@@ -122,6 +122,7 @@ const sidebars = {
           type: 'category',
           label: 'Stdlib & Packages',
           items: [
+            'reference/stdlib',
             'guides/packages',
             {
               type: 'doc',
