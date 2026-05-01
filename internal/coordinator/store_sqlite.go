@@ -185,6 +185,20 @@ func (s *SQLiteStore) migrate() error {
 		// Execution chain tracking (M-CHAINS-SIMPLIFY)
 		"ALTER TABLE tasks ADD COLUMN chain_id TEXT",
 		"ALTER TABLE tasks ADD COLUMN stage_id TEXT",
+		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope persisted on
+		// the task so the dispatcher can choose deterministic-bump vs AI
+		// without re-fetching from a separate store.
+		"ALTER TABLE tasks ADD COLUMN root_package TEXT",
+		"ALTER TABLE tasks ADD COLUMN root_change_class TEXT",
+		"ALTER TABLE tasks ADD COLUMN from_version TEXT",
+		"ALTER TABLE tasks ADD COLUMN to_version TEXT",
+		"ALTER TABLE tasks ADD COLUMN from_interface_hash TEXT",
+		"ALTER TABLE tasks ADD COLUMN to_interface_hash TEXT",
+		"ALTER TABLE tasks ADD COLUMN from_content_hash TEXT",
+		"ALTER TABLE tasks ADD COLUMN to_content_hash TEXT",
+		"ALTER TABLE tasks ADD COLUMN effects_widened INTEGER DEFAULT 0",
+		"ALTER TABLE tasks ADD COLUMN prev_effect_ceiling TEXT", // JSON-encoded []string
+		"ALTER TABLE tasks ADD COLUMN new_effect_ceiling TEXT",  // JSON-encoded []string
 	}
 	for _, q := range alterQueries {
 		_, _ = s.db.Exec(q) // Ignore errors - columns may already exist
@@ -206,11 +220,26 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 		capsJSON, _ = json.Marshal(task.Capabilities)
 	}
 
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: serialize effect ceilings as JSON
+	// (SQLite has no native array type; we already use this pattern for
+	// capabilities_json above).
+	var prevEffectsJSON, newEffectsJSON []byte
+	if len(task.PrevEffectCeiling) > 0 {
+		prevEffectsJSON, _ = json.Marshal(task.PrevEffectCeiling)
+	}
+	if len(task.NewEffectCeiling) > 0 {
+		newEffectsJSON, _ = json.Marshal(task.NewEffectCeiling)
+	}
+
 	query := `
 		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, workspace,
 		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo,
-		                   chain_id, stage_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		                   chain_id, stage_id, created_at,
+		                   root_package, root_change_class, from_version, to_version,
+		                   from_interface_hash, to_interface_hash, from_content_hash, to_content_hash,
+		                   effects_widened, prev_effect_ceiling, new_effect_ceiling)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+		        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
@@ -218,6 +247,9 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
 		task.GithubIssue, task.GithubRepo,
 		task.ChainID, task.StageID, task.CreatedAt,
+		task.RootPackage, task.RootChangeClass, task.FromVersion, task.ToVersion,
+		task.FromInterfaceHash, task.ToInterfaceHash, task.FromContentHash, task.ToContentHash,
+		task.EffectsWidened, string(prevEffectsJSON), string(newEffectsJSON),
 	)
 	return err
 }

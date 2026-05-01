@@ -365,8 +365,17 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 		if oldMeta, mErr := client.FetchMetadata(pkgName, oldInfo.Version); mErr == nil && oldMeta != nil {
 			oldInfo.InterfaceHash = oldMeta.InterfHash
 			oldInfo.ContentHash = oldMeta.ContentHash
+			// M-PKG-CASCADE-DETERMINISTIC-FIRST: also pull effects + exports
+			// so the cascade envelope can carry the old/new ceiling deltas
+			// for the cloud coordinator's deterministic dispatcher.
+			oldInfo.Effects = oldMeta.Manifest.EffectsMax
+			oldInfo.Exports = oldMeta.Manifest.Exports
 		}
 	}
+
+	// Populate the new dep's Effects + Exports from the manifest we just published.
+	depEffects := manifest.Effects.Max
+	depExports := manifest.Exports.Modules
 
 	for _, depName := range dependents {
 		recipients := []string{messaging.FormatPackageInbox(depName)}
@@ -375,6 +384,8 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 			Version:       newVersion,
 			InterfaceHash: interfaceHash,
 			ContentHash:   contentHash,
+			Effects:       depEffects,
+			Exports:       depExports,
 		}
 		msgID, err := messaging.EmitUpgradeAvailable(store, oldInfo, depInfo, recipients)
 		if err == nil && msgID != "" {
@@ -399,14 +410,87 @@ func emitDependentNotifications(store *messaging.Store, manifest *pkg.PackageMan
 				Category:    changeClass,
 				MessageType: "upgrade-available",
 			}
-			if cascadeErr := cascadePublisher.PublishCascade(ctx, cascadeMsgID, attrs, rootRef); cascadeErr != nil {
+			// M-PKG-CASCADE-DETERMINISTIC-FIRST: pass the full envelope so the
+			// cloud coordinator can decide deterministic-bump vs AI-escalation
+			// without fetching from a separate store. Map our local change-class
+			// labels to the schema's A/B/C taxonomy.
+			schemaClass := mapChangeClassToSchema(changeClass, oldInfo, depInfo)
+			env := &pubsub.CascadeEnvelopeFields{
+				RootPackage:       rootRef,
+				ChangeClass:       schemaClass,
+				FromVersion:       oldInfo.Version,
+				ToVersion:         depInfo.Version,
+				FromInterfaceHash: oldInfo.InterfaceHash,
+				ToInterfaceHash:   depInfo.InterfaceHash,
+				FromContentHash:   oldInfo.ContentHash,
+				ToContentHash:     depInfo.ContentHash,
+				EffectsWidened:    effectsWidened(oldInfo.Effects, depInfo.Effects),
+				PrevEffectCeiling: oldInfo.Effects,
+				NewEffectCeiling:  depInfo.Effects,
+			}
+			if cascadeErr := cascadePublisher.PublishCascadeWithEnvelope(ctx, cascadeMsgID, attrs, env); cascadeErr != nil {
 				fmt.Printf("%s Cascade publish failed for %s: %v\n", yellow("⚠"), depName, cascadeErr)
 			} else {
-				fmt.Printf("%s Cascade-topic notification published for %s (root=%s)\n", cyan("→"), depName, rootRef)
+				fmt.Printf("%s Cascade-topic notification published for %s (root=%s, class=%s)\n", cyan("→"), depName, rootRef, schemaClass)
 			}
 			cancel()
 		}
 	}
+}
+
+// mapChangeClassToSchema converts the publish-flow change class label
+// ("patch"/"minor"/"major") to the M-PKG-MSG schema taxonomy ("A"/"B"/"C")
+// the cloud coordinator's deterministic dispatcher uses.
+//
+// Mapping:
+//
+//	patch → A (content change only, interface unchanged)
+//	minor → B (interface changed but additively — old exports still present)
+//	major → C (breaking — exports removed OR effects widened)
+//
+// The local heuristic in emitDependentNotifications already detects interface
+// hash deltas. We refine here using the actual export delta + effect widening.
+func mapChangeClassToSchema(localClass string, oldInfo, newInfo messaging.PackageVersionInfo) string {
+	if oldInfo.InterfaceHash == "" || oldInfo.InterfaceHash == newInfo.InterfaceHash {
+		return "A" // Content-only change
+	}
+	if effectsWidened(oldInfo.Effects, newInfo.Effects) || exportsRemoved(oldInfo.Exports, newInfo.Exports) {
+		return "C" // Breaking
+	}
+	return "B" // Additive
+}
+
+// effectsWidened mirrors messaging.effectsWidened (which is unexported).
+// Returns true when newEffects contains any effect not present in oldEffects.
+func effectsWidened(oldEffects, newEffects []string) bool {
+	if len(oldEffects) == 0 && len(newEffects) > 0 {
+		return true
+	}
+	old := make(map[string]bool, len(oldEffects))
+	for _, e := range oldEffects {
+		old[e] = true
+	}
+	for _, e := range newEffects {
+		if !old[e] {
+			return true
+		}
+	}
+	return false
+}
+
+// exportsRemoved returns true when any export from oldExports is missing
+// from newExports (a removal — definitely breaking).
+func exportsRemoved(oldExports, newExports []string) bool {
+	newSet := make(map[string]bool, len(newExports))
+	for _, e := range newExports {
+		newSet[e] = true
+	}
+	for _, e := range oldExports {
+		if !newSet[e] {
+			return true
+		}
+	}
+	return false
 }
 
 // newCascadePublisher constructs a Pub/Sub publisher targeting the cascade

@@ -24,6 +24,22 @@ type Message struct {
 	Iteration    int    // Iteration number for feedback loops (M-TASK-HIERARCHY)
 	ChainID      string // ExecutionChain ID for unified hierarchy (M-CHAINS-SIMPLIFY)
 	CreatedAt    time.Time
+
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, populated
+	// from the Pub/Sub data field when Source=="cascade". Empty strings/false
+	// when the message wasn't a cascade or the publisher used the legacy
+	// pre-envelope cascade publish.
+	RootPackage       string // vendor/name@version
+	RootChangeClass   string // "A" content-only, "B" additive, "C" interface change
+	FromVersion       string
+	ToVersion         string
+	FromInterfaceHash string
+	ToInterfaceHash   string
+	FromContentHash   string
+	ToContentHash     string
+	EffectsWidened    bool
+	PrevEffectCeiling []string
+	NewEffectCeiling  []string
 }
 
 // MessageStore is the interface for accessing messages

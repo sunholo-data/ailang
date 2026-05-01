@@ -59,6 +59,38 @@ func (p *Publisher) PublishMessage(ctx context.Context, messageID string, attrs 
 	return nil
 }
 
+// CascadeEnvelopeFields are the cascade-specific routing/classification fields
+// the coordinator extracts at dispatch time. These map to attributes on the
+// outgoing Pub/Sub message AND get embedded as JSON in the message data field
+// (see PublishCascadeWithEnvelope) so the cloud coordinator can decide whether
+// a deterministic bump is sufficient or AI escalation is needed without having
+// to fetch the full envelope from a separate store.
+//
+// M-PKG-CASCADE-DETERMINISTIC-FIRST.
+type CascadeEnvelopeFields struct {
+	RootPackage       string   `json:"root_package"` // vendor/name@version
+	ChangeClass       string   `json:"change_class"` // "A" (content-only), "B" (additive), "C" (interface change)
+	FromVersion       string   `json:"from_version"`
+	ToVersion         string   `json:"to_version"`
+	FromInterfaceHash string   `json:"from_interface_hash"`
+	ToInterfaceHash   string   `json:"to_interface_hash"`
+	FromContentHash   string   `json:"from_content_hash"`
+	ToContentHash     string   `json:"to_content_hash"`
+	EffectsWidened    bool     `json:"effects_widened"`
+	PrevEffectCeiling []string `json:"prev_effect_ceiling,omitempty"`
+	NewEffectCeiling  []string `json:"new_effect_ceiling,omitempty"`
+}
+
+// CascadeMessageData is the JSON shape of the Pub/Sub message data field
+// for cascade messages. M-PKG-CASCADE-DETERMINISTIC-FIRST: previously this
+// was just `{"message_id": "..."}` (a pointer); now it is self-contained so
+// the cloud coordinator can dispatch deterministically without a separate
+// fetch from an inbox store.
+type CascadeMessageData struct {
+	MessageID string                 `json:"message_id"`
+	Envelope  *CascadeEnvelopeFields `json:"envelope,omitempty"`
+}
+
 // PublishCascade publishes a cascade-trigger notification to the cascade topic.
 // (M-PKG-AUTONOMOUS-CASCADE-SAFE M2) The cascade topic's publish IAM is
 // restricted to the coordinator service account at the GCP layer, so this
@@ -69,10 +101,33 @@ func (p *Publisher) PublishMessage(ctx context.Context, messageID string, attrs 
 // message attributes alongside the standard inbox routing fields. The
 // receiving pkg-* agent's pkg-update.md template uses {{.Source}} to
 // distinguish authoritative bumps from public-routed feedback.
+//
+// For backwards compatibility this method accepts only the basic root_package
+// signal. New code path is PublishCascadeWithEnvelope which carries the full
+// hash + change_class context for deterministic dispatch.
 func (p *Publisher) PublishCascade(ctx context.Context, messageID string, attrs MessageAttributes, rootPackage string) error {
-	payload, err := json.Marshal(MessageNotification{MessageID: messageID})
+	return p.PublishCascadeWithEnvelope(ctx, messageID, attrs, &CascadeEnvelopeFields{RootPackage: rootPackage})
+}
+
+// PublishCascadeWithEnvelope publishes a cascade-trigger notification with the
+// full envelope (hashes, change_class, effect deltas) embedded in the message
+// data field AND surfaced as Pub/Sub attributes. The cloud coordinator can
+// then make deterministic dispatch decisions (deterministic toml bump vs AI
+// escalation) without fetching from a separate store.
+//
+// M-PKG-CASCADE-DETERMINISTIC-FIRST.
+func (p *Publisher) PublishCascadeWithEnvelope(ctx context.Context, messageID string, attrs MessageAttributes, env *CascadeEnvelopeFields) error {
+	if env == nil {
+		env = &CascadeEnvelopeFields{}
+	}
+
+	data := CascadeMessageData{
+		MessageID: messageID,
+		Envelope:  env,
+	}
+	payload, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("marshal cascade notification: %w", err)
+		return fmt.Errorf("marshal cascade message data: %w", err)
 	}
 
 	// Stamp the source so the receiving template guard can recognize it.
@@ -81,8 +136,22 @@ func (p *Publisher) PublishCascade(ctx context.Context, messageID string, attrs 
 	attrs.Source = SourceCascade
 
 	attrMap := attrs.ToMap()
-	if rootPackage != "" {
-		attrMap["root_package"] = rootPackage
+	// Surface envelope fields as attributes too — the cloud coordinator can
+	// route based on these without decoding the data payload (cheap path).
+	if env.RootPackage != "" {
+		attrMap["root_package"] = env.RootPackage
+	}
+	if env.ChangeClass != "" {
+		attrMap["change_class"] = env.ChangeClass
+	}
+	if env.FromVersion != "" {
+		attrMap["from_version"] = env.FromVersion
+	}
+	if env.ToVersion != "" {
+		attrMap["to_version"] = env.ToVersion
+	}
+	if env.EffectsWidened {
+		attrMap["effects_widened"] = "true"
 	}
 
 	result := p.topic(TopicCascade).Publish(ctx, &gpubsub.Message{
@@ -91,7 +160,7 @@ func (p *Publisher) PublishCascade(ctx context.Context, messageID string, attrs 
 		OrderingKey: attrs.Inbox, // Cascade messages to same dependent in order
 	})
 	if _, err := result.Get(ctx); err != nil {
-		return fmt.Errorf("publish cascade notification (id=%s, root=%s): %w", messageID, rootPackage, err)
+		return fmt.Errorf("publish cascade notification (id=%s, root=%s): %w", messageID, env.RootPackage, err)
 	}
 	return nil
 }

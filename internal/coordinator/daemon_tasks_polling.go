@@ -390,7 +390,7 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			Content:       msg.Content,
 			Type:          analyzed.Type,
 			Kind:          kind,
-			Source:        msg.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1: cascade-vs-public topic origin (CLOUD path was missing this — caused empty {{.Source}} in pkg-update.md template, which made the cascade guard wrongly reject valid cascade messages)
+			Source:        msg.Source, // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 			Priority:      CalculatePriority(analyzed),
 			Status:        TaskStatusPending,
 			Workspace:     workspace,
@@ -402,6 +402,20 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			EstimatedCost: analyzed.EstimatedCost,
 			SiteSlug:      siteSlug, // M-HARNESS-COMMIT-CONTRACT
 			BriefID:       briefID,  // M-HARNESS-COMMIT-CONTRACT
+			// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so
+			// the dispatcher can choose deterministic-bump vs AI-escalation
+			// without re-fetching from a separate store.
+			RootPackage:       msg.RootPackage,
+			RootChangeClass:   msg.RootChangeClass,
+			FromVersion:       msg.FromVersion,
+			ToVersion:         msg.ToVersion,
+			FromInterfaceHash: msg.FromInterfaceHash,
+			ToInterfaceHash:   msg.ToInterfaceHash,
+			FromContentHash:   msg.FromContentHash,
+			ToContentHash:     msg.ToContentHash,
+			EffectsWidened:    msg.EffectsWidened,
+			PrevEffectCeiling: msg.PrevEffectCeiling,
+			NewEffectCeiling:  msg.NewEffectCeiling,
 		}
 
 		// Check for duplicates

@@ -58,6 +58,23 @@ type TaskRecord struct {
 	// M-HARNESS-COMMIT-CONTRACT: Website builder metadata from message payload
 	SiteSlug string `json:"site_slug,omitempty"` // Site identifier for commit messages
 	BriefID  string `json:"brief_id,omitempty"`  // Brief identifier for commit messages
+
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope fields, populated when
+	// the inbound message had Source=="cascade" and the publisher embedded the
+	// envelope in the Pub/Sub data field. Empty/false otherwise. Allow the
+	// dispatcher to choose deterministic-bump vs AI-escalation without fetching
+	// the envelope from a separate store.
+	RootPackage       string   `json:"root_package,omitempty"`
+	RootChangeClass   string   `json:"root_change_class,omitempty"` // "A" content-only, "B" additive, "C" interface change
+	FromVersion       string   `json:"from_version,omitempty"`
+	ToVersion         string   `json:"to_version,omitempty"`
+	FromInterfaceHash string   `json:"from_interface_hash,omitempty"`
+	ToInterfaceHash   string   `json:"to_interface_hash,omitempty"`
+	FromContentHash   string   `json:"from_content_hash,omitempty"`
+	ToContentHash     string   `json:"to_content_hash,omitempty"`
+	EffectsWidened    bool     `json:"effects_widened,omitempty"`
+	PrevEffectCeiling []string `json:"prev_effect_ceiling,omitempty"`
+	NewEffectCeiling  []string `json:"new_effect_ceiling,omitempty"`
 }
 
 // TaskStatus represents the lifecycle state of a task

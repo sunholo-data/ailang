@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -44,10 +45,25 @@ func NewPubSubInboxAdapter(subscriber *pubsub.Subscriber, subName, inbox string,
 // or push HTTP endpoint. It decodes the notification, fetches full content from
 // Firestore, and buffers the message for ListUnread().
 func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]string) error {
-	notification, err := pubsub.DecodeMessageNotification(data)
-	if err != nil {
-		a.logger.Printf("PubSubInboxAdapter: failed to decode notification: %v", err)
-		return nil // Return nil to ack — avoid retry loop on bad data.
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade messages now embed the full
+	// envelope in the data field. Try that decode first; fall back to the
+	// legacy notification-only decode if the data isn't an envelope. This
+	// keeps backward compatibility with older publishers.
+	var (
+		notification pubsub.MessageNotification
+		envelope     *pubsub.CascadeEnvelopeFields
+	)
+	var cascadeData pubsub.CascadeMessageData
+	if cdErr := json.Unmarshal(data, &cascadeData); cdErr == nil && cascadeData.MessageID != "" {
+		notification.MessageID = cascadeData.MessageID
+		envelope = cascadeData.Envelope
+	} else {
+		decoded, err := pubsub.DecodeMessageNotification(data)
+		if err != nil {
+			a.logger.Printf("PubSubInboxAdapter: failed to decode notification: %v", err)
+			return nil // Return nil to ack — avoid retry loop on bad data.
+		}
+		notification = decoded
 	}
 
 	msgAttrs := pubsub.AttributesFromMap(attrs)
@@ -66,6 +82,24 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 		// bumps from public-routed feedback.
 		Source:    msgAttrs.Source,
 		CreatedAt: time.Now(),
+	}
+
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: populate cascade envelope fields
+	// from the embedded Pub/Sub data. These let the cloud coordinator make
+	// deterministic dispatch decisions (toml bump vs AI escalation) without
+	// fetching from a separate store.
+	if envelope != nil {
+		msg.RootPackage = envelope.RootPackage
+		msg.RootChangeClass = envelope.ChangeClass
+		msg.FromVersion = envelope.FromVersion
+		msg.ToVersion = envelope.ToVersion
+		msg.FromInterfaceHash = envelope.FromInterfaceHash
+		msg.ToInterfaceHash = envelope.ToInterfaceHash
+		msg.FromContentHash = envelope.FromContentHash
+		msg.ToContentHash = envelope.ToContentHash
+		msg.EffectsWidened = envelope.EffectsWidened
+		msg.PrevEffectCeiling = envelope.PrevEffectCeiling
+		msg.NewEffectCeiling = envelope.NewEffectCeiling
 	}
 
 	// Fetch full message content from Firestore.

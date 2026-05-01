@@ -50,6 +50,18 @@ func taskToMap(t *coordinator.TaskRecord) map[string]interface{} {
 		"peak_memory_mb":   t.PeakMemory,
 		"impact_level":     t.ImpactLevel,
 		"estimated_cost":   t.EstimatedCost,
+		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope persistence
+		"root_package":        t.RootPackage,
+		"root_change_class":   t.RootChangeClass,
+		"from_version":        t.FromVersion,
+		"to_version":          t.ToVersion,
+		"from_interface_hash": t.FromInterfaceHash,
+		"to_interface_hash":   t.ToInterfaceHash,
+		"from_content_hash":   t.FromContentHash,
+		"to_content_hash":     t.ToContentHash,
+		"effects_widened":     t.EffectsWidened,
+		"prev_effect_ceiling": t.PrevEffectCeiling,
+		"new_effect_ceiling":  t.NewEffectCeiling,
 	}
 
 	// Convert capabilities array
@@ -112,6 +124,18 @@ func mapToTask(data map[string]interface{}) *coordinator.TaskRecord {
 		PeakMemory:     getFloat64(data, "peak_memory_mb"),
 		ImpactLevel:    getString(data, "impact_level"),
 		EstimatedCost:  getFloat64(data, "estimated_cost"),
+		// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope hydration
+		RootPackage:       getString(data, "root_package"),
+		RootChangeClass:   getString(data, "root_change_class"),
+		FromVersion:       getString(data, "from_version"),
+		ToVersion:         getString(data, "to_version"),
+		FromInterfaceHash: getString(data, "from_interface_hash"),
+		ToInterfaceHash:   getString(data, "to_interface_hash"),
+		FromContentHash:   getString(data, "from_content_hash"),
+		ToContentHash:     getString(data, "to_content_hash"),
+		EffectsWidened:    getBool(data, "effects_widened"),
+		PrevEffectCeiling: getStringSlice(data, "prev_effect_ceiling"),
+		NewEffectCeiling:  getStringSlice(data, "new_effect_ceiling"),
 	}
 
 	// Convert capabilities array
@@ -285,4 +309,28 @@ func getBool(data map[string]interface{}, key string) bool {
 		return b
 	}
 	return false
+}
+
+// getStringSlice extracts a []string from a Firestore document field that
+// may have arrived as []interface{} (Firestore's native array type) or as
+// a real []string. Returns nil for missing keys (so omitempty JSON works).
+// M-PKG-CASCADE-DETERMINISTIC-FIRST.
+func getStringSlice(data map[string]interface{}, key string) []string {
+	v, ok := data[key]
+	if !ok || v == nil {
+		return nil
+	}
+	switch arr := v.(type) {
+	case []string:
+		return arr
+	case []interface{}:
+		out := make([]string, 0, len(arr))
+		for _, x := range arr {
+			if s, ok := x.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
 }
