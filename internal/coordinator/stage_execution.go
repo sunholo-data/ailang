@@ -218,6 +218,24 @@ func buildTemplateDirective(task *TaskRecord, agent *AgentConfig) string {
 	// to act on a bump request. "cascade" = authoritative; anything else =
 	// public-routed, agent must stop at file-an-issue.
 	result = strings.ReplaceAll(result, "{{.Source}}", task.Source)
+	// M-PKG-CASCADE-DETERMINISTIC-FIRST: cascade envelope variables. Empty
+	// strings for non-cascade tasks (template's {{.RootPackage}} renders
+	// blank; the template should guard on {{.Source}} == "cascade" before
+	// using these). Available to AI escalation prompts so the agent can
+	// repair interface breakages with full hash context.
+	result = strings.ReplaceAll(result, "{{.RootPackage}}", task.RootPackage)
+	result = strings.ReplaceAll(result, "{{.RootChangeClass}}", task.RootChangeClass)
+	result = strings.ReplaceAll(result, "{{.FromVersion}}", task.FromVersion)
+	result = strings.ReplaceAll(result, "{{.ToVersion}}", task.ToVersion)
+	result = strings.ReplaceAll(result, "{{.FromInterfaceHash}}", task.FromInterfaceHash)
+	result = strings.ReplaceAll(result, "{{.ToInterfaceHash}}", task.ToInterfaceHash)
+	if task.EffectsWidened {
+		result = strings.ReplaceAll(result, "{{.EffectsWidened}}", "true")
+	} else {
+		result = strings.ReplaceAll(result, "{{.EffectsWidened}}", "false")
+	}
+	result = strings.ReplaceAll(result, "{{.PrevEffectCeiling}}", strings.Join(task.PrevEffectCeiling, ", "))
+	result = strings.ReplaceAll(result, "{{.NewEffectCeiling}}", strings.Join(task.NewEffectCeiling, ", "))
 
 	return result
 }
