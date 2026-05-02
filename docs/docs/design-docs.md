@@ -22,6 +22,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan: M-CI-BUILD-SPEED (Cut multivac CI from ~25min to ~5min)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed-sprint-plan.md)
 - [M-CI-BUILD-SPEED: Cut multivac build time from ~25min to ~5min](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-ci-build-speed.md)
+- [Sprint Plan: M-SMT-CROSS-MODULE-FUNCTIONS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-smt-cross-module-functions-sprint-plan.md)
+- [M-SMT-CROSS-MODULE-FUNCTIONS: Z3 verification of imported function calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-smt-cross-module-functions.md)
 
 ## v0.15.1
 

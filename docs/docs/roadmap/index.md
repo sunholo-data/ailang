@@ -30,10 +30,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-TYPE-V2-MIGRATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration-sprint-plan.md)
 - [M-TYPE-V2-MIGRATION: Complete TFunc → TFunc2 Type System Migration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-type-v2-migration.md)
 
-## Planned for v0.17.0
-
-- [M-SMT-CROSS-MODULE-FUNCTIONS: Z3 verification of imported function calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_17_0/m-smt-cross-module-functions.md)
-
 ## Planned for v0.16.x
 
 - [M-PKG-CASCADE-DETERMINISTIC-FIRST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_16_x/m-pkg-cascade-deterministic-first.md)
@@ -136,4 +132,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 89 planned features across 8 upcoming versions.*
+*Generated at build time. 88 planned features across 7 upcoming versions.*
