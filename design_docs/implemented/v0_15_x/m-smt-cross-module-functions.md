@@ -1,7 +1,7 @@
 # M-SMT-CROSS-MODULE-FUNCTIONS: Z3 verification of imported function calls
 
-**Status**: Planned
-**Target**: v0.17.0
+**Status**: Implemented
+**Target**: v0.15.x (implemented 2026-05-02)
 **Priority**: P2 — Medium (unblocks several follow-up demos; not on the
 critical path for any current sprint)
 **Estimated**: ~30–50 hours (1–2 sprints)

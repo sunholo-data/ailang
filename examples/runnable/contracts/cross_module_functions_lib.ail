@@ -1,0 +1,32 @@
+-- examples/runnable/contracts/cross_module_functions_lib.ail
+--
+-- Library module for cross_module_functions.ail.
+-- Defines two exported functions:
+--   double     — inlined by the verifier as (define-fun) in callers
+--   sumTo      — recursive; verifier falls back to contract-as-spec
+--
+-- Part of M-SMT-CROSS-MODULE-FUNCTIONS (v0.15.0).
+
+module examples/runnable/contracts/cross_module_functions_lib
+
+-- A simple pure function: double(n) = n + n.
+-- Non-recursive, so the verifier inlines its body as a define-fun
+-- into any caller function, enabling compositional proof.
+export func double(n: int) -> int ! {}
+ensures { result == n + n }
+{
+  n + n
+}
+
+-- Recursive nonneg-clamped sum: sumTo(n) = n + (n-1) + ... + 0.
+-- Because it is self-recursive it cannot be inlined into callers.
+-- The verifier falls back to contract-as-spec: declares a fresh constant
+--   (declare-const $xmod_result_sumTo_0 Int)
+--   (assert (>= $xmod_result_sumTo_0 0))
+-- so callers that only need result >= 0 can still be verified.
+export func sumTo(n: int) -> int ! {}
+requires { n >= 0 }
+ensures  { result >= 0 }
+{
+  if n <= 0 then 0 else n + sumTo(n - 1)
+}

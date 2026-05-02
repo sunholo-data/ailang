@@ -1704,6 +1704,28 @@
       ]
     },
     {
+      "path": "runnable/contracts/cross_module_functions_lib.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "cross-module",
+        "m-smt-cross-module-functions"
+      ],
+      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: library with double (inlineable) and sumTo (recursive, contract fallback)"
+    },
+    {
+      "path": "runnable/contracts/cross_module_functions.ail",
+      "status": "working",
+      "tags": [
+        "contracts",
+        "smt-verification",
+        "cross-module",
+        "m-smt-cross-module-functions"
+      ],
+      "description": "M-SMT-CROSS-MODULE-FUNCTIONS: cross-module function calls verified via inline (define-fun) and contract-as-spec paths (3 verified)"
+    },
+    {
       "path": "runnable/contracts/inbox_v2_lib.ail",
       "status": "working",
       "tags": [
@@ -1730,11 +1752,11 @@
     }
   ],
   "statistics": {
-    "total": 140,
-    "working": 133,
+    "total": 142,
+    "working": 135,
     "aspirational": 4,
     "broken": 3,
-    "coverage": 0.946
+    "coverage": 0.951
   },
   "milestones": {
     "completed": [

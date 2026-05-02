@@ -1,0 +1,58 @@
+-- examples/runnable/contracts/cross_module_functions.ail
+--
+-- Cross-module function verification demonstration (M-SMT-CROSS-MODULE-FUNCTIONS, v0.15.0).
+-- Shows two paths the Z3 verifier uses when callers import functions:
+--
+--   INLINE PATH  — double(n) is pure and non-recursive.
+--                  The verifier emits (define-fun double ...) and proves
+--                  compositional properties across the module boundary.
+--
+--   CONTRACT PATH — sumTo(n) is recursive (cannot be inlined).
+--                   The verifier emits (declare-const $xmod_result_sumTo_0 Int)
+--                   and asserts the callee's ensures clause as an axiom,
+--                   letting callers prove weaker properties that follow from it.
+--
+-- Run:    ailang verify examples/runnable/contracts/cross_module_functions.ail
+-- Expect: 3 verified (quadruple, sumBound, mixed)
+
+module examples/runnable/contracts/cross_module_functions
+
+import examples/runnable/contracts/cross_module_functions_lib (double, sumTo)
+
+-- INLINE PATH: double is inlined as a define-fun.
+-- Z3 sees: double(x) = x + x, so double(double(n)) = 4*n.
+-- Proves result == n * 4.
+export func quadruple(n: int) -> int ! {}
+ensures { result == n * 4 }
+{
+  double(double(n))
+}
+
+-- CONTRACT PATH: sumTo is recursive so it cannot be inlined.
+-- The verifier uses sumTo's ensures { result >= 0 } as an axiom.
+-- From that axiom, result >= 0 follows immediately. Proved.
+export func sumBound(n: int) -> int ! {}
+requires { n >= 0 }
+ensures  { result >= 0 }
+{
+  sumTo(n)
+}
+
+-- MIXED: uses both inline (double) and contract (sumTo).
+-- double is inlined → double(n) = n + n.
+-- sumTo is contract-based → $xmod_result_sumTo_0 >= 0.
+-- result = (n + n) + $xmod_result_sumTo_0 >= n + n >= 0 (for n >= 0).
+-- Z3 proves result >= 0 from those two constraints.
+export func mixed(n: int) -> int ! {}
+requires { n >= 0 }
+ensures  { result >= 0 }
+{
+  double(n) + sumTo(n)
+}
+
+export func main() -> int ! {}
+{
+  let q = quadruple(3);   -- 12
+  let s = sumBound(4);    -- some non-negative value
+  q + s
+}
